@@ -22,12 +22,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
   AutoGrid,
+  Avatar,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
+  ChatComposer,
+  ChatLog,
+  ChatMessage,
   Button,
   Calendar,
   Combobox,
@@ -39,6 +43,7 @@ import {
   ContextMenuTrigger,
   CopyButton,
   CopyField,
+  ColumnChooser,
   CurrencyField,
   DatePicker,
   Dropzone,
@@ -50,8 +55,10 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
   EmptyState,
+  FilterBuilder,
   Inline,
   Kbd,
+  KeyValues,
   ListDetail,
   Nav,
   NavGroup,
@@ -84,7 +91,9 @@ import {
   ToggleGroup,
   ToggleGroupItem,
   VirtualList,
+  type ColumnChooserValue,
   type ComboboxOption,
+  type FilterGroup,
   type IsoDate,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -798,6 +807,41 @@ const feedback: DocPage = {
   ],
 };
 
+const chatPage: DocPage = {
+  slug: 'chat',
+  title: 'Chat',
+  description: 'A conversation: the messages so far, and the box to write the next one.',
+  when: 'An assistant or a thread of replies. The log is a polite live region, so each new message is read aloud once; Enter sends and Shift+Enter is a new line.',
+  importLine: "import { ChatComposer, ChatLog, ChatMessage } from '@reach/ui';",
+  sections: [
+    {
+      id: 'default',
+      title: 'A question and its answer',
+      render: () => (
+        <div className="flex w-full max-w-md flex-col gap-3">
+          <ChatLog label="Conversation with the assistant">
+            <ChatMessage from="self" author="You">
+              Who is on the design team?
+            </ChatMessage>
+            <ChatMessage from="other" author="Assistant" avatar={<Avatar size="sm" name="Assistant" />}>
+              {'Sure! Three people are on the design team:\n• Ada Lovelace\n• Grace Hopper\n• Alan Kay'}
+            </ChatMessage>
+            <ChatMessage from="other" author="Assistant" avatar={<Avatar size="sm" name="Assistant" />} pending />
+          </ChatLog>
+          <ChatComposer label="Ask a question" placeholder="Ask anything…" onSend={() => undefined} />
+        </div>
+      ),
+      code: `<ChatLog label="Conversation with the assistant">
+  <ChatMessage from="self" author="You">Who is on the design team?</ChatMessage>
+  <ChatMessage from="other" author="Assistant" avatar={<Avatar name="Assistant" />}>
+    Sure! Three people are on the design team…
+  </ChatMessage>
+</ChatLog>
+<ChatComposer label="Ask a question" onSend={send} />`,
+    },
+  ],
+};
+
 const clipboard: DocPage = {
   slug: 'clipboard',
   title: 'Clipboard',
@@ -865,6 +909,89 @@ const navPage: DocPage = {
     </NavGroup>
   </NavList>
 </Nav>`,
+    },
+    {
+      id: 'flyout',
+      title: 'Sections on demand',
+      blurb:
+        "`flyout` on a primary item hangs that area's sections beside it instead of in a column that is always open. It opens on hover (with a short delay either way), when the item takes keyboard focus, on ArrowRight, and on the first tap of a touch; Escape or ArrowLeft closes it and returns focus to the item. It renders in place, so Tab goes from the item into its sections, and it keeps working in the collapsed rail. Focus the People item below to open it.",
+      render: () => (
+        <Nav label="Areas" className="w-60">
+          <NavList>
+            <NavItem
+              asChild
+              current
+              flyout={
+                <Nav label="People sections">
+                  <NavList>
+                    <NavGroup label="Records">
+                      {['Overview', 'Directory', 'Approvals'].map((item) => (
+                        <NavItem key={item} asChild level={2} current={item === 'Directory'}>
+                          <a href={`#${item.toLowerCase()}`}>{item}</a>
+                        </NavItem>
+                      ))}
+                    </NavGroup>
+                  </NavList>
+                </Nav>
+              }
+            >
+              <a href="#people">People</a>
+            </NavItem>
+            <NavItem href="#documents">Documents</NavItem>
+          </NavList>
+        </Nav>
+      ),
+      code: `<NavItem
+  asChild
+  icon={<People />}
+  current
+  flyout={
+    <Nav label="People sections">
+      <NavList>
+        <NavItem asChild level={2} current>
+          <Link href="/people/directory">Directory</Link>
+        </NavItem>
+      </NavList>
+    </Nav>
+  }
+>
+  <Link href="/people">People</Link>
+</NavItem>`,
+    },
+  ],
+};
+
+const keyValues: DocPage = {
+  slug: 'key-values',
+  title: 'KeyValues',
+  description: 'What is configured, read back as label and value.',
+  when: 'A summary somebody reads before deciding whether to open a setting and change it. Labels sit above values, so a long value wraps under its own label, and `columns` spreads pairs across the width the container has.',
+  importLine: "import { KeyValues } from '@reach/ui';",
+  sections: [
+    {
+      id: 'default',
+      title: 'In a card',
+      blurb:
+        'A `<dl>`: each label is announced with the value that follows it. Values can be any content, a badge included.',
+      render: () => (
+        <KeyValues
+          columns={2}
+          aria-label="Organisation, now"
+          items={[
+            { label: 'Default time zone', value: 'America/New_York' },
+            { label: 'Smallest group reported', value: '10 people' },
+            { label: 'Legal entities', value: '1' },
+            { label: 'Work locations', value: '6' },
+          ]}
+        />
+      ),
+      code: `<KeyValues
+  columns={2}
+  items={[
+    { label: 'Default time zone', value: 'America/New_York' },
+    { label: 'Smallest group reported', value: '10 people' },
+  ]}
+/>`,
     },
   ],
 };
@@ -1193,20 +1320,112 @@ const dropzone: DocPage = {
   ],
 };
 
+/* ------------------------------------------------------------------ data -- */
+
+const columnChooser: DocPage = {
+  slug: 'column-chooser',
+  title: 'Column chooser',
+  description: 'Which columns a table shows, and in what order, as one list.',
+  when: 'A table with more columns than most readers want at once. It is controlled and remembers nothing: where a choice is kept is the application’s decision.',
+  importLine: "import { ColumnChooser } from '@reach/ui';",
+  sections: [
+    {
+      id: 'default',
+      title: 'Default',
+      tall: true,
+      blurb:
+        'The identity column is `locked`: always shown, never moved. The trigger carries the count, because a popover hides its state.',
+      render: function ColumnChooserDemo(): JSX.Element {
+        const columns = [
+          { id: 'name', label: 'Name', locked: true },
+          { id: 'title', label: 'Job title' },
+          { id: 'team', label: 'Team' },
+          { id: 'location', label: 'Location' },
+          { id: 'start', label: 'Start date' },
+        ];
+        const [value, setValue] = useState<ColumnChooserValue>({
+          order: columns.map((c) => c.id),
+          visible: ['name', 'title', 'team'],
+        });
+        return <ColumnChooser columns={columns} value={value} onChange={setValue} />;
+      },
+      code: `const [value, setValue] = useState({ order: ids, visible: ['name', 'title'] });
+
+<ColumnChooser columns={columns} value={value} onChange={setValue} onReset={reset} />`,
+    },
+  ],
+};
+
+const filterBuilder: DocPage = {
+  slug: 'filter-builder',
+  title: 'Filter builder',
+  description: 'Conditions a reader can check by reading them: field, operator, value, all or any.',
+  when: 'More than two or three filters, or filters that need an operator ("between", "is any of"). One or two equality filters are a Select each in the toolbar.',
+  importLine: "import { FilterBuilder, isConditionComplete } from '@reach/ui';",
+  sections: [
+    {
+      id: 'default',
+      title: 'Default',
+      tall: true,
+      blurb:
+        'Presentational: the application supplies the fields and the operators it honours, and decides when a change applies. Values are canonical strings, never labels.',
+      render: function FilterBuilderDemo(): JSX.Element {
+        const [value, setValue] = useState<FilterGroup>({
+          match: 'all',
+          conditions: [{ id: 'c1', field: 'team', operator: 'in', values: ['engineering'] }],
+        });
+        return (
+          <div className="w-full max-w-2xl">
+            <FilterBuilder
+              value={value}
+              onChange={setValue}
+              fields={[
+                {
+                  id: 'team',
+                  label: 'Team',
+                  operators: [{ id: 'in', label: 'is any of', value: 'options' }],
+                  options: [
+                    { value: 'engineering', label: 'Engineering' },
+                    { value: 'research', label: 'Research' },
+                  ],
+                },
+                {
+                  id: 'start',
+                  label: 'Start date',
+                  operators: [{ id: 'between', label: 'is between', value: 'date-range' }],
+                },
+              ]}
+            />
+          </div>
+        );
+      },
+      code: `<FilterBuilder
+  fields={[{ id: 'team', label: 'Team', operators: [{ id: 'in', label: 'is any of', value: 'options' }], options }]}
+  value={value}
+  onChange={setValue}
+/>`,
+    },
+  ],
+};
+
 /* ------------------------------------------------------------------ index -- */
 
 export const MORE_PAGES: readonly DocPage[] = [
   alertDialog,
   breadcrumb,
   calendar,
+  chatPage,
   clipboard,
+  columnChooser,
   combobox,
   contextMenu,
   datePicker,
   dropdownMenu,
   dropzone,
   feedback,
+  filterBuilder,
   kbd,
+  keyValues,
   layout,
   navPage,
   listDetail,

@@ -1,5 +1,6 @@
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
   Dialog,
@@ -122,173 +123,187 @@ function Inbox({
 }): JSX.Element {
   const [deciding, setDeciding] = useState<{ item: ApprovalItem; approve: boolean } | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
+  // One table, grouped by employee: a long inbox reads person by person.
+  const groups = [
+    ...state.items
+      .reduce(
+        (m, item) => m.set(item.personId, [...(m.get(item.personId) ?? []), item]),
+        new Map<string, ApprovalItem[]>(),
+      )
+      .entries(),
+  ];
+  const row = (item: ApprovalItem): JSX.Element => {
+    const field = asField(item);
+    return (
+      <TableRow key={item.id}>
+        <TableCell>
+          <span className="flex flex-wrap items-center gap-2">
+            {item.label}
+            <Badge tone="sensitive" size="sm">
+              Needs approval
+            </Badge>
+            <PendingBadge pending={item} />
+          </span>
+        </TableCell>
+        <TableCell>
+          {item.readable ? (
+            <span className="flex flex-col gap-1 text-sm">
+              <span>
+                Now: <DisplayValue field={field} value={item.current} />
+              </span>
+              <span>
+                {item.kind === 'correction' ? 'Corrected to' : 'Asked'}:{' '}
+                <DisplayValue field={field} value={item.value} />
+              </span>
+            </span>
+          ) : (
+            <span className="text-sm text-fg-muted">
+              You can’t view this field. Decide based on who asked and why.
+            </span>
+          )}
+          <span className="block text-sm text-fg-muted">From {longDate(item.effectiveFrom)}</span>
+          {item.awaitingReview === true && (item.findings ?? []).length > 0 ? (
+            <ul className="flex flex-col gap-1 text-sm">
+              {(item.findings ?? []).map((f) => (
+                <li key={f.code}>{f.message}</li>
+              ))}
+            </ul>
+          ) : null}
+        </TableCell>
+        <TableCell>
+          <span className="flex flex-col gap-1 text-sm">
+            <span>
+              {item.requestedBy}, {longDate(item.requestedAt.slice(0, 10))}
+            </span>
+            {item.reason === null ? null : <span>“{item.reason}”</span>}
+            <span className="text-fg-muted">Expires {longDate(item.expiresAt.slice(0, 10))}</span>
+          </span>
+        </TableCell>
+        <TableCell>
+          <span className="flex flex-wrap gap-2">
+            {item.awaitingReview === true ? (
+              <span className="text-sm text-fg-muted">
+                Review this ID under Identifier reviews first.
+              </span>
+            ) : null}
+            {item.canSelfApprove === true &&
+            item.awaitingReview !== true &&
+            onSelfApprove !== undefined ? (
+              <ApproveAlone
+                label={`${item.name}'s ${item.label}`}
+                onApprove={() => onSelfApprove(item.id)}
+              />
+            ) : null}
+            {item.canDecide ? (
+              <>
+                {item.awaitingReview === true ? null : (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    aria-label={`Approve the change to ${item.name}'s ${item.label}`}
+                    onClick={() => {
+                      setDeciding({ item, approve: true });
+                    }}
+                  >
+                    Approve
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  aria-label={`Reject the change to ${item.name}'s ${item.label}`}
+                  onClick={() => {
+                    setDeciding({ item, approve: false });
+                  }}
+                >
+                  Reject
+                </Button>
+              </>
+            ) : null}
+            {item.mine ? (
+              <Button
+                size="sm"
+                aria-label={`Withdraw the change to ${item.name}'s ${item.label}`}
+                onClick={() => {
+                  setRefused(null);
+                  void onWithdraw(item.id).then((outcome) => {
+                    if (!outcome.ok) setRefused(outcome.message);
+                  });
+                }}
+              >
+                Withdraw
+              </Button>
+            ) : null}
+            {!item.canDecide && !item.mine ? (
+              <span className="text-sm text-fg-muted">
+                This change is about you, so someone else decides.
+              </span>
+            ) : null}
+            {!item.canDecide && item.mine && state.isHr && item.canSelfApprove !== true ? (
+              <span className="text-sm text-fg-muted">
+                Another HR member must approve your change.
+              </span>
+            ) : null}
+          </span>
+        </TableCell>
+      </TableRow>
+    );
+  };
 
   return (
     <Stack gap={6}>
       <PageHeader
-        title={state.isHr ? 'Changes waiting for approval' : 'Your changes waiting for approval'}
+        title={state.isHr ? 'Approvals' : 'Your pending changes'}
         description={
           state.isHr
-            ? 'Nothing here is applied until somebody other than who asked, and other than the person it is about, approves it. Undecided after seven days, a change lapses.'
-            : 'HR decides each within seven days. Until then your record keeps what it had.'
+            ? `${String(state.items.length)} ${state.items.length === 1 ? 'change' : 'changes'} from ${String(groups.length)} ${groups.length === 1 ? 'employee' : 'employees'}. A change applies once someone other than the requester approves it, and expires after 7 days.`
+            : 'HR reviews each change within 7 days. Your record stays the same until then.'
         }
       />
       {refused === null ? null : (
-        <Alert tone="danger" title="That did not go through">
+        <Alert tone="danger" title="Couldn’t complete that">
           {refused}
         </Alert>
       )}
       {state.items.length === 0 ? (
-        <EmptyState title="Nothing waiting" description="Every change has been decided." />
+        <EmptyState title="Nothing to approve" description="All changes have been decided." />
       ) : (
         <Table aria-label="Changes waiting for approval">
           <TableHeader>
             <TableRow>
-              <TableHead>Person</TableHead>
               <TableHead>Field</TableHead>
               <TableHead>Change</TableHead>
-              <TableHead>Asked</TableHead>
-              <TableHead>Decide</TableHead>
+              <TableHead>Requested</TableHead>
+              <TableHead>Decision</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {state.items.map((item) => {
-              const field = asField(item);
-              return (
-                <TableRow key={item.id}>
-                  <TableCell>
+          {groups.map(([personId, items]) => (
+            <TableBody key={personId}>
+              <TableRow>
+                <TableHead scope="rowgroup" colSpan={4} className="bg-surface-sunken">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Avatar size="xs" name={items[0]?.name ?? ''} />
                     {onOpen === undefined ? (
-                      item.name
+                      items[0]?.name
                     ) : (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          onOpen(item.personId);
+                          onOpen(personId);
                         }}
                       >
-                        {item.name}
+                        {items[0]?.name}
                       </Button>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <span className="flex flex-wrap items-center gap-2">
-                      {item.label}
-                      <Badge tone="sensitive" size="sm">
-                        Sensitive
-                      </Badge>
-                      <PendingBadge pending={item} />
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {item.readable ? (
-                      <span className="flex flex-col gap-1 text-sm">
-                        <span>
-                          Now: <DisplayValue field={field} value={item.current} />
-                        </span>
-                        <span>
-                          {item.kind === 'correction' ? 'Corrected to' : 'Asked'}:{' '}
-                          <DisplayValue field={field} value={item.value} />
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="text-sm text-fg-muted">
-                        You cannot read this field; decide on who asked, when and why.
-                      </span>
-                    )}
-                    <span className="block text-sm text-fg-muted">
-                      From {longDate(item.effectiveFrom)}
-                    </span>
-                    {item.awaitingReview === true && (item.findings ?? []).length > 0 ? (
-                      <ul className="flex flex-col gap-1 text-sm">
-                        {(item.findings ?? []).map((f) => (
-                          <li key={f.code}>{f.message}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    <span className="flex flex-col gap-1 text-sm">
-                      <span>
-                        {item.requestedBy}, {longDate(item.requestedAt.slice(0, 10))}
-                      </span>
-                      {item.reason === null ? null : <span>“{item.reason}”</span>}
-                      <span className="text-fg-muted">
-                        Lapses {longDate(item.expiresAt.slice(0, 10))}
-                      </span>
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="flex flex-wrap gap-2">
-                      {item.awaitingReview === true ? (
-                        <span className="text-sm text-fg-muted">
-                          Reviewed first: accept it or send it back under Identifiers to review,
-                          then it can be approved.
-                        </span>
-                      ) : null}
-                      {item.canSelfApprove === true &&
-                      item.awaitingReview !== true &&
-                      onSelfApprove !== undefined ? (
-                        <ApproveAlone
-                          label={`${item.name}'s ${item.label}`}
-                          onApprove={() => onSelfApprove(item.id)}
-                        />
-                      ) : null}
-                      {item.canDecide ? (
-                        <>
-                          {item.awaitingReview === true ? null : (
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              aria-label={`Approve the change to ${item.name}'s ${item.label}`}
-                              onClick={() => {
-                                setDeciding({ item, approve: true });
-                              }}
-                            >
-                              Approve
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            aria-label={`Reject the change to ${item.name}'s ${item.label}`}
-                            onClick={() => {
-                              setDeciding({ item, approve: false });
-                            }}
-                          >
-                            Reject
-                          </Button>
-                        </>
-                      ) : null}
-                      {item.mine ? (
-                        <Button
-                          size="sm"
-                          aria-label={`Withdraw the change to ${item.name}'s ${item.label}`}
-                          onClick={() => {
-                            setRefused(null);
-                            void onWithdraw(item.id).then((outcome) => {
-                              if (!outcome.ok) setRefused(outcome.message);
-                            });
-                          }}
-                        >
-                          Withdraw
-                        </Button>
-                      ) : null}
-                      {!item.canDecide && !item.mine ? (
-                        <span className="text-sm text-fg-muted">
-                          Somebody else decides: it is about you.
-                        </span>
-                      ) : null}
-                      {!item.canDecide && item.mine && state.isHr && item.canSelfApprove !== true ? (
-                        <span className="text-sm text-fg-muted">
-                          Another HR member decides your own change.
-                        </span>
-                      ) : null}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
+                    <Badge size="sm">
+                      {items.length} {items.length === 1 ? 'change' : 'changes'}
+                    </Badge>
+                  </span>
+                </TableHead>
+              </TableRow>
+              {items.map((item) => row(item))}
+            </TableBody>
+          ))}
         </Table>
       )}
       {deciding === null ? null : (

@@ -29,6 +29,14 @@ import { Progress } from '../progress/progress';
  * ones ahead stay inert. That is not a styling decision: letting someone jump
  * to step 5 from step 2 skips the validation that steps 3 and 4 exist to do,
  * and a wizard that can be short-circuited is a wizard that files bad data.
+ *
+ * ### On a phone, one label
+ *
+ * Five labels in a row across a phone truncate to a letter each, which names
+ * nothing. Under a coarse pointer a horizontal stepper keeps every marker but
+ * shows only the current step's label, with "Step 3 of 5" under it; the other
+ * labels stay in the accessibility tree. The pointer decides, not the width,
+ * as with every density in this system.
  */
 
 export type StepStatus = 'complete' | 'current' | 'upcoming' | 'error';
@@ -232,6 +240,11 @@ export function Stepper({
               >
                 {step.label}
               </span>
+              {horizontal && status === 'current' ? (
+                <span className="hidden text-2xs text-fg-subtle touch:block">
+                  Step {index + 1} of {steps.length}
+                </span>
+              ) : null}
               {step.description === undefined ? null : (
                 <span
                   className={cn(

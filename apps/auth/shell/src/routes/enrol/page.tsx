@@ -12,10 +12,18 @@ import {
   PhoneField,
   Spinner,
   Stepper,
+  Switch,
+  Textarea,
 } from '@reach/ui';
 import { useNavigate } from '@modern-js/runtime/router';
 
-import { checkPersonName, checkPersonProfile, formatPersonName } from '@kithena/contracts';
+import {
+  checkPersonName,
+  checkPersonProfile,
+  checkSignupAnswers,
+  formatPersonName,
+  type SignupQuestion,
+} from '@kithena/contracts';
 
 import { useBrandRamp } from '../../lib/brand';
 import { resolveTenant } from '../../lib/tenant';
@@ -60,6 +68,17 @@ import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
  * person two records that drift apart. The rule is in `CLAUDE.md` and the
  * boundary is worth more than a longer form.
  *
+ * ### One ceremony, and it is last
+ *
+ * Every link — an invitation or a recovery — is: check the link, ask whatever
+ * is missing (a name not on file, the company's own sign-up questions), then
+ * the passkey, once. A recovery link used to jump straight to the passkey
+ * whatever was on file; for somebody with no name the service then refused
+ * the name, the page sent them back to the form, and the form led to a second
+ * ceremony — two prompts, and a passkey left on the device from the first that
+ * the service never stored. Nothing is sent to the device now until every
+ * answer has passed the same checks the service will run.
+ *
  * The employment start date is shown and not asked. `Account.enrol` refuses a
  * passkey before it — that is what stops a hire entered three weeks early
  * signing in during those three weeks — so a field the person enrolling could
@@ -89,6 +108,9 @@ type Reason =
   | 'employment_not_started'
   | 'passkey_rejected'
   | 'cancelled';
+
+/** An answer as the form holds it: text for everything but a yes/no. */
+type Answer = string | boolean;
 
 const MESSAGES: Record<Reason, { title: string; body: string }> = {
   link_used_or_expired: {
@@ -229,6 +251,23 @@ export default function Enrol(): JSX.Element {
    * first anybody has been asked.
    */
   const [recovering, setRecovering] = useState(false);
+  /*
+   * Whether this link shows the details form at all.
+   *
+   * Always for an invitation. For a recovery, only when something is missing:
+   * no name on file, or a sign-up question the company has made required
+   * since this person last answered. With nothing missing a recovery is one
+   * screen and a button, as it always was.
+   */
+  const [formShown, setFormShown] = useState(true);
+  /*
+   * The company's own questions (People fields at `collectAt: signup` or
+   * `enrolment`), less any this person has already answered. Asked on the
+   * details step after the name, before the passkey; the answers go to People
+   * and identity keeps none of them.
+   */
+  const [questions, setQuestions] = useState<readonly SignupQuestion[]>([]);
+  const [answers, setAnswers] = useState<Record<string, Answer>>({});
 
   /*
    * What this link is worth, asked before the button appears.
@@ -268,57 +307,82 @@ export default function Enrol(): JSX.Element {
           name?: { given: string; family: string; preferred: string | null } | null;
           employmentStart?: string | null;
           timeZone?: string | null;
+          questions?: SignupQuestion[];
         };
       })
-      .then(({ state: found, purpose, name, employmentStart: starts, timeZone: stored }) => {
-        if (!current) return;
+      .then(
+        ({
+          state: found,
+          purpose,
+          name,
+          employmentStart: starts,
+          timeZone: stored,
+          questions: asked,
+        }) => {
+          if (!current) return;
 
-        if (typeof starts === 'string') setEmploymentStart(starts);
+          const pending = asked ?? [];
+          setQuestions(pending);
+          // A yes/no has an answer from the start — off — so a required one is
+          // never blocked on a switch nobody touched.
+          setAnswers(
+            Object.fromEntries(pending.map((q) => [q.key, q.dataType === 'boolean' ? false : ''])),
+          );
 
-        /*
-         * HR's zone wins over the browser's, unless HR did not choose one.
-         *
-         * `Etc/UTC` is what every invitation path writes when nobody types a
-         * zone, so it means "not asked" far more often than it means "this
-         * person works to UTC". Treating it as an answer is what put UTC on
-         * every clock in the product; treating it as a blank is what this
-         * form is for. Somebody who genuinely works to UTC picks it from the
-         * list, and then it is on their row because they said so.
-         */
-        if (typeof stored === 'string' && stored !== '' && stored !== 'Etc/UTC') {
-          setDraft((currentDraft) => ({ ...currentDraft, timeZone: stored }));
-        }
+          if (typeof starts === 'string') setEmploymentStart(starts);
 
-        if (purpose === 'recovery') {
-          setRecovering(true);
-          setStep(2);
-        }
+          /*
+           * HR's zone wins over the browser's, unless HR did not choose one.
+           *
+           * `Etc/UTC` is what every invitation path writes when nobody types a
+           * zone, so it means "not asked" far more often than it means "this
+           * person works to UTC". Treating it as an answer is what put UTC on
+           * every clock in the product; treating it as a blank is what this
+           * form is for. Somebody who genuinely works to UTC picks it from the
+           * list, and then it is on their row because they said so.
+           */
+          if (typeof stored === 'string' && stored !== '' && stored !== 'Etc/UTC') {
+            setDraft((currentDraft) => ({ ...currentDraft, timeZone: stored }));
+          }
 
-        if (name) {
-          // Prefilled, not skipped past. Review is still shown — it is where
-          // somebody notices the name is wrong — and Edit goes back to a form
-          // that already holds what the registry has rather than an empty one.
-          // Updated rather than replaced: the zone resolved a few lines above
-          // is already in this draft, and rewriting the whole object would
-          // drop it back to the browser's default.
-          setDraft((currentDraft) => ({
-            ...currentDraft,
-            given: name.given,
-            family: name.family,
-            preferred: name.preferred ?? '',
-          }));
-          setOnFile(true);
-          // Only for an invitation. A recovery link has already gone to the
-          // last step above and must not be walked back into a review of
-          // details nobody asked about.
-          if (purpose !== 'recovery') setStep(1);
-        }
-        if (found === 'usable') setState({ kind: 'idle' });
-        else if (found === 'already_enrolled') setState({ kind: 'already_enrolled' });
-        else if (found === 'spent') setState({ kind: 'refused', reason: 'link_used_or_expired' });
-        else if (found === 'expired') setState({ kind: 'refused', reason: 'link_used_or_expired' });
-        else setState({ kind: 'refused', reason: 'link_invalid' });
-      })
+          /*
+           * Where the flow starts: at whatever is missing, and at the passkey
+           * only when nothing is. A recovery with a name on file and nothing
+           * to answer goes straight to the button; one without either starts at
+           * the form, like an invitation, and reaches the passkey last.
+           */
+          const needsForm = !name || pending.length > 0;
+          if (purpose === 'recovery') {
+            setRecovering(true);
+            setFormShown(needsForm);
+            setStep(needsForm ? 0 : 2);
+          } else {
+            setStep(needsForm ? 0 : 1);
+          }
+
+          if (name) {
+            // Prefilled, not skipped past. Review is still shown — it is where
+            // somebody notices the name is wrong — and Edit goes back to a form
+            // that already holds what the registry has rather than an empty one.
+            // Updated rather than replaced: the zone resolved a few lines above
+            // is already in this draft, and rewriting the whole object would
+            // drop it back to the browser's default.
+            setDraft((currentDraft) => ({
+              ...currentDraft,
+              given: name.given,
+              family: name.family,
+              preferred: name.preferred ?? '',
+            }));
+            setOnFile(true);
+          }
+          if (found === 'usable') setState({ kind: 'idle' });
+          else if (found === 'already_enrolled') setState({ kind: 'already_enrolled' });
+          else if (found === 'spent') setState({ kind: 'refused', reason: 'link_used_or_expired' });
+          else if (found === 'expired')
+            setState({ kind: 'refused', reason: 'link_used_or_expired' });
+          else setState({ kind: 'refused', reason: 'link_invalid' });
+        },
+      )
       .catch(() => {
         // Unreachable identity is not a spent link, and saying so would send
         // somebody to ask HR for a replacement they do not need.
@@ -331,6 +395,27 @@ export default function Enrol(): JSX.Element {
   }, []);
 
   const enrol = useCallback(async () => {
+    /*
+     * Every answer checked before the device is asked for anything.
+     *
+     * The same functions the service runs, so a refusal lands here, on a form,
+     * rather than after a ceremony — which is the whole of the two-prompt bug
+     * this page used to have. A name is sent only when it was asked for: a
+     * recovery that skipped the form leaves the name on file alone.
+     */
+    const named = formShown ? checkPersonName(draft) : null;
+    if (named !== null && !named.ok) {
+      setProblem(named.problem);
+      setStep(0);
+      return;
+    }
+    const answered = checkSignupAnswers(questions, answers);
+    if (!answered.ok) {
+      setProblem(answered.problem);
+      setStep(0);
+      return;
+    }
+
     setState({ kind: 'working' });
     const tenant = await resolveTenant(params.get('tenant') ?? '');
     if (tenant === null) {
@@ -347,15 +432,13 @@ export default function Enrol(): JSX.Element {
      * customers — and "Ada Lovelace at Acme" answers that where
      * `ada@acme.example` makes them guess.
      */
-    const named = checkPersonName(draft);
+    const shown = checkPersonName(draft);
     const begun = (await post('/api/identity/webauthn/register/begin', {
       identityId: params.get('identity'),
       // The same formatting the service uses, from the same module, so the
       // prompt and the greeting afterwards cannot disagree about what somebody
       // is called.
-      displayName: named.ok
-        ? formatPersonName(named.value)
-        : (params.get('name') ?? 'Kithena'),
+      displayName: shown.ok ? formatPersonName(shown.value) : (params.get('name') ?? 'Kithena'),
     })) as { body: { options?: unknown } | null };
 
     if (!begun.body?.options) {
@@ -384,11 +467,18 @@ export default function Enrol(): JSX.Element {
        * never usable and nameless. Identity re-checks it — `checkName` is the
        * rule and this form is a convenience, not the enforcement.
        */
-      name: {
-        given: draft.given,
-        family: draft.family,
-        preferred: draft.preferred,
-      },
+      ...(named === null
+        ? {}
+        : {
+            name: {
+              given: draft.given,
+              family: draft.family,
+              preferred: draft.preferred,
+            },
+          }),
+      // Checked above by the same function the service runs; blank optional
+      // answers are already dropped.
+      ...(questions.length === 0 ? {} : { answers: answered.value }),
       /*
        * Written in the same transaction as the name and the credential.
        *
@@ -420,7 +510,7 @@ export default function Enrol(): JSX.Element {
       // link, and both are handled before the closed set is consulted.
       body: {
         accountId?: string;
-        reason?: Reason | 'name_invalid' | 'profile_invalid';
+        reason?: Reason | 'name_invalid' | 'profile_invalid' | 'answers_invalid';
         path?: string[];
         message?: string;
       } | null;
@@ -438,7 +528,11 @@ export default function Enrol(): JSX.Element {
       return;
     }
 
-    if (finished.body?.reason === 'name_invalid' || finished.body?.reason === 'profile_invalid') {
+    if (
+      finished.body?.reason === 'name_invalid' ||
+      finished.body?.reason === 'profile_invalid' ||
+      finished.body?.reason === 'answers_invalid'
+    ) {
       // Back to the step that owns the field, rather than a dead end. The link
       // is spent by now, so this is the one refusal that cannot be retried —
       // which is exactly why the form is asked *before* the ceremony and this
@@ -457,7 +551,7 @@ export default function Enrol(): JSX.Element {
     // `name_invalid` is already handled above, so whatever is left is one of
     // the closed set or nothing at all.
     setState({ kind: 'refused', reason: finished.body?.reason ?? 'link_invalid' });
-  }, [navigate, draft, recovering]);
+  }, [navigate, draft, recovering, formShown, questions, answers]);
 
   /*
    * Every zone the runtime knows, plus whichever one this device reports.
@@ -524,7 +618,7 @@ export default function Enrol(): JSX.Element {
         between exist to do, which is `Stepper`'s own rule rather than one
         invented here.
       */}
-      {onboarding && !recovering && state.kind !== 'checking' && state.kind !== 'refused' ? (
+      {onboarding && formShown && state.kind !== 'checking' && state.kind !== 'refused' ? (
         <Stepper
           label="Setting up your account"
           /*
@@ -593,7 +687,9 @@ export default function Enrol(): JSX.Element {
             <Button
               variant="secondary"
               onClick={() =>
-                void navigate(slug === null ? '/recover' : `/recover?tenant=${encodeURIComponent(slug)}`)
+                void navigate(
+                  slug === null ? '/recover' : `/recover?tenant=${encodeURIComponent(slug)}`,
+                )
               }
             >
               Set up a new passkey
@@ -664,6 +760,14 @@ export default function Enrol(): JSX.Element {
               </Field>
 
               {/*
+                Asked only on the way in. A recovery keeps the zone and the
+                number on file: this form would otherwise move a returning
+                employee to wherever they are sitting and blank the number
+                their HR team just used to verify them.
+              */}
+              {recovering ? null : (
+                <>
+                  {/*
                 Where they work, not where the server is.
 
                 Prefilled from this device, because the person filling the form
@@ -673,33 +777,33 @@ export default function Enrol(): JSX.Element {
                 as long as nobody noticed, and the value drives every clock and
                 every calendar date in the product.
               */}
-              <Field required invalid={problem?.field === 'timeZone'}>
-                <FieldLabel>Where you work</FieldLabel>
-                <FieldControl>
-                  <Combobox
-                    label="Time zone"
-                    options={zones}
-                    value={draft.timeZone}
-                    searchPlaceholder="Search cities and zones…"
-                    emptyMessage="No zone matches that."
-                    onChange={(value) => {
-                      setProblem(null);
-                      if (typeof value === 'string') {
-                        setDraft((current) => ({ ...current, timeZone: value }));
-                      }
-                    }}
-                  />
-                </FieldControl>
-                {problem?.field === 'timeZone' ? (
-                  <FieldError>{problem.message}</FieldError>
-                ) : (
-                  <FieldDescription>
-                    Your time zone. Clocks and dates across Kithena are shown in it.
-                  </FieldDescription>
-                )}
-              </Field>
+                  <Field required invalid={problem?.field === 'timeZone'}>
+                    <FieldLabel>Where you work</FieldLabel>
+                    <FieldControl>
+                      <Combobox
+                        label="Time zone"
+                        options={zones}
+                        value={draft.timeZone}
+                        searchPlaceholder="Search cities and zones…"
+                        emptyMessage="No zone matches that."
+                        onChange={(value) => {
+                          setProblem(null);
+                          if (typeof value === 'string') {
+                            setDraft((current) => ({ ...current, timeZone: value }));
+                          }
+                        }}
+                      />
+                    </FieldControl>
+                    {problem?.field === 'timeZone' ? (
+                      <FieldError>{problem.message}</FieldError>
+                    ) : (
+                      <FieldDescription>
+                        Your time zone. Clocks and dates across Kithena are shown in it.
+                      </FieldDescription>
+                    )}
+                  </Field>
 
-              {/*
+                  {/*
                 A number, so a human can verify a human.
 
                 This is the channel an HR admin uses before re-issuing access
@@ -708,28 +812,49 @@ export default function Enrol(): JSX.Element {
                 way to sign in: a code sent to a number an attacker can port is
                 weaker than the passkey it would stand in for.
               */}
-              <Field invalid={problem?.field === 'mobile'}>
-                <FieldLabel>Mobile number</FieldLabel>
-                <FieldControl>
-                  <PhoneField
-                    label="Mobile number"
-                    value={draft.mobile}
-                    autoComplete="tel"
-                    onValueChange={(value) => {
-                      setProblem(null);
-                      setDraft((current) => ({ ...current, mobile: value }));
-                    }}
-                  />
-                </FieldControl>
-                {problem?.field === 'mobile' ? (
-                  <FieldError>{problem.message}</FieldError>
-                ) : (
-                  <FieldDescription>
-                    Optional. Used only so your HR team can check it is you if you lose your
-                    device — never to sign you in.
-                  </FieldDescription>
-                )}
-              </Field>
+                  <Field invalid={problem?.field === 'mobile'}>
+                    <FieldLabel>Mobile number</FieldLabel>
+                    <FieldControl>
+                      <PhoneField
+                        label="Mobile number"
+                        value={draft.mobile}
+                        autoComplete="tel"
+                        onValueChange={(value) => {
+                          setProblem(null);
+                          setDraft((current) => ({ ...current, mobile: value }));
+                        }}
+                      />
+                    </FieldControl>
+                    {problem?.field === 'mobile' ? (
+                      <FieldError>{problem.message}</FieldError>
+                    ) : (
+                      <FieldDescription>
+                        Optional. Used only so your HR team can check it is you if you lose your
+                        device — never to sign you in.
+                      </FieldDescription>
+                    )}
+                  </Field>
+                </>
+              )}
+
+              {/*
+                The company's own questions, after the ones every account
+                answers. Rendered from the set People reported, one Reach
+                control per type; checked on Continue by the same function the
+                service runs.
+              */}
+              {questions.map((question) => (
+                <Question
+                  key={question.key}
+                  question={question}
+                  value={answers[question.key] ?? (question.dataType === 'boolean' ? false : '')}
+                  problem={problem?.field === question.key ? problem.message : null}
+                  onChange={(value) => {
+                    setProblem(null);
+                    setAnswers((current) => ({ ...current, [question.key]: value }));
+                  }}
+                />
+              ))}
 
               <Button
                 variant="primary"
@@ -745,6 +870,11 @@ export default function Enrol(): JSX.Element {
                   const profile = checkPersonProfile(draft);
                   if (!profile.ok) {
                     setProblem(profile.problem);
+                    return;
+                  }
+                  const answered = checkSignupAnswers(questions, answers);
+                  if (!answered.ok) {
+                    setProblem(answered.problem);
                     return;
                   }
                   setProblem(null);
@@ -778,7 +908,14 @@ export default function Enrol(): JSX.Element {
                 <Detail label="Goes by">{asStored(draft).goesBy}</Detail>
                 <Detail label="Work email">{account ?? 'Not given'}</Detail>
                 <Detail label="Company">{company ?? 'Not given'}</Detail>
-                {/*
+                {questions.map((question) => (
+                  <Detail key={question.key} label={question.label}>
+                    {describeAnswer(question, answers[question.key])}
+                  </Detail>
+                ))}
+                {recovering ? null : (
+                  <>
+                    {/*
                   The zone as a place and a current time, not as an identifier.
 
                   `Europe/Madrid` is a string somebody has to translate before
@@ -786,17 +923,19 @@ export default function Enrol(): JSX.Element {
                   they can actually perform, and a wrong zone is obvious the
                   moment the clock disagrees with the one on their wall.
                 */}
-                <Detail label="Where you work">{describeZone(draft.timeZone)}</Detail>
-                <Detail label="Mobile">
-                  {draft.mobile.trim() === '' ? 'Not given' : draft.mobile.trim()}
-                </Detail>
-                {/*
+                    <Detail label="Where you work">{describeZone(draft.timeZone)}</Detail>
+                    <Detail label="Mobile">
+                      {draft.mobile.trim() === '' ? 'Not given' : draft.mobile.trim()}
+                    </Detail>
+                    {/*
                   Shown, never asked. Set by HR, and it is the date the passkey
                   step refuses before — so somebody arriving early is told why
                   here rather than after the ceremony has spent their link.
                 */}
-                {employmentStart === null ? null : (
-                  <Detail label="Start date">{formatStartDate(employmentStart)}</Detail>
+                    {employmentStart === null ? null : (
+                      <Detail label="Start date">{formatStartDate(employmentStart)}</Detail>
+                    )}
+                  </>
                 )}
               </dl>
 
@@ -836,6 +975,12 @@ export default function Enrol(): JSX.Element {
                       setStep(0);
                       return;
                     }
+                    const answered = checkSignupAnswers(questions, answers);
+                    if (!answered.ok) {
+                      setProblem(answered.problem);
+                      setStep(0);
+                      return;
+                    }
                     setStep(2);
                   }}
                 >
@@ -855,7 +1000,7 @@ export default function Enrol(): JSX.Element {
 
               <div className="flex gap-2">
                 {/* Nothing to go back to when the form was never shown. */}
-                {recovering ? null : (
+                {formShown ? (
                   <Button
                     variant="secondary"
                     disabled={state.kind === 'working'}
@@ -865,7 +1010,7 @@ export default function Enrol(): JSX.Element {
                   >
                     Back
                   </Button>
-                )}
+                ) : null}
                 <Button
                   variant="primary"
                   className="flex-1"
@@ -887,8 +1032,114 @@ export default function Enrol(): JSX.Element {
   );
 }
 
+/**
+ * One of the company's own questions, as the Reach control its type calls for.
+ *
+ * A native date input rather than a picker: one date, typed or chosen, on a
+ * page somebody fills in once. A yes/no is a switch, which always has an
+ * answer — so a required one can never be left blank by accident.
+ */
+function Question({
+  question,
+  value,
+  problem,
+  onChange,
+}: {
+  question: SignupQuestion;
+  value: Answer;
+  problem: string | null;
+  onChange: (value: Answer) => void;
+}): JSX.Element {
+  const text = typeof value === 'string' ? value : '';
+  const control = ((): JSX.Element => {
+    switch (question.dataType) {
+      case 'boolean':
+        return (
+          <Switch
+            checked={value === true}
+            onCheckedChange={(checked) => {
+              onChange(checked);
+            }}
+          />
+        );
+      case 'select':
+        return (
+          <Combobox
+            label={question.label}
+            options={question.options.map((o) => ({ value: o.value, label: o.label }))}
+            value={text === '' ? null : text}
+            onChange={(next) => {
+              onChange(typeof next === 'string' ? next : '');
+            }}
+          />
+        );
+      case 'long_text':
+        return (
+          <Textarea
+            value={text}
+            maxLength={question.maxLength ?? undefined}
+            onChange={(event) => {
+              onChange(event.target.value);
+            }}
+          />
+        );
+      case 'phone':
+        return <PhoneField label={question.label} value={text} onValueChange={onChange} />;
+      default:
+        return (
+          <Input
+            value={text}
+            type={INPUT_TYPE[question.dataType] ?? 'text'}
+            {...(question.dataType === 'decimal' ? { step: 'any' } : {})}
+            {...(question.maxLength === null ? {} : { maxLength: question.maxLength })}
+            onChange={(event) => {
+              onChange(event.target.value);
+            }}
+          />
+        );
+    }
+  })();
+
+  return (
+    <Field required={question.required} invalid={problem !== null}>
+      <FieldLabel>{question.label}</FieldLabel>
+      <FieldControl>{control}</FieldControl>
+      {problem !== null ? (
+        <FieldError>{problem}</FieldError>
+      ) : question.description === null ? null : (
+        <FieldDescription>{question.description}</FieldDescription>
+      )}
+    </Field>
+  );
+}
+
+const INPUT_TYPE: Partial<Record<SignupQuestion['dataType'], string>> = {
+  number: 'number',
+  decimal: 'number',
+  date: 'date',
+  email: 'email',
+  url: 'url',
+};
+
+/** An answer for the review step: the option's label, yes or no, or the text. */
+function describeAnswer(question: SignupQuestion, value: Answer | undefined): string {
+  if (question.dataType === 'boolean') return value === true ? 'Yes' : 'No';
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (text === '') return 'Not given';
+  if (question.dataType === 'select') {
+    return question.options.find((o) => o.value === text)?.label ?? text;
+  }
+  return text;
+}
+
 /** One row of the summary. A `dl`, because these are labels and their values. */
-function Detail({ label, children }: { label: string; children: JSX.Element | string }): JSX.Element {
+function Detail({
+  label,
+  children,
+}: {
+  label: string;
+  children: JSX.Element | string;
+}): JSX.Element {
   return (
     <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
       <dt className="text-fg-muted shrink-0">{label}</dt>
@@ -1029,8 +1280,18 @@ function describeZone(zone: string): string {
 function formatStartDate(date: string): string {
   const [year, month, day] = date.split('-');
   const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
   const name = months[Number(month) - 1];
   if (year === undefined || day === undefined || name === undefined) return date;

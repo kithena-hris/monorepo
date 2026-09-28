@@ -35,6 +35,8 @@ interface Furniture {
 }
 
 export interface RecordDocument extends Furniture {
+  /** Their profile photo, PNG or JPEG, at the top right. */
+  readonly photo?: Uint8Array;
   readonly sections: readonly {
     readonly label: string;
     readonly fields: readonly { readonly label: string; readonly value: Cell }[];
@@ -82,17 +84,18 @@ const bottom = (doc: PDFKit.PDFDocument) => doc.page.height - doc.page.margins.b
 const width = (doc: PDFKit.PDFDocument) =>
   doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
-function heading(doc: PDFKit.PDFDocument, f: Furniture): number {
+/** The title and its lines; `reserve` keeps that much of the right edge clear (a photo). */
+function heading(doc: PDFKit.PDFDocument, f: Furniture, reserve = 0): number {
   let y = MARGIN;
   doc
     .font('bold')
     .fontSize(14)
     .fillColor(INK)
-    .text(f.title, MARGIN, y, { width: width(doc) });
+    .text(f.title, MARGIN, y, { width: width(doc) - reserve });
   y = doc.y + 2;
   doc.font('body').fontSize(9).fillColor(MUTED);
   for (const line of f.lines) {
-    doc.text(line, MARGIN, y, { width: width(doc) });
+    doc.text(line, MARGIN, y, { width: width(doc) - reserve });
     y = doc.y;
   }
   return y + 10;
@@ -145,7 +148,13 @@ export function recordPdf(d: RecordDocument): Promise<Uint8Array> {
   const doc = open('portrait');
   const w = width(doc);
   const labelW = Math.round(w * 0.35);
-  let y = heading(doc, d);
+  let y = heading(doc, d, d.photo === undefined ? 0 : 80);
+  if (d.photo !== undefined) {
+    // Square, top right, level with the name: the record's own face.
+    const size = 64;
+    doc.image(Buffer.from(d.photo), MARGIN + w - size, MARGIN, { fit: [size, size], align: 'right' });
+    y = Math.max(y, MARGIN + size + 10);
+  }
   for (const section of d.sections) {
     doc.font('bold').fontSize(11);
     if (y + 40 > bottom(doc)) {

@@ -72,6 +72,16 @@ const meta = {
         category: 'State',
       },
     },
+    missing: {
+      description:
+        'Marks a field that is wanted and not yet filled in: a `Missing` badge (`Badge tone="attention"`) beside the label, in its accessible name too. Not for a field that is merely optional and empty.',
+      control: 'boolean',
+      table: {
+        type: { summary: 'boolean' },
+        defaultValue: { summary: 'false' },
+        category: 'State',
+      },
+    },
     sensitive: {
       description:
         'Marks a field handled with more care than most, a value whose change waits for somebody else: a `Sensitive` badge beside the label, in its accessible name too.',
@@ -103,6 +113,7 @@ const meta = {
     required: false,
     disabled: false,
     sensitive: false,
+    missing: false,
     orientation: 'vertical',
   },
 } satisfies Meta<typeof Field>;
@@ -209,7 +220,8 @@ export const Sensitive: Story = {
   ),
 };
 
-export const Missing: Story = {
+export const RequiredAndEmpty: Story = {
+  name: 'Required and empty',
   args: { required: true, invalid: true },
   parameters: {
     docs: {
@@ -227,6 +239,29 @@ export const Missing: Story = {
           <Input placeholder="Name and phone" />
         </FieldControl>
         <FieldError>Add an emergency contact to finish onboarding.</FieldError>
+      </Field>
+    </div>
+  ),
+};
+
+export const Missing: Story = {
+  args: { missing: true },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A field the company expects and nobody has filled in yet. It is not an error — nothing was refused — so it is not red and it does not stop anybody saving; it is a badge with a glyph and a word, heard as part of the label.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="max-w-sm">
+      <Field {...args}>
+        <FieldLabel>Date of birth</FieldLabel>
+        <FieldControl>
+          <Input placeholder="YYYY-MM-DD" />
+        </FieldControl>
+        <FieldDescription>Payroll needs it before the first run.</FieldDescription>
       </Field>
     </div>
   ),

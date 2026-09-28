@@ -190,9 +190,7 @@ export function PublishDialog({
               ) : null}
               {previewed.preview.impact.forEmployees > 0 ? (
                 <Alert tone="info">
-                  Employees with something to fill in get one reminder email, never more than one a
-                  week however many fields they are missing. What is yours to fill arrives as a
-                  single grid.
+                  Employees with missing details get at most one reminder email a week.
                 </Alert>
               ) : null}
             </Stack>

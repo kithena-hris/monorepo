@@ -155,7 +155,7 @@ describe('failures', () => {
 });
 
 describe('every mutation (PEO-113)', () => {
-  it('takes a required idempotencyKey, but the four that only compute, read or start an upload', () => {
+  it('takes a required idempotencyKey, but the five that only compute, read or start an upload', () => {
     const unkeyed = Object.values(schema.getMutationType()?.getFields() ?? {})
       .filter((field) => {
         const key = field.args.find((a) => a.name === 'idempotencyKey');
@@ -164,11 +164,16 @@ describe('every mutation (PEO-113)', () => {
       .map((field) => field.name);
     // revealIdentifier is an audited read (PEO-125): it changes nothing a retry could repeat.
     // An import's upload (§14.2): a retried start is a fresh upload, and completing checks.
+    // A photo's start likewise; completing one keeps it, so that is keyed.
+    // Connecting a chat app only computes where to send the administrator.
     expect(unkeyed.toSorted()).toEqual([
       'completeImportUpload',
+      'connectChatApp',
       'dryRunImport',
       'revealIdentifier',
+      'startFileUpload',
       'startImportUpload',
+      'startPhotoUpload',
     ]);
   });
 
@@ -177,13 +182,17 @@ describe('every mutation (PEO-113)', () => {
     const fields = profile !== undefined && 'getFields' in profile ? profile.getFields() : {};
     // `calendar`, `employment` and `placement` are HR's (PEO-119, PEO-120, PEO-123), and
     // `reviews` the doubted identifiers still open (PEO-125), `pending` the
-    // changes waiting for approval (PEO-077): none is an attribute.
+    // changes waiting for approval (PEO-077), `requests` the details somebody
+    // asked them for: none is an attribute.
     expect(Object.keys(fields).toSorted()).toEqual([
       'calendar',
       'employment',
+      'files',
       'pending',
       'person',
       'placement',
+      'reportingLine',
+      'requests',
       'reviews',
       'sections',
       'values',

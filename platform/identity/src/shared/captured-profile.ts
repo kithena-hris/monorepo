@@ -27,3 +27,19 @@ export interface CapturedProfile {
   };
   readonly mobilePresent: boolean;
 }
+
+/**
+ * What the tenant's sign-up questions were answered with (People's fields at
+ * `collectAt: signup | enrolment`), as `identity.account.signup_answered`
+ * carries it.
+ *
+ * Forwarded, never kept: identity stores which keys were answered and none of
+ * the values, so the auth origin is not a place where employee data
+ * accumulates (PRD §8.3). The question set that admitted them only ever holds
+ * public or internal fields, which is what lets the values ride an event.
+ */
+export interface SignupAnswers {
+  /** The People schema version the questions were read from. */
+  readonly schemaVersion: number;
+  readonly answers: Readonly<Record<string, string | number | boolean>>;
+}

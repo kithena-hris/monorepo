@@ -192,3 +192,55 @@ describe('the PDF roster', () => {
     });
   });
 });
+
+/** A 1×1 PNG: a real image for pdfkit to embed. */
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+describe('profile photos in an export', () => {
+  const photos = {
+    get: (_tx: unknown, _tenant: string, personId: string) =>
+      Promise.resolve(
+        personId === MARCO
+          ? { mediaType: 'image/png' as const, bytes: new Uint8Array(PNG), checksum: 'x' }
+          : null,
+      ),
+  };
+  const build = (viewer: Viewer, over: Partial<ExportRequest>) => {
+    const store = financeTenant();
+    return buildExport(
+      tx,
+      {
+        calendars: utcCalendars,
+        access: personAccess(store.deps),
+        schemas: store.deps.schemas,
+        relations: store.deps.relations,
+        records: store.deps,
+        clock: store.deps.clock,
+        photos,
+      },
+      { ...asking(viewer), format: 'csv', ...over },
+    );
+  };
+
+  it('puts a ZIP of photos, named by employee number, beside the file when asked', async () => {
+    const built = await build(HR, { includePhotos: true });
+    if (!built.ok) throw new Error(built.error.message);
+    const zip = built.value.files.find((f) => f.mediaType === 'application/zip');
+    expect(zip?.name).toMatch(/^photos-\d{4}-\d{2}-\d{2}\.zip$/u);
+    const raw = Buffer.from(zip?.bytes ?? new Uint8Array()).toString('latin1');
+    expect(raw).toContain('E-Marco.png');
+    // Not asked, not included.
+    const plain = await build(HR, {});
+    expect(plain.ok && plain.value.files.some((f) => f.mediaType === 'application/zip')).toBe(false);
+  });
+
+  it('draws the photo on an employee record', async () => {
+    const built = await build(HR, { format: 'pdf', recordOf: MARCO });
+    if (!built.ok) throw new Error(built.error.message);
+    const raw = Buffer.from(built.value.files[0]?.bytes ?? new Uint8Array()).toString('latin1');
+    expect(raw).toContain('/Subtype /Image');
+  });
+});

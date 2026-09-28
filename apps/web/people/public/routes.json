@@ -1,76 +1,299 @@
 {
   "routes": [
-    { "path": "/people", "component": "PeopleHome" },
-    { "path": "/people/directory", "component": "Directory" },
-    { "path": "/people/new", "component": "AddPerson" },
-    { "path": "/people/setup", "component": "PeopleSetup" },
-    { "path": "/people/onboarding", "component": "Onboarding" },
-    { "path": "/people/me", "component": "Profile" },
-    { "path": "/people/me/history", "component": "PersonHistory" },
-    { "path": "/people/completeness", "component": "CompletenessGrid" },
-    { "path": "/people/bulk-edit", "component": "BulkEdit" },
-    { "path": "/people/settings/fields", "component": "FieldRegistry" },
-    { "path": "/people/settings/integrations", "component": "Integrations" },
-    { "path": "/people/settings/integrations/:id", "component": "WebhookLog" },
-    { "path": "/people/settings/roles", "component": "RoleSettings" },
-    { "path": "/people/settings/organisation", "component": "Organisation" },
-    { "path": "/people/import", "component": "ImportFlow" },
-    { "path": "/people/export", "component": "ExportBuilder" },
-    { "path": "/people/full-values", "component": "FullValues" },
-    { "path": "/people/identifier-reviews", "component": "IdentifierReviews" },
-    { "path": "/people/approvals", "component": "Approvals" },
-    { "path": "/people/duplicates", "component": "Duplicates" },
-    { "path": "/people/analytics", "component": "Analytics" },
-    { "path": "/people/reports", "component": "ReportSchedules" },
-    { "path": "/people/reports/:id", "component": "ReportRuns" },
-    { "path": "/people/:id", "component": "Profile" },
-    { "path": "/people/:id/history", "component": "PersonHistory" }
+    {
+      "path": "/people",
+      "component": "PeopleHome"
+    },
+    {
+      "path": "/people/directory",
+      "component": "Directory"
+    },
+    {
+      "path": "/people/new",
+      "component": "AddPerson"
+    },
+    {
+      "path": "/people/setup",
+      "component": "PeopleSetup"
+    },
+    {
+      "path": "/people/onboarding",
+      "component": "Onboarding"
+    },
+    {
+      "path": "/people/me",
+      "component": "Profile"
+    },
+    {
+      "path": "/people/me/history",
+      "component": "PersonHistory"
+    },
+    {
+      "path": "/people/completeness",
+      "component": "CompletenessGrid"
+    },
+    {
+      "path": "/people/bulk-edit",
+      "component": "BulkEdit"
+    },
+    {
+      "path": "/settings/people/fields",
+      "component": "FieldRegistry"
+    },
+    {
+      "path": "/settings/people/integrations",
+      "component": "Integrations"
+    },
+    {
+      "path": "/settings/people/integrations/:id",
+      "component": "WebhookLog"
+    },
+    {
+      "path": "/settings/people/roles",
+      "component": "RoleSettings"
+    },
+    {
+      "path": "/settings/people/organisation",
+      "component": "Organisation"
+    },
+    {
+      "path": "/people/import",
+      "component": "ImportFlow"
+    },
+    {
+      "path": "/people/export",
+      "component": "ExportBuilder"
+    },
+    {
+      "path": "/people/full-values",
+      "component": "FullValues"
+    },
+    {
+      "path": "/people/identifier-reviews",
+      "component": "IdentifierReviews"
+    },
+    {
+      "path": "/people/approvals",
+      "component": "Approvals"
+    },
+    {
+      "path": "/people/duplicates",
+      "component": "Duplicates"
+    },
+    {
+      "path": "/people/analytics",
+      "component": "Analytics"
+    },
+    {
+      "path": "/people/reports",
+      "component": "ReportSchedules"
+    },
+    {
+      "path": "/people/reports/:id",
+      "component": "ReportRuns"
+    },
+    {
+      "path": "/people/:id",
+      "component": "Profile"
+    },
+    {
+      "path": "/people/:id/history",
+      "component": "PersonHistory"
+    },
+    {
+      "path": "/settings/people",
+      "component": "PeopleSettings"
+    },
+    {
+      "path": "/settings/people/activity",
+      "component": "SettingsActivity"
+    }
   ],
-  "actions": [{ "path": "/people/new", "label": "Add employee", "for": ["hr"] }],
+  "actions": [
+    {
+      "path": "/people/new",
+      "label": "Add employee",
+      "for": [
+        "hr"
+      ],
+      "on": [
+        "/people",
+        "/people/directory"
+      ],
+      "icon": "hire"
+    }
+  ],
   "sections": [
-    { "path": "/people", "label": "Overview", "group": "People" },
+    {
+      "path": "/people",
+      "label": "Overview",
+      "group": "Workspace",
+      "icon": "home",
+      "description": "Your profile summary, pending tasks and reporting line."
+    },
     {
       "path": "/people/directory",
       "label": "Directory",
-      "group": "People",
-      "owns": ["/people/:id", "/people/:id/history", "/people/bulk-edit"]
+      "group": "Workspace",
+      "owns": [
+        "/people/:id",
+        "/people/:id/history",
+        "/people/bulk-edit"
+      ],
+      "icon": "people",
+      "description": "Search, filter and view every employee record."
     },
     {
       "path": "/people/me",
       "label": "My profile",
-      "group": "People",
-      "owns": ["/people/me/history", "/people/onboarding"]
+      "group": "Workspace",
+      "owns": [
+        "/people/me/history",
+        "/people/onboarding"
+      ],
+      "icon": "person",
+      "description": "Your personal and employment details."
     },
-    { "path": "/people/approvals", "label": "Approvals", "group": "People" },
-    { "path": "/people/completeness", "label": "Missing information", "group": "People", "for": ["hr"] },
-    { "path": "/people/identifier-reviews", "label": "Identifiers to review", "group": "People", "for": ["hr"] },
-    { "path": "/people/duplicates", "label": "Possible duplicates", "group": "People", "for": ["hr"] },
-    { "path": "/people/import", "label": "Import", "group": "People", "for": ["hr"] },
-    { "path": "/people/export", "label": "Export", "group": "People" },
-    { "path": "/people/full-values", "label": "Full values", "group": "People", "for": ["finance", "hr"] },
-    { "path": "/people/analytics", "label": "Analytics", "group": "Reporting", "for": ["hr"] },
+    {
+      "path": "/people/approvals",
+      "label": "Approvals",
+      "group": "Workspace",
+      "icon": "approve",
+      "description": "Changes awaiting review and decision."
+    },
+    {
+      "path": "/people/completeness",
+      "label": "Data completeness",
+      "group": "Records",
+      "for": [
+        "hr"
+      ],
+      "icon": "missing",
+      "description": "Employee records with required details outstanding."
+    },
+    {
+      "path": "/people/identifier-reviews",
+      "label": "ID verification",
+      "group": "Records",
+      "for": [
+        "hr"
+      ],
+      "icon": "review",
+      "description": "National identifiers flagged for HR review."
+    },
+    {
+      "path": "/people/duplicates",
+      "label": "Duplicate records",
+      "group": "Records",
+      "for": [
+        "hr"
+      ],
+      "icon": "merge",
+      "description": "Potential duplicates to merge or dismiss."
+    },
+    {
+      "path": "/people/import",
+      "label": "Import",
+      "group": "Records",
+      "for": [
+        "hr"
+      ],
+      "icon": "upload",
+      "description": "Create or update employees in bulk from a spreadsheet."
+    },
+    {
+      "path": "/people/export",
+      "label": "Export",
+      "group": "Records",
+      "icon": "download",
+      "description": "Download employee data with a recorded purpose."
+    },
+    {
+      "path": "/people/full-values",
+      "label": "Sensitive data access",
+      "group": "Records",
+      "for": [
+        "finance",
+        "hr"
+      ],
+      "icon": "sensitive",
+      "description": "Request and audit access to unmasked values."
+    },
+    {
+      "path": "/people/analytics",
+      "label": "Workforce analytics",
+      "group": "Insights",
+      "for": [
+        "hr"
+      ],
+      "icon": "analytics",
+      "description": "Headcount, turnover and compensation trends."
+    },
     {
       "path": "/people/reports",
-      "label": "Scheduled reports",
-      "group": "Reporting",
-      "for": ["hr", "admin"],
-      "owns": ["/people/reports/:id"]
-    },
+      "label": "Report schedules",
+      "group": "Insights",
+      "for": [
+        "hr",
+        "admin"
+      ],
+      "owns": [
+        "/people/reports/:id"
+      ],
+      "icon": "report",
+      "description": "Recurring reports delivered to each recipient."
+    }
+  ],
+  "settings": [
     {
-      "path": "/people/settings/fields",
+      "path": "/settings/people/fields",
       "label": "Employee fields",
-      "group": "Settings",
-      "for": ["admin"],
-      "owns": ["/people/setup"]
+      "for": [
+        "admin"
+      ],
+      "owns": [
+        "/people/setup"
+      ],
+      "description": "The details kept on each person, who sees them and when they’re asked.",
+      "icon": "document"
     },
-    { "path": "/people/settings/organisation", "label": "Organisation", "group": "Settings" },
-    { "path": "/people/settings/roles", "label": "Roles", "group": "Settings", "for": ["hr", "admin"] },
     {
-      "path": "/people/settings/integrations",
+      "path": "/settings/people/organisation",
+      "label": "Organisation",
+      "description": "Legal entities, locations, numbering, time zone and retention.",
+      "icon": "organisation"
+    },
+    {
+      "path": "/settings/people/roles",
+      "label": "Roles",
+      "for": [
+        "hr",
+        "admin"
+      ],
+      "description": "Who has HR, administrator and finance access.",
+      "icon": "permission"
+    },
+    {
+      "path": "/settings/people/integrations",
       "label": "Integrations",
-      "group": "Settings",
-      "for": ["admin"],
-      "owns": ["/people/settings/integrations/:id"]
+      "for": [
+        "admin"
+      ],
+      "owns": [
+        "/settings/people/integrations/:id"
+      ],
+      "description": "Slack, webhooks and identity provider sync.",
+      "icon": "link"
+    },
+    {
+      "path": "/settings/people/activity",
+      "label": "Activity log",
+      "for": [
+        "hr",
+        "admin"
+      ],
+      "description": "Every settings change, who made it and when.",
+      "icon": "history"
     }
   ]
 }

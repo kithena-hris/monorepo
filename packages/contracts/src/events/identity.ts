@@ -3,6 +3,8 @@ import { defineEvent } from '../event.js';
 import { CalendarDate, Instant } from '../primitives.js';
 import { ModuleEntitlement } from '../entitlements.js';
 import { policy, asContact, asIdentity, asInternal, asPublic } from '../classification.js';
+import { AttributeKey } from '../people/primitives.js';
+import { SignupAnswerValue } from '../signup-questions.js';
 
 /**
  * The identity lifecycle, as events.
@@ -166,6 +168,35 @@ export const AccountProfileCaptured = defineEvent(
     /** Whether a second channel is on file. Deliberately not the number. */
     mobilePresent: z.boolean().register(policy, asInternal()),
     capturedAt: Instant,
+  }),
+);
+
+/**
+ * The tenant's sign-up questions, answered on the way in (PRD §8.3).
+ *
+ * People fields at `collectAt: signup | enrolment` are asked on the auth
+ * origin before the passkey, from the set People reports to identity
+ * (`SignupQuestionSet`). Identity checks the shape, forwards the values here
+ * and keeps none of them — only which keys were answered — so the auth origin
+ * is not a place where employee data accumulates. People writes them through
+ * its own write path as the person's own entry.
+ *
+ * **The values ride the event, classified `internal`.** That is safe only
+ * because the question set admits nothing above internal: no confidential,
+ * financial, encrypted or special-category field is ever asked on that page,
+ * which People enforces when it builds the set and identity again when it
+ * stores it.
+ */
+export const AccountSignupAnswered = defineEvent(
+  'identity.account.signup_answered',
+  1,
+  z.object({
+    accountId: AccountId,
+    /** The People schema version the questions were read from. */
+    schemaVersion: z.int().nonnegative().register(policy, asPublic()),
+    /** Question key → answer. Never an object or a list; see `SignupAnswerValue`. */
+    answers: z.record(AttributeKey, SignupAnswerValue).register(policy, asInternal()),
+    answeredAt: Instant,
   }),
 );
 
@@ -488,6 +519,7 @@ export const identityEvents = [
   AccountInvited,
   AccountEnrolled,
   AccountProfileCaptured,
+  AccountSignupAnswered,
   AccountRecovered,
   AccountReinstated,
   AccountSuspended,

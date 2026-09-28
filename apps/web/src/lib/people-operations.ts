@@ -13,7 +13,7 @@
 
 const RECORD_FIELD = `
   fragment RecordFieldParts on RecordField {
-    key label description dataType options { value label } required readOnly currency ownedBy keptIn sensitive
+    key label description dataType options { value label } required missing readOnly currency ownedBy keptIn sensitive askable
   }`;
 
 const ENTRY = `
@@ -87,7 +87,7 @@ export const OPERATIONS = {
 
   Profile: `query Profile($personId: ID) {
     peopleProfile(personId: $personId) {
-      person { name summary avatarUrl missing }
+      person { name summary avatarUrl missing canChangePhoto }
       sections { key label visibility readsLogged fields { ...RecordFieldParts } }
       values { ...EntryParts }
       calendar { today timeZone }
@@ -104,6 +104,13 @@ export const OPERATIONS = {
       }
       reviews { ...ReviewParts }
       pending { ...PendingParts }
+      requests { key label requestedAt by }
+      files { id name mediaType size }
+      reportingLine {
+        chain { id name title avatarUrl }
+        peers { id name title avatarUrl }
+        morePeers
+      }
     }
   }${RECORD_FIELD}${ENTRY}${REVIEW}${PENDING}`,
 
@@ -117,6 +124,7 @@ export const OPERATIONS = {
       values { ...EntryParts }
       changes {
         id key effectiveFrom recordedAt by supersedes supersededBy
+        actor { kind avatarUrl }
         value { ...EntryParts }
       }
     }
@@ -144,6 +152,7 @@ export const OPERATIONS = {
   Duplicates: `query Duplicates($a: ID, $b: ID) {
     peopleDuplicates(a: $a, b: $b) {
       items { personIds names reasons }
+      merges { absorbedId survivorId absorbedName survivorName mergedAt reversed kept account refusal }
       comparison {
         people { id name status refusal }
         rows { key label values same takeable }
@@ -204,32 +213,75 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** The viewer's roles: which of People's sections the shell draws, beside every screen. */
   Home: `query Home {
     peopleHome { hr admin finance }
+  }`,
+
+  /** Where People starts: the viewer, their line, and what waits for them. */
+  Overview: `query Overview {
+    peopleOverview {
+      roles { hr admin finance }
+      now
+      me {
+        id name avatarUrl title department email phone location timeZone startedOn today
+        status missing required
+      }
+      reportingLine {
+        managers { id name title avatarUrl }
+        moreAbove peers
+        reports { id name title avatarUrl }
+        reportsTotal reportsFilter
+      }
+      approvals { isHr total items { id personId name avatarUrl label requestedAt requestedBy } }
+      missing { key label sectionKey section ownedBy }
+      team { waiting toFill }
+      setup { photo fields { key sectionKey label description dataType required } }
+    }
+  }`,
+
+  /** A person's photo, to somebody who may read them: the tenant app's photo route. */
+  Photo: `query Photo($personId: ID!) {
+    peoplePhoto(personId: $personId) { mediaType data checksum }
+  }`,
+
+  SettingsActivity: `query SettingsActivity($before: ID, $area: String) {
+    peopleSettingsActivity(before: $before, area: $area) {
+      entries { id at action subject detail area by name avatarUrl }
+      next
+    }
+  }`,
+
+  /** A field's file, to somebody who may read that field: the tenant app's file route. */
+  File: `query File($id: ID!) {
+    peopleFile(id: $id) { name mediaType data }
   }`,
 
   Organisation: `query Organisation {
     peopleOrganisation {
       canManage
-      settings { defaultTimeZone cohortMinimum slug displayName }
+      settings { defaultTimeZone cohortMinimum photoAtSignup slug displayName }
       legalEntities { id name country timeZone archived }
       locations { id legalEntityId name country timeZone zones { effectiveFrom timeZone } archived }
       numberings { legalEntityId prefix digits nextValue }
       countries { code name }
       timeZones
       retentionFloors { floor months status reviewedBy reviewedOn }
+      upcomingErasures { personId name dueOn floors waitingForReview }
       payBands { id grade currency minimumMinor midpointMinor maximumMinor effectiveFrom recordedAt supersedes }
     }
   }`,
 
-  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID) {
-    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment) {
+  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID, $incomplete: Boolean, $conditions: [DirectoryConditionInput!], $match: String, $sort: String) {
+    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment, incomplete: $incomplete, conditions: $conditions, match: $match, sort: $sort) {
       total active notStarted incomplete
       segment { id name }
       segments { id name }
-      columns { key label }
+      columns { key label shown sortable }
+      fields { key label kind options { value label } }
+      query { conditions { key op values } match sort { key direction } }
       filterable { key label options { value label } }
-      people { id name email avatarUrl values { key value } missing }
+      people { id name email avatarUrl values { key value } people { key id name avatarUrl } missing }
       next
       can { import export bulkEdit }
     }
@@ -268,7 +320,7 @@ export const OPERATIONS = {
       sections { key label visibility ownership origin fixed }
       fields {
         key sectionKey label description dataType options requiredness ownership visibility
-        collectAt classification piiKind requiresApproval origin pending
+        collectAt classification piiKind requiresApproval signup signupAskable aiEligible aiShareable encrypted encryptable origin pending
         requiredWhen { ...PredicateParts }
         visibilityRules { scopes when { ...PredicateParts } }
       }
@@ -441,6 +493,42 @@ export const OPERATIONS = {
     reorderDraftFields(sectionKey: $sectionKey, order: $order, idempotencyKey: $key) { ok }
   }`,
 
+  Ask: `query Ask($question: String!, $earlier: [String!]) {
+    peopleAsk(question: $question, earlier: $earlier) { text understood answered people { id name title } }
+  }`,
+
+  Chat: `query Chat {
+    peopleChat {
+      apps { key name canConnect connection { workspace connectedAt } }
+      notices { key label description to action on }
+      fields { on { key label } shareable }
+    }
+  }`,
+
+  ConnectChatApp: `mutation ConnectChatApp($app: String!, $origin: String!) {
+    connectChatApp(app: $app, origin: $origin)
+  }`,
+
+  CompleteChatApp: `mutation CompleteChatApp($app: String!, $code: String!, $state: String!, $key: String!) {
+    completeChatApp(app: $app, code: $code, state: $state, idempotencyKey: $key) { apps { key } }
+  }`,
+
+  DisconnectChatApp: `mutation DisconnectChatApp($app: String!, $key: String!) {
+    disconnectChatApp(app: $app, idempotencyKey: $key) { apps { key } }
+  }`,
+
+  SetChatNotice: `mutation SetChatNotice($notice: String!, $on: Boolean!, $key: String!) {
+    setChatNotice(key: $notice, on: $on, idempotencyKey: $key) { notices { key on } }
+  }`,
+
+  SetFieldAssistant: `mutation SetFieldAssistant($field: String!, $share: Boolean!, $key: String!) {
+    setFieldAssistant(key: $field, share: $share, idempotencyKey: $key) { ok }
+  }`,
+
+  SetFieldSignup: `mutation SetFieldSignup($field: String!, $ask: String!, $key: String!) {
+    setFieldSignup(key: $field, ask: $ask, idempotencyKey: $key) { ok }
+  }`,
+
   SaveDraftField: `mutation SaveDraftField($input: DraftFieldInput!, $editing: String, $key: String!) {
     saveDraftField(input: $input, editing: $editing, idempotencyKey: $key) { ok }
   }`,
@@ -507,8 +595,8 @@ export const OPERATIONS = {
     revokeRole(accountId: $accountId, role: $role, reason: $reason, idempotencyKey: $key) { accountId roles }
   }`,
 
-  UpdatePeopleSettings: `mutation UpdatePeopleSettings($defaultTimeZone: String, $cohortMinimum: Int, $key: String!) {
-    updatePeopleSettings(defaultTimeZone: $defaultTimeZone, cohortMinimum: $cohortMinimum, idempotencyKey: $key) {
+  UpdatePeopleSettings: `mutation UpdatePeopleSettings($defaultTimeZone: String, $cohortMinimum: Int, $photoAtSignup: String, $key: String!) {
+    updatePeopleSettings(defaultTimeZone: $defaultTimeZone, cohortMinimum: $cohortMinimum, photoAtSignup: $photoAtSignup, idempotencyKey: $key) {
       defaultTimeZone
     }
   }`,
@@ -608,12 +696,40 @@ export const OPERATIONS = {
     mergePerson(personId: $personId, absorbedPersonId: $absorbedPersonId, take: $take, idempotencyKey: $key) { id }
   }`,
 
+  UnmergePerson: `mutation UnmergePerson($personId: ID!, $reason: String!, $key: String!) {
+    unmergePerson(personId: $personId, reason: $reason, idempotencyKey: $key) { id }
+  }`,
+
   DismissDuplicate: `mutation DismissDuplicate($personIds: [ID!]!, $key: String!) {
     dismissDuplicate(personIds: $personIds, idempotencyKey: $key) { decision }
   }`,
 
   StartImportUpload: `mutation StartImportUpload($name: String!, $size: Int!) {
     startImportUpload(name: $name, size: $size) { uploadId url method headers { name value } expiresAt }
+  }`,
+
+  StartPhotoUpload: `mutation StartPhotoUpload($personId: ID, $size: Int!) {
+    startPhotoUpload(personId: $personId, size: $size) { uploadId url method headers { name value } expiresAt }
+  }`,
+
+  CompletePhotoUpload: `mutation CompletePhotoUpload($personId: ID, $uploadId: ID!, $key: String!) {
+    completePhotoUpload(personId: $personId, uploadId: $uploadId, idempotencyKey: $key) { avatarUrl }
+  }`,
+
+  RequestDetails: `mutation RequestDetails($personId: ID!, $keys: [String!]!, $key: String!) {
+    requestDetails(personId: $personId, keys: $keys, idempotencyKey: $key) { asked emailed }
+  }`,
+
+  StartFileUpload: `mutation StartFileUpload($personId: ID, $field: String!, $name: String!, $size: Int!) {
+    startFileUpload(personId: $personId, key: $field, name: $name, size: $size) { uploadId url method headers { name value } expiresAt }
+  }`,
+
+  CompleteFileUpload: `mutation CompleteFileUpload($personId: ID, $field: String!, $uploadId: ID!, $key: String!) {
+    completeFileUpload(personId: $personId, key: $field, uploadId: $uploadId, idempotencyKey: $key) { id name mediaType size }
+  }`,
+
+  RemovePhoto: `mutation RemovePhoto($personId: ID, $key: String!) {
+    removePhoto(personId: $personId, idempotencyKey: $key) { avatarUrl }
   }`,
 
   CompleteImportUpload: `mutation CompleteImportUpload($uploadId: ID!) {
@@ -646,11 +762,12 @@ export const OPERATIONS = {
   }`,
 
   RequestExport: `mutation RequestExport(
-    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String, $key: String!
+    $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String,
+    $includePhotos: Boolean, $key: String!
   ) {
     requestExport(
       format: $format, fields: $fields, asOf: $asOf, segmentId: $segmentId, recordOf: $recordOf, reason: $reason,
-      idempotencyKey: $key
+      includePhotos: $includePhotos, idempotencyKey: $key
     ) {
       id status rowCount expiresAt links { name url }
     }

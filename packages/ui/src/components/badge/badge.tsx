@@ -19,6 +19,11 @@ const badge = cva(
         // Not a status but a property of what is marked: outlined rather than
         // washed, and always with its glyph, so it reads apart from a state.
         sensitive: 'bg-surface text-fg shadow-[inset_0_0_0_1px_var(--reach-color-border-strong)]',
+        // Something that should be there and is not. The warning wash, but
+        // dashed and with its own glyph, so it reads as "fill this in" rather
+        // than as a status somebody set — and never as colour alone.
+        attention:
+          'bg-warning-subtle text-warning-fg outline-1 -outline-offset-1 outline-warning-border outline-dashed',
       },
       /**
        * `soft` is the wash, for a status among other content. `solid` is the
@@ -70,6 +75,7 @@ const dotTone = {
   danger: 'bg-danger',
   info: 'bg-info',
   sensitive: 'bg-current',
+  attention: 'bg-warning',
 } as const;
 
 export interface BadgeProps extends ComponentPropsWithoutRef<'span'>, VariantProps<typeof badge> {
@@ -79,12 +85,12 @@ export interface BadgeProps extends ComponentPropsWithoutRef<'span'>, VariantPro
    */
   dot?: boolean;
   /**
-   * Adds a remove control at the end, making the badge a chip: an applied
-   * filter, a chosen team. The badge stays a label; only the control is a
-   * button, so the label is not announced as something to press.
+   * Makes the badge a removable chip: an active filter, a chosen tag. The
+   * button is a real one with its own name, because "×" read aloud is
+   * "times", and a chip whose only exit is a pointer is a trap.
    */
   onRemove?: () => void;
-  /** Accessible name of the remove control. Name what goes: "Remove Berlin". */
+  /** Names the remove button. Defaults to "Remove" and the badge's text when it is a string. */
   removeLabel?: string;
 }
 
@@ -95,6 +101,8 @@ export interface BadgeProps extends ComponentPropsWithoutRef<'span'>, VariantPro
  * roughly one in twelve men cannot separate the success and danger washes.
  * `tone="sensitive"` marks what is handled with more care than most — a
  * value whose change waits for somebody else — and brings its own glyph.
+ * `tone="attention"` marks what is missing and wanted — a field nobody has
+ * filled in — and brings its own glyph too: `<Badge tone="attention">Missing</Badge>`.
  */
 export function Badge({
   className,
@@ -103,7 +111,7 @@ export function Badge({
   size,
   dot = false,
   onRemove,
-  removeLabel = 'Remove',
+  removeLabel,
   children,
   ...props
 }: BadgeProps): JSX.Element {
@@ -119,17 +127,23 @@ export function Badge({
         />
       ) : null}
       {tone === 'sensitive' ? <icons.sensitive aria-hidden="true" /> : null}
+      {tone === 'attention' ? <icons.missing aria-hidden="true" /> : null}
       {children}
       {onRemove ? (
         <button
           type="button"
           onClick={onRemove}
-          aria-label={removeLabel}
+          aria-label={
+            removeLabel ?? (typeof children === 'string' ? `Remove ${children}` : 'Remove')
+          }
           className={cn(
             'relative grid size-4 shrink-0 place-items-center rounded-full tap-target touch:size-5',
             'bg-[color-mix(in_oklch,currentColor_12%,transparent)] transition-colors',
             'hover:bg-[color-mix(in_oklch,currentColor_22%,transparent)]',
-            'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
+            // The ring in the badge's own ink, inside its fill: the focus
+            // colour is lost on a solid fill, and the text colour is the one
+            // colour every tone already guarantees against its own ground.
+            'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-current',
             '[&_svg]:size-3!',
           )}
         >

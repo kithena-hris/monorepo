@@ -3,6 +3,7 @@ import { outboxTable } from '@kithena/db-kit';
 
 import type { DsarSource } from '../application/dsar/export-dsar.js';
 import { drizzleSchemaRepository } from './drizzle-schema-repository.js';
+import { tombstonesOf } from './drizzle-retention-store.js';
 import { publishedDocument } from './policy-registry.js';
 import { person } from './tables.js';
 
@@ -60,5 +61,7 @@ export function drizzleDsarSource(): DsarSource {
         .orderBy(asc(outbox.createdAt));
       return rows.map((r) => r.envelope);
     },
+
+    tombstones: tombstonesOf,
   };
 }

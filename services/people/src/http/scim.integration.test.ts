@@ -89,7 +89,7 @@ beforeAll(async () => {
   admin = drizzle(adminClient);
   // Every migration, as a deployment has them: the integrations screen
   // reads webhooks, roles and settings beside SCIM.
-  for (const role of ['svc_identity', 'svc_messaging']) {
+  for (const role of ['svc_identity', 'svc_messaging', 'svc_slack']) {
     await adminClient.unsafe(`CREATE ROLE ${role} NOLOGIN NOBYPASSRLS`);
   }
   const dir = new URL('../../../../migrations/', import.meta.url);
@@ -578,6 +578,121 @@ describe('/Groups', () => {
   it('deletes', async () => {
     expect((await scim(okta.token, 'DELETE', `/Groups/${group}`)).status).toBe(204);
     expect((await scim(okta.token, 'GET', `/Groups/${group}`)).status).toBe(404);
+  });
+});
+
+describe('somebody People already has (PEO-072 follow-up)', () => {
+  const hrAdds = async (given: string, email: string) => {
+    const made = await rest('POST', '/v1/people', {
+      attributes: { given_name: given, family_name: 'Hopper', work_email: email, job_title: 'Admiral' },
+    });
+    expect(made.status).toBe(201);
+    return String((await json(made))['id']);
+  };
+  const oktaUser = (userName: string, email: string, given: string) => ({
+    schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'],
+    userName,
+    externalId: `00u${given}`,
+    active: true,
+    name: { givenName: given, familyName: 'Hopper' },
+    emails: [{ value: email, type: 'work', primary: true }],
+  });
+  const duplicates = async () =>
+    (
+      (await graphql('{ peopleDuplicates { items { personIds reasons } } }', {})) as {
+        data: { peopleDuplicates: { items: { personIds: string[]; reasons: string[] }[] } };
+      }
+    ).data.peopleDuplicates.items;
+  const adoptions = () => events('people.person.adopted_by_external');
+
+  it('adopts the one unlinked record with that work email, whatever its case, and writes only what the system owns', async () => {
+    const hrGrace = await hrAdds('Grace', 'grace.hopper@acme.test');
+    const created = await scim(
+      okta.token,
+      'POST',
+      '/Users',
+      oktaUser('Grace.Hopper@acme.test', ' GRACE.HOPPER@acme.test', 'Gracie'),
+    );
+    expect(created.status).toBe(201);
+    expect((await json(created))['id']).toBe(hrGrace);
+    const [row] = await admin.execute(sql`
+      SELECT given_name, custom->>'job_title' AS job_title FROM people.person WHERE id = ${hrGrace}::uuid`);
+    // Okta owns the name; the job title is still HR's.
+    expect(row).toEqual({ given_name: 'Gracie', job_title: 'Admiral' });
+    const [adopted] = await adoptions();
+    expect(adopted).toMatchObject({
+      actor: { kind: 'integration', integrationId: okta.id, provider: 'Okta' },
+      payload: { personId: hrGrace, provider: 'Okta', externalId: '00uGracie', matchedOn: 'work_email' },
+    });
+    expect(
+      (await rest('PATCH', `/v1/people/${hrGrace}`, { attributes: { given_name: 'G' } })).status,
+    ).toBe(403);
+  });
+
+  it('answers the provider’s retry as a clash, and adopts nothing twice', async () => {
+    const again = await scim(
+      okta.token,
+      'POST',
+      '/Users',
+      oktaUser('grace.hopper@acme.test', 'grace.hopper@acme.test', 'Gracie'),
+    );
+    expect(again.status).toBe(409);
+    expect(await adoptions()).toHaveLength(1);
+  });
+
+  it('creates a record and leaves the pairs to HR when several records hold the email', async () => {
+    const one = await hrAdds('Anita', 'anita@acme.test');
+    const two = await hrAdds('Anita B', 'ANITA@acme.test');
+    const created = await scim(
+      okta.token,
+      'POST',
+      '/Users',
+      oktaUser('anita@acme.test', 'anita@acme.test', 'Anita'),
+    );
+    expect(created.status).toBe(201);
+    const fresh = String((await json(created))['id']);
+    expect([one, two]).not.toContain(fresh);
+    const flagged = (await duplicates()).filter((d) => d.personIds.includes(fresh));
+    expect(flagged).toHaveLength(2);
+    for (const d of flagged) expect(d.reasons).toContain('SCIM provisioned, same work email');
+    expect(await adoptions()).toHaveLength(1);
+  });
+
+  it('never adopts a record another connection links, nor a merged one', async () => {
+    const entra = (await json(
+      await rest('POST', '/v1/scim/connections', { system: 'Entra' }),
+    )) as { id: string; token: string };
+    // Okta's Ada, sent again by Entra: linked elsewhere, so a second record and a flagged pair.
+    const theirs = await scim(
+      entra.token,
+      'POST',
+      '/Users',
+      oktaUser('ada@acme.test', 'ada@acme.test', 'Ada'),
+    );
+    expect(theirs.status).toBe(201);
+    const second = String((await json(theirs))['id']);
+    expect(second).not.toBe(ada);
+    const pair = (await duplicates()).find(
+      (d) => d.personIds.includes(second) && d.personIds.includes(ada),
+    );
+    expect(pair?.reasons).toContain('SCIM provisioned, same work email');
+
+    const survivor = await hrAdds('Mary', 'mary@acme.test');
+    const absorbed = await hrAdds('Mary K', 'mary.k@acme.test');
+    const merged = await rest('POST', `/v1/people/${survivor}/merge`, {
+      absorbedPersonId: absorbed,
+    });
+    expect(merged.status).toBe(200);
+    const created = await scim(
+      entra.token,
+      'POST',
+      '/Users',
+      oktaUser('mary.k@acme.test', 'mary.k@acme.test', 'MaryK'),
+    );
+    expect(created.status).toBe(201);
+    expect((await json(created))['id']).not.toBe(absorbed);
+    expect(await adoptions()).toHaveLength(1);
+    expect((await rest('POST', `/v1/scim/connections/${entra.id}/revoke`, {})).status).toBe(200);
   });
 });
 

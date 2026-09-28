@@ -4,7 +4,7 @@ import { Pencil } from 'lucide-react';
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
-import { Card } from '../card/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
 import { Money } from '../money/money';
 import { KeyValues } from './key-values';
 
@@ -18,7 +18,7 @@ const meta = {
         component: [
           'Label and value pairs for record details. Keys are quiet and values are clear. A `<dl>`, so each term is announced with its definition.',
           '',
-          '`columns` (the default) lines every value up in one column so they can be scanned without the labels. `split` pushes each value to the far edge of its row, the way a phone lists settings. Under a finger `columns` becomes `split` by itself, because a 160px label column leaves a phone a sliver for the value.',
+          '`stacked` (the default) puts each label above its value, so a long value wraps under its own label, and `columns` spreads pairs across the width the container has rather than the window. `aligned` lines every value up in one column so they can be scanned without the labels. `split` pushes each value to the far edge of its row, the way a phone lists settings. Under a finger `aligned` becomes `split` by itself, because a 160px label column leaves a phone a sliver for the value.',
         ].join('\n'),
       },
     },
@@ -40,6 +40,41 @@ export const Default: Story = {
   render: (args) => <KeyValues {...args} className="max-w-xl" />,
 };
 
+export const Aligned: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Every label in one column, so the values line up and can be scanned without the labels. The desk layout for a record’s details.',
+      },
+    },
+  },
+  args: { layout: 'aligned' },
+  render: (args) => <KeyValues {...args} className="max-w-xl" />,
+};
+
+/** Three to a row where the container is wide enough; one on a phone. */
+export const Columns: Story = {
+  args: {
+    columns: 3,
+    items: [
+      { label: 'Default time zone', value: 'Europe/Madrid' },
+      { label: 'Cohort minimum', value: '10 people' },
+      { label: 'Legal entities', value: '2' },
+    ],
+  },
+  render: (args) => (
+    <Card className="max-w-2xl">
+      <CardHeader>
+        <CardTitle>Organisation</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <KeyValues {...args} />
+      </CardContent>
+    </Card>
+  ),
+};
+
 export const InACard: Story = {
   name: 'In A Card',
   render: () => (
@@ -51,6 +86,7 @@ export const InACard: Story = {
         </Button>
       </div>
       <KeyValues
+        layout="aligned"
         items={[
           { label: 'Contract', value: 'Permanent' },
           { label: 'Hours', value: '40 per week' },
@@ -73,6 +109,7 @@ export const RichValues: Story = {
   },
   render: () => (
     <KeyValues
+      layout="aligned"
       className="max-w-xl"
       items={[
         {
@@ -111,6 +148,7 @@ export const RichValues: Story = {
             </Badge>
           )),
         },
+        { label: 'Unpublished changes', value: <Badge tone="attention">3 changes</Badge> },
         {
           label: 'Salary',
           value: (

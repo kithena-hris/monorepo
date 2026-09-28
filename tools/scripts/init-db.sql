@@ -12,6 +12,8 @@ CREATE SCHEMA IF NOT EXISTS platform;
 -- reason a module does: `svc_messaging` can see this and nothing else, so a
 -- cross-schema read fails at the database rather than in review.
 CREATE SCHEMA IF NOT EXISTS messaging;
+-- Slack, likewise: `svc_slack` sees its own schema and nothing else.
+CREATE SCHEMA IF NOT EXISTS slack;
 
 -- Separate database for OpenFGA's own storage.
 SELECT 'CREATE DATABASE openfga OWNER kithena'
@@ -45,6 +47,10 @@ BEGIN
   -- support query read another's.
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_messaging') THEN
     CREATE ROLE svc_messaging LOGIN PASSWORD 'kithena' NOBYPASSRLS;
+  END IF;
+  -- The Slack service. NOBYPASSRLS: its installations carry a tenant policy.
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_slack') THEN
+    CREATE ROLE svc_slack LOGIN PASSWORD 'kithena' NOBYPASSRLS;
   END IF;
 END $$;
 

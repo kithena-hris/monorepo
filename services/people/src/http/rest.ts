@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as z from 'zod';
+import { logger } from '@kithena/telemetry';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
+import type { ActivityStore } from '../application/settings/activity-store.js';
 import type { ExportJobDeps, ExportJobRequest } from '../application/export/job.js';
 import { linksOf } from '../application/export/job.js';
 import { requestExport, type ExportQueue, type QueuedExport } from '../application/export/queue.js';
@@ -24,6 +26,13 @@ import {
   type PendingValue,
 } from '../application/person/pending-changes.js';
 import { run, type PeopleService } from '../application/person/service.js';
+import {
+  activityTarget,
+  changes,
+  factsOf,
+  settingsActivity,
+  type ActivityReads,
+} from './activity.js';
 import type { CallerFrom } from './caller.js';
 import type { IdempotencyStore } from './idempotency.js';
 import { LIFECYCLE_ACTIONS } from './lifecycle.js';
@@ -343,6 +352,8 @@ export const CreateExportBody = z.strictObject({
   segmentId: z.uuid().optional(),
   /** Required when a financial field is in the file; recorded with the export. */
   reason: z.string().max(500).optional(),
+  /** Profile photos too, as a ZIP beside a CSV or spreadsheet. */
+  includePhotos: z.boolean().optional(),
 });
 
 export const CreateFullValuesBody = z.strictObject({
@@ -385,6 +396,9 @@ export const ExportBody = z.object({
 export const SettingsBody = z.object({
   defaultTimeZone: z.string(),
   cohortMinimum: z.int().describe('Raisable, never lowerable; at least 10.'),
+  photoAtSignup: z
+    .enum(['off', 'optional', 'required'])
+    .describe('Whether the first screen after signing up asks for a photo.'),
   slug: z
     .string()
     .nullable()
@@ -395,6 +409,7 @@ export const SettingsBody = z.object({
 export const PatchSettingsBody = z.strictObject({
   defaultTimeZone: z.string().optional(),
   cohortMinimum: z.int().optional(),
+  photoAtSignup: z.enum(['off', 'optional', 'required']).optional(),
 });
 
 export const LegalEntityBody = z.object({
@@ -479,6 +494,11 @@ const STATUS: Record<string, number> = {
   MERGE_TOMBSTONE: 409,
   MERGE_TWO_ACCOUNTS: 409,
   MERGE_HAS_REPORTS: 409,
+  // A merge's undo the records' states refuse.
+  UNMERGE_NOT_MERGED: 409,
+  UNMERGE_ERASED: 409,
+  UNMERGE_SURVIVOR_GONE: 409,
+  UNMERGE_UNRECORDED: 409,
   IDEMPOTENCY_KEY_REUSED: 422,
   // PEO-112: a grant to oneself, and the last administrator.
   SELF_GRANT: 403,
@@ -640,6 +660,14 @@ export interface RestDeps {
   readonly screens?: readonly Route[];
   /** Saved segments, for an export of one (PEO-068). */
   readonly segments?: SegmentStore;
+  /** The Settings activity log: each successful settings command, in words (`activity.ts`). */
+  readonly activity?: {
+    readonly store: ActivityStore;
+    readonly newId: () => string;
+    readonly now: () => string;
+    /** What a change is compared on, before and after it, for "from → to". */
+    readonly reads?: (tx: PostgresJsDatabase, tenantId: string) => ActivityReads;
+  };
 }
 
 export type Handler = (
@@ -1108,6 +1136,7 @@ export function restRoutes(deps: RestDeps): Route[] {
           ...(v.personIds ? { personIds: v.personIds } : {}),
           ...(v.filter !== undefined ? { filter: v.filter } : {}),
           ...(v.reason !== undefined ? { reason: v.reason } : {}),
+          ...(v.includePhotos === true ? { includePhotos: true } : {}),
         };
         const answer = await idempotent(
           deps,
@@ -1783,6 +1812,77 @@ export function restHandler(
     }
 
     const [, id] = route.pattern.exec(url.pathname) ?? [];
-    return route.handle(asking.value, request, id === undefined ? {} : { id }, url.searchParams);
+    const before = await compared(deps, asking.value.tenantId, request, url.pathname);
+    const answer = await route.handle(
+      asking.value,
+      request,
+      id === undefined ? {} : { id },
+      url.searchParams,
+    );
+    const after =
+      before === undefined || answer.status >= 300
+        ? null
+        : await compared(deps, asking.value.tenantId, request, url.pathname);
+    await logged(deps, asking.value, request, url.pathname, answer, changes(before ?? null, after ?? null));
+    return answer;
   };
+}
+
+/**
+ * A settings command that succeeded, into the Settings activity log. After the
+ * command, never instead of it: a log that cannot be written is said in the
+ * service's own log and the command still stands.
+ */
+/**
+ * The thing a settings command changes, as the log compares it: read just
+ * before and just after the command. Undefined when the command is not one
+ * compared; a failed read is no comparison, never a failed command.
+ */
+async function compared(
+  deps: RestDeps,
+  tenantId: string,
+  request: RestRequest,
+  path: string,
+): Promise<Record<string, string> | null | undefined> {
+  const reads = deps.activity?.reads;
+  const target = activityTarget(request.method, path, request.body);
+  if (reads === undefined || target === null) return undefined;
+  try {
+    const read = await run(deps.service, tenantId, async (tx) => ok(await factsOf(target, reads(tx, tenantId))));
+    return read.ok ? read.value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function logged(
+  deps: RestDeps,
+  asking: Asking,
+  request: RestRequest,
+  path: string,
+  answer: RestResponse,
+  changed: string | null,
+): Promise<void> {
+  const activity = deps.activity;
+  const key = request.headers['idempotency-key'];
+  if (activity === undefined || answer.status >= 300 || typeof key !== 'string') return;
+  const said = settingsActivity(request.method, path, request.body);
+  if (said === null) return;
+  try {
+    await run(deps.service, asking.tenantId, async (tx) => {
+      await activity.store.record(tx, asking.tenantId, {
+        id: activity.newId(),
+        at: activity.now(),
+        actor: asking.viewer.accountId,
+        action: said.action,
+        subject: said.subject ?? null,
+        detail: changed ?? said.detail ?? null,
+        area: said.area,
+        idempotencyKey: key,
+      });
+      return ok(undefined);
+    });
+  } catch (error) {
+    logger.warn({ err: error, path }, 'settings activity not recorded');
+  }
 }

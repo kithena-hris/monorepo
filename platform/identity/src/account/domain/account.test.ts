@@ -186,6 +186,79 @@ describe('the profile captured at enrolment', () => {
   });
 });
 
+/* ------------------------------------------------ a recovery that asks -- */
+
+/**
+ * A recovery link opened by somebody the registry has no name for asks for
+ * one, and a name somebody corrects on the way back in is theirs to correct.
+ * Either way People needs to hear it, so recovery publishes what it captured
+ * exactly as a first enrolment does — and nothing when it asked nothing.
+ */
+describe('what a recovery captured', () => {
+  const clock = fixedClock('2026-09-27T09:00:00.000Z');
+  const captured = {
+    name: { given: 'Ada', family: 'Lovelace', preferred: 'Ada' },
+    mobilePresent: false,
+  };
+
+  it('is published beside account.recovered', () => {
+    const account = Account.rehydrate(snapshot());
+    account.recover('cred-2', context(clock), captured);
+    const events = account.drainEvents();
+    expect(events.map((e) => e.eventName)).toEqual([
+      'identity.account.recovered',
+      'identity.account.profile_captured',
+    ]);
+    expect(events[1]?.payload).toMatchObject({ name: captured.name, timeZone: 'Europe/Madrid' });
+  });
+
+  it('publishes nothing extra when nothing was asked', () => {
+    const account = Account.rehydrate(snapshot());
+    account.recover('cred-2', context(clock));
+    expect(account.drainEvents().map((e) => e.eventName)).toEqual(['identity.account.recovered']);
+  });
+});
+
+/**
+ * The tenant's own sign-up questions, answered before the passkey. The values
+ * are forwarded to People on the event and identity keeps none of them.
+ */
+describe('sign-up answers', () => {
+  const clock = fixedClock('2026-09-27T09:00:00.000Z');
+  const answers = { schemaVersion: 3, answers: { t_shirt: 'm', badge_photo_ok: true } };
+
+  it('are published after enrolment, with the schema version they answered', () => {
+    const account = Account.rehydrate(snapshot({ status: 'invited' }));
+    account.enrol('cred-1', context(clock), undefined, answers);
+    const events = account.drainEvents();
+    expect(events.map((e) => e.eventName)).toEqual([
+      'identity.account.enrolled',
+      'identity.account.signup_answered',
+    ]);
+    expect(events[1]?.payload).toEqual({
+      accountId: ACCOUNT,
+      schemaVersion: 3,
+      answers: { t_shirt: 'm', badge_photo_ok: true },
+      answeredAt: '2026-09-27T09:00:00.000Z',
+    });
+  });
+
+  it('are published after a recovery too', () => {
+    const account = Account.rehydrate(snapshot());
+    account.recover('cred-2', context(clock), undefined, answers);
+    expect(account.drainEvents().map((e) => e.eventName)).toEqual([
+      'identity.account.recovered',
+      'identity.account.signup_answered',
+    ]);
+  });
+
+  it('raise nothing when there were none', () => {
+    const account = Account.rehydrate(snapshot({ status: 'invited' }));
+    account.enrol('cred-1', context(clock), undefined, { schemaVersion: 3, answers: {} });
+    expect(account.drainEvents().map((e) => e.eventName)).toEqual(['identity.account.enrolled']);
+  });
+});
+
 describe('termination is terminal', () => {
   const clock = fixedClock('2026-06-01T09:00:00.000Z');
 

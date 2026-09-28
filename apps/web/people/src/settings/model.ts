@@ -119,6 +119,22 @@ export interface RegistryField {
    * the default — on for financial or encrypted data.
    */
   readonly requiresApproval?: boolean;
+  /**
+   * At sign-up, where it is asked: `page` on the sign-up page itself, `after`
+   * on the first screen after it (a file, or data that page may not hold).
+   * Null or absent: not asked at sign-up.
+   */
+  readonly signup?: 'page' | 'after' | null;
+  /** It may be put on the sign-up flow: the employee fills it in. */
+  readonly signupAskable?: boolean;
+  /** The assistant may name it: its label and options, never a value from a record. */
+  readonly aiEligible?: boolean;
+  /** It could be shared with the assistant: public or internal, and not sealed. */
+  readonly aiShareable?: boolean;
+  /** Stored sealed: only its last four characters are ever shown. */
+  readonly encrypted?: boolean;
+  /** It may be switched to encrypted: a sealable type, not a column People sorts by. */
+  readonly encryptable?: boolean;
   readonly origin: Origin;
   /** Changed since the last published version, and how. */
   readonly pending: 'added' | 'changed' | 'archived' | null;
@@ -157,6 +173,8 @@ export interface FieldInput {
   readonly classificationSource: 'suggested' | 'human' | 'section_default';
   /** Whether a change waits for HR's approval (PEO-077); null keeps the default. */
   readonly requiresApproval: boolean | null;
+  /** Store it sealed; once on, never off. */
+  readonly encrypted?: boolean;
 }
 
 /**

@@ -17,6 +17,7 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbMenu,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from './breadcrumb';
@@ -203,8 +204,8 @@ export const LongLabels: Story = {
   ),
 };
 
-export const WithSectionMenu: Story = {
-  name: 'With Section Menu',
+export const WithSiblingSwitcher: Story = {
+  name: 'With Sibling Switcher',
   parameters: {
     docs: {
       description: {
@@ -248,4 +249,45 @@ export const WithSectionMenu: Story = {
       </Breadcrumb>
     );
   },
+};
+
+/**
+ * The last crumb as a menu of its siblings: the next section over is one step
+ * away, without going back up first. Still `aria-current`; the items are links.
+ */
+export const WithSectionMenu: Story = {
+  name: 'With Section Menu',
+  render: () => (
+    <Breadcrumb>
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink href="#people">People</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbMenu
+            label="Directory"
+            menuLabel="People sections"
+            groups={[
+              {
+                label: 'Workspace',
+                items: [
+                  { href: '#overview', label: 'Overview' },
+                  { href: '#directory', label: 'Directory', current: true },
+                  { href: '#approvals', label: 'Approvals' },
+                ],
+              },
+              {
+                label: 'Records',
+                items: [
+                  { href: '#completeness', label: 'Data completeness' },
+                  { href: '#import', label: 'Import' },
+                ],
+              },
+            ]}
+          />
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
+  ),
 };

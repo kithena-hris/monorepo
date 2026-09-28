@@ -30,6 +30,7 @@ const meta = {
           '| `danger` | A terminal bad outcome: rejected, failed, expired. |',
           '| `info` | Metadata about the record: superseded, imported, synced. |',
           '| `sensitive` | Not a state but a property: handled with more care, a change waits for somebody else. Outlined, and always with its glyph. |',
+          '| `attention` | Wanted and missing: a field nobody has filled in. Dashed, and always with its glyph. |',
           '',
           'A badge is not a button. If it can be pressed, it is a `Button` with `variant="tinted"`.',
         ].join('\n'),
@@ -40,10 +41,20 @@ const meta = {
     tone: {
       description: 'Semantic meaning. Reinforces the label; never replaces it.',
       control: 'inline-radio',
-      options: ['neutral', 'accent', 'success', 'warning', 'danger', 'info', 'sensitive'],
+      options: [
+        'neutral',
+        'accent',
+        'success',
+        'warning',
+        'danger',
+        'info',
+        'sensitive',
+        'attention',
+      ],
       table: {
         type: {
-          summary: "'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'sensitive'",
+          summary:
+            "'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'sensitive' | 'attention'",
         },
         defaultValue: { summary: 'neutral' },
         category: 'Appearance',
@@ -130,6 +141,9 @@ export const Tones: Story = {
       <Badge {...args} tone="sensitive">
         Sensitive
       </Badge>
+      <Badge {...args} tone="attention">
+        Missing
+      </Badge>
     </div>
   ),
 };
@@ -148,6 +162,27 @@ export const Sensitive: Story = {
     <div className="flex flex-wrap items-center gap-2">
       <Badge {...args} />
       <Badge tone="warning">Pending approval</Badge>
+    </div>
+  ),
+};
+
+export const Attention: Story = {
+  args: { tone: 'attention', children: 'Missing' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Something that should be there and is not: a date of birth nobody entered, a work location never set. The warning wash says "look here", the dashed edge and the empty-circle glyph say "not filled in" rather than "something went wrong", and the word says it to everybody else. Put it where the value would be, or beside a count of what is missing.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge {...args} />
+      <Badge {...args}>3 missing</Badge>
+      <Badge {...args} size="sm">
+        Missing
+      </Badge>
     </div>
   ),
 };
@@ -179,7 +214,7 @@ export const Sizes: Story = {
   ),
 };
 
-export const Attention: Story = {
+export const Solid: Story = {
   args: { variant: 'solid' },
   parameters: {
     docs: {

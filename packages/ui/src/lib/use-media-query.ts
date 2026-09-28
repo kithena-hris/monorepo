@@ -21,15 +21,25 @@ import { useLayoutEffect, useState, useSyncExternalStore, type RefObject } from 
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
     (onChange) => {
+      if (!canMatch()) return () => undefined;
       const list = window.matchMedia(query);
       list.addEventListener('change', onChange);
       return () => {
         list.removeEventListener('change', onChange);
       };
     },
-    () => window.matchMedia(query).matches,
+    () => canMatch() && window.matchMedia(query).matches,
     () => false,
   );
+}
+
+/**
+ * Whether this window can answer a media query at all. A test environment
+ * (jsdom) has no `matchMedia`, and a component that asks should render its
+ * default rather than throw: the question is optional, the screen is not.
+ */
+function canMatch(): boolean {
+  return typeof window.matchMedia === 'function';
 }
 
 /**

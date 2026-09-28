@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetChatNotice($notice: String!, $on: Boolean!, $key: String!) {\n    setChatNotice(key: $notice, on: $on, idempotencyKey: $key) { notices { key on } }\n  }"}

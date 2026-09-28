@@ -1,0 +1,1 @@
+{"version":1,"body":"query Ask($question: String!, $earlier: [String!]) {\n    peopleAsk(question: $question, earlier: $earlier) { text understood answered people { id name title } }\n  }"}

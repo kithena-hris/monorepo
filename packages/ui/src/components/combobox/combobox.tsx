@@ -271,6 +271,11 @@ export function Combobox({
     <Popover
       // The list belongs under its field, where the choice is read in place.
       sheetOnTouch={false}
+      // Modal, so the list scrolls inside a Dialog: the panel is portalled out
+      // of the dialog, whose scroll lock otherwise swallows the wheel and the
+      // touch drag over it. Modal gives the panel a scroll lock of its own that
+      // lets it scroll, and nothing else behind it while it is open.
+      modal
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
@@ -388,7 +393,7 @@ export function Combobox({
           role="listbox"
           aria-label={label}
           aria-multiselectable={multiple || undefined}
-          className="max-h-64 overflow-y-auto overscroll-contain touch:max-h-[50vh]"
+          className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height,16rem)-7rem))] min-h-24 overflow-y-auto overscroll-contain touch:max-h-[min(50vh,calc(var(--radix-popover-content-available-height,50vh)-7rem))]"
         >
           {loading ? (
             <li className="px-3 py-6 text-center text-sm text-fg-muted">Searching…</li>

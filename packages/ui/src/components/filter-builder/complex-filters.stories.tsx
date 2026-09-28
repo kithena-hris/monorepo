@@ -54,7 +54,7 @@ const meta = {
   },
   args: {
     fields: peopleFields,
-    value: { kind: 'group', id: 'root', match: 'all', items: [] },
+    value: { match: 'all', conditions: [] },
     onChange: () => undefined,
   },
 } satisfies Meta<typeof FilterBuilder>;
@@ -219,25 +219,24 @@ export const NestedGroups: Story = {
     docs: {
       description: {
         story:
-          'Two levels of groups at most. The plain-language summary underneath is what people actually read, and it comes from `describeFilter()`.',
+          'One level of groups at most. The plain-language summary underneath is what people actually read, and it comes from `describeFilter()`.',
       },
     },
   },
   render: function NestedStory() {
     const [value, setValue] = useState<FilterGroup>({
-      kind: 'group',
-      id: 'root',
       match: 'all',
-      items: [
-        { kind: 'condition', id: 'c1', field: 'team', operator: 'is', value: 'engineering' },
-        { kind: 'condition', id: 'c2', field: 'contract', operator: 'is', value: 'permanent' },
+      conditions: [
+        { id: 'c1', field: 'team', operator: 'is', values: ['engineering'] },
+        { id: 'c2', field: 'contract', operator: 'is', values: ['permanent'] },
+      ],
+      groups: [
         {
-          kind: 'group',
           id: 'g1',
           match: 'any',
-          items: [
-            { kind: 'condition', id: 'c3', field: 'location', operator: 'is', value: 'berlin' },
-            { kind: 'condition', id: 'c4', field: 'location', operator: 'is', value: 'remote' },
+          conditions: [
+            { id: 'c3', field: 'location', operator: 'is', values: ['berlin'] },
+            { id: 'c4', field: 'location', operator: 'is', values: ['remote'] },
           ],
         },
       ],

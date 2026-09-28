@@ -135,7 +135,7 @@ export interface ReportSchedulesProps {
 
 /** The sentence every place that names recipients says. */
 export const EACH_SEES_THEIR_OWN =
-  'Each recipient gets only what they are allowed to see in People. The report is built again for every recipient, so different recipients may receive different people and different columns.';
+  'Each recipient sees only the people and columns they have access to.';
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const hh = (hour: number): string => `${String(hour).padStart(2, '0')}:00`;
@@ -762,8 +762,7 @@ function ScheduleForm({
                 and a manager’s file can be much shorter than HR’s.
               </p>
               <p>
-                Somebody who has left, or can no longer see the report, gets nothing, and its
-                history says so. The email carries a link to sign in, never the data.
+                People who have left or lost access receive nothing. Emails contain a sign-in link, never data.
               </p>
             </Stack>
           </DialogBody>

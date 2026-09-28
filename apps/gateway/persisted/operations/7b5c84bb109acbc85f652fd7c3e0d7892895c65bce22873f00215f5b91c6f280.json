@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetFieldAssistant($field: String!, $share: Boolean!, $key: String!) {\n    setFieldAssistant(key: $field, share: $share, idempotencyKey: $key) { ok }\n  }"}

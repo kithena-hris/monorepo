@@ -226,6 +226,33 @@ Scoped to one tenant, `app_runtime` sees that tenant's row and no other. So the
 application connects as a role created `NOBYPASSRLS`; migrations may run as the
 owner, because they are supposed to see everything.
 
+**A new service role is created on Neon by hand, before the migration that
+grants to it ships.** The migrations grant to `svc_identity`, `svc_messaging`,
+`svc_people`, `svc_timeoff` and `svc_slack`; on Neon each exists, `NOLOGIN
+NOBYPASSRLS`, on both branches (`main` and `staging`). The VM and the local
+database create theirs (`deploy.sh migrate`, `tools/scripts/init-db.sql`); Neon
+does not, and a missing one fails the production migration at its first
+`GRANT`, as `svc_slack` did once:
+
+```sql
+CREATE ROLE svc_slack NOLOGIN NOBYPASSRLS;
+```
+
+**`svc_debezium` is the exception**: its migration
+(`20260927230000_outbox_relay.sql`) makes it, `NOLOGIN`, everywhere. Its login
+and `REPLICATION` are what a migration cannot give. On the VM `deploy.sh
+migrate` gives them; on Neon, once per branch, as the owner, after the project's
+logical replication is on (Settings → Logical replication; it restarts the
+compute and cannot be turned off):
+
+```sql
+ALTER ROLE svc_debezium LOGIN REPLICATION PASSWORD '…';
+```
+
+The password goes to the environment's `IDENTITY_RELAY_PASSWORD` secret and the
+branch's direct (not `-pooler`) host to `IDENTITY_RELAY_HOST_<ENV>`; the deploy
+writes both into the VM's `relay.env`.
+
 Checking the attribute is one query, and worth doing after any role change:
 
 ```sql
@@ -596,6 +623,12 @@ highest `docker stats` reading across two such runs.
 | valkey | 7 MB | 15 MB | **128 MB** | `maxmemory 64mb`, `noeviction` (BullMQ); limit twice that for the AOF rewrite's fork |
 | cloudflared | 20 MB | 46 MB | **96 MB** | — |
 | **Total** | **0.6 GB** | **1.4 GB** | **2.66 GB** | |
+
+Added since, measured the same way but not in the runs above: `slack` (**160
+MB**, `--max-old-space-size=96`) and the two outbox relays, `relay-people` and
+`relay-identity` (~175 MB each running, **224 MB** each; a 64 MB heap, the
+image's OpenTelemetry agent off). With them the limits are **3.3 GB**; the swap
+is what makes that fit, and `m7i-flex.large` is the step up if it stops fitting.
 
 Nothing was OOM-killed and nothing restarted except `cloudflared`, which had
 a dummy token and no tunnel to reach, so its figure is the binary retrying, not
@@ -1119,9 +1152,10 @@ well. The error names the setting, never its value.
 
 #### Not covered here
 
-- **The outbox relay.** Debezium is not deployed anywhere yet, so People's
-  outbox rows are written and nothing publishes them. It would be one more
-  container on this VM.
+- **Identity's consumer of People's events.** The relays publish both
+  outboxes, but identity runs as Vercel functions and nothing there consumes
+  `kithena.people.v1` (a person's access ending, their identity facts), so
+  those do not yet reach identity in production.
 
 ### Object storage
 

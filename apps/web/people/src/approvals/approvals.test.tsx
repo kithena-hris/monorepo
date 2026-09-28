@@ -46,8 +46,9 @@ describe('the approvals inbox (PEO-077)', () => {
       />,
     );
     expect(await axeViolations(container)).toEqual([]);
-    const row = screen.getByRole('row', { name: /Lucía Ortega/ });
-    expect(within(row).getByText('Sensitive')).toBeInTheDocument();
+    // Under her group's heading row, her change.
+    const row = screen.getAllByRole('row', { name: /Lucía Ortega/ }).at(-1) as HTMLElement;
+    expect(within(row).getByText('Needs approval')).toBeInTheDocument();
     expect(within(row).getByText('Pending approval')).toBeInTheDocument();
     expect(within(row).getByText('•••• 3000')).toBeInTheDocument();
     expect(within(row).getByText('•••• 1332')).toBeInTheDocument();
@@ -70,7 +71,7 @@ describe('the approvals inbox (PEO-077)', () => {
     );
     const user = fast();
     expect(screen.queryByRole('button', { name: /Approve the change to Me's/ })).toBeNull();
-    expect(screen.getByText(/Another HR member decides your own change/)).toBeInTheDocument();
+    expect(screen.getByText(/Another HR member must approve your change/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Approve the change to Lucía Ortega's/ }));
     await user.type(screen.getByLabelText('Note'), 'Checked against the form');
     await user.click(screen.getByRole('button', { name: 'Approve' }));
@@ -95,14 +96,14 @@ describe('the approvals inbox (PEO-077)', () => {
       />,
     );
     expect(await axeViolations(container)).toEqual([]);
-    expect(screen.queryByText(/Another HR member decides your own change/)).toBeNull();
+    expect(screen.queryByText(/Another HR member must approve your change/)).toBeNull();
     const user = fast();
     await user.click(
       screen.getByRole('button', { name: "Approve the change to Priya Shah's IBAN yourself" }),
     );
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText(/no other HR member who can approve it/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/audit trail will show that you approved your own change because no other HR/))
+    expect(within(dialog).getByText(/No other HR member can approve this change/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/audit log will show you approved your own change because no one else could/))
       .toBeInTheDocument();
     expect(await axeViolations(document.body)).toEqual([]);
     expect(onSelfApprove).not.toHaveBeenCalled();
@@ -141,7 +142,8 @@ describe('the approvals inbox (PEO-077)', () => {
       />,
     );
     expect(await axeViolations(container)).toEqual([]);
-    const row = screen.getByRole('row', { name: /Lucía Ortega/ });
+    // Under her group's heading row, her change.
+    const row = screen.getAllByRole('row', { name: /Lucía Ortega/ }).at(-1) as HTMLElement;
     expect(within(row).getByText('Awaiting identifier review')).toBeInTheDocument();
     expect(within(row).queryByText('Pending approval')).toBeNull();
     expect(within(row).getByText('The control letter does not compute.')).toBeInTheDocument();
@@ -301,5 +303,23 @@ describe('a doubted identifier HR could not accept (PEO-125)', () => {
     expect(screen.getByText('HR could not accept your NIF / NIE')).toBeInTheDocument();
     await fast().click(screen.getByRole('button', { name: 'Correct NIF / NIE' }));
     expect(screen.getByRole('form', { name: 'Identification' })).toBeInTheDocument();
+  });
+
+  it('is one table, grouped by employee', () => {
+    render(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: { isHr: true, items: [item, { ...item, id: 'second', key: 'iban', label: 'IBAN' }] },
+        }}
+        onDecide={vi.fn(done)}
+        onWithdraw={vi.fn(done)}
+      />,
+    );
+    const groups = screen.getAllByRole('rowheader');
+    expect(groups.length).toBeGreaterThan(0);
+    expect(groups[0]).toHaveTextContent('2 changes');
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+    expect(screen.queryByRole('radio')).toBeNull();
   });
 });

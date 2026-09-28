@@ -7,6 +7,7 @@ import { fixedClock } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
 import { publishSchema } from '../application/schema/publish-schema.js';
+import { pendingOf } from '../application/screens/schema.js';
 import {
   drizzlePeopleFacts,
   drizzleSchemaRepository,
@@ -32,8 +33,9 @@ let admin: PostgresJsDatabase;
 let inTenant: ReturnType<typeof tenantTransaction>;
 
 let events = 0;
+const repository = drizzleSchemaRepository();
 const use = publishSchema({ calendars: utcCalendars,
-  schema: drizzleSchemaRepository(),
+  schema: repository,
   people: drizzlePeopleFacts(),
   clock,
   newEventId: () => {
@@ -116,6 +118,22 @@ describe('a country pack on a fresh tenant', () => {
 
     const origins = await admin.execute(sql`SELECT DISTINCT origin FROM people.attribute_definition`);
     expect([...origins].map((r) => r['origin'])).toEqual(['country_pack']);
+  });
+
+  it('has nothing left to publish once it is published', async () => {
+    await inTenant(ACME, async ({ tx }) => {
+      await seedCountryPack(tx, ACME, COUNTRY_PACKS.ES);
+      await seedCountryPack(tx, ACME, COUNTRY_PACKS.DE);
+    });
+    expect((await inTenant(ACME, ({ tx }) => use.publish(tx, request))).ok).toBe(true);
+
+    const { draft, published } = await inTenant(ACME, async ({ tx }) => ({
+      draft: await repository.loadDraft(tx, ACME),
+      published: await repository.currentVersion(tx, ACME),
+    }));
+    // Read back from the table, as the Employee fields screen reads them.
+    const changed = draft.attributes.filter((a) => pendingOf(a, published) !== null);
+    expect(changed.map((a) => a.key)).toEqual([]);
   });
 
   it('takes a second country and a re-application without a conflict', async () => {

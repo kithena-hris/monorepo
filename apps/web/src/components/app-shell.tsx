@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   KithenaLogo,
+  KithenaMark,
   Nav,
   NavItem,
   NavList,
@@ -31,6 +32,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
 import { THEME_KEY } from '../lib/theme';
+import { Assistant } from './assistant';
 
 /*
  * Reach's icon set, by meaning rather than by drawing.
@@ -69,6 +71,12 @@ export interface AppShellProps {
    * it is something this company does not have.
    */
   readonly entitlements: readonly string[];
+  /**
+   * An area's own sections, by the area's `href`: shown beside its sidebar
+   * item on hover, focus or a tap (`NavItem`'s `flyout`) rather than as a
+   * column that takes width from every screen.
+   */
+  readonly sections?: Readonly<Record<string, ReactNode>>;
   readonly children: ReactNode;
 }
 
@@ -146,6 +154,7 @@ export function AppShell({
   companyName,
   logoUrl = null,
   entitlements,
+  sections = {},
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
@@ -199,7 +208,14 @@ export function AppShell({
         */
         sidebarHeader={
           logoUrl === null ? (
-            <KithenaLogo className="text-fg h-6 w-auto shrink-0" />
+            <>
+              <KithenaLogo className="text-fg h-6 w-auto shrink-0 group-data-[collapsed]/sidebar:hidden" />
+              {/* As a rail, the mark alone: the wordmark has no room. */}
+              <KithenaMark
+                title="Kithena"
+                className="text-fg hidden size-7 group-data-[collapsed]/sidebar:block"
+              />
+            </>
           ) : (
             <div className="flex min-w-0 items-center gap-2.5">
               <Avatar size="md" shape="rounded" fit="contain" src={logoUrl} name={companyName} />
@@ -243,6 +259,9 @@ export function AppShell({
                       asChild
                       icon={area.icon}
                       current={isCurrent(area.href, pathname)}
+                      flyout={sections[area.href]}
+                      // An area's places in columns, each described: room for a menu.
+                      flyoutSize="lg"
                     >
                       <Link href={area.href as Route}>{area.label}</Link>
                     </NavItem>
@@ -275,39 +294,11 @@ export function AppShell({
             <div className="border-border mt-auto flex shrink-0 flex-col gap-3 border-t pt-3">
               <Nav label="Account">
                 <NavList>
-                  <NavItem href="/settings" icon={<Settings />} aria-disabled tabIndex={-1}>
-                    Settings
+                  <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
+                    <Link href="/settings">Settings</Link>
                   </NavItem>
                 </NavList>
               </Nav>
-              {/*
-                A visible control, not only an item inside the profile menu.
-
-                It was in the menu alone, which opens on hovering the person's
-                name at the very bottom of the sidebar — something somebody has
-                to already know about to find. A preference nobody can see is a
-                preference nobody has.
-
-                A `Button`, not a `NavItem`: this changes something rather than
-                going somewhere, and `NavItem` renders an anchor. `asChild` on
-                it would be the obvious way round that and does not work —
-                `Slot` needs a single child and `NavItem` gives it an icon, a
-                label and a badge slot.
-              */}
-              <Button
-                variant="ghost"
-                size="sm"
-                fullWidth
-                aria-pressed={dark}
-                startIcon={dark ? <ThemeLight /> : <ThemeDark />}
-                className="justify-start group-data-[collapsed]/sidebar:hidden"
-                onClick={() => {
-                  setTheme(!dark);
-                }}
-              >
-                {dark ? 'Light mode' : 'Dark mode'}
-              </Button>
-
               <PersonMenu person={person} dark={dark} onTheme={setTheme} />
             </div>
           </div>
@@ -315,6 +306,7 @@ export function AppShell({
       >
         {children}
       </PageLayout>
+      <Assistant />
     </TooltipProvider>
   );
 }
@@ -346,7 +338,8 @@ function PersonMenu({
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{person.name}</span>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent side="top" align="start" className="w-56">
+      {/* Out to the right like the navigation's flyouts, its foot level with the trigger's. */}
+      <DropdownMenuContent side="right" align="end" sideOffset={16} className="w-56">
         <DropdownMenuLabel className="truncate font-normal">
           {person.email ?? person.name}
         </DropdownMenuLabel>
@@ -464,8 +457,8 @@ function MobileTabs({
           <SheetBody>
             <Nav label="Account">
               <NavList>
-                <NavItem href="/settings" icon={<Settings />} aria-disabled tabIndex={-1}>
-                  Settings
+                <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
+                  <Link href="/settings">Settings</Link>
                 </NavItem>
               </NavList>
             </Nav>

@@ -24,6 +24,7 @@ function countryName(code: string): string {
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
+import { peopleFlyout } from '../components/people-flyout';
 import { AppShell } from '../components/app-shell';
 import { LocalTime } from '../components/local-time';
 import { currentTenant } from '../lib/branding';
@@ -89,6 +90,7 @@ export default async function Home(): Promise<JSX.Element> {
       companyName={company}
       logoUrl={tenant?.branding.logoUrl ?? null}
       entitlements={person.entitlements}
+      sections={await peopleFlyout(person.entitlements)}
     >
       {/*
         Their zone, rendered beside the greeting rather than in a card.

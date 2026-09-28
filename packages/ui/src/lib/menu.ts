@@ -21,7 +21,7 @@ export function boundaryOf(container: HTMLElement | undefined): {
 export const menuSurface = [
   'z-50 min-w-[12rem] overflow-hidden rounded-md bg-surface-raised p-1.5 text-fg shadow-lg',
   'touch:min-w-[15rem] touch:rounded-lg',
-  'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+  'popover-motion',
 ];
 
 /** A row: 36px at a desk, 48px under a finger. */

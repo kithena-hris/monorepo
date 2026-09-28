@@ -39,8 +39,9 @@ export interface SearchFieldProps extends Omit<
 /**
  * A search box that can be emptied.
  *
- * `type="search"` gives you the semantics and, in WebKit, a clear button that
- * no keyboard can reach and no screen reader announces. This renders its own:
+ * `type="search"` gives you the semantics and, in WebKit and Chromium, a clear
+ * button that no keyboard can reach and no screen reader announces. That one
+ * is hidden and this renders its own:
  * a real `<button>` with a name, which appears only when there is something to
  * clear, a permanent clear button on an empty field is a control that does
  * nothing, and people press it to find out.
@@ -98,6 +99,7 @@ export function SearchField({
           </button>
         )
       }
+      // The browser's own clear button is hidden in the base layer (base.css).
       className={className}
       {...props}
     />

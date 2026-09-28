@@ -6,7 +6,12 @@ import { Button } from '../button/button';
 import { Badge } from '../badge/badge';
 import { Field, FieldLabel } from '../field/field';
 import { Input } from '../input/input';
-import { ColumnChooser as ColumnChooserControl, type ColumnChoice } from '../table/column-chooser';
+import {
+  ColumnChooser as ColumnChooserControl,
+  orderColumns,
+  type ColumnChoice,
+  type ColumnChooserValue,
+} from '../table/column-chooser';
 import { ToggleGroup, ToggleGroupItem } from '../toggle/toggle';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from './popover';
 
@@ -139,28 +144,23 @@ export const ColumnChooser: Story = {
     },
   },
   render: function ColumnsStory() {
-    const [columns, setColumns] = useState<readonly ColumnChoice[]>(allColumns);
-    const [visible, setVisible] = useState<readonly string[]>(defaultColumns);
+    const initial = { order: allColumns.map((column) => column.id), visible: defaultColumns };
+    const [value, setValue] = useState<ColumnChooserValue>(initial);
 
     return (
       <div className="space-y-3 text-center">
         <ColumnChooserControl
-          columns={columns}
-          visible={visible}
-          onVisibleChange={setVisible}
-          onReorder={(order) => {
-            const byId = new Map(columns.map((column) => [column.id, column]));
-            setColumns(order.flatMap((id) => byId.get(id) ?? []));
-          }}
+          columns={allColumns}
+          value={value}
+          onChange={setValue}
           onReset={() => {
-            setColumns(allColumns);
-            setVisible(defaultColumns);
+            setValue(initial);
           }}
         />
         <p aria-live="polite" className="text-sm text-fg-muted">
           Showing{' '}
-          {columns
-            .filter((column) => visible.includes(column.id))
+          {orderColumns(allColumns, value.order)
+            .filter((column) => column.locked === true || value.visible.includes(column.id))
             .map((column) => column.label)
             .join(', ')}
         </p>

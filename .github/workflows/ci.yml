@@ -17,17 +17,17 @@ permissions:
 # Superseded runs are cancelled on a pull request, where only the tip matters
 # and an older commit's result is noise worth paying nothing for.
 #
-# Never on `main`, because the group key there is the same string for every
-# push — `refs/heads/main` — so a second merge cancels the first merge's run.
-# That is not just a lost result: `vercel-production` triggers on this workflow
-# and refuses anything whose conclusion is not `success`, and a cancelled run
-# reports `cancelled`. The deploy is then skipped silently, with no failure
-# anywhere to notice, and `main` sits undeployed until something else happens
-# to push. Two merges nine minutes apart is all it takes, which is exactly how
-# #8 came to never reach production.
+# On `main` too, since 2026-09-27. A second merge now cancels the first
+# merge's run, and `vercel-production` skips the cancelled one (it deploys only
+# a `success`). That used to lose the older commit — #8 never reached
+# production that way — but the deploy no longer ships "this commit": it ships
+# every target that differs from its `deployed/production/<target>` tag
+# (`tools/scripts/src/affected-targets.ts`), so the newer merge's deploy carries
+# the older one's changes with it. The cost is that a superseded commit gets no
+# verdict of its own; the newer run judges both.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -84,9 +84,19 @@ jobs:
           if any "$shared" || any "$web"; then echo "web=true" >> "$GITHUB_OUTPUT"; else echo "web=false" >> "$GITHUB_OUTPUT"; fi
           echo "changed files:"; printf '%s\n' "$changed" | head -50
 
-  verify:
+  # Three streams at once, each on its own runner: lint (with the module
+  # boundaries and the two drift checks), the TS 6 typecheck, and the unit
+  # tests. Serially they were about six minutes; the build each needs is shared
+  # through turbo's remote cache, so only the first stream to reach a package
+  # builds it.
+  verify-stream:
+    name: verify (${{ matrix.stream }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        stream: [lint, typecheck, unit]
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -100,22 +110,14 @@ jobs:
       - name: install
         run: pnpm install --frozen-lockfile
 
-      # Build first, because `lint` and `boundaries` are the two checks that do
-      # not go through turbo. Every turbo task declares `dependsOn: ["^build"]`
-      # and so builds what it needs, but `pnpm lint` is a bare `oxlint && eslint`
-      # and `pnpm boundaries` a bare `depcruise`. `dist/` is not committed and
-      # `@kithena/contracts` resolves through `./dist/index.d.ts`, so on a clean
-      # checkout both see an unbuilt workspace and typescript-eslint reports the
-      # whole codebase as `error typed value`.
+      # `lint` and `boundaries` do not go through turbo, so they need the
+      # workspace built first; the typecheck and unit tests build what they need.
       - name: build
+        if: matrix.stream == 'lint'
         run: pnpm build
 
-      # Cheap rules first, then the type-aware pass. ESLint resolves against
-      # the pinned TypeScript 6 API until 7.1 ships a stable one. The
-      # type-aware pass holds the whole program in memory and outgrew Node's
-      # default heap (about 4 GB) with the People Phase 2/3 code; the runner
-      # has 16 GB.
       - name: lint
+        if: matrix.stream == 'lint'
         env:
           NODE_OPTIONS: --max-old-space-size=8192
         run: pnpm lint
@@ -123,14 +125,17 @@ jobs:
       # Architectural boundaries. A cross-module import fails here, which is
       # the only thing stopping the anti-sticky property from eroding.
       - name: module boundaries
+        if: matrix.stream == 'lint'
         run: pnpm boundaries
 
       # TypeScript 6 is the merge gate. TS 7 is the fast local check; the two
       # compilers can still disagree and the authoritative one should decide.
       - name: typecheck on TS 6
+        if: matrix.stream == 'typecheck'
         run: pnpm typecheck:authoritative
 
       - name: unit tests
+        if: matrix.stream == 'unit'
         run: pnpm test
 
       # The invitation email carries concrete sRGB values, because a mail client
@@ -144,6 +149,7 @@ jobs:
       # conversion is checked against `reach-tokens.json`, which a browser
       # produced, so it is verified against the renderer it stands in for.
       - name: email theme drift
+        if: matrix.stream == 'lint'
         run: pnpm email:theme-drift
 
       # `atlas migrate apply` verifies the directory against `atlas.sum` before
@@ -167,6 +173,7 @@ jobs:
       # lint` behind a paid tier in v0.38 and broke a production deploy on a
       # release nobody here made.
       - name: migration ledger
+        if: matrix.stream == 'lint'
         run: |
           ATLAS_VERSION=v0.37.0
           curl -sSf "https://release.ariga.io/atlas/atlas-linux-amd64-${ATLAS_VERSION}" -o /usr/local/bin/atlas
@@ -178,6 +185,20 @@ jobs:
             exit 1
           fi
           echo "migration ledger matches the directory"
+
+  # The required check keeps its name: green only when every stream is.
+  verify:
+    needs: verify-stream
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every stream passed
+        env:
+          RESULT: ${{ needs.verify-stream.result }}
+        run: |
+          echo "streams: $RESULT"
+          [ "$RESULT" = success ]
 
   contracts:
     needs: changes
@@ -213,9 +234,22 @@ jobs:
         run: echo "::notice::No change this job covers (contracts, services, platform, gateway, codegen or shared config). It runs in full on main."
 
 
-  integration:
+  # Four streams at once. People's suite is most of the time and runs its files
+  # one after another (each starts its own containers), so it is split three
+  # ways with Vitest's `--shard`; every other package's suite is the fourth.
+  # A shard is a whole file, so a file's containers never span two runners.
+  integration-shard:
+    name: integration (${{ matrix.stream }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { stream: 'people 1/3', filter: '@kithena/people', shard: '1/3' }
+          - { stream: 'people 2/3', filter: '@kithena/people', shard: '2/3' }
+          - { stream: 'people 3/3', filter: '@kithena/people', shard: '3/3' }
+          - { stream: 'the rest', filter: '!@kithena/people', shard: '' }
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -226,8 +260,32 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - name: install
         run: pnpm install --frozen-lockfile
+      # Through turbo, so each package's dependencies are built first.
       - name: integration tests, real postgres
-        run: pnpm test:integration
+        env:
+          FILTER: ${{ matrix.filter }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          args=(--filter "$FILTER")
+          if [ -n "$SHARD" ]; then
+            pnpm turbo run test:integration "${args[@]}" -- --shard="$SHARD"
+          else
+            pnpm turbo run test:integration "${args[@]}"
+          fi
+
+  # The required check keeps its name: green only when every stream is.
+  integration:
+    needs: integration-shard
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every stream passed
+        env:
+          RESULT: ${{ needs.integration-shard.result }}
+        run: |
+          echo "streams: $RESULT"
+          [ "$RESULT" = success ]
 
   standalone:
     runs-on: ubuntu-latest
@@ -329,17 +387,19 @@ jobs:
     # accessibility rule that is only written down is an accessibility rule that
     # is already broken somewhere.
     #
-    # Sharded four ways. The sweep renders every entry in two themes and two
-    # pointer profiles — 468 x 4 renders in series took 34 minutes, which was
-    # the whole pipeline; everything else here finishes inside three. The shards
-    # are a round-robin over a sorted index, verified to partition it exactly,
-    # so four runners cover the same set in roughly a quarter of the time.
+    # Sharded six ways, and each shard renders on four pages at once. The sweep
+    # renders every entry in two themes and two pointer profiles — 468 x 4
+    # renders in series took 34 minutes, which was the whole pipeline. The
+    # shards are a round-robin over a sorted index, verified to partition it
+    # exactly. Four shards on one page each took about 9 minutes; four on four
+    # pages about 5. The required check is `design-system`, below, so the shard
+    # count can change without touching the branch ruleset.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - name: checkout
         if: needs.changes.outputs.ui == 'true'
@@ -358,13 +418,6 @@ jobs:
       - name: chromium
         if: needs.changes.outputs.ui == 'true'
         run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
-
-      # Unconditional, and only on the first shard because it covers every story
-      # by itself. Narrowing an accessibility pass by what a diff appears to
-      # touch is how such a gate quietly stops being one.
-      - name: axe over every story
-        if: needs.changes.outputs.ui == 'true' && (matrix.shard == 1)
-        run: pnpm test:stories
 
       # Narrows the *contrast sweep* and nothing else, and only on a pull
       # request. Every check below still runs on every event; the detector
@@ -386,13 +439,19 @@ jobs:
           STORY_FILTER: ${{ steps.scope.outputs.filters }}
           SKIP_STORY_SWEEP: ${{ steps.scope.outputs.skip }}
           STORYBOOK_URL: http://localhost:6006
-          SHARD: ${{ matrix.shard }}/4
+          SHARD: ${{ matrix.shard }}/6
+          # Pages rendering at once on this runner (tools/a11y/contrast-sweep.mjs):
+          # one per vCPU. Six tried on 2026-09-27 left two renders unsettled
+          # after 20 s on main — the dev server compiles each story on first
+          # request and the 4-vCPU runner could not keep up. The sixth shard is
+          # what buys the time now.
+          CONTRAST_WORKERS: 4
         run: |
           pnpm --filter @reach/storybook dev --quiet &
           npx --yes wait-on http://localhost:6006/index.json --timeout 180000
 
           # The drift gates describe the whole design system rather than any
-          # subset of it, so they run once rather than four times.
+          # subset of it, so they run once rather than once per shard.
           if [ "${{ matrix.shard }}" = "1" ]; then
             # The manager cannot reference a Reach custom property (it is a
             # separate document from the preview and does not load the
@@ -422,7 +481,7 @@ jobs:
             # set resolved to. An affected set is not necessarily small — a
             # change to a shared component reached 362 of 479 entries, which on
             # one runner took 24.6 minutes against the full sweep's 8 per shard,
-            # while the other three shards idled. The four runners are paid for
+            # while the other shards idled. The runners are paid for
             # either way, and a shard left with nothing exits clean.
             node tools/a11y/affected-contrast.mjs
           else
@@ -454,3 +513,53 @@ jobs:
         if: needs.changes.outputs.ui != 'true'
         run: echo "::notice::No design-system change (packages/ui, storybook, docs, a11y tooling or shared config). It runs in full on main."
 
+  # Axe over every story, on its own runner beside the contrast shards. It used
+  # to ride on shard 1, which made that shard the slowest by a minute and a
+  # half. Unconditional over every story when the UI changed: narrowing an
+  # accessibility pass by what a diff appears to touch is how such a gate
+  # quietly stops being one.
+  design-system-axe:
+    name: design-system (axe)
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: checkout
+        if: needs.changes.outputs.ui == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: pnpm
+        if: needs.changes.outputs.ui == 'true'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        if: needs.changes.outputs.ui == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        if: needs.changes.outputs.ui == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: chromium
+        if: needs.changes.outputs.ui == 'true'
+        run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
+      - name: axe over every story
+        if: needs.changes.outputs.ui == 'true'
+        run: pnpm test:stories
+      - name: nothing to check
+        if: needs.changes.outputs.ui != 'true'
+        run: echo "::notice::No UI change; axe runs in full on main."
+
+  # The required check: green only when every design-system shard and the axe
+  # pass are.
+  design-system-all:
+    name: design-system
+    needs: [design-system, design-system-axe]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: every shard passed
+        env:
+          SHARDS: ${{ needs.design-system.result }}
+          AXE: ${{ needs.design-system-axe.result }}
+        run: |
+          echo "shards: $SHARDS, axe: $AXE"
+          [ "$SHARDS" = success ] && [ "$AXE" = success ]

@@ -312,10 +312,12 @@ export class SchemaDraft {
   }
 
   addAttribute(input: AttributeDefinitionInput): Result<Attribute> {
-    const parsed = AttributeDefinition.safeParse(input);
+    const parsed = AttributeDefinition.safeParse(sealedShape(input));
     if (!parsed.success) return err(invalid('definition', parsed.error));
 
     const definition = parsed.data;
+    const sealable = checkEncryptable(definition);
+    if (!sealable.ok) return sealable;
     if (this.#attributes.has(definition.key)) {
       return err(DuplicateKey('attribute', definition.key));
     }
@@ -363,9 +365,26 @@ export class SchemaDraft {
       return err(failure('ATTRIBUTE_UNKNOWN', `No attribute called ${key}`, ['key']));
     }
 
-    const parsed = AttributeDefinition.safeParse({ ...current, ...patch, key, origin: current.origin });
+    // Sealed stays sealed: a value that was encrypted may already be in a
+    // backup, and turning it back to plain text would put it everywhere else.
+    if (current.encrypted && patch.encrypted === false) {
+      return err(
+        failure(
+          'ENCRYPTION_PERMANENT',
+          `${key} is encrypted, and an encrypted field stays encrypted`,
+          ['encrypted'],
+        ),
+      );
+    }
+    const parsed = AttributeDefinition.safeParse(
+      sealedShape({ ...current, ...patch, key, origin: current.origin }),
+    );
     if (!parsed.success) return err(invalid('definition', parsed.error));
     const next = parsed.data;
+    if (next.encrypted && !current.encrypted) {
+      const sealable = checkEncryptable(next);
+      if (!sealable.ok) return sealable;
+    }
 
     if (next.sectionKey !== current.sectionKey) {
       const section = this.#sections.get(next.sectionKey);
@@ -419,12 +438,25 @@ export class SchemaDraft {
   /**
    * The floor a tenant configures above, for core and country-pack fields.
    *
-   * A tenant may relabel `national_id`, may not make it optional, and may not
-   * mark it AI-eligible. Tightening is always allowed — a customer whose works
+   * A tenant may relabel `national_id` and may not make it optional; whether
+   * a field is shared with the assistant is the tenant's choice wherever
+   * `aiShareable` allows it, which a sealed identifier never is. Tightening is always allowed — a customer whose works
    * council wants a field treated as confidential is right, and the registry
    * should not argue.
    */
   #checkFloor(current: Attribute, next: AttributeDefinition): Result<void> {
+    // Shared with the assistant: the company's choice for any field it could
+    // safely be, never for one that is confidential, special-category or
+    // sealed, whoever shipped it.
+    if (next.classification.aiEligible && !current.classification.aiEligible && !aiShareable(next)) {
+      return err(
+        failure(
+          'AI_NOT_ALLOWED',
+          `${current.key} is ${next.encrypted ? 'encrypted' : next.classification.classification} and is never shared with the assistant`,
+          ['classification'],
+        ),
+      );
+    }
     if (current.origin === 'tenant') return ok(undefined);
 
     if (!classificationAtLeastAsStrict(next.classification, current.classification)) {
@@ -469,6 +501,62 @@ export class SchemaDraft {
   }
 }
 
+/** What a company may choose to share with the assistant: public or internal, and not sealed. */
+/** The types a sealed value can be: a string People stores whole and shows by its last four. */
+const ENCRYPTABLE = new Set([
+  'text',
+  'long_text',
+  'email',
+  'phone',
+  'url',
+  'number',
+  'decimal',
+  'date',
+  'national_id',
+  'bank_account',
+  'money',
+]);
+
+/**
+ * Whether a field can be stored encrypted: a type sealed as a whole string,
+ * and a single current value. A choice or a reference is what a screen
+ * filters and joins on, a file is not a string, and an effective-dated field
+ * keeps a history of values that a seal of one value would not cover.
+ */
+/** Whether a field could be stored encrypted: its type and its history allow it. */
+export function encryptable(a: Pick<AttributeDefinition, 'dataType' | 'effectiveDated'>): boolean {
+  return ENCRYPTABLE.has(a.dataType) && !a.effectiveDated;
+}
+
+function checkEncryptable(a: AttributeDefinition): Result<void> {
+  if (!a.encrypted) return ok(undefined);
+  if (!ENCRYPTABLE.has(a.dataType) || a.effectiveDated) {
+    return err(
+      failure(
+        'NOT_ENCRYPTABLE',
+        `${a.key} cannot be encrypted: ${a.effectiveDated ? 'it keeps a history of dated values' : 'a choice, a reference or a file is not stored as one sealed value'}`,
+        ['encrypted'],
+      ),
+    );
+  }
+  return ok(undefined);
+}
+
+/** An encrypted field is never indexed, in the directory or on an event: said once, here. */
+function sealedShape<T extends object>(input: T): T {
+  return (input as { readonly encrypted?: boolean | undefined }).encrypted === true
+    ? { ...input, indexed: false, includeInEvents: false, includeInDirectory: false }
+    : input;
+}
+
+export function aiShareable(definition: Pick<AttributeDefinition, 'classification' | 'encrypted'>): boolean {
+  return (
+    !definition.encrypted &&
+    (definition.classification.classification === 'public' ||
+      definition.classification.classification === 'internal')
+  );
+}
+
 /**
  * A tenant may tighten and may not loosen.
  *
@@ -481,7 +569,7 @@ function classificationAtLeastAsStrict(next: FieldPolicyInput, floor: FieldPolic
   if (CLASSIFICATION_RANK[next.classification] < CLASSIFICATION_RANK[floor.classification]) {
     return false;
   }
-  if (next.aiEligible && !floor.aiEligible) return false;
+  // Sharing with the assistant is not a loosening here: `aiShareable` decides it.
   // Exportability is the subject's right rather than the tenant's setting.
   if (!next.exportable && floor.exportable) return false;
   return true;

@@ -445,14 +445,19 @@ export function adminRoutes({
           // and defaulting a missing value to "hidden" would quietly un-brand
           // every company whose client forgot the field.
           brandingPublic: asked['brandingPublic'] !== false,
-          address: {
-            country: field('country').toUpperCase(),
-            line1: field('line1'),
-            line2: fieldOrNull('line2'),
-            city: field('city'),
-            subdivision: fieldOrNull('subdivision'),
-            postcode: fieldOrNull('postcode'),
-          },
+          // Absent keeps the address held: an edit that leaves it alone.
+          ...(asked['address'] === undefined
+            ? {}
+            : {
+                address: {
+                  country: field('country').toUpperCase(),
+                  line1: field('line1'),
+                  line2: fieldOrNull('line2'),
+                  city: field('city'),
+                  subdivision: fieldOrNull('subdivision'),
+                  postcode: fieldOrNull('postcode'),
+                },
+              }),
         });
 
         if (!amended.ok) {

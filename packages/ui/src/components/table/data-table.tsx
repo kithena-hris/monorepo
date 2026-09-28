@@ -10,7 +10,6 @@ import {
   useState,
   type JSX,
   type KeyboardEvent,
-  type PointerEvent,
   type ReactNode,
 } from 'react';
 import {
@@ -34,8 +33,6 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   columnGroupingFeature,
-  columnResizingFeature,
-  columnSizingFeature,
   createCoreRowModel,
   createExpandedRowModel,
   createGroupedRowModel,
@@ -156,8 +153,9 @@ const CARD = {
  *
  * TanStack Table v9 is modular: a feature that is not named here is not in the
  * bundle and its options do not typecheck. Sorting (one column or several),
- * selection, expansion, grouping and column sizing are what this component
- * exposes, so they are what is listed. Filtering, pagination and pinning are
+ * selection, expansion and grouping are what this component exposes, so they
+ * are what is listed. Column widths are the component's own, controlled like
+ * the rest of its state. Filtering, pagination and pinning are
  * deliberately absent, and adding one is a decision made here rather than a
  * prop appearing by accident.
  *
@@ -181,8 +179,6 @@ const FEATURES = tableFeatures({
   expandedRowModel: createExpandedRowModel(),
   columnGroupingFeature,
   groupedRowModel: createGroupedRowModel(),
-  columnSizingFeature,
-  columnResizingFeature,
   coreRowModel: createCoreRowModel(),
 });
 
@@ -193,8 +189,21 @@ const STRIPE =
 /** The column TanStack groups on. Never rendered: the group header row shows its value. */
 const GROUP_COLUMN = '__group';
 
-/** Width a column may be dragged down to, in px. */
-const MIN_COLUMN = 64;
+/** A column's narrowest and widest, in px, and its width when it names none. */
+const COLUMN_MIN = 64;
+const COLUMN_MAX = 960;
+const COLUMN_DEFAULT = 176;
+/** How near the end, in px, counts as the end. */
+const END_MARGIN = 480;
+
+const clampWidth = (w: number): number => Math.min(COLUMN_MAX, Math.max(COLUMN_MIN, Math.round(w)));
+
+/** `'10rem'` or `'160px'` as px; anything else is the default. */
+function widthOf(width: string | undefined): number {
+  const m = /^([\d.]+)(rem|px)$/.exec(width ?? '');
+  if (m === null) return COLUMN_DEFAULT;
+  return clampWidth(Number(m[1]) * (m[2] === 'rem' ? 16 : 1));
+}
 
 /** The column named in a sort label: its header if that is text, else its short header. */
 function columnName<T>(column: DataColumn<T>): string {
@@ -317,30 +326,42 @@ export interface DataTableProps<T extends TableRow> {
   /**
    * Groups the rows by the value this returns, under a header row per group
    * that collapses, counts its rows and shows each column's `aggregate`. The
-   * value need not be a column. Keep the function stable (module scope or
-   * `useCallback`); rows cannot be dragged while grouped.
+   * value need not be a column. Groups come in the order their first row
+   * does, so a table that pages should have its rows arrive in group order
+   * (sort by the same thing, on the server), and a count is of the rows
+   * loaded. Headings are rows of their own, `rowgroup` headers, virtualized
+   * with the rest. Keep the function stable (module scope or `useCallback`);
+   * rows cannot be dragged while grouped.
    */
   groupBy?: (row: T) => string;
   /** Groups, by value, that start collapsed. */
   defaultCollapsedGroups?: readonly string[];
 
-  /** Tints every other row. For a wide table read across rather than down. */
+  /**
+   * Every other row washed, so a wide row can be followed across by eye.
+   * Counted on the row's position, not the DOM's, so a virtualized body keeps
+   * the rhythm as rows come and go. Never over a selection.
+   */
   striped?: boolean;
   /**
-   * Drag the edge of a header, or focus it and use the arrow keys, to change a
-   * column's width. The last column takes whatever width is left.
+   * A drag handle on every header's right edge, and the arrow keys on it
+   * (Shift for bigger steps), to widen a column and read what it truncates.
+   * The table lays out on the widths, so a cell ellipsizes rather than
+   * pushing its neighbours.
    */
   resizable?: boolean;
+  /** Widths in px by column id. Uncontrolled when omitted. */
+  columnWidths?: Readonly<Record<string, number>>;
+  onColumnWidthsChange?: (widths: Readonly<Record<string, number>>) => void;
   /**
-   * Infinite loading. Pass it while there are more rows to fetch: a "Loading
-   * more" row sits under the last one, and this is called when that row
-   * scrolls into view. Drop it once everything has arrived.
+   * Called when the reader scrolls near the end: fetch the next page and
+   * append it. Only a table whose container has a height of its own scrolls,
+   * so pass one through `containerClassName`. It is not called while
+   * `loadingMore` is set; without that, it can fire again before rows
+   * arrive, so guard it.
    */
-  onLoadMore?: () => void;
-  /**
-   * The next page is on its way. Shows the "Loading more" row even without
-   * `onLoadMore`, and holds off calling it again until this clears.
-   */
+  onEndReached?: () => void;
+  /** The next page is on its way: a "Loading more" row sits under the last one. */
   loadingMore?: boolean;
 
   /** Drag handles on every row. Disabled while a sort is active. */
@@ -402,8 +423,10 @@ export function DataTable<T extends TableRow>({
   defaultCollapsedGroups,
   striped = false,
   resizable = false,
+  columnWidths,
+  onColumnWidthsChange,
+  onEndReached,
   loadingMore = false,
-  onLoadMore,
   reorderable = false,
   onReorder,
   describeRow,
@@ -422,6 +445,14 @@ export function DataTable<T extends TableRow>({
   const [pickedRows, setPickedRows] = useState<readonly string[]>(defaultSelected ?? []);
   const [ownSorts, setOwnSorts] = useState<readonly DataTableSort[]>(() => toSortList(defaultSort));
   const [collapsed, setCollapsed] = useState<readonly string[]>(defaultCollapsedGroups ?? []);
+  const [ownWidths, setOwnWidths] = useState<Readonly<Record<string, number>>>({});
+  const widths = columnWidths ?? ownWidths;
+  const widthFor = (column: DataColumn<T>): number => widths[column.id] ?? widthOf(column.width);
+  const setWidth = (id: string, width: number): void => {
+    const next = { ...widths, [id]: clampWidth(width) };
+    if (columnWidths === undefined) setOwnWidths(next);
+    onColumnWidthsChange?.(next);
+  };
 
   const open = new Set(expanded ?? openRows);
   const picked = new Set(selected ?? pickedRows);
@@ -477,8 +508,6 @@ export function DataTable<T extends TableRow>({
           enableSorting: column.sortBy !== undefined,
           enableMultiSort: multiSort,
           enableGrouping: false,
-          enableResizing: resizable,
-          minSize: MIN_COLUMN,
           sortFn: 'alphanumeric',
         }))
         .concat(
@@ -493,7 +522,7 @@ export function DataTable<T extends TableRow>({
                 },
               ],
         ),
-    [columns, groupBy, multiSort, resizable],
+    [columns, groupBy, multiSort],
   );
 
   const sorting: SortingState = useMemo(
@@ -531,7 +560,6 @@ export function DataTable<T extends TableRow>({
     // Group rows keep their columns where they were; the grouped value is the
     // header row's label, not a column that jumps to the front.
     groupedColumnMode: false,
-    columnResizeMode: 'onChange',
     state: {
       sorting,
       rowSelection,
@@ -572,6 +600,9 @@ export function DataTable<T extends TableRow>({
     .rows.filter((row) => !row.getIsGrouped())
     .map((row) => row.original);
   const ids = ordered.map((row) => rowId(row));
+  // A row's place among the rows, which is what a stripe counts: a group
+  // header between two rows is not a row.
+  const place = new Map(ids.map((id, index) => [id, index]));
   const allPicked = ids.length > 0 && ids.every((id) => picked.has(id));
   const somePicked = ids.some((id) => picked.has(id));
   const pickedRowObjects = ordered.filter((row) => picked.has(rowId(row)));
@@ -649,50 +680,23 @@ export function DataTable<T extends TableRow>({
   const totalColumns = columns.length + leadingColumns;
   const hasTrailing = columns.some((column) => column.cardTrailing);
 
-  /*
-   * Column widths. Until somebody resizes, the browser lays the table out
-   * from its content. The first resize measures every header as rendered and
-   * hands those widths to TanStack, so the drag starts from what is on screen
-   * rather than from a default nobody saw, and from then on the table is
-   * fixed-layout with the last column taking the slack.
-   */
-  const sizing = table.state.columnSizing;
-  const sized = resizable && Object.keys(sizing).length > 0;
-  const seedSizes = (from: Element): void => {
-    if (Object.keys(sizing).length > 0) return;
-    const measured: Record<string, number> = {};
-    for (const th of from.closest('tr')?.querySelectorAll<HTMLElement>('th[data-column-id]') ??
-      []) {
-      const id = th.dataset['columnId'];
-      if (id) measured[id] = Math.round(th.getBoundingClientRect().width);
-    }
-    table.setColumnSizing(measured);
-  };
-  const sizedWidth = sized
-    ? columns
-        .slice(0, -1)
-        .reduce((sum, column) => sum + (table.getColumn(column.id)?.getSize() ?? 0), 0) +
-      leadingColumns * 40
-    : 0;
-
-  // Infinite loading: ask for more when the end of the table comes into view.
-  const endRef = useRef<HTMLTableRowElement | null>(null);
-  const loadMore = useRef(onLoadMore);
-  loadMore.current = onLoadMore;
-  const wantsMore = onLoadMore !== undefined && !loadingMore;
+  // Near the end of what is loaded: on scroll, and whenever the rows change,
+  // since a first page shorter than the container never scrolls at all.
+  const endReached = useRef(onEndReached);
+  endReached.current = onEndReached;
+  const wantsEnd = onEndReached !== undefined && !loadingMore;
   useEffect(() => {
-    const end = endRef.current;
-    if (!wantsMore || !end) return undefined;
-    // The root is the viewport, which also covers a table scrolling inside
-    // its own bounded container: an observer clips to every scrolling ancestor.
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) loadMore.current?.();
-    });
-    observer.observe(end);
-    return () => {
-      observer.disconnect();
+    const el = scrollRef.current;
+    if (el === null || !wantsEnd) return;
+    const check = (): void => {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < END_MARGIN) endReached.current?.();
     };
-  }, [wantsMore]);
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', check);
+    };
+  }, [wantsEnd, ordered.length]);
 
   const body = (
     <Table
@@ -703,9 +707,11 @@ export function DataTable<T extends TableRow>({
       // Only when virtualized. On a fully rendered table the DOM already tells
       // the truth, and a redundant count is one more thing to get wrong.
       {...(virtualized ? { 'aria-rowcount': items.length + 1 } : {})}
-      className={cn(CARD.table, sized && 'table-fixed touch:table-auto', className)}
-      // The last column's 10rem is the slack it keeps once the others are sized.
-      {...(sized ? { style: { width: `max(100%, calc(${String(sizedWidth)}px + 10rem))` } } : {})}
+      className={cn(
+        CARD.table,
+        resizable && 'w-max table-fixed touch:w-full touch:table-auto',
+        className,
+      )}
       {...(containerClassName === undefined ? {} : { containerClassName })}
     >
       {caption === undefined ? null : (
@@ -744,17 +750,11 @@ export function DataTable<T extends TableRow>({
             </TableHead>
           ) : null}
 
-          {columns.map((column, index) => {
+          {columns.map((column) => {
             const position = activeSorts.findIndex((entry) => entry.columnId === column.id);
             const current = activeSorts[position];
             const isSorted = current !== undefined;
-            const last = index === columns.length - 1;
-            // Once sized, the last column has no width at all: it is the slack.
-            const width = sized
-              ? last
-                ? undefined
-                : `${String(table.getColumn(column.id)?.getSize() ?? 0)}px`
-              : column.width;
+            const width = resizable ? `${String(widthFor(column))}px` : column.width;
             return (
               <TableHead
                 key={column.id}
@@ -782,36 +782,24 @@ export function DataTable<T extends TableRow>({
                           ? 'touch:[&>button]:bg-accent-subtle touch:[&>button]:text-accent-fg'
                           : 'touch:[&>button]:bg-surface-sunken',
                       ),
-                  resizable && !last && 'relative',
                   column.className,
                 )}
                 {...(width === undefined ? {} : { style: { width } })}
+                {...(resizable
+                  ? {
+                      resizer: (
+                        <ResizeHandle
+                          name={columnName(column)}
+                          width={widthFor(column)}
+                          onWidth={(w) => {
+                            setWidth(column.id, w);
+                          }}
+                        />
+                      ),
+                    }
+                  : {})}
               >
                 {column.header}
-                {resizable && !last ? (
-                  <ResizeHandle
-                    name={columnName(column)}
-                    size={table.getColumn(column.id)?.getSize() ?? 0}
-                    resizing={table.getColumn(column.id)?.getIsResizing() ?? false}
-                    onPointerDown={(event) => {
-                      seedSizes(event.currentTarget);
-                      const header = table
-                        .getFlatHeaders()
-                        .find((candidate) => candidate.column.id === column.id);
-                      header?.getResizeHandler()(event.nativeEvent);
-                    }}
-                    onStep={(delta, from) => {
-                      seedSizes(from);
-                      table.setColumnSizing((old) => ({
-                        ...old,
-                        [column.id]: Math.max(
-                          MIN_COLUMN,
-                          (old[column.id] ?? table.getColumn(column.id)?.getSize() ?? 0) + delta,
-                        ),
-                      }));
-                    }}
-                  />
-                ) : null}
               </TableHead>
             );
           })}
@@ -859,11 +847,13 @@ export function DataTable<T extends TableRow>({
             return (
               <TableRow
                 key={group.id}
+                {...(virtualized ? { 'aria-rowindex': rowIndex + 2 } : {})}
                 className="bg-surface-sunken touch:flex touch:items-center touch:px-4 touch:py-1"
               >
-                <TableCell
+                <TableHead
+                  scope="rowgroup"
                   colSpan={leadingColumns + 1}
-                  className={cn('h-9.5 py-0 text-sm font-semibold', CARD.cell)}
+                  className={cn('h-9.5 py-0 text-sm font-semibold text-fg', CARD.cell)}
                 >
                   <button
                     type="button"
@@ -891,7 +881,7 @@ export function DataTable<T extends TableRow>({
                     {value}
                     <span className="font-medium text-fg-muted tabular-nums">{leaves.length}</span>
                   </button>
-                </TableCell>
+                </TableHead>
                 {columns.slice(1).map((column) => (
                   <TableCell
                     key={column.id}
@@ -906,6 +896,7 @@ export function DataTable<T extends TableRow>({
           }
           const row = item.row;
           const id = rowId(row);
+          const stripe = striped && (place.get(id) ?? 0) % 2 === 1 && !picked.has(id);
           const detail = renderDetail?.(row) ?? null;
           const isOpen = open.has(id) && detail !== null;
           const name = describeRow?.(row) ?? id;
@@ -921,10 +912,11 @@ export function DataTable<T extends TableRow>({
                   renderDetail ? 'touch:pe-14' : onRowClick && 'touch:pe-10',
                   // By position, not `even:`: a detail row, a group header or
                   // a virtualizer's spacer would each shift an nth-child count.
-                  striped && rowIndex % 2 === 1 && !picked.has(id) && STRIPE,
+                  stripe && STRIPE,
                   hasTrailing && CARD.titleBreak,
                 )}
                 leadClassName={cn(CARD.leadCell, CARD.lead[0])}
+                {...(stripe ? { 'data-striped': true } : {})}
                 {...(virtualized
                   ? { measure: virtualizer.measureElement, 'data-index': rowIndex }
                   : {})}
@@ -1024,6 +1016,7 @@ export function DataTable<T extends TableRow>({
                         !column.cardTrailing &&
                         CARD.label,
                       column.hideOnCard && 'touch:hidden',
+                      resizable && 'overflow-hidden text-ellipsis touch:overflow-visible',
                       column.className,
                     )}
                   >
@@ -1069,8 +1062,8 @@ export function DataTable<T extends TableRow>({
 
         {paddingBottom > 0 ? <tr aria-hidden style={{ height: paddingBottom }} /> : null}
 
-        {onLoadMore || loadingMore ? (
-          <tr ref={endRef} className="touch:block">
+        {loadingMore ? (
+          <tr className="touch:block">
             <td colSpan={totalColumns} className="h-12 p-0 touch:block touch:h-13">
               <span className="flex h-full items-center justify-center gap-2.5 text-sm font-medium text-fg-muted">
                 <Spinner size="sm" label="Loading more" className="text-accent-fg" />
@@ -1185,6 +1178,7 @@ function DataRow({
   /** `aria-rowindex` when the body is virtualized. */
   'aria-rowindex'?: number;
   'data-index'?: number;
+  'data-striped'?: boolean;
 }): JSX.Element {
   const {
     attributes,
@@ -1244,42 +1238,62 @@ function DataRow({
  * The edge of a header that changes its column's width.
  *
  * A `separator` with a value, which is what the APG calls a focusable splitter:
- * Tab reaches it, the arrow keys move it 16px at a time, and a screen reader
- * hears the width. Hidden under a finger, where the table is a list of cards
+ * Tab reaches it, the arrow keys move it 16px at a time (64px with Shift), and
+ * a screen reader hears the width; the pointer drags it. It never sorts the
+ * column it sits on. Hidden under a finger, where the table is a list of cards
  * and has no columns to size.
  */
 function ResizeHandle({
   name,
-  size,
-  resizing,
-  onPointerDown,
-  onStep,
+  width,
+  onWidth,
 }: {
   name: string;
-  size: number;
-  resizing: boolean;
-  onPointerDown: (event: PointerEvent<HTMLSpanElement>) => void;
-  onStep: (delta: number, from: Element) => void;
+  width: number;
+  onWidth: (width: number) => void;
 }): JSX.Element {
+  const drag = useRef<{ x: number; width: number } | null>(null);
+  const [resizing, setResizing] = useState(false);
+  const stop = (): void => {
+    drag.current = null;
+    setResizing(false);
+  };
   return (
     <span
       role="separator"
       aria-orientation="vertical"
       aria-label={`Resize ${name}`}
-      aria-valuenow={Math.round(size)}
-      aria-valuemin={MIN_COLUMN}
+      aria-valuenow={width}
+      aria-valuemin={COLUMN_MIN}
+      aria-valuemax={COLUMN_MAX}
       tabIndex={0}
-      onPointerDown={onPointerDown}
-      onKeyDown={(event: KeyboardEvent<HTMLSpanElement>) => {
-        const delta = event.key === 'ArrowRight' ? 16 : event.key === 'ArrowLeft' ? -16 : 0;
-        if (delta === 0) return;
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+      onPointerDown={(event) => {
         event.preventDefault();
-        onStep(delta, event.currentTarget);
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        drag.current = { x: event.clientX, width };
+        setResizing(true);
+      }}
+      onPointerMove={(event) => {
+        if (drag.current === null) return;
+        onWidth(drag.current.width + event.clientX - drag.current.x);
+      }}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onKeyDown={(event: KeyboardEvent<HTMLSpanElement>) => {
+        const step = event.shiftKey ? 64 : 16;
+        if (event.key === 'ArrowRight') onWidth(width + step);
+        else if (event.key === 'ArrowLeft') onWidth(width - step);
+        else return;
+        event.preventDefault();
       }}
       className={cn(
         // Inside its own header, not straddling the edge: a sticky header's
         // next cell paints over anything that overhangs into it.
-        'group/resize absolute inset-y-0 end-0 z-10 flex w-2.5 cursor-col-resize touch-none justify-end touch:hidden',
+        'group/resize absolute inset-y-0 end-0 z-10 flex w-2.5 cursor-col-resize touch-none justify-end select-none touch:hidden',
         'focus-visible:outline-2 focus-visible:outline-border-focus',
       )}
     >

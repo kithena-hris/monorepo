@@ -501,7 +501,7 @@ export function CommandPalette({
           className={cn(
             'fixed inset-x-0 top-[12vh] z-50 mx-auto flex max-h-[76vh] w-[calc(100%-2rem)] max-w-140 flex-col',
             'focus-visible:outline-none',
-            'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+            'popover-motion',
             'touch:inset-0 touch:max-h-none touch:w-full touch:max-w-none touch:pt-safe-top',
           )}
         >

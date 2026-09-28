@@ -227,6 +227,7 @@ export function EmptyState({
     >
       {icon ? (
         <div
+          aria-hidden
           className={cn(
             'grid size-14 place-items-center rounded-full [&_svg]:size-6.5',
             tone === 'accent'

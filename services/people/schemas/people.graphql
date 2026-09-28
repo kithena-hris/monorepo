@@ -323,6 +323,21 @@ type DateAttribute {
   value: String
 }
 
+"""A field somebody asked the person to fill in, still empty."""
+type DetailRequest {
+  """Who asked, in words the viewer may read."""
+  by: String
+  key: String
+  label: String
+  requestedAt: String
+}
+
+type DetailRequestSent {
+  asked: [String!]
+  """False when it was asked for within the day, or no email is configured."""
+  emailed: Boolean
+}
+
 type DirectoryActions {
   """HR’s: set values on the people chosen (PEO-071)."""
   bulkEdit: Boolean
@@ -341,6 +356,33 @@ type DirectoryCell {
 type DirectoryColumn {
   key: String
   label: String
+  """In the default set of columns."""
+  shown: Boolean
+  sortable: Boolean
+}
+
+type DirectoryCondition {
+  key: String
+  op: String
+  values: [String!]
+}
+
+"""
+One condition: is, in, contains, before, after, between, empty, not_empty, or under (the reporting line).
+"""
+input DirectoryConditionInput {
+  key: String!
+  op: String!
+  values: [String!]!
+}
+
+"""A field a condition may name, with the kind of value it holds."""
+type DirectoryField {
+  key: String
+  """text, select, date, number, person or status: which operators fit."""
+  kind: String
+  label: String
+  options: [FieldOption!]
 }
 
 type DirectoryFilter {
@@ -355,7 +397,30 @@ type DirectoryPerson {
   id: ID
   missing: Int
   name: String
+  """
+  Each person column (a manager), to draw as a person: who, and their photo.
+  """
+  people: [DirectoryPersonRef!]
   values: [DirectoryCell!]
+}
+
+type DirectoryPersonRef {
+  avatarUrl: String
+  id: ID
+  key: String
+  name: String
+}
+
+"""The conditions, match and order this page answers."""
+type DirectoryQuery {
+  conditions: [DirectoryCondition!]
+  match: String
+  sort: DirectorySort
+}
+
+type DirectorySort {
+  direction: String
+  key: String
 }
 
 input DraftFieldInput {
@@ -364,6 +429,10 @@ input DraftFieldInput {
   collectAt: String!
   dataType: String!
   description: String
+  """
+  Store it sealed: once on, never off. Existing values are sealed when it is published.
+  """
+  encrypted: Boolean
   key: String!
   label: String!
   options: [String!]!
@@ -543,9 +612,19 @@ type GridSaved {
 }
 
 """
+Who made a change, to draw: a person with their photo, or not a person.
+"""
+type HistoryActor {
+  avatarUrl: String
+  """person, integration or system."""
+  kind: String
+}
+
+"""
 One recorded change (PEO-064). A sealed field’s change is a `SealedEntry` with no last four.
 """
 type HistoryChange {
+  actor: HistoryActor
   by: String
   effectiveFrom: String
   id: ID
@@ -838,6 +917,23 @@ type LocationZone {
 }
 
 """
+A merge still standing, and what undoing it would reverse and keep. Labels, never values.
+"""
+type MergedPair {
+  absorbedId: ID
+  absorbedName: String
+  """The sign-in the merge moved: returned, kept, or null when none moved."""
+  account: String
+  kept: [String!]
+  mergedAt: String
+  """Why this merge cannot be undone; null when it can."""
+  refusal: String
+  reversed: [String!]
+  survivorId: ID
+  survivorName: String
+}
+
+"""
 Minor units as a string: an Int is 32 bits, and money is never a float.
 """
 type MoneyAttribute {
@@ -891,11 +987,25 @@ type Mutation {
     mapping: [ImportColumnInput!]!
     uploadId: ID!
   ): ImportStage
+  """Finish connecting a chat app with what it sent back."""
+  completeChatApp(app: String!, code: String!, idempotencyKey: String!, state: String!): PeopleChat
+  """
+  The file is uploaded: check it and keep it. Saving the field points the record at it.
+  """
+  completeFileUpload(idempotencyKey: String!, key: String!, personId: ID, uploadId: ID!): PeopleFileInfo
   """
   The file is uploaded: check it, then the proposed mapping. Changes nothing else.
   """
   completeImportUpload(uploadId: ID!): ImportStage
+  """
+  The photo is uploaded: check it is a photo, keep it without its metadata.
+  """
+  completePhotoUpload(idempotencyKey: String!, personId: ID, uploadId: ID!): PeoplePhotoSaved
   confirmSetupEntity(country: String!, idempotencyKey: String!, name: String!): WriteOutcome
+  """
+  Where to send the administrator to connect a chat app; they come back to `origin`.
+  """
+  connectChatApp(app: String!, origin: String!): String
   correctAttribute(idempotencyKey: String!, personId: ID!, reason: String, supersedes: ID!, value: AttributeValueInput!): HistoryEntry
   createLegalEntity(country: String!, idempotencyKey: String!, name: String!, timeZone: String!): LegalEntity
   createLocation(country: String!, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID!, name: String!, timeZone: String!): Location
@@ -955,6 +1065,7 @@ type Mutation {
   deleteReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
   """Withdraw a provisional record that was never a person; HR only."""
   discardPerson(idempotencyKey: String!, personId: ID!): Person
+  disconnectChatApp(app: String!, idempotencyKey: String!): PeopleChat
   """HR says a pair are two people; the queue stops offering it."""
   dismissDuplicate(idempotencyKey: String!, personIds: [ID!]!): DuplicateDismissed
   """
@@ -1005,9 +1116,14 @@ type Mutation {
   Hire a leaver again: a new employment period on the same record, pre-hire until it starts; HR only.
   """
   rehirePerson(idempotencyKey: String!, legalEntityId: ID, overrideReason: String, personId: ID!, startDate: String!): Person
+  removePhoto(idempotencyKey: String!, personId: ID): PeoplePhotoSaved
   reorderDraftFields(idempotencyKey: String!, order: [String!]!, sectionKey: String!): WriteOutcome
   reorderDraftSections(idempotencyKey: String!, order: [String!]!): WriteOutcome
   replayWebhookDelivery(deliveryId: ID!, idempotencyKey: String!): WebhookReplay
+  """
+  Ask somebody to fill in empty details of theirs: recorded, and they are emailed at most once a day.
+  """
+  requestDetails(idempotencyKey: String!, keys: [String!]!, personId: ID!): DetailRequestSent
   """
   Over 2,000 rows the export is queued; ask `peopleExport` for its links.
   """
@@ -1019,6 +1135,8 @@ type Mutation {
     format: String!
     idempotencyKey: String!
     includeArchived: Boolean
+    """Profile photos too, as a ZIP beside a CSV or spreadsheet."""
+    includePhotos: Boolean
     personIds: [ID!]
     reason: String
     """With pdf: this person’s employee record instead of a roster."""
@@ -1048,15 +1166,32 @@ type Mutation {
   """
   savePeopleSegment(filter: [PeopleSegmentConditionInput!]!, idempotencyKey: String!, name: String!, shared: Boolean!): PeopleSegment
   savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): SectionSaved
+  """Send one of People’s notices to chat apps, or stop."""
+  setChatNotice(idempotencyKey: String!, key: String!, on: Boolean!): PeopleChat
   """
   Set or change an entity’s scheme; people_admin only. Never moves the sequence back.
   """
   setEmployeeNumbering(digits: Int!, idempotencyKey: String!, legalEntityId: ID!, prefix: String!, start: Float!): EmployeeNumbering
+  """Share a field with the assistant, or stop. A draft change."""
+  setFieldAssistant(idempotencyKey: String!, key: String!, share: Boolean!): WriteOutcome
+  """
+  Put a field on the sign-up flow (optional or required), or take it off. A draft change.
+  """
+  setFieldSignup(
+    """off, optional or required."""
+    ask: String!
+    idempotencyKey: String!
+    key: String!
+  ): WriteOutcome
   """
   Set a pay band from a day, or correct the one recorded for that day; HR or finance (PEO-078).
   """
   setPayBand(currency: String!, effectiveFrom: String!, grade: String!, idempotencyKey: String!, maximumMinor: String!, midpointMinor: String!, minimumMinor: String!): PayBand
   setScimMapping(id: ID!, idempotencyKey: String!, mapping: [ScimMappingInput!]!): WriteOutcome
+  """
+  Where to upload a file for an image or document field (no personId: the viewer’s own): a presigned PUT.
+  """
+  startFileUpload(key: String!, name: String!, personId: ID, size: Int!): ImportUploadTarget
   """
   Where to upload a file to import: a presigned PUT, straight to storage (§14.2). No bytes come this way. Unkeyed: a retry is a fresh upload.
   """
@@ -1067,6 +1202,14 @@ type Mutation {
   ): ImportUploadTarget
   """An active person goes on leave from today, on their calendar; HR only."""
   startLeave(idempotencyKey: String!, personId: ID!): Person
+  """
+  Where to upload a person’s photo (no id: the viewer’s own), shrunk by the browser first: a presigned PUT. Theirs or HR’s.
+  """
+  startPhotoUpload(
+    personId: ID
+    """Bytes, exactly: the PUT is signed for this length."""
+    size: Int!
+  ): ImportUploadTarget
   """End the employment once its last working day has come; HR only."""
   terminatePerson(
     eligibleForRehire: Boolean
@@ -1078,9 +1221,19 @@ type Mutation {
     personId: ID!
     reason: LeavingReason!
   ): Person
+  """
+  Undo the merge that absorbed this record: provisional again with its sign-in back, the values copied onto the survivor corrected back unless changed since; HR only.
+  """
+  unmergePerson(idempotencyKey: String!, personId: ID!, reason: String!): Person
   updateLegalEntity(archived: Boolean, id: ID!, idempotencyKey: String!, name: String, timeZone: String): LegalEntity
   updateLocation(archived: Boolean, id: ID!, idempotencyKey: String!, name: String): Location
-  updatePeopleSettings(cohortMinimum: Int, defaultTimeZone: String, idempotencyKey: String!): PeopleSettings
+  updatePeopleSettings(
+    cohortMinimum: Int
+    defaultTimeZone: String
+    idempotencyKey: String!
+    """off, optional or required."""
+    photoAtSignup: String
+  ): PeopleSettings
   updatePerson(changes: [AttributeValueInput!]!, effectiveFrom: String, id: ID!, idempotencyKey: String!): Person
   """Change a scheduled report; whoever saves it owns it."""
   updateReportSchedule(
@@ -1207,6 +1360,26 @@ type PeopleAnalytics {
 }
 
 """
+A question in words, answered as the asker: the model reads only the question and field names; People runs the query.
+"""
+type PeopleAnswer {
+  """
+  People understood the question and answered it: how an answer is chosen when several modules are asked.
+  """
+  answered: Boolean
+  people: [PeopleAnswerPerson!]
+  text: String
+  """How the question was read."""
+  understood: String
+}
+
+type PeopleAnswerPerson {
+  id: ID
+  name: String
+  title: String
+}
+
+"""
 Changes waiting for approval: every one for HR, the viewer’s own otherwise.
 """
 type PeopleApprovals {
@@ -1227,6 +1400,47 @@ type PeopleBulkEdit {
   today: String
 }
 
+"""
+People in the company’s chat apps: connections, notices, and what the assistant may answer.
+"""
+type PeopleChat {
+  apps: [PeopleChatApp!]
+  fields: PeopleChatFields
+  notices: [PeopleChatNotice!]
+}
+
+"""A chat app the company may connect (Slack today)."""
+type PeopleChatApp {
+  canConnect: Boolean
+  connection: PeopleChatConnection
+  key: String
+  name: String
+}
+
+type PeopleChatConnection {
+  connectedAt: String
+  workspace: String
+}
+
+type PeopleChatField {
+  key: String
+  label: String
+}
+
+type PeopleChatFields {
+  on: [PeopleChatField!]
+  shareable: Int
+}
+
+type PeopleChatNotice {
+  action: String
+  description: String
+  key: String
+  label: String
+  on: Boolean
+  to: String
+}
+
 type PeopleCompleteness {
   completedThisWeek: Int
   fields: [CompletenessField!]
@@ -1242,11 +1456,13 @@ type PeopleDirectory {
   active: Int
   can: DirectoryActions
   columns: [DirectoryColumn!]
+  fields: [DirectoryField!]
   filterable: [DirectoryFilter!]
   incomplete: Int
   next: String
   notStarted: Int
   people: [DirectoryPerson!]
+  query: DirectoryQuery
   segment: PeopleSegmentRef
   """The saved segments this viewer could apply here."""
   segments: [PeopleSegmentRef!]
@@ -1259,6 +1475,7 @@ HR’s queue of suspected duplicates, strongest first; a merge is always HR’s 
 type PeopleDuplicates {
   comparison: DuplicateComparison
   items: [DuplicatePair!]
+  merges: [MergedPair!]
 }
 
 type PeopleExport {
@@ -1275,6 +1492,23 @@ type PeopleExportBuilder {
   sections: [ExportSection!]
   today: String
   who: [ExportAudience!]
+}
+
+"""
+A file an image or document field holds, to somebody who may read that field.
+"""
+type PeopleFile {
+  """The file, base64."""
+  data: String
+  mediaType: String
+  name: String
+}
+
+type PeopleFileInfo {
+  id: ID
+  mediaType: String
+  name: String
+  size: Int
 }
 
 """Finance’s own requests for full values, or every one for HR (PEO-121)."""
@@ -1343,6 +1577,110 @@ type PeopleOrganisation {
   retentionFloors: [RetentionFloor!]
   settings: PeopleSettings
   timeZones: [String!]
+  """
+  Leavers due for automated erasure within three months or overdue; HR’s alone, null for anybody else.
+  """
+  upcomingErasures: [UpcomingErasure!]
+}
+
+"""
+Where People starts: the viewer, their reporting line, and what waits for them.
+"""
+type PeopleOverview {
+  approvals: PeopleOverviewApprovals
+  me: PeopleOverviewMe
+  missing: [PeopleOverviewMissing!]
+  """
+  When the page was drawn: what a local time and an age are read against.
+  """
+  now: String
+  reportingLine: PeopleReportingLine
+  roles: PeopleOverviewRoles
+  setup: PeopleOverviewSetup
+  team: PeopleOverviewTeam
+}
+
+type PeopleOverviewApproval {
+  avatarUrl: String
+  id: ID
+  label: String
+  name: String
+  personId: ID
+  requestedAt: String
+  requestedBy: String
+}
+
+type PeopleOverviewApprovals {
+  isHr: Boolean
+  items: [PeopleOverviewApproval!]
+  total: Int
+}
+
+"""The viewer’s own record, as they may read it."""
+type PeopleOverviewMe {
+  avatarUrl: String
+  department: String
+  email: String
+  id: ID
+  location: String
+  missing: Int
+  name: String
+  phone: String
+  required: Int
+  startedOn: String
+  status: String
+  timeZone: String
+  title: String
+  """Today on their calendar."""
+  today: String
+}
+
+type PeopleOverviewMissing {
+  key: String
+  label: String
+  """Who fills it in; null when the viewer does."""
+  ownedBy: String
+  section: String
+  sectionKey: String
+}
+
+type PeopleOverviewPerson {
+  avatarUrl: String
+  id: ID
+  name: String
+  title: String
+}
+
+type PeopleOverviewRoles {
+  admin: Boolean
+  finance: Boolean
+  hr: Boolean
+}
+
+"""
+What signing up still asks of the viewer: a photo, and the image and document fields collected at sign-up.
+"""
+type PeopleOverviewSetup {
+  fields: [PeopleSetupField!]
+  """optional or required; null when no photo is asked for."""
+  photo: String
+}
+
+type PeopleOverviewTeam {
+  toFill: Int
+  waiting: Int
+}
+
+"""A person’s photo, to somebody who may read the person."""
+type PeoplePhoto {
+  checksum: String
+  """The file, base64."""
+  data: String
+  mediaType: String
+}
+
+type PeoplePhotoSaved {
+  avatarUrl: String
 }
 
 """People to pick from, a keyset page at a time (PEO-122)."""
@@ -1356,6 +1694,8 @@ type PeopleProfile {
   calendar: PersonCalendar
   """HR’s alone: their status and every employment period (PEO-120)."""
   employment: ProfileEmployment
+  """What each image or document value on the record is: its name and type."""
+  files: [PeopleFileInfo!]
   """
   Changes waiting for HR approval, on fields the viewer reads (PEO-077); never in values.
   """
@@ -1365,6 +1705,11 @@ type PeopleProfile {
   Null unless the viewer is HR and there is somewhere to place the person.
   """
   placement: ProfilePlacement
+  reportingLine: ReportingLine
+  """
+  Fields somebody asked this person to fill in that are still empty, on fields the viewer reads.
+  """
+  requests: [DetailRequest!]
   """
   Their doubted identifiers still open, on fields the viewer reads (PEO-125).
   """
@@ -1395,6 +1740,17 @@ type PeopleReportSchedules {
   people: [ReportPersonChoice!]
   schedules: [ReportSchedule!]
   segments: [ReportSegmentChoice!]
+}
+
+type PeopleReportingLine {
+  """Nearest first."""
+  managers: [PeopleOverviewPerson!]
+  moreAbove: Boolean
+  peers: Int
+  reports: [PeopleOverviewPerson!]
+  """The directory filter for all of them."""
+  reportsFilter: String
+  reportsTotal: Int
 }
 
 type PeopleRoleSettings {
@@ -1457,7 +1813,32 @@ type PeopleSettings {
   cohortMinimum: Int
   defaultTimeZone: String
   displayName: String
+  """
+  off, optional or required: whether the first screen after signing up asks for a photo.
+  """
+  photoAtSignup: String
   slug: String
+}
+
+"""Every change to People’s settings, newest first: who, when and what."""
+type PeopleSettingsActivity {
+  entries: [PeopleSettingsActivityEntry!]
+  next: String
+}
+
+type PeopleSettingsActivityEntry {
+  action: String
+  """fields, organisation, roles or integrations."""
+  area: String
+  at: String
+  avatarUrl: String
+  by: String
+  """What it did, in one plain sentence."""
+  detail: String
+  id: ID
+  """Who did it, by name, "You" included."""
+  name: String
+  subject: String
 }
 
 type PeopleSetup {
@@ -1470,6 +1851,21 @@ type PeopleSetup {
   packs: [SetupPack!]
   profile: SetupProfile
   published: Int
+}
+
+type PeopleSetupField {
+  dataType: String
+  description: String
+  key: String
+  label: String
+  options: [PeopleSetupOption!]
+  required: Boolean
+  sectionKey: String
+}
+
+type PeopleSetupOption {
+  label: String
+  value: String
 }
 
 type Person @key(fields: "id") {
@@ -1543,6 +1939,8 @@ type ProfileEmploymentPeriod {
 
 type ProfilePerson {
   avatarUrl: String
+  """The viewer may choose this photo: it is theirs, or they are HR."""
+  canChangePhoto: Boolean
   """Null when the viewer may not judge this record’s completeness."""
   missing: Int
   name: String
@@ -1608,6 +2006,13 @@ type Query {
   Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
   """
   peopleApprovals: PeopleApprovals
+  peopleAsk(
+    """
+    Earlier questions in the same conversation, oldest first, for a follow-up.
+    """
+    earlier: [String!]
+    question: String!
+  ): PeopleAnswer
   peopleBulkEdit(personIds: [ID!]!): PeopleBulkEdit
   """
   What a bulk edit would change and refuse, per person, and why; nothing is kept.
@@ -1617,9 +2022,22 @@ type Query {
   Who a bulk hire would hire and who it would skip, and why; nothing is kept.
   """
   peopleBulkHirePreview(hires: [BulkHireInput!]!): BulkEditResult
+  peopleChat: PeopleChat
   peopleClassificationAdvice(dataType: String!, description: String, label: String!, options: [String!]!, sectionKey: String!): ClassificationAdvice
   peopleCompleteness(after: ID): PeopleCompleteness
-  peopleDirectory(after: ID, filter: String, search: String, segment: ID): PeopleDirectory
+  peopleDirectory(
+    after: ID
+    conditions: [DirectoryConditionInput!]
+    filter: String
+    """Only people with a required detail missing; HR’s alone."""
+    incomplete: Boolean
+    """all (default) or any."""
+    match: String
+    search: String
+    segment: ID
+    """`key:asc` or `key:desc`; `name` sorts by name."""
+    sort: String
+  ): PeopleDirectory
   """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
   """
@@ -1627,6 +2045,7 @@ type Query {
   """The requester’s own export, its links signed again."""
   peopleExport(id: ID!): PeopleExport
   peopleExportBuilder: PeopleExportBuilder
+  peopleFile(id: ID!): PeopleFile
   peopleFullValues: PeopleFullValues
   """
   What saving these grid cells would be warned about (PEO-125); nothing is kept.
@@ -1646,6 +2065,8 @@ type Query {
   peopleIntegrations: PeopleIntegrations
   peopleOnboarding: PeopleOnboarding
   peopleOrganisation: PeopleOrganisation
+  peopleOverview: PeopleOverview
+  peoplePhoto(personId: ID!): PeoplePhoto
   """People whose name matches, as this viewer may read them."""
   peoplePicker(after: ID, search: String): PeoplePicker
   """One person as the viewer may see them; no id is "my profile"."""
@@ -1664,6 +2085,7 @@ type Query {
   """The saved segments you see and could use somewhere (PEO-068)."""
   peopleSegments: [PeopleSegment!]
   peopleSettings: PeopleSettings
+  peopleSettingsActivity(area: String, before: ID): PeopleSettingsActivity
   peopleSetup: PeopleSetup
   """
   One endpoint’s delivery log, newest first, 50 at a time; people_admin only.
@@ -1674,6 +2096,10 @@ type Query {
 
 """A field the viewer may read, as a form draws it."""
 type RecordField {
+  """
+  The viewer may ask the person to fill it in: HR or a manager, on a field the employee fills.
+  """
+  askable: Boolean
   currency: String
   dataType: String
   description: String
@@ -1683,6 +2109,10 @@ type RecordField {
   keptIn: String
   key: String
   label: String
+  """
+  Required of this person and empty, as their completeness verdict says; only fields the viewer reads.
+  """
+  missing: Boolean
   options: [FieldOption!]
   """Who changes a read-only field; null when the viewer does."""
   ownedBy: String
@@ -1712,10 +2142,19 @@ type RegistryChoices {
 }
 
 type RegistryField {
+  """The assistant may name it: its label and options, never a value."""
+  aiEligible: Boolean
+  aiShareable: Boolean
   classification: String
   collectAt: String
   dataType: String
   description: String
+  """
+  It may be switched to encrypted: a sealable type, not a column People sorts by.
+  """
+  encryptable: Boolean
+  """Stored sealed: only the last four characters are ever shown."""
+  encrypted: Boolean
   key: String
   label: String
   options: [String!]
@@ -1732,6 +2171,11 @@ type RegistryField {
   """
   requiresApproval: Boolean
   sectionKey: String
+  """
+  page: asked on the sign-up page; after: on the first screen after it; null: not at sign-up.
+  """
+  signup: String
+  signupAskable: Boolean
   visibility: [String!]
   """Scopes that may also read it, on the records each predicate holds for."""
   visibilityRules: [VisibilityRule!]
@@ -1859,6 +2303,23 @@ type ReportSegmentChoice {
   forSummary: Boolean
   id: ID
   name: String
+}
+
+"""
+Who a person reports to, up to the top, and who else shares their manager.
+"""
+type ReportingLine {
+  """From the top down to their manager, as far as the viewer may read."""
+  chain: [ReportingLinePerson!]
+  morePeers: Boolean
+  peers: [ReportingLinePerson!]
+}
+
+type ReportingLinePerson {
+  avatarUrl: String
+  id: ID
+  name: String
+  title: String
 }
 
 type RetentionFloor {
@@ -1993,6 +2454,20 @@ type TextAttribute {
 type TextEntry {
   key: String
   text: String
+}
+
+"""
+A leaver the retention job erases next (PEO-075): when, under which floors, and which of those wait for legal review.
+"""
+type UpcomingErasure {
+  dueOn: String
+  floors: [String!]
+  name: String
+  personId: ID
+  """
+  Unreviewed floors: nothing is erased automatically until counsel reviews them.
+  """
+  waitingForReview: [String!]
 }
 
 type VisibilityRule {

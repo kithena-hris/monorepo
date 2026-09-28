@@ -95,8 +95,8 @@ export function Provisioning(props: ProvisioningProps): JSX.Element {
 
   return (
     <PageSection
-      title="Provisioning (SCIM)"
-      description="Let your identity provider or HRIS create and update people. The fields you map are kept there."
+      title="Provisioning from your identity provider (SCIM)"
+      description="Add and remove people automatically from Okta, Microsoft Entra or another system. Mapped fields become read-only here."
       actions={
         <Button
           onClick={() => {
@@ -380,7 +380,7 @@ function Connect({
         <DialogHeader>
           <DialogTitle>Connect a system</DialogTitle>
           <DialogDescription>
-            The token is shown once, after this. Nothing is kept there until you map it.
+            Paste the address and token into the tool’s SCIM settings. The token is shown once.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -391,13 +391,14 @@ function Connect({
                 <Input
                   value={system}
                   maxLength={80}
+                  placeholder="Okta"
                   onChange={(e) => {
                     setSystem(e.target.value);
                   }}
                 />
               </FieldControl>
               <FieldDescription>
-                What your people know it as — Okta, Entra, Workday. A field kept there says so.
+                For example Okta, Microsoft Entra or Workday.
               </FieldDescription>
             </Field>
             {refused === null ? null : (

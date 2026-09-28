@@ -121,6 +121,13 @@ table is not a thing this system does.
 - **Done when** `just codegen` passes, a contract test asserts the payload has
   no `mobile` field, and an integration test sees the event in the outbox after
   an enrolment.
+- **As built, 2026-09-27** A recovery raised only `account.recovered`, so a
+  name entered on a recovery link never left identity. `Account.recover` now
+  publishes `profile_captured` exactly as `enrol` does, when the page asked
+  for a name (no name on file). Beside it, `identity.account.signup_answered`
+  `{ accountId, schemaVersion, answers, answeredAt }` carries the company's own
+  sign-up questions' answers (`answers` classified internal; see PEO-027).
+  Proven over HTTP in `platform/identity/src/credential/recovery.integration.test.ts`.
 
 ### [x] PEO-003 — `svc_people` and the schema bootstrap
 
@@ -448,6 +455,32 @@ check-strict` passes on the generated code.
   `identity.account.profile_captured` → fill the name.
 - **Done when** an integration test provisions an account and sees a
   provisional person within a second, idempotent on `identityAccountId`.
+- **As built, 2026-09-27** "Fill the name" filled only an empty one, with a
+  raw UPDATE and no history, so a name somebody corrected on identity's page
+  never reached their profile (reported by the user). The consumer now enters
+  a captured name as the person's own edit through `PersonAccess.update`
+  (`application/person/self-entry.ts`), and only what differs: ownership,
+  mirror mode (PEO-073, refused with the owner named, logged), approvals
+  (PEO-077, a field that requires one is held as a pending change — the core
+  name fields do not by default, so a self-entered legal name applies
+  directly, as a profile edit by the person would), effective from today on
+  their calendar, a history row with the person's account as actor, and
+  `profile_updated`; People then corrects identity's copy (PEO-029). Before a
+  schema is published — nothing to write through — it still only fills an
+  empty name. Without `PEOPLE_SECRET_KEYS` the consumer has no write path and
+  keeps the fill-only behaviour.
+
+  **Sign-up questions.** A field at `collectAt: signup | enrolment` is asked on
+  identity's page before the passkey. People reports the set to identity
+  (`signup-report.ts`, `PUT /api/internal/tenants/<id>/signup-questions`, a
+  `SignupQuestionSet`) after each publish and at boot and daily; only public or
+  internal, unencrypted, non-financial, single-valued, employee-writable
+  fields of a renderable type are in it (`domain/schema/signup.ts`), and never
+  the names identity already asks. The answers come back on
+  `identity.account.signup_answered` and are entered the same way. Identity
+  keeps the answered keys, never the values (migration
+  20260927160000_signup_questions). Proven in
+  `infrastructure/consumers/self-entry.integration.test.ts`.
 
 ### [x] PEO-028 — Reconciliation for tenants who buy People later
 
@@ -1111,16 +1144,62 @@ Ordered, but none of it blocks Phase 1 shipping.
       (`MERGE_ABSORBS_EMPLOYMENT`): two employment periods on one human need
       somebody to decide which start, number and pay line are true, which is
       payroll's call. Found in PEO-074. _(PRD §12.4)_
-- [ ] A merge's undo. Nothing is destroyed — the tombstone keeps its
+- [x] A merge's undo. Nothing is destroyed — the tombstone keeps its
       history, values and prior state, the decision row names what moved —
       but there is no `unmerge` use case; today a wrong merge is corrected
       value by value on the survivor. Found in PEO-074.
-- [ ] DSAR and retention follow `merged_into`. A tombstone's history is the
+      _Landed as migration 20260927143500 (`duplicate_decision.moved`,
+      `reason`, `reverses`, decision `unmerged`, one undo per merge). A
+      merge now records the history rows it wrote on the survivor, the keys
+      the survivor held nothing for, and the account it moved — ids, never
+      values; a merge from before that is refused `UNMERGE_UNRECORDED`.
+      `unmergePerson` (`POST /v1/people/{id}/unmerge`, the id the absorbed
+      record's), HR only, never on one's own record, with a reason: the
+      tombstone returns to `provisional` with its account (when the
+      survivor still holds it) and its unique claims (sealed ones re-hashed
+      from `reveal`); each value the merge wrote that is still last on the
+      survivor's timeline is corrected back to what stood before it —
+      `attribute_corrected` superseding the merge's row, from its effective
+      day, applied without approval since it restores an approved state;
+      a value changed since, now mirrored or sealed, or held before with no
+      row to say what, is **kept** and named, not refused. Refused
+      `UNMERGE_ERASED` once retention redacted the tombstone and
+      `UNMERGE_SURVIVOR_GONE` while the survivor is itself merged or
+      discarded (undo the later merge first; not followed transitively).
+      Raises `status_changed` (`unmerged`) and `people.person.unmerged`
+      (`supersedes` the merge decision, reversed and kept keys); the
+      decision row makes the pair a candidate again. OpenFGA re-syncs both.
+      Screen: "Merged records" under `/people/duplicates`, each with an
+      "Undo merge" dialog listing what goes back and what is kept. Identifier
+      reviews the merge superseded are not reopened; a sealed value is
+      re-checked the next time it is written._
+- [x] DSAR and retention follow `merged_into`. A tombstone's history is the
       survivor's human, and neither the DSAR export nor the retention clock
-      reads it yet. Found in PEO-074. _(PRD §12)_
-- [ ] **PEO-075** Automated anonymisation on retention expiry. **Blocked until
-      counsel reviews the floors** (PEO-126): `mayErase` refuses automated
-      erasure under an unreviewed floor. _(PRD §8.1, §12)_
+      reads it yet. Found in PEO-074. _(PRD §12)_ _Landed: `tombstonesOf`
+      follows `merged_into` however deep. The DSAR pack carries each
+      tombstone under `mergedRecords` (`source: 'merged_record'`, its own
+      schema version, `mergedInto`), never mixed into the subject's values.
+      `anonymiseDue` reads the survivor's clock over what the survivor and
+      its tombstones hold, and erases the tombstones with the survivor under
+      the same floors, one `people.person.anonymised` each carrying
+      `survivorId`; a tombstone asked for on its own is never due. No
+      migration._
+- [x] **PEO-075** Automated anonymisation on retention expiry. _(PRD §8.1,
+      §12)_ _Built; **erases only under reviewed floors**. Every floor is a
+      placeholder still unreviewed (PEO-126), so today it erases only values
+      a tenant policy with no floor governs, and nothing under a floor until
+      counsel reviews it; the next run after a review erases. `sweepRetention`
+      in `application/retention/sweep.ts`, wired hourly in `background.ts`: a
+      bounded batch of candidate leavers per tenant, resumed by keyset, each
+      through `anonymiseDue` (`automated`, actor `system:retention`) in its own
+      transaction; refused `RETENTION_FLOOR_UNREVIEWED` is skipped, logged and
+      counted. The event carries `automatedReason` ("retention expired
+      (es-labour)"). A background job rather than Temporal: fire-and-forget,
+      no human step. HR sees who is next on the Company tab
+      (`peopleOrganisation.upcomingErasures`, "Waiting for legal review"),
+      `nextErasure` in `domain/retention/floors.ts`. No migration._ _Still
+      open:_ no legal hold or open-DSAR state exists to guard; HR's by-hand
+      erasure still has no route or profile control (PEO-126's follow-up).
 - [ ] **PEO-076** `document_ref` wired to the Documents module. _(PRD §6.4)_
 - [x] **PEO-077** Approval workflows on sensitive changes, via Temporal.
       _(PRD §8.6)_ _A per-field `requiresApproval`, on by default for
@@ -1840,22 +1919,101 @@ it is written down here rather than left in a PR description.
       longer lists status under HR information.* *Still open:* a record
       read by its id is answered for a leaver, status withheld; hiding it
       from a peer altogether is a product call.
-- [ ] Route `/scim/v2/*` through the Cloudflare Tunnel to People
+- [x] Route `/scim/v2/*` through the Cloudflare Tunnel to People
       (`docs/environments.md` "Hosting" has the rule and the API call), and
       decide whether a tenant relying on SCIM keeps the VM awake. Found in
-      PEO-072. *(PRD §13.5)*
+      PEO-072. *(PRD §13.5)* _Done 2026-09-26: `api.kithena.com`
+      `^/scim/v2/` → `http://people:4001`, above the router's catch-all
+      (tunnel configuration version 2). Nothing wakes the VM for a push:
+      Okta and Entra retry on Cloudflare's 530 until it is awake, which is
+      acceptable until a tenant relies on near-real-time provisioning._
 - [ ] Verify SCIM against a live Okta and a live Entra tenant (the provider
       test suites: Okta's SCIM 2.0 spec tests, Entra's SCIM validator), and
       record what each sent that the build did not expect. Found in PEO-072.
       *(PRD §13.5)*
-- [ ] A SCIM POST for somebody already in People (HR-created, or provisioned
+- [x] A SCIM POST for somebody already in People (HR-created, or provisioned
       by identity) creates a second record or is refused `uniqueness`. HR
       adopting the existing record into the connection — and whether that
       should ever be automatic — needs deciding; PEO-074's duplicate
       detection is the nearest thing. Found in PEO-072. *(PRD §13.5, §12.4)*
+      _Decided 2026-09-27 and landed: a POST whose work email (the User's
+      work email, else an email-shaped `userName`), trimmed and
+      case-insensitive, matches exactly one live record that no connection
+      links adopts it — linked, only the attributes the connection owns
+      written through the ordinary sync (PEO-073), `adopted_by_external`
+      (`matchedOn: work_email`) before the link's `synced_from_external`,
+      201 with that record's id. Zero matches creates as before; several,
+      or the one linked to any connection, creates a record and the
+      duplicate queue offers each pair as "SCIM provisioned, same work
+      email" (`scim_work_email`, computed from `scim_link`, nothing stored).
+      A merged or discarded record never matches. A record whose email only
+      the unmapped `userName` carries is flagged by `userName`; an IdP work
+      email that is neither mapped nor the `userName` is not._
 - [ ] Router deployment mounts apps/gateway/persisted at /persisted;
       production router config and a timed 100 MB import through it. Found
-      in PEO-113. *(PRD §13.1)*
+      in PEO-113. *(PRD §13.1)* _Half done: the router image copies
+      `persisted/` to `/persisted` (`apps/gateway/Dockerfile`), so production
+      serves the safelist. Left: a timed 100 MB import through the production
+      router once the People Phase 2/3 release is deployed._
+
+## Revisit later — the owner's list
+
+Everything left on People that needs the product owner rather than the next
+ticket, gathered in one place on 2026-09-27. Tick an item here when it is done;
+the ticket or follow-up it points at is ticked with it.
+
+**After the first production deploy of People Phase 2/3**
+- [ ] Deploy: Actions → "deploy to production" → Everything (ships #164–#171;
+      Postgres 18 is already live and its 17 volume removed).
+- [ ] Switch People on and name its administrators for each company in the
+      back office (`admin.kithena.com` → Companies → Modules).
+- [ ] Confirm SCIM is reachable: `curl -i https://api.kithena.com/scim/v2/Users`
+      answers `401` in `application/scim+json`.
+- [ ] Time a 100 MB import through the production router (the router
+      follow-up above; the safelist half is done).
+
+**Needs somebody outside the code**
+- [ ] Counsel reviews the statutory retention floors (PEO-037). Until a floor
+      is reviewed, PEO-075's automated erasure skips everybody under it.
+- [ ] A person per country confirms its pack's paperwork rules (PEO-059).
+- [ ] Live Okta and Entra test tenants, to run SCIM against the real providers
+      (the follow-up above).
+- [ ] The Documents module, which PEO-063 and PEO-076 wait for.
+
+**Product decisions still open**
+- [ ] Merging two employed records: refused by decision; revisit if payroll
+      can say which start, number and pay line win (follow-up above).
+- [ ] Legal hold and open-DSAR state: People has neither, so erasure (HR's and
+      PEO-075's) cannot hold anybody back for them. Decide whether People owns
+      them.
+- [ ] HR's by-hand erasure has a use case but no route or profile button
+      (PEO-126's follow-up). Decide where it lives.
+- [ ] A leaver with one value under an unreviewed floor keeps everything, even
+      values only a tenant policy governs. Decide whether to erase the
+      unblocked part.
+- [ ] Merges made before #168 cannot be undone (`UNMERGE_UNRECORDED`). If any
+      exist in production, decide whether to recover them from the outbox.
+- [ ] Undo merge is on the duplicates screen only, not on the profile.
+- [ ] Bulk hire replays its first answer without names (they are read again);
+      confirm that is acceptable.
+- [ ] A leaver read by id is answered with status withheld; hiding the record
+      from peers altogether is a product call (see the status follow-up).
+
+**Operations**
+- [ ] Turn on S3 versioning for `kithena-378988188471-backups` (with old
+      versions expiring after ~30 days): today a later backup on the same day
+      overwrites the earlier one.
+- [ ] Set `KITHENA_ENTITLEMENTS` on the `kithena-identity-production` Vercel
+      project to exactly `["module.people"]`, so a company with no recorded list
+      gets People.
+- [ ] Locally, only the seed carries events from identity to People (no
+      Debezium). Decide whether local dev needs a live event path.
+- [ ] Chromatic's free snapshot quota is used up, so "UI Tests" never finishes
+      (not a required check). Decide whether to pay, drop it, or rely on the
+      Storybook axe and contrast gates.
+- [ ] Move off Vercel Hobby when deploy volume needs it; then restore the
+      preview and staging triggers (`docs/environments.md`, "What a deploy
+      ships").
 
 ## Blocked, and by what
 
@@ -1863,7 +2021,7 @@ it is written down here rather than left in a PR description.
 | ------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | PEO-027 | PEO-002             | People cannot see a name captured at enrolment until identity publishes it                                                                |
 | PEO-059 | a human per country | A country in a pack is a claim that its paperwork rules are right, and they are only right where somebody checked                         |
-| PEO-045 | nothing technical   | The cohort minimum default of 10 is a product decision; confirm before shipping                                                           |
+| PEO-045 | resolved | Default 10, raisable per tenant in People settings (decided 2026-09-26); the floor never goes below 10 |
 | PEO-113 | resolved: option (a) | GraphQL for the screens through the router, with identity's token; REST stays for integrators. The shell has no direct path to People — PRD §13.1 |
 | PEO-037 | legal review        | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
-| PEO-075 | counsel reviews the floors | Automated erasure refuses an unreviewed floor (PEO-126); HR may erase one person by hand, with a stated reason |
+| PEO-075 | built; inert per floor until counsel reviews it | The job runs and erases under a tenant policy alone; it skips any leaver relying on an unreviewed floor (all three today) until that floor is reviewed (PEO-126) |

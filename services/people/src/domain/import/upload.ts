@@ -25,7 +25,14 @@ export const UPLOAD_URL_LIFETIME_MS = 5 * 60 * 1000;
  */
 export const UPLOAD_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
-export type UploadPurpose = 'import';
+/**
+ * What the file is for. A photo waits where an import's file does, under its
+ * own key and its own limit, and starting one never lets go of the other.
+ */
+export type UploadPurpose = 'import' | 'photo' | 'file';
+
+/** A photo, already shrunk by the browser: `PHOTO_MAX_BYTES` in `person/photo.ts`. */
+export const PHOTO_UPLOAD_MAX_BYTES = 512 * 1024;
 
 export interface UploadIntent {
   readonly id: string;
@@ -64,13 +71,18 @@ export function openUpload(input: {
   readonly name: string;
   readonly size: number;
   readonly now: string;
+  readonly purpose?: UploadPurpose;
 }): Result<UploadIntent> {
+  const purpose = input.purpose ?? 'import';
   const name = (input.name.split(/[\\/]/u).pop() ?? '').trim();
   if (name === '' || name.length > NAME_MAX) {
     return err(failure('FILE_NAME_INVALID', 'A file needs a name of up to 255 characters', ['name']));
   }
   if (!Number.isSafeInteger(input.size) || input.size < 1) {
     return err(failure('FILE_EMPTY', 'The file is empty', ['size']));
+  }
+  if (purpose === 'photo' && input.size > PHOTO_UPLOAD_MAX_BYTES) {
+    return err(failure('FILE_TOO_LARGE', 'A photo is at most 512 kB', ['size']));
   }
   if (input.size > MAX_UPLOAD_BYTES) {
     return err(failure('FILE_TOO_LARGE', 'A file is at most 100 MB; split it into several', ['size']));
@@ -79,10 +91,10 @@ export function openUpload(input: {
     id: input.id,
     tenantId: input.tenantId,
     actorId: input.actorId,
-    purpose: 'import',
+    purpose,
     name,
     size: input.size,
-    objectKey: `${input.tenantId}/import/${input.id}`,
+    objectKey: `${input.tenantId}/${purpose}/${input.id}`,
     createdAt: input.now,
     urlExpiresAt: after(input.now, UPLOAD_URL_LIFETIME_MS),
     expiresAt: after(input.now, UPLOAD_LIFETIME_MS),

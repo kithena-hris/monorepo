@@ -109,6 +109,7 @@ export function RadioCard({
   const generatedId = useId();
   const controlId = id ?? generatedId;
   const descriptionId = `${controlId}-description`;
+  const labelId = `${controlId}-label`;
 
   return (
     <label
@@ -125,8 +126,14 @@ export function RadioCard({
         className,
       )}
     >
+      {/*
+       * Named by its title alone. The card is the label, so without this the
+       * name would be the title and the description run together, and the
+       * description would then be read a second time as the description.
+       */}
       <RadioGroupPrimitive.Item
         id={controlId}
+        aria-labelledby={labelId}
         aria-describedby={description ? descriptionId : undefined}
         className={cn(
           'mt-0.5 grid size-[1.125rem] shrink-0 place-items-center rounded-full border-[1.5px] border-border-strong',
@@ -141,7 +148,9 @@ export function RadioCard({
         <RadioGroupPrimitive.Indicator className="size-[0.4375rem] rounded-full bg-fg-on-accent data-[state=checked]:animate-scale-in touch:size-2.5" />
       </RadioGroupPrimitive.Item>
       <div className="min-w-0">
-        <span className="block text-base font-semibold text-fg">{children}</span>
+        <span id={labelId} className="block text-base font-semibold text-fg">
+          {children}
+        </span>
         {description ? (
           <span id={descriptionId} className="mt-0.5 block text-sm text-fg-muted">
             {description}

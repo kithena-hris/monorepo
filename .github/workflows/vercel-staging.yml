@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: 'Redeploy even if unchanged: all, or a comma list of shell, auth, admin, identity, messaging, people-remote, people, router, migrations'
+        description: 'Redeploy even if unchanged: all, or a comma list of shell, auth, admin, identity, messaging, people-remote, people, router, slack, migrations'
         type: string
         default: ''
 
@@ -73,6 +73,7 @@ jobs:
       people-remote: ${{ steps.plan.outputs.people-remote }}
       people: ${{ steps.plan.outputs.people }}
       router: ${{ steps.plan.outputs.router }}
+      slack: ${{ steps.plan.outputs.slack }}
       migrations: ${{ steps.plan.outputs.migrations }}
       vm: ${{ steps.plan.outputs.vm }}
       any: ${{ steps.plan.outputs.any }}
@@ -116,7 +117,7 @@ jobs:
     needs: plan
     if: >
       vars.ROUTER_URL_STAGING != '' &&
-      (needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true')
+      (needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true')
     # A native runner for the VM's architecture, both free for a public
     # repository. Under QEMU the People build takes an order of magnitude
     # longer, so there is no cross-build: `--platform` below only makes a
@@ -129,6 +130,7 @@ jobs:
     outputs:
       people: ${{ steps.names.outputs.people }}
       router: ${{ steps.names.outputs.router }}
+      slack: ${{ steps.names.outputs.slack }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -150,6 +152,7 @@ jobs:
         run: |
           echo "people=ghcr.io/${OWNER,,}/kithena-people:${SHA}" >> "$GITHUB_OUTPUT"
           echo "router=ghcr.io/${OWNER,,}/kithena-router:${SHA}" >> "$GITHUB_OUTPUT"
+          echo "slack=ghcr.io/${OWNER,,}/kithena-slack:${SHA}" >> "$GITHUB_OUTPUT"
 
       - name: platform
         env:
@@ -197,6 +200,25 @@ jobs:
           fi
           docker rm --force "$container"
 
+      # Development mode for the check only: in production the service
+      # refuses to start without its database and key, which a bare `docker
+      # run` has neither of. What this proves is that the image boots.
+      - name: build and test the slack image
+        if: needs.plan.outputs.slack == 'true'
+        env:
+          IMAGE: ${{ steps.names.outputs.slack }}
+          SOURCE: https://github.com/${{ github.repository }}
+        run: |
+          docker build --file platform/slack/Dockerfile --tag "$IMAGE" \
+            --label "org.opencontainers.image.source=$SOURCE" .
+          container="$(docker run --detach --env NODE_ENV=development --publish 127.0.0.1:4102:4102 "$IMAGE")"
+          if ! curl --fail --silent --show-error --retry 20 --retry-delay 2 --retry-all-errors \
+            http://127.0.0.1:4102/health >/dev/null; then
+            docker logs "$container"
+            exit 1
+          fi
+          docker rm --force "$container"
+
       - name: push
         env:
           GH_TOKEN: ${{ github.token }}
@@ -205,10 +227,13 @@ jobs:
           ROUTER: ${{ steps.names.outputs.router }}
           PEOPLE_BUILT: ${{ needs.plan.outputs.people }}
           ROUTER_BUILT: ${{ needs.plan.outputs.router }}
+          SLACK: ${{ steps.names.outputs.slack }}
+          SLACK_BUILT: ${{ needs.plan.outputs.slack }}
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
           if [ "$PEOPLE_BUILT" = true ]; then docker push --quiet "$PEOPLE"; fi
           if [ "$ROUTER_BUILT" = true ]; then docker push --quiet "$ROUTER"; fi
+          if [ "$SLACK_BUILT" = true ]; then docker push --quiet "$SLACK"; fi
           docker logout ghcr.io
 
       # The registry is transport, not history: the VM keeps the image each
@@ -224,6 +249,12 @@ jobs:
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
           package-name: kithena-router
+          package-type: container
+          min-versions-to-keep: 5
+      - name: prune slack images
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: kithena-slack
           package-type: container
           min-versions-to-keep: 5
 
@@ -327,7 +358,7 @@ jobs:
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
           IMAGES: ${{ needs.images.result }}
-          NEED_IMAGES: ${{ needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' }}
+          NEED_IMAGES: ${{ needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' }}
         run: |
           missing=
           for name in INSTANCE AWS_DEPLOY_ROLE_ARN AWS_REGION VM_DEPLOY_SSH_KEY PEOPLE_API_TOKEN PEOPLE_ENV \
@@ -407,6 +438,15 @@ jobs:
           VM_DEPLOY_SSH_KEY: ${{ secrets.VM_DEPLOY_SSH_KEY }}
           PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
           PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
+          # The assistant's model key. Optional: absent, the assistant is off.
+          ASSISTANT_API_KEY: ${{ secrets.ASSISTANT_API_KEY }}
+          # Slack (`platform/slack`). Optional: without the app token and the
+          # pair's token, the service starts and stays off.
+          SLACK_APP_TOKEN: ${{ secrets.SLACK_APP_TOKEN }}
+          SLACK_CLIENT_ID: ${{ secrets.SLACK_CLIENT_ID }}
+          SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
+          SLACK_TOKEN_KEY: ${{ secrets.SLACK_TOKEN_KEY }}
+          SLACK_PEOPLE_TOKEN: ${{ secrets.SLACK_PEOPLE_TOKEN }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
@@ -432,10 +472,19 @@ jobs:
           # `migrations/` replaced whole, so the copy is exactly this commit's.
           ssh vm 'mkdir -p kithena && rm -rf kithena/migrations'
           scp -q -r deploy/vm/compose.yaml deploy/vm/compose.staging.yaml \
-            deploy/vm/deploy.sh deploy/vm/backup.sh deploy/vm/idle-stop.sh atlas.hcl migrations vm:kithena/
+            deploy/vm/deploy.sh deploy/vm/backup.sh deploy/vm/idle-stop.sh deploy/vm/debezium.env \
+            atlas.hcl migrations vm:kithena/
           ssh vm sudo install -d -m 700 /etc/kithena /etc/kithena/staging
           put() { ssh vm sudo install -m 600 /dev/stdin "/etc/kithena/staging/$1"; }
-          printf '%s\nPEOPLE_API_TOKEN=%s\n' "$PEOPLE_ENV" "$PEOPLE_API_TOKEN" | put people.env
+          {
+            printf '%s\nPEOPLE_API_TOKEN=%s\n' "$PEOPLE_ENV" "$PEOPLE_API_TOKEN"
+            if [ -n "$ASSISTANT_API_KEY" ]; then printf 'ASSISTANT_API_KEY=%s\n' "$ASSISTANT_API_KEY"; fi
+            if [ -n "$SLACK_PEOPLE_TOKEN" ]; then
+              printf 'SLACK_URL=http://slack:4102\nSLACK_PEOPLE_TOKEN=%s\n' "$SLACK_PEOPLE_TOKEN"
+            fi
+          } | put people.env
+          printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nAUTH_ORIGIN=https://auth.staging.app.kithena.com\nSLACK_COMMAND=/kithena-staging\n' \
+            "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" | put slack.env
           printf 'PEOPLE_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
             "$PEOPLE_API_TOKEN" \
             https://identity.staging.kithena.com/.well-known/jwks.json \
@@ -465,6 +514,20 @@ jobs:
           set -o pipefail
           # shellcheck disable=SC2029 # the image is meant to expand here
           ssh vm sudo bash kithena/deploy.sh staging people "$IMAGE" | tee deploy.out
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+
+      # After People, which it asks, and after the migration, which made its
+      # schema. Pulled, started, healthy and answering `/health` from inside
+      # the project's network.
+      - name: deploy slack
+        id: slack
+        if: vars.ROUTER_URL_STAGING != '' && needs.plan.outputs.slack == 'true'
+        env:
+          IMAGE: ${{ needs.images.outputs.slack }}
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2029 # the image is meant to expand here
+          ssh vm sudo bash kithena/deploy.sh staging slack "$IMAGE" | tee deploy.out
           grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
 
       - name: deploy the router
@@ -876,6 +939,7 @@ jobs:
             migrations=${{ steps.migrations.outcome }}
             people=${{ steps.people.outcome }}
             router=${{ steps.router.outcome }}
+            slack=${{ steps.slack.outcome }}
             people-remote=${{ steps.remote.outcome }}
             shell=${{ steps.deploy.outcome }}
             identity=${{ steps.identity.outcome }}

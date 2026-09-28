@@ -15,9 +15,16 @@ import { recomputePerson } from '../application/completeness/recompute.js';
 import { personAccess } from '../application/person/person-access.js';
 import { bringDueIntoForce, endAccessDue, startArrivals } from '../application/person/start.js';
 import { reconcile } from '../application/reconcile.js';
+import { drizzleReportIndex } from '../application/import/ledger.js';
+import { anonymiseDue } from '../application/retention/anonymise.js';
+import { sweepRetention } from '../application/retention/sweep.js';
+import { drizzleRetentionStore } from './drizzle-retention-store.js';
+import { drizzlePhotos } from './drizzle-photos.js';
+import { exportStoreFrom } from './export-queue.js';
 import { tenantRoles } from '../application/roles/roles.js';
 import { drizzleRoleStore } from './drizzle-role-store.js';
 import { httpRoleReport } from './role-report.js';
+import { httpSignupReport } from './signup-report.js';
 import { drizzleProvisionalPeople, httpAccountDirectory } from './consumers/identity.js';
 import { uuidv7 } from './consumers/wire.js';
 import { drizzleCompletenessStore } from './drizzle-completeness-store.js';
@@ -60,6 +67,12 @@ import { tenantTransaction } from './unit-of-work.js';
  * - **Starting pre-hires** (§8.1) and **ending leavers' access** (PEO-109),
  *   hourly: each on their own start date or after their own last day, on
  *   their own calendar.
+ * - **Retention** (PEO-075), a batch of leavers per tenant per hour, resuming
+ *   where the last batch stopped, and a fresh pass a day after the last one
+ *   finished. Each is erased through `anonymiseDue` as `system:retention`;
+ *   one relying on a floor counsel has not reviewed is skipped and counted,
+ *   so today, with every floor unreviewed, it erases only what a tenant
+ *   policy with no floor governs.
  * - **The reminder sweep**, hourly, only when a mailer is configured
  *   (PEO-084: `MESSAGING_URL` and `MESSAGING_PEOPLE_TOKEN`). A sweep without
  *   one would claim the week's reminder and send nothing. Links go to the
@@ -308,7 +321,52 @@ export async function startBackground(
     ),
   );
 
-  const mailer = options.mailer ?? reminderMailerFrom(env);
+  const retentionStore = drizzleRetentionStore();
+  const retentionSweep = sweepRetention({
+    inTenant,
+    store: retentionStore,
+    anonymise: anonymiseDue({
+      store: retentionStore,
+      clock: systemClock,
+      newEventId: uuidv7,
+      calendars: org,
+      // The report store the server writes to, so an erasure deletes the reports holding them.
+      reports: { store: exportStoreFrom(env), index: drizzleReportIndex() },
+      photos: drizzlePhotos(),
+    }),
+    clock: systemClock,
+    newId: randomUUID,
+  });
+  /**
+   * Where each tenant's pass stands. `ponytail: per process, so a restart
+   * starts a pass over; a pass is idempotent, so that costs a re-read.`
+   */
+  const retentionPass = new Map<string, { after: string | null; finishedAt: number | null }>();
+  jobs.push(
+    every(HOUR, () =>
+      forEachTenant('retention', async (tenantId) => {
+        const pass = retentionPass.get(tenantId) ?? { after: null, finishedAt: null };
+        if (pass.finishedAt !== null && Date.now() - pass.finishedAt < 24 * HOUR) return;
+        const run = await retentionSweep(tenantId, pass.after);
+        retentionPass.set(tenantId, {
+          after: run.next,
+          finishedAt: run.next === null ? Date.now() : null,
+        });
+        for (const f of run.failed) {
+          logger.error({ err: f.error, tenantId, personId: f.personId }, 'retention erasure failed');
+        }
+        if (run.erased > 0 || run.waiting > 0) {
+          // Counts only: who was erased is on each person's own event.
+          logger.info(
+            { tenantId, erased: run.erased, waitingForLegalReview: run.waiting },
+            'retention run',
+          );
+        }
+      }),
+    ),
+  );
+
+  const mailer = options.mailer ?? reminderMailerFrom(env, inTenant);
   const base = tenantAppBase(env);
   if (base === null) logger.error({ variable: 'TENANT_APP_BASE' }, NO_TENANT_APP_BASE);
   if (mailer === undefined || base === null) {
@@ -349,6 +407,16 @@ export async function startBackground(
       inTenant,
       clock: systemClock,
     });
+    // And what identity's sign-up page asks (`signup-report.ts`), on the same
+    // schedule and for the same reason: the backfill for a publish whose
+    // report after the fact was lost, and the first report for a tenant that
+    // published before this existed.
+    const reportSignup = httpSignupReport({
+      baseUrl: identityUrl,
+      token: identityToken,
+      inTenant,
+      clock: systemClock,
+    });
     const run = reconcile({
       directory: httpAccountDirectory({ baseUrl: identityUrl, internalToken: identityToken }),
       people: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
@@ -379,6 +447,7 @@ export async function startBackground(
           }
           reconciledAt.set(tenantId, Date.now());
           await reportRoles(tenantId);
+          await reportSignup(tenantId);
           if (result.value.created > 0) logger.info({ tenantId, ...result.value }, 'reconciled');
         }),
       ),

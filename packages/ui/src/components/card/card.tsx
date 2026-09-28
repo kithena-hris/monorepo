@@ -27,6 +27,21 @@ const card = cva('rounded-lg bg-surface text-fg touch:rounded-[1.375rem]', {
     },
     padded: { true: 'p-5 touch:p-4', false: '' },
     /**
+     * `attention`: this card holds something that is wanted and missing. Its
+     * one-pixel edge takes the warning border colour, which is the reminder;
+     * the card's own words (usually a `Badge tone="attention"`) are the
+     * signal, because an edge is colour and colour alone says nothing to a
+     * screen reader or to one reader in twelve. Deliberately not a thick
+     * stripe down one side: that is the stock callout, and it shouts where
+     * this only has to be findable.
+     */
+    tone: {
+      default: '',
+      // A ring rather than a border: the Reach 2 card has no border for it
+      // to recolour, so the edge is drawn the way `outline` draws its own.
+      attention: 'shadow-[inset_0_0_0_1px_var(--reach-color-warning-border)]',
+    },
+    /**
      * The whole card is a target. Only set this when the card really is a
      * button or a link. `asChild` it onto an `<a>`, or put a stretched link
      * inside. A div that lifts on hover and does nothing is a lie.
@@ -45,7 +60,7 @@ const card = cva('rounded-lg bg-surface text-fg touch:rounded-[1.375rem]', {
       false: '',
     },
   },
-  defaultVariants: { variant: 'raised', padded: false, interactive: false },
+  defaultVariants: { variant: 'raised', padded: false, interactive: false, tone: 'default' },
 });
 
 export interface CardProps extends ComponentPropsWithoutRef<'div'>, VariantProps<typeof card> {}
@@ -55,9 +70,10 @@ export function Card({
   variant,
   padded,
   interactive,
+  tone,
   ...props
 }: CardProps): JSX.Element {
-  return <div className={cn(card({ variant, padded, interactive }), className)} {...props} />;
+  return <div className={cn(card({ variant, padded, interactive, tone }), className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: ComponentPropsWithoutRef<'div'>): JSX.Element {
@@ -72,9 +88,19 @@ export function CardHeader({ className, ...props }: ComponentPropsWithoutRef<'di
   );
 }
 
-export function CardTitle({ className, ...props }: ComponentPropsWithoutRef<'h3'>): JSX.Element {
+/**
+ * The card's heading. An `h3` by default; `level` sets it to fit the page's
+ * outline, since a card directly under a page title is a second-level heading
+ * and a skipped level is a broken outline to a screen reader.
+ */
+export function CardTitle({
+  className,
+  level = 3,
+  ...props
+}: ComponentPropsWithoutRef<'h3'> & { readonly level?: 2 | 3 | 4 }): JSX.Element {
+  const Heading = `h${String(level)}` as 'h2' | 'h3' | 'h4';
   return (
-    <h3
+    <Heading
       className={cn('text-md leading-tight font-semibold tracking-tight text-fg', className)}
       {...props}
     />

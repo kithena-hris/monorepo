@@ -1,6 +1,6 @@
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
-import type { CapturedProfile } from '../../shared/captured-profile.js';
+import type { CapturedProfile, SignupAnswers } from '../../shared/captured-profile.js';
 import type { PersonName } from '../../shared/person-name.js';
 import type { PersonProfile } from '../../shared/person-profile.js';
 import { isAcceptableOrigin, type OriginPolicy } from '../../shared/origin.js';
@@ -10,10 +10,12 @@ import type { EnrolmentTokenStore } from './enrolment-token-store.js';
 /**
  * A first passkey, and the account it makes usable.
  *
- * Four things happen and every one of them can refuse. The token is spent
- * whether or not the rest succeeds, which is deliberate: a link presented once
- * is a link that has been out in the world, and a failed registration is not a
- * reason to leave it live.
+ * Four things happen and every one of them can refuse. The token is consumed
+ * first, so a second presentation of the same link waits on its row — but the
+ * composition runs all of this in one transaction and rolls it back on any
+ * refusal, so a link is spent only together with the credential it registered.
+ * It used to stay spent after a rejected attestation, which stranded a person
+ * whose device had merely failed once: a link in hand, and nothing it could do.
  *
  * The credential and account operations arrive as functions rather than
  * imports. `no-cross-slice-imports` refuses the alternative and is right to;
@@ -55,6 +57,8 @@ export interface CompleteEnrolmentDeps {
     accountId: string,
     credentialId: string,
     captured?: CapturedProfile,
+    /** The tenant's sign-up questions, answered; forwarded to People, never kept. */
+    answers?: SignupAnswers,
   ) => Promise<Result<void>>;
   /**
    * What onboarding asked them to confirm, written before the passkey is.
@@ -101,6 +105,8 @@ export interface CompleteEnrolmentRequest {
    * these, and the form does not ask again.
    */
   readonly profile?: PersonProfile;
+  /** Already checked by `checkSignupAnswers` at the boundary. Absent when nothing was asked. */
+  readonly answers?: SignupAnswers;
 }
 
 /**
@@ -137,9 +143,9 @@ export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolmen
   return async (request) => {
     if (!isAcceptableOrigin(request.origin, deps.origins)) return refuse('origin', 'link_invalid');
 
-    // Spent here, before the ceremony is checked. A link that has been
-    // presented has been out in the world, and a registration that then fails
-    // is not a reason to leave it usable.
+    // Claimed here, before the ceremony is checked, so a concurrent second
+    // presentation queues behind this one. Whether it stays spent is the
+    // transaction's call: committed with a credential, rolled back without.
     const spent = await deps.tokens.consume(request.token);
     if (!spent) return refuse('token', 'link_used_or_expired');
 
@@ -184,7 +190,12 @@ export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolmen
         ? undefined
         : { name: request.name, mobilePresent: request.profile?.mobile != null };
 
-    const enrolled = await deps.enrolAccount(spent.accountId, credentialId, captured);
+    const enrolled = await deps.enrolAccount(
+      spent.accountId,
+      credentialId,
+      captured,
+      request.answers,
+    );
     if (!enrolled.ok) {
       return refuse(
         enrolled.error.code,

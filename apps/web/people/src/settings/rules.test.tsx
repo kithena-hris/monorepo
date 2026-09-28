@@ -98,8 +98,9 @@ describe('conditional requiredness (PEO-065)', () => {
     const user = fast();
     const onSave = editor();
     const sheet = await sheetNamed('New field');
-    await user.click(within(sheet).getByLabelText(/^Label/));
+    await user.click(within(sheet).getByLabelText(/^Field name/));
     await user.paste('Work permit number');
+    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('button', { name: 'Next' }));
 
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
@@ -113,7 +114,6 @@ describe('conditional requiredness (PEO-065)', () => {
     );
     await user.click(screen.getByRole('option', { name: 'Spain' }));
     await user.keyboard('{Escape}');
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await within(sheet).findByText('Ordinary job data.');
     await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
@@ -132,8 +132,9 @@ describe('conditional requiredness (PEO-065)', () => {
     const user = fast();
     const onSave = editor();
     const sheet = await sheetNamed('New field');
-    await user.click(within(sheet).getByLabelText(/^Label/));
+    await user.click(within(sheet).getByLabelText(/^Field name/));
     await user.paste('Lab badge');
+    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
 
@@ -158,7 +159,6 @@ describe('conditional requiredness (PEO-065)', () => {
     await user.click(screen.getByRole('option', { name: 'Germany' }));
     await user.keyboard('{Escape}');
 
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await within(sheet).findByText('Ordinary job data.');
     await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
@@ -218,8 +218,9 @@ describe('conditional requiredness (PEO-065)', () => {
       />,
     );
     const sheet = await sheetNamed('New field');
-    await user.click(within(sheet).getByLabelText(/^Label/));
+    await user.click(within(sheet).getByLabelText(/^Field name/));
     await user.paste('Workplace adjustment');
+    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
 
@@ -242,8 +243,10 @@ describe('custom visibility rules (PEO-066)', () => {
     const onSave = editor(costCentre);
     const sheet = await sheetNamed('Edit Cost centre');
     await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
 
+    await user.click(
+      within(sheet).getByRole('button', { name: /^Let more people see it, on some records only/ }),
+    );
     await user.click(within(sheet).getByRole('button', { name: 'Add a rule' }));
     const n = 'Rule 1: when, condition 1';
     await user.click(within(sheet).getByRole('combobox', { name: `${n}: what it reads` }));
@@ -253,6 +256,7 @@ describe('custom visibility rules (PEO-066)', () => {
     await user.keyboard('{Escape}');
     expect(await axeViolations(sheet)).toEqual([]);
 
+    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await within(sheet).findByText('Ordinary job data.');
     await user.click(within(sheet).getByRole('button', { name: 'Save field' }));

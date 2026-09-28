@@ -330,8 +330,7 @@ function Wizard({
           title={<>Publish version 1</>}
           description={
             <>
-              From now on every form, export, chart and integration follows this version. Changing
-              it later is a new version, never an edit to this one.
+              All forms, exports and integrations now use this version. Later changes create a new version.
             </>
           }
         >

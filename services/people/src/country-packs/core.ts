@@ -37,6 +37,12 @@ const employment: SectionInput = {
 /** Seen by the company, which is what a name and a work email are for. */
 const everyone = ['self', 'manager', 'manager_chain', 'hr', 'directory'] as const;
 
+/**
+ * Names and contact details: internal, and not shared with the assistant
+ * unless the company chooses to. Where somebody works and who they report to
+ * are shared by default (`aiEligible: true` on each): the assistant is asked
+ * "who is in Scranton" and "who reports to Michael" more than anything else.
+ */
 const identity = {
   classification: 'internal',
   piiKind: 'identity',
@@ -142,7 +148,7 @@ export const CORE_PACK: {
       ownership: ['hr'],
       visibility: [...everyone],
       collectAt: 'hr_only',
-      classification: { ...identity, piiKind: 'none' },
+      classification: { ...identity, piiKind: 'none', aiEligible: true },
       effectiveDated: true,
     }),
     // Where somebody works (§6.8, PEO-123): whose day it is, which entity
@@ -158,7 +164,7 @@ export const CORE_PACK: {
       ownership: ['hr'],
       visibility: ['self', 'manager', 'hr'],
       collectAt: 'hr_only',
-      classification: { ...identity, piiKind: 'none' },
+      classification: { ...identity, piiKind: 'none', aiEligible: true },
       effectiveDated: true,
     }),
     field({
@@ -171,7 +177,7 @@ export const CORE_PACK: {
       ownership: ['hr'],
       visibility: [...everyone],
       collectAt: 'hr_only',
-      classification: { ...identity, piiKind: 'none' },
+      classification: { ...identity, piiKind: 'none', aiEligible: true },
       effectiveDated: true,
     }),
   ],

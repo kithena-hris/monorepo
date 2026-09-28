@@ -560,6 +560,7 @@ const dataColumns: DataColumn<Row>[] = [
 
 const detailFor = (row: Row) => (
   <KeyValues
+    layout="aligned"
     className="max-w-md"
     items={[
       { label: 'Employee number', value: row.id },
@@ -876,6 +877,56 @@ export const Virtualized: Story = {
 };
 
 /**
+ * A long list read row by row: striped, columns widened by dragging (or the
+ * arrow keys on a header's edge), and the next page fetched as the reader
+ * nears the end, then virtualized like any other long table.
+ */
+export const InfiniteVirtualized: Story = {
+  name: 'Infinite and virtualized',
+  render: function InfiniteTable() {
+    const page = (from: number): Row[] =>
+      Array.from({ length: 50 }, (_, i) => {
+        const index = from + i;
+        return {
+          id: `EMP-${String(200_000 + index)}`,
+          name: `Employee ${String(index + 1)}`,
+          role: ['Engineer', 'Designer', 'Analyst', 'Manager'][index % 4] ?? 'Engineer',
+          status: (['active', 'on-leave', 'offboarding'] as const)[index % 3] ?? 'active',
+          hiredOn: `20${String(15 + (index % 10)).padStart(2, '0')}-0${String((index % 9) + 1)}-15`,
+          salaryMinorUnits: String(4_000_000 + index * 137),
+        };
+      });
+    const [loaded, setLoaded] = useState<Row[]>(() => page(0));
+    const [loading, setLoading] = useState(false);
+    const more = () => {
+      if (loading || loaded.length >= 1000) return;
+      setLoading(true);
+      setTimeout(() => {
+        setLoaded((rows) => [...rows, ...page(rows.length)]);
+        setLoading(false);
+      }, 300);
+    };
+    return (
+      <DataTable<Row>
+        label="Every employee, loaded as you scroll"
+        caption={`${String(loaded.length)} of 1000 loaded${loading ? ', loading more…' : ''}`}
+        rows={loaded}
+        columns={dataColumns}
+        rowId={(row) => row.id}
+        describeRow={(row) => row.name}
+        striped
+        resizable
+        stickyHeader
+        virtualize
+        loadingMore={loading}
+        onEndReached={more}
+        containerClassName="h-[32rem]"
+      />
+    );
+  },
+};
+
+/**
  * Sorting a virtualized table.
  *
  * Worth its own story because the two features are easy to get wrong together:
@@ -1070,11 +1121,11 @@ export const InfiniteStripedResizable: Story = {
     docs: {
       description: {
         story: [
-          '**Infinite:** while `onLoadMore` is passed, a "Loading more" row sits under the last one, and it is called when that row scrolls into view; `loadingMore` holds it off while the page is on its way. Scroll the table: it loads twelve more at a time, up to 48, and then the row goes.',
+          '**Infinite:** `onEndReached` is called as the reader nears the end of what is loaded, and `loadingMore` shows a "Loading more" row under the last one and holds further calls off while the page is on its way. Scroll the table: it loads twelve more at a time, up to 48.',
           '',
           '**Striped:** `striped` tints every other row, for a wide table read across rather than down.',
           '',
-          "**Resizable:** drag the edge of a header, or Tab to it and use the arrow keys. The first resize measures the columns as drawn, so nothing jumps; the last column takes what is left. Column sizing is TanStack Table's. Under a finger the table is cards and there is nothing to resize.",
+          '**Resizable:** drag the edge of a header, or Tab to it and use the arrow keys (Shift for bigger steps). The table lays out on the widths, so a cell ellipsizes rather than pushing its neighbours; `columnWidths` and `onColumnWidthsChange` keep them. Under a finger the table is cards and there is nothing to resize.',
         ].join('\n'),
       },
     },
@@ -1103,7 +1154,7 @@ export const InfiniteStripedResizable: Story = {
         stickyHeader
         containerClassName="max-h-96"
         loadingMore={loading}
-        {...(shown.length >= 48 ? {} : { onLoadMore: more })}
+        {...(shown.length >= 48 ? {} : { onEndReached: more })}
       />
     );
   },

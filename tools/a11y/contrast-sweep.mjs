@@ -49,13 +49,21 @@
 /*
  * eslint-disable no-await-in-loop
  *
- * Every `await` in a loop here drives one shared Playwright page or context:
- * navigate, wait for the theme to settle, read the computed values, move on.
- * The rule's suggested fix, collecting the promises and running `Promise.all`,
- * would have several navigations racing the same page and reading each other's
- * DOM, or spawn a browser per story. Sequential is the correct shape.
+ * Every `await` in a loop here drives one Playwright page: navigate, wait for
+ * the theme to settle, press Tab, read the computed values, move on. A page is
+ * one document, so two navigations on it race and one reads the other's DOM;
+ * within a page, sequential is the correct shape.
+ *
+ * Across pages it is not. The sweep runs CONTRAST_WORKERS workers (default:
+ * the CPU count, capped at 4), each owning its own browser context per pointer
+ * profile and so its own page, pulling (profile, story, theme) jobs off one
+ * shared queue. Nothing is shared between them: not the DOM, not focus or
+ * keyboard modality, not storage. Each worker's loop stays sequential for the
+ * reason above. CONTRAST_WORKERS=1 is the old single-page sweep exactly.
  */
 /* eslint-disable no-await-in-loop */
+
+import { availableParallelism } from 'node:os';
 
 import { chromium } from 'playwright';
 
@@ -231,12 +239,16 @@ function measure(options) {
   const FOCUSABLE =
     'a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
   let ringsSeen = 0;
+  // What could have shown a ring: a story with none (a picture, a mark) owes
+  // no ring, and must not read as a focus pass gone blind.
+  let focusables = 0;
 
   for (const el of document.querySelectorAll(FOCUSABLE)) {
     if (el.closest('.sr-only, [aria-hidden="true"]') || el.closest(INACTIVE)) continue;
     if (el.closest(FOREIGN)) continue;
     const box = el.getBoundingClientRect();
     if (box.width < 2 || box.height < 2) continue;
+    focusables += 1;
 
     // What the element looks like *before* it has focus, so the indicator can
     // be defined as the difference rather than as whatever shadow happens to be
@@ -366,7 +378,7 @@ function measure(options) {
     }
   }
 
-  return { findings, ringsSeen };
+  return { findings, ringsSeen, focusables };
 }
 /* eslint-enable unicorn/consistent-function-scoping */
 
@@ -497,136 +509,188 @@ const PROFILES = [
   { name: 'touch', viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true },
 ];
 
-const failures = [];
-const skipped = [];
-const palettesChecked = new Set();
-let ringsSeen = 0;
-let checks = 0;
-
+/*
+ * One job per render, in the order the single-page sweep visited them:
+ * profile, then story, then theme. `order` is that position, and every result
+ * carries it so the report is sorted back into it. Scheduling decides when a
+ * render happens, never where its findings print.
+ *
+ * The palette check reads tokens off `:root`, so it is the same answer in every
+ * story. It rides on the first job of each theme, fixed here rather than
+ * claimed by whichever worker gets there first, so a palette finding is
+ * attributed to the same story on every run. If that render fails it is
+ * skipped, and a skip fails the gate anyway.
+ */
+const jobs = [];
+const paletteThemes = new Set();
 for (const profile of PROFILES) {
-  const context = await browser.newContext({
-    viewport: profile.viewport,
-    hasTouch: profile.hasTouch,
-    isMobile: profile.isMobile,
-  });
-  const page = await context.newPage();
-
   for (const story of stories) {
     for (const theme of ['light', 'dark']) {
-      const url = story.standalone
-        ? story.url
-        : BASE +
-          '/iframe.html?id=' +
-          story.id +
-          '&viewMode=' +
-          story.viewMode +
-          '&globals=theme:' +
-          theme;
-      try {
-        await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
+      const palette = !paletteThemes.has(theme);
+      paletteThemes.add(theme);
+      jobs.push({ order: jobs.length, profile, story, theme, palette });
+    }
+  }
+}
 
-        if (story.standalone) {
-          // An ordinary page has no Storybook global to drive, so the class
-          // goes on directly. Same mechanism, one less layer.
-          await page.evaluate((want) => {
-            document.documentElement.classList.toggle('dark', want === 'dark');
-          }, theme);
-        } else {
-          // Wait for the theme to actually be on the document, not for a guess
-          // at how long that takes. The decorator applies the class after
-          // render, and at the 120ms this used to sleep the class was usually
-          // not there yet: the dark half of the sweep was measuring the light
-          // theme and reporting it under the dark label. `networkidle` does not
-          // cover it, because nothing is fetched.
-          await page.waitForFunction(
-            (want) => {
-              // A docs page renders into `#storybook-docs`, a story into
-              // `#storybook-root`, and both containers exist on both kinds of
-              // page. Picking the first one that resolves waits forever on the
-              // empty one, so take whichever actually has content.
-              // Storybook shows a skeleton while a page prepares, and the
-              // skeleton has content: waiting only for children measured grey
-              // placeholders on grey and reported thousands of 1:1 findings
-              // about markup no reader ever sees.
-              //
-              // Visibility, not presence. `.sb-preparing-story` and
-              // `.sb-preparing-docs` are permanent wrappers that stay in the
-              // DOM at `display: none` once the page has rendered, so testing
-              // for the element timed out every render in the suite and the run
-              // reported 1864 unmeasured.
-              const skeletons = document.querySelectorAll(
-                '.sb-preparing-docs, .sb-preparing-story',
-              );
-              for (const skeleton of skeletons) {
-                if (skeleton.getBoundingClientRect().height > 0) return false;
-              }
-              const roots = ['#storybook-root', '#storybook-docs']
-                .map((selector) => document.querySelector(selector))
-                .filter((node) => node !== null);
-              if (!roots.some((node) => node.childElementCount > 0)) return false;
-              // Light is the absence of the class, so this half of the
-              // condition is already true on a blank page. The rendered-children
-              // check above is what stops it passing before the story exists.
-              return document.documentElement.classList.contains('dark') === (want === 'dark');
-            },
-            theme,
-            { timeout: 10000 },
-          );
-        }
-        // Puts Blink into keyboard modality so `:focus-visible` matches the
-        // programmatic focus the measurement uses. See the note in `measure`.
-        await page.keyboard.press('Tab');
-        // The palette check reads tokens off `:root`, so it is the same answer in
-        // every story. Run it once per theme rather than 372 times.
-        const palette = !palettesChecked.has(theme);
-        palettesChecked.add(theme);
-        /*
-         * Freeze transitions before measuring.
-         *
-         * `measure` focuses each control and reads its computed style in the
-         * same tick. Reach animates `outline-color` through `transition-colors`,
-         * so that read lands mid-transition and reports a colour the ring is
-         * only passing through, not the one it settles on. On a selected
-         * calendar day the resting colour is the white label, and against the
-         * white page behind the button that measured 1:1: an invisible ring
-         * that is plainly visible on screen.
-         *
-         * It stayed hidden until the `duration-[--var]` classes were corrected.
-         * Those compiled to an invalid `transition-duration` and therefore to
-         * `0s`, so every transition finished instantly and the read happened to
-         * catch the final value. Repairing them made the gate honest and this
-         * assumption visible.
-         *
-         * Injected per render because a story remounts its own DOM, and cheap
-         * enough that it is not worth tracking whether it is already there.
-         */
-        await page.addStyleTag({
-          content:
-            '*, *::before, *::after { transition: none !important; animation: none !important; }',
-        });
+/*
+ * Capped at 4 because that is the CI runner's vCPU count, and Chromium's
+ * renderers and the Storybook dev server share those cores. CONTRAST_WORKERS
+ * overrides it; 1 is the single-page sweep.
+ */
+const workers = Math.max(
+  1,
+  Math.floor(Number(process.env.CONTRAST_WORKERS)) || Math.min(availableParallelism(), 4),
+);
 
-        const result = await page.evaluate(measure, { palette });
-        ringsSeen += result.ringsSeen;
-        checks += 1;
-        for (const found of result.findings) {
-          failures.push({ story: story.id, theme, profile: profile.name, ...found });
-        }
-      } catch (error) {
-        // Counted, not swallowed. A story that fails to settle is measured by
-        // nothing, and a run that quietly skipped half the suite prints the
-        // same clean zero as a run that checked all of it.
-        skipped.push({
+const failures = [];
+const skipped = [];
+let ringsSeen = 0;
+let focusablesSeen = 0;
+let checks = 0;
+let next = 0;
+
+async function worker() {
+  // A context per profile, opened on first use, so a worker never shares a
+  // page, focus, keyboard modality or storage with another.
+  const pages = new Map();
+  // No await between reading `next` and advancing it, so two workers can never
+  // take the same job.
+  while (next < jobs.length) {
+    const job = jobs[next];
+    next += 1;
+    const { profile, story, theme } = job;
+    if (!pages.has(profile.name)) {
+      const context = await browser.newContext({
+        viewport: profile.viewport,
+        hasTouch: profile.hasTouch,
+        isMobile: profile.isMobile,
+      });
+      pages.set(profile.name, await context.newPage());
+    }
+    const page = pages.get(profile.name);
+    const url = story.standalone
+      ? story.url
+      : BASE +
+        '/iframe.html?id=' +
+        story.id +
+        '&viewMode=' +
+        story.viewMode +
+        '&globals=theme:' +
+        theme;
+    try {
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
+
+      if (story.standalone) {
+        // An ordinary page has no Storybook global to drive, so the class
+        // goes on directly. Same mechanism, one less layer.
+        await page.evaluate((want) => {
+          document.documentElement.classList.toggle('dark', want === 'dark');
+        }, theme);
+      } else {
+        // Wait for the theme to actually be on the document, not for a guess
+        // at how long that takes. The decorator applies the class after
+        // render, and at the 120ms this used to sleep the class was usually
+        // not there yet: the dark half of the sweep was measuring the light
+        // theme and reporting it under the dark label. `networkidle` does not
+        // cover it, because nothing is fetched.
+        await page.waitForFunction(
+          (want) => {
+            // A docs page renders into `#storybook-docs`, a story into
+            // `#storybook-root`, and both containers exist on both kinds of
+            // page. Picking the first one that resolves waits forever on the
+            // empty one, so take whichever actually has content.
+            // Storybook shows a skeleton while a page prepares, and the
+            // skeleton has content: waiting only for children measured grey
+            // placeholders on grey and reported thousands of 1:1 findings
+            // about markup no reader ever sees.
+            //
+            // Visibility, not presence. `.sb-preparing-story` and
+            // `.sb-preparing-docs` are permanent wrappers that stay in the
+            // DOM at `display: none` once the page has rendered, so testing
+            // for the element timed out every render in the suite and the run
+            // reported 1864 unmeasured.
+            const skeletons = document.querySelectorAll('.sb-preparing-docs, .sb-preparing-story');
+            for (const skeleton of skeletons) {
+              if (skeleton.getBoundingClientRect().height > 0) return false;
+            }
+            const roots = ['#storybook-root', '#storybook-docs']
+              .map((selector) => document.querySelector(selector))
+              .filter((node) => node !== null);
+            if (!roots.some((node) => node.childElementCount > 0)) return false;
+            // Light is the absence of the class, so this half of the
+            // condition is already true on a blank page. The rendered-children
+            // check above is what stops it passing before the story exists.
+            return document.documentElement.classList.contains('dark') === (want === 'dark');
+          },
+          theme,
+          { timeout: 10000 },
+        );
+      }
+      // Puts Blink into keyboard modality so `:focus-visible` matches the
+      // programmatic focus the measurement uses. See the note in `measure`.
+      await page.keyboard.press('Tab');
+      /*
+       * Freeze transitions before measuring.
+       *
+       * `measure` focuses each control and reads its computed style in the
+       * same tick. Reach animates `outline-color` through `transition-colors`,
+       * so that read lands mid-transition and reports a colour the ring is
+       * only passing through, not the one it settles on. On a selected
+       * calendar day the resting colour is the white label, and against the
+       * white page behind the button that measured 1:1: an invisible ring
+       * that is plainly visible on screen.
+       *
+       * It stayed hidden until the `duration-[--var]` classes were corrected.
+       * Those compiled to an invalid `transition-duration` and therefore to
+       * `0s`, so every transition finished instantly and the read happened to
+       * catch the final value. Repairing them made the gate honest and this
+       * assumption visible.
+       *
+       * Injected per render because a story remounts its own DOM, and cheap
+       * enough that it is not worth tracking whether it is already there.
+       */
+      await page.addStyleTag({
+        content:
+          '*, *::before, *::after { transition: none !important; animation: none !important; }',
+      });
+
+      const result = await page.evaluate(measure, { palette: job.palette });
+      ringsSeen += result.ringsSeen;
+      focusablesSeen += result.focusables;
+      checks += 1;
+      for (const found of result.findings) {
+        failures.push({
+          order: job.order,
           story: story.id,
           theme,
           profile: profile.name,
-          reason: String(error).split('\n')[0].slice(0, 90),
+          ...found,
         });
       }
+    } catch (error) {
+      // Counted, not swallowed. A story that fails to settle is measured by
+      // nothing, and a run that quietly skipped half the suite prints the
+      // same clean zero as a run that checked all of it.
+      skipped.push({
+        order: job.order,
+        story: story.id,
+        theme,
+        profile: profile.name,
+        reason: String(error).split('\n')[0].slice(0, 90),
+      });
     }
   }
-  await context.close();
+  for (const page of pages.values()) await page.context().close();
 }
+
+await Promise.all(Array.from({ length: Math.min(workers, jobs.length) }, worker));
 await browser.close();
+
+// Back into visiting order, whatever order the workers finished in. The sort is
+// stable, so findings from one render keep the order `measure` reported them.
+failures.sort((a, b) => a.order - b.order);
+skipped.sort((a, b) => a.order - b.order);
 
 const grouped = new Map();
 for (const failure of failures) {
@@ -672,7 +736,9 @@ for (const [key, items] of grouped) {
 // Docs pages have no controls to focus, so a run narrowed to one of them can
 // legitimately measure no rings. Only a run that rendered a story owes any.
 const sweptAStory = stories.some((entry) => entry.standalone || entry.viewMode === 'story');
-const blind = ringsSeen === 0 && sweptAStory;
+// And a narrowed run whose stories hold nothing focusable (a shard of one
+// brand mark) owes none either: blind is controls rendered and no ring seen.
+const blind = ringsSeen === 0 && sweptAStory && focusablesSeen > 0;
 if (blind) {
   console.error(
     '\nNo focus ring was measured in any story. Either nothing is focusable or\n' +

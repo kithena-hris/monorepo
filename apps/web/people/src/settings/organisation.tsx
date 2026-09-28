@@ -88,6 +88,17 @@ export interface RetentionFloor {
   readonly reviewedOn: string | null;
 }
 
+/** A leaver the retention job erases next (PEO-075). HR's alone. */
+export interface UpcomingErasure {
+  readonly personId: string;
+  /** Null once the name itself has been erased. */
+  readonly name: string | null;
+  readonly dueOn: string;
+  readonly floors: readonly string[];
+  /** Unreviewed floors: nothing is erased automatically until counsel reviews them. */
+  readonly waitingForReview: readonly string[];
+}
+
 /** A pay band for one grade and currency from a day, in minor units (PEO-078). */
 export interface PayBand {
   readonly id: string;
@@ -117,6 +128,8 @@ export interface OrganisationState {
   readonly settings: {
     readonly defaultTimeZone: string;
     readonly cohortMinimum: number;
+    /** Whether the first screen after signing up asks for a photo. Absent: off. */
+    readonly photoAtSignup?: PhotoAtSignup;
     readonly slug: string | null;
     readonly displayName: string | null;
   };
@@ -126,13 +139,24 @@ export interface OrganisationState {
   readonly countries: readonly { readonly code: string; readonly name: string }[];
   readonly timeZones: readonly string[];
   readonly retentionFloors: readonly RetentionFloor[];
+  /** HR's alone; null or absent for anybody else (PEO-075). */
+  readonly upcomingErasures?: readonly UpcomingErasure[] | null;
 }
+
+export type PhotoAtSignup = 'off' | 'optional' | 'required';
+
+const PHOTO_AT_SIGNUP: readonly { readonly value: PhotoAtSignup; readonly label: string }[] = [
+  { value: 'off', label: 'Don’t ask' },
+  { value: 'optional', label: 'Ask, and let them skip it' },
+  { value: 'required', label: 'Ask before anything else' },
+];
 
 export interface OrganisationProps {
   readonly load: Loadable<OrganisationState>;
   readonly onUpdateSettings: (patch: {
     defaultTimeZone?: string;
     cohortMinimum?: number;
+    photoAtSignup?: PhotoAtSignup;
   }) => Promise<Outcome>;
   readonly onCreateEntity: (input: {
     name: string;
@@ -200,7 +224,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
     <Stack gap={6}>
       <PageHeader
         title="Organisation"
-        description="Legal entities, locations and their time zones, employee numbering and the company’s settings. Every “today” in People is read on these calendars."
+        description="Legal entities, locations, time zones, employee numbering and company settings."
       />
       {state.canManage ? null : (
         <Alert tone="info">Only a People administrator can change these.</Alert>
@@ -226,6 +250,9 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
           <Stack gap={6}>
             <Company state={state} onSave={props.onUpdateSettings} />
             <RetentionFloors floors={state.retentionFloors} />
+            {state.upcomingErasures == null ? null : (
+              <UpcomingErasures erasures={state.upcomingErasures} />
+            )}
           </Stack>
         </TabsContent>
         {state.payBands == null ? null : (
@@ -904,8 +931,7 @@ function PayBands({
   return (
     <Stack gap={4}>
       <p className="text-sm text-fg-muted">
-        Compa-ratio on the analytics screen is salary over the midpoint of the band in force for
-        that grade and currency. A band change from a later day leaves the earlier one in history.
+        Compa-ratio is salary divided by the band midpoint for the grade and currency.
       </p>
       {onSet === undefined ? null : (
         <div>
@@ -1137,10 +1163,15 @@ function Company({
   const { settings } = state;
   const [zone, setZone] = useState(settings.defaultTimeZone);
   const [minimum, setMinimum] = useState<number | null>(settings.cohortMinimum);
+  const photoWas = settings.photoAtSignup ?? 'off';
+  const [photo, setPhoto] = useState<PhotoAtSignup>(photoWas);
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const lowered = minimum === null || minimum < settings.cohortMinimum;
-  const changed = zone !== settings.defaultTimeZone || minimum !== settings.cohortMinimum;
+  const changed =
+    zone !== settings.defaultTimeZone ||
+    minimum !== settings.cohortMinimum ||
+    photo !== photoWas;
 
   return (
     <form
@@ -1153,6 +1184,7 @@ function Company({
         void onSave({
           ...(zone === settings.defaultTimeZone ? {} : { defaultTimeZone: zone }),
           ...(minimum === settings.cohortMinimum ? {} : { cohortMinimum: minimum }),
+          ...(photo === photoWas ? {} : { photoAtSignup: photo }),
         }).then((result) => {
           setBusy(false);
           setOutcome(result);
@@ -1179,6 +1211,33 @@ function Company({
           disabled={!state.canManage}
           description="The day of anybody with no location or legal entity, and of every figure about the whole company."
         />
+        <Field>
+          <FieldLabel>A photo when someone signs up</FieldLabel>
+          <Select
+            value={photo}
+            disabled={!state.canManage}
+            onValueChange={(v) => {
+              setPhoto(v as PhotoAtSignup);
+            }}
+          >
+            <FieldControl>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+            </FieldControl>
+            <SelectContent>
+              {PHOTO_AT_SIGNUP.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldDescription>
+            Asked on the first screen after they set up their account, beside any image or
+            document field you collect at sign-up.
+          </FieldDescription>
+        </Field>
         {state.canManage ? (
           <NumberField
             label="Smallest group analytics will describe"
@@ -1238,14 +1297,12 @@ function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[
   return (
     <PageSection
       title="Statutory retention"
-      description="The least time the law keeps a leaver’s records. A longer retention policy on a field wins; a shorter one does not."
+      description="The minimum time a leaver’s records are kept by law."
     >
       <Stack gap={4}>
         {pending ? (
           <Alert tone="warning" title="Pending legal review">
-            These periods have not yet been confirmed by counsel. Nothing is erased automatically
-            under a period pending review; HR can still erase one person’s record by hand, with a
-            stated reason.
+            These periods await legal review. Nothing is erased automatically until they’re confirmed.
           </Alert>
         ) : null}
         <Table aria-label="Statutory retention floors">
@@ -1275,6 +1332,62 @@ function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[
           </TableBody>
         </Table>
       </Stack>
+    </PageSection>
+  );
+}
+
+/**
+ * Who the retention job erases next, and when (PEO-075). HR's alone. A leaver
+ * whose erasure relies on a floor still pending legal review is listed as
+ * waiting, however overdue: the job skips them until counsel signs it off.
+ */
+function UpcomingErasures({
+  erasures,
+}: {
+  readonly erasures: readonly UpcomingErasure[];
+}): JSX.Element {
+  return (
+    <PageSection
+      title="Automated erasure"
+      description="Leavers whose data will be erased in the next three months."
+    >
+      {erasures.length === 0 ? (
+        <EmptyState
+          title="Nobody is due"
+          description="No leaver’s records fall due for erasure in the next three months."
+        />
+      ) : (
+        <Table aria-label="Upcoming automated erasures">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Person</TableHead>
+              <TableHead>Due</TableHead>
+              <TableHead>Kept under</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {erasures.map((e) => (
+              <TableRow key={e.personId}>
+                <TableCell>{e.name ?? 'Name already erased'}</TableCell>
+                <TableCell>{e.dueOn}</TableCell>
+                <TableCell>
+                  {e.floors.length === 0
+                    ? 'The company’s policy'
+                    : e.floors.map((f) => FLOOR_NAMES[f] ?? f).join('; ')}
+                </TableCell>
+                <TableCell>
+                  {e.waitingForReview.length > 0 ? (
+                    <Badge tone="warning">Waiting for legal review</Badge>
+                  ) : (
+                    <Badge tone="neutral">Scheduled</Badge>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </PageSection>
   );
 }

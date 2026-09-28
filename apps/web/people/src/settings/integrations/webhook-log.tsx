@@ -104,7 +104,9 @@ function Log({
         </Alert>
       )}
       {outcome === null ? null : outcome.result.ok ? (
-        <Alert tone="success">Replayed. It is sent shortly, and listed here as its own delivery.</Alert>
+        <Alert tone="success">
+          Replayed. It is sent shortly, and listed here as its own delivery.
+        </Alert>
       ) : (
         <Alert tone="danger" title="Not replayed">
           {outcome.result.message}
@@ -136,9 +138,7 @@ function Log({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge tone={TONE[d.status] ?? 'neutral'}>
-                    {WORD[d.status] ?? d.status}
-                  </Badge>
+                  <Badge tone={TONE[d.status] ?? 'neutral'}>{WORD[d.status] ?? d.status}</Badge>
                   {d.lastResponse === null ? null : (
                     <span className="block text-fg-muted text-sm">HTTP {d.lastResponse}</span>
                   )}

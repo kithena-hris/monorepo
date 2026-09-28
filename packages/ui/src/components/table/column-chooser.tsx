@@ -1,7 +1,7 @@
 'use client';
 
 import { Columns3, Lock } from 'lucide-react';
-import { useId, useState, type JSX, type ReactNode } from 'react';
+import { useId, useState, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
@@ -13,88 +13,134 @@ import { SearchField } from '../typed-fields/typed-fields';
 /**
  * Which columns a table shows, and in what order.
  *
- * A popover of checkboxes that commit as they are ticked, with no Save button:
- * each change is small, visible behind the panel and undone by ticking again.
- * The trigger states the count, because a popover hides its state and
- * something outside it has to say what the state is.
+ * Controlled, and nothing more: the chooser holds no state and remembers
+ * nothing. Where a choice is kept (a user's browser, their profile, nowhere)
+ * is the application's decision, because the design system cannot know
+ * whose choice it is or how long it should last.
  *
- * With `onReorder`, every row gets a grip. Dragging and the keyboard (Space on
- * the grip, then the arrows) both work, through `SortableList`. While a search
- * is typed the grips go away: reordering a filtered list has no clear meaning
- * for the rows it is hiding.
+ * ### Showing and ordering are one list
  *
- * A `locked` column, the row's identity, stays ticked, disabled and in place. A
- * table with no identity column is a grid of anonymous numbers.
+ * A checkbox list beside a separate "reorder" dialog makes somebody find the
+ * same column twice. Here each row is both: tick it to show it, drag it by
+ * its grip to place it. Its Move buttons, the keyboard's and the screen
+ * reader's way, appear when focus is in the row. The boxes commit as they are
+ * ticked, with no Save button: each change is small, visible behind the panel
+ * and undone by ticking again.
+ *
+ * Past eight columns the list gets a search box. While a search is typed the
+ * grips go away: reordering a filtered list has no clear meaning for the rows
+ * it is hiding.
+ *
+ * ### A locked column stays
+ *
+ * The identity column (a name, an invoice number) is `locked`: always shown,
+ * never moved. A table with no identity column is a grid of anonymous values.
+ *
+ * ### The trigger says the state
+ *
+ * A popover hides what it holds, so the trigger carries the count: "Columns
+ * (6 of 11)". Somebody wondering why a column is missing is told before they
+ * open anything.
  */
 
 export interface ColumnChoice {
   id: string;
   label: string;
-  /** Always visible and never moved. Use it for the column saying whose row it is. */
+  /** Always shown, and never moved. Use it for the identity column. */
   locked?: boolean;
 }
 
-export interface ColumnChooserProps {
-  /** Every column the table can show, in its current order. */
-  columns: readonly ColumnChoice[];
-  /** Ids of the visible columns. */
+export interface ColumnChooserValue {
+  /** Every column's id, in display order. */
+  order: readonly string[];
+  /** The ids shown. Locked columns are shown whatever this says. */
   visible: readonly string[];
-  onVisibleChange: (visible: readonly string[]) => void;
-  /** The ids in their new order. Omitted, the columns cannot be reordered. */
-  onReorder?: (order: readonly string[]) => void;
-  /** Puts back the table's default set. Omitted, no reset is offered. */
+}
+
+export interface ColumnChooserProps {
+  /** Every column the table can show. Their order here is the default order. */
+  columns: readonly ColumnChoice[];
+  value: ColumnChooserValue;
+  onChange: (value: ColumnChooserValue) => void;
+  /** Offers "Reset" when present: the application knows what its default is. */
   onReset?: () => void;
-  /** Trigger text. The count is appended. */
-  label?: ReactNode;
+  /** The trigger's word. */
+  label?: string;
+  size?: 'sm' | 'md';
 }
 
 /** Past this many columns the list gets a search box. */
 const SEARCH_FROM = 8;
 
+/**
+ * The columns in the order to show them: the saved order first, then any
+ * column the saved order has never heard of (a field added since), and never
+ * one that no longer exists.
+ */
+export function orderColumns(
+  columns: readonly ColumnChoice[],
+  order: readonly string[],
+): ColumnChoice[] {
+  const byId = new Map(columns.map((c) => [c.id, c]));
+  const known = order.flatMap((id) => {
+    const column = byId.get(id);
+    return column === undefined ? [] : [column];
+  });
+  const seen = new Set(known.map((c) => c.id));
+  const placed = [...known, ...columns.filter((c) => !seen.has(c.id))];
+  // Locked columns keep their declared place at the front.
+  return [...placed.filter((c) => c.locked === true), ...placed.filter((c) => c.locked !== true)];
+}
+
 export function ColumnChooser({
   columns,
-  visible,
-  onVisibleChange,
-  onReorder,
+  value,
+  onChange,
   onReset,
   label = 'Columns',
+  size = 'md',
 }: ColumnChooserProps): JSX.Element {
   const headingId = useId();
   const [query, setQuery] = useState('');
+  const ordered = orderColumns(columns, value.order);
+  const shown = new Set(value.visible);
+  const isShown = (c: ColumnChoice): boolean => c.locked === true || shown.has(c.id);
+  const count = ordered.filter(isShown).length;
 
-  // Locked columns count as shown whether or not the caller listed them, and
-  // every change hands back ids in the table's own column order.
-  const shown = new Set([
-    ...visible,
-    ...columns.filter((column) => column.locked === true).map((column) => column.id),
-  ]);
   const toggle = (id: string, on: boolean): void => {
-    onVisibleChange(
-      columns.filter((column) => (column.id === id ? on : shown.has(column.id))).map((c) => c.id),
-    );
+    const next = new Set(shown);
+    if (on) next.add(id);
+    else next.delete(id);
+    onChange({
+      order: ordered.map((c) => c.id),
+      visible: ordered.filter((c) => next.has(c.id)).map((c) => c.id),
+    });
   };
 
   const needle = query.trim().toLowerCase();
   const matching = needle
-    ? columns.filter((column) => column.label.toLowerCase().includes(needle))
-    : columns;
+    ? ordered.filter((column) => column.label.toLowerCase().includes(needle))
+    : ordered;
 
   const row = (column: ColumnChoice): JSX.Element => (
     // The row is the label, so the whole strip toggles the box.
     <label
       className={cn(
-        'flex min-h-8 flex-1 cursor-pointer items-center gap-2.5 text-sm text-fg touch:min-h-11 touch:text-base',
-        column.locked && 'cursor-default',
+        'flex min-h-8 min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-sm text-fg touch:min-h-11 touch:text-base',
+        column.locked === true && 'cursor-default',
       )}
     >
       <Checkbox
-        checked={shown.has(column.id)}
+        checked={isShown(column)}
         disabled={column.locked === true}
         onCheckedChange={(checked) => {
           toggle(column.id, checked === true);
         }}
       />
       <span className="min-w-0 flex-1 truncate">{column.label}</span>
+      {column.locked === true ? (
+        <Lock aria-hidden className="size-4 shrink-0 text-fg-subtle" />
+      ) : null}
     </label>
   );
 
@@ -105,24 +151,35 @@ export function ColumnChooser({
       }}
     >
       <PopoverTrigger asChild>
-        <Button size="sm" variant="subtle" startIcon={<Columns3 />}>
+        <Button size={size} variant="subtle" startIcon={<Columns3 />}>
           {label}
-          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent-fg/12 px-1.5 text-2xs font-bold tabular-nums">
-            {shown.size}
+          <span className="sr-only">
+            {' '}
+            ({count} of {ordered.length})
+          </span>
+          <span
+            aria-hidden
+            className="grid h-5 min-w-5 place-items-center rounded-full bg-accent-fg/12 px-1.5 text-2xs font-bold tabular-nums"
+          >
+            {count}
           </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex w-72 flex-col gap-1 p-3 touch:w-80">
+      <PopoverContent
+        align="end"
+        className="flex w-80 flex-col gap-1 p-3"
+        aria-labelledby={headingId}
+      >
         <div className="flex items-center gap-2 pb-1">
           <p id={headingId} className="text-base font-semibold text-fg">
-            Columns
+            Show and order columns
           </p>
           <p className="ms-auto text-xs font-medium text-fg-muted tabular-nums">
-            {shown.size} of {columns.length}
+            {count} of {ordered.length}
           </p>
         </div>
 
-        {columns.length >= SEARCH_FROM ? (
+        {ordered.length >= SEARCH_FROM ? (
           <SearchField
             label="Find a column"
             placeholder="Find a column"
@@ -132,27 +189,11 @@ export function ColumnChooser({
           />
         ) : null}
 
-        <div role="group" aria-labelledby={headingId} className="max-h-80 overflow-y-auto">
-          {onReorder && !needle ? (
-            <SortableList
-              appearance="plain"
-              label="Column order"
-              items={columns}
-              itemLabel={(column) => column.label}
-              hideMoveButtons
-              onReorder={(move) => {
-                onReorder(move.order);
-              }}
-            >
-              {row}
-            </SortableList>
-          ) : (
-            <ul className="flex flex-col gap-0.5">
+        <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain">
+          {needle ? (
+            <ul aria-label="Columns" className="flex flex-col gap-0.5">
               {matching.map((column) => (
                 <li key={column.id} className="flex items-center gap-3 px-1">
-                  {column.locked ? (
-                    <Lock aria-hidden className="size-4 shrink-0 text-fg-subtle" />
-                  ) : null}
                   {row(column)}
                 </li>
               ))}
@@ -160,16 +201,29 @@ export function ColumnChooser({
                 <li className="px-1 py-2 text-sm text-fg-muted">No column called “{query}”.</li>
               ) : null}
             </ul>
+          ) : (
+            <SortableList
+              appearance="plain"
+              label="Columns"
+              items={ordered}
+              itemLabel={(c) => c.label}
+              moveButtons="on-focus"
+              onReorder={(move) => {
+                onChange({ order: move.order, visible: value.visible });
+              }}
+            >
+              {row}
+            </SortableList>
           )}
         </div>
 
         <div className="mt-1 flex items-center justify-between gap-2">
-          {onReset ? (
+          {onReset === undefined ? (
+            <span />
+          ) : (
             <Button size="sm" variant="ghost" onClick={onReset}>
               Reset
             </Button>
-          ) : (
-            <span />
           )}
           <PopoverClose asChild>
             <Button size="sm" variant="primary">

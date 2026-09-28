@@ -141,6 +141,17 @@
     overscroll-behavior: contain;
   }
 
+  /* The parts nobody draws still carry the palette: the scrollbar and the
+     caret, beside the selection below and the focus ring above. */
+  html {
+    scrollbar-color: var(--reach-color-border-strong) transparent;
+  }
+  input,
+  textarea,
+  [contenteditable='true'] {
+    caret-color: var(--reach-color-accent);
+  }
+
   ::selection {
     background-color: var(--reach-color-accent-subtle);
     color: var(--reach-color-accent-fg);
@@ -253,5 +264,17 @@
     :focus-visible {
       outline-width: max(var(--reach-focus-width, 2px), 0.1875rem);
     }
+  }
+
+  /*
+   * The browser's own clear button on a search input, hidden. WebKit and
+   * Chromium draw one that no keyboard reaches and no screen reader names;
+   * `SearchField` renders a real one, and two crosses side by side is one too
+   * many. Here rather than as a class on the component, because `Input` puts
+   * a class on its wrapper when it has adornments, never on the `<input>`.
+   */
+  input[type='search']::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
   }
 }

@@ -1,6 +1,5 @@
 import {
   Alert,
-  Badge,
   Button,
   Checkbox,
   DatePicker,
@@ -154,105 +153,104 @@ const LABEL: Record<Asking, string> = {
   hire: 'Hire',
 };
 
-export function Employment({
+/** The status in words: "Provisional", "On notice". */
+export function statusLabel(status: string): string {
+  return STATUS[status] ?? status;
+}
+
+/** A lifecycle move somebody may be asked for. */
+export type MoveKind = Asking;
+
+/** The moves §8.1 allows from a status, in the order offered. People refuses anything else anyway. */
+export function offeredMoves(status: string | null): readonly MoveKind[] {
+  return status === null ? [] : (OFFERED[status] ?? []);
+}
+
+/** A move in words: "Give notice". */
+export function moveLabel(kind: MoveKind): string {
+  return LABEL[kind];
+}
+
+/** A move that ends or withdraws somebody's employment: marked as such wherever it is offered. */
+export function isDestructiveMove(kind: MoveKind): boolean {
+  return kind === 'terminate' || kind === 'discard';
+}
+
+/**
+ * The dialog for one move: it asks for what the move needs, says what it will
+ * do, and shows People's refusal as it was worded. Every date is a day on the
+ * person's own calendar.
+ */
+export function EmploymentMove({
+  kind,
   state,
   onMove,
   name,
   placement,
+  onClose,
 }: {
+  readonly kind: MoveKind;
   readonly state: EmploymentState;
-  /** Absent on one's own profile: nobody moves their own employment. */
-  readonly onMove?: ((move: LifecycleMove) => Promise<Outcome>) | undefined;
+  readonly onMove: (move: LifecycleMove) => Promise<Outcome>;
   /** Who this is, for a hire to say what it will do. */
   readonly name?: string | undefined;
   /** Where they sit: a hire asks for it when they sit nowhere yet. */
   readonly placement?: PlacementState | null | undefined;
+  readonly onClose: () => void;
 }): JSX.Element {
-  const [asking, setAsking] = useState<Asking | null>(null);
-  const { calendar, employment } = state;
-  const offered = employment === null ? [] : (OFFERED[employment.status] ?? []);
-  const periods = employment?.periods ?? [];
-
   return (
-    <PageSection
-      surface
-      title="Employment"
-      actions={
-        employment === null ? undefined : (
-          <Badge tone={employment.status === 'active' ? 'success' : 'neutral'}>
-            {STATUS[employment.status] ?? employment.status}
-          </Badge>
-        )
-      }
-    >
-      <Stack gap={4}>
-        <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(10rem,auto)_1fr]">
-          <dt className="text-sm text-fg-muted">Their day</dt>
-          <dd className="text-sm" data-testid="their-day">
-            {calendar.today} ({calendar.timeZone})
-          </dd>
-        </dl>
-        {periods.length === 0 ? null : (
-          <Table aria-label="Employment periods">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Period</TableHead>
-                <TableHead>Started</TableHead>
-                <TableHead>Last working day</TableHead>
-                <TableHead>Why they left</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {periods.map((p) => (
-                <TableRow key={p.period}>
-                  <TableCell>{p.period}</TableCell>
-                  <TableCell>{p.startedOn}</TableCell>
-                  <TableCell>{p.lastWorkingDay ?? '—'}</TableCell>
-                  <TableCell>
-                    {reasonLabel(p.leavingReason)}
-                    {p.eligibleForRehire === false ? (
-                      <span className="block text-fg-muted text-sm">Not eligible for rehire</span>
-                    ) : null}
-                    {p.rehireOverrideReason === null ? null : (
-                      <span className="block text-fg-muted text-sm">
-                        Rehired anyway: {p.rehireOverrideReason}
-                      </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-        {onMove === undefined || offered.length === 0 ? null : (
-          <div className="flex flex-wrap gap-2">
-            {offered.map((kind) => (
-              <Button
-                key={kind}
-                variant={kind === 'terminate' || kind === 'discard' ? 'destructive' : 'secondary'}
-                onClick={() => {
-                  setAsking(kind);
-                }}
-              >
-                {LABEL[kind]}
-              </Button>
-            ))}
-          </div>
-        )}
-      </Stack>
-      {asking === null || onMove === undefined ? null : (
-        <MoveDialog
-          kind={asking}
-          today={calendar.today}
-          lastPeriod={periods.at(-1) ?? null}
-          name={name ?? 'They'}
-          placement={placement ?? null}
-          onMove={onMove}
-          onClose={() => {
-            setAsking(null);
-          }}
-        />
-      )}
+    <MoveDialog
+      kind={kind}
+      today={state.calendar.today}
+      lastPeriod={state.employment?.periods.at(-1) ?? null}
+      name={name ?? 'They'}
+      placement={placement ?? null}
+      onMove={onMove}
+      onClose={onClose}
+    />
+  );
+}
+
+/**
+ * Every employment period, once there is more than one: somebody who left and
+ * came back. One period says nothing the start date does not.
+ */
+export function EmploymentPeriods({
+  periods,
+}: {
+  readonly periods: readonly EmploymentPeriod[];
+}): JSX.Element | null {
+  if (periods.length < 2) return null;
+  return (
+    <PageSection surface title="Employment periods">
+      <Table aria-label="Employment periods">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Started</TableHead>
+            <TableHead>Last working day</TableHead>
+            <TableHead>Why they left</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {periods.toReversed().map((p) => (
+            <TableRow key={p.period}>
+              <TableCell>{longDate(p.startedOn)}</TableCell>
+              <TableCell>{p.lastWorkingDay === null ? 'Current' : longDate(p.lastWorkingDay)}</TableCell>
+              <TableCell>
+                {p.lastWorkingDay === null ? '—' : reasonLabel(p.leavingReason)}
+                {p.eligibleForRehire === false ? (
+                  <span className="block text-fg-muted text-sm">Not eligible for rehire</span>
+                ) : null}
+                {p.rehireOverrideReason === null ? null : (
+                  <span className="block text-fg-muted text-sm">
+                    Rehired anyway: {p.rehireOverrideReason}
+                  </span>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </PageSection>
   );
 }

@@ -300,7 +300,7 @@ export async function startStack(): Promise<Stack> {
   try {
     // Every migration: identity runs against the same database, with the
     // service roles `tools/scripts/init-db.sql` creates first.
-    for (const role of ['svc_identity', 'svc_messaging']) {
+    for (const role of ['svc_identity', 'svc_messaging', 'svc_slack']) {
       await sql.unsafe(`CREATE ROLE ${role} NOLOGIN NOBYPASSRLS`);
     }
     const migrations = join(ROOT, 'migrations');

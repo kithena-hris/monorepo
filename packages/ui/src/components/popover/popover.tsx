@@ -128,6 +128,14 @@ export interface PopoverContentProps extends ComponentPropsWithoutRef<
    * filter editor, which needs the room.
    */
   matchTriggerWidth?: boolean;
+  /**
+   * Render into a portal at the end of `<body>`, which is the default. Off for
+   * a panel that has to sit in the document where its trigger is — a nav
+   * flyout, whose links should come next in Tab order rather than after the
+   * whole page. Radix positions it `fixed` either way, so an `overflow` on an
+   * ancestor does not clip it; a `transform` or `filter` on one would.
+   */
+  portal?: boolean;
 }
 
 export function PopoverContent({
@@ -137,6 +145,7 @@ export function PopoverContent({
   collisionPadding = 12,
   arrow = false,
   matchTriggerWidth = false,
+  portal = true,
   children,
   ...props
 }: PopoverContentProps): JSX.Element {
@@ -172,44 +181,47 @@ export function PopoverContent({
     );
   }
 
-  return (
-    <PopoverPrimitive.Portal container={container}>
-      <PopoverPrimitive.Content
-        align={align}
-        sideOffset={sideOffset}
-        // Without collision padding a popover opened near the bottom of a
-        // phone viewport renders under the browser chrome, where it cannot be
-        // scrolled to because it is in a portal.
-        collisionPadding={collisionPadding}
-        className={cn(
-          // Raised and shadowed rather than outlined: elevation separates it
-          // from the page, and a phone gets the rounder corner of its sheets.
-          'z-50 rounded-md bg-surface-raised p-4 text-base text-fg shadow-lg touch:rounded-lg',
-          // Never wider than the viewport, and never taller than the space
-          // Radix measured for it. Both are custom properties the primitive
-          // publishes, and both are the difference between a usable popover on
-          // a 375px phone and one with its Save button off-screen.
-          'max-w-[calc(100vw-1.5rem)]',
-          matchTriggerWidth && 'w-(--radix-popover-trigger-width)',
-          'max-h-(--radix-popover-content-available-height) overflow-y-auto overscroll-contain',
-          'origin-(--radix-popover-content-transform-origin)',
-          'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
-          className,
-        )}
-        {...props}
-      >
-        {children}
-        {arrow ? (
-          <PopoverPrimitive.Arrow
-            // Continues the popover surface. See the note in `tooltip.tsx`.
-            data-decorative
-            className="fill-surface-raised"
-            width={11}
-            height={5}
-          />
-        ) : null}
-      </PopoverPrimitive.Content>
-    </PopoverPrimitive.Portal>
+  const content = (
+    <PopoverPrimitive.Content
+      align={align}
+      sideOffset={sideOffset}
+      // Without collision padding a popover opened near the bottom of a
+      // phone viewport renders under the browser chrome, where it cannot be
+      // scrolled to because it is in a portal.
+      collisionPadding={collisionPadding}
+      className={cn(
+        // Raised and shadowed rather than outlined: elevation separates it
+        // from the page, and a phone gets the rounder corner of its sheets.
+        'z-50 rounded-md bg-surface-raised p-4 text-base text-fg shadow-lg touch:rounded-lg',
+        // Never wider than the viewport, and never taller than the space
+        // Radix measured for it. Both are custom properties the primitive
+        // publishes, and both are the difference between a usable popover on
+        // a 375px phone and one with its Save button off-screen.
+        'max-w-[calc(100vw-1.5rem)]',
+        matchTriggerWidth && 'w-(--radix-popover-trigger-width)',
+        'max-h-(--radix-popover-content-available-height) overflow-y-auto overscroll-contain',
+        'origin-(--radix-popover-content-transform-origin)',
+        'popover-motion',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      {arrow ? (
+        <PopoverPrimitive.Arrow
+          // Continues the popover surface. See the note in `tooltip.tsx`.
+          data-decorative
+          className="fill-surface-raised"
+          width={11}
+          height={5}
+        />
+      ) : null}
+    </PopoverPrimitive.Content>
+  );
+  return portal ? (
+    <PopoverPrimitive.Portal container={container}>{content}</PopoverPrimitive.Portal>
+  ) : (
+    content
   );
 }
 

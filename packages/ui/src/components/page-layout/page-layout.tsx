@@ -114,7 +114,7 @@ interface RailState {
  * every screen threading a `collapsed` prop through four components. Defaults
  * to expanded, so a `Nav` used anywhere else behaves normally.
  */
-const RailContext = createContext<RailState>({ collapsed: false });
+export const RailContext = createContext<RailState>({ collapsed: false });
 
 /** True when the surrounding rail is collapsed to icons. */
 export function useRailCollapsed(): boolean {
@@ -305,6 +305,9 @@ export function PageLayout({
             data-collapsed={sidebarState.collapsed || undefined}
             className={cn(
               'group/sidebar relative row-start-3 hidden shrink-0 border-e border-border bg-surface',
+              // Above the content, so a flyout from one of its items (`NavItem`'s
+              // `flyout`) paints over the page rather than under a sticky toolbar.
+              '@3xl/page:z-30',
               /*
                * A flex column, not a block.
                *
@@ -364,8 +367,14 @@ export function PageLayout({
               {(sidebarHeader ??
               (sidebarState.enabled &&
                 !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed))) ? (
-                <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 p-2 pb-0">
-                  <div className="min-w-0 flex-1">{sidebarHeader}</div>
+                // The same inset as the column below it (`p-3`, `p-2` as a rail),
+                // so the brand lines up with the navigation; the brand's slot is
+                // a control tall, so it centres on the collapse button beside it.
+                // As a rail the two stack: the mark alone, the button under it.
+                <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 px-3 pt-3 pb-1 group-data-[collapsed]/sidebar:flex-col group-data-[collapsed]/sidebar:px-2 group-data-[collapsed]/sidebar:pt-2">
+                  <div className="flex min-h-control-md min-w-0 flex-1 items-center group-data-[collapsed]/sidebar:justify-center">
+                    {sidebarHeader}
+                  </div>
                   {sidebarState.enabled &&
                   !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed) ? (
                     <RailToggle
@@ -622,6 +631,38 @@ function RailToggle({
   );
 }
 
+interface PageHeaderFrameValue {
+  readonly breadcrumb?: ReactNode;
+  readonly actions?: ReactNode;
+}
+
+const PageHeaderFrameContext = createContext<PageHeaderFrameValue>({});
+
+export interface PageHeaderFrameProps extends PageHeaderFrameValue {
+  readonly children?: ReactNode;
+}
+
+/**
+ * What a frame around a page adds to that page's header, when the frame does
+ * not render the page itself.
+ *
+ * A host that draws its chrome around a screen it only mounts would otherwise
+ * put its breadcrumb and its actions in a row of their own above the screen's
+ * header, and the page would open with two headers. Under this, every
+ * `PageHeader` shows the frame's `breadcrumb` when it has none of its own, and
+ * the frame's `actions` after its own — so a frame's primary action lands at
+ * the trailing edge, where a primary action goes.
+ */
+export function PageHeaderFrame({
+  breadcrumb,
+  actions,
+  children,
+}: PageHeaderFrameProps): JSX.Element {
+  return (
+    <PageHeaderFrameContext value={{ breadcrumb, actions }}>{children}</PageHeaderFrameContext>
+  );
+}
+
 export interface PageHeaderProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
   /** A `Breadcrumb`, above the title. */
   breadcrumb?: ReactNode;
@@ -655,12 +696,23 @@ export function PageHeader({
   size = 'lg',
   ...props
 }: PageHeaderProps): JSX.Element {
+  const frame = useContext(PageHeaderFrameContext);
+  const trail = breadcrumb ?? frame.breadcrumb;
+  const allActions =
+    frame.actions === undefined || frame.actions === null ? (
+      actions
+    ) : (
+      <>
+        {actions}
+        {frame.actions}
+      </>
+    );
   return (
     // A container, so the actions go full width when the header is narrow
     // rather than when the window is: a header in a phone frame, a sheet or a
     // side panel is narrow on any monitor.
     <div className={cn('@container flex flex-col gap-3', className)} {...props}>
-      {breadcrumb}
+      {trail}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -677,12 +729,14 @@ export function PageHeader({
             {meta}
           </div>
           {description ? (
-            <p className="mt-1 max-w-2xl text-sm text-fg-muted">{description}</p>
+            // A measure, not a width: past ~65 characters the eye loses the
+            // start of the next line.
+            <p className="mt-1.5 max-w-prose text-base text-pretty text-fg-muted">{description}</p>
           ) : null}
         </div>
-        {actions ? (
+        {allActions ? (
           <div className="flex shrink-0 flex-wrap items-center gap-2 @max-md:w-full @max-md:[&>*]:flex-1">
-            {actions}
+            {allActions}
           </div>
         ) : null}
       </div>
@@ -724,14 +778,16 @@ export function PageSection({
       {...props}
     >
       {title || actions ? (
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
             {title ? (
               <h2 className="font-display text-md font-bold tracking-tight text-fg touch:text-lg">
                 {title}
               </h2>
             ) : null}
-            {description ? <p className="mt-0.5 text-sm text-fg-muted">{description}</p> : null}
+            {description ? (
+              <p className="mt-0.5 max-w-prose text-sm text-pretty text-fg-muted">{description}</p>
+            ) : null}
           </div>
           {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
         </div>

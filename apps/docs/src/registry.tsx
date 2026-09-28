@@ -800,6 +800,7 @@ const avatar: DocPage = {
             <Avatar name="Grace Hopper" size="sm" />
             <Avatar name="Ada Lovelace" size="md" />
             <Avatar name="Radia Perlman" size="lg" />
+            <Avatar name="Joan Clarke" size="3xl" />
           </div>
           <AvatarGroup max={3}>
             <Avatar name="Grace Hopper" />
@@ -811,6 +812,8 @@ const avatar: DocPage = {
         </div>
       ),
       code: `<Avatar name="Grace Hopper" size="md" />
+{/* The one person a page is about: a profile, a start page. */}
+<Avatar name="Joan Clarke" size="3xl" />
 
 <AvatarGroup max={3}>
   <Avatar name="Grace Hopper" />
@@ -951,6 +954,8 @@ export const NAV: readonly NavGroup[] = [
     title: 'Data',
     slugs: [
       'table',
+      'column-chooser',
+      'filter-builder',
       'virtual-list',
       'stat',
       'money',

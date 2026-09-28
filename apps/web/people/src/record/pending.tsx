@@ -118,15 +118,13 @@ export function ApproveAlone({
           <DialogHeader>
             <DialogTitle>Approve your own change to {label}?</DialogTitle>
             <DialogDescription>
-              There is no other HR member who can approve it: nobody else holds HR, or the
-              only other HR member is the person it is about, who never approves their own.
+              No other HR member can approve this change.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Stack gap={4}>
               <Alert tone="warning" title="Recorded as approved by you alone">
-                The audit trail will show that you approved your own change because no other HR
-                member could. If somebody who can joins HR first, they approve it instead.
+                The audit log will show you approved your own change because no one else could.
               </Alert>
               {refused === null ? null : (
                 <Alert tone="danger" title="Not approved">

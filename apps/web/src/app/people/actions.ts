@@ -2,6 +2,7 @@
 
 import { people, type PeopleAnswer } from '../../lib/people';
 import { VIEWS } from '../../lib/people-views';
+import { loadScreen } from '../../lib/people-screens';
 
 /**
  * What the People screens' buttons do: server actions, each one operation
@@ -32,7 +33,12 @@ function formInputs(changed: Values): Record<string, unknown>[] {
     if (typeof value === 'boolean') return [{ key, flag: value }];
     if (Array.isArray(value)) return [{ key, items: value.map(String) }];
     if (typeof value === 'object' && 'amountMinor' in value && 'currency' in value) {
-      return [{ key, money: { amountMinor: String(value.amountMinor), currency: String(value.currency) } }];
+      return [
+        {
+          key,
+          money: { amountMinor: String(value.amountMinor), currency: String(value.currency) },
+        },
+      ];
     }
     // A sealed value's last four is what was shown, not something to write back.
     return [];
@@ -48,7 +54,10 @@ function formInputs(changed: Values): Record<string, unknown>[] {
  */
 export async function addPerson(
   person: Readonly<Record<string, string>>,
-): Promise<{ readonly ok: true; readonly personId: string } | { readonly ok: false; readonly message: string }> {
+): Promise<
+  | { readonly ok: true; readonly personId: string }
+  | { readonly ok: false; readonly message: string }
+> {
   const { hireDate = null, ...attributes } = person;
   const a = await people<{ id: string }>('CreatePerson', {
     attributes: Object.entries(attributes).map(([key, text]) => ({ key, text })),
@@ -132,7 +141,9 @@ export async function revealIdentifier(
   attributeKey: string,
 ): Promise<{ ok: true; value: string } | { ok: false; message: string }> {
   const answer = await people<{ value: string }>('RevealIdentifier', { personId, attributeKey });
-  return answer.ok ? { ok: true, value: answer.data.value } : { ok: false, message: answer.message };
+  return answer.ok
+    ? { ok: true, value: answer.data.value }
+    : { ok: false, message: answer.message };
 }
 
 /**
@@ -147,6 +158,14 @@ export async function mergePerson(
   return outcome(
     people('MergePerson', { personId: survivorId, absorbedPersonId, take: [...take] }),
   );
+}
+
+/**
+ * HR undoes a merge, for a reason (PEO-074 follow-up): People decides what
+ * goes back and what is kept because it changed since.
+ */
+export async function unmergePerson(absorbedPersonId: string, reason: string): Promise<Outcome> {
+  return outcome(people('UnmergePerson', { personId: absorbedPersonId, reason }));
 }
 
 /** HR says two records are two people; the queue stops offering them. */
@@ -296,6 +315,37 @@ export async function addSection(label: string): Promise<Outcome> {
   return outcome(people('AddDraftSection', { label }));
 }
 
+/** A field shared with the assistant, or not: a draft change. */
+export async function setFieldAssistant(field: string, share: boolean): Promise<Outcome> {
+  return outcome(people('SetFieldAssistant', { field, share }));
+}
+
+/** Where to send an administrator to connect a chat app, returning to this origin. */
+export async function connectChatApp(
+  app: string,
+  origin: string,
+): Promise<{ readonly ok: true; readonly url: string } | { readonly ok: false; readonly message: string }> {
+  const answer = await people<string>('ConnectChatApp', { app, origin });
+  return answer.ok ? { ok: true, url: answer.data } : { ok: false, message: answer.message };
+}
+
+export async function disconnectChatApp(app: string): Promise<Outcome> {
+  return outcome(people('DisconnectChatApp', { app }));
+}
+
+/** One of People's notices sent to chat apps, or not. */
+export async function setChatNotice(notice: string, on: boolean): Promise<Outcome> {
+  return outcome(people('SetChatNotice', { notice, on }));
+}
+
+/** A field on the sign-up flow, optional or required, or off it: a draft change. */
+export async function setFieldSignup(
+  field: string,
+  ask: 'off' | 'optional' | 'required',
+): Promise<Outcome> {
+  return outcome(people('SetFieldSignup', { field, ask }));
+}
+
 export async function saveField(input: Values, editing: string | null): Promise<Outcome> {
   return outcome(people('SaveDraftField', { input, editing }));
 }
@@ -407,7 +457,10 @@ export async function setScimMapping(
 /* --------------------------------------------------------- full values -- */
 
 /** Finance asks for sealed fields in full, with a reason (PEO-088); HR decides. */
-export async function requestFullValues(fields: readonly string[], reason: string): Promise<Outcome> {
+export async function requestFullValues(
+  fields: readonly string[],
+  reason: string,
+): Promise<Outcome> {
   return outcome(people('RequestFullValues', { fields: [...fields], reason }));
 }
 
@@ -481,6 +534,7 @@ const given = (patch: Values): Record<string, unknown> =>
 export async function updateSettings(patch: {
   defaultTimeZone?: string;
   cohortMinimum?: number;
+  photoAtSignup?: 'off' | 'optional' | 'required';
 }): Promise<Outcome> {
   return outcome(people('UpdatePeopleSettings', given(patch)));
 }
@@ -550,7 +604,11 @@ type LeavingReason = 'resigned' | 'dismissed' | 'end_of_contract';
 
 /** One of a person's lifecycle moves (PEO-120), HR's, keyed per press. People decides whether it may. */
 export type LifecycleMove =
-  | { readonly kind: 'giveNotice'; readonly lastWorkingDay: string; readonly reason?: LeavingReason }
+  | {
+      readonly kind: 'giveNotice';
+      readonly lastWorkingDay: string;
+      readonly reason?: LeavingReason;
+    }
   | { readonly kind: 'withdrawNotice' }
   | {
       readonly kind: 'terminate';
@@ -627,6 +685,90 @@ export async function startImportUpload(file: {
   };
 }
 
+/* -------------------------------------------------------------- photos -- */
+
+/**
+ * Where to put a person's photo (no id: the viewer's own): a presigned PUT,
+ * as an import's file. The browser has already shrunk it.
+ */
+export async function startPhotoUpload(
+  personId: string | null,
+  size: number,
+): Promise<UploadTarget> {
+  const answer = await people<{
+    uploadId: string;
+    url: string;
+    method: string;
+    headers: { name: string; value: string }[];
+  }>('StartPhotoUpload', { personId, size });
+  if (!answer.ok) return { ok: false, message: answer.message };
+  return {
+    ok: true,
+    uploadId: answer.data.uploadId,
+    url: answer.data.url,
+    method: answer.data.method,
+    headers: Object.fromEntries(answer.data.headers.map((h) => [h.name, h.value])),
+  };
+}
+
+/** Where to PUT a file for an image or document field: `personId` null is one's own. */
+export async function startFileUpload(
+  personId: string | null,
+  field: string,
+  name: string,
+  size: number,
+): Promise<UploadTarget> {
+  const answer = await people<{
+    uploadId: string;
+    url: string;
+    method: string;
+    headers: { name: string; value: string }[];
+  }>('StartFileUpload', { personId, field, name, size });
+  if (!answer.ok) return { ok: false, message: answer.message };
+  return {
+    ok: true,
+    uploadId: answer.data.uploadId,
+    url: answer.data.url,
+    method: answer.data.method,
+    headers: Object.fromEntries(answer.data.headers.map((h) => [h.name, h.value])),
+  };
+}
+
+export type FileInfo = { id: string; name: string; mediaType: string; size: number };
+
+/** The file is uploaded: People checks it and keeps it. Saving the field points the record at it. */
+export async function completeFileUpload(
+  personId: string | null,
+  field: string,
+  uploadId: string,
+): Promise<{ ok: true; file: FileInfo } | { ok: false; message: string }> {
+  const a = await people<FileInfo>('CompleteFileUpload', { personId, field, uploadId });
+  return a.ok ? { ok: true, file: a.data } : { ok: false, message: a.message };
+}
+
+export async function completePhotoUpload(
+  personId: string | null,
+  uploadId: string,
+): Promise<
+  | { readonly ok: true; readonly avatarUrl: string | null }
+  | { readonly ok: false; readonly message: string }
+> {
+  const a = await people<{ avatarUrl: string | null }>('CompletePhotoUpload', {
+    personId,
+    uploadId,
+  });
+  return a.ok ? { ok: true, avatarUrl: a.data.avatarUrl } : { ok: false, message: a.message };
+}
+
+/** Ask somebody to fill in empty details of theirs: they are emailed, at most once a day. */
+export async function requestDetails(personId: string, keys: readonly string[]): Promise<Outcome> {
+  return outcome(people('RequestDetails', { personId, keys }));
+}
+
+export async function removePhoto(personId: string | null): Promise<Outcome> {
+  return outcome(people('RemovePhoto', { personId }));
+}
+
 export type Staged = { ok: true; stage: unknown } | { ok: false; message: string };
 
 const staged = async (answer: Promise<PeopleAnswer<Record<string, unknown>>>): Promise<Staged> => {
@@ -666,13 +808,17 @@ export async function commitImport(
 /* -------------------------------------------------------------- export -- */
 
 type Exported =
-  | { ok: true; links: readonly { name: string; url: string }[] }
-  | { ok: false; message: string };
+  { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string };
 
 // The links are signed and expire (PEO-089); they carry their own authority.
 async function exported(variables: Record<string, unknown>): Promise<Exported> {
-  const answer = await people<{ links: { name: string; url: string }[] }>('RequestExport', variables);
-  return answer.ok ? { ok: true, links: answer.data.links } : { ok: false, message: answer.message };
+  const answer = await people<{ links: { name: string; url: string }[] }>(
+    'RequestExport',
+    variables,
+  );
+  return answer.ok
+    ? { ok: true, links: answer.data.links }
+    : { ok: false, message: answer.message };
 }
 
 export async function requestExport(choice: {
@@ -680,10 +826,17 @@ export async function requestExport(choice: {
   fields: readonly string[];
   asOf: string;
   format: 'xlsx' | 'csv' | 'pdf';
+  photos?: boolean;
 }): Promise<Exported> {
   // A saved segment is an audience (PEO-068): People applies it as this person.
   const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
-  return exported({ format: choice.format, fields: [...choice.fields], asOf: choice.asOf, segmentId });
+  return exported({
+    format: choice.format,
+    fields: [...choice.fields],
+    asOf: choice.asOf,
+    segmentId,
+    ...(choice.photos === true ? { includePhotos: true } : {}),
+  });
 }
 
 /** One person's employee record as a PDF (PEO-061): what this viewer may read of them. */
@@ -762,4 +915,18 @@ export async function resumeReportSchedule(id: string): Promise<Outcome> {
 
 export async function deleteReportSchedule(id: string): Promise<Outcome> {
   return outcome(people('DeleteReportSchedule', { id }));
+}
+
+/**
+ * The directory's next page, for its infinite scroll: the same query the page
+ * was drawn with (search, filters, conditions, order), from `after`.
+ */
+export async function directoryPage(
+  search: Readonly<Record<string, string>>,
+  after: string,
+): Promise<{ readonly people: readonly unknown[]; readonly next: string | null } | null> {
+  const load = await loadScreen('Directory', { params: {}, search: { ...search, after } });
+  if (load.status !== 'ready') return null;
+  const data = load.data as { people?: readonly unknown[]; next?: string | null };
+  return { people: data.people ?? [], next: data.next ?? null };
 }

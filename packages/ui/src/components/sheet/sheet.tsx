@@ -57,6 +57,8 @@ const sheet = cva(
         sm: '',
         md: '',
         lg: '',
+        /** A form beside something it shapes: an editor and its live preview. */
+        xl: '',
         full: '',
       },
     },
@@ -66,10 +68,12 @@ const sheet = cva(
       { side: ['left', 'right', 'auto'], size: 'sm', class: 'sm:max-w-sm' },
       { side: ['left', 'right', 'auto'], size: 'md', class: 'sm:max-w-md' },
       { side: ['left', 'right', 'auto'], size: 'lg', class: 'sm:max-w-2xl' },
+      { side: ['left', 'right', 'auto'], size: 'xl', class: 'sm:max-w-4xl' },
       { side: ['left', 'right', 'auto'], size: 'full', class: 'sm:max-w-none' },
       { side: ['top', 'bottom'], size: 'sm', class: 'max-h-[40dvh]' },
       { side: ['top', 'bottom'], size: 'md', class: 'max-h-[65dvh]' },
       { side: ['top', 'bottom'], size: 'lg', class: 'max-h-[92dvh]' },
+      { side: ['top', 'bottom'], size: 'xl', class: 'max-h-[92dvh]' },
       { side: ['top', 'bottom'], size: 'full', class: 'h-dvh max-h-dvh' },
       // Percentages of the containing block rather than `dvh`: the same thing
       // on a phone, and still right when the sheet is mounted in a frame

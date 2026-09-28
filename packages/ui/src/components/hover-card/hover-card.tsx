@@ -16,6 +16,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { HOVER_CLOSE_MS, HOVER_OPEN_MS } from '../../lib/motion';
 import {
   Popover,
   PopoverAnchor,
@@ -31,7 +32,7 @@ import {
  * for sighted mouse users; this one keeps that contract at a desk and adds the
  * two ways in that it lacks:
  *
- * - **Pointer.** Opens after `openDelay` (400ms) resting on the trigger, and
+ * - **Pointer.** Opens after `openDelay` (`HOVER_OPEN_MS`) resting on the trigger, and
  *   stays open while the pointer is on the card, so the gap between the two can
  *   be crossed. Leaving both closes it after `closeDelay`.
  * - **Keyboard focus.** Focusing the trigger opens the same peek, without
@@ -77,8 +78,8 @@ export function HoverCard({
   open: openProp,
   defaultOpen = false,
   onOpenChange,
-  openDelay = 400,
-  closeDelay = 150,
+  openDelay = HOVER_OPEN_MS,
+  closeDelay = HOVER_CLOSE_MS,
   children,
 }: HoverCardProps): JSX.Element {
   const [uncontrolled, setUncontrolled] = useState(defaultOpen);

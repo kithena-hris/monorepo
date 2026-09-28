@@ -1441,3 +1441,74 @@ describe('being absorbed by a duplicate (PEO-074)', () => {
     expect(again.error.code).toBe('MERGE_TWO_ACCOUNTS');
   });
 });
+
+describe('a merge undone (PEO-074 follow-up)', () => {
+  const SURVIVOR = '00000000-0000-4000-8000-0000000000a9';
+  const ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
+  const DECISION = '00000000-0000-4000-8000-0000000000d1';
+  const tombstone = () => person({ status: 'merged', mergedInto: SURVIVOR, identityAccountId: null });
+  const undo = {
+    survivorId: SURVIVOR,
+    supersedes: DECISION,
+    reason: 'Two sisters, not one person',
+    reversed: ['given_name'],
+    kept: ['work_phone'],
+    identityAccountId: ACCOUNT,
+  };
+
+  it('returns the tombstone to provisional, its account back, and says what it reversed and kept', () => {
+    const p = tombstone();
+    expect(p.restoreFromMerge(undo, ctx).ok).toBe(true);
+    expect(p.snapshot).toMatchObject({ status: 'provisional', mergedInto: null, identityAccountId: ACCOUNT });
+    expect(p.drainEvents().map((e) => [e.eventName, e.payload])).toEqual([
+      [
+        'people.person.status_changed',
+        { personId: PERSON, previous: 'merged', next: 'provisional', reason: 'unmerged' },
+      ],
+      [
+        'people.person.unmerged',
+        {
+          survivingPersonId: SURVIVOR,
+          absorbedPersonId: PERSON,
+          supersedes: DECISION,
+          reason: 'Two sisters, not one person',
+          attributesReversed: ['given_name'],
+          attributesKept: ['work_phone'],
+          identityAccountId: ACCOUNT,
+        },
+      ],
+    ]);
+  });
+
+  it('is refused for a record that is not a tombstone of that survivor', () => {
+    for (const p of [person(), person({ status: 'merged', mergedInto: PERSON.replace('a1', 'a8') })]) {
+      const r = p.restoreFromMerge(undo, ctx);
+      expect(!r.ok && r.error.code).toBe('UNMERGE_NOT_MERGED');
+      expect(p.drainEvents()).toEqual([]);
+    }
+  });
+
+  it('gives an account back only from the record holding it', () => {
+    const s = person({ id: SURVIVOR, status: 'active', hireDate: '2026-01-05', identityAccountId: ACCOUNT });
+    const other = s.releaseAccount('00000000-0000-4000-8000-0000000000b2');
+    expect(!other.ok && other.error.code).toBe('ACCOUNT_NOT_HELD');
+    expect(s.releaseAccount(ACCOUNT).ok).toBe(true);
+    expect(s.identityAccountId).toBeNull();
+  });
+
+  it('is adopted by an upstream system, and says so, but never as a tombstone', () => {
+    const p = person();
+    const adopted = { provider: 'Okta', externalId: 'ada@acme.test', matchedOn: 'work_email' } as const;
+    expect(p.adoptedByExternal(adopted, ctx, '2026-09-22').ok).toBe(true);
+    expect(p.drainEvents().map((e) => [e.eventName, e.payload])).toEqual([
+      [
+        'people.person.adopted_by_external',
+        { personId: PERSON, provider: 'Okta', externalId: 'ada@acme.test', matchedOn: 'work_email' },
+      ],
+    ]);
+    for (const status of ['merged', 'discarded'] as const) {
+      const gone = person({ status, ...(status === 'merged' ? { mergedInto: SURVIVOR } : {}) });
+      expect(gone.adoptedByExternal(adopted, ctx, '2026-09-22').ok, status).toBe(false);
+    }
+  });
+});

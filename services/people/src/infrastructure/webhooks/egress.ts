@@ -76,6 +76,21 @@ export interface EgressPolicy {
   readonly allowHttp?: boolean;
   /** Injected in tests that need a reachable local receiver; defaults to the real check. */
   readonly isAllowed?: (address: string) => boolean;
+  /**
+   * Kithena's own domains. An endpoint is for a third-party tool: Kithena's
+   * own modules receive People's changes on its event stream, so a webhook
+   * back into Kithena is refused rather than a second, weaker copy of that.
+   */
+  readonly ownDomains?: readonly string[];
+}
+
+/** Kithena's own domains, unless `KITHENA_OWN_DOMAINS` (comma-separated) says otherwise. */
+export const OWN_DOMAINS: readonly string[] = ['kithena.com'];
+
+/** The host is one of these domains, or under one. */
+export function isOwnHost(host: string, domains: readonly string[]): boolean {
+  const h = host.toLowerCase().replace(/\.$/, '');
+  return domains.some((d) => h === d || h.endsWith(`.${d}`));
 }
 
 /**
@@ -95,10 +110,15 @@ export function egressPolicyFrom(
 ): EgressPolicy {
   const offProduction = env['NODE_ENV'] !== 'production';
   const allowHttp = offProduction && env['PEOPLE_WEBHOOKS_ALLOW_HTTP'] === '1';
+  const ownDomains = (env['KITHENA_OWN_DOMAINS'] ?? '')
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter((d) => d !== '');
+  const own = { ownDomains: ownDomains.length === 0 ? OWN_DOMAINS : ownDomains };
   if (!offProduction || env['PEOPLE_WEBHOOKS_ALLOW_LOOPBACK'] !== '1') {
-    return { resolve, allowHttp };
+    return { resolve, allowHttp, ...own };
   }
-  return { resolve, allowHttp, isAllowed: (a) => isPublicAddress(a) || isLoopback(a) };
+  return { resolve, allowHttp, ...own, isAllowed: (a) => isPublicAddress(a) || isLoopback(a) };
 }
 
 // Two lists for the reason `blockedV4` and `blockedV6` are two: a v4 rule also
@@ -139,6 +159,15 @@ export async function vet(value: string, policy: EgressPolicy): Promise<Result<V
 
   const allowed = policy.isAllowed ?? isPublicAddress;
   const host = url.hostname.replace(/^\[|\]$/g, '');
+  if (isOwnHost(host, policy.ownDomains ?? OWN_DOMAINS)) {
+    return err(
+      failure(
+        'OWN_SYSTEM',
+        'This is a Kithena address. Kithena’s own modules receive People’s changes already; an endpoint is for a third-party tool.',
+        ['url'],
+      ),
+    );
+  }
 
   let answers: readonly ResolvedAddress[];
   if (isIP(host) !== 0) {

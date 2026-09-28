@@ -6,7 +6,12 @@ import postgres from 'postgres';
 import { outboxTable, publish as publishToOutbox } from '@kithena/db-kit';
 import { err, failure, ok, systemClock, type PendingEvent, type Result } from '@kithena/domain-kit';
 import { logger } from '@kithena/telemetry';
-import { ModuleRoleReport, moduleEntitlements, type ModuleEntitlement } from '@kithena/contracts';
+import {
+  ModuleRoleReport,
+  SignupQuestion,
+  moduleEntitlements,
+  type ModuleEntitlement,
+} from '@kithena/contracts';
 
 import { startSession } from './account/application/start-session.js';
 import {
@@ -54,6 +59,9 @@ import { inviteAccount } from './tenancy/application/invite-account.js';
 import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation-notifier.js';
 import { adminRoutes } from './tenancy/http/admin-routes.js';
 import { moduleRoleRoutes } from './tenancy/http/module-role-routes.js';
+import { signupQuestionRoutes } from './tenancy/http/signup-question-routes.js';
+import { pendingQuestions } from './credential/domain/signup.js';
+import { hashEnrolmentToken } from './credential/domain/enrolment-token.js';
 import {
   nameAdministrator,
   setEntitlements,
@@ -207,6 +215,9 @@ function modulesOrNull(value: unknown): ModuleEntitlement[] | null {
  * array parameter is spread by the driver, and an empty list must stay an
  * empty array: "bought nothing" is not "nothing recorded".
  */
+/** Thrown to roll an enrolment back after a refusal; never escapes `complete`. */
+class EnrolmentRefused extends Error {}
+
 function textArray(list: readonly string[] | null) {
   return list === null
     ? sql`NULL::text[]`
@@ -708,6 +719,34 @@ export async function compose(config: Config): Promise<RequestHandler> {
       }),
   });
 
+  /*
+   * The tenant's sign-up questions, as People last reported them (PRD §8.3):
+   * the fields it asks at `collectAt: signup | enrolment`. Newest `asOf`
+   * wins, like the role report above.
+   */
+  const signupQuestionSets = signupQuestionRoutes({
+    token: config.peopleToken ?? config.internalToken,
+    record: (tenantId, set) =>
+      inTenantTransaction(tenantId, async (tx) => {
+        const known = [
+          ...(await tx.execute(sql`SELECT 1 FROM platform.tenant WHERE id = ${tenantId}::uuid`)),
+        ];
+        if (known.length === 0) return false;
+        await tx.execute(sql`
+          INSERT INTO platform.signup_question_set (tenant_id, schema_version, questions, as_of)
+          VALUES (${tenantId}::uuid, ${set.schemaVersion}, ${JSON.stringify(set.questions)}::jsonb,
+                  ${set.asOf}::timestamptz)
+          ON CONFLICT (tenant_id) DO UPDATE
+             SET schema_version = EXCLUDED.schema_version,
+                 questions = EXCLUDED.questions,
+                 as_of = EXCLUDED.as_of,
+                 received_at = now()
+           WHERE platform.signup_question_set.as_of <= EXCLUDED.as_of
+        `);
+        return true;
+      }),
+  });
+
   const tenants = tenantRoutes({
     resolve: resolveTenant({ tenants: drizzleTenantRepository(db) }),
     internalToken: config.internalToken,
@@ -954,6 +993,36 @@ export async function compose(config: Config): Promise<RequestHandler> {
         drizzleEnrolmentTokenStore(tx, tenantId).inspect(token),
       ),
     /*
+     * What this link still has to ask: the set People last reported, less the
+     * keys this account has answered, and only the required ones on a
+     * recovery (`pendingQuestions`). No set, no questions — a tenant without
+     * People is asked for a name and nothing else.
+     */
+    signupQuestions: (tenantId, token) =>
+      inTenantTransaction(tenantId, async (tx) => {
+        const [row] = await tx.execute(sql`
+          SELECT s.schema_version, s.questions, a.signup_answered, e.purpose
+            FROM platform.enrolment_token e
+            JOIN platform.account a ON a.id = e.account_id
+            JOIN platform.signup_question_set s ON s.tenant_id = a.tenant_id
+           WHERE e.token_hash = ${hashEnrolmentToken(token)}
+        `);
+        if (!row) return { schemaVersion: 0, questions: [] };
+        // Parsed again on the way out: a row written by an older build is
+        // exactly the one that would otherwise reach a form unchecked.
+        const questions = SignupQuestion.array().safeParse(row['questions']);
+        return {
+          schemaVersion: Number(row['schema_version']),
+          questions: questions.success
+            ? pendingQuestions(
+                questions.data,
+                Array.isArray(row['signup_answered']) ? row['signup_answered'].map(String) : [],
+                String(row['purpose']),
+              )
+            : [],
+        };
+      }),
+    /*
      * A fresh setup link for somebody who lost their passkey.
      *
      * `reissue` mints a token against an account that already exists and does
@@ -1004,132 +1073,165 @@ export async function compose(config: Config): Promise<RequestHandler> {
      * in holding a link that has been spent — a new hire locked out on their
      * first morning, with nothing obviously broken to point at.
      */
-    complete: (request) =>
-      inTenantTransaction(request.tenantId, (tx) =>
-        completeEnrolment({
-          tokens: drizzleEnrolmentTokenStore(tx, request.tenantId),
-          verifyRegistration: (response, expected) =>
-            relyingParty.finishRegistration(response, expected),
-          identityOf: async (accountId) => {
-            const rows = await tx.execute(
-              sql`SELECT identity_id FROM platform.account WHERE id = ${accountId}::uuid`,
-            );
-            // Narrowed rather than stringified. `String(unknown)` on a row
-            // value renders an object as "[object Object]" and hands that on as
-            // if it were an identity id — a lookup that then finds nothing, for
-            // a reason no log would explain.
-            const value = [...rows][0]?.['identity_id'];
-            return typeof value === 'string' ? value : null;
-          },
-          storeCredential: async (identityId, credential) => {
-            const id = uuidv7();
-            await tx.execute(sql`
+    /*
+     * Nothing commits unless a credential does. A refusal — a rejected
+     * attestation, a start date not yet reached — rolls the transaction back,
+     * so the link stays live for another try and no credential or name is left
+     * behind for an account that did not enrol. `consume` still runs first, so
+     * a second presentation of the same link waits on the row and then finds
+     * it spent (or, after a refusal, finds it live and gets its own go).
+     */
+    complete: async (request) => {
+      let refused: Result<{ accountId: string; credentialId: string }> | undefined;
+      try {
+        return await inTenantTransaction(request.tenantId, async (tx) => {
+          const result = await completeEnrolment({
+            tokens: drizzleEnrolmentTokenStore(tx, request.tenantId),
+            verifyRegistration: (response, expected) =>
+              relyingParty.finishRegistration(response, expected),
+            identityOf: async (accountId) => {
+              const rows = await tx.execute(
+                sql`SELECT identity_id FROM platform.account WHERE id = ${accountId}::uuid`,
+              );
+              // Narrowed rather than stringified. `String(unknown)` on a row
+              // value renders an object as "[object Object]" and hands that on as
+              // if it were an identity id — a lookup that then finds nothing, for
+              // a reason no log would explain.
+              const value = [...rows][0]?.['identity_id'];
+              return typeof value === 'string' ? value : null;
+            },
+            storeCredential: async (identityId, credential) => {
+              const id = uuidv7();
+              await tx.execute(sql`
               INSERT INTO platform.credential
                 (id, identity_id, kind, external_id, provider, public_key, sign_count, backed_up)
               VALUES (${id}::uuid, ${identityId}::uuid, 'passkey', ${credential.credentialId},
                       ${credential.aaguid}, ${Buffer.from(credential.publicKey)},
                       ${credential.signCount}, ${credential.backedUp})
             `);
-            return id;
-          },
-          /*
-           * The name, on `platform.account` beside the work address.
-           *
-           * Identity keeps this and stops here. It already holds the address,
-           * the time zone and the employment start — the facts the ceremony and
-           * the enrolment rules need — and a name is the same kind of fact: it
-           * is what the passkey prompt renders, and that cannot wait for a
-           * module the customer may not have bought.
-           *
-           * A job title, a manager, a department, an emergency contact: those
-           * are the People module's, and identity holding them would give one
-           * person two records that drift. The onboarding form asks for a name
-           * and nothing else for exactly that reason.
-           */
-          recordName: async (accountId, name) => {
-            // Not over a name People has set: `recordCapturedName` says why.
-            await recordCapturedName(tx, accountId, name);
-          },
-          /*
-           * The zone they confirmed, and a number to reach them on.
-           *
-           * The zone is the point. Every invitation path writes `Etc/UTC` when
-           * HR types nothing — `checkEmployment` defaults it there, and so does
-           * the first-administrator path in `inviteAdmin` above — so a clock
-           * rendered from the account said UTC for everybody. The person
-           * enrolling is standing in front of the one device that knows the
-           * answer, so this is where it is asked.
-           *
-           * `employment_start` is deliberately not written here. `Account.enrol`
-           * refuses a passkey before that date, and a person who could set it
-           * on the way in could walk past their own start-date check.
-           */
-          recordProfile: async (accountId, profile) => {
-            await tx.execute(sql`
+              return id;
+            },
+            /*
+             * The name, on `platform.account` beside the work address.
+             *
+             * Identity keeps this and stops here. It already holds the address,
+             * the time zone and the employment start — the facts the ceremony and
+             * the enrolment rules need — and a name is the same kind of fact: it
+             * is what the passkey prompt renders, and that cannot wait for a
+             * module the customer may not have bought.
+             *
+             * A job title, a manager, a department, an emergency contact: those
+             * are the People module's, and identity holding them would give one
+             * person two records that drift. The onboarding form asks for a name
+             * and nothing else for exactly that reason.
+             */
+            recordName: async (accountId, name) => {
+              // Not over a name People has set: `recordCapturedName` says why.
+              await recordCapturedName(tx, accountId, name);
+            },
+            /*
+             * The zone they confirmed, and a number to reach them on.
+             *
+             * The zone is the point. Every invitation path writes `Etc/UTC` when
+             * HR types nothing — `checkEmployment` defaults it there, and so does
+             * the first-administrator path in `inviteAdmin` above — so a clock
+             * rendered from the account said UTC for everybody. The person
+             * enrolling is standing in front of the one device that knows the
+             * answer, so this is where it is asked.
+             *
+             * `employment_start` is deliberately not written here. `Account.enrol`
+             * refuses a passkey before that date, and a person who could set it
+             * on the way in could walk past their own start-date check.
+             */
+            recordProfile: async (accountId, profile) => {
+              await tx.execute(sql`
               UPDATE platform.account
                  SET time_zone = ${profile.timeZone},
                      mobile = ${profile.mobile}
                WHERE id = ${accountId}::uuid
             `);
-          },
-          enrolAccount: async (accountId, credentialId, captured) => {
-            const snapshot = await accounts.load(tx, accountId);
-            if (!snapshot) throw new Error('account vanished mid-enrolment');
-            const account = Account.rehydrate(snapshot);
+            },
+            enrolAccount: async (accountId, credentialId, captured, answers) => {
+              const snapshot = await accounts.load(tx, accountId);
+              if (!snapshot) throw new Error('account vanished mid-enrolment');
+              const account = Account.rehydrate(snapshot);
 
-            /*
-             * The same link serves a first enrolment and a recovery, and which
-             * one this is depends on the account rather than on the token.
-             *
-             * An `active` account holding a live link is somebody who lost their
-             * passkey and asked for another, so this registers the new
-             * credential and retires the old ones — the point of recovery is
-             * that the lost device stops working. Doing that here rather than
-             * when the link was requested is deliberate: this endpoint is
-             * unauthenticated, and revoking on request would let anybody lock a
-             * colleague out by typing their address.
-             */
-            const recovering = account.status === 'active';
-            /*
-             * `captured` goes only to `enrol`, and the snapshot above is why it
-             * needs no time zone: `recordProfile` has already written the row,
-             * so the aggregate holds the zone this person confirmed a moment
-             * ago rather than the `Etc/UTC` their invitation defaulted to.
-             *
-             * A recovery carries nothing. The form does not ask somebody the
-             * registry already knows to retype their own name, and an event
-             * announcing a capture that did not happen is a claim the People
-             * module would act on.
-             */
-            const applied = recovering
-              ? account.recover(credentialId, context(accountId))
-              : account.enrol(credentialId, context(accountId), captured);
-            if (!applied.ok) return applied;
+              /*
+               * The same link serves a first enrolment and a recovery, and which
+               * one this is depends on the account rather than on the token.
+               *
+               * An `active` account holding a live link is somebody who lost their
+               * passkey and asked for another, so this registers the new
+               * credential and retires the old ones — the point of recovery is
+               * that the lost device stops working. Doing that here rather than
+               * when the link was requested is deliberate: this endpoint is
+               * unauthenticated, and revoking on request would let anybody lock a
+               * colleague out by typing their address.
+               */
+              const recovering = account.status === 'active';
+              /*
+               * `captured` goes only to `enrol`, and the snapshot above is why it
+               * needs no time zone: `recordProfile` has already written the row,
+               * so the aggregate holds the zone this person confirmed a moment
+               * ago rather than the `Etc/UTC` their invitation defaulted to.
+               *
+               * A recovery carries nothing. The form does not ask somebody the
+               * registry already knows to retype their own name, and an event
+               * announcing a capture that did not happen is a claim the People
+               * module would act on.
+               */
+              const applied = recovering
+                ? account.recover(credentialId, context(accountId), captured, answers)
+                : account.enrol(credentialId, context(accountId), captured, answers);
+              if (!applied.ok) return applied;
 
-            await accounts.save(tx, account);
+              await accounts.save(tx, account);
 
-            if (recovering) {
-              // Every credential this human had except the one just made.
-              // Credentials belong to the identity rather than to the job, so
-              // this is not tenant-scoped and cannot be.
-              await tx.execute(sql`
+              // Which questions were answered, never the answers: those left on
+              // the event above and are not kept here (`SignupAnswers`).
+              if (answers !== undefined) {
+                await tx.execute(sql`
+                UPDATE platform.account
+                   SET signup_answered = ARRAY(
+                         SELECT DISTINCT k FROM unnest(
+                           signup_answered || ${textArray(Object.keys(answers.answers))}
+                         ) AS k ORDER BY k)
+                 WHERE id = ${accountId}::uuid
+              `);
+              }
+
+              if (recovering) {
+                // Every credential this human had except the one just made.
+                // Credentials belong to the identity rather than to the job, so
+                // this is not tenant-scoped and cannot be.
+                await tx.execute(sql`
                 UPDATE platform.credential
                    SET revoked_at = now()
                  WHERE identity_id = ${snapshot.identityId}::uuid
                    AND id <> ${credentialId}::uuid
                    AND revoked_at IS NULL
               `);
-            }
+              }
 
-            return ok(undefined);
-          },
-          origins,
-          clock: systemClock,
-          onRefusal: (reason) => {
-            logger.info({ reason }, 'enrolment refused');
-          },
-        })(request),
-      ),
+              return ok(undefined);
+            },
+            origins,
+            clock: systemClock,
+            onRefusal: (reason) => {
+              logger.info({ reason }, 'enrolment refused');
+            },
+          })(request);
+          if (!result.ok) {
+            refused = result;
+            throw new EnrolmentRefused();
+          }
+          return result;
+        });
+      } catch (error) {
+        if (error instanceof EnrolmentRefused && refused !== undefined) return refused;
+        throw error;
+      }
+    },
   });
 
   /**
@@ -1512,12 +1614,12 @@ export async function compose(config: Config): Promise<RequestHandler> {
                  logo_url = ${change.logoUrl},
                  cover_image_url = ${change.coverImageUrl},
                  branding_public = ${change.brandingPublic},
-                 address_country = ${change.address.country.toUpperCase()},
-                 address_line1 = ${change.address.line1},
-                 address_line2 = ${change.address.line2},
-                 address_city = ${change.address.city},
-                 address_subdivision = ${change.address.subdivision},
-                 address_postcode = ${change.address.postcode},
+                 address_country = COALESCE(${change.address?.country.toUpperCase() ?? null}, address_country),
+                 address_line1 = COALESCE(${change.address?.line1 ?? null}, address_line1),
+                 address_line2 = CASE WHEN ${change.address !== undefined} THEN ${change.address?.line2 ?? null} ELSE address_line2 END,
+                 address_city = COALESCE(${change.address?.city ?? null}, address_city),
+                 address_subdivision = CASE WHEN ${change.address !== undefined} THEN ${change.address?.subdivision ?? null} ELSE address_subdivision END,
+                 address_postcode = CASE WHEN ${change.address !== undefined} THEN ${change.address?.postcode ?? null} ELSE address_postcode END,
                  updated_at = now()
            WHERE id = ${tenantId}::uuid
     RETURNING id, slug
@@ -1648,5 +1750,6 @@ export async function compose(config: Config): Promise<RequestHandler> {
     (await admin(request, response)) ||
     (await directory(request, response)) ||
     (await moduleRoles(request, response)) ||
+    (await signupQuestionSets(request, response)) ||
     (await tenants(request, response));
 }

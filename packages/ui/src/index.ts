@@ -87,9 +87,11 @@ export {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbMenu,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from './components/breadcrumb/breadcrumb';
+export type { BreadcrumbMenuProps } from './components/breadcrumb/breadcrumb';
 export type { BreadcrumbItemProps, BreadcrumbLinkProps } from './components/breadcrumb/breadcrumb';
 
 export {
@@ -101,13 +103,21 @@ export {
 } from './components/calendar/calendar';
 export type { CalendarProps, DateRange, IsoDate } from './components/calendar/calendar';
 
-export { Chat, ChatComposer, ChatDivider, ChatMessage, ChatTyping } from './components/chat/chat';
+export {
+  ChatComposer,
+  ChatDivider,
+  ChatLog,
+  ChatMessage,
+  ChatTyping,
+} from './components/chat/chat';
 export type {
   ChatComposerProps,
+  ChatLogProps,
   ChatMessageProps,
-  ChatProps,
   ChatTypingProps,
 } from './components/chat/chat';
+export { ChatWindow } from './components/chat/chat-window';
+export type { ChatWindowProps } from './components/chat/chat-window';
 
 export {
   BarChart,
@@ -264,6 +274,8 @@ export type { AvatarGroupProps, AvatarProps } from './components/avatar/avatar';
 
 export { ReachLogo, ReachMark, ReachWordmark } from './brand/reach-logo';
 export type { ReachLogoProps, ReachMarkProps, ReachWordmarkProps } from './brand/reach-logo';
+export { AppMark } from './brand/app-mark';
+export type { AppMarkProps, ThirdPartyApp } from './brand/app-mark';
 export { KithenaLogo, KithenaMark, KithenaWordmark } from './brand/kithena-logo';
 export type {
   KithenaLogoProps,
@@ -479,12 +491,14 @@ export type {
 
 export {
   PageHeader,
+  PageHeaderFrame,
   PageLayout,
   PageSection,
   Toolbar,
   useRailCollapsed,
 } from './components/page-layout/page-layout';
 export type {
+  PageHeaderFrameProps,
   PageHeaderProps,
   PageLayoutProps,
   PageRailCollapse,
@@ -595,6 +609,33 @@ export type {
   TableRowProps,
 } from './components/table/table';
 
+export { ColumnChooser, orderColumns } from './components/table/column-chooser';
+export type {
+  ColumnChoice,
+  ColumnChooserProps,
+  ColumnChooserValue,
+} from './components/table/column-chooser';
+
+export { FilterBuilder, isConditionComplete } from './components/filter-builder/filter-builder';
+export type {
+  FilterBuilderProps,
+  FilterCondition,
+  FilterField,
+  FilterGroup,
+  FilterOperator,
+  FilterSubgroup,
+  FilterValueKind,
+} from './components/filter-builder/filter-builder';
+export {
+  addCondition as addFilterCondition,
+  addGroup as addFilterGroup,
+  conditionsOf as filterConditions,
+  describeFilter,
+  removeItem as removeFilterItem,
+  setMatch as setFilterMatch,
+  updateCondition as updateFilterCondition,
+} from './components/filter-builder/filter-model';
+
 export { DataTable } from './components/table/data-table';
 export type {
   DataColumn,
@@ -603,32 +644,11 @@ export type {
   DataTableSort,
 } from './components/table/data-table';
 
-export { ColumnChooser } from './components/table/column-chooser';
-export type { ColumnChoice, ColumnChooserProps } from './components/table/column-chooser';
-
 export { KeyValues } from './components/key-values/key-values';
 export type { KeyValueItem, KeyValuesProps } from './components/key-values/key-values';
 
 export { TreeView } from './components/tree-view/tree-view';
 export type { TreeViewNode, TreeViewProps } from './components/tree-view/tree-view';
-
-export { FilterBuilder } from './components/filter-builder/filter-builder';
-export type { FilterBuilderProps } from './components/filter-builder/filter-builder';
-export {
-  addItem as addFilterItem,
-  conditionsOf as filterConditions,
-  describeFilter,
-  removeItem as removeFilterItem,
-  setMatch as setFilterMatch,
-  updateCondition as updateFilterCondition,
-} from './components/filter-builder/filter-model';
-export type {
-  FilterCondition,
-  FilterField,
-  FilterGroup,
-  FilterItem,
-  FilterOperator,
-} from './components/filter-builder/filter-model';
 
 export { Scheduler } from './components/scheduler/scheduler';
 export type {

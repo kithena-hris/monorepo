@@ -97,10 +97,10 @@ function provisioned(
 /**
  * Step 5: the name typed at enrolment, onto the record.
  *
- * Filled, never overwritten. Once a person exists People is the source of
- * record for the name (§5), so a name HR already typed wins over the one
- * identity captured. The time zone is the other way round — identity owns it
- * and People projects it — so it is always taken.
+ * The fallback for a record with nothing to write through yet: filled, never
+ * overwritten. Where there is a schema, the consumer enters the name as the
+ * person's own edit instead (`self-entry.ts`) and this only takes the zone.
+ * The time zone is identity's — People projects it — so it is always taken.
  *
  * No event. `profile_updated` names a schema version and a provisional record
  * has none, and the name is already on identity's stream for anyone who needs
@@ -113,6 +113,7 @@ export async function captureProfile(
   tenantId: string,
   accountId: string,
   profile: { name: { given: string; family: string; preferred: string | null }; timeZone: string },
+  options: { readonly fillName: boolean } = { fillName: true },
 ): Promise<boolean> {
   const scoped = and(eq(person.tenantId, tenantId), eq(person.identityAccountId, accountId));
 
@@ -125,6 +126,8 @@ export async function captureProfile(
     .where(scoped)
     .returning({ id: person.id });
 
+  // Only where the write path could not take it: see the consumer.
+  if (!options.fillName) return touched.length > 0;
   await tx
     .update(person)
     .set({

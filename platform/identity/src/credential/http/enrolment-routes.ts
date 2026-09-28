@@ -1,5 +1,7 @@
 import { checkName, type PersonName } from '../../shared/person-name.js';
 import { checkProfile, type PersonProfile } from '../../shared/person-profile.js';
+import { checkSignupAnswers, type SignupQuestion } from '@kithena/contracts';
+import type { SignupAnswers } from '../../shared/captured-profile.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { presentsInternalToken, readJsonBody } from '../../shared/internal-token.js';
@@ -68,6 +70,15 @@ export interface EnrolmentRoutesDeps {
    * a real one produce the same answer; the difference goes to the log.
    */
   readonly recover: (request: { tenantId: string; workEmail: string }) => Promise<void>;
+  /**
+   * The tenant's sign-up questions this link still has to ask
+   * (`pendingQuestions`), from the set People last reported. Empty for a
+   * tenant without People, or with nothing at `collectAt: signup | enrolment`.
+   */
+  readonly signupQuestions: (
+    tenantId: string,
+    token: string,
+  ) => Promise<{ schemaVersion: number; questions: readonly SignupQuestion[] }>;
   readonly internalToken: string;
 }
 
@@ -77,6 +88,7 @@ export function enrolmentRoutes({
   complete,
   inspectToken,
   recover,
+  signupQuestions,
   internalToken,
 }: EnrolmentRoutesDeps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
@@ -116,6 +128,12 @@ export function enrolmentRoutes({
        * page they are looking at.
        */
       const found = await inspectToken(tenantId, token);
+      // Asked only of a link that can still be used: a spent one is going to
+      // be told so, and has nothing to answer.
+      const signup =
+        found.state === 'usable'
+          ? await signupQuestions(tenantId, token)
+          : { schemaVersion: 0, questions: [] };
       response
         .writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
         // The purpose goes out too. It tells whoever holds this link nothing
@@ -150,6 +168,11 @@ export function enrolmentRoutes({
              */
             employmentStart: found.employmentStart,
             timeZone: found.timeZone,
+            /*
+             * The tenant's own questions, asked on the details step before the
+             * passkey. Labels and rules only — nothing anybody has answered.
+             */
+            questions: signup.questions,
           }),
         );
       return true;
@@ -260,15 +283,13 @@ export function enrolmentRoutes({
       }
       const checked = checkName(asked);
       if (!checked.ok) {
-        response
-          .writeHead(422, { 'content-type': 'application/json' })
-          .end(
-            JSON.stringify({
-              reason: 'name_invalid',
-              code: checked.error.code,
-              path: checked.error.path ?? [],
-            }),
-          );
+        response.writeHead(422, { 'content-type': 'application/json' }).end(
+          JSON.stringify({
+            reason: 'name_invalid',
+            code: checked.error.code,
+            path: checked.error.path ?? [],
+          }),
+        );
         return true;
       }
       name = checked.value;
@@ -293,20 +314,41 @@ export function enrolmentRoutes({
       }
       const checked = checkProfile(askedProfile);
       if (!checked.ok) {
-        response
-          .writeHead(422, { 'content-type': 'application/json' })
-          .end(
-            JSON.stringify({
-              reason: 'profile_invalid',
-              code: checked.error.code,
-              message: checked.error.message,
-              path: checked.error.path ?? [],
-            }),
-          );
+        response.writeHead(422, { 'content-type': 'application/json' }).end(
+          JSON.stringify({
+            reason: 'profile_invalid',
+            code: checked.error.code,
+            message: checked.error.message,
+            path: checked.error.path ?? [],
+          }),
+        );
         return true;
       }
       profile = checked.value;
     }
+
+    /*
+     * The answers to the tenant's own questions, checked against the same set
+     * the page was given and by the same function the page ran. Missing a
+     * required one is refused here as well as on the page: the page is a
+     * convenience and this is the boundary.
+     */
+    const pending = await signupQuestions(input['tenantId'], input['token']);
+    const checkedAnswers = checkSignupAnswers(pending.questions, input['answers'] ?? {});
+    if (!checkedAnswers.ok) {
+      response.writeHead(422, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          reason: 'answers_invalid',
+          message: checkedAnswers.problem.message,
+          path: [checkedAnswers.problem.field],
+        }),
+      );
+      return true;
+    }
+    const answers: SignupAnswers = {
+      schemaVersion: pending.schemaVersion,
+      answers: checkedAnswers.value,
+    };
 
     const result = await complete({
       tenantId: input['tenantId'],
@@ -316,6 +358,7 @@ export function enrolmentRoutes({
       challenge,
       ...(name === undefined ? {} : { name }),
       ...(profile === undefined ? {} : { profile }),
+      ...(Object.keys(answers.answers).length === 0 ? {} : { answers }),
     });
 
     if (!result.ok) {

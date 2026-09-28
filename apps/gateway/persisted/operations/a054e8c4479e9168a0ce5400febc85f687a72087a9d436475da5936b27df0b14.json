@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation StartFileUpload($personId: ID, $field: String!, $name: String!, $size: Int!) {\n    startFileUpload(personId: $personId, key: $field, name: $name, size: $size) { uploadId url method headers { name value } expiresAt }\n  }"}

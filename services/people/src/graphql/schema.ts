@@ -22,7 +22,9 @@ import type { RestRequest, RestResponse } from '../http/rest.js';
 import type { RoleHolder, TenantRoles } from '../application/roles/roles.js';
 import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/person.js';
 import { statutoryFloors, type FloorView } from '../domain/retention/floors.js';
+import type { UpcomingErasure } from '../application/retention/sweep.js';
 import { builder, type RequestContext, type ViaRest } from './builder.js';
+import { defineOverview } from './overview.js';
 import { defineReports } from './reports.js';
 import { defineScreens } from './screens.js';
 import type { PayBandView } from '../application/analytics/pay.js';
@@ -396,6 +398,9 @@ const PeopleSettingsRef = builder.objectRef<TenantSettings>('PeopleSettings').im
   fields: (t) => ({
     defaultTimeZone: t.exposeString('defaultTimeZone'),
     cohortMinimum: t.exposeInt('cohortMinimum'),
+    photoAtSignup: t.exposeString('photoAtSignup', {
+      description: 'off, optional or required: whether the first screen after signing up asks for a photo.',
+    }),
     slug: t.string({ nullable: true, resolve: (s) => s.slug }),
     displayName: t.string({ nullable: true, resolve: (s) => s.displayName }),
   }),
@@ -646,6 +651,7 @@ builder.mutationType({
       args: {
         defaultTimeZone: t.arg.string(),
         cohortMinimum: t.arg.int(),
+        photoAtSignup: t.arg.string({ description: 'off, optional or required.' }),
         idempotencyKey: t.arg(idempotencyKey),
       },
       resolve: (_root, { idempotencyKey: key, ...patch }, ctx) =>
@@ -823,6 +829,8 @@ interface OrganisationShape {
   readonly legalEntities: readonly LegalEntityView[];
   readonly locations: readonly LocationView[];
   readonly numberings: readonly NumberingView[];
+  /** HR's alone; null for anybody else (PEO-075). */
+  readonly upcomingErasures: readonly UpcomingErasure[] | null;
 }
 
 const OrgCountryRef = builder
@@ -853,6 +861,21 @@ const RetentionFloorRef = builder.objectRef<FloorView>('RetentionFloor').impleme
     reviewedOn: t.string({
       nullable: true,
       resolve: (f) => (f.review.status === 'reviewed' ? f.review.reviewedOn : null),
+    }),
+  }),
+});
+
+const UpcomingErasureRef = builder.objectRef<UpcomingErasure>('UpcomingErasure').implement({
+  description:
+    'A leaver the retention job erases next (PEO-075): when, under which floors, and which of those wait for legal review.',
+  fields: (t) => ({
+    personId: t.exposeID('personId'),
+    name: t.exposeString('name', { nullable: true }),
+    dueOn: t.exposeString('dueOn'),
+    floors: t.stringList({ resolve: (e) => [...e.floors] }),
+    waitingForReview: t.stringList({
+      description: 'Unreviewed floors: nothing is erased automatically until counsel reviews them.',
+      resolve: (e) => [...e.waitingForReview],
     }),
   }),
 });
@@ -897,6 +920,12 @@ const OrganisationRef = builder.objectRef<OrganisationShape>('PeopleOrganisation
       description: 'The statutory retention floors and their legal review; law, the same for every tenant.',
       resolve: () => [...statutoryFloors()],
     }),
+    upcomingErasures: t.field({
+      type: [UpcomingErasureRef],
+      nullable: true,
+      description: 'Leavers due for automated erasure within three months or overdue; HR’s alone, null for anybody else.',
+      resolve: (o) => (o.upcomingErasures === null ? null : [...o.upcomingErasures]),
+    }),
   }),
 });
 
@@ -927,9 +956,11 @@ builder.queryFields((t) => ({
         if (!numberings.ok) return numberings;
         // `payBands` decides who may see them; a refusal is null here, not an error.
         const bands = await service.payBands?.list(tx, asking);
+        const erasures = await service.upcomingErasures?.(tx, asking);
         return ok({
           canManage: asking.viewer.roles.has('people_admin'),
           payBands: bands?.ok === true ? bands.value : null,
+          upcomingErasures: erasures?.ok === true ? erasures.value : null,
           settings: settings.value,
           legalEntities: legalEntities.value,
           locations: locations.value,
@@ -1162,6 +1193,18 @@ builder.mutationFields((t) => ({
     resolve: (_root, { personId, idempotencyKey: key, ...rest }, ctx) =>
       move(ctx, 'mergePerson', personId, sent(rest), key),
   }),
+  unmergePerson: t.field({
+    type: Person,
+    description:
+      'Undo the merge that absorbed this record: provisional again with its sign-in back, the values copied onto the survivor corrected back unless changed since; HR only.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      reason: t.arg.string({ required: true }),
+      idempotencyKey: t.arg(idempotencyKey),
+    },
+    resolve: (_root, { personId, idempotencyKey: key, reason }, ctx) =>
+      move(ctx, 'unmergePerson', personId, { reason }, key),
+  }),
 }));
 
 /* -------------------------------------------------------------- roles -- */
@@ -1240,6 +1283,7 @@ builder.mutationFields((t) => ({
 
 defineScreens(builder, viaRest);
 defineReports(builder, viaRest);
+defineOverview(builder, viaRest);
 
 export const schema = builder.toSubGraphSchema({
   linkUrl: 'https://specs.apollo.dev/federation/v2.6',

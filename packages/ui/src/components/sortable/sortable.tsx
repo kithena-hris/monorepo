@@ -81,6 +81,14 @@ export interface SortableListProps<T extends SortableItem> {
   /** Hides the up/down buttons. Only for a list that is also reorderable elsewhere. */
   hideMoveButtons?: boolean;
   /**
+   * `always` shows Move up and Move down on every row. `on-focus` keeps them
+   * out of sight until keyboard focus is inside the row: the handle is the
+   * control a pointer uses, and the buttons stay the path that needs no
+   * instructions for a keyboard or a screen reader, which reads them either
+   * way.
+   */
+  moveButtons?: 'always' | 'on-focus';
+  /**
    * What a row is called, for its controls and the drag announcements.
    *
    * Without it a row is "item 3", which is true and useless: a screen reader
@@ -113,6 +121,7 @@ export function SortableList<T extends SortableItem>({
   activator = 'handle',
   children,
   hideMoveButtons = false,
+  moveButtons = 'always',
   itemLabel,
   appearance = 'cards',
   className,
@@ -194,6 +203,7 @@ export function SortableList<T extends SortableItem>({
               total={items.length}
               activator={activator}
               hideMoveButtons={hideMoveButtons}
+              moveButtons={moveButtons}
               name={nameOf(index)}
               onMove={move}
               appearance={appearance}
@@ -233,6 +243,7 @@ function SortableRow({
   total,
   activator,
   hideMoveButtons,
+  moveButtons,
   name,
   onMove,
   appearance,
@@ -244,6 +255,7 @@ function SortableRow({
   total: number;
   activator: 'handle' | 'row';
   hideMoveButtons: boolean;
+  moveButtons: 'always' | 'on-focus';
   name: string;
   onMove: (from: number, to: number) => void;
   children: ReactNode;
@@ -269,7 +281,7 @@ function SortableRow({
         transition,
       }}
       className={cn(
-        'flex items-center gap-3 rounded-md',
+        'group/row flex items-center gap-3 rounded-md',
         ROW[appearance],
         appearance === 'cards' && 'bg-surface shadow-sm',
         'transition-[background-color,box-shadow,opacity] duration-(--animate-duration-fast)',
@@ -309,7 +321,13 @@ function SortableRow({
       <div className="min-w-0 flex-1">{children}</div>
 
       {hideMoveButtons ? null : (
-        <div className="flex shrink-0 items-center">
+        <div
+          className={cn(
+            'flex shrink-0 items-center',
+            moveButtons === 'on-focus' &&
+              'sr-only group-has-[:focus-visible]/row:not-sr-only group-has-[:focus-visible]/row:flex',
+          )}
+        >
           <Button
             size="sm"
             variant="ghost"

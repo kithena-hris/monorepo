@@ -14,7 +14,7 @@ const meta = {
     docs: {
       description: {
         component: [
-          'A preview of a person or record when you hover a name. It opens after 400ms and stays open while the pointer is over it. On a phone, long-press opens the preview and its actions.',
+          'A preview of a person or record when you hover a name. It opens after a short rest, the same as every hover-opened surface, and stays open while the pointer is over it. On a phone, long-press opens the preview and its actions.',
           '',
           'Built on `Popover`, not Radix `HoverCard`, which is pointer-only by design. Here keyboard focus on the trigger opens the same peek without taking focus, Escape closes it, and a long-press under a finger opens it and moves focus in.',
           '',
@@ -34,13 +34,13 @@ const meta = {
     openDelay: {
       description: 'Milliseconds the pointer rests on the trigger before the card opens.',
       control: 'number',
-      table: { defaultValue: { summary: '400' }, category: 'Behaviour' },
+      table: { defaultValue: { summary: '50' }, category: 'Behaviour' },
     },
     closeDelay: {
       description:
         'Milliseconds before closing once the pointer has left the trigger and the card.',
       control: 'number',
-      table: { defaultValue: { summary: '150' }, category: 'Behaviour' },
+      table: { defaultValue: { summary: '80' }, category: 'Behaviour' },
     },
     defaultOpen: { control: 'boolean', table: { category: 'State' } },
   },

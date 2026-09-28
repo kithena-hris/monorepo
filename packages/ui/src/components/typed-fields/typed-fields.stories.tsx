@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 
 import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
 import { Field, FieldControl, FieldDescription, FieldLabel } from '../field/field';
@@ -140,7 +140,7 @@ export const Search: Story = {
     docs: {
       description: {
         story: [
-          '`type="search"` gives you the semantics and, in WebKit, a clear button **no keyboard can reach and no screen reader announces**. This renders its own: a real `<button>` with a name.',
+          '`type="search"` gives you the semantics and, in WebKit and Chromium, a clear button **no keyboard can reach and no screen reader announces**. That one is hidden, so there is never a second cross beside this one, and this renders its own: a real `<button>` with a name.',
           '',
           'It appears only when there is something to clear, a permanent clear button on an empty field is a control that does nothing, and people press it to find out. Escape clears too, which is what every search field on the platform does.',
           '',
@@ -171,6 +171,23 @@ export const Search: Story = {
         </CardContent>
       </Card>
     );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getAllByRole('button', { name: /^Clear/ })).toHaveLength(1);
+    // The browser's own cross is not drawn beside ours: base.css hides it.
+    // Chromium reports no computed style for its internal pseudo-elements, so
+    // this reads the rule from the stylesheets instead.
+    const hidden = [...document.styleSheets].some((sheet) => {
+      try {
+        return [...sheet.cssRules].some((rule) =>
+          rule.cssText.includes('::-webkit-search-cancel-button'),
+        );
+      } catch {
+        return false;
+      }
+    });
+    await expect(hidden).toBe(true);
   },
 };
 

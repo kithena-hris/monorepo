@@ -181,7 +181,7 @@ export function SpeedDial({
             className={cn(
               'z-50 flex flex-col items-end gap-3 outline-none',
               'origin-(--radix-popover-content-transform-origin)',
-              'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+              'popover-motion',
             )}
           >
             {actions.map((action) => (

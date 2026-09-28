@@ -479,8 +479,7 @@ function Review({
             tone="warning"
             title={`Our checks suggest ${String(findings.length)} ${findings.length === 1 ? 'identifier' : 'identifiers'} may be wrong`}
           >
-            These rows still import. Each value goes to HR&apos;s review, and whatever HR decides is
-            final. Fix the cell in the file first if you know it is wrong.
+            These rows will import, and HR will review each value. If a value is wrong, fix it in the file first.
           </Alert>
           <DataTable
             label="Identifiers to check"

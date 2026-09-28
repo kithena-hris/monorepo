@@ -155,6 +155,20 @@ export function drizzleScimStore(): ScimStore {
       return row['user_name'] === true ? 'userName' : 'externalId';
     },
 
+    async byWorkEmail(tx, tenantId, email) {
+      const rows = await tx.execute(sql`
+        SELECT p.id AS person_id,
+               EXISTS (SELECT 1 FROM people.scim_link l
+                        WHERE l.tenant_id = p.tenant_id AND l.person_id = p.id) AS linked
+          FROM people.person p
+         WHERE p.tenant_id = ${tenantId}::uuid
+           AND p.status NOT IN ('merged', 'discarded')
+           AND lower(btrim(p.work_email)) = lower(btrim(${email}))
+         ORDER BY p.id
+         LIMIT 3`);
+      return rows.map((r) => ({ personId: String(r['person_id']), linked: r['linked'] === true }));
+    },
+
     async putLink(tx, tenantId, connectionId, link) {
       await tx.execute(sql`
         INSERT INTO people.scim_link

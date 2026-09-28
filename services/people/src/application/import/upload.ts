@@ -6,6 +6,7 @@ import {
   openUpload,
   usableUpload,
   type UploadIntent,
+  type UploadPurpose,
 } from '../../domain/import/upload.js';
 
 /**
@@ -54,14 +55,16 @@ export interface UploadIntents {
   find(tx: PostgresJsDatabase, tenantId: string, id: string): Promise<UploadIntent | null>;
   complete(tx: PostgresJsDatabase, tenantId: string, id: string, checksum: string): Promise<void>;
   /**
-   * Delete this person's other uploads, and every upload of the tenant that
-   * has expired; returns their object keys, for the bucket.
+   * Delete this person's other uploads for the same purpose, and every
+   * upload of the tenant that has expired; returns their object keys, for
+   * the bucket.
    */
   release(
     tx: PostgresJsDatabase,
     tenantId: string,
     actorId: string,
     now: string,
+    purpose?: UploadPurpose,
   ): Promise<readonly string[]>;
   remove(tx: PostgresJsDatabase, tenantId: string, id: string): Promise<void>;
 }
@@ -87,7 +90,7 @@ export async function startUpload(
   deps: UploadDeps,
   inTx: InTx,
   who: { readonly tenantId: string; readonly actorId: string },
-  file: { readonly name: string; readonly size: number },
+  file: { readonly name: string; readonly size: number; readonly purpose?: UploadPurpose },
 ): Promise<Result<PresignedPut & { readonly uploadId: string; readonly expiresAt: string }>> {
   const store = deps.store;
   if (store === null) return unavailable();
@@ -96,7 +99,7 @@ export async function startUpload(
   if (!opened.ok) return opened;
   const intent = opened.value;
   const released = await inTx(async (tx) => {
-    const keys = await deps.intents.release(tx, who.tenantId, who.actorId, now);
+    const keys = await deps.intents.release(tx, who.tenantId, who.actorId, now, intent.purpose);
     await deps.intents.save(tx, intent);
     return ok(keys);
   });
@@ -117,10 +120,13 @@ export async function finishUpload(
   inTx: InTx,
   who: { readonly tenantId: string; readonly actorId: string },
   uploadId: string,
+  purpose: UploadPurpose = 'import',
 ): Promise<Result<{ readonly intent: UploadIntent; readonly bytes: Uint8Array }>> {
   const store = deps.store;
   if (store === null) return unavailable();
-  const found = await inTx(async (tx) => known(await deps.intents.find(tx, who.tenantId, uploadId), who.actorId));
+  const found = await inTx(async (tx) =>
+    known(await deps.intents.find(tx, who.tenantId, uploadId), who.actorId, purpose),
+  );
   if (!found.ok) return found;
   const intent = found.value;
   const read = await store.read(intent.objectKey, intent.size);
@@ -157,7 +163,9 @@ export async function readUpload(
 ): Promise<Result<{ readonly intent: UploadIntent; readonly bytes: Uint8Array }>> {
   const store = deps.store;
   if (store === null) return unavailable();
-  const found = await inTx(async (tx) => known(await deps.intents.find(tx, who.tenantId, uploadId), who.actorId));
+  const found = await inTx(async (tx) =>
+    known(await deps.intents.find(tx, who.tenantId, uploadId), who.actorId, 'import'),
+  );
   if (!found.ok) return found;
   const read = await store.read(found.value.objectKey, found.value.size);
   const checksum = read === null ? null : read === 'too_large' ? '' : read.checksum;
@@ -179,9 +187,13 @@ export async function discard(deps: UploadDeps, inTx: InTx, intent: UploadIntent
   if (deps.store !== null) await deps.store.remove(intent.objectKey);
 }
 
-/** Somebody else's upload is not found, never forbidden, and never read. */
-const known = (intent: UploadIntent | null, actorId: string): Result<UploadIntent> =>
-  intent === null || intent.actorId !== actorId
+/** Somebody else's upload, or one for something else, is not found, never forbidden, and never read. */
+const known = (
+  intent: UploadIntent | null,
+  actorId: string,
+  purpose: UploadPurpose,
+): Result<UploadIntent> =>
+  intent === null || intent.actorId !== actorId || intent.purpose !== purpose
     ? err(failure('UPLOAD_NOT_FOUND', 'No such upload; upload the file again'))
     : ok(intent);
 

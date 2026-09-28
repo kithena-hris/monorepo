@@ -10,6 +10,12 @@ import type { Calendars } from '../org/org.js';
 import type { RelationsResolver } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
 import type { SegmentStore } from '../../infrastructure/drizzle-segments.js';
+import type { PhotoStore } from './photo-store.js';
+import type { FileStore } from './file-store.js';
+import type { AssistantPort } from '../assistant/assistant-port.js';
+import type { ChatDeps } from '../settings/chat-port.js';
+import type { ActivityStore } from '../settings/activity-store.js';
+import type { ReminderCompany, ReminderMailer } from '../completeness/reminders.js';
 import type {
   FormValue,
   FormValues,
@@ -41,6 +47,53 @@ export interface ScreenDeps {
   readonly gapTotals: (tx: Tx, tenantId: string) => Promise<GapTotals>;
   /** Saved segments (PEO-068). Absent, their routes answer UNAVAILABLE. */
   readonly segments?: { readonly store: SegmentStore; readonly newId: () => string };
+  /** People's photos. Absent, nobody has one and none may be set. */
+  readonly photos?: PhotoStore;
+  /** Whether signing up asks for a photo (organisation settings). Absent: it does not. */
+  readonly photoAtSignup?: (tx: Tx, tenantId: string) => Promise<'off' | 'optional' | 'required'>;
+  /** Questions in words (Slack, and anywhere else). Absent, no model is configured. */
+  readonly assistant?: AssistantPort;
+  /** Chat apps and People's notices to them (`application/settings/chat.ts`). Absent, none. */
+  readonly chat?: ChatDeps;
+  /** The Settings activity log. Absent, it is not kept. */
+  readonly activity?: ActivityStore;
+  /** Files for image and document fields. Absent, those fields take nothing. */
+  readonly files?: FileStore;
+  /** Asking somebody for an empty detail. Absent, nobody may be asked. */
+  readonly requests?: {
+    readonly store: DetailRequestStore;
+    /** The email; absent, the request is recorded and shown and nobody is emailed. */
+    readonly mailer?: ReminderMailer;
+    readonly company?: (tx: Tx, tenantId: string) => Promise<ReminderCompany | null>;
+  };
+}
+
+export interface DetailRequest {
+  readonly key: string;
+  /** The account that asked. */
+  readonly requestedBy: string;
+  readonly requestedAt: string;
+}
+
+export interface DetailRequestStore {
+  /**
+   * Record these requests; answer with the keys whose last request was
+   * before `resendBefore` or that were never asked for, which are the ones
+   * worth an email.
+   */
+  record(
+    tx: Tx,
+    request: {
+      readonly tenantId: string;
+      readonly personId: string;
+      readonly keys: readonly string[];
+      readonly requestedBy: string;
+      readonly requestedAt: string;
+      readonly resendBefore: string;
+    },
+  ): Promise<readonly string[]>;
+  /** Every field somebody asked this person for, newest first. */
+  of(tx: Tx, tenantId: string, personId: string): Promise<readonly DetailRequest[]>;
 }
 
 /** HR's share of the completeness grid, counted over everybody (PEO-122). */
@@ -140,6 +193,7 @@ function fieldOf(
     dataType: d.dataType,
     options,
     required: d.requiredness.mode === 'always' || missing.has(d.key),
+    missing: missing.has(d.key),
     readOnly,
     ...(config.kind === 'money' && config.currency !== null ? { currency: config.currency } : {}),
     ...(readOnly ? { ownedBy: keptIn ?? ownedBy(d) } : {}),

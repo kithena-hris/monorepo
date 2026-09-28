@@ -9,6 +9,8 @@ import { Integrations, type IntegrationsProps, type IntegrationsState } from './
 
 /** The shell wraps every screen in a TooltipProvider; `CopyField` needs one. */
 const render = (ui: ReactElement) => mount(ui, { wrapper: TooltipProvider });
+/** The endpoints are on their own tab. */
+const openWebhooks = () => fast().click(screen.getByRole('tab', { name: 'Webhooks' }));
 
 const state: IntegrationsState = {
   schemaVersion: 4,
@@ -58,14 +60,15 @@ function props(over: Partial<IntegrationsProps> = {}): IntegrationsProps {
 
 const allowlistOf = (url: string) => {
   const section = screen.getByRole('region', { name: url });
-  return within(section).getByRole('textbox', { name: 'Fields this endpoint receives' });
+  return within(section).getByRole('button', { name: 'Fields this endpoint receives' });
 };
 
 describe('Integrations', () => {
   it('shows each endpoint, its health and what it receives', async () => {
     const { container } = render(<Integrations {...props()} />);
+    await openWebhooks();
     expect(
-      screen.getByText('2 endpoints · schema version 4 · 1,284 deliveries in 24h'),
+      screen.getByText(/2 endpoints · 1,284 deliveries in the last 24 hours/),
     ).toBeInTheDocument();
     expect(screen.getByText('Healthy')).toBeInTheDocument();
     expect(screen.getByText('3 retrying')).toBeInTheDocument();
@@ -73,34 +76,20 @@ describe('Integrations', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('cannot add a special-category or encrypted field, nor one the schema lacks', async () => {
+  it('offers every field of the schema, and none that may never be sent', async () => {
     const user = fast();
     const onUpdate = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<Integrations {...props({ onUpdate })} />);
-    const input = allowlistOf('https://api.nominacloud.es/hooks/kithena');
-
-    await user.type(input, 'accommodation_notes{Enter}');
-    expect(
-      screen.getByText(
-        'Accommodation notes is special-category data and never leaves in a webhook.',
-      ),
-    ).toBeInTheDocument();
-    await user.clear(input);
-    await user.type(input, 'bank_account{Enter}');
-    expect(
-      screen.getByText('Bank account is encrypted and never leaves in a webhook.'),
-    ).toBeInTheDocument();
-    await user.clear(input);
-    await user.type(input, 'shoe_size{Enter}');
-    expect(
-      screen.getByText('shoe_size is not a field in the published schema.'),
-    ).toBeInTheDocument();
-
-    // Nothing was accepted, so there is nothing to save.
-    const section = screen.getByRole('region', {
-      name: 'https://api.nominacloud.es/hooks/kithena',
-    });
-    expect(within(section).getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    await openWebhooks();
+    await user.click(allowlistOf('https://api.nominacloud.es/hooks/kithena'));
+    expect(await screen.findByRole('option', { name: /Accommodation notes/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(screen.getByRole('option', { name: /Bank account/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
@@ -108,7 +97,10 @@ describe('Integrations', () => {
     const user = fast();
     const onUpdate = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<Integrations {...props({ onUpdate })} />);
-    await user.type(allowlistOf('https://api.nominacloud.es/hooks/kithena'), 'cost_centre{Enter}');
+    await openWebhooks();
+    await user.click(allowlistOf('https://api.nominacloud.es/hooks/kithena'));
+    await user.click(await screen.findByRole('option', { name: /Cost centre/ }));
+    await user.keyboard('{Escape}');
     const section = screen.getByRole('region', {
       name: 'https://api.nominacloud.es/hooks/kithena',
     });
@@ -122,6 +114,7 @@ describe('Integrations', () => {
   it('shows a new signing secret once, to copy', async () => {
     const user = fast();
     render(<Integrations {...props()} />);
+    await openWebhooks();
     const section = screen.getByRole('region', {
       name: 'https://api.nominacloud.es/hooks/kithena',
     });
@@ -139,6 +132,7 @@ describe('Integrations', () => {
         })}
       />,
     );
+    await openWebhooks();
     const section = screen.getByRole('region', { name: 'https://acme.okta.com/scim/v2' });
     await user.click(within(section).getByRole('switch', { name: 'Enabled' }));
     expect(await within(section).findByText('hooks.example is not public')).toBeInTheDocument();
@@ -148,16 +142,16 @@ describe('Integrations', () => {
     const user = fast();
     const onCreate = vi.fn(() => Promise.resolve({ ok: true as const, secret: 'whsec_once' }));
     render(<Integrations {...props({ onCreate })} />);
+    await openWebhooks();
     await user.click(screen.getByRole('button', { name: 'Add endpoint' }));
     const dialog = await screen.findByRole('dialog');
     await user.type(
       within(dialog).getByRole('textbox', { name: /URL/ }),
       'https://hooks.example.com/in',
     );
-    await user.type(
-      within(dialog).getByRole('textbox', { name: /Events/ }),
-      'people.person.hired{Enter}',
-    );
+    await user.click(within(dialog).getByRole('button', { name: 'Events' }));
+    await user.click(await screen.findByRole('option', { name: /Person hired/ }));
+    await user.keyboard('{Escape}');
     await user.click(within(dialog).getByRole('button', { name: 'Add endpoint' }));
     expect(onCreate).not.toHaveBeenCalled();
     expect(within(dialog).getByText('An email address to tell.')).toBeVisible();
@@ -185,7 +179,8 @@ describe('Integrations', () => {
     rerender(
       <Integrations {...props({ load: { status: 'ready', data: { ...state, endpoints: [] } } })} />,
     );
-    expect(screen.getByText('No endpoints yet')).toBeInTheDocument();
+    await openWebhooks();
+    expect(screen.getByText('No third-party tools connected')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
 });

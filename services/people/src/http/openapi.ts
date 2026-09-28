@@ -63,6 +63,17 @@ import {
   PayBandBody,
   ScheduleBody,
   UploadStart,
+  PhotoOf,
+  PhotoStart,
+  FileOf,
+  FileStart,
+  DetailAsk,
+  AskBody,
+  AssistantShareBody,
+  SignupAskBody,
+  ChatConnect,
+  ChatComplete,
+  ChatNotice,
 } from './screens.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
@@ -135,6 +146,17 @@ const components = {
   CreateScimConnection: ScimConnectionBody,
   ScimMapping: ScimMappingBody,
   ImportUploadStart: UploadStart,
+  PhotoUploadStart: PhotoStart,
+  PhotoOf,
+  FileUploadStart: FileStart,
+  FileOf,
+  DetailAsk,
+  AskBody,
+  FieldAssistant: AssistantShareBody,
+  FieldSignup: SignupAskBody,
+  ChatConnect,
+  ChatComplete,
+  ChatNotice,
   ImportStep: ImportStepBody,
   Segment: SegmentBody,
   PayBand: PayBandBody,
@@ -459,6 +481,113 @@ function screenPaths(): Record<string, unknown> {
         'The mapping',
         { path: 'id', safe: true },
       ),
+    },
+    '/v1/views/photos/uploads': {
+      post: screenWrite(
+        'Start a photo’s upload (no personId: the viewer’s own; theirs or HR’s): a presigned PUT for exactly this many bytes',
+        'PhotoUploadStart',
+        200,
+        '{ uploadId, url, method, headers, expiresAt }: PUT the photo there with exactly these headers',
+        { safe: true },
+      ),
+    },
+    '/v1/views/photos/uploads/{id}/complete': {
+      post: screenWrite(
+        'The photo is uploaded: check it is a PNG or JPEG, keep it without its metadata',
+        'PhotoOf',
+        200,
+        '{ avatarUrl }',
+        { path: 'id' },
+      ),
+    },
+    '/v1/views/files/uploads': {
+      post: screenWrite(
+        'Start the upload of a file for an image or document field (no personId: the viewer’s own): a presigned PUT for exactly this many bytes',
+        'FileUploadStart',
+        200,
+        '{ uploadId, url, method, headers, expiresAt }: PUT the file there with exactly these headers',
+        { safe: true },
+      ),
+    },
+    '/v1/views/files/uploads/{id}/complete': {
+      post: screenWrite(
+        'The file is uploaded: check it is a PNG, a JPEG or (for a document) a PDF, and keep it; saving the field points the record at it',
+        'FileOf',
+        200,
+        '{ id, name, mediaType, size }',
+        { path: 'id' },
+      ),
+    },
+    '/v1/assistant/ask': {
+      post: screenWrite(
+        'A question in words, answered as the asker: the model sees the question and field names only, and People runs the query',
+        'AskBody',
+        200,
+        '{ text, understood, people }',
+        { safe: true },
+      ),
+    },
+    '/v1/schema/draft/attributes/{key}/assistant': {
+      post: screenWrite(
+        'Whether the assistant, in the app and in chat apps, may use this field. A draft change',
+        'FieldAssistant',
+        200,
+        'Saved to the draft',
+        { path: 'key' },
+      ),
+    },
+    '/v1/schema/draft/attributes/{key}/signup': {
+      post: screenWrite(
+        'Whether sign-up asks for this field, optionally or required. A draft change',
+        'FieldSignup',
+        200,
+        'Saved to the draft',
+        { path: 'key' },
+      ),
+    },
+    '/v1/chat/apps/{key}/connect': {
+      post: screenWrite(
+        'Where to send a People administrator to connect a chat app (`slack`); nothing is kept until they return',
+        'ChatConnect',
+        200,
+        '{ url }',
+        { path: 'key', safe: true },
+      ),
+    },
+    '/v1/chat/apps/{key}/complete': {
+      post: screenWrite(
+        'Finish connecting a chat app with the code and signed state it sent back',
+        'ChatComplete',
+        200,
+        '{ workspace, connectedAt }',
+        { path: 'key' },
+      ),
+    },
+    '/v1/chat/apps/{key}/disconnect': {
+      post: screenWrite('Disconnect a chat app: it leaves the workspace', null, 200, 'Disconnected', {
+        path: 'key',
+      }),
+    },
+    '/v1/chat/notices/{key}': {
+      put: screenWrite(
+        'Send one of People’s notices to chat apps, or stop',
+        'ChatNotice',
+        200,
+        'Every notice, with whether it is on',
+        { path: 'key' },
+      ),
+    },
+    '/v1/views/profile/{id}/requests': {
+      post: screenWrite(
+        'Ask somebody to fill in empty details of theirs: recorded, and emailed at most once a day per field',
+        'DetailAsk',
+        200,
+        '{ asked, emailed }',
+        { path: 'id' },
+      ),
+    },
+    '/v1/views/photos/remove': {
+      post: screenWrite('Take a photo down: the person’s own, or HR’s', 'PhotoOf', 200, 'Removed'),
     },
     '/v1/imports/dry-run': {
       post: screenWrite(

@@ -1,6 +1,16 @@
 'use client';
 
-import { Camera, FileX, ImagePlus, RotateCcw, Trash, TriangleAlert, Upload, X } from 'lucide-react';
+import {
+  Camera,
+  FileX,
+  ImagePlus,
+  Pencil,
+  RotateCcw,
+  Trash,
+  TriangleAlert,
+  Upload,
+  X,
+} from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -18,6 +28,12 @@ import { cn } from '../../lib/cn';
 import { fieldHintClass, fieldLabelClass } from '../field/field-styles';
 import { Button } from '../button/button';
 import { CircularProgress, Progress } from '../progress/progress';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../dropdown-menu/dropdown-menu';
 
 /**
  * Image upload: drop, browse, or paste.
@@ -156,7 +172,10 @@ function toSafeImageSrc(value: string | null | undefined): string | null {
   ) {
     return null;
   }
-  return parsed.href;
+  // A same-origin path stays a path. Resolved on the server there is no
+  // document, and its `href` would name `http://localhost/` — which the
+  // browser then loads, from itself, and hydration keeps.
+  return trimmed.startsWith('/') ? `${parsed.pathname}${parsed.search}${parsed.hash}` : parsed.href;
 }
 
 const aspectClass = {
@@ -729,6 +748,19 @@ export interface AvatarUploaderProps extends Omit<
    * whatever their targets are, which is what makes a row of them line up.
    */
   orientation?: 'inline' | 'stacked';
+  /**
+   * Where Replace and Remove live.
+   *
+   * `beside` shows the label, the hint and both buttons next to the target:
+   * right for a form, where the words explain what is asked. `menu` shows the
+   * target alone, and pressing an image opens Replace and Remove over it;
+   * with no image yet it opens the file picker. That is right where the photo
+   * is a page's own header, and a paragraph of file rules beside a face is
+   * noise. The label still names the control for assistive tech.
+   */
+  controls?: 'beside' | 'menu';
+  /** The target's size. `lg` matches a page header's largest avatar. */
+  size?: 'md' | 'lg';
 }
 
 /**
@@ -755,9 +787,12 @@ export function AvatarUploader({
   src = null,
   fit = 'cover',
   orientation = 'inline',
+  controls = 'beside',
+  size = 'md',
   className,
 }: AvatarUploaderProps): JSX.Element {
   const inputId = useId();
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const current = value[0];
   /*
    * The picked file first: it is what the person just chose, and showing the
@@ -772,6 +807,143 @@ export function AvatarUploader({
    */
   const preview = toSafeImageSrc(current?.previewUrl ?? src);
   const round = shape === 'circle' ? 'rounded-full' : 'rounded-lg';
+  const pick = (event: ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!accept.includes(file.type) || file.size > maxSize) {
+      onReject?.([
+        {
+          file,
+          reason: accept.includes(file.type) ? 'size' : 'type',
+          message: accept.includes(file.type)
+            ? `${file.name} is ${formatBytes(file.size)}. The limit is ${formatBytes(maxSize)}.`
+            : `${file.name} is not an accepted image type.`,
+        },
+      ]);
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    if (current) URL.revokeObjectURL(current.previewUrl);
+    onChange([
+      {
+        id: `${file.name}-${String(file.lastModified)}`,
+        file,
+        previewUrl,
+      },
+    ]);
+  };
+  const remove = (): void => {
+    // Only a locally created object URL is ours to revoke. `src` belongs to the
+    // caller and may still be on screen elsewhere.
+    if (current) URL.revokeObjectURL(current.previewUrl);
+    onChange([]);
+  };
+
+  const target = cn(
+    'group relative grid shrink-0 cursor-pointer place-items-center overflow-hidden bg-surface-sunken',
+    size === 'lg' ? 'h-24' : 'h-20',
+    ratio === 'wide' ? 'w-36 max-w-full' : size === 'lg' ? 'w-24 max-w-full' : 'w-20 max-w-full',
+    round,
+    'transition-[background-color,box-shadow] duration-(--animate-duration-fast)',
+    'hover:bg-surface-hover hover:ring-2 hover:ring-accent hover:ring-inset',
+    invalid && 'ring-2 ring-danger ring-inset',
+    disabled && 'pointer-events-none opacity-50',
+  );
+  const picture =
+    preview === null ? (
+      <span className="text-fg-subtle">{fallback ?? <Upload className="size-5" />}</span>
+    ) : (
+      <img
+        src={preview}
+        alt=""
+        className={cn(
+          'size-full animate-fade-in',
+          fit === 'contain' ? 'object-contain p-2' : 'object-cover',
+        )}
+      />
+    );
+  const overlay = (icon: ReactNode) => (
+    <span
+      aria-hidden
+      className={cn(
+        // Half black, as on the inline target: the page scrim is too thin over
+        // a light photo for the white glyph to clear 3:1.
+        'absolute inset-0 grid place-items-center bg-[oklch(0_0_0/0.5)] text-fg-on-accent opacity-0',
+        round,
+        'transition-opacity duration-(--animate-duration-fast) group-hover:opacity-100 group-focus-visible:opacity-100',
+      )}
+    >
+      {icon}
+    </span>
+  );
+
+  if (controls === 'menu') {
+    const input = (
+      <input
+        ref={inputRef}
+        id={inputId}
+        type="file"
+        accept={accept.join(',')}
+        disabled={disabled}
+        // Reached through the menu once there is an image, so out of the tab
+        // order then; named either way.
+        aria-label={typeof label === 'string' ? label : 'Image'}
+        tabIndex={preview === null ? 0 : -1}
+        className="sr-only"
+        onChange={pick}
+      />
+    );
+    return (
+      <div className={cn('relative shrink-0', className)}>
+        {preview === null ? (
+          <label
+            htmlFor={inputId}
+            className={cn(
+              target,
+              'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-border-focus',
+            )}
+          >
+            {picture}
+            {overlay(<Upload className="size-5" />)}
+            <span className="sr-only">{label}</span>
+            {input}
+          </label>
+        ) : (
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                disabled={disabled}
+                aria-label={`${typeof label === 'string' ? label : 'Image'}: replace or remove`}
+                className={cn(
+                  target,
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+                )}
+              >
+                {picture}
+                {overlay(<Pencil className="size-5" />)}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  onSelect={() => {
+                    inputRef.current?.click();
+                  }}
+                >
+                  <RotateCcw aria-hidden />
+                  Replace
+                </DropdownMenuItem>
+                <DropdownMenuItem destructive onSelect={remove}>
+                  <Trash aria-hidden />
+                  Remove
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {input}
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     /*
@@ -847,32 +1019,7 @@ export function AvatarUploader({
             accept={accept.join(',')}
             disabled={disabled}
             className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = '';
-              if (!file) return;
-              if (!accept.includes(file.type) || file.size > maxSize) {
-                onReject?.([
-                  {
-                    file,
-                    reason: accept.includes(file.type) ? 'size' : 'type',
-                    message: accept.includes(file.type)
-                      ? `${file.name} is ${formatBytes(file.size)}. The limit is ${formatBytes(maxSize)}.`
-                      : `${file.name} is not an accepted image type.`,
-                  },
-                ]);
-                return;
-              }
-              const previewUrl = URL.createObjectURL(file);
-              if (current) URL.revokeObjectURL(current.previewUrl);
-              onChange([
-                {
-                  id: `${file.name}-${String(file.lastModified)}`,
-                  file,
-                  previewUrl,
-                },
-              ]);
-            }}
+            onChange={pick}
           />
         </label>
       </div>
@@ -896,17 +1043,7 @@ export function AvatarUploader({
             >
               Replace
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              startIcon={<Trash />}
-              onClick={() => {
-                // Only a locally created object URL is ours to revoke. `src`
-                // belongs to the caller and may still be on screen elsewhere.
-                if (current) URL.revokeObjectURL(current.previewUrl);
-                onChange([]);
-              }}
-            >
+            <Button size="sm" variant="ghost" startIcon={<Trash />} onClick={remove}>
               Remove
             </Button>
           </div>

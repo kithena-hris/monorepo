@@ -21,6 +21,8 @@ import {
 import type { RelationsResolver, SchemaVersions } from '../person/ports.js';
 import { nameOf } from '../screens/record.js';
 import { PDF_TYPE, recordPdf, rosterPdf, type Cell } from './pdf.js';
+import { storedZip, type ZipEntry } from './zip.js';
+import type { PhotoStore } from '../screens/photo-store.js';
 
 /**
  * CSV, XLSX and PDF exports of the directory, and the PDF employee record
@@ -65,6 +67,12 @@ export interface ExportRequest extends Asking {
   readonly filter?: string;
   /** With `pdf`: this one person's employee record instead of a roster (§15.5). */
   readonly recordOf?: string;
+  /**
+   * Profile photos too: a ZIP beside a CSV or spreadsheet, named by employee
+   * number, of everybody in the file who has one. A record PDF always carries
+   * the person's photo.
+   */
+  readonly includePhotos?: boolean;
 }
 
 export interface ExportFile {
@@ -90,6 +98,8 @@ export interface ExportDeps {
   readonly records: RecordDeps;
   /** The tenant's calendar, for the file's date. */
   readonly calendars: Calendars;
+  /** Profile photos. Absent, an export carries none. */
+  readonly photos?: Pick<PhotoStore, 'get'>;
 }
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -271,12 +281,56 @@ export async function buildExport(
             },
           ];
 
+  if (request.includePhotos === true && request.format !== 'pdf' && deps.photos !== undefined) {
+    const archive = await photoArchive(tx, deps.photos, request.tenantId, rows, stamp);
+    if (archive !== null) files.push(archive);
+  }
+
   return ok({
     files,
     attributeKeys: columns.map((d) => d.key),
     rowCount: rows.length,
     schemaVersion: version.version,
   });
+}
+
+/* ---------------------------------------------------------------- photos -- */
+
+/** A file name from an employee number or an id: nothing a path could climb out of. */
+const safeName = (s: string): string => s.replaceAll(/[^\w.-]/gu, '_').slice(0, 80) || 'person';
+
+/**
+ * Everybody in the file who has a photo, one image each, named by employee
+ * number (their id where there is none) so the archive lines up with the rows.
+ * Read as the file's rows were: only people the requester could list.
+ *
+ * ponytail: every photo is held in memory while the archive is built; at a
+ * few tens of kB each that is fine into the thousands, and a streaming
+ * archive to the object store is the step after.
+ */
+async function photoArchive(
+  tx: PostgresJsDatabase,
+  photos: Pick<PhotoStore, 'get'>,
+  tenantId: string,
+  rows: readonly Row[],
+  stamp: string,
+): Promise<ExportFile | null> {
+  const entries: ZipEntry[] = [];
+  const taken = new Set<string>();
+  for (const r of rows) {
+    const photo = await photos.get(tx, tenantId, r.person.id);
+    if (photo === null) continue;
+    const number = r.person.attributes['employee_number'];
+    const base = safeName(typeof number === 'string' && number !== '' ? number : r.person.id);
+    const ext = photo.mediaType === 'image/png' ? 'png' : 'jpg';
+    let name = `${base}.${ext}`;
+    for (let n = 2; taken.has(name); n++) name = `${base}-${String(n)}.${ext}`;
+    taken.add(name);
+    entries.push({ name, bytes: photo.bytes });
+  }
+  return entries.length === 0
+    ? null
+    : { name: `photos-${stamp}.zip`, mediaType: 'application/zip', bytes: storedZip(entries) };
 }
 
 /* ----------------------------------------------------------------- cells -- */
@@ -647,6 +701,7 @@ async function pdfFile(
       });
     const number = person.person.attributes['employee_number'];
     const numbered = typeof number === 'string' && number !== '' ? number : null;
+    const photo = (await deps.photos?.get(tx, request.tenantId, person.person.id)) ?? null;
     return {
       name: `record-${numbered ?? person.person.id}-${input.stamp}.pdf`,
       mediaType: PDF_TYPE,
@@ -659,6 +714,7 @@ async function pdfFile(
         ],
         withheld: withheld(input.universe, shown, person.relations),
         sections,
+        ...(photo === null ? {} : { photo: photo.bytes }),
       }),
     };
   }

@@ -5,6 +5,7 @@ import {
   DatePicker,
   Field,
   FieldControl,
+  FieldDescription,
   FieldLabel,
   PageHeader,
   PageSection,
@@ -57,6 +58,8 @@ export interface ExportChoice {
   readonly fields: readonly string[];
   readonly asOf: IsoDate;
   readonly format: ExportFormat;
+  /** Profile photos too, as a ZIP beside the file. */
+  readonly photos?: boolean;
 }
 
 export interface ExportBuilderProps {
@@ -149,6 +152,7 @@ function Builder({
   const [who, setWho] = useState(state.who[0]?.value ?? '');
   const [asOf, setAsOf] = useState<IsoDate>(state.today);
   const [format, setFormat] = useState<ExportFormat>('xlsx');
+  const [photos, setPhotos] = useState(false);
   const [fields, setFields] = useState<ReadonlySet<string>>(
     () => new Set(state.sections.flatMap((s) => s.fields.map((f) => f.key))),
   );
@@ -170,7 +174,13 @@ function Builder({
   const run = async (): Promise<void> => {
     setBusy(true);
     setOutcome(null);
-    const result = await onExport({ who, fields: [...fields], asOf, format });
+    const result = await onExport({
+      who,
+      fields: [...fields],
+      asOf,
+      format,
+      ...(photos && format !== 'pdf' ? { photos: true } : {}),
+    });
     setBusy(false);
     setOutcome(result);
   };
@@ -264,6 +274,25 @@ function Builder({
             </RadioCard>
           ))}
         </RadioGroup>
+        <Field orientation="horizontal" className="mt-4 justify-start" disabled={format === 'pdf'}>
+          <FieldControl>
+            <Checkbox
+              checked={photos && format !== 'pdf'}
+              disabled={format === 'pdf'}
+              onCheckedChange={(on) => {
+                setPhotos(on === true);
+              }}
+            />
+          </FieldControl>
+          <div>
+            <FieldLabel>Include profile photos</FieldLabel>
+            <FieldDescription>
+              {format === 'pdf'
+                ? 'Not available for PDF.'
+                : 'Adds a ZIP of photos, named by employee number.'}
+            </FieldDescription>
+          </div>
+        </Field>
       </PageSection>
 
       <Alert tone="info">

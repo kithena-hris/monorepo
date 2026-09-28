@@ -180,6 +180,10 @@ export const duplicateDecision = people.table('duplicate_decision', {
   survivorId: uuid('survivor_id'),
   absorbedId: uuid('absorbed_id'),
   attributesTaken: text('attributes_taken').array().notNull(),
+  /** What a merge moved, or what an undo kept (20260927143500): ids and keys, never values. */
+  moved: jsonb('moved'),
+  reason: text('reason'),
+  reverses: uuid('reverses'),
   decidedBy: uuid('decided_by').notNull(),
   decidedAt: timestamp('decided_at', { withTimezone: true }).notNull(),
 });
@@ -252,6 +256,8 @@ export const tenantSettings = people.table('tenant_settings', {
   tenantId: uuid('tenant_id').primaryKey(),
   defaultTimeZone: text('default_time_zone').notNull(),
   cohortMinimum: integer('cohort_minimum').notNull(),
+  /* 20260927180000: whether signing up asks for a photo. */
+  photoAtSignup: text('photo_at_signup').notNull().default('off'),
   /* 20260924170100: the company, as the back office last described it. */
   slug: text('slug'),
   displayName: text('display_name'),

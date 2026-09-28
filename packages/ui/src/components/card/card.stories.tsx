@@ -126,7 +126,8 @@ export const Variants: Story = {
   ),
 };
 
-export const Attention: Story = {
+export const NeedsDoing: Story = {
+  name: 'Needs doing',
   parameters: {
     docs: {
       description: {
@@ -155,6 +156,33 @@ export const Attention: Story = {
         </p>
       </Card>
     </div>
+  ),
+};
+
+export const Attention: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`tone="attention"`: this card holds something wanted and missing. Its one-pixel warning edge is the reminder; the badge and the words inside are the signal, because an edge is colour alone.',
+      },
+    },
+  },
+  render: () => (
+    <Card tone="attention" className="max-w-md">
+      <CardHeader>
+        <div>
+          <CardTitle>Identification &amp; right to work</CardTitle>
+          <CardDescription>What the law needs on file before a first payslip.</CardDescription>
+        </div>
+        <Badge tone="attention">2 missing</Badge>
+      </CardHeader>
+      <CardContent>
+        <Button variant="secondary" size="sm">
+          Fill in
+        </Button>
+      </CardContent>
+    </Card>
   ),
 };
 

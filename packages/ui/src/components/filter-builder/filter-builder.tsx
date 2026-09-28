@@ -1,32 +1,56 @@
 'use client';
 
 import { Filter, FolderPlus, Plus, Trash2, X } from 'lucide-react';
-import { useId, useRef, type JSX, type ReactNode } from 'react';
+import { useId, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import type { DateRange } from '../calendar/calendar';
+import { Combobox } from '../combobox/combobox';
+import { DatePicker } from '../date-picker/date-picker';
 import { EmptyState } from '../feedback/feedback';
 import { Input } from '../input/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../select/select';
 import { ToggleGroup, ToggleGroupItem } from '../toggle/toggle';
 import {
-  addItem,
+  addCondition,
+  addGroup,
+  conditionsOf,
   removeItem,
   setMatch,
   updateCondition,
   type FilterCondition,
   type FilterField,
   type FilterGroup,
+  type FilterValueKind,
+} from './filter-model';
+
+export { isConditionComplete } from './filter-model';
+export type {
+  FilterCondition,
+  FilterField,
+  FilterGroup,
+  FilterOperator,
+  FilterSubgroup,
+  FilterValueKind,
 } from './filter-model';
 
 /**
- * Build a filter out of conditions: a field, an operator and a value, joined
- * by "and" or "or".
+ * Conditions, one per row: a field, an operator, a value.
  *
- * Controlled, and the value is plain data (`FilterGroup`), so a saved view is
- * that object stored and handed back. The helpers in `filter-model.ts` are the
- * only way it changes, and `describeFilter()` turns it into the sentence people
- * actually read to check it.
+ * The rows read as a sentence — "Where Department is any of Engineering,
+ * Research; and Start date is between 1 Jan and 31 Mar" — because that is
+ * how somebody checks a filter they did not write, and `describeFilter()`
+ * turns the value into that sentence.
+ *
+ * ### Presentational
+ *
+ * The application supplies the fields and, for each, the operators it will
+ * honour and the options it may offer. The builder knows nothing of what a
+ * field means and evaluates nothing. It holds no state either: `value` in,
+ * `onChange` out, so the application decides whether a change applies at
+ * once or waits for an Apply. The helpers in `filter-model.ts` are the only
+ * way the value changes.
  *
  * ### Groups are the advanced mode
  *
@@ -34,6 +58,12 @@ import {
  * own all-or-any, which is how "Engineering, and Berlin or Remote" is said. One
  * level only: past that nobody can read the filter back, and the plain-language
  * summary stops being plain.
+ *
+ * ### On its own, or in a panel
+ *
+ * With a `title` the builder is a card of its own, with a heading, the match
+ * beside it and a Clear. Without one it is the bare rows, for a sheet or a
+ * panel that already has a heading and its own Clear and Apply.
  *
  * ### Under a finger
  *
@@ -45,11 +75,17 @@ export interface FilterBuilderProps {
   fields: readonly FilterField[];
   value: FilterGroup;
   onChange: (value: FilterGroup) => void;
+  /** Names the list for assistive tech. */
+  label?: string;
+  /** Past this, Add is disabled and says why. */
+  maxConditions?: number;
+  /** A fresh condition id. Defaults to `crypto.randomUUID`. */
+  newId?: () => string;
   /** Lets people add a nested all-or-any group. */
   allowGroups?: boolean;
   /** A message per condition id, for a value the caller cannot use. */
   errors?: Readonly<Record<string, string>>;
-  /** Heading over the builder. */
+  /** A heading, which makes the builder a card of its own with a Clear. */
   title?: ReactNode;
   /** What the builder is for, said when there is nothing in it yet. */
   emptyDescription?: ReactNode;
@@ -62,50 +98,53 @@ export function FilterBuilder({
   fields,
   value,
   onChange,
+  label = 'Conditions',
+  maxConditions = 10,
+  newId = () => crypto.randomUUID(),
   allowGroups = false,
   errors = {},
-  title = 'Filters',
-  emptyDescription,
+  title,
+  emptyDescription = 'Add a condition to narrow the list.',
   action,
   className,
 }: FilterBuilderProps): JSX.Element {
-  const base = useId();
-  const next = useRef(0);
-  const newId = (): string => `${base}-${String((next.current += 1))}`;
+  const matchId = useId();
+  const groups = value.groups ?? [];
+  const count = conditionsOf(value).length;
+  const full = count >= maxConditions;
 
-  const blank = (): FilterCondition => {
+  const blank = (): FilterCondition | undefined => {
     const field = fields[0];
-    return {
-      kind: 'condition',
-      id: newId(),
-      field: field?.id ?? '',
-      operator: field?.operators[0]?.id ?? '',
-      value: '',
-    };
+    const operator = field?.operators[0];
+    if (field === undefined || operator === undefined) return undefined;
+    return { id: newId(), field: field.id, operator: operator.id, values: [] };
   };
-  const addCondition = (groupId: string): void => {
-    onChange(addItem(value, groupId, blank()));
+  const add = (groupId: string | null): void => {
+    const condition = blank();
+    if (condition !== undefined) onChange(addCondition(value, groupId, condition));
   };
-  const addGroup = (): void => {
-    onChange(
-      addItem(value, value.id, { kind: 'group', id: newId(), match: 'any', items: [blank()] }),
-    );
+  const addNested = (): void => {
+    const condition = blank();
+    if (condition !== undefined) {
+      onChange(addGroup(value, { id: newId(), match: 'any', conditions: [condition] }));
+    }
   };
 
-  if (value.items.length === 0) {
+  if (count === 0) {
     return (
       <EmptyState
         className={cn('border-0 bg-surface shadow-sm', className)}
         icon={<Filter />}
-        title="No filters yet"
+        title="No conditions yet"
         description={emptyDescription}
         action={
           <Button
             size="sm"
             variant="secondary"
             startIcon={<Plus />}
+            disabled={fields.length === 0}
             onClick={() => {
-              addCondition(value.id);
+              add(null);
             }}
           >
             Add condition
@@ -115,80 +154,149 @@ export function FilterBuilder({
     );
   }
 
-  const renderGroup = (group: FilterGroup, nested: boolean): JSX.Element => (
-    <div
-      role="group"
-      aria-label={nested ? `Group, ${group.match === 'all' ? 'all' : 'any'} of these` : undefined}
-      className={cn(
-        'flex flex-col gap-2',
-        nested && 'rounded-md bg-surface-sunken p-3 touch:p-2.5',
-      )}
-    >
-      {nested ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <MatchToggle
-            group={group}
-            onChange={(match) => {
-              onChange(setMatch(value, group.id, match));
-            }}
-          />
-          <span className="text-xs font-medium text-fg-muted">of these are true</span>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="ms-auto"
-            aria-label="Remove this group"
-            startIcon={<Trash2 />}
-            onClick={() => {
-              onChange(removeItem(value, group.id));
-            }}
-          />
-        </div>
-      ) : null}
+  // One running number, so "Condition 3" names one row wherever it sits.
+  let n = 0;
+  const row = (condition: FilterCondition, index: number, match: FilterGroup['match']) => {
+    n += 1;
+    return (
+      <ConditionRow
+        key={condition.id}
+        n={n}
+        joiner={index === 0 ? 'Where' : match === 'all' ? 'and' : 'or'}
+        fields={fields}
+        condition={condition}
+        error={errors[condition.id]}
+        onChange={(patch) => {
+          onChange(updateCondition(value, condition.id, patch, fields));
+        }}
+        onRemove={() => {
+          onChange(removeItem(value, condition.id));
+        }}
+      />
+    );
+  };
 
-      {group.items.map((item, index) =>
-        item.kind === 'group' ? (
+  const items = value.conditions.length + groups.length;
+
+  const list = (
+    <ol aria-label={label} className="flex flex-col gap-2">
+      {value.conditions.map((condition, index) => row(condition, index, value.match))}
+      {groups.map((group, index) => (
+        <li
+          key={group.id}
+          className="grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-2 touch:flex touch:flex-col"
+        >
+          <JoinLabel
+            joiner={
+              value.conditions.length + index === 0 ? 'Where' : value.match === 'all' ? 'and' : 'or'
+            }
+          />
           <div
-            key={item.id}
-            className="grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-2 touch:flex touch:flex-col"
+            role="group"
+            aria-label={`Group, ${group.match} of these`}
+            className="flex flex-col gap-2 rounded-md bg-surface-sunken p-3 touch:p-2.5"
           >
-            <JoinLabel index={index} match={group.match} />
-            {renderGroup(item, true)}
+            <div className="flex flex-wrap items-center gap-2">
+              <MatchToggle
+                label="Match in this group"
+                match={group.match}
+                onChange={(match) => {
+                  onChange(setMatch(value, group.id, match));
+                }}
+              />
+              <span className="text-xs font-medium text-fg-muted">of these are true</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ms-auto"
+                aria-label="Remove this group"
+                startIcon={<Trash2 />}
+                onClick={() => {
+                  onChange(removeItem(value, group.id));
+                }}
+              />
+            </div>
+            <ol aria-label="Conditions in this group" className="flex flex-col gap-2">
+              {group.conditions.map((condition, i) => row(condition, i, group.match))}
+            </ol>
+            <div>
+              <Button
+                size="sm"
+                variant="ghost"
+                startIcon={<Plus />}
+                disabled={full}
+                onClick={() => {
+                  add(group.id);
+                }}
+              >
+                Condition
+              </Button>
+            </div>
           </div>
-        ) : (
-          <ConditionRow
-            key={item.id}
-            condition={item}
-            index={index}
-            match={group.match}
-            fields={fields}
-            error={errors[item.id]}
-            onChange={(patch) => {
-              onChange(updateCondition(value, item.id, patch, fields));
-            }}
-            onRemove={() => {
-              onChange(removeItem(value, item.id));
-            }}
-          />
-        ),
-      )}
+        </li>
+      ))}
+    </ol>
+  );
 
-      {nested ? (
-        <div>
-          <Button
-            size="sm"
-            variant="ghost"
-            startIcon={<Plus />}
-            onClick={() => {
-              addCondition(group.id);
-            }}
-          >
-            Condition
-          </Button>
-        </div>
+  const footer = (
+    <div className="flex flex-wrap items-center gap-2 pt-1">
+      <Button
+        size="sm"
+        variant="secondary"
+        startIcon={<Plus />}
+        onClick={() => {
+          add(null);
+        }}
+        disabled={full || fields.length === 0}
+      >
+        Add condition
+      </Button>
+      {allowGroups ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          startIcon={<FolderPlus />}
+          disabled={full || fields.length === 0}
+          onClick={addNested}
+        >
+          Add group
+        </Button>
       ) : null}
+      {full ? (
+        <span className="text-xs text-fg-muted">
+          Up to {maxConditions} conditions. Remove one to add another.
+        </span>
+      ) : null}
+      {action ? <div className="ms-auto">{action}</div> : null}
     </div>
   );
+
+  const match =
+    items < 2 ? null : (
+      <MatchToggle
+        label="Match"
+        match={value.match}
+        onChange={(next) => {
+          onChange(setMatch(value, null, next));
+        }}
+        {...(title === undefined ? { labelledBy: matchId } : {})}
+      />
+    );
+
+  if (title === undefined) {
+    return (
+      <div className={cn('flex flex-col gap-3', className)}>
+        {match === null ? null : (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
+            <span id={matchId}>Match</span>
+            {match}
+          </div>
+        )}
+        {list}
+        {footer}
+      </div>
+    );
+  }
 
   return (
     <section
@@ -197,66 +305,44 @@ export function FilterBuilder({
     >
       <div className="flex flex-wrap items-center gap-2.5">
         <h3 className="font-display text-md font-bold text-fg">{title}</h3>
-        {value.items.length > 1 ? (
-          <MatchToggle
-            group={value}
-            onChange={(match) => {
-              onChange(setMatch(value, value.id, match));
-            }}
-          />
-        ) : null}
+        {match}
         <Button
           size="sm"
           variant="ghost"
           className="ms-auto"
           onClick={() => {
-            onChange({ ...value, items: [] });
+            onChange({ match: value.match, conditions: [] });
           }}
         >
           Clear
         </Button>
       </div>
-
-      {renderGroup(value, false)}
-
-      <div className="flex flex-wrap items-center gap-2 pt-1">
-        <Button
-          size="sm"
-          variant="secondary"
-          startIcon={<Plus />}
-          onClick={() => {
-            addCondition(value.id);
-          }}
-        >
-          Add condition
-        </Button>
-        {allowGroups ? (
-          <Button size="sm" variant="ghost" startIcon={<FolderPlus />} onClick={addGroup}>
-            Add group
-          </Button>
-        ) : null}
-        {action ? <div className="ms-auto">{action}</div> : null}
-      </div>
+      {list}
+      {footer}
     </section>
   );
 }
 
 function MatchToggle({
-  group,
+  label,
+  labelledBy,
+  match,
   onChange,
 }: {
-  group: FilterGroup;
+  label: string;
+  labelledBy?: string;
+  match: FilterGroup['match'];
   onChange: (match: FilterGroup['match']) => void;
 }): JSX.Element {
   return (
     <ToggleGroup
       type="single"
-      aria-label="Match"
-      value={group.match}
-      onValueChange={(match) => {
+      {...(labelledBy === undefined ? { 'aria-label': label } : { 'aria-labelledby': labelledBy })}
+      value={match}
+      onValueChange={(next) => {
         // Radix clears a single toggle group when its value is pressed again;
         // a filter always matches one way or the other.
-        if (match === 'all' || match === 'any') onChange(match);
+        if (next === 'all' || next === 'any') onChange(next);
       }}
     >
       <ToggleGroupItem size="sm" value="all">
@@ -270,46 +356,50 @@ function MatchToggle({
 }
 
 /** "Where" before the first item, then the group's "and" or "or". */
-function JoinLabel({ index, match }: { index: number; match: FilterGroup['match'] }): JSX.Element {
+function JoinLabel({ joiner }: { joiner: string }): JSX.Element {
   return (
-    <span className="text-end text-xs font-semibold text-fg-muted touch:text-start">
-      {index === 0 ? 'Where' : match === 'all' ? 'and' : 'or'}
+    <span
+      aria-hidden="true"
+      className="text-end text-xs font-semibold text-fg-muted touch:text-start"
+    >
+      {joiner}
     </span>
   );
 }
 
 function ConditionRow({
-  condition,
-  index,
-  match,
+  n,
+  joiner,
   fields,
+  condition,
   error,
   onChange,
   onRemove,
 }: {
-  condition: FilterCondition;
-  index: number;
-  match: FilterGroup['match'];
+  n: number;
+  joiner: string;
   fields: readonly FilterField[];
+  condition: FilterCondition;
   error: string | undefined;
-  onChange: (patch: Partial<Pick<FilterCondition, 'field' | 'operator' | 'value'>>) => void;
+  onChange: (patch: Partial<Pick<FilterCondition, 'field' | 'operator' | 'values'>>) => void;
   onRemove: () => void;
 }): JSX.Element {
   const errorId = useId();
-  const field = fields.find((entry) => entry.id === condition.field);
-  const name = `condition ${String(index + 1)}`;
+  const field = fields.find((f) => f.id === condition.field);
+  const operator = field?.operators.find((o) => o.id === condition.operator);
+  const name = String(n);
+  const fieldName = field?.label ?? 'field';
+  const remove = `Remove condition ${name}, ${fieldName}`;
 
   return (
-    <div
-      role="group"
-      aria-label={`Condition ${String(index + 1)}`}
+    <li
       className={cn(
         'grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_2rem] items-center gap-2',
         // A card per condition under a finger, the parts stacked.
         'touch:flex touch:flex-col touch:items-stretch touch:rounded-md touch:bg-surface-sunken touch:p-3',
       )}
     >
-      <JoinLabel index={index} match={match} />
+      <JoinLabel joiner={joiner} />
 
       <Select
         value={condition.field}
@@ -317,13 +407,13 @@ function ConditionRow({
           onChange({ field: id });
         }}
       >
-        <SelectTrigger size="sm" aria-label={`Field for ${name}`}>
+        <SelectTrigger size="sm" aria-label={`Condition ${name} field`}>
           <SelectValue placeholder="Field" />
         </SelectTrigger>
         <SelectContent>
-          {fields.map((entry) => (
-            <SelectItem key={entry.id} value={entry.id}>
-              {entry.label}
+          {fields.map((f) => (
+            <SelectItem key={f.id} value={f.id}>
+              {f.label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -335,13 +425,13 @@ function ConditionRow({
           onChange({ operator: id });
         }}
       >
-        <SelectTrigger size="sm" aria-label={`Operator for ${name}`}>
+        <SelectTrigger size="sm" aria-label={`Condition ${name} operator`}>
           <SelectValue placeholder="Is" />
         </SelectTrigger>
         <SelectContent>
-          {(field?.operators ?? []).map((operator) => (
-            <SelectItem key={operator.id} value={operator.id}>
-              {operator.label}
+          {(field?.operators ?? []).map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              {o.label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -349,53 +439,26 @@ function ConditionRow({
 
       <div className="min-w-0 touch:flex touch:items-start touch:gap-1.5">
         <div className="min-w-0 flex-1">
-          {field?.options ? (
-            <Select
-              value={condition.value}
-              onValueChange={(next) => {
-                onChange({ value: next });
-              }}
-            >
-              <SelectTrigger
-                size="sm"
-                aria-label={`Value for ${name}`}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? errorId : undefined}
-              >
-                <SelectValue placeholder="Value" />
-              </SelectTrigger>
-              <SelectContent>
-                {field.options.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              size="sm"
-              type={field?.inputType ?? 'text'}
-              placeholder="Value"
-              aria-label={`Value for ${name}`}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={error ? errorId : undefined}
-              value={condition.value}
-              onChange={(event) => {
-                onChange({ value: event.target.value });
-              }}
-            />
-          )}
-          {error ? (
+          <ValueInput
+            kind={operator?.value ?? 'none'}
+            label={`Condition ${name} value for ${fieldName}`}
+            options={field?.options ?? []}
+            values={condition.values}
+            onValues={(values) => {
+              onChange({ values });
+            }}
+            {...(error === undefined ? {} : { errorId })}
+          />
+          {error === undefined ? null : (
             <p id={errorId} className="mt-1 text-xs text-danger-fg">
               {error}
             </p>
-          ) : null}
+          )}
         </div>
         <Button
           size="sm"
           variant="ghost"
-          aria-label={`Remove ${name}`}
+          aria-label={remove}
           startIcon={<X />}
           className="hidden touch:inline-flex"
           onClick={onRemove}
@@ -405,11 +468,116 @@ function ConditionRow({
       <Button
         size="sm"
         variant="ghost"
-        aria-label={`Remove ${name}`}
+        aria-label={remove}
         startIcon={<X />}
         className="touch:hidden"
         onClick={onRemove}
       />
-    </div>
+    </li>
   );
+}
+
+function ValueInput({
+  kind,
+  label,
+  options,
+  values,
+  onValues,
+  errorId,
+}: {
+  kind: FilterValueKind;
+  label: string;
+  options: readonly { value: string; label: string }[];
+  values: readonly string[];
+  onValues: (values: readonly string[]) => void;
+  /** Set when the value has a message: it describes the control and marks it invalid. */
+  errorId?: string;
+}): JSX.Element | null {
+  const first = values[0] ?? '';
+  const invalid =
+    errorId === undefined ? {} : { 'aria-invalid': true as const, 'aria-describedby': errorId };
+  switch (kind) {
+    case 'none':
+      return null;
+    case 'text':
+    case 'number':
+      return (
+        <Input
+          size="sm"
+          aria-label={label}
+          placeholder="Value"
+          type={kind === 'number' ? 'number' : 'text'}
+          {...(kind === 'number' ? { inputMode: 'decimal' as const } : {})}
+          {...invalid}
+          value={first}
+          onChange={(event) => {
+            onValues([event.target.value]);
+          }}
+        />
+      );
+    case 'date':
+      return (
+        <DatePicker
+          size="sm"
+          label={label}
+          {...invalid}
+          value={first === '' ? null : first}
+          onChange={(date) => {
+            onValues(date === null ? [] : [date]);
+          }}
+        />
+      );
+    case 'date-range': {
+      const range: DateRange | null =
+        values.length === 0 ? null : { start: values[0] || null, end: values[1] || null };
+      return (
+        <DatePicker
+          size="sm"
+          mode="range"
+          label={label}
+          placeholder="Pick a period"
+          {...invalid}
+          value={range}
+          onChange={(next) => {
+            onValues([next.start ?? '', next.end ?? '']);
+          }}
+        />
+      );
+    }
+    case 'option':
+      return (
+        <Select
+          value={first}
+          onValueChange={(v) => {
+            onValues([v]);
+          }}
+        >
+          <SelectTrigger size="sm" aria-label={label} {...invalid}>
+            <SelectValue placeholder="Choose one" />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    case 'options':
+      return (
+        <Combobox
+          size="sm"
+          multiple
+          label={label}
+          placeholder="Choose any"
+          options={options}
+          {...invalid}
+          value={values}
+          onChange={(next) => {
+            onValues(next === null ? [] : typeof next === 'string' ? [next] : next);
+          }}
+        />
+      );
+  }
 }

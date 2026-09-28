@@ -45,7 +45,7 @@ const meta = {
     },
     size: {
       description:
-        '20, 24, 32, 40, 48, 64 and 80px. xs and sm for rows, md for lists, lg for cards, xl and up for profile headers.',
+        '20, 24, 32, 40, 48, 64 and 80px. xs and sm for rows, md for lists, lg for cards, xl and 2xl for profile headers, 3xl for the one person a page is about.',
       control: 'inline-radio',
       options: ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl'],
       table: {

@@ -19,6 +19,8 @@ services:
     # one (the admin passkey enrolment) starts again from `just admin-seed`.
     # `docker volume rm kithena_pgdata` once nothing there is wanted.
     image: pgvector/pgvector:pg18
+    # Logical WAL for the outbox relay below.
+    command: ['postgres', '-c', 'wal_level=logical']
     environment:
       POSTGRES_USER: kithena
       POSTGRES_PASSWORD: kithena
@@ -50,6 +52,30 @@ services:
 
   # The datastore's tables first, as the VM does: `run` on an empty database
   # answers every call with a 500 rather than creating them.
+  # The outbox relay, as on the VM (`deploy/vm/debezium.env`), but one
+  # instance for both outboxes: identity and People share this database here.
+  # As the owner, because a fresh volume's `svc_debezium` is made NOLOGIN by
+  # its migration; and from now rather than from the start, as People's is on
+  # the VM, because `pnpm db:seed` already hands identity's events to People.
+  relay:
+    image: quay.io/debezium/server:3.6.3.Final
+    restart: unless-stopped
+    env_file: deploy/vm/debezium.env
+    environment:
+      OTEL_ENABLED: 'false'
+      JAVA_OPTS: -Xms32m -Xmx64m -XX:MaxMetaspaceSize=80m -XX:+UseSerialGC -XX:TieredStopAtLevel=1
+      DEBEZIUM_SOURCE_DATABASE_HOSTNAME: postgres
+      DEBEZIUM_SOURCE_DATABASE_DBNAME: kithena
+      DEBEZIUM_SOURCE_DATABASE_USER: kithena
+      DEBEZIUM_SOURCE_DATABASE_PASSWORD: kithena
+      DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST: platform.outbox,people.outbox
+      DEBEZIUM_SOURCE_SLOT_NAME: kithena_relay_local
+      DEBEZIUM_SOURCE_SNAPSHOT_MODE: no_data
+    volumes: [relay:/debezium/data]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+
   openfga-migrate:
     image: openfga/openfga:latest
     command: migrate
@@ -131,6 +157,7 @@ services:
     ports: ['1025:1025', '8025:8025']
 
 volumes:
+  relay:
   pgdata18:
   typesense:
   object-store:

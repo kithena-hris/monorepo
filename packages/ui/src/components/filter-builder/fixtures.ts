@@ -6,8 +6,9 @@ export const peopleFields: FilterField[] = [
     id: 'team',
     label: 'Team',
     operators: [
-      { id: 'is', label: 'is' },
-      { id: 'is-not', label: 'is not' },
+      { id: 'is', label: 'is', value: 'option' },
+      { id: 'is-not', label: 'is not', value: 'option' },
+      { id: 'in', label: 'is any of', value: 'options' },
     ],
     options: [
       { value: 'engineering', label: 'Engineering' },
@@ -20,8 +21,9 @@ export const peopleFields: FilterField[] = [
     id: 'location',
     label: 'Location',
     operators: [
-      { id: 'is', label: 'is' },
-      { id: 'is-not', label: 'is not' },
+      { id: 'is', label: 'is', value: 'option' },
+      { id: 'is-not', label: 'is not', value: 'option' },
+      { id: 'in', label: 'is any of', value: 'options' },
     ],
     options: [
       { value: 'berlin', label: 'Berlin' },
@@ -33,7 +35,7 @@ export const peopleFields: FilterField[] = [
   {
     id: 'contract',
     label: 'Contract',
-    operators: [{ id: 'is', label: 'is' }],
+    operators: [{ id: 'is', label: 'is', value: 'option' }],
     options: [
       { value: 'permanent', label: 'Permanent' },
       { value: 'fixed-term', label: 'Fixed term' },
@@ -43,18 +45,25 @@ export const peopleFields: FilterField[] = [
     id: 'start',
     label: 'Start date',
     operators: [
-      { id: 'after', label: 'is after' },
-      { id: 'before', label: 'is before' },
+      { id: 'after', label: 'is after', value: 'date' },
+      { id: 'before', label: 'is before', value: 'date' },
+      { id: 'between', label: 'is between', value: 'date-range' },
     ],
-    inputType: 'date',
+  },
+  {
+    id: 'phone',
+    label: 'Phone',
+    operators: [
+      { id: 'contains', label: 'contains', value: 'text' },
+      { id: 'empty', label: 'is empty', value: 'none' },
+    ],
   },
   {
     id: 'salary',
     label: 'Salary',
     operators: [
-      { id: 'above', label: 'is above' },
-      { id: 'below', label: 'is below' },
+      { id: 'above', label: 'is above', value: 'number' },
+      { id: 'below', label: 'is below', value: 'number' },
     ],
-    inputType: 'number',
   },
 ];

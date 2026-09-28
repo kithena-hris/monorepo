@@ -26,6 +26,7 @@ import {
   menuSurface,
 } from '../../lib/menu';
 import { usePortalContainer } from '../../lib/portal-container';
+import { HOVER_CLOSE_MS, HOVER_OPEN_MS } from '../../lib/motion';
 
 /**
  * Action menu.
@@ -86,7 +87,7 @@ export interface DropdownMenuProps
 
 export function DropdownMenu({
   openOnHover = false,
-  hoverCloseDelay = 150,
+  hoverCloseDelay = HOVER_CLOSE_MS,
   open,
   defaultOpen,
   onOpenChange,
@@ -115,9 +116,12 @@ export function DropdownMenu({
       enabled: openOnHover,
       open: () => {
         hold();
-        pointerOpened.current = true;
-        setHoverOpen(true);
-        onOpenChange?.(true);
+        // A pointer passing over on its way elsewhere opens nothing.
+        timer.current = setTimeout(() => {
+          pointerOpened.current = true;
+          setHoverOpen(true);
+          onOpenChange?.(true);
+        }, HOVER_OPEN_MS);
       },
       close: () => {
         hold();
