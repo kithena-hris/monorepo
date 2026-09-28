@@ -2,7 +2,7 @@
 
 import * as CollapsiblePrimitive from '@radix-ui/react-collapsible';
 import { Slot } from '@radix-ui/react-slot';
-import { ChevronRight } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import {
   Children,
   cloneElement,
@@ -126,11 +126,18 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
   asChild?: boolean;
   /** Trailing control: a pin, an overflow menu. */
   action?: ReactNode;
+  /**
+   * A second line under the label, for a menu of destinations people do not
+   * know by name yet: "Org chart", *Who reports to whom*. Hidden in a rail.
+   */
+  description?: ReactNode;
 }
 
+// 14px at a desk, 16px under a finger, which the type scale has no step
+// for: `sm` is 13 and `base` 15 at a desk.
 const itemByLevel = {
-  1: 'min-h-9 touch:min-h-12 gap-2.5 px-3 text-base',
-  2: 'min-h-8 touch:min-h-tap gap-2.5 px-3 text-sm',
+  1: 'min-h-9.5 touch:min-h-12 gap-2.5 px-2.5 text-[0.875rem] touch:text-[1rem]',
+  2: 'min-h-9.5 touch:min-h-12 gap-2.5 px-2.5 text-[0.875rem] touch:text-[1rem]',
   3: 'min-h-7 touch:min-h-tap gap-2 px-2.5 text-sm',
 } as const;
 
@@ -143,6 +150,7 @@ export function NavItem({
   current = false,
   asChild = false,
   action,
+  description,
   ...props
 }: NavItemProps): JSX.Element {
   const collapsed = useRailCollapsed();
@@ -179,7 +187,7 @@ export function NavItem({
             'shrink-0',
             // The icon is quieter than the label until the item is current.
             current ? 'text-accent-fg' : 'text-fg-muted group-hover/nav-item:text-fg',
-            level === 1 ? '[&_svg]:size-4 touch:[&_svg]:size-5' : '[&_svg]:size-3.5',
+            level === 3 ? '[&_svg]:size-3.5' : '[&_svg]:size-[18px]',
           )}
         >
           {icon}
@@ -191,7 +199,14 @@ export function NavItem({
        * accessible name is a rail nobody can navigate with a screen reader,
        * and `sr-only` costs nothing.
        */}
-      <span className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>{label}</span>
+      {description !== undefined && !asIcon ? (
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
+          <span className="truncate">{label}</span>
+          <span className="truncate text-xs font-normal text-fg-muted">{description}</span>
+        </span>
+      ) : (
+        <span className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>{label}</span>
+      )}
 
       {badge && !asIcon ? <span className="shrink-0">{badge}</span> : null}
 
@@ -215,9 +230,9 @@ export function NavItem({
       // `aria-current` is the state. The background is the reminder.
       aria-current={current ? 'page' : undefined}
       className={cn(
-        // A pill, so the current item reads as a place the reader is standing
-        // rather than as a selected row in a table.
-        'group/nav-item relative flex items-center rounded-control',
+        // A filled, rounded row, so the current item reads as a place the
+        // reader is standing rather than as a selected row in a table.
+        'group/nav-item relative flex items-center rounded-[0.75rem]',
         'transition-[background-color,color] duration-(--animate-duration-fast) ease-standard',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
         itemByLevel[level],
@@ -317,8 +332,8 @@ export function NavGroup({
 
   if (!collapsible) {
     return (
-      <li className={cn('min-w-0 pt-3 first:pt-0', className)} {...props}>
-        <h3 id={labelId} className="px-3 pb-1.5 text-xs font-semibold text-fg-subtle">
+      <li className={cn('min-w-0 pt-3.5 first:pt-0', className)} {...props}>
+        <h3 id={labelId} className="px-2.5 pb-1.5 text-xs font-semibold text-fg-subtle">
           {label}
         </h3>
         <ul aria-labelledby={labelId} className="min-w-0 space-y-0.5">
@@ -329,20 +344,16 @@ export function NavGroup({
   }
 
   return (
-    <li className={cn('min-w-0 pt-1', className)} {...props}>
+    <li className={cn('min-w-0 pt-2', className)} {...props}>
       <CollapsiblePrimitive.Root defaultOpen={defaultOpen}>
         <CollapsiblePrimitive.Trigger
           className={cn(
-            'group/nav-group flex min-h-8 touch:min-h-tap w-full items-center gap-2 rounded-control px-3 text-start',
+            'group/nav-group flex min-h-8 touch:min-h-tap w-full items-center gap-2 rounded-[0.75rem] px-2.5 text-start',
             'text-xs font-semibold text-fg-subtle',
             'transition-colors duration-(--animate-duration-fast) hover:bg-surface-hover hover:text-fg',
             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
           )}
         >
-          <ChevronRight
-            aria-hidden
-            className="size-3 shrink-0 transition-transform duration-(--animate-duration-normal) ease-standard group-data-[state=open]/nav-group:rotate-90"
-          />
           {icon ? (
             <span aria-hidden className="shrink-0 [&_svg]:size-3.5">
               {icon}
@@ -350,6 +361,12 @@ export function NavGroup({
           ) : null}
           <span className="min-w-0 flex-1 truncate">{label}</span>
           {badge ? <span className="shrink-0">{badge}</span> : null}
+          {/* At the end, where a toggle sits, so the heading still lines up
+              with the headings that do not fold. */}
+          <ChevronDown
+            aria-hidden
+            className="size-3.5 shrink-0 transition-transform duration-(--animate-duration-normal) ease-standard group-data-[state=open]/nav-group:rotate-180"
+          />
         </CollapsiblePrimitive.Trigger>
 
         <CollapsiblePrimitive.Content
@@ -358,7 +375,9 @@ export function NavGroup({
             'data-[state=open]:animate-collapse-down data-[state=closed]:animate-collapse-up',
           )}
         >
-          <ul className="min-w-0 space-y-0.5 pt-0.5">{children}</ul>
+          {/* Indented to the label of an item with an icon, so the group's
+              rows read as belonging to the heading above them. */}
+          <ul className="min-w-0 space-y-0.5 ps-6 pt-0.5">{children}</ul>
         </CollapsiblePrimitive.Content>
       </CollapsiblePrimitive.Root>
     </li>

@@ -1,12 +1,21 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
+import { useState, type JSX } from 'react';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from '../alert-dialog/alert-dialog';
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
-import { Money } from '../money/money';
-import { Separator } from '../separator/separator';
-import { Timeline, TimelineItem } from '../timeline/timeline';
+import { Field, FieldLabel } from '../field/field';
+import { Input } from '../input/input';
+import { Kbd } from '../kbd/kbd';
 import {
   Sheet,
   SheetBody,
@@ -120,6 +129,23 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** A label and its value, as a sheet lists a record's facts. */
+function Facts({ rows }: { rows: readonly (readonly [string, string])[] }): JSX.Element {
+  return (
+    <dl className="divide-y divide-border">
+      {rows.map(([term, value]) => (
+        <div
+          key={term}
+          className="flex min-h-11 items-center justify-between gap-4 py-2 touch:min-h-13"
+        >
+          <dt className="text-sm text-fg-muted">{term}</dt>
+          <dd className="text-right text-base font-medium text-fg">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export const Playground: Story = {
   render: (args) => (
     <Sheet>
@@ -128,23 +154,18 @@ export const Playground: Story = {
       </SheetTrigger>
       <SheetContent {...args}>
         <SheetHeader>
-          <SheetTitle>Grace Hopper</SheetTitle>
-          <SheetDescription>Principal Engineer · Platform · Madrid</SheetDescription>
+          <SheetTitle>Priya Shah</SheetTitle>
+          <SheetDescription>Senior Engineer</SheetDescription>
         </SheetHeader>
-        <SheetBody className="space-y-3 text-base text-fg-muted">
-          <p>
-            The body scrolls; the header and footer do not. Resize the window shorter to see it.
-          </p>
-          {Array.from({ length: 12 }, (_, i) => (
-            <p key={i}>Detail line {i + 1}.</p>
-          ))}
+        <SheetBody>
+          <Facts
+            rows={[
+              ['Team', 'Engineering'],
+              ['Manager', 'Jonas Weber'],
+              ['Location', 'Berlin'],
+            ]}
+          />
         </SheetBody>
-        <SheetFooter>
-          <SheetClose asChild>
-            <Button>Close</Button>
-          </SheetClose>
-          <Button variant="primary">Save</Button>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   ),
@@ -156,7 +177,7 @@ export const Sides: Story = {
     docs: {
       description: {
         story:
-          'Each panel travels along the edge it is anchored to, and leaves the same way, which is what keeps a mental model of where it went. `bottom` is the one to reach for on a phone.',
+          'Each panel travels along the edge it is anchored to, and leaves the same way, which is what keeps a mental model of where it went. `bottom` is the default on a phone; `top` is rare, for search.',
       },
     },
   },
@@ -182,6 +203,41 @@ export const Sides: Story = {
   ),
 };
 
+const queue = [
+  {
+    name: 'Amara Okafor',
+    kind: 'Vacation',
+    days: 5,
+    dates: '14–18 Oct',
+    balance: '9.5 days',
+    cover: 'Omar Haddad',
+  },
+  {
+    name: 'Lucas Moreau',
+    kind: 'Sick leave',
+    days: 2,
+    dates: '2–3 Oct',
+    balance: '8 days',
+    cover: 'Tom Fischer',
+  },
+  {
+    name: 'Mei Tanaka',
+    kind: 'Vacation',
+    days: 3,
+    dates: '21–23 Oct',
+    balance: '14 days',
+    cover: 'Zara Ahmed',
+  },
+  {
+    name: 'Sofia Lindqvist',
+    kind: 'Parental leave',
+    days: 20,
+    dates: '1–28 Nov',
+    balance: '20 days',
+    cover: 'Nora Becker',
+  },
+];
+
 export const RecordDetail: Story = {
   name: 'A record opened from a queue',
   parameters: {
@@ -189,33 +245,22 @@ export const RecordDetail: Story = {
     docs: {
       description: {
         story:
-          'The real case, working. Open any row: the queue stays behind the panel, the approve/reject actions stay pinned to the bottom, and closing returns focus to the row that opened it: try it with the keyboard alone.',
+          'The real case, working. Open any row: the queue stays behind the panel, the decision stays pinned to the bottom, and closing returns focus to the row that opened it: try it with the keyboard alone.',
       },
     },
   },
   render: function QueueStory(args) {
-    const queue = [
-      { name: 'Grace Hopper', kind: 'Annual leave', days: 3, from: '14 September', balance: '12' },
-      { name: 'Ada Lovelace', kind: 'Parental leave', days: 20, from: '1 October', balance: '18' },
-      {
-        name: 'Katherine Johnson',
-        kind: 'Unpaid leave',
-        days: 10,
-        from: '1 October',
-        balance: '4',
-      },
-    ];
-    const [decided, setDecided] = useState<Record<string, 'approved' | 'rejected'>>({});
+    const [decided, setDecided] = useState<Record<string, 'approved' | 'declined'>>({});
 
     return (
-      <div className="mx-auto max-w-2xl divide-y divide-border rounded-lg border border-border bg-surface">
-        {queue.map((request) => (
+      <div className="mx-auto max-w-2xl divide-y divide-border rounded-lg bg-surface shadow-sm">
+        {queue.map((request, index) => (
           <div key={request.name} className="flex items-center gap-3 p-3">
             <Avatar size="sm" name={request.name} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-base font-medium text-fg">{request.name}</p>
               <p className="text-sm text-fg-muted">
-                {request.kind} · {request.days} days from {request.from}
+                {request.kind} · {request.days} days
               </p>
             </div>
             {decided[request.name] ? (
@@ -224,66 +269,56 @@ export const RecordDetail: Story = {
                 size="sm"
                 dot
               >
-                {decided[request.name] === 'approved' ? 'Approved' : 'Rejected'}
+                {decided[request.name] === 'approved' ? 'Approved' : 'Declined'}
               </Badge>
             ) : (
               <Sheet>
                 <SheetTrigger asChild>
                   <Button size="sm">Review</Button>
                 </SheetTrigger>
-                <SheetContent {...args} size="lg">
+                <SheetContent {...args}>
                   <SheetHeader>
-                    <SheetTitle>{request.name}</SheetTitle>
-                    <SheetDescription>
-                      {request.kind} · {request.days} days from {request.from}
+                    <SheetTitle>
+                      Request {index + 1} of {queue.length}
+                    </SheetTitle>
+                    <SheetDescription className="sr-only">
+                      {request.kind} for {request.name}
                     </SheetDescription>
                   </SheetHeader>
-                  <SheetBody className="space-y-5">
-                    <dl className="grid grid-cols-2 gap-4 text-base">
+                  <SheetBody className="space-y-3.5">
+                    <div className="flex items-center gap-3">
+                      <Avatar size="lg" name={request.name} />
                       <div>
-                        <dt className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-                          Balance after approval
-                        </dt>
-                        <dd className="mt-1 tabular-nums text-fg">{request.balance} days</dd>
+                        <p className="text-base font-bold text-fg">{request.name}</p>
+                        <p className="text-sm text-fg-muted">
+                          {request.kind} · {request.days} days
+                        </p>
                       </div>
-                      <div>
-                        <dt className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-                          Payroll impact
-                        </dt>
-                        <dd className="mt-1 text-fg">
-                          {request.kind === 'Unpaid leave' ? (
-                            <Money minorUnits="-142000" currency="EUR" locale="en-IE" />
-                          ) : (
-                            'None'
-                          )}
-                        </dd>
-                      </div>
-                    </dl>
-                    <Separator />
-                    <div>
-                      <p className="mb-3 text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-                        History
-                      </p>
-                      <Timeline>
-                        <TimelineItem title="Submitted" timestamp="7 Aug, 11:02" tone="accent" />
-                        <TimelineItem
-                          title="Manager approved"
-                          timestamp="7 Aug, 16:20"
-                          tone="success"
-                        />
-                        <TimelineItem title="Awaiting your review" tone="warning" last />
-                      </Timeline>
                     </div>
+                    <Facts
+                      rows={[
+                        ['Dates', request.dates],
+                        ['Balance after', request.balance],
+                        ['Cover', request.cover],
+                      ]}
+                    />
+                    <p className="flex gap-3 text-xs text-fg-muted touch:hidden">
+                      <span>
+                        <Kbd>J</Kbd> next
+                      </span>
+                      <span>
+                        <Kbd>K</Kbd> previous
+                      </span>
+                    </p>
                   </SheetBody>
                   <SheetFooter>
                     <SheetClose asChild>
                       <Button
-                        variant="destructive"
                         onClick={() => {
-                          setDecided((current) => ({ ...current, [request.name]: 'rejected' }));
+                          setDecided((current) => ({ ...current, [request.name]: 'declined' }));
                         }}
                       >
-                        Reject
+                        Decline
                       </Button>
                     </SheetClose>
                     <SheetClose asChild>
@@ -307,13 +342,28 @@ export const RecordDetail: Story = {
   },
 };
 
+const leaveTypes = [
+  'Vacation',
+  'Sick leave',
+  'Parental leave',
+  'Unpaid leave',
+  'Bereavement',
+  'Study leave',
+  'Jury service',
+  'Volunteering day',
+  'Moving day',
+  'Compassionate leave',
+  'Time off in lieu',
+  'Public holiday swap',
+];
+
 export const SwipeToDismiss: Story = {
   name: 'Swipe to dismiss',
   parameters: {
     docs: {
       description: {
         story: [
-          'A bottom sheet with the gesture forced on, so it can be tried with a mouse. In the product it is enabled by pointer type, not by this prop.',
+          'A bottom sheet with the gesture forced on, so it can be tried with a mouse. In the product it is enabled by pointer type, not by this prop. Past a third of its height, or on a fast flick, it closes.',
           '',
           'Things worth trying, because each one is a separate decision in the hook:',
           '',
@@ -329,41 +379,27 @@ export const SwipeToDismiss: Story = {
   render: () => (
     <Sheet>
       <SheetTrigger asChild>
-        <Button>Open a draggable sheet</Button>
+        <Button>Choose a leave type</Button>
       </SheetTrigger>
       {/* `swipeToDismiss` is forced here purely so the story is usable with a
           mouse. Leaving it unset is correct in real screens: the default already
           asks the right question, which is what the pointer is. */}
       <SheetContent side="bottom" size="md" swipeToDismiss>
         <SheetHeader>
-          <SheetTitle>Team on leave</SheetTitle>
-          <SheetDescription>Drag the handle, or flick the panel down.</SheetDescription>
+          <SheetTitle>Leave type</SheetTitle>
+          <SheetDescription>Drag the handle down, or flick the panel away.</SheetDescription>
         </SheetHeader>
         <SheetBody>
           {/* Deliberately long. The interesting case is a drag that starts
               inside a scrolled list, which needs a list worth scrolling. */}
-          <ul className="space-y-3">
-            {Array.from({ length: 24 }, (_, index) => (
-              <li key={index} className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Avatar name={`Person ${String(index + 1)}`} size="sm" />
-                  <div>
-                    <p className="text-base font-medium text-fg">Person {index + 1}</p>
-                    <p className="text-sm text-fg-muted">Annual leave</p>
-                  </div>
-                </div>
-                <Badge tone={index % 3 === 0 ? 'warning' : 'success'}>
-                  {index % 3 === 0 ? 'Pending' : 'Approved'}
-                </Badge>
+          <ul className="divide-y divide-border">
+            {leaveTypes.map((type) => (
+              <li key={type} className="flex min-h-12 items-center text-base text-fg">
+                {type}
               </li>
             ))}
           </ul>
         </SheetBody>
-        <SheetFooter>
-          <SheetClose asChild>
-            <Button>Close</Button>
-          </SheetClose>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   ),
@@ -375,84 +411,85 @@ export const UnsavedChanges: Story = {
     docs: {
       description: {
         story:
-          'Type something, then press Escape or click the overlay: both are intercepted while the form is dirty. This is the one legitimate reason to block a dismissal, and the guard has to be released once the form is clean, or the sheet becomes a trap.',
+          'Change the job title, then press Escape or click the overlay: while the form is dirty, dismissal asks first. This is the one legitimate reason to block a dismissal, and the guard has to be released once the form is clean, or the sheet becomes a trap.',
       },
     },
   },
   render: function GuardStory(args) {
-    const [note, setNote] = useState('');
-    const [warned, setWarned] = useState(false);
-    const dirty = note.trim().length > 0;
+    const saved = 'Staff Engineer';
+    const [open, setOpen] = useState(false);
+    const [title, setTitle] = useState(saved);
+    const [asking, setAsking] = useState(false);
+    const dirty = title !== saved;
+
+    const guard = (event: Event): void => {
+      if (dirty) {
+        event.preventDefault();
+        setAsking(true);
+      }
+    };
 
     return (
-      <Sheet
-        onOpenChange={(open) => {
-          if (!open) {
-            setNote('');
-            setWarned(false);
-          }
-        }}
-      >
-        <SheetTrigger asChild>
-          <Button variant="primary">Add a note</Button>
-        </SheetTrigger>
-        <SheetContent
-          {...args}
-          onEscapeKeyDown={(event) => {
-            if (dirty) {
-              event.preventDefault();
-              setWarned(true);
-            }
-          }}
-          onPointerDownOutside={(event) => {
-            if (dirty) {
-              event.preventDefault();
-              setWarned(true);
-            }
+      <>
+        <Sheet
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (!next) setTitle(saved);
           }}
         >
-          <SheetHeader>
-            <SheetTitle>Note on this request</SheetTitle>
-            <SheetDescription>
-              Visible to the employee once the request is decided.
-            </SheetDescription>
-          </SheetHeader>
-          <SheetBody className="space-y-3">
-            <textarea
-              aria-label="Note"
-              value={note}
-              onChange={(event) => {
-                setNote(event.target.value);
-                setWarned(false);
-              }}
-              rows={5}
-              className="w-full rounded-md border border-border bg-surface p-3 text-base text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
-              placeholder="Type here, then try to dismiss with Escape."
-            />
-            {warned ? (
-              <p role="alert" className="text-sm font-medium text-warning-fg">
-                This note has not been saved. Save it, or clear the field to discard.
-              </p>
-            ) : null}
-          </SheetBody>
-          <SheetFooter>
-            <SheetClose asChild>
-              <Button
-                onClick={() => {
-                  setNote('');
-                }}
-              >
-                Discard
-              </Button>
-            </SheetClose>
-            <SheetClose asChild>
-              <Button variant="primary" disabled={!dirty}>
-                Save note
-              </Button>
-            </SheetClose>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+          <SheetTrigger asChild>
+            <Button variant="primary">Edit profile</Button>
+          </SheetTrigger>
+          <SheetContent {...args} onEscapeKeyDown={guard} onPointerDownOutside={guard}>
+            <SheetHeader>
+              <SheetTitle>Edit profile</SheetTitle>
+              <SheetDescription>Changes apply once you save them.</SheetDescription>
+            </SheetHeader>
+            <SheetBody>
+              <Field>
+                <FieldLabel>Job title</FieldLabel>
+                <Input
+                  value={title}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                  }}
+                />
+              </Field>
+            </SheetBody>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button variant="primary" disabled={!dirty}>
+                  Save
+                </Button>
+              </SheetClose>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+
+        <AlertDialog open={asking} onOpenChange={setAsking}>
+          <AlertDialogContent>
+            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+            <AlertDialogDescription>You changed the job title.</AlertDialogDescription>
+            <AlertDialogFooter>
+              <AlertDialogCancel asChild>
+                <Button>Keep editing</Button>
+              </AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setTitle(saved);
+                    setOpen(false);
+                  }}
+                >
+                  Discard
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
     );
   },
 };

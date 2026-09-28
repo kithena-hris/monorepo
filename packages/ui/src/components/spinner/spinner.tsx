@@ -10,6 +10,7 @@ const spinner = cva('animate-spin text-current motion-reduce:animate-none', {
       sm: 'size-4',
       md: 'size-5',
       lg: 'size-8',
+      xl: 'size-12',
     },
   },
   defaultVariants: { size: 'md' },

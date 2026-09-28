@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useEffect, useState } from 'react';
+import { Wallet } from 'lucide-react';
 
 import { Button } from '../button/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
+import { Card, CardContent } from '../card/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table/table';
 import { CircularProgress, Progress } from './progress';
 
 const meta = {
@@ -56,6 +57,11 @@ const meta = {
       control: 'text',
       table: { type: { summary: 'string' }, category: 'Accessibility' },
     },
+    valueLabel: {
+      description: 'Printed and read out in place of the percentage: a count, or time left.',
+      control: 'text',
+      table: { type: { summary: 'string' }, category: 'Content' },
+    },
     showValue: {
       description: 'Prints the label and the rounded percentage above the bar.',
       control: 'boolean',
@@ -92,9 +98,10 @@ const meta = {
     },
   },
   args: {
-    value: 62,
-    max: 100,
-    label: 'Importing employees',
+    value: 7,
+    max: 11,
+    label: 'Onboarding',
+    valueLabel: '7 of 11 tasks',
     showValue: true,
     size: 'md',
     tone: 'accent',
@@ -113,7 +120,7 @@ export const Playground: Story = {
 };
 
 export const Indeterminate: Story = {
-  args: { value: null, label: 'Connecting to Workday' },
+  args: { value: null, label: 'Importing people', valueLabel: '' },
   parameters: {
     docs: {
       description: {
@@ -123,9 +130,8 @@ export const Indeterminate: Story = {
     },
   },
   render: (args) => (
-    <div className="max-w-md space-y-4">
+    <div className="max-w-md">
       <Progress {...args} />
-      <Progress {...args} showValue={false} label="Reconciling payroll" tone="warning" />
     </div>
   ),
 };
@@ -136,77 +142,38 @@ export const Live: Story = {
     docs: {
       description: {
         story:
-          'A real import, animated. Note that the bar starts *indeterminate*, the row count is unknown until the file has been parsed, and only becomes determinate once there is a total to divide by. That transition is the honest shape of most long jobs.',
+          'A job someone is waiting on, in context: what it is, who started it, the count done and the time left. The count is the fact, so it replaces the percentage.',
       },
     },
   },
-  render: function LiveStory() {
-    const [tick, setTick] = useState(0);
-    const [running, setRunning] = useState(false);
-
-    useEffect(() => {
-      if (!running) return;
-      const id = setInterval(() => {
-        setTick((current) => {
-          if (current >= 130) {
-            setRunning(false);
-            return current;
-          }
-          return current + 1;
-        });
-      }, 60);
-      return () => {
-        clearInterval(id);
-      };
-    }, [running]);
-
-    // The first 30 ticks are the parse, where the total is not yet known.
-    const value = tick < 30 ? null : Math.min(100, ((tick - 30) / 100) * 100);
-    const done = tick >= 130;
-
-    return (
-      <Card className="max-w-md">
-        <CardHeader>
-          <CardTitle>Import from Workday</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Progress
-            value={done ? 100 : value}
-            label={
-              value === null && running
-                ? 'Reading file…'
-                : done
-                  ? 'Imported 4,182 employees'
-                  : 'Importing employees'
-            }
-            showValue
-            tone={done ? 'success' : 'accent'}
-          />
-          <div className="flex gap-2">
-            <Button
-              variant="primary"
-              onClick={() => {
-                setTick(0);
-                setRunning(true);
-              }}
-              disabled={running}
-            >
-              {done ? 'Run again' : 'Start import'}
-            </Button>
-            {running ? (
-              <Button
-                onClick={() => {
-                  setRunning(false);
-                }}
-              >
-                Pause
-              </Button>
-            ) : null}
+  render: () => (
+    <Card className="max-w-md">
+      <CardContent className="space-y-3.5 pt-5">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden
+            className="grid size-10 shrink-0 place-items-center rounded-sm bg-accent-subtle text-accent-fg [&_svg]:size-5"
+          >
+            <Wallet />
+          </span>
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-fg">September payroll</p>
+            <p className="text-sm text-fg-muted">Started 14:02 by Zara Ahmed</p>
           </div>
-        </CardContent>
-      </Card>
-    );
-  },
+        </div>
+        <Progress
+          value={226}
+          max={312}
+          label="226 of 312 payslips"
+          valueLabel="About 2 min left"
+          showValue
+        />
+        <div className="flex justify-end">
+          <Button size="sm">Cancel run</Button>
+        </div>
+      </CardContent>
+    </Card>
+  ),
 };
 
 export const Tones: Story = {
@@ -214,24 +181,18 @@ export const Tones: Story = {
     docs: {
       description: {
         story:
-          'Tone reflects what the value *means*, not how far along it is. The last bar is red because 106% of an entitlement has been taken, which is a payroll problem, not because it is nearly full.',
+          'Tone reflects what the value *means*, not how far along it is. The last bar is red because the plan is exceeded, which is a problem, not because it is nearly full.',
       },
     },
   },
   render: () => (
-    <div className="max-w-md space-y-5">
-      <Progress value={42} label="Onboarding tasks complete" showValue tone="accent" />
-      <Progress value={100} label="Right-to-work checks" showValue tone="success" />
-      <Progress value={88} label="Annual leave taken" showValue tone="warning" />
-      {/* 26 days taken against a 25-day entitlement. The bar stops at full and
-          the figure reads 104%, because the overage is that matters. */}
-      <Progress
-        value={26}
-        max={25}
-        label="Sick leave against entitlement"
-        showValue
-        tone="danger"
-      />
+    <div className="max-w-md space-y-3.5">
+      <Progress value={64} label="Profile complete" showValue tone="accent" />
+      <Progress value={100} label="Training done" showValue tone="success" />
+      <Progress value={88} label="Budget used" showValue tone="warning" />
+      {/* 104 hires against a plan of 100. The bar stops at full and the figure
+          reads 104%, because the overage is what matters. */}
+      <Progress value={104} label="Over headcount plan" showValue tone="danger" />
     </div>
   ),
 };
@@ -247,24 +208,11 @@ export const Rings: Story = {
     },
   },
   render: () => (
-    <div className="flex flex-wrap items-end gap-8">
-      {(
-        [
-          [22, 'accent', 'Leave taken'],
-          [64, 'success', 'Onboarding'],
-          [88, 'warning', 'Budget used'],
-          [100, 'danger', 'Entitlement'],
-        ] as const
-      ).map(([value, tone, label]) => (
-        <div key={label} className="space-y-2 text-center">
-          <CircularProgress value={value} tone={tone} label={label} size={64} />
-          <p className="text-xs text-fg-muted">{label}</p>
-        </div>
-      ))}
-      <div className="space-y-2 text-center">
-        <CircularProgress value={null} label="Syncing" size={64} />
-        <p className="text-xs text-fg-muted">Indeterminate</p>
-      </div>
+    <div className="flex flex-wrap items-center gap-5">
+      <CircularProgress value={25} label="Leave taken" size={56} />
+      <CircularProgress value={64} tone="success" label="Onboarding" size={72} />
+      <CircularProgress value={92} tone="warning" label="Budget used" size={56} />
+      <CircularProgress value={null} label="Syncing" size={40} />
     </div>
   ),
 };
@@ -280,28 +228,39 @@ export const InATableRow: Story = {
     },
   },
   render: () => (
-    <div className="max-w-lg divide-y divide-border rounded-lg border border-border bg-surface">
-      {(
-        [
-          ['Grace Hopper', 18, 25],
-          ['Ada Lovelace', 24, 25],
-          ['Radia Perlman', 6, 25],
-        ] as const
-      ).map(([name, used, total]) => (
-        <div key={name} className="flex items-center gap-4 px-4 py-3">
-          <span className="w-40 shrink-0 text-base text-fg">{name}</span>
-          <Progress
-            value={used}
-            max={total}
-            size="sm"
-            label={`Leave taken by ${name}`}
-            tone={used / total > 0.9 ? 'warning' : 'accent'}
-          />
-          <span className="w-16 shrink-0 text-right text-sm tabular-nums text-fg-muted">
-            {used}/{total}
-          </span>
-        </div>
-      ))}
-    </div>
+    <Table aria-label="Onboarding" className="max-w-lg">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Onboarding</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {(
+          [
+            ['Amara Okafor', 40],
+            ['Lucas Moreau', 100],
+            ['Mei Tanaka', 72],
+          ] as const
+        ).map(([name, done]) => (
+          <TableRow key={name}>
+            <TableCell className="font-medium">{name}</TableCell>
+            <TableCell>
+              <div className="flex items-center gap-2.5">
+                <Progress
+                  value={done}
+                  size="sm"
+                  label={`Onboarding for ${name}`}
+                  tone={done === 100 ? 'success' : 'accent'}
+                />
+                <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums text-fg-muted">
+                  {done}%
+                </span>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   ),
 };

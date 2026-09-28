@@ -1,5 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { CalendarDays, ChartColumn, House, Settings, Users, Wallet } from 'lucide-react';
+import {
+  CalendarDays,
+  ChartColumn,
+  ChevronRight,
+  Folder,
+  House,
+  Network,
+  Settings,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import { useState, type ComponentPropsWithoutRef, type JSX } from 'react';
 
 import { Badge } from '../badge/badge';
@@ -32,43 +42,22 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const sections = [
-  { group: 'Records', items: ['Overview', 'Directory', 'Approvals'] },
-  { group: 'Reporting', items: ['Analytics', 'Scheduled reports'] },
-  { group: 'Settings', items: ['Fields', 'Roles'] },
-];
-
-/** The sections of one area, beside its content: grouped, one of them current. */
-export const SectionNavigation: Story = {
-  args: { children: 'Directory' },
-  render: () => (
-    <Nav label="Sections" className="w-56">
-      <NavList>
-        {sections.map((s) => (
-          <NavGroup key={s.group} label={s.group}>
-            {s.items.map((item) => (
-              <NavItem key={item} asChild level={2} current={item === 'Directory'}>
-                <RouterLink href={`#${item.toLowerCase().replaceAll(' ', '-')}`}>{item}</RouterLink>
-              </NavItem>
-            ))}
-          </NavGroup>
-        ))}
-      </NavList>
-    </Nav>
-  ),
-};
-
 const areas = [
   { icon: <House />, label: 'Home' },
   { icon: <Users />, label: 'People', current: true },
-  { icon: <CalendarDays />, label: 'Time off', badge: '2' },
+  { icon: <CalendarDays />, label: 'Time off', count: '3' },
   { icon: <Wallet />, label: 'Payroll' },
   { icon: <ChartColumn />, label: 'Insights' },
-  { icon: <Settings />, label: 'Settings' },
 ];
 
-/** Primary navigation in the sidebar: an icon per area, the current one a pill. */
-export const Sidebar: Story = {
+const slug = (label: string): string => `#${label.toLowerCase().replaceAll(' ', '-')}`;
+
+/**
+ * The sidebar: an icon per area, the current one filled, a count where
+ * something is waiting, and a quiet heading above the workspace settings.
+ * Each item is a framework link through `asChild`.
+ */
+export const SectionNavigation: Story = {
   args: { children: 'People' },
   render: () => (
     <Nav label="Main" className="w-60">
@@ -76,53 +65,93 @@ export const Sidebar: Story = {
         {areas.map((area) => (
           <NavItem
             key={area.label}
-            href={`#${area.label.toLowerCase().replaceAll(' ', '-')}`}
+            asChild
             icon={area.icon}
             current={area.current === true}
-            {...(area.badge === undefined
+            {...(area.count === undefined
               ? {}
               : {
                   badge: (
-                    <Badge size="sm" tone="accent">
-                      {area.badge}
+                    <Badge size="sm" tone="neutral">
+                      {area.count}
                     </Badge>
                   ),
                 })}
           >
-            {area.label}
+            <RouterLink href={slug(area.label)}>{area.label}</RouterLink>
           </NavItem>
         ))}
+        <NavGroup label="Workspace">
+          <NavItem href="#settings" icon={<Settings />}>
+            Settings
+          </NavItem>
+        </NavGroup>
       </NavList>
     </Nav>
   ),
 };
 
-/** Groups that fold away. The heading is sentence case, and quieter than the items it heads. */
-export const CollapsibleGroups: Story = {
-  name: 'Collapsible groups',
+/**
+ * Groups that fold away, for sections people only sometimes need. The toggle
+ * sits at the end of the heading, and the rows inside it line up with the
+ * labels above.
+ */
+export const SectionsOnDemand: Story = {
+  name: 'Sections On Demand',
+  args: { children: 'People' },
+  render: () => (
+    <Nav label="People" className="w-60">
+      <NavList>
+        <NavItem href="#people" icon={<Users />} current>
+          People
+        </NavItem>
+        <NavGroup label="Teams" collapsible>
+          {['Engineering', 'Design', 'Sales'].map((team) => (
+            <NavItem key={team} href={slug(team)} level={2}>
+              {team}
+            </NavItem>
+          ))}
+        </NavGroup>
+        <NavGroup label="Locations" collapsible defaultOpen={false}>
+          {['Berlin', 'London', 'Paris'].map((city) => (
+            <NavItem key={city} href={slug(city)} level={2}>
+              {city}
+            </NavItem>
+          ))}
+        </NavGroup>
+      </NavList>
+    </Nav>
+  ),
+};
+
+const destinations = [
+  { icon: <Users />, label: 'Directory', description: 'Everyone at Reach', current: true },
+  { icon: <Network />, label: 'Org chart', description: 'Who reports to whom' },
+  { icon: <Folder />, label: 'Documents', description: 'Policies and contracts' },
+];
+
+/**
+ * A line under each label, for destinations people do not know by name yet.
+ * The chevron says each row opens somewhere.
+ */
+export const DescribedMenu: Story = {
+  name: 'Described Menu',
   args: { children: 'Directory' },
   render: () => (
     <Nav label="People" className="w-60">
       <NavList>
-        <NavGroup label="Records" collapsible>
-          <NavItem href="#overview" level={2}>
-            Overview
+        {destinations.map((item) => (
+          <NavItem
+            key={item.label}
+            href={slug(item.label)}
+            icon={item.icon}
+            description={item.description}
+            current={item.current === true}
+            action={<ChevronRight aria-hidden className="size-4 text-fg-subtle" />}
+          >
+            {item.label}
           </NavItem>
-          <NavItem href="#directory" level={2} current>
-            Directory
-          </NavItem>
-          <NavItem href="#org-chart" level={2}>
-            Org chart
-          </NavItem>
-        </NavGroup>
-        <NavGroup label="Reporting" collapsible defaultOpen={false} badge="2">
-          <NavItem href="#analytics" level={2}>
-            Analytics
-          </NavItem>
-          <NavItem href="#scheduled" level={2}>
-            Scheduled reports
-          </NavItem>
-        </NavGroup>
+        ))}
       </NavList>
     </Nav>
   ),

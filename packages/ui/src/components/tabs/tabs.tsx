@@ -204,7 +204,8 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'relative inline-flex items-center justify-center gap-2 text-sm font-semibold',
+        // 14px at a desk, 15px under a finger: between the scale's steps.
+        'relative inline-flex items-center justify-center gap-2 text-[0.875rem] font-semibold touch:text-[0.9375rem]',
         // `shrink-0` so a strip that does not fit scrolls instead of squeezing
         // every label into the same cramped column.
         'shrink-0 whitespace-nowrap text-fg-muted',

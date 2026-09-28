@@ -39,7 +39,7 @@ import { cn } from '../../lib/cn';
 const toast = cva(
   [
     'group pointer-events-auto relative flex w-full items-center gap-3 overflow-hidden',
-    'rounded-md bg-invert py-3 ps-3.5 pe-2 text-fg-on-invert shadow-lg touch:rounded-lg',
+    'rounded-[1rem] bg-invert py-3 ps-3.5 pe-2 text-fg-on-invert shadow-lg touch:rounded-lg',
     'data-[state=open]:animate-slide-up data-[state=closed]:animate-fade-out',
     // Follows the finger while swiping, then animates out from where it was let go.
     'data-[swipe=move]:translate-x-(--radix-toast-swipe-move-x) data-[swipe=move]:transition-none',
@@ -166,11 +166,11 @@ function ToastItem({
         <Icon className="size-3.5" strokeWidth={2.5} />
       </span>
       <div className="min-w-0 flex-1">
-        <ToastPrimitive.Title className="text-sm font-semibold">
+        <ToastPrimitive.Title className="text-[0.875rem]/[1.3] font-semibold touch:text-[0.9375rem]/[1.3]">
           {record.title}
         </ToastPrimitive.Title>
         {record.description ? (
-          <ToastPrimitive.Description className="mt-0.5 text-sm text-fg-on-invert/80">
+          <ToastPrimitive.Description className="mt-0.5 text-[0.8125rem]/[1.4] text-fg-on-invert/80">
             {record.description}
           </ToastPrimitive.Description>
         ) : null}
@@ -186,7 +186,7 @@ function ToastItem({
             type="button"
             onClick={record.action.onClick}
             className={cn(
-              'relative h-8.5 shrink-0 rounded-control px-3 text-sm font-semibold whitespace-nowrap tap-target',
+              'relative h-8.5 shrink-0 rounded-control px-3 text-[0.875rem] font-semibold whitespace-nowrap tap-target',
               'bg-fg-on-invert/15 transition-colors hover:bg-fg-on-invert/25',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
             )}

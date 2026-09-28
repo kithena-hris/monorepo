@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { CalendarDays, FileText, User, Wallet } from 'lucide-react';
+import { Check, Clock, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '../badge/badge';
@@ -62,119 +62,143 @@ const meta = {
     },
     onValueChange: { action: 'tab changed', table: { category: 'Events' } },
   },
-  args: { defaultValue: 'profile', activationMode: 'automatic', orientation: 'horizontal' },
+  args: { defaultValue: 'overview', activationMode: 'automatic', orientation: 'horizontal' },
 } satisfies Meta<typeof Tabs>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const views = [
+  { value: 'overview', label: 'Overview', body: 'Role, team, manager and contact details.' },
+  { value: 'timeoff', label: 'Time off', body: 'Balances, accruals and pending requests.' },
+  { value: 'documents', label: 'Documents', body: 'Signed contract and right-to-work evidence.' },
+];
+
 export const Playground: Story = {
   render: (args) => (
     <Tabs {...args} className="max-w-2xl">
       <TabsList>
-        <TabsTrigger value="profile">Profile</TabsTrigger>
-        <TabsTrigger value="compensation">Compensation</TabsTrigger>
-        <TabsTrigger value="timeoff">Time off</TabsTrigger>
+        {views.map((view) => (
+          <TabsTrigger key={view.value} value={view.value}>
+            {view.label}
+          </TabsTrigger>
+        ))}
       </TabsList>
-      <TabsContent value="profile" className="text-sm text-fg-muted">
-        Identity, contact details and reporting line.
-      </TabsContent>
-      <TabsContent value="compensation" className="text-sm text-fg-muted">
-        Effective-dated salary and allowance records.
-      </TabsContent>
-      <TabsContent value="timeoff" className="text-sm text-fg-muted">
-        Balances, accruals and pending requests.
-      </TabsContent>
+      {views.map((view) => (
+        <TabsContent key={view.value} value={view.value} className="text-sm text-fg-muted">
+          {view.body}
+        </TabsContent>
+      ))}
     </Tabs>
   ),
 };
 
 export const WithIconsAndCounts: Story = {
   name: 'With icons and counts',
+  args: { defaultValue: 'pending' },
   parameters: {
     docs: {
       description: {
         story:
-          'The count on "Time off" is actionable, two requests are waiting. The disabled tab names its own condition rather than disappearing.',
+          'A count belongs on a tab only when the number is actionable: four requests are waiting. "Declined" has none worth counting, so it shows none. On a phone a set that does not fit scrolls sideways rather than squeezing.',
       },
     },
   },
   render: (args) => (
     <Tabs {...args} className="max-w-2xl">
       <TabsList>
-        <TabsTrigger value="profile">
-          <User />
-          Profile
-        </TabsTrigger>
-        <TabsTrigger value="compensation">
-          <Wallet />
-          Compensation
-        </TabsTrigger>
-        <TabsTrigger value="timeoff">
-          <CalendarDays />
-          Time off
-          <Badge tone="warning" size="sm">
-            2
+        <TabsTrigger value="pending">
+          <Clock />
+          Pending
+          <Badge tone="accent" size="sm">
+            4
           </Badge>
         </TabsTrigger>
-        <TabsTrigger value="documents" disabled>
-          <FileText />
-          Documents
+        <TabsTrigger value="approved">
+          <Check />
+          Approved
+          <Badge size="sm">12</Badge>
+        </TabsTrigger>
+        <TabsTrigger value="declined">
+          <X />
+          Declined
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="profile" className="text-sm text-fg-muted">
-        Identity, contact details and reporting line.
+      <TabsContent value="pending" className="text-sm text-fg-muted">
+        Four requests are waiting for your decision.
       </TabsContent>
-      <TabsContent value="compensation" className="text-sm text-fg-muted">
-        Effective-dated salary and allowance records.
+      <TabsContent value="approved" className="text-sm text-fg-muted">
+        Twelve requests approved this month.
       </TabsContent>
-      <TabsContent value="timeoff" className="text-sm text-fg-muted">
-        Two requests are awaiting your approval.
-      </TabsContent>
-      <TabsContent value="documents" className="text-sm text-fg-muted">
-        Requires the Documents module.
+      <TabsContent value="declined" className="text-sm text-fg-muted">
+        Nothing declined this month.
       </TabsContent>
     </Tabs>
   ),
 };
 
-export const Pills: Story = {
-  name: 'Pill',
+export const ManualActivation: Story = {
+  name: 'Manual activation',
+  args: { activationMode: 'manual' },
   parameters: {
     docs: {
       description: {
         story:
-          '`variant="pill"` on the list. The active view is the inverted surface. On a phone this is the scrolling row of views under a title.',
+          'Arrow keys move the focus. Enter or Space opens the tab, which suits tabs that load slowly: arrowing across three tabs should not fire three fetches.',
       },
     },
   },
-  args: { defaultValue: 'all' },
   render: (args) => (
     <Tabs {...args} className="max-w-2xl">
-      <TabsList variant="pill" aria-label="Team">
-        <TabsTrigger value="all">All</TabsTrigger>
-        <TabsTrigger value="engineering">Engineering</TabsTrigger>
-        <TabsTrigger value="design">Design</TabsTrigger>
-        <TabsTrigger value="sales">Sales</TabsTrigger>
-        <TabsTrigger value="people">People</TabsTrigger>
+      <TabsList>
+        {views.map((view) => (
+          <TabsTrigger key={view.value} value={view.value}>
+            {view.label}
+          </TabsTrigger>
+        ))}
       </TabsList>
-      <TabsContent value="all" className="text-sm text-fg-muted">
-        312 people across every team.
-      </TabsContent>
-      <TabsContent value="engineering" className="text-sm text-fg-muted">
-        84 people in Engineering.
-      </TabsContent>
-      <TabsContent value="design" className="text-sm text-fg-muted">
-        21 people in Design.
-      </TabsContent>
-      <TabsContent value="sales" className="text-sm text-fg-muted">
-        47 people in Sales.
-      </TabsContent>
-      <TabsContent value="people" className="text-sm text-fg-muted">
-        12 people in People.
-      </TabsContent>
+      {views.map((view) => (
+        <TabsContent key={view.value} value={view.value} className="text-sm text-fg-muted">
+          Loaded only once you confirmed the selection. {view.body}
+        </TabsContent>
+      ))}
     </Tabs>
   ),
+};
+
+export const Controlled: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The parent owns the value and syncs it to the URL, so the view survives a refresh and can be linked to: `?view=month`. Shown as pill tabs, the form a period switch usually takes.',
+      },
+    },
+  },
+  render: function ControlledStory(args) {
+    const [view, setView] = useState('month');
+    return (
+      <div className="max-w-2xl space-y-3">
+        <Tabs
+          {...args}
+          value={view}
+          onValueChange={(next) => {
+            setView(next);
+            args.onValueChange?.(next);
+          }}
+        >
+          <TabsList variant="pill" aria-label="Period">
+            <TabsTrigger value="week">Week</TabsTrigger>
+            <TabsTrigger value="month">Month</TabsTrigger>
+            <TabsTrigger value="quarter">Quarter</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <p className="text-sm text-fg-muted">
+          <code className="font-mono">?view={view}</code>
+        </p>
+      </div>
+    );
+  },
 };
 
 export const PillsUnderLines: Story = {
@@ -190,16 +214,18 @@ export const PillsUnderLines: Story = {
   render: (args) => (
     <Tabs {...args} className="max-w-2xl">
       <TabsList>
-        <TabsTrigger value="profile">Profile</TabsTrigger>
-        <TabsTrigger value="compensation">Compensation</TabsTrigger>
-        <TabsTrigger value="timeoff">Time off</TabsTrigger>
+        {views.map((view) => (
+          <TabsTrigger key={view.value} value={view.value}>
+            {view.label}
+          </TabsTrigger>
+        ))}
       </TabsList>
-      <TabsContent value="profile">
+      <TabsContent value="overview">
         <Tabs defaultValue="personal">
-          <TabsList variant="pill" aria-label="Profile section">
+          <TabsList variant="pill" aria-label="Overview section">
             <TabsTrigger value="personal">Personal</TabsTrigger>
             <TabsTrigger value="employment">Employment</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="pay">Pay</TabsTrigger>
           </TabsList>
           <TabsContent value="personal" className="text-sm text-fg-muted">
             Name, pronouns, contact details and emergency contacts.
@@ -207,90 +233,16 @@ export const PillsUnderLines: Story = {
           <TabsContent value="employment" className="text-sm text-fg-muted">
             Contract, hours, manager and team.
           </TabsContent>
-          <TabsContent value="documents" className="text-sm text-fg-muted">
-            Signed contract and right-to-work evidence.
+          <TabsContent value="pay" className="text-sm text-fg-muted">
+            Salary, allowances and bank details.
           </TabsContent>
         </Tabs>
       </TabsContent>
-      <TabsContent value="compensation" className="text-sm text-fg-muted">
-        Effective-dated salary and allowance records.
-      </TabsContent>
-      <TabsContent value="timeoff" className="text-sm text-fg-muted">
-        Balances, accruals and pending requests.
-      </TabsContent>
+      {views.slice(1).map((view) => (
+        <TabsContent key={view.value} value={view.value} className="text-sm text-fg-muted">
+          {view.body}
+        </TabsContent>
+      ))}
     </Tabs>
   ),
-};
-
-export const ManualActivation: Story = {
-  name: 'Manual activation',
-  args: { activationMode: 'manual' },
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'Arrow across the triggers: focus moves but the panel does not change until Enter or Space. The right default when each panel costs a network round trip.',
-      },
-    },
-  },
-  render: (args) => (
-    <Tabs {...args} className="max-w-2xl">
-      <TabsList>
-        <TabsTrigger value="profile">Profile</TabsTrigger>
-        <TabsTrigger value="compensation">Compensation</TabsTrigger>
-        <TabsTrigger value="timeoff">Time off</TabsTrigger>
-      </TabsList>
-      <TabsContent value="profile" className="text-sm text-fg-muted">
-        Focus moved here without loading anything.
-      </TabsContent>
-      <TabsContent value="compensation" className="text-sm text-fg-muted">
-        Loaded only once you confirmed the selection.
-      </TabsContent>
-      <TabsContent value="timeoff" className="text-sm text-fg-muted">
-        Same again.
-      </TabsContent>
-    </Tabs>
-  ),
-};
-
-export const Controlled: Story = {
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'Selected tab owned by the caller, how you would sync it to a query parameter so the view survives a refresh and can be linked to.',
-      },
-    },
-  },
-  render: function ControlledStory(args) {
-    const [tab, setTab] = useState('compensation');
-    return (
-      <div className="max-w-2xl space-y-3">
-        <Tabs
-          {...args}
-          value={tab}
-          onValueChange={(next) => {
-            setTab(next);
-            args.onValueChange?.(next);
-          }}
-        >
-          <TabsList>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="compensation">Compensation</TabsTrigger>
-            <TabsTrigger value="timeoff">Time off</TabsTrigger>
-          </TabsList>
-          <TabsContent value="profile" className="text-sm text-fg-muted">
-            Identity and reporting line.
-          </TabsContent>
-          <TabsContent value="compensation" className="text-sm text-fg-muted">
-            Effective-dated salary records.
-          </TabsContent>
-          <TabsContent value="timeoff" className="text-sm text-fg-muted">
-            Balances and accruals.
-          </TabsContent>
-        </Tabs>
-        <p className="font-mono text-xs text-fg-muted">?tab={tab}</p>
-      </div>
-    );
-  },
 };

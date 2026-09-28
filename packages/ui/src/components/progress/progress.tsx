@@ -53,6 +53,12 @@ export interface ProgressProps
   label: string;
   /** Prints the percentage beside the label. */
   showValue?: boolean;
+  /**
+   * Printed in place of the percentage, and read out in its place: "7 of 11
+   * tasks", "About 2 min left". The count is often the fact people want, and
+   * the bar already shows the proportion.
+   */
+  valueLabel?: string;
 }
 
 export function Progress({
@@ -63,6 +69,7 @@ export function Progress({
   tone,
   label,
   showValue = false,
+  valueLabel,
   ...props
 }: ProgressProps): JSX.Element {
   const indeterminate = value === null;
@@ -77,7 +84,7 @@ export function Progress({
           <span className="tabular-nums text-fg-muted">
             {/* The *unclamped* figure: 106% of an entitlement is the fact worth
                 printing, even though the bar itself stops at full. */}
-            {indeterminate ? '—' : `${String(Math.round(raw))}%`}
+            {valueLabel ?? (indeterminate ? '' : `${String(Math.round(raw))}%`)}
           </span>
         </div>
       ) : null}
@@ -88,7 +95,8 @@ export function Progress({
         // above `valuemax` is invalid ARIA, and Radix rightly warns about it.
         value={indeterminate ? null : Math.min(value, max)}
         max={max}
-        aria-valuetext={indeterminate ? undefined : `${String(Math.round(raw))}%`}
+        // `||`, not `??`: an empty label means "print nothing", not "say nothing".
+        aria-valuetext={valueLabel || (indeterminate ? undefined : `${String(Math.round(raw))}%`)}
         aria-label={showValue ? undefined : label}
         aria-labelledby={undefined}
         className={cn(track({ size }), className)}

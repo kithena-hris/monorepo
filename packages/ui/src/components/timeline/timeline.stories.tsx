@@ -1,9 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { Check, Clock, Send, Wallet } from 'lucide-react';
 
-import { Avatar } from '../avatar/avatar';
-import { Badge } from '../badge/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
-import { CopyButton } from '../clipboard/clipboard';
 import { Money } from '../money/money';
 import { Timeline, TimelineItem } from './timeline';
 
@@ -53,25 +50,9 @@ export const Playground: Story = {
   render: (args) => (
     <div className="max-w-lg">
       <Timeline {...args}>
-        <TimelineItem
-          title="Request submitted"
-          timestamp="4 Aug, 09:12"
-          tone="accent"
-          marker={<Avatar size="xs" name="Grace Hopper" className="mt-0.5" />}
-        >
-          Annual leave, 3 days, 14–16 September.
-        </TimelineItem>
-        <TimelineItem
-          title="Approved by Radia Perlman"
-          timestamp="4 Aug, 14:38"
-          tone="success"
-          marker={<Avatar size="xs" name="Radia Perlman" className="mt-0.5" />}
-        >
-          Balance after approval: 12 days.
-        </TimelineItem>
-        <TimelineItem title="Pushed to calendar" timestamp="4 Aug, 14:38" tone="neutral" last>
-          Written to the employee&apos;s work calendar as an all-day event.
-        </TimelineItem>
+        <TimelineItem title="Joined Reach" timestamp="2 Sep 2024" tone="accent" />
+        <TimelineItem title="Promoted to Senior Engineer" timestamp="1 Apr 2026" tone="success" />
+        <TimelineItem title="Moved to Platform team" timestamp="1 Jul 2026" tone="info" last />
       </Timeline>
     </div>
   ),
@@ -83,63 +64,49 @@ export const EffectiveDating: Story = {
     docs: {
       description: {
         story:
-          'The reason this component prints two dates. Read the second entry: recorded on 15 August, effective from 1 August. That fortnight is the retroactive delta payroll has to pay, and it is invisible on any timeline that shows only one date.',
+          'A salary over time. The past value is closed, the current one is marked in words, and the scheduled change is hollow with a dashed line into it: recorded today, not yet in effect, and still able to be withdrawn.',
       },
     },
   },
-  render: () => (
-    <Card className="max-w-xl">
-      <CardHeader>
-        <CardTitle>Grace Hopper: compensation history</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Timeline>
-          <TimelineItem
-            title="Hired"
-            timestamp="Recorded 4 Mar 2024"
-            effectiveFrom="4 March 2024"
-            tone="neutral"
-          >
-            Staff Engineer, Platform. Base{' '}
-            <Money minorUnits="9800000" currency="EUR" locale="en-IE" />.
-          </TimelineItem>
-          <TimelineItem
-            title="Promotion to Principal Engineer"
-            timestamp="Recorded 15 Aug 2026"
-            effectiveFrom="1 August 2026"
-            tone="accent"
-          >
-            Base raised to <Money minorUnits="14200000" currency="EUR" locale="en-IE" />. Two weeks
-            of retroactive difference will settle in the September run.
-          </TimelineItem>
-          <TimelineItem
-            title="Correction: bonus target"
-            timestamp="Recorded 18 Aug 2026"
-            effectiveFrom="1 August 2026"
-            tone="warning"
-          >
-            <p>
-              Bonus target corrected from 10% to 15%. Supersedes the value recorded on 15 August.
-            </p>
-            <p className="mt-1 flex items-center gap-1 text-xs text-fg-subtle">
-              Correction event · supersedes
-              <code className="font-mono">01J9…c4f2</code>
-              <CopyButton
-                value="01J9F3K8QW7X2N5R4T6Y9B1c4f2"
-                label="Copy the superseded event id"
-              />
-            </p>
-          </TimelineItem>
-          <TimelineItem
-            title="Next review scheduled"
-            timestamp="Recorded 18 Aug 2026"
-            effectiveFrom="1 January 2027"
-            tone="neutral"
-            last
-          />
-        </Timeline>
-      </CardContent>
-    </Card>
+  render: (args) => (
+    <div className="max-w-lg">
+      <Timeline {...args}>
+        <TimelineItem
+          title={
+            <>
+              Salary <Money minorUnits="8600000" currency="EUR" locale="en-IE" />
+            </>
+          }
+          timestamp="Until 31 Mar"
+        >
+          Past
+        </TimelineItem>
+        <TimelineItem
+          title={
+            <>
+              Salary <Money minorUnits="9200000" currency="EUR" locale="en-IE" />
+            </>
+          }
+          timestamp="From 1 Apr"
+          tone="accent"
+        >
+          <strong className="font-semibold text-fg">Current</strong>
+        </TimelineItem>
+        <TimelineItem
+          title={
+            <>
+              Salary <Money minorUnits="9600000" currency="EUR" locale="en-IE" />
+            </>
+          }
+          timestamp="From 1 Jan 2027"
+          tone="info"
+          status="upcoming"
+          last
+        >
+          Scheduled, not yet in effect
+        </TimelineItem>
+      </Timeline>
+    </div>
   ),
 };
 
@@ -149,44 +116,28 @@ export const ApprovalChain: Story = {
     docs: {
       description: {
         story:
-          'A chain that has not finished. The pending step is drawn but its dot is neutral and its text is muted, the timeline is a record of what has happened, so anything that has not happened must not look like it has.',
+          'A glyph per kind of step. The step being waited on pulses, so it is the one the eye lands on, and the step after it is hollow with a dashed line: nobody has reached it yet.',
       },
     },
   },
-  render: () => (
+  render: (args) => (
     <div className="max-w-lg">
-      <Timeline>
+      <Timeline {...args}>
+        <TimelineItem title="Submitted by Amara" timestamp="09:12" tone="accent" icon={<Send />} />
         <TimelineItem
-          title="Submitted"
-          timestamp="7 Aug, 11:02"
+          title="Approved by Jonas Weber"
+          timestamp="10:40"
           tone="success"
-          marker={<Avatar size="xs" name="Katherine Johnson" className="mt-0.5" />}
-        >
-          Unpaid leave, 10 days, 1–12 October.
-        </TimelineItem>
-        <TimelineItem
-          title="Approved by the line manager"
-          timestamp="7 Aug, 16:20"
-          tone="success"
-          marker={<Avatar size="xs" name="Barbara Liskov" className="mt-0.5" />}
+          icon={<Check />}
         />
         <TimelineItem
-          title={
-            <span className="flex items-center gap-2">
-              People Ops review
-              <Badge tone="warning" size="sm" dot>
-                Pending
-              </Badge>
-            </span>
-          }
-          timestamp="Due 12 Aug"
-          tone="neutral"
-        >
-          Unpaid leave over 5 days requires a second approval.
-        </TimelineItem>
-        <TimelineItem title="Payroll adjustment" tone="neutral" last>
-          <span className="text-fg-subtle">Will run once the review completes.</span>
-        </TimelineItem>
+          title="Waiting for Nora Becker"
+          timestamp="Now"
+          tone="warning"
+          icon={<Clock />}
+          status="current"
+        />
+        <TimelineItem title="Payroll" icon={<Wallet />} status="upcoming" last />
       </Timeline>
     </div>
   ),
@@ -197,18 +148,23 @@ export const Tones: Story = {
     docs: {
       description: {
         story:
-          'Every dot tone. The dot never carries the meaning alone, the title does, and colour reinforces it. Roughly one man in twelve cannot separate the green and red dots.',
+          'The dot takes a tone, but it carries no meaning on its own: the title does. Tone helps a reader scan a long history for the kind of event they are after.',
       },
     },
   },
-  render: () => (
-    <div className="max-w-md">
-      <Timeline>
-        <TimelineItem title="Neutral, a recorded fact" tone="neutral" timestamp="09:00" />
-        <TimelineItem title="Accent, the current step" tone="accent" timestamp="09:14" />
-        <TimelineItem title="Success, a terminal good outcome" tone="success" timestamp="10:02" />
-        <TimelineItem title="Warning: needs a human" tone="warning" timestamp="10:40" />
-        <TimelineItem title="Danger, a terminal bad outcome" tone="danger" timestamp="11:15" last />
+  render: (args) => (
+    <div className="max-w-lg">
+      <Timeline {...args}>
+        {(['neutral', 'accent', 'success', 'warning', 'danger', 'info'] as const).map(
+          (tone, index, all) => (
+            <TimelineItem
+              key={tone}
+              tone={tone}
+              title={`${tone.charAt(0).toUpperCase()}${tone.slice(1)}`}
+              last={index === all.length - 1}
+            />
+          ),
+        )}
       </Timeline>
     </div>
   ),

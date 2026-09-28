@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Button } from '../button/button';
 import { Spinner } from './spinner';
 
 const meta = {
@@ -23,9 +24,9 @@ const meta = {
     size: {
       description: 'xs and sm sit inside controls; md and lg stand alone.',
       control: 'inline-radio',
-      options: ['xs', 'sm', 'md', 'lg'],
+      options: ['xs', 'sm', 'md', 'lg', 'xl'],
       table: {
-        type: { summary: "'xs' | 'sm' | 'md' | 'lg'" },
+        type: { summary: "'xs' | 'sm' | 'md' | 'lg' | 'xl'" },
         defaultValue: { summary: 'md' },
         category: 'Appearance',
       },
@@ -50,15 +51,19 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Playground: Story = {};
+export const Playground: Story = {
+  args: { className: 'text-accent' },
+};
 
 export const Sizes: Story = {
   render: (args) => (
-    <div className="flex items-center gap-6">
-      <Spinner {...args} size="xs" />
-      <Spinner {...args} size="sm" />
-      <Spinner {...args} size="md" />
-      <Spinner {...args} size="lg" />
+    <div className="flex items-end gap-5 text-accent">
+      {(['xs', 'sm', 'md', 'lg', 'xl'] as const).map((size) => (
+        <div key={size} className="flex flex-col items-center gap-1.5">
+          <Spinner {...args} size={size} />
+          <span className="font-mono text-2xs text-fg-muted">{size}</span>
+        </div>
+      ))}
     </div>
   ),
 };
@@ -69,20 +74,19 @@ export const OnTones: Story = {
     docs: {
       description: {
         story:
-          'The track and the arc both use `currentColor`, so the spinner takes the colour of whatever it sits inside: including a filled button, where a fixed colour would disappear.',
+          'The track and the arc both use `currentColor`, so the spinner takes the colour of whatever it sits inside: a filled button, a quiet one, or a line of danger text, where a fixed colour would disappear.',
       },
     },
   },
   render: () => (
-    <div className="flex items-center gap-6">
-      <span className="text-fg-muted">
-        <Spinner label="Loading" />
-      </span>
-      <span className="text-accent">
-        <Spinner label="Loading" />
-      </span>
-      <span className="grid size-12 place-items-center rounded-md bg-accent text-fg-on-accent">
-        <Spinner label="Loading" />
+    <div className="flex flex-wrap items-center gap-2.5">
+      <Button variant="primary" loading>
+        Saving
+      </Button>
+      <Button loading>Saving</Button>
+      <span className="inline-flex items-center gap-2 text-sm font-medium text-danger-fg">
+        <Spinner size="sm" label="Retrying" />
+        Retrying
       </span>
     </div>
   ),

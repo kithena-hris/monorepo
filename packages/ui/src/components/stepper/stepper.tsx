@@ -4,6 +4,7 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
+import { Progress } from '../progress/progress';
 
 /**
  * Where you are in a sequence that has an end.
@@ -50,8 +51,10 @@ export interface StepperProps extends Omit<ComponentPropsWithoutRef<'nav'>, 'onS
   /** Index of the step in progress. */
   current: number;
   /**
-   * `auto` runs across the page at a desk and down it under a finger, where
-   * five steps side by side leave each label a few letters wide.
+   * `horizontal` runs across the page at a desk and, under a finger, becomes
+   * a progress bar with "2 of 3": a row of circles at phone width is a row of
+   * labels truncated to three letters. `vertical` stays a list everywhere, and
+   * `auto` is across at a desk and down the page under a finger.
    */
   orientation?: 'horizontal' | 'vertical' | 'auto';
   size?: 'sm' | 'md';
@@ -161,9 +164,37 @@ export function Stepper({
   const markerSize = size === 'sm' ? 'size-6 text-xs' : 'size-7 text-sm';
   const o = layoutFor[orientation];
 
+  const horizontal = orientation === 'horizontal';
+  // The step in progress, counted from one, and never past the last step.
+  const shown = Math.min(current + 1, steps.length);
+  const failed = steps.some((step, index) => statusOf(step, index, current) === 'error');
+
   return (
     <nav aria-label={label} className={cn('min-w-0', className)} {...props}>
-      <ol className={cn('flex', o.list)}>
+      {/*
+       * The phone version of a horizontal stepper. Both are rendered and CSS
+       * picks one, because the pointer, not the component, decides: a
+       * `display: none` copy is absent for a screen reader too, so nothing is
+       * read twice.
+       */}
+      {horizontal ? (
+        <div className="hidden items-center gap-2.5 touch:flex">
+          <Progress
+            value={shown}
+            max={steps.length}
+            label={label}
+            valueLabel={`Step ${String(shown)} of ${String(steps.length)}: ${steps[shown - 1]?.label ?? ''}`}
+            tone={failed ? 'danger' : 'accent'}
+          />
+          <span
+            aria-hidden
+            className="shrink-0 text-sm font-semibold whitespace-nowrap tabular-nums"
+          >
+            {shown} of {steps.length}
+          </span>
+        </div>
+      ) : null}
+      <ol className={cn('flex', o.list, horizontal && 'touch:hidden')}>
         {steps.map((step, index) => {
           const status = statusOf(step, index, current);
           const last = index === steps.length - 1;
