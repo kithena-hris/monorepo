@@ -22,6 +22,41 @@ export { Alert, EmptyState, Skeleton } from './components/feedback/feedback';
 export type { AlertProps, EmptyStateProps } from './components/feedback/feedback';
 
 export {
+  NotificationCenter,
+  NotificationGroup,
+  NotificationItem,
+  NotificationPanel,
+} from './components/notification-center/notification-center';
+export type {
+  NotificationCenterProps,
+  NotificationGroupProps,
+  NotificationItemProps,
+  NotificationPanelProps,
+} from './components/notification-center/notification-center';
+
+export {
+  AssistantComposer,
+  AssistantLauncher,
+  AssistantMark,
+  AssistantMessage,
+  AssistantPanel,
+  AssistantSource,
+  AssistantSources,
+  AssistantStep,
+  AssistantSteps,
+  AssistantSuggestion,
+  AssistantSuggestions,
+} from './components/assistant/assistant';
+export type {
+  AssistantComposerProps,
+  AssistantLauncherProps,
+  AssistantMessageProps,
+  AssistantPanelProps,
+  AssistantSourceProps,
+  AssistantSuggestionProps,
+} from './components/assistant/assistant';
+
+export {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -136,6 +171,20 @@ export type {
 
 export { Combobox } from './components/combobox/combobox';
 export type { ComboboxOption, ComboboxProps } from './components/combobox/combobox';
+
+export {
+  Command,
+  CommandPalette,
+  filterCommands,
+} from './components/command-palette/command-palette';
+export type {
+  CommandItem,
+  CommandPaletteProps,
+  CommandProps,
+} from './components/command-palette/command-palette';
+
+export { Carousel, nearestSlide, scrollEdges } from './components/carousel/carousel';
+export type { CarouselProps } from './components/carousel/carousel';
 
 export {
   ContextMenu,
@@ -285,6 +334,26 @@ export type {
   NavProps,
   TertiaryNavProps,
 } from './components/nav/nav';
+
+export type { TertiaryNavItem, TertiaryNavStatus } from './components/nav/nav';
+export { TertiaryNavMenu } from './components/nav/tertiary-nav-menu';
+export type { TertiaryNavMenuProps } from './components/nav/tertiary-nav-menu';
+
+export { GroupedNav, filterNavGroups } from './components/nav/grouped-nav';
+export type {
+  GroupedNavGroup,
+  GroupedNavItem,
+  GroupedNavProps,
+} from './components/nav/grouped-nav';
+
+export { AppBar, AppBarBack, NavRail, TabBar, TabBarItem } from './components/app-bar/app-bar';
+export type {
+  AppBarBackProps,
+  AppBarProps,
+  NavRailProps,
+  TabBarItemProps,
+  TabBarProps,
+} from './components/app-bar/app-bar';
 
 export { AutoGrid, Container, Inline, Split, Stack } from './components/layout/layout';
 export type {
