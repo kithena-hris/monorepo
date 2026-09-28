@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { CalendarDays, House, Menu, Search, Users, Wallet } from 'lucide-react';
-import { useState, type JSX } from 'react';
+import { CalendarDays, House, Search, Users, Wallet } from 'lucide-react';
+import type { JSX } from 'react';
 
 import { Avatar } from '../components/avatar/avatar';
 import { Badge } from '../components/badge/badge';
@@ -9,14 +9,8 @@ import { Card } from '../components/card/card';
 import { Input } from '../components/input/input';
 import { AutoGrid, Container, Inline, Stack } from '../components/layout/layout';
 import { Money } from '../components/money/money';
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '../components/sheet/sheet';
+import { Nav, NavItem, NavList } from '../components/nav/nav';
+import { PageHeader, PageLayout } from '../components/page-layout/page-layout';
 import { Stat } from '../components/stat/stat';
 import {
   Table,
@@ -47,7 +41,7 @@ const meta = {
           '',
           '**2. Container queries.** A `Stat` tile is `@container`, so it steps its type down in a narrow column while the viewport is unchanged. This is what a breakpoint cannot express.',
           '',
-          '**3. Viewport breakpoints.** For the page skeleton only, where the navigation lives, whether a rail is beside or below. `xs 416 · sm 640 · md 768 · lg 1024 · xl 1280 · 2xl 1536 · 3xl 1920 · 4xl 2560`.',
+          '**3. Container queries for the skeleton too.** Where the navigation lives, whether a rail is beside or below, is decided by the width `PageLayout` was given (`@3xl/page`, 48rem), not by the window. A shell inside a 390px phone preview on a 2560px monitor is a phone shell. Viewport breakpoints (`xs 416 · sm 640 · md 768 · lg 1024 · xl 1280 · 2xl 1536 · 3xl 1920 · 4xl 2560`) remain for the rare page that genuinely is the window.',
           '',
           '**4. Input and platform.** `touch:` asks whether the pointer is coarse; `tv:` asks what the app declared. Neither is a width. An iPad Pro in landscape is 1366px wide and is still a finger.',
           '',
@@ -245,108 +239,135 @@ export const TableOrList: Story = {
   ),
 };
 
-export const AppShell: Story = {
+/*
+ * The device matrix, drawn. Each frame holds the shell at that device's
+ * shape: a phone gets the large title and the floating tab bar, a tablet an
+ * icon rail and two columns, a laptop the sidebar and a detail rail, a desk the
+ * sidebar with the content stopped at a measure and centred. Illustrations, so
+ * they are `aria-hidden` and built from plain blocks.
+ */
+const devices = [
+  { kind: 'Phone', w: 150, h: 300, r: 24, shape: 'phone' },
+  { kind: 'Tablet', w: 260, h: 340, r: 20, shape: 'tablet' },
+  { kind: 'Laptop', w: 380, h: 250, r: 10, shape: 'laptop' },
+  { kind: 'Desktop', w: 480, h: 290, r: 8, shape: 'desktop' },
+] as const;
+
+type DeviceShape = (typeof devices)[number]['shape'];
+
+function Rail({ width }: { width: string }): JSX.Element {
+  return <span className={`shrink-0 border-e border-border bg-surface ${width}`} />;
+}
+
+function MiniShell({ shape }: { shape: DeviceShape }): JSX.Element {
+  if (shape === 'phone') {
+    return (
+      <div className="relative size-full bg-canvas px-2.5 pt-5">
+        <span className="block h-3 w-1/2 rounded-xs bg-surface-active" />
+        <div className="mt-2 flex flex-col gap-1">
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className="h-6 rounded-xs bg-surface" />
+          ))}
+        </div>
+        <span className="absolute inset-x-2 bottom-2 h-6 rounded-full border border-glass-line bg-glass shadow-sm" />
+      </div>
+    );
+  }
+  if (shape === 'tablet') {
+    return (
+      <div className="flex size-full bg-canvas">
+        <Rail width="w-9" />
+        <div className="grid flex-1 grid-cols-2 content-start gap-1.5 p-3">
+          {Array.from({ length: 8 }, (_, i) => (
+            <span key={i} className="h-8 rounded-xs bg-surface" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex size-full bg-canvas">
+      <Rail width={shape === 'laptop' ? 'w-17' : 'w-20'} />
+      <div className={`flex flex-1 p-2.5 ${shape === 'desktop' ? 'justify-center' : ''}`}>
+        <div className={`flex flex-col gap-1 ${shape === 'desktop' ? 'w-64' : 'w-full'}`}>
+          {Array.from({ length: shape === 'desktop' ? 10 : 8 }, (_, i) => (
+            <span key={i} className="h-4 rounded-xs bg-surface" />
+          ))}
+        </div>
+      </div>
+      {shape === 'laptop' ? (
+        <span className="w-22 shrink-0 border-s border-border bg-surface" />
+      ) : null}
+    </div>
+  );
+}
+
+export const Devices: Story = {
   name: 'One shell, four devices',
   parameters: {
     docs: {
       description: {
+        story:
+          'One shell at four shapes. The phone drops the rail for a floating tab bar and sets the title large; the tablet keeps the rail as icons and goes to two columns; the laptop labels the sidebar and puts the detail beside the list; the desk stops the content at a measure and centres it. The live version of the same shell is the next story.',
+      },
+    },
+  },
+  render: () => (
+    <div className="flex flex-wrap items-end justify-center gap-5 bg-canvas p-6">
+      {devices.map((device) => (
+        <figure key={device.kind} className="flex max-w-full flex-col items-center gap-2.5">
+          <div
+            aria-hidden
+            className="max-w-full bg-invert p-1.5 shadow-md"
+            style={{ width: device.w, height: device.h, borderRadius: device.r + 6 }}
+          >
+            <div className="size-full overflow-hidden" style={{ borderRadius: device.r }}>
+              <MiniShell shape={device.shape} />
+            </div>
+          </div>
+          <figcaption className="text-xs font-semibold text-fg-muted">{device.kind}</figcaption>
+        </figure>
+      ))}
+    </div>
+  ),
+};
+
+const shellNav = [
+  { id: 'home', label: 'Home', icon: House },
+  { id: 'people', label: 'People', icon: Users },
+  { id: 'leave', label: 'Time off', icon: CalendarDays },
+  { id: 'payroll', label: 'Payroll', icon: Wallet },
+];
+
+export const AppShell: Story = {
+  name: 'The same shell, live',
+  parameters: {
+    docs: {
+      description: {
         story: [
-          'The same screen at every size. Switch viewport in the toolbar:',
+          'The same screen at every size, built from `PageLayout` and `Nav` rather than drawn by hand. Compare the desk copy with the phone beside it:',
           '',
-          '- **Phone**: bottom tab bar, padded for the home indicator; the filter row becomes a sheet; actions go full width.',
-          '- **Tablet**, an icon rail appears; the grid goes to two columns; the table stops scrolling.',
-          '- **Desktop**, a labelled sidebar; three or four columns; the detail rail sits beside the content.',
-          '- **Television** (set platform to Television): everything scales 1.5×, controls grow to 52px, and focus gets a ring with a halo you can see across a room. Tab through it and watch the focus travel.',
+          '- **Phone**: the top bar is glass, the title is set large under it, and the navigation is a glass tab bar floating over the content, clear of the home indicator.',
+          '- **Tablet**: the sidebar appears once the layout itself is 48rem wide, a container width, so a phone preview on a wide monitor still gets the phone.',
+          '- **Desktop**: a labelled sidebar; the stats reflow to four across on their own.',
+          '- **Television** (set platform to Television): everything scales 1.5×, controls grow to 52px, and focus gets a ring with a halo you can see across a room.',
           '',
-          'The navigation is the only thing keyed to a breakpoint. Everything else here is intrinsic.',
+          'Nothing here asks the window how wide it is.',
         ].join('\n'),
       },
     },
   },
   render: function ShellStory() {
-    const [tab, setTab] = useState('people');
-    const nav = [
-      { id: 'home', label: 'Overview', icon: House },
-      { id: 'people', label: 'People', icon: Users },
-      { id: 'leave', label: 'Time off', icon: CalendarDays },
-      { id: 'payroll', label: 'Payroll', icon: Wallet },
-    ];
-
     return (
-      <div className="flex min-h-screen bg-canvas">
-        {/* Sidebar: icons from md, labels from lg. Hidden entirely on a phone,
-            where the bottom bar carries navigation instead. */}
-        <nav
-          aria-label="Main"
-          className="hidden shrink-0 border-r border-border bg-surface md:block md:w-16 lg:w-56"
-        >
-          <div className="flex h-14 items-center justify-center border-b border-border lg:justify-start lg:px-4">
-            <span className="text-md font-semibold text-fg max-lg:hidden">Acme HR</span>
-            <span className="text-md font-semibold text-fg lg:hidden">A</span>
-          </div>
-          <ul className="p-2">
-            {nav.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTab(item.id);
-                  }}
-                  aria-current={tab === item.id ? 'page' : undefined}
-                  className={`flex min-h-tap w-full items-center gap-3 rounded-md px-3 text-base transition-colors lg:justify-start ${
-                    tab === item.id
-                      ? 'bg-accent-subtle text-accent-fg'
-                      : 'text-fg-muted hover:bg-surface-hover'
-                  } max-lg:justify-center`}
-                >
-                  <item.icon className="size-4 shrink-0" aria-hidden />
-                  <span className="max-lg:sr-only">{item.label}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4 pt-safe-top">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Menu"
-                  className="md:hidden"
-                  startIcon={<Menu />}
-                />
-              </SheetTrigger>
-              <SheetContent side="left" size="sm">
-                <SheetHeader>
-                  <SheetTitle>Acme HR</SheetTitle>
-                </SheetHeader>
-                <SheetBody>
-                  <ul className="space-y-1">
-                    {nav.map((item) => (
-                      <li key={item.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTab(item.id);
-                          }}
-                          className="flex min-h-tap w-full items-center gap-3 rounded-md px-3 text-base text-fg hover:bg-surface-hover"
-                        >
-                          <item.icon className="size-4" aria-hidden />
-                          {item.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </SheetBody>
-              </SheetContent>
-            </Sheet>
-
-            <h1 className="text-md font-semibold text-fg">People</h1>
+      <PageLayout
+        preset="sidebar"
+        header={
+          <div className="flex h-14 items-center gap-3 px-4 touch:h-12 touch:px-3">
+            <span className="font-display text-md font-bold tracking-tight text-fg @max-3xl/page:hidden">
+              Acme HR
+            </span>
             <div className="ms-auto flex items-center gap-2">
-              <div className="hidden sm:block sm:w-56">
+              <div className="hidden @2xl/page:block @2xl/page:w-56">
                 <Input
                   size="sm"
                   startAdornment={<Search />}
@@ -356,105 +377,112 @@ export const AppShell: Story = {
               </div>
               <Avatar size="sm" name="Margaret Hamilton" />
             </div>
-          </header>
-
-          <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-24 md:pb-4">
-            <Stack gap={4}>
-              <AutoGrid minItemWidth="13rem" gap={3}>
-                <Stat
-                  label="Headcount"
-                  value="912"
-                  delta="+18"
-                  deltaLabel="this quarter"
-                  direction="up"
-                  sentiment="positive"
-                />
-                <Stat
-                  label="Monthly payroll"
-                  value={<Money minorUnits="98345000" currency="EUR" locale="en-IE" />}
-                  delta="+2.1%"
-                  deltaLabel="vs July"
-                  direction="up"
-                  sentiment="neutral"
-                />
-                <Stat
-                  label="Pending approvals"
-                  value="7"
-                  delta="+3"
-                  deltaLabel="since Monday"
-                  direction="up"
-                  sentiment="negative"
-                />
-                <Stat
-                  label="On leave today"
-                  value="23"
-                  delta="flat"
-                  deltaLabel="vs yesterday"
-                  direction="flat"
-                />
-              </AutoGrid>
-
-              <Table aria-label="People">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead sticky>Employee</TableHead>
-                    <TableHead>Team</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead numeric>Base salary</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {people.map(([name, role, team, , salary, status]) => (
-                    <TableRow key={name} interactive>
-                      <TableCell sticky>
-                        <div className="flex items-center gap-2.5">
-                          <Avatar size="sm" name={name} />
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{name}</p>
-                            <p className="truncate text-xs text-fg-muted">{role}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-fg-muted">{team}</TableCell>
-                      <TableCell>
-                        <Badge tone={tone[status]} size="sm" dot>
-                          {status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell numeric>
-                        <Money minorUnits={salary} currency="EUR" locale="en-IE" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Stack>
-          </main>
-
-          {/* Bottom tab bar: phones only, padded for the home indicator. */}
-          <nav
-            aria-label="Main, compact"
-            className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface pb-safe-bottom md:hidden"
-          >
-            {nav.map((item) => (
-              <button
+          </div>
+        }
+        sidebar={
+          <Nav label="Main" className="w-56 p-2">
+            <NavList>
+              {shellNav.map((item) => (
+                <NavItem key={item.id} href="#" icon={<item.icon />} current={item.id === 'people'}>
+                  {item.label}
+                </NavItem>
+              ))}
+            </NavList>
+          </Nav>
+        }
+        bottomBar={
+          <nav aria-label="Main, compact" className="flex">
+            {shellNav.map((item) => (
+              <a
                 key={item.id}
-                type="button"
-                onClick={() => {
-                  setTab(item.id);
-                }}
-                aria-current={tab === item.id ? 'page' : undefined}
-                className={`flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs ${
-                  tab === item.id ? 'text-accent-fg' : 'text-fg-muted'
+                href="#"
+                aria-current={item.id === 'people' ? 'page' : undefined}
+                className={`flex min-h-10 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-2xs font-semibold touch:min-h-tap ${
+                  item.id === 'people' ? 'bg-accent-subtle text-accent-fg' : 'text-fg-muted'
                 }`}
               >
-                <item.icon className="size-5" aria-hidden />
+                <item.icon className="size-4" aria-hidden />
                 {item.label}
-              </button>
+              </a>
             ))}
           </nav>
-        </div>
-      </div>
+        }
+        bottomBarVariant="floating"
+        bottomBarClassName="@3xl/page:hidden"
+        contentClassName="p-6 touch:p-4"
+      >
+        <Stack gap={4}>
+          <PageHeader title="People" description="912 people across 14 countries." />
+          <AutoGrid minItemWidth="13rem" gap={3}>
+            <Stat
+              label="Headcount"
+              value="912"
+              delta="+18"
+              deltaLabel="this quarter"
+              direction="up"
+              sentiment="positive"
+            />
+            <Stat
+              label="Monthly payroll"
+              value={<Money minorUnits="98345000" currency="EUR" locale="en-IE" />}
+              delta="+2.1%"
+              deltaLabel="vs July"
+              direction="up"
+              sentiment="neutral"
+            />
+            <Stat
+              label="Pending approvals"
+              value="7"
+              delta="+3"
+              deltaLabel="since Monday"
+              direction="up"
+              sentiment="negative"
+            />
+            <Stat
+              label="On leave today"
+              value="23"
+              delta="flat"
+              deltaLabel="vs yesterday"
+              direction="flat"
+            />
+          </AutoGrid>
+
+          <Table aria-label="People">
+            <TableHeader>
+              <TableRow>
+                <TableHead sticky>Employee</TableHead>
+                <TableHead>Team</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead numeric>Base salary</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {people.map(([name, role, team, , salary, status]) => (
+                <TableRow key={name} interactive>
+                  <TableCell sticky>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar size="sm" name={name} />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{name}</p>
+                        <p className="truncate text-xs text-fg-muted">{role}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-fg-muted">{team}</TableCell>
+                  <TableCell>
+                    <Badge tone={tone[status]} size="sm" dot>
+                      {status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell numeric>
+                    <Money minorUnits={salary} currency="EUR" locale="en-IE" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Stack>
+      </PageLayout>
     );
   },
 };

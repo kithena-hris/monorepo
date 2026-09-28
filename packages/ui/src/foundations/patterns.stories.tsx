@@ -258,7 +258,7 @@ export const PeopleDirectory: Story = {
     const activeFilters = status.length + (Array.isArray(team) ? team.length : team ? 1 : 0);
 
     return (
-      <div className="min-h-screen bg-canvas p-4 sm:p-6">
+      <div className="@container min-h-screen bg-canvas p-6 touch:p-4">
         <Container size="xl">
           <Stack gap={5}>
             <header className="flex flex-wrap items-end justify-between gap-4">
@@ -351,7 +351,7 @@ export const PeopleDirectory: Story = {
                   <CardTitle>Directory</CardTitle>
                   <CardDescription>Effective as of 9 August 2026.</CardDescription>
                 </div>
-                <div className="w-full sm:w-64">
+                <div className="w-full @2xl:w-64">
                   <Input
                     size="sm"
                     startAdornment={<Search />}
@@ -521,7 +521,7 @@ export const PeopleDirectory: Story = {
                         >
                           Team
                         </TableHead>
-                        <TableHead className="max-md:hidden">Location</TableHead>
+                        <TableHead className="@max-3xl:hidden">Location</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead
                           numeric
@@ -555,7 +555,7 @@ export const PeopleDirectory: Story = {
                             </div>
                           </TableCell>
                           <TableCell className="text-fg-muted">{person.team}</TableCell>
-                          <TableCell className="text-fg-muted max-md:hidden">
+                          <TableCell className="text-fg-muted @max-3xl:hidden">
                             {person.location}
                           </TableCell>
                           <TableCell>
@@ -724,7 +724,7 @@ export const AdvancedFilters: Story = {
     };
 
     return (
-      <div className="min-h-screen bg-canvas p-4 sm:p-6">
+      <div className="@container min-h-screen bg-canvas p-6 touch:p-4">
         <Container size="lg">
           <Stack gap={5}>
             <header>
@@ -963,7 +963,7 @@ export const AdvancedFilters: Story = {
                   <TableRow>
                     <TableHead>Employee</TableHead>
                     <TableHead>Team</TableHead>
-                    <TableHead className="max-sm:hidden">Started</TableHead>
+                    <TableHead className="@max-2xl:hidden">Started</TableHead>
                     <TableHead numeric>Leave taken</TableHead>
                     <TableHead numeric>Base salary</TableHead>
                   </TableRow>
@@ -973,7 +973,7 @@ export const AdvancedFilters: Story = {
                     <TableRow key={person.id}>
                       <TableCell className="font-medium">{person.name}</TableCell>
                       <TableCell className="text-fg-muted">{person.team}</TableCell>
-                      <TableCell className="text-fg-muted max-sm:hidden">
+                      <TableCell className="text-fg-muted @max-2xl:hidden">
                         <time dateTime={person.startDate}>{person.startDate}</time>
                       </TableCell>
                       <TableCell numeric>{person.leaveTaken} d</TableCell>
@@ -1043,7 +1043,7 @@ export const InfiniteTable: Story = {
     }, [inView, loadMore]);
 
     return (
-      <div className="min-h-screen bg-canvas p-4 sm:p-6">
+      <div className="@container min-h-screen bg-canvas p-6 touch:p-4">
         <Container size="lg">
           <Stack gap={4}>
             <header className="flex flex-wrap items-end justify-between gap-3">
@@ -1064,7 +1064,7 @@ export const InfiniteTable: Story = {
                   <TableRow>
                     <TableHead sticky>Employee</TableHead>
                     <TableHead>Change</TableHead>
-                    <TableHead className="max-sm:hidden">Recorded</TableHead>
+                    <TableHead className="@max-2xl:hidden">Recorded</TableHead>
                     <TableHead numeric>Effective</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1081,7 +1081,7 @@ export const InfiniteTable: Story = {
                         Base salary set to{' '}
                         <Money minorUnits={person.salaryMinor} currency="EUR" locale="en-IE" />
                       </TableCell>
-                      <TableCell className="text-fg-muted max-sm:hidden">
+                      <TableCell className="text-fg-muted @max-2xl:hidden">
                         <time dateTime={person.startDate}>{person.startDate} 09:14</time>
                       </TableCell>
                       <TableCell numeric>
@@ -1104,7 +1104,7 @@ export const InfiniteTable: Story = {
                           <TableCell>
                             <Skeleton className="h-4 w-48" />
                           </TableCell>
-                          <TableCell className="max-sm:hidden">
+                          <TableCell className="@max-2xl:hidden">
                             <Skeleton className="h-4 w-28" />
                           </TableCell>
                           <TableCell numeric>
@@ -1213,7 +1213,7 @@ export const AnalyticsDashboard: Story = {
     const drilled = drill ? directory.filter((person) => person.team === drill) : [];
 
     return (
-      <div className="min-h-screen bg-canvas p-4 sm:p-6">
+      <div className="@container min-h-screen bg-canvas p-6 touch:p-4">
         <Container size="xl">
           <Stack gap={5}>
             <header className="flex flex-wrap items-end justify-between gap-4">
@@ -1281,7 +1281,7 @@ export const AnalyticsDashboard: Story = {
               />
             </AutoGrid>
 
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="grid gap-4 @5xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
               <Card>
                 <CardHeader>
                   <div>
@@ -1364,7 +1364,7 @@ export const AnalyticsDashboard: Story = {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Employee</TableHead>
-                          <TableHead className="max-sm:hidden">Location</TableHead>
+                          <TableHead className="@max-2xl:hidden">Location</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead numeric>Base salary</TableHead>
                         </TableRow>
@@ -1373,7 +1373,7 @@ export const AnalyticsDashboard: Story = {
                         {drilled.slice(0, 25).map((person) => (
                           <TableRow key={person.id}>
                             <TableCell className="font-medium">{person.name}</TableCell>
-                            <TableCell className="text-fg-muted max-sm:hidden">
+                            <TableCell className="text-fg-muted @max-2xl:hidden">
                               {person.location}
                             </TableCell>
                             <TableCell>
@@ -1510,7 +1510,7 @@ export const ApprovalQueue: Story = {
     };
 
     return (
-      <div className="min-h-screen bg-canvas p-4 sm:p-6">
+      <div className="@container min-h-screen bg-canvas p-6 touch:p-4">
         <Container size="md">
           <Stack gap={4}>
             <header className="flex flex-wrap items-end justify-between gap-3">
@@ -1729,7 +1729,7 @@ export const LoadingAndFailure: Story = {
     const [state, setState] = useState<'loading' | 'empty' | 'failed' | 'loaded'>('loading');
 
     return (
-      <div className="min-h-screen bg-canvas p-4 sm:p-6">
+      <div className="@container min-h-screen bg-canvas p-6 touch:p-4">
         <Container size="md">
           <Stack gap={4}>
             <Inline gap={2}>
@@ -1805,7 +1805,7 @@ export const LoadingAndFailure: Story = {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Employee</TableHead>
-                        <TableHead className="max-sm:hidden">Entity</TableHead>
+                        <TableHead className="@max-2xl:hidden">Entity</TableHead>
                         <TableHead numeric>Gross</TableHead>
                         <TableHead numeric>Net</TableHead>
                       </TableRow>
@@ -1814,7 +1814,7 @@ export const LoadingAndFailure: Story = {
                       {directory.slice(0, 5).map((person) => (
                         <TableRow key={person.id}>
                           <TableCell className="font-medium">{person.name}</TableCell>
-                          <TableCell className="text-fg-muted max-sm:hidden">
+                          <TableCell className="text-fg-muted @max-2xl:hidden">
                             Acme Iberia SL
                           </TableCell>
                           <TableCell numeric>
