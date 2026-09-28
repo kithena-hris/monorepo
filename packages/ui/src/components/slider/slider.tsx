@@ -27,6 +27,18 @@ export interface SliderProps extends ComponentPropsWithoutRef<typeof SliderPrimi
   valueDisplay?: ReactNode;
   /** Draws the tick marks. Only sensible when the step count is small. */
   showTicks?: boolean;
+  /**
+   * A dark bubble over each thumb that prints its value. `true` prints the
+   * number; a function formats it (`(v) => `${v}%``), and a string it returns
+   * also becomes the thumb's `aria-valuetext`, so the formatted value is the
+   * one a screen reader hears.
+   */
+  tip?: boolean | ((value: number) => ReactNode);
+  /**
+   * Labels under the track, spread from the first step to the last. For a
+   * small set of discrete steps, alongside `showTicks`.
+   */
+  labels?: readonly ReactNode[];
 }
 
 export function Slider({
@@ -35,6 +47,8 @@ export function Slider({
   thumbLabels,
   valueDisplay,
   showTicks = false,
+  tip,
+  labels,
   min = 0,
   max = 100,
   step = 1,
@@ -46,9 +60,12 @@ export function Slider({
   const high = values[values.length - 1] ?? min;
   const inRange = (tick: number): boolean => tick >= low && tick <= high;
   const ticks = showTicks && tickCount <= 21 ? Array.from({ length: tickCount }, (_, i) => i) : [];
+  const vertical = props.orientation === 'vertical';
+  const format = typeof tip === 'function' ? tip : (value: number): ReactNode => value;
 
   return (
-    <div className="w-full">
+    // The tip floats above the thumb, so a horizontal slider reserves its height.
+    <div className={cn(vertical ? 'w-auto' : 'w-full', tip && !vertical && 'pt-7.5')}>
       {valueDisplay ? (
         <div className="mb-2 flex items-baseline justify-between gap-3">
           <span className="text-sm text-fg-muted">{label}</span>
@@ -91,29 +108,58 @@ export function Slider({
           </div>
         ) : null}
 
-        {values.map((_, index) => (
-          <SliderPrimitive.Thumb
-            key={index}
-            aria-label={
-              thumbLabels?.[index] ?? (values.length > 1 ? `${label} ${String(index + 1)}` : label)
-            }
-            className={cn(
-              // White, shadowed, no border: a physical knob. 20px at a desk,
-              // 28px under a thumb.
-              'tap-target relative block size-5 rounded-full bg-fg-on-accent touch:size-7',
-              'shadow-[0_1px_4px_oklch(0%_0_0/0.3),0_0_0_0.5px_oklch(0%_0_0/0.12)]',
-              'transition-[box-shadow,transform] duration-(--animate-duration-fast) ease-standard',
-              'hover:scale-110 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-              'disabled:pointer-events-none disabled:opacity-55',
-              // The visible thumb stays 20px; the pseudo-element gives the
-              // finger a 44px target without changing the visual weight.
-              'touch:after:absolute touch:after:top-1/2 touch:after:left-1/2 touch:after:size-tap',
-              'touch:after:-translate-x-1/2 touch:after:-translate-y-1/2 touch:after:content-[""]',
-            )}
-          />
-        ))}
+        {values.map((value, index) => {
+          const shown = tip ? format(value) : null;
+          return (
+            <SliderPrimitive.Thumb
+              key={index}
+              aria-label={
+                thumbLabels?.[index] ??
+                (values.length > 1 ? `${label} ${String(index + 1)}` : label)
+              }
+              aria-valuetext={typeof shown === 'string' ? shown : undefined}
+              className={cn(
+                // White, shadowed, no border: a physical knob. 20px at a desk,
+                // 28px under a thumb.
+                'tap-target relative block size-5 rounded-full bg-fg-on-accent touch:size-7',
+                'shadow-[0_1px_4px_oklch(0%_0_0/0.3),0_0_0_0.5px_oklch(0%_0_0/0.12)]',
+                'transition-[box-shadow,transform] duration-(--animate-duration-fast) ease-standard',
+                'hover:scale-110 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+                'disabled:pointer-events-none disabled:opacity-55',
+                // The visible thumb stays 20px; the pseudo-element gives the
+                // finger a 44px target without changing the visual weight.
+                'touch:after:absolute touch:after:top-1/2 touch:after:left-1/2 touch:after:size-tap',
+                'touch:after:-translate-x-1/2 touch:after:-translate-y-1/2 touch:after:content-[""]',
+              )}
+            >
+              {tip ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    'pointer-events-none absolute rounded-[0.5rem] bg-invert px-2 py-1 text-xs leading-none font-semibold whitespace-nowrap text-fg-on-invert tabular-nums',
+                    vertical
+                      ? 'top-1/2 left-[calc(100%+0.5rem)] -translate-y-1/2'
+                      : 'bottom-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2',
+                  )}
+                >
+                  {shown}
+                </span>
+              ) : null}
+            </SliderPrimitive.Thumb>
+          );
+        })}
       </SliderPrimitive.Root>
+      {labels && labels.length > 0 ? (
+        <div
+          aria-hidden
+          className="mt-2.5 flex justify-between text-xs leading-none font-medium text-fg-subtle"
+        >
+          {labels.map((item, i) => (
+            <span key={i}>{item}</span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

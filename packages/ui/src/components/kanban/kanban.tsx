@@ -298,7 +298,10 @@ export interface KanbanProps<T extends { id: string }> {
   describeItem?: (item: T) => string;
   /** Rendered under a column's cards, an "Add card" control, usually. */
   renderColumnFooter?: (column: KanbanColumnDef) => ReactNode;
-  /** Fixed column width. The board scrolls horizontally past the viewport. */
+  /**
+   * Fixed column width. The board scrolls horizontally past the viewport.
+   * Defaults to 260px at a desk and 300px under a thumb.
+   */
   columnWidth?: string;
   /** What starts a drag: a grip, the whole card, or nothing. */
   dragActivator?: KanbanDragActivator;
@@ -427,7 +430,7 @@ export function Kanban<T extends { id: string }>({
   label,
   describeItem,
   renderColumnFooter,
-  columnWidth = '19rem',
+  columnWidth,
   dragActivator = { mode: 'handle' },
   autoScroll = { mode: 'auto' },
   motion = { preset: 'smooth' },
@@ -976,7 +979,7 @@ interface KanbanColumnProps<T extends { id: string }> {
   renderColumnFooter: KanbanProps<T>['renderColumnFooter'];
   onMove: KanbanProps<T>['onMove'];
   describeItem: KanbanProps<T>['describeItem'];
-  width: string;
+  width: string | undefined;
   activeId: UniqueIdentifier | null;
   dragActivator: KanbanDragActivator;
   timing: { duration: number; easing: string };
@@ -1190,12 +1193,13 @@ function KanbanColumn<T extends { id: string }>({
       aria-label={`${column.title}, ${String(items.length)} ${items.length === 1 ? 'card' : 'cards'}`}
       className={cn(
         'flex min-h-0 shrink-0 snap-start flex-col rounded-lg bg-surface-sunken p-2.5',
+        width === undefined && 'w-65 touch:w-75',
         'transition-shadow duration-(--animate-duration-normal)',
         // The whole column is outlined while a card is over it. A 2px line
         // between two cards is not visible on a moving board.
         isOver && !column.locked && 'shadow-[inset_0_0_0_2px_var(--reach-color-accent)]',
       )}
-      style={{ width }}
+      {...(width === undefined ? {} : { style: { width } })}
     >
       {/*
        * The context menu is on the header, not on the whole column. A card

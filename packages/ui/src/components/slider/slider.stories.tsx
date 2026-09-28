@@ -96,6 +96,17 @@ const meta = {
       control: { type: 'number' },
       table: { type: { summary: 'number' }, defaultValue: { summary: '0' }, category: 'Range' },
     },
+    tip: {
+      description:
+        "A dark bubble over each thumb with its value. `true` prints the number; a function formats it, and a string it returns is also the thumb's `aria-valuetext`.",
+      control: 'boolean',
+      table: { type: { summary: 'boolean | ((value: number) => ReactNode)' }, category: 'Content' },
+    },
+    labels: {
+      description: 'Labels under the track, spread from the first step to the last.',
+      control: 'object',
+      table: { type: { summary: 'readonly ReactNode[]' }, category: 'Content' },
+    },
     showTicks: {
       description:
         'Draws a dot per step. Only rendered when there are 21 steps or fewer: beyond that it is a grey line.',
@@ -154,16 +165,19 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
+  args: {
+    label: 'Remote working',
+    defaultValue: [60],
+    min: 0,
+    max: 100,
+    step: 5,
+    showTicks: false,
+  },
   render: function PlaygroundStory(args) {
-    const [value, setValue] = useState<number[]>(args.defaultValue ?? [30]);
+    const [value, setValue] = useState<number[]>(args.defaultValue ?? [60]);
     return (
       <div className="max-w-md">
-        <Slider
-          {...args}
-          value={value}
-          onValueChange={setValue}
-          valueDisplay={`${String(value[0])} days`}
-        />
+        <Slider {...args} value={value} onValueChange={setValue} tip={(v) => `${String(v)}%`} />
       </div>
     );
   },
@@ -180,20 +194,23 @@ export const Range: Story = {
     },
   },
   render: function RangeStory() {
-    const [value, setValue] = useState([45000, 95000]);
+    const [value, setValue] = useState([40000, 75000]);
     return (
-      <div className="max-w-md">
+      <div className="max-w-md space-y-3">
         <Slider
           label="Base salary"
           thumbLabels={['Minimum salary', 'Maximum salary']}
           min={20000}
-          max={200000}
+          max={120000}
           step={2500}
           minStepsBetweenThumbs={1}
           value={value}
           onValueChange={setValue}
-          valueDisplay={`${currency.format(value[0] ?? 0)} – ${currency.format(value[1] ?? 0)}`}
+          tip={(v) => `€${String(v / 1000)}k`}
         />
+        <p className="text-sm text-fg-muted">
+          Salary band: {currency.format(value[0] ?? 0)} to {currency.format(value[1] ?? 0)}
+        </p>
       </div>
     );
   },
@@ -202,23 +219,24 @@ export const Range: Story = {
 export const WithTicks: Story = {
   name: 'Discrete steps',
   args: {
-    label: 'Working days per week',
-    min: 1,
+    label: 'Office days per week',
+    min: 0,
     max: 5,
     step: 1,
-    defaultValue: [4],
+    defaultValue: [3],
     showTicks: true,
+    labels: ['0', '1', '2', '3', '4', '5'],
   },
   parameters: {
     docs: {
       description: {
         story:
-          'Ticks are only honest when the steps are few and meaningful. Five working days is a real set of choices; a tick per €2,500 across a salary band is visual noise.',
+          'Ticks are only honest when the steps are few and meaningful. Five office days is a real set of choices; a tick per €2,500 across a salary band is visual noise. `labels` names each step under the track.',
       },
     },
   },
   render: function TicksStory(args) {
-    const [value, setValue] = useState<number[]>([4]);
+    const [value, setValue] = useState<number[]>(args.defaultValue ?? [3]);
     return (
       <div className="max-w-sm">
         <Slider
@@ -300,8 +318,10 @@ export const Vertical: Story = {
     },
   },
   render: (args) => (
-    <div className="h-56">
-      <Slider {...args} />
+    <div className="flex h-56 justify-center gap-10">
+      <Slider {...args} defaultValue={[70]} />
+      <Slider {...args} label="Range" defaultValue={[20, 60]} />
+      <Slider {...args} label="With a tip" defaultValue={[40]} tip />
     </div>
   ),
 };

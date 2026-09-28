@@ -1,7 +1,14 @@
 'use client';
 
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
-import type { ComponentPropsWithRef, ComponentPropsWithoutRef, JSX, ReactNode, Ref } from 'react';
+import type {
+  ComponentPropsWithRef,
+  ComponentPropsWithoutRef,
+  JSX,
+  MouseEvent,
+  ReactNode,
+  Ref,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -170,8 +177,17 @@ export interface TableHeadProps extends Omit<ComponentPropsWithoutRef<'th'>, 'on
   sortable?: boolean;
   /** Current direction for this column. `null` means unsorted. */
   sortDirection?: SortDirection;
-  /** Called with the direction the column should move to. */
-  onSort?: (direction: Exclude<SortDirection, null>) => void;
+  /**
+   * Called with the direction the column should move to, and the click, so a
+   * multi-column sort can read `shiftKey`.
+   */
+  onSort?: (direction: Exclude<SortDirection, null>, event: MouseEvent<HTMLButtonElement>) => void;
+  /**
+   * This column's place in a multi-column sort, from 1. Drawn as a small
+   * number beside the arrow. Only the first carries `aria-sort`, as ARIA
+   * asks: one sorted header at a time.
+   */
+  sortPriority?: number;
   /** Keeps the column visible while the rest of the table scrolls sideways. */
   sticky?: boolean;
   children?: ReactNode;
@@ -183,6 +199,7 @@ export function TableHead({
   sortable = false,
   sortDirection = null,
   onSort,
+  sortPriority,
   sticky = false,
   children,
   ...props
@@ -200,7 +217,13 @@ export function TableHead({
       // `aria-sort` belongs on the cell, not on the button inside it. It is
       // also the only thing that tells a screen reader the table is currently
       // sorted by this column, an arrow glyph does not.
-      aria-sort={sortable ? (sortDirection ?? 'none') : undefined}
+      aria-sort={
+        sortable
+          ? sortPriority && sortPriority > 1
+            ? 'none'
+            : (sortDirection ?? 'none')
+          : undefined
+      }
       className={cn(
         'h-10.5 px-3 text-left align-middle text-xs font-semibold whitespace-nowrap text-fg-muted',
         'first:ps-5 last:pe-5 [[data-dense]_&]:h-8.5 [[data-dense]_&]:first:ps-4 [[data-dense]_&]:last:pe-4',
@@ -216,8 +239,8 @@ export function TableHead({
       {sortable ? (
         <button
           type="button"
-          onClick={() => {
-            onSort?.(sortDirection === 'ascending' ? 'descending' : 'ascending');
+          onClick={(event) => {
+            onSort?.(sortDirection === 'ascending' ? 'descending' : 'ascending', event);
           }}
           className={cn(
             'group -mx-1 inline-flex min-h-tap items-center gap-1 rounded-xs px-1',
@@ -234,6 +257,16 @@ export function TableHead({
               sortDirection ? 'opacity-100' : 'text-fg-subtle opacity-60 group-hover:opacity-100',
             )}
           />
+          {sortPriority === undefined ? null : (
+            <>
+              <span aria-hidden className="text-[0.625rem] leading-none font-bold text-fg-subtle">
+                {sortPriority}
+              </span>
+              <span className="sr-only">
+                , sort {sortPriority}, {sortDirection}
+              </span>
+            </>
+          )}
         </button>
       ) : (
         children

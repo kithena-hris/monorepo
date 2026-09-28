@@ -84,11 +84,11 @@ const meta = {
     },
     orientation: {
       description:
-        'Label above the control, or beside it. Use `horizontal` for switches and single checkboxes.',
+        'Label above the control, beside it, or in a 160px column. Use `horizontal` for switches and single checkboxes, `columns` for a desk form whose labels line up down the page; it stacks under a thumb.',
       control: 'inline-radio',
-      options: ['vertical', 'horizontal'],
+      options: ['vertical', 'horizontal', 'columns'],
       table: {
-        type: { summary: "'vertical' | 'horizontal'" },
+        type: { summary: "'vertical' | 'horizontal' | 'columns'" },
         defaultValue: { summary: 'vertical' },
         category: 'Layout',
       },
@@ -315,12 +315,31 @@ export const Horizontal: Story = {
     docs: {
       description: {
         story:
-          'A switch commits the moment it moves, so it sits beside its label with no Save button in sight. If the setting needs saving. It is a checkbox.',
+          '`columns` puts the label in a 160px column so a desk form reads down one edge; the description and the error sit under the control. On a phone fields always stack. `horizontal` is the other side-by-side: a switch commits the moment it moves, so it sits beside its label with no Save button in sight. If the setting needs saving, it is a checkbox.',
       },
     },
   },
   render: () => (
-    <div className="max-w-md">
+    <div className="max-w-xl space-y-3.5">
+      <Field orientation="columns">
+        <FieldLabel>First name</FieldLabel>
+        <FieldControl>
+          <Input defaultValue="Priya" />
+        </FieldControl>
+      </Field>
+      <Field orientation="columns">
+        <FieldLabel>Last name</FieldLabel>
+        <FieldControl>
+          <Input defaultValue="Shah" />
+        </FieldControl>
+      </Field>
+      <Field orientation="columns">
+        <FieldLabel>Pronouns</FieldLabel>
+        <FieldControl>
+          <Input placeholder="Optional" />
+        </FieldControl>
+        <FieldDescription>Shown next to your name in the directory.</FieldDescription>
+      </Field>
       <Field orientation="horizontal">
         <div>
           <FieldLabel>Notify the approval chain</FieldLabel>

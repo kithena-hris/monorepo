@@ -1,6 +1,6 @@
 'use client';
 
-import { Camera, ImagePlus, RotateCcw, Trash, TriangleAlert, Upload } from 'lucide-react';
+import { Camera, FileX, ImagePlus, RotateCcw, Trash, TriangleAlert, Upload, X } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -17,7 +17,7 @@ import {
 import { cn } from '../../lib/cn';
 import { fieldHintClass, fieldLabelClass } from '../field/field-styles';
 import { Button } from '../button/button';
-import { Progress } from '../progress/progress';
+import { CircularProgress, Progress } from '../progress/progress';
 
 /**
  * Image upload: drop, browse, or paste.
@@ -54,12 +54,25 @@ export interface UploadedImage {
   previewUrl: string;
   width?: number;
   height?: number;
+  /**
+   * 0–100 while this image uploads, `null` while the request is still opening.
+   * The tile layout draws a ring over the image and hides its remove button.
+   */
+  progress?: number | null;
+  /** The tile layout rings it in danger. Say why in a message beside the uploader. */
+  invalid?: boolean;
 }
 
 export interface ImageUploadRejection {
   file: File;
   reason: 'type' | 'size' | 'dimensions' | 'count';
   message: string;
+  /**
+   * In the tile layout, an image refused for its dimensions stays on screen as
+   * a ringed tile until it is dismissed, so the person can see which one it
+   * was. Owned and revoked by the uploader.
+   */
+  previewUrl?: string;
 }
 
 export interface ImageUploaderProps {
@@ -82,8 +95,14 @@ export interface ImageUploaderProps {
   progress?: number | null;
   disabled?: boolean;
   invalid?: boolean;
-  /** Square preview for an avatar; wide for a banner. */
+  /** Square preview for an avatar; wide for a banner. Ignored by `tiles`. */
   aspect?: 'square' | 'wide' | 'auto';
+  /**
+   * `list`: a dropzone with a card per image under it. `tiles`: a row of
+   * square previews, each with its own remove button and upload ring, ending
+   * in an "Add" tile that is the file input.
+   */
+  layout?: 'list' | 'tiles';
   /** Called with everything that failed validation, so the screen can explain why. */
   onReject?: (rejections: readonly ImageUploadRejection[]) => void;
   className?: string;
@@ -146,6 +165,38 @@ const aspectClass = {
   auto: 'min-h-40',
 } as const;
 
+/** One tile: 96px at a desk, 100px under a thumb. */
+const tileClass =
+  'relative size-24 shrink-0 overflow-hidden rounded-[1rem] bg-surface-sunken touch:size-25 touch:rounded-[1.125rem]';
+
+/*
+ * Black rather than the page scrim, for the same reason as the avatar's
+ * "Change" overlay: the percentage is small white text, and it has to clear
+ * 4.5:1 over whatever the photo is, a white wall included.
+ */
+const tileScrim = 'absolute inset-0 bg-[oklch(0_0_0/0.6)]';
+
+function TileRemove({ label, onClick }: { label: string; onClick: () => void }): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={cn(
+        'absolute top-1.5 right-1.5 grid size-6 place-items-center rounded-full tap-target',
+        'bg-[oklch(0_0_0/0.6)] text-fg-on-accent hover:bg-[oklch(0_0_0/0.7)]',
+        // The ring is inset, on the button's own dark fill: outside it, it
+        // would sit on the photo, and no one colour clears 3:1 on every photo.
+        // Forced colours drop shadows, so there the outline comes back.
+        'focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--reach-color-fg-on-accent)]',
+        'forced-colors:focus-visible:outline-2 forced-colors:focus-visible:outline-solid',
+      )}
+    >
+      <X aria-hidden className="size-3.5" />
+    </button>
+  );
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${String(bytes)} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} kB`;
@@ -192,6 +243,7 @@ export function ImageUploader({
   disabled = false,
   invalid = false,
   aspect = 'auto',
+  layout = 'list',
   onReject,
   className,
 }: ImageUploaderProps): JSX.Element {
@@ -264,12 +316,16 @@ export function ImageUploader({
           size &&
           (size.width < minDimensions.width || size.height < minDimensions.height)
         ) {
-          URL.revokeObjectURL(previewUrl);
-          created.current.delete(previewUrl);
+          const keep = layout === 'tiles';
+          if (!keep) {
+            URL.revokeObjectURL(previewUrl);
+            created.current.delete(previewUrl);
+          }
           failed.push({
             file,
             reason: 'dimensions',
             message: `${file.name} is ${String(size.width)}×${String(size.height)}. The minimum is ${String(minDimensions.width)}×${String(minDimensions.height)}.`,
+            ...(keep ? { previewUrl } : {}),
           });
           continue;
         }
@@ -282,7 +338,11 @@ export function ImageUploader({
         });
       }
 
-      setRejections(failed);
+      setRejections((previous) => {
+        // The refused tiles being replaced are no longer on screen.
+        for (const old of previous) if (old.previewUrl) dropUrl(old.previewUrl);
+        return failed;
+      });
       if (failed.length > 0) onReject?.(failed);
 
       if (passed.length > 0) {
@@ -303,7 +363,7 @@ export function ImageUploader({
         setAnnouncement(`${String(failed.length)} rejected. ${failed[0]?.message ?? ''}`);
       }
     },
-    [accept, maxFiles, maxSize, minDimensions, multiple, onChange, onReject, value],
+    [accept, layout, maxFiles, maxSize, minDimensions, multiple, onChange, onReject, value],
   );
 
   const onInputChange = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -313,7 +373,7 @@ export function ImageUploader({
     event.target.value = '';
   };
 
-  const onDrop = (event: DragEvent<HTMLDivElement>): void => {
+  const onDrop = (event: DragEvent<HTMLElement>): void => {
     event.preventDefault();
     setDragging(false);
     if (disabled) return;
@@ -331,9 +391,20 @@ export function ImageUploader({
     void accepted(files);
   };
 
+  function dropUrl(url: string): void {
+    URL.revokeObjectURL(url);
+    created.current.delete(url);
+  }
+
+  const dismiss = (rejection: ImageUploadRejection): void => {
+    if (rejection.previewUrl) dropUrl(rejection.previewUrl);
+    setRejections((current) => current.filter((r) => r !== rejection));
+    setAnnouncement(`${rejection.file.name} dismissed.`);
+    inputRef.current?.focus();
+  };
+
   const remove = (image: UploadedImage): void => {
-    URL.revokeObjectURL(image.previewUrl);
-    created.current.delete(image.previewUrl);
+    dropUrl(image.previewUrl);
     onChange(value.filter((current) => current.id !== image.id));
     setAnnouncement(`${image.file.name} removed.`);
     inputRef.current?.focus();
@@ -341,6 +412,32 @@ export function ImageUploader({
 
   const busy = progress !== undefined;
   const full = value.length >= maxFiles;
+  const refusedType = rejections.some((rejection) => rejection.reason === 'type');
+
+  /*
+   * The real control. Stretched over the whole zone or tile with `opacity-0`
+   * rather than hidden with `sr-only`: it stays in the tab order, it still
+   * gets a focus ring through the wrapper, and the entire area is clickable
+   * without a `label` wrapper swallowing the drop events.
+   */
+  const fileInput = (
+    <input
+      ref={inputRef}
+      id={inputId}
+      type="file"
+      accept={accept.join(',')}
+      multiple={multiple}
+      disabled={disabled || full}
+      onChange={onInputChange}
+      aria-describedby={cn(hint && hintId, statusId) || undefined}
+      aria-invalid={invalid || refusedType || undefined}
+      className={cn(
+        'absolute inset-0 cursor-pointer opacity-0',
+        'file:cursor-pointer',
+        'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+      )}
+    />
+  );
 
   return (
     <div className={cn('@container flex flex-col gap-2', className)} onPaste={onPaste}>
@@ -361,133 +458,204 @@ export function ImageUploader({
         </p>
       ) : null}
 
-      {busy ? (
-        <div className="rounded-[1.125rem] bg-surface-sunken p-4 touch:rounded-[1.375rem]">
-          <Progress
-            value={progress ?? null}
-            label={progress === null ? 'Uploading' : 'Uploading image'}
-            showValue
-          />
-        </div>
-      ) : (
-        <div
-          onDragOver={(event) => {
-            event.preventDefault();
-            if (!disabled && !full) setDragging(true);
-          }}
-          onDragLeave={() => {
-            setDragging(false);
-          }}
-          onDrop={onDrop}
-          className={cn(
-            'relative flex flex-col items-center justify-center gap-2.5 px-5 py-7 text-center',
-            'rounded-[1.125rem] border-2 border-dashed touch:rounded-[1.375rem]',
-            'transition-[background-color,border-color] duration-(--animate-duration-fast) ease-standard',
-            aspectClass[aspect],
-            dragging
-              ? 'border-accent bg-accent-subtle'
-              : 'border-border-strong hover:bg-accent-subtle/40',
-            'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-border-focus',
-            invalid && 'border-danger',
-            (disabled || full) && 'pointer-events-none opacity-50',
-          )}
-        >
-          <span
-            aria-hidden
-            className={cn(
-              'grid size-12 place-items-center rounded-full transition-colors duration-(--animate-duration-fast)',
-              dragging ? 'bg-accent-solid text-fg-on-accent' : 'bg-surface-sunken text-fg-muted',
-            )}
-          >
-            <ImagePlus className="size-5.5" />
-          </span>
-          <p className="text-sm font-semibold text-fg">
-            <span className="text-accent-fg underline underline-offset-3">
-              Choose {multiple ? 'images' : 'an image'}
-            </span>{' '}
-            <span>or drop {multiple ? 'them' : 'it'} here</span>
-          </p>
-          <p className="text-xs text-fg-muted">
-            {accept.map((type) => type.replace('image/', '').toUpperCase()).join(', ')} · up to{' '}
-            {formatBytes(maxSize)}
-            {minDimensions
-              ? ` · at least ${String(minDimensions.width)}×${String(minDimensions.height)}`
-              : ''}
-          </p>
-
-          {/*
-           * The real control. Stretched over the whole zone with `opacity-0`
-           * rather than hidden with `sr-only`: it stays in the tab order, it
-           * still gets a focus ring through the wrapper, and the entire area is
-           * clickable without a `label` wrapper swallowing the drop events.
-           */}
-          <input
-            ref={inputRef}
-            id={inputId}
-            type="file"
-            accept={accept.join(',')}
-            multiple={multiple}
-            disabled={disabled || full}
-            onChange={onInputChange}
-            aria-describedby={cn(hint && hintId, statusId) || undefined}
-            aria-invalid={invalid || undefined}
-            className={cn(
-              'absolute inset-0 cursor-pointer opacity-0',
-              'file:cursor-pointer',
-              'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
-            )}
-          />
-        </div>
-      )}
-
-      {value.length > 0 ? (
-        <ul
-          className={cn(
-            'grid gap-2',
-            // The width the uploader was given, not the window's.
-            multiple ? 'grid-cols-2 @md:grid-cols-3 @2xl:grid-cols-4' : 'grid-cols-1',
-          )}
-        >
+      {layout === 'tiles' ? (
+        <ul className="flex flex-wrap gap-2.5">
           {value.map((image) => (
             <li
               key={image.id}
-              className="group relative overflow-hidden rounded-md bg-surface shadow-sm animate-scale-in"
+              className={cn(tileClass, 'animate-scale-in', image.invalid && 'ring-2 ring-danger')}
             >
               <img
                 src={toSafeImageSrc(image.previewUrl) ?? undefined}
-                // The file name is the only description available before the
-                // user writes one. It is a poor alt text and a better one than
-                // an empty string on a photo that carries meaning.
                 alt={image.file.name}
-                className={cn(
-                  'w-full object-cover',
-                  aspect === 'square' && 'aspect-square',
-                  aspect === 'wide' && 'aspect-[3/1]',
-                  aspect === 'auto' && 'max-h-48',
-                )}
+                className="size-full object-cover"
               />
-              <div className="flex items-center gap-2 p-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-fg">{image.file.name}</p>
-                  <p className="text-xs tabular-nums text-fg-muted">
-                    {formatBytes(image.file.size)}
-                    {image.width ? ` · ${String(image.width)}×${String(image.height ?? 0)}` : ''}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label={`Remove ${image.file.name}`}
+              {image.progress === undefined ? (
+                <TileRemove
+                  label={`Remove ${image.file.name}`}
                   onClick={() => {
                     remove(image);
                   }}
-                  startIcon={<Trash />}
                 />
-              </div>
+              ) : (
+                <span className={cn(tileScrim, 'grid place-items-center')}>
+                  <CircularProgress
+                    value={image.progress}
+                    size={40}
+                    label={`Uploading ${image.file.name}`}
+                    className="[&>span]:text-fg-on-accent"
+                  />
+                </span>
+              )}
             </li>
           ))}
+          {rejections.map((rejection) =>
+            rejection.previewUrl ? (
+              <li
+                key={`${rejection.file.name}-${rejection.reason}`}
+                className={cn(tileClass, 'ring-2 ring-danger')}
+              >
+                <img
+                  src={toSafeImageSrc(rejection.previewUrl) ?? undefined}
+                  alt={`${rejection.file.name}, refused`}
+                  className="size-full object-cover"
+                />
+                <TileRemove
+                  label={`Dismiss ${rejection.file.name}`}
+                  onClick={() => {
+                    dismiss(rejection);
+                  }}
+                />
+              </li>
+            ) : null,
+          )}
+          {full || busy ? null : (
+            <li
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (!disabled) setDragging(true);
+              }}
+              onDragLeave={() => {
+                setDragging(false);
+              }}
+              onDrop={onDrop}
+              className={cn(
+                tileClass,
+                'grid place-items-center border-2 border-dashed bg-transparent text-fg-muted',
+                'transition-[background-color,border-color] duration-(--animate-duration-fast) ease-standard',
+                'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-border-focus',
+                dragging
+                  ? 'border-accent bg-accent-subtle'
+                  : refusedType || invalid
+                    ? 'border-danger'
+                    : 'border-border-strong hover:bg-surface-hover',
+                disabled && 'pointer-events-none opacity-45',
+              )}
+            >
+              <span aria-hidden className="flex flex-col items-center gap-1 px-2 text-center">
+                {refusedType ? <FileX className="size-5.5" /> : <ImagePlus className="size-5.5" />}
+                <span className="text-[0.6875rem] leading-tight font-semibold">
+                  {refusedType ? 'Not an image' : value.length === 0 ? 'Add photo' : 'Add'}
+                </span>
+              </span>
+              {fileInput}
+            </li>
+          )}
         </ul>
-      ) : null}
+      ) : (
+        <>
+          {busy ? (
+            <div className="rounded-[1.125rem] bg-surface-sunken p-4 touch:rounded-[1.375rem]">
+              <Progress
+                value={progress ?? null}
+                label={progress === null ? 'Uploading' : 'Uploading image'}
+                showValue
+              />
+            </div>
+          ) : (
+            <div
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (!disabled && !full) setDragging(true);
+              }}
+              onDragLeave={() => {
+                setDragging(false);
+              }}
+              onDrop={onDrop}
+              className={cn(
+                'relative flex flex-col items-center justify-center gap-2.5 px-5 py-7 text-center',
+                'rounded-[1.125rem] border-2 border-dashed touch:rounded-[1.375rem]',
+                'transition-[background-color,border-color] duration-(--animate-duration-fast) ease-standard',
+                aspectClass[aspect],
+                dragging
+                  ? 'border-accent bg-accent-subtle'
+                  : 'border-border-strong hover:bg-accent-subtle/40',
+                'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-border-focus',
+                invalid && 'border-danger',
+                (disabled || full) && 'pointer-events-none opacity-50',
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'grid size-12 place-items-center rounded-full transition-colors duration-(--animate-duration-fast)',
+                  dragging
+                    ? 'bg-accent-solid text-fg-on-accent'
+                    : 'bg-surface-sunken text-fg-muted',
+                )}
+              >
+                <ImagePlus className="size-5.5" />
+              </span>
+              <p className="text-sm font-semibold text-fg">
+                <span className="text-accent-fg underline underline-offset-3">
+                  Choose {multiple ? 'images' : 'an image'}
+                </span>{' '}
+                <span>or drop {multiple ? 'them' : 'it'} here</span>
+              </p>
+              <p className="text-xs text-fg-muted">
+                {accept.map((type) => type.replace('image/', '').toUpperCase()).join(', ')} · up to{' '}
+                {formatBytes(maxSize)}
+                {minDimensions
+                  ? ` · at least ${String(minDimensions.width)}×${String(minDimensions.height)}`
+                  : ''}
+              </p>
+
+              {fileInput}
+            </div>
+          )}
+
+          {value.length > 0 ? (
+            <ul
+              className={cn(
+                'grid gap-2',
+                // The width the uploader was given, not the window's.
+                multiple ? 'grid-cols-2 @md:grid-cols-3 @2xl:grid-cols-4' : 'grid-cols-1',
+              )}
+            >
+              {value.map((image) => (
+                <li
+                  key={image.id}
+                  className="group relative overflow-hidden rounded-md bg-surface shadow-sm animate-scale-in"
+                >
+                  <img
+                    src={toSafeImageSrc(image.previewUrl) ?? undefined}
+                    // The file name is the only description available before the
+                    // user writes one. It is a poor alt text and a better one than
+                    // an empty string on a photo that carries meaning.
+                    alt={image.file.name}
+                    className={cn(
+                      'w-full object-cover',
+                      aspect === 'square' && 'aspect-square',
+                      aspect === 'wide' && 'aspect-[3/1]',
+                      aspect === 'auto' && 'max-h-48',
+                    )}
+                  />
+                  <div className="flex items-center gap-2 p-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-fg">{image.file.name}</p>
+                      <p className="text-xs tabular-nums text-fg-muted">
+                        {formatBytes(image.file.size)}
+                        {image.width
+                          ? ` · ${String(image.width)}×${String(image.height ?? 0)}`
+                          : ''}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Remove ${image.file.name}`}
+                      onClick={() => {
+                        remove(image);
+                      }}
+                      startIcon={<Trash />}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      )}
 
       {rejections.length > 0 ? (
         <ul className="space-y-1">

@@ -25,6 +25,18 @@ import {
  * `FieldControl`.
  */
 
+/*
+ * The label takes column one and the first row; everything else stacks in
+ * column two. Under touch the grid collapses to one column, so the children
+ * fall back into source order: label, control, description, error.
+ */
+const fieldColumns = cn(
+  'grid grid-cols-[10rem_minmax(0,1fr)] items-start gap-x-4',
+  '*:col-start-2 [&>label]:col-start-1 [&>label]:row-start-1 [&>label]:min-h-field touch:[&>label]:min-h-0',
+  'touch:grid-cols-1 touch:*:col-start-1',
+  floatRoot,
+);
+
 interface FieldContextValue {
   controlId: string;
   descriptionId: string;
@@ -56,8 +68,18 @@ export interface FieldProps extends ComponentPropsWithoutRef<'div'> {
    * in its accessible name as well as on screen.
    */
   sensitive?: boolean;
-  /** Lay the label out beside the control instead of above it. */
-  orientation?: 'vertical' | 'horizontal';
+  /**
+   * Where the label goes.
+   *
+   * - `vertical`: above the control.
+   * - `horizontal`: beside it, pushed to the far edge. For a switch or a
+   *   checkbox, whose row is the label.
+   * - `columns`: in a 160px column to its left, with the description and
+   *   error under the control. For a desk form whose labels line up down the
+   *   page. Under a thumb it stacks like `vertical`, because a phone has no
+   *   room for a label column.
+   */
+  orientation?: 'vertical' | 'horizontal' | 'columns';
 }
 
 export function Field({
@@ -89,11 +111,12 @@ export function Field({
         data-disabled={disabled || undefined}
         className={cn(
           'group/field flex gap-1.5',
-          orientation === 'vertical'
-            ? cn('flex-col', floatRoot)
-            : // A control beside its label is a row a thumb has to hit on its own;
-              // at the tap floor, two rows' hit areas never overlap.
-              'flex-row items-center justify-between gap-4 touch:min-h-tap',
+          orientation === 'vertical' && cn('flex-col', floatRoot),
+          // A control beside its label is a row a thumb has to hit on its own;
+          // at the tap floor, two rows' hit areas never overlap.
+          orientation === 'horizontal' &&
+            'flex-row items-center justify-between gap-4 touch:min-h-tap',
+          orientation === 'columns' && fieldColumns,
           className,
         )}
         {...props}
