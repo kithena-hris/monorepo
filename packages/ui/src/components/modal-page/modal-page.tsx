@@ -49,6 +49,18 @@ import { usePortalContainer } from '../../lib/portal-container';
  * the viewport, in a phone preview on a wide monitor it is the phone, and the
  * phone gets the phone's edge-to-edge page. `@3xl` is 48rem, `@7xl` 80rem.
  */
+
+/**
+ * `small` and `medium`: edge to edge until the space is 40rem wide, then a
+ * card in the middle, sized to its content and never taller than the space.
+ * Below 40rem a centred card would be a full-screen page with a margin
+ * nobody can use, so it is simply the full-screen page.
+ */
+const centred = [
+  'inset-0 @[40rem]:inset-auto @[40rem]:top-1/2 @[40rem]:left-1/2 @[40rem]:-translate-1/2',
+  '@[40rem]:max-h-[calc(100%-4rem)] @[40rem]:rounded-xl @[40rem]:shadow-xl',
+];
+
 const surface = cva(
   [
     '@container fixed z-50 flex flex-col overflow-hidden bg-canvas focus-visible:outline-none',
@@ -65,6 +77,13 @@ const surface = cva(
         /** Full on a phone; a tall centred column from `md`. Forms and flows. */
         column:
           'inset-0 @3xl:inset-y-8 @3xl:left-1/2 @3xl:w-full @3xl:max-w-3xl @3xl:-translate-x-1/2 @3xl:rounded-xl @3xl:shadow-xl',
+        /**
+         * Full on a phone; from 40rem a centred card 420px wide, as tall as its
+         * content. A short task: a rename, one question with a form in it.
+         */
+        small: [centred, '@[40rem]:w-[26.25rem]'],
+        /** As `small`, 640px wide. A task with a few sections. */
+        medium: [centred, '@[40rem]:w-[min(40rem,calc(100%-3rem))]'],
       },
     },
     defaultVariants: { size: 'full' },
