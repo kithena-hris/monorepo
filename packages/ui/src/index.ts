@@ -33,6 +33,18 @@ export {
 } from './components/alert-dialog/alert-dialog';
 
 export {
+  ActionSheet,
+  ActionSheetContent,
+  ActionSheetItem,
+  ActionSheetTrigger,
+} from './components/action-sheet/action-sheet';
+export type {
+  ActionSheetContentProps,
+  ActionSheetItemProps,
+  ActionSheetProps,
+} from './components/action-sheet/action-sheet';
+
+export {
   Breadcrumb,
   BreadcrumbEllipsis,
   BreadcrumbItem,
@@ -163,8 +175,14 @@ export type {
 export { Badge } from './components/badge/badge';
 export type { BadgeProps } from './components/badge/badge';
 
+export { Banner } from './components/banner/banner';
+export type { BannerProps } from './components/banner/banner';
+
 export { Button } from './components/button/button';
 export type { ButtonProps, ButtonVariants } from './components/button/button';
+
+export { FloatingButton } from './components/floating-button/floating-button';
+export type { FloatingButtonProps } from './components/floating-button/floating-button';
 
 export {
   Card,
@@ -178,6 +196,12 @@ export type { CardProps } from './components/card/card';
 
 export { Checkbox } from './components/checkbox/checkbox';
 export type { CheckboxProps } from './components/checkbox/checkbox';
+
+export { Chip, ChipGroup, ChipGroupItem } from './components/chip/chip';
+export type { ChipGroupItemProps, ChipGroupProps, ChipProps } from './components/chip/chip';
+
+export { CoachMark, CoachMarkDot } from './components/coach-mark/coach-mark';
+export type { CoachMarkProps } from './components/coach-mark/coach-mark';
 
 export {
   Dialog,
@@ -305,6 +329,9 @@ export type { MoneyProps } from './components/money/money';
 export { ListDetail } from './components/list-detail/list-detail';
 export type { ListDetailProps } from './components/list-detail/list-detail';
 
+export { List, ListItem } from './components/list-item/list-item';
+export type { ListItemProps } from './components/list-item/list-item';
+
 export {
   ModalPage,
   ModalPageBody,
@@ -346,6 +373,9 @@ export {
 } from './components/popover/popover';
 export type { PopoverContentProps } from './components/popover/popover';
 
+export { HoverCard, HoverCardContent, HoverCardTrigger } from './components/hover-card/hover-card';
+export type { HoverCardProps, HoverCardTriggerProps } from './components/hover-card/hover-card';
+
 export { CircularProgress, Progress } from './components/progress/progress';
 
 export { Reveal, staggerStyle } from './components/reveal/reveal';
@@ -364,6 +394,15 @@ export type { RadioGroupItemProps } from './components/radio-group/radio-group';
 export { ScrollArea, ScrollBar } from './components/scroll-area/scroll-area';
 export { VirtualList, type VirtualListProps } from './components/virtual-list/virtual-list';
 export type { ScrollAreaProps } from './components/scroll-area/scroll-area';
+
+export {
+  SegmentedControl,
+  SegmentedControlItem,
+} from './components/segmented-control/segmented-control';
+export type {
+  SegmentedControlItemProps,
+  SegmentedControlProps,
+} from './components/segmented-control/segmented-control';
 
 export {
   Select,
