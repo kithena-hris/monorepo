@@ -29,6 +29,7 @@ const meta = {
           '| `danger` | Deletes or offboards. Always behind a confirmation. `destructive` is its earlier name. |',
           '| `danger-soft` | A removal that is one of several row actions, where solid red would shout. |',
           '| `invert` | The one action on a tinted or image surface, where the accent would not hold. |',
+          '| `on-invert` | A secondary action on an inverted fill, such as Discard on a save bar. |',
           '| `link` | Inline in prose, where a pill would break the line. |',
           '',
           '### Guarantees',
@@ -215,6 +216,12 @@ export const Variants: Story = {
       <Button {...args} variant="link">
         Link
       </Button>
+      {/* Only readable on the fill it is for, so it is shown on one. */}
+      <span className="inline-flex rounded-control bg-invert p-1.5 [--reach-color-border-focus:var(--reach-color-fg-on-invert)]">
+        <Button {...args} variant="on-invert">
+          On invert
+        </Button>
+      </span>
     </div>
   ),
 };

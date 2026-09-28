@@ -119,7 +119,7 @@ export function FormSaveBar({
       <p role="status" className="min-w-0 flex-1 truncate text-sm font-semibold">
         {message}
       </p>
-      <Button size="sm" variant="secondary" disabled={saving} onClick={onDiscard}>
+      <Button size="sm" variant="on-invert" disabled={saving} onClick={onDiscard}>
         {discardLabel}
       </Button>
       <Button size="sm" variant="primary" loading={saving} onClick={onSave}>
