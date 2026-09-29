@@ -539,7 +539,7 @@ export { RadioCard, RadioGroup, RadioGroupItem } from './components/radio-group/
 
 export { Rating } from './components/rating/rating';
 export type { RatingProps } from './components/rating/rating';
-export type { RadioGroupItemProps } from './components/radio-group/radio-group';
+export type { RadioCardProps, RadioGroupItemProps } from './components/radio-group/radio-group';
 
 export { ScrollArea, ScrollBar } from './components/scroll-area/scroll-area';
 export { VirtualList, type VirtualListProps } from './components/virtual-list/virtual-list';
