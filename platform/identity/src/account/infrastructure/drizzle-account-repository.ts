@@ -185,6 +185,7 @@ export async function loadSession(
       expiresAt: session.expiresAt,
       lastSeenAt: session.lastSeenAt,
       impersonatedBy: session.impersonatedBy,
+      viewedBy: session.viewedBy,
     })
     .from(session)
     .innerJoin(account, eq(account.id, session.accountId))

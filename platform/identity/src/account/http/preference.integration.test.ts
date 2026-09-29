@@ -95,9 +95,9 @@ const routes = preferenceRoutes({
     ),
   write: (tenantId, accountId, name, value) =>
     withTenant(db, tenantId, async (tx) => {
-      if (!(await hasAccount(tx, accountId))) return false;
+      if (!(await hasAccount(tx, accountId))) return 'unknown' as const;
       await writePreference(tx, tenantId, accountId, name, value);
-      return true;
+      return 'written' as const;
     }),
 });
 
@@ -130,6 +130,9 @@ async function call(
   return { status, body: payload === undefined ? undefined : (JSON.parse(payload) as unknown) };
 }
 
+/** The session writing: any uuid here; `view-as.integration.test.ts` refuses a view-as one. */
+const SESSION = '00000000-0000-4000-8000-0000000000c1';
+
 const path = (tenant: string, accountId: string) =>
   `/api/internal/tenants/${tenant}/accounts/${accountId}/preferences/shortcuts`;
 
@@ -138,19 +141,19 @@ describe('a person’s preferences', () => {
     expect(await call('GET', path(TENANT, ADA))).toEqual({ status: 200, body: { value: null } });
 
     const first = { bindings: { 'go.directory': ['g', 'e'] }, characterKeys: true };
-    expect((await call('PUT', path(TENANT, ADA), { value: first })).status).toBe(204);
+    expect((await call('PUT', path(TENANT, ADA), { value: first, sessionId: SESSION })).status).toBe(204);
     expect(await call('GET', path(TENANT, ADA))).toEqual({ status: 200, body: { value: first } });
 
     // Resetting everything is saving the defaults: the row is replaced, not added to.
     const reset = { bindings: {}, characterKeys: false };
-    expect((await call('PUT', path(TENANT, ADA), { value: reset })).status).toBe(204);
+    expect((await call('PUT', path(TENANT, ADA), { value: reset, sessionId: SESSION })).status).toBe(204);
     expect(await call('GET', path(TENANT, ADA))).toEqual({ status: 200, body: { value: reset } });
   });
 
   it('never reaches an account of another company, reading or writing', async () => {
     expect((await call('GET', path(TENANT, GLOBEX_ADA))).status).toBe(404);
     expect(
-      (await call('PUT', path(TENANT, GLOBEX_ADA), { value: { characterKeys: false } })).status,
+      (await call('PUT', path(TENANT, GLOBEX_ADA), { value: { characterKeys: false }, sessionId: SESSION })).status,
     ).toBe(404);
     // Globex's Ada is untouched: nothing was written for her under Acme's name.
     expect(await call('GET', path(OTHER_TENANT, GLOBEX_ADA))).toEqual({
@@ -161,9 +164,11 @@ describe('a person’s preferences', () => {
 
   it('refuses a caller without the token, a value that is not an object, and one too large', async () => {
     expect((await call('GET', path(TENANT, ADA), undefined, null)).status).toBe(401);
-    expect((await call('PUT', path(TENANT, ADA), { value: ['g'] })).status).toBe(400);
+    expect((await call('PUT', path(TENANT, ADA), { value: ['g'], sessionId: SESSION })).status).toBe(400);
+    // The session writing is named, so identity can refuse a view-as one.
+    expect((await call('PUT', path(TENANT, ADA), { value: { characterKeys: true } })).status).toBe(400);
     expect(
-      (await call('PUT', path(TENANT, ADA), { value: { pad: 'x'.repeat(17_000) } })).status,
+      (await call('PUT', path(TENANT, ADA), { value: { pad: 'x'.repeat(17_000) }, sessionId: SESSION })).status,
     ).toBe(413);
   });
 });

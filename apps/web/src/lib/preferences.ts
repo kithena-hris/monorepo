@@ -2,7 +2,9 @@ import 'server-only';
 import { headers } from 'next/headers';
 import { cache } from 'react';
 
-import { currentPerson } from './session';
+import { cookies } from 'next/headers';
+
+import { currentPerson, SESSION_COOKIE } from './session';
 
 /**
  * The signed-in person's own preferences, kept by identity with their account
@@ -47,11 +49,14 @@ export async function writePreference(
   value: Readonly<Record<string, unknown>>,
 ): Promise<boolean> {
   const url = await preferenceUrl(name);
-  if (url === null) return false;
+  const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (url === null || sessionId === undefined) return false;
+  // The session writing, so identity can refuse an administrator viewing as
+  // this person: viewing is read-only.
   const response = await fetch(url, {
     method: 'PUT',
     headers: internal(),
-    body: JSON.stringify({ value }),
+    body: JSON.stringify({ value, sessionId }),
     cache: 'no-store',
   }).catch(() => null);
   return response?.ok === true;

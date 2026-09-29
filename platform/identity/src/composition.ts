@@ -36,6 +36,13 @@ import { revokeSession } from './account/application/revoke-session.js';
 import { sessionRoutes } from './account/http/session-routes.js';
 import { startSupport } from './account/application/start-support.js';
 import { supportRoutes } from './account/http/support-routes.js';
+import { startViewAs } from './account/application/start-view-as.js';
+import { viewAsRoutes } from './account/http/view-as-routes.js';
+import {
+  beginViewAs,
+  closeViewAs,
+  viewerOf,
+} from './account/infrastructure/view-as-store.js';
 import { SUPPORT_AMR, supportAccountProfile } from './account/domain/support.js';
 import { admitOperatorSession } from './operator/domain/operator.js';
 import { asInstant } from './credential/infrastructure/drizzle-enrolment-token-store.js';
@@ -654,21 +661,33 @@ export async function compose(config: Config): Promise<RequestHandler> {
     internalToken: config.internalToken,
     entitlementsOf,
     issueAccessToken: async (session) => {
-      const token = await mintAccess(
-        principalFrom(
-          session,
-          session.impersonatedBy === null ? null : { by: session.impersonatedBy },
-        ),
-        {
-          entitlements: await entitlementsOf(session.tenantId),
-        },
-      );
-      return {
-        token,
-        expiresAt: new Date(
+      const actor =
+        session.impersonatedBy !== null
+          ? { by: session.impersonatedBy, kind: 'support' as const }
+          : session.viewedBy !== null
+            ? { by: session.viewedBy, kind: 'view_as' as const }
+            : null;
+      // Never past the session's own end: a view-as session's last token
+      // must not carry it beyond its thirty minutes.
+      const notAfter = new Date(
+        Math.min(
           systemClock.now().getTime() + ACCESS_TOKEN_SECONDS * 1000,
-        ).toISOString(),
-      };
+          Date.parse(session.expiresAt),
+        ),
+      ).toISOString();
+      const token = await mintAccess(principalFrom(session, actor), {
+        entitlements: await entitlementsOf(session.tenantId),
+        notAfter,
+      });
+      return { token, expiresAt: notAfter };
+    },
+    settle: async (tenantId) => {
+      try {
+        await inTenantTransaction(tenantId, (tx) => closeViewAs(tx, tenantId, systemClock.now(), null));
+      } catch (error) {
+        // Never a refused sign-in: the next session check closes it instead.
+        logger.warn({ err: error, tenantId }, 'lapsed view-as sessions not closed');
+      }
     },
     issueHandoff: issueHandoff({ store: handoffStore, clock: systemClock }),
     redeemHandoff: redeemHandoff({ store: handoffStore, clock: systemClock }),
@@ -731,14 +750,20 @@ export async function compose(config: Config): Promise<RequestHandler> {
         write: () => Promise.resolve(),
         forget: () => Promise.resolve(),
       },
+      /*
+       * Signing a view-as session out is how viewing ends, and its end is
+       * recorded in the same transaction that deletes it — whatever asked:
+       * "End viewing as …", signing out, or a sign-in replacing it.
+       */
       remove: async (tenantId, sessionId) => {
-        await inTenantTransaction(tenantId, (tx) =>
-          tx.execute(sql`
+        await inTenantTransaction(tenantId, async (tx) => {
+          await closeViewAs(tx, tenantId, systemClock.now(), sessionId);
+          await tx.execute(sql`
             DELETE FROM platform.session
              WHERE id = ${sessionId}::uuid
                AND tenant_id = ${tenantId}::uuid
-          `),
-        );
+          `);
+        });
       },
     }),
   });
@@ -758,11 +783,13 @@ export async function compose(config: Config): Promise<RequestHandler> {
       inTenantTransaction(tenantId, async (tx) =>
         (await hasAccount(tx, accountId)) ? readPreference(tx, accountId, name) : undefined,
       ),
-    write: (tenantId, accountId, name, value) =>
+    write: (tenantId, accountId, name, value, sessionId) =>
       inTenantTransaction(tenantId, async (tx) => {
-        if (!(await hasAccount(tx, accountId))) return false;
+        if (!(await hasAccount(tx, accountId))) return 'unknown';
+        // Viewing as somebody is read-only, their preferences included.
+        if ((await viewerOf(tx, sessionId)) !== null) return 'view_only';
         await writePreference(tx, tenantId, accountId, name, value);
-        return true;
+        return 'written';
       }),
   });
 
@@ -1909,6 +1936,30 @@ export async function compose(config: Config): Promise<RequestHandler> {
   });
 
   /*
+   * Viewing as an employee: People starts it for one of its administrators
+   * (`docs/auth-administration.md`, "Viewing as an employee").
+   */
+  const viewAs = viewAsRoutes({
+    token: config.peopleToken ?? config.internalToken,
+    start: startViewAs({
+      clock: systemClock,
+      newId: () => uuidv7(),
+      issueHandoff: issueHandoff({ store: handoffStore, clock: systemClock }),
+      begin: (input, check) =>
+        inTenantTransaction(input.tenantId, async (tx) => {
+          const begun = await beginViewAs(tx, input, check);
+          if (begun.ok) {
+            logger.info(
+              { tenantId: input.tenantId, sessionId: input.sessionId },
+              'view-as session started',
+            );
+          }
+          return begun;
+        }),
+    }),
+  });
+
+  /*
    * Routes, tried in order.
    *
    * A list rather than a router. There are four, matched by prefix, and a
@@ -1919,6 +1970,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     jwks(request, response) ||
     (await sessions(request, response)) ||
     (await support(request, response)) ||
+    (await viewAs(request, response)) ||
     (await webauthn(request, response)) ||
     (await enrolment(request, response)) ||
     (await operator(request, response)) ||

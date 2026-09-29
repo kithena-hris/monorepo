@@ -29,6 +29,11 @@ export interface CachedSession {
    * puts `act` in the access token, so every module sees who is really asking.
    */
   readonly impersonatedBy?: string | null;
+  /**
+   * The People administrator, on a view-as session (the account is then the
+   * employee's); null or absent otherwise. What makes the token read-only.
+   */
+  readonly viewedBy?: string | null;
 }
 
 export interface SessionCache {

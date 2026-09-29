@@ -44,7 +44,15 @@ export interface MintTokenDeps {
  */
 export type MintToken = (
   claims: PrincipalClaims,
-  context?: { readonly entitlements?: readonly string[] },
+  context?: {
+    readonly entitlements?: readonly string[];
+    /**
+     * The session's own end: a token never outlives the session it was minted
+     * for. What holds a thirty-minute view-as session to thirty minutes when
+     * its last token is minted at minute twenty-nine.
+     */
+    readonly notAfter?: string;
+  },
 ) => Promise<string>;
 
 export function mintToken({
@@ -56,7 +64,12 @@ export function mintToken({
 }: MintTokenDeps): MintToken {
   return async (claims, context = {}) => {
     const now = clock.now();
-    const expiresAt = new Date(now.getTime() + lifetimeSeconds * 1000);
+    const expiresAt = new Date(
+      Math.min(
+        now.getTime() + lifetimeSeconds * 1000,
+        context.notAfter === undefined ? Infinity : Date.parse(context.notAfter),
+      ),
+    );
 
     return signer.sign(
       {
@@ -74,7 +87,12 @@ export function mintToken({
         // RFC 8693's actor claim. Present only during impersonation, so a
         // subgraph can refuse a write it would allow from the person
         // themselves, and absent rather than null so its presence is the signal.
+        //
+        // Viewing as an employee is an actor too, and says so: `kind` is what
+        // the router reads to forward it as `viewedBy` — read-only — and never
+        // as support's `impersonatedBy`, which is a full administrator.
         ...(claims.impersonatedBy === null ? {} : { act: { sub: claims.impersonatedBy } }),
+        ...(claims.viewedBy === null ? {} : { act: { sub: claims.viewedBy, kind: 'view_as' } }),
         ...(context.entitlements === undefined ? {} : { ent: [...context.entitlements] }),
         iat: Math.floor(now.getTime() / 1000),
       },
