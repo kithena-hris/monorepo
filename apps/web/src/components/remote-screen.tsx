@@ -8,7 +8,6 @@ import {
   Component,
   Suspense,
   use,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -285,13 +284,10 @@ export interface RemoteScreenProps {
   /** What the screen is drawn from and what its buttons do, from the shell (PEO-098). */
   readonly props?: Readonly<Record<string, unknown>>;
   /**
-   * Follow a link the screen drew, inside this page (the host's router).
-   *
-   * A remote renders plain `<a href>`s: it cannot know the host's router, and
-   * it must work in a host that has none. Without this every one of them was
-   * a full page load.
+   * What stands in for the screen while it is drawn in the browser rather
+   * than by the server: a skeleton of its shape. A spinner when absent.
    */
-  readonly onNavigate?: (href: string) => void;
+  readonly fallback?: ReactNode;
 }
 
 function Drawn({
@@ -329,20 +325,31 @@ function Drawn({
 }
 
 /**
- * Where a press on a remote's link should go without leaving the page: a
- * plain left click on a same-origin link that opens in this tab. `null` for
- * anything the browser should handle itself — a modified click (a new tab),
- * a download, another origin, or a click the screen already handled.
+ * Arriving by a navigation, the screen's code is waited for here, above the
+ * screen's own boundary rather than inside it.
+ *
+ * A navigation is a transition, and a transition keeps what is on screen
+ * until the next screen can be drawn — unless something new shows a
+ * fallback. The screen's boundary is new with every screen (the page under
+ * the shell is), so a screen whose code had not loaded yet swapped the page
+ * for a spinner and then for the screen: a blink on every first visit.
+ * Waited for up here, the previous screen stays until this one is ready.
+ *
+ * Not while hydrating: the server's HTML is already the screen, and the
+ * boundary keeps it there until the code arrives (`Island`). Inside
+ * `RemoteBoundary`, so a remote that cannot be reached still says so.
  */
-export function inAppHref(event: MouseEvent, origin: string): string | null {
-  if (event.defaultPrevented || event.button !== 0) return null;
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
-  const target = event.target;
-  const link = target instanceof Element ? target.closest<HTMLAnchorElement>('a[href]') : null;
-  if (link === null || link.hasAttribute('download')) return null;
-  if (link.target !== '' && link.target !== '_self') return null;
-  const url = new URL(link.href, origin);
-  return url.origin === origin ? `${url.pathname}${url.search}${url.hash}` : null;
+function Loaded({
+  name,
+  route,
+  children,
+}: {
+  readonly name: string;
+  readonly route: RemoteRoute;
+  readonly children: ReactNode;
+}): ReactNode {
+  use(browserScreenOf(name, route));
+  return children;
 }
 
 /**
@@ -368,42 +375,39 @@ export function RemoteScreen({
   area,
   route,
   props = {},
-  onNavigate,
+  fallback,
 }: RemoteScreenProps): JSX.Element {
-  const links = useRef<HTMLDivElement>(null);
-  // A native listener: the screen hydrates in a React root of its own, whose
-  // events this tree's handlers do not see.
-  useEffect(() => {
-    const container = links.current;
-    if (container === null || onNavigate === undefined) return;
-    const follow = (event: MouseEvent): void => {
-      const href = inAppHref(event, window.location.origin);
-      if (href === null) return;
-      event.preventDefault();
-      onNavigate(href);
-    };
-    container.addEventListener('click', follow);
-    return () => {
-      container.removeEventListener('click', follow);
-    };
-  }, [onNavigate]);
+  const hydrating = useSyncExternalStore(
+    subscribeNever,
+    () => false,
+    () => true,
+  );
+  // Latched like `Drawn`'s, so the render after hydration does not start waiting.
+  const [arrived] = useState(!hydrating);
   if (route === null) return <Unavailable area={area} />;
+  const screen = (
+    <Suspense fallback={fallback ?? <Spinner label={`Loading ${area}`} />}>
+      <Drawn name={name} area={area} route={route} props={props} />
+    </Suspense>
+  );
   return (
-    <div ref={links} className="contents">
-      <RemoteBoundary area={area}>
-        {route.stylesheet === undefined ? null : (
-          <link
-            rel="stylesheet"
-            href={route.stylesheet.href}
-            integrity={route.stylesheet.integrity}
-            crossOrigin="anonymous"
-            precedence="default"
-          />
-        )}
-        <Suspense fallback={<Spinner label={`Loading ${area}`} />}>
-          <Drawn name={name} area={area} route={route} props={props} />
-        </Suspense>
-      </RemoteBoundary>
-    </div>
+    <RemoteBoundary area={area}>
+      {route.stylesheet === undefined ? null : (
+        <link
+          rel="stylesheet"
+          href={route.stylesheet.href}
+          integrity={route.stylesheet.integrity}
+          crossOrigin="anonymous"
+          precedence="default"
+        />
+      )}
+      {arrived ? (
+        <Loaded name={name} route={route}>
+          {screen}
+        </Loaded>
+      ) : (
+        screen
+      )}
+    </RemoteBoundary>
   );
 }

@@ -1,10 +1,8 @@
 import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
-import { AppShell } from './app-shell';
 import { PeopleScreen } from './people-screen';
 import { WorkspaceAsleep } from './workspace-asleep';
-import { currentTenant } from '../lib/branding';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import {
@@ -16,8 +14,7 @@ import {
   siblingsOf,
 } from '../lib/remotes';
 import { shellData } from '../lib/shell';
-import { currentPerson, displayName } from '../lib/session';
-import { sidebarCollapsed } from '../lib/signed-in';
+import { currentPerson } from '../lib/session';
 import { workspaceConfig } from '../lib/workspace';
 
 /**
@@ -26,8 +23,9 @@ import { workspaceConfig } from '../lib/workspace';
  *
  * The shell does what only the shell may: reads the session, asks the remote's
  * manifest which screen owns the path, fetches that screen's data from People
- * as the person signed in (PEO-098), and draws the chrome — its own sidebar,
- * and People's sections from the same manifest, cut to this person's roles.
+ * as the person signed in (PEO-098), and hands the screen its header: the
+ * breadcrumb, tabs and actions from the same manifest, cut to this person's
+ * roles. The sidebar around it is the `(app)` layout's, drawn once.
  * The screen itself comes from wherever the remote is deployed — its server
  * build for the HTML, its browser build to hydrate (PEO-094) — so shipping a
  * change to it never rebuilds this app.
@@ -130,51 +128,32 @@ export async function PeopleArea({
           siblingsLabel: 'People settings',
         };
 
-  const tenant = await currentTenant();
-  const name =
-    person.name === null
-      ? displayName(person.workEmail)
-      : `${person.name.given} ${person.name.family}`;
-  return (
-    <AppShell
-      person={{ name, email: person.workEmail }}
-      companyName={tenant?.branding.displayName ?? tenant?.slug ?? 'your company'}
-      logoUrl={tenant?.branding.logoUrl ?? null}
-      entitlements={person.entitlements}
-      // People's sections hang off its sidebar item as a menu, on demand;
-      // the screen keeps the full width.
-      shell={shell}
-      sidebarCollapsed={await sidebarCollapsed()}
-      route={area === 'people' ? here : null}
-    >
-      {/* Nothing answered at the router and the VM can be woken: wake it. */}
-      {load.status === 'error' && load.unreachable === true && workspaceConfig() !== null ? (
-        <WorkspaceAsleep />
-      ) : (
-        // The screen, whose own header carries the breadcrumb (on a phone, the
-        // title that switches section) and what this person may start from here.
-        <div className="flex flex-col gap-6">
-          <div className="min-w-0">
-            <PeopleScreen
-              route={
-                route === null
-                  ? null
-                  : {
-                      entry: route.entry,
-                      component: route.component,
-                      ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
-                    }
-              }
-              load={load}
-              params={route?.params ?? {}}
-              search={search}
-              today={today()}
-              frame={frame}
-            />
-          </div>
-        </div>
-      )}
-    </AppShell>
+  // Nothing answered at the router and the VM can be woken: wake it.
+  return load.status === 'error' && load.unreachable === true && workspaceConfig() !== null ? (
+    <WorkspaceAsleep />
+  ) : (
+    // The screen, whose own header carries the breadcrumb (on a phone, the
+    // title that switches section) and what this person may start from here.
+    <div className="flex flex-col gap-6">
+      <div className="min-w-0">
+        <PeopleScreen
+          route={
+            route === null
+              ? null
+              : {
+                  entry: route.entry,
+                  component: route.component,
+                  ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
+                }
+          }
+          load={load}
+          params={route?.params ?? {}}
+          search={search}
+          today={today()}
+          frame={frame}
+        />
+      </div>
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
-import { PeopleArea, flatSearch } from '../../../../components/people-area';
+import { PeopleArea, flatSearch } from '../../../../../components/people-area';
 
 /**
  * Each of People's settings under Settings, rendered by the People remote

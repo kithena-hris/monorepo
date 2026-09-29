@@ -6,6 +6,7 @@ import {
   currentTab,
   firstUnder,
   headerFrame,
+  matchPath,
   matchRoute,
   placesFor,
 } from './remotes';
@@ -42,6 +43,14 @@ describe('matchRoute', () => {
 
   it('is undefined for a path the remote does not list', () => {
     expect(matchRoute(manifest, '/people/nobody/at-all')).toBeUndefined();
+  });
+
+  it('lists every path, for the shell to match the address against in the browser', () => {
+    expect(matchRoute(manifest, '/people')?.routes).toEqual([
+      '/people',
+      '/people/:id',
+      '/people/directory/list',
+    ]);
   });
 
   it('is null for something that is not a manifest', () => {
@@ -89,6 +98,23 @@ describe('matchRoute', () => {
       placesFor({ sections: [], actions: [], settings }, roles).settings.map((s) => s.label);
     expect(cut({ admin: true })).toEqual(['Organisation', 'Employee fields']);
     expect(cut({ hr: true })).toEqual(['Organisation']);
+  });
+});
+
+describe('matchPath', () => {
+  const paths = ['/people', '/people/:id', '/people/me', '/people/:id/history'];
+
+  it('is the route the address is, a literal before a pattern', () => {
+    expect(matchPath(paths, '/people/me')?.path).toBe('/people/me');
+    expect(matchPath(paths, '/people/01a0')?.path).toBe('/people/:id');
+    expect(matchPath(paths, '/people/01a0/history')?.path).toBe('/people/:id/history');
+  });
+
+  it('marks the section the server would, from the address alone', () => {
+    const hr = placesFor(PEOPLE_NAV, HR).sections;
+    const at = (address: string) => currentPlace(hr, matchPath(paths, address)?.path ?? null);
+    expect(at('/people/01a0')?.label).toBe('Directory');
+    expect(at('/people/me')).toBeUndefined();
   });
 });
 

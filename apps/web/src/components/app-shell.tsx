@@ -16,6 +16,9 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  Field,
+  FieldControl,
+  FieldLabel,
   filterCommands,
   Kbd,
   KithenaLogo,
@@ -34,6 +37,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  Switch,
   TabBar,
   TabBarItem,
   TooltipProvider,
@@ -43,14 +47,25 @@ import {
 import type { Route } from 'next';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
-import { searchPeople } from '../app/people/actions';
+import { searchPeople } from '../app/(app)/people/actions';
 import { EMPTY_SHELL, type ShellData } from '../lib/shell-data';
+import { useInAppLinks } from '../lib/links';
+import { matchPath } from '../lib/remotes';
 import { SIDEBAR_COOKIE } from '../lib/sidebar';
-import { THEME_KEY } from '../lib/theme';
+import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
 import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
+
 import { since } from './since';
 
 /*
@@ -68,7 +83,6 @@ const Document = icons.document;
 const Settings = icons.settings;
 const SignOut = icons.signOut;
 const ThemeDark = icons.themeDark;
-const ThemeLight = icons.theme;
 
 /**
  * The signed-in shell: the sidebar with its People menu, search and the bell
@@ -96,8 +110,6 @@ export interface AppShellProps {
   readonly entitlements: readonly string[];
   /** People's places, counts and notices for this person (`shellData`). */
   readonly shell?: ShellData;
-  /** The People manifest route on screen, to mark it in the menu. */
-  readonly route?: string | null;
   /**
    * Whether this device keeps the sidebar collapsed, read from its cookie on
    * the server (`sidebarCollapsed`), so the first paint is already the rail
@@ -154,33 +166,34 @@ function roleOf(roles: ShellData['roles']): string | null {
   return null;
 }
 
+/** Told when the class on `<html>` changes, whoever changed it. */
+function onThemeChange(listener: () => void): () => void {
+  const observer = new MutationObserver(listener);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  return () => {
+    observer.disconnect();
+  };
+}
+
 /**
  * Light or dark, for whatever in this shell offers it.
  *
- * Read from the DOM rather than from storage, because the inline script in the
- * root layout may have honoured a stored choice that disagrees with the system
- * preference — and reading anything else would show the wrong state on the
- * control that sets it.
+ * Read from `<html>` rather than from the cookie, because with nothing chosen
+ * the inline script in the root layout followed the system preference — and
+ * subscribed to it, so the menu at a desk and the sheet on a phone always
+ * agree with the page and with each other.
  */
 function useTheme(): readonly [boolean, (next: boolean) => void] {
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains('dark'));
-  }, []);
-
+  const dark = useSyncExternalStore(
+    onThemeChange,
+    () => document.documentElement.classList.contains('dark'),
+    () => false,
+  );
   return [
     dark,
     (next: boolean) => {
-      setDark(next);
       document.documentElement.classList.toggle('dark', next);
-      // `try`, because Safari's private mode throws on write — and a theme that
-      // cannot be remembered is not a reason to break the control.
-      try {
-        localStorage.setItem(THEME_KEY, next ? 'dark' : 'light');
-      } catch {
-        /* not remembered, still applied */
-      }
+      document.cookie = themeCookie(next);
     },
   ] as const;
 }
@@ -222,7 +235,6 @@ export function AppShell({
   logoUrl = null,
   entitlements,
   shell = EMPTY_SHELL,
-  route = null,
   sidebarCollapsed,
   children,
 }: AppShellProps): JSX.Element {
@@ -230,7 +242,14 @@ export function AppShell({
   const areas = areasFor(entitlements);
   const pathname = usePathname();
   const role = roleOf(shell.roles);
+  // Which of People's routes the address is, to mark its section: the shell is
+  // drawn once, by the layout, so it reads that from the address rather than
+  // being told by each page.
+  const route = isCurrent('/people', pathname)
+    ? (matchPath(shell.routes, pathname)?.path ?? null)
+    : null;
   useGoShortcut(entitlements.includes('module.people'));
+  useInAppLinks();
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
    *
@@ -363,6 +382,11 @@ export function AppShell({
         }
       >
         <TopCorner shell={shell} />
+        {/*
+          No boundary here, on purpose: a navigation is a transition and keeps
+          this page on screen until the next is ready, and a first load waits
+          for the page rather than flashing a stand-in for it.
+        */}
         {children}
       </PageLayout>
       <Assistant />
@@ -698,9 +722,10 @@ function PersonMenu({
 }
 
 /**
- * Light or dark, in the menu where the rest of this person's preferences are.
- * `onSelect` is prevented from closing the menu, so somebody can look at the
- * result and change their mind without opening it again.
+ * Light or dark, in the menu where the rest of this person's preferences are:
+ * a switch, because dark mode is a setting that is on or off, not an option
+ * that is ticked. `onSelect` is prevented from closing the menu, so somebody
+ * can look at the result and change their mind without opening it again.
  */
 function ThemeChoice({
   dark,
@@ -711,6 +736,7 @@ function ThemeChoice({
 }): JSX.Element {
   return (
     <DropdownMenuCheckboxItem
+      indicator="switch"
       checked={dark}
       onSelect={(event) => {
         event.preventDefault();
@@ -759,18 +785,13 @@ export function AccountSheet({
               </NavItem>
             </NavList>
           </Nav>
-          <Button
-            variant="ghost"
-            fullWidth
-            aria-pressed={dark}
-            startIcon={dark ? <ThemeLight /> : <ThemeDark />}
-            className="mt-2 justify-start"
-            onClick={() => {
-              setTheme(!dark);
-            }}
-          >
-            {dark ? 'Light mode' : 'Dark mode'}
-          </Button>
+          {/* The same switch as the menu at a desk: on is dark. */}
+          <Field orientation="horizontal" className="mt-2 items-center justify-between gap-4 px-3">
+            <FieldLabel>Dark mode</FieldLabel>
+            <FieldControl>
+              <Switch checked={dark} onCheckedChange={setTheme} />
+            </FieldControl>
+          </Field>
           <form action="/auth/sign-out" method="post" className="mt-1 w-full">
             <Button
               type="submit"

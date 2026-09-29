@@ -1,8 +1,8 @@
 'use server';
 
-import { people, type PeopleAnswer } from '../../lib/people';
-import { VIEWS } from '../../lib/people-views';
-import { loadScreen } from '../../lib/people-screens';
+import { people, type PeopleAnswer } from '../../../lib/people';
+import { VIEWS } from '../../../lib/people-views';
+import { loadScreen } from '../../../lib/people-screens';
 
 /**
  * What the People screens' buttons do: server actions, each one operation

@@ -159,7 +159,7 @@ export function ScreenFrame({
             <Breadcrumb className="touch:hidden">
               <BreadcrumbList>
                 {trail.map((link) => (
-                  <Fragment key={link.href}>
+                  <Fragment key={`${link.href} ${link.label}`}>
                     <BreadcrumbItem>
                       <BreadcrumbLink href={link.href}>{link.label}</BreadcrumbLink>
                     </BreadcrumbItem>

@@ -1,13 +1,10 @@
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
-import { AppShell } from '../../components/app-shell';
-import { SettingsIndex, type SettingsModule } from '../../components/settings-index';
-import { currentTenant } from '../../lib/branding';
-import { settingsOverview } from '../../lib/people-screens';
-import { shellData } from '../../lib/shell';
-import { currentPerson, displayName } from '../../lib/session';
-import { sidebarCollapsed } from '../../lib/signed-in';
+import { SettingsIndex, type SettingsModule } from '../../../components/settings-index';
+import { settingsOverview } from '../../../lib/people-screens';
+import { shellData } from '../../../lib/shell';
+import { currentPerson } from '../../../lib/session';
 
 /**
  * Settings: every setting this person may open, grouped by the module it
@@ -144,21 +141,5 @@ export default async function Settings(): Promise<JSX.Element> {
     });
   }
 
-  const tenant = await currentTenant();
-  const name =
-    person.name === null
-      ? displayName(person.workEmail)
-      : `${person.name.given} ${person.name.family}`;
-  return (
-    <AppShell
-      person={{ name, email: person.workEmail }}
-      companyName={tenant?.branding.displayName ?? tenant?.slug ?? 'your company'}
-      logoUrl={tenant?.branding.logoUrl ?? null}
-      entitlements={person.entitlements}
-      shell={shell}
-      sidebarCollapsed={await sidebarCollapsed()}
-    >
-      <SettingsIndex modules={modules} />
-    </AppShell>
-  );
+  return <SettingsIndex modules={modules} />;
 }

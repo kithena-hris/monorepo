@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Suspense, type ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { List, ListItem, swipeOutcome } from './list-item';
@@ -49,5 +50,33 @@ describe('<ListItem swipeActions>', () => {
     await userEvent.keyboard('{Enter}');
     expect(remove).toHaveBeenCalledOnce();
     expect(archive).not.toHaveBeenCalled();
+  });
+});
+
+describe('<ListItem asChild>', () => {
+  /*
+   * What a server component's `<a>` is while the server renders the HTML: a
+   * lazy reference, not an element. The row has to come out as it does for
+   * the element itself, or the page fails to hydrate.
+   */
+  it('makes the row the link when the link arrives as a lazy reference', async () => {
+    const link = <a href="/people/approvals">Grace Hopper</a>;
+    const lazy = {
+      $$typeof: Symbol.for('react.lazy'),
+      _payload: Object.assign(Promise.resolve(link), { status: 'fulfilled', value: link }),
+      _init: (payload: { value: unknown }) => payload.value,
+    };
+    render(
+      <Suspense>
+        <List>
+          <ListItem asChild description="Address change">
+            {lazy as unknown as ReactElement}
+          </ListItem>
+        </List>
+      </Suspense>,
+    );
+    const row = await screen.findByRole('link', { name: /Grace Hopper/ });
+    expect(row.className).toContain('group/row');
+    expect(row.textContent).toContain('Address change');
   });
 });

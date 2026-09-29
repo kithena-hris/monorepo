@@ -11,18 +11,26 @@
  *
  * So every rule in the utilities layer is limited to the remote's own
  * markup: inside the element the host renders it into (`[data-remote]`), or
- * inside anything placed straight under `<body>` that does not hold the
- * remote — which is where a dialog, a select's list or a toast is portalled.
+ * inside anything placed straight under `<body>` that is not the host's own
+ * page — which is where a dialog, a select's list or a toast is portalled.
  * `:where()` adds no specificity, so inside those places the cascade is
- * exactly what the remote's own build intended. A host that marks no
- * `[data-remote]` matches the second arm everywhere, and gets the old
- * behaviour rather than an unstyled screen.
+ * exactly what the remote's own build intended.
+ *
+ * The host's page is the element it marks `[data-remote-host]`, and failing
+ * that, the one holding `[data-remote]`. The mark is what matters: the
+ * stylesheet stays on the page after the host navigates away from the remote
+ * (React keeps a stylesheet it has hoisted), and with no `[data-remote]` left
+ * the host's whole page was "a portal" — its sidebar `hidden` again, on
+ * Settings, until a reload dropped the stylesheet. A host that marks neither
+ * matches the second arm everywhere, and gets the old behaviour rather than an
+ * unstyled screen.
  *
  * A PostCSS plugin, written against the shape PostCSS hands it so that this
  * package does not depend on PostCSS itself; Vite runs it after Tailwind has
  * compiled `styles.css`.
  */
-export const REMOTE_SCOPE = ':where([data-remote], body > :not(:has([data-remote])))';
+export const REMOTE_SCOPE =
+  ':where([data-remote], body > :not([data-remote-host], :has([data-remote])))';
 
 interface Node {
   readonly type: string;

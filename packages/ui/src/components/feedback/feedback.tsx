@@ -187,19 +187,70 @@ export function Alert({
  * Shaped like the content it replaces, so the layout does not jump when data
  * lands. A spinner where a table will be is a layout shift you scheduled.
  */
-export function Skeleton({ className, ...props }: ComponentPropsWithoutRef<'div'>): JSX.Element {
+export interface SkeletonProps extends ComponentPropsWithoutRef<'div'> {
+  /**
+   * `block`, one placeholder sized by `className`. `page`, a whole page while
+   * it loads, in `PageHeader`'s measurements: the trail, the title and its
+   * line, the tab row when there is one, and the body. A page that swaps a
+   * spinner for its header moves everything under it; this one moves nothing.
+   */
+  shape?: 'block' | 'page';
+  /** `page`: a breadcrumb above the title. */
+  breadcrumb?: boolean;
+  /** `page`: how many tabs the header has; none, no tab row. */
+  tabs?: number;
+  /** `page`: what a screen reader hears while it waits. */
+  label?: string;
+}
+
+const shimmer = [
+  'rounded-sm bg-surface-sunken',
+  'bg-[linear-gradient(90deg,transparent,var(--reach-color-surface-hover),transparent)]',
+  'bg-[length:200%_100%] animate-shimmer',
+  'motion-reduce:animate-none',
+];
+
+export function Skeleton({
+  className,
+  shape = 'block',
+  breadcrumb = false,
+  tabs = 0,
+  label = 'Loading',
+  ...props
+}: SkeletonProps): JSX.Element {
+  if (shape === 'block') {
+    return <div aria-hidden="true" className={cn(shimmer, className)} {...props} />;
+  }
+  const bar = (size: string): JSX.Element => <span className={cn('block', shimmer, size)} />;
   return (
-    <div
-      aria-hidden="true"
-      className={cn(
-        'rounded-sm bg-surface-sunken',
-        'bg-[linear-gradient(90deg,transparent,var(--reach-color-surface-hover),transparent)]',
-        'bg-[length:200%_100%] animate-shimmer',
-        'motion-reduce:animate-none',
-        className,
-      )}
-      {...props}
-    />
+    <div role="status" className={cn('flex flex-col gap-6', className)} {...props}>
+      <span className="sr-only">{label}</span>
+      <div aria-hidden="true" className="flex flex-col gap-3">
+        {/* A breadcrumb's row, as tall as its switcher; a phone's bar under a finger. */}
+        {breadcrumb ? (
+          <div className="flex h-[1.625rem] items-center touch:h-12">{bar('h-3.5 w-48')}</div>
+        ) : null}
+        <div>
+          {/* The `h1`'s line, then the description's. */}
+          <div className="flex h-[2.3125rem] items-center">{bar('h-6 w-64 max-w-full')}</div>
+          <div className="mt-1.5 flex h-[1.375rem] items-center">{bar('h-4 w-96 max-w-full')}</div>
+        </div>
+        {tabs > 0 ? (
+          <div className="flex h-11 items-center gap-6 border-b border-border touch:h-9 touch:border-0">
+            {Array.from({ length: tabs }, (_, i) => (
+              <span
+                key={i}
+                className={cn('block', shimmer, 'h-3.5 w-20 touch:h-8 touch:rounded-full')}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div aria-hidden="true" className="flex flex-col gap-3">
+        {bar('h-10 w-full rounded-md')}
+        {bar('h-64 w-full rounded-lg')}
+      </div>
+    </div>
   );
 }
 

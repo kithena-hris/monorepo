@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 
-const { inAppHref } = await import('./remote-screen');
+const { inAppHref } = await import('./links');
 
 // The page's own origin, as the shell passes it.
 const ORIGIN = window.location.origin;
