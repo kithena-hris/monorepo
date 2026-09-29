@@ -23,7 +23,8 @@ export default async function SignedInLayout({
 }: {
   children: ReactNode;
 }): Promise<JSX.Element> {
-  const { person, entitlements, company, logoUrl, shell, sidebarCollapsed } = await signedIn();
+  const { person, entitlements, company, logoUrl, shell, sidebarCollapsed, shortcuts } =
+    await signedIn();
   return (
     <AppShell
       person={person}
@@ -32,6 +33,7 @@ export default async function SignedInLayout({
       entitlements={entitlements}
       shell={shell}
       sidebarCollapsed={sidebarCollapsed}
+      shortcuts={shortcuts}
     >
       {children}
     </AppShell>

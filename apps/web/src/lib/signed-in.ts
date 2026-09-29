@@ -4,8 +4,10 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { currentTenant } from './branding';
+import { readPreference } from './preferences';
 import { currentPerson, displayName } from './session';
 import { shellData, type ShellData } from './shell';
+import { prefsFrom, type ShortcutPrefs } from './shortcuts';
 import { SIDEBAR_COOKIE, sidebarCollapsedFrom } from './sidebar';
 
 /**
@@ -28,13 +30,16 @@ export async function signedIn(): Promise<{
   readonly logoUrl: string | null;
   readonly shell: ShellData;
   readonly sidebarCollapsed: boolean | undefined;
+  /** Their keyboard shortcuts, as they last saved them; the defaults otherwise. */
+  readonly shortcuts: ShortcutPrefs;
 }> {
   const person = await currentPerson();
   if (person === null) redirect('/login');
-  const [tenant, shell, collapsed] = await Promise.all([
+  const [tenant, shell, collapsed, shortcuts] = await Promise.all([
     currentTenant(),
     shellData(person.entitlements),
     sidebarCollapsed(),
+    readPreference('shortcuts'),
   ]);
   return {
     person: {
@@ -49,5 +54,6 @@ export async function signedIn(): Promise<{
     logoUrl: tenant?.branding.logoUrl ?? null,
     shell,
     sidebarCollapsed: collapsed,
+    shortcuts: prefsFrom(shortcuts),
   };
 }

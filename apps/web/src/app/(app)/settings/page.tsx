@@ -3,6 +3,8 @@ import type { JSX } from 'react';
 
 import { SettingsIndex, type SettingsModule } from '../../../components/settings-index';
 import { settingsOverview } from '../../../lib/people-screens';
+import { readPreference } from '../../../lib/preferences';
+import { prefsFrom } from '../../../lib/shortcuts';
 import { shellData } from '../../../lib/shell';
 import { currentPerson } from '../../../lib/session';
 
@@ -140,6 +142,30 @@ export default async function Settings(): Promise<JSX.Element> {
       })),
     });
   }
+
+  // A person's own settings, after the company's: everybody has these.
+  const shortcuts = prefsFrom(await readPreference('shortcuts'));
+  const changed = Object.keys(shortcuts.bindings).length;
+  modules.push({
+    key: 'you',
+    title: 'You',
+    description: 'How the app works for you. Only you see and change these.',
+    settings: [
+      {
+        path: '/settings/shortcuts',
+        label: 'Keyboard shortcuts',
+        description: 'The keys that take you somewhere, and whether single keys work at all.',
+        icon: 'shortcuts',
+        now: [
+          changed === 0 ? 'The defaults' : plural(changed, 'changed shortcut'),
+          shortcuts.characterKeys ? null : 'single keys off',
+        ]
+          .filter((x) => x !== null)
+          .join(' · '),
+        attention: null,
+      },
+    ],
+  });
 
   return <SettingsIndex modules={modules} />;
 }
