@@ -271,7 +271,7 @@ export const AnUmbrellaPage: Story = {
       { id: 'completeness', label: 'Completeness', count: 88 },
       { id: 'id-checks', label: 'ID checks', count: 3 },
       { id: 'duplicates', label: 'Duplicates', count: 2 },
-      { id: 'access-requests', label: 'Access requests', count: 1 },
+      { id: 'access-requests', label: 'Access requests', shortLabel: 'Access', count: 1 },
     ].map((t) => ({ ...t, href: `#${t.id}` }));
     return (
       <PageHeader

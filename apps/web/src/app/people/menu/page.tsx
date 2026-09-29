@@ -13,7 +13,7 @@ import { signedIn } from '../../../lib/signed-in';
  * sidebar.
  */
 export default async function PeopleMenuPage(): Promise<JSX.Element> {
-  const { person, entitlements, company, logoUrl, shell } = await signedIn();
+  const { person, entitlements, company, logoUrl, shell, sidebarCollapsed } = await signedIn();
   if (!entitlements.includes('module.people')) notFound();
   return (
     <AppShell
@@ -22,6 +22,7 @@ export default async function PeopleMenuPage(): Promise<JSX.Element> {
       logoUrl={logoUrl}
       entitlements={entitlements}
       shell={shell}
+      sidebarCollapsed={sidebarCollapsed}
     >
       <div className="flex flex-col gap-5">
         <PageHeader title="People" actions={<AccountSheet person={person} />} />

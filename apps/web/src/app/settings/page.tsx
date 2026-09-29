@@ -7,6 +7,7 @@ import { currentTenant } from '../../lib/branding';
 import { settingsOverview } from '../../lib/people-screens';
 import { shellData } from '../../lib/shell';
 import { currentPerson, displayName } from '../../lib/session';
+import { sidebarCollapsed } from '../../lib/signed-in';
 
 /**
  * Settings: every setting this person may open, grouped by the module it
@@ -155,6 +156,7 @@ export default async function Settings(): Promise<JSX.Element> {
       logoUrl={tenant?.branding.logoUrl ?? null}
       entitlements={person.entitlements}
       shell={shell}
+      sidebarCollapsed={await sidebarCollapsed()}
     >
       <SettingsIndex modules={modules} />
     </AppShell>
