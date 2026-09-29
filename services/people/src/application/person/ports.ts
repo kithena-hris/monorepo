@@ -1,4 +1,5 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type { Actor } from '@kithena/contracts';
 import type { Result } from '@kithena/domain-kit';
 
 import type { ViewerRelations } from '../../domain/access/field-access.js';
@@ -20,10 +21,24 @@ export interface Viewer {
   /**
    * `hr`, `finance`, `people_admin`: tenant-wide relations.
    *
-   * ponytail: taken from the forwarded principal until an OpenFGA client
-   * exists in this repository; the resolver is the one place that changes.
+   * What they may *do*, not only what was granted: a `people_admin` holds
+   * `hr` and `finance` here too (`effectiveRoles`).
    */
   readonly roles: ReadonlySet<string>;
+  /**
+   * Set when this is Kithena support, signed in from the back office by an
+   * operator (the principal's `impersonatedBy`): a full administrator with
+   * no record here, whose every action is recorded with the operator and,
+   * when the principal carries one, the reason they gave.
+   */
+  readonly support?: { readonly operatorId: string; readonly reason: string | null };
+}
+
+/** The envelope's actor for this viewer: the operator rides along when it is support. */
+export function userActor(viewer: Viewer): Extract<Actor, { kind: 'user' }> {
+  return viewer.support === undefined
+    ? { kind: 'user', userId: viewer.accountId }
+    : { kind: 'user', userId: viewer.accountId, onBehalfOf: viewer.support.operatorId };
 }
 
 /** A person row, with its values keyed by attribute key. */

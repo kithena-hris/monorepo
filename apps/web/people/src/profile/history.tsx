@@ -41,7 +41,7 @@ export interface HistoryChange {
   readonly by: string;
   /** Who, to draw: a person and their photo, or the product or an integration. Absent: a person. */
   readonly actor?: {
-    /** person, integration or system. */
+    /** person, integration, system, or support (Kithena support). */
     readonly kind: string;
     readonly avatarUrl: string | null;
   };
@@ -311,6 +311,8 @@ function Change({
   readonly last: boolean;
 }): JSX.Element {
   const kind = change.actor?.kind ?? 'person';
+  // Kithena support has no face, as the system has none; it is named, not automatic.
+  const faceless = kind === 'system' || kind === 'support';
   const title = corrected
     ? `${field.label} corrected`
     : empty(change.value)
@@ -337,7 +339,7 @@ function Change({
       <Avatar
         size="sm"
         name={change.by}
-        fallback={kind === 'system' ? <icons.system aria-hidden /> : <icons.link aria-hidden />}
+        fallback={faceless ? <icons.system aria-hidden /> : <icons.link aria-hidden />}
       />
     );
 

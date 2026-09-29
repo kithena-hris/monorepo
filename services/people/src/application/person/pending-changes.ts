@@ -11,6 +11,7 @@ import {
 } from '@kithena/contracts';
 
 import { visibleTo } from '../../domain/access/field-access.js';
+import { holdersOf } from '../../domain/access/roles.js';
 import { expire, openApproval, stateAt, type Approval } from '../../domain/approval/approval.js';
 import {
   approversOf,
@@ -29,7 +30,9 @@ import type {
   RelationsResolver,
   SchemaVersions,
   SealedValue,
+  Viewer,
 } from './ports.js';
+import { userActor } from './ports.js';
 
 /**
  * Changes held for approval (PEO-077; PRD §8.6).
@@ -301,18 +304,21 @@ export async function holdChange(
 /* ------------------------------------------------------------ decide -- */
 
 const NotFound = () => failure('NOT_FOUND', 'No such pending change');
-const user = (userId: string): Actor => ({ kind: 'user', userId });
 const SETTLE: Actor = { kind: 'system', process: 'people-pending-change' };
 
-/** Every account holding `hr` now, as the role rows say; none when they cannot be read. */
+/**
+ * Every account with HR's rights now, as the role rows say — HR, and every
+ * People administrator, who holds HR's rights too; none when they cannot be
+ * read. Kithena support is never here: it holds no row, so no change waits
+ * on it and nobody's "approve alone" is lost to it.
+ */
 async function hrHolders(
   tx: Tx,
   deps: Pick<PendingChangeDeps, 'roles'>,
   tenantId: string,
 ): Promise<readonly string[]> {
   if (!deps.roles) return [];
-  const held = await deps.roles.holdings(tx, tenantId);
-  return [...held].flatMap(([account, roles]) => (roles.has('hr') ? [account] : []));
+  return holdersOf(await deps.roles.holdings(tx, tenantId), 'hr');
 }
 
 /** The review a held identifier waits on, while it is not accepted (PEO-125). */
@@ -417,7 +423,7 @@ async function closeDecided(
   deps: Holding,
   prior: PendingChange,
   next: PendingChange,
-  asking: { readonly viewer: { readonly accountId: string }; readonly correlationId: string },
+  asking: { readonly viewer: Viewer; readonly correlationId: string },
 ): Promise<Result<string>> {
   if (!(await deps.store.close(tx, prior, next))) {
     return err(failure('APPROVAL_DECIDED', 'Somebody closed this change first'));
@@ -427,7 +433,7 @@ async function closeDecided(
     event(
       deps,
       next,
-      user(asking.viewer.accountId),
+      userActor(asking.viewer),
       asking.correlationId,
       PersonChangeDecided.name,
       PersonChangeDecided.payload.parse({
@@ -534,7 +540,7 @@ export async function withdrawPendingChange(
     event(
       deps,
       next,
-      user(asking.viewer.accountId),
+      userActor(asking.viewer),
       asking.correlationId,
       PersonChangeWithdrawn.name,
       PersonChangeWithdrawn.payload.parse({
@@ -795,8 +801,9 @@ export interface RoleReads {
 }
 
 /**
- * The addresses to tell about a change: every approver (HR, less the
- * requester and the subject), the requester, and the person it is about. An account with no current
+ * The addresses to tell about a change: every approver (HR and every People
+ * administrator, less the requester and the subject), the requester, and the
+ * person it is about. An account with no current
  * record, or no work email, is not told — the inbox still lists the change.
  */
 export async function whoToTell(
@@ -815,7 +822,7 @@ export async function whoToTell(
   const email = new Map(
     people.flatMap((p) => (p.workEmail === null ? [] : [[p.accountId, p.workEmail] as const])),
   );
-  const hr = [...held].flatMap(([account, roles]) => (roles.has('hr') ? [account] : []));
+  const hr = holdersOf(held, 'hr');
   const approvers = approversOf(hr, {
     requestedBy: change.approval.requestedBy,
     subjectAccountId: person?.snapshot.identityAccountId ?? null,

@@ -63,6 +63,7 @@ import type {
   Uniques,
   Viewer,
 } from './ports.js';
+import { userActor } from './ports.js';
 import { valueSchemaFor } from './values.js';
 import {
   approvedOf,
@@ -848,7 +849,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return (
       systemOf(asking) ??
       (integration === undefined
-        ? { kind: 'user', userId: asking.viewer.accountId }
+        ? userActor(asking.viewer)
         : {
             kind: 'integration',
             integrationId: integration.connectionId,
@@ -1528,9 +1529,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
   }
 
   /**
-   * One lifecycle move, as HR (PEO-108): §7 gives termination facts to HR,
-   * and `people_admin` is the schema's owner, not a key to the lifecycle. A
-   * manager moves nobody.
+   * One lifecycle move, as HR (PEO-108): §7 gives termination facts to HR.
+   * A `people_admin` moves people too, because an administrator holds HR's
+   * rights (their relations carry `isHr`; decided 2026-09-29). A manager
+   * moves nobody.
    *
    * `settled` says the record already stands where the move would leave it —
    * a retried request — and is answered with the record and no second event.

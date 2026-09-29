@@ -6,6 +6,7 @@ import {
   readable,
   readableHistory,
   statusVisibleTo,
+  SUPPORT_RELATIONS,
   visibleTo,
   type ViewerRelations,
 } from './field-access.js';
@@ -379,5 +380,47 @@ describe('an external source of record (PEO-073, PRD §13.6)', () => {
 
   it('changes nothing about who may read it', () => {
     expect(visibleTo(given, relations({ isHr: true, sources }))).toBe(true);
+  });
+});
+
+describe('an administrator, and Kithena support (decided 2026-09-29)', () => {
+  // A `people_admin` is resolved with HR's and finance's relations too (the
+  // OpenFGA model, `effectiveRoles` standalone); support is one by its session.
+  const administrator = relations({ isAdmin: true, isHr: true, isFinance: true });
+  const bankAccount = define({ key: 'bank_account', ownership: ['employee'], visibility: ['self'] });
+
+  for (const [who, viewer] of [
+    ['an administrator', administrator],
+    ['Kithena support', SUPPORT_RELATIONS],
+  ] as const) {
+    it(`lets ${who} read and write what HR and finance may`, () => {
+      expect(visibleTo(salary, viewer)).toBe(true);
+      expect(canWrite(salary, viewer).ok).toBe(true);
+      expect(visibleTo(title, viewer)).toBe(true);
+      expect(canWrite(title, viewer).ok).toBe(true);
+      expect(statusVisibleTo(viewer)).toBe(true);
+    });
+
+    it(`still shows ${who} nothing nobody may read, and none of what only the employee sees`, () => {
+      expect(visibleTo(ethnicity, viewer)).toBe(false);
+      expect(readable([ethnicity], { ethnicity: 'x' }, viewer)).toEqual({});
+      expect(visibleTo(bankAccount, viewer)).toBe(false);
+    });
+
+    it(`does not let ${who} write what the employee owns`, () => {
+      expect(canWrite(ethnicity, viewer).ok).toBe(false);
+      expect(canWrite(bankAccount, viewer).ok).toBe(false);
+    });
+  }
+
+  it('makes support nobody’s self and nobody’s manager', () => {
+    expect(SUPPORT_RELATIONS).toMatchObject({
+      isSelf: false,
+      isManager: false,
+      isInManagerChain: false,
+      isHr: true,
+      isFinance: true,
+      isAdmin: true,
+    });
   });
 });

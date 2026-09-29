@@ -24,7 +24,7 @@ export interface RolesViewPerson {
 
 export interface RolesView {
   readonly viewerAccountId: string;
-  /** Only a `people_admin` grants and revokes; HR reads. */
+  /** Only a `people_admin` (or Kithena support) grants and revokes; HR reads. */
   readonly canManage: boolean;
   readonly people: readonly RolesViewPerson[];
 }
@@ -59,7 +59,9 @@ export async function rolesView(
     }
     return ok({
       viewerAccountId: asking.viewer.accountId,
-      canManage: held.get(asking.viewer.accountId)?.includes('people_admin') === true,
+      canManage:
+        asking.viewer.support !== undefined ||
+        held.get(asking.viewer.accountId)?.includes('people_admin') === true,
       people,
     });
   });

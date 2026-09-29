@@ -201,7 +201,12 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
         name: t.exposeString('name', { description: 'Who did it, by name, "You" included.' }),
         avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
         kind: t.exposeString('kind', {
-          description: 'person, or system for an account nobody in People holds.',
+          description:
+            'person; support for Kithena support, signed in from the back office; or system for an account nobody in People holds.',
+        }),
+        reason: t.exposeString('reason', {
+          nullable: true,
+          description: 'Why Kithena support was signed in, as the operator said. Null otherwise.',
         }),
       }),
     });

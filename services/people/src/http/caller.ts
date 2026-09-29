@@ -4,6 +4,7 @@ import { presentsInternalToken, type HeaderCarrier } from '@kithena/auth-kit';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import type { Asking } from '../application/person/person-access.js';
+import { effectiveRoles, SUPPORT_ROLES } from '../domain/access/roles.js';
 
 /**
  * Who is calling, for every transport, from the request.
@@ -16,6 +17,17 @@ import type { Asking } from '../application/person/person-access.js';
  * Entitlement is checked here and nowhere later: a tenant that did not buy
  * People gets nothing from any transport, which is a different question from
  * whether a given person may see a given field.
+ *
+ * Roles are what the caller may *do*: a `people_admin` holds `hr` and
+ * `finance` too (`effectiveRoles`, decided 2026-09-29), expanded here once so
+ * every check of `viewer.roles` after this agrees.
+ *
+ * **Kithena support.** A principal with `impersonatedBy` — the router copies
+ * it from the token's `act.sub`, which identity sets only on a support
+ * session an operator started from the back office — is the company's
+ * support agent: every tenant role, whatever the header or OpenFGA says, and
+ * `viewer.support` naming the operator, so what it does is recorded as
+ * theirs. `impersonationReason`, when forwarded, is the reason they gave.
  */
 
 const Forwarded = z.object({
@@ -23,6 +35,8 @@ const Forwarded = z.object({
   tenantId: z.uuid(),
   roles: z.array(z.string()).default([]),
   entitlements: z.array(z.string()).default([]),
+  impersonatedBy: z.uuid().nullable().optional(),
+  impersonationReason: z.string().trim().max(500).nullable().optional(),
 });
 
 export type CallerFrom = (request: HeaderCarrier) => Result<Asking> | Promise<Result<Asking>>;
@@ -44,9 +58,10 @@ export function withTenantRoles(
 ): CallerFrom {
   return async (request) => {
     const asking = await callerFrom(request);
-    if (!asking.ok) return asking;
+    // Support holds no tuple: its roles are its session's, set already.
+    if (!asking.ok || asking.value.viewer.support !== undefined) return asking;
     const held = await roles(asking.value.tenantId, asking.value.viewer.accountId);
-    return ok({ ...asking.value, viewer: { ...asking.value.viewer, roles: held } });
+    return ok({ ...asking.value, viewer: { ...asking.value.viewer, roles: effectiveRoles(held) } });
   };
 }
 
@@ -77,9 +92,18 @@ function askingFrom(
     return err(failure('NOT_ENTITLED', 'This workspace does not include People'));
   }
   const correlation = request.headers['x-correlation-id'];
+  const operator = principal.impersonatedBy ?? null;
+  const reason = principal.impersonationReason ?? '';
   return ok({
     tenantId: principal.tenantId,
-    viewer: { accountId: principal.userId, roles: new Set(principal.roles) },
+    viewer:
+      operator === null
+        ? { accountId: principal.userId, roles: effectiveRoles(principal.roles) }
+        : {
+            accountId: principal.userId,
+            roles: SUPPORT_ROLES,
+            support: { operatorId: operator, reason: reason === '' ? null : reason },
+          },
     correlationId:
       typeof correlation === 'string' && z.uuid().safeParse(correlation).success
         ? correlation

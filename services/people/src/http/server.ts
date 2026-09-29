@@ -32,7 +32,7 @@ import { uuidv7 } from '../application/person/ids.js';
 import { inTenantResult } from '../application/person/person-access.js';
 import { personAccess } from '../application/person/person-access.js';
 import type { RelationsResolver } from '../application/person/ports.js';
-import { withSources, withSubjects } from '../application/person/subject.js';
+import { withSources, withSubjects, withSupport } from '../application/person/subject.js';
 import { scimConnections } from '../application/scim/connections.js';
 import { scimProvisioning } from '../application/scim/provisioning.js';
 import { drizzleScimStore } from '../infrastructure/drizzle-scim-store.js';
@@ -135,7 +135,7 @@ export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
   // visibility rules (PEO-066), and the attributes an upstream system owns
   // on them (PEO-073), on every path that reads through it.
   return withSources(
-    withSubjects(openFgaFrom(env)?.relations ?? drizzleRelations(), drizzlePersonReader()),
+    withSubjects(withSupport(openFgaFrom(env)?.relations ?? drizzleRelations()), drizzlePersonReader()),
     drizzleScimStore(),
   );
 }

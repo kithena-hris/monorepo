@@ -1,7 +1,7 @@
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-import { SESSION_COOKIE } from '../../../lib/session';
+import { SESSION_COOKIE } from '../../../lib/session-cookie';
 
 /**
  * Where a sign-in that happened on the auth origin lands.
@@ -18,6 +18,12 @@ import { SESSION_COOKIE } from '../../../lib/session';
  * cannot be planted, because a code is bound to the company that may spend it
  * and this route takes that company from its own hostname rather than from
  * anything in the URL.
+ *
+ * **Arriving replaces whoever was here.** A browser that already holds a
+ * session on this host has it ended in identity, not merely overwritten: the
+ * back office's "Sign in as support" lands here in an operator's browser that
+ * may hold somebody's own session, and two live sessions behind one cookie jar
+ * is one too many.
  */
 export async function GET(request: Request): Promise<Response> {
   // Only the query string is read from here. See `seeOther` below for why the
@@ -72,8 +78,29 @@ export async function GET(request: Request): Promise<Response> {
 
   if (!redeemed?.ok) return giveUp;
 
-  const body = (await redeemed.json()) as { sessionId?: unknown };
+  const body = (await redeemed.json()) as { sessionId?: unknown; expiresAt?: unknown };
   if (typeof body.sessionId !== 'string' || body.sessionId === '') return giveUp;
+  const expires = typeof body.expiresAt === 'string' ? new Date(body.expiresAt) : null;
+
+  /*
+   * The session this browser had here, ended before the new one is set.
+   *
+   * After the redemption rather than before, so a stale or replayed code signs
+   * nobody out. Swallowed like the sign-out route's: the cookie is replaced
+   * either way, and the old row then lapses on its own lifetime.
+   */
+  const previous = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (previous !== undefined && previous !== '' && previous !== body.sessionId) {
+    await fetch(`${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session/revoke`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '',
+      },
+      body: JSON.stringify({ sessionId: previous, tenantId }),
+      cache: 'no-store',
+    }).catch(() => null);
+  }
 
   /*
    * `__Host-` is a promise the browser keeps rather than one a reviewer has to
@@ -94,6 +121,10 @@ export async function GET(request: Request): Promise<Response> {
     // bounce straight back to sign-in.
     sameSite: 'lax',
     path: '/',
+    // Gone when the session is: an hour for support, thirty days for a person.
+    // Without it the cookie lived as long as the browser did, pointing at a
+    // session identity had long since refused.
+    ...(expires === null || Number.isNaN(expires.getTime()) ? {} : { expires }),
   });
 
   return landed;

@@ -10,6 +10,7 @@ import {
   type ExportRequest,
 } from './export.js';
 import type { ObjectStore } from './object-store.js';
+import { userActor } from '../person/ports.js';
 
 /**
  * An export, run to the end: built, stored, linked, audited, announced
@@ -236,7 +237,7 @@ export async function runExportJob(
       occurredAt: now,
       effectiveFrom: null,
       aggregate: { type: 'Export', id: exportId, version: 1 },
-      actor: request.actor ?? { kind: 'user', userId: request.viewer.accountId },
+      actor: request.actor ?? userActor(request.viewer),
       correlationId: request.correlationId,
       causationId: null,
       payload: ExportCompleted.payload.parse({

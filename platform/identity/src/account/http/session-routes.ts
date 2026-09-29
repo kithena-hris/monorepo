@@ -83,6 +83,8 @@ export interface SessionRoutesDeps {
     readonly tenantId: string;
     readonly authenticatedAt: string;
     readonly amr: readonly string[];
+    /** The operator behind a support session, which the token claims as `act`. */
+    readonly impersonatedBy: string | null;
   }) => Promise<{ readonly token: string; readonly expiresAt: string }>;
 }
 
@@ -157,7 +159,16 @@ export function sessionRoutes({
       // 401 for every refusal, with nothing to tell them apart — see
       // `HandoffRefused`. The distinguishing detail is in the log.
       if (!redeemed.ok) return json(401, {});
-      return json(200, { sessionId: redeemed.value.sessionId });
+
+      // With the session's own end, so the tenant app's cookie expires when the
+      // session does: an hour for support, thirty days for a person.
+      const live = await authenticate(tenantId, redeemed.value.sessionId);
+      if (!live.ok) return json(401, {});
+      return json(200, {
+        sessionId: live.value.sessionId,
+        // ISO 8601: the column reads back as `2026-09-29 14:24:38.547+00`.
+        expiresAt: new Date(Date.parse(live.value.expiresAt)).toISOString(),
+      });
     }
 
     if (sessionId === '' || tenantId === '') return json(400, {});
@@ -171,6 +182,7 @@ export function sessionRoutes({
         tenantId,
         authenticatedAt: session.value.authenticatedAt,
         amr: session.value.amr,
+        impersonatedBy: session.value.impersonatedBy ?? null,
       });
       return json(200, {
         accessToken: issued.token,

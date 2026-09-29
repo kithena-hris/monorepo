@@ -40,8 +40,13 @@ export interface SettingsActivityState {
     /** Who did it by name, "You" included: the avatar's initials. */
     readonly name?: string;
     readonly avatarUrl: string | null;
-    /** `system` for an account nobody in People holds: an icon, not initials. */
-    readonly kind?: 'person' | 'system';
+    /**
+     * `system` for an account nobody in People holds, and `support` for
+     * Kithena support signed in from the back office: an icon, not initials.
+     */
+    readonly kind?: 'person' | 'system' | 'support';
+    /** Why Kithena support was signed in, as the operator said. */
+    readonly reason?: string | null;
   }[];
   readonly next: string | null;
 }
@@ -164,7 +169,7 @@ function Entries({
     needle === ''
       ? state.entries
       : state.entries.filter((e) =>
-          [e.action, e.subject, e.detail, e.by, e.name].some(
+          [e.action, e.subject, e.detail, e.by, e.name, e.reason].some(
             (v) => v?.toLowerCase().includes(needle) === true,
           ),
         );
@@ -199,7 +204,7 @@ function Entries({
             header: 'Who',
             cell: (e) => (
               <span className="flex items-center gap-2.5">
-                {e.kind === 'system' ? (
+                {e.kind === 'system' || e.kind === 'support' ? (
                   <Avatar size="sm" name={e.by} fallback={<icons.system aria-hidden />} />
                 ) : (
                   <Avatar size="sm" name={e.name ?? e.by} src={e.avatarUrl ?? undefined} />
@@ -218,8 +223,8 @@ function Entries({
         ]}
         renderDetail={(e) => {
           const changed = e.detail == null ? null : changesIn(e.detail);
-          if (changed !== null)
-            return (
+          const what =
+            changed !== null ? (
               <ChangeDiff
                 items={changed.map((c) => ({
                   id: c.what,
@@ -228,9 +233,19 @@ function Entries({
                   after: c.to,
                 }))}
               />
+            ) : (
+              <p className="text-sm text-fg-muted">{e.detail ?? 'No more detail was recorded.'}</p>
             );
+          if (e.kind !== 'support') return what;
           return (
-            <p className="text-sm text-fg-muted">{e.detail ?? 'No more detail was recorded.'}</p>
+            <Stack gap={2}>
+              {what}
+              <p className="text-sm text-fg-muted">
+                {e.reason == null || e.reason === ''
+                  ? 'Done by Kithena support, signed in from the back office.'
+                  : `Kithena support was signed in from the back office: ${e.reason}`}
+              </p>
+            </Stack>
           );
         }}
       />

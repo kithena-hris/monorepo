@@ -1878,6 +1878,8 @@ async function logged(
         subject: said.subject ?? null,
         detail: changed ?? said.detail ?? null,
         area: said.area,
+        onBehalfOf: asking.viewer.support?.operatorId ?? null,
+        reason: asking.viewer.support?.reason ?? null,
         idempotencyKey: key,
       });
       return ok(undefined);

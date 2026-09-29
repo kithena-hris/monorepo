@@ -7,6 +7,8 @@ import { fixedCalendars } from '../org/org.js';
 import { define, inMemoryPeople, noTransaction as tx, TENANT, versionOf } from './in-memory.js';
 import { inTenantResult, personAccess } from './person-access.js';
 import type { Viewer } from './ports.js';
+import { withSupport } from './subject.js';
+import { effectiveRoles } from '../../domain/access/roles.js';
 
 /**
  * Reading and writing a person, through the application layer and nothing
@@ -926,6 +928,124 @@ describe('hiring', () => {
     const refused = await people.hire(tx, { ...asking(hr), personId: ADA, hireDate: '2026-10-01' });
     expect(!refused.ok && refused.error.code).toBe('HIRE_INCOMPLETE');
     expect(store.events).toEqual([]);
+  });
+});
+
+describe('an administrator (decided 2026-09-29)', () => {
+  const ADMIN_ACCOUNT = '00000000-0000-4000-8000-0000000000b4';
+  const admin: Viewer = { accountId: ADMIN_ACCOUNT, roles: effectiveRoles(['people_admin']) };
+
+  it('reads and writes what HR and finance may', async () => {
+    const { people } = setup();
+    const wrote = await people.update(tx, {
+      ...asking(admin),
+      personId: ADA,
+      changes: { base_salary: money, job_title: 'Engineer' },
+    });
+    expect(wrote.ok).toBe(true);
+    const seen = await people.read(tx, { ...asking(admin), personId: ADA });
+    expect(seen.ok && seen.value.attributes['base_salary']).toEqual(money);
+  });
+
+  it('still writes nothing only the employee owns', async () => {
+    const { people } = setup();
+    const refused = await people.update(tx, {
+      ...asking(admin),
+      personId: ADA,
+      changes: { mobile: '+34600000000' },
+    });
+    expect(refused.ok).toBe(false);
+  });
+});
+
+describe('Kithena support (decided 2026-09-29)', () => {
+  const SUPPORT_ACCOUNT = '00000000-0000-4000-8000-0000000000b5';
+  const OPERATOR = '00000000-0000-4000-8000-0000000000e1';
+  // No roles on the viewer at all: its rights come from being support.
+  const support: Viewer = {
+    accountId: SUPPORT_ACCOUNT,
+    roles: new Set(),
+    support: { operatorId: OPERATOR, reason: 'Ticket 4812' },
+  };
+  const supported = () => {
+    const store = inMemoryPeople([versionOf(3, [salary, title, iban, phone])]);
+    store.seed(MARCO, { account: MARCO_ACCOUNT });
+    store.seed(ADA, { account: ADA_ACCOUNT, fields: { managerId: MARCO } });
+    return {
+      store,
+      people: personAccess({ ...store.deps, relations: withSupport(store.deps.relations) }),
+    };
+  };
+
+  it('reads and writes as a full administrator, recorded as the operator’s', async () => {
+    const { people, store } = supported();
+    const wrote = await people.update(tx, {
+      ...asking(support),
+      personId: ADA,
+      changes: { base_salary: money },
+    });
+    expect(wrote.ok).toBe(true);
+    const seen = await people.read(tx, { ...asking(support), personId: ADA });
+    expect(seen.ok && seen.value.attributes['base_salary']).toEqual(money);
+    expect(store.history[0]?.actor).toEqual({
+      kind: 'user',
+      userId: SUPPORT_ACCOUNT,
+      onBehalfOf: OPERATOR,
+    });
+    expect(store.events.every((e) => e.actor.kind === 'user' && e.actor.onBehalfOf === OPERATOR)).toBe(
+      true,
+    );
+  });
+
+  it('is nobody’s self: it writes nothing the employee owns', async () => {
+    const { people } = supported();
+    const refused = await people.update(tx, {
+      ...asking(support),
+      personId: ADA,
+      changes: { mobile: '+34600000000' },
+    });
+    expect(refused.ok).toBe(false);
+  });
+
+  it('is nobody’s self or manager, even where the resolver underneath would say so', async () => {
+    const everything = { self: new Set([ADA]), direct: new Set([ADA]), chain: new Set([ADA]) };
+    const wrapped = withSupport({
+      relations: () =>
+        Promise.resolve({
+          isSelf: true,
+          isManager: true,
+          isInManagerChain: true,
+          isHr: false,
+          isFinance: false,
+          isAdmin: false,
+        }),
+      reach: () => Promise.resolve({ ...everything, complete: true }),
+    });
+    expect(await wrapped.relations(tx, TENANT, support, ADA)).toMatchObject({
+      isSelf: false,
+      isManager: false,
+      isInManagerChain: false,
+      isHr: true,
+      isFinance: true,
+      isAdmin: true,
+    });
+    const reached = await wrapped.reach?.(tx, TENANT, support);
+    expect([reached?.self.size, reached?.direct.size, reached?.chain.size]).toEqual([0, 0, 0]);
+    // Anybody else gets the resolver's answer, unchanged.
+    expect((await wrapped.relations(tx, TENANT, hr, ADA)).isSelf).toBe(true);
+    expect((await wrapped.reach?.(tx, TENANT, hr))?.self.has(ADA)).toBe(true);
+  });
+
+  it('changes nothing for anybody else asking through the same resolver', async () => {
+    const { people, store } = supported();
+    const refused = await people.update(tx, {
+      ...asking(marco),
+      personId: ADA,
+      changes: { base_salary: money },
+    });
+    expect(refused.ok).toBe(false);
+    await people.update(tx, { ...asking(hr), personId: ADA, changes: { job_title: 'Lead' } });
+    expect(store.history[0]?.actor).toEqual({ kind: 'user', userId: HR_ACCOUNT });
   });
 });
 

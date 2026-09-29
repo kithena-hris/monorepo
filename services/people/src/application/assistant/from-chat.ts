@@ -1,5 +1,6 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
+import { effectiveRoles } from '../../domain/access/roles.js';
 import { run } from '../person/service.js';
 import type { ScreenDeps, Tx } from '../screens/record.js';
 import { ask, type AssistantAnswer } from './ask.js';
@@ -32,7 +33,7 @@ export async function askFromChat(
     const accountId = await deps.accountByEmail(tx, input.tenantId, input.email.trim().toLowerCase());
     if (accountId === null) return ok(null);
     const holder = await deps.service.roles?.of(tx, input.tenantId, accountId);
-    return ok({ accountId, roles: new Set<string>(holder?.roles ?? []) });
+    return ok({ accountId, roles: effectiveRoles(holder?.roles ?? []) });
   });
   if (!who.ok) return who;
   if (who.value === null) {

@@ -2,7 +2,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import { actors } from '../screens/people.js';
+import { actors, SUPPORT } from '../screens/people.js';
 import { avatarsOf } from '../screens/photo.js';
 import { NOBODY, type ScreenDeps } from '../screens/record.js';
 import type { ActivityArea } from './activity-store.js';
@@ -34,10 +34,13 @@ export interface ActivityView {
     readonly avatarUrl: string | null;
     /**
      * `person` when the account belongs to somebody in People, whose photo
-     * or initials stand for them; `system` for anything else (a back-office
-     * operator, an automated setup), which has no face to show.
+     * or initials stand for them; `support` for Kithena support signed in
+     * from the back office; `system` for anything else (an automated setup),
+     * which has no face to show. Neither of the last two has a face.
      */
-    readonly kind: 'person' | 'system';
+    readonly kind: 'person' | 'system' | 'support';
+    /** Why Kithena support was signed in, as the operator said; null otherwise. */
+    readonly reason: string | null;
   }[];
   /** The cursor for older entries; null when there are none. */
   readonly next: string | null;
@@ -58,7 +61,10 @@ export async function activityView(
     }
     const rows = await store.page(tx, asking.tenantId, { ...query, limit: ACTIVITY_PAGE + 1 });
     const shown = rows.slice(0, ACTIVITY_PAGE);
-    const who = shown.map((r) => ({ kind: 'user' as const, userId: r.actor }));
+    const bySupport = (r: (typeof shown)[number]) => r.onBehalfOf != null;
+    const who = shown
+      .filter((r) => !bySupport(r))
+      .map((r) => ({ kind: 'user' as const, userId: r.actor }));
     const by = await actors(deps, tx, asking, who);
     // Named as anybody else would see them, "You" included, for the avatar.
     const named = await actors(
@@ -78,7 +84,7 @@ export async function activityView(
     ]);
     const people = new Map<string, string>();
     for (const r of shown) {
-      if (people.has(r.actor)) continue;
+      if (bySupport(r) || people.has(r.actor)) continue;
       const personId = await deps.personOf(tx, asking.tenantId, r.actor);
       if (personId !== null) people.set(r.actor, personId);
     }
@@ -91,14 +97,17 @@ export async function activityView(
         subject: r.subject === null ? null : (names.get(r.subject) ?? r.subject),
         detail: r.detail,
         area: r.area,
-        ...(people.has(r.actor)
-          ? {
-              by: by({ kind: 'user', userId: r.actor }),
-              name: named({ kind: 'user', userId: r.actor }),
-              avatarUrl: avatars.get(people.get(r.actor) ?? '') ?? null,
-              kind: 'person' as const,
-            }
-          : { by: 'System', name: 'System', avatarUrl: null, kind: 'system' as const }),
+        reason: bySupport(r) ? (r.reason ?? null) : null,
+        ...(bySupport(r)
+          ? { by: SUPPORT, name: SUPPORT, avatarUrl: null, kind: 'support' as const }
+          : people.has(r.actor)
+            ? {
+                by: by({ kind: 'user', userId: r.actor }),
+                name: named({ kind: 'user', userId: r.actor }),
+                avatarUrl: avatars.get(people.get(r.actor) ?? '') ?? null,
+                kind: 'person' as const,
+              }
+            : { by: 'System', name: 'System', avatarUrl: null, kind: 'system' as const }),
       })),
       next: rows.length > ACTIVITY_PAGE ? (shown.at(-1)?.id ?? null) : null,
     });

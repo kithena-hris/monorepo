@@ -16,6 +16,7 @@ import {
 } from '../../domain/pay/pay.js';
 import { exponentOf } from '../import/cells.js';
 import type { Asking } from '../person/person-access.js';
+import { userActor } from '../person/ports.js';
 import { cohortMinimum } from './access.js';
 import { dayOf, rows, tenureBand, type SnapshotRun, type TenantScope } from './snapshot.js';
 
@@ -209,7 +210,7 @@ export function payBands(deps: {
           effectiveFrom: CalendarDate.parse(effectiveFrom),
           // One grade and currency's bands reach a consumer in order.
           aggregate: { type: 'PayBand', id: `${grade}:${currency}`, version: 1 },
-          actor: { kind: 'user', userId: asking.viewer.accountId },
+          actor: userActor(asking.viewer),
           correlationId: asking.correlationId,
           causationId: null,
           payload: {

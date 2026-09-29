@@ -3,10 +3,18 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 /**
  * Tenant roles, granted and revoked (PEO-112; PRD §6.6). Pure.
  *
+ * What was *granted* and what a grant lets one *do* differ in one place: a
+ * `people_admin` may do anything HR or finance may (decided 2026-09-29), so
+ * `effectiveRoles` gives an administrator both. The grants stay as recorded —
+ * the roles screen and the back office's report show what somebody was given
+ * — and every question of rights (`viewer.roles`, OpenFGA's `hr` and
+ * `finance`, who may approve) asks the effective set.
+ *
  * Three rules, and the order they are asked in is the order a refusal is
  * explained in:
  *
- * - only a `people_admin` grants or revokes;
+ * - only a `people_admin` grants or revokes (or Kithena support, which is
+ *   one by its session rather than by a grant);
  * - nobody grants a role to themselves — an administrator who wants to be
  *   finance asks another administrator, so every grant has two people in it;
  * - the last `people_admin` is never revoked, not even by themselves, or the
@@ -30,6 +38,11 @@ export interface RoleChange {
   readonly target: string;
   readonly role: TenantRole;
   readonly reason: string;
+  /**
+   * The actor is Kithena support: an administrator by its session, never by
+   * a row here, so it is never counted among the company's own.
+   */
+  readonly bySupport?: boolean;
 }
 
 export const NotAnAdministrator = failure(
@@ -55,8 +68,32 @@ export const ReasonRequired = failure(
 const holds = (held: Holdings, account: string, role: string): boolean =>
   held.get(account)?.has(role) === true;
 
+/** What holding these roles lets one do: `people_admin` carries HR's and finance's rights. */
+export function effectiveRoles(granted: Iterable<string>): ReadonlySet<string> {
+  const roles = new Set(granted);
+  if (roles.has('people_admin')) {
+    roles.add('hr');
+    roles.add('finance');
+  }
+  return roles;
+}
+
+/** Every account whose rights include `role`: HR's holders include every administrator. */
+export function holdersOf(held: Holdings, role: TenantRole): string[] {
+  return [...held].flatMap(([account, roles]) => (effectiveRoles(roles).has(role) ? [account] : []));
+}
+
+/**
+ * Kithena support's roles: a full administrator of the company for its
+ * session. Never granted, so never listed, reported or counted as one of
+ * the company's own.
+ */
+export const SUPPORT_ROLES: ReadonlySet<TenantRole> = new Set(TENANT_ROLES);
+
 function checked(held: Holdings, change: RoleChange): Result<void> {
-  if (!holds(held, change.actor, 'people_admin')) return err(NotAnAdministrator);
+  if (change.bySupport !== true && !holds(held, change.actor, 'people_admin')) {
+    return err(NotAnAdministrator);
+  }
   const reason = change.reason.trim();
   if (reason === '' || reason.length > 500) return err(ReasonRequired);
   return ok(undefined);
@@ -88,6 +125,8 @@ export const ADMINISTRATOR_ROLES = ['people_admin', 'hr'] as const satisfies rea
 /**
  * The back office removing an administrator it named: which of
  * `ADMINISTRATOR_ROLES` to take back, and which of those nobody else holds.
+ * "Holds" by rights: another administrator holds HR's, so taking the last
+ * `hr` grant leaves nobody without HR while one remains.
  *
  * Leaving the company with no People administrator or no HR is something an
  * operator is warned about and has to confirm. Confirmed, everything naming
@@ -102,7 +141,7 @@ export function backOfficeRemoval(
 ): { readonly revoke: readonly TenantRole[]; readonly last: readonly TenantRole[] } {
   const revoke = ADMINISTRATOR_ROLES.filter((role) => holds(held, accountId, role));
   const last = revoke.filter(
-    (role) => ![...held].some(([account, roles]) => account !== accountId && roles.has(role)),
+    (role) => !holdersOf(held, role).some((account) => account !== accountId),
   );
   return { revoke: last.length > 0 && !confirmedLast ? [] : revoke, last };
 }
