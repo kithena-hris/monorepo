@@ -220,6 +220,18 @@ export function checkRequirednessPredicate(
   );
 }
 
+/** A key from a label: `Cost centre` → `cost_centre`. */
+export function keyFrom(label: string): string {
+  const key = label
+    .normalize('NFKD')
+    .replaceAll(/[̀-ͯ]/gu, '')
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/gu, '_')
+    .replaceAll(/^_+|_+$/gu, '')
+    .slice(0, 60);
+  return /^[a-z]/u.test(key) ? key : `f_${key}`.slice(0, 60);
+}
+
 const DuplicateKey = (what: string, key: string) =>
   failure('DUPLICATE_KEY', `A ${what} called ${key} already exists`, ['key']);
 
@@ -274,6 +286,21 @@ export class SchemaDraft {
     const section: Section = { ...parsed.data, archivedAt: null };
     this.#sections.set(section.key, section);
     return ok(section);
+  }
+
+  /** Call a section something else. Its key, and every field in it, stay as they are. */
+  renameSection(key: string, label: string): Result<Section> {
+    const section = this.#sections.get(key);
+    if (!section || section.archivedAt !== null) {
+      return err(failure('SECTION_UNKNOWN', `No section called ${key}`, ['sectionKey']));
+    }
+    const parsed = LocalizedString.safeParse({ ...section.label, default: label.trim() });
+    if (!parsed.success || label.trim() === '') {
+      return err(failure('SECTION_INVALID', 'A section needs a name', ['label']));
+    }
+    const renamed: Section = { ...section, label: parsed.data };
+    this.#sections.set(key, renamed);
+    return ok(renamed);
   }
 
   /**

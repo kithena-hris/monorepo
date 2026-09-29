@@ -99,6 +99,40 @@ const RULES: readonly Rule[] = [
     say: () => ({ action: 'Reordered the sections' }),
   },
   {
+    path: new RegExp(`^/v1/schema/draft/sections/${ID}/archive$`),
+    area: 'fields',
+    say: (_m, _b, id) => ({
+      action: 'Removed a section',
+      subjectKey: id ?? null,
+      detail: 'Hidden from every form; the values in it are kept. In the draft until published.',
+    }),
+  },
+  {
+    path: new RegExp(`^/v1/schema/draft/attributes/${ID}/archive$`),
+    area: 'fields',
+    say: (_m, _b, id) => ({
+      action: 'Removed a field',
+      subjectKey: id ?? null,
+      detail: 'Hidden from forms, still exported, its values kept. In the draft until published.',
+    }),
+  },
+  {
+    path: /^\/v1\/schema\/draft\/packs$/,
+    area: 'fields',
+    say: (_m, b) => ({
+      action: 'Added a country pack',
+      subject: text(b['country']),
+      detail:
+        'Its identifiers and fields, where the draft lacked them. In the draft until published.',
+    }),
+  },
+  {
+    path: new RegExp(`^/v1/schema/draft/sections/([a-z][a-z0-9_]{0,63})$`),
+    area: 'fields',
+    say: (method, b) =>
+      method === 'PATCH' ? { action: 'Renamed a section', subject: text(b['label']) } : null,
+  },
+  {
     path: new RegExp(`^/v1/schema/draft/sections/${ID}/order$`),
     area: 'fields',
     say: (_m, _b, id) => ({ action: 'Reordered the fields in a section', subjectKey: id ?? null }),

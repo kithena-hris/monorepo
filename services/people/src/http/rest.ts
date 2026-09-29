@@ -63,6 +63,13 @@ export interface RestRequest {
   readonly url: string;
   readonly headers: Record<string, string | string[] | undefined>;
   readonly body: string;
+  /**
+   * Set in-process only, by an AI settings plan being applied
+   * (`application/assistant/settings.ts`): the settings log says the change
+   * was made with the AI assistant, with the plan's summary as the reason. A
+   * request off the network never carries it, so it cannot be claimed.
+   */
+  readonly via?: { readonly assistant: string };
 }
 
 export interface RestResponse {
@@ -525,6 +532,9 @@ const STATUS: Record<string, number> = {
   VIEW_AS_SELF: 403,
   VIEW_AS_ADMINISTRATOR: 403,
   VIEW_AS_NO_ACCOUNT: 409,
+  // An AI settings plan (docs/ai-settings.md): the company's hourly budget, and a flagged change not ticked.
+  RATE_LIMITED: 429,
+  CONFIRMATION_REQUIRED: 409,
 };
 
 export function refused(error: DomainFailure): RestResponse {
@@ -1888,16 +1898,23 @@ async function logged(
         named === null
           ? null
           : ((await activity.reads?.(tx, asking.tenantId).label?.(named)) ?? named);
+      // Applied from an AI settings plan: said so, with the plan's summary as
+      // the reason. Never the request the plan was made from.
+      const assistant = request.via?.assistant;
+      const reasons = [
+        asking.viewer.support?.reason ?? null,
+        assistant === undefined ? null : `With the AI assistant: ${assistant}`,
+      ].filter((r) => r !== null);
       await activity.store.record(tx, asking.tenantId, {
         id: activity.newId(),
         at: activity.now(),
         actor: asking.viewer.accountId,
-        action: said.action,
+        action: assistant === undefined ? said.action : `${said.action} with the AI assistant`,
         subject: label ?? said.subject ?? null,
         detail: changed ?? said.detail ?? null,
         area: said.area,
         onBehalfOf: asking.viewer.support?.operatorId ?? null,
-        reason: asking.viewer.support?.reason ?? null,
+        reason: reasons.length === 0 ? null : reasons.join(' · ').slice(0, 500),
         idempotencyKey: key,
       });
       return ok(undefined);

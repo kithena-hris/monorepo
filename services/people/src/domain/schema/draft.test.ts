@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedClock } from '@kithena/domain-kit';
 import type { AttributeDefinitionInput } from '@kithena/contracts';
 
-import { SchemaDraft, type SectionInput } from './draft.js';
+import { keyFrom, SchemaDraft, type SectionInput } from './draft.js';
 
 /**
  * The registry, before anybody publishes it.
@@ -530,5 +530,32 @@ describe('encrypting a field', () => {
       d.addAttribute({ ...attribute, key: 'grade', effectiveDated: true, encrypted: true, origin: 'tenant' })
         .ok,
     ).toBe(false);
+  });
+});
+
+describe('renaming a section', () => {
+  it('changes its name and nothing else: the key and its fields stay', () => {
+    const d = draft();
+    const renamed = d.renameSection('hr_information', '  Employment  ');
+    expect(renamed.ok && renamed.value.label.default).toBe('Employment');
+    expect(d.section('hr_information')?.key).toBe('hr_information');
+    expect(d.attributesIn('hr_information').map((a) => a.key)).toEqual(['employee_number']);
+  });
+
+  it('refuses a blank name, and a section that is not there', () => {
+    const d = draft();
+    expect(d.renameSection('hr_information', '   ')).toMatchObject({ ok: false });
+    expect(d.renameSection('nowhere', 'Anything')).toMatchObject({
+      ok: false,
+      error: { code: 'SECTION_UNKNOWN' },
+    });
+  });
+});
+
+describe('a key from a label', () => {
+  it('is the label in lower case, accents dropped, anything else an underscore', () => {
+    expect(keyFrom('Bank & tax')).toBe('bank_tax');
+    expect(keyFrom('Número de afiliación')).toBe('numero_de_afiliacion');
+    expect(keyFrom('2nd phone')).toBe('f_2nd_phone');
   });
 });

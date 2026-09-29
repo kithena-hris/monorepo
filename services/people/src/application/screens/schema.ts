@@ -10,11 +10,12 @@ import {
 } from '@kithena/contracts';
 
 import { CORE_PACK } from '../../country-packs/core.js';
-import { COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
+import { applyPack, COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
 import { seedCountryPack } from '../../country-packs/seed.js';
 import {
   aiShareable,
   encryptable,
+  keyFrom,
   SchemaDraft,
   type Attribute,
   type Section,
@@ -231,29 +232,19 @@ export async function registryView(
   );
 }
 
-/** A key from a label: `Cost centre` → `cost_centre`. */
-export function keyFrom(label: string): string {
-  const key = label
-    .normalize('NFKD')
-    .replaceAll(/[̀-ͯ]/gu, '')
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/gu, '_')
-    .replaceAll(/^_+|_+$/gu, '')
-    .slice(0, 60);
-  return /^[a-z]/u.test(key) ? key : `f_${key}`.slice(0, 60);
-}
-
 export async function addSection(
   deps: SchemaScreenDeps,
   asking: Asking,
   label: string,
+  /** Given when a copied setting names one; otherwise made from the label. */
+  key?: string,
 ): Promise<Result<void>> {
   return run(deps.service, asking.tenantId, (tx) =>
     asAdmin(deps, tx, asking, async () => {
       const current = await deps.schema.loadDraft(tx, asking.tenantId);
       const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
       const added = draft.addSection({
-        key: keyFrom(label),
+        key: key ?? keyFrom(label),
         label: { default: label.trim(), translations: {} },
         order: current.sections.length,
         defaultVisibility: ['self', 'hr'],
@@ -261,6 +252,94 @@ export async function addSection(
       });
       if (!added.ok) return added;
       await deps.draft.saveSection(tx, asking.tenantId, added.value);
+      return ok(undefined);
+    }),
+  );
+}
+
+/** Call a section something else: its key, and every field in it, stay. */
+export async function renameSection(
+  deps: SchemaScreenDeps,
+  asking: Asking,
+  key: string,
+  label: string,
+): Promise<Result<void>> {
+  return draftEdit(
+    deps,
+    asking,
+    (draft) => draft.renameSection(key, label),
+    (tx, s) => deps.draft.saveSection(tx, asking.tenantId, s),
+  );
+}
+
+/** Archive a section; refused while a required field lives in it. */
+export async function removeSection(
+  deps: SchemaScreenDeps,
+  asking: Asking,
+  key: string,
+): Promise<Result<void>> {
+  return draftEdit(
+    deps,
+    asking,
+    (draft) => draft.archiveSection(key, deps.clock),
+    (tx, s) => deps.draft.saveSection(tx, asking.tenantId, s),
+  );
+}
+
+/** Archive a company's own field: hidden from forms, its values kept. */
+export async function removeField(
+  deps: SchemaScreenDeps,
+  asking: Asking,
+  key: string,
+): Promise<Result<void>> {
+  return draftEdit(
+    deps,
+    asking,
+    (draft) => draft.archiveAttribute(key, deps.clock),
+    (tx, a) => deps.draft.saveAttribute(tx, asking.tenantId, a),
+  );
+}
+
+/**
+ * Add a country's pack to the draft after setup: what the draft lacks of its
+ * sections and fields, nothing it already holds. In force once published.
+ */
+export async function addCountryPack(
+  deps: SchemaScreenDeps,
+  asking: Asking,
+  country: string,
+): Promise<Result<{ readonly sections: number; readonly fields: number }>> {
+  if (!Object.hasOwn(COUNTRY_PACKS, country)) {
+    return err(failure('VALUE_INVALID', `There is no country pack for ${country}`, ['country']));
+  }
+  return run(deps.service, asking.tenantId, (tx) =>
+    asAdmin(deps, tx, asking, async () => {
+      const current = await deps.schema.loadDraft(tx, asking.tenantId);
+      const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
+      // Through the draft's own checks, and only what it lacks (`applyPack`).
+      const added = applyPack(draft, COUNTRY_PACKS[country as PackCountry]);
+      if (!added.ok) return added;
+      for (const s of added.value.sections) await deps.draft.saveSection(tx, asking.tenantId, s);
+      for (const a of added.value.attributes)
+        await deps.draft.saveAttribute(tx, asking.tenantId, a);
+      return ok({ sections: added.value.sections.length, fields: added.value.attributes.length });
+    }),
+  );
+}
+
+/** One change to the draft, as an administrator, stored when the draft allows it. */
+function draftEdit<T>(
+  deps: SchemaScreenDeps,
+  asking: Asking,
+  change: (draft: SchemaDraft) => Result<T>,
+  save: (tx: Tx, value: T) => Promise<void>,
+): Promise<Result<void>> {
+  return run(deps.service, asking.tenantId, (tx) =>
+    asAdmin(deps, tx, asking, async () => {
+      const current = await deps.schema.loadDraft(tx, asking.tenantId);
+      const changed = change(SchemaDraft.rehydrate(current.sections, current.attributes));
+      if (!changed.ok) return changed;
+      await save(tx, changed.value);
       return ok(undefined);
     }),
   );
@@ -320,6 +399,12 @@ export interface FieldInput {
   readonly requiresApproval: boolean | null;
   /** Store it sealed. Once on, never off; forced on for financial data and identifiers. */
   readonly encrypted?: boolean | null;
+  /** Whose rules check a national identifier or a bank account: an ISO country code. */
+  readonly country?: string | null;
+  /** Which national identifier: `nif`, `nino`, `ssn`… */
+  readonly scheme?: string | null;
+  /** Whether the assistant may use it; null or absent, it may where it could be (public or internal). */
+  readonly aiEligible?: boolean | null;
 }
 
 function definitionOf(input: FieldInput, order: number): AttributeDefinitionInput {
@@ -349,6 +434,12 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
             })),
           }
         : {}),
+      // The contract refuses an identifier or an account with no country.
+      ...(input.dataType === 'national_id'
+        ? { country: input.country ?? undefined, scheme: input.scheme ?? undefined }
+        : input.dataType === 'bank_account'
+          ? { country: input.country ?? undefined }
+          : {}),
     },
     // A conditional rule without a predicate is refused by the contract, which
     // names the field; nothing here invents one.
@@ -365,7 +456,11 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
       classification: input.classification,
       piiKind: input.piiKind,
       exportable: true,
-      aiEligible: input.classification === 'public' || input.classification === 'internal',
+      // Only ever for data the assistant could be shown: public or internal, never sealed.
+      aiEligible:
+        (input.aiEligible ?? true) &&
+        !secret &&
+        (input.classification === 'public' || input.classification === 'internal'),
     },
     classificationSource: input.classificationSource,
     encrypted: secret,
@@ -423,29 +518,39 @@ export async function saveField(
     asAdmin(deps, tx, asking, async () => {
       const current = await deps.schema.loadDraft(tx, asking.tenantId);
       const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
-      const siblings = current.attributes.filter((a) => a.sectionKey === input.sectionKey).length;
-      const definition = definitionOf(input, siblings);
-      const saved =
-        editing === null
-          ? draft.addAttribute(definition)
-          : (() => {
-              // A key, an origin and a place in the order are not an edit's to change.
-              const { key: _key, origin: _origin, order: _order, ...patch } = definition;
-              // Sealed stays sealed: a form that says nothing of it keeps it.
-              const was = current.attributes.find((a) => a.key === editing);
-              // Named even when absent, so removing the last rule removes it.
-              return draft.updateAttribute(editing, {
-                ...patch,
-                encrypted: patch.encrypted === true || was?.encrypted === true,
-                visibilityRules: patch.visibilityRules,
-                requiresApproval: patch.requiresApproval,
-              });
-            })();
+      const saved = fieldChange(draft, current.attributes, input, editing);
       if (!saved.ok) return saved;
       await deps.draft.saveAttribute(tx, asking.tenantId, saved.value);
       return ok(undefined);
     }),
   );
+}
+
+/**
+ * A field added to or changed in `draft`, as the field editor's save does it,
+ * and nothing stored: the save stores it, and the AI settings plan checks a
+ * change with it before anybody is asked to apply one.
+ */
+export function fieldChange(
+  draft: SchemaDraft,
+  attributes: readonly Attribute[],
+  input: FieldInput,
+  editing: string | null,
+): Result<Attribute> {
+  const siblings = attributes.filter((a) => a.sectionKey === input.sectionKey).length;
+  const definition = definitionOf(input, siblings);
+  if (editing === null) return draft.addAttribute(definition);
+  // A key, an origin and a place in the order are not an edit's to change.
+  const { key: _key, origin: _origin, order: _order, ...patch } = definition;
+  // Sealed stays sealed: a form that says nothing of it keeps it.
+  const was = attributes.find((a) => a.key === editing);
+  // Named even when absent, so removing the last rule removes it.
+  return draft.updateAttribute(editing, {
+    ...patch,
+    encrypted: patch.encrypted === true || was?.encrypted === true,
+    visibilityRules: patch.visibilityRules,
+    requiresApproval: patch.requiresApproval,
+  });
 }
 
 /**
@@ -911,3 +1016,4 @@ export async function publishSetup(
 }
 
 export type { Section };
+export { keyFrom };
