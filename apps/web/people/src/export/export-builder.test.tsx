@@ -147,7 +147,17 @@ describe('ExportBuilder', () => {
         onExport={vi.fn()}
       />,
     );
-    expect(screen.getByText('This report is no longer available')).toBeTruthy();
-    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText('This export is no longer available')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /^Download/ })).toBeNull();
+  });
+
+  it('says who is exported when there is only one audience, rather than offering one choice', () => {
+    render(<ExportBuilder load={{ status: 'ready', data: asManager }} onExport={vi.fn()} />);
+    expect(screen.queryByRole('group', { name: 'Who to export' })).toBeNull();
+    expect(screen.getByText('My team')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Directory' })).toHaveAttribute(
+      'href',
+      '/people/directory/list',
+    );
   });
 });

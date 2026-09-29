@@ -16,8 +16,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Sparkline,
   Stack,
   Stat,
+  icons,
+  type ChartPoint,
   type DataColumn,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
@@ -26,7 +29,7 @@ import { DATA_HEALTH } from '../data-health';
 import { Loaded, type IdentifierFinding, type Loadable } from '../load';
 import { PeopleSearch, PersonPicker, type SearchPeople } from '../record/attribute-input';
 
-/** An HR-owned field somebody is missing. */
+/** A field somebody is missing: HR's to fill in, or the person's own. */
 export interface GapField {
   readonly key: string;
   readonly label: string;
@@ -45,20 +48,39 @@ export interface GapRow {
   readonly manager: string | null;
   /** Which of the fields above this person is missing. */
   readonly missing: readonly string[];
+  /** Who fills these in: HR, in the grid, or the person, when reminded. */
+  readonly owner: 'hr' | 'employee';
+  /** The person's last reminder, weekly or asked for; null for HR's rows and for never. */
+  readonly remindedAt: string | null;
 }
 
 export interface CompletenessState {
   /** "Since version 4 was published on 22 Sep". */
   readonly since: string;
   /** Employee-owned gaps: reminders, not this grid. */
-  readonly waiting: { readonly people: number; readonly lastReminded: string | null };
+  readonly waiting: {
+    readonly people: number;
+    /** The last weekly reminder anybody waiting was sent (ISO 8601); null for none. */
+    readonly lastReminded: string | null;
+    /** How many "Remind" would send to now; null where it cannot run. */
+    readonly due: number | null;
+  };
   readonly completedThisWeek: number;
   /** HR's missing values over everybody, not only this page. */
   readonly toFill: number;
+  /** People missing bank, tax or ID details; null where People cannot say. */
+  readonly blocking: number | null;
   readonly fields: readonly GapField[];
   readonly rows: readonly GapRow[];
   /** From analytics, where the viewer may read it: complete records, overall. */
-  readonly complete?: { readonly percent: number; readonly incomplete: number } | null;
+  readonly complete?: {
+    readonly percent: number;
+    readonly incomplete: number;
+    /** Points since the snapshot a month ago; null when there is none. */
+    readonly change?: number | null;
+    /** Percent complete by month, snapshot months only. */
+    readonly trend?: readonly ChartPoint[];
+  } | null;
 }
 
 /** One person's answers, however many fields they cover: one write, one event. */
@@ -69,6 +91,16 @@ export interface GridSave {
 
 /** A cell our checks doubt (PEO-125): which person, and what was found. Never the value. */
 export type GridFinding = IdentifierFinding & { readonly personId: string };
+
+/** What "Remind N people" did: sent, lost in sending, and not due yet. */
+export type RemindOutcome =
+  | {
+      readonly ok: true;
+      readonly sent: number;
+      readonly failed: number;
+      readonly skipped: number;
+    }
+  | { readonly ok: false; readonly message: string };
 
 /** What saving cells would be warned about, or saved with. */
 export type GridOutcome =
@@ -94,6 +126,13 @@ export interface CompletenessGridProps {
   readonly onNextPage?: () => void;
   /** Present when this is not the first page. */
   readonly onFirstPage?: () => void;
+  /** Everybody due a reminder, now, through the weekly sweep. Absent: no button. */
+  readonly onRemindAll?: () => Promise<RemindOutcome>;
+  /** One person, asked for their own missing fields. Absent: no Remind on a row. */
+  readonly onRemind?: (
+    personId: string,
+    keys: readonly string[],
+  ) => Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }>;
 }
 
 /**
@@ -109,9 +148,10 @@ export interface CompletenessGridProps {
  * into one on click. A save sends one change per person, however many fields
  * were filled for them, so each person raises one `profile_updated`.
  *
- * Every row is HR's to fill: People counts the employees' own gaps, it does
- * not list them (they are the employee's task and weekly reminder), so there
- * is no row to remind from and no "Remind" button.
+ * A person's own gaps are a row of their own, "Remind" rather than "Fill
+ * in": HR cannot type somebody's bank account for them, only ask. "Remind N
+ * people" runs the weekly reminder now for everybody due one; the week's cap
+ * still holds, so pressing it twice sends nothing twice.
  */
 export function CompletenessGrid({
   load,
@@ -133,6 +173,8 @@ function Grid({
   onCheck,
   onNextPage,
   onFirstPage,
+  onRemindAll,
+  onRemind,
 }: Omit<CompletenessGridProps, 'load' | 'searchPeople'> & {
   readonly state: CompletenessState;
 }): JSX.Element {
@@ -151,12 +193,18 @@ function Grid({
   } | null>(null);
   /** After a save: how many values went to HR's review. */
   const [reviewed, setReviewed] = useState(0);
+  const [reminding, setReminding] = useState(false);
+  const [reminded, setReminded] = useState<RemindOutcome | null>(null);
+  /** Rows reminded from here, by row id: null once sent, or why it was not. */
+  const [asked, setAsked] = useState<Readonly<Record<string, string | null>>>({});
 
   const pending = Object.values(edits).reduce((n, v) => n + Object.keys(v).length, 0);
+  // The grid is HR's rows only: the person's own are theirs to fill.
+  const rows = state.rows.filter((r) => r.owner === 'hr');
   // Only the fields somebody on this page is missing: a column of nothing is noise.
-  const fields = state.fields.filter((f) => state.rows.some((r) => r.missing.includes(f.key)));
-  const rows = state.rows;
+  const fields = state.fields.filter((f) => rows.some((r) => r.missing.includes(f.key)));
   const labelOf = new Map(state.fields.map((f) => [f.key, f.label]));
+  const rowId = (r: GapRow): string => `${r.personId}-${r.owner}`;
 
   // "Fill in" lands on that person's first missing cell, in the grid's column order.
   useEffect(() => {
@@ -347,6 +395,40 @@ function Grid({
       Fill in
     </Button>
   );
+  const remindAll = async (): Promise<void> => {
+    if (onRemindAll === undefined) return;
+    setReminding(true);
+    setReminded(await onRemindAll());
+    setReminding(false);
+  };
+  const remind = async (r: GapRow): Promise<void> => {
+    if (onRemind === undefined) return;
+    setAsked((a) => ({ ...a, [rowId(r)]: null }));
+    const result = await onRemind(r.personId, r.missing);
+    if (!result.ok) setAsked((a) => ({ ...a, [rowId(r)]: result.message }));
+  };
+  // Asked within the day, here or by the weekly email: another press would be a second email.
+  const recently = (r: GapRow): boolean =>
+    asked[rowId(r)] === null ||
+    (r.remindedAt !== null && Date.now() - Date.parse(r.remindedAt) < DAY_MS);
+  const action = (r: GapRow): JSX.Element | null =>
+    r.owner === 'hr' ? (
+      fillIn(r)
+    ) : onRemind === undefined ? null : recently(r) ? (
+      <Button size="xs" disabled aria-label={`Reminded ${r.name}`}>
+        Reminded
+      </Button>
+    ) : (
+      <Button
+        size="xs"
+        aria-label={`Remind ${r.name}`}
+        onClick={() => {
+          void remind(r);
+        }}
+      >
+        Remind
+      </Button>
+    );
   const list: DataColumn<GapRow>[] = [
     { ...person, sticky: false },
     {
@@ -366,17 +448,24 @@ function Grid({
       id: 'who',
       header: 'Who fills it in',
       width: '9rem',
-      cell: () => (
-        <Badge size="sm" tone="accent">
-          HR
-        </Badge>
-      ),
+      cell: (r) =>
+        r.owner === 'hr' ? (
+          <Badge size="sm" tone="accent">
+            HR
+          </Badge>
+        ) : (
+          <Badge size="sm">Employee</Badge>
+        ),
     },
-    { id: 'fill', header: <span className="sr-only">Fill in</span>, width: '7rem', cell: fillIn },
+    { id: 'act', header: <span className="sr-only">Action</span>, width: '7rem', cell: action },
   ];
 
   const waiting = `${state.waiting.people.toLocaleString('en-GB')} waiting on employees`;
   const toFill = `${state.toFill.toLocaleString('en-GB')} for HR`;
+  const due = state.waiting.due ?? 0;
+  const change = state.complete?.change ?? null;
+  const trend = state.complete?.trend ?? [];
+  const failed = Object.values(asked).find((message) => message !== null);
 
   return (
     <Stack gap={5}>
@@ -384,7 +473,22 @@ function Grid({
         title={DATA_HEALTH.title}
         description={DATA_HEALTH.description}
         actions={
-          filling === null ? undefined : (
+          filling === null ? (
+            onRemindAll === undefined || due === 0 ? undefined : (
+              // A desk's (V4): on a phone each row carries its own Remind (MV2).
+              <Button
+                className="touch:hidden"
+                startIcon={<icons.notifications aria-hidden />}
+                loading={reminding}
+                loadingLabel="Sending"
+                onClick={() => {
+                  void remindAll();
+                }}
+              >
+                Remind {due.toLocaleString('en-GB')} {due === 1 ? 'person' : 'people'}
+              </Button>
+            )
+          ) : (
             <>
               <Button
                 onClick={() => {
@@ -419,7 +523,27 @@ function Grid({
             label="Complete"
             value={state.complete.percent}
             unit="%"
-            description={`${state.complete.incomplete.toLocaleString('en-GB')} records incomplete`}
+            {...(change === null
+              ? {
+                  description: `${state.complete.incomplete.toLocaleString('en-GB')} records incomplete`,
+                }
+              : {
+                  delta: `${change > 0 ? '+' : change < 0 ? '−' : ''}${String(Math.abs(change))} pts`,
+                  deltaLabel: 'this month',
+                  direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat',
+                  sentiment: change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral',
+                })}
+            chart={
+              trend.length > 1 ? (
+                <Sparkline
+                  data={trend}
+                  label="Complete records by month"
+                  {...(change === null || change === 0
+                    ? {}
+                    : { tone: change > 0 ? ('success' as const) : ('danger' as const) })}
+                />
+              ) : undefined
+            }
           />
         )}
         <Stat
@@ -428,10 +552,13 @@ function Grid({
           description={
             state.waiting.lastReminded === null
               ? 'Reminded by email once a week'
-              : `Last reminded ${state.waiting.lastReminded}`
+              : `Last reminded ${shortDay(state.waiting.lastReminded)}`
           }
         />
         <Stat label="For HR to fill in" value={state.toFill} description="Fill them in below" />
+        {state.blocking === null ? null : (
+          <Stat label="Blocking payroll" value={state.blocking} description="Bank, tax or ID details" />
+        )}
       </div>
       <Card padded className="hidden touch:block">
         {state.complete == null ? null : (
@@ -450,6 +577,18 @@ function Grid({
         </p>
       </Card>
 
+      {reminded === null ? null : reminded.ok ? (
+        <Alert tone="success">{remindedText(reminded)}</Alert>
+      ) : (
+        <Alert tone="danger" title="Nobody was reminded">
+          {reminded.message}
+        </Alert>
+      )}
+      {failed === undefined ? null : (
+        <Alert tone="danger" title="That reminder was not sent">
+          {failed}
+        </Alert>
+      )}
       {shown.length === 0 ? null : (
         <Alert tone="warning" title="Our checks suggest some of these may be wrong">
           Check the marked cells. If they’re correct, save anyway and HR will review them.
@@ -471,10 +610,10 @@ function Grid({
         </Alert>
       )}
 
-      {fields.length === 0 ? (
+      {state.rows.length === 0 ? (
         <EmptyState
           title="Nothing is missing"
-          description="Every field HR fills in has a value for everybody it applies to."
+          description="Every required field has a value for everybody it applies to."
         />
       ) : filling !== null ? (
         <>
@@ -493,19 +632,19 @@ function Grid({
         <>
           <DataTable
             label="Missing information"
-            rows={rows}
+            rows={state.rows}
             columns={list}
-            rowId={(r) => r.personId}
+            rowId={rowId}
             containerClassName="touch:hidden"
             empty={<EmptyState title="Nobody is missing anything" />}
           />
           <List aria-label="Missing information" className="hidden touch:block">
-            {rows.map((r) => (
+            {state.rows.map((r) => (
               <ListItem
-                key={r.personId}
+                key={rowId(r)}
                 leading={<Avatar size="lg" name={r.name} />}
                 description={`Missing: ${missingOf(r).join(', ')}`}
-                trailing={fillIn(r)}
+                trailing={action(r)}
               >
                 {r.name}
               </ListItem>
@@ -521,4 +660,27 @@ function Grid({
       )}
     </Stack>
   );
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** "21 Sep": when, to the day. */
+const shortDay = (iso: string): string =>
+  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+/** "1 reminder", "40 reminders". */
+const n = (count: number, one: string, many: string): string =>
+  `${count.toLocaleString('en-GB')} ${count === 1 ? one : many}`;
+
+/** What "Remind N people" did, in words: who was sent one, and who was not and why. */
+function remindedText(r: Extract<RemindOutcome, { ok: true }>): string {
+  return [
+    r.sent === 0 ? 'Nobody was due a reminder.' : `Sent ${n(r.sent, 'reminder', 'reminders')}.`,
+    r.failed === 0 ? '' : `${n(r.failed, 'email', 'emails')} could not be sent.`,
+    r.skipped === 0
+      ? ''
+      : `${n(r.skipped, 'person was', 'people were')} not due: reminded in the last week, outside their working hours, or with no work email.`,
+  ]
+    .filter((line) => line !== '')
+    .join(' ');
 }

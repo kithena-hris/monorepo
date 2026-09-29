@@ -33,7 +33,7 @@ const HR_RELATIONS = {
   isAdmin: false,
 };
 
-async function upload(deps: CommitDeps, bytes: Uint8Array) {
+async function upload(deps: CommitDeps, bytes: Uint8Array, fileName?: string) {
   const file = await parseUpload(bytes);
   if (!file.ok) throw new Error(file.error.message);
   const version = await deps.schemas.current(tx, asking.tenantId);
@@ -50,6 +50,7 @@ async function upload(deps: CommitDeps, bytes: Uint8Array) {
     ...asking,
     file: file.value,
     mapping: mapping.value,
+    ...(fileName === undefined ? {} : { fileName }),
   });
   if (!result.ok) throw new Error(result.error.message);
   return result.value;
@@ -146,6 +147,14 @@ describe('committing Priya’s file', () => {
     expect(reports.index.rows.size).toBe(0);
     const again = await upload(deps, bytes);
     expect(again).toMatchObject({ status: 'already_imported', reportUrl: null });
+  });
+});
+
+describe('the ledger', () => {
+  it('keeps the file’s name as it was uploaded, for the shared history', async () => {
+    const ledger = inMemoryLedger();
+    await upload(commitDeps(priyasTenant(), ledger), csv(HEADERS, priyasRows()), 'acme-sept.csv');
+    expect([...ledger.imports.values()].map((i) => i.name)).toEqual(['acme-sept.csv']);
   });
 });
 

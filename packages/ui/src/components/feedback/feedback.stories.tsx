@@ -231,6 +231,19 @@ export const Skeletons: Story = {
   ),
 };
 
+export const PageSkeleton: Story = {
+  name: 'Page skeleton',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`shape="page"`: a page in `PageHeader`\'s measurements while it loads — the trail, the title and its line, the tab row when the page has tabs, and the body — so nothing under the header moves when the page arrives.',
+      },
+    },
+  },
+  render: () => <Skeleton shape="page" breadcrumb tabs={4} className="max-w-3xl" />,
+};
+
 export const EmptyStates: Story = {
   name: 'Empty states',
   parameters: {

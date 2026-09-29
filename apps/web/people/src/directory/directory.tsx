@@ -45,6 +45,7 @@ import {
 } from '@reach/ui';
 import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
+import { useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { longDate } from '../record/display';
 import { MissingMark } from '../record/missing';
@@ -130,7 +131,9 @@ export interface DirectoryState {
 
 export interface DirectoryProps {
   readonly load: Loadable<DirectoryState>;
+  /** The search People answered, `?q=`. */
   readonly search: string;
+  /** A new search, once typing rests. */
   readonly onSearchChange: (search: string) => void;
   /** Applied by the shell, server-side: `?filter=key:value`. */
   readonly filters: Readonly<Record<string, string>>;
@@ -569,6 +572,7 @@ function Body({
   incomplete = false,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const coarse = useCoarsePointer();
+  const [typed, type] = useTyped(search, onSearchChange);
   const [peek, setPeek] = useState<string | null>(null);
   const columnsChosen = useColumns(state.columns);
   const widths = useWidths();
@@ -954,8 +958,8 @@ function Body({
             label="Search people"
             placeholder="Search by name, email or employee number"
             size="sm"
-            value={search}
-            onValueChange={onSearchChange}
+            value={typed}
+            onValueChange={type}
             containerClassName="w-full @3xl:w-90"
           />
         }

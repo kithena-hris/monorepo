@@ -43,8 +43,9 @@ export interface ExportState {
     readonly fields: readonly { readonly key: string; readonly label: string }[];
   }[];
   /**
-   * A scheduled report's file, when its email's link opened this page
-   * (PEO-069). `missing` is somebody else's, or one that no longer exists.
+   * An export's files, when a link opened this page with it: a scheduled
+   * report's email (PEO-069), or the history's download. `missing` is
+   * somebody else's, or one that no longer exists.
    */
   readonly ready?: {
     readonly status: 'queued' | 'completed' | 'expired' | 'missing';
@@ -109,15 +110,15 @@ export function ExportBuilder({ load, onExport }: ExportBuilderProps): JSX.Eleme
   );
 }
 
-/** The file a scheduled report's email pointed at: the recipient's own, for 24 hours. */
+/** The export a link pointed at: the asker's own, for 24 hours. */
 function Ready({ ready }: { readonly ready: NonNullable<ExportState['ready']> }): JSX.Element {
   if (ready.status === 'completed') {
     return (
-      <Alert tone="success" title="Your scheduled report is ready">
+      <Alert tone="success" title="Your export is ready">
         <Stack gap={3}>
           <p>
-            It holds only what you can see in People. The link stops working 24 hours after the
-            report was made.
+            It holds only what you can see in People. The links stop working 24 hours after it was
+            made.
           </p>
           <div className="flex flex-wrap gap-2">
             {ready.links.map((link) => (
@@ -131,16 +132,12 @@ function Ready({ ready }: { readonly ready: NonNullable<ExportState['ready']> })
     );
   }
   if (ready.status === 'queued') {
-    return (
-      <Alert tone="info">
-        Your scheduled report is still being prepared. Try again in a minute.
-      </Alert>
-    );
+    return <Alert tone="info">Your export is still being prepared. Try again in a minute.</Alert>;
   }
   return (
-    <Alert tone="warning" title="This report is no longer available">
+    <Alert tone="warning" title="This export is no longer available">
       {ready.status === 'expired'
-        ? 'Scheduled reports are deleted 24 hours after they are made. The next one arrives as scheduled.'
+        ? 'Exports are deleted 24 hours after they are made. A scheduled report’s next one arrives as scheduled.'
         : 'It was made for somebody else, or it no longer exists.'}
     </Alert>
   );
@@ -195,20 +192,41 @@ function Builder({
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1fr)_21.25rem] @5xl/page:items-start">
       <Stack gap={4}>
         <PageSection surface title="1 · Who">
-          <ChipGroup
-            type="single"
-            aria-label="Who to export"
-            value={who}
-            onValueChange={(next) => {
-              if (next !== '') setWho(next);
-            }}
-          >
-            {state.who.map((w) => (
-              <ChipGroupItem key={w.value} value={w.value} variant="view">
-                {w.label} <span className="font-medium tabular-nums">{w.count}</span>
-              </ChipGroupItem>
-            ))}
-          </ChipGroup>
+          {/* One audience is nothing to choose: it is said, not offered. */}
+          {state.who.length === 1 ? (
+            <div className="flex flex-col gap-1">
+              <p className="text-base text-fg">
+                <span className="font-semibold">{state.who[0]?.label}</span>
+                {', '}
+                <span className="tabular-nums">{count}</span> {count === 1 ? 'person' : 'people'}
+              </p>
+              <p className="text-sm text-fg-muted">
+                To export a smaller group, save a view in the{' '}
+                <a
+                  href="/people/directory/list"
+                  className="relative tap-target font-semibold text-accent-fg"
+                >
+                  Directory
+                </a>
+                . Saved views appear here to choose from.
+              </p>
+            </div>
+          ) : (
+            <ChipGroup
+              type="single"
+              aria-label="Who to export"
+              value={who}
+              onValueChange={(next) => {
+                if (next !== '') setWho(next);
+              }}
+            >
+              {state.who.map((w) => (
+                <ChipGroupItem key={w.value} value={w.value} variant="view">
+                  {w.label} <span className="font-medium tabular-nums">{w.count}</span>
+                </ChipGroupItem>
+              ))}
+            </ChipGroup>
+          )}
         </PageSection>
 
         <PageSection

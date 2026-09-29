@@ -1,0 +1,1 @@
+{"version":1,"body":"query AnalyticsExport($tab: String!, $segment: ID) {\n    peopleAnalyticsExport(tab: $tab, segment: $segment)\n  }"}

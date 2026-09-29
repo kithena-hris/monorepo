@@ -366,7 +366,7 @@ describe('PEO-094: the remote, rendered on the server', () => {
       await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, (route) => route.abort());
       const page = await bare.newPage();
       const response = await page.goto(`${stack.shell}/people/me`);
-      // No screen drawn on the server — only the spinner in its place. (The
+      // No screen drawn on the server — only its skeleton in its place. (The
       // labels are still in the page's data, which is not a rendering.)
       const html = (await response?.text()) ?? '';
       expect(html).not.toContain('data-remote="people"');
@@ -419,7 +419,7 @@ describe('PEO-117: the directory searches and filters in People', () => {
       page.evaluate(() => document.body.innerText.replaceAll('\n', ' | '));
 
     // Adam reads every name, so he may search them: Priya, and nobody else.
-    await page.goto(`${stack.shell}/people/directory/list?search=shah`);
+    await page.goto(`${stack.shell}/people/directory/list?q=shah`);
     await expect.poll(text, { timeout: 30_000 }).toContain('Pri Shah');
     expect(await page.getByText(EMPLOYEE.email).count()).toBe(0);
 
@@ -772,7 +772,7 @@ describe('Hiring somebody added without a start date', () => {
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/directory/list?search=Bulkhire`);
+    await page.goto(`${stack.shell}/people/directory/list?q=Bulkhire`);
     await page.waitForLoadState('networkidle');
     const people = page.getByRole('table', { name: 'People' });
     await people.getByText('Alan Bulkhire').waitFor({ timeout: 30_000 });

@@ -30,6 +30,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { DisplayValue, longDate } from '../record/display';
 import type { AttributeValue, PendingValue, RecordField } from '../record/model';
@@ -75,7 +76,12 @@ export interface ApprovalsProps {
   /** A requester no other HR member can approve for, approving their own change, once they confirm (PEO-077). */
   readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
   readonly onOpen?: (personId: string) => void;
+  /** HR's list: waiting for them, or what they asked (`?tab=asked`). Absent: whichever has something. */
+  readonly tab?: ApprovalsTab;
+  readonly onTabChange?: (tab: ApprovalsTab) => void;
 }
+
+export type ApprovalsTab = 'mine' | 'asked';
 
 /** Enough of a field to draw a value: a pending value carries no options or type. */
 const asField = (item: ApprovalItem): RecordField => ({
@@ -89,24 +95,10 @@ const asField = (item: ApprovalItem): RecordField => ({
   sensitive: true,
 });
 
-export function Approvals({
-  load,
-  onDecide,
-  onWithdraw,
-  onSelfApprove,
-  onOpen,
-}: ApprovalsProps): JSX.Element {
+export function Approvals({ load, ...props }: ApprovalsProps): JSX.Element {
   return (
     <Loaded load={load} what="changes waiting for approval">
-      {(state) => (
-        <Inbox
-          state={state}
-          onDecide={onDecide}
-          onWithdraw={onWithdraw}
-          onSelfApprove={onSelfApprove}
-          onOpen={onOpen}
-        />
-      )}
+      {(state) => <Inbox state={state} {...props} />}
     </Loaded>
   );
 }
@@ -123,19 +115,19 @@ function Inbox({
   onWithdraw,
   onSelfApprove,
   onOpen,
-}: {
-  readonly state: ApprovalsState;
-  readonly onDecide: ApprovalsProps['onDecide'];
-  readonly onWithdraw: ApprovalsProps['onWithdraw'];
-  readonly onSelfApprove: ApprovalsProps['onSelfApprove'];
-  readonly onOpen: ApprovalsProps['onOpen'];
-}): JSX.Element {
+  tab: heldTab,
+  onTabChange,
+}: Omit<ApprovalsProps, 'load'> & { readonly state: ApprovalsState }): JSX.Element {
   const [deciding, setDeciding] = useState<{ item: ApprovalItem; approve: boolean } | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
   const forMe = state.items.filter((i) => i.canDecide || i.canSelfApprove === true);
   const asked = state.items.filter((i) => i.mine && !forMe.includes(i));
   const rest = state.items.filter((i) => !forMe.includes(i) && !asked.includes(i));
-  const [tab, setTab] = useState(forMe.length > 0 || !state.isHr ? 'mine' : 'asked');
+  const [tab, setTab] = useHeld<ApprovalsTab>(
+    heldTab,
+    onTabChange,
+    forMe.length > 0 || !state.isHr ? 'mine' : 'asked',
+  );
   const shown = state.isHr ? (tab === 'mine' ? [...forMe, ...rest] : asked) : state.items;
   const [picked, setPicked] = useState<string | null>(shown[0]?.id ?? null);
   const current = shown.find((i) => i.id === picked) ?? shown[0] ?? null;
@@ -205,7 +197,7 @@ function Inbox({
         <Tabs
           value={tab}
           onValueChange={(next) => {
-            setTab(next);
+            if (next === 'mine' || next === 'asked') setTab(next);
             setPicked(null);
           }}
         >

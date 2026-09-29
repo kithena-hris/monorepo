@@ -258,6 +258,8 @@ export interface RemoteRoute {
     readonly actions: readonly Place[];
     readonly settings: readonly Place[];
   };
+  /** Every path the manifest lists, as written there. */
+  readonly routes: readonly string[];
 }
 
 export interface Matched {
@@ -265,6 +267,8 @@ export interface Matched {
   readonly path: string;
   readonly params: Readonly<Record<string, string>>;
   readonly nav: RemoteRoute['nav'];
+  /** Every path the manifest lists, as written there. */
+  readonly routes: readonly string[];
 }
 
 /**
@@ -282,16 +286,28 @@ export function matchRoute(manifest: unknown, path: string): Matched | null | un
   const parsed = RouteManifest.safeParse(manifest);
   if (!parsed.success) return null;
   const { routes, sections, actions, settings } = parsed.data;
-  const nav = { sections, actions, settings };
-  const literal = routes.find((route) => route.path === path);
-  if (literal !== undefined) {
-    return { component: literal.component, path: literal.path, params: {}, nav };
-  }
+  const paths = routes.map((route) => route.path);
+  const matched = matchPath(paths, path);
+  const component = routes.find((route) => route.path === matched?.path)?.component;
+  if (matched === undefined || component === undefined) return undefined;
+  return { component, ...matched, nav: { sections, actions, settings }, routes: paths };
+}
 
+/**
+ * `matchRoute`'s rule on the paths alone: the one that answers `path`, a
+ * literal before a pattern, with its parameters. The shell's sidebar uses it
+ * in the browser to know which of People's routes the address is, so the
+ * shell can be drawn once rather than by each page.
+ */
+export function matchPath(
+  paths: readonly string[],
+  path: string,
+): { readonly path: string; readonly params: Readonly<Record<string, string>> } | undefined {
+  if (paths.includes(path)) return { path, params: {} };
   const segments = path.split('/');
-  for (const route of routes) {
-    const pattern = route.path.split('/');
-    if (pattern.length !== segments.length || !route.path.includes('/:')) continue;
+  for (const candidate of paths) {
+    const pattern = candidate.split('/');
+    if (pattern.length !== segments.length || !candidate.includes('/:')) continue;
     const params: Record<string, string> = {};
     const fits = pattern.every((part, i) => {
       const actual = segments[i] ?? '';
@@ -300,7 +316,7 @@ export function matchRoute(manifest: unknown, path: string): Matched | null | un
       params[part.slice(1)] = actual;
       return true;
     });
-    if (fits) return { component: route.component, path: route.path, params, nav };
+    if (fits) return { path: candidate, params };
   }
   return undefined;
 }

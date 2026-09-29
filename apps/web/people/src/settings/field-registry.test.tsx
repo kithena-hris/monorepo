@@ -535,3 +535,35 @@ describe('FieldRegistry', () => {
     expect(onAssistant).toHaveBeenCalledWith('employee_number', true);
   });
 });
+
+describe('the field list’s filters, in the address', () => {
+  it('opens with the search, the filter and the section a link carried', () => {
+    render(
+      <FieldRegistry
+        {...props({
+          search: 'ethni',
+          onSearchChange: vi.fn(),
+          show: 'all',
+          onShowChange: vi.fn(),
+        })}
+      />,
+    );
+    expect(screen.getByRole('searchbox', { name: 'Search fields' })).toHaveValue('ethni');
+    expect(screen.getByRole('table', { name: 'Matching fields' })).toBeInTheDocument();
+  });
+
+  it('treats a filter or a section it does not know as none', () => {
+    render(
+      <FieldRegistry
+        {...props({
+          show: 'toString',
+          onShowChange: vi.fn(),
+          section: 'gone',
+          onSectionChange: vi.fn(),
+        })}
+      />,
+    );
+    expect(screen.queryByRole('table', { name: 'Matching fields' })).toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('All fields');
+  });
+});

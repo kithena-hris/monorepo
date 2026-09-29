@@ -1,4 +1,5 @@
 import {
+  Alert,
   AppBarBack,
   Breadcrumb,
   BreadcrumbItem,
@@ -10,6 +11,7 @@ import {
   Badge,
   Button,
   PageHeaderFrame,
+  Stack,
   TertiaryNav,
   icons,
   type IconName,
@@ -50,6 +52,8 @@ export interface Frame {
   }[];
   /** What the siblings are, for a screen reader: "People sections". */
   readonly siblingsLabel?: string;
+  /** What the address asked for and People refused; the page is shown without it. */
+  readonly notice?: string;
   /**
    * The umbrella page's tabs this viewer may open, in order, each its own URL.
    * Drawn under the screen's header, so a screen never draws its own. Absent:
@@ -123,6 +127,7 @@ export function ScreenFrame({
     siblings = [],
     siblingsLabel = 'Sections',
     tabs = [],
+    notice,
   } = frame;
   const tab = tabs.find((t) => t.current);
   const withIcons = siblings.map((group) => ({
@@ -159,7 +164,7 @@ export function ScreenFrame({
             <Breadcrumb className="touch:hidden">
               <BreadcrumbList>
                 {trail.map((link) => (
-                  <Fragment key={link.href}>
+                  <Fragment key={`${link.href} ${link.label}`}>
                     <BreadcrumbItem>
                       <BreadcrumbLink href={link.href}>{link.label}</BreadcrumbLink>
                     </BreadcrumbItem>
@@ -289,7 +294,17 @@ export function ScreenFrame({
             ))
       }
     >
-      {children}
+      {notice === undefined ? (
+        children
+      ) : (
+        // Said, not swallowed: the link asked for something it cannot have.
+        <Stack gap={4}>
+          <Alert tone="warning" title={notice}>
+            Showing the page without it.
+          </Alert>
+          {children}
+        </Stack>
+      )}
     </PageHeaderFrame>
   );
 }

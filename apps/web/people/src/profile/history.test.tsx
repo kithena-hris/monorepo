@@ -184,3 +184,34 @@ describe('PersonHistory', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
+
+describe('the history’s field, in the address', () => {
+  it('opens narrowed to the field a link named, and hands a new one to the host', async () => {
+    const user = fast();
+    const onFieldChange = vi.fn();
+    render(
+      <PersonHistory
+        load={{ status: 'ready', data: march }}
+        onAsOf={vi.fn()}
+        field="mobile"
+        onFieldChange={onFieldChange}
+      />,
+    );
+    expect(screen.queryByRole('heading', { name: 'Compensation' })).toBeNull();
+    await user.click(screen.getByRole('combobox', { name: 'Field' }));
+    await user.click(await screen.findByRole('option', { name: 'All fields' }));
+    expect(onFieldChange).toHaveBeenCalledWith(null);
+  });
+
+  it('shows every field for one this viewer cannot read', () => {
+    render(
+      <PersonHistory
+        load={{ status: 'ready', data: march }}
+        onAsOf={vi.fn()}
+        field="salary_secret"
+        onFieldChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('combobox', { name: 'Field' })).toHaveTextContent('All fields');
+  });
+});

@@ -224,10 +224,16 @@ export const asking = {
 
 /** The ledger's constraint, in memory: one import per tenant per checksum. */
 export function inMemoryLedger(): ImportLedger & {
-  readonly imports: Map<string, { importId: string; counts: ImportCounts | null }>;
+  readonly imports: Map<
+    string,
+    { importId: string; counts: ImportCounts | null; name: string | null }
+  >;
   readonly events: PendingEvent[];
 } {
-  const imports = new Map<string, { importId: string; counts: ImportCounts | null }>();
+  const imports = new Map<
+    string,
+    { importId: string; counts: ImportCounts | null; name: string | null }
+  >();
   const events: PendingEvent[] = [];
   return {
     imports,
@@ -236,7 +242,7 @@ export function inMemoryLedger(): ImportLedger & {
       const key = `${entry.tenantId}:${entry.checksum}`;
       const held = imports.get(key);
       if (held) return Promise.resolve({ claimed: false, importId: held.importId });
-      imports.set(key, { importId: entry.importId, counts: null });
+      imports.set(key, { importId: entry.importId, counts: null, name: entry.name });
       return Promise.resolve({ claimed: true });
     },
     complete(_tx, _tenant, importId, counts) {

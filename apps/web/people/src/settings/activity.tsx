@@ -10,9 +10,11 @@ import {
   PageHeader,
   SearchField,
   Stack,
+  icons,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
+import { useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
 
 /**
@@ -38,6 +40,8 @@ export interface SettingsActivityState {
     /** Who did it by name, "You" included: the avatar's initials. */
     readonly name?: string;
     readonly avatarUrl: string | null;
+    /** `system` for an account nobody in People holds: an icon, not initials. */
+    readonly kind?: 'person' | 'system';
   }[];
   readonly next: string | null;
 }
@@ -50,6 +54,9 @@ export interface SettingsActivityProps {
   readonly onOlder?: (before: string) => void;
   /** Back to the newest. */
   readonly onNewest?: () => void;
+  /** The search over what is loaded (`?q=`), once typing rests. */
+  readonly search?: string;
+  readonly onSearchChange?: (search: string) => void;
 }
 
 const AREAS: readonly { readonly value: ActivityArea | 'all'; readonly label: string }[] = [
@@ -86,7 +93,7 @@ function useZone(): string | undefined {
 }
 
 export function SettingsActivity(props: SettingsActivityProps): JSX.Element {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useTyped(props.search ?? '', props.onSearchChange);
   return (
     <Stack gap={6}>
       <PageHeader title="Activity log" description="Every settings change, who made it and when." />
@@ -192,7 +199,11 @@ function Entries({
             header: 'Who',
             cell: (e) => (
               <span className="flex items-center gap-2.5">
-                <Avatar size="sm" name={e.name ?? e.by} src={e.avatarUrl ?? undefined} />
+                {e.kind === 'system' ? (
+                  <Avatar size="sm" name={e.by} fallback={<icons.system aria-hidden />} />
+                ) : (
+                  <Avatar size="sm" name={e.name ?? e.by} src={e.avatarUrl ?? undefined} />
+                )}
                 {e.by}
               </span>
             ),

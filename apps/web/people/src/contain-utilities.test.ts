@@ -27,6 +27,23 @@ describe('containUtilities', () => {
     expect(flex.selectors).toEqual([`${REMOTE_SCOPE} .md\\:flex`, `${REMOTE_SCOPE} .x`]);
   });
 
+  it('reaches the remote and the portals, and never the host’s page, with or without the remote on it', () => {
+    const matches = (html: string): boolean => {
+      document.body.innerHTML = html;
+      return document.querySelector('[data-t]')?.matches(`${REMOTE_SCOPE} [data-t]`) ?? false;
+    };
+    // The host's own sidebar, while a People screen is showing and after leaving it.
+    expect(matches('<div data-remote-host><nav data-t></nav><div data-remote></div></div>')).toBe(
+      false,
+    );
+    expect(matches('<div data-remote-host><nav data-t></nav></div>')).toBe(false);
+    // The screen, and a menu it portalled to the body.
+    expect(matches('<div data-remote-host><div data-remote><p data-t></p></div></div>')).toBe(true);
+    expect(matches('<div data-remote-host></div><div><p data-t></p></div>')).toBe(true);
+    // A host that marks only the screen keeps the old rule.
+    expect(matches('<div><nav data-t></nav><div data-remote></div></div>')).toBe(false);
+  });
+
   it('leaves the theme, the base layer and nested rules alone, and scopes once', () => {
     const theme = rule([':root'], layer('theme'));
     const base = rule(['*'], layer('base'));

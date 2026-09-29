@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { cache } from 'react';
 import { people } from './people';
 import { peopleRoute, placesFor } from './remotes';
 import {
@@ -37,7 +38,16 @@ async function waitingFor(roles: ShellData['roles']): Promise<Waiting | null> {
   };
 }
 
-export async function shellData(entitlements: readonly string[]): Promise<ShellData> {
+/**
+ * Once per request, by entitlement set: the shell's layout and the page under
+ * it both ask, and each read is several of People's.
+ */
+export function shellData(entitlements: readonly string[]): Promise<ShellData> {
+  return shellDataOnce(entitlements.join('\n'));
+}
+
+const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
+  const entitlements = key === '' ? [] : key.split('\n');
   if (!entitlements.includes('module.people')) return EMPTY_SHELL;
   const [route, home, overview] = await Promise.all([
     peopleRoute('/people').catch(() => undefined),
@@ -55,9 +65,10 @@ export async function shellData(entitlements: readonly string[]): Promise<ShellD
     roles,
     sections: places.sections,
     settings: places.settings,
+    routes: route.routes,
     counts: counts?.sections ?? {},
     tabCounts: counts?.tabs ?? {},
     notices: data === null ? [] : noticesOf(data),
     now: data?.now ?? null,
   };
-}
+});

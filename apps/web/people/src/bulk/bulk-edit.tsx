@@ -29,6 +29,7 @@ import {
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
+import { useHeld } from '../held';
 import { Loaded, type IdentifierFinding, type Loadable } from '../load';
 import { PlacementPickers, type PlacementState } from '../profile/employment';
 import { AttributeInput, PeopleSearch, type SearchPeople } from '../record/attribute-input';
@@ -104,7 +105,12 @@ export interface BulkEditProps {
   /** Finds people for a person field. */
   readonly searchPeople?: SearchPeople;
   readonly onBack?: () => void;
+  /** Setting values or hiring (`?tab=hire`), held by the host. */
+  readonly tab?: BulkTab;
+  readonly onTabChange?: (tab: BulkTab) => void;
 }
+
+export type BulkTab = 'edit' | 'hire';
 
 /**
  * Bulk edit (PRD §8.4, PEO-071): the same values for the people chosen in
@@ -116,7 +122,14 @@ export interface BulkEditProps {
  * the commit's answer, not a guess. Changing a value or the date sets the
  * preview aside: what is applied is always what was last shown.
  */
-export function BulkEdit({ load, searchPeople, ...props }: BulkEditProps): JSX.Element {
+export function BulkEdit({
+  load,
+  searchPeople,
+  tab: heldTab,
+  onTabChange,
+  ...props
+}: BulkEditProps): JSX.Element {
+  const [tab, setTab] = useHeld<BulkTab>(heldTab, onTabChange, 'edit');
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
       <Loaded load={load} what="the people to edit">
@@ -126,7 +139,12 @@ export function BulkEdit({ load, searchPeople, ...props }: BulkEditProps): JSX.E
             return <Editor state={state} {...edit} />;
           }
           return (
-            <Tabs defaultValue="edit">
+            <Tabs
+              value={tab}
+              onValueChange={(next) => {
+                if (next === 'edit' || next === 'hire') setTab(next);
+              }}
+            >
               <TabsList aria-label="What to do">
                 <TabsTrigger value="edit">Set values</TabsTrigger>
                 <TabsTrigger value="hire">Hire</TabsTrigger>

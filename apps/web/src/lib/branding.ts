@@ -1,5 +1,6 @@
 import 'server-only';
 import { headers } from 'next/headers';
+import { cache } from 'react';
 
 /**
  * What this company may be shown as, on its own origin.
@@ -50,7 +51,7 @@ const NOTHING: Branding = {
  * rather than an error. The alternative is a sign-in screen that fails because
  * a logo could not be fetched.
  */
-export async function currentTenant(): Promise<TenantContext | null> {
+export const currentTenant = cache(async (): Promise<TenantContext | null> => {
   const inbound = await headers();
   const id = inbound.get('x-tenant-id');
   const slug = inbound.get('x-tenant-slug');
@@ -108,4 +109,4 @@ export async function currentTenant(): Promise<TenantContext | null> {
   } catch {
     return { id, slug, branding: NOTHING, location: null };
   }
-}
+});

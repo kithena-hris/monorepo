@@ -1,5 +1,6 @@
 import 'server-only';
 import { cookies, headers } from 'next/headers';
+import { cache } from 'react';
 
 import { SESSION_COOKIE } from './session-cookie';
 
@@ -37,7 +38,8 @@ export interface SignedIn {
   readonly entitlements: readonly string[];
 }
 
-export async function currentPerson(): Promise<SignedIn | null> {
+/** Once per request: the shell's layout and the page under it both ask. */
+export const currentPerson = cache(async (): Promise<SignedIn | null> => {
   const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
   if (sessionId === undefined || sessionId === '') return null;
 
@@ -89,7 +91,8 @@ export async function currentPerson(): Promise<SignedIn | null> {
       // Both halves or neither: the column constraint says a legal name is not
       // half of one, and a screen greeting somebody by a family name alone
       // would be worse than greeting them by their address.
-      name: given === null || family === null ? null : { given, family, preferred: part('preferred') },
+      name:
+        given === null || family === null ? null : { given, family, preferred: part('preferred') },
       timeZone: read('timeZone'),
       amr: Array.isArray(amr) ? amr.filter((a): a is string => typeof a === 'string') : [],
       // None when identity says nothing: fail closed, no module is shown.
@@ -100,7 +103,7 @@ export async function currentPerson(): Promise<SignedIn | null> {
   } catch {
     return null;
   }
-}
+});
 
 /**
  * What to call somebody, from the only thing identity holds about them.

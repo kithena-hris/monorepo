@@ -13,6 +13,7 @@ import {
   type RefObject,
 } from 'react';
 
+import { resolveChild } from '../../lib/child';
 import { cn } from '../../lib/cn';
 
 /**
@@ -305,9 +306,10 @@ export function ListItem({
   asChild = false,
   swipeActions,
   fullSwipe = true,
-  children,
+  children: given,
   ...props
 }: ListItemProps): JSX.Element {
+  const children = asChild ? resolveChild(given) : given;
   const interactive = asChild && isValidElement(children);
   const swipe = useSwipe(swipeActions ?? [], fullSwipe);
   const row = cn(

@@ -164,11 +164,13 @@ export function PeopleMenu({
     <div className="flex flex-col gap-4">
       <SearchField
         label="Search people"
-        placeholder={total == null ? 'Search people' : `Search ${String(total)} people`}
+        placeholder={
+          total == null ? 'Search people' : `Search ${total.toLocaleString('en-GB')} people`
+        }
         value={query}
         onValueChange={setQuery}
         onSearch={(value) => {
-          router.push(`/people/directory/list?search=${encodeURIComponent(value)}` as Route);
+          router.push(`/people/directory/list?q=${encodeURIComponent(value)}` as Route);
         }}
       />
       <List aria-label="People sections">

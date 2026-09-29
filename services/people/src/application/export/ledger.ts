@@ -1,6 +1,15 @@
 import { sql } from 'drizzle-orm';
 
+import type { ExportFormat } from './export.js';
 import type { CompletedExport, ExportLedger, LedgerEntry } from './job.js';
+
+/** A text[] from a list, through JSON: no array literal to escape by hand. */
+const texts = (list: readonly string[]) =>
+  sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(list)}::jsonb))`;
+
+/** A stored format, or null for a row written before the column (or one this build does not know). */
+export const formatOf = (format: string | null): ExportFormat | null =>
+  format === 'csv' || format === 'xlsx' || format === 'pdf' ? format : null;
 
 /**
  * The export ledger, over `people.export`.
@@ -22,13 +31,18 @@ export function drizzleExportLedger(): ExportLedger {
       // The guard is the idempotency: a second completion matches no row.
       const rows = await tx.execute<{ id: string }>(sql`
         INSERT INTO people.export
-               (tenant_id, id, requested_by, row_count, file_names, expires_at, completed_at)
+               (tenant_id, id, requested_by, row_count, file_names, expires_at, completed_at,
+                format, reason, attribute_keys)
         VALUES (${run.tenantId}::uuid, ${run.exportId}::uuid, ${run.requestedBy}::uuid,
-                ${run.rowCount}, ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(run.fileNames)}::jsonb)),
-                ${run.expiresAt}::timestamptz, now())
+                ${run.rowCount}, ${texts(run.fileNames)},
+                ${run.expiresAt}::timestamptz, now(),
+                ${run.format}, ${run.reason},
+                ${run.attributeKeys === null ? null : texts(run.attributeKeys)})
         ON CONFLICT (tenant_id, id) DO UPDATE
            SET row_count = EXCLUDED.row_count, file_names = EXCLUDED.file_names,
-               expires_at = EXCLUDED.expires_at, completed_at = EXCLUDED.completed_at
+               expires_at = EXCLUDED.expires_at, completed_at = EXCLUDED.completed_at,
+               format = EXCLUDED.format, reason = EXCLUDED.reason,
+               attribute_keys = EXCLUDED.attribute_keys
          WHERE people.export.completed_at IS NULL
         RETURNING id`);
       return [...rows].length > 0;
@@ -40,8 +54,11 @@ export function drizzleExportLedger(): ExportLedger {
         row_count: number | null;
         file_names: string[] | null;
         expires_at: string | Date | null;
+        format: string | null;
+        reason: string | null;
+        attribute_keys: string[] | null;
       }>(sql`
-        SELECT requested_by, row_count, file_names, expires_at
+        SELECT requested_by, row_count, file_names, expires_at, format, reason, attribute_keys
           FROM people.export
          WHERE tenant_id = ${tenantId}::uuid AND id = ${exportId}::uuid`);
       const row = [...rows][0];
@@ -57,6 +74,9 @@ export function drizzleExportLedger(): ExportLedger {
         rowCount: row.row_count,
         fileNames: row.file_names,
         expiresAt: new Date(row.expires_at).toISOString(),
+        format: formatOf(row.format),
+        reason: row.reason,
+        attributeKeys: row.attribute_keys,
       };
     },
   };

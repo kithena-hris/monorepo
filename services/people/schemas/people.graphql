@@ -33,8 +33,14 @@ type AnalyticsAttrition {
 }
 
 type AnalyticsComplete {
+  """
+  Points since the snapshot a month ago; null when there is none that day.
+  """
+  change: Int
   incomplete: Int
   percent: Float
+  """Percent complete by month, snapshot months only."""
+  trend: [AnalyticsPoint!]
 }
 
 type AnalyticsComposition {
@@ -307,10 +313,19 @@ type CompletenessRow {
   manager: String
   missing: [String!]
   name: String
+  """Who fills these in: hr or employee."""
+  owner: String
   personId: ID
+  """Employee rows: their last reminder, weekly or asked for."""
+  remindedAt: String
 }
 
 type CompletenessWaiting {
+  """How many remindWaiting would remind now; null where it cannot run."""
+  due: Int
+  """
+  When anybody still waiting was last sent the weekly reminder; ISO 8601.
+  """
   lastReminded: String
   people: Int
 }
@@ -459,6 +474,10 @@ type DuplicateDismissed {
 
 """Two records that look like one human, and why. Never a value."""
 type DuplicatePair {
+  """
+  strong, likely or possible: a band from the signals, never a percentage (`matchBand`).
+  """
+  match: String
   names: [String!]
   personIds: [ID!]
   reasons: [String!]
@@ -1116,6 +1135,10 @@ type Mutation {
   Hire a leaver again: a new employment period on the same record, pre-hire until it starts; HR only.
   """
   rehirePerson(idempotencyKey: String!, legalEntityId: ID, overrideReason: String, personId: ID!, startDate: String!): Person
+  """
+  Send the weekly reminder now to everybody due one; nobody gets two in a week (HR).
+  """
+  remindWaiting(idempotencyKey: String!): RemindersSent
   removePhoto(idempotencyKey: String!, personId: ID): PeoplePhotoSaved
   reorderDraftFields(idempotencyKey: String!, order: [String!]!, sectionKey: String!): WriteOutcome
   reorderDraftSections(idempotencyKey: String!, order: [String!]!): WriteOutcome
@@ -1345,6 +1368,8 @@ type PeopleAnalytics {
   expiringIn90Days: Int
   headcount: AnalyticsHeadcount
   joiners: AnalyticsJoiners
+  """The cohort minimum in force: smaller groups are withheld."""
+  minimum: Int
   movement: AnalyticsMovement
   """Finance's only; never under a segment"""
   pay: AnalyticsPay
@@ -1356,6 +1381,8 @@ type PeopleAnalytics {
   sourceNote: String
   """Managers by number of direct reports"""
   span: [AnalyticsPoint!]
+  """Hired, not started yet; HR’s only, never under a segment."""
+  startingSoon: Int
   tenure: [AnalyticsTenureBand!]
 }
 
@@ -1442,6 +1469,8 @@ type PeopleChatNotice {
 }
 
 type PeopleCompleteness {
+  """People missing bank, tax or ID details, whoever fills them in."""
+  blocking: Int
   completedThisWeek: Int
   fields: [CompletenessField!]
   next: String
@@ -1836,6 +1865,8 @@ type PeopleSettingsActivityEntry {
   """What it did, in one plain sentence."""
   detail: String
   id: ID
+  """person, or system for an account nobody in People holds."""
+  kind: String
   """Who did it, by name, "You" included."""
   name: String
   subject: String
@@ -1866,6 +1897,50 @@ type PeopleSetupField {
 type PeopleSetupOption {
   label: String
   value: String
+}
+
+"""
+One import or export, as its ledger keeps it. Never a value, never a stored link.
+"""
+type PeopleTransfer {
+  at: String
+  by: PeopleTransferBy
+  """
+  The viewer’s own export, still there: `peopleExport(id)` hands them its files.
+  """
+  downloadable: Boolean
+  exported: PeopleTransferExported
+  id: ID
+  imported: PeopleTransferImported
+  """import or export."""
+  kind: String
+  """An import’s blocked-row report while it is kept: a link that expires."""
+  reportUrl: String
+  """An import’s file name; an export’s reason, else the file it made."""
+  title: String
+}
+
+type PeopleTransferBy {
+  avatarUrl: String
+  name: String
+}
+
+type PeopleTransferExported {
+  """csv, xlsx or pdf; null on an export from before the ledger kept it."""
+  format: String
+  rows: Int
+}
+
+type PeopleTransferHistory {
+  items: [PeopleTransfer!]
+  next: ID
+}
+
+type PeopleTransferImported {
+  """Refused rows and duplicates together."""
+  blocked: Int
+  created: Int
+  updated: Int
 }
 
 type Person @key(fields: "id") {
@@ -2003,6 +2078,10 @@ type Query {
   people(after: String, asOf: String, first: Int): PersonPage
   peopleAnalytics(segment: ID): PeopleAnalytics
   """
+  One Insights tab’s numbers as CSV, for a segment or everybody the viewer may chart.
+  """
+  peopleAnalyticsExport(segment: ID, tab: String!): String
+  """
   Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
   """
   peopleApprovals: PeopleApprovals
@@ -2051,6 +2130,8 @@ type Query {
   What saving these grid cells would be warned about (PEO-125); nothing is kept.
   """
   peopleGridCheck(changes: [GridChangeInput!]!): GridIdentifierCheck
+  """How many people you could find by searching: a count only."""
+  peopleHeadcount: Int
   """
   One person as of a date (default today), and every change; no id is "my history".
   """
@@ -2062,6 +2143,10 @@ type Query {
   peopleIdentifierCheck(changed: [FormValueInput!]!, personId: ID): IdentifierCheck
   """Doubted national identifiers waiting for HR (PEO-125); HR only."""
   peopleIdentifierReviews: PeopleIdentifierReviews
+  """
+  A header-only CSV of the fields the viewer may import, by label; HR only (`GET /v1/imports/template`).
+  """
+  peopleImportTemplate: String
   peopleIntegrations: PeopleIntegrations
   peopleOnboarding: PeopleOnboarding
   peopleOrganisation: PeopleOrganisation
@@ -2087,6 +2172,10 @@ type Query {
   peopleSettings: PeopleSettings
   peopleSettingsActivity(area: String, before: ID): PeopleSettingsActivity
   peopleSetup: PeopleSetup
+  """
+  Imports and exports, newest first, 50 at a time; HR and People administrators.
+  """
+  peopleTransferHistory(before: ID): PeopleTransferHistory
   """
   One endpoint’s delivery log, newest first, 50 at a time; people_admin only.
   """
@@ -2193,6 +2282,15 @@ type RegistrySection {
   origin: String
   ownership: [String!]
   visibility: [String!]
+}
+
+type RemindersSent {
+  failed: Int
+  sent: Int
+  """
+  Waiting, and not due: reminded this week, outside their hours, or no email.
+  """
+  skipped: Int
 }
 
 type RepeatingAttribute {

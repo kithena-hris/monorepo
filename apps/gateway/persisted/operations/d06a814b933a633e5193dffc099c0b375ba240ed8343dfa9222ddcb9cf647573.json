@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RemindWaiting($key: String!) {\n    remindWaiting(idempotencyKey: $key) { sent failed skipped }\n  }"}

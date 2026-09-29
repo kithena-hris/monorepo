@@ -38,6 +38,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { useHeld } from '../../held';
 import { Loaded, type Loadable, type Outcome } from '../../load';
 import { ChatApps, type ChatAppsProps, type ChatAppsState } from './chat-apps';
 import { Provisioning, type ProvisioningProps, type ScimState } from './provisioning';
@@ -103,6 +104,9 @@ export interface IntegrationsProps {
   readonly scim?: Omit<ProvisioningProps, 'scim'>;
   /** Chat apps (Slack today) and People's notices to them; absent, not drawn. */
   readonly chat?: ChatAppsProps;
+  /** The tab on screen (`?tab=webhooks`), held by the host. */
+  readonly tab?: string | null;
+  readonly onTabChange?: (tab: string) => void;
 }
 
 /**
@@ -198,13 +202,25 @@ function Endpoints({
   onOpenLog,
   scim,
   chat,
+  tab: heldTab,
+  onTabChange,
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
   const [adding, setAdding] = useState(false);
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null);
   // Back where Slack sent them: straight to its tab.
-  const [tab, setTab] = useState<string>(
+  const [chosen, setTab] = useHeld<string>(
+    heldTab,
+    onTabChange,
     chat?.returned === undefined || chat.returned === null ? 'overview' : 'chat',
   );
+  // A tab this viewer has; a link to one that is not drawn here opens the overview.
+  const tabs = [
+    'overview',
+    'webhooks',
+    ...(chat === undefined || state.chat === undefined ? [] : ['chat']),
+    ...(state.scim === undefined || scim === undefined ? [] : ['provisioning']),
+  ];
+  const tab = tabs.includes(chosen) ? chosen : 'overview';
   const refusedLabels = state.fields.filter((f) => f.refused !== null).map((f) => f.key);
 
   return (

@@ -2,6 +2,7 @@ import { themePreset } from '@kithena/contracts';
 import { brandRamp } from '@reach/ui';
 import { kithenaMarkDataUri } from '@reach/ui/brand/kithena-mark-data-uri';
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import type { JSX, ReactNode } from 'react';
 
 import { currentTenant } from '../lib/branding';
@@ -21,16 +22,21 @@ export const metadata: Metadata = {
 /**
  * Light or dark, decided before the first paint.
  *
- * Inline and blocking, which is the whole point: an effect runs after
- * hydration, so a machine set to dark would be shown a white page first. That
- * flash is the reason this is a string of JavaScript in the document rather
- * than a `useEffect` like the rest of the app.
+ * A stored choice is a cookie, so the server already draws it: `<html>` leaves
+ * with `class="dark"` when that is what the person chose, and React owns the
+ * class like any other prop. It used to be `localStorage`, set on `<html>` by
+ * this script alone — and the one render React ever redoes from scratch, the
+ * recovery from a hydration error, rebuilds `<html>` from its props and drops
+ * any class it did not put there. A person who chose dark was shown light
+ * after every reload of a page with such an error, and the menu said so.
  *
- * A stored choice wins over the system preference, because somebody who chose
- * light on a dark machine meant it. `try`, because Safari's private mode throws
- * on `localStorage` and a theme is not worth a blank page.
+ * With nothing chosen, the system preference, which only the browser knows:
+ * that is what this inline, blocking script is still for. An effect runs after
+ * hydration, so a machine set to dark would be shown a white page first. A
+ * stored choice wins over the system preference, because somebody who chose
+ * light on a dark machine meant it.
  */
-const themeScript = `try{var s=localStorage.getItem(${JSON.stringify(THEME_KEY)});var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}`;
+const themeScript = `try{var m=document.cookie.match(/(?:^|; )${THEME_KEY}=(dark|light)/);var d=m?m[1]==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}`;
 
 export default async function RootLayout({
   children,
@@ -49,18 +55,33 @@ export default async function RootLayout({
    * sign-in, dashboard, and whatever a module adds later — is the same colour
    * without each one remembering to ask.
    */
-  const tenant = await currentTenant();
+  const [tenant, jar] = await Promise.all([currentTenant(), cookies()]);
+  const theme = jar.get(THEME_KEY)?.value;
   const preset =
     tenant?.branding.themeId == null ? undefined : themePreset(tenant.branding.themeId);
 
-  // `suppressHydrationWarning` because the theme class is written to <html>
-  // before paint, which the server render cannot know about.
+  // `suppressHydrationWarning` because, with nothing chosen, the theme class
+  // is written to <html> before paint from a preference the server cannot see.
   return (
-    <html lang="en" suppressHydrationWarning style={preset ? brandRamp(preset.hue) : undefined}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={theme === 'dark' ? 'dark' : undefined}
+      style={preset ? brandRamp(preset.hue) : undefined}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {/*
+          The app's own page, marked so a remote's stylesheet never styles it
+          (`apps/web/people/src/contain-utilities.ts`). Everything else placed
+          straight under <body> is a portal, which it may.
+        */}
+        <div data-remote-host="" className="contents">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

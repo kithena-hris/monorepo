@@ -53,6 +53,7 @@ import {
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
+import { useHeld } from '../held';
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
 import { AttributeInput, PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue, longDate } from '../record/display';
@@ -172,6 +173,9 @@ export interface ProfileProps {
   readonly onPhoto?: (file: File) => Promise<PhotoOutcome>;
   /** Open with this field's section in edit mode and the cursor in it: a link to one missing detail. */
   readonly focusField?: string;
+  /** The part of the record on screen: `overview` or a section's key (`?tab=`), held by the host. */
+  readonly tab?: string;
+  readonly onTabChange?: (tab: string) => void;
   /**
    * Ask the person to fill in these empty fields: they are emailed. Absent on
    * one's own profile; offered beside a field only where People says it may be.
@@ -220,6 +224,8 @@ export function Profile({
   onRequest,
   onUploadFile,
   onChangeDated,
+  tab,
+  onTabChange,
 }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
@@ -246,6 +252,8 @@ export function Profile({
               onDownloadRecord={onDownloadRecord}
               onRequest={onRequest}
               onChangeDated={onChangeDated}
+              tab={tab}
+              onTabChange={onTabChange}
             />
           </FieldFiles.Provider>
         )}
@@ -269,8 +277,12 @@ function Record({
   focusField,
   onRequest,
   onChangeDated,
+  tab: heldTab,
+  onTabChange,
 }: {
   readonly state: ProfileState;
+  readonly tab: ProfileProps['tab'];
+  readonly onTabChange: ProfileProps['onTabChange'];
   readonly onChangeDated: ProfileProps['onChangeDated'];
   readonly onPhoto: ProfileProps['onPhoto'];
   readonly focusField: ProfileProps['focusField'];
@@ -340,13 +352,18 @@ function Record({
   const firstName = person.name.split(' ')[0] ?? person.name;
   const status = state.employment?.status ?? null;
   const [moving, setMoving] = useState<MoveKind | null>(null);
-  const [tab, setTab] = useState('overview');
+  const [chosenTab, setTab] = useHeld(heldTab, onTabChange, 'overview');
   const [dating, setDating] = useState<RecordField | null>(null);
   const frame = usePageHeaderFrame();
   const coarse = useCoarsePointer();
   const firstWritable = sections.find((s) => s.fields.some((f) => !f.readOnly));
   // Their own record (W12): nobody moves their own employment or asks themselves.
   const own = onMove === undefined && onRequest === undefined && person.missing !== null;
+  // A tab this record has, and this viewer is shown tabs for; anything else is the overview.
+  const tab =
+    !own && sections.length >= 2 && sections.some((s) => s.key === chosenTab)
+      ? chosenTab
+      : 'overview';
   const required = sections.flatMap((s) => s.fields).filter((f) => f.required).length;
   const percent =
     required === 0

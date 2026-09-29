@@ -27,6 +27,7 @@ import {
 } from '../../lib/menu';
 import { usePortalContainer } from '../../lib/portal-container';
 import { HOVER_CLOSE_MS, HOVER_OPEN_MS } from '../../lib/motion';
+import { switchThumb, switchTrack } from '../switch/switch';
 
 /**
  * Action menu.
@@ -276,11 +277,38 @@ export function DropdownMenuItem({
   );
 }
 
+export interface DropdownMenuCheckboxItemProps extends ComponentPropsWithoutRef<
+  typeof DropdownMenuPrimitive.CheckboxItem
+> {
+  /**
+   * How the state is drawn. `check`, a tick at the start, for an item that is
+   * one of a set that can be on (columns to show, a filter). `switch`, a
+   * switch at the end and no tick, for a setting that is on or off: "Dark
+   * mode", where a tick beside the name reads as "this is selected" rather
+   * than "this is on". The row stays the control either way; the switch is
+   * only how its state looks, and it is hidden from assistive technology,
+   * which already hears the item as checked or not.
+   */
+  indicator?: 'check' | 'switch';
+}
+
 export function DropdownMenuCheckboxItem({
   className,
   children,
+  indicator = 'check',
   ...props
-}: ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>): JSX.Element {
+}: DropdownMenuCheckboxItemProps): JSX.Element {
+  if (indicator === 'switch') {
+    const state = props.checked === true ? 'checked' : 'unchecked';
+    return (
+      <DropdownMenuPrimitive.CheckboxItem className={cn(item, className)} {...props}>
+        {children}
+        <span aria-hidden="true" data-state={state} className={cn(switchTrack, 'ms-auto')}>
+          <span data-state={state} className={cn(switchThumb)} />
+        </span>
+      </DropdownMenuPrimitive.CheckboxItem>
+    );
+  }
   return (
     <DropdownMenuPrimitive.CheckboxItem
       className={cn(item, menuItemIndented, className)}

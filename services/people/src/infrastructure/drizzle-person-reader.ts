@@ -28,7 +28,8 @@ import {
   type SchemaVersions,
 } from '../application/person/ports.js';
 import type { Arrivals, Leavers, Scheduled } from '../application/person/start.js';
-import type { GapTotals } from '../application/screens/record.js';
+import type { GapFigures, GapTotals } from '../application/screens/record.js';
+import { reminderDueBefore } from '../domain/person/reminder-cadence.js';
 import type { PersonState } from '../domain/person/person.js';
 import type { PublishedVersion, SchemaDocument } from '../domain/schema/publish.js';
 import { toEmployment, withEmployment } from './drizzle-person-repository.js';
@@ -285,6 +286,71 @@ export function drizzleGapTotals() {
        WHERE g.tenant_id = ${tenantId}::uuid
        GROUP BY key ORDER BY key`);
     return { waiting: waiting?.n ?? 0, staff: [...staff] };
+  };
+}
+
+/**
+ * The completeness screen's figures beside the totals (V4), off
+ * `people.completeness_gap`: one pass for the tenant's three counts, and one
+ * probe per listed person for their last reminder.
+ *
+ * `due` is `dueReminders`' condition, counted: an employee-owned gap, a work
+ * email, and no reminder in the last week. The working-hours window is each
+ * person's own clock, so it is the sweep's to apply, not a count's.
+ */
+export function drizzleGapFigures() {
+  return async (
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    ask: { readonly payroll: readonly string[]; readonly now: Date; readonly people: readonly string[] },
+  ): Promise<GapFigures> => {
+    const payroll = sql`ARRAY[${sql.join(
+      ask.payroll.map((k) => sql`${k}`),
+      sql`, `,
+    )}]::text[]`;
+    const [totals] = await tx.execute<{
+      blocking: number;
+      last_reminded: Date | string | null;
+      due: number;
+    }>(sql`
+      SELECT count(*) FILTER (WHERE (g.staff_keys || g.employee_keys) && ${payroll})::int AS blocking,
+             max(g.reminded_at) FILTER (WHERE cardinality(g.employee_keys) > 0) AS last_reminded,
+             count(*) FILTER (
+               WHERE cardinality(g.employee_keys) > 0
+                 AND p.work_email IS NOT NULL
+                 AND (g.reminded_at IS NULL
+                      OR g.reminded_at <= ${reminderDueBefore(ask.now).toISOString()}::timestamptz)
+             )::int AS due
+        FROM people.completeness_gap g
+        JOIN people.person p ON p.tenant_id = g.tenant_id AND p.id = g.person_id
+       WHERE g.tenant_id = ${tenantId}::uuid`);
+    // The weekly email, or somebody asking for one of the same fields since.
+    const reminded =
+      ask.people.length === 0
+        ? []
+        : await tx.execute<{ person_id: string; reminded_at: Date | string | null }>(sql`
+            SELECT g.person_id::text AS person_id,
+                   greatest(g.reminded_at, (
+                     SELECT max(d.requested_at) FROM people.detail_request d
+                      WHERE d.tenant_id = g.tenant_id AND d.person_id = g.person_id
+                        AND d.attribute_key = ANY(g.employee_keys))) AS reminded_at
+              FROM people.completeness_gap g
+             WHERE g.tenant_id = ${tenantId}::uuid
+               AND g.person_id = ANY(${`{${ask.people.join(',')}}`}::uuid[])`);
+    const iso = (at: Date | string) => new Date(at).toISOString();
+    return {
+      blocking: totals?.blocking ?? 0,
+      lastReminded:
+        totals?.last_reminded === null || totals?.last_reminded === undefined
+          ? null
+          : iso(totals.last_reminded),
+      due: totals?.due ?? 0,
+      remindedAt: new Map(
+        [...reminded].flatMap((r) =>
+          r.reminded_at === null ? [] : [[r.person_id, iso(r.reminded_at)] as const],
+        ),
+      ),
+    };
   };
 }
 

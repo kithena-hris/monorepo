@@ -42,7 +42,7 @@ const meta = {
           '| Item | For |',
           '| --- | --- |',
           '| `DropdownMenuItem` | A command. Add `destructive` for anything that loses data. |',
-          '| `DropdownMenuCheckboxItem` | An independent toggle: column visibility, filters. |',
+          '| `DropdownMenuCheckboxItem` | An independent toggle: column visibility, filters. `indicator="switch"` for a setting that is on or off, such as dark mode. |',
           '| `DropdownMenuRadioItem` | One of a set: sort order, density. |',
           '| `DropdownMenuSub` | A nested list. One level only; two is a navigation problem in disguise. |',
           '',
@@ -224,6 +224,40 @@ export const CheckboxItems: Story = {
               {key}
             </DropdownMenuCheckboxItem>
           ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  },
+};
+
+export const SwitchItem: Story = {
+  name: 'Switch item',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A setting that is on or off, drawn as a switch at the end of the row rather than a tick at the start. The row is still the control, and still a checkbox item to a screen reader.',
+      },
+    },
+  },
+  render: function SwitchItemStory(args) {
+    const [dark, setDark] = useState(false);
+    return (
+      <DropdownMenu {...args}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary">Preferences</Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-52">
+          <DropdownMenuCheckboxItem
+            indicator="switch"
+            checked={dark}
+            onCheckedChange={setDark}
+            onSelect={(event) => {
+              event.preventDefault();
+            }}
+          >
+            Dark mode
+          </DropdownMenuCheckboxItem>
         </DropdownMenuContent>
       </DropdownMenu>
     );

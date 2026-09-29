@@ -32,6 +32,12 @@ export interface ActivityView {
     /** Their name, whoever they are: for the avatar's initials. */
     readonly name: string;
     readonly avatarUrl: string | null;
+    /**
+     * `person` when the account belongs to somebody in People, whose photo
+     * or initials stand for them; `system` for anything else (a back-office
+     * operator, an automated setup), which has no face to show.
+     */
+    readonly kind: 'person' | 'system';
   }[];
   /** The cursor for older entries; null when there are none. */
   readonly next: string | null;
@@ -55,13 +61,20 @@ export async function activityView(
     const who = shown.map((r) => ({ kind: 'user' as const, userId: r.actor }));
     const by = await actors(deps, tx, asking, who);
     // Named as anybody else would see them, "You" included, for the avatar.
-    const named = await actors(deps, tx, { ...asking, viewer: { ...asking.viewer, accountId: NOBODY } }, who);
+    const named = await actors(
+      deps,
+      tx,
+      { ...asking, viewer: { ...asking.viewer, accountId: NOBODY } },
+      who,
+    );
     // A field or section named by its key, as the command that changed it
     // was: read back as its name today.
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     const names = new Map<string, string>([
       ...(version?.document.sections ?? []).map((x) => [x.key as string, x.label.default] as const),
-      ...(version?.document.attributes ?? []).map((a) => [a.key as string, a.label.default] as const),
+      ...(version?.document.attributes ?? []).map(
+        (a) => [a.key as string, a.label.default] as const,
+      ),
     ]);
     const people = new Map<string, string>();
     for (const r of shown) {
@@ -78,9 +91,14 @@ export async function activityView(
         subject: r.subject === null ? null : (names.get(r.subject) ?? r.subject),
         detail: r.detail,
         area: r.area,
-        by: by({ kind: 'user', userId: r.actor }),
-        name: named({ kind: 'user', userId: r.actor }),
-        avatarUrl: avatars.get(people.get(r.actor) ?? '') ?? null,
+        ...(people.has(r.actor)
+          ? {
+              by: by({ kind: 'user', userId: r.actor }),
+              name: named({ kind: 'user', userId: r.actor }),
+              avatarUrl: avatars.get(people.get(r.actor) ?? '') ?? null,
+              kind: 'person' as const,
+            }
+          : { by: 'System', name: 'System', avatarUrl: null, kind: 'system' as const }),
       })),
       next: rows.length > ACTIVITY_PAGE ? (shown.at(-1)?.id ?? null) : null,
     });

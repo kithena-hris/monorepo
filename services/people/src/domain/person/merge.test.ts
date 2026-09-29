@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { HistoryEntry } from './history.js';
 import {
   candidates,
+  matchBand,
   mergeRefusal,
   pairKey,
   unmergePlan,
@@ -72,6 +73,25 @@ describe('ranking the candidates', () => {
     expect(candidates([{ a: A, b: A, signal: 'work_email', attributeKey: null }], new Set())).toEqual(
       [],
     );
+  });
+});
+
+describe('how strong a match is', () => {
+  const band = (...signals: SignalRow['signal'][]) =>
+    matchBand(signals.map((signal) => ({ signal, attributeKey: null })));
+
+  it('calls a shared unique value strong, on its own', () => {
+    expect(band('unique_value')).toBe('strong');
+  });
+
+  it('calls a shared work email likely, and a name with a birth date possible', () => {
+    expect(band('work_email')).toBe('likely');
+    expect(band('scim_work_email')).toBe('likely');
+    expect(band('name_and_birth_date')).toBe('possible');
+  });
+
+  it('adds up signals that agree: a work email with a name and birth date is strong', () => {
+    expect(band('work_email', 'name_and_birth_date')).toBe('strong');
   });
 });
 

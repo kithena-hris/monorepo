@@ -95,4 +95,16 @@ describe('framed', () => {
     expect(screen.queryByRole('navigation')).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
   });
+
+  it('says what the address asked for and was refused, above the page it shows instead', () => {
+    render(
+      <Screen
+        title="Directory"
+        frame={{ section: 'Directory', notice: 'You cannot filter people by es_nif' }}
+      />,
+    );
+    expect(screen.getByText('You cannot filter people by es_nif')).toBeTruthy();
+    expect(screen.getByText('Showing the page without it.')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Directory' })).toBeTruthy();
+  });
 });

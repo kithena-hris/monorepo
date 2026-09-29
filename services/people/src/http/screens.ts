@@ -4,7 +4,17 @@ import * as z from 'zod';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { RequirednessPredicate, VisibilityRule } from '@kithena/contracts';
 
-import { analyticsView } from '../application/screens/analytics.js';
+import {
+  analyticsExport,
+  analyticsView,
+  INSIGHTS_TABS,
+  type InsightsTab,
+} from '../application/screens/analytics.js';
+import { writeCsv } from '../application/import/csv.js';
+import {
+  transferHistoryView,
+  type TransferHistory,
+} from '../application/screens/transfers.js';
 import {
   commitImportView,
   completeImportUpload,
@@ -12,6 +22,7 @@ import {
   deliveriesView,
   dryRunImport,
   exportBuilderView,
+  importTemplateFile,
   integrationsView,
   startImportUpload,
   replayDelivery,
@@ -29,6 +40,8 @@ import {
   checkSection,
   completenessView,
   directoryView,
+  peopleHeadcount,
+  remindWaiting,
   historyView,
   identifierReviewsView,
   approvalsView,
@@ -142,6 +155,8 @@ export type ScreenRouteDeps = SchemaScreenDeps &
   ImportDeps & {
     /** Scheduled reports (PEO-069). Absent, their routes answer UNAVAILABLE. */
     readonly schedules?: ScheduleAdminDeps;
+    /** Import & export's one history, over both ledgers. Absent, it answers UNAVAILABLE. */
+    readonly transfers?: TransferHistory;
   };
 
 export const ChatConnect = z.strictObject({ origin: z.url().max(300) });
@@ -314,6 +329,20 @@ export const ScheduleBody = z.strictObject({
 
 const answer = <T>(result: Result<T>, status = 200): RestResponse =>
   result.ok ? { status, body: result.value ?? { ok: true } } : refused(result.error);
+
+/** A CSV file to download, or the refusal. The body is the bytes, sent as they are. */
+const csvFile = (result: Result<Uint8Array>, name: string): RestResponse =>
+  result.ok
+    ? {
+        status: 200,
+        body: result.value,
+        headers: {
+          'content-type': 'text/csv; charset=utf-8',
+          'content-disposition': `attachment; filename="${name}"`,
+          'cache-control': 'private, no-store',
+        },
+      }
+    : refused(result.error);
 
 function body<T>(schema: z.ZodType<T>, raw: string): Result<T> {
   const value = json(raw);
@@ -734,6 +763,18 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         },
       }),
     },
+    // "Remind N people": the weekly sweep, now, for this tenant (V4).
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/completeness\/remind$/,
+      handle: write(NoBody, (asking) => remindWaiting(deps, asking)),
+    },
+    // How many people this viewer could search (MV1): a count only.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/headcount$/,
+      handle: async (asking) => answer(await peopleHeadcount(deps, asking)),
+    },
     // What saving these cells would be warned about, saving nothing (PEO-125).
     {
       method: 'POST',
@@ -1100,6 +1141,32 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       ),
     },
 
+    // The template (V6): a header row of what this viewer may import, by label.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/imports\/template$/,
+      handle: async (asking) =>
+        csvFile(await importTemplateFile(deps, asking), 'people-import-template.csv'),
+    },
+    // Import & export's one history (V6): both ledgers, newest first, 50 at a time.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/transfers$/,
+      handle: async (asking, _r, _p, query) => {
+        const before = query.get('before');
+        if (before !== null && !new RegExp(`^${UUID}$`).test(before)) {
+          return refused(failure('BAD_REQUEST', 'before is an entry id', ['before']));
+        }
+        return answer(
+          await transferHistoryView(
+            { ...deps, reports: deps.commit.reports.store },
+            asking,
+            before,
+          ),
+        );
+      },
+    },
+
     /* export and analytics */
     {
       method: 'GET',
@@ -1116,6 +1183,30 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         }
         return answer(
           await analyticsView(deps, asking, segment === undefined ? {} : { segmentId: segment }),
+        );
+      },
+    },
+    // One Insights tab's numbers as CSV (V7, "Export"): the view above, as rows.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/analytics\/export$/,
+      handle: async (asking, _r, _p, query) => {
+        const tab = query.get('tab') ?? 'headcount';
+        const segment = query.get('segment') ?? undefined;
+        if (!(INSIGHTS_TABS as readonly string[]).includes(tab)) {
+          return refused(failure('BAD_REQUEST', `tab is one of ${INSIGHTS_TABS.join(', ')}`, ['tab']));
+        }
+        if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
+          return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
+        }
+        const view = await analyticsView(
+          deps,
+          asking,
+          segment === undefined ? {} : { segmentId: segment },
+        );
+        return csvFile(
+          view.ok ? ok(writeCsv(analyticsExport(view.value, tab as InsightsTab))) : view,
+          `insights-${tab}-${view.ok ? view.value.asOf : 'today'}.csv`,
         );
       },
     },

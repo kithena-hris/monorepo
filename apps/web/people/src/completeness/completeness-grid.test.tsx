@@ -7,9 +7,20 @@ import { CompletenessGrid, type CompletenessState } from './completeness-grid';
 
 const state: CompletenessState = {
   since: 'Since version 4 was published on 22 Sep',
-  waiting: { people: 61, lastReminded: '2 days ago' },
+  waiting: { people: 61, lastReminded: '2026-09-21T08:00:00.000Z', due: 61 },
   completedThisWeek: 34,
   toFill: 4,
+  blocking: 4,
+  complete: {
+    percent: 79,
+    incomplete: 88,
+    change: 6,
+    trend: [
+      { label: '2026-07', value: 71 },
+      { label: '2026-08', value: 73 },
+      { label: '2026-09', value: 79 },
+    ],
+  },
   fields: [
     {
       key: 'cost_centre',
@@ -21,6 +32,8 @@ const state: CompletenessState = {
       person: false,
     },
     { key: 'desk', label: 'Desk', options: [], person: false },
+    { key: 'emergency_contact', label: 'Emergency contact', options: [], person: false },
+    { key: 'iban', label: 'Bank account', options: [], person: false },
   ],
   rows: [
     {
@@ -29,6 +42,8 @@ const state: CompletenessState = {
       department: 'Engineering',
       manager: 'Tomás Oliveira',
       missing: ['cost_centre', 'desk'],
+      owner: 'hr',
+      remindedAt: null,
     },
     {
       personId: 'j',
@@ -36,6 +51,8 @@ const state: CompletenessState = {
       department: 'Engineering',
       manager: 'Tomás Oliveira',
       missing: ['cost_centre'],
+      owner: 'hr',
+      remindedAt: null,
     },
     {
       personId: 'n',
@@ -43,6 +60,27 @@ const state: CompletenessState = {
       department: 'Design',
       manager: 'Ingrid Sø',
       missing: ['cost_centre'],
+      owner: 'hr',
+      remindedAt: null,
+    },
+    {
+      personId: 'u',
+      name: 'Lucía Fernández',
+      department: 'Sales',
+      manager: null,
+      missing: ['emergency_contact'],
+      owner: 'employee',
+      remindedAt: null,
+    },
+    {
+      personId: 'o',
+      name: 'Omar Haddad',
+      department: 'Sales',
+      manager: null,
+      missing: ['iban'],
+      owner: 'employee',
+      // The weekly email went out a fortnight ago.
+      remindedAt: '2026-09-08T08:00:00.000Z',
     },
   ],
 };
@@ -70,6 +108,9 @@ describe('CompletenessGrid', () => {
     const table = screen.getByRole('table', { name: 'Missing information' });
     expect(within(table).getByText('Desk')).toBeInTheDocument();
     expect(within(table).getAllByText('HR')).toHaveLength(3);
+    // The person's own gaps are listed too, as theirs to fill.
+    expect(within(table).getAllByText('Employee')).toHaveLength(2);
+    expect(within(table).getByText('Bank account')).toBeInTheDocument();
     // Nothing to fill in yet: the grid opens from a row.
     expect(screen.queryByRole('combobox')).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
@@ -91,7 +132,15 @@ describe('CompletenessGrid', () => {
     const user = fast();
     const rows = [
       ...state.rows,
-      { personId: 'k', name: 'Kai Lund', department: null, manager: null, missing: ['desk'] },
+      {
+        personId: 'k',
+        name: 'Kai Lund',
+        department: null,
+        manager: null,
+        missing: ['desk'],
+        owner: 'hr' as const,
+        remindedAt: null,
+      },
     ];
     render(
       <CompletenessGrid load={{ status: 'ready', data: { ...state, rows } }} onSave={vi.fn()} />,
@@ -214,7 +263,15 @@ describe('CompletenessGrid', () => {
       ...state,
       fields: [{ key: 'es_nif', label: 'NIF', options: [], person: false }],
       rows: [
-        { personId: 'j', name: 'Joan Bosch', department: null, manager: null, missing: ['es_nif'] },
+        {
+          personId: 'j',
+          name: 'Joan Bosch',
+          department: null,
+          manager: null,
+          missing: ['es_nif'],
+          owner: 'hr',
+          remindedAt: null,
+        },
       ],
     };
     const finding = {
@@ -253,5 +310,95 @@ describe('CompletenessGrid', () => {
     expect(
       await screen.findByText(/1 value our checks doubted went to HR's review/),
     ).toBeInTheDocument();
+  });
+});
+
+describe('CompletenessGrid, the figures and reminders (V4, MV2)', () => {
+  it('shows the four figures, with the change this month and its sparkline', () => {
+    render(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />);
+    expect(screen.getByText('+6 pts')).toBeInTheDocument();
+    expect(screen.getByText('this month')).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Complete records by month' })).toBeInTheDocument();
+    expect(screen.getByText(/^Last reminded 21 Sept?$/)).toBeInTheDocument();
+    expect(screen.getByText('Blocking payroll')).toBeInTheDocument();
+    expect(screen.getByText('Bank, tax or ID details')).toBeInTheDocument();
+  });
+
+  it('shows no figure People could not give, rather than a zero', () => {
+    const bare: CompletenessState = {
+      ...state,
+      blocking: null,
+      complete: { percent: 79, incomplete: 88, change: null, trend: [] },
+    };
+    render(<CompletenessGrid load={{ status: 'ready', data: bare }} onSave={vi.fn()} />);
+    expect(screen.queryByText('Blocking payroll')).toBeNull();
+    expect(screen.queryByText(/pts/)).toBeNull();
+    expect(screen.queryByRole('table', { name: 'Complete records by month' })).toBeNull();
+    expect(screen.getByText('88 records incomplete')).toBeInTheDocument();
+  });
+
+  it('reminds everybody due at once, and says who was not due', async () => {
+    const onRemindAll = vi.fn(() =>
+      Promise.resolve({ ok: true as const, sent: 40, failed: 0, skipped: 21 }),
+    );
+    const { container } = render(
+      <CompletenessGrid
+        load={{ status: 'ready', data: state }}
+        onSave={vi.fn()}
+        onRemindAll={onRemindAll}
+      />,
+    );
+    await fast().click(screen.getByRole('button', { name: 'Remind 61 people' }));
+    expect(onRemindAll).toHaveBeenCalledOnce();
+    expect(await screen.findByText(/Sent 40 reminders\. 21 people were not due/)).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('offers no bulk reminder when nobody is due, or it cannot be sent from here', () => {
+    const { rerender } = render(
+      <CompletenessGrid
+        load={{ status: 'ready', data: { ...state, waiting: { ...state.waiting, due: 0 } } }}
+        onSave={vi.fn()}
+        onRemindAll={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /^Remind \d/ })).toBeNull();
+    rerender(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /^Remind \d/ })).toBeNull();
+  });
+
+  it('reminds one person of their own fields, and not twice in a day', async () => {
+    const onRemind = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(
+      <CompletenessGrid
+        load={{
+          status: 'ready',
+          data: {
+            ...state,
+            rows: state.rows.map((r) =>
+              r.personId === 'u' ? { ...r, remindedAt: new Date().toISOString() } : r,
+            ),
+          },
+        }}
+        onSave={vi.fn()}
+        onRemind={onRemind}
+      />,
+    );
+    // Lucía was asked today: nothing to press.
+    const [lucia] = screen.getAllByRole('button', { name: 'Reminded Lucía Fernández' });
+    expect(lucia).toBeDisabled();
+    // Omar's weekly email was a fortnight ago.
+    const [omar] = screen.getAllByRole('button', { name: 'Remind Omar Haddad' });
+    if (omar !== undefined) await fast().click(omar);
+    expect(onRemind).toHaveBeenCalledWith('o', ['iban']);
+    expect(screen.getAllByRole('button', { name: 'Reminded Omar Haddad' })[0]).toBeDisabled();
+  });
+
+  it('keeps Fill in for HR’s rows only, and opens the grid over them alone', async () => {
+    render(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Fill in Omar Haddad' })).toBeNull();
+    await fillIn();
+    expect(screen.queryByRole('textbox', { name: /Bank account/ })).toBeNull();
+    expect(screen.queryByText('Omar Haddad')).toBeNull();
   });
 });
