@@ -193,7 +193,7 @@ function Queue({
                     <span className="flex items-center gap-2 font-semibold whitespace-nowrap">
                       <Avatar size="sm" name={first} />
                       {first}
-                      <icons.merge aria-label="and" className="size-3.5 text-fg-subtle" />
+                      <icons.transfer aria-label="and" className="size-3.5 text-fg-subtle" />
                       <Avatar size="sm" name={second} />
                       {second}
                     </span>
