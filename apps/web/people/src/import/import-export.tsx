@@ -358,6 +358,10 @@ function History({
           onValueChange={setSearch}
           containerClassName="ms-auto w-full @3xl/page:w-75 touch:hidden"
         />
+        {/* The company's activity log, narrowed to these (`docs/audit.md`). */}
+        <Button asChild size="sm" variant="ghost" startIcon={<icons.history aria-hidden />}>
+          <a href="/settings/activity?area=imports_exports">See all activity</a>
+        </Button>
       </div>
       {shown.length === 0 ? (
         <EmptyState

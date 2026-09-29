@@ -11,3 +11,7 @@ subgraphs:
     routing_url: http://host.docker.internal:4002/graphql
     schema:
       file: ../../services/timeoff/schemas/timeoff.graphql
+  - name: audit
+    routing_url: http://host.docker.internal:4103/graphql
+    schema:
+      file: ../../platform/audit/schemas/audit.graphql

@@ -14,7 +14,6 @@ import type { PhotoStore } from './photo-store.js';
 import type { FileStore } from './file-store.js';
 import type { AssistantPort } from '../assistant/assistant-port.js';
 import type { ChatDeps } from '../settings/chat-port.js';
-import type { ActivityStore } from '../settings/activity-store.js';
 import type {
   ReminderCompany,
   ReminderMailer,
@@ -74,8 +73,6 @@ export interface ScreenDeps {
   readonly assistant?: AssistantPort;
   /** Chat apps and People's notices to them (`application/settings/chat.ts`). Absent, none. */
   readonly chat?: ChatDeps;
-  /** The Settings activity log. Absent, it is not kept. */
-  readonly activity?: ActivityStore;
   /** Files for image and document fields. Absent, those fields take nothing. */
   readonly files?: FileStore;
   /** Asking somebody for an empty detail. Absent, nobody may be asked. */

@@ -143,6 +143,27 @@ export default async function Settings(): Promise<JSX.Element> {
     });
   }
 
+  // The company's activity log (`/settings/activity`): the shell's, across
+  // modules, for whoever may read it — People administrators and HR.
+  if (shell.roles.admin || shell.roles.hr) {
+    modules.push({
+      key: 'activity',
+      title: 'Activity',
+      description: 'Who did what, and when, across every module your company has.',
+      settings: [
+        {
+          path: '/settings/activity',
+          label: 'Activity log',
+          description:
+            'Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins, with filters.',
+          icon: 'history',
+          now: null,
+          attention: null,
+        },
+      ],
+    });
+  }
+
   // A person's own settings, after the company's: everybody has these.
   const shortcuts = prefsFrom(await readPreference('shortcuts'));
   const changed = Object.keys(shortcuts.bindings).length;

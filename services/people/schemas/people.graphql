@@ -1581,6 +1581,17 @@ type PeopleIntegrations {
   scim: PeopleScim
 }
 
+type PeopleNamed {
+  accountId: ID
+  avatarUrl: String
+  name: String
+  personId: ID
+}
+
+type PeopleNames {
+  people: [PeopleNamed!]
+}
+
 type PeopleOnboarding {
   firstName: String
   reviews: [IdentifierReviewEntry!]
@@ -1847,35 +1858,6 @@ type PeopleSettings {
   """
   photoAtSignup: String
   slug: String
-}
-
-"""Every change to People’s settings, newest first: who, when and what."""
-type PeopleSettingsActivity {
-  entries: [PeopleSettingsActivityEntry!]
-  next: String
-}
-
-type PeopleSettingsActivityEntry {
-  action: String
-  """fields, organisation, roles or integrations."""
-  area: String
-  at: String
-  avatarUrl: String
-  by: String
-  """What it did, in one plain sentence."""
-  detail: String
-  id: ID
-  """
-  person; support for Kithena support, signed in from the back office; or system for an account nobody in People holds.
-  """
-  kind: String
-  """Who did it, by name, "You" included."""
-  name: String
-  """
-  Why Kithena support was signed in, as the operator said. Null otherwise.
-  """
-  reason: String
-  subject: String
 }
 
 type PeopleSetup {
@@ -2154,6 +2136,10 @@ type Query {
   """
   peopleImportTemplate: String
   peopleIntegrations: PeopleIntegrations
+  """
+  Names and faces for account and person ids another service holds (the activity log), as the viewer may read them.
+  """
+  peopleNames(accountIds: [ID!], personIds: [ID!]): PeopleNames
   peopleOnboarding: PeopleOnboarding
   peopleOrganisation: PeopleOrganisation
   peopleOverview: PeopleOverview
@@ -2176,7 +2162,6 @@ type Query {
   """The saved segments you see and could use somewhere (PEO-068)."""
   peopleSegments: [PeopleSegment!]
   peopleSettings: PeopleSettings
-  peopleSettingsActivity(area: String, before: ID): PeopleSettingsActivity
   peopleSetup: PeopleSetup
   """
   Imports and exports, newest first, 50 at a time; HR and People administrators.

@@ -1870,12 +1870,18 @@ async function logged(
   if (said === null) return;
   try {
     await run(deps.service, asking.tenantId, async (tx) => {
+      // A key the path named, said as its label (`subjectKey`, `activity.ts`).
+      const named = said.subjectKey ?? null;
+      const label =
+        named === null
+          ? null
+          : ((await activity.reads?.(tx, asking.tenantId).label?.(named)) ?? named);
       await activity.store.record(tx, asking.tenantId, {
         id: activity.newId(),
         at: activity.now(),
         actor: asking.viewer.accountId,
         action: said.action,
-        subject: said.subject ?? null,
+        subject: label ?? said.subject ?? null,
         detail: changed ?? said.detail ?? null,
         area: said.area,
         onBehalfOf: asking.viewer.support?.operatorId ?? null,

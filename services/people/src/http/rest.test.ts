@@ -422,7 +422,6 @@ describe('the settings log, and Kithena support (decided 2026-09-29)', () => {
             recorded.push(e);
             return Promise.resolve();
           },
-          page: () => Promise.resolve([]),
         },
         newId: () => '00000000-0000-4000-8000-000000000d01',
         now: () => '2026-09-29T10:00:00.000Z',

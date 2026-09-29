@@ -31,15 +31,5 @@ export interface ActivityStore {
     tenantId: string,
     entry: ActivityEntry & { readonly idempotencyKey: string },
   ): Promise<void>;
-  /** Newest first, `limit` after the entry `before` (its id), in `area` when given. */
-  page(
-    tx: Tx,
-    tenantId: string,
-    page: {
-      readonly before: string | null;
-      readonly limit: number;
-      readonly area: ActivityArea | null;
-    },
-  ): Promise<readonly ActivityEntry[]>;
 }
 

@@ -730,32 +730,6 @@ export function PeopleScreen({
         };
       case 'PeopleSettings':
         return { load: loadable };
-      // Pages of the log are URLs, so Back returns to the one before.
-      case 'SettingsActivity': {
-        const area = oneOf(at('area'), ['fields', 'organisation', 'roles', 'integrations'], null);
-        return {
-          load: loadable,
-          area,
-          // People answers an area and a page; the search is over what came.
-          onArea: (next: string | null) => {
-            navigate({ area: next, before: null });
-          },
-          onOlder: (before: string) => {
-            navigate({ before });
-          },
-          ...(at('before') === null
-            ? {}
-            : {
-                onNewest: () => {
-                  navigate({ before: null });
-                },
-              }),
-          search: at('q') ?? '',
-          onSearchChange: (text: string) => {
-            note({ q: typed(text) }, 'replace');
-          },
-        };
-      }
       case 'FullValues':
         return {
           load: loadable,

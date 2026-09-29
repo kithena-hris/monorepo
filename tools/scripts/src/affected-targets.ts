@@ -47,11 +47,15 @@ export const TARGETS = {
   // The Slack service: a container beside People on the VM, holding the
   // Socket Mode connection a serverless function could not.
   slack: { packages: ['@kithena/slack'], paths: [/^deploy\/vm\//u] },
-  // The router image bakes in the supergraph, composed from People's schema,
-  // and `apps/gateway` holds its config and the persisted operations.
+  // The activity log (`docs/audit.md`): a container beside People on the VM,
+  // holding the Kafka consumer group a serverless function could not.
+  audit: { packages: ['@kithena/audit'], paths: [/^deploy\/vm\//u] },
+  // The router image bakes in the supergraph, composed from People's and the
+  // activity log's schemas, and `apps/gateway` holds its config and the
+  // persisted operations.
   router: {
     packages: ['@kithena/gateway'],
-    paths: [/^deploy\/vm\//u, /^services\/people\/schemas\//u],
+    paths: [/^deploy\/vm\//u, /^services\/people\/schemas\//u, /^platform\/audit\/schemas\//u],
   },
   // Not a package: Atlas reads the directory and its config.
   migrations: { packages: [], paths: [/^migrations\//u, /^atlas\.hcl$/u], js: false },
@@ -68,6 +72,7 @@ export const ENV_TARGETS: Record<Env, readonly Target[]> = {
     'people',
     'router',
     'slack',
+    'audit',
     'people-remote',
     'shell',
     'identity',
@@ -236,7 +241,8 @@ function main(argv: string[]): void {
     if (why !== null) chosen.push(target);
   }
   const vm = chosen.some(
-    (t) => t === 'people' || t === 'router' || t === 'slack' || t === 'migrations',
+    (t) =>
+      t === 'people' || t === 'router' || t === 'slack' || t === 'audit' || t === 'migrations',
   );
   lines.push(`vm=${String(vm)}`, `any=${String(chosen.length > 0)}`, `targets=${chosen.join(',')}`);
   const out = process.env['GITHUB_OUTPUT'];

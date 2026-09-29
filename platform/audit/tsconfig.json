@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*", "vitest.config.ts", "vitest.integration.ts"],
+  "references": [
+    { "path": "../../packages/auth-kit" },
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/db-kit" },
+    { "path": "../../packages/domain-kit" },
+    { "path": "../../packages/graphql-kit" },
+    { "path": "../../packages/telemetry" },
+    { "path": "../../packages/testing" }
+  ]
+}

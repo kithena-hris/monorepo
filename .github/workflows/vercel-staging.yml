@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: 'Redeploy even if unchanged: all, or a comma list of shell, auth, admin, identity, messaging, people-remote, people, router, slack, migrations'
+        description: 'Redeploy even if unchanged: all, or a comma list of shell, auth, admin, identity, messaging, people-remote, people, router, slack, audit, migrations'
         type: string
         default: ''
 
@@ -74,6 +74,7 @@ jobs:
       people: ${{ steps.plan.outputs.people }}
       router: ${{ steps.plan.outputs.router }}
       slack: ${{ steps.plan.outputs.slack }}
+      audit: ${{ steps.plan.outputs.audit }}
       migrations: ${{ steps.plan.outputs.migrations }}
       vm: ${{ steps.plan.outputs.vm }}
       any: ${{ steps.plan.outputs.any }}
@@ -117,7 +118,7 @@ jobs:
     needs: plan
     if: >
       vars.ROUTER_URL_STAGING != '' &&
-      (needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true')
+      (needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true')
     # A native runner for the VM's architecture, both free for a public
     # repository. Under QEMU the People build takes an order of magnitude
     # longer, so there is no cross-build: `--platform` below only makes a
@@ -131,6 +132,7 @@ jobs:
       people: ${{ steps.names.outputs.people }}
       router: ${{ steps.names.outputs.router }}
       slack: ${{ steps.names.outputs.slack }}
+      audit: ${{ steps.names.outputs.audit }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -153,6 +155,7 @@ jobs:
           echo "people=ghcr.io/${OWNER,,}/kithena-people:${SHA}" >> "$GITHUB_OUTPUT"
           echo "router=ghcr.io/${OWNER,,}/kithena-router:${SHA}" >> "$GITHUB_OUTPUT"
           echo "slack=ghcr.io/${OWNER,,}/kithena-slack:${SHA}" >> "$GITHUB_OUTPUT"
+          echo "audit=ghcr.io/${OWNER,,}/kithena-audit:${SHA}" >> "$GITHUB_OUTPUT"
 
       - name: platform
         env:
@@ -177,6 +180,10 @@ jobs:
               routing_url: http://people:4001/graphql
               schema:
                 file: ../../services/people/schemas/people.graphql
+            - name: audit
+              routing_url: http://audit:4103/graphql
+              schema:
+                file: ../../platform/audit/schemas/audit.graphql
           EOF
           pnpm exec wgc router compose -i graph.deploy.yaml -o supergraph.json
           docker build --tag "$IMAGE" --label "org.opencontainers.image.source=$SOURCE" .
@@ -219,6 +226,24 @@ jobs:
           fi
           docker rm --force "$container"
 
+      # With no settings the audit service boots, keeps nothing and serves
+      # its schema; a module built wrong dies at import, before this.
+      - name: build and test the audit image
+        if: needs.plan.outputs.audit == 'true'
+        env:
+          IMAGE: ${{ steps.names.outputs.audit }}
+          SOURCE: https://github.com/${{ github.repository }}
+        run: |
+          docker build --file platform/audit/Dockerfile --tag "$IMAGE" \
+            --label "org.opencontainers.image.source=$SOURCE" .
+          container="$(docker run --detach --publish 127.0.0.1:4103:4103 "$IMAGE")"
+          if ! curl --fail --silent --show-error --retry 20 --retry-delay 2 --retry-all-errors \
+            http://127.0.0.1:4103/health >/dev/null; then
+            docker logs "$container"
+            exit 1
+          fi
+          docker rm --force "$container"
+
       - name: push
         env:
           GH_TOKEN: ${{ github.token }}
@@ -229,11 +254,14 @@ jobs:
           ROUTER_BUILT: ${{ needs.plan.outputs.router }}
           SLACK: ${{ steps.names.outputs.slack }}
           SLACK_BUILT: ${{ needs.plan.outputs.slack }}
+          AUDIT: ${{ steps.names.outputs.audit }}
+          AUDIT_BUILT: ${{ needs.plan.outputs.audit }}
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
           if [ "$PEOPLE_BUILT" = true ]; then docker push --quiet "$PEOPLE"; fi
           if [ "$ROUTER_BUILT" = true ]; then docker push --quiet "$ROUTER"; fi
           if [ "$SLACK_BUILT" = true ]; then docker push --quiet "$SLACK"; fi
+          if [ "$AUDIT_BUILT" = true ]; then docker push --quiet "$AUDIT"; fi
           docker logout ghcr.io
 
       # The registry is transport, not history: the VM keeps the image each
@@ -255,6 +283,12 @@ jobs:
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
           package-name: kithena-slack
+          package-type: container
+          min-versions-to-keep: 5
+      - name: prune audit images
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: kithena-audit
           package-type: container
           min-versions-to-keep: 5
 
@@ -353,15 +387,16 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION }}
           VM_DEPLOY_SSH_KEY: ${{ secrets.VM_DEPLOY_SSH_KEY }}
           PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
+          AUDIT_API_TOKEN: ${{ secrets.AUDIT_API_TOKEN }}
           PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
           IMAGES: ${{ needs.images.result }}
-          NEED_IMAGES: ${{ needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' }}
+          NEED_IMAGES: ${{ needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true' }}
         run: |
           missing=
-          for name in INSTANCE AWS_DEPLOY_ROLE_ARN AWS_REGION VM_DEPLOY_SSH_KEY PEOPLE_API_TOKEN PEOPLE_ENV \
+          for name in INSTANCE AWS_DEPLOY_ROLE_ARN AWS_REGION VM_DEPLOY_SSH_KEY PEOPLE_API_TOKEN AUDIT_API_TOKEN PEOPLE_ENV \
                       CLOUDFLARE_TUNNEL_TOKEN AUTH_TOKEN_AUDIENCE KITHENA_ENTITLEMENTS; do
             [ -z "${!name}" ] && missing="$missing $name"
           done
@@ -447,6 +482,9 @@ jobs:
           SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
           SLACK_TOKEN_KEY: ${{ secrets.SLACK_TOKEN_KEY }}
           SLACK_PEOPLE_TOKEN: ${{ secrets.SLACK_PEOPLE_TOKEN }}
+          # The router–audit pair's secret (`docs/audit.md`, "Deploying"),
+          # written into both ends from the one secret, as PEOPLE_API_TOKEN is.
+          AUDIT_API_TOKEN: ${{ secrets.AUDIT_API_TOKEN }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
@@ -485,8 +523,9 @@ jobs:
           } | put people.env
           printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nAUTH_ORIGIN=https://auth.staging.app.kithena.com\nSLACK_COMMAND=/kithena-staging\n' \
             "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" | put slack.env
-          printf 'PEOPLE_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
-            "$PEOPLE_API_TOKEN" \
+          printf 'AUDIT_API_TOKEN=%s\n' "$AUDIT_API_TOKEN" | put audit.env
+          printf 'PEOPLE_API_TOKEN=%s\nAUDIT_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
+            "$PEOPLE_API_TOKEN" "$AUDIT_API_TOKEN" \
             https://identity.staging.kithena.com/.well-known/jwks.json \
             "$AUTH_TOKEN_AUDIENCE" "$KITHENA_ENTITLEMENTS" | put router.env
           printf 'CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$CLOUDFLARE_TUNNEL_TOKEN" | put secrets.env
@@ -528,6 +567,20 @@ jobs:
           set -o pipefail
           # shellcheck disable=SC2029 # the image is meant to expand here
           ssh vm sudo bash kithena/deploy.sh staging slack "$IMAGE" | tee deploy.out
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+
+      # After the migration, which made its schema and gave `svc_audit` its
+      # login, and before the router, which routes `auditActivity` to it.
+      # Pulled, started, healthy, and reaching its database as `svc_audit`.
+      - name: deploy audit
+        id: audit
+        if: vars.ROUTER_URL_STAGING != '' && needs.plan.outputs.audit == 'true'
+        env:
+          IMAGE: ${{ needs.images.outputs.audit }}
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2029 # the image is meant to expand here
+          ssh vm sudo bash kithena/deploy.sh staging audit "$IMAGE" | tee deploy.out
           grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
 
       - name: deploy the router
@@ -940,6 +993,7 @@ jobs:
             people=${{ steps.people.outcome }}
             router=${{ steps.router.outcome }}
             slack=${{ steps.slack.outcome }}
+            audit=${{ steps.audit.outcome }}
             people-remote=${{ steps.remote.outcome }}
             shell=${{ steps.deploy.outcome }}
             identity=${{ steps.identity.outcome }}

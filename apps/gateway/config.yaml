@@ -94,6 +94,21 @@ headers:
         - op: 'set'
           name: 'x-internal-token'
           value: '${PEOPLE_API_TOKEN}'
+    # The central activity log (`platform/audit`, `docs/audit.md`): the same
+    # principal, less what only People reads, and its own secret — one per
+    # pair of services, so a leak of People's does not open the log.
+    audit:
+      request:
+        - op: 'set'
+          name: 'x-kithena-principal'
+          expression: >-
+            '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
+            request.auth.claims.tid + '","impersonatedBy":' +
+            (request.auth.claims.act?.sub == nil ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            '}'
+        - op: 'set'
+          name: 'x-internal-token'
+          value: '${AUDIT_API_TOKEN}'
 
 # People's refusal reaches the caller as People gave it: its code (FORBIDDEN,
 # LAST_ADMIN, IDEMPOTENCY_KEY_REUSED …), its message and the field it names
