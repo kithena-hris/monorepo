@@ -171,7 +171,7 @@ function Action({
       <Card interactive padded className="relative hidden flex-col gap-2.5 touch:flex">
         <Avatar size="lg" shape="rounded" tone="accent" name={short} fallback={icon} />
         <div>
-          <a href={href} className="text-md font-bold after:absolute after:inset-0">
+          <a href={href} className="text-md font-bold before:absolute before:inset-0">
             {short}
           </a>
           <p className="mt-0.5 text-sm text-fg-muted">{shortDescription}</p>

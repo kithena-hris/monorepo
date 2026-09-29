@@ -59,7 +59,7 @@ const workforce: AnalyticsState = {
 };
 
 describe('Analytics', () => {
-  it('draws the tab its route names, titled Insights, and no other tab’s questions', async () => {
+  it('draws the tab its route names, titled Insights, and no other tab’s questions', () => {
     const { rerender } = render(<Analytics load={{ status: 'ready', data: workforce }} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Insights' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Headcount by month' })).toBeInTheDocument();

@@ -24,6 +24,7 @@ import { FullValues } from '../export/full-values';
 import { PeopleHome } from '../home/people-home';
 import { overview } from '../home/people-home.fixture';
 import { IdentifierReviews } from '../review/identifier-reviews';
+import { ImportExport } from '../import/import-export';
 import { Duplicates } from '../review/duplicates';
 import { PublishDialog } from '../settings/publish';
 import { PeopleSetup } from '../setup/people-setup';
@@ -501,12 +502,20 @@ describe('at 390×844, with a finger', () => {
         filters={{}}
         onFiltersChange={vi.fn()}
         onOpen={vi.fn()}
+        view="cards"
+        onViewChange={vi.fn()}
       />,
     );
     // A phone gets a list of people, each row their profile; the table is a desk's.
     expect(screen.queryByRole('table')).toBeNull();
     const people = screen.getByRole('list', { name: 'People' });
     expect(within(people).getByRole('link', { name: /Lena Moreau/ })).toBeVisible();
+    // List or Org chart, the width of the page (MV3); Cards is a desk's.
+    const views = screen
+      .getAllByRole('radiogroup', { name: 'Show people as' })
+      .filter((g) => g.checkVisibility());
+    expect(views).toHaveLength(1);
+    expect(within(views[0] as HTMLElement).getByRole('radio', { name: 'List' })).toBeChecked();
   });
 
   it('the completeness grid, as one card per person', async () => {
@@ -552,9 +561,49 @@ describe('at 390×844, with a finger', () => {
       />,
     );
     expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument();
-    screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
+    // A phone gets the percentage as a bar, and a row a person (MV2); the table is a desk's.
+    expect(screen.queryByRole('table', { name: 'Missing information' })).toBeNull();
+    const people = screen.getByRole('list', { name: 'Missing information' });
+    expect(within(people).getAllByText('Missing: Cost centre')).toHaveLength(2);
+    await userEvent.click(within(people).getByRole('button', { name: 'Fill in Lena Moreau' }));
+    await settled();
+    expect(underFloor(document.body)).toEqual([]);
+    expect(screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' })).toHaveFocus();
     await userEvent.keyboard('{Tab}');
     expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
+  });
+
+  it('import and export, two tiles and one history (MV5)', async () => {
+    await checked(
+      <ImportExport
+        load={{
+          status: 'ready',
+          data: {
+            canImport: true,
+            history: [
+              {
+                id: 'i1',
+                kind: 'import',
+                title: 'new-joiners.csv',
+                by: { name: 'Ada Lovelace', avatarUrl: null },
+                at: '15 Sep',
+                result: '2 blocked',
+                tone: 'warning',
+                href: '/files/i1',
+              },
+            ],
+          },
+        }}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'Import' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Export' })).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(
+      within(screen.getByRole('list', { name: 'Imports and exports' })).getByRole('link', {
+        name: /new-joiners\.csv/,
+      }),
+    ).toBeVisible();
   });
 
   it('bulk edit, its preview as one card per person (PEO-071)', async () => {
@@ -856,9 +905,10 @@ describe('at 390×844, with a finger', () => {
     );
   });
 
-  it('analytics, with every chart’s numbers one tap away', async () => {
+  it('insights, a tab with every chart’s numbers one tap away', async () => {
     await checked(
       <Analytics
+        tab="data-quality"
         load={{
           status: 'ready',
           data: {

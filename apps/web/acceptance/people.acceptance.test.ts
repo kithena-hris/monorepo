@@ -418,12 +418,12 @@ describe('PEO-117: the directory searches and filters in People', () => {
       page.evaluate(() => document.body.innerText.replaceAll('\n', ' | '));
 
     // Adam reads every name, so he may search them: Priya, and nobody else.
-    await page.goto(`${stack.shell}/people/directory?search=shah`);
+    await page.goto(`${stack.shell}/people/directory/list?search=shah`);
     await expect.poll(text, { timeout: 30_000 }).toContain('Pri Shah');
     expect(await page.getByText(EMPLOYEE.email).count()).toBe(0);
 
     // Her NIF is hers and HR's: who matched a filter on it would tell him the rest.
-    await page.goto(`${stack.shell}/people/directory?filter=es_nif:1`);
+    await page.goto(`${stack.shell}/people/directory/list?filter=es_nif:1`);
     await expect.poll(text, { timeout: 30_000 }).toContain('You cannot filter people by es_nif');
     await context.close();
   });
@@ -771,7 +771,7 @@ describe('Hiring somebody added without a start date', () => {
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/directory?search=Bulkhire`);
+    await page.goto(`${stack.shell}/people/directory/list?search=Bulkhire`);
     await page.waitForLoadState('networkidle');
     const people = page.getByRole('table', { name: 'People' });
     await people.getByText('Alan Bulkhire').waitFor({ timeout: 30_000 });
@@ -830,8 +830,8 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
     const finance = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const asks = await finance.newPage();
     await asks.goto(`${stack.shell}/people`);
-    await (await sections(asks)).getByRole('link', { name: 'Sensitive data access' }).click();
-    await asks.waitForURL(/\/people\/full-values$/);
+    await (await sections(asks)).getByRole('link', { name: 'Data health' }).click();
+    await asks.waitForURL(/\/people\/data-health\/access-requests$/);
     await asks.waitForLoadState('networkidle');
     await asks.getByRole('checkbox', { name: 'NIF / NIE' }).click();
     await asks.getByRole('textbox', { name: /Reason/ }).fill('Social security filing, September');
@@ -845,7 +845,7 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
 
     const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const decides = await hr.newPage();
-    await decides.goto(`${stack.shell}/people/full-values`);
+    await decides.goto(`${stack.shell}/people/data-health/access-requests`);
     await decides.waitForLoadState('networkidle');
     await decides
       .getByRole('list', { name: 'Waiting for a decision' })
@@ -1040,7 +1040,7 @@ describe('PEO-122: what is about to expire, to whom', () => {
     const numbers = async (session: string): Promise<string> => {
       const context = await signedIn(session);
       const page = await context.newPage();
-      await page.goto(`${stack.shell}/people/analytics`);
+      await page.goto(`${stack.shell}/people/insights/data-quality`);
       // The innermost section holding the heading: ancestors come first.
       const section = page
         .locator('section', { has: page.getByRole('heading', { name: 'What expires next' }) })
@@ -1134,8 +1134,10 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // HR sees what the checks found, reveals the held value, and accepts it.
     const reviews = await hr.newPage();
     await reviews.goto(`${stack.shell}/people`);
-    await (await sections(reviews)).getByRole('link', { name: 'ID verification' }).click();
-    await reviews.waitForURL(/\/people\/identifier-reviews$/);
+    await (await sections(reviews)).getByRole('link', { name: 'Data health' }).click();
+    await reviews.waitForURL(/\/people\/data-health\/completeness$/);
+    await reviews.getByRole('main').getByRole('link', { name: /^ID checks/ }).click();
+    await reviews.waitForURL(/\/people\/data-health\/id-checks$/);
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('main');
     await table.getByText(/control letter does not compute/).first().waitFor({ timeout: 30_000 });
@@ -1216,7 +1218,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // HR's review finds the letter wrong, and says so; the reason is required.
     const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const reviews = await hr.newPage();
-    await reviews.goto(`${stack.shell}/people/identifier-reviews`);
+    await reviews.goto(`${stack.shell}/people/data-health/id-checks`);
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('main');
     await table.getByText('Waiting for approval').waitFor({ timeout: 30_000 });
@@ -1380,7 +1382,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
 
     // Nothing published: the administrator is taken to the wizard, not left
     // on a directory that cannot load.
-    await page.goto(`${shell}/people/directory`);
+    await page.goto(`${shell}/people/directory/list`);
     await page.waitForURL(/\/people\/setup$/);
     await page.getByRole('heading', { name: 'Confirm the legal entity' }).waitFor({ timeout: 30_000 });
     await page.waitForLoadState('networkidle');
@@ -1423,7 +1425,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     const kept = () => page.evaluate(() => (window as unknown as { kept?: boolean }).kept === true);
 
     await nav.getByRole('link', { name: 'Directory' }).click();
-    await page.waitForURL(/\/people\/directory$/);
+    await page.waitForURL(/\/people\/directory\/list$/);
     await page.getByText('No employees yet').waitFor({ timeout: 30_000 });
     expect(await kept()).toBe(true);
     // One header: where you are stays on screen once the sections close, in
@@ -1437,14 +1439,14 @@ describe('People inside the shell: its sections, and always a way to add somebod
     ).toBe(true);
 
     // One Add person on the screen (the design's name for it, W3), last in the
-    // row with the screen's own actions: never repeated in a bar above it or in
-    // the empty state.
+    // row after the screen's own List / Cards / Org chart switch (V2): never
+    // repeated in a bar above it or in the empty state.
     await page.waitForLoadState('networkidle');
     const add = page.getByRole('main').getByRole('link', { name: 'Add person' });
     expect(await add.count()).toBe(1);
     expect(await screenHeader.getByRole('link', { name: 'Add person' }).count()).toBe(1);
     expect(
-      await add.evaluate((a) => /Export|Import/.test(a.previousElementSibling?.textContent ?? '')),
+      await add.evaluate((a) => /Org chart/.test(a.previousElementSibling?.textContent ?? '')),
     ).toBe(true);
     expect(await page.getByRole('main').getByRole('button', { name: 'Add person' }).count()).toBe(0);
     await add.click();
@@ -1477,7 +1479,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
        WHERE tenant_id = ${GLOBEX.tenant} AND work_email = 'lena@globex.example'`;
     expect(lena).toEqual({ status: 'active', hire_date: new Date().toISOString().slice(0, 10) });
     await (await sections(page)).getByRole('link', { name: 'Directory' }).click();
-    await page.waitForURL(/\/people\/directory$/);
+    await page.waitForURL(/\/people\/directory\/list$/);
     await page.getByRole('table', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
     // Counts that say what the list holds: everybody, then who is active.
     await page.getByText(/^\d+ (people|person) · \d+ active/).waitFor();
@@ -1489,7 +1491,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     const hrefs = await (await sections(page))
       .getByRole('link')
       .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
-    expect(hrefs).toContain('/people/import');
+    expect(hrefs).toContain('/people/import-export');
     for (const href of hrefs) {
       await sections(page);
       await page.keyboard.press('ArrowRight');
@@ -1518,10 +1520,12 @@ describe('People inside the shell: its sections, and always a way to add somebod
     // Anybody else: the sections their roles open, and no way to add anybody.
     const employee = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const theirs = await employee.newPage();
-    await theirs.goto(`${stack.shell}/people/directory`);
-    expect(await (await sections(theirs)).getByRole('link', { name: 'Import' }).count()).toBe(0);
+    await theirs.goto(`${stack.shell}/people/directory/list`);
     expect(await theirs.getByRole('link', { name: 'Add person' }).count()).toBe(0);
     expect(await theirs.getByRole('button', { name: 'Add person' }).count()).toBe(0);
+    await theirs.goto(`${stack.shell}/people/import-export`);
+    await theirs.getByRole('link', { name: 'New export' }).waitFor({ timeout: 30_000 });
+    expect(await theirs.getByRole('link', { name: 'Start import' }).count()).toBe(0);
     await employee.close();
   });
 });
