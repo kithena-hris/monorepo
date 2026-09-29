@@ -290,14 +290,23 @@ export const OPERATIONS = {
   Completeness: `query Completeness($after: ID) {
     peopleCompleteness(after: $after) {
       since
-      waiting { people lastReminded }
+      waiting { people lastReminded due }
       completedThisWeek
       toFill
+      blocking
       fields { key label options { value label } person sensitive }
-      rows { personId name department manager missing }
+      rows { personId name department manager missing owner remindedAt }
       next
     }
   }`,
+
+  /* "Remind N people" (V4): the weekly sweep, now; nobody gets two in a week. */
+  RemindWaiting: `mutation RemindWaiting($key: String!) {
+    remindWaiting(idempotencyKey: $key) { sent failed skipped }
+  }`,
+
+  /* The phone's People tab search (MV1): how many people, and nothing else. */
+  Headcount: `query Headcount { peopleHeadcount }`,
 
   PeoplePicker: `query PeoplePicker($search: String, $after: ID) {
     peoplePicker(search: $search, after: $after) {
@@ -380,12 +389,12 @@ export const OPERATIONS = {
 
   Analytics: `query Analytics($segment: ID) {
     peopleAnalytics(segment: $segment) {
-      asOf source sourceNote
+      asOf source sourceNote minimum
       segment { id name }
       segments { id name }
       headcount { value change trend { label value } }
       attrition { percent leavers formula trend { label value } }
-      complete { percent incomplete }
+      complete { percent incomplete change trend { label value } }
       expiringIn90Days
       expiries { today items { kind personId name day } }
       movement { period opening joiners moves leavers closing }

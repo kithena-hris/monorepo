@@ -9,6 +9,7 @@ import { sql } from 'drizzle-orm';
 import * as z from 'zod';
 
 import { recomputePerson } from '../application/completeness/recompute.js';
+import { sweepReminders } from '../application/completeness/reminders.js';
 import { outboxExportAudit, type ExportJobDeps } from '../application/export/job.js';
 import {
   claimDownload,
@@ -45,6 +46,7 @@ import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizz
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
 import {
+  drizzleGapFigures,
   drizzleGapTotals,
   drizzlePersonReader,
   drizzleRelations,
@@ -492,6 +494,31 @@ function detailRequests(
   };
 }
 
+/**
+ * "Remind N people": the hourly sweep's own function, run for one tenant on
+ * HR's press, where the reminder can be sent at all. Its claim is what keeps
+ * the weekly cap, so this process and the background one never both send.
+ */
+function remindNow(
+  calendars: ReturnType<typeof drizzleOrgStore>,
+  service: ReturnType<typeof peopleService>,
+) {
+  const mailer = reminderMailerFrom(process.env, service.inTenant);
+  const base = tenantAppBase(process.env);
+  return mailer === undefined || base === null
+    ? {}
+    : {
+        remindNow: sweepReminders({
+          inTenant: (tenantId, fn) => service.inTenant(tenantId, ({ tx }) => fn({ tx, tenantId })),
+          store: drizzleCompletenessStore(),
+          mailer,
+          clock: systemClock,
+          calendars,
+          company: tenantCompanies(base, calendars),
+        }),
+      };
+}
+
 /** The chat apps this deployment has, and People's notices to them. */
 function chatFrom(env: NodeJS.ProcessEnv) {
   const apps = chatAppsFrom(env);
@@ -544,6 +571,8 @@ function screenDeps(
     calendars,
     personOf: (tx, tenantId, accountId) => reader.personOf(tx, tenantId, accountId),
     gapTotals: drizzleGapTotals(),
+    gapFigures: drizzleGapFigures(),
+    ...remindNow(calendars, service),
     segments: { store: drizzleSegments(), newId: uuidv7 },
     photos: drizzlePhotos(),
     files: drizzleFiles(),

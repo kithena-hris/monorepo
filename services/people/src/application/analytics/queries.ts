@@ -772,6 +772,65 @@ export async function completeness(
   return ok({ source: cube.source, states, byField });
 }
 
+/** Complete and incomplete records on one snapshot day. */
+export interface CompleteDay {
+  readonly day: string;
+  readonly complete: number;
+  readonly incomplete: number;
+}
+
+/** A whole percent complete, or null when nobody is either (not a 0%). */
+export function percentComplete(d: Pick<CompleteDay, 'complete' | 'incomplete'>): number | null {
+  const total = d.complete + d.incomplete;
+  return total === 0 ? null : Math.round((d.complete / total) * 100);
+}
+
+/** Each month's percent complete, off its last snapshot day. A month with none is absent. */
+export function completeByMonth(
+  days: readonly CompleteDay[],
+): { readonly month: string; readonly percent: number }[] {
+  const months = new Map<string, number>();
+  for (const d of days) {
+    const percent = percentComplete(d);
+    const month = d.day.slice(0, 7);
+    // Days arrive in order, so the last one with anybody in it wins.
+    if (percent !== null) months.set(month, percent);
+  }
+  return [...months].map(([month, percent]) => ({ month, percent }));
+}
+
+/**
+ * Is our data getting better? Complete versus incomplete per snapshot day in
+ * [from, to]. Grid only, as `totalsByDay`: a day nobody snapshotted is
+ * absent, never computed from history, so a trend is never partly invented.
+ */
+export async function completenessByDay(
+  ctx: ChartContext,
+  range: { readonly from: string; readonly to: string; readonly filters?: Filters },
+): Promise<Result<readonly CompleteDay[]>> {
+  const authorized = authorizeRange(ctx, ['completeness'], range.filters);
+  if (!authorized.ok) return authorized;
+  const scope = scopeOf(ctx.viewer, ctx.tenantId);
+  return ok(
+    await rows<CompleteDay>(
+      ctx.tx,
+      sql`SELECT r.day::text AS day,
+                 COALESCE(sum(s.headcount) FILTER (WHERE s.completeness = 'complete'), 0)::int
+                   AS complete,
+                 COALESCE(sum(s.headcount) FILTER (WHERE s.completeness = 'incomplete'), 0)::int
+                   AS incomplete
+            FROM people.headcount_snapshot_run r
+            LEFT JOIN people.headcount_snapshot s
+              ON s.tenant_id = r.tenant_id AND s.day = r.day
+             AND s.scope_id = ${scope}::uuid AND ${filterSql(range.filters)}
+           WHERE r.tenant_id = ${ctx.tenantId}::uuid
+             AND r.day BETWEEN ${range.from}::date AND ${range.to}::date
+           GROUP BY r.day
+           ORDER BY r.day`,
+    ),
+  );
+}
+
 /** When do people join? Joiners by month against department. */
 export async function joinerHeatmap(
   ctx: ChartContext,

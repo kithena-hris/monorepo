@@ -762,6 +762,15 @@ export async function completePhotoUpload(
   return a.ok ? { ok: true, avatarUrl: a.data.avatarUrl } : { ok: false, message: a.message };
 }
 
+/** "Remind N people": the weekly reminder now, to whoever is due one. */
+export async function remindWaiting(): Promise<
+  | { readonly ok: true; readonly sent: number; readonly failed: number; readonly skipped: number }
+  | { readonly ok: false; readonly message: string }
+> {
+  const a = await people<{ sent: number; failed: number; skipped: number }>('RemindWaiting');
+  return a.ok ? { ok: true, ...a.data } : { ok: false, message: a.message };
+}
+
 /** Ask somebody to fill in empty details of theirs: they are emailed, at most once a day. */
 export async function requestDetails(personId: string, keys: readonly string[]): Promise<Outcome> {
   return outcome(people('RequestDetails', { personId, keys }));

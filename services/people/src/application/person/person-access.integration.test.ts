@@ -11,6 +11,7 @@ import { Person } from '../../domain/person/person.js';
 import { drizzleCompletenessStore } from '../../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../../infrastructure/drizzle-person-repository.js';
 import {
+  drizzleGapFigures,
   drizzleGapTotals,
   drizzlePersonReader,
   drizzleRelations,
@@ -146,6 +147,7 @@ beforeAll(async () => {
     '20260926200000_people_status_idx_skip_scan.sql',
     '20260924370000_people_directory_search.sql',
     '20260926120000_people_custom_filter.sql',
+    '20260927170000_people_detail_request.sql',
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
@@ -765,6 +767,53 @@ describe('the directory at 50,000 people', () => {
       expect(finance.ok && finance.value.items.some((p) => ids.has(p.id))).toBe(false);
       const none = await pageOf([]);
       expect(none.ok && none.value.items).toHaveLength(0);
+    });
+
+    it('answers the screen’s payroll and reminder figures within the budget', async () => {
+      const NOW = new Date('2026-09-22T09:00:00.000Z');
+      const at = (i: number) => sql`md5(${`dir${String(i)}`})::uuid`;
+      const idOf = async (i: number) => {
+        const [row] = await admin.execute<{ id: string }>(sql`SELECT ${at(i)}::text AS id`);
+        return row?.id ?? '';
+      };
+      // Person 10 had the weekly email yesterday; person 20 was asked for
+      // their phone by HR since their weekly one, a fortnight ago.
+      await admin.execute(sql`
+        UPDATE people.completeness_gap SET reminded_at = '2026-09-21T08:00:00Z', reminders_sent = 1
+         WHERE tenant_id = ${PERF}::uuid AND person_id = ${at(10)}`);
+      await admin.execute(sql`
+        UPDATE people.completeness_gap SET reminded_at = '2026-09-08T08:00:00Z', reminders_sent = 1
+         WHERE tenant_id = ${PERF}::uuid AND person_id = ${at(20)}`);
+      await admin.execute(sql`
+        INSERT INTO people.detail_request (tenant_id, person_id, attribute_key, requested_by, requested_at)
+        VALUES (${PERF}::uuid, ${at(20)}, 'phone', ${hr.accountId}::uuid, '2026-09-20T10:00:00Z')`);
+      const [ten, twenty, thirty] = [await idOf(10), await idOf(20), await idOf(30)];
+
+      const figures = await timed('the completeness figures', () =>
+        inTenant(PERF, ({ tx }) =>
+          drizzleGapFigures()(tx, PERF, {
+            payroll: ['cost_centre'],
+            now: NOW,
+            people: [ten, twenty, thirty],
+          }),
+        ),
+      );
+      // 2,000 owe a cost centre (the three Finance-only ibans do not count here).
+      expect(figures.blocking).toBe(2000);
+      expect(figures.lastReminded).toBe('2026-09-21T08:00:00.000Z');
+      // 5,000 owe a phone; person 10 is not due for another week, person 20 is.
+      expect(figures.due).toBe(4999);
+      expect(figures.remindedAt).toEqual(
+        new Map([
+          [ten, '2026-09-21T08:00:00.000Z'],
+          [twenty, '2026-09-20T10:00:00.000Z'],
+        ]),
+      );
+      const none = await inTenant(PERF, ({ tx }) =>
+        drizzleGapFigures()(tx, PERF, { payroll: [], now: NOW, people: [] }),
+      );
+      expect(none.blocking).toBe(0);
+      expect(none.remindedAt.size).toBe(0);
     });
 
     it('lists who is missing what to HR only', async () => {

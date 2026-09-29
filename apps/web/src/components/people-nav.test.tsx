@@ -102,6 +102,13 @@ describe('PeopleMenu', () => {
     expect(rows.getAllByRole('link')).toHaveLength(6);
     expect(screen.getByText('Your own profile is in the Me tab.')).toBeTruthy();
   });
+
+  it('says how many people the search covers, and nothing when People did not say', () => {
+    const { rerender } = render(<PeopleMenu {...hr} route={null} total={412} />);
+    expect(screen.getByPlaceholderText('Search 412 people')).toBeTruthy();
+    rerender(<PeopleMenu {...hr} route={null} total={null} />);
+    expect(screen.getByPlaceholderText('Search people')).toBeTruthy();
+  });
 });
 
 describe('the manifest', () => {

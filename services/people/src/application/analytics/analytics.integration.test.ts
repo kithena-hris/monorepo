@@ -18,6 +18,7 @@ import { chartExport, chartTooltip, type ChartViewer } from './access.js';
 import {
   attritionTrend,
   completeness,
+  completenessByDay,
   composition,
   expiries,
   expiryTimeline,
@@ -505,6 +506,23 @@ describe('the snapshot', () => {
       completeness(ctx, { asOf: D3 }),
     );
     expect(forManager).toMatchObject({ ok: true, value: { byField: null } });
+  });
+
+  it('counts complete records per snapshot day, agreeing with the day, and skips a day nobody took', async () => {
+    const days = await chart(ACME, hr, (ctx) => completenessByDay(ctx, { from: D1, to: D3 }));
+    if (!days.ok) throw new Error(days.error.message);
+    expect(days.value.map((d) => d.day)).toEqual([D1, D3]);
+    const each = await Promise.all(
+      days.value.map((d) => chart(ACME, hr, (ctx) => completeness(ctx, { asOf: d.day }))),
+    );
+    expect(
+      each.map((on) => on.ok && { complete: on.value.states.complete, incomplete: on.value.states.incomplete }),
+    ).toEqual(days.value.map((d) => ({ complete: d.complete, incomplete: d.incomplete })));
+    // A manager's are their chain's, as every chart's.
+    const chain = await chart(ACME, managerOf(MANAGER), (ctx) =>
+      completenessByDay(ctx, { from: D3, to: D3 }),
+    );
+    expect(chain.ok && chain.value[0] && chain.value[0].complete + chain.value[0].incomplete).toBe(2);
   });
 });
 
@@ -1316,9 +1334,32 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
     ]);
   });
 
-  it("uses the tenant's raised minimum", async () => {
+  it("uses the tenant's raised minimum, and says which is in force", async () => {
     const raised = await analyticsView(deps(`${D3}T12:00:00.000Z`, 25), as(HR_ACCOUNT, ['hr']));
     expect(raised.ok && raised.value.selfId?.[0]?.minimum).toBe(25);
+    expect(raised.ok && raised.value.minimum).toBe(25);
+    const floor = await view(HR_ACCOUNT, ['hr']);
+    expect(floor.ok && floor.value.minimum).toBe(10);
+  });
+
+  it('draws complete records by month, with no change when a month ago has no snapshot', async () => {
+    const result = await view(HR_ACCOUNT, ['hr']);
+    if (!result.ok || result.value.complete === null) throw new Error('no complete figure');
+    const { percent } = result.value.complete;
+    // 2026-02-03 was never snapshotted: no figure to compare with, so none.
+    expect(result.value.complete.change).toBeNull();
+    expect(result.value.complete.trend).toEqual([{ label: '2026-03', value: percent }]);
+  });
+
+  it('gives the change in points since the snapshot a month ago', async () => {
+    const days = await chart(ACME, hr, (ctx) => completenessByDay(ctx, { from: D1, to: D1 }));
+    const first = days.ok ? days.value[0] : undefined;
+    if (first === undefined) throw new Error('no snapshot on D1');
+    const then = Math.round((first.complete / (first.complete + first.incomplete)) * 100);
+    // A month after D1: today is off the grid, D1 is on it.
+    const result = await analyticsView(deps('2026-04-01T12:00:00.000Z'), as(HR_ACCOUNT, ['hr']));
+    if (!result.ok || result.value.complete === null) throw new Error('no complete figure');
+    expect(result.value.complete.change).toBe(result.value.complete.percent - then);
   });
 
   describe('a segment HR saved and shared', () => {

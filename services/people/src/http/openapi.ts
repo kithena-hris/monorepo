@@ -251,6 +251,14 @@ function screenPaths(): Record<string, unknown> {
         { path: 'id', safe: true },
       ),
     },
+    '/v1/views/completeness/remind': {
+      post: screenWrite(
+        'Run the weekly reminder sweep now; the weekly cap and working hours still hold',
+        null,
+        200,
+        '{ sent, failed, skipped }',
+      ),
+    },
     '/v1/views/completeness/identifier-check': {
       post: screenWrite(
         "What saving these grid cells would be warned about (PEO-125); nothing is kept",

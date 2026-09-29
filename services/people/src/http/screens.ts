@@ -29,6 +29,8 @@ import {
   checkSection,
   completenessView,
   directoryView,
+  peopleHeadcount,
+  remindWaiting,
   historyView,
   identifierReviewsView,
   approvalsView,
@@ -733,6 +735,18 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
             : refused(found.error);
         },
       }),
+    },
+    // "Remind N people": the weekly sweep, now, for this tenant (V4).
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/completeness\/remind$/,
+      handle: write(NoBody, (asking) => remindWaiting(deps, asking)),
+    },
+    // How many people this viewer could search (MV1): a count only.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/headcount$/,
+      handle: async (asking) => answer(await peopleHeadcount(deps, asking)),
     },
     // What saving these cells would be warned about, saving nothing (PEO-125).
     {

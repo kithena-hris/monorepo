@@ -12,7 +12,7 @@ import { inMemoryPendingChangeStore } from '../person/pending-store.js';
 import type { PeopleService } from '../person/service.js';
 import { overviewView } from './overview.js';
 import { completePhotoUpload, photoView, startPhotoUpload, type PhotoDeps } from './photo.js';
-import { directoryView, profileView } from './people.js';
+import { directoryView, peopleHeadcount, profileView } from './people.js';
 
 /**
  * The overview, through the application layer: the viewer's own record, the
@@ -335,5 +335,19 @@ describe('a person’s photo', () => {
     expect(seen.ok && seen.value.mediaType).toBe('image/png');
     const nobody = await photoView(w.deps, w.as('00000000-0000-4000-8000-0000000000ff'), GONE);
     expect(nobody.ok).toBe(false);
+  });
+});
+
+describe('the headcount a phone searches (MV1)', () => {
+  it('is everybody the viewer could find, leavers to HR alone', async () => {
+    const w = world();
+    expect(await peopleHeadcount(w.deps, w.as(HR_ACCOUNT, 'hr'))).toEqual({
+      ok: true,
+      value: { count: 7 },
+    });
+    expect(await peopleHeadcount(w.deps, w.as(TIM_ACCOUNT))).toEqual({
+      ok: true,
+      value: { count: 6 },
+    });
   });
 });

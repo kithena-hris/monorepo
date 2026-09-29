@@ -33,8 +33,14 @@ type AnalyticsAttrition {
 }
 
 type AnalyticsComplete {
+  """
+  Points since the snapshot a month ago; null when there is none that day.
+  """
+  change: Int
   incomplete: Int
   percent: Float
+  """Percent complete by month, snapshot months only."""
+  trend: [AnalyticsPoint!]
 }
 
 type AnalyticsComposition {
@@ -307,10 +313,19 @@ type CompletenessRow {
   manager: String
   missing: [String!]
   name: String
+  """Who fills these in: hr or employee."""
+  owner: String
   personId: ID
+  """Employee rows: their last reminder, weekly or asked for."""
+  remindedAt: String
 }
 
 type CompletenessWaiting {
+  """How many remindWaiting would remind now; null where it cannot run."""
+  due: Int
+  """
+  When anybody still waiting was last sent the weekly reminder; ISO 8601.
+  """
   lastReminded: String
   people: Int
 }
@@ -1116,6 +1131,10 @@ type Mutation {
   Hire a leaver again: a new employment period on the same record, pre-hire until it starts; HR only.
   """
   rehirePerson(idempotencyKey: String!, legalEntityId: ID, overrideReason: String, personId: ID!, startDate: String!): Person
+  """
+  Send the weekly reminder now to everybody due one; nobody gets two in a week (HR).
+  """
+  remindWaiting(idempotencyKey: String!): RemindersSent
   removePhoto(idempotencyKey: String!, personId: ID): PeoplePhotoSaved
   reorderDraftFields(idempotencyKey: String!, order: [String!]!, sectionKey: String!): WriteOutcome
   reorderDraftSections(idempotencyKey: String!, order: [String!]!): WriteOutcome
@@ -1345,6 +1364,8 @@ type PeopleAnalytics {
   expiringIn90Days: Int
   headcount: AnalyticsHeadcount
   joiners: AnalyticsJoiners
+  """The cohort minimum in force: smaller groups are withheld."""
+  minimum: Int
   movement: AnalyticsMovement
   """Finance's only; never under a segment"""
   pay: AnalyticsPay
@@ -1442,6 +1463,8 @@ type PeopleChatNotice {
 }
 
 type PeopleCompleteness {
+  """People missing bank, tax or ID details, whoever fills them in."""
+  blocking: Int
   completedThisWeek: Int
   fields: [CompletenessField!]
   next: String
@@ -2051,6 +2074,8 @@ type Query {
   What saving these grid cells would be warned about (PEO-125); nothing is kept.
   """
   peopleGridCheck(changes: [GridChangeInput!]!): GridIdentifierCheck
+  """How many people you could find by searching: a count only."""
+  peopleHeadcount: Int
   """
   One person as of a date (default today), and every change; no id is "my history".
   """
@@ -2193,6 +2218,15 @@ type RegistrySection {
   origin: String
   ownership: [String!]
   visibility: [String!]
+}
+
+type RemindersSent {
+  failed: Int
+  sent: Int
+  """
+  Waiting, and not due: reminded this week, outside their hours, or no email.
+  """
+  skipped: Int
 }
 
 type RepeatingAttribute {
