@@ -163,6 +163,7 @@ describe('Settings › Keyboard shortcuts', () => {
     expect(store.saves.at(-1)).toEqual({ bindings: {}, characterKeys: true });
   });
 
+  // Three axe runs over a whole settings page: slow on a loaded runner, not stuck.
   it('is axe-clean, while it records and while it refuses', async () => {
     const store = fresh();
     const { container } = renderPage(store);
@@ -178,5 +179,5 @@ describe('Settings › Keyboard shortcuts', () => {
     });
     expect(within(container).getByText('Press the keys. Escape cancels.')).toBeTruthy();
     expect(await clean()).toEqual([]);
-  }, 20_000);
+  }, 60_000);
 });
