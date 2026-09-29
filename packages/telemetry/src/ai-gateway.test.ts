@@ -213,3 +213,56 @@ describe('free text, with no subjects named', () => {
     expect(send).toHaveBeenCalledOnce();
   });
 });
+
+describe('a prompt about configuration', () => {
+  function loaded() {
+    const s = setup();
+    s.registry.replace(ACME, [{ key: 'iban', policy: denied, labels: ['IBAN'] }]);
+    return s;
+  }
+  const settings = {
+    request: 'Mark the IBAN field as sensitive, and add a section for blood group',
+    fields: [{ key: 'iban', label: 'IBAN' }],
+    entity: '0192a3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b',
+  };
+
+  it('may name a denied field, since fields are its subject, and sends it', async () => {
+    const { send, gateway } = loaded();
+    const result = await gateway.complete(ACME, {
+      instruction: 'Plan it',
+      context: settings,
+      about: 'configuration',
+    });
+    expect(result).toEqual({ ok: true, value: 'model says hi' });
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['an IBAN', 'Add Maria, ES91 2100 0418 4502 0005 1332'],
+    ['a national identifier', 'her NIF is 12345678Z'],
+    ['a phone number', 'call +34 600 123 456'],
+    ['an email address', 'make maria@acme.example HR'],
+    ['a date in figures', 'born 02/01/1990'],
+  ])('refuses one carrying something shaped like a value: %s', async (_what, request) => {
+    const { send, gateway } = loaded();
+    const result = await gateway.complete(ACME, {
+      instruction: 'Plan it',
+      context: { ...settings, request },
+      about: 'configuration',
+    });
+    expect(result).toMatchObject({ ok: false, error: { code: 'AI_VALUE_SHAPED' } });
+    // Says what it saw, never the text.
+    if (!result.ok) expect(result.error.message).not.toContain(request);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('still refuses a denied key in its structure, and an unloaded tenant', async () => {
+    const { gateway } = loaded();
+    await expect(
+      gateway.complete(ACME, { instruction: 'x', context: { iban: 'x' }, about: 'configuration' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'AI_FIELD_DENIED' } });
+    await expect(
+      gateway.complete('nobody', { instruction: 'x', context: {}, about: 'configuration' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'AI_POLICY_UNKNOWN' } });
+  });
+});
