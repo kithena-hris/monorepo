@@ -1,8 +1,9 @@
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
-  Checkbox,
+  Card,
   Dialog,
   DialogBody,
   DialogContent,
@@ -16,6 +17,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  MergeCompare,
   PageHeader,
   RadioGroup,
   RadioGroupItem,
@@ -27,6 +29,7 @@ import {
   TableHeader,
   TableRow,
   Textarea,
+  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -100,7 +103,11 @@ export interface DuplicatesProps {
   readonly load: Loadable<DuplicatesState>;
   readonly onCompare: (a: string, b: string) => void;
   readonly onBack: () => void;
-  readonly onMerge: (survivorId: string, absorbedId: string, take: readonly string[]) => Promise<Outcome>;
+  readonly onMerge: (
+    survivorId: string,
+    absorbedId: string,
+    take: readonly string[],
+  ) => Promise<Outcome>;
   readonly onDismiss: (a: string, b: string) => Promise<Outcome>;
   readonly onUnmerge: (absorbedId: string, reason: string) => Promise<Outcome>;
 }
@@ -320,7 +327,9 @@ function UndoDialog({
                   }}
                 />
               </FieldControl>
-              <FieldDescription>Kept with the record of the undo. Up to 500 characters.</FieldDescription>
+              <FieldDescription>
+                Kept with the record of the undo. Up to 500 characters.
+              </FieldDescription>
               <FieldError>Say why.</FieldError>
             </Field>
             {refused === null ? null : (
@@ -370,7 +379,9 @@ function Compare({
   readonly onDismiss: DuplicatesProps['onDismiss'];
 }): JSX.Element {
   const may = people.flatMap((p, i) => (p.refusal === null ? [i] : []));
-  const [survivor, setSurvivor] = useState<number | null>(may.length === 1 ? (may[0] ?? null) : null);
+  const [survivor, setSurvivor] = useState<number | null>(
+    may.length === 1 ? (may[0] ?? null) : null,
+  );
   const [take, setTake] = useState<ReadonlySet<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
@@ -412,58 +423,61 @@ function Compare({
               key={p.id}
               value={String(i)}
               disabled={p.refusal !== null}
-              description={p.refusal ?? 'Keeps its history; the other record points here afterwards.'}
+              description={
+                p.refusal ?? 'Keeps its history; the other record points here afterwards.'
+              }
             >
               Keep {p.name}'s record
             </RadioGroupItem>
           ))}
         </RadioGroup>
       )}
-      <Table aria-label="The two records side by side">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Field</TableHead>
-            <TableHead>{people[0]?.name}</TableHead>
-            <TableHead>{people[1]?.name}</TableHead>
-            <TableHead>Use the other value</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => {
-            const offered = absorbed !== null && row.takeable[absorbed] === true;
-            return (
-              <TableRow key={row.key}>
-                <TableCell>{row.label}</TableCell>
-                <TableCell>{row.values[0] ?? '—'}</TableCell>
-                <TableCell>{row.values[1] ?? '—'}</TableCell>
-                <TableCell>
-                  {row.same ? (
-                    <Badge tone="success" size="sm">
-                      Same
-                    </Badge>
-                  ) : offered && gone !== undefined ? (
-                    <Checkbox
-                      aria-label={`Use ${gone.name}'s ${row.label}`}
-                      checked={take.has(row.key)}
-                      onCheckedChange={(on) => {
-                        setTake((was) => {
-                          const next = new Set(was);
-                          if (on === true) next.add(row.key);
-                          else next.delete(row.key);
-                          return next;
-                        });
-                      }}
-                    />
-                  ) : null}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      <Card padded>
+        <MergeCompare
+          sources={
+            [0, 1].map((i) => (
+              <div key={people[i]?.id ?? i} className="flex min-w-0 items-center gap-2.5">
+                <Avatar size="lg" name={people[i]?.name ?? ''} />
+                <div className="min-w-0">
+                  <p className="truncate font-bold">{people[i]?.name}</p>
+                  <p className="truncate text-sm text-fg-muted">
+                    {people[i]?.status}
+                    {survivor === i ? ' · stays' : ''}
+                  </p>
+                </div>
+              </div>
+            )) as unknown as readonly [JSX.Element, JSX.Element]
+          }
+          sourceNames={[people[0]?.name ?? '', people[1]?.name ?? '']}
+          rows={rows.map((row) => ({
+            id: row.key,
+            label: row.label,
+            values: [row.values[0] ?? '—', row.values[1] ?? '—'] as const,
+            same: row.same,
+            // Only the value of the record that goes may be taken, where People allows it.
+            disabled: absorbed === null || row.takeable[absorbed] !== true,
+          }))}
+          picks={Object.fromEntries(
+            rows.map((row) => [
+              row.key,
+              (survivor === null ? 0 : take.has(row.key) ? absorbed : survivor) as 0 | 1,
+            ]),
+          )}
+          onPick={(key, side) => {
+            if (survivor === null) return;
+            setTake((was) => {
+              const next = new Set(was);
+              if (side === absorbed) next.add(key);
+              else next.delete(key);
+              return next;
+            });
+          }}
+        />
+      </Card>
       <span className="flex flex-wrap gap-2">
         <Button
           variant="primary"
+          startIcon={<icons.merge aria-hidden />}
           disabled={kept === undefined}
           onClick={() => {
             setConfirming(true);
@@ -495,18 +509,21 @@ function Compare({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Merge {gone.name}'s record into {kept.name}'s</DialogTitle>
+              <DialogTitle>
+                Merge {gone.name}'s record into {kept.name}'s
+              </DialogTitle>
               <DialogDescription>
-                {gone.name}'s record is kept, closed, and points at {kept.name}'s. Its sign-in, if it
-                has one, moves across. {take.size === 0
+                {gone.name}'s record is kept, closed, and points at {kept.name}'s. Its sign-in, if
+                it has one, moves across.{' '}
+                {take.size === 0
                   ? 'No values are copied.'
                   : `${String(take.size)} ${take.size === 1 ? 'value is' : 'values are'} copied, each correctable afterwards.`}
               </DialogDescription>
             </DialogHeader>
             <DialogBody>
               <p className="text-sm">
-                It can be undone later from the list of merged records; a copied value changed
-                since is kept.
+                It can be undone later from the list of merged records; a copied value changed since
+                is kept.
               </p>
             </DialogBody>
             <DialogFooter>

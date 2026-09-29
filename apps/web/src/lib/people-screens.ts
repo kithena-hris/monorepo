@@ -117,8 +117,25 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         { personIds: (query.search['people'] ?? '').split(',').filter((id) => id !== '') },
         VIEWS.BulkEdit,
       );
-    case 'CompletenessGrid':
-      return read('Completeness', { after: given(query.search['after']) });
+    case 'CompletenessGrid': {
+      // Beside the grid, analytics' own figures: complete overall, and by section (R2).
+      const [grid, analytics] = await Promise.all([
+        read('Completeness', { after: given(query.search['after']) }),
+        people<{
+          complete: { percent: number; incomplete: number } | null;
+          completenessBySection: { label: string; value: number }[] | null;
+        }>('Analytics', { segment: null }),
+      ]);
+      if (grid.status !== 'ready' || !analytics.ok) return grid;
+      return {
+        status: 'ready',
+        data: {
+          ...(grid.data as object),
+          complete: analytics.data.complete,
+          bySection: analytics.data.completenessBySection,
+        },
+      };
+    }
     case 'FieldRegistry':
       return read('Registry');
     case 'SettingsActivity':

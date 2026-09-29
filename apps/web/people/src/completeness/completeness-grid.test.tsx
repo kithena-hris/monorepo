@@ -63,14 +63,20 @@ describe('CompletenessGrid', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('tabs down the column, not across the row', async () => {
+  it('tabs across the row, and Enter moves down the column', async () => {
     const user = fast();
-    render(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />);
+    const rows = [
+      ...state.rows,
+      { personId: 'k', name: 'Kai Lund', department: null, manager: null, missing: ['desk'] },
+    ];
+    render(
+      <CompletenessGrid load={{ status: 'ready', data: { ...state, rows } }} onSave={vi.fn()} />,
+    );
     screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
     await user.tab();
-    expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
-    await user.tab();
-    expect(screen.getByRole('combobox', { name: 'Cost centre for Nadia Petrova' })).toHaveFocus();
+    expect(screen.getByRole('textbox', { name: 'Desk for Lena Moreau' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('textbox', { name: 'Desk for Kai Lund' })).toHaveFocus();
   });
 
   it('saves one change per person, however many fields were filled for them', async () => {
@@ -79,8 +85,7 @@ describe('CompletenessGrid', () => {
     render(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={onSave} />);
     await pick('Cost centre for Lena Moreau', 'ENG-204');
     await pick('Cost centre for Joan Bosch', 'ENG-201');
-    // The next field's column: Lena again.
-    await pick('Field', 'Desk');
+    // The next column over: Lena again.
     await user.type(screen.getByRole('textbox', { name: 'Desk for Lena Moreau' }), 'A-04');
 
     await user.click(screen.getByRole('button', { name: 'Save 3 changes' }));
@@ -148,7 +153,10 @@ describe('CompletenessGrid', () => {
       />,
     );
     await user.click(screen.getByRole('button', { name: 'Manager for Lena Moreau' }));
-    await user.type(screen.getByRole('combobox', { name: 'Manager for Lena Moreau search' }), 'ing');
+    await user.type(
+      screen.getByRole('combobox', { name: 'Manager for Lena Moreau search' }),
+      'ing',
+    );
     await user.click(await screen.findByRole('option', { name: 'Ingrid Sø' }));
     expect(searchPeople).toHaveBeenLastCalledWith('ing');
     await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
@@ -193,7 +201,10 @@ describe('CompletenessGrid', () => {
       Promise.resolve({ ok: true as const, findings: [{ ...finding, review: 'none' as const }] }),
     );
     const onSave = vi.fn(() =>
-      Promise.resolve({ ok: true as const, findings: [{ ...finding, review: 'pending' as const }] }),
+      Promise.resolve({
+        ok: true as const,
+        findings: [{ ...finding, review: 'pending' as const }],
+      }),
     );
     const { container } = render(
       <CompletenessGrid load={{ status: 'ready', data: nif }} onSave={onSave} onCheck={onCheck} />,
@@ -210,6 +221,8 @@ describe('CompletenessGrid', () => {
 
     await user.click(screen.getByRole('button', { name: 'Save anyway' }));
     expect(onSave).toHaveBeenCalledWith([{ personId: 'j', values: { es_nif: '12345678A' } }]);
-    expect(await screen.findByText(/1 value our checks doubted went to HR's review/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/1 value our checks doubted went to HR's review/),
+    ).toBeInTheDocument();
   });
 });

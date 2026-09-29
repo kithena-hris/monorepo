@@ -1,17 +1,15 @@
 import {
   Alert,
-  AutoGrid,
   Avatar,
   Badge,
   Button,
   Card,
+  ChipGroup,
+  ChipGroupItem,
   DataTable,
   EmptyState,
-  Field,
-  FieldControl,
-  FieldDescription,
-  FieldLabel,
-  Input,
+  HorizontalBarChart,
+  InlineCell,
   PageHeader,
   Select,
   SelectContent,
@@ -20,7 +18,6 @@ import {
   SelectValue,
   Stack,
   Stat,
-  useBreakpoint,
   type DataColumn,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -59,6 +56,10 @@ export interface CompletenessState {
   readonly toFill: number;
   readonly fields: readonly GapField[];
   readonly rows: readonly GapRow[];
+  /** From analytics, where the viewer may read it: complete records, overall. */
+  readonly complete?: { readonly percent: number; readonly incomplete: number } | null;
+  /** From analytics: how complete each section is, for the by-section view (R2). */
+  readonly bySection?: readonly { readonly label: string; readonly value: number }[] | null;
 }
 
 /** One person's answers, however many fields they cover: one write, one event. */
@@ -130,7 +131,7 @@ function Grid({
 }: Omit<CompletenessGridProps, 'load' | 'searchPeople'> & {
   readonly state: CompletenessState;
 }): JSX.Element {
-  const [fieldKey, setFieldKey] = useState(state.fields[0]?.key ?? '');
+  const [view, setView] = useState<'grid' | 'sections'>('grid');
   // personId → key → value, across every field the admin has worked through.
   const [edits, setEdits] = useState<Readonly<Record<string, Readonly<Record<string, string>>>>>(
     {},
@@ -145,9 +146,10 @@ function Grid({
   /** After a save: how many values went to HR's review. */
   const [reviewed, setReviewed] = useState(0);
 
-  const field = state.fields.find((f) => f.key === fieldKey);
   const pending = Object.values(edits).reduce((n, v) => n + Object.keys(v).length, 0);
-  const rows = field === undefined ? [] : state.rows.filter((r) => r.missing.includes(field.key));
+  // Only the fields somebody on this page is missing: a column of nothing is noise.
+  const fields = state.fields.filter((f) => state.rows.some((r) => r.missing.includes(f.key)));
+  const rows = state.rows;
 
   const set = (personId: string, key: string, value: string): void => {
     setOutcome(null);
@@ -198,9 +200,21 @@ function Grid({
     }
   };
 
-  const wide = useBreakpoint('md');
-  const control = (r: GapRow): JSX.Element | null => {
-    if (field === undefined) return null;
+  /** ↵ in a text cell moves to the same field on the next row, as a sheet does. */
+  const down = (personId: string, key: string): void => {
+    const at = rows.findIndex((r) => r.personId === personId);
+    const next = rows.slice(at + 1).find((r) => r.missing.includes(key));
+    if (next === undefined) return;
+    document.getElementById(`cell-${next.personId}-${key}`)?.focus();
+  };
+  const control = (r: GapRow, field: GapField): JSX.Element | null => {
+    if (!r.missing.includes(field.key)) {
+      return (
+        <span className="text-fg-subtle" aria-label="Already filled in">
+          —
+        </span>
+      );
+    }
     const value = edits[r.personId]?.[field.key] ?? '';
     const name = `${field.label} for ${r.name}`;
     if (field.person) {
@@ -216,81 +230,92 @@ function Grid({
         />
       );
     }
-    return field.options.length > 0 ? (
-      <Select
+    if (field.options.length > 0) {
+      return (
+        <Select
+          value={value}
+          onValueChange={(next) => {
+            set(r.personId, field.key, next);
+          }}
+        >
+          <SelectTrigger aria-label={name} size="sm" className="min-w-32">
+            <SelectValue placeholder="Missing" />
+          </SelectTrigger>
+          <SelectContent>
+            {field.options.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+    const warning = warningFor(r.personId, field.key);
+    return (
+      <InlineCell
+        id={`cell-${r.personId}-${field.key}`}
+        aria-label={name}
         value={value}
-        onValueChange={(next) => {
-          set(r.personId, field.key, next);
+        {...(warning !== undefined
+          ? { status: 'invalid' as const }
+          : value === ''
+            ? { status: 'missing' as const }
+            : {})}
+        {...(warning === undefined ? {} : { message: warning })}
+        onChange={(e) => {
+          set(r.personId, field.key, e.target.value);
         }}
-      >
-        <SelectTrigger aria-label={name} size="sm">
-          <SelectValue placeholder="Choose" />
-        </SelectTrigger>
-        <SelectContent>
-          {field.options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    ) : (
-      <Field>
-        <FieldControl>
-          <Input
-            aria-label={name}
-            size="sm"
-            value={value}
-            onChange={(e) => {
-              set(r.personId, field.key, e.target.value);
-            }}
-          />
-        </FieldControl>
-        {/* A doubted identifier (PEO-125), on its own cell: saved anyway on the next press. */}
-        {warningFor(r.personId, field.key) === undefined ? null : (
-          <FieldDescription tone="warning">{warningFor(r.personId, field.key)}</FieldDescription>
-        )}
-      </Field>
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            down(r.personId, field.key);
+          }
+        }}
+        containerClassName="min-w-32"
+      />
     );
   };
 
-  const columns: DataColumn<GapRow>[] =
-    field === undefined
-      ? []
-      : [
-          {
-            id: 'person',
-            header: 'Person',
-            cell: (r) => (
-              <span className="flex items-center gap-2">
-                <Avatar size="sm" name={r.name} />
-                <span className="truncate">{r.name}</span>
-              </span>
-            ),
-          },
-          { id: 'department', header: 'Department', cell: (r) => r.department ?? '' },
-          { id: 'manager', header: 'Manager', cell: (r) => r.manager ?? '' },
-          {
-            id: field.key,
-            header:
-              field.sensitive === true ? (
-                <span className="inline-flex items-center gap-2">
-                  {field.label}
-                  <Badge tone="sensitive" size="sm">
-                    Sensitive
-                  </Badge>
-                </span>
-              ) : (
-                field.label
-              ),
-            cell: control,
-          },
-        ];
+  const columns: DataColumn<GapRow>[] = [
+    {
+      id: 'person',
+      header: 'Person',
+      width: '15rem',
+      sticky: true,
+      cell: (r) => (
+        <span className="flex items-center gap-2.5">
+          <Avatar size="md" name={r.name} />
+          <span className="min-w-0">
+            <span className="block truncate font-semibold">{r.name}</span>
+            <span className="block truncate text-xs text-fg-muted">
+              {[r.department, r.manager].filter((x) => x !== null).join(' · ')}
+            </span>
+          </span>
+        </span>
+      ),
+    },
+    ...fields.map((field): DataColumn<GapRow> => ({
+      id: field.key,
+      header:
+        field.sensitive === true ? (
+          <span className="inline-flex items-center gap-2">
+            {field.label}
+            <Badge tone="sensitive" size="sm">
+              Sensitive
+            </Badge>
+          </span>
+        ) : (
+          field.label
+        ),
+      cell: (r) => control(r, field),
+    })),
+  ];
 
   return (
-    <Stack gap={6}>
+    <Stack gap={5}>
       <PageHeader
-        title="Missing information"
+        title="Data completeness"
         description={state.since}
         actions={
           <Button
@@ -310,17 +335,27 @@ function Grid({
           </Button>
         }
       />
-      <AutoGrid minItemWidth="12rem" gap={3}>
-        <Stat label="Yours to fill" value={state.toFill} />
-        <Stat label="Waiting on employees" value={state.waiting.people} />
+      <div className="grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4">
+        {state.complete == null ? null : (
+          <Stat
+            label="Complete"
+            value={state.complete.percent}
+            unit="%"
+            description={`${state.complete.incomplete.toLocaleString('en-GB')} records incomplete`}
+          />
+        )}
+        <Stat label="Yours to fill" value={state.toFill} description="Fill them in below" />
+        <Stat
+          label="Waiting on employees"
+          value={state.waiting.people}
+          description={
+            state.waiting.lastReminded === null
+              ? 'Their gaps are reminders, not work for this grid'
+              : `Last reminded ${state.waiting.lastReminded}`
+          }
+        />
         <Stat label="Completed this week" value={state.completedThisWeek} />
-      </AutoGrid>
-      {state.waiting.lastReminded === null ? null : (
-        <p className="text-sm text-fg-muted">
-          Employees were last reminded {state.waiting.lastReminded}. Their gaps are reminders, not
-          work for this grid.
-        </p>
-      )}
+      </div>
 
       {shown.length === 0 ? null : (
         <Alert tone="warning" title="Our checks suggest some of these may be wrong">
@@ -343,68 +378,51 @@ function Grid({
         </Alert>
       )}
 
-      {state.fields.length === 0 ? (
+      {state.bySection == null || state.bySection.length === 0 ? null : (
+        <ChipGroup
+          type="single"
+          aria-label="View"
+          value={view}
+          onValueChange={(next) => {
+            if (next === 'grid' || next === 'sections') setView(next);
+          }}
+        >
+          <ChipGroupItem value="grid" variant="view">
+            HR to fill in <span className="font-medium tabular-nums">{state.toFill}</span>
+          </ChipGroupItem>
+          <ChipGroupItem value="sections" variant="view">
+            By section
+          </ChipGroupItem>
+        </ChipGroup>
+      )}
+
+      {view === 'sections' && state.bySection != null ? (
+        // R2: where the gaps are, section by section.
+        <Card padded>
+          <h2 className="mb-4 text-md font-bold">Complete, by section</h2>
+          <HorizontalBarChart
+            data={state.bySection}
+            label="Percent complete, by section"
+            format={(v) => `${String(v)}%`}
+          />
+        </Card>
+      ) : fields.length === 0 ? (
         <EmptyState
           title="Nothing is missing"
           description="Every field HR fills in has a value for everybody it applies to."
         />
       ) : (
         <>
-          <Field className="max-w-xs">
-            <FieldLabel>Field</FieldLabel>
-            <Select value={fieldKey} onValueChange={setFieldKey}>
-              <FieldControl>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-              </FieldControl>
-              <SelectContent>
-                {state.fields.map((f) => (
-                  <SelectItem key={f.key} value={f.key}>
-                    {f.sensitive === true
-                      ? `${f.label} (sensitive: changes wait for approval)`
-                      : f.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <p className="text-sm text-fg-muted">Tab moves down the column.</p>
-          {wide ? (
-            <DataTable
-              label={field === undefined ? 'Missing values' : `Missing ${field.label}`}
-              rows={rows}
-              columns={columns}
-              rowId={(r) => r.personId}
-              empty={<EmptyState title="Nobody is missing this field" />}
-            />
-          ) : rows.length === 0 ? (
-            <EmptyState title="Nobody is missing this field" />
-          ) : (
-            // On a phone, one card per person with the one field on it (§17.1).
-            // Still one control per card, so Tab still runs down the column.
-            <ul
-              className="flex flex-col gap-2"
-              aria-label={field === undefined ? 'Missing values' : `Missing ${field.label}`}
-            >
-              {rows.map((r) => (
-                <li key={r.personId}>
-                  <Card className="flex flex-col gap-2 p-3">
-                    <span className="flex items-center gap-2">
-                      <Avatar size="sm" name={r.name} />
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{r.name}</span>
-                        <span className="block truncate text-xs text-fg-muted">
-                          {[r.department, r.manager].filter((x) => x !== null).join(' · ')}
-                        </span>
-                      </span>
-                    </span>
-                    {control(r)}
-                  </Card>
-                </li>
-              ))}
-            </ul>
-          )}
+          <DataTable
+            label="Missing values"
+            rows={rows}
+            columns={columns}
+            rowId={(r) => r.personId}
+            empty={<EmptyState title="Nobody is missing anything" />}
+          />
+          <p className="text-sm text-fg-muted">
+            Tab moves across, ↵ moves down. Nothing is saved until you press Save.
+          </p>
         </>
       )}
       {onNextPage === undefined && onFirstPage === undefined ? null : (

@@ -29,6 +29,8 @@ export interface MergeCompareRow {
   readonly values: readonly [ReactNode, ReactNode];
   /** The two are the same: nothing to choose. */
   readonly same?: boolean;
+  /** The pick is fixed (the other value may not be taken): shown, not offered. */
+  readonly disabled?: boolean;
 }
 
 export interface MergeCompareProps extends ComponentPropsWithoutRef<'div'> {
@@ -92,7 +94,7 @@ export function MergeCompare({
                 onValueChange={(next) => {
                   onPick?.(row.id, next === '1' ? 1 : 0);
                 }}
-                disabled={onPick === undefined}
+                disabled={onPick === undefined || row.disabled === true}
                 className="contents"
               >
                 {row.values.map((value, index) => (
@@ -100,6 +102,7 @@ export function MergeCompare({
                     key={sourceNames[index]}
                     className={cn(
                       'flex min-w-0 cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm touch:px-2 touch:text-base',
+                      'has-[:disabled]:cursor-default has-[:disabled]:opacity-60',
                       'transition-colors duration-(--animate-duration-fast)',
                       'has-[[data-state=checked]]:bg-accent-subtle has-[[data-state=checked]]:font-semibold',
                       'hover:bg-surface-hover has-[[data-state=checked]]:hover:bg-accent-subtle',

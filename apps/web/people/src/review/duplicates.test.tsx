@@ -7,7 +7,11 @@ import { Duplicates, type DuplicatesState } from './duplicates';
 
 const queue: DuplicatesState = {
   items: [
-    { personIds: ['p1', 'p2'], names: ['Ada Lovelace', 'Augusta Lovelace'], reasons: ['Same work email'] },
+    {
+      personIds: ['p1', 'p2'],
+      names: ['Ada Lovelace', 'Augusta Lovelace'],
+      reasons: ['Same work email'],
+    },
   ],
   comparison: null,
 };
@@ -25,9 +29,27 @@ const compared: DuplicatesState = {
       },
     ],
     rows: [
-      { key: 'given_name', label: 'Legal first name', values: ['Ada', 'Augusta'], same: false, takeable: [false, true] },
-      { key: 'es_nif', label: 'NIF / NIE', values: [null, '•••• 678Z'], same: false, takeable: [false, false] },
-      { key: 'family_name', label: 'Legal family name', values: ['Lovelace', 'Lovelace'], same: true, takeable: [false, false] },
+      {
+        key: 'given_name',
+        label: 'Legal first name',
+        values: ['Ada', 'Augusta'],
+        same: false,
+        takeable: [false, true],
+      },
+      {
+        key: 'es_nif',
+        label: 'NIF / NIE',
+        values: [null, '•••• 678Z'],
+        same: false,
+        takeable: [false, false],
+      },
+      {
+        key: 'family_name',
+        label: 'Legal family name',
+        values: ['Lovelace', 'Lovelace'],
+        same: true,
+        takeable: [false, false],
+      },
     ],
   },
 };
@@ -64,7 +86,8 @@ const withMerges: DuplicatesState = {
       reversed: [],
       kept: [],
       account: null,
-      refusal: 'The record it was merged into has itself been merged or discarded since; undo that first',
+      refusal:
+        'The record it was merged into has itself been merged or discarded since; undo that first',
     },
   ],
 };
@@ -90,10 +113,13 @@ describe('HR’s duplicate review (PEO-074)', () => {
     expect(screen.getByRole('radio', { name: /Keep Augusta Lovelace/ })).toBeDisabled();
     expect(screen.getByRole('radio', { name: /Keep Ada Lovelace/ })).toBeChecked();
     expect(screen.getByText('•••• 678Z')).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: /NIF/ })).not.toBeInTheDocument();
+    // A sealed value may not be taken: shown, not offered.
+    expect(screen.getByRole('radio', { name: /^NIF.*keep Augusta/ })).toBeDisabled();
 
     const user = fast();
-    await user.click(screen.getByRole('checkbox', { name: "Use Augusta Lovelace's Legal first name" }));
+    await user.click(
+      screen.getByRole('radio', { name: 'Legal first name: keep Augusta Lovelace' }),
+    );
     await user.click(screen.getByRole('button', { name: 'Merge' }));
     expect(screen.getByText(/1 value is copied/)).toBeInTheDocument();
     expect(onMerge).not.toHaveBeenCalled();
@@ -103,7 +129,9 @@ describe('HR’s duplicate review (PEO-074)', () => {
 
   it('says a pair are two people', async () => {
     const onDismiss = vi.fn(done);
-    render(<Duplicates {...props} onDismiss={onDismiss} load={{ status: 'ready', data: compared }} />);
+    render(
+      <Duplicates {...props} onDismiss={onDismiss} load={{ status: 'ready', data: compared }} />,
+    );
     await fast().click(screen.getByRole('button', { name: 'Not the same person' }));
     expect(onDismiss).toHaveBeenCalledWith('p1', 'p2');
   });
@@ -117,7 +145,9 @@ describe('HR’s duplicate review (PEO-074)', () => {
     expect(screen.getAllByRole('button', { name: /Undo merge of/ })).toHaveLength(1);
 
     const user = fast();
-    await user.click(screen.getByRole('button', { name: 'Undo merge of Gracie Hopper into Grace Hopper' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Undo merge of Gracie Hopper into Grace Hopper' }),
+    );
     const dialog = screen.getByRole('dialog');
     expect(await axeViolations(baseElement)).toEqual([]);
     expect(dialog).toHaveTextContent('Legal first name');
