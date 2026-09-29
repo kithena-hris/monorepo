@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
+import { PageHeader } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { CompanyPanel } from '../../components/company-panel';
 import { PasskeySignIn } from '../../components/passkey-sign-in';
 import { currentTenant } from '../../lib/branding';
 import { currentPerson } from '../../lib/session';
-
 
 /**
  * The company's own sign-in page, on the company's own hostname.
@@ -30,8 +30,9 @@ export default async function Login(): Promise<JSX.Element> {
   if ((await currentPerson()) !== null) redirect('/');
 
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
-      {/*
+    <div className="@container">
+      <div className="flex min-h-dvh flex-col @3xl:flex-row">
+        {/*
         The company's colour across the top edge, above both halves.
 
         The one piece of brand that shows even for a company that asked not to
@@ -43,13 +44,13 @@ export default async function Login(): Promise<JSX.Element> {
         Fixed rather than in the flow, so it survives the panel stacking above
         the form on a narrow screen instead of ending up halfway down the page.
       */}
-      <div aria-hidden className="bg-accent-solid fixed inset-x-0 top-0 z-10 h-[3px]" />
+        <div aria-hidden className="bg-accent-solid fixed inset-x-0 top-0 z-10 h-[3px]" />
 
-      <CompanyPanel branding={tenant.branding} />
+        <CompanyPanel branding={tenant.branding} />
 
-      <main className="mx-auto flex max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-12">
-        <div>
-          {/*
+        <main className="mx-auto flex max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-12">
+          <div>
+            {/*
             Whose page this is, said in their colour, above the instruction.
 
             The panel beside this one carries the name and the mark — and
@@ -58,19 +59,21 @@ export default async function Login(): Promise<JSX.Element> {
             keeps the form side branded in the common case without repeating
             the mark at a second size.
           */}
-          {tenant.branding.displayName === null ? null : (
-            <p className="text-accent-fg text-xs font-semibold tracking-[0.16em] uppercase">
-              {tenant.branding.displayName}
-            </p>
-          )}
-          <h1 className="mt-1 text-xl font-semibold">Sign in</h1>
-          <p className="text-fg-muted mt-1 text-sm">
-            Use the passkey on this device. There is no password to remember.
-          </p>
-        </div>
+            {tenant.branding.displayName === null ? null : (
+              <p className="text-accent-fg text-xs font-semibold tracking-[0.16em] uppercase">
+                {tenant.branding.displayName}
+              </p>
+            )}
+            <PageHeader
+              className="mt-1"
+              title="Sign in"
+              description="Use the passkey on this device. There is no password to remember."
+            />
+          </div>
 
-        <PasskeySignIn />
-      </main>
+          <PasskeySignIn />
+        </main>
+      </div>
     </div>
   );
 }

@@ -39,7 +39,7 @@ import {
 import type { Route } from 'next';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { searchPeople } from '../app/people/actions';
 import { EMPTY_SHELL, type ShellData } from '../lib/shell-data';
@@ -534,6 +534,7 @@ function PersonMenu({
   dark: boolean;
   onTheme: (next: boolean) => void;
 }): JSX.Element {
+  const signOut = useRef<HTMLFormElement>(null);
   return (
     <DropdownMenu openOnHover>
       <DropdownMenuTrigger className="hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center gap-2.5 rounded-md p-2.5 text-left shadow-[inset_0_0_0_1px_var(--reach-color-border)] focus-visible:outline-2 focus-visible:outline-offset-2 group-data-[collapsed]/sidebar:justify-center group-data-[collapsed]/sidebar:p-1 group-data-[collapsed]/sidebar:shadow-none">
@@ -558,15 +559,17 @@ function PersonMenu({
         <DropdownMenuSeparator />
         <ThemeChoice dark={dark} onChange={onTheme} />
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <form action="/auth/sign-out" method="post" className="w-full">
-            <button type="submit" className="flex w-full items-center gap-2">
-              <SignOut />
-              Sign out
-            </button>
-          </form>
+        <DropdownMenuItem
+          onSelect={() => {
+            signOut.current?.requestSubmit();
+          }}
+        >
+          <SignOut />
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
+      {/* A POST, so no prefetcher or link scanner can end a session. */}
+      <form ref={signOut} action="/auth/sign-out" method="post" hidden />
     </DropdownMenu>
   );
 }
