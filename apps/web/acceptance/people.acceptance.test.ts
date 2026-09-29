@@ -1247,8 +1247,18 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
 
     // The employee sees why on their record, and opens the field to correct it.
     await own.reload();
-    await own.getByText('HR could not accept your NIF / NIE').waitFor({ timeout: 30_000 });
-    await own.getByText(/The letter on your card is X\. Please correct it\./).waitFor();
+    // The record draws the notice for a desk and for a phone, one of them
+    // hidden: wait for whichever is shown, not for exactly one match.
+    await own
+      .getByText('HR could not accept your NIF / NIE')
+      .filter({ visible: true })
+      .first()
+      .waitFor({ timeout: 30_000 });
+    await own
+      .getByText(/The letter on your card is X\. Please correct it\./)
+      .filter({ visible: true })
+      .first()
+      .waitFor();
     await own.getByRole('button', { name: 'Correct NIF / NIE' }).click();
     await own.getByRole('form', { name: 'Identification & right to work' }).waitFor();
 
