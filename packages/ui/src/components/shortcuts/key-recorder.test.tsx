@@ -10,7 +10,7 @@ const key = (k: string, mods: Partial<Record<'metaKey' | 'ctrlKey' | 'altKey' | 
 describe('chordOf', () => {
   it('writes a key the way a shortcut is matched', () => {
     expect(chordOf(key('g'))).toBe('g');
-    expect(chordOf(key('G', { shiftKey: true }))).toBe('g');
+    expect(chordOf(key('J', { shiftKey: true }))).toBe('shift+j');
     expect(chordOf(key('?', { shiftKey: true }))).toBe('?');
     expect(chordOf(key('k', { metaKey: true }))).toBe('mod+k');
     expect(chordOf(key('K', { ctrlKey: true, shiftKey: true }))).toBe('mod+shift+k');

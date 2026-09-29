@@ -20,6 +20,8 @@ import {
   Stack,
   Stat,
   icons,
+  useScreenCommand,
+  type RowAction,
   type ChartPoint,
   type DataColumn,
 } from '@reach/ui';
@@ -388,6 +390,7 @@ function Grid({
       size="xs"
       variant="primary"
       aria-label={`Fill in ${r.name}`}
+      shortcut="row.fill"
       onClick={() => {
         setFilling({ from: r.personId });
       }}
@@ -422,6 +425,7 @@ function Grid({
       <Button
         size="xs"
         aria-label={`Remind ${r.name}`}
+        shortcut="row.remind"
         onClick={() => {
           void remind(r);
         }}
@@ -429,6 +433,34 @@ function Grid({
         Remind
       </Button>
     );
+  // The row's own action, from its menu or its key: Fill in for HR's gaps, Remind for a person's.
+  const rowActions = (r: GapRow): readonly RowAction[] =>
+    r.owner === 'hr'
+      ? [
+          {
+            id: 'fill',
+            label: 'Fill in',
+            shortcut: 'row.fill',
+            icon: <icons.edit aria-hidden />,
+            onSelect: () => {
+              setFilling({ from: r.personId });
+            },
+          },
+        ]
+      : onRemind === undefined
+        ? []
+        : [
+            {
+              id: 'remind',
+              label: recently(r) ? 'Reminded' : 'Remind',
+              shortcut: 'row.remind',
+              icon: <icons.notifications aria-hidden />,
+              disabled: recently(r),
+              onSelect: () => {
+                void remind(r);
+              },
+            },
+          ];
   const list: DataColumn<GapRow>[] = [
     { ...person, sticky: false },
     {
@@ -463,6 +495,18 @@ function Grid({
   const waiting = `${state.waiting.people.toLocaleString('en-GB')} waiting on employees`;
   const toFill = `${state.toFill.toLocaleString('en-GB')} for HR`;
   const due = state.waiting.due ?? 0;
+  // The shell's palette runs it too: "Remind 12 people".
+  useScreenCommand(
+    onRemindAll === undefined || due === 0 || filling !== null
+      ? null
+      : {
+          id: 'remind',
+          label: `Remind ${due.toLocaleString('en-GB')} ${due === 1 ? 'person' : 'people'} waiting`,
+          run: () => {
+            void remindAll();
+          },
+        },
+  );
   const change = state.complete?.change ?? null;
   const trend = state.complete?.trend ?? [];
   const failed = Object.values(asked).find((message) => message !== null);
@@ -635,6 +679,8 @@ function Grid({
             rows={state.rows}
             columns={list}
             rowId={rowId}
+            describeRow={(r) => r.name}
+            rowActions={rowActions}
             containerClassName="touch:hidden"
             empty={<EmptyState title="Nobody is missing anything" />}
           />

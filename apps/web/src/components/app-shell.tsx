@@ -42,6 +42,8 @@ import {
   TabBarItem,
   TooltipProvider,
   icons,
+  setShortcutKeys,
+  useScreenCommands,
   type CommandItem,
 } from '@reach/ui';
 import type { Route } from 'next';
@@ -66,6 +68,7 @@ import { matchPath } from '../lib/remotes';
 import {
   DEFAULT_PREFS,
   adjacentPage,
+  createOn,
   destinationOf,
   effective,
   isCharacterKey,
@@ -78,8 +81,10 @@ import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
 import {
   Shortcuts,
   ShortcutsHelp,
+  focusList,
   focusPageSearch,
   shortcutHandler,
+  submitFocused,
   useApple,
   useHint,
   useShortcuts,
@@ -245,6 +250,8 @@ function useShortcutsFor({
 }): ShortcutsValue {
   const router = useRouter();
   const apple = useApple();
+  const pathname = usePathname();
+  const commands = useScreenCommands();
   // Shown as chosen at once; the server's answer replaces it, or a refusal restores it.
   const [prefs, setPrefs] = useState(saved);
   useEffect(() => {
@@ -266,9 +273,39 @@ function useShortcutsFor({
     );
   }, [table, shell, people, timeOff]);
 
-  const run = useRef<(id: string) => boolean>(() => false);
+  // Reach's lists, rows and buttons read the same keys: one table.
   useEffect(() => {
-    run.current = (id) => {
+    setShortcutKeys({
+      keys: Object.fromEntries(table.map((s) => [s.id, s.keys])),
+      characterKeys: prefs.characterKeys,
+    });
+  }, [table, prefs.characterKeys]);
+
+  // What C makes here: what the screen offers, else the area's action for this page.
+  const offered = commands.findLast((c) => c.id === 'create');
+  const fallback = createOn(shell.actions ?? [], route, pathname);
+  const create =
+    offered !== undefined
+      ? { label: offered.label, run: offered.run }
+      : fallback === null
+        ? null
+        : {
+            label: fallback.label,
+            run: () => {
+              router.push(fallback.path);
+            },
+          };
+
+  const run = useRef<(id: string, event?: KeyboardEvent) => boolean>(() => false);
+  useEffect(() => {
+    run.current = (id, event) => {
+      if (id === 'create') {
+        if (create === null) return false;
+        create.run();
+        return true;
+      }
+      if (id === 'form.submit') return submitFocused(event?.target ?? document.activeElement);
+      if (id === 'list.next' || id === 'list.previous') return focusList();
       if (id === 'help') {
         openHelp();
         return true;
@@ -293,7 +330,7 @@ function useShortcutsFor({
     const handler = shortcutHandler({
       table,
       characterKeys: prefs.characterKeys,
-      run: (id) => run.current(id),
+      run: (id, event) => run.current(id, event),
     });
     window.addEventListener('keydown', handler);
     return () => {
@@ -321,6 +358,7 @@ function useShortcutsFor({
     destinations,
     keysFor,
     openHelp,
+    create,
     save: async (next) => {
       const before = prefs;
       setPrefs(next);
@@ -515,7 +553,13 @@ export function AppShell({
           </div>
         }
       >
-        <TopCorner shell={shell} open={paletteOpen} onOpenChange={setPaletteOpen} />
+        <TopCorner
+          shell={shell}
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          dark={dark}
+          onTheme={setTheme}
+        />
         {/*
           No boundary here, on purpose: a navigation is a transition and keeps
           this page on screen until the next is ready, and a first load waits
@@ -542,10 +586,14 @@ function TopCorner({
   shell,
   open,
   onOpenChange: setOpen,
+  dark,
+  onTheme,
 }: {
   readonly shell: ShellData;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  readonly dark: boolean;
+  readonly onTheme: (dark: boolean) => void;
 }): JSX.Element {
   return (
     <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @min-[40rem]/page:flex">
@@ -560,7 +608,13 @@ function TopCorner({
         <span className="flex-1 text-start font-normal">Search people</span>
         <KbdShortcut keys={useShortcuts().table.find((s) => s.id === 'palette')?.keys ?? []} />
       </Button>
-      <SearchPalette open={open} onOpenChange={setOpen} shell={shell} />
+      <SearchPalette
+        open={open}
+        onOpenChange={setOpen}
+        shell={shell}
+        dark={dark}
+        onTheme={onTheme}
+      />
       <Notices shell={shell} />
     </div>
   );
@@ -632,18 +686,51 @@ export function NoticeList({ shell }: { readonly shell: ShellData }): JSX.Elemen
   );
 }
 
-/** ⌘K: pages and people, from one field. */
+/** The palette's last commands on this device, most recent first: a convenience, so the browser's. */
+const RECENT = 'kithena.palette.recent';
+function recentCommands(): readonly string[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(RECENT) ?? '[]');
+    return Array.isArray(stored) ? stored.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function rememberCommand(id: string): void {
+  try {
+    localStorage.setItem(
+      RECENT,
+      JSON.stringify([id, ...recentCommands().filter((other) => other !== id)].slice(0, 5)),
+    );
+  } catch {
+    // Private windows and blocked storage: the palette simply has no recents.
+  }
+}
+
+/**
+ * ⌘K: pages, people and actions, from one field. Each action shows its keys;
+ * what was run last on this device comes first.
+ */
 function SearchPalette({
   open,
   onOpenChange,
   shell,
+  dark,
+  onTheme,
 }: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly shell: ShellData;
+  readonly dark: boolean;
+  readonly onTheme: (dark: boolean) => void;
 }): JSX.Element {
   const router = useRouter();
-  const { prefs, table, destinations, keysFor, openHelp } = useShortcuts();
+  const { prefs, table, destinations, keysFor, openHelp, create } = useShortcuts();
+  const commands = useScreenCommands();
+  const [recent, setRecent] = useState<readonly string[]>([]);
+  useEffect(() => {
+    if (open) setRecent(recentCommands());
+  }, [open]);
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<readonly { value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -717,19 +804,103 @@ function SearchPalette({
             },
           };
         })
-        .concat({
-          id: 'help',
-          label: 'Show keyboard shortcuts',
-          group: 'Help',
-          icon: iconOf('shortcuts'),
-          keywords: ['keys', 'hotkeys'],
-          ...(prefs.characterKeys
-            ? { shortcut: table.find((s) => s.id === 'help')?.keys ?? [] }
-            : {}),
-          onSelect: openHelp,
-        }),
-    [shell, router, prefs, table, destinations, keysFor, openHelp],
+        .concat(actionsOf()),
+    [shell, router, prefs, table, destinations, keysFor, openHelp, create, commands, dark, onTheme],
   );
+
+  /** What the palette runs rather than opens, each with its keys where it has some. */
+  function actionsOf(): CommandItem[] {
+    const keysOfId = (id: string): { shortcut?: readonly string[] } => {
+      const keys = table.find((s) => s.id === id)?.keys;
+      return keys === undefined || (!prefs.characterKeys && keys.some(isCharacterKey))
+        ? {}
+        : { shortcut: keys };
+    };
+    const exports = shell.sections.some((section) => section.path === '/people/import-export');
+    return [
+      ...(create === null || create === undefined
+        ? []
+        : [
+            {
+              id: 'create',
+              label: `Create… ${create.label}`,
+              group: 'Actions',
+              icon: iconOf('add'),
+              keywords: ['new', 'add'],
+              ...keysOfId('create'),
+              onSelect: create.run,
+            },
+          ]),
+      ...commands
+        .filter((c) => c.id !== 'create')
+        .map((c) => ({ id: `command:${c.id}`, label: c.label, group: 'Actions', onSelect: c.run })),
+      ...(exports
+        ? [
+            {
+              id: 'export',
+              label: 'Export people',
+              group: 'Actions',
+              icon: iconOf('export'),
+              keywords: ['download', 'csv'],
+              onSelect: () => {
+                router.push('/people/export');
+              },
+            },
+          ]
+        : []),
+      {
+        id: 'theme',
+        label: dark ? 'Switch to light mode' : 'Switch to dark mode',
+        group: 'Actions',
+        icon: iconOf('themeDark'),
+        keywords: ['theme', 'dark', 'light'],
+        onSelect: () => {
+          onTheme(!dark);
+        },
+      },
+      {
+        id: 'sidebar',
+        label: 'Collapse or expand the sidebar',
+        group: 'Actions',
+        icon: iconOf('menu'),
+        ...keysOfId('sidebar'),
+        onSelect: () => {
+          // ponytail: `PageLayout` owns the rail and answers ⌘\; the palette presses
+          // it rather than holding a second copy of that state.
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: '\\', ctrlKey: true }));
+        },
+      },
+      {
+        id: 'help',
+        label: 'Show keyboard shortcuts',
+        group: 'Actions',
+        icon: iconOf('shortcuts'),
+        keywords: ['keys', 'hotkeys'],
+        ...keysOfId('help'),
+        onSelect: openHelp,
+      },
+    ];
+  }
+
+  // Recent first: in a group of their own with nothing typed, and ahead of an
+  // equal match when something is.
+  const ranked = [...pages]
+    .map((item) => ({
+      ...item,
+      onSelect: () => {
+        rememberCommand(item.id);
+        item.onSelect?.();
+      },
+    }))
+    .toSorted((a, b) => rank(a.id) - rank(b.id));
+  function rank(id: string): number {
+    const at = recent.indexOf(id);
+    return at === -1 ? recent.length : at;
+  }
+  const shown =
+    query.trim() === ''
+      ? ranked.map((item) => (recent.includes(item.id) ? { ...item, group: 'Recent' } : item))
+      : ranked;
 
   const items = [
     ...found.map((p): CommandItem => ({
@@ -741,7 +912,7 @@ function SearchPalette({
         router.push(`/people/${p.value}` as Route);
       },
     })),
-    ...filterCommands(pages, query),
+    ...filterCommands(shown, query),
   ];
 
   return (

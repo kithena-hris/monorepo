@@ -8,6 +8,7 @@ import {
   KbdShortcut,
   ShortcutsDialog,
   Switch,
+  armSequence,
   chordOf,
 } from '@reach/ui';
 import Link from 'next/link';
@@ -38,44 +39,97 @@ function typing(target: EventTarget | null): boolean {
 }
 
 /**
- * One keydown listener for every shortcut in `table` the shell does itself:
- * the go-to sequences, `/`, `[`, `]` and `?`. The keys with a modifier that
- * Reach components answer (⌘K, ⌘\) and Escape are theirs, and left alone.
+ * The shortcuts the shell does itself, at the window: going somewhere, `/`,
+ * `[` `]`, `?`, C, ⌘Enter, and J or K into the page's list when no row has
+ * focus yet. A focused row's keys (J, K, X, A…) are the Reach list's, which
+ * answers first and marks the key handled; ⌘K, ⌘\ and Escape belong to the
+ * components that answer them.
  *
- * Never while a field has the key, never for a key something else already
- * handled, never a single-key shortcut with ⌘, Ctrl or Alt held (that chord
- * is a different one), and no single-key shortcut at all once a person has
- * turned them off. `run` does the shortcut and says whether there was
- * anything to do: a key that does nothing here is left to the page.
+ * Never while a field has the key (⌘Enter excepted: submitting from a field
+ * is the point), never for a key something else already handled, never a
+ * single-key shortcut with ⌘, Ctrl or Alt held (that chord is a different
+ * one), and no single-key shortcut at all once a person has turned them off.
+ * While a sequence waits for its second key, Reach's lists are told
+ * (`armSequence`), so G then M goes to a profile rather than merging the
+ * focused pair. `run` does the shortcut and says whether there was anything
+ * to do: a key that does nothing here is left to the page.
  */
 export function shortcutHandler(options: {
   readonly table: readonly Shortcut[];
   readonly characterKeys: boolean;
-  readonly run: (id: string) => boolean;
+  readonly run: (id: string, event: KeyboardEvent) => boolean;
   readonly now?: () => number;
 }): (event: KeyboardEvent) => void {
   const { characterKeys, run, now = () => Date.now() } = options;
-  const live = options.table.filter((s) => s.fixed !== true || s.id === 'help');
+  const live = options.table.filter(
+    (s) =>
+      (s.fixed !== true || s.id === 'help') &&
+      (s.scope === undefined || s.id === 'list.next' || s.id === 'list.previous'),
+  );
   const find = (keys: readonly string[]): Shortcut | undefined =>
     live.find((s) => s.keys.length === keys.length && s.keys.every((k, i) => k === keys[i]));
+  const submit = options.table.find((s) => s.id === 'form.submit');
   let armed: { readonly chord: string; readonly at: number } | null = null;
+  const arm = (next: typeof armed): void => {
+    armed = next;
+    armSequence(next === null ? 0 : SEQUENCE_MS);
+  };
 
   return (event) => {
-    if (event.defaultPrevented || event.isComposing || typing(event.target)) return;
+    if (event.defaultPrevented || event.isComposing) return;
     const chord = chordOf(event);
     if (chord === null) return;
+    if (typing(event.target)) {
+      // The one shortcut that belongs in a field.
+      if (submit?.keys.length === 1 && submit.keys[0] === chord && run(submit.id, event)) {
+        event.preventDefault();
+      }
+      return;
+    }
     const previous = armed !== null && now() - armed.at < SEQUENCE_MS ? armed.chord : null;
-    armed = null;
+    arm(null);
     if (!characterKeys && isCharacterKey(chord)) return;
     const match = (previous === null ? undefined : find([previous, chord])) ?? find([chord]);
     if (match !== undefined && (characterKeys || !match.keys.some(isCharacterKey))) {
-      if (run(match.id)) event.preventDefault();
+      if (run(match.id, event)) event.preventDefault();
       return;
     }
     if (live.some((s) => s.keys.length === 2 && s.keys[0] === chord)) {
-      armed = { chord, at: now() };
+      arm({ chord, at: now() });
     }
   };
+}
+
+/**
+ * ⌘Enter: the form the focus is in, submitted as its submit button would;
+ * outside a form, the primary button of the dialog it is in.
+ */
+export function submitFocused(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  const form = target.closest('form');
+  if (form !== null) {
+    form.requestSubmit();
+    return true;
+  }
+  const dialog = target.closest('[role="dialog"], [role="alertdialog"]');
+  const primary = [
+    ...(dialog?.querySelectorAll<HTMLButtonElement>(
+      'button[type="submit"], button[data-variant="primary"], button[data-variant="danger"]',
+    ) ?? []),
+  ].findLast((b) => !b.disabled);
+  if (primary === undefined) return false;
+  primary.click();
+  return true;
+}
+
+/** J or K with no row focused: into the page's list, on its row in the tab order. */
+export function focusList(): boolean {
+  const row = document.querySelector<HTMLElement>(
+    'main [data-roving-row][tabindex="0"], main [data-list-row][tabindex="0"]',
+  );
+  if (row === null) return false;
+  row.focus();
+  return true;
 }
 
 /** The page's own search, focused, when it has one on screen. */
@@ -98,6 +152,8 @@ export interface ShortcutsValue {
   /** The keys a hint beside a link to `path` shows, while they work. */
   readonly keysFor: (path: string) => readonly string[] | undefined;
   readonly openHelp: () => void;
+  /** What C makes on this page, and makes it; null where the page makes nothing. */
+  readonly create?: { readonly label: string; readonly run: () => void } | null;
   /** Saves, then draws the shell again with them; the refusal's sentence, or null. */
   readonly save: (prefs: ShortcutPrefs) => Promise<string | null>;
 }

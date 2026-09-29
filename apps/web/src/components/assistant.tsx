@@ -102,6 +102,7 @@ export function Assistant(): JSX.Element {
     return (
       <AssistantLauncher
         label="Ask Kithena"
+        shortcut="assistant"
         onOpen={() => {
           setOpen(true);
         }}

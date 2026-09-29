@@ -27,6 +27,8 @@ export interface ShellData {
   readonly roles: { readonly hr: boolean; readonly admin: boolean; readonly finance: boolean };
   readonly sections: readonly Place[];
   readonly settings: readonly Place[];
+  /** What can be started from a page (Add person), each where it is offered (`on`). */
+  readonly actions?: readonly Place[];
   /** Every People route, as its manifest writes them: which one the address is (`matchPath`). */
   readonly routes: readonly string[];
   /** By a section's path: only what needs somebody to act, never a total. */

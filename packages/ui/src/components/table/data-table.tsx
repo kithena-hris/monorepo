@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type FocusEvent,
   type JSX,
   type KeyboardEvent,
   type ReactNode,
@@ -56,9 +57,17 @@ import { ArrowUpDown, ChevronRight, GripVertical, X } from 'lucide-react';
 
 import { bulkBarClass } from '../../lib/bulk-bar';
 import { cn } from '../../lib/cn';
+import {
+  actionPressed,
+  pressed,
+  sequenceArmed,
+  useShortcutKeys,
+  type RowAction,
+} from '../../lib/shortcut-keys';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
 import { Spinner } from '../spinner/spinner';
+import { RowMenu } from './row-menu';
 import {
   Table,
   TableBody,
@@ -108,6 +117,18 @@ import {
  *
  * It keys on the pointer (`touch:`), never the viewport: a phone-sized window
  * on a desk still has a mouse and still wants columns.
+ *
+ * ### It moves from the keyboard
+ *
+ * A table whose rows do something (open, select, preview, act) is a grid with
+ * a roving row focus: Tab reaches one row, and from it J and K or ↓ and ↑ move
+ * the focus, Home and End jump, Enter or O opens (`onRowClick`), X selects,
+ * ⇧J and ⇧K (or ⇧↓ ⇧↑) extend the selection, Space previews
+ * (`onRowPreview`), a `rowActions` key runs that action, and Escape clears
+ * the selection, then leaves the row. The letters are the app's to change
+ * (`setShortcutKeys`) and go quiet when it turns character keys off; the
+ * arrows, Enter and Escape always work. A screen reader hears a grid, the row
+ * it is on, and whether the row is selected.
  */
 
 /*
@@ -389,7 +410,21 @@ export interface DataTableProps<T extends TableRow> {
 
   /** A word for what a row is, used in every generated control name. */
   describeRow?: (row: T) => string;
+  /** A click on the row; also Enter or O, unless `onRowOpen` says otherwise. */
   onRowClick?: (row: T) => void;
+  /**
+   * Enter or O on the focused row, where opening differs from a click: a
+   * click previews, Enter goes to the record.
+   */
+  onRowOpen?: (row: T) => void;
+  /** Space on the focused row: a quick look at it, without leaving the list. */
+  onRowPreview?: (row: T) => void;
+  /**
+   * What can be done to one row: a menu at the row's end listing each with its
+   * keys, which also run it while the row has focus. A destructive one
+   * confirms in its own `onSelect`.
+   */
+  rowActions?: (row: T) => readonly RowAction[];
   /**
    * The row whose record is open beside the table, in a quick look or a
    * detail pane: marked with the accent edge and `aria-current`, so the
@@ -456,6 +491,9 @@ export function DataTable<T extends TableRow>({
   onReorder,
   describeRow,
   onRowClick,
+  onRowOpen = onRowClick,
+  onRowPreview,
+  rowActions,
   activeRowId = null,
   empty = 'Nothing to show.',
   stickyHeader = false,
@@ -714,7 +752,95 @@ export function DataTable<T extends TableRow>({
     : items.map((item, index) => ({ item, index }));
 
   const leadingColumns = (renderDetail ? 1 : 0) + (selectable ? 1 : 0) + (canReorder ? 1 : 0);
-  const totalColumns = columns.length + leadingColumns;
+  const totalColumns = columns.length + leadingColumns + (rowActions ? 1 : 0);
+
+  /*
+   * The keyboard. A roving row focus: one row is in the tab order (the last
+   * one focused, else the first), and the keys move it. Only a table whose
+   * rows do something takes it; a table to read keeps its plain semantics.
+   */
+  const keys = useShortcutKeys();
+  const moves =
+    onRowOpen !== undefined ||
+    selectable ||
+    rowActions !== undefined ||
+    onRowPreview !== undefined;
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const tabbableId = focusId !== null && place.has(focusId) ? focusId : (ids[0] ?? null);
+  // Where a ⇧J run started, and what was selected before it: moving back
+  // over the run deselects what it selected, and nothing else.
+  const anchor = useRef<{ id: string; base: readonly string[] } | null>(null);
+  const focusRow = (id: string): void => {
+    setFocusId(id);
+    if (virtualized) {
+      const at = items.findIndex((item) => item.kind === 'row' && rowId(item.row) === id);
+      if (at >= 0) virtualizer.scrollToIndex(at);
+    }
+    requestAnimationFrame(() => {
+      const row = [
+        ...(scrollRef.current?.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]') ?? []),
+      ].find((el) => el.dataset['rowId'] === id);
+      row?.focus();
+    });
+  };
+  const onRowKey = (row: T, id: string, event: KeyboardEvent<HTMLTableRowElement>): void => {
+    // The row's own keys, not those of a control inside it, nor the second
+    // key of a sequence the app is waiting on (G then M).
+    if (event.target !== event.currentTarget || sequenceArmed()) return;
+    const index = ids.indexOf(id);
+    const plain = !event.metaKey && !event.ctrlKey && !event.altKey;
+    const arrow = (key: string): boolean => plain && event.key === key;
+    const is = (shortcut: string): boolean => pressed(event, shortcut, keys);
+    const go = (to: number): void => {
+      const next = ids[Math.max(0, Math.min(ids.length - 1, to))];
+      if (next !== undefined) focusRow(next);
+    };
+    const extend = (step: 1 | -1): void => {
+      const start = anchor.current ?? { id, base: [...picked] };
+      anchor.current = start;
+      const to = Math.max(0, Math.min(ids.length - 1, index + step));
+      const from = ids.indexOf(start.id);
+      const run = ids.slice(Math.min(from, to), Math.max(from, to) + 1);
+      setPicked([...new Set([...start.base, ...run])]);
+      go(to);
+    };
+    let handled = true;
+    if ((arrow('ArrowDown') && !event.shiftKey) || is('list.next')) {
+      anchor.current = null;
+      go(index + 1);
+    } else if ((arrow('ArrowUp') && !event.shiftKey) || is('list.previous')) {
+      anchor.current = null;
+      go(index - 1);
+    } else if (arrow('Home')) go(0);
+    else if (arrow('End')) go(ids.length - 1);
+    else if (selectable && ((arrow('ArrowDown') && event.shiftKey) || is('list.extend-next'))) {
+      extend(1);
+    } else if (selectable && ((arrow('ArrowUp') && event.shiftKey) || is('list.extend-previous'))) {
+      extend(-1);
+    } else if (selectable && is('list.select')) {
+      anchor.current = null;
+      setPicked(picked.has(id) ? [...picked].filter((entry) => entry !== id) : [...picked, id]);
+    } else if (onRowOpen !== undefined && ((arrow('Enter') && !event.shiftKey) || is('list.open'))) {
+      onRowOpen(row);
+    } else if (onRowPreview !== undefined && is('list.preview')) {
+      onRowPreview(row);
+    } else if (arrow('Escape')) {
+      // First the selection; with none, out of the list.
+      if (picked.size > 0) setPicked([]);
+      else {
+        event.currentTarget.blur();
+        handled = false;
+      }
+    } else {
+      const action = rowActions === undefined ? undefined : actionPressed(event, rowActions(row), keys);
+      if (action === undefined) handled = false;
+      else action.onSelect();
+    }
+    if (handled) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
   const hasTrailing = columns.some((column) => column.cardTrailing);
 
   // Near the end of what is loaded: on scroll, and whenever the rows change,
@@ -807,6 +933,8 @@ export function DataTable<T extends TableRow>({
       dense={dense}
       aria-label={label}
       containerRef={scrollRef}
+      {...(moves ? { role: 'grid' } : {})}
+      {...(moves && selectable ? { 'aria-multiselectable': true } : {})}
       // Only when virtualized. On a fully rendered table the DOM already tells
       // the truth, and a redundant count is one more thing to get wrong.
       {...(virtualized ? { 'aria-rowcount': items.length + 1 } : {})}
@@ -906,6 +1034,12 @@ export function DataTable<T extends TableRow>({
               </TableHead>
             );
           })}
+
+          {rowActions ? (
+            <TableHead className="w-12 touch:hidden">
+              <span className="sr-only">Actions</span>
+            </TableHead>
+          ) : null}
         </TableRow>
         {activeSorts.length > 0 ? (
           // The phone's readout of the sort: the header row is gone, so this
@@ -1027,6 +1161,21 @@ export function DataTable<T extends TableRow>({
                 {...(virtualized ? { 'aria-rowindex': rowIndex + 2 } : {})}
                 reorderable={canReorder}
                 selected={picked.has(id)}
+                {...(moves
+                  ? {
+                      tabIndex: id === tabbableId ? 0 : -1,
+                      'data-row-id': id,
+                      'data-roving-row': true,
+                      // A grid's row says whether it is selected either way.
+                      ...(selectable ? { 'aria-selected': picked.has(id) } : {}),
+                      onKeyDown: (event: KeyboardEvent<HTMLTableRowElement>) => {
+                        onRowKey(row, id, event);
+                      },
+                      onFocus: (event: FocusEvent<HTMLTableRowElement>) => {
+                        if (event.target === event.currentTarget) setFocusId(id);
+                      },
+                    }
+                  : {})}
                 {...(activeRowId === id
                   ? {
                       'aria-current': true as const,
@@ -1132,6 +1281,12 @@ export function DataTable<T extends TableRow>({
                     {column.cell(row)}
                   </TableCell>
                 ))}
+
+                {rowActions ? (
+                  <TableCell className="w-12 touch:hidden">
+                    <RowMenu name={name} actions={rowActions(row)} />
+                  </TableCell>
+                ) : null}
 
                 {onRowClick && !renderDetail ? (
                   // A card that opens something says so with a chevron. It
@@ -1290,6 +1445,12 @@ function DataRow({
   'data-striped'?: boolean;
   'aria-current'?: true;
   'data-active'?: boolean;
+  'aria-selected'?: boolean;
+  tabIndex?: number;
+  'data-row-id'?: string;
+  'data-roving-row'?: boolean;
+  onKeyDown?: (event: KeyboardEvent<HTMLTableRowElement>) => void;
+  onFocus?: (event: FocusEvent<HTMLTableRowElement>) => void;
 }): JSX.Element {
   const {
     attributes,
@@ -1318,6 +1479,8 @@ function DataRow({
         isDragging && 'z-10 rounded-md bg-surface-raised shadow-lg [rotate:-0.5deg]',
         // The open record: an accent edge down the leading side, on the fill.
         'data-active:bg-accent-subtle data-active:shadow-[inset_3px_0_0_var(--reach-color-accent)]',
+        // The row the keyboard is on: a wash and a ring, visible without a pointer.
+        'focus-visible:bg-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
       )}
       {...(onClick ? { onClick } : {})}
       {...rest}

@@ -94,12 +94,13 @@ export function Kbd({ className, keyName, children, ...props }: KbdProps): JSX.E
 }
 
 /**
- * A keyboard event as a chord: `'g'`, `'?'`, `'mod+k'`, `'mod+shift+d'`,
- * `'escape'`. `null` for a modifier pressed on its own.
+ * A keyboard event as a chord: `'g'`, `'shift+j'`, `'?'`, `'mod+k'`,
+ * `'mod+shift+d'`, `'escape'`. `null` for a modifier pressed on its own.
  *
  * `mod` is ⌘ or Ctrl, whichever was held, the way `Kbd` prints it. Shift is
- * named only where the character does not already carry it: `?` is `'?'`,
- * not Shift+/, while Shift+Enter is `'shift+enter'`. `event.key` rather than
+ * named where it changes what the key means — a letter (Shift+J is not J), or
+ * a key that types nothing (Shift+Enter) — and not where the character
+ * already carries it: `?` is `'?'`, not Shift+/. `event.key` rather than
  * `code`, so a Dvorak or AZERTY layout gets the letter it is looking at.
  */
 export function chordOf(
@@ -112,7 +113,7 @@ export function chordOf(
   const modifiers: string[] = [];
   if (event.metaKey || event.ctrlKey) modifiers.push('mod');
   if (event.altKey) modifiers.push('alt');
-  const character = key.length === 1 && key !== ' ';
+  const character = key.length === 1 && key !== ' ' && !/^[a-z]$/i.test(key);
   if (event.shiftKey && (!character || modifiers.length > 0)) modifiers.push('shift');
   return [...modifiers, key === ' ' ? 'space' : key.toLowerCase()].join('+');
 }

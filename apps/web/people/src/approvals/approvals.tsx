@@ -134,12 +134,42 @@ function Inbox({
   const [now] = useState(() => Date.now());
 
   const list = (
-    <List aria-label="Changes waiting for a decision">
+    // J and K through the changes; A approves the focused one and R declines
+    // it, each through the same confirmation a click opens.
+    <List navigable aria-label="Changes waiting for a decision">
       {shown.map((item) => (
         <ListItem
           key={item.id}
           asChild
           selected={item.id === current?.id}
+          {...(item.canDecide
+            ? {
+                actions: [
+                  ...(item.awaitingReview === true
+                    ? []
+                    : [
+                        {
+                          id: 'approve',
+                          label: 'Approve',
+                          shortcut: 'row.approve',
+                          onSelect: () => {
+                            setPicked(item.id);
+                            setDeciding({ item, approve: true });
+                          },
+                        },
+                      ]),
+                  {
+                    id: 'decline',
+                    label: 'Reject',
+                    shortcut: 'row.decline',
+                    onSelect: () => {
+                      setPicked(item.id);
+                      setDeciding({ item, approve: false });
+                    },
+                  },
+                ],
+              }
+            : {})}
           leading={<Avatar size="lg" name={item.name} />}
           description={`${item.label} · from ${longDate(item.effectiveFrom)}`}
           meta={daysLeft(item.expiresAt, now)}
@@ -367,6 +397,7 @@ function Detail({
           <>
             <Button
               aria-label={`Reject the change to ${item.name}'s ${item.label}`}
+              shortcut="row.decline"
               onClick={() => {
                 onDecide(false);
               }}
@@ -378,6 +409,7 @@ function Detail({
                 variant="primary"
                 startIcon={<icons.confirm aria-hidden />}
                 aria-label={`Approve the change to ${item.name}'s ${item.label}`}
+                shortcut="row.approve"
                 onClick={() => {
                   onDecide(true);
                 }}

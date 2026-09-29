@@ -481,7 +481,7 @@ export { ListDetail } from './components/list-detail/list-detail';
 export type { ListDetailProps } from './components/list-detail/list-detail';
 
 export { List, ListItem } from './components/list-item/list-item';
-export type { ListItemProps, SwipeAction } from './components/list-item/list-item';
+export type { ListItemProps, ListProps, SwipeAction } from './components/list-item/list-item';
 
 export {
   ModalPage,
@@ -771,6 +771,22 @@ export type { IconGroup, IconName, LucideIcon } from './icons/index';
 
 export { brandRamp } from './lib/brand-ramp';
 export { cn } from './lib/cn';
+export {
+  LIST_KEYS,
+  armSequence,
+  isCharacterChord,
+  keysOf,
+  pressed,
+  runScreenCommand,
+  screenCommands,
+  sequenceArmed,
+  setShortcutKeys,
+  shortcutKeys,
+  useScreenCommand,
+  useScreenCommands,
+  useShortcutKeys,
+} from './lib/shortcut-keys';
+export type { RowAction, ScreenCommand, ShortcutKeys } from './lib/shortcut-keys';
 export { PortalContainerProvider, usePortalContainer } from './lib/portal-container';
 
 export {

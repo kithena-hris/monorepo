@@ -10,18 +10,32 @@ import { currentPlace, currentTab, type Place } from './remotes';
  * all read this table, through `effective`, which lays a person's own keys
  * over it. Nothing else names a key.
  *
- * Going somewhere is `G` then a letter: two keys, so one stray press never
- * moves anybody, and every destination under one memorable prefix. Within a
- * page, `/` searches it and `[` `]` step through its tabs or views. The keys
- * with a modifier belong to the Reach components that handle them (⌘K the
- * palette, ⌘\ the sidebar) and are listed here so they can be shown and so
- * nothing is bound over them.
+ * Linear's way, for an HR tool. Going somewhere is `G` then a letter: two
+ * keys, so one stray press never moves anybody, and every destination under
+ * one memorable prefix. Within a page, `/` searches it and `[` `]` step
+ * through its tabs or views. A list moves on J and K, opens on Enter or O,
+ * selects on X; the focused row's own actions are single letters (A approves,
+ * R declines), and C creates whatever the page makes. The keys with a
+ * modifier that Reach components answer (⌘K the palette, ⌘\ the sidebar) and
+ * Escape are listed so they can be shown and so nothing is bound over them.
+ *
+ * `scope` says when a key is live. Global keys always; `list` keys while a
+ * row of a list has focus, with the global ones; a `row:` scope's keys while a
+ * row of that screen has focus. Two keys clash when they can be live at once:
+ * a row key of Approvals may share its letter with one of Completeness, never
+ * with a global or a list key.
  *
  * Pure, and no `server-only`: the settings page validates a change with it as
  * it is recorded, and its server action validates the whole set again.
  */
 
-export type ShortcutGroupName = 'Go to' | 'On a page' | 'Everywhere';
+export type ShortcutGroupName =
+  | 'Navigation'
+  | 'Lists'
+  | 'Actions'
+  | 'Create'
+  | 'Forms'
+  | 'Everywhere';
 
 export interface Shortcut {
   readonly id: string;
@@ -40,16 +54,42 @@ export interface Shortcut {
   readonly icon?: string;
   /** Handled by a Reach component or the browser: listed, reserved, never rebound. */
   readonly fixed?: true;
+  /** When it is live: everywhere (absent), in a focused list, or on one screen's focused row. */
+  readonly scope?: 'list' | `row:${string}`;
 }
 
 const go = (id: string, label: string, letter: string, href: string, icon?: string): Shortcut => ({
   id: `go.${id}`,
-  group: 'Go to',
+  group: 'Navigation',
   label,
   does: `opens ${label}`,
   keys: ['g', letter],
   href,
   ...(icon === undefined ? {} : { icon }),
+});
+
+const list = (id: string, label: string, does: string, keys: readonly string[]): Shortcut => ({
+  id: `list.${id}`,
+  group: 'Lists',
+  label,
+  does,
+  keys,
+  scope: 'list',
+});
+
+const row = (
+  screen: string,
+  id: string,
+  label: string,
+  does: string,
+  key: string,
+): Shortcut => ({
+  id: `row.${id}`,
+  group: 'Actions',
+  label,
+  does,
+  keys: [key],
+  scope: `row:${screen}`,
 });
 
 export const SHORTCUTS: readonly Shortcut[] = [
@@ -70,30 +110,76 @@ export const SHORTCUTS: readonly Shortcut[] = [
   go('shortcuts', 'Keyboard shortcuts', 'k', '/settings/shortcuts', 'shortcuts'),
   {
     id: 'page.search',
-    group: 'On a page',
+    group: 'Navigation',
     label: 'Search this page',
     does: 'searches the page',
     keys: ['/'],
   },
   {
     id: 'page.previous',
-    group: 'On a page',
+    group: 'Navigation',
     label: 'Previous tab or view',
     does: 'moves to the previous tab',
     keys: ['['],
   },
   {
     id: 'page.next',
-    group: 'On a page',
+    group: 'Navigation',
     label: 'Next tab or view',
     does: 'moves to the next tab',
     keys: [']'],
   },
+  // First of the three Escapes, so a clash names the one everybody knows.
   {
     id: 'page.close',
-    group: 'On a page',
+    group: 'Everywhere',
     label: 'Close what is open',
     does: 'closes what is open',
+    keys: ['escape'],
+    fixed: true,
+  },
+  list('next', 'Next row (or ↓)', 'moves to the next row', ['j']),
+  list('previous', 'Previous row (or ↑)', 'moves to the previous row', ['k']),
+  list('open', 'Open the row (or Enter)', 'opens the row', ['o']),
+  list('select', 'Select the row', 'selects the row', ['x']),
+  list('extend-next', 'Select down (or ⇧↓)', 'extends the selection down', ['shift+j']),
+  list('extend-previous', 'Select up (or ⇧↑)', 'extends the selection up', ['shift+k']),
+  list('preview', 'Quick look', 'opens the quick look', ['space']),
+  {
+    id: 'list.clear',
+    group: 'Lists',
+    label: 'Clear the selection, then leave',
+    does: 'clears the selection',
+    keys: ['escape'],
+    fixed: true,
+    scope: 'list',
+  },
+  row('approvals', 'approve', 'Approve (Approvals)', 'approves the change', 'a'),
+  row('approvals', 'decline', 'Decline (Approvals)', 'declines the change', 'r'),
+  row('duplicates', 'merge', 'Compare or merge (Duplicates)', 'compares the pair', 'm'),
+  row('duplicates', 'not-same', 'Not the same person (Duplicates)', 'keeps the pair apart', 'n'),
+  row('completeness', 'fill', 'Fill in (Completeness)', 'fills in the gaps', 'f'),
+  row('completeness', 'remind', 'Remind (Completeness)', 'sends a reminder', 'r'),
+  row('directory', 'edit', 'Edit the profile (Directory)', 'edits the profile', 'e'),
+  {
+    id: 'create',
+    group: 'Create',
+    label: 'Create what this page makes: a person, a schedule, an export',
+    does: 'creates',
+    keys: ['c'],
+  },
+  {
+    id: 'form.submit',
+    group: 'Forms',
+    label: 'Submit the form or dialog',
+    does: 'submits the form',
+    keys: ['mod+enter'],
+  },
+  {
+    id: 'form.cancel',
+    group: 'Forms',
+    label: 'Cancel',
+    does: 'cancels',
     keys: ['escape'],
     fixed: true,
   },
@@ -108,7 +194,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'palette',
     group: 'Everywhere',
-    label: 'Search people and pages',
+    label: 'Search and run a command',
     does: 'opens search',
     keys: ['mod+k'],
     fixed: true,
@@ -131,7 +217,14 @@ export const SHORTCUTS: readonly Shortcut[] = [
   },
 ];
 
-export const GROUPS: readonly ShortcutGroupName[] = ['Go to', 'On a page', 'Everywhere'];
+export const GROUPS: readonly ShortcutGroupName[] = [
+  'Navigation',
+  'Lists',
+  'Actions',
+  'Create',
+  'Forms',
+  'Everywhere',
+];
 
 /** A chord's keys: `'mod+k'` is `['mod', 'k']`, `'mod++'` is `['mod', '+']`. Reach's `keysOfChord`. */
 function keysOf(chord: string): string[] {
@@ -139,10 +232,16 @@ function keysOf(chord: string): string[] {
   return chord.endsWith('++') ? [...chord.slice(0, -2).split('+'), '+'] : chord.split('+');
 }
 
-/** A chord with no modifier: a key that types a character, which WCAG 2.1.4 lets a person turn off. */
+/**
+ * A chord that types a character: a letter, a digit, a symbol or Space, with
+ * Shift or without and nothing else held. What WCAG 2.1.4 lets a person turn
+ * off. Reach's `isCharacterChord`, which this file cannot import: its server
+ * action must not load the design system.
+ */
 export function isCharacterKey(chord: string): boolean {
   const keys = keysOf(chord);
-  return keys.length === 1 && (keys[0]?.length === 1 || chord === 'space');
+  const key = keys.at(-1) ?? '';
+  return keys.slice(0, -1).every((k) => k === 'shift') && (key.length === 1 || key === 'space');
 }
 
 const WORDS: Readonly<Record<string, readonly [apple: string, other: string]>> = {
@@ -254,6 +353,13 @@ const RESERVED: ReadonlySet<string> = new Set([
   'f12',
 ]);
 
+/** Whether two shortcuts can be live at the same moment, and so must not share keys. */
+function together(a: Shortcut, b: Shortcut): boolean {
+  if (a.scope === undefined || b.scope === undefined) return true;
+  if (a.scope === 'list' || b.scope === 'list') return true;
+  return a.scope === b.scope;
+}
+
 const startsWith = (keys: readonly string[], prefix: readonly string[]): boolean =>
   prefix.length < keys.length && prefix.every((chord, i) => keys[i] === chord);
 const same = (a: readonly string[], b: readonly string[]): boolean =>
@@ -276,14 +382,23 @@ export function problemWith(
   apple = false,
 ): string | null {
   const say = (k: readonly string[]): string => spoken(k, apple);
+  const self = table.find((s) => s.id === id) ?? SHORTCUTS.find((s) => s.id === id);
+  const initial = SHORTCUTS.find((s) => s.id === id)?.keys ?? [];
   if (keys.length === 0) return 'Press the keys for this shortcut.';
   if (keys.length > 2) return 'A shortcut is one key or two in a row. Choose another.';
-  const owned = keys.find((chord) => RESERVED.has(chord));
+  if (self?.scope !== undefined && keys.length > 1) {
+    return 'A key for a list or a row is one key, with or without a modifier. Choose another.';
+  }
+  // Its own default is allowed: Space previews a list, where nothing scrolls.
+  const owned = same(keys, initial) ? undefined : keys.find((chord) => RESERVED.has(chord));
   if (owned !== undefined) {
     return `${say([owned])} belongs to your browser or computer. Choose another.`;
   }
   for (const other of table) {
     if (other.id === id) continue;
+    // Escape is three fixed things at once, each where it belongs.
+    if (self?.fixed === true && other.fixed === true) continue;
+    if (self !== undefined && !together(self, other)) continue;
     if (same(keys, other.keys)) {
       return `${say(keys)} already ${other.does}. Choose another.`;
     }
@@ -338,6 +453,25 @@ export function destinationOf(shortcut: Shortcut, reach: Reachable): string | nu
   if (href === '/time-off') return reach.timeOff ? href : null;
   if (href === '/settings/activity') return reach.activity ? href : null;
   return href;
+}
+
+/**
+ * What C makes on this page when the screen itself offers nothing
+ * (`useScreenCommand('create')` wins): the area's action offered here (Add
+ * person, on People's pages), or a new export from Import & export.
+ */
+export function createOn(
+  actions: readonly Place[],
+  route: string | null,
+  pathname: string,
+): { readonly label: string; readonly path: string } | null {
+  const here = route ?? pathname;
+  const action = actions.find((a) =>
+    a.on === undefined ? pathname.startsWith('/people') : a.on.includes(here),
+  );
+  if (action !== undefined) return { label: action.label, path: action.path };
+  if (pathname === '/people/import-export') return { label: 'New export', path: '/people/export' };
+  return null;
 }
 
 /** The Directory's views, in the order its switch shows them. */
