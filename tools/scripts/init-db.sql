@@ -52,6 +52,11 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_slack') THEN
     CREATE ROLE svc_slack LOGIN PASSWORD 'kithena' NOBYPASSRLS;
   END IF;
+  -- The audit service (`docs/audit.md`). NOBYPASSRLS: the log carries a
+  -- tenant policy, and one company's log is nobody else's.
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_audit') THEN
+    CREATE ROLE svc_audit LOGIN PASSWORD 'kithena' NOBYPASSRLS;
+  END IF;
 END $$;
 
 GRANT USAGE ON SCHEMA people   TO svc_people;
