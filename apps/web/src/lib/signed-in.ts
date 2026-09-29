@@ -1,10 +1,20 @@
 import 'server-only';
 
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { currentTenant } from './branding';
 import { currentPerson, displayName } from './session';
 import { shellData, type ShellData } from './shell';
+import { SIDEBAR_COOKIE, sidebarCollapsedFrom } from './sidebar';
+
+/**
+ * Whether this device keeps the sidebar collapsed, from its cookie, for the
+ * shell's first render; `undefined` when it has never said.
+ */
+export async function sidebarCollapsed(): Promise<boolean | undefined> {
+  return sidebarCollapsedFrom((await cookies()).get(SIDEBAR_COOKIE)?.value);
+}
 
 /**
  * Who is signed in, as the shell draws them, and the shell's People data: the
@@ -17,10 +27,15 @@ export async function signedIn(): Promise<{
   readonly company: string;
   readonly logoUrl: string | null;
   readonly shell: ShellData;
+  readonly sidebarCollapsed: boolean | undefined;
 }> {
   const person = await currentPerson();
   if (person === null) redirect('/login');
-  const [tenant, shell] = await Promise.all([currentTenant(), shellData(person.entitlements)]);
+  const [tenant, shell, collapsed] = await Promise.all([
+    currentTenant(),
+    shellData(person.entitlements),
+    sidebarCollapsed(),
+  ]);
   return {
     person: {
       name:
@@ -33,5 +48,6 @@ export async function signedIn(): Promise<{
     company: tenant?.branding.displayName ?? tenant?.slug ?? 'your company',
     logoUrl: tenant?.branding.logoUrl ?? null,
     shell,
+    sidebarCollapsed: collapsed,
   };
 }

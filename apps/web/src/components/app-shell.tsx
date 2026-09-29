@@ -47,6 +47,7 @@ import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from '
 
 import { searchPeople } from '../app/people/actions';
 import { EMPTY_SHELL, type ShellData } from '../lib/shell-data';
+import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { THEME_KEY } from '../lib/theme';
 import { Assistant } from './assistant';
 import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
@@ -97,6 +98,13 @@ export interface AppShellProps {
   readonly shell?: ShellData;
   /** The People manifest route on screen, to mark it in the menu. */
   readonly route?: string | null;
+  /**
+   * Whether this device keeps the sidebar collapsed, read from its cookie on
+   * the server (`sidebarCollapsed`), so the first paint is already the rail
+   * or the full sidebar. `undefined`: never chosen, and a narrow layout starts
+   * as the rail.
+   */
+  readonly sidebarCollapsed?: boolean | undefined;
   readonly children: ReactNode;
 }
 
@@ -215,6 +223,7 @@ export function AppShell({
   entitlements,
   shell = EMPTY_SHELL,
   route = null,
+  sidebarCollapsed,
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
@@ -233,9 +242,14 @@ export function AppShell({
     <TooltipProvider>
       <PageLayout
         preset="sidebar"
-        // Collapsed or not is remembered on this device; with nothing
-        // remembered, a layout under 1024px starts as the rail.
-        sidebarCollapse={{ mode: 'rail', storageKey: SIDEBAR_KEY }}
+        // Collapsed or not is remembered on this device, in a cookie the
+        // server reads; with nothing remembered, a layout under 1024px starts
+        // as the rail.
+        sidebarCollapse={{
+          mode: 'rail',
+          ...(sidebarCollapsed === undefined ? {} : { defaultCollapsed: sidebarCollapsed }),
+          onCollapsedChange: rememberSidebar,
+        }}
         bottomBar={<MobileTabs areas={areas} inbox={shell.notices.length} />}
         bottomBarVariant="floating"
         // Where the sidebar is (a 40rem container), the tab bar is not.
@@ -771,8 +785,13 @@ export function AccountSheet({
   );
 }
 
-/** Where this device remembers whether the sidebar is collapsed. */
-const SIDEBAR_KEY = 'kithena.sidebar';
+/**
+ * Remembers the person's choice for the server's next render. A year, like
+ * any preference; `Lax`, because it only shapes the page.
+ */
+function rememberSidebar(collapsed: boolean): void {
+  document.cookie = `${SIDEBAR_COOKIE}=${collapsed ? 'collapsed' : 'expanded'}; path=/; max-age=31536000; samesite=lax`;
+}
 
 /**
  * The sidebar, for a layout too narrow to hold one: a floating tab bar.

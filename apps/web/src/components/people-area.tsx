@@ -17,6 +17,7 @@ import {
 } from '../lib/remotes';
 import { shellData } from '../lib/shell';
 import { currentPerson, displayName } from '../lib/session';
+import { sidebarCollapsed } from '../lib/signed-in';
 import { workspaceConfig } from '../lib/workspace';
 
 /**
@@ -137,6 +138,7 @@ export async function PeopleArea({
       // People's sections hang off its sidebar item as a menu, on demand;
       // the screen keeps the full width.
       shell={shell}
+      sidebarCollapsed={await sidebarCollapsed()}
       route={area === 'people' ? here : null}
     >
       {/* Nothing answered at the router and the VM can be woken: wake it. */}
