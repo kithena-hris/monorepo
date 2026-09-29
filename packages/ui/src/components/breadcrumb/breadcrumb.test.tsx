@@ -38,12 +38,12 @@ describe('<BreadcrumbMenu>', () => {
             label: 'Workspace',
             items: [
               { href: '/people', label: 'Overview' },
-              { href: '/people/directory', label: 'Directory', current: true },
+              { href: '/people/directory/list', label: 'Directory', current: true },
             ],
           },
           {
             label: 'Insights',
-            items: [{ href: '/people/analytics', label: 'Workforce analytics' }],
+            items: [{ href: '/people/insights/headcount', label: 'Workforce analytics' }],
           },
         ]}
       />,
@@ -56,8 +56,46 @@ describe('<BreadcrumbMenu>', () => {
     expect(within(menu).getByText('Workspace')).toBeInTheDocument();
     expect(within(menu).getByText('Insights')).toBeInTheDocument();
     const analytics = within(menu).getByRole('menuitem', { name: 'Workforce analytics' });
-    expect(analytics).toHaveAttribute('href', '/people/analytics');
+    expect(analytics).toHaveAttribute('href', '/people/insights/headcount');
     expect(within(menu).getByRole('menuitem', { name: 'Directory' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  it('as a switcher earlier in the trail, is not the page; its items carry icons, counts and a tick', async () => {
+    render(
+      <BreadcrumbMenu
+        label="Data health"
+        current={false}
+        menuLabel="People sections"
+        groups={[
+          {
+            label: 'People',
+            items: [
+              { href: '/a', label: 'Approvals', icon: <svg data-testid="icon" />, badge: '4' },
+              { href: '/h', label: 'Data health', icon: <svg />, current: true },
+            ],
+          },
+          {
+            label: 'In Data health',
+            items: [
+              { href: '/h/c', label: 'Completeness' },
+              { href: '/h/d', label: 'Duplicates', current: true },
+            ],
+          },
+        ]}
+      />,
+    );
+    const trigger = screen.getByRole('button', { name: 'Data health, People sections' });
+    expect(trigger).not.toHaveAttribute('aria-current');
+
+    await userEvent.click(trigger);
+    const menu = await screen.findByRole('menu');
+    // One link per item, the icon and the count inside it.
+    const approvals = within(menu).getByRole('menuitem', { name: 'Approvals4' });
+    expect(approvals).toContainElement(screen.getByTestId('icon'));
+    expect(within(menu).getByRole('menuitem', { name: 'Duplicates' })).toHaveAttribute(
       'aria-current',
       'page',
     );

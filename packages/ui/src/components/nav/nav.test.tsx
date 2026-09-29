@@ -11,7 +11,7 @@ import userEvent from '@testing-library/user-event';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { Nav, NavItem, NavList } from './nav';
+import { Nav, NavItem, NavList, TertiaryNav } from './nav';
 
 /** What a framework's client-side link looks like to Reach: an anchor of its own. */
 function FrameworkLink(props: ComponentPropsWithoutRef<'a'>): JSX.Element {
@@ -145,5 +145,79 @@ describe('<NavItem description>', () => {
       </Nav>,
     );
     expect(container.querySelector('ul')?.className).toMatch(/grid/);
+  });
+});
+
+describe('<NavItem subnav>', () => {
+  function Areas({ expanded }: { readonly expanded: boolean }): JSX.Element {
+    return (
+      <Nav label="Areas">
+        <NavList>
+          <NavItem
+            asChild
+            current
+            expanded={expanded}
+            subnav={
+              <NavList variant="ruled" aria-label="People sections">
+                <NavItem asChild level={2}>
+                  <FrameworkLink href="/people">Overview</FrameworkLink>
+                </NavItem>
+                <NavItem asChild level={2} current badge="6">
+                  <FrameworkLink href="/people/data-health/completeness">Data health</FrameworkLink>
+                </NavItem>
+              </NavList>
+            }
+            flyout={<p>Flyout</p>}
+          >
+            <FrameworkLink href="/people">People</FrameworkLink>
+          </NavItem>
+        </NavList>
+      </Nav>
+    );
+  }
+
+  it('lists its pages inline when expanded, the page marked rather than its parent, and never flies out', async () => {
+    render(<Areas expanded />);
+    const people = screen.getByRole('link', { name: 'People' });
+    expect(people).not.toHaveAttribute('aria-current');
+    expect(people).not.toHaveAttribute('aria-expanded');
+    const pages = within(screen.getByRole('list', { name: 'People sections' }));
+    expect(pages.getByRole('link', { name: 'Data health6' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    act(() => {
+      people.focus();
+    });
+    await userEvent.hover(people);
+    expect(screen.queryByText('Flyout')).toBeNull();
+  });
+
+  it('is its own current place with its pages put away', () => {
+    render(<Areas expanded={false} />);
+    expect(screen.getByRole('link', { name: 'People' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('list', { name: 'People sections' })).toBeNull();
+  });
+});
+
+describe('<TertiaryNav orientation="horizontal">', () => {
+  it('is a row of tab links, the current one the page, each with its count', () => {
+    render(
+      <TertiaryNav
+        label="Data health tabs"
+        orientation="horizontal"
+        variant="line"
+        current="page"
+        touchLayout="pills"
+        activeId="dup"
+        items={[
+          { id: 'comp', label: 'Completeness', href: '/c', count: 88 },
+          { id: 'dup', label: 'Duplicates', href: '/d', count: 2 },
+        ]}
+      />,
+    );
+    const tabs = within(screen.getByRole('navigation', { name: 'Data health tabs' }));
+    expect(tabs.getByRole('link', { name: 'Duplicates2' })).toHaveAttribute('aria-current', 'page');
+    expect(tabs.getByRole('link', { name: 'Completeness88' })).toHaveAttribute('href', '/c');
   });
 });

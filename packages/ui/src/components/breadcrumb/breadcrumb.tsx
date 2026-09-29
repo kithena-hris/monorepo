@@ -1,8 +1,17 @@
 'use client';
 
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsUpDown,
+  Ellipsis,
+} from 'lucide-react';
 import {
   Fragment,
+  cloneElement,
+  isValidElement,
   useEffect,
   useRef,
   useState,
@@ -200,10 +209,22 @@ export interface BreadcrumbMenuProps {
       readonly href: string;
       readonly label: string;
       readonly current?: boolean;
+      /**
+       * Drawn before the label. In a group with icons the current item is
+       * washed; in one without, it is ticked at the start.
+       */
+      readonly icon?: ReactNode;
+      /** A count or a status after the label: a `Badge`. */
+      readonly badge?: ReactNode;
     }[];
   }[];
   /** What the menu is, for a screen reader: "People sections". */
   readonly menuLabel: string;
+  /**
+   * Whether the trigger names the page you are on (the default). A switcher
+   * earlier in the trail, a section above a tab, is not.
+   */
+  readonly current?: boolean;
   /**
    * Render each item's link through the app's router link. It receives the
    * href and the label and must return an `<a>` or a framework `Link`.
@@ -235,6 +256,38 @@ export function filterSiblings(
 /** Below this many siblings a filter is more to read than it saves. */
 const FILTER_FROM = 7;
 
+type SiblingItem = BreadcrumbMenuProps['groups'][number]['items'][number];
+
+/**
+ * The item's link, with what goes before and after its label drawn inside it:
+ * one target, one name. A `renderLink` that returns something other than an
+ * element is left as it is.
+ */
+function withinLink(link: ReactNode, lead: ReactNode, trail: ReactNode): ReactNode {
+  if (!isValidElement<{ children?: ReactNode }>(link)) return link;
+  return cloneElement(
+    link,
+    undefined,
+    <>
+      {lead}
+      <span className="min-w-0 flex-1 truncate">{link.props.children}</span>
+      {trail}
+    </>,
+  );
+}
+
+function iconOf(item: SiblingItem, className: string): ReactNode {
+  return item.icon == null ? null : (
+    <span aria-hidden className={cn('flex shrink-0', className)}>
+      {item.icon}
+    </span>
+  );
+}
+
+function badgeOf(item: SiblingItem): ReactNode {
+  return item.badge == null ? null : <span className="shrink-0">{item.badge}</span>;
+}
+
 /**
  * The last crumb, as a menu of its siblings: "People › Directory ▾".
  *
@@ -253,6 +306,7 @@ export function BreadcrumbMenu({
   menuLabel,
   renderLink = ({ href, label: text }) => <a href={href}>{text}</a>,
   variant = 'crumb',
+  current = true,
 }: BreadcrumbMenuProps): JSX.Element {
   const coarse = useCoarsePointer();
   const [open, setOpen] = useState(false);
@@ -276,21 +330,26 @@ export function BreadcrumbMenu({
   const trigger = (
     <button
       type="button"
-      aria-current="page"
+      aria-current={current ? 'page' : undefined}
       aria-label={`${label}, ${menuLabel}`}
       className={cn(
-        'relative tap-target inline-flex items-center gap-1 rounded-sm text-fg',
-        'hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
-        'data-[state=open]:bg-surface-hover',
+        'relative tap-target inline-flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
         variant === 'title'
-          ? 'min-h-11 max-w-full px-2 text-md font-semibold'
-          : // The negative margins widen the hover wash past the text; the
-            // maximum has to allow for them, or the label truncates itself.
-            '-mx-1 max-w-[calc(100%+0.5rem)] px-1 font-medium',
+          ? 'min-h-11 max-w-full rounded-sm px-2 text-md font-semibold text-fg hover:bg-surface-hover data-[state=open]:bg-surface-hover'
+          : // A chip on the fill, so a crumb that switches reads as one.
+            cn(
+              'max-w-full rounded-[0.5rem] bg-surface-sunken px-2 py-0.5',
+              'hover:bg-surface-active data-[state=open]:bg-surface-active',
+              current ? 'font-semibold text-fg' : 'font-medium text-fg-muted',
+            ),
       )}
     >
       <span className="truncate">{label}</span>
-      <ChevronDown aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
+      {variant === 'title' ? (
+        <ChevronDown aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
+      ) : (
+        <ChevronsUpDown aria-hidden className="size-[13px] shrink-0" />
+      )}
     </button>
   );
 
@@ -314,14 +373,11 @@ export function BreadcrumbMenu({
                   <h3 className="px-1 text-xs font-semibold text-fg-subtle">{group.label}</h3>
                   <ul className="overflow-hidden rounded-[1.125rem] bg-surface-sunken">
                     {group.items.map((item) => (
-                      <li
-                        key={item.href}
-                        className="relative border-b border-border last:border-b-0"
-                      >
+                      <li key={item.href} className="border-b border-border last:border-b-0">
                         <Slot
                           aria-current={item.current === true ? 'page' : undefined}
                           className={cn(
-                            'flex min-h-tap items-center px-3.5 pe-11 text-base text-fg',
+                            'flex min-h-12.5 items-center gap-3 px-3.5 text-base text-fg',
                             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
                             item.current === true && 'font-semibold',
                           )}
@@ -329,14 +385,18 @@ export function BreadcrumbMenu({
                             reset(false);
                           }}
                         >
-                          {renderLink(item)}
+                          {withinLink(
+                            renderLink(item),
+                            iconOf(item, 'text-fg-muted [&_svg]:size-4.5'),
+                            <>
+                              {badgeOf(item)}
+                              {/* A reserved slot, so a tick does not move the count. */}
+                              <span aria-hidden className="flex w-4.5 shrink-0 text-accent-fg">
+                                {item.current === true ? <Check className="size-4.5" /> : null}
+                              </span>
+                            </>,
+                          )}
                         </Slot>
-                        {item.current === true ? (
-                          <Check
-                            aria-hidden
-                            className="pointer-events-none absolute end-3.5 top-1/2 size-4.5 -translate-y-1/2 text-accent-fg"
-                          />
-                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -389,19 +449,36 @@ export function BreadcrumbMenu({
             {index === 0 ? null : <DropdownMenuSeparator />}
             <DropdownMenuGroup>
               <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
-              {group.items.map((item) => (
-                <DropdownMenuItem
-                  key={item.href}
-                  asChild
-                  {...(item.current === true ? { 'aria-current': 'page' as const } : {})}
-                  className={cn(
-                    item.current === true &&
-                      "font-semibold after:ms-auto after:ps-4 after:text-accent-fg after:content-['✓'_/_'']",
-                  )}
-                >
-                  <Slot>{renderLink(item)}</Slot>
-                </DropdownMenuItem>
-              ))}
+              {group.items.map((item) => {
+                // Places with icons are washed where you are; a plain list, a
+                // page's tabs, is ticked at the start like any choice in a menu.
+                const icons = group.items.some((i) => i.icon != null);
+                return (
+                  <DropdownMenuItem
+                    key={item.href}
+                    asChild
+                    {...(item.current === true ? { 'aria-current': 'page' as const } : {})}
+                    className={cn(
+                      item.current === true && 'font-semibold',
+                      item.current === true && icons && 'bg-surface-sunken',
+                    )}
+                  >
+                    <Slot>
+                      {withinLink(
+                        renderLink(item),
+                        icons ? (
+                          iconOf(item, '')
+                        ) : (
+                          <span aria-hidden className="flex w-4.5 shrink-0">
+                            {item.current === true ? <Check className="text-accent-fg!" /> : null}
+                          </span>
+                        ),
+                        badgeOf(item),
+                      )}
+                    </Slot>
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuGroup>
           </Fragment>
         ))}
