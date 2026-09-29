@@ -1581,6 +1581,17 @@ type PeopleIntegrations {
   scim: PeopleScim
 }
 
+type PeopleNamed {
+  accountId: ID
+  avatarUrl: String
+  name: String
+  personId: ID
+}
+
+type PeopleNames {
+  people: [PeopleNamed!]
+}
+
 type PeopleOnboarding {
   firstName: String
   reviews: [IdentifierReviewEntry!]
@@ -2154,6 +2165,10 @@ type Query {
   """
   peopleImportTemplate: String
   peopleIntegrations: PeopleIntegrations
+  """
+  Names and faces for account and person ids another service holds (the activity log), as the viewer may read them.
+  """
+  peopleNames(accountIds: [ID!], personIds: [ID!]): PeopleNames
   peopleOnboarding: PeopleOnboarding
   peopleOrganisation: PeopleOrganisation
   peopleOverview: PeopleOverview

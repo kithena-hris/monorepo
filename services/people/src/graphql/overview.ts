@@ -2,6 +2,7 @@ import type { OverviewView } from '../application/screens/overview.js';
 import type { PhotoView } from '../application/screens/photo.js';
 import type { FileView } from '../application/screens/files.js';
 import type { ActivityView } from '../application/settings/activity.js';
+import type { NamesView } from '../application/screens/names.js';
 import type { AssistantAnswer } from '../application/assistant/ask.js';
 import type { ChatView } from '../application/settings/chat.js';
 import type { PeopleBuilder, ViaRest } from './builder.js';
@@ -218,6 +219,18 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     }),
   });
 
+  const Named = builder.objectRef<NamesView['people'][number]>('PeopleNamed').implement({
+    fields: (t) => ({
+      accountId: t.exposeID('accountId', { nullable: true }),
+      personId: t.exposeID('personId'),
+      name: t.exposeString('name'),
+      avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+    }),
+  });
+  const Names = builder.objectRef<NamesView>('PeopleNames').implement({
+    fields: (t) => ({ people: t.field({ type: [Named], resolve: (v) => list(v.people) }) }),
+  });
+
   const AnswerPerson = builder
     .objectRef<AssistantAnswer['people'][number]>('PeopleAnswerPerson')
     .implement({
@@ -386,6 +399,18 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
           'GET',
           `/v1/views/settings/activity${qs === '' ? '' : `?${qs}`}`,
         );
+      },
+    }),
+    peopleNames: t.field({
+      type: Names,
+      description:
+        'Names and faces for account and person ids another service holds (the activity log), as the viewer may read them.',
+      args: { accountIds: t.arg.idList(), personIds: t.arg.idList() },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.accountIds) query.set('accounts', args.accountIds.join(','));
+        if (args.personIds) query.set('people', args.personIds.join(','));
+        return viaRest<NamesView>(ctx, 'GET', `/v1/views/names?${query.toString()}`);
       },
     }),
     peopleFile: t.field({

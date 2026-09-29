@@ -75,6 +75,7 @@ import {
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
 import { requestDetails } from '../application/screens/requests.js';
 import { activityView } from '../application/settings/activity.js';
+import { namesView } from '../application/screens/names.js';
 import {
   chatView,
   completeChat,
@@ -548,6 +549,18 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
                 ? area
                 : null,
           }),
+        );
+      },
+    },
+    // Names and faces for the central activity log's ids (`?accounts=a,b&people=c`).
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/names$/,
+      handle: async (asking, _r, _p, query) => {
+        const ids = (key: string) =>
+          (query.get(key) ?? '').split(',').filter((id) => new RegExp(`^${UUID}$`).test(id));
+        return answer(
+          await namesView(deps, asking, { accountIds: ids('accounts'), personIds: ids('people') }),
         );
       },
     },
