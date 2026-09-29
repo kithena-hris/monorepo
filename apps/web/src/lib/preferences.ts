@@ -43,14 +43,17 @@ export const readPreference = cache(async (name: string): Promise<unknown> => {
   }
 });
 
-/** Replaces the value; false when it did not reach identity. */
+/**
+ * Replaces the value: `saved`, `view_only` when identity refused it because an
+ * administrator is viewing as this person, or `failed`.
+ */
 export async function writePreference(
   name: string,
   value: Readonly<Record<string, unknown>>,
-): Promise<boolean> {
+): Promise<'saved' | 'view_only' | 'failed'> {
   const url = await preferenceUrl(name);
   const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (url === null || sessionId === undefined) return false;
+  if (url === null || sessionId === undefined) return 'failed';
   // The session writing, so identity can refuse an administrator viewing as
   // this person: viewing is read-only.
   const response = await fetch(url, {
@@ -59,5 +62,6 @@ export async function writePreference(
     body: JSON.stringify({ value, sessionId }),
     cache: 'no-store',
   }).catch(() => null);
-  return response?.ok === true;
+  if (response?.ok === true) return 'saved';
+  return response?.status === 403 ? 'view_only' : 'failed';
 }

@@ -565,7 +565,7 @@ export function AppShell({
                 subtitle={
                   person.viewing == null
                     ? [role, companyName].filter((x) => x !== null).join(' · ')
-                    : `Viewing as them · read-only${person.viewing.by === null ? '' : ` · ${person.viewing.by}`}`
+                    : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`
                 }
                 companyName={companyName}
                 timeOff={areas.some((a) => a.href === '/time-off' && a.built)}
@@ -837,7 +837,7 @@ function SearchPalette({
           };
         })
         .concat(actionsOf()),
-    [shell, router, prefs, table, destinations, keysFor, openHelp, create, commands, dark, onTheme, viewing],
+    [shell, router, prefs, table, destinations, keysFor, openHelp, create, commands, dark, onTheme],
   );
 
   /** What the palette runs rather than opens, each with its keys where it has some. */
@@ -850,20 +850,6 @@ function SearchPalette({
     };
     const exports = shell.sections.some((section) => section.path === '/people/import-export');
     return [
-      // First, while viewing as somebody: the way back.
-      ...(viewing === null
-        ? []
-        : [
-            {
-              id: 'view-as.end',
-              label: `End viewing as ${viewing}`,
-              group: 'Actions',
-              icon: iconOf('close'),
-              keywords: ['view as', 'stop', 'exit', 'back'],
-              ...keysOfId('view-as'),
-              onSelect: endViewing,
-            },
-          ]),
       ...(create === null || create === undefined
         ? []
         : [
@@ -955,7 +941,25 @@ function SearchPalette({
       ? ranked.map((item) => (recent.includes(item.id) ? { ...item, group: 'Recent' } : item))
       : ranked;
 
+  // While viewing as somebody, the way back comes before anything else.
+  const viewKeys = shownKeys(table.find((s) => s.id === 'view-as')?.keys, prefs.characterKeys);
+  const back: CommandItem[] =
+    viewing === null
+      ? []
+      : [
+          {
+            id: 'view-as.end',
+            label: `End viewing as ${viewing}`,
+            group: `Viewing as ${viewing}`,
+            icon: iconOf('close'),
+            keywords: ['view as', 'stop', 'exit'],
+            ...(viewKeys.length === 0 ? {} : { shortcut: viewKeys }),
+            onSelect: endViewing,
+          },
+        ];
+
   const items = [
+    ...filterCommands(back, query),
     ...found.map((p): CommandItem => ({
       id: `person:${p.value}`,
       label: p.label,
@@ -1199,7 +1203,9 @@ export function AccountSheet({
         <SheetHeader>
           <SheetTitle>{person.name}</SheetTitle>
           <SheetDescription>
-            {person.viewing == null ? (person.email ?? person.name) : 'Viewing as them · read-only'}
+            {person.viewing == null
+              ? (person.email ?? person.name)
+              : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`}
           </SheetDescription>
         </SheetHeader>
         <SheetBody>

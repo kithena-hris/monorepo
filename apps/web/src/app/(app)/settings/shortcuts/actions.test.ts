@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const writePreference = vi.fn(() => Promise.resolve(true));
+const writePreference = vi.fn(
+  (): Promise<'saved' | 'view_only' | 'failed'> => Promise.resolve('saved'),
+);
 vi.mock('../../../../lib/preferences', () => ({ writePreference }));
 
 const { saveShortcuts } = await import('./actions');
@@ -40,8 +42,16 @@ describe('saving shortcuts', () => {
     expect(writePreference).not.toHaveBeenCalled();
   });
 
+  it('says why when an administrator viewing as this person tries (identity refuses it)', async () => {
+    writePreference.mockResolvedValueOnce('view_only');
+    expect(await saveShortcuts({ bindings: {}, characterKeys: false }, false)).toEqual({
+      ok: false,
+      message: 'You are viewing as somebody else, so nothing can be changed.',
+    });
+  });
+
   it('says so when identity could not keep them', async () => {
-    writePreference.mockResolvedValueOnce(false);
+    writePreference.mockResolvedValueOnce('failed');
     expect(await saveShortcuts({ bindings: {}, characterKeys: false }, false)).toEqual({
       ok: false,
       message: 'Your shortcuts could not be saved just now. Try again.',

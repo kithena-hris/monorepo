@@ -21,7 +21,12 @@ export async function saveShortcuts(
   const problem = problemIn(parsed.data.bindings, apple === true);
   if (problem !== null) return { ok: false, message: problem };
   const saved = await writePreference('shortcuts', parsed.data);
-  return saved
-    ? { ok: true }
-    : { ok: false, message: 'Your shortcuts could not be saved just now. Try again.' };
+  if (saved === 'saved') return { ok: true };
+  return {
+    ok: false,
+    message:
+      saved === 'view_only'
+        ? 'You are viewing as somebody else, so nothing can be changed.'
+        : 'Your shortcuts could not be saved just now. Try again.',
+  };
 }
