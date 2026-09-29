@@ -24,6 +24,58 @@ describe('framed', () => {
     expect(screen.getByRole('button', { name: 'Export' }).nextElementSibling).toBe(add);
   });
 
+  it('on an umbrella page, switches section and tab from the trail, and draws the tabs', () => {
+    render(
+      <Screen
+        title="Data health"
+        frame={{
+          section: 'Data health',
+          siblingsLabel: 'People sections',
+          siblings: [
+            {
+              label: 'People',
+              items: [
+                { href: '/people', label: 'Overview', icon: 'overview' },
+                {
+                  href: '/people/data-health/completeness',
+                  label: 'Data health',
+                  icon: 'health',
+                  current: true,
+                  count: 6,
+                },
+              ],
+            },
+          ],
+          tabs: [
+            {
+              href: '/people/data-health/completeness',
+              label: 'Completeness',
+              current: false,
+              count: 88,
+            },
+            { href: '/people/data-health/duplicates', label: 'Duplicates', current: true },
+          ],
+        }}
+      />,
+    );
+    const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+    // The section is a switcher and no longer the page; the tab is.
+    expect(trail.getByRole('button', { name: 'Data health, People sections' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    expect(trail.getByRole('button', { name: 'Duplicates, Data health tabs' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    const tabs = within(screen.getByRole('navigation', { name: 'Data health tabs' }));
+    expect(tabs.getByRole('link', { name: 'Duplicates' })).toHaveAttribute('aria-current', 'page');
+    expect(tabs.getByRole('link', { name: /Completeness/ })).toHaveAttribute(
+      'href',
+      '/people/data-health/completeness',
+    );
+    expect(tabs.getByRole('link', { name: /Completeness/ }).textContent).toContain('88');
+  });
+
   it('draws the screen as it was with no frame, or no trail on the front page', () => {
     const { unmount } = render(<Screen title="People" />);
     expect(screen.queryByRole('navigation')).toBeNull();

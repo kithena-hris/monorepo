@@ -35,10 +35,12 @@ import {
   Archive,
   ArrowDown,
   ArrowLeft,
+  ArrowLeftRight,
   ArrowRight,
   ArrowUp,
   Ban,
   Bell,
+  Building2,
   BuildingComplex,
   Calendar,
   CalendarDays,
@@ -68,10 +70,12 @@ import {
   GripVertical,
   Hash,
   Heart,
+  HeartPulse,
   House,
   ImagePlus,
   Inbox,
   Info,
+  LayoutDashboard,
   Link2,
   LoaderCircle,
   Lock,
@@ -207,6 +211,8 @@ export const iconGroups = {
     inbox: Inbox,
     notifications: Bell,
     history: RotateCcwClock,
+    /** An area's front page: the summary of everything under it. */
+    overview: LayoutDashboard,
   },
   /** The nouns of an HRIS. This is the group that keeps a product coherent. */
   domain: {
@@ -217,6 +223,8 @@ export const iconGroups = {
     offboard: UserMinus,
     team: Users,
     organisation: BuildingComplex,
+    /** The company an account belongs to, as in switching between them. */
+    company: Building2,
     location: MapPin,
     calendar: Calendar,
     leave: CalendarDays,
@@ -232,6 +240,10 @@ export const iconGroups = {
     report: FileChartColumn,
     /** Something waiting to be checked by a person. */
     review: ScanSearch,
+    /** How sound the records are: gaps, checks, duplicates. */
+    health: HeartPulse,
+    /** Data moving both ways, in and out. */
+    transfer: ArrowLeftRight,
     /** Two records becoming one. */
     merge: GitMerge,
     /** Done by the product itself, not a person: a scheduled job, a rule. */

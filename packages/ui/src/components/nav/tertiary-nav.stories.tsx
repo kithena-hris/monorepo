@@ -179,3 +179,28 @@ export const CollapsedIntoAMenu: Story = {
     />
   ),
 };
+
+/**
+ * An umbrella page's tabs, each its own URL: `variant="line"`, underlined in
+ * the accent with each tab's count, under the page's header. Under a finger,
+ * `touchLayout="pills"` makes them a row of pills.
+ */
+export const TabsOfAPage: Story = {
+  name: 'Tabs of a page',
+  render: () => (
+    <TertiaryNav
+      label="Data health tabs"
+      orientation="horizontal"
+      variant="line"
+      current="page"
+      touchLayout="pills"
+      activeId="completeness"
+      items={[
+        { id: 'completeness', label: 'Completeness', count: 88 },
+        { id: 'id-checks', label: 'ID checks', count: 3 },
+        { id: 'duplicates', label: 'Duplicates', count: 2 },
+        { id: 'access-requests', label: 'Access requests', count: 1 },
+      ].map((tab) => ({ ...tab, href: `#tab-${tab.id}` }))}
+    />
+  ),
+};

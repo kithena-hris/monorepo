@@ -1,15 +1,12 @@
 'use client';
 
 import {
-  Avatar,
   Badge,
-  Chip,
   Kbd,
   List,
   ListItem,
   MegaMenu,
   Nav,
-  NavGroup,
   NavItem,
   NavList,
   SearchField,
@@ -19,7 +16,7 @@ import {
 import type { Route } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type JSX } from 'react';
+import { useState, type JSX } from 'react';
 
 import { currentPlace, type Place } from '../lib/remotes';
 
@@ -34,15 +31,15 @@ export { currentPlace };
  * People on its own draws its own. Every link is a Next `Link`, so moving
  * between sections never reloads the page.
  *
- * - `PeopleSections`, the mega menu the shell hangs off the People item in its
- *   sidebar (`NavItem`'s `flyout`): a field to jump to a page, the places you
- *   were last, the sections in columns with a count where something needs
- *   action, and the way to People's settings.
- * - `PeopleMenu`, the same places as a phone's People tab: grouped rows you
- *   push from, with the same counts.
+ * - `PeopleSubnav`, the sections under the People item in an expanded
+ *   sidebar: ruled rows, each with a count where something needs action.
+ * - `PeopleSections`, the same sections as the collapsed rail's flyout: a
+ *   compact menu of described rows, and where People's settings are.
+ * - `PeopleMenu`, the same places as a phone's People tab: rows you push
+ *   from, with the same counts.
  *
- * The breadcrumb and the actions are not here: they join the screen's own
- * header (`headerFrame`), so a People page opens with one header.
+ * The breadcrumb, the tabs and the actions are not here: they join the
+ * screen's own header (`headerFrame`), so a People page opens with one header.
  */
 export interface PeopleNavProps {
   readonly sections: readonly Place[];
@@ -50,15 +47,6 @@ export interface PeopleNavProps {
   readonly route: string | null;
   /** By section path, only what needs action (`countsOf`). */
   readonly counts?: Readonly<Record<string, number>>;
-}
-
-function groupsOf(sections: readonly Place[]): [string, Place[]][] {
-  const groups = new Map<string, Place[]>();
-  for (const s of sections) {
-    const group = s.group ?? 'People';
-    groups.set(group, [...(groups.get(group) ?? []), s]);
-  }
-  return [...groups];
 }
 
 /** A manifest's icon name as a Reach icon; an unknown name draws nothing rather than failing. */
@@ -78,90 +66,57 @@ function Count({ path, n }: { readonly path: string; readonly n: number }): JSX.
   );
 }
 
-const RECENT_KEY = 'kithena.people.recent';
-
-/**
- * The last places this person opened in People, newest first, kept in this
- * browser only: a convenience, not a record, so it is fine for it to be
- * empty in a private window.
- */
-export function useRecentPlaces(sections: readonly Place[], route: string | null): Place[] {
-  const [recent, setRecent] = useState<string[]>([]);
-  useEffect(() => {
-    let stored: string[] = [];
-    try {
-      stored = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as string[];
-    } catch {
-      /* nothing remembered */
-    }
-    const here = currentPlace(sections, route);
-    const next =
-      here === undefined
-        ? stored
-        : [here.path, ...stored.filter((p) => p !== here.path)].slice(0, 3);
-    setRecent(next);
-    try {
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-    } catch {
-      /* not remembered, still shown */
-    }
-  }, [sections, route]);
-  return recent.flatMap((path) => sections.filter((s) => s.path === path)).slice(0, 2);
+function countOf(counts: Readonly<Record<string, number>>, path: string): { badge?: JSX.Element } {
+  const n = counts[path];
+  return n === undefined ? {} : { badge: <Count path={path} n={n} /> };
 }
 
-/** The sidebar's People menu: the design's mega menu, in the shell's flyout. */
+/** The sidebar's People pages, inline under its item (V2): ruled rows with their counts. */
+export function PeopleSubnav({ sections, route, counts = {} }: PeopleNavProps): JSX.Element {
+  const current = currentPlace(sections, route);
+  return (
+    <NavList variant="ruled" aria-label="People sections">
+      {sections.map((s) => (
+        <NavItem
+          key={s.path}
+          asChild
+          level={2}
+          current={s === current}
+          {...countOf(counts, s.path)}
+        >
+          <Link href={s.path}>{s.label}</Link>
+        </NavItem>
+      ))}
+    </NavList>
+  );
+}
+
+/**
+ * The collapsed rail's People flyout (V8): the same places as a compact menu,
+ * each with its icon, what it holds and its count, and where the settings are.
+ */
 export function PeopleSections({
   sections,
   route,
   counts = {},
 }: PeopleNavProps): JSX.Element | null {
-  const router = useRouter();
-  const [query, setQuery] = useState('');
-  const recent = useRecentPlaces(sections, route);
   if (sections.length === 0) return null;
   const current = currentPlace(sections, route);
-  const needle = query.trim().toLowerCase();
-  const shown = groupsOf(
-    sections.filter(
-      (s) =>
-        needle === '' ||
-        s.label.toLowerCase().includes(needle) ||
-        (s.description ?? '').toLowerCase().includes(needle),
-    ),
-  );
   return (
     <MegaMenu
-      search={
-        <SearchField
-          size="sm"
-          label="Jump to a People page"
-          placeholder="Jump to a page"
-          value={query}
-          onValueChange={setQuery}
-        />
-      }
-      recent={
-        recent.length === 0 ? undefined : (
-          <>
-            {recent.map((p) => (
-              <Chip
-                key={p.path}
-                startIcon={iconOf(p.icon)}
-                onClick={() => {
-                  router.push(p.path);
-                }}
-              >
-                {p.label}
-              </Chip>
-            ))}
-          </>
-        )
+      size="compact"
+      title="People"
+      shortcut={
+        <>
+          <Kbd>G</Kbd>
+          <Kbd>P</Kbd>
+        </>
       }
       footer={
         <>
           <icons.settings aria-hidden />
-          <span className="flex-1">
-            Fields, roles and integrations live in{' '}
+          <span>
+            Fields and roles are in{' '}
             <Link
               href="/settings"
               className="font-semibold text-fg underline-offset-4 hover:underline"
@@ -169,49 +124,34 @@ export function PeopleSections({
               Settings › People
             </Link>
           </span>
-          <Kbd>G</Kbd>
-          <Kbd>P</Kbd>
-          <span>opens People</span>
         </>
       }
     >
       <Nav label="People sections">
-        {shown.length === 0 ? (
-          <p className="px-2.5 text-sm text-fg-muted">No page is called that.</p>
-        ) : (
-          <NavList columns={2}>
-            {shown.map(([group, places]) => (
-              <NavGroup key={group} label={group}>
-                {places.map((s) => {
-                  const n = counts[s.path];
-                  return (
-                    <NavItem
-                      key={s.path}
-                      asChild
-                      level={2}
-                      current={s === current}
-                      icon={iconOf(s.icon)}
-                      description={s.description}
-                      {...(n === undefined ? {} : { badge: <Count path={s.path} n={n} /> })}
-                    >
-                      <Link href={s.path}>{s.label}</Link>
-                    </NavItem>
-                  );
-                })}
-              </NavGroup>
-            ))}
-          </NavList>
-        )}
+        <NavList>
+          {sections.map((s) => (
+            <NavItem
+              key={s.path}
+              asChild
+              level={2}
+              current={s === current}
+              icon={iconOf(s.icon)}
+              description={s.description}
+              {...countOf(counts, s.path)}
+            >
+              <Link href={s.path}>{s.label}</Link>
+            </NavItem>
+          ))}
+        </NavList>
       </Nav>
     </MegaMenu>
   );
 }
 
-const TILE_TONES = ['accent', 'info', 'success', 'warning', 'danger'] as const;
-
 /**
- * People as a phone's tab: the same groups and counts as the sidebar menu, as
- * rows you push from, under a search of the directory.
+ * People as a phone's tab (MV1): six rows you push from, each a tile, its
+ * name, a line on what it holds and its count, under a search of the
+ * directory. Your own profile is the Me tab's, not a row here.
  */
 export function PeopleMenu({
   sections,
@@ -221,47 +161,39 @@ export function PeopleMenu({
   const router = useRouter();
   const [query, setQuery] = useState('');
   return (
-    <div className="flex flex-col gap-4.5">
+    <div className="flex flex-col gap-4">
       <SearchField
         label="Search people"
         placeholder={total == null ? 'Search people' : `Search ${String(total)} people`}
         value={query}
         onValueChange={setQuery}
         onSearch={(value) => {
-          router.push(`/people/directory?search=${encodeURIComponent(value)}` as Route);
+          router.push(`/people/directory/list?search=${encodeURIComponent(value)}` as Route);
         }}
       />
-      {groupsOf(sections).map(([group, places], g) => (
-        <section key={group} aria-label={group} className="flex flex-col gap-1.5">
-          <h2 className="px-4 text-sm font-medium text-fg-muted">{group}</h2>
-          <List>
-            {places.map((s, i) => {
-              const n = counts[s.path];
-              return (
-                <ListItem
-                  key={s.path}
-                  asChild
-                  chevron
-                  leading={
-                    <Avatar
-                      name={s.label}
-                      size="md"
-                      shape="rounded"
-                      tone={TILE_TONES[(i + g) % TILE_TONES.length]}
-                      fallback={iconOf(s.icon)}
-                    />
-                  }
-                  {...(n === undefined
-                    ? {}
-                    : { trailing: <span className="text-base tabular-nums">{n}</span> })}
-                >
-                  <Link href={s.path}>{s.label}</Link>
-                </ListItem>
-              );
-            })}
-          </List>
-        </section>
-      ))}
+      <List aria-label="People sections">
+        {sections.map((s) => {
+          const n = counts[s.path];
+          // What waits for you says so; otherwise the line says what it holds.
+          const waiting =
+            n !== undefined && s.path.endsWith('/approvals')
+              ? `${String(n)} waiting for you`
+              : undefined;
+          return (
+            <ListItem
+              key={s.path}
+              asChild
+              chevron
+              icon={iconOf(s.icon)}
+              description={waiting ?? s.summary ?? s.description}
+              {...(n === undefined ? {} : { trailing: <Count path={s.path} n={n} /> })}
+            >
+              <Link href={s.path}>{s.label}</Link>
+            </ListItem>
+          );
+        })}
+      </List>
+      <p className="px-4 text-sm text-fg-muted">Your own profile is in the Me tab.</p>
     </div>
   );
 }

@@ -64,6 +64,12 @@ export function List({ className, ...props }: ComponentPropsWithoutRef<'ul'>): J
 export interface ListItemProps extends Omit<ComponentPropsWithoutRef<'li'>, 'title'> {
   /** An `Avatar`, an icon, or a `Checkbox`. */
   leading?: ReactNode;
+  /**
+   * An icon in a tile, in place of `leading`: a row that is a place rather
+   * than a person. With a `description` the row is 72px, room for a line on
+   * what the place holds.
+   */
+  icon?: ReactNode;
   /** One line under the title, truncated. */
   description?: ReactNode;
   /** A longer passage under the description, clamped to two lines. */
@@ -288,6 +294,7 @@ type ChildElement = ReactElement<{ children?: ReactNode; className?: string }>;
 export function ListItem({
   className,
   leading,
+  icon,
   description,
   supporting,
   meta,
@@ -306,6 +313,7 @@ export function ListItem({
   const row = cn(
     'group/row flex w-full min-h-14 items-center gap-3 px-4.5 py-2 text-start text-fg touch:min-h-16 touch:px-4',
     supporting && 'items-start py-3.5',
+    icon && description && 'min-h-18 touch:min-h-18',
     selected && 'bg-accent-subtle',
     disabled && 'opacity-50',
     interactive && [
@@ -317,7 +325,16 @@ export function ListItem({
 
   const content = (title: ReactNode): JSX.Element => (
     <>
-      {leading ? <span className="flex shrink-0 items-center">{leading}</span> : null}
+      {icon ? (
+        <span
+          aria-hidden
+          className="flex size-10 shrink-0 items-center justify-center rounded-[0.75rem] bg-surface-sunken text-fg [&_svg]:size-5"
+        >
+          {icon}
+        </span>
+      ) : leading ? (
+        <span className="flex shrink-0 items-center">{leading}</span>
+      ) : null}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex items-baseline justify-between gap-2">
           <span className="truncate text-[0.875rem]/[1.3] font-semibold touch:text-[1rem]">

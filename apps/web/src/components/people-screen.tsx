@@ -27,26 +27,39 @@ export interface PeopleScreenProps {
   readonly params: Readonly<Record<string, string>>;
   readonly search: Readonly<Record<string, string>>;
   readonly today: string;
-  /** The breadcrumb's section and the actions, for the screen's own header (`headerFrame`). */
+  /**
+   * The breadcrumb's section, its siblings and the umbrella page's tabs, and
+   * the actions, for the screen's own header (`headerFrame`): the remote's
+   * `Frame`, as JSON.
+   */
   readonly frame?: {
-    readonly section: string | null;
-    readonly actions: readonly {
-      readonly href: string;
-      readonly label: string;
-      readonly icon?: string;
-    }[];
+    readonly section?: string | null;
     /** The links before the section; absent, People alone. */
     readonly trail?: readonly { readonly href: string; readonly label: string }[];
-    /** The section's siblings, grouped, for the breadcrumb's menu. */
+    /** The sections, grouped, for the breadcrumb's menu. `icon` is a Reach icon name. */
     readonly siblings?: readonly {
       readonly label: string;
       readonly items: readonly {
         readonly href: string;
         readonly label: string;
         readonly current?: boolean;
+        readonly icon?: string;
+        readonly count?: number;
       }[];
     }[];
     readonly siblingsLabel?: string;
+    /** The umbrella page's tabs this viewer may open, in order. Absent: no tabs. */
+    readonly tabs?: readonly {
+      readonly href: string;
+      readonly label: string;
+      readonly current: boolean;
+      readonly count?: number;
+    }[];
+    readonly actions?: readonly {
+      readonly href: string;
+      readonly label: string;
+      readonly icon?: string;
+    }[];
   };
 }
 

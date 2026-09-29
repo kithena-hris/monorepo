@@ -29,6 +29,8 @@ export interface ShellData {
   readonly settings: readonly Place[];
   /** By a section's path: only what needs somebody to act, never a total. */
   readonly counts: Readonly<Record<string, number>>;
+  /** By a tab's path, each tab's own count: what the tab row shows. */
+  readonly tabCounts: Readonly<Record<string, number>>;
   readonly notices: readonly ShellNotice[];
   /** When People answered, for "12m ago". */
   readonly now: string | null;
@@ -39,6 +41,7 @@ export const EMPTY_SHELL: ShellData = {
   sections: [],
   settings: [],
   counts: {},
+  tabCounts: {},
   notices: [],
   now: null,
 };
@@ -97,13 +100,60 @@ export function noticesOf(overview: Overview): ShellNotice[] {
   return [...approvals, ...missing];
 }
 
-/** Counts by section path. HR's own queue only; a zero is not shown. */
-export function countsOf(overview: Overview): Record<string, number> {
-  const counts: Record<string, number> = {};
-  if ((overview.approvals?.total ?? 0) > 0)
-    counts['/people/approvals'] = overview.approvals?.total ?? 0;
-  if (overview.roles.hr && (overview.team?.toFill ?? 0) > 0) {
-    counts['/people/completeness'] = overview.team?.toFill ?? 0;
+/**
+ * What waits in Data health's record tools, from People's own reads of them
+ * (HR and finance only). `null` where People refused the read: its count is
+ * left out rather than guessed.
+ */
+export interface Waiting {
+  readonly identifiers: number | null;
+  readonly duplicates: number | null;
+  /** Access requests waiting for this person's decision. */
+  readonly accessRequests: number | null;
+}
+
+const COMPLETENESS = '/people/data-health/completeness';
+const ID_CHECKS = '/people/data-health/id-checks';
+const DUPLICATES = '/people/data-health/duplicates';
+const ACCESS_REQUESTS = '/people/data-health/access-requests';
+/** The tabs whose counts are decisions somebody has to make: what a section's count adds up. */
+const DECISIONS: ReadonlySet<string> = new Set([ID_CHECKS, DUPLICATES, ACCESS_REQUESTS]);
+
+/**
+ * Counts by section path and by tab path; a zero is not shown.
+ *
+ * A tab counts its own queue: Completeness is everybody waiting on
+ * themselves plus what HR has to fill in (HR's summary only). A section counts
+ * what needs a decision: Approvals its approvals, Data health its ID checks,
+ * duplicates and access requests — not Completeness, which is a backlog
+ * rather than a decision. Keyed by the viewer's own places, so a finance
+ * viewer's Data health, whose link is its access requests, still has one.
+ */
+export function countsOf(
+  overview: Overview,
+  waiting: Waiting | null,
+  sections: readonly Place[],
+): { readonly sections: Record<string, number>; readonly tabs: Record<string, number> } {
+  const tabs: Record<string, number> = {};
+  const put = (path: string, n: number | null | undefined): void => {
+    if (n != null && n > 0) tabs[path] = n;
+  };
+  if (overview.roles.hr && overview.team !== null) {
+    put(COMPLETENESS, overview.team.waiting + overview.team.toFill);
   }
-  return counts;
+  put(ID_CHECKS, waiting?.identifiers);
+  put(DUPLICATES, waiting?.duplicates);
+  put(ACCESS_REQUESTS, waiting?.accessRequests);
+
+  const counts: Record<string, number> = {};
+  if ((overview.approvals?.total ?? 0) > 0) {
+    counts['/people/approvals'] = overview.approvals?.total ?? 0;
+  }
+  for (const section of sections) {
+    const n = (section.tabs ?? [])
+      .filter((t) => DECISIONS.has(t.path))
+      .reduce((sum, t) => sum + (tabs[t.path] ?? 0), 0);
+    if (n > 0) counts[section.path] = n;
+  }
+  return { sections: counts, tabs };
 }

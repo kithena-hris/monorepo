@@ -17,11 +17,13 @@ import {
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
+import { icons } from '../../icons';
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import { Chip } from '../chip/chip';
 import { Kbd } from '../kbd/kbd';
 import { KeyValues } from '../key-values/key-values';
+import { List, ListItem } from '../list-item/list-item';
 import { SearchField } from '../typed-fields/typed-fields';
 import { MegaMenu } from './mega-menu';
 import { Nav, NavGroup, NavItem, NavList } from './nav';
@@ -247,6 +249,94 @@ export const InTheSidebar: Story = {
   play: ({ canvasElement }) => {
     canvasElement.querySelector<HTMLElement>('a[href="#people"]')?.focus();
   },
+};
+
+const six: readonly Place[] = [
+  [<icons.overview key="i" />, 'Overview', 'Summary, your tasks, and what needs HR'],
+  [<icons.people key="i" />, 'Directory', 'Everyone as a list, as cards, or as an org chart'],
+  [<icons.approve key="i" />, 'Approvals', 'Changes waiting for a decision', 4],
+  [<icons.health key="i" />, 'Data health', 'Gaps, ID checks, duplicates and access requests', 6],
+  [<icons.transfer key="i" />, 'Import & export', 'Move people data in and out, with one history'],
+  [<icons.analytics key="i" />, 'Insights', 'Analytics, with scheduled reports built in'],
+];
+const shortLine: Record<string, string> = {
+  Overview: 'Your tasks and what needs HR',
+  Directory: 'List, cards or org chart',
+  Approvals: '4 waiting for you',
+  'Data health': 'Gaps, ID checks, duplicates',
+  'Import & export': 'Move data in and out',
+  Insights: 'Analytics and reports',
+};
+const needsAction = (label: string, count: number) => (
+  <Badge size="xs" variant="solid" tone={label === 'Approvals' ? 'danger' : 'warning'}>
+    {count}
+    <span className="sr-only"> need action</span>
+  </Badge>
+);
+
+/**
+ * Once an area has seven places or fewer, a compact list rather than grouped
+ * columns: `size="compact"` in a `flyoutSize="compact"` flyout, 340px wide. On
+ * a phone, the same six as the tab's rows.
+ */
+export const SimplifiedSixItems: Story = {
+  name: 'Simplified: six items',
+  render: () => (
+    <>
+      <div className="w-85 max-w-full rounded-[1.375rem] bg-surface-raised p-2.5 shadow-xl touch:hidden">
+        <MegaMenu
+          size="compact"
+          title="People"
+          shortcut={
+            <>
+              <Kbd>G</Kbd>
+              <Kbd>P</Kbd>
+            </>
+          }
+          footer={
+            <>
+              <Settings aria-hidden />
+              <span>
+                Fields and roles are in <b className="text-fg">Settings › People</b>
+              </span>
+            </>
+          }
+        >
+          <Nav label="People">
+            <NavList>
+              {six.map(([icon, label, text, count]) => (
+                <NavItem
+                  key={label}
+                  level={2}
+                  href={href(label)}
+                  icon={icon}
+                  current={label === 'Directory'}
+                  description={text}
+                  {...(count === undefined ? {} : { badge: needsAction(label, count) })}
+                >
+                  {label}
+                </NavItem>
+              ))}
+            </NavList>
+          </Nav>
+        </MegaMenu>
+      </div>
+      <List aria-label="People" className="hidden touch:block">
+        {six.map(([icon, label, , count]) => (
+          <ListItem
+            key={label}
+            asChild
+            chevron
+            icon={icon}
+            description={shortLine[label]}
+            {...(count === undefined ? {} : { trailing: needsAction(label, count) })}
+          >
+            <a href={href(label)}>{label}</a>
+          </ListItem>
+        ))}
+      </List>
+    </>
+  ),
 };
 
 export const TheRules: Story = {
