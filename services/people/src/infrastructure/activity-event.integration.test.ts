@@ -23,6 +23,7 @@ const SUPPORT = '00000000-0000-4000-8000-0000000000c1';
 const OPERATOR = '00000000-0000-4000-8000-0000000000e1';
 const OLD_V7 = '01890000-0000-7000-8000-000000000d01';
 const OLD_V4 = '00000000-0000-4000-8000-000000000d02';
+const OLD_KEYED = '01890000-0000-7000-8000-000000000d03';
 const BACKFILL = '20260929160100_people_settings_activity_event.sql';
 
 const migrations = new URL('../../../../migrations/', import.meta.url);
@@ -47,7 +48,13 @@ beforeAll(async () => {
     VALUES (${ACME}, ${OLD_V7}, '2026-09-01T09:30:00Z', ${SUPPORT}, 'Granted a role', 'roles',
             'old-1', ${OPERATOR}, 'Ticket 1', 'HR'),
            (${ACME}, ${OLD_V4}, '2026-09-02T09:30:00Z', ${PRIYA}, 'Added a field', 'fields',
-            'old-2', NULL, NULL, 'Work phone')`;
+            'old-2', NULL, NULL, 'Work phone'),
+           (${ACME}, ${OLD_KEYED}, '2026-09-03T09:30:00Z', ${PRIYA},
+            'Reordered the fields in a section', 'fields', 'old-3', NULL, NULL, 'contact')`;
+  // What the key names now: the backfill says the label, not the key.
+  await admin`
+    INSERT INTO people.section (tenant_id, key, labels, origin)
+    VALUES (${ACME}, 'contact', '{"default": "Contact details", "translations": {}}', 'tenant')`;
   await admin.unsafe(await readFile(new URL(BACKFILL, migrations), 'utf8'));
   await admin`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`;
   const asService = new URL(pg.url);
@@ -73,7 +80,7 @@ async function events(): Promise<Record<string, unknown>[]> {
 describe('people.settings.activity_recorded', () => {
   it('is backfilled for every entry already kept, as the contract has it', async () => {
     const backfilled = await events();
-    expect(backfilled).toHaveLength(2);
+    expect(backfilled).toHaveLength(3);
     for (const envelope of backfilled) {
       expect(SettingsActivityRecorded.safeParse(envelope).error).toBeUndefined();
     }
@@ -82,6 +89,9 @@ describe('people.settings.activity_recorded', () => {
       occurredAt: '2026-09-01T09:30:00.000Z',
       actor: { kind: 'user', userId: SUPPORT, onBehalfOf: OPERATOR },
       payload: { area: 'roles', action: 'Granted a role', subject: 'HR', reason: 'Ticket 1' },
+    });
+    expect(backfilled.find((e) => e['eventId'] === OLD_KEYED)).toMatchObject({
+      payload: { subject: 'Contact details' },
     });
     // Not a v7, so not its own id: a fresh v7 stands in.
     expect(backfilled.some((e) => e['eventId'] === OLD_V4)).toBe(false);

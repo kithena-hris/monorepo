@@ -74,7 +74,6 @@ import {
 } from '../application/screens/photo.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
 import { requestDetails } from '../application/screens/requests.js';
-import { activityView } from '../application/settings/activity.js';
 import { namesView } from '../application/screens/names.js';
 import {
   chatView,
@@ -532,25 +531,6 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: compute(AskBody, (asking, input) =>
         ask(deps, asking, input.question, input.earlier),
       ),
-    },
-    // The Settings activity log, newest first (`?before=<id>&area=fields`).
-    {
-      method: 'GET',
-      pattern: /^\/v1\/views\/settings\/activity$/,
-      handle: async (asking, _r, _p, query) => {
-        const area = query.get('area');
-        return answer(
-          await activityView(deps, asking, {
-            before: new RegExp(`^${UUID}$`).test(query.get('before') ?? '')
-              ? query.get('before')
-              : null,
-            area:
-              area === 'fields' || area === 'organisation' || area === 'roles' || area === 'integrations'
-                ? area
-                : null,
-          }),
-        );
-      },
     },
     // Names and faces for the central activity log's ids (`?accounts=a,b&people=c`).
     {

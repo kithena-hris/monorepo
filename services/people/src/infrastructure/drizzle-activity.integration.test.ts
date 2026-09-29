@@ -100,10 +100,14 @@ describe('the settings activity log, and Kithena support', () => {
         idempotencyKey: 'priya',
       }),
     );
-    const page = await inTenant(ACME, ({ tx }) =>
-      store.page(tx, ACME, { before: null, limit: 10, area: null }),
-    );
-    expect(page.map((e) => [e.actor, e.onBehalfOf, e.reason])).toEqual([
+    const rows = await admin.execute<{
+      actor: string;
+      on_behalf_of: string | null;
+      reason: string | null;
+    }>(sql`
+      SELECT actor, on_behalf_of, reason FROM people.settings_activity
+       WHERE tenant_id = ${ACME}::uuid ORDER BY at DESC`);
+    expect([...rows].map((e) => [e.actor, e.on_behalf_of, e.reason])).toEqual([
       [PRIYA, null, null],
       [SUPPORT, OPERATOR, 'Ticket 4812'],
       [PRIYA, null, null],
