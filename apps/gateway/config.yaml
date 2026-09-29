@@ -83,13 +83,23 @@ headers:
           # language does not offer. Safe because `sub` and `tid` come from a
           # token identity signed, and are uuids; People re-validates both.
           #
-          # `impersonatedBy` is the operator behind a support session: `act.sub`
-          # (RFC 8693), which identity puts only on a support session's token,
-          # also a uuid. Null otherwise, so a principal always says which.
+          # `act` (RFC 8693) is the actor behind the subject, a uuid, and
+          # identity sets it on two kinds of session only:
+          #
+          # - `impersonatedBy`: the operator behind a support session, whose
+          #   `act` has no `kind`. People makes it a full administrator.
+          # - `viewedBy`: the People administrator viewing as the subject,
+          #   whose `act` says `kind: view_as`. People makes it the subject,
+          #   read-only. Never forwarded as `impersonatedBy`, or it would be
+          #   support.
+          #
+          # Each null otherwise, so a principal always says which.
           expression: >-
             '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
             request.auth.claims.tid + '","impersonatedBy":' +
-            (request.auth.claims.act?.sub == nil ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            (request.auth.claims.act?.sub == nil || request.auth.claims.act?.kind == 'view_as' ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            ',"viewedBy":' +
+            (request.auth.claims.act?.sub != nil && request.auth.claims.act?.kind == 'view_as' ? '"' + request.auth.claims.act.sub + '"' : 'null') +
             ',"roles":[],"entitlements":${KITHENA_ENTITLEMENTS}}'
         - op: 'set'
           name: 'x-internal-token'
@@ -104,7 +114,9 @@ headers:
           expression: >-
             '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
             request.auth.claims.tid + '","impersonatedBy":' +
-            (request.auth.claims.act?.sub == nil ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            (request.auth.claims.act?.sub == nil || request.auth.claims.act?.kind == 'view_as' ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            ',"viewedBy":' +
+            (request.auth.claims.act?.sub != nil && request.auth.claims.act?.kind == 'view_as' ? '"' + request.auth.claims.act.sub + '"' : 'null') +
             '}'
         - op: 'set'
           name: 'x-internal-token'
