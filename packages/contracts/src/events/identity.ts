@@ -553,6 +553,55 @@ export const SupportSessionStarted = defineEvent(
   }),
 );
 
+/**
+ * A People administrator started viewing the app as one employee
+ * (`docs/auth-administration.md`, "Viewing as an employee"), raised in the
+ * transaction that creates the session and its `platform.view_as_access` row.
+ *
+ * Read-only, thirty minutes at most, and never on another administrator or on
+ * Kithena support. The envelope's actor is the administrator. The reason
+ * travels here and only here, for the same reason as support's: the router
+ * forwards no free text. `specialCategory` is People's answer, when it was
+ * started, to whether the employee's own view shows special-category data —
+ * the one path by which an administrator reads it.
+ */
+export const ViewAsStarted = defineEvent(
+  'identity.view_as.started',
+  1,
+  z.object({
+    sessionId: SessionId,
+    /** The administrator viewing. */
+    adminAccountId: AccountId,
+    /** The employee whose view it is: the account the session signs in as. */
+    subjectAccountId: AccountId,
+    reason: z.string().min(1).max(500).register(policy, asFreeText()),
+    specialCategory: z.boolean().register(policy, asInternal()),
+    /** Thirty minutes after it started, never extended. */
+    expiresAt: Instant,
+  }),
+);
+
+/**
+ * Viewing as an employee ended: the administrator ended it (`admin`, also when
+ * they signed out), or its thirty minutes ran out (`time_limit`, raised the
+ * first time identity notices). Once per session. Carries the start's reason
+ * and special-category answer so the log's end entry reads on its own, and
+ * People tells the employee from it.
+ */
+export const ViewAsEnded = defineEvent(
+  'identity.view_as.ended',
+  1,
+  z.object({
+    sessionId: SessionId,
+    adminAccountId: AccountId,
+    subjectAccountId: AccountId,
+    reason: z.string().min(1).max(500).register(policy, asFreeText()),
+    specialCategory: z.boolean().register(policy, asInternal()),
+    startedAt: Instant,
+    endedBy: z.enum(['admin', 'time_limit']).register(policy, asInternal()),
+  }),
+);
+
 export const identityEvents = [
   AccountProvisioned,
   AccountInvited,
@@ -575,4 +624,6 @@ export const identityEvents = [
   TenantAdministratorNamed,
   TenantAdministratorRemoved,
   SupportSessionStarted,
+  ViewAsStarted,
+  ViewAsEnded,
 ] as const;
