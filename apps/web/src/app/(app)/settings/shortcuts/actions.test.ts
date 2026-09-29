@@ -25,7 +25,8 @@ describe('saving shortcuts', () => {
   it('refuses a clash the page did not catch, with the page’s sentence, and stores nothing', async () => {
     const refused = [
       [{ 'go.home': ['g', 'd'] }, 'G then D already opens Directory. Choose another.'],
-      [{ 'page.search': ['g'] }, 'G starts G then H, which opens Home. Choose another.'],
+      [{ 'go.inbox': ['g'] }, 'G starts G then H, which opens Home. Choose another.'],
+      [{ 'page.search': ['s'] }, '/ cannot be changed.'],
       [{ 'go.home': ['mod+q'] }, '⌘Q belongs to your browser or computer. Choose another.'],
       [{ 'go.home': ['?'] }, '? already shows the keyboard shortcuts. Choose another.'],
       [{ sidebar: ['mod+e'] }, '⌘\\ cannot be changed.'],

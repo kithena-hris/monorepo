@@ -14,12 +14,7 @@ import {
 import Link from 'next/link';
 import { createContext, use, useSyncExternalStore, type JSX, type ReactNode } from 'react';
 
-import {
-  GROUPS,
-  isCharacterKey,
-  type Shortcut,
-  type ShortcutPrefs,
-} from '../lib/shortcuts';
+import { GROUPS, isCharacterKey, type Shortcut, type ShortcutPrefs } from '../lib/shortcuts';
 
 /**
  * The shortcuts as the shell runs them: the one key handler, what every hint
@@ -54,6 +49,18 @@ function typing(target: EventTarget | null): boolean {
  * focused pair. `run` does the shortcut and says whether there was anything
  * to do: a key that does nothing here is left to the page.
  */
+/**
+ * The fixed shortcuts this handler runs itself. The other fixed ones (⌘K, ⌘\\,
+ * ⌘J, Escape) belong to the components that already listen for them; fixed
+ * only means nobody can rebind them.
+ */
+const HANDLED_HERE: ReadonlySet<string> = new Set([
+  'help',
+  'page.search',
+  'page.previous',
+  'page.next',
+]);
+
 export function shortcutHandler(options: {
   readonly table: readonly Shortcut[];
   readonly characterKeys: boolean;
@@ -63,7 +70,7 @@ export function shortcutHandler(options: {
   const { characterKeys, run, now = () => Date.now() } = options;
   const live = options.table.filter(
     (s) =>
-      (s.fixed !== true || s.id === 'help') &&
+      (s.fixed !== true || HANDLED_HERE.has(s.id)) &&
       (s.scope === undefined || s.id === 'list.next' || s.id === 'list.previous'),
   );
   const find = (keys: readonly string[]): Shortcut | undefined =>

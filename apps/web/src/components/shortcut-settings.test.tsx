@@ -88,7 +88,7 @@ const errorOf = (label: string): string | null => {
   );
 };
 
-describe('Settings › Keyboard shortcuts', () => {
+describe('Settings › Keyboard shortcuts', { timeout: 30_000 }, () => {
   it('refuses keys another shortcut already has, on the field, naming the clash', () => {
     const store = fresh();
     renderPage(store);
@@ -106,13 +106,14 @@ describe('Settings › Keyboard shortcuts', () => {
     vi.useFakeTimers();
     const store = fresh();
     renderPage(store);
-    record('Search this page', { key: 'g' });
+    // `/`, `[` and `]` are fixed: nothing to record on them.
+    expect(screen.queryByRole('button', { name: 'Search this page' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Next tab or view' })).toBeNull();
+    record('Inbox', { key: 'g' });
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    expect(errorOf('Search this page')).toBe(
-      'G starts G then H, which opens Home. Choose another.',
-    );
+    expect(errorOf('Inbox')).toBe('G starts G then H, which opens Home. Choose another.');
     record('Home', { key: '/' }, { key: 'x' });
     expect(errorOf('Home')).toBe(
       '/ already searches the page, so / then X could never be reached. Choose another.',

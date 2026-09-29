@@ -30,12 +30,7 @@ import { currentPlace, currentTab, type Place } from './remotes';
  */
 
 export type ShortcutGroupName =
-  | 'Navigation'
-  | 'Lists'
-  | 'Actions'
-  | 'Create'
-  | 'Forms'
-  | 'Everywhere';
+  'Navigation' | 'Lists' | 'Actions' | 'Create' | 'Forms' | 'Everywhere';
 
 export interface Shortcut {
   readonly id: string;
@@ -77,13 +72,7 @@ const list = (id: string, label: string, does: string, keys: readonly string[]):
   scope: 'list',
 });
 
-const row = (
-  screen: string,
-  id: string,
-  label: string,
-  does: string,
-  key: string,
-): Shortcut => ({
+const row = (screen: string, id: string, label: string, does: string, key: string): Shortcut => ({
   id: `row.${id}`,
   group: 'Actions',
   label,
@@ -114,6 +103,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     label: 'Search this page',
     does: 'searches the page',
     keys: ['/'],
+    fixed: true,
   },
   {
     id: 'page.previous',
@@ -121,6 +111,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     label: 'Previous tab or view',
     does: 'moves to the previous tab',
     keys: ['['],
+    fixed: true,
   },
   {
     id: 'page.next',
@@ -128,6 +119,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     label: 'Next tab or view',
     does: 'moves to the next tab',
     keys: [']'],
+    fixed: true,
   },
   // First of the three Escapes, so a clash names the one everybody knows.
   {
@@ -278,7 +270,9 @@ export function spoken(keys: readonly string[], apple = false): string {
         .map((key) => {
           const word = WORDS[key];
           if (word !== undefined) return apple ? word[0] : word[1];
-          return key.length === 1 ? key.toUpperCase() : `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+          return key.length === 1
+            ? key.toUpperCase()
+            : `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
         })
         .join(apple ? '' : '+'),
     )
@@ -455,9 +449,7 @@ export function destinationOf(shortcut: Shortcut, reach: Reachable): string | nu
   if (href === undefined) return null;
   if (PEOPLE_OWN.has(href)) return reach.people ? href : null;
   if (href.startsWith('/people/')) {
-    const section = reach.sections.find(
-      (s) => s.path === href || s.path.startsWith(`${href}/`),
-    );
+    const section = reach.sections.find((s) => s.path === href || s.path.startsWith(`${href}/`));
     return section?.path ?? null;
   }
   if (href === '/time-off') return reach.timeOff ? href : null;

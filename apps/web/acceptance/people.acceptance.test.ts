@@ -774,7 +774,7 @@ describe('Hiring somebody added without a start date', () => {
     const page = await context.newPage();
     await page.goto(`${stack.shell}/people/directory/list?q=Bulkhire`);
     await page.waitForLoadState('networkidle');
-    const people = page.getByRole('table', { name: 'People' });
+    const people = page.getByRole('grid', { name: 'People' });
     await people.getByText('Alan Bulkhire').waitFor({ timeout: 30_000 });
     await page.getByRole('checkbox', { name: 'Select Alan Bulkhire' }).click();
     await page.getByRole('checkbox', { name: 'Select Joan Bulkhire' }).click();
@@ -1515,7 +1515,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(lena).toEqual({ status: 'active', hire_date: new Date().toISOString().slice(0, 10) });
     await (await sections(page)).getByRole('link', { name: 'Directory' }).click();
     await page.waitForURL(/\/people\/directory\/list$/);
-    await page.getByRole('table', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
+    await page.getByRole('grid', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
     // Counts that say what the list holds: everybody, then who is active.
     await page.getByText(/^\d+ (people|person) · \d+ active/).waitFor();
     expect(await kept()).toBe(true);

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
     "persist": "tsx scripts/persist.ts",
+    "load-demo": "tsx scripts/load-demo-company.ts",
     "test": "tsx scripts/persist.ts --check"
   },
   "devDependencies": {
