@@ -128,8 +128,6 @@ import {
   Wallet,
   X,
   type LucideIcon,
-  ArrowDownToLine,
-  ArrowUpFromLine,
   FileClock,
   FileSpreadsheet,
   LayoutGrid,
@@ -158,9 +156,6 @@ export const iconGroups = {
     duplicate: Copy,
     download: Download,
     upload: Upload,
-    /** Bringing records in, or taking them out: a whole data set, not one file. */
-    import: ArrowDownToLine,
-    export: ArrowUpFromLine,
     share: Share2,
     send: Send,
     search: Search,

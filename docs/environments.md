@@ -585,6 +585,12 @@ the router has); a SCIM request carries no forwarded list to fall back on.
   (`apps/web/people/scripts/smoke-deploy.mjs`): the files are served
   `no-cache`, `nosniff` and with CORS for a tenant origin, and the manifest
   verifies under the public key the shell is about to be given.
+  `assets/*` deliberately carries **no** `Cache-Control` of its own:
+  `vercel.json` headers apply to every response, errors included, and a
+  one-year `immutable` on a transient 503 kept that failure in a browser for a
+  year (2026-09-29: People screens stuck loading for one person until the
+  cached files were replaced). Vercel's default revalidates with the ETag, a
+  304, which is cheap and can never pin a failure.
 - **The shell** gets `PEOPLE_REMOTE_URL`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY` and
   `ROUTER_URL` as `--env` on its deploy, each only when set.
 
