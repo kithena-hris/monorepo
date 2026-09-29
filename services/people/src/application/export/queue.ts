@@ -3,6 +3,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import type { Viewer } from '../person/ports.js';
 import { exportableColumns } from './export.js';
+import { writable } from '../../domain/access/view-as.js';
 import {
   checkReason,
   runExportJob,
@@ -62,6 +63,9 @@ export async function requestExport(
   deps: ExportJobDeps,
   request: ExportJobRequest,
 ): Promise<Result<RequestedExport>> {
+  // Nothing is queued for an administrator viewing as somebody (`writable`).
+  const may = writable(request.viewer);
+  if (!may.ok) return may;
   const rows = await countUpTo(tx, deps, request, QUEUE_THRESHOLD + 1);
   if (!rows.ok) return rows;
 

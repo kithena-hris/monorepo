@@ -24,6 +24,8 @@ import {
   TenantAmended,
   TenantEntitlementsChanged,
   TenantProvisioned,
+  ViewAsEnded,
+  ViewAsStarted,
   type EventDefinition,
   type EventEnvelope,
 } from '@kithena/contracts';
@@ -41,6 +43,7 @@ import { rememberEntitlements } from '../entitlements.js';
 import { rememberTenant } from '../tenants.js';
 import type { InTenantTransaction } from '../unit-of-work.js';
 import { captureProfile } from './identity.js';
+import { recordViewAs } from '../view-as.js';
 
 /**
  * Every event People consumes, parsed against its contract and applied.
@@ -343,6 +346,45 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
             causationId: event.eventId,
           });
         });
+      }
+
+      /*
+       * A People administrator viewed the app as somebody (decided
+       * 2026-09-29): what tells that employee, once it is over.
+       */
+      case ViewAsStarted.name: {
+        const event = parse(ViewAsStarted, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        await deps.inTenant(event.tenantId, ({ tx }) =>
+          recordViewAs(tx, event.tenantId, {
+            sessionId: p.sessionId,
+            subjectAccountId: p.subjectAccountId,
+            adminAccountId: p.adminAccountId,
+            specialCategory: p.specialCategory,
+            startedAt: event.occurredAt,
+            expiresAt: p.expiresAt,
+            endedAt: null,
+          }),
+        );
+        return 'applied';
+      }
+      case ViewAsEnded.name: {
+        const event = parse(ViewAsEnded, raw);
+        if (!event) return 'rejected';
+        const p = event.payload;
+        await deps.inTenant(event.tenantId, ({ tx }) =>
+          recordViewAs(tx, event.tenantId, {
+            sessionId: p.sessionId,
+            subjectAccountId: p.subjectAccountId,
+            adminAccountId: p.adminAccountId,
+            specialCategory: p.specialCategory,
+            startedAt: p.startedAt,
+            expiresAt: new Date(Date.parse(p.startedAt) + 30 * 60 * 1000).toISOString(),
+            endedAt: event.occurredAt,
+          }),
+        );
+        return 'applied';
       }
 
       /*

@@ -66,7 +66,19 @@ import { drizzleDuplicates } from '../infrastructure/drizzle-duplicates.js';
 import { drizzleUniqueClaims } from '../infrastructure/unique.js';
 import { knownTenants } from '../infrastructure/tenants.js';
 import { openFgaFrom } from '../infrastructure/openfga.js';
-import { insideSharedUnit, tenantTransaction } from '../infrastructure/unit-of-work.js';
+import {
+  insideSharedUnit,
+  isViewOnlyRefusal,
+  readOnly,
+  tenantTransaction,
+} from '../infrastructure/unit-of-work.js';
+import { ViewOnly } from '../domain/access/view-as.js';
+import type { ViewAsDeps } from '../application/person/view-as.js';
+import {
+  drizzleAccountOf,
+  drizzleViewedAs,
+  viewAsIdentityFrom,
+} from '../infrastructure/view-as.js';
 import { webhookAlertMailerFrom } from '../infrastructure/webhooks/alert-mailer.js';
 import {
   NO_TENANT_APP_BASE,
@@ -106,11 +118,11 @@ import { drizzleReportSchedules } from '../infrastructure/drizzle-report-schedul
 import { reportMailerFrom } from '../infrastructure/report-mailer.js';
 import { sendDueReports, type ScheduleAdminDeps } from '../application/reports/scheduled.js';
 import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
-import { callerWithEntitlements, withTenantRoles } from './caller.js';
+import { callerWithEntitlements, viewingRequest, withTenantRoles } from './caller.js';
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
-import { restHandler, type RestDeps, type RestResponse } from './rest.js';
+import { refused, restHandler, type RestDeps, type RestResponse } from './rest.js';
 import { SCIM_PREFIX, scimHandler } from './scim.js';
 
 /**
@@ -554,6 +566,17 @@ function assistantFrom(env: NodeJS.ProcessEnv) {
 }
 
 /** What the screens' transports need beyond the person use cases (PEO-098). */
+/** Viewing as an employee: People decides, identity signs in (`application/person/view-as.ts`). */
+function viewAsDeps(service: ReturnType<typeof peopleService>): ViewAsDeps {
+  const identity = viewAsIdentityFrom(process.env);
+  return {
+    service,
+    relations: relationsFrom(process.env),
+    accountOf: drizzleAccountOf,
+    ...(identity === undefined ? {} : { identity }),
+  };
+}
+
 function screenDeps(
   service: ReturnType<typeof peopleService>,
   reports: ObjectStore,
@@ -565,6 +588,8 @@ function screenDeps(
   const calendars = drizzleOrgStore();
   return {
     service,
+    viewAs: viewAsDeps(service),
+    viewedAs: drizzleViewedAs,
     scim: scimConnections({
       service,
       relations: relationsFrom(process.env),
@@ -799,7 +824,7 @@ export function wirePeople(server: Server): void {
     },
   });
   // The subgraph's writes are these routes' writes, keyed the same (PEO-113).
-  configureGraphQL({ service, callerFrom, rest });
+  configureGraphQL({ service, callerFrom, rest, viewAs: viewAsDeps(service) });
   // Requests first, then what they use (PEO-118).
   onShutdown('requests, exports and the service pool', async () => {
     await drain(server);
@@ -919,7 +944,23 @@ export function wirePeople(server: Server): void {
     }
   };
 
+  /*
+   * An administrator viewing as somebody reads and never writes: every unit of
+   * work this request opens is a read-only transaction (`readOnly`), whatever
+   * route it reaches. The routes refuse a write first, and say why.
+   */
+  const apiToken = process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '';
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
+    if (viewingRequest({ headers: request.headers }, apiToken)) {
+      readOnly(() => {
+        handle(request, response);
+      });
+      return;
+    }
+    handle(request, response);
+  });
+
+  function handle(request: IncomingMessage, response: ServerResponse): void {
     const path = request.url ?? '/';
     if (path === SCIM_PREFIX || path.startsWith(`${SCIM_PREFIX}/`)) {
       void (async () => {
@@ -999,6 +1040,10 @@ export function wirePeople(server: Server): void {
           answer ?? { status: 404, body: { error: { code: 'NOT_FOUND', message: path } } },
         );
       } catch (cause) {
+        if (isViewOnlyRefusal(cause)) {
+          if (!response.headersSent) send(response, refused(ViewOnly));
+          return;
+        }
         logger.error({ err: cause, path }, 'people REST request failed');
         if (!response.headersSent) {
           send(response, {
@@ -1008,5 +1053,5 @@ export function wirePeople(server: Server): void {
         }
       }
     })();
-  });
+  }
 }

@@ -19,6 +19,20 @@ type Line = NonNullable<OverviewView['reportingLine']>;
 type Approvals = NonNullable<OverviewView['approvals']>;
 
 export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
+  const ViewedAsRef = builder
+    .objectRef<OverviewView['viewedAs'][number]>('PeopleViewedAs')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        by: t.exposeString('by', { nullable: true, description: 'The administrator, by name.' }),
+        at: t.exposeString('at'),
+        endedAt: t.exposeString('endedAt'),
+        specialCategory: t.exposeBoolean('specialCategory', {
+          description: 'Special-category data of theirs, or that they may read, was visible.',
+        }),
+      }),
+    });
+
   const Roles = builder.objectRef<OverviewView['roles']>('PeopleOverviewRoles').implement({
     fields: (t) => ({
       hr: t.exposeBoolean('hr'),
@@ -160,6 +174,12 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
       approvals: t.field({ type: ApprovalsRef, nullable: true, resolve: (o) => o.approvals }),
       missing: t.field({ type: [MissingRef], resolve: (o) => list(o.missing) }),
       team: t.field({ type: Team, nullable: true, resolve: (o) => o.team }),
+      viewedAs: t.field({
+        type: [ViewedAsRef],
+        description:
+          'When a People administrator viewed the app as them, once each was over, newest first.',
+        resolve: (o) => list(o.viewedAs),
+      }),
       setup: t.field({ type: SetupRef, nullable: true, resolve: (o) => o.setup }),
     }),
   });

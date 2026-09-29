@@ -5,6 +5,7 @@ import { logger } from '@kithena/telemetry';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
 import type { ActivityStore } from '../application/settings/activity-store.js';
+import { writable } from '../domain/access/view-as.js';
 import type { ExportJobDeps, ExportJobRequest } from '../application/export/job.js';
 import { linksOf } from '../application/export/job.js';
 import { requestExport, type ExportQueue, type QueuedExport } from '../application/export/queue.js';
@@ -519,6 +520,11 @@ const STATUS: Record<string, number> = {
   SOURCE_OF_RECORD_EXTERNAL: 403,
   SCIM_CONNECTION_REVOKED: 409,
   UNAVAILABLE: 503,
+  // An administrator viewing as somebody changes nothing (`domain/access/view-as.ts`).
+  VIEW_ONLY: 403,
+  VIEW_AS_SELF: 403,
+  VIEW_AS_ADMINISTRATOR: 403,
+  VIEW_AS_NO_ACCOUNT: 409,
 };
 
 export function refused(error: DomainFailure): RestResponse {
@@ -1798,14 +1804,20 @@ export function restHandler(
 
     const asking = await deps.callerFrom(request);
     if (!asking.ok) return refused(asking.error);
+    const writes = request.method !== 'GET' && route.safe !== true;
+    // An administrator viewing as somebody reads, and only reads: every route
+    // but a GET is refused here, before one runs, so none can forget it — the
+    // "safe" POSTs too, since those start uploads, reveal identifiers and
+    // preview edits that could never be saved. (Their request's transactions
+    // are read-only as well — `readOnly`, `unit-of-work.ts`.)
+    if (request.method !== 'GET') {
+      const may = writable(asking.value.viewer);
+      if (!may.ok) return refused(may.error);
+    }
     // Every write is keyed (PEO-116), checked here so that no route can
     // forget it; `idempotent` is what makes the key mean something.
     const key = request.headers['idempotency-key'];
-    if (
-      request.method !== 'GET' &&
-      route.safe !== true &&
-      (typeof key !== 'string' || key.length === 0 || key.length > 255)
-    ) {
+    if (writes && (typeof key !== 'string' || key.length === 0 || key.length > 255)) {
       return refused(
         failure('IDEMPOTENCY_KEY_REQUIRED', 'Every write carries an Idempotency-Key header'),
       );

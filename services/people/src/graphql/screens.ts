@@ -429,6 +429,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       canChangePhoto: t.exposeBoolean('canChangePhoto', {
         description: 'The viewer may choose this photo: it is theirs, or they are HR.',
       }),
+      canViewAs: t.exposeBoolean('canViewAs', {
+        description:
+          'The viewer, a People administrator, may view the app as this person: read-only, for thirty minutes (`startViewingAs`).',
+      }),
     }),
   });
   const LinePersonRef = builder

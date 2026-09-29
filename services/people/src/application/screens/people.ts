@@ -24,6 +24,7 @@ import type {
   RecordSection,
 } from './model.js';
 import { approvalsInbox, pendingFor } from '../person/pending-changes.js';
+import { offersViewAs } from '../person/view-as.js';
 import {
   formValues,
   nameOf,
@@ -261,6 +262,8 @@ export interface ProfileView {
     readonly missing: number | null;
     /** The viewer may choose their photo: it is theirs, or they are HR. */
     readonly canChangePhoto: boolean;
+    /** The viewer, a People administrator, may view the app as them (`offersViewAs`). */
+    readonly canViewAs: boolean;
   };
   readonly sections: readonly (RecordSection & { readonly readsLogged: boolean })[];
   readonly values: FormValues;
@@ -460,6 +463,8 @@ export async function profileView(
         avatarUrl: avatars.get(id.value) ?? null,
         missing: record.value.missing,
         canChangePhoto: deps.photos !== undefined && mayChangePhoto(relations),
+        canViewAs:
+          deps.viewAs !== undefined && (await offersViewAs(deps.viewAs, tx, asking, id.value)),
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
       calendar: calendar.ok ? calendar.value : null,

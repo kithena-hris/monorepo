@@ -1,10 +1,13 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { maskError } from 'graphql-yoga';
+import { getOperationAST, OperationTypeNode, type DocumentNode } from 'graphql';
+import { maskError, type Plugin } from 'graphql-yoga';
 import { toGraphQLError } from '@kithena/graphql-kit';
 import { COUNTRIES } from '@kithena/contracts';
 import { err, failure, ok, type DomainFailure, type Result } from '@kithena/domain-kit';
 
 import type { Attribute } from '../domain/schema/draft.js';
+import { ViewOnly, writable } from '../domain/access/view-as.js';
+import { isViewOnlyRefusal } from '../infrastructure/unit-of-work.js';
 import type { PublishedVersion } from '../domain/schema/publish.js';
 import type { HistoryEntry } from '../domain/person/history.js';
 import type {
@@ -16,6 +19,7 @@ import type {
 import type { NumberingView } from '../application/org/numbering.js';
 import type { Asking, PersonView } from '../application/person/person-access.js';
 import { run, type PeopleService } from '../application/person/service.js';
+import { startViewingAs, type ViewAsDeps } from '../application/person/view-as.js';
 import type { CallerFrom } from '../http/caller.js';
 import { LIFECYCLE_ACTIONS } from '../http/lifecycle.js';
 import type { RestRequest, RestResponse } from '../http/rest.js';
@@ -51,13 +55,20 @@ export type { RequestContext } from './builder.js';
 /** REST's own dispatcher (`restHandler`): a write here is the same route's write. */
 export type RestDispatch = (request: RestRequest) => Promise<RestResponse | null>;
 
-let wiring: { service: PeopleService; callerFrom: CallerFrom; rest?: RestDispatch } | null = null;
+let wiring: {
+  service: PeopleService;
+  callerFrom: CallerFrom;
+  rest?: RestDispatch;
+  viewAs?: ViewAsDeps;
+} | null = null;
 
 /** Called once at boot by the composition root. */
 export function configureGraphQL(next: {
   service: PeopleService;
   callerFrom: CallerFrom;
   rest?: RestDispatch;
+  /** Viewing as an employee (`application/person/view-as.ts`). Absent, it is unavailable. */
+  viewAs?: ViewAsDeps;
 }): void {
   wiring = next;
 }
@@ -1282,6 +1293,41 @@ builder.mutationFields((t) => ({
   }),
 }));
 
+/* ------------------------------------------------------------ view as -- */
+
+const ViewAsStartRef = builder
+  .objectRef<{ readonly code: string; readonly expiresAt: string }>('ViewAsStart')
+  .implement({
+    description:
+      'A view-as session, begun: the tenant app’s server redeems the code for it, as after a sign-in.',
+    fields: (t) => ({
+      code: t.exposeString('code', {
+        description: 'Identity’s handoff code: single use, sixty seconds, this company only.',
+      }),
+      expiresAt: t.exposeString('expiresAt', { description: 'Thirty minutes after it began.' }),
+    }),
+  });
+
+builder.mutationFields((t) => ({
+  startViewingAs: t.field({
+    type: ViewAsStartRef,
+    description:
+      'A People administrator views the app as this person, read-only, for thirty minutes; never another administrator, never from support or from inside another view. The reason is kept in the activity log.',
+    args: {
+      personId: t.arg.id({ required: true }),
+      reason: t.arg.string({ required: true }),
+    },
+    resolve: async (_root, { personId, reason }, ctx) => {
+      const { asking } = await caller(ctx);
+      const viewAs = wiring?.viewAs;
+      if (viewAs === undefined) {
+        return fail(failure('UNAVAILABLE', 'Viewing as somebody is not configured here'));
+      }
+      return unwrap(await startViewingAs(viewAs, asking, personId, reason));
+    },
+  }),
+}));
+
 defineScreens(builder, viaRest);
 defineReports(builder, viaRest);
 defineOverview(builder, viaRest);
@@ -1296,10 +1342,33 @@ export const schema = builder.toSubGraphSchema({
  * No file comes this way: an import's goes straight to storage (§14.2), so the
  * body is JSON and Yoga's own limit stands.
  */
+/**
+ * An administrator viewing as somebody sends no mutation (`writable`,
+ * `domain/access/view-as.ts`): refused before any resolver runs, whichever it
+ * is — most are REST's own writes, which refuse it too, and the rest would
+ * meet the read-only transaction behind them (`readOnly`).
+ */
+const viewOnly: Plugin = {
+  async onExecute({ args, setResultAndStopExecution }) {
+    if (wiring === null) return;
+    const document = args.document as DocumentNode;
+    const name = args.operationName as string | null | undefined;
+    if (getOperationAST(document, name)?.operation !== OperationTypeNode.MUTATION) return;
+    const context = args.contextValue as RequestContext;
+    const headers = Object.fromEntries(context.request?.headers.entries() ?? []);
+    const asking = await wiring.callerFrom({ headers });
+    // Nobody at all: the resolver refuses it, with its own reason.
+    if (!asking.ok) return;
+    const may = writable(asking.value.viewer);
+    if (!may.ok) setResultAndStopExecution({ data: null, errors: [toGraphQLError(may.error)] });
+  },
+};
+
 export const yogaOptions = {
   schema,
   graphqlEndpoint: '/graphql',
   multipart: false,
+  plugins: [viewOnly] as Plugin[],
   maskedErrors: {
     // Yoga loads graphql's CommonJS build and `toGraphQLError` its ESM one, so
     // Yoga's `instanceof` took every domain refusal for an unexpected error and
@@ -1307,9 +1376,10 @@ export const yogaOptions = {
     // message and a field path, so it passes; anything else is masked as before.
     maskError: (error: unknown, message: string, isDev?: boolean) => {
       const original = (error as { originalError?: unknown } | null)?.originalError;
-      return original instanceof Error && original.name === 'GraphQLError'
-        ? (error as Error)
-        : maskError(error, message, isDev);
+      if (original instanceof Error && original.name === 'GraphQLError') return error as Error;
+      // A write Postgres refused because the request was read-only: viewing.
+      if (isViewOnlyRefusal(original)) return toGraphQLError(ViewOnly);
+      return maskError(error, message, isDev);
     },
   },
 } as const;
