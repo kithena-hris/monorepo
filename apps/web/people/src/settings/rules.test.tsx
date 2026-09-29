@@ -100,11 +100,10 @@ describe('conditional requiredness (PEO-065)', () => {
     const sheet = await sheetNamed('New field');
     await user.click(within(sheet).getByLabelText(/^Field name/));
     await user.paste('Work permit number');
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
 
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
+    // Saving too early says what is missing, beside it.
+    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
     expect(
       within(sheet).getByText('Every condition needs at least one value.'),
     ).toBeInTheDocument();
@@ -114,7 +113,6 @@ describe('conditional requiredness (PEO-065)', () => {
     );
     await user.click(screen.getByRole('option', { name: 'Spain' }));
     await user.keyboard('{Escape}');
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await within(sheet).findByText('Ordinary job data.');
     await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
 
@@ -134,8 +132,6 @@ describe('conditional requiredness (PEO-065)', () => {
     const sheet = await sheetNamed('New field');
     await user.click(within(sheet).getByLabelText(/^Field name/));
     await user.paste('Lab badge');
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
 
     const n = 'Required when, condition 1';
@@ -159,7 +155,6 @@ describe('conditional requiredness (PEO-065)', () => {
     await user.click(screen.getByRole('option', { name: 'Germany' }));
     await user.keyboard('{Escape}');
 
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await within(sheet).findByText('Ordinary job data.');
     await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
     await waitFor(() => {
@@ -184,10 +179,6 @@ describe('conditional requiredness (PEO-065)', () => {
       field({ key: 'permit', label: 'Permit', requiredness: 'conditional', requiredWhen: when }),
     );
     const sheet = await sheetNamed('Edit Permit');
-    for (let step = 0; step < 3; step += 1) {
-      // eslint-disable-next-line no-await-in-loop -- one step after another, as a person clicks
-      await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    }
     await within(sheet).findByText('Ordinary job data.');
     await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
     await waitFor(() => {
@@ -220,8 +211,6 @@ describe('conditional requiredness (PEO-065)', () => {
     const sheet = await sheetNamed('New field');
     await user.click(within(sheet).getByLabelText(/^Field name/));
     await user.paste('Workplace adjustment');
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
 
     const n = 'Required when, condition 1';
@@ -229,7 +218,7 @@ describe('conditional requiredness (PEO-065)', () => {
     await user.click(screen.getByRole('option', { name: 'Another field' }));
     await user.click(within(sheet).getByRole('combobox', { name: `${n}: which field` }));
     await user.click(screen.getByRole('option', { name: 'Disability' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
 
     expect(within(sheet).getByText(/Disability is special-category data/)).toBeInTheDocument();
     expect(within(sheet).getByRole('radio', { name: /Required when/ })).toBeInTheDocument();
@@ -242,7 +231,6 @@ describe('custom visibility rules (PEO-066)', () => {
     const user = fast();
     const onSave = editor(costCentre);
     const sheet = await sheetNamed('Edit Cost centre');
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
 
     await user.click(
       within(sheet).getByRole('button', { name: /^Let more people see it, on some records only/ }),
@@ -256,8 +244,6 @@ describe('custom visibility rules (PEO-066)', () => {
     await user.keyboard('{Escape}');
     expect(await axeViolations(sheet)).toEqual([]);
 
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await within(sheet).findByText('Ordinary job data.');
     await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
     await waitFor(() => {
@@ -287,10 +273,6 @@ describe('custom visibility rules (PEO-066)', () => {
       }),
     );
     const sheet = await sheetNamed('Edit Health note');
-    for (let step = 0; step < 3; step += 1) {
-      // eslint-disable-next-line no-await-in-loop -- one step after another, as a person clicks
-      await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    }
     await within(sheet).findByText('Ordinary job data.');
     await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
     expect(within(sheet).getByText(/never shown by a rule/)).toBeInTheDocument();
@@ -303,9 +285,7 @@ describe('custom visibility rules (PEO-066)', () => {
     const user = fast();
     const message =
       'Cost centre is shown by a rule on employment status, which not everybody it is shown to may read';
-    const onSave = vi.fn((_input: FieldInput) =>
-      Promise.resolve({ ok: false as const, message }),
-    );
+    const onSave = vi.fn((_input: FieldInput) => Promise.resolve({ ok: false as const, message }));
     render(
       <FieldEditor
         open
@@ -320,10 +300,6 @@ describe('custom visibility rules (PEO-066)', () => {
       />,
     );
     const sheet = await sheetNamed('Edit Cost centre');
-    for (let step = 0; step < 3; step += 1) {
-      // eslint-disable-next-line no-await-in-loop -- one step after another, as a person clicks
-      await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    }
     await within(sheet).findByText('Ordinary job data.');
     await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
     const alert = await within(sheet).findByText(message);

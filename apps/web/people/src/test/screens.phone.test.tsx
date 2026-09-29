@@ -209,14 +209,11 @@ describe('at 390×844, with a finger', () => {
       />,
     );
     const sheet = await screen.findByRole('dialog', { name: 'Edit Permit' });
-    for (let step = 1; step <= 2; step += 1) {
-      await userEvent.click(within(sheet).getByRole('button', { name: 'Next' }));
-      await settled();
-      expect(await violations(document.body)).toEqual([]);
-      // The conditions and the rules; the stepper above them is Reach's, and
-      // measured where Reach is.
-      for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
-    }
+    await settled();
+    expect(await violations(document.body)).toEqual([]);
+    // Every part is on one page: the conditions and the rules; the section
+    // list and the access matrix are Reach's, and measured where Reach is.
+    for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
   });
 
   it('publishing, as a sheet from the bottom', async () => {

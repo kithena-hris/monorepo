@@ -1,4 +1,6 @@
 import {
+  AccessStrip,
+  FieldRow as ReachFieldRow,
   Alert,
   Badge,
   Button,
@@ -48,6 +50,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { AUDIENCES, TypeIcon, accessOf } from './access';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type {
   ClassificationAdvice,
@@ -849,6 +852,11 @@ function SignupAsk({
   );
 }
 
+/**
+ * One field (S2), as Reach's field row: its type, name and labels, when it is
+ * asked and its key, who sees and changes it, and the two quick switches
+ * (assistant, sign-up) beside the way into the editor.
+ */
 function FieldRow({
   field,
   onEdit,
@@ -861,25 +869,27 @@ function FieldRow({
   readonly onAssistant?: FieldRegistryProps['onAssistant'];
 }): JSX.Element {
   return (
-    <div className="flex items-start gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <p className="text-sm font-medium">{field.label}</p>
-          <Badges field={field} />
-        </div>
-        <p className="mt-0.5 text-sm text-fg-muted">
-          {typeOf(field)} · {COLLECT_LABEL[field.collectAt].short} · Seen by {seenBy(field)}
-        </p>
-        <p className="truncate font-mono text-xs text-fg-muted">{field.key}</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {onAssistant === undefined ? null : (
-          <AssistantShare field={field} onAssistant={onAssistant} />
-        )}
-        {onSignup === undefined ? null : <SignupAsk field={field} onSignup={onSignup} />}
-        <EditField field={field} onEdit={onEdit} />
-      </div>
-    </div>
+    <ReachFieldRow
+      className="flex-1 shadow-none"
+      icon={<TypeIcon dataType={field.dataType} />}
+      title={field.label}
+      badges={<Badges field={field} />}
+      description={`${typeOf(field)} · ${COLLECT_LABEL[field.collectAt].short} · Seen by ${seenBy(field)}`}
+      code={field.key}
+      changed={field.pending !== null}
+      access={
+        <AccessStrip audiences={AUDIENCES} value={accessOf(field.visibility, field.ownership)} />
+      }
+      trailing={
+        <>
+          {onAssistant === undefined ? null : (
+            <AssistantShare field={field} onAssistant={onAssistant} />
+          )}
+          {onSignup === undefined ? null : <SignupAsk field={field} onSignup={onSignup} />}
+          <EditField field={field} onEdit={onEdit} />
+        </>
+      }
+    />
   );
 }
 
