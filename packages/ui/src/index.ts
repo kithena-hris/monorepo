@@ -90,6 +90,7 @@ export {
   BreadcrumbMenu,
   BreadcrumbPage,
   BreadcrumbSeparator,
+  filterSiblings,
 } from './components/breadcrumb/breadcrumb';
 export type { BreadcrumbMenuProps } from './components/breadcrumb/breadcrumb';
 export type { BreadcrumbItemProps, BreadcrumbLinkProps } from './components/breadcrumb/breadcrumb';
@@ -414,6 +415,9 @@ export { TertiaryNavMenu } from './components/nav/tertiary-nav-menu';
 export type { TertiaryNavMenuProps } from './components/nav/tertiary-nav-menu';
 
 export { GroupedNav, filterNavGroups } from './components/nav/grouped-nav';
+
+export { MegaMenu } from './components/nav/mega-menu';
+export type { MegaMenuProps } from './components/nav/mega-menu';
 export type {
   GroupedNavGroup,
   GroupedNavItem,
@@ -646,6 +650,67 @@ export type {
 
 export { KeyValues } from './components/key-values/key-values';
 export type { KeyValueItem, KeyValuesProps } from './components/key-values/key-values';
+
+/*
+ * Record patterns: the parts an HR screen is built from that are not HR.
+ * Each describes a need any product with records has — a value that changes
+ * on a date, a value that is hidden until asked for, a before and after —
+ * and none of them knows whose record it is.
+ */
+export { AccessMatrix, AccessStrip, toggleAccess } from './components/access-matrix/access-matrix';
+export type {
+  AccessAudience,
+  AccessColumn,
+  AccessMatrixProps,
+  AccessStripProps,
+  AccessValue,
+} from './components/access-matrix/access-matrix';
+
+export { ChangeDiff } from './components/change-diff/change-diff';
+export type { ChangeDiffItem, ChangeDiffProps } from './components/change-diff/change-diff';
+
+export { CompletenessMeter } from './components/completeness-meter/completeness-meter';
+export type {
+  CompletenessMeterProps,
+  CompletenessSegment,
+} from './components/completeness-meter/completeness-meter';
+
+export { EffectiveValue } from './components/effective-value/effective-value';
+export type { EffectiveValueProps } from './components/effective-value/effective-value';
+
+export { FieldRow } from './components/field-row/field-row';
+export type { FieldRowProps } from './components/field-row/field-row';
+
+export { ImportSummary } from './components/import-summary/import-summary';
+export type {
+  ImportSummaryProps,
+  ImportSummaryTile,
+  ImportSummaryTone,
+} from './components/import-summary/import-summary';
+
+export { InlineCell } from './components/inline-cell/inline-cell';
+export type { InlineCellProps, InlineCellStatus } from './components/inline-cell/inline-cell';
+
+export { MaskedValue, timeLeft } from './components/masked-value/masked-value';
+export type { MaskedValueProps } from './components/masked-value/masked-value';
+
+export { MergeCompare } from './components/merge-compare/merge-compare';
+export type { MergeCompareProps, MergeCompareRow } from './components/merge-compare/merge-compare';
+
+export { PersonCard } from './components/person-card/person-card';
+export type { PersonCardProps } from './components/person-card/person-card';
+
+export { QuickLook } from './components/quick-look/quick-look';
+export type { QuickLookProps } from './components/quick-look/quick-look';
+
+export { SectionEditor, SectionEditorPart } from './components/section-editor/section-editor';
+export type {
+  SectionEditorProps,
+  SectionEditorSection,
+} from './components/section-editor/section-editor';
+
+export { SettingsCard } from './components/settings-card/settings-card';
+export type { SettingsCardProps } from './components/settings-card/settings-card';
 
 export { TreeView } from './components/tree-view/tree-view';
 export type { TreeViewNode, TreeViewProps } from './components/tree-view/tree-view';
