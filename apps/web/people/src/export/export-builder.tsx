@@ -132,11 +132,7 @@ function Ready({ ready }: { readonly ready: NonNullable<ExportState['ready']> })
     );
   }
   if (ready.status === 'queued') {
-    return (
-      <Alert tone="info">
-        Your export is still being prepared. Try again in a minute.
-      </Alert>
-    );
+    return <Alert tone="info">Your export is still being prepared. Try again in a minute.</Alert>;
   }
   return (
     <Alert tone="warning" title="This export is no longer available">
@@ -206,7 +202,10 @@ function Builder({
               </p>
               <p className="text-sm text-fg-muted">
                 To export a smaller group, save a view in the{' '}
-                <a href="/people/directory/list" className="font-semibold text-accent-fg">
+                <a
+                  href="/people/directory/list"
+                  className="relative tap-target font-semibold text-accent-fg"
+                >
                   Directory
                 </a>
                 . Saved views appear here to choose from.

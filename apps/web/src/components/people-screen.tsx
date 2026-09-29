@@ -50,6 +50,8 @@ export interface PeopleScreenProps {
       }[];
     }[];
     readonly siblingsLabel?: string;
+    /** What the address asked for and People refused; the page is shown without it. */
+    readonly notice?: string;
     /** The umbrella page's tabs this viewer may open, in order. Absent: no tabs. */
     readonly tabs?: readonly {
       readonly href: string;

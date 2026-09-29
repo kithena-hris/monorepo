@@ -83,14 +83,24 @@ export function conditionsOf(
   }
 }
 
-/** `key:value` pairs, comma-separated (`?filter=department:sales`); a pair without both halves is dropped. */
+/** What a field's key looks like: the registry's own shape. */
+const FIELD_KEY = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * `key:value` pairs, comma-separated (`?filter=department:sales`); a pair
+ * without both halves is dropped, and so is a key that is not a field's key
+ * (`__proto__` names no field, and must never name a property either).
+ */
 export function filtersOf(raw: string | null | undefined): Record<string, string> {
-  const filters: Record<string, string> = {};
-  for (const pair of (raw ?? '').split(',')) {
-    const at = pair.indexOf(':');
-    if (at > 0 && at < pair.length - 1) filters[pair.slice(0, at)] = pair.slice(at + 1);
-  }
-  return filters;
+  return Object.fromEntries(
+    (raw ?? '').split(',').flatMap((pair) => {
+      const at = pair.indexOf(':');
+      const key = pair.slice(0, at);
+      return at > 0 && at < pair.length - 1 && FIELD_KEY.test(key)
+        ? [[key, pair.slice(at + 1)] as const]
+        : [];
+    }),
+  );
 }
 
 /** `?sort=hire_date:desc`, or null for People's own order. */

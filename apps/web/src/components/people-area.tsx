@@ -168,7 +168,11 @@ export async function PeopleArea({
           params={route?.params ?? {}}
           search={search}
           today={today()}
-          frame={frame}
+          frame={
+            load.status === 'ready' && load.notice !== undefined
+              ? { ...frame, notice: load.notice }
+              : frame
+          }
         />
       </div>
     </div>

@@ -116,6 +116,8 @@ describe('the directory’s address', () => {
 
   it('keeps the well-formed parts of a half-garbled filter or condition list', () => {
     expect(filtersOf('department:sales,broken,:x')).toEqual({ department: 'sales' });
+    expect(filtersOf('__proto__:x,Team:y,team:z')).toEqual({ team: 'z' });
+    expect(Object.getPrototypeOf(filtersOf('__proto__:x'))).toBe(Object.prototype);
     expect(conditionsOf('[{"key":"a","op":"is","values":["1"]},{"key":1},"x"]')).toEqual([
       { key: 'a', op: 'is', values: ['1'] },
     ]);

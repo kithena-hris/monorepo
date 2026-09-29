@@ -19,7 +19,15 @@ import { directoryQuery, oneOf } from './url-state';
  */
 
 export type ScreenLoad =
-  | { readonly status: 'ready'; readonly data: unknown }
+  | {
+      readonly status: 'ready';
+      readonly data: unknown;
+      /**
+       * What the address asked for and People refused, when the screen is shown
+       * without it (`orBare`): said above the page, not swallowed.
+       */
+      readonly notice?: string;
+    }
   | {
       readonly status: 'error';
       readonly message: string;
@@ -78,7 +86,8 @@ async function orBare<V extends Record<string, unknown>>(
   const first = await run(asked);
   const narrowed = Object.values(asked).some((v) => v !== null);
   if (first.status !== 'error' || first.unreachable === true || !narrowed) return first;
-  return run(Object.fromEntries(Object.keys(asked).map((k) => [k, null])) as V);
+  const bare = await run(Object.fromEntries(Object.keys(asked).map((k) => [k, null])) as V);
+  return bare.status === 'ready' ? { ...bare, notice: first.message } : first;
 }
 
 export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
