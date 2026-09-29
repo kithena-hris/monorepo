@@ -402,8 +402,8 @@ export type {
 export { Input, Textarea } from './components/input/input';
 export type { InputProps, TextareaProps } from './components/input/input';
 
-export { Kbd } from './components/kbd/kbd';
-export type { KbdProps } from './components/kbd/kbd';
+export { Kbd, KbdShortcut, chordOf, keysOfChord } from './components/kbd/kbd';
+export type { KbdProps, KbdShortcutProps } from './components/kbd/kbd';
 
 export { Nav, NavGroup, NavItem, NavList, TertiaryNav } from './components/nav/nav';
 export type {
@@ -716,6 +716,11 @@ export type {
 
 export { SettingsCard } from './components/settings-card/settings-card';
 export type { SettingsCardProps } from './components/settings-card/settings-card';
+
+export { KeyRecorder } from './components/shortcuts/key-recorder';
+export type { KeyRecorderProps } from './components/shortcuts/key-recorder';
+export { ShortcutsDialog } from './components/shortcuts/shortcuts-dialog';
+export type { ShortcutGroup, ShortcutsDialogProps } from './components/shortcuts/shortcuts-dialog';
 
 export { TreeView } from './components/tree-view/tree-view';
 export type { TreeViewNode, TreeViewProps } from './components/tree-view/tree-view';

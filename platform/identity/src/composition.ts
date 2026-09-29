@@ -22,6 +22,12 @@ import {
   profileOf,
 } from './account/infrastructure/drizzle-account-repository.js';
 import { directoryRoutes } from './account/http/directory-routes.js';
+import { preferenceRoutes } from './account/http/preference-routes.js';
+import {
+  hasAccount,
+  readPreference,
+  writePreference,
+} from './account/infrastructure/preference-store.js';
 import { authenticate } from './account/application/authenticate.js';
 import { issueHandoff, redeemHandoff } from './account/application/handoff.js';
 import { revokeSession } from './account/application/revoke-session.js';
@@ -741,6 +747,21 @@ export async function compose(config: Config): Promise<RequestHandler> {
     internalToken: config.peopleToken ?? config.internalToken,
     page: (tenantId, after, limit) =>
       inTenantTransaction(tenantId, (tx) => accountsPage(tx, after, limit)),
+  });
+
+  // A person's own preferences (keyboard shortcuts), for the tenant app's server.
+  const preferences = preferenceRoutes({
+    internalToken: config.internalToken,
+    read: (tenantId, accountId, name) =>
+      inTenantTransaction(tenantId, async (tx) =>
+        (await hasAccount(tx, accountId)) ? readPreference(tx, accountId, name) : undefined,
+      ),
+    write: (tenantId, accountId, name, value) =>
+      inTenantTransaction(tenantId, async (tx) => {
+        if (!(await hasAccount(tx, accountId))) return false;
+        await writePreference(tx, tenantId, accountId, name, value);
+        return true;
+      }),
   });
 
   /*
@@ -1865,6 +1886,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     (await operator(request, response)) ||
     (await admin(request, response)) ||
     (await directory(request, response)) ||
+    (await preferences(request, response)) ||
     (await moduleRoles(request, response)) ||
     (await signupQuestionSets(request, response)) ||
     (await tenants(request, response));
