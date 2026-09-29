@@ -354,7 +354,7 @@ export function AppShell({
                 person={person}
                 subtitle={[role, companyName].filter((x) => x !== null).join(' · ')}
                 companyName={companyName}
-                timeOff={entitlements.includes('module.timeoff')}
+                timeOff={areas.some((a) => a.href === '/time-off' && a.built)}
                 dark={dark}
                 onTheme={setTheme}
               />
@@ -592,7 +592,10 @@ function PersonMenu({
   person: AppShellProps['person'];
   subtitle: string;
   companyName: string;
-  /** Whether the company has time off: without it, the item is there and disabled. */
+  /**
+   * Whether time off is there to open: the company has it and the area is
+   * built, as the sidebar's row says. Otherwise the item is disabled.
+   */
   timeOff: boolean;
   dark: boolean;
   onTheme: (next: boolean) => void;

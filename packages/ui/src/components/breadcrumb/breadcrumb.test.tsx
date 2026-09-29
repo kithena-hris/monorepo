@@ -100,4 +100,36 @@ describe('<BreadcrumbMenu>', () => {
       'page',
     );
   });
+
+  it('offers a filter for a long group, not for sections and a page’s tabs together', async () => {
+    const items = (n: number, prefix: string) =>
+      Array.from({ length: n }, (_, i) => ({
+        href: `/${prefix}${String(i)}`,
+        label: `${prefix} ${String(i)}`,
+      }));
+    const { unmount } = render(
+      <BreadcrumbMenu
+        label="Data health"
+        menuLabel="People sections"
+        groups={[
+          { label: 'People', items: items(6, 'Section') },
+          { label: 'In Data health', items: items(4, 'Tab') },
+        ]}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Data health, People sections' }));
+    await screen.findByRole('menu');
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    unmount();
+
+    render(
+      <BreadcrumbMenu
+        label="Roles"
+        menuLabel="People settings"
+        groups={[{ label: 'Settings', items: items(8, 'Setting') }]}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Roles, People settings' }));
+    expect(await screen.findByRole('searchbox')).toBeInTheDocument();
+  });
 });
