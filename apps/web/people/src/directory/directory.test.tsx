@@ -230,6 +230,28 @@ describe('Directory', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('draws the view its route names, and asks the shell for another (V2, V3)', async () => {
+    const user = fast();
+    const onViewChange = vi.fn();
+    const { container, rerender } = render(<Directory {...props({ onViewChange })} />);
+    const views = screen.getAllByRole('radiogroup', { name: 'Show people as' })[0] as HTMLElement;
+    expect(within(views).getByRole('radio', { name: 'List' })).toBeChecked();
+    expect(screen.getByRole('table', { name: 'People' })).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+
+    rerender(<Directory {...props({ onViewChange, view: 'cards' })} />);
+    expect(within(views).getByRole('radio', { name: 'Cards' })).toBeChecked();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Profile' })).toHaveLength(2);
+
+    // The view is the route: the screen asks, and stays as it is until the route changes.
+    await user.click(within(views).getByRole('radio', { name: 'Org chart' }));
+    expect(onViewChange).toHaveBeenCalledWith('org-chart');
+    await user.click(within(views).getByRole('radio', { name: 'List' }));
+    expect(onViewChange).toHaveBeenLastCalledWith('list');
+    expect(within(views).getByRole('radio', { name: 'Cards' })).toBeChecked();
+  });
+
   it('asks the shell for the next page and back to the first, never paging itself', async () => {
     const user = fast();
     const onNextPage = vi.fn();
