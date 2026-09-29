@@ -522,6 +522,107 @@ the operator and the reason recorded beside each entry.
 
 ---
 
+## Viewing as an employee
+
+A People administrator sees the app exactly as one employee sees it, from that
+employee's profile ("View as {name}"), read-only, for at most thirty minutes.
+Decided by the owner on 2026-09-29.
+
+**Not support.** Support is Kithena, from the back office, a full
+administrator of the company. Viewing as is somebody at the company, as one
+named employee, able to change nothing, started from inside the company. The
+two share the mechanism — a session row with the actor on it, RFC 8693's
+`act`, the router's principal, People's viewer — and never a meaning.
+
+### Who, and whom
+
+- **Only a `people_admin`**, by grant: HR and finance cannot, and neither can
+  Kithena support (an administrator by its session, not by a grant). People
+  decides it (`mayViewAs`, `services/people/src/domain/access/view-as.ts`),
+  because People holds the roles.
+- **Anyone but another administrator or Kithena support**, who has an account
+  and whose access has not ended. Never oneself.
+- **A reason**, one to 500 characters, kept in the activity log.
+- **Never from inside a view.** A view-as session's principal is the
+  employee's, read-only, so People refuses the start; identity refuses it too,
+  whatever People says, because the asking account is itself being viewed —
+  which an administrator never can be.
+
+### The flow
+
+```
+profile ── "View as Alan", reason required
+   └─▶ StartViewingAs (router → People, as the administrator)
+        ├─ People: mayViewAs, and whether Alan's view shows special-category data
+        └─▶ identity  POST /api/internal/view-as/start   (People's token)
+             { tenantId, adminAccountId, subjectAccountId, reason, specialCategory }
+             ├─ both active members, not oneself, not support, not nested
+             ├─ a session on Alan's account: viewed_by, reason, no slot, 30 min
+             ├─ platform.view_as_access and identity.view_as.started, same transaction
+             └─ a handoff code
+   └─▶ the tenant app's server redeems it: __Host-ksession is the view,
+        __Host-kreturn the administrator's own session, put aside
+```
+
+### The session
+
+A `platform.session` row on the **employee's** account with `viewed_by` (the
+administrator's account) and `reason`, and **no slot**: the employee's own
+devices keep theirs and nobody is evicted. **Thirty minutes, absolute** — the
+`session_shape` CHECK caps it, the access token is never minted past it, and
+the tenant app's cookie expires with it.
+
+`viewed_by` rather than support's `impersonated_by`: that column's foreign key
+is an operator, and every reader of it treats it as support, a full
+administrator. The token says `act: { sub: <admin>, kind: 'view_as' }`; the
+router forwards that as `viewedBy`, never `impersonatedBy`
+(`apps/gateway/config.yaml`). Deploy the router's config before identity, so
+no view-as token ever meets a router that would read its `act` as support.
+
+### Read-only, in the service
+
+People's viewer while viewing is the employee — their account, their roles
+from OpenFGA, their relations — with `viewing` naming the administrator. So
+every read is exactly theirs: their own special-category values as they read
+them, sealed values sealed (`last4`), HR's fields absent unless they are HR.
+And nothing is written:
+
+- `writable(viewer)` refuses `VIEW_ONLY` at REST's dispatcher for every route
+  but a GET, and for every GraphQL mutation before a resolver runs;
+- every database transaction the request opens is `READ ONLY`, so a read that
+  would record something (revealing an identifier in full) is refused by
+  Postgres too;
+- an export job, the one background job a request can queue, refuses a
+  viewer who is viewing when it is asked and when it runs;
+- SCIM answers only to its own tokens, never to a principal;
+- identity refuses a preference write from a view-as session.
+
+### Ending it
+
+"End viewing as {name}" heads the account menu and ⌘K, and `V` ends it (on a
+profile that offers it, `V` starts one). **No banner**: the account area says
+whose view it is. Ending signs the view-as session out in identity and puts
+`__Host-kreturn` back as the session cookie — or signs in nobody, if the
+administrator's own session is gone too; never the employee.
+
+The end is recorded once (`identity.view_as.ended`, `platform.view_as_access`
+closed): when the view is signed out — "End viewing", signing out, or a new
+sign-in on that browser — or, after thirty minutes, by the first session check
+at the company that finds it over, the employee's own included. Identity runs
+on Vercel with no scheduler, so an end nobody could observe is not recorded
+until somebody at the company is next seen.
+
+### Telling the employee
+
+People keeps `people.view_as_notice` from both events. Once a view is over —
+ended, or its thirty minutes past — the employee's bell says so for a
+fortnight ("Grace Hopper viewed Kithena as you · For 12 min, read-only: nothing
+was changed", and whether their sensitive personal details were visible), and
+their Inbox keeps every one under "Viewed as you". Never the reason: that is
+the activity log's.
+
+---
+
 ## Worth building, roughly in order
 
 You asked for suggestions. These are the ones I would actually spend time on,
