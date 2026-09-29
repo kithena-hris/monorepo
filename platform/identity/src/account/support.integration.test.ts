@@ -236,6 +236,18 @@ describe('the support session', () => {
     });
   });
 
+  it('is announced to the activity log with its reason, in the transaction that records it', async () => {
+    const { body } = await start({ reason: 'Ticket 4411' });
+    const sessionId = String((await redeem(body['code'])).body['sessionId']);
+    const started = await identity.events('identity.support.session_started');
+    const row = (await audit()).find((r) => r.session_id === sessionId);
+    expect(started.find((p) => p['sessionId'] === sessionId)).toMatchObject({
+      operatorId: row?.operator_id,
+      reason: 'Ticket 4411',
+      accountId: (await supportAccount()).id,
+    });
+  });
+
   it('shares one support account between operators, and takes no place from anybody', async () => {
     const [other] = await identity.sql<{ id: string }[]>`
       WITH i AS (INSERT INTO platform.identity (id) VALUES (gen_random_uuid()) RETURNING id)
