@@ -205,6 +205,25 @@ function widthOf(width: string | undefined): number {
   return clampWidth(Number(m[1]) * (m[2] === 'rem' ? 16 : 1));
 }
 
+/**
+ * The spare width of a table narrower than its container, given only to the
+ * columns whose cells overflow, and never more than each one needs. With no
+ * spare, or nothing overflowing, nothing moves. Pure, for its test.
+ */
+export function stretchOverflowing(
+  spare: number,
+  overflow: Readonly<Record<string, number>>,
+): Record<string, number> {
+  const total = Object.values(overflow).reduce((n, v) => n + Math.max(0, v), 0);
+  if (spare <= 0 || total <= 0) return {};
+  const share = Math.min(1, spare / total);
+  return Object.fromEntries(
+    Object.entries(overflow)
+      .filter(([, v]) => v > 0)
+      .map(([id, v]) => [id, Math.floor(v * share)]),
+  );
+}
+
 /** The column named in a sort label: its header if that is text, else its short header. */
 function columnName<T>(column: DataColumn<T>): string {
   return typeof column.header === 'string' ? column.header : (column.shortHeader ?? column.id);
@@ -454,7 +473,18 @@ export function DataTable<T extends TableRow>({
   const [collapsed, setCollapsed] = useState<readonly string[]>(defaultCollapsedGroups ?? []);
   const [ownWidths, setOwnWidths] = useState<Readonly<Record<string, number>>>({});
   const widths = columnWidths ?? ownWidths;
-  const widthFor = (column: DataColumn<T>): number => widths[column.id] ?? widthOf(column.width);
+  // Width a column was given to show what it truncates (`stretchOverflowing`),
+  // keyed by the columns, the widths somebody chose and the container's width,
+  // so any change to those measures again from the declared widths.
+  const [boxWidth, setBoxWidth] = useState(0);
+  const fitKey = `${columns.map((c) => `${c.id}:${String(widths[c.id] ?? '')}`).join('|')}@${String(boxWidth)}`;
+  const [fit, setFit] = useState<{
+    readonly key: string;
+    readonly extra: Readonly<Record<string, number>>;
+  }>({ key: '', extra: {} });
+  const fitted = fit.key === fitKey ? fit.extra : {};
+  const widthFor = (column: DataColumn<T>): number =>
+    widths[column.id] ?? widthOf(column.width) + (fitted[column.id] ?? 0);
   const setWidth = (id: string, width: number): void => {
     const next = { ...widths, [id]: clampWidth(width) };
     if (columnWidths === undefined) setOwnWidths(next);
@@ -704,6 +734,72 @@ export function DataTable<T extends TableRow>({
       el.removeEventListener('scroll', check);
     };
   }, [wantsEnd, ordered.length]);
+
+  // The container's width, whole pixels, so a resize measures again.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!resizable || el === null || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(() => {
+      setBoxWidth(Math.round(el.clientWidth));
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+    };
+  }, [resizable]);
+
+  /*
+   * A table of few columns leaves room at its end. That room goes to the
+   * columns whose content is cut off, header or cell, up to what each needs;
+   * a table with nothing cut off keeps its declared widths. A column somebody
+   * resized keeps their width. Only what is rendered is measured, which on a
+   * virtualized table is the rows in view.
+   */
+  useEffect(() => {
+    const el = scrollRef.current;
+    const table = el?.querySelector('table');
+    if (!resizable || el == null || table == null) return;
+    const spare = el.clientWidth - table.offsetWidth;
+    if (spare <= 0) return;
+    const heads = [...table.querySelectorAll<HTMLTableCellElement>('thead th[data-column-id]')];
+    const span = heads[0]?.parentElement?.children.length ?? 0;
+    const overflow: Record<string, number> = {};
+    for (const th of heads) {
+      const id = th.dataset['columnId'];
+      if (id === undefined || widths[id] !== undefined) continue;
+      const cells = [
+        th,
+        ...[...table.tBodies].flatMap((b) =>
+          [...b.rows].flatMap((row) =>
+            row.cells.length === span && row.cells[th.cellIndex] !== undefined
+              ? [row.cells[th.cellIndex] as HTMLTableCellElement]
+              : [],
+          ),
+        ),
+      ];
+      let need = 0;
+      for (const cell of cells) {
+        for (const node of [cell, ...cell.querySelectorAll<HTMLElement>('*')]) {
+          if (node.clientWidth > 0) need = Math.max(need, node.scrollWidth - node.clientWidth);
+        }
+      }
+      if (need > 0) overflow[id] = need;
+    }
+    const more = stretchOverflowing(spare, overflow);
+    if (Object.keys(more).length === 0) return;
+    setFit((prev) => {
+      const base = prev.key === fitKey ? prev.extra : {};
+      return {
+        key: fitKey,
+        extra: Object.fromEntries(
+          [...new Set([...Object.keys(base), ...Object.keys(more)])].map((id) => [
+            id,
+            (base[id] ?? 0) + (more[id] ?? 0),
+          ]),
+        ),
+      };
+    });
+  }, [fitKey, resizable, ordered.length, widths]);
 
   const body = (
     <Table

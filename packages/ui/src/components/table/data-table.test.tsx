@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DataTable, describeSorts, type DataColumn } from './data-table';
+import { DataTable, describeSorts, stretchOverflowing, type DataColumn } from './data-table';
 
 interface Person {
   id: string;
@@ -224,5 +224,23 @@ describe('<DataTable> striped, resizable, paged and grouped', () => {
     );
     const headings = screen.getAllByRole('rowheader');
     expect(headings.map((h) => h.textContent)).toEqual(['Research2', 'Networks1']);
+  });
+});
+
+describe('stretchOverflowing', () => {
+  it('gives spare width only to columns that overflow, up to what each needs', () => {
+    expect(stretchOverflowing(500, { name: 40, team: 0, email: 120 })).toEqual({
+      name: 40,
+      email: 120,
+    });
+  });
+
+  it('shares too little spare in proportion to the need', () => {
+    expect(stretchOverflowing(80, { name: 40, email: 120 })).toEqual({ name: 20, email: 60 });
+  });
+
+  it('moves nothing when nothing overflows or nothing is spare', () => {
+    expect(stretchOverflowing(500, { name: 0 })).toEqual({});
+    expect(stretchOverflowing(0, { name: 40 })).toEqual({});
   });
 });
