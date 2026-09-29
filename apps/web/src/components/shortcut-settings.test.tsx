@@ -128,7 +128,10 @@ describe('Settings › Keyboard shortcuts', () => {
     const store = fresh();
     const first = renderPage(store);
     record('Home', { key: 'g' }, { key: 'z' });
-    expect(store.saves.at(-1)).toEqual({ bindings: { 'go.home': ['g', 'z'] }, characterKeys: true });
+    expect(store.saves.at(-1)).toEqual({
+      bindings: { 'go.home': ['g', 'z'] },
+      characterKeys: true,
+    });
     expect(errorOf('Home')).toBeNull();
     first.unmount();
 
