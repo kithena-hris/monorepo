@@ -290,6 +290,7 @@ describe('merging', () => {
         personIds: [HR_RECORD, SIGNED_UP],
         names: ['Ada Lovelace', 'Augusta Lovelace'],
         reasons: ['Same work email'],
+        match: 'likely',
       },
     ]);
     const compared = view.value.comparison;

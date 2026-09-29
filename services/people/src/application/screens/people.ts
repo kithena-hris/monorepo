@@ -6,6 +6,7 @@ import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
 import { mayChangePhoto } from '../../domain/person/photo.js';
+import { matchBand, type MatchBand } from '../../domain/person/merge.js';
 import { askable } from '../../domain/person/detail-request.js';
 import type { FileInfoView } from './files.js';
 import { avatarsOf } from './photo.js';
@@ -949,6 +950,8 @@ export interface DuplicatesView {
     readonly personIds: readonly [string, string];
     readonly names: readonly [string, string];
     readonly reasons: readonly string[];
+    /** How strong the match is, as a band from the signals' weights (`matchBand`). */
+    readonly match: MatchBand;
   }[];
   /**
    * Merges still standing, newest first, each with what undoing it would
@@ -1017,6 +1020,7 @@ export async function duplicatesView(
             ? `Same ${labelOf(s.attributeKey ?? '')}`
             : SIGNAL_WORDS[s.signal],
         ),
+        match: matchBand(c.signals),
       });
     }
     if (pair === null) {

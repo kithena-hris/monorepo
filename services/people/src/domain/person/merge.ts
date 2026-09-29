@@ -59,6 +59,23 @@ const STRENGTH: Record<DuplicateSignal, number> = {
   name_and_birth_date: 1,
 };
 
+/**
+ * How strong a match is, in words rather than a percentage: the weights are a
+ * ranking, not a probability, and "94%" would claim a precision nobody
+ * measured. The bands follow the weights above, summed over a pair's signals:
+ *
+ * - **strong** (3 or more): a unique value held twice, or two independent
+ *   signals that agree (a work email and a name with a birth date).
+ * - **likely** (2): a shared work email.
+ * - **possible** (1): a name with a birth date, on its own a guess.
+ */
+export type MatchBand = 'strong' | 'likely' | 'possible';
+
+export function matchBand(signals: Candidate['signals']): MatchBand {
+  const score = signals.reduce((sum, s) => sum + STRENGTH[s.signal], 0);
+  return score >= 3 ? 'strong' : score === 2 ? 'likely' : 'possible';
+}
+
 /** One name for a pair, whichever way round it is asked. */
 export const pairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
