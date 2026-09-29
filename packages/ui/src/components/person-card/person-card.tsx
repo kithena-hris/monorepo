@@ -62,7 +62,7 @@ export function PersonCard({
     ) : (
       <a
         href={href}
-        className="rounded-xs outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-border-focus"
+        className="rounded-xs outline-none before:absolute before:inset-0 before:rounded-[inherit] focus-visible:before:outline-2 focus-visible:before:outline-offset-2 focus-visible:before:outline-border-focus"
       >
         {name}
       </a>

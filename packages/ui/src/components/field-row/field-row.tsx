@@ -63,7 +63,7 @@ export function FieldRow({
   ...props
 }: FieldRowProps): JSX.Element {
   const stretched =
-    'rounded-xs text-start outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-border-focus';
+    'rounded-xs text-start outline-none before:absolute before:inset-0 before:rounded-[inherit] focus-visible:before:outline-2 focus-visible:before:outline-offset-2 focus-visible:before:outline-border-focus';
   const name =
     href !== undefined ? (
       <a href={href} className={stretched}>
