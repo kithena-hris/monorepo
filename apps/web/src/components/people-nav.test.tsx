@@ -4,46 +4,60 @@ import axe from 'axe-core';
 import type { ComponentPropsWithoutRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+const push = vi.fn();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
 }));
 vi.mock('next/link', () => ({
   default: (props: ComponentPropsWithoutRef<'a'>) => <a data-next-link="" {...props} />,
 }));
 
-const { PeopleMenu, PeopleSections, currentPlace } = await import('./people-nav');
-const { headerFrame, placesFor } = await import('../lib/remotes');
+const { PeopleMenu, PeopleSections, PeopleSubnav } = await import('./people-nav');
+const { placesFor } = await import('../lib/remotes');
+const { EMPLOYEE, HR, PEOPLE_NAV } = await import('../lib/people-nav.fixture');
 const manifest = (await import('../../people/public/routes.json')).default;
 
 afterEach(() => {
   cleanup();
 });
 
-const nav = { sections: manifest.sections, actions: manifest.actions };
+const hr = placesFor(PEOPLE_NAV, HR);
 
-/** The sidebar's People menu, as the shell hangs it off the People item. */
-function People(props: Parameters<typeof PeopleSections>[0]) {
-  return (
-    <main>
-      <PeopleSections sections={props.sections} route={props.route} />
-    </main>
-  );
-}
+describe('PeopleSubnav', () => {
+  it('lists the sections under People as client-side links, marking the one a tab is in', () => {
+    render(
+      <ul>
+        <li>
+          <PeopleSubnav
+            {...hr}
+            route="/people/data-health/duplicates"
+            counts={{ '/people/approvals': 4 }}
+          />
+        </li>
+      </ul>,
+    );
+    const list = within(screen.getByRole('list', { name: 'People sections' }));
+    const health = list.getByRole('link', { name: 'Data health' });
+    expect(health.getAttribute('aria-current')).toBe('page');
+    expect(health.getAttribute('href')).toBe('/people/data-health/completeness');
+    expect(health.hasAttribute('data-next-link')).toBe(true);
+    expect(list.getByRole('link', { name: /Approvals/ }).textContent).toContain('4');
+    expect(list.getAllByRole('link')).toHaveLength(6);
+  });
+});
 
 describe('PeopleSections', () => {
-  it('lists HR’s sections as client-side links and marks the current one', async () => {
+  it('is the rail’s compact flyout: six described places, the current one marked', async () => {
     const { container } = render(
-      <People
-        {...placesFor(nav, { hr: true, admin: false, finance: false })}
-        route="/people/directory"
-      />,
+      <main>
+        <PeopleSections {...hr} route="/people/:id" counts={{ '/people/approvals': 4 }} />
+      </main>,
     );
     const links = within(screen.getByRole('navigation', { name: 'People sections' }));
     const directory = links.getByRole('link', { name: 'Directory' });
     expect(directory.getAttribute('aria-current')).toBe('page');
-    expect(directory.hasAttribute('data-next-link')).toBe(true);
-    expect(links.getByRole('link', { name: 'Import' })).toBeTruthy();
-    expect(links.getByRole('link', { name: 'Approvals' })).toBeTruthy();
+    expect(links.getAllByRole('link')).toHaveLength(6);
+    expect(screen.getByRole('link', { name: 'Settings › People' })).toBeTruthy();
     // No second header row: the breadcrumb and the actions are the screen's.
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Add person' })).toBeNull();
@@ -54,119 +68,54 @@ describe('PeopleSections', () => {
     // The file's first axe run: its cold start alone can pass 5s on a busy runner.
   }, 20_000);
 
-  it('shows an employee only what their roles open', () => {
-    render(
-      <People
-        {...placesFor(nav, { hr: false, admin: false, finance: false })}
-        route="/people/me"
-      />,
-    );
+  it('shows an employee only what their roles open, and marks nothing on adding somebody', () => {
+    render(<PeopleSections {...placesFor(PEOPLE_NAV, EMPLOYEE)} route="/people/new" />);
     const links = within(screen.getByRole('navigation', { name: 'People sections' }));
-    expect(links.getByRole('link', { name: 'Directory' })).toBeTruthy();
-    for (const hidden of [
-      'Import',
-      'Data completeness',
-      'Workforce analytics',
-      'Employee fields',
-    ]) {
-      expect(links.queryByRole('link', { name: hidden })).toBeNull();
-    }
+    expect(links.getAllByRole('link').map((l) => l.textContent)).toEqual([
+      expect.stringContaining('Overview'),
+      expect.stringContaining('Directory'),
+      expect.stringContaining('Approvals'),
+      expect.stringContaining('Import & export'),
+    ]);
+    expect(
+      screen
+        .getByRole('navigation', { name: 'People sections' })
+        .querySelectorAll('[aria-current]'),
+    ).toHaveLength(0);
   });
 });
 
 describe('PeopleMenu', () => {
-  it('lists the sections as rows, with a count only where something waits', () => {
-    const hr = placesFor(nav, { hr: true, admin: false, finance: false });
+  it('lists the sections as rows with what each holds, and what waits for you', () => {
     render(
       <main>
         <PeopleMenu {...hr} route={null} counts={{ '/people/approvals': 4 }} />
       </main>,
     );
-    const approvals = screen.getByRole('link', { name: /Approvals/ });
-    expect(approvals.textContent).toContain('4');
-    expect(screen.getByRole('link', { name: 'Directory' })).toBeTruthy();
-    expect(screen.getByRole('region', { name: 'Records' })).toBeTruthy();
+    const rows = within(screen.getByRole('list', { name: 'People sections' }));
+    expect(rows.getByRole('link', { name: /Approvals/ }).textContent).toContain(
+      '4 waiting for you',
+    );
+    expect(rows.getByRole('link', { name: /Directory/ }).textContent).toContain(
+      'List, cards or org chart',
+    );
+    expect(rows.getAllByRole('link')).toHaveLength(6);
+    expect(screen.getByText('Your own profile is in the Me tab.')).toBeTruthy();
   });
 });
 
-describe('headerFrame', () => {
-  const hr = placesFor(nav, { hr: true, admin: false, finance: false });
-
-  it('names the section for the breadcrumb and offers adding somebody', () => {
-    const frame = headerFrame(hr, '/people/directory', '/people');
-    expect(frame.section).toBe('Directory');
-    expect(frame.actions).toEqual([{ href: '/people/new', label: 'Add person', icon: 'hire' }]);
-    // The last crumb is a menu of the other sections, grouped, this one marked.
-    const workspace = frame.siblings.find((g) => g.label === 'Workspace');
-    expect(workspace?.items.find((i) => i.current)?.label).toBe('Directory');
-    expect(frame.siblings.map((g) => g.label)).toEqual(['Workspace', 'Records', 'Insights']);
-    // A profile is the Directory's.
-    expect(headerFrame(hr, '/people/:id', '/people').section).toBe('Directory');
-  });
-
-  it('names People’s front page as Overview, and offers no Add employee on its own form', () => {
-    expect(headerFrame(hr, '/people', '/people').section).toBe('Overview');
-    const adding = headerFrame(hr, '/people/new', '/people');
-    expect(adding.section).toBe('Add person');
-    expect(adding.actions).toEqual([]);
-  });
-
-  it('offers adding somebody where it belongs, and not on a profile', () => {
-    expect(headerFrame(hr, '/people', '/people').actions).toHaveLength(1);
-    expect(headerFrame(hr, '/people/:id', '/people').actions).toEqual([]);
-    expect(headerFrame(hr, '/people/me', '/people').actions).toEqual([]);
-  });
-
-  it('offers an employee nothing to start', () => {
-    const employee = placesFor(nav, { hr: false, admin: false, finance: false });
-    expect(headerFrame(employee, '/people/me', '/people').actions).toEqual([]);
-  });
-});
-
-describe('currentPlace', () => {
-  it('is the section at the route or the one the manifest says owns it', () => {
-    const at = (route: string) => currentPlace(manifest.sections, route)?.label;
-    expect(at('/people')).toBe('Overview');
-    expect(at('/people/directory')).toBe('Directory');
-    // A profile, its history and bulk editing are the directory's.
-    expect(at('/people/:id')).toBe('Directory');
-    expect(at('/people/:id/history')).toBe('Directory');
-    expect(at('/people/bulk-edit')).toBe('Directory');
-    expect(at('/people/me/history')).toBe('My profile');
-    expect(at('/people/reports/:id')).toBe('Report schedules');
-    // Settings are the Settings page's, not People's sections.
-    expect(at('/settings/people/integrations/:id')).toBeUndefined();
-    expect(currentPlace(manifest.settings, '/settings/people/integrations/:id')?.label).toBe(
-      'Integrations',
-    );
-    // Adding somebody is an action, not a section.
-    expect(at('/people/new')).toBeUndefined();
-    expect(currentPlace(manifest.actions, '/people/new')?.label).toBe('Add person');
-  });
-
-  it('marks the section of a profile, and no section on adding somebody', () => {
-    const hr = placesFor(nav, { hr: true, admin: false, finance: false });
-    const { unmount } = render(<People {...hr} route="/people/:id" />);
-    const links = within(screen.getByRole('navigation', { name: 'People sections' }));
-    expect(links.getByRole('link', { name: 'Directory' }).getAttribute('aria-current')).toBe(
-      'page',
-    );
-    unmount();
-
-    render(<People {...hr} route="/people/new" />);
-    const sections = screen.getByRole('navigation', { name: 'People sections' });
-    expect(sections.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
-  });
-
-  it('is nothing for a route no place claims', () => {
-    expect(currentPlace(manifest.sections, null)).toBeUndefined();
-    expect(currentPlace(manifest.sections, '/people/import/:id')).toBeUndefined();
-  });
-
-  it('lets every route of the manifest be claimed by at most one section', () => {
+describe('the manifest', () => {
+  it('lets every route be claimed by at most one section', () => {
+    const sections: {
+      path: string;
+      owns?: string[];
+      tabs?: { path: string; owns?: string[] }[];
+    }[] = manifest.sections;
+    const claims = (p: { path: string; owns?: string[] }, route: string) =>
+      p.path === route || (p.owns ?? []).includes(route);
     for (const { path } of manifest.routes) {
-      const owners = manifest.sections.filter(
-        (s) => s.path === path || ('owns' in s && s.owns.includes(path)),
+      const owners = sections.filter(
+        (s) => claims(s, path) || (s.tabs ?? []).some((t) => claims(t, path)),
       );
       expect(owners.length, path).toBeLessThanOrEqual(1);
     }

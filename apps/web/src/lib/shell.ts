@@ -2,9 +2,40 @@ import 'server-only';
 
 import { people } from './people';
 import { peopleRoute, placesFor } from './remotes';
-import { countsOf, EMPTY_SHELL, noticesOf, type Overview, type ShellData } from './shell-data';
+import {
+  countsOf,
+  EMPTY_SHELL,
+  noticesOf,
+  type Overview,
+  type ShellData,
+  type Waiting,
+} from './shell-data';
 
 export type { ShellData } from './shell-data';
+
+/**
+ * How many ID checks, duplicates and access requests wait, for HR and
+ * finance, in parallel. Each is People's own read as the person signed in;
+ * one it refuses is left out.
+ */
+async function waitingFor(roles: ShellData['roles']): Promise<Waiting | null> {
+  if (!roles.hr && !roles.finance) return null;
+  const [ids, dupes, access] = await Promise.all([
+    people<{ items: unknown[] }>('IdentifierReviews'),
+    people<{ items: unknown[] }>('Duplicates', { a: null, b: null }),
+    people<{ canDecide: boolean; requests: { state: string }[] }>('FullValues'),
+  ]);
+  return {
+    identifiers: ids.ok ? ids.data.items.length : null,
+    duplicates: dupes.ok ? dupes.data.items.length : null,
+    // Only a decision waits on somebody who can make it; a request of one's
+    // own is not something to act on.
+    accessRequests:
+      access.ok && access.data.canDecide
+        ? access.data.requests.filter((r) => r.state === 'pending').length
+        : null,
+  };
+}
 
 export async function shellData(entitlements: readonly string[]): Promise<ShellData> {
   if (!entitlements.includes('module.people')) return EMPTY_SHELL;
@@ -19,11 +50,13 @@ export async function shellData(entitlements: readonly string[]): Promise<ShellD
   const roles = home.ok ? home.data : (data?.roles ?? EMPTY_SHELL.roles);
   if (route === null || route === undefined) return { ...EMPTY_SHELL, roles };
   const places = placesFor(route.nav, roles);
+  const counts = data === null ? null : countsOf(data, await waitingFor(roles), places.sections);
   return {
     roles,
     sections: places.sections,
     settings: places.settings,
-    counts: data === null ? {} : countsOf(data),
+    counts: counts?.sections ?? {},
+    tabCounts: counts?.tabs ?? {},
     notices: data === null ? [] : noticesOf(data),
     now: data?.now ?? null,
   };

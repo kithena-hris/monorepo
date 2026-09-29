@@ -7,7 +7,14 @@ import { WorkspaceAsleep } from './workspace-asleep';
 import { currentTenant } from '../lib/branding';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
-import { currentPlace, headerFrame, peopleRoute, placesFor, siblingsOf } from '../lib/remotes';
+import {
+  currentPlace,
+  firstUnder,
+  headerFrame,
+  peopleRoute,
+  placesFor,
+  siblingsOf,
+} from '../lib/remotes';
 import { shellData } from '../lib/shell';
 import { currentPerson, displayName } from '../lib/session';
 import { workspaceConfig } from '../lib/workspace';
@@ -42,7 +49,17 @@ export async function PeopleArea({
   if (!person.entitlements.includes('module.people')) notFound();
 
   const route = await peopleRoute(path);
-  if (route === undefined) notFound();
+  if (route === undefined) {
+    // A section's bare path (`/people/data-health`) is the first of its tabs
+    // this person opens, query and all; anything else nobody answers is a 404.
+    const to =
+      area === 'people'
+        ? firstUnder((await shellData(person.entitlements)).sections, path)
+        : undefined;
+    if (to === undefined) notFound();
+    const query = new URLSearchParams(search).toString();
+    redirect(query === '' ? to : `${to}?${query}`);
+  }
 
   // Server rendering: a build whose signed manifest verifies, rendered in a
   // process of its own (`lib/remote-code.ts`, PEO-115). `PEOPLE_REMOTE_SSR=off`
@@ -78,7 +95,7 @@ export async function PeopleArea({
 
   const frame =
     area === 'people'
-      ? headerFrame(places, here, '/people')
+      ? headerFrame(places, here, '/people', { sections: shell.counts, tabs: shell.tabCounts })
       : {
           // The settings overview is "Settings › People"; a setting is
           // "Settings › People › Roles". No actions: nobody adds an employee
