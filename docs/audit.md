@@ -83,7 +83,8 @@ nothing, so it contributes no areas.
 **A support sign-in was not an event either.** Identity recorded it in
 `platform.support_access` alone. It now raises
 `identity.support.session_started` in the same transaction as that row: the
-session, the support account, the operator, the expiry and the reason. The
+session, the support account, the operator and their work address, the expiry
+and the reason. The
 reason has to travel this way — the router builds People's principal by string
 concatenation, so free text never reaches People, and People's own entries for
 the session carry the operator but no reason.
@@ -120,15 +121,17 @@ then People) makes it seconds.
 | `actor_kind`       | `person`, `support`, `system`, `integration`.                                                |
 | `actor_account_id` | the account that acted; for support, the account whose rights were used. Null for system.    |
 | `on_behalf_of`     | the support operator, when Kithena support acted.                                            |
+| `operator_label`   | how the log names that operator: their work address, from the support sign-in.              |
 | `subject_kind`     | `person`, `account`, `setting`, `export`, `import`, `request`, or null.                      |
 | `subject_id`       | its id, when it has one.                                                                     |
 | `subject_label`    | its name at the time, in words: a field's label, a location's name. Never a person's value. |
 | `reason`           | what the actor gave as the reason, when there was one.                                       |
 
-A few settings entries name a field or section by its key (`manager_id`)
-rather than its label, because People's router words them from the request's
-path; the old People view looked the label up when it read, and the log keeps
-what was said. Resolving the label when People publishes is a small follow-up.
+A few settings commands name a field or section by its key in their path
+(`/attributes/manager_id/assistant`). People's router says the key's label
+before it records the entry (`subjectKey`, `http/activity.ts`), and the
+backfill does the same for the entries written before it, so the log reads
+"Manager", not `manager_id`.
 
 **Never a value.** The payloads it reads were built not to carry one (the
 contracts refuse a special-category or encrypted value, and these events carry
@@ -151,7 +154,7 @@ is read, to the support sign-in it happened in: the latest one by the same
 operator at the same company that started at or before it, within the hour a
 support session lasts (identity's CHECK constraint). Order-independent, so it
 does not matter which topic arrived first, and the action shows that sign-in's
-reason. People never learns the session id, which is why it is the operator and
+reason, and names the operator as it did: "Kithena support (jane@kithena.com)". People never learns the session id, which is why it is the operator and
 the hour rather than the session.
 
 ---
@@ -201,7 +204,9 @@ first, 50 a page, `?before=<entry>` for older.
 **Where it is linked from.** Settings has it as its own card, and `G L` goes there. People's
 "Activity log" tile opens it filtered to People's four settings areas; Import &
 export keeps its history table (downloads live there) and gains "See all
-activity", filtered to imports and exports. The old People route is gone.
+activity", filtered to imports and exports. People's own settings-log read
+(`peopleSettingsActivity`, `GET /v1/views/settings/activity`) and its screen
+are gone: People records the entries and publishes them, and this reads them.
 
 ---
 
@@ -232,20 +237,53 @@ from the migration; `ALTER ROLE svc_audit LOGIN PASSWORD 'kithena'` once.
 
 ---
 
-## Not deployed yet
+## Deploying
 
-Everything above runs locally. Production needs, beside People on the VM (the
-audit service holds a Kafka consumer, so it is a container like Slack's rather
-than a function like messaging's):
+The audit service is a container beside People on the VM, like Slack's: it
+holds a Kafka consumer group, which a function that stops between requests
+cannot. No new infrastructure: the same EC2 VM, its Postgres (the `audit`
+schema in People's database, as `svc_audit`), its Redpanda and its OpenFGA.
 
-- a `platform/audit/Dockerfile` (Slack's, on 4103) and its image built and
-  pushed by the staging and production workflows, with an `audit` target in
-  `tools/scripts/src/affected-targets.ts`;
-- an `audit` service in `deploy/vm/compose.yaml` with `KAFKA_BROKERS`,
-  `OPENFGA_URL` and `AUDIT_DATABASE_URL` as `svc_audit`, and `deploy.sh` giving
-  `svc_audit` its login and password after `migrate`, as it does `svc_slack`;
-- `AUDIT_API_TOKEN` as a secret, written to both `audit.env` and `router.env`;
-- `audit` in the workflows' `graph.deploy.yaml` at `http://audit:4103/graphql`.
+What ships it, all in this repository:
 
-Until then the deployed supergraph has no `auditActivity`, and Settings ›
-Activity says the log could not be read.
+- `platform/audit/Dockerfile` (port 4103), built, booted and pushed as
+  `ghcr.io/<owner>/kithena-audit:<sha>` by `vercel-staging.yml` and
+  `vercel-production.yml`, when `tools/scripts/src/affected-targets.ts` says
+  the `audit` target changed;
+- the `audit` service in `deploy/vm/compose.yaml`, and
+  `deploy.sh <env> audit <image>`, which starts it and proves `/health` and
+  its database; `deploy.sh <env> migrate` gives `svc_audit` its login;
+- `audit` in the deployed graph (`http://audit:4103/graphql`), so the router
+  image serves `auditActivity`; the router's `config.yaml` forwards the
+  principal and `AUDIT_API_TOKEN` to it;
+- a production rollback of the audit image like Slack's.
+
+### Checklist
+
+1. **`AUDIT_API_TOKEN`** — the router–audit pair's secret. **Already set**, as
+   a GitHub *environment* secret in both `Production` and `staging`. The
+   workflows write it into `audit.env` (the service) and `router.env` (the
+   router) on the VM from that one secret, so the two cannot drift. To rotate
+   it:
+
+   ```bash
+   openssl rand -hex 32 | gh secret set AUDIT_API_TOKEN --env Production
+   openssl rand -hex 32 | gh secret set AUDIT_API_TOKEN --env staging
+   ```
+
+   then redeploy `audit` and `router` together (`targets: audit,router`).
+2. **`svc_audit`'s password** — nothing to set. `deploy.sh` generates
+   `AUDIT_DB_PASSWORD` into the VM's `state.env` on first run, as it does
+   Slack's, and applies it in `migrate`.
+3. **Nothing else.** `KAFKA_BROKERS`, `OPENFGA_URL` and the database URL are
+   the VM's own addresses, set in `compose.yaml`.
+
+### While it is not there
+
+Settings › Activity says **"The activity log isn't available yet"** — never an
+error — whenever the log cannot be read for any reason other than the reader
+not being allowed: the router has no audit subgraph, the service is down, or
+the token is missing. No other page asks the audit service anything, so none
+can break because of it. Nothing is lost meanwhile: People's and identity's
+events wait in Redpanda, and the consumer reads from where its group left off
+(from the beginning, the first time).
