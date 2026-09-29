@@ -916,6 +916,12 @@ interface PageHeaderFrameValue {
    * its own `tabs` keeps them.
    */
   readonly tabs?: ReactNode;
+  /**
+   * Under a finger, the frame's `actions` go up into the phone's navigation
+   * bar, the top-right slot of its `breadcrumb`, rather than into a row under
+   * the title. Make them icon buttons there, each named with `aria-label`.
+   */
+  readonly touchBarActions?: boolean;
 }
 
 const PageHeaderFrameContext = createContext<PageHeaderFrameValue>({});
@@ -950,10 +956,13 @@ export function PageHeaderFrame({
   actions,
   quietTitleOnTouch = false,
   tabs,
+  touchBarActions = false,
   children,
 }: PageHeaderFrameProps): JSX.Element {
   return (
-    <PageHeaderFrameContext value={{ breadcrumb, actions, quietTitleOnTouch, tabs }}>
+    <PageHeaderFrameContext
+      value={{ breadcrumb, actions, quietTitleOnTouch, tabs, touchBarActions }}
+    >
       {children}
     </PageHeaderFrameContext>
   );
@@ -972,6 +981,13 @@ export interface PageHeaderProps extends Omit<ComponentPropsWithoutRef<'div'>, '
   tabs?: ReactNode;
   /** Renders the title one step smaller, for a panel or a sheet. */
   size?: 'md' | 'lg';
+  /**
+   * Under a finger, these `actions` go up into the phone's navigation bar,
+   * top right, rather than into a row under the title: an account avatar, an
+   * icon button. With no breadcrumb the header opens with that bar. Make them
+   * icon-sized there. At a desk nothing moves.
+   */
+  touchBarActions?: boolean;
 }
 
 /**
@@ -990,24 +1006,60 @@ export function PageHeader({
   actions,
   tabs,
   size = 'lg',
+  touchBarActions = false,
   ...props
 }: PageHeaderProps): JSX.Element {
   const frame = useContext(PageHeaderFrameContext);
   const trail = breadcrumb ?? frame.breadcrumb;
+  const own = actions ?? null;
+  const framed = frame.actions ?? null;
+  /*
+   * What goes up into a phone's bar, and what stays in the row. The bar is
+   * `display: contents` at a desk, so the order and the row are unchanged
+   * there; under a finger it is positioned in the bar's right slot.
+   *
+   * Important under a finger, for the reason `TertiaryNav`'s pills give: a
+   * remote's later stylesheet may define the desk classes again.
+   */
+  const liftOwn = touchBarActions && own !== null;
+  const liftFrame = frame.touchBarActions === true && framed !== null;
+  const bar = liftOwn || liftFrame;
+  const barClass = cn(
+    'contents @max-md:[&>*]:flex-1',
+    'touch:absolute! touch:end-0 touch:flex! touch:h-12 touch:items-center touch:gap-2 touch:[&>*]:flex-none!',
+    trail ? 'touch:-top-1' : 'touch:top-0',
+  );
+  const rowEmptyOnTouch = (liftOwn || own === null) && (liftFrame || framed === null);
   const allActions =
-    frame.actions === undefined || frame.actions === null ? (
-      actions
-    ) : (
+    own === null && framed === null ? null : (
       <>
-        {actions}
-        {frame.actions}
+        {liftOwn && liftFrame ? (
+          <div className={barClass}>
+            {own}
+            {framed}
+          </div>
+        ) : (
+          <>
+            {liftOwn ? <div className={barClass}>{own}</div> : own}
+            {liftFrame ? <div className={barClass}>{framed}</div> : framed}
+          </>
+        )}
       </>
     );
   return (
     // A container, so the actions go full width when the header is narrow
     // rather than when the window is: a header in a phone frame, a sheet or a
     // side panel is narrow on any monitor.
-    <div className={cn('@container flex flex-col gap-3', className)} {...props}>
+    <div
+      className={cn(
+        '@container flex flex-col gap-3',
+        // The bar the lifted actions sit in: the breadcrumb's, or one of their own.
+        bar && 'touch:relative',
+        bar && !trail && 'touch:pt-12',
+        className,
+      )}
+      {...props}
+    >
       {trail}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
@@ -1034,7 +1086,13 @@ export function PageHeader({
           ) : null}
         </div>
         {allActions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 @max-md:w-full @max-md:[&>*]:flex-1">
+          <div
+            className={cn(
+              'flex shrink-0 flex-wrap items-center gap-2 @max-md:w-full @max-md:[&>*]:flex-1',
+              // Nothing left in the row under a finger: no empty row either.
+              rowEmptyOnTouch && 'touch:contents!',
+            )}
+          >
             {allActions}
           </div>
         ) : null}

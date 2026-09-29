@@ -1,7 +1,6 @@
 import { TooltipProvider } from '../tooltip/tooltip';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PageHeader, PageHeaderFrame, PageLayout, railDrag } from './page-layout';
 
@@ -98,22 +97,59 @@ describe('<PageLayout> rail', () => {
     expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
   });
 
-  it('starts as this device remembers, and remembers each change', async () => {
-    localStorage.setItem(KEY, 'expanded');
-    shell();
-    const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(nav).not.toHaveAttribute('data-collapsed');
+  it('starts as this device remembers, and remembers each change', () => {
+    // The clock is the test's: the phases are timed, and a busy runner is not.
+    vi.useFakeTimers();
+    try {
+      localStorage.setItem(KEY, 'expanded');
+      shell();
+      const nav = screen.getByRole('navigation', { name: 'Main' });
+      expect(nav).not.toHaveAttribute('data-collapsed');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
-    // The labels fade first; the width follows.
-    expect(nav).toHaveAttribute('data-fading');
-    await waitFor(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
+      // The labels fade first; the width follows 120ms later.
+      expect(nav).toHaveAttribute('data-fading');
+      expect(nav).not.toHaveAttribute('data-collapsed');
+      act(() => {
+        vi.advanceTimersByTime(120);
+      });
       expect(nav).toHaveAttribute('data-collapsed');
-    });
-    expect(localStorage.getItem(KEY)).toBe('collapsed');
+      expect(nav).not.toHaveAttribute('data-fading');
+      expect(localStorage.getItem(KEY)).toBe('collapsed');
 
-    await userEvent.keyboard('{Control>}\\{/Control}');
-    expect(nav).not.toHaveAttribute('data-collapsed');
-    expect(localStorage.getItem(KEY)).toBe('expanded');
+      // Expanding moves the width at once, and the labels come back after it.
+      fireEvent.keyDown(window, { key: '\\', ctrlKey: true });
+      expect(nav).not.toHaveAttribute('data-collapsed');
+      expect(localStorage.getItem(KEY)).toBe('expanded');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('<PageHeader touchBarActions>', () => {
+  it('lifts actions into the phone bar without changing their order at a desk', () => {
+    render(
+      <PageHeaderFrame touchBarActions actions={<a href="/new">New</a>}>
+        <PageHeader title="Items" actions={<button type="button">Export</button>} />
+      </PageHeaderFrame>,
+    );
+    const add = screen.getByRole('link', { name: 'New' });
+    const exportButton = screen.getByRole('button', { name: 'Export' });
+    // The frame's action is in the bar, which is `contents` at a desk: after the page's own.
+    expect(add.parentElement?.className).toContain('touch:absolute!');
+    expect(
+      exportButton.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(exportButton.parentElement?.className).not.toContain('touch:absolute!');
+  });
+
+  it('opens with a bar of its own for actions a header lifts with no breadcrumb', () => {
+    render(<PageHeader title="People" touchBarActions actions={<a href="/me">Me</a>} />);
+    const heading = screen.getByRole('heading', { level: 1, name: 'People' });
+    expect(heading.closest('.\\@container')?.className).toContain('touch:pt-12');
+    expect(screen.getByRole('link', { name: 'Me' }).parentElement?.className).toContain(
+      'touch:absolute!',
+    );
   });
 });

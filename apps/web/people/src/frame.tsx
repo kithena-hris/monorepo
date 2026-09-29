@@ -258,13 +258,34 @@ export function ScreenFrame({
           </>
         )
       }
+      // Under a finger the actions are the phone bar's, top right, as icons.
+      touchBarActions
       actions={
         actions.length === 0
           ? undefined
           : actions.map((a) => (
-              <Button key={a.href} variant="primary" asChild startIcon={iconOf(a.icon)}>
-                <a href={a.href}>{a.label}</a>
-              </Button>
+              <Fragment key={a.href}>
+                <Button
+                  variant="primary"
+                  asChild
+                  startIcon={iconOf(a.icon)}
+                  className="touch:hidden"
+                >
+                  <a href={a.href}>{a.label}</a>
+                </Button>
+                <Button
+                  size="xs"
+                  asChild
+                  startIcon={iconOf(a.icon)}
+                  className="hidden touch:inline-flex"
+                >
+                  {a.icon === undefined ? (
+                    <a href={a.href}>{a.label}</a>
+                  ) : (
+                    <a href={a.href} aria-label={a.label} />
+                  )}
+                </Button>
+              </Fragment>
             ))
       }
     >
