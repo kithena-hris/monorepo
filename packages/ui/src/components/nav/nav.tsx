@@ -507,9 +507,14 @@ function useFlyout() {
         if (event.key !== 'ArrowRight') return;
         event.preventDefault();
         show();
-        // After the content has mounted.
+        // After the content has mounted. Into the sections themselves when the
+        // flyout has any, past a mega menu's search and recent chips.
         requestAnimationFrame(() => {
-          content.current?.querySelector<HTMLElement>('a[href], button:not(:disabled)')?.focus();
+          const root = content.current;
+          (
+            root?.querySelector<HTMLElement>('nav a[href]') ??
+            root?.querySelector<HTMLElement>('a[href], button:not(:disabled)')
+          )?.focus();
         });
       },
     },

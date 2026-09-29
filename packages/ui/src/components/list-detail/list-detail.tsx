@@ -58,8 +58,8 @@ export interface ListDetailProps extends ComponentPropsWithoutRef<'div'> {
   /** Width of the list pane at wide sizes. */
   listWidth?: string;
   /**
-   * The width *of this component* at which both panes fit: `md` 48rem, `lg`
-   * 64rem, `xl` 80rem. A container width, not the viewport's.
+   * The width *of this component* at which both panes fit: `md` 42rem, `lg`
+   * 56rem, `xl` 72rem. A container width, not the viewport's.
    */
   splitFrom?: 'md' | 'lg' | 'xl';
   /** Accessible names for the two regions. */
@@ -76,25 +76,30 @@ export interface ListDetailProps extends ComponentPropsWithoutRef<'div'> {
  * the viewport would happily split. The root is the container; the grid inside
  * it asks how wide that is.
  *
- * `@3xl`, `@5xl` and `@7xl` are 48, 64 and 80rem, the widths the `md`, `lg`
- * and `xl` names always meant, so a caller's `splitFrom` keeps its meaning.
+ * The thresholds are the component's own room, so they sit below the window
+ * breakpoints the names came from: a page inside an app shell has already
+ * given a sidebar and its padding away. Measured against the viewport's 64rem,
+ * `lg` never split inside a 1280px window, where the content is about 60rem
+ * wide and a 27.5rem list leaves a comfortable detail beside it. `@2xl`,
+ * `@4xl` and `@6xl` are 42, 56 and 72rem: a list plus a detail of at least
+ * its own width, at each size.
  */
 const splitClass = {
-  md: '@3xl:grid @3xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
-  lg: '@5xl:grid @5xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
-  xl: '@7xl:grid @7xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
+  md: '@2xl:grid @2xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
+  lg: '@4xl:grid @4xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
+  xl: '@6xl:grid @6xl:grid-cols-[var(--list-width)_minmax(0,1fr)]',
 } as const;
 
 const borderClass = {
-  md: '@3xl:border-e @3xl:border-border',
-  lg: '@5xl:border-e @5xl:border-border',
-  xl: '@7xl:border-e @7xl:border-border',
+  md: '@2xl:border-e @2xl:border-border',
+  lg: '@4xl:border-e @4xl:border-border',
+  xl: '@6xl:border-e @6xl:border-border',
 } as const;
 
 const hideBelowSplit = {
-  md: '@max-3xl:hidden',
-  lg: '@max-5xl:hidden',
-  xl: '@max-7xl:hidden',
+  md: '@max-2xl:hidden',
+  lg: '@max-4xl:hidden',
+  xl: '@max-6xl:hidden',
 } as const;
 
 /**
