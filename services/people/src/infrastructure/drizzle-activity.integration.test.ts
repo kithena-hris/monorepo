@@ -36,6 +36,8 @@ beforeAll(async () => {
   for (const file of [
     '20260821120000_tenant_registry.sql',
     '20260922140000_people_bootstrap.sql',
+    // For `people.outbox`: an entry raises its event there (`docs/audit.md`).
+    '20260922170000_people_person.sql',
     '20260927190000_people_settings_activity.sql',
     '20260927200200_people_settings_activity_detail.sql',
   ]) {
