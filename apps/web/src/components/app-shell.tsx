@@ -342,7 +342,7 @@ function TopCorner({ shell }: { readonly shell: ShellData }): JSX.Element {
     <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @3xl/page:flex">
       <Button
         size="sm"
-        className="w-56 justify-start rounded-control text-fg-subtle"
+        className="w-56 justify-start rounded-control text-fg-muted"
         startIcon={<icons.search aria-hidden />}
         onClick={() => {
           setOpen(true);
