@@ -102,6 +102,21 @@ describe('HR’s duplicate review (PEO-074)', () => {
     expect(screen.getByText('Same work email')).toBeInTheDocument();
     await fast().click(screen.getByRole('button', { name: /Compare Ada Lovelace and Augusta/ }));
     expect(onCompare).toHaveBeenCalledWith('p1', 'p2');
+    // Titled as its section; People scores no match yet, so there is no column for one.
+    expect(screen.getByRole('heading', { level: 1, name: 'Data health' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Match' })).toBeNull();
+  });
+
+  it('takes a pair out of the list from the row, and says why when People refuses', async () => {
+    const onDismiss = vi.fn(() => Promise.resolve({ ok: false as const, message: 'Gone' }));
+    render(<Duplicates {...props} onDismiss={onDismiss} load={{ status: 'ready', data: queue }} />);
+    await fast().click(
+      screen.getByRole('button', {
+        name: 'Ada Lovelace and Augusta Lovelace are not the same person',
+      }),
+    );
+    expect(onDismiss).toHaveBeenCalledWith('p1', 'p2');
+    expect(await screen.findByText('Gone')).toBeInTheDocument();
   });
 
   it('keeps the record People allows, takes only what is ticked, and asks before merging', async () => {

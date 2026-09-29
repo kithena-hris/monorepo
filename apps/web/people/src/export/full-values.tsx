@@ -32,6 +32,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { DATA_HEALTH } from '../data-health';
 import { Loaded, type Loadable, type Outcome } from '../load';
 
 /**
@@ -105,10 +106,11 @@ function Requests({
 
   return (
     <Stack gap={6}>
-      <PageHeader
-        title="Sensitive data access"
-        description="Who can see unmasked values, for how long and why: one download, once, within 24 hours of HR’s approval. Every request is logged."
-      />
+      <PageHeader title={DATA_HEALTH.title} description={DATA_HEALTH.description} />
+      <p className="text-sm text-fg-muted">
+        Who can see unmasked values, for how long and why: one download, once, within 24 hours of
+        HR’s approval. Every request is logged.
+      </p>
       {state.canRequest ? <Ask state={state} onRequest={onRequest} /> : null}
       {state.canDecide ? (
         <PageSection title="Waiting for a decision">

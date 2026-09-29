@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
@@ -47,6 +47,12 @@ const state: CompletenessState = {
   ],
 };
 
+/** "Fill in" on a person's row: the grid, at their first missing cell. */
+const fillIn = async (name = 'Lena Moreau') => {
+  const [atDesk] = screen.getAllByRole('button', { name: `Fill in ${name}` });
+  if (atDesk !== undefined) await fast().click(atDesk);
+};
+
 const pick = async (name: string, option: string) => {
   const user = fast();
   await user.click(screen.getByRole('combobox', { name }));
@@ -54,13 +60,31 @@ const pick = async (name: string, option: string) => {
 };
 
 describe('CompletenessGrid', () => {
-  it('is one grid over exactly the missing cells, with a real control in each', async () => {
+  it('lists who is missing what, titled as Data health', async () => {
     const { container } = render(
       <CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />,
     );
-    expect(screen.getAllByRole('combobox', { name: /^Cost centre for / })).toHaveLength(3);
+    expect(screen.getByRole('heading', { level: 1, name: 'Data health' })).toBeInTheDocument();
     expect(screen.getByText('Waiting on employees')).toBeInTheDocument();
+    expect(screen.getByText('For HR to fill in')).toBeInTheDocument();
+    const table = screen.getByRole('table', { name: 'Missing information' });
+    expect(within(table).getByText('Desk')).toBeInTheDocument();
+    expect(within(table).getAllByText('HR')).toHaveLength(3);
+    // Nothing to fill in yet: the grid opens from a row.
+    expect(screen.queryByRole('combobox')).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('opens one grid over exactly the missing cells from Fill in, at that person', async () => {
+    const { container } = render(
+      <CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />,
+    );
+    await fillIn('Joan Bosch');
+    expect(screen.getAllByRole('combobox', { name: /^Cost centre for / })).toHaveLength(3);
+    expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
+    expect(await axeViolations(container)).toEqual([]);
+    await fast().click(screen.getByRole('button', { name: 'Back to the list' }));
+    expect(screen.queryByRole('combobox')).toBeNull();
   });
 
   it('tabs across the row, and Enter moves down the column', async () => {
@@ -72,6 +96,7 @@ describe('CompletenessGrid', () => {
     render(
       <CompletenessGrid load={{ status: 'ready', data: { ...state, rows } }} onSave={vi.fn()} />,
     );
+    await fillIn();
     screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
     await user.tab();
     expect(screen.getByRole('textbox', { name: 'Desk for Lena Moreau' })).toHaveFocus();
@@ -83,6 +108,7 @@ describe('CompletenessGrid', () => {
     const user = fast();
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={onSave} />);
+    await fillIn();
     await pick('Cost centre for Lena Moreau', 'ENG-204');
     await pick('Cost centre for Joan Bosch', 'ENG-201');
     // The next column over: Lena again.
@@ -107,6 +133,7 @@ describe('CompletenessGrid', () => {
         onSave={() => Promise.resolve({ ok: false, message: 'ENG-201 was retired' })}
       />,
     );
+    await fillIn();
     await pick('Cost centre for Joan Bosch', 'ENG-201');
     await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
     expect(await screen.findByText('ENG-201 was retired')).toBeInTheDocument();
@@ -152,6 +179,7 @@ describe('CompletenessGrid', () => {
         searchPeople={searchPeople}
       />,
     );
+    await fillIn();
     await user.click(screen.getByRole('button', { name: 'Manager for Lena Moreau' }));
     await user.type(
       screen.getByRole('combobox', { name: 'Manager for Lena Moreau search' }),
@@ -209,6 +237,7 @@ describe('CompletenessGrid', () => {
     const { container } = render(
       <CompletenessGrid load={{ status: 'ready', data: nif }} onSave={onSave} onCheck={onCheck} />,
     );
+    await fillIn('Joan Bosch');
     await user.type(screen.getByRole('textbox', { name: 'NIF for Joan Bosch' }), '12345678A');
     await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
 
