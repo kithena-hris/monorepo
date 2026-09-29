@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 // Server actions: none is called by these tests.
-vi.mock('../app/people/actions', () => ({
+vi.mock('../app/(app)/people/actions', () => ({
   decidePendingChange: vi.fn(),
   withdrawPendingChange: vi.fn(),
   approveAlone: vi.fn(),
