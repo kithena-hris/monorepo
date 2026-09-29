@@ -66,7 +66,7 @@ describe('a sensible field for a column', () => {
   });
 
   it('a T-shirt size: a choice, not sensitive, shared with the assistant', () => {
-    expect(defaultFieldFor('T-shirt size', shapeOf(['S', 'M', 'L']))).toMatchObject({
+    expect(defaultFieldFor('T-shirt size', shapeOf(['S', 'M', 'L', 'M']))).toMatchObject({
       dataType: 'select',
       options: ['S', 'M', 'L'],
       classification: 'internal',

@@ -11,16 +11,14 @@ import {
   type InsightsTab,
 } from '../application/screens/analytics.js';
 import { writeCsv } from '../application/import/csv.js';
-import {
-  transferHistoryView,
-  type TransferHistory,
-} from '../application/screens/transfers.js';
+import { transferHistoryView, type TransferHistory } from '../application/screens/transfers.js';
 import {
   commitImportView,
   completeImportUpload,
   createEndpoint,
   deliveriesView,
   dryRunImport,
+  unmatchedColumns,
   exportBuilderView,
   importTemplateFile,
   integrationsView,
@@ -83,6 +81,7 @@ import {
   setChatNotice,
 } from '../application/settings/chat.js';
 import { ask } from '../application/assistant/ask.js';
+import { proposeImportFields } from '../application/assistant/import-fields.js';
 import type { AssistantPort } from '../application/assistant/assistant-port.js';
 import {
   applySettings,
@@ -188,7 +187,10 @@ export type ScreenRouteDeps = SchemaScreenDeps &
   };
 
 export const ChatConnect = z.strictObject({ origin: z.url().max(300) });
-export const ChatComplete = z.strictObject({ code: z.string().min(1).max(500), state: z.string().min(1).max(2000) });
+export const ChatComplete = z.strictObject({
+  code: z.string().min(1).max(500),
+  state: z.string().min(1).max(2000),
+});
 export const ChatNotice = z.strictObject({ on: z.boolean() });
 export const Sections = z.strictObject({ changed: z.record(z.string(), z.unknown()) });
 export const Entity = z.strictObject({ name: z.string().max(200), country: z.string().max(2) });
@@ -347,6 +349,7 @@ export const UploadStart = z.strictObject({
   size: z.int().min(1),
 });
 /** A step after the upload: which upload, and the mapping once there is one. */
+export const UploadOnly = z.strictObject({ uploadId: z.uuid() });
 export const ImportStepBody = z.strictObject({
   uploadId: z.uuid(),
   mapping: z.record(z.string(), z.string().nullable()).optional(),
@@ -613,9 +616,7 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: /^\/v1\/assistant\/ask$/,
       safe: true,
-      handle: compute(AskBody, (asking, input) =>
-        ask(deps, asking, input.question, input.earlier),
-      ),
+      handle: compute(AskBody, (asking, input) => ask(deps, asking, input.question, input.earlier)),
     },
     /* settings set up in words (docs/ai-settings.md) */
     {
@@ -686,7 +687,8 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: new RegExp(`^/v1/views/files/${UUID}$`),
-      handle: async (asking, _r, params) => answer(await fileView(deps, asking, params['id'] ?? '')),
+      handle: async (asking, _r, params) =>
+        answer(await fileView(deps, asking, params['id'] ?? '')),
     },
     {
       // Where to put a field's file: a presigned PUT, as a photo's.
@@ -1267,6 +1269,19 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         answer(await completeImportUpload(deps, asking, params['id'] ?? '')),
     },
     {
+      // Fields for the columns that match none: proposed, never written here.
+      method: 'POST',
+      pattern: /^\/v1\/imports\/field-proposals$/,
+      safe: true,
+      handle: compute(UploadOnly, (asking, input) =>
+        proposeImportFields(
+          { ...settingsDeps, unmatched: (a, id) => unmatchedColumns(deps, a, id) },
+          asking,
+          input.uploadId,
+        ),
+      ),
+    },
+    {
       method: 'POST',
       pattern: /^\/v1\/imports\/dry-run$/,
       safe: true,
@@ -1349,7 +1364,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         const tab = query.get('tab') ?? 'headcount';
         const segment = query.get('segment') ?? undefined;
         if (!(INSIGHTS_TABS as readonly string[]).includes(tab)) {
-          return refused(failure('BAD_REQUEST', `tab is one of ${INSIGHTS_TABS.join(', ')}`, ['tab']));
+          return refused(
+            failure('BAD_REQUEST', `tab is one of ${INSIGHTS_TABS.join(', ')}`, ['tab']),
+          );
         }
         if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
           return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));

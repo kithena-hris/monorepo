@@ -559,6 +559,39 @@ export async function completeImportUpload(
 }
 
 /**
+ * The columns of an uploaded file that match no field and no system column,
+ * with their cells, for proposing fields for them
+ * (`application/assistant/import-fields.ts`). HR's, as every import step;
+ * nothing is written. The cells stay in this process: the caller turns them
+ * into shapes.
+ */
+export async function unmatchedColumns(
+  deps: ImportDeps,
+  asking: Asking,
+  uploadId: string,
+): Promise<
+  Result<readonly { readonly index: number; readonly header: string; readonly cells: readonly string[] }[]>
+> {
+  const read = await readUpload(uploadDeps(deps), inTx(deps, asking), who(asking), uploadId);
+  if (!read.ok) return read;
+  const { bytes } = read.value;
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const prepared = await prepare(deps, tx, asking, bytes);
+    if (!prepared.ok) return prepared;
+    const { file, proposed } = prepared.value;
+    return ok(
+      proposed
+        .filter((c) => c.status === 'ignored' && c.key === null && c.source === null && c.header.trim() !== '')
+        .map((c) => ({
+          index: c.index,
+          header: c.header,
+          cells: file.rows.map((r) => r.cells[c.index] ?? ''),
+        })),
+    );
+  });
+}
+
+/**
  * Where a dry run's blocked rows are kept: under the upload, in the export's
  * store, sealed. Under `dry-runs/`, not `imports/`, so the export sweep and the
  * bucket's lifecycle rule give it an export file's day rather than a committed

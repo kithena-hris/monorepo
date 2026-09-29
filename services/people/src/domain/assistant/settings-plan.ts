@@ -192,7 +192,15 @@ const CHANGES = {
       .describe('Every live section’s key, in the new order'),
   }),
   remove_section: z.strictObject({ sectionKey: z.string().max(120) }),
-  add_field: z.strictObject({ field: FieldSpec }),
+  add_field: z.strictObject({
+    field: FieldSpec,
+    column: z
+      .int()
+      .min(0)
+      .max(1000)
+      .optional()
+      .describe('Only when proposing a field for a spreadsheet column: the column’s index'),
+  }),
   edit_field: z.strictObject({
     key: Key,
     changes: FieldPatch.describe('Only what changes; leave out what stays'),

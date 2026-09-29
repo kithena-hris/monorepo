@@ -85,7 +85,12 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
   if (patterns.size === 1 && pattern !== undefined && /digit/u.test(pattern))
     return shape(pattern, 'text');
   const distinct = [...new Set(values)];
-  if (distinct.length <= LIST_AT_MOST && distinct.every((v) => v.length <= SHORT)) {
+  // A list repeats itself: two names that never repeat are text, not choices.
+  if (
+    distinct.length <= LIST_AT_MOST &&
+    distinct.length < values.length &&
+    distinct.every((v) => v.length <= SHORT)
+  ) {
     return shape(`${String(distinct.length)} distinct short values`, 'select', {
       options: distinct,
     });

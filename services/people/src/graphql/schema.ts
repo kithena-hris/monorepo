@@ -28,6 +28,7 @@ import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/pers
 import { statutoryFloors, type FloorView } from '../domain/retention/floors.js';
 import type { UpcomingErasure } from '../application/retention/sweep.js';
 import { builder, type RequestContext, type ViaRest } from './builder.js';
+import { defineSettingsAssistant } from './assistant-settings.js';
 import { defineOverview } from './overview.js';
 import { defineReports } from './reports.js';
 import { defineScreens } from './screens.js';
@@ -89,7 +90,6 @@ function unwrap<T>(result: Result<T>): T {
   return result.ok ? result.value : fail(result.error);
 }
 
-
 /**
  * One of REST's routes, in-process, as this request's caller (PEO-113).
  *
@@ -126,7 +126,11 @@ const viaRest: ViaRest = async <T>(
         error?: { code?: string; message?: string; path?: string[]; link?: string };
       }
     ).error;
-    const why = failure(refused?.code ?? 'INTERNAL', refused?.message ?? 'People refused', refused?.path);
+    const why = failure(
+      refused?.code ?? 'INTERNAL',
+      refused?.message ?? 'People refused',
+      refused?.path,
+    );
     // A re-uploaded import's answer is the stored report of the first (PEO-090).
     return fail(refused?.link === undefined ? why : { ...why, link: refused.link });
   }
@@ -411,7 +415,8 @@ const PeopleSettingsRef = builder.objectRef<TenantSettings>('PeopleSettings').im
     defaultTimeZone: t.exposeString('defaultTimeZone'),
     cohortMinimum: t.exposeInt('cohortMinimum'),
     photoAtSignup: t.exposeString('photoAtSignup', {
-      description: 'off, optional or required: whether the first screen after signing up asks for a photo.',
+      description:
+        'off, optional or required: whether the first screen after signing up asks for a photo.',
     }),
     slug: t.string({ nullable: true, resolve: (s) => s.slug }),
     displayName: t.string({ nullable: true, resolve: (s) => s.displayName }),
@@ -626,7 +631,8 @@ builder.mutationType({
       args: {
         attributes: t.arg({ type: [AttributeValueInput], required: true }),
         hireDate: t.arg.string({
-          description: 'A calendar date: hire them from it, active once it has begun on their calendar.',
+          description:
+            'A calendar date: hire them from it, active once it has begun on their calendar.',
         }),
         idempotencyKey: t.arg(idempotencyKey),
       },
@@ -690,12 +696,10 @@ builder.mutationType({
         idempotencyKey: t.arg(idempotencyKey),
       },
       resolve: (_root, { id, idempotencyKey: key, ...patch }, ctx) =>
-        viaRest<LegalEntityView>(
-          ctx,
-          'PATCH',
-          `/v1/legal-entities/${encodeURIComponent(id)}`,
-          { body: sent(patch), key },
-        ),
+        viaRest<LegalEntityView>(ctx, 'PATCH', `/v1/legal-entities/${encodeURIComponent(id)}`, {
+          body: sent(patch),
+          key,
+        }),
     }),
     createLocation: t.field({
       type: LocationRef,
@@ -737,15 +741,10 @@ builder.mutationType({
         idempotencyKey: t.arg(idempotencyKey),
       },
       resolve: (_root, args, ctx) =>
-        viaRest<LocationView>(
-          ctx,
-          'POST',
-          `/v1/locations/${encodeURIComponent(args.id)}/zones`,
-          {
-            body: { timeZone: args.timeZone, effectiveFrom: args.effectiveFrom },
-            key: args.idempotencyKey,
-          },
-        ),
+        viaRest<LocationView>(ctx, 'POST', `/v1/locations/${encodeURIComponent(args.id)}/zones`, {
+          body: { timeZone: args.timeZone, effectiveFrom: args.effectiveFrom },
+          key: args.idempotencyKey,
+        }),
     }),
     correctAttribute: t.field({
       type: HistoryEntryRef,
@@ -863,7 +862,9 @@ const RetentionFloorRef = builder.objectRef<FloorView>('RetentionFloor').impleme
     floor: t.string({ resolve: (f) => f.floor }),
     months: t.exposeInt('months'),
     status: t.field({
-      type: builder.enumType('RetentionFloorStatus', { values: ['unreviewed', 'reviewed'] as const }),
+      type: builder.enumType('RetentionFloorStatus', {
+        values: ['unreviewed', 'reviewed'] as const,
+      }),
       resolve: (f) => f.review.status,
     }),
     reviewedBy: t.string({
@@ -929,13 +930,15 @@ const OrganisationRef = builder.objectRef<OrganisationShape>('PeopleOrganisation
     timeZones: t.stringList({ resolve: () => TIME_ZONES }),
     retentionFloors: t.field({
       type: [RetentionFloorRef],
-      description: 'The statutory retention floors and their legal review; law, the same for every tenant.',
+      description:
+        'The statutory retention floors and their legal review; law, the same for every tenant.',
       resolve: () => [...statutoryFloors()],
     }),
     upcomingErasures: t.field({
       type: [UpcomingErasureRef],
       nullable: true,
-      description: 'Leavers due for automated erasure within three months or overdue; HR’s alone, null for anybody else.',
+      description:
+        'Leavers due for automated erasure within three months or overdue; HR’s alone, null for anybody else.',
       resolve: (o) => (o.upcomingErasures === null ? null : [...o.upcomingErasures]),
     }),
   }),
@@ -985,7 +988,11 @@ builder.queryFields((t) => ({
     type: PeopleHomeRef,
     resolve: async (_root, _args, ctx) => {
       const { roles } = (await caller(ctx)).asking.viewer;
-      return { hr: roles.has('hr'), admin: roles.has('people_admin'), finance: roles.has('finance') };
+      return {
+        hr: roles.has('hr'),
+        admin: roles.has('people_admin'),
+        finance: roles.has('finance'),
+      };
     },
   }),
 }));
@@ -1019,24 +1026,22 @@ builder.mutationFields((t) => ({
 const LeavingReasonRef = builder.enumType('LeavingReason', { values: LEAVING_REASONS });
 
 /** One employment on a person (PEO-110). */
-const EmploymentPeriodRef = builder
-  .objectRef<EmploymentPeriodRow>('EmploymentPeriod')
-  .implement({
-    fields: (t) => ({
-      period: t.exposeInt('period'),
-      legalEntityId: t.id({ nullable: true, resolve: (p) => p.legalEntityId }),
-      startedOn: t.exposeString('startedOn'),
-      lastWorkingDay: t.string({ nullable: true, resolve: (p) => p.lastWorkingDay }),
-      leavingReason: t.field({
-        type: LeavingReasonRef,
-        nullable: true,
-        resolve: (p) => p.leavingReason,
-      }),
-      eligibleForRehire: t.boolean({ nullable: true, resolve: (p) => p.eligibleForRehire }),
-      noticeFrom: t.string({ nullable: true, resolve: (p) => p.noticeFrom }),
-      rehireOverrideReason: t.string({ nullable: true, resolve: (p) => p.rehireOverrideReason }),
+const EmploymentPeriodRef = builder.objectRef<EmploymentPeriodRow>('EmploymentPeriod').implement({
+  fields: (t) => ({
+    period: t.exposeInt('period'),
+    legalEntityId: t.id({ nullable: true, resolve: (p) => p.legalEntityId }),
+    startedOn: t.exposeString('startedOn'),
+    lastWorkingDay: t.string({ nullable: true, resolve: (p) => p.lastWorkingDay }),
+    leavingReason: t.field({
+      type: LeavingReasonRef,
+      nullable: true,
+      resolve: (p) => p.leavingReason,
     }),
-  });
+    eligibleForRehire: t.boolean({ nullable: true, resolve: (p) => p.eligibleForRehire }),
+    noticeFrom: t.string({ nullable: true, resolve: (p) => p.noticeFrom }),
+    rehireOverrideReason: t.string({ nullable: true, resolve: (p) => p.rehireOverrideReason }),
+  }),
+});
 
 builder.queryFields((t) => ({
   employmentPeriods: t.field({
@@ -1172,7 +1177,8 @@ builder.mutationFields((t) => ({
     description:
       'End a terminated person’s access now rather than at the end of their last working day; HR only.',
     args: { personId: t.arg.id({ required: true }), idempotencyKey: t.arg(idempotencyKey) },
-    resolve: (_root, args, ctx) => move(ctx, 'endPersonAccess', args.personId, {}, args.idempotencyKey),
+    resolve: (_root, args, ctx) =>
+      move(ctx, 'endPersonAccess', args.personId, {}, args.idempotencyKey),
   }),
   startLeave: t.field({
     type: Person,
@@ -1190,7 +1196,8 @@ builder.mutationFields((t) => ({
     type: Person,
     description: 'Withdraw a provisional record that was never a person; HR only.',
     args: { personId: t.arg.id({ required: true }), idempotencyKey: t.arg(idempotencyKey) },
-    resolve: (_root, args, ctx) => move(ctx, 'discardPerson', args.personId, {}, args.idempotencyKey),
+    resolve: (_root, args, ctx) =>
+      move(ctx, 'discardPerson', args.personId, {}, args.idempotencyKey),
   }),
   mergePerson: t.field({
     type: Person,
@@ -1250,7 +1257,10 @@ async function inRoles<T>(
 async function changeRole(
   ctx: RequestContext,
   path: 'grants' | 'revocations',
-  { idempotencyKey: key, ...change }: { idempotencyKey: string; accountId: string | number; role: string; reason: string },
+  {
+    idempotencyKey: key,
+    ...change
+  }: { idempotencyKey: string; accountId: string | number; role: string; reason: string },
 ): Promise<RoleHolder> {
   return viaRest<RoleHolder>(ctx, 'POST', `/v1/roles/${path}`, {
     body: { ...change, accountId: change.accountId },
@@ -1331,6 +1341,7 @@ builder.mutationFields((t) => ({
 defineScreens(builder, viaRest);
 defineReports(builder, viaRest);
 defineOverview(builder, viaRest);
+defineSettingsAssistant(builder, viaRest);
 defineTransfers(builder, viaRest);
 
 export const schema = builder.toSubGraphSchema({
