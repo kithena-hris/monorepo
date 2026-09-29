@@ -441,13 +441,19 @@ jobs:
           STORYBOOK_URL: http://localhost:6006
           SHARD: ${{ matrix.shard }}/6
           # Pages rendering at once on this runner (tools/a11y/contrast-sweep.mjs):
-          # one per vCPU. Six tried on 2026-09-27 left two renders unsettled
-          # after 20 s on main — the dev server compiles each story on first
-          # request and the 4-vCPU runner could not keep up. The sixth shard is
-          # what buys the time now.
+          # one per vCPU.
           CONTRAST_WORKERS: 4
+        # A built Storybook, served as files, not the dev server. The dev
+        # server compiles each story on its first request, and on this 4-vCPU
+        # runner that sometimes took longer than any timeout: the same story
+        # (the tooltip playground) failed to settle on main three runs in a
+        # row, with no contrast finding, and blocked the production deploy. A
+        # static build is compiled once, up front (about 20 s), and every page
+        # after that is a file read. The sweep still focuses and measures in
+        # a real browser, which is the part nothing static can replace.
         run: |
-          pnpm --filter @reach/storybook dev --quiet &
+          pnpm --filter @reach/storybook build --quiet
+          python3 -m http.server 6006 --directory apps/storybook/storybook-static > /dev/null 2>&1 &
           npx --yes wait-on http://localhost:6006/index.json --timeout 180000
 
           # The drift gates describe the whole design system rather than any
