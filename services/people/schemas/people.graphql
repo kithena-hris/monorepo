@@ -1865,6 +1865,8 @@ type PeopleSettingsActivityEntry {
   """What it did, in one plain sentence."""
   detail: String
   id: ID
+  """person, or system for an account nobody in People holds."""
+  kind: String
   """Who did it, by name, "You" included."""
   name: String
   subject: String

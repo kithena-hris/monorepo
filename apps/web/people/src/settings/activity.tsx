@@ -10,6 +10,7 @@ import {
   PageHeader,
   SearchField,
   Stack,
+  icons,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
@@ -38,6 +39,8 @@ export interface SettingsActivityState {
     /** Who did it by name, "You" included: the avatar's initials. */
     readonly name?: string;
     readonly avatarUrl: string | null;
+    /** `system` for an account nobody in People holds: an icon, not initials. */
+    readonly kind?: 'person' | 'system';
   }[];
   readonly next: string | null;
 }
@@ -192,7 +195,11 @@ function Entries({
             header: 'Who',
             cell: (e) => (
               <span className="flex items-center gap-2.5">
-                <Avatar size="sm" name={e.name ?? e.by} src={e.avatarUrl ?? undefined} />
+                {e.kind === 'system' ? (
+                  <Avatar size="sm" name={e.by} fallback={<icons.system aria-hidden />} />
+                ) : (
+                  <Avatar size="sm" name={e.name ?? e.by} src={e.avatarUrl ?? undefined} />
+                )}
                 {e.by}
               </span>
             ),
