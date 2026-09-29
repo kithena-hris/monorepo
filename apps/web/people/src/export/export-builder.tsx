@@ -195,20 +195,38 @@ function Builder({
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1fr)_21.25rem] @5xl/page:items-start">
       <Stack gap={4}>
         <PageSection surface title="1 · Who">
-          <ChipGroup
-            type="single"
-            aria-label="Who to export"
-            value={who}
-            onValueChange={(next) => {
-              if (next !== '') setWho(next);
-            }}
-          >
-            {state.who.map((w) => (
-              <ChipGroupItem key={w.value} value={w.value} variant="view">
-                {w.label} <span className="font-medium tabular-nums">{w.count}</span>
-              </ChipGroupItem>
-            ))}
-          </ChipGroup>
+          {/* One audience is nothing to choose: it is said, not offered. */}
+          {state.who.length === 1 ? (
+            <div className="flex flex-col gap-1">
+              <p className="text-base text-fg">
+                <span className="font-semibold">{state.who[0]?.label}</span>
+                {', '}
+                <span className="tabular-nums">{count}</span> {count === 1 ? 'person' : 'people'}
+              </p>
+              <p className="text-sm text-fg-muted">
+                To export a smaller group, save a view in the{' '}
+                <a href="/people/directory/list" className="font-semibold text-accent-fg">
+                  Directory
+                </a>
+                . Saved views appear here to choose from.
+              </p>
+            </div>
+          ) : (
+            <ChipGroup
+              type="single"
+              aria-label="Who to export"
+              value={who}
+              onValueChange={(next) => {
+                if (next !== '') setWho(next);
+              }}
+            >
+              {state.who.map((w) => (
+                <ChipGroupItem key={w.value} value={w.value} variant="view">
+                  {w.label} <span className="font-medium tabular-nums">{w.count}</span>
+                </ChipGroupItem>
+              ))}
+            </ChipGroup>
+          )}
         </PageSection>
 
         <PageSection
