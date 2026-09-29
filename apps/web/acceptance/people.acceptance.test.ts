@@ -419,7 +419,7 @@ describe('PEO-117: the directory searches and filters in People', () => {
       page.evaluate(() => document.body.innerText.replaceAll('\n', ' | '));
 
     // Adam reads every name, so he may search them: Priya, and nobody else.
-    await page.goto(`${stack.shell}/people/directory/list?search=shah`);
+    await page.goto(`${stack.shell}/people/directory/list?q=shah`);
     await expect.poll(text, { timeout: 30_000 }).toContain('Pri Shah');
     expect(await page.getByText(EMPLOYEE.email).count()).toBe(0);
 
@@ -772,7 +772,7 @@ describe('Hiring somebody added without a start date', () => {
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/directory/list?search=Bulkhire`);
+    await page.goto(`${stack.shell}/people/directory/list?q=Bulkhire`);
     await page.waitForLoadState('networkidle');
     const people = page.getByRole('table', { name: 'People' });
     await people.getByText('Alan Bulkhire').waitFor({ timeout: 30_000 });

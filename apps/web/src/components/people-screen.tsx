@@ -1,11 +1,12 @@
 'use client';
 
 import type { Route } from 'next';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
+import { filtersOf, noteInAddress, oneOf, withQuery, type HistoryMode } from '../lib/url-state';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
 /**
@@ -227,13 +228,37 @@ export function PeopleScreen({
   // A tab or a view is the last segment of its route (`/people/insights/turnover`,
   // `/people/directory/cards`): literal routes, so an unknown one never gets here.
   const leaf = usePathname().split('/').at(-1) ?? '';
-  // Switching a directory view keeps the search and the filters, not the page.
-  const carried = ((): string => {
-    const q = new URLSearchParams(search);
+  /*
+   * What narrows the screen lives in the address, so a link opens the same
+   * view (`lib/url-state.ts`). `live` is the address as it is now: it follows
+   * the History API, which the server's `search` does not.
+   *
+   * Two ways it changes. What People answers (the directory's page, an
+   * Insights segment) is a navigation, and the server reads it again. What
+   * the screen applies to what it already has (a tab, a history's filter) is
+   * noted in the address only (`noteInAddress`), with no round trip. Either
+   * way typing rewrites the entry it is on, and a deliberate choice (a chip,
+   * a tab, an order) is a new one that Back undoes.
+   */
+  const live = useSearchParams();
+  const at = (key: string): string | null => live.get(key);
+  const navigate = (patch: Readonly<Record<string, string | null>>, mode: HistoryMode = 'push') => {
+    const to = withQuery(window.location.pathname, window.location.search, patch) as Route;
+    if (mode === 'push') router.push(to, { scroll: false });
+    else router.replace(to, { scroll: false });
+  };
+  const note = noteInAddress;
+  /** Search text, as a key: empty is the default and left out. */
+  const typed = (text: string): string | null => (text.trim() === '' ? null : text);
+  // Switching a directory view keeps the search and the filters, not the page,
+  // nor what only the org chart reads.
+  const switchView = (view: string): void => {
+    const q = new URLSearchParams(window.location.search);
     q.delete('after');
+    if (view !== 'org-chart') for (const key of ['focus', 'layout']) q.delete(key);
     const qs = q.toString();
-    return qs === '' ? '' : `?${qs}`;
-  })();
+    go(`/people/directory/${view}${qs === '' ? '' : `?${qs}`}`);
+  };
 
   /** A write, then the page again from the server when it went through. */
   const thenRefresh =
@@ -305,6 +330,11 @@ export function PeopleScreen({
           load: loadable,
           // A link from the overview to one missing detail.
           ...(search['field'] === undefined ? {} : { focusField: search['field'] }),
+          // The part of the record on screen; the screen checks it is one this record has.
+          tab: at('tab'),
+          onTabChange: (tab: string) => {
+            note({ tab: tab === 'overview' ? null : tab }, 'push');
+          },
           // Offered to everybody; the screen shows it only where People says they may.
           onPhoto: thenRefresh((file: File) => uploadPhoto(id ?? null, file)),
           // A file for an image or document field; the form's Save keeps it.
@@ -363,11 +393,15 @@ export function PeopleScreen({
       // A date is a URL, so Back returns to the one before (PEO-064).
       case 'PersonHistory': {
         const id = params['id'];
-        const here = id === undefined ? '/people/me/history' : `/people/${id}/history`;
         return {
           load: loadable,
+          // People reads the record as of the date; the field it is narrowed to stays.
           onAsOf: (asOf: string | null) => {
-            go(asOf === null ? here : `${here}?asOf=${encodeURIComponent(asOf)}`);
+            navigate({ asOf });
+          },
+          field: at('field'),
+          onFieldChange: (field: string | null) => {
+            note({ field }, 'push');
           },
           onBack: () => {
             go(id === undefined ? '/people/me' : `/people/${id}`);
@@ -375,51 +409,20 @@ export function PeopleScreen({
         };
       }
       case 'Directory': {
-        const filters: Record<string, string> = {};
-        for (const pair of (search['filter'] ?? '').split(',')) {
-          const at = pair.indexOf(':');
-          if (at > 0) filters[pair.slice(0, at)] = pair.slice(at + 1);
-        }
-        // A new search or filter starts at the first page; a page is a
-        // history entry, so Back returns to the one before (PEO-117).
-        const view = leaf === 'cards' ? 'cards' : 'list';
-        const query = (next: {
-          search?: string;
-          filters?: Record<string, string>;
-          after?: string;
-          segment?: string | null;
-          incomplete?: boolean;
-          conditions?: string;
-          match?: string;
-          sort?: string;
-          group?: string;
-        }) => {
-          const q = new URLSearchParams();
-          const text = next.search ?? search['search'] ?? '';
-          const f = next.filters ?? filters;
-          const segment = next.segment === undefined ? (search['segment'] ?? null) : next.segment;
-          const incomplete = next.incomplete ?? search['incomplete'] === 'true';
-          const conditions = next.conditions ?? search['conditions'] ?? '';
-          const match = next.match ?? search['match'] ?? '';
-          const sort = next.sort ?? search['sort'] ?? '';
-          const group = next.group ?? search['group'] ?? '';
-          if (text !== '') q.set('search', text);
-          if (incomplete) q.set('incomplete', 'true');
-          if (conditions !== '' && conditions !== '[]') q.set('conditions', conditions);
-          if (match === 'any') q.set('match', 'any');
-          if (sort !== '') q.set('sort', sort);
-          if (group !== '') q.set('group', group);
-          const joined = Object.entries(f)
+        const filters = filtersOf(at('filter'));
+        const joined = (f: Readonly<Record<string, string>>): string | null =>
+          Object.entries(f)
             .map(([k, v]) => `${k}:${v}`)
-            .join(',');
-          if (joined !== '') q.set('filter', joined);
-          if (segment !== null && segment !== '') q.set('segment', segment);
-          if (next.after !== undefined) q.set('after', next.after);
-          const qs = q.toString();
-          const to = `/people/directory/${view}${qs === '' ? '' : `?${qs}`}` as Route;
-          if (next.after === undefined) router.replace(to);
-          else router.push(to);
+            .join(',') || null;
+        const conditionsKey = (conditions: readonly unknown[]): string | null =>
+          conditions.length === 0 ? null : JSON.stringify(conditions);
+        // People answers the address: a new search or filter starts at the
+        // first page, and a page is a history entry, so Back returns to the
+        // one before (PEO-117).
+        const query = (patch: Readonly<Record<string, string | null>>, mode?: HistoryMode) => {
+          navigate({ after: null, ...patch }, mode);
         };
+        const view = leaf === 'cards' ? 'cards' : 'list';
         const data =
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? (load.data as {
@@ -431,21 +434,21 @@ export function PeopleScreen({
         const next = data.next ?? null;
         return {
           load: loadable,
-          search: search['search'] ?? '',
+          search: at('q') ?? '',
           onSearchChange: (text: string) => {
-            query({ search: text });
+            query({ q: typed(text) }, 'replace');
           },
           filters,
           onFiltersChange: (next: Record<string, string>) => {
-            query({ filters: next });
+            query({ filter: joined(next) });
           },
-          segmentId: search['segment'] ?? null,
+          segmentId: at('segment'),
           onSegmentChange: (segment: string | null) => {
             query({ segment });
           },
-          incomplete: search['incomplete'] === 'true',
+          incomplete: at('incomplete') === 'true',
           onIncompleteChange: (incomplete: boolean) => {
-            query({ incomplete });
+            query({ incomplete: incomplete ? 'true' : null });
           },
           // A view across the top: its conditions alone, everything else cleared.
           onView: (view: {
@@ -454,31 +457,30 @@ export function PeopleScreen({
             segmentId: string | null;
           }) => {
             query({
-              conditions: JSON.stringify(view.conditions),
-              match: 'all',
-              incomplete: view.incomplete,
+              conditions: conditionsKey(view.conditions),
+              match: null,
+              incomplete: view.incomplete ? 'true' : null,
               segment: view.segmentId,
-              filters: {},
+              filter: null,
             });
           },
           view,
-          onViewChange: (next: string) => {
-            go(`/people/directory/${next}${carried}`);
-          },
+          onViewChange: switchView,
           // Advanced conditions and the order, in the URL so a view is a link.
           onConditionsChange: (
             conditions: readonly { key: string; op: string; values: readonly string[] }[],
             match: 'all' | 'any',
           ) => {
-            query({ conditions: JSON.stringify(conditions), match });
+            query({ conditions: conditionsKey(conditions), match: match === 'any' ? 'any' : null });
           },
           onSortChange: (sort: { key: string; direction: 'asc' | 'desc' } | null) => {
-            query({ sort: sort === null ? '' : `${sort.key}:${sort.direction}` });
+            query({ sort: sort === null ? null : `${sort.key}:${sort.direction}` });
           },
-          // Grouped, People orders by the same column, so a group is never split across pages.
-          group: search['group'] ?? null,
+          // Grouped, People orders by the same column, so a group is never split
+          // across pages. The screen checks it is a column that groups.
+          group: at('group'),
           onGroupChange: (key: string | null) => {
-            query({ group: key ?? '', sort: key === null ? '' : `${key}:asc` });
+            query({ group: key, sort: key === null ? null : `${key}:asc` });
           },
           // Infinite scroll: the next page of the same query, appended in place.
           ...(next === null
@@ -521,7 +523,7 @@ export function PeopleScreen({
                   query({ after: next });
                 },
               }),
-          ...(search['after'] === undefined
+          ...(at('after') === null
             ? {}
             : {
                 onFirstPage: () => {
@@ -576,6 +578,10 @@ export function PeopleScreen({
           onBack: () => {
             go('/people/directory/list');
           },
+          tab: oneOf(at('tab'), ['edit', 'hire'], null),
+          onTabChange: (tab: string) => {
+            note({ tab: tab === 'edit' ? null : tab }, 'push');
+          },
         };
       case 'FieldRegistry':
         return {
@@ -590,6 +596,19 @@ export function PeopleScreen({
           onPublish: thenRefresh(actions.publishDraft),
           onSignup: thenRefresh(actions.setFieldSignup),
           onAssistant: thenRefresh(actions.setFieldAssistant),
+          search: at('q') ?? '',
+          onSearchChange: (text: string) => {
+            note({ q: typed(text) }, 'replace');
+          },
+          // Each checked by the screen, which knows the filters and the sections.
+          show: at('show'),
+          onShowChange: (show: string) => {
+            note({ show: show === 'all' ? null : show }, 'push');
+          },
+          section: at('section'),
+          onSectionChange: (section: string | null) => {
+            note({ section }, 'push');
+          },
         };
       case 'Integrations':
         return {
@@ -607,6 +626,10 @@ export function PeopleScreen({
           },
           onOpenLog: (id: string) => {
             go(`/settings/people/integrations/${id}`);
+          },
+          tab: at('tab'),
+          onTabChange: (tab: string) => {
+            note({ tab: tab === 'overview' ? null : tab }, 'push');
           },
           scim: {
             onConnect: async (system: string) => {
@@ -663,6 +686,10 @@ export function PeopleScreen({
           load: loadable,
           onGrant: thenRefresh(actions.grantRole),
           onRevoke: thenRefresh(actions.revokeRole),
+          search: at('q') ?? '',
+          onSearchChange: (text: string) => {
+            note({ q: typed(text) }, 'replace');
+          },
         };
       case 'PeopleHome':
         return {
@@ -689,35 +716,43 @@ export function PeopleScreen({
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
-          onViewChange: (next: string) => {
-            go(`/people/directory/${next}${carried}`);
+          onViewChange: switchView,
+          layout: oneOf(at('layout'), ['vertical', 'horizontal'], null),
+          onLayoutChange: (layout: string) => {
+            note({ layout: layout === 'vertical' ? null : layout }, 'push');
+          },
+          // The screen checks it is somebody on this viewer's chart.
+          focusId: at('focus'),
+          onFocusChange: (focus: string | null) => {
+            note({ focus }, 'push');
           },
         };
       case 'PeopleSettings':
         return { load: loadable };
       // Pages of the log are URLs, so Back returns to the one before.
       case 'SettingsActivity': {
-        const area = search['area'] ?? null;
-        const to = (q: Record<string, string>) => {
-          const qs = new URLSearchParams(q).toString();
-          router.push(`/settings/people/activity${qs === '' ? '' : `?${qs}`}` as Route);
-        };
+        const area = oneOf(at('area'), ['fields', 'organisation', 'roles', 'integrations'], null);
         return {
           load: loadable,
           area,
+          // People answers an area and a page; the search is over what came.
           onArea: (next: string | null) => {
-            to(next === null ? {} : { area: next });
+            navigate({ area: next, before: null });
           },
           onOlder: (before: string) => {
-            to({ ...(area === null ? {} : { area }), before });
+            navigate({ before });
           },
-          ...(search['before'] === undefined
+          ...(at('before') === null
             ? {}
             : {
                 onNewest: () => {
-                  to(area === null ? {} : { area });
+                  navigate({ before: null });
                 },
               }),
+          search: at('q') ?? '',
+          onSearchChange: (text: string) => {
+            note({ q: typed(text) }, 'replace');
+          },
         };
       }
       case 'FullValues':
@@ -740,6 +775,10 @@ export function PeopleScreen({
           onSelfApprove: thenRefresh(actions.approveAlone),
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
+          },
+          tab: oneOf(at('tab'), ['mine', 'asked'], null),
+          onTabChange: (tab: string) => {
+            note({ tab }, 'push');
           },
         };
       case 'Duplicates': {
@@ -814,6 +853,10 @@ export function PeopleScreen({
           onChangeZone: thenRefresh(actions.changeZone),
           onSetNumbering: thenRefresh(actions.setNumbering),
           onSetPayBand: thenRefresh(actions.setPayBand),
+          tab: at('tab'),
+          onTabChange: (tab: string) => {
+            note({ tab: tab === 'entities' ? null : tab }, 'push');
+          },
         };
       case 'ExportBuilder':
         return {
@@ -882,12 +925,9 @@ export function PeopleScreen({
         return {
           load: loadable,
           tab: leaf,
-          segmentId: search['segment'] ?? null,
+          segmentId: at('segment'),
           onSegmentChange: (segment: string | null) => {
-            const here = `/people/insights/${leaf}`;
-            router.replace(
-              segment === null ? here : `${here}?segment=${encodeURIComponent(segment)}`,
-            );
+            navigate({ segment });
           },
           // The Schedules button: the schedules page's own actions.
           schedules: {
@@ -899,7 +939,17 @@ export function PeopleScreen({
           },
         };
       case 'ImportExport':
-        return { load: loadable };
+        return {
+          load: loadable,
+          kind: oneOf(at('kind'), ['import', 'export'], null),
+          onKindChange: (kind: string) => {
+            note({ kind: kind === 'all' ? null : kind }, 'push');
+          },
+          search: at('q') ?? '',
+          onSearchChange: (text: string) => {
+            note({ q: typed(text) }, 'replace');
+          },
+        };
       default:
         return {};
     }

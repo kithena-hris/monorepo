@@ -170,7 +170,7 @@ export function PeopleMenu({
         value={query}
         onValueChange={setQuery}
         onSearch={(value) => {
-          router.push(`/people/directory/list?search=${encodeURIComponent(value)}` as Route);
+          router.push(`/people/directory/list?q=${encodeURIComponent(value)}` as Route);
         }}
       />
       <List aria-label="People sections">
