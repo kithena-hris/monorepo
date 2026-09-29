@@ -11,6 +11,8 @@ import { inMemoryOrg } from '../application/org/in-memory.js';
 import { orgAdmin } from '../application/org/org.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../application/person/in-memory.js';
 import { personAccess } from '../application/person/person-access.js';
+import type { Viewer } from '../application/person/ports.js';
+import type { ActivityEntry } from '../application/settings/activity-store.js';
 import { inMemoryIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestRequest } from './rest.js';
@@ -388,6 +390,70 @@ describe('full-values requests', () => {
     });
     expect(refused.status).toBe(403);
     expect(hooks).toEqual([]);
+  });
+});
+
+describe('the settings log, and Kithena support (decided 2026-09-29)', () => {
+  const OPERATOR = '00000000-0000-4000-8000-0000000000e1';
+  const SUPPORT_ACCOUNT = '00000000-0000-4000-8000-0000000000c9';
+
+  function logging(viewer: Viewer) {
+    const store = inMemoryPeople([versionOf(1, [title])]);
+    const org = inMemoryOrg();
+    const recorded: ActivityEntry[] = [];
+    let n = 0;
+    const rest = restHandler({
+      service: {
+        access: personAccess(store.deps),
+        schemas: store.deps.schemas,
+        inTenant: (_tenant, fn) => fn({ tx: {} as never }),
+        org: orgAdmin({
+          store: org.store,
+          clock: fixedClock('2026-03-31T20:00:00.000Z'),
+          newId: () => `01900000-0000-7000-8000-${String((n += 1)).padStart(12, '0')}`,
+        }),
+      },
+      callerFrom: () =>
+        ok({ tenantId: TENANT, viewer, correlationId: '00000000-0000-4000-8000-0000000000c1' }),
+      idempotency: inMemoryIdempotency(),
+      activity: {
+        store: {
+          record: (_tx, _tenant, e) => {
+            recorded.push(e);
+            return Promise.resolve();
+          },
+          page: () => Promise.resolve([]),
+        },
+        newId: () => '00000000-0000-4000-8000-000000000d01',
+        now: () => '2026-09-29T10:00:00.000Z',
+      },
+    });
+    const entity = () =>
+      rest({
+        method: 'POST',
+        url: '/v1/legal-entities',
+        headers: { 'idempotency-key': 'e1' },
+        body: JSON.stringify({ name: 'Acme', country: 'ES', timeZone: 'Europe/Madrid' }),
+      });
+    return { recorded, entity };
+  }
+
+  it('records support’s change as the support account, with the operator and the reason', async () => {
+    const { recorded, entity } = logging({
+      accountId: SUPPORT_ACCOUNT,
+      roles: new Set(['people_admin', 'hr', 'finance']),
+      support: { operatorId: OPERATOR, reason: 'Ticket 4812' },
+    });
+    expect((await entity())?.status).toBe(201);
+    expect(recorded).toMatchObject([
+      { actor: SUPPORT_ACCOUNT, onBehalfOf: OPERATOR, reason: 'Ticket 4812' },
+    ]);
+  });
+
+  it('records anybody else with neither', async () => {
+    const { recorded, entity } = logging({ accountId: HR, roles: new Set(['people_admin']) });
+    expect((await entity())?.status).toBe(201);
+    expect(recorded).toMatchObject([{ actor: HR, onBehalfOf: null, reason: null }]);
   });
 });
 
