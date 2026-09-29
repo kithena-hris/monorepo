@@ -242,7 +242,7 @@ function Entries({
               {what}
               <p className="text-sm text-fg-muted">
                 {e.reason == null || e.reason === ''
-                  ? 'Kithena support was signed in from the back office; no reason was recorded here.'
+                  ? 'Done by Kithena support, signed in from the back office.'
                   : `Kithena support was signed in from the back office: ${e.reason}`}
               </p>
             </Stack>
