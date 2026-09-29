@@ -1956,6 +1956,46 @@ it is written down here rather than left in a PR description.
       serves the safelist. Left: a timed 100 MB import through the production
       router once the People Phase 2/3 release is deployed._
 
+- [ ] **PEO-127** "Open roles" on Insights › Headcount (design V7: "Open
+      roles · From the org chart"). People models no positions or vacancies;
+      open headcount belongs to the recruiting module (`ModuleKey`
+      `recruiting`), which must reach People through events and
+      `packages/contracts`, never a table People reads. When recruiting
+      exists: a `recruiting.requisition.*` contract, People counting open
+      requisitions per org unit, and a vacant node on the org chart (V3's
+      "Staff engineer"). Until then the figure is not shown. Found building
+      the Simplified navigation (#197).
+- [ ] **PEO-128** Undo an import for 24 hours (design V6's "Undo for 24
+      hours" badge, removed because nothing does it). An import's writes
+      share one correlation id (`application/import/commit.ts`), so an undo
+      can find the attribute history it wrote through
+      `person_attribute_history.event_id` → the outbox envelope's
+      `correlationId`: records it created are discarded, values it updated
+      are superseded by typed correction events (never silent updates), and
+      anything written since by somebody else blocks the undo for that
+      person. Needs a decision on what "undo" means for a person HR has
+      already edited or who has signed in. Found building #197.
+- [ ] **PEO-129** How long export records are kept (design V6's "Logged for 6
+      years", removed). Today `people.export` and the outbox have no DELETE
+      grant, so every export is kept indefinitely; no retention period is
+      decided and the only "6 years" in the code is the unrelated de-labour
+      floor. Decide the period (with counsel, beside PEO-037), then enforce
+      it and say it on the Export card. Found building #197.
+- [ ] **PEO-130** A field flag for "payroll cannot run without this".
+      "Blocking payroll" on Data health › Completeness is derived: a required
+      gap in a field that is `piiKind: financial`, a `bank_account` or
+      `national_id`, or owned by Finance. Revisit when the first payroll
+      integration says which fields it actually needs; if the derivation is
+      wrong for any tenant, add an optional `payrollRequired` on
+      `AttributeDefinition` (a contract change, classified) and a toggle in
+      the field editor. Found building #197.
+- [ ] **PEO-131** A duplicate match score people can read as a probability
+      (design V5's "94%"). Detection is four blocking signals with fixed
+      weights (`domain/person/merge.ts` `STRENGTH`); a percentage from those
+      would be invented precision, so the Match column shows Strong / Likely
+      / Possible. Revisit if duplicate detection gains a calibrated model
+      (fuzzy names, measured precision on real merges). Found building #197.
+
 ## Revisit later — the owner's list
 
 Everything left on People that needs the product owner rather than the next
@@ -1999,6 +2039,17 @@ the ticket or follow-up it points at is ticked with it.
 - [ ] A leaver read by id is answered with status withheld; hiding the record
       from peers altogether is a product call (see the status follow-up).
 
+**Waiting on another module or on identity** (found building #197, the
+Simplified People navigation)
+- [ ] Open roles on Insights: PEO-127, blocked on the recruiting module.
+- [ ] "My time off" in the account menu is disabled until the Time off area is
+      built.
+- [ ] "Switch company" in the account menu lists only the company signed in:
+      a session knows one company. Switching needs identity to link one person's
+      accounts across companies.
+- [ ] Import undo (PEO-128), export record retention (PEO-129), a payroll flag
+      on fields (PEO-130) and a calibrated duplicate score (PEO-131).
+
 **Operations**
 - [ ] Turn on S3 versioning for `kithena-378988188471-backups` (with old
       versions expiring after ~30 days): today a later backup on the same day
@@ -2025,3 +2076,5 @@ the ticket or follow-up it points at is ticked with it.
 | PEO-113 | resolved: option (a) | GraphQL for the screens through the router, with identity's token; REST stays for integrators. The shell has no direct path to People — PRD §13.1 |
 | PEO-037 | legal review        | The statutory retention floors (es-labour 48 months, de-labour 72, eu-payroll 120) are placeholders until someone qualified confirms them |
 | PEO-075 | built; inert per floor until counsel reviews it | The job runs and erases under a tenant policy alone; it skips any leaver relying on an unreviewed floor (all three today) until that floor is reviewed (PEO-126) |
+| PEO-127 | the recruiting module | Open roles are recruiting's data; People counts them from its events, never its tables |
+| PEO-129 | a retention decision | How long export records are kept, decided with counsel beside PEO-037 |
