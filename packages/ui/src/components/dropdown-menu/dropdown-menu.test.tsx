@@ -1,9 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { JSX } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -153,5 +155,42 @@ describe('DropdownMenu keyboard access', () => {
       expect(screen.getByRole('menu')).toBeTruthy();
     });
     expect(document.activeElement).not.toBe(screen.getByRole('menuitem', { name: 'Sign out' }));
+  });
+});
+
+describe('DropdownMenuCheckboxItem', () => {
+  it('draws a switch and no tick with indicator="switch", and still toggles as a checkbox item', async () => {
+    const user = userEvent.setup();
+    let checked = false;
+    const view = (): JSX.Element => (
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Preferences</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuCheckboxItem
+            indicator="switch"
+            checked={checked}
+            onCheckedChange={(next) => {
+              checked = next;
+            }}
+            onSelect={(event) => {
+              event.preventDefault();
+            }}
+          >
+            Dark mode
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+    const { rerender } = render(view());
+    const item = await screen.findByRole('menuitemcheckbox', { name: 'Dark mode' });
+    expect(item.getAttribute('aria-checked')).toBe('false');
+    expect(item.querySelector('svg')).toBeNull();
+    expect(item.querySelector('[aria-hidden="true"][data-state="unchecked"]')).not.toBeNull();
+
+    await user.click(item);
+    expect(checked).toBe(true);
+    rerender(view());
+    expect(item.getAttribute('aria-checked')).toBe('true');
+    expect(item.querySelector('[aria-hidden="true"][data-state="checked"]')).not.toBeNull();
   });
 });

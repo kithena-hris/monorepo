@@ -19,6 +19,7 @@ export {
 export type { AccordionProps, AccordionTriggerProps } from './components/accordion/accordion';
 
 export { Alert, EmptyState, Skeleton } from './components/feedback/feedback';
+export type { SkeletonProps } from './components/feedback/feedback';
 export type { AlertProps, EmptyStateProps } from './components/feedback/feedback';
 
 export {
@@ -352,7 +353,10 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from './components/dropdown-menu/dropdown-menu';
-export type { DropdownMenuProps } from './components/dropdown-menu/dropdown-menu';
+export type {
+  DropdownMenuCheckboxItemProps,
+  DropdownMenuProps,
+} from './components/dropdown-menu/dropdown-menu';
 
 export {
   Field,
