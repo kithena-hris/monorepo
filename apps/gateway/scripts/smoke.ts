@@ -77,6 +77,10 @@ const container = docker(
   `AUTH_TOKEN_AUDIENCE=${AUDIENCE}`,
   '--env',
   'PEOPLE_API_TOKEN=smoke',
+  // Every subgraph's token header must have a value, or the router refuses to
+  // start ("no header name/value combination"); the audit subgraph's too.
+  '--env',
+  'AUDIT_API_TOKEN=smoke',
   '--env',
   'KITHENA_ENTITLEMENTS=[]',
   image,
