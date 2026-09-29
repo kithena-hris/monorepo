@@ -11,7 +11,7 @@ vi.mock('next/link', () => ({
   default: (props: ComponentPropsWithoutRef<'a'>) => <a data-next-link="" {...props} />,
 }));
 
-const { PeopleBar, PeopleSections, currentPlace } = await import('./people-nav');
+const { PeopleMenu, PeopleSections, currentPlace } = await import('./people-nav');
 const { headerFrame, placesFor } = await import('../lib/remotes');
 const manifest = (await import('../../people/public/routes.json')).default;
 
@@ -21,19 +21,16 @@ afterEach(() => {
 
 const nav = { sections: manifest.sections, actions: manifest.actions };
 
-/** The flyout's sections and the bar above the screen, as one People screen draws them. */
-function People(props: Parameters<typeof PeopleBar>[0]) {
+/** The sidebar's People menu, as the shell hangs it off the People item. */
+function People(props: Parameters<typeof PeopleSections>[0]) {
   return (
-    <>
+    <main>
       <PeopleSections sections={props.sections} route={props.route} />
-      <main>
-        <PeopleBar {...props} />
-      </main>
-    </>
+    </main>
   );
 }
 
-describe('PeopleSections and PeopleBar', () => {
+describe('PeopleSections', () => {
   it('lists HR’s sections as client-side links and marks the current one', async () => {
     const { container } = render(
       <People
@@ -74,6 +71,21 @@ describe('PeopleSections and PeopleBar', () => {
     ]) {
       expect(links.queryByRole('link', { name: hidden })).toBeNull();
     }
+  });
+});
+
+describe('PeopleMenu', () => {
+  it('lists the sections as rows, with a count only where something waits', () => {
+    const hr = placesFor(nav, { hr: true, admin: false, finance: false });
+    render(
+      <main>
+        <PeopleMenu {...hr} route={null} counts={{ '/people/approvals': 4 }} />
+      </main>,
+    );
+    const approvals = screen.getByRole('link', { name: /Approvals/ });
+    expect(approvals.textContent).toContain('4');
+    expect(screen.getByRole('link', { name: 'Directory' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Records' })).toBeTruthy();
   });
 });
 

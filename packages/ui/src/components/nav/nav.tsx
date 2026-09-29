@@ -195,10 +195,11 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
   flyout?: ReactNode;
 }
 
-// 14px at a desk, 16px under a finger, which the type scale has no step
-// for: `sm` is 13 and `base` 15 at a desk.
+// A primary item is a 44px row of 15px type, the sidebar's own scale; the
+// levels below it are 14px at a desk, 16px under a finger, which the type
+// scale has no step for: `sm` is 13 and `base` 15 at a desk.
 const itemByLevel = {
-  1: 'min-h-9.5 touch:min-h-12 gap-2.5 px-2.5 text-[0.875rem] touch:text-[1rem]',
+  1: 'min-h-11 touch:min-h-12 gap-3 px-3 text-[0.9375rem] touch:text-[1rem]',
   2: 'min-h-9.5 touch:min-h-12 gap-2.5 px-2.5 text-[0.875rem] touch:text-[1rem]',
   3: 'min-h-7 touch:min-h-tap gap-2 px-2.5 text-sm',
 } as const;

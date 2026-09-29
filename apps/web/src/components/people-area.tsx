@@ -2,14 +2,13 @@ import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { AppShell } from './app-shell';
-import { PeopleBar, PeopleSections } from './people-nav';
 import { PeopleScreen } from './people-screen';
 import { WorkspaceAsleep } from './workspace-asleep';
 import { currentTenant } from '../lib/branding';
-import { people } from '../lib/people';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import { currentPlace, headerFrame, peopleRoute, placesFor, siblingsOf } from '../lib/remotes';
+import { shellData } from '../lib/shell';
 import { currentPerson, displayName } from '../lib/session';
 import { workspaceConfig } from '../lib/workspace';
 
@@ -48,18 +47,18 @@ export async function PeopleArea({
   // Server rendering: a build whose signed manifest verifies, rendered in a
   // process of its own (`lib/remote-code.ts`, PEO-115). `PEOPLE_REMOTE_SSR=off`
   // is still the switch.
-  const [load, ssr, home] = await Promise.all([
+  const [load, ssr, shell] = await Promise.all([
     route === null
       ? ({ status: 'none' } as const)
       : loadScreen(route.component, { params: route.params, search }),
     route === null || process.env['PEOPLE_REMOTE_SSR'] === 'off'
       ? undefined
       : prepareRemoteSsr(route.base),
-    // Which of People's places this person's roles open, for its navigation.
-    // People answers it whether or not anything is published yet.
-    people<{ hr: boolean; admin: boolean; finance: boolean }>('Home'),
+    // Which of People's places this person's roles open, the counts and the
+    // notices, for the shell around the screen.
+    shellData(person.entitlements),
   ]);
-  const roles = home.ok ? home.data : { hr: false, admin: false, finance: false };
+  const roles = shell.roles;
 
   // Nothing published yet: the administrator who can publish it is taken to
   // the wizard that does (design screen 2), rather than left on a screen
@@ -118,29 +117,18 @@ export async function PeopleArea({
       companyName={tenant?.branding.displayName ?? tenant?.slug ?? 'your company'}
       logoUrl={tenant?.branding.logoUrl ?? null}
       entitlements={person.entitlements}
-      // People's sections hang off its sidebar item, on demand; the screen
-      // keeps the full width.
-      sections={
-        places.sections.length === 0
-          ? {}
-          : {
-              '/people': (
-                <PeopleSections
-                  sections={places.sections}
-                  route={area === 'people' ? here : null}
-                />
-              ),
-            }
-      }
+      // People's sections hang off its sidebar item as a menu, on demand;
+      // the screen keeps the full width.
+      shell={shell}
+      route={area === 'people' ? here : null}
     >
       {/* Nothing answered at the router and the VM can be woken: wake it. */}
       {load.status === 'error' && load.unreachable === true && workspaceConfig() !== null ? (
         <WorkspaceAsleep />
       ) : (
-        // A phone's section select, then the screen, whose own header carries
-        // the breadcrumb and what this person may start from here.
+        // The screen, whose own header carries the breadcrumb (on a phone, the
+        // title that switches section) and what this person may start from here.
         <div className="flex flex-col gap-6">
-          {area === 'people' ? <PeopleBar sections={places.sections} route={here} /> : null}
           <div className="min-w-0">
             <PeopleScreen
               route={

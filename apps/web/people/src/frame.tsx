@@ -1,4 +1,5 @@
 import {
+  AppBarBack,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -45,6 +46,17 @@ export interface Frame {
   readonly actions?: readonly { readonly href: string; readonly label: string }[];
 }
 
+/**
+ * Where a phone's back link goes: the last link of the trail, except that
+ * People itself is the People tab's list of sections rather than its overview.
+ */
+function phoneBack(
+  trail: readonly { readonly href: string; readonly label: string }[],
+): { readonly href: string; readonly label: string } | undefined {
+  const last = trail.at(-1);
+  return last?.href === '/people' ? { href: '/people/menu', label: last.label } : last;
+}
+
 /** A screen with the host's frame applied to its header. Links are plain: the host follows them. */
 export function framed<P extends object>(
   Screen: ComponentType<P>,
@@ -63,26 +75,55 @@ export function framed<P extends object>(
       <PageHeaderFrame
         breadcrumb={
           section === null ? undefined : (
-            // A phone has the host's section select in its place.
-            <Breadcrumb className="max-md:hidden">
-              <BreadcrumbList>
-                {trail.map((link) => (
-                  <Fragment key={link.href}>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink href={link.href}>{link.label}</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                  </Fragment>
-                ))}
-                <BreadcrumbItem>
-                  {siblings.length === 0 ? (
-                    <BreadcrumbPage>{section}</BreadcrumbPage>
-                  ) : (
-                    <BreadcrumbMenu label={section} groups={siblings} menuLabel={siblingsLabel} />
-                  )}
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+            <>
+              {/* At a desk, the trail; its last crumb switches to a sibling. */}
+              <Breadcrumb className="touch:hidden">
+                <BreadcrumbList>
+                  {trail.map((link) => (
+                    <Fragment key={link.href}>
+                      <BreadcrumbItem>
+                        <BreadcrumbLink href={link.href}>{link.label}</BreadcrumbLink>
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator />
+                    </Fragment>
+                  ))}
+                  <BreadcrumbItem>
+                    {siblings.length === 0 ? (
+                      <BreadcrumbPage>{section}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbMenu label={section} groups={siblings} menuLabel={siblingsLabel} />
+                    )}
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+              {/*
+                Under a finger, a phone's navigation bar: back to the parent,
+                and the section as a small title that is itself the switcher,
+                opening its siblings as a sheet. The screen's heading below it
+                is the large title.
+              */}
+              <nav
+                aria-label="Back"
+                className="-mt-1 hidden min-h-12 items-center gap-2 touch:grid touch:grid-cols-[1fr_auto_1fr]"
+              >
+                <AppBarBack asChild className="justify-self-start">
+                  <a href={phoneBack(trail)?.href ?? '/people/menu'}>
+                    {phoneBack(trail)?.label ?? 'People'}
+                  </a>
+                </AppBarBack>
+                {siblings.length === 0 ? (
+                  <span className="truncate text-md font-semibold">{section}</span>
+                ) : (
+                  <BreadcrumbMenu
+                    variant="title"
+                    label={section}
+                    groups={siblings}
+                    menuLabel={`${siblingsLabel}, switch`}
+                  />
+                )}
+                <span />
+              </nav>
+            </>
           )
         }
         actions={
