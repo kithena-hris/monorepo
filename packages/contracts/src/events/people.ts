@@ -1235,6 +1235,35 @@ export const ScimConnectionChanged = defineEvent(
   }),
 );
 
+/**
+ * A change to People's settings, as the Settings activity log words it
+ * (`people.settings_activity`): which settings page, what was done in one
+ * plain sentence, what it was done to, and what it did. The central activity
+ * log (`platform/audit`, `docs/audit.md`) is built from this.
+ *
+ * Raised in the transaction that appends the log's row, only when the row is
+ * new, and the event's id is the row's, so a retried command is one entry.
+ * Words only, the log's own rule: a field's label, a location's name, "Seen by:
+ * HR → HR and their manager." — never a value somebody entered on a record,
+ * never a secret. Who did it is the envelope's actor (`onBehalfOf` when it was
+ * Kithena support).
+ */
+export const SettingsActivityRecorded = defineEvent(
+  'people.settings.activity_recorded',
+  1,
+  z.object({
+    area: z.enum(['fields', 'organisation', 'roles', 'integrations']).register(policy, asPublic()),
+    /** "Added a field". One of the log's fixed sentences. */
+    action: z.string().min(1).max(200).register(policy, asInternal()),
+    /** A field's label, a location's name: typed by an administrator. */
+    subject: z.string().max(300).nullable().register(policy, asInternal()),
+    /** What it did, in one sentence: settings in words, never a record's value. */
+    detail: z.string().max(500).nullable().register(policy, asInternal()),
+    /** Why, when Kithena support said so. What they typed, so free text. */
+    reason: z.string().max(500).nullable().register(policy, asFreeText()),
+  }),
+);
+
 export const peopleEvents = [
   SectionCreated,
   SectionUpdated,
@@ -1295,4 +1324,5 @@ export const peopleEvents = [
   PayBandSet,
   PayBandCorrected,
   ScimConnectionChanged,
+  SettingsActivityRecorded,
 ] as const;

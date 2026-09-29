@@ -28,6 +28,20 @@ function payloadKeys(name: string): string[] {
   return Object.keys((event.payload as unknown as z.ZodObject).shape);
 }
 
+describe('people.settings.activity_recorded', () => {
+  it('carries the log’s words and nothing that could hold a record’s value', () => {
+    // The central activity log is built from this; a `value` or `before` here
+    // is a value in every consumer's retention window.
+    expect(payloadKeys('people.settings.activity_recorded')).toEqual([
+      'area',
+      'action',
+      'subject',
+      'detail',
+      'reason',
+    ]);
+  });
+});
+
 const attribute = {
   key: 'accommodation_notes',
   sectionKey: 'health_and_safety',

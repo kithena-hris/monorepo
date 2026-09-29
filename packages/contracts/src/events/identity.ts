@@ -2,7 +2,7 @@ import * as z from 'zod';
 import { defineEvent } from '../event.js';
 import { CalendarDate, Instant } from '../primitives.js';
 import { ModuleEntitlement } from '../entitlements.js';
-import { policy, asContact, asIdentity, asInternal, asPublic } from '../classification.js';
+import { policy, asContact, asFreeText, asIdentity, asInternal, asPublic } from '../classification.js';
 import { AttributeKey } from '../people/primitives.js';
 import { SignupAnswerValue } from '../signup-questions.js';
 
@@ -514,6 +514,33 @@ export const TenantAdministratorRemoved = defineEvent(
   }),
 );
 
+/**
+ * A back-office operator signed in to a company as Kithena support
+ * (`docs/auth-administration.md`, "Support access"), raised in the transaction
+ * that writes `platform.support_access`.
+ *
+ * The reason travels here and only here: the router builds a module's
+ * principal by string concatenation, so free text is never forwarded, and what
+ * support then does carries the operator but not why. The central activity log
+ * (`docs/audit.md`) links each of those to this sign-in. The envelope's actor
+ * is the support account, `onBehalfOf` the operator.
+ */
+export const SupportSessionStarted = defineEvent(
+  'identity.support.session_started',
+  1,
+  z.object({
+    sessionId: SessionId,
+    /** The company's support account, which the session signs in as. */
+    accountId: AccountId,
+    /** The back-office operator (`platform.operator.id`); not an account at the company. */
+    operatorId: z.uuid().register(policy, asInternal()),
+    /** What the operator said it was for: a ticket number or a sentence. */
+    reason: z.string().min(1).max(500).register(policy, asFreeText()),
+    /** One hour after it started, never extended. */
+    expiresAt: Instant,
+  }),
+);
+
 export const identityEvents = [
   AccountProvisioned,
   AccountInvited,
@@ -535,4 +562,5 @@ export const identityEvents = [
   TenantEntitlementsChanged,
   TenantAdministratorNamed,
   TenantAdministratorRemoved,
+  SupportSessionStarted,
 ] as const;

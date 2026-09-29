@@ -65,6 +65,7 @@ export default ModuleManifest.parse({
     'people.pay_band.set',
     'people.pay_band.corrected',
     'people.scim.connection_changed',
+    'people.settings.activity_recorded',
   ],
   /*
    * Identity is a platform service rather than a module, so consuming its
