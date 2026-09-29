@@ -543,6 +543,24 @@ const workers = Math.max(
   Math.floor(Number(process.env.CONTRAST_WORKERS)) || Math.min(availableParallelism(), 4),
 );
 
+/*
+ * A navigation that does not go quiet in 20s gets one more try.
+ *
+ * The Storybook dev server shares the runner's cores with the renderers, and
+ * now and then a story it serves in a second takes longer than that to go
+ * quiet: a different story each run, on main and on branches that touched
+ * nothing it renders. A second timeout is still counted as unmeasured, so a
+ * story that genuinely never settles fails the gate as before.
+ */
+async function settle(page, url) {
+  try {
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
+  } catch (error) {
+    if (error?.name !== 'TimeoutError') throw error;
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
+  }
+}
+
 const failures = [];
 const skipped = [];
 let ringsSeen = 0;
@@ -579,7 +597,7 @@ async function worker() {
         '&globals=theme:' +
         theme;
     try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
+      await settle(page, url);
 
       if (story.standalone) {
         // An ordinary page has no Storybook global to drive, so the class
