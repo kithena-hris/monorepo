@@ -1,0 +1,55 @@
+import { redirect } from 'next/navigation';
+import type { JSX } from 'react';
+
+import { ActivityLog, type ActivityLoad, type Named } from '../../../../components/activity-log';
+import { flatSearch } from '../../../../components/people-area';
+import { WorkspaceAsleep } from '../../../../components/workspace-asleep';
+import {
+  activityFilters,
+  activityVariables,
+  idsToName,
+  type ActivityPage,
+} from '../../../../lib/activity';
+import { people } from '../../../../lib/people';
+import { currentPerson } from '../../../../lib/session';
+
+/**
+ * Settings › Activity: who did what, and when, across every module the
+ * company has (`docs/audit.md`). One router read for the page of the log, as
+ * the person signed in — the audit service decides whether they may — and one
+ * of People for the names and faces on it, as they may read them.
+ */
+export default async function Activity({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<JSX.Element> {
+  if ((await currentPerson()) === null) redirect('/login');
+  const filters = activityFilters(await flatSearch(searchParams));
+
+  const answer = await people<ActivityPage>('Activity', activityVariables(filters));
+  if (!answer.ok && answer.code === 'UNREACHABLE') return <WorkspaceAsleep />;
+
+  let load: ActivityLoad;
+  let named: Named = {};
+  if (answer.ok) {
+    load = { status: 'ready', page: answer.data };
+    const ids = idsToName(answer.data);
+    if (ids.accountIds.length > 0 || ids.personIds.length > 0) {
+      // Without People, or where it refuses, entries are named by kind alone.
+      const names = await people<{
+        people: { accountId: string | null; personId: string; name: string; avatarUrl: string | null }[];
+      }>('Names', ids);
+      if (names.ok) {
+        for (const p of names.data.people) {
+          const face = { name: p.name, avatarUrl: p.avatarUrl, personId: p.personId };
+          named = { ...named, [p.personId]: face, ...(p.accountId === null ? {} : { [p.accountId]: face }) };
+        }
+      }
+    }
+  } else {
+    load = { status: answer.code === 'FORBIDDEN' ? 'forbidden' : 'error', message: answer.message };
+  }
+
+  return <ActivityLog load={load} named={named} filters={filters} />;
+}
