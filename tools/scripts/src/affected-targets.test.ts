@@ -64,8 +64,20 @@ describe('reason', () => {
     expect(chosen(change(['atlas.hcl']))).toEqual(['migrations']);
   });
 
-  it('rebuilds both VM images when the Compose files change', () => {
-    expect(chosen(change(['deploy/vm/compose.yaml']))).toEqual(['people', 'slack', 'router']);
+  it('rebuilds every VM image when the Compose files change', () => {
+    expect(chosen(change(['deploy/vm/compose.yaml']))).toEqual([
+      'people',
+      'slack',
+      'audit',
+      'router',
+    ]);
+  });
+
+  it("rebuilds the router for the activity log's schema, and the log for its own code", () => {
+    expect(chosen(change(['platform/audit/schemas/audit.graphql'], ['@kithena/audit']))).toEqual(
+      ['audit', 'router'],
+    );
+    expect(chosen(change(['platform/audit/src/x.ts'], ['@kithena/audit']))).toEqual(['audit']);
   });
 
   it("rebuilds the router for People's schema, not for the rest of People", () => {
