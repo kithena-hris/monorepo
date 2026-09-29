@@ -27,6 +27,7 @@ import { builder, type RequestContext, type ViaRest } from './builder.js';
 import { defineOverview } from './overview.js';
 import { defineReports } from './reports.js';
 import { defineScreens } from './screens.js';
+import { defineTransfers } from './transfers.js';
 import type { PayBandView } from '../application/analytics/pay.js';
 
 export type { RequestContext } from './builder.js';
@@ -1284,6 +1285,7 @@ builder.mutationFields((t) => ({
 defineScreens(builder, viaRest);
 defineReports(builder, viaRest);
 defineOverview(builder, viaRest);
+defineTransfers(builder, viaRest);
 
 export const schema = builder.toSubGraphSchema({
   linkUrl: 'https://specs.apollo.dev/federation/v2.6',

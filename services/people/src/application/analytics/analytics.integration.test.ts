@@ -9,11 +9,14 @@ import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/con
 import { startPostgres } from '@kithena/testing';
 
 import { UTC_CALENDAR, type TenantCalendar } from '../../domain/org/calendar.js';
-import { drizzleRelations } from '../../infrastructure/drizzle-person-reader.js';
+import {
+  drizzlePersonReader,
+  drizzleRelations,
+} from '../../infrastructure/drizzle-person-reader.js';
 import { drizzlePeopleFacts } from '../../infrastructure/drizzle-schema-repository.js';
 import { tenantTransaction } from '../../infrastructure/unit-of-work.js';
 import { fixedCalendars } from '../org/org.js';
-import { relationsToMany } from '../person/person-access.js';
+import { personAccess, relationsToMany } from '../person/person-access.js';
 import { chartExport, chartTooltip, type ChartViewer } from './access.js';
 import {
   attritionTrend,
@@ -1213,7 +1216,18 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
   function deps(at: string, cohortMinimum = 10): ScreenDeps {
     return {
       service: {
-        access: {} as never,
+        // What a count reads: the published version, the viewer's relations
+        // and the person table. Nothing else of access is asked here.
+        access: personAccess({
+          reader: drizzlePersonReader(),
+          schemas: { current: () => Promise.resolve(version) },
+          relations: {
+            relations: (_tx: unknown, _tenant: string, viewer: { roles: ReadonlySet<string> }) =>
+              Promise.resolve({ ...NO_RELATIONS, isHr: viewer.roles.has('hr') }),
+          },
+          clock: fixedClock(at),
+          calendars: utcCalendars,
+        } as never),
         schemas: { current: () => Promise.resolve(version) } as never,
         inTenant: (tenantId, fn) => inTenant(tenantId, fn),
         org: {
@@ -1277,6 +1291,8 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
     expect(v.composition?.categories.toSorted()).toEqual([ENG, OPS].toSorted());
     expect(v.composition?.series).toEqual([{ label: 'permanent', values: [2, 2] }]);
     expect(v.attrition?.trend.at(-1)).toEqual({ label: '2026-03', value: 25 });
+    // Hired, not started: the one pre-hire, off the headcount and counted beside it.
+    expect(v.startingSoon).toBe(1);
   });
 
   it("limits a manager's every chart to their own chain, and gives them no self-ID at all", async () => {
@@ -1289,6 +1305,8 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
     expect(v.span).toEqual([{ label: '2 reports', value: 1 }]);
     expect(v.composition?.series.flatMap((s) => s.values).reduce((a, b) => a + b, 0)).toBe(2);
     expect(v.selfId).toBeNull();
+    // A manager's directory is wider than their chain: no count of it here.
+    expect(v.startingSoon).toBeNull();
   });
 
   it('refuses anybody who is neither HR nor has a record', async () => {
@@ -1360,6 +1378,8 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
       if (!result.ok) throw new Error(result.error.message);
       expect(result.value).toMatchObject({
         segment: { id: engineering, name: 'Engineering' },
+        // Pre-hires are not on the snapshot a segment filters.
+        startingSoon: null,
         span: null,
         expiries: null,
         selfId: null,

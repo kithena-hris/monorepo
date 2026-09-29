@@ -877,6 +877,19 @@ export function openApiDocument(): Record<string, unknown> {
           },
         },
       },
+      '/v1/imports/template': {
+        get: {
+          summary:
+            'A header-only CSV of the fields this caller may import, headed by label; HR only',
+          responses: {
+            200: {
+              description: 'The template: one row, UTF-8 with a BOM',
+              content: { 'text/csv': { schema: { type: 'string' } } },
+            },
+            ...failure,
+          },
+        },
+      },
       '/v1/exports/{id}': {
         get: {
           summary: 'An export this caller asked for, with its links signed again',

@@ -87,6 +87,7 @@ import { drizzlePhotos } from '../infrastructure/drizzle-photos.js';
 import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests.js';
 import { drizzleFiles } from '../infrastructure/drizzle-files.js';
 import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
+import { drizzleTransfers } from '../infrastructure/drizzle-transfers.js';
 import { askFromChat, type ChatDeps } from '../application/assistant/from-chat.js';
 import { chatModel, modelConfigFrom } from '../infrastructure/assistant/model.js';
 import { loadTenantPolicies } from '../infrastructure/policy-registry.js';
@@ -473,6 +474,12 @@ async function bodyOf(request: IncomingMessage, limit: number): Promise<string |
 }
 
 function send(response: ServerResponse, answer: RestResponse): void {
+  // A file (a CSV) goes out as its bytes, typed by the route; anything else is JSON.
+  if (answer.body instanceof Uint8Array) {
+    response.writeHead(answer.status, answer.headers);
+    response.end(answer.body);
+    return;
+  }
   response.writeHead(answer.status, { 'content-type': 'application/json', ...answer.headers });
   response.end(JSON.stringify(answer.body));
 }
@@ -548,6 +555,7 @@ function screenDeps(
     photos: drizzlePhotos(),
     files: drizzleFiles(),
     activity: drizzleActivity(),
+    transfers: drizzleTransfers(),
     ...assistantFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars, service),

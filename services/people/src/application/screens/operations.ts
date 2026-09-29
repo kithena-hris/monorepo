@@ -21,6 +21,7 @@ import type { ListedDelivery, ListedEndpoint } from '../../infrastructure/webhoo
 import type { EndpointInput, WebhookService } from '../../infrastructure/webhooks/webhooks.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
+import { importTemplate } from '../import/template.js';
 import { dryRun, type ClassifiedRow } from '../import/dry-run.js';
 import {
   proposeMapping,
@@ -504,6 +505,23 @@ export async function startImportUpload(
 }
 
 /**
+ * The template (V6): the header row of a file People would take from this
+ * viewer (`importTemplate`). HR only, as every import; nothing is written.
+ */
+export async function importTemplateFile(
+  deps: ImportDeps,
+  asking: Asking,
+): Promise<Result<Uint8Array>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+    if (!relations.isHr) return onlyHr();
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Publish the employee fields first'));
+    return ok(importTemplate(version, relations));
+  });
+}
+
+/**
  * The file is in storage: check it is the file that was declared, then the
  * proposed mapping (§14.3). Nothing is written but the upload's checksum.
  */
@@ -705,6 +723,7 @@ export async function commitImportView(
     ...asking,
     file: planned.value.file,
     mapping: planned.value.mapping,
+    fileName: intent.name,
     ...(bypass ? { applySensitiveWithoutApproval: true } : {}),
   });
   if (!committed.ok) return committed;
