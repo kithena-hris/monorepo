@@ -8,7 +8,9 @@ import { Button } from '../button/button';
 import {
   Dialog,
   DialogBody,
+  DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -507,14 +509,72 @@ export const InAField: Story = {
   },
 };
 
+export const InADialog: Story = {
+  name: 'In A Dialog',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Inside a dialog the list renders into the same layer as the dialog, so it is never clipped by it and Escape closes the list before it closes the dialog.',
+      },
+    },
+  },
+  render: function DialogStory(args) {
+    const [value, setValue] = useState<string | readonly string[] | null>(null);
+    return (
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button>Change manager</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change manager</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <Field>
+              <FieldLabel>New manager</FieldLabel>
+              <FieldControl>
+                <Combobox
+                  {...args}
+                  options={people}
+                  label="New manager"
+                  placeholder="Choose a person"
+                  value={value}
+                  onChange={setValue}
+                />
+              </FieldControl>
+            </Field>
+          </DialogBody>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="secondary">Cancel</Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button variant="primary" disabled={value === null}>
+                Change
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  },
+};
+
 const manyFields: ComboboxOption[] = Array.from({ length: 60 }, (_, i) => ({
   value: `field_${String(i)}`,
   label: `Field ${String(i + 1)}`,
 }));
 
 /** A long list inside a Dialog: the list scrolls, by wheel and by touch, and the page behind does not. */
-export const InADialog: Story = {
-  args: { multiple: true, label: 'Fields this endpoint receives', placeholder: 'Choose fields', options: manyFields },
+export const LongListInADialog: Story = {
+  name: 'Long list in a dialog',
+  args: {
+    multiple: true,
+    label: 'Fields this endpoint receives',
+    placeholder: 'Choose fields',
+    options: manyFields,
+  },
   parameters: {
     docs: {
       description: {

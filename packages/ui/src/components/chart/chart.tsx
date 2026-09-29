@@ -1,8 +1,8 @@
 'use client';
 
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import {
   useCallback,
-  useId,
   useMemo,
   useState,
   type CSSProperties,
@@ -13,6 +13,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Tooltip } from '../tooltip/tooltip';
 import {
+  ChartBrush,
   ChartFrame,
   ChartMarquee,
   ChartZoomControls,
@@ -45,7 +46,42 @@ export interface ChartPoint {
   value: number;
 }
 
-export type ChartTone = 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+/**
+ * The colour of a mark.
+ *
+ * Two families. `chart-1` … `chart-6` are the categorical palette: equal
+ * lightness and chroma at six hues, so a series means "this one, not that one"
+ * and none of them shouts. The status names (`success`, `danger` …) are for a
+ * mark whose colour *is* the meaning, a loss in a waterfall or the worst step
+ * in a funnel, and they point at the `-fg` end of each ramp (see below).
+ */
+export type ChartTone =
+  | 'chart-1'
+  | 'chart-2'
+  | 'chart-3'
+  | 'chart-4'
+  | 'chart-5'
+  | 'chart-6'
+  | 'accent'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'info'
+  | 'neutral';
+
+/** The categorical order a multi-series chart hands out when a series names no tone. */
+export const seriesTones: readonly ChartTone[] = [
+  'chart-1',
+  'chart-2',
+  'chart-3',
+  'chart-4',
+  'chart-5',
+  'chart-6',
+];
+
+export function seriesTone(index: number): ChartTone {
+  return seriesTones[index % seriesTones.length] ?? 'chart-1';
+}
 
 export type { ChartWindow };
 
@@ -70,17 +106,26 @@ export interface ChartInteractionProps {
   menuItems?: ReactNode;
 }
 
-// The `-fg` end of each ramp, not the base.
+// Status tones point at the `-fg` end of each ramp, not the base.
 //
 // A base tone is mixed to sit on its own tinted wash, which is right for a
 // badge and wrong for a mark drawn straight onto the card: amber-600 on white
 // measures 2.76:1, and a donut slice is a graphical object that WCAG 1.4.11
 // asks 3:1 of. `neutral` already points at a foreground token and stays put.
 //
-// `tools/a11y/contrast-sweep.mjs` checks these six against every surface a
-// chart can sit on. It can, because `ChartTone` is closed: no chart in this
-// package can reach a colour that is not on this list.
-const fillTone: Record<ChartTone, string> = {
+// The categorical `chart-N` tones are the palette as the tokens define it.
+// Three of them (2, 3 and 6) sit under 3:1 on a white card in the light theme,
+// which is why every chart here also prints its values, labels its series in
+// text, and carries a data table: the colour tells series apart, it is never
+// the only way to read a number. `tools/a11y/contrast-sweep.mjs` measures the
+// status tones; the categorical ones are a token decision, not a chart one.
+export const fillTone: Record<ChartTone, string> = {
+  'chart-1': 'fill-chart-1',
+  'chart-2': 'fill-chart-2',
+  'chart-3': 'fill-chart-3',
+  'chart-4': 'fill-chart-4',
+  'chart-5': 'fill-chart-5',
+  'chart-6': 'fill-chart-6',
   accent: 'fill-accent-fg',
   success: 'fill-success-fg',
   warning: 'fill-warning-fg',
@@ -89,7 +134,13 @@ const fillTone: Record<ChartTone, string> = {
   neutral: 'fill-fg-subtle',
 };
 
-const strokeTone: Record<ChartTone, string> = {
+export const strokeTone: Record<ChartTone, string> = {
+  'chart-1': 'stroke-chart-1',
+  'chart-2': 'stroke-chart-2',
+  'chart-3': 'stroke-chart-3',
+  'chart-4': 'stroke-chart-4',
+  'chart-5': 'stroke-chart-5',
+  'chart-6': 'stroke-chart-6',
   accent: 'stroke-accent-fg',
   success: 'stroke-success-fg',
   warning: 'stroke-warning-fg',
@@ -98,7 +149,13 @@ const strokeTone: Record<ChartTone, string> = {
   neutral: 'stroke-fg-subtle',
 };
 
-const bgTone: Record<ChartTone, string> = {
+export const bgTone: Record<ChartTone, string> = {
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
+  'chart-5': 'bg-chart-5',
+  'chart-6': 'bg-chart-6',
   accent: 'bg-accent-fg',
   success: 'bg-success-fg',
   warning: 'bg-warning-fg',
@@ -106,6 +163,113 @@ const bgTone: Record<ChartTone, string> = {
   info: 'bg-info-fg',
   neutral: 'bg-fg-subtle',
 };
+
+const borderTone: Record<ChartTone, string> = {
+  'chart-1': 'border-chart-1',
+  'chart-2': 'border-chart-2',
+  'chart-3': 'border-chart-3',
+  'chart-4': 'border-chart-4',
+  'chart-5': 'border-chart-5',
+  'chart-6': 'border-chart-6',
+  accent: 'border-accent-fg',
+  success: 'border-success-fg',
+  warning: 'border-warning-fg',
+  danger: 'border-danger-fg',
+  info: 'border-info-fg',
+  neutral: 'border-fg-subtle',
+};
+
+/**
+ * The same colours as CSS values, for the places a class cannot reach: a
+ * `color-mix()` ramp in a heatmap cell, a gradient in a scale key.
+ */
+export const toneVar: Record<ChartTone, string> = {
+  'chart-1': 'var(--color-chart-1)',
+  'chart-2': 'var(--color-chart-2)',
+  'chart-3': 'var(--color-chart-3)',
+  'chart-4': 'var(--color-chart-4)',
+  'chart-5': 'var(--color-chart-5)',
+  'chart-6': 'var(--color-chart-6)',
+  accent: 'var(--color-accent-fg)',
+  success: 'var(--color-success-fg)',
+  warning: 'var(--color-warning-fg)',
+  danger: 'var(--color-danger-fg)',
+  info: 'var(--color-info-fg)',
+  neutral: 'var(--color-fg-subtle)',
+};
+
+/**
+ * A tone at `percent` strength over the sunken fill: one hue, varying only in
+ * strength, which is the single channel a heatmap should use.
+ *
+ * Mixed in Oklab, not Oklch: the neutral surfaces carry a hue of their own
+ * (an explicit 0, or the brand's slight tint), and an Oklch mix interpolates
+ * the hue towards it, which turned indigo pink half way.
+ */
+export function toneMix(tone: ChartTone, percent: number): string {
+  const clamped = Math.round(Math.min(Math.max(percent, 0), 100));
+  return `color-mix(in oklab, ${toneVar[tone]} ${String(clamped)}%, var(--color-surface-sunken))`;
+}
+
+/**
+ * Soft gridlines behind a plot: hairlines in the quiet border colour, with the
+ * baseline one step stronger so the zero the bars stand on reads as a floor.
+ */
+export function ChartGrid({ lines = 4 }: { lines?: number }): JSX.Element {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 flex flex-col justify-between">
+      {Array.from({ length: Math.max(lines - 1, 0) }, (_, index) => (
+        <span key={index} className="h-px bg-border" />
+      ))}
+      <span className="h-px bg-border-strong" />
+    </div>
+  );
+}
+
+/**
+ * Axis labels thin out as the plot narrows: every other one is hidden (kept in
+ * place, so the rest stay where their marks are) and the ones left may spill
+ * into the empty slots beside them instead of truncating to "J…". The
+ * threshold comes from the count, so nothing is measured; the class strings
+ * are literal so Tailwind can see them.
+ */
+export function thinLabels(count: number): string {
+  if (count <= 6) return '';
+  if (count <= 9) {
+    return '@max-[22rem]:[&>*:nth-child(even)]:invisible @max-[22rem]:[&>*]:overflow-visible';
+  }
+  if (count <= 13) {
+    return '@max-[30rem]:[&>*:nth-child(even)]:invisible @max-[30rem]:[&>*]:overflow-visible';
+  }
+  return '@max-[44rem]:[&>*:nth-child(even)]:invisible @max-[44rem]:[&>*]:overflow-visible';
+}
+
+/** The key under a heatmap: the ramp from nothing to the most, with its ends named. */
+export function ChartScaleKey({
+  tone,
+  low,
+  high,
+}: {
+  tone: ChartTone;
+  low: string;
+  high: string;
+}): JSX.Element {
+  return (
+    <div
+      aria-hidden
+      className="mt-3 flex items-center gap-2 text-[11px] font-medium text-fg-subtle"
+    >
+      <span className="whitespace-nowrap">{low}</span>
+      <span
+        className="h-2 max-w-40 min-w-6 flex-[0_1_10rem] rounded-full"
+        style={{
+          background: `linear-gradient(90deg, var(--color-surface-sunken), ${toneVar[tone]})`,
+        }}
+      />
+      <span className="whitespace-nowrap">{high}</span>
+    </div>
+  );
+}
 
 /**
  * The hover and focus readout every mark in this file gets.
@@ -152,7 +316,7 @@ function TouchScroll({
   );
 }
 
-function ChartMark({
+export function ChartMark({
   content,
   children,
   disabled = false,
@@ -172,6 +336,8 @@ function ChartMark({
 export interface ChartLegendItem {
   label: string;
   tone: ChartTone;
+  /** Drawn as a dashed stroke: a plan, a forecast, anything not yet measured. */
+  dashed?: boolean;
 }
 
 /**
@@ -185,16 +351,21 @@ export interface ChartLegendItem {
  * A hidden series is *hidden*, not deleted: it stays in the legend, keeps its
  * colour, and stays in the accessibility table. Removing it from the legend
  * would leave no way to bring it back.
+ *
+ * `marker="line"` draws a short stroke rather than a square, so the key of a
+ * line chart looks like the thing it keys.
  */
 export function ChartLegend({
   items,
   hidden = [],
   onHiddenChange,
+  marker = 'square',
   className,
 }: {
   items: readonly ChartLegendItem[];
   hidden?: readonly string[];
   onHiddenChange?: (hidden: readonly string[]) => void;
+  marker?: 'square' | 'line';
   className?: string;
 }): JSX.Element {
   const toggle = (label: string): void => {
@@ -204,19 +375,30 @@ export function ChartLegend({
   };
 
   return (
-    <ul className={cn('flex flex-wrap gap-x-3 gap-y-1.5', className)}>
+    <ul
+      className={cn('flex flex-wrap gap-y-2', onHiddenChange ? 'gap-x-1.5' : 'gap-x-4', className)}
+    >
       {items.map((item) => {
         const off = hidden.includes(item.label);
         const swatch = (
           <>
             <span
+              aria-hidden
               className={cn(
-                'size-2.5 shrink-0 rounded-xs transition-opacity duration-(--animate-duration-fast)',
-                bgTone[item.tone],
-                off && 'opacity-30',
+                'w-2.5 shrink-0 transition-colors duration-(--animate-duration-fast)',
+                item.dashed
+                  ? cn(
+                      'h-0 border-t-2 border-dashed',
+                      off ? 'border-fg-disabled' : borderTone[item.tone],
+                    )
+                  : cn(
+                      'rounded-[3px]',
+                      marker === 'line' ? 'h-[3px]' : 'h-2.5',
+                      off ? 'bg-surface-active' : bgTone[item.tone],
+                    ),
               )}
             />
-            <span className={cn('truncate', off && 'line-through opacity-60')}>{item.label}</span>
+            <span className={cn('truncate', off && 'line-through')}>{item.label}</span>
           </>
         );
 
@@ -226,14 +408,18 @@ export function ChartLegend({
               <button
                 type="button"
                 // `aria-pressed` reads as "shown" or "not shown". Strike-through
-                // as well as opacity, because a legend that says which series
-                // are off only in grey says it to nobody in bright sunlight.
+                // as well as the grey swatch, because a legend that says which
+                // series are off only in grey says it to nobody in sunlight.
                 aria-pressed={!off}
                 onClick={() => {
                   toggle(item.label);
                 }}
                 className={cn(
-                  'flex touch:min-h-tap items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-sm text-fg-muted',
+                  // A pill at rest, grown to the tap floor under a finger
+                  // without drawing any bigger.
+                  'relative tap-target flex h-7 items-center gap-1.5 rounded-control bg-surface-sunken px-2.5',
+                  'text-xs font-medium',
+                  off ? 'text-fg-subtle' : 'text-fg-muted',
                   'transition-colors duration-(--animate-duration-fast)',
                   'hover:bg-surface-hover hover:text-fg',
                   'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
@@ -242,7 +428,7 @@ export function ChartLegend({
                 {swatch}
               </button>
             ) : (
-              <span className="flex items-center gap-1.5 px-1.5 py-0.5 text-sm text-fg-muted">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-fg-muted">
                 {swatch}
               </span>
             )}
@@ -269,23 +455,25 @@ export function ChartDataTable({
   format?: (value: number) => string;
 }): JSX.Element {
   return (
-    <table className="sr-only">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          <th scope="col">Period</th>
-          <th scope="col">{valueLabel}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((point) => (
-          <tr key={point.label}>
-            <th scope="row">{point.label}</th>
-            <td>{format ? format(point.value) : point.value}</td>
+    <div className="sr-only">
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Period</th>
+            <th scope="col">{valueLabel}</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {data.map((point) => (
+            <tr key={point.label}>
+              <th scope="row">{point.label}</th>
+              <td>{format ? format(point.value) : point.value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -313,13 +501,12 @@ export interface SparklineProps {
 export function Sparkline({
   data,
   label,
-  tone = 'accent',
+  tone = 'chart-1',
   area = true,
   showLastPoint = true,
   className,
   format = (value) => String(value),
 }: SparklineProps): JSX.Element {
-  const gradientId = useId();
   const values = data.map((d) => d.value);
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -347,17 +534,10 @@ export function Sparkline({
         preserveAspectRatio="none"
         className="h-10 w-full overflow-visible"
       >
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-          </linearGradient>
-        </defs>
         {area ? (
           <path
             d={`${line} L ${String(lastX)},32 L 0,32 Z`}
-            fill={`url(#${gradientId})`}
-            className={cn(strokeTone[tone], 'text-accent')}
+            className={cn(fillTone[tone], 'opacity-15 motion-safe:animate-fade-in')}
             stroke="none"
           />
         ) : null}
@@ -368,18 +548,21 @@ export function Sparkline({
           strokeLinecap="round"
           strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
-          className={strokeTone[tone]}
+          className={cn(strokeTone[tone], 'motion-safe:animate-draw-line')}
         />
-        {showLastPoint ? (
-          <circle
-            cx={lastX}
-            cy={lastY}
-            r={2}
-            vectorEffect="non-scaling-stroke"
-            className={fillTone[tone]}
-          />
-        ) : null}
       </svg>
+      {showLastPoint ? (
+        // HTML, not an SVG circle: the plot is stretched, and a circle in a
+        // stretched viewBox is an ellipse.
+        <span
+          aria-hidden
+          className={cn(
+            'absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-3 ring-surface',
+            bgTone[tone],
+          )}
+          style={{ left: `${String(lastX)}%`, top: `${String((lastY / 32) * 100)}%` }}
+        />
+      ) : null}
       <ChartDataTable caption={label} data={data} format={format} />
     </div>
   );
@@ -401,6 +584,26 @@ export interface BarChartProps extends ChartInteractionProps {
   onSelect?: (point: ChartPoint, index: number) => void;
   /** Index of the currently selected bar. */
   selectedIndex?: number;
+  /**
+   * Draws one bar in the series colour and the rest in a quiet tint, to point
+   * at a period without taking the others away: "this month", "the median".
+   */
+  highlightIndex?: number;
+  /**
+   * Bars 2px apart and as wide as their column. For a histogram, where the
+   * ranges are continuous and a gap would say they are not.
+   */
+  touching?: boolean;
+  /**
+   * Periods from this index on have not happened yet. They keep their slot on
+   * the axis, drawn as a quiet placeholder, so a year-to-date chart still
+   * reads as a year.
+   */
+  futureFrom?: number;
+  /** Paints a bar under the reference line in the warning tone. */
+  warnBelowReference?: boolean;
+  /** What the chart shows, in a sentence, read before the data table. */
+  summary?: string;
 }
 
 /**
@@ -410,18 +613,26 @@ export interface BarChartProps extends ChartInteractionProps {
  * the bars then reflow with the container at any width, the labels are real
  * text that wraps and truncates like text, and each bar can be a real
  * `<button>` when the chart is interactive, none of which is true of a `<rect>`.
+ *
+ * Bars stop growing at 32px wide. A bar is read by its height; past a certain
+ * width it becomes a block, and a chart of five blocks reads as a floor plan.
  */
 export function BarChart({
   data,
   label,
-  tone = 'accent',
-  height = 160,
+  tone = 'chart-1',
+  height = 200,
   showValues = false,
   reference,
   format = (v) => String(v),
   className,
   onSelect,
   selectedIndex,
+  highlightIndex,
+  touching = false,
+  futureFrom,
+  warnBelowReference = false,
+  summary,
   zoomable = false,
   window: controlledWindow,
   onWindowChange,
@@ -429,7 +640,9 @@ export function BarChart({
 }: BarChartProps): JSX.Element {
   const windowState = useChartWindow(data.length, controlledWindow, onWindowChange);
   const shown = zoomable ? windowState.slice(data) : [...data];
-  const max = Math.max(...shown.map((d) => d.value), reference?.value ?? 0) || 1;
+  // Headroom over the tallest bar, so it does not touch the top gridline and a
+  // printed value above it has somewhere to sit.
+  const max = Math.max(...shown.map((d) => d.value), reference?.value ?? 0) * 1.1 || 1;
 
   const drag = useDragZoom({
     total: Math.max(2, shown.length),
@@ -444,10 +657,13 @@ export function BarChart({
     },
   });
 
+  const gap = touching ? 'gap-0.5' : 'gap-2 touch:gap-1.5';
+
   return (
     <ChartFrame
       label={label}
       rows={data}
+      {...(summary === undefined ? {} : { summary })}
       {...(zoomable ? { window: windowState } : {})}
       {...(menuItems ? { menuItems } : {})}
       className={cn('w-full', className)}
@@ -461,7 +677,9 @@ export function BarChart({
         />
       ) : null}
 
-      <TouchScroll marks={shown.length} pitch={3.125}>
+      {/* Only a chart whose bars are buttons needs each one at the tap floor;
+          a read-only chart fits the phone like any other block. */}
+      <TouchScroll marks={onSelect ? shown.length : 0} pitch={3.125}>
         {/*
          * `items-stretch`, and every column is `h-full`. With `items-end` the
          * columns were content-height, so the bars' percentage heights had
@@ -470,21 +688,23 @@ export function BarChart({
          */}
         <div
           className={cn(
-            'relative flex items-stretch gap-1.5 border-b border-border',
+            'relative flex items-stretch',
+            gap,
             zoomable && 'cursor-crosshair touch-none select-none',
           )}
           style={{ height }}
           {...(zoomable ? drag.handlers : {})}
         >
+          <ChartGrid />
           <ChartMarquee marquee={drag.marquee} />
 
           {reference ? (
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-fg-subtle"
+              className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-dashed border-fg-muted"
               style={{ bottom: `${String((reference.value / max) * 100)}%` }}
             >
-              <span className="absolute -top-4 right-0 text-2xs text-fg-subtle">
+              <span className="absolute -top-6 end-0 rounded-xs bg-surface px-1.5 py-0.5 text-xs font-semibold text-fg-muted">
                 {reference.label}
               </span>
             </div>
@@ -493,17 +713,28 @@ export function BarChart({
           {shown.map((point, index) => {
             const percent = (point.value / max) * 100;
             const selected = selectedIndex === index;
+            const dimmed = selectedIndex !== undefined && !selected;
+            const quiet = highlightIndex !== undefined && highlightIndex !== index;
+            const future = futureFrom !== undefined && index >= futureFrom;
+            const below =
+              warnBelowReference && reference !== undefined && point.value < reference.value;
             const readout = `${point.label}: ${format(point.value)}`;
 
             const bar = (
               <span
                 className={cn(
-                  'block w-full origin-bottom rounded-t-sm',
+                  'block w-full origin-bottom rounded-t-[7px] rounded-b-[3px]',
+                  !touching && 'mx-auto max-w-8',
                   'transition-[height,background-color,opacity] duration-(--animate-duration-slow) ease-standard',
                   'motion-safe:animate-grow-y',
-                  bgTone[tone],
-                  selected ? 'opacity-100' : 'opacity-80',
-                  onSelect && 'group-hover:opacity-100 group-focus-visible:opacity-100',
+                  dimmed || future
+                    ? 'bg-surface-active'
+                    : below
+                      ? 'bg-warning-fg'
+                      : quiet
+                        ? 'bg-accent-subtle-hover'
+                        : bgTone[tone],
+                  onSelect && 'group-hover:opacity-85',
                 )}
                 // A percentage so the bar rescales with the container rather than
                 // being recomputed, and `max(…, 2px)` so a zero stays visible,
@@ -518,15 +749,29 @@ export function BarChart({
               />
             );
 
+            const focusRing =
+              'rounded-t-[7px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus';
+
             return (
               <div
                 key={point.label}
-                className="flex h-full min-w-0 flex-1 flex-col justify-end gap-1"
+                className="relative flex h-full min-w-0 flex-1 flex-col justify-end gap-1"
               >
+                {selected ? (
+                  // The chosen bar says its own number, in a dark pill over the
+                  // bar, so a click answers "how many" without a hover.
+                  <span
+                    aria-hidden
+                    className="absolute start-1/2 z-10 -translate-x-1/2 rounded-[8px] bg-invert px-2 py-1 text-xs leading-none font-bold whitespace-nowrap tabular-nums text-fg-on-invert"
+                    style={{ bottom: `calc(${String(percent)}% + 8px)` }}
+                  >
+                    {format(point.value)}
+                  </span>
+                ) : null}
                 {showValues ? (
                   <span
                     aria-hidden
-                    className="shrink-0 text-center text-2xs tabular-nums text-fg-muted"
+                    className="shrink-0 text-center text-[11px] font-semibold tabular-nums text-fg-muted"
                   >
                     {format(point.value)}
                   </span>
@@ -543,7 +788,12 @@ export function BarChart({
                           onSelect(point, index);
                         }}
                         aria-pressed={selected}
-                        className="group flex h-full w-full items-end rounded-t-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+                        className={cn(
+                          'group flex h-full w-full items-end',
+                          focusRing,
+                          selected &&
+                            '[&>span]:outline-2 [&>span]:outline-offset-2 [&>span]:outline-accent',
+                        )}
                       >
                         <span className="sr-only">{readout}</span>
                         {bar}
@@ -556,7 +806,7 @@ export function BarChart({
                         tabIndex={0}
                         role="img"
                         aria-label={readout}
-                        className="flex h-full w-full items-end rounded-t-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+                        className={cn('flex h-full w-full items-end', focusRing)}
                       >
                         {bar}
                       </span>
@@ -568,11 +818,14 @@ export function BarChart({
           })}
         </div>
 
-        <div aria-hidden className="mt-1.5 flex gap-1.5">
-          {shown.map((point) => (
+        <div aria-hidden className={cn('@container mt-2 flex', gap, thinLabels(shown.length))}>
+          {shown.map((point, index) => (
             <span
               key={point.label}
-              className="min-w-0 flex-1 truncate text-center text-2xs text-fg-subtle"
+              className={cn(
+                'min-w-0 flex-1 truncate text-center text-[11px] font-medium',
+                highlightIndex === index ? 'text-fg' : 'text-fg-subtle',
+              )}
             >
               {point.label}
             </span>
@@ -595,8 +848,18 @@ export interface DonutChartProps {
   data: readonly DonutSlice[];
   label: string;
   size?: number;
-  /** Rendered in the hole. Use it for the total, not for a fifth slice. */
+  /**
+   * Rendered in the hole. Defaults to the total, which is what a reader looks
+   * for first; pass `null` for an empty hole. A string or number is set as a
+   * headline sized to the ring; anything else is laid out as given.
+   */
   center?: ReactNode;
+  /** A word under the centre figure: "people", "Permanent". */
+  centerLabel?: string;
+  /** Drop the legend where the donut is a thumbnail and the card says the rest. */
+  showLegend?: boolean;
+  /** A thinner ring, for a single share shown as a progress-like figure. */
+  thin?: boolean;
   format?: (value: number) => string;
   /** Makes each slice and each legend row selectable. */
   onSelect?: (slice: DonutSlice, index: number) => void;
@@ -611,8 +874,6 @@ export interface DonutChartProps {
   className?: string;
 }
 
-const donutOrder: readonly ChartTone[] = ['accent', 'success', 'warning', 'danger', 'info'];
-
 /**
  * Composition of a whole, a headcount split, a leave-type mix.
  *
@@ -624,8 +885,11 @@ const donutOrder: readonly ChartTone[] = ['accent', 'success', 'warning', 'dange
 export function DonutChart({
   data,
   label,
-  size = 160,
-  center,
+  size = 170,
+  center: centerProp,
+  centerLabel,
+  showLegend = true,
+  thin = false,
   format = (v) => String(v),
   onSelect,
   selectedIndex,
@@ -633,14 +897,15 @@ export function DonutChart({
   className,
 }: DonutChartProps): JSX.Element {
   const total = data.reduce((sum, slice) => sum + slice.value, 0) || 1;
-  const stroke = Math.round(size / 7);
+  const center = centerProp === undefined ? format(total) : centerProp;
+  const stroke = Math.round(size * (thin ? 0.08 : 0.13));
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   // `pathLength="1"` renormalises the circle so every dash figure below is a
   // fraction of the whole ring rather than a length in pixels. That is what
   // lets one keyframe animate a slice of any size, and it makes the arithmetic
   // here read as percentages of a total, which is what a donut *is*.
-  const gap = Math.min(1.5 / circumference, 0.01);
+  const gap = data.length > 1 ? Math.min(2 / circumference, 0.01) : 0;
 
   // Where each arc begins, as a fraction of the ring. Accumulated rather than
   // derived per slice so a rounding error cannot open a seam.
@@ -651,10 +916,15 @@ export function DonutChart({
       label={label}
       rows={data}
       {...(menuItems ? { menuItems } : {})}
-      className={cn('flex flex-wrap items-center gap-5', className)}
+      className={cn('flex flex-wrap items-center gap-6', className)}
     >
-      <div className="relative shrink-0" style={{ width: size, height: size }}>
-        <svg aria-hidden width={size} height={size} viewBox={`0 0 ${String(size)} ${String(size)}`}>
+      <div
+        className="@container relative aspect-square max-w-full shrink-0"
+        // A width, never a height: the ring keeps its size where there is room
+        // and shrinks with a container narrower than it, square either way.
+        style={{ width: size }}
+      >
+        <svg aria-hidden viewBox={`0 0 ${String(size)} ${String(size)}`} className="size-full">
           <circle
             cx={size / 2}
             cy={size / 2}
@@ -683,7 +953,7 @@ export function DonutChart({
                 strokeDashoffset={-start}
                 transform={`rotate(-90 ${String(size / 2)} ${String(size / 2)})`}
                 className={cn(
-                  strokeTone[slice.tone ?? donutOrder[index % donutOrder.length] ?? 'accent'],
+                  strokeTone[slice.tone ?? seriesTone(index)],
                   'transition-[opacity,stroke-width] duration-(--animate-duration-fast)',
                   // Each arc grows from where the previous one ended, and starts
                   // exactly when that one finished, so the ring is drawn in a
@@ -721,34 +991,53 @@ export function DonutChart({
             );
           })}
         </svg>
-        {center ? (
-          <div className="absolute inset-0 grid place-items-center text-center">{center}</div>
-        ) : null}
+        {center === null ? null : (
+          <div className="absolute inset-0 grid place-items-center text-center">
+            {typeof center === 'string' || typeof center === 'number' ? (
+              // A bare figure is set as the headline it is, sized to the ring
+              // rather than to the page; anything richer is the caller's.
+              <span>
+                <span className="block font-display text-[17cqi] leading-none font-bold tracking-[-0.03em] tabular-nums">
+                  {center}
+                </span>
+                {centerLabel === undefined ? null : (
+                  <span className="mt-1 block text-xs font-medium text-fg-muted">
+                    {centerLabel}
+                  </span>
+                )}
+              </span>
+            ) : (
+              center
+            )}
+          </div>
+        )}
       </div>
 
-      <ul className="min-w-0 flex-1 space-y-1.5">
+      <ul className={cn('min-w-0 flex-[1_1_10.5rem]', !showLegend && 'hidden')}>
         {data.map((slice, index) => {
           const selected = selectedIndex === index;
           const row = (
             <>
               <span
                 className={cn(
-                  'size-2.5 shrink-0 rounded-xs',
-                  bgTone[slice.tone ?? donutOrder[index % donutOrder.length] ?? 'accent'],
+                  'size-2.5 shrink-0 rounded-[3px]',
+                  bgTone[slice.tone ?? seriesTone(index)],
                 )}
               />
-              <span className="min-w-0 flex-1 truncate text-fg-muted">{slice.label}</span>
+              <span className="min-w-0 flex-1 truncate text-start font-medium text-fg">
+                {slice.label}
+              </span>
               {/* The value beside the label, always. An angle is not a number,
                   and a percentage of an unstated total is not a fact. */}
-              <span className="font-medium tabular-nums text-fg">{format(slice.value)}</span>
-              <span className="w-10 text-right tabular-nums text-fg-subtle">
+              <span className="font-semibold tabular-nums text-fg">{format(slice.value)}</span>
+              <span className="w-10 text-end text-xs tabular-nums text-fg-muted">
                 {Math.round((slice.value / total) * 100)}%
               </span>
             </>
           );
 
           return (
-            <li key={slice.label}>
+            <li key={slice.label} className="border-b border-border last:border-b-0">
               {onSelect ? (
                 <button
                   type="button"
@@ -757,15 +1046,16 @@ export function DonutChart({
                     onSelect(slice, index);
                   }}
                   className={cn(
-                    'flex w-full touch:min-h-tap items-center gap-2 rounded-sm px-1 text-sm transition-colors',
+                    'flex min-h-8 w-full touch:min-h-tap items-center gap-2.5 rounded-xs px-1 text-sm transition-colors',
                     'hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
                     selected && 'bg-accent-subtle',
+                    selectedIndex !== undefined && !selected && 'opacity-60',
                   )}
                 >
                   {row}
                 </button>
               ) : (
-                <span className="flex items-center gap-2 px-1 text-sm">{row}</span>
+                <span className="flex min-h-8 items-center gap-2.5 text-sm">{row}</span>
               )}
             </li>
           );
@@ -778,7 +1068,13 @@ export function DonutChart({
 }
 
 export interface TrendChartProps extends ChartInteractionProps {
-  series: readonly { label: string; tone?: ChartTone; data: readonly ChartPoint[] }[];
+  series: readonly {
+    label: string;
+    tone?: ChartTone;
+    /** Dashed and never filled: a plan or a forecast beside the actuals. */
+    dashed?: boolean;
+    data: readonly ChartPoint[];
+  }[];
   label: string;
   height?: number;
   format?: (value: number) => string;
@@ -789,6 +1085,10 @@ export interface TrendChartProps extends ChartInteractionProps {
    * overlapping fills is a chart nobody can read.
    */
   area?: boolean;
+  /** Marks where each line ends, so "where it is now" reads at a glance. */
+  showLastPoint?: boolean;
+  /** What the chart shows, in a sentence, read before the data tables. */
+  summary?: string;
   /**
    * Series switched off from the legend. Uncontrolled when omitted, the chart
    * keeps its own set, which is what a dashboard usually wants.
@@ -797,6 +1097,13 @@ export interface TrendChartProps extends ChartInteractionProps {
   onHiddenSeriesChange?: (hidden: readonly string[]) => void;
   /** Fires with the period and every series' value at it. */
   onSelect?: (selection: { index: number; label: string; values: Record<string, number> }) => void;
+  /**
+   * An overview strip under the plot: the whole of the first visible series,
+   * with the window drawn over it. Drag its edges or its body, or draw a new
+   * range on it; each part is also a keyboard slider. It drives the same
+   * `window` as `zoomable`, and the two combine.
+   */
+  brush?: boolean;
   className?: string;
 }
 
@@ -827,12 +1134,15 @@ export function TrendChart({
   height = 200,
   format = (v) => String(v),
   area = false,
+  showLastPoint = false,
+  summary,
   hiddenSeries,
   onHiddenSeriesChange,
   onSelect,
   window: controlledWindow,
   onWindowChange,
   zoomable = false,
+  brush = false,
   menuItems,
   className,
 }: TrendChartProps): JSX.Element {
@@ -879,10 +1189,18 @@ export function TrendChart({
 
   // With every series hidden there is nothing to scale to. A 0–1 axis is a
   // truthful empty chart; a NaN one is a blank rectangle.
-  const max = values.length > 0 ? Math.max(...values) : 1;
-  const min = values.length > 0 ? Math.min(...values) : 0;
+  const top = values.length > 0 ? Math.max(...values) : 1;
+  const bottom = values.length > 0 ? Math.min(...values) : 0;
+  // A little air above and below the data, so a line at its peak does not run
+  // along the top gridline and read as clipped. Never below zero for a series
+  // that never is: a headcount axis reading "-4" is a small lie.
+  const pad = (top - bottom) * 0.12 || 1;
+  const max = top + pad;
+  const min = bottom >= 0 ? Math.max(0, bottom - pad) : bottom - pad;
   const span = max - min || 1;
-  const ticks = [max, min + span * 0.5, min];
+  const ticks = [max, min + (span * 2) / 3, min + span / 3, min];
+  const toneOf = (entry: (typeof series)[number]): ChartTone =>
+    entry.tone ?? seriesTone(series.indexOf(entry));
 
   const step = shownPeriods.length > 1 ? 100 / (shownPeriods.length - 1) : 0;
 
@@ -892,11 +1210,12 @@ export function TrendChart({
   return (
     <ChartFrame
       label={label}
+      {...(summary === undefined ? {} : { summary })}
       rows={(series[0]?.data ?? []).map((point, index) => ({
         label: point.label,
         value: visible.reduce((sum, entry) => sum + (entry.data[index]?.value ?? 0), 0),
       }))}
-      {...(zoomable ? { window: windowState } : {})}
+      {...(zoomable || brush ? { window: windowState } : {})}
       {...(menuItems ? { menuItems } : {})}
       className={cn('w-full', className)}
     >
@@ -913,11 +1232,13 @@ export function TrendChart({
         <div className="flex gap-2">
           <div
             aria-hidden
-            className="flex shrink-0 flex-col justify-between text-2xs tabular-nums text-fg-subtle"
+            className="flex shrink-0 flex-col justify-between text-[11px] leading-none font-medium tabular-nums text-fg-subtle"
             style={{ height }}
           >
-            {ticks.map((tick) => (
-              <span key={tick}>{format(Math.round(tick))}</span>
+            {ticks.map((tick, index) => (
+              <span key={index} className="-translate-y-1/2 first:translate-y-0 last:translate-y-0">
+                {format(Math.round(tick))}
+              </span>
             ))}
           </div>
 
@@ -933,17 +1254,13 @@ export function TrendChart({
 
             {/* Gridlines behind the plot, so a value can be read off the chart
               without counting pixels against the axis. */}
-            <div aria-hidden className="absolute inset-0 flex flex-col justify-between">
-              {ticks.map((tick) => (
-                <span key={tick} className="border-t border-border" />
-              ))}
-            </div>
+            <ChartGrid lines={ticks.length} />
 
             <svg
               aria-hidden
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
-              className="absolute inset-0 size-full"
+              className="absolute inset-0 size-full overflow-visible"
             >
               {visible.map((entry) => {
                 const points = slice(entry.data);
@@ -956,33 +1273,51 @@ export function TrendChart({
                   .join(' ');
                 return (
                   <g key={entry.label}>
-                    {area ? (
+                    {area && entry.dashed !== true ? (
                       <path
                         d={`${path} L 100,100 L 0,100 Z`}
-                        className={cn(fillTone[entry.tone ?? 'accent'], 'opacity-15')}
+                        className={cn(
+                          fillTone[toneOf(entry)],
+                          visible.length > 1 ? 'opacity-12' : 'opacity-18',
+                          'motion-safe:animate-fade-in',
+                        )}
                         stroke="none"
                       />
                     ) : null}
                     <path
                       d={path}
                       fill="none"
-                      strokeWidth={2}
+                      strokeWidth={2.5}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       vectorEffect="non-scaling-stroke"
-                      // `pathLength="1"` normalises the dash length, so one
-                      // keyframe draws a path of any actual length.
-                      pathLength={1}
-                      strokeDasharray={1}
-                      className={cn(
-                        strokeTone[entry.tone ?? 'accent'],
-                        'motion-safe:animate-draw-line',
-                      )}
+                      // Drawn in with a wipe from the left, so the dashed
+                      // plan draws the same way as the solid line.
+                      {...(entry.dashed === true ? { strokeDasharray: '6 5' } : {})}
+                      className={cn(strokeTone[toneOf(entry)], 'motion-safe:animate-draw-line')}
                     />
                   </g>
                 );
               })}
             </svg>
+
+            {showLastPoint
+              ? visible.map((entry) => {
+                  const last = slice(entry.data).at(-1);
+                  if (!last) return null;
+                  return (
+                    <span
+                      key={entry.label}
+                      aria-hidden
+                      className={cn(
+                        'absolute end-0 size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full ring-3 ring-surface',
+                        bgTone[toneOf(entry)],
+                      )}
+                      style={{ top: `${String(100 - ((last.value - min) / span) * 100)}%` }}
+                    />
+                  );
+                })
+              : null}
 
             {/*
              * One hit column per period, over the whole plot height. Hovering a
@@ -1058,10 +1393,10 @@ export function TrendChart({
                             key={entry.label}
                             aria-hidden
                             className={cn(
-                              'absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface',
-                              bgTone[entry.tone ?? 'accent'],
+                              'absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-3 ring-surface',
+                              bgTone[toneOf(entry)],
                               'transition-[opacity,transform] duration-(--animate-duration-fast)',
-                              active ? 'scale-125 opacity-100' : 'opacity-0',
+                              active ? 'opacity-100' : 'opacity-0',
                             )}
                             style={{
                               left: '50%',
@@ -1078,17 +1413,36 @@ export function TrendChart({
           </div>
         </div>
 
-        <div aria-hidden className="mt-1.5 flex justify-between ps-8 text-2xs text-fg-subtle">
+        <div
+          aria-hidden
+          className={cn(
+            '@container mt-2 flex justify-between ps-8 text-[11px] font-medium text-fg-subtle',
+            thinLabels(shownPeriods.length),
+          )}
+        >
           {shownPeriods.map((period) => (
             <span key={period}>{period}</span>
           ))}
         </div>
       </TouchScroll>
 
+      {brush ? (
+        <ChartBrush
+          state={windowState}
+          values={(visible[0] ?? series[0])?.data.map((point) => point.value) ?? []}
+          labels={periods}
+        />
+      ) : null}
+
       {series.length > 1 ? (
         <ChartLegend
           className="mt-3"
-          items={series.map((entry) => ({ label: entry.label, tone: entry.tone ?? 'accent' }))}
+          marker="line"
+          items={series.map((entry) => ({
+            label: entry.label,
+            tone: toneOf(entry),
+            ...(entry.dashed === true ? { dashed: true } : {}),
+          }))}
           hidden={hidden}
           onHiddenChange={setHidden}
         />
@@ -1141,7 +1495,7 @@ export interface HorizontalBarChartProps extends ChartInteractionProps {
 export function HorizontalBarChart({
   data,
   label,
-  tone = 'accent',
+  tone = 'chart-1',
   showValues = true,
   sorted = true,
   limit,
@@ -1200,7 +1554,7 @@ export function HorizontalBarChart({
       ) : null}
       <ul
         className={cn(
-          'relative space-y-1.5',
+          'relative space-y-2.5 touch:space-y-3',
           zoomable && 'cursor-crosshair touch-none select-none',
         )}
         {...(zoomable ? drag.handlers : {})}
@@ -1215,20 +1569,20 @@ export function HorizontalBarChart({
               {/*
                * A fixed label column rather than a label above each bar: the
                * bars then start at the same x, which is the only way the eye
-               * can compare their lengths. `ch` units, so the column is sized
-               * by characters rather than by a guess.
+               * can compare their lengths. Narrower under a finger, where the
+               * phone needs the width for the bar.
                */}
-              <span className="w-[14ch] shrink-0 truncate text-end text-xs text-fg-muted">
+              <span className="w-[120px] shrink-0 truncate text-start text-sm font-medium text-fg-muted touch:w-[88px]">
                 {point.label}
               </span>
-              <span className="relative h-5 min-w-0 flex-1 overflow-hidden rounded-sm bg-surface-sunken">
+              <span className="relative h-5 min-w-0 flex-1 touch:h-[22px]">
                 <span
                   className={cn(
-                    'absolute inset-y-0 start-0 origin-left rounded-sm',
+                    'absolute inset-y-0 start-0 origin-left rounded-xs',
                     'transition-[width,opacity] duration-(--animate-duration-slow) ease-standard',
                     'motion-safe:animate-grow-x',
                     bgTone[tone],
-                    selected ? 'opacity-100' : 'opacity-80',
+                    selectedIndex !== undefined && !selected && 'opacity-40',
                   )}
                   style={{
                     width: `max(${String((point.value / max) * 100)}%, 2px)`,
@@ -1237,7 +1591,7 @@ export function HorizontalBarChart({
                 />
               </span>
               {showValues ? (
-                <span className="w-[6ch] shrink-0 text-end text-xs tabular-nums text-fg">
+                <span className="w-[52px] shrink-0 text-end text-sm font-semibold tabular-nums text-fg">
                   {format(point.value)}
                 </span>
               ) : null}
@@ -1254,7 +1608,7 @@ export function HorizontalBarChart({
                     onClick={() => {
                       onSelect(point, index);
                     }}
-                    className="flex w-full touch:min-h-tap items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+                    className="flex w-full touch:min-h-tap items-center gap-3 rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
                   >
                     <span className="sr-only">{readout}</span>
                     {row}
@@ -1264,7 +1618,7 @@ export function HorizontalBarChart({
                     tabIndex={0}
                     role="img"
                     aria-label={readout}
-                    className="flex w-full items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+                    className="flex w-full items-center gap-3 rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
                   >
                     {row}
                   </span>
@@ -1307,8 +1661,6 @@ export interface StackedBarChartProps extends ChartInteractionProps {
   onSelect?: (selection: { series: string; category: string; value: number }) => void;
   className?: string;
 }
-
-const stackOrder: readonly ChartTone[] = ['accent', 'success', 'warning', 'danger', 'info'];
 
 /**
  * Composition across categories: headcount by team, split by status.
@@ -1384,12 +1736,13 @@ export function StackedBarChart({
           content height instead. */}
       <div
         className={cn(
-          'relative flex items-stretch gap-2',
+          'relative flex items-stretch gap-2 touch:gap-1.5',
           zoomable && 'cursor-crosshair touch-none select-none',
         )}
         style={{ height }}
         {...(zoomable ? drag.handlers : {})}
       >
+        <ChartGrid />
         <ChartMarquee marquee={drag.marquee} />
         {shownCategories.map((category, position) => {
           const index = position + offset;
@@ -1400,16 +1753,16 @@ export function StackedBarChart({
             <div key={category} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-1">
               <span
                 aria-hidden
-                className="shrink-0 text-center text-2xs tabular-nums text-fg-muted"
+                className="shrink-0 text-center text-[11px] font-semibold tabular-nums text-fg-muted"
               >
                 {format(total)}
               </span>
               <div className="flex min-h-0 flex-1 items-end">
                 <div
-                  className="flex w-full flex-col-reverse overflow-hidden rounded-t-sm"
+                  className="mx-auto flex w-full max-w-8 flex-col-reverse gap-0.5 overflow-hidden rounded-t-[7px] rounded-b-[3px]"
                   style={{ height: `max(${String(columnHeight)}%, 2px)` }}
                 >
-                  {visible.map((entry, seriesIndex) => {
+                  {visible.map((entry) => {
                     const value = entry.values[index] ?? 0;
                     const share = total === 0 ? 0 : (value / total) * 100;
                     if (share === 0) return null;
@@ -1428,16 +1781,14 @@ export function StackedBarChart({
                               : undefined
                           }
                           className={cn(
-                            'w-full origin-bottom transition-[height,opacity] duration-(--animate-duration-slow) ease-standard',
+                            'min-h-0.5 w-full basis-0 origin-bottom rounded-[2px] transition-[flex-grow,opacity] duration-(--animate-duration-slow) ease-standard',
                             'motion-safe:animate-grow-y',
                             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
                             onSelect && 'cursor-pointer hover:opacity-80',
-                            bgTone[
-                              entry.tone ?? stackOrder[seriesIndex % stackOrder.length] ?? 'accent'
-                            ],
+                            bgTone[entry.tone ?? seriesTone(series.indexOf(entry))],
                           )}
                           style={{
-                            height: `${String(share)}%`,
+                            flexGrow: share,
                             animationDelay: `min(calc(${String(index)} * 60ms), 320ms)`,
                           }}
                         />
@@ -1451,11 +1802,11 @@ export function StackedBarChart({
         })}
       </div>
 
-      <div aria-hidden className="mt-1.5 flex gap-2">
+      <div aria-hidden className="mt-2 flex gap-2 touch:gap-1.5">
         {shownCategories.map((category) => (
           <span
             key={category}
-            className="min-w-0 flex-1 truncate text-center text-2xs text-fg-subtle"
+            className="min-w-0 flex-1 truncate text-center text-[11px] font-medium text-fg-subtle"
           >
             {category}
           </span>
@@ -1466,7 +1817,7 @@ export function StackedBarChart({
         className="mt-3"
         items={series.map((entry, seriesIndex) => ({
           label: entry.label,
-          tone: entry.tone ?? stackOrder[seriesIndex % stackOrder.length] ?? 'accent',
+          tone: entry.tone ?? seriesTone(seriesIndex),
         }))}
         hidden={hiddenSeries}
         {...(onHiddenSeriesChange ? { onHiddenChange: onHiddenSeriesChange } : {})}
@@ -1507,6 +1858,11 @@ export interface HeatmapChartProps extends ChartInteractionProps {
   tone?: ChartTone;
   /** Turns a value into its cell description: "3 days of leave". */
   describe?: (value: number, row: string, column: string) => string;
+  /**
+   * Prints each value in its cell. The ramp then stops at 60% strength, so the
+   * darkest cell still carries its number at text contrast in either theme.
+   */
+  showValues?: boolean;
   /** Upper bound for the colour scale. Defaults to the largest value present. */
   max?: number;
   format?: (value: number) => string;
@@ -1533,8 +1889,9 @@ export function HeatmapChart({
   columns,
   cells,
   label,
-  tone = 'accent',
+  tone = 'chart-1',
   describe,
+  showValues = false,
   max,
   format = (v) => String(v),
   onSelect,
@@ -1587,7 +1944,7 @@ export function HeatmapChart({
         {...(zoomable ? drag.handlers : {})}
       >
         <ChartMarquee marquee={drag.marquee} />
-        <table className="border-separate border-spacing-0.5">
+        <table className="border-separate border-spacing-[3px]">
           <caption className="sr-only">{label}</caption>
           <thead>
             <tr>
@@ -1598,7 +1955,7 @@ export function HeatmapChart({
                 <th
                   key={column}
                   scope="col"
-                  className="pb-1 text-center text-2xs font-normal text-fg-subtle"
+                  className="pb-1 text-center text-[11px] font-medium text-fg-subtle"
                 >
                   {column}
                 </th>
@@ -1610,7 +1967,7 @@ export function HeatmapChart({
               <tr key={row}>
                 <th
                   scope="row"
-                  className="pe-2 text-end text-xs font-normal whitespace-nowrap text-fg-muted"
+                  className="pe-2 text-start text-xs font-medium whitespace-nowrap text-fg-muted"
                 >
                   {row}
                 </th>
@@ -1637,16 +1994,29 @@ export function HeatmapChart({
                             // Grows where the pointer is a finger, to the tap
                             // floor. 24px is a comfortable mouse target and a
                             // missed tap; the table scrolls sideways instead.
-                            'size-6 touch:size-11 rounded-xs',
+                            'size-6 touch:size-11 rounded-[6px] touch:rounded-[5px]',
                             'transition-[opacity,transform] duration-(--animate-duration-normal)',
                             'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
                             onSelect && 'cursor-pointer hover:scale-110',
-                            value === 0 ? 'bg-surface-sunken' : bgTone[tone],
+                            'bg-surface-sunken motion-safe:animate-fade-in',
+                            showValues &&
+                              'grid place-items-center text-[11px] font-semibold tabular-nums text-fg',
                           )}
-                          // Opacity rather than a second colour: one channel,
-                          // legible to everyone, and it composes with the theme.
-                          style={value === 0 ? undefined : { opacity: 0.25 + intensity * 0.75 }}
-                        />
+                          // One hue mixed into the sunken fill by value: one
+                          // channel, and it resolves against either theme.
+                          style={
+                            value === 0
+                              ? undefined
+                              : {
+                                  background: toneMix(
+                                    tone,
+                                    showValues ? 10 + intensity * 50 : 15 + intensity * 85,
+                                  ),
+                                }
+                          }
+                        >
+                          {showValues ? format(value) : null}
+                        </div>
                       </ChartMark>
                     </td>
                   );
@@ -1657,17 +2027,7 @@ export function HeatmapChart({
         </table>
       </div>
 
-      <div aria-hidden className="mt-3 flex items-center gap-2 text-2xs text-fg-subtle">
-        <span>Less</span>
-        {[0, 0.25, 0.5, 0.75, 1].map((step) => (
-          <span
-            key={step}
-            className={cn('size-3 rounded-xs', step === 0 ? 'bg-surface-sunken' : bgTone[tone])}
-            style={step === 0 ? undefined : { opacity: 0.25 + step * 0.75 }}
-          />
-        ))}
-        <span>More · up to {format(ceiling)}</span>
-      </div>
+      <ChartScaleKey tone={tone} low="Less" high={`More · up to ${format(ceiling)}`} />
     </ChartFrame>
   );
 }
@@ -1681,6 +2041,10 @@ export interface FunnelChartProps extends ChartInteractionProps {
   label: string;
   /** Prints the drop between consecutive stages. */
   showConversion?: boolean;
+  /** Paints the stage with the worst step conversion in the danger tone, and says so. */
+  highlightBiggestDrop?: boolean;
+  /** The colour of every stage that names none of its own. */
+  tone?: ChartTone;
   format?: (value: number) => string;
   onSelect?: (stage: FunnelStage, index: number) => void;
   selectedIndex?: number;
@@ -1705,6 +2069,8 @@ export function FunnelChart({
   data,
   label,
   showConversion = true,
+  highlightBiggestDrop = false,
+  tone = 'chart-1',
   format = (v) => String(v),
   onSelect,
   selectedIndex,
@@ -1716,6 +2082,19 @@ export function FunnelChart({
 }: FunnelChartProps): JSX.Element {
   const first = data[0]?.value ?? 0;
   const max = Math.max(...data.map((stage) => stage.value)) || 1;
+  // The stage that loses the largest share of the one before it. A share, not
+  // a count: losing 40 of 50 is a worse step than losing 100 of 1,000.
+  let biggestDrop = -1;
+  let lowestRate = Infinity;
+  data.forEach((stage, index) => {
+    const previous = data[index - 1]?.value;
+    if (previous === undefined || previous === 0) return;
+    const rate = stage.value / previous;
+    if (rate < lowestRate) {
+      lowestRate = rate;
+      biggestDrop = index;
+    }
+  });
 
   // A funnel is an ordered sequence, so it windows like one: useful on a
   // twelve-stage recruitment process, pointless on four. The overall
@@ -1752,7 +2131,10 @@ export function FunnelChart({
       ) : null}
 
       <ol
-        className={cn('relative space-y-1', zoomable && 'cursor-crosshair touch-none select-none')}
+        className={cn(
+          '@container relative flex flex-col gap-1.5',
+          zoomable && 'cursor-crosshair touch-none select-none',
+        )}
         {...(zoomable ? drag.handlers : {})}
       >
         <ChartMarquee marquee={drag.marquee} orientation="vertical" />
@@ -1761,57 +2143,77 @@ export function FunnelChart({
           const previous = data[index - 1]?.value;
           const stepRate = previous === undefined || previous === 0 ? null : stage.value / previous;
           const overall = first === 0 ? null : stage.value / first;
+          const worst = highlightBiggestDrop && index === biggestDrop;
+          const grew = stepRate !== null && stepRate > 1;
+          const readout = `${stage.label}: ${format(stage.value)}`;
+          const StepIcon = grew ? ArrowUp : ArrowDown;
 
           return (
             <li key={stage.label}>
-              <div className="flex items-baseline justify-between gap-3 text-xs">
-                <span className="truncate text-fg">{stage.label}</span>
-                <span className="shrink-0 tabular-nums text-fg-muted">
-                  {format(stage.value)}
-                  {overall !== null && index > 0 ? (
-                    <span className="ms-2 text-fg-subtle">{Math.round(overall * 100)}%</span>
-                  ) : null}
-                </span>
-              </div>
-              <ChartMark content={`${stage.label}: ${format(stage.value)}`}>
-                <div
-                  role={onSelect ? 'button' : 'img'}
-                  aria-label={`${stage.label}: ${format(stage.value)}`}
-                  tabIndex={0}
-                  onClick={
-                    onSelect
-                      ? () => {
-                          onSelect(stage, index);
-                        }
-                      : undefined
-                  }
+              {showConversion && stepRate !== null ? (
+                <p
                   className={cn(
-                    'mt-1 h-6 touch:h-11 overflow-hidden rounded-sm bg-surface-sunken',
-                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-                    onSelect && 'cursor-pointer',
-                    selectedIndex !== undefined && selectedIndex !== index && 'opacity-60',
+                    'mb-1.5 flex items-center gap-1.5 ps-[132px] text-xs font-semibold touch:ps-0 @max-[26rem]:ps-0',
+                    worst ? 'text-danger-fg' : grew ? 'text-warning-fg' : 'text-fg-subtle',
                   )}
                 >
-                  <div
-                    className={cn(
-                      'h-full origin-left rounded-sm',
-                      'transition-[width,opacity] duration-(--animate-duration-slow) ease-standard',
-                      'motion-safe:animate-grow-x',
-                      bgTone[stage.tone ?? 'accent'],
-                    )}
-                    style={{
-                      width: `max(${String((stage.value / max) * 100)}%, 2px)`,
-                      animationDelay: `min(calc(${String(index)} * 60ms), 320ms)`,
-                    }}
-                  />
-                </div>
-              </ChartMark>
-              {showConversion && stepRate !== null ? (
-                <p className="mt-0.5 text-2xs text-fg-subtle">
-                  {Math.round(stepRate * 100)}% of the previous stage ·{' '}
-                  {format((previous ?? 0) - stage.value)} lost
+                  <StepIcon aria-hidden className="size-3 shrink-0" />
+                  {Math.round(stepRate * 100)}%{' '}
+                  {grew
+                    ? '· more than the step before'
+                    : `continue · ${format((previous ?? 0) - stage.value)} lost`}
+                  {worst ? ' · biggest drop' : null}
                 </p>
               ) : null}
+              <div className="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 touch:grid-cols-1 touch:gap-1.5 @max-[26rem]:grid-cols-1 @max-[26rem]:gap-1.5">
+                <span className="truncate text-sm font-medium text-fg-muted">{stage.label}</span>
+                <ChartMark content={readout}>
+                  <div
+                    role={onSelect ? 'button' : 'img'}
+                    aria-label={readout}
+                    tabIndex={0}
+                    onClick={
+                      onSelect
+                        ? () => {
+                            onSelect(stage, index);
+                          }
+                        : undefined
+                    }
+                    className={cn(
+                      'relative tap-target flex min-w-0 items-center gap-2.5 rounded-[8px]',
+                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+                      onSelect && 'cursor-pointer',
+                      selectedIndex !== undefined && selectedIndex !== index && 'opacity-50',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'h-[30px] origin-left rounded-[8px] touch:h-[26px]',
+                        'transition-[width,opacity] duration-(--animate-duration-slow) ease-standard',
+                        'motion-safe:animate-grow-x',
+                        worst ? 'bg-danger-fg' : bgTone[stage.tone ?? tone],
+                      )}
+                      style={{
+                        // The bar leaves room for its own figure at the end,
+                        // so the widest stage never pushes its number off.
+                        width: `max(calc((100% - 4.5rem) * ${String(stage.value / max)}), 4px)`,
+                        // Each stage a shade lighter than the last: the eye
+                        // reads the sequence as one thing thinning out.
+                        opacity: worst ? 1 : Math.max(1 - index * 0.1, 0.5),
+                        animationDelay: `min(calc(${String(index)} * 60ms), 320ms)`,
+                      }}
+                    />
+                    <span className="shrink-0 text-sm font-semibold whitespace-nowrap tabular-nums text-fg">
+                      {format(stage.value)}
+                      {overall !== null && index > 0 ? (
+                        <span className="ms-1.5 text-xs font-medium text-fg-muted">
+                          {Math.round(overall * 100)}%
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                </ChartMark>
+              </div>
             </li>
           );
         })}

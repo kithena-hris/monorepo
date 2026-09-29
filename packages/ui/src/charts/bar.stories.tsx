@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import { useState } from 'react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '../components/card/card';
 import { BarChart, HorizontalBarChart, StackedBarChart } from '../components/chart/chart';
+import { ChartCard } from '../components/chart/chart-card';
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/table/table';
-import { byDepartment, headcount, leaveTypeByTeam, teams } from './fixtures';
+import { headcount, hires2026, leavers2026, teamHeadcount } from './fixtures';
 
 const meta = {
   title: 'Charts/Bar',
@@ -67,10 +67,22 @@ const meta = {
     },
     tone: {
       control: 'select',
-      options: ['accent', 'success', 'warning', 'danger', 'info', 'neutral'],
+      options: [
+        'chart-1',
+        'chart-2',
+        'chart-3',
+        'chart-4',
+        'chart-5',
+        'chart-6',
+        'success',
+        'warning',
+        'danger',
+        'info',
+        'neutral',
+      ],
       table: {
         type: { summary: 'ChartTone' },
-        defaultValue: { summary: 'accent' },
+        defaultValue: { summary: 'chart-1' },
         category: 'Appearance',
       },
     },
@@ -78,7 +90,7 @@ const meta = {
       control: { type: 'range', min: 80, max: 400, step: 20 },
       table: {
         type: { summary: 'number' },
-        defaultValue: { summary: '160' },
+        defaultValue: { summary: '200' },
         category: 'Appearance',
       },
     },
@@ -90,6 +102,16 @@ const meta = {
         defaultValue: { summary: 'false' },
         category: 'Appearance',
       },
+    },
+    highlightIndex: {
+      description: 'One bar in colour, the rest in a quiet tint: "this month", "the median".',
+      control: { type: 'number' },
+      table: { type: { summary: 'number' }, category: 'Appearance' },
+    },
+    futureFrom: {
+      description: 'Bars from this index on are periods still to come, drawn as placeholders.',
+      control: { type: 'number' },
+      table: { type: { summary: 'number' }, category: 'Appearance' },
     },
     reference: {
       description: 'A dashed line across the plot: a target, a budget, an average.',
@@ -115,7 +137,7 @@ const meta = {
     data: headcount,
     height: 200,
     showValues: true,
-    tone: 'accent',
+    tone: 'chart-1',
     // Spies, so the **Actions** panel shows what the callback is handed and
     // when, the fastest answer to the question people actually have about a
     // chart's API.
@@ -129,39 +151,55 @@ type Story = StoryObj<typeof meta>;
 
 export const Vertical: Story = {
   name: 'Vertical: periods',
+  args: {
+    label: 'Hires by month, 2026',
+    data: hires2026,
+    showValues: false,
+    highlightIndex: 8,
+    futureFrom: 9,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Months read left to right. One bar is in colour to point at it, the rest sit back in a tint, and the months that have not happened yet keep their place on the axis as quiet placeholders, so a year-to-date chart still reads as a year.',
+      },
+    },
+  },
   render: (args) => (
-    <div className="max-w-2xl">
+    <ChartCard title="Hires, 2026" value="82" description="14 in September, the most so far">
       <BarChart {...args} />
-    </div>
+    </ChartCard>
   ),
 };
 
 export const WithATarget: Story = {
   name: 'With a target line',
   args: {
-    label: 'Time to hire by department, days',
+    label: 'Hires per quarter against a target of 25',
     data: [
-      { label: 'Eng', value: 47 },
-      { label: 'Sales', value: 31 },
-      { label: 'Support', value: 22 },
-      { label: 'People', value: 38 },
-      { label: 'Finance', value: 41 },
+      { label: 'Q1', value: 22 },
+      { label: 'Q2', value: 30 },
+      { label: 'Q3', value: 30 },
+      { label: 'Q4', value: 0 },
     ],
-    reference: { value: 35, label: 'Target 35d' },
-    tone: 'info',
+    showValues: false,
+    reference: { value: 25, label: 'Target 25' },
+    warnBelowReference: true,
+    futureFrom: 3,
   },
   parameters: {
     docs: {
       description: {
         story:
-          'A bar chart without a reference is a ranking; with one it is an assessment. Two of these are over target, and that is visible at a glance rather than by reading five numbers.',
+          'A bar chart without a reference is a ranking; with one it is an assessment. `warnBelowReference` paints the quarter that missed in the warning tone, so the miss is visible without reading four numbers.',
       },
     },
   },
   render: (args) => (
-    <div className="max-w-2xl">
+    <ChartCard title="Hires per quarter vs target" value="82 / 90" className="max-w-xl">
       <BarChart {...args} />
-    </div>
+    </ChartCard>
   ),
 };
 
@@ -171,29 +209,14 @@ export const Horizontal: Story = {
     docs: {
       description: {
         story:
-          'The same data both ways. Read the labels: "Customer Support" and "People Operations" fit on the left and do not fit underneath. Sorted by default, because an unsorted ranking is just a list; `limit` caps the rows and says how many were dropped.',
+          'When the categories are words, turn the chart on its side: the label sits on a full line to the left instead of being truncated under a 30px bar. Sorted by default, because an unsorted ranking is just a list; `limit` caps the rows and says how many were dropped.',
       },
     },
   },
   render: () => (
-    <div className="grid max-w-4xl gap-6 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Horizontal</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <HorizontalBarChart label="Headcount by department" data={byDepartment} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>The same data, vertical</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <BarChart label="Headcount by department" data={byDepartment} height={200} />
-        </CardContent>
-      </Card>
-    </div>
+    <ChartCard title="Headcount by team" className="max-w-2xl">
+      <HorizontalBarChart label="Headcount by team" data={teamHeadcount} />
+    </ChartCard>
   ),
 };
 
@@ -203,39 +226,36 @@ export const Stacked: Story = {
     docs: {
       description: {
         story:
-          "The same leave data twice. On the left, absolute days. Support takes the most leave overall. On the right, normalised, and now the honest comparison is proportion, where Support's *sick* share is the thing that stands out. Each answers a different question, and neither answers both.",
+          'Absolute on top: what each quarter is made of, with the total printed over each column. Normalised underneath: every column is 100%, which answers "what share" and gives up "how many". Each answers a different question, and neither answers both.',
       },
     },
   },
   render: () => (
-    <div className="grid max-w-5xl gap-6 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Days taken</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <StackedBarChart
-            label="Leave days by team and type"
-            categories={[...teams]}
-            series={leaveTypeByTeam}
-            height={220}
-          />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Share of each team&rsquo;s leave</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <StackedBarChart
-            label="Leave mix by team"
-            categories={[...teams]}
-            series={leaveTypeByTeam}
-            height={220}
-            normalise
-          />
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-3">
+      <ChartCard title="Hires by level">
+        <StackedBarChart
+          label="Hires by level and quarter"
+          categories={['Q1', 'Q2', 'Q3', 'Q4']}
+          series={[
+            { label: 'Junior', values: [8, 12, 10, 0] },
+            { label: 'Mid', values: [10, 12, 14, 0] },
+            { label: 'Senior', values: [4, 6, 6, 0] },
+          ]}
+        />
+      </ChartCard>
+      <ChartCard title="Gender by team, normalised">
+        <StackedBarChart
+          label="Gender by team, as a share of each team"
+          categories={['Engineering', 'Design', 'Sales']}
+          series={[
+            { label: 'Men', values: [62, 40, 52] },
+            { label: 'Women', values: [34, 56, 46] },
+            { label: 'Non-binary', values: [4, 4, 2] },
+          ]}
+          normalise
+          format={(value) => `${String(value)}%`}
+        />
+      </ChartCard>
     </div>
   ),
 };
@@ -246,38 +266,36 @@ export const Interactive: Story = {
     docs: {
       description: {
         story:
-          'With `onSelect`, each bar becomes a `<button>`: tabbable, with a focus ring, announcing "Engineering: 312". Try it from the keyboard. This is why the bars are CSS rather than `<rect>` elements: a rect cannot be a button.',
+          'With `onSelect`, each bar becomes a `<button>`: tabbable, with a focus ring, announcing "Sep: 4". The chosen bar prints its value in a pill above it, so a click answers "how many" without a hover. Try it from the keyboard.',
       },
     },
   },
   render: function InteractiveStory() {
-    const [selected, setSelected] = useState(0);
-    const point = byDepartment[selected];
+    const [selected, setSelected] = useState(8);
+    const point = leavers2026[selected];
 
     return (
-      <div className="max-w-2xl space-y-4">
-        <HorizontalBarChart
-          label="Headcount by department"
-          data={byDepartment}
-          sorted={false}
-          selectedIndex={selected}
-          onSelect={(_, index) => {
-            setSelected(index);
-          }}
-        />
-        <p aria-live="polite" className="text-sm text-fg-muted">
-          {point ? (
-            <>
-              <span className="font-medium text-fg">{point.label}</span>, {point.value} people
-            </>
-          ) : null}
-        </p>
+      <div className="flex flex-col gap-3">
+        <ChartCard
+          title="Leavers by month"
+          value={point ? String(point.value) : undefined}
+          description={point ? `${point.label} · click a bar to filter the table` : undefined}
+        >
+          <BarChart
+            label="Leavers by month, 2026"
+            data={leavers2026}
+            selectedIndex={selected}
+            onSelect={(_, index) => {
+              setSelected(index);
+            }}
+          />
+        </ChartCard>
         {point ? (
-          <Table aria-label={`${point.label} detail`}>
+          <Table aria-label={`Leavers in ${point.label}`}>
             <TableHeader>
               <TableRow>
-                <TableHead>Team</TableHead>
-                <TableHead numeric>People</TableHead>
+                <TableHead>Month</TableHead>
+                <TableHead numeric>Leavers</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

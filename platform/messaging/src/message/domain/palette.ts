@@ -45,18 +45,18 @@ export interface Palette {
 }
 
 export const light: Palette = {
-  canvas: '#f9fafb',
+  canvas: '#f5f6f8',
   surface: '#ffffff',
-  'surface-sunken': '#f3f4f7',
-  fg: '#141820',
-  'fg-muted': '#4f545e',
+  'surface-sunken': '#eeeff2',
+  fg: '#0c0d11',
+  'fg-muted': '#505259',
   'fg-on-accent': '#ffffff',
-  border: '#e4e6eb',
-  'border-strong': '#d0d4dc',
-  accent: '#5063ef',
-  'accent-solid': '#5063ef',
-  'accent-fg': '#4251d2',
-  'accent-subtle': '#f1f5ff',
+  border: '#e2e3e6',
+  'border-strong': '#cfd1d6',
+  accent: '#4d53f0',
+  'accent-solid': '#4d53f0',
+  'accent-fg': '#4043d3',
+  'accent-subtle': '#e8eeff',
 };
 
 /**
@@ -66,18 +66,18 @@ export const light: Palette = {
  * because it is the one with a label on top of it.
  */
 export const dark: Palette = {
-  canvas: '#070a11',
-  surface: '#141820',
-  'surface-sunken': '#0d1018',
-  fg: '#f9fafb',
-  'fg-muted': '#b6bbc4',
+  canvas: '#000000',
+  surface: '#0f0f11',
+  'surface-sunken': '#1c1d1f',
+  fg: '#f4f4f6',
+  'fg-muted': '#afb1b6',
   'fg-on-accent': '#ffffff',
-  border: '#2e333c',
-  'border-strong': '#484d57',
-  accent: '#677ef9',
-  'accent-solid': '#5063ef',
-  'accent-fg': '#b0c3ff',
-  'accent-subtle': '#212b5d',
+  border: '#28292b',
+  'border-strong': '#3c3d40',
+  accent: '#5966f3',
+  'accent-solid': '#4d53f0',
+  'accent-fg': '#9eb1ff',
+  'accent-subtle': '#191f4a',
 };
 
 /**

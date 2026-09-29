@@ -5,6 +5,18 @@ import { Check, ChevronRight, Circle } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import {
+  boundaryOf,
+  menuIndicator,
+  menuItem,
+  menuItemDestructive,
+  menuItemIndented,
+  menuLabel,
+  menuSeparator,
+  menuShortcut,
+  menuSurface,
+} from '../../lib/menu';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * The right-click menu.
@@ -43,24 +55,15 @@ export const ContextMenuRadioGroup = ContextMenuPrimitive.RadioGroup;
 export const ContextMenuSub = ContextMenuPrimitive.Sub;
 
 const surface = [
-  'z-50 min-w-[11rem] overflow-hidden rounded-md border border-border bg-surface p-1',
-  'text-fg shadow-lg',
+  ...menuSurface,
   // The menu grows from the pointer, which is what ties it to the thing that
   // was right-clicked rather than to the corner of the screen.
   'origin-(--radix-context-menu-content-transform-origin)',
-  'popover-motion',
 ];
 
-const item = [
-  'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-base',
-  'outline-none select-none [&_svg]:size-4 [&_svg]:text-fg-subtle',
-  'transition-colors duration-(--animate-duration-instant)',
-  'data-highlighted:bg-surface-hover data-highlighted:text-fg',
-  'data-disabled:pointer-events-none data-disabled:text-fg-disabled',
-  // Coarse pointers get the tap floor: a long-press that opens a menu of 28px
-  // rows is a menu you cannot then hit.
-  'touch:min-h-tap',
-];
+// Rows are the tap floor and more under a coarse pointer: a long-press that
+// opens a menu of 28px rows is a menu you cannot then hit.
+const item = menuItem;
 
 export interface ContextMenuTriggerProps extends ComponentPropsWithoutRef<
   typeof ContextMenuPrimitive.Trigger
@@ -99,12 +102,14 @@ export function ContextMenuContent({
   collisionPadding = 12,
   ...props
 }: ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content>): JSX.Element {
+  const container = usePortalContainer();
   return (
-    <ContextMenuPrimitive.Portal>
+    <ContextMenuPrimitive.Portal container={container}>
       <ContextMenuPrimitive.Content
         // Without padding a menu opened near the bottom of a phone renders
         // under the browser chrome, where nothing can scroll it into view.
         collisionPadding={collisionPadding}
+        {...boundaryOf(container)}
         className={cn(
           surface,
           'max-h-(--radix-context-menu-content-available-height) overflow-y-auto',
@@ -134,20 +139,11 @@ export function ContextMenuItem({
 }: ContextMenuItemProps): JSX.Element {
   return (
     <ContextMenuPrimitive.Item
-      className={cn(
-        item,
-        destructive &&
-          'text-danger-fg data-highlighted:bg-danger-subtle data-highlighted:text-danger-fg [&_svg]:text-current',
-        className,
-      )}
+      className={cn(item, destructive && menuItemDestructive, className)}
       {...props}
     >
       {children}
-      {shortcut ? (
-        <span className="ms-auto ps-4 font-sans text-2xs tracking-wide text-fg-subtle">
-          {shortcut}
-        </span>
-      ) : null}
+      {shortcut ? <span className={menuShortcut}>{shortcut}</span> : null}
     </ContextMenuPrimitive.Item>
   );
 }
@@ -158,10 +154,10 @@ export function ContextMenuCheckboxItem({
   ...props
 }: ComponentPropsWithoutRef<typeof ContextMenuPrimitive.CheckboxItem>): JSX.Element {
   return (
-    <ContextMenuPrimitive.CheckboxItem className={cn(item, 'ps-8', className)} {...props}>
-      <span className="absolute left-2 grid size-4 place-items-center">
+    <ContextMenuPrimitive.CheckboxItem className={cn(item, menuItemIndented, className)} {...props}>
+      <span className={menuIndicator}>
         <ContextMenuPrimitive.ItemIndicator>
-          <Check className="size-3.5 animate-scale-in" aria-hidden />
+          <Check className="animate-scale-in text-accent-fg!" aria-hidden />
         </ContextMenuPrimitive.ItemIndicator>
       </span>
       {children}
@@ -175,10 +171,10 @@ export function ContextMenuRadioItem({
   ...props
 }: ComponentPropsWithoutRef<typeof ContextMenuPrimitive.RadioItem>): JSX.Element {
   return (
-    <ContextMenuPrimitive.RadioItem className={cn(item, 'ps-8', className)} {...props}>
-      <span className="absolute left-2 grid size-4 place-items-center">
+    <ContextMenuPrimitive.RadioItem className={cn(item, menuItemIndented, className)} {...props}>
+      <span className={menuIndicator}>
         <ContextMenuPrimitive.ItemIndicator>
-          <Circle className="size-2 animate-scale-in fill-current" aria-hidden />
+          <Circle className="size-2! animate-scale-in fill-current text-accent!" aria-hidden />
         </ContextMenuPrimitive.ItemIndicator>
       </span>
       {children}
@@ -190,27 +186,14 @@ export function ContextMenuLabel({
   className,
   ...props
 }: ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Label>): JSX.Element {
-  return (
-    <ContextMenuPrimitive.Label
-      className={cn(
-        'px-2 py-1.5 text-2xs font-semibold tracking-wide text-fg-subtle uppercase',
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <ContextMenuPrimitive.Label className={cn(menuLabel, className)} {...props} />;
 }
 
 export function ContextMenuSeparator({
   className,
   ...props
 }: ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Separator>): JSX.Element {
-  return (
-    <ContextMenuPrimitive.Separator
-      className={cn('-mx-1 my-1 h-px bg-border', className)}
-      {...props}
-    />
-  );
+  return <ContextMenuPrimitive.Separator className={cn(menuSeparator, className)} {...props} />;
 }
 
 export function ContextMenuSubTrigger({
@@ -220,11 +203,11 @@ export function ContextMenuSubTrigger({
 }: ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubTrigger>): JSX.Element {
   return (
     <ContextMenuPrimitive.SubTrigger
-      className={cn(item, 'data-[state=open]:bg-surface-hover', className)}
+      className={cn(item, 'data-[state=open]:bg-surface-sunken', className)}
       {...props}
     >
       {children}
-      <ChevronRight className="ms-auto size-4" aria-hidden />
+      <ChevronRight className="ms-auto text-fg-subtle!" aria-hidden />
     </ContextMenuPrimitive.SubTrigger>
   );
 }
@@ -233,9 +216,14 @@ export function ContextMenuSubContent({
   className,
   ...props
 }: ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubContent>): JSX.Element {
+  const container = usePortalContainer();
   return (
-    <ContextMenuPrimitive.Portal>
-      <ContextMenuPrimitive.SubContent className={cn(surface, className)} {...props} />
+    <ContextMenuPrimitive.Portal container={container}>
+      <ContextMenuPrimitive.SubContent
+        className={cn(surface, className)}
+        {...boundaryOf(container)}
+        {...props}
+      />
     </ContextMenuPrimitive.Portal>
   );
 }

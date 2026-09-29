@@ -29,9 +29,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Ellipsis, GripVertical, MoveRight, X } from 'lucide-react';
+import { Ellipsis, GripVertical, Lock, MoveRight, X } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
 
+import { bulkBarClass } from '../../lib/bulk-bar';
 import { cn } from '../../lib/cn';
 import {
   AlertDialog,
@@ -42,7 +43,6 @@ import {
   AlertDialogFooter,
   AlertDialogTitle,
 } from '../alert-dialog/alert-dialog';
-import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
 import {
@@ -65,7 +65,7 @@ import {
   DropdownMenuTrigger,
 } from '../dropdown-menu/dropdown-menu';
 import { Reveal, staggerStyle } from '../reveal/reveal';
-import { Separator } from '../separator/separator';
+import { ToggleGroup, ToggleGroupItem } from '../toggle/toggle';
 
 /**
  * A board of columns you can drag cards between.
@@ -298,7 +298,10 @@ export interface KanbanProps<T extends { id: string }> {
   describeItem?: (item: T) => string;
   /** Rendered under a column's cards, an "Add card" control, usually. */
   renderColumnFooter?: (column: KanbanColumnDef) => ReactNode;
-  /** Fixed column width. The board scrolls horizontally past the viewport. */
+  /**
+   * Fixed column width. The board scrolls horizontally past the viewport.
+   * Defaults to 260px at a desk and 300px under a thumb.
+   */
   columnWidth?: string;
   /** What starts a drag: a grip, the whole card, or nothing. */
   dragActivator?: KanbanDragActivator;
@@ -342,8 +345,18 @@ interface PendingConfirmation {
   run: () => void;
 }
 
-const toneFor = (column: KanbanColumnDef): NonNullable<KanbanColumnDef['tone']> =>
-  column.tone ?? 'neutral';
+/**
+ * The column's dot. Decorative: the title carries the meaning, so the dot
+ * needs no contrast floor and is hidden from assistive tech.
+ */
+const toneDot: Record<NonNullable<KanbanColumnDef['tone']>, string> = {
+  neutral: 'bg-fg-subtle',
+  accent: 'bg-accent',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  info: 'bg-info',
+};
 
 /**
  * Cards keep animating while another card is being dragged. dnd-kit's default
@@ -417,7 +430,7 @@ export function Kanban<T extends { id: string }>({
   label,
   describeItem,
   renderColumnFooter,
-  columnWidth = '19rem',
+  columnWidth,
   dragActivator = { mode: 'handle' },
   autoScroll = { mode: 'auto' },
   motion = { preset: 'smooth' },
@@ -437,6 +450,13 @@ export function Kanban<T extends { id: string }>({
    */
   const [pending, setPending] = useState<PendingConfirmation | null>(null);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  /*
+   * Under a finger the board shows one column at a time, and a segmented
+   * control above it names the column in view. The control follows the
+   * scroll, so a swipe and a tap both land in the same state.
+   */
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const [inView, setInView] = useState(columns[0]?.id ?? '');
   /**
    * The board as it looks mid-drag. `null` outside a drag, so the props are the
    * single source of truth every moment except the ~400ms of a gesture.
@@ -700,11 +720,45 @@ export function Kanban<T extends { id: string }>({
         </Reveal>
       ) : null}
 
+      {columns.length > 1 ? (
+        <ToggleGroup
+          type="single"
+          aria-label={`${label}: column in view`}
+          value={inView}
+          onValueChange={(id) => {
+            if (!id) return;
+            setInView(id);
+            const at = columns.findIndex((column) => column.id === id);
+            boardRef.current?.children[at]?.scrollIntoView({
+              inline: 'start',
+              block: 'nearest',
+            });
+          }}
+          className="mb-3 hidden w-full overflow-x-auto touch:flex touch:[&>*]:flex-[1_0_auto]"
+        >
+          {columns.map((column) => (
+            <ToggleGroupItem key={column.id} value={column.id} className="whitespace-nowrap">
+              {column.title}
+              <span className="text-fg-muted tabular-nums">{(board[column.id] ?? []).length}</span>
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      ) : null}
+
       <div
+        ref={boardRef}
         role="group"
         aria-label={label}
+        onScroll={(event) => {
+          const { scrollLeft, clientWidth } = event.currentTarget;
+          const column = columns[Math.round(scrollLeft / Math.max(clientWidth, 1))];
+          if (column && column.id !== inView) setInView(column.id);
+        }}
         className={cn(
           'flex min-h-0 gap-3 overflow-x-auto overscroll-x-contain pb-2',
+          // One column per screen under a finger, snapped, so a swipe moves
+          // exactly one stage.
+          'touch:[&>section]:w-full!',
           // Snap so a flick on a phone lands on a column rather than between
           // two of them.
           'snap-x snap-mandatory scroll-px-3',
@@ -759,7 +813,7 @@ export function Kanban<T extends { id: string }>({
         {activeEntry ? (
           <div
             className={cn(
-              'origin-center cursor-grabbing rounded-lg border border-accent bg-surface shadow-xl',
+              'origin-center cursor-grabbing rounded-md bg-surface-raised shadow-xl',
               'motion-safe:animate-lift',
             )}
             // Capped: the tilt is a pick-up cue and wants to be over quickly,
@@ -848,11 +902,9 @@ function KanbanSelectionBar<T extends { id: string }>({
       aria-label="Selection"
       // No entrance animation of its own: the `Reveal` around it owns both
       // directions, and two animations on one arrival fight each other.
-      className={cn(
-        'mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-accent bg-accent-subtle px-3 py-2',
-      )}
+      className={cn('mb-3', bulkBarClass)}
     >
-      <p aria-live="polite" className="text-sm font-medium text-accent-fg">
+      <p aria-live="polite" className="text-sm font-semibold tabular-nums">
         {items.length} selected
       </p>
 
@@ -862,7 +914,7 @@ function KanbanSelectionBar<T extends { id: string }>({
         </Button>
       ) : null}
 
-      <Separator orientation="vertical" className="h-5 max-sm:hidden" />
+      <span aria-hidden className="mx-2 h-5 w-px bg-fg-on-invert/25" />
 
       <div className="flex flex-wrap items-center gap-2">
         {inline.map((action) => (
@@ -908,9 +960,13 @@ function KanbanSelectionBar<T extends { id: string }>({
         ) : null}
       </div>
 
-      <Button size="sm" variant="ghost" className="ms-auto" startIcon={<X />} onClick={onClear}>
-        Clear
-      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        aria-label="Clear selection"
+        startIcon={<X />}
+        onClick={onClear}
+      />
     </div>
   );
 }
@@ -923,7 +979,7 @@ interface KanbanColumnProps<T extends { id: string }> {
   renderColumnFooter: KanbanProps<T>['renderColumnFooter'];
   onMove: KanbanProps<T>['onMove'];
   describeItem: KanbanProps<T>['describeItem'];
-  width: string;
+  width: string | undefined;
   activeId: UniqueIdentifier | null;
   dragActivator: KanbanDragActivator;
   timing: { duration: number; easing: string };
@@ -1043,7 +1099,7 @@ function KanbanColumn<T extends { id: string }>({
   );
 
   const header = (
-    <header className="flex items-start gap-2 px-3.5 pt-3.5 pb-1.5">
+    <header className="flex items-start gap-2 px-1.5 pt-1 pb-1.5">
       {selectable && items.length > 0 ? (
         <Checkbox
           className="mt-0.5"
@@ -1070,13 +1126,28 @@ function KanbanColumn<T extends { id: string }>({
       ) : null}
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex min-h-6 items-center gap-2">
+          <span
+            aria-hidden
+            className={cn('size-2 shrink-0 rounded-full', toneDot[column.tone ?? 'neutral'])}
+          />
           <h3 className="truncate text-sm font-semibold text-fg">{column.title}</h3>
-          <Badge size="sm" tone={overLimit ? 'danger' : toneFor(column)}>
+          <span
+            className={cn(
+              'text-xs font-semibold tabular-nums',
+              overLimit ? 'text-danger-fg' : 'text-fg-muted',
+            )}
+          >
             {column.limit === undefined
               ? items.length
               : `${String(items.length)}/${String(column.limit)}`}
-          </Badge>
+          </span>
+          {column.locked ? (
+            <>
+              <Lock aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
+              <span className="sr-only">Locked</span>
+            </>
+          ) : null}
         </div>
         {column.description ? (
           <p className="mt-0.5 truncate text-xs text-fg-muted">{column.description}</p>
@@ -1120,8 +1191,15 @@ function KanbanColumn<T extends { id: string }>({
   return (
     <section
       aria-label={`${column.title}, ${String(items.length)} ${items.length === 1 ? 'card' : 'cards'}`}
-      className="flex min-h-0 shrink-0 snap-start flex-col rounded-lg bg-surface-sunken"
-      style={{ width }}
+      className={cn(
+        'flex min-h-0 shrink-0 snap-start flex-col rounded-lg bg-surface-sunken p-2.5',
+        width === undefined && 'w-65 touch:w-75',
+        'transition-shadow duration-(--animate-duration-normal)',
+        // The whole column is outlined while a card is over it. A 2px line
+        // between two cards is not visible on a moving board.
+        isOver && !column.locked && 'shadow-[inset_0_0_0_2px_var(--reach-color-accent)]',
+      )}
+      {...(width === undefined ? {} : { style: { width } })}
     >
       {/*
        * The context menu is on the header, not on the whole column. A card
@@ -1161,7 +1239,7 @@ function KanbanColumn<T extends { id: string }>({
       {overLimit ? (
         <p
           role="status"
-          className="mx-3 mb-2 rounded-sm bg-danger-subtle px-2 py-1 text-xs text-danger-fg"
+          className="mx-1 mb-2 rounded-sm bg-danger-subtle px-2 py-1 text-xs text-danger-fg"
         >
           Over the work-in-progress limit.
         </p>
@@ -1174,11 +1252,8 @@ function KanbanColumn<T extends { id: string }>({
           // container, so it clips anything drawn outside a child's box, and
           // a selected card's focus ring is drawn 3px outside its box. With no
           // top padding the first card in a column had its ring sheared off.
-          'flex min-h-24 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain p-2.5',
-          'scroll-smooth transition-colors duration-(--animate-duration-normal)',
-          // The whole column lights up while a card is over it. A 2px line
-          // between two cards is not visible on a moving board.
-          isOver && !column.locked && 'bg-accent-subtle/60',
+          '-m-1 flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-1',
+          'scroll-smooth',
           column.locked && 'opacity-70',
         )}
       >
@@ -1214,7 +1289,7 @@ function KanbanColumn<T extends { id: string }>({
         {items.length === 0 ? (
           <p
             className={cn(
-              'rounded-md border border-dashed px-3 py-6 text-center text-xs',
+              'rounded-md border-[1.5px] border-dashed px-3 py-6 text-center text-xs',
               'transition-[background-color,border-color,color] duration-(--animate-duration-normal)',
               'animate-fade-in',
               isOver && !column.locked
@@ -1317,16 +1392,17 @@ function KanbanCard<T extends { id: string }>({
       style={style}
       {...(cardActivator ? { ...attributes, ...listeners } : {})}
       className={cn(
-        'group relative rounded-lg border border-border bg-surface',
+        'group relative rounded-md bg-surface shadow-sm',
         // Only shadow and opacity transition here. `transform` is dnd-kit's,
         // written inline every frame; a Tailwind `transition-all` over it is a
         // transition on a value that changes 60 times a second, which reads as
         // lag on drag start and as a rubber band on drop.
         'transition-[box-shadow,opacity] duration-(--animate-duration-fast) ease-standard',
-        'hover:shadow-sm focus-within:shadow-sm',
-        // The original keeps its place at low opacity while the overlay flies,
-        // so the hole it leaves is visible.
-        (isDragging || dragging) && 'opacity-40',
+        'hover:shadow-md focus-within:shadow-md',
+        // The original keeps its place as a dashed accent slot while the
+        // overlay flies, so the hole it leaves reads as "it goes back here".
+        (isDragging || dragging) &&
+          'bg-accent-subtle shadow-none outline-[1.5px] outline-accent -outline-offset-[1.5px] outline-dashed [&>*]:invisible',
 
         cardActivator && 'cursor-grab touch-none select-none active:cursor-grabbing',
       )}
@@ -1347,7 +1423,7 @@ function KanbanCard<T extends { id: string }>({
         aria-hidden
         style={staggerStyle(position)}
         className={cn(
-          'pointer-events-none absolute inset-0 rounded-lg',
+          'pointer-events-none absolute inset-0 rounded-md',
           'ring-2 ring-accent ring-offset-1 ring-offset-surface-sunken',
           'transition-opacity duration-(--animate-duration-normal) ease-standard',
           selected ? 'opacity-100' : 'opacity-0',

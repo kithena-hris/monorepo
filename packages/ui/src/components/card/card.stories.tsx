@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Ellipsis } from 'lucide-react';
 
+import { Alert } from '../feedback/feedback';
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import { Money } from '../money/money';
+import { Stat } from '../stat/stat';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card';
 
 const meta = {
@@ -18,7 +20,9 @@ const meta = {
         component: [
           'A surface that groups related content.',
           '',
-          '**Default to `outlined`.** A line separates without adding weight, and a screen where everything is elevated has no hierarchy left to spend. Reserve `elevated` for things that genuinely float over their context.',
+          '**Default to `raised`.** A white surface with a hairline shadow separates from the grey canvas without adding weight, and a screen where everything is elevated has no hierarchy left to spend. `outline` is a line and no fill, for grouping on a surface that is already white; `fill` is a grey panel inside a panel; `elevated` is for things that genuinely float over their context. Do not nest cards inside cards.',
+          '',
+          '`outlined` and `sunken` are the earlier names for `raised` and `fill`, and still work.',
           '',
           '### Composition',
           '',
@@ -44,11 +48,21 @@ const meta = {
     variant: {
       description: 'How the surface separates itself from the canvas.',
       control: 'inline-radio',
-      options: ['outlined', 'elevated', 'sunken'],
+      options: ['raised', 'outline', 'fill', 'elevated'],
       table: {
-        type: { summary: "'outlined' | 'elevated' | 'sunken'" },
-        defaultValue: { summary: 'outlined' },
+        type: { summary: "'raised' | 'outline' | 'fill' | 'elevated'" },
+        defaultValue: { summary: 'raised' },
         category: 'Appearance',
+      },
+    },
+    interactive: {
+      description:
+        'The whole card is a target: hover lifts it. Only when the card really is a link or a button.',
+      control: 'boolean',
+      table: {
+        type: { summary: 'boolean' },
+        defaultValue: { summary: 'false' },
+        category: 'Behaviour',
       },
     },
     padded: {
@@ -66,7 +80,7 @@ const meta = {
       table: { type: { summary: 'string' }, category: 'Escape hatches' },
     },
   },
-  args: { variant: 'outlined', padded: true },
+  args: { variant: 'raised', padded: true },
 } satisfies Meta<typeof Card>;
 
 export default meta;
@@ -75,8 +89,8 @@ type Story = StoryObj<typeof meta>;
 export const Playground: Story = {
   render: (args) => (
     <Card {...args} className="max-w-sm">
-      <p className="text-base font-medium">Pending approvals</p>
-      <p className="mt-1 text-sm text-fg-muted">Seven requests are waiting on you.</p>
+      <h3 className="font-display text-lg font-bold tracking-tight">Time off</h3>
+      <p className="mt-1 text-sm text-fg-muted">14.5 days left this year</p>
     </Card>
   ),
 };
@@ -91,19 +105,56 @@ export const Variants: Story = {
     },
   },
   render: () => (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,10.5rem),1fr))] gap-3">
       {(
         [
-          ['outlined', 'The everyday default.'],
-          ['elevated', 'Floats over its context.'],
-          ['sunken', 'A panel inside a panel.'],
+          ['raised', 'The everyday default.', false],
+          ['outline', 'On a white surface.', false],
+          ['fill', 'A panel inside a panel.', false],
+          ['elevated', 'Floats over its context.', false],
+          ['raised', 'Hover lifts it.', true],
         ] as const
-      ).map(([variant, note]) => (
-        <Card key={variant} variant={variant} padded>
-          <p className="text-base font-medium capitalize">{variant}</p>
+      ).map(([variant, note, interactive]) => (
+        <Card key={note} variant={variant} padded interactive={interactive}>
+          <p className="text-base font-semibold capitalize">
+            {interactive ? 'Interactive' : variant}
+          </p>
           <p className="mt-1 text-sm text-fg-muted">{note}</p>
         </Card>
       ))}
+    </div>
+  ),
+};
+
+export const NeedsDoing: Story = {
+  name: 'Needs doing',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A card that needs doing is an `Alert` with its action inside, not a card painted yellow. A figure that is the point of the screen can sit on the accent.',
+      },
+    },
+  },
+  render: () => (
+    <div className="flex max-w-md flex-col gap-2.5">
+      <Alert
+        tone="warning"
+        title="Right to work expires in 14 days"
+        actions={
+          <Button variant="primary" size="sm">
+            Upload
+          </Button>
+        }
+      >
+        Upload a new visa for Lucas Moreau before 12 Oct.
+      </Alert>
+      <Card padded className="bg-accent-solid text-fg-on-accent">
+        <p className="text-[0.875rem] font-semibold">Vacation left</p>
+        <p className="mt-2.5 font-display text-[2.75rem] leading-none font-bold tracking-tight tabular-nums">
+          14.5 <span className="text-lg">days</span>
+        </p>
+      </Card>
     </div>
   ),
 };
@@ -146,28 +197,22 @@ export const StatTile: Story = {
     },
   },
   render: () => (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <Card padded>
-        <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">Headcount</p>
-        <p className="mt-2 text-2xl font-semibold tabular-nums">912</p>
-        <p className="mt-1 text-xs text-fg-muted">+18 this quarter</p>
-      </Card>
-      <Card padded>
-        <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-          Monthly payroll
-        </p>
-        <p className="mt-2 text-2xl font-semibold">
-          <Money minorUnits="983450000" currency="EUR" locale="en-IE" />
-        </p>
-        <p className="mt-1 text-xs text-fg-muted">Base salary only</p>
-      </Card>
-      <Card padded>
-        <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-          Pending approvals
-        </p>
-        <p className="mt-2 text-2xl font-semibold tabular-nums">7</p>
-        <p className="mt-1 text-xs text-fg-muted">Oldest is 4 days</p>
-      </Card>
+    // The design's tile grid: 150px columns under a finger, 170 at a desk.
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10.625rem),1fr))] gap-3 touch:grid-cols-[repeat(auto-fit,minmax(min(100%,9.375rem),1fr))]">
+      <Stat
+        label="Headcount"
+        value="912"
+        delta="+18"
+        deltaLabel="this quarter"
+        direction="up"
+        sentiment="positive"
+      />
+      <Stat
+        label="Monthly payroll"
+        value={<Money minorUnits="983450000" currency="EUR" locale="en-IE" />}
+        description="Base salary only"
+      />
+      <Stat label="Pending approvals" value="7" description="Oldest is 4 days" />
     </div>
   ),
 };

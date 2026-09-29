@@ -1,4 +1,4 @@
-import { cva, type VariantProps } from 'class-variance-authority';
+import { CircleAlert } from 'lucide-react';
 import type {
   ComponentPropsWithRef,
   ComponentPropsWithoutRef,
@@ -8,34 +8,14 @@ import type {
 } from 'react';
 
 import { cn } from '../../lib/cn';
-
-const inputShell = cva(
-  [
-    'flex items-center gap-2 w-full',
-    'bg-surface text-fg border border-border rounded-md shadow-xs',
-    'transition-[border-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
-    'has-[input:focus-visible]:border-border-focus',
-    'has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-border-focus/30',
-    'has-[input:disabled]:bg-surface-sunken has-[input:disabled]:text-fg-disabled',
-    'has-[input:disabled]:cursor-not-allowed has-[input:disabled]:shadow-none',
-    'has-[input[aria-invalid]]:border-danger has-[input[aria-invalid]]:ring-danger/25',
-  ],
-  {
-    variants: {
-      size: {
-        sm: 'h-control-sm px-2.5 text-xs',
-        md: 'h-control-md px-3 text-base',
-        lg: 'h-control-lg px-3.5 text-md',
-      },
-    },
-    defaultVariants: { size: 'md' },
-  },
-);
+import { fieldShell, fieldShellHas, floatShell, floatValue } from '../field/field-styles';
 
 export interface InputProps
   // `WithRef`: a field that wraps this one has to be able to return focus to
   // the input after clearing it, and React 19 passes `ref` as a plain prop.
-  extends Omit<ComponentPropsWithRef<'input'>, 'size' | 'prefix'>, VariantProps<typeof inputShell> {
+  extends Omit<ComponentPropsWithRef<'input'>, 'size' | 'prefix'> {
+  /** 32 / 40 / 48px at a desk; 44 / 56 / 56px under a thumb. */
+  size?: 'sm' | 'md' | 'lg' | null;
   /** Decorative or affordance content pinned to the leading edge. */
   startAdornment?: ReactNode;
   /** Trailing content, a unit, a clear button, a validation tick. */
@@ -111,10 +91,24 @@ export function Input({
   // box has to survive contact with the default.
   const profile = deviceProfiles[type] ?? {};
 
+  // Under a thumb a 56px field carries its label inside it (see
+  // `field-styles`). A leading icon would sit where the label starts, so a
+  // field with one keeps its label above.
+  const float = size !== 'sm' && !startAdornment;
+
   return (
-    <div className={cn(inputShell({ size }), containerClassName)}>
+    <div
+      data-float={float ? '' : undefined}
+      className={cn(
+        fieldShell({ size }),
+        fieldShellHas,
+        float && floatShell,
+        'cursor-text',
+        containerClassName,
+      )}
+    >
       {startAdornment ? (
-        <span className="flex shrink-0 items-center text-fg-subtle [&_svg]:size-4">
+        <span className="flex shrink-0 items-center text-fg-muted [&_svg]:size-[1.125rem]">
           {startAdornment}
         </span>
       ) : null}
@@ -125,15 +119,23 @@ export function Input({
           // The full height of the shell, so a tap on its padding lands in the field.
           'peer w-full min-w-0 self-stretch bg-transparent text-inherit outline-none',
           'placeholder:text-fg-subtle',
-          'disabled:cursor-not-allowed',
-          // Chrome's autofill repaints the background; keep the token colour.
-          'autofill:shadow-[inset_0_0_0_1000px_var(--reach-color-surface)]',
+          'disabled:cursor-not-allowed read-only:cursor-default',
+          // Chrome's autofill repaints the background; keep the fill.
+          'autofill:shadow-[inset_0_0_0_1000px_var(--reach-color-surface-sunken)]',
+          float && floatValue,
           className,
         )}
         {...props}
       />
+      {/* The error carries an icon as well as a ring and a message, so the
+          state never rests on colour alone. Shown by CSS from the input's own
+          `aria-invalid`, which is what `FieldControl` sets. */}
+      <CircleAlert
+        aria-hidden
+        className="hidden size-[1.125rem] shrink-0 text-danger-fg peer-aria-invalid:block"
+      />
       {endAdornment ? (
-        <span className="flex shrink-0 items-center text-fg-subtle [&_svg]:size-4">
+        <span className="flex shrink-0 items-center text-fg-muted [&_svg]:size-[1.125rem]">
           {endAdornment}
         </span>
       ) : null}
@@ -157,13 +159,15 @@ export function Textarea({
     <textarea
       rows={rows}
       className={cn(
-        'w-full touch:min-h-tap rounded-md border border-border bg-surface px-3 py-2 text-base text-fg shadow-xs',
-        'transition-[border-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
+        'block min-h-24 w-full rounded-[0.75rem] bg-surface-sunken px-3 py-2.5 text-base text-fg',
+        'touch:min-h-28 touch:rounded-[1rem] touch:px-4',
+        'transition-[background-color,box-shadow] duration-(--animate-duration-fast) ease-standard',
         'placeholder:text-fg-subtle',
-        'focus-visible:border-border-focus focus-visible:ring-2 focus-visible:ring-border-focus/30',
-        'focus-visible:outline-none',
-        'disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-fg-disabled',
-        'aria-invalid:border-danger aria-invalid:ring-danger/25',
+        'hover:not-focus:bg-surface-hover',
+        'focus-visible:bg-surface focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset focus-visible:outline-none',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        'read-only:bg-transparent read-only:ring-1 read-only:ring-border read-only:ring-inset',
+        'aria-invalid:ring-2 aria-invalid:ring-danger aria-invalid:ring-inset',
         autoResize ? 'field-sizing-content resize-none' : 'resize-y',
         className,
       )}

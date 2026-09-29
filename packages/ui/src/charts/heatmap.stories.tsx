@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 
-import { Card, CardContent, CardHeader, CardTitle } from '../components/card/card';
 import { HeatmapChart } from '../components/chart/chart';
-import { absence } from './fixtures';
+import { ChartCard } from '../components/chart/chart-card';
+import { AutoGrid } from '../components/layout/layout';
+import { absence, leaveByWeekday, yearMonths } from './fixtures';
 
 const meta = {
   title: 'Charts/Heatmap',
@@ -15,9 +16,9 @@ const meta = {
         component: [
           'Density over two dimensions: absence by person by week, cover by team by day, activity by hour.',
           '',
-          '### One hue, varying opacity',
+          '### One hue, varying strength',
           '',
-          'Not a red-to-green ramp. A two-colour ramp encodes the value in **hue and lightness at once**, and hue is exactly the channel that fails for around 8% of men, as well as on a projector, in sunlight, and in a printed PDF. A single hue at varying opacity encodes it once, in the channel everybody has.',
+          'Not a red-to-green ramp. A two-colour ramp encodes the value in **hue and lightness at once**, and hue is exactly the channel that fails for around 8% of men, as well as on a projector, in sunlight, and in a printed PDF. A single hue mixed into the sunken fill by value encodes it once, in the channel everybody has, and resolves against either theme.',
           '',
           '### It is a real `<table>`',
           '',
@@ -64,10 +65,10 @@ const meta = {
     },
     tone: {
       control: 'select',
-      options: ['accent', 'success', 'warning', 'danger', 'info', 'neutral'],
+      options: ['chart-1', 'chart-2', 'chart-4', 'success', 'warning', 'danger', 'info', 'neutral'],
       table: {
         type: { summary: 'ChartTone' },
-        defaultValue: { summary: 'accent' },
+        defaultValue: { summary: 'chart-1' },
         category: 'Appearance',
       },
     },
@@ -81,7 +82,7 @@ const meta = {
     rows: absence.people,
     columns: absence.weeks,
     cells: absence.cells,
-    tone: 'warning',
+    tone: 'chart-1',
     // Spies, so the **Actions** panel shows what the callback is handed and
     // when, the fastest answer to the question people actually have about a
     // chart's API.
@@ -94,22 +95,23 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
+  args: {
+    label: 'Leave requests by week and day',
+    rows: leaveByWeekday.rows,
+    columns: leaveByWeekday.columns,
+    cells: leaveByWeekday.cells,
+  },
   render: (args) => (
-    <Card className="max-w-4xl">
-      <CardHeader>
-        <CardTitle>Absence, weeks 27–38</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <HeatmapChart
-          {...args}
-          describe={(value, row, column) =>
-            value === 0
-              ? `${row}, ${column}: no absence`
-              : `${row}, ${column}: ${String(value)} days of absence`
-          }
-        />
-      </CardContent>
-    </Card>
+    <ChartCard title="Leave requests by week and day" className="max-w-xl">
+      <HeatmapChart
+        {...args}
+        describe={(value, row, column) =>
+          value === 0
+            ? `${row}, ${column}: no requests`
+            : `${row}, ${column}: ${String(value)} requests`
+        }
+      />
+    </ChartCard>
   ),
 };
 
@@ -119,34 +121,34 @@ export const FixedScale: Story = {
     docs: {
       description: {
         story:
-          'Two teams, side by side. Without `max` each grid scales to its own largest value, so the darkest cell means something different in each, and two charts that look identical describe very different weeks. Fixing the ceiling makes them comparable, at the cost of a flatter grid where the values are small.',
+          'When you compare heatmaps, lock them to one scale. Without `max` each grid scales to its own largest value, so the same colour means different numbers. With `showValues` every cell carries its figure, and the ramp stops at a strength the text can still be read on.',
       },
     },
   },
   render: (args) => (
-    <div className="grid max-w-5xl gap-6 lg:grid-cols-2">
-      {(['Platform', 'Support'] as const).map((team, index) => (
-        <Card key={team}>
-          <CardHeader>
-            <CardTitle>{team}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <HeatmapChart
-              {...args}
-              label={`Absence in ${team}`}
-              max={5}
-              rows={absence.people.slice(index * 3, index * 3 + 3)}
-              columns={absence.weeks.slice(0, 8)}
-              describe={(value, row, column) =>
-                value === 0
-                  ? `${row}, ${column}: no absence`
-                  : `${row}, ${column}: ${String(value)} days`
-              }
-            />
-          </CardContent>
-        </Card>
+    <AutoGrid minItemWidth="13.75rem" gap={3}>
+      {(
+        [
+          ['Engineering · max 10', leaveByWeekday.cells],
+          [
+            'Sales · same scale',
+            leaveByWeekday.cells.map((cell) => ({ ...cell, value: Math.round(cell.value / 2) })),
+          ],
+        ] as const
+      ).map(([title, cells]) => (
+        <ChartCard key={title} title={title}>
+          <HeatmapChart
+            {...args}
+            label={`Leave requests, ${title}`}
+            rows={leaveByWeekday.rows}
+            columns={leaveByWeekday.columns}
+            cells={cells}
+            max={10}
+            showValues
+          />
+        </ChartCard>
       ))}
-    </div>
+    </AutoGrid>
   ),
 };
 
@@ -156,23 +158,26 @@ export const Tones: Story = {
     docs: {
       description: {
         story:
-          'Pick the tone from what the density *means*: warning for absence, success for coverage, accent for neutral activity. It is still one hue, the scale is opacity, and the legend says which end is which.',
+          'Pick the tone from what the density *means*: danger for sick days, success for check-ins, the palette for neutral activity. It is still one hue, mixed into the sunken fill by value, and the key says which end is which.',
       },
     },
   },
   render: (args) => (
-    <div className="space-y-6">
-      {(['accent', 'warning', 'success'] as const).map((tone) => (
-        <div key={tone} className="space-y-2">
-          <p className="text-2xs font-semibold tracking-wide text-fg-subtle uppercase">{tone}</p>
-          <HeatmapChart
-            {...args}
-            tone={tone}
-            label={`Absence, ${tone}`}
-            rows={absence.people.slice(0, 3)}
-            columns={absence.weeks.slice(0, 8)}
-          />
-        </div>
+    <div className="flex flex-col gap-2">
+      {(['chart-1', 'success', 'warning', 'danger'] as const).map((tone) => (
+        <HeatmapChart
+          {...args}
+          key={tone}
+          tone={tone}
+          label={`Twelve months, ${tone}`}
+          rows={['2026']}
+          columns={yearMonths}
+          cells={[1, 3, 5, 7, 9, 10, 8, 6, 4, 2, 1, 0].map((value, index) => ({
+            row: '2026',
+            column: yearMonths[index] ?? '',
+            value,
+          }))}
+        />
       ))}
     </div>
   ),

@@ -34,6 +34,9 @@ const index = await (await fetch(BASE + '/index.json')).json();
 const live = new Map();
 let storyCount = 0;
 for (const entry of Object.values(index.entries)) {
+  // The Web and Mobile copies of each story (apps/storybook/.storybook/story-views.ts)
+  // are views of a story already counted, not components of their own.
+  if (entry.importPath?.includes('/generated/views/')) continue;
   if (entry.type === 'story') storyCount += 1;
   if (!entry.title) continue;
   const [category, ...rest] = entry.title.split('/');

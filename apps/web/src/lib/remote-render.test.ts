@@ -21,8 +21,20 @@ afterAll(() => {
 });
 
 const sha = (code: string) => createHash('sha384').update(code).digest('base64');
+// Each case forks a cold renderer that loads React and Reach before it can
+// refuse anything, and on a loaded CI runner that alone can pass the page's 5 s
+// budget. These cases ask why a build fails, not how fast, so they wait longer.
+const WALL_FOR_TESTS_MS = 25_000;
 const render = (code: string, props: Record<string, unknown> = {}, component = 'Screen') =>
-  renderRemote(code, sha(code), component, JSON.stringify(props), 'remote-', RENDERER);
+  renderRemote(
+    code,
+    sha(code),
+    component,
+    JSON.stringify(props),
+    'remote-',
+    RENDERER,
+    WALL_FOR_TESTS_MS,
+  );
 
 const screen = (body: string) => `
   const { jsx } = require('react/jsx-runtime');

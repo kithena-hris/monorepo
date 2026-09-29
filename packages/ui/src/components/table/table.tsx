@@ -1,7 +1,14 @@
 'use client';
 
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
-import type { ComponentPropsWithRef, ComponentPropsWithoutRef, JSX, ReactNode, Ref } from 'react';
+import type {
+  ComponentPropsWithRef,
+  ComponentPropsWithoutRef,
+  JSX,
+  MouseEvent,
+  ReactNode,
+  Ref,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -15,12 +22,11 @@ import { cn } from '../../lib/cn';
  * Money and dates belong in a `<TableCell numeric>`, which switches on tabular
  * figures and right-aligns, so a column of amounts can be compared by eye.
  *
- * **On small screens, a table stays a table.** The scroll container is the
- * honest answer: it keeps the header association, the column order and the
- * ability to compare two rows, all of which a "card per row" transform throws
- * away. Where a card list genuinely is better, a directory read one person at
- * a time: render a list instead of a table, rather than pretending a table is
- * one. See the responsive Patterns story for both, side by side.
+ * **These primitives stay a table under a finger.** They are what a hand-built
+ * grid, a bulk editor or a comparison is made of, and there the scroll
+ * container is the honest answer: it keeps the column order and the ability to
+ * compare two rows. `DataTable`, which knows which column is the row's
+ * identity, is the one that turns into a list of cards on a phone.
  */
 
 export interface TableProps extends ComponentPropsWithoutRef<'table'> {
@@ -31,8 +37,10 @@ export interface TableProps extends ComponentPropsWithoutRef<'table'> {
   stickyHeader?: boolean;
   /** Class for the scroll container, not the table. Height goes here. */
   containerClassName?: string;
-  /** Removes the border and radius, for a table already inside a card. */
+  /** Removes the surface, radius and shadow, for a table already inside a card. */
   bare?: boolean;
+  /** Shorter rows and smaller type, for a table read as a ledger rather than a list. */
+  dense?: boolean;
   /**
    * The scroll container, not the table.
    *
@@ -49,6 +57,7 @@ export function Table({
   containerRef,
   stickyHeader = false,
   bare = false,
+  dense = false,
   ...props
 }: TableProps): JSX.Element {
   return (
@@ -63,14 +72,20 @@ export function Table({
       data-scroll-lock
       className={cn(
         'w-full overflow-auto overscroll-x-contain',
-        !bare && 'rounded-lg border border-border',
+        // A raised surface, not a ruled box: the rows are separated by hairlines
+        // and the table itself by its shadow, the same as every other card.
+        !bare && 'rounded-lg bg-surface shadow-sm',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
         containerClassName,
       )}
     >
       <table
         data-sticky-header={stickyHeader || undefined}
-        className={cn('w-full caption-bottom border-collapse text-base', className)}
+        data-dense={dense || undefined}
+        className={cn(
+          'w-full caption-bottom border-collapse text-base data-dense:text-sm',
+          className,
+        )}
         {...props}
       />
     </div>
@@ -84,11 +99,16 @@ export function TableHeader({
   return (
     <thead
       className={cn(
-        'bg-surface-sunken',
+        // No fill: the header is told apart by its type and the hairline under
+        // it, so the table reads as one surface rather than a banded form.
+        '[&>tr]:border-b [&>tr]:border-border',
         // Sticky lives on the cells, not the row: `position: sticky` does
-        // nothing on a `<thead>` or `<tr>` in a `border-collapse` table.
+        // nothing on a `<thead>` or `<tr>` in a `border-collapse` table. Pinned,
+        // the header turns to glass so the rows passing under it stay legible
+        // as rows rather than vanishing behind a slab.
         '[[data-sticky-header]_&_th]:sticky [[data-sticky-header]_&_th]:top-0 [[data-sticky-header]_&_th]:z-10',
-        '[[data-sticky-header]_&_th]:bg-surface-sunken',
+        '[[data-sticky-header]_&_th]:bg-glass [[data-sticky-header]_&_th]:backdrop-blur-lg',
+        '[[data-sticky-header]_&_th]:shadow-[inset_0_-1px_0_var(--reach-color-border)]',
         className,
       )}
       {...props}
@@ -97,19 +117,14 @@ export function TableHeader({
 }
 
 export function TableBody({ className, ...props }: ComponentPropsWithoutRef<'tbody'>): JSX.Element {
-  return <tbody className={cn('divide-y divide-border bg-surface', className)} {...props} />;
+  return <tbody className={cn('divide-y divide-border', className)} {...props} />;
 }
 
 export function TableFooter({
   className,
   ...props
 }: ComponentPropsWithoutRef<'tfoot'>): JSX.Element {
-  return (
-    <tfoot
-      className={cn('border-t border-border bg-surface-sunken font-medium', className)}
-      {...props}
-    />
-  );
+  return <tfoot className={cn('border-t border-border font-semibold', className)} {...props} />;
 }
 
 /**
@@ -145,7 +160,7 @@ export function TableRow({
         // which the table became a different colour. Long enough to read as a
         // wash, short enough that one click still feels immediate.
         'bg-surface transition-colors duration-(--animate-duration-normal)',
-        interactive && 'cursor-pointer hover:bg-surface-hover',
+        interactive && 'cursor-pointer hover:bg-surface-sunken',
         selected && 'bg-accent-subtle',
         className,
       )}
@@ -162,8 +177,17 @@ export interface TableHeadProps extends Omit<ComponentPropsWithoutRef<'th'>, 'on
   sortable?: boolean;
   /** Current direction for this column. `null` means unsorted. */
   sortDirection?: SortDirection;
-  /** Called with the direction the column should move to. */
-  onSort?: (direction: Exclude<SortDirection, null>) => void;
+  /**
+   * Called with the direction the column should move to, and the click, so a
+   * multi-column sort can read `shiftKey`.
+   */
+  onSort?: (direction: Exclude<SortDirection, null>, event: MouseEvent<HTMLButtonElement>) => void;
+  /**
+   * This column's place in a multi-column sort, from 1. Drawn as a small
+   * number beside the arrow. Only the first carries `aria-sort`, as ARIA
+   * asks: one sorted header at a time.
+   */
+  sortPriority?: number;
   /** Keeps the column visible while the rest of the table scrolls sideways. */
   sticky?: boolean;
   /** A control on the header's edge, beside the sort button rather than in it: a column resizer. */
@@ -177,6 +201,7 @@ export function TableHead({
   sortable = false,
   sortDirection = null,
   onSort,
+  sortPriority,
   sticky = false,
   resizer,
   children,
@@ -195,13 +220,21 @@ export function TableHead({
       // `aria-sort` belongs on the cell, not on the button inside it. It is
       // also the only thing that tells a screen reader the table is currently
       // sorted by this column, an arrow glyph does not.
-      aria-sort={sortable ? (sortDirection ?? 'none') : undefined}
+      aria-sort={
+        sortable
+          ? sortPriority && sortPriority > 1
+            ? 'none'
+            : (sortDirection ?? 'none')
+          : undefined
+      }
       className={cn(
-        // Sentence case at `xs`, not capitals at `2xs`: a header is read, and
-        // eleven-pixel capitals are the hardest thing on the page to read.
-        'h-10 px-3 text-left align-middle text-xs font-semibold text-fg-muted',
+        'h-10.5 px-3 text-left align-middle text-xs font-semibold whitespace-nowrap text-fg-muted',
+        'first:ps-5 last:pe-5 [[data-dense]_&]:h-8.5 [[data-dense]_&]:first:ps-4 [[data-dense]_&]:last:pe-4',
+        // Sorted is the one header drawn in full ink: the arrow says which
+        // way, the colour says which column, before the arrow is even found.
+        sortDirection && 'text-fg',
         numeric && 'text-right',
-        sticky && 'sticky left-0 z-20 bg-surface-sunken',
+        sticky && 'sticky left-0 z-20 bg-surface',
         resizer !== undefined && !sticky && 'relative',
         resizer !== undefined && 'overflow-visible',
         className,
@@ -211,8 +244,8 @@ export function TableHead({
       {sortable ? (
         <button
           type="button"
-          onClick={() => {
-            onSort?.(sortDirection === 'ascending' ? 'descending' : 'ascending');
+          onClick={(event) => {
+            onSort?.(sortDirection === 'ascending' ? 'descending' : 'ascending', event);
           }}
           className={cn(
             'group -mx-1 inline-flex min-h-tap items-center gap-1 rounded-xs px-1',
@@ -225,10 +258,20 @@ export function TableHead({
           <SortIcon
             aria-hidden
             className={cn(
-              'size-3 transition-opacity',
-              sortDirection ? 'opacity-100' : 'opacity-0 group-hover:opacity-60',
+              'size-3.5 transition-opacity',
+              sortDirection ? 'opacity-100' : 'text-fg-subtle opacity-60 group-hover:opacity-100',
             )}
           />
+          {sortPriority === undefined ? null : (
+            <>
+              <span aria-hidden className="text-[0.625rem] leading-none font-bold text-fg-subtle">
+                {sortPriority}
+              </span>
+              <span className="sr-only">
+                , sort {sortPriority}, {sortDirection}
+              </span>
+            </>
+          )}
         </button>
       ) : (
         children
@@ -255,8 +298,9 @@ export function TableCell({
     <td
       data-numeric={numeric || undefined}
       className={cn(
-        'px-3 py-3 align-middle text-fg',
-        numeric && 'text-right',
+        'h-14 px-3 py-2 align-middle text-fg',
+        'first:ps-5 last:pe-5 [[data-dense]_&]:h-10 [[data-dense]_&]:py-1.5 [[data-dense]_&]:first:ps-4 [[data-dense]_&]:last:pe-4',
+        numeric && 'text-right whitespace-nowrap tabular-nums',
         // The identity column stays put while the other twelve scroll past.
         // Without it, a wide table on a phone is a grid of numbers with no
         // idea whose they are.

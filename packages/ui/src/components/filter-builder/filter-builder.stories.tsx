@@ -1,73 +1,23 @@
-import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { fn } from 'storybook/test';
 
-import { Badge } from '../badge/badge';
+import { Button } from '../button/button';
+import { Chip } from '../chip/chip';
+import { FilterBuilder } from './filter-builder';
 import {
-  FilterBuilder,
+  conditionsOf,
+  describeFilter,
   isConditionComplete,
-  type FilterField,
   type FilterGroup,
-} from './filter-builder';
+} from './filter-model';
+import { peopleFields } from './fixtures';
 
-const fields: FilterField[] = [
-  {
-    id: 'team',
-    label: 'Team',
-    operators: [
-      { id: 'in', label: 'is any of', value: 'options' },
-      { id: 'not_in', label: 'is none of', value: 'options' },
-      { id: 'unset', label: 'is empty', value: 'none' },
-    ],
-    options: [
-      { value: 'engineering', label: 'Engineering' },
-      { value: 'research', label: 'Research' },
-      { value: 'people', label: 'People' },
-      { value: 'finance', label: 'Finance' },
-    ],
-  },
-  {
-    id: 'start',
-    label: 'Start date',
-    operators: [{ id: 'between', label: 'is between', value: 'date-range' }],
-  },
-  {
-    id: 'title',
-    label: 'Job title',
-    operators: [
-      { id: 'contains', label: 'contains', value: 'text' },
-      { id: 'unset', label: 'is empty', value: 'none' },
-    ],
-  },
-  {
-    id: 'fte',
-    label: 'FTE',
-    operators: [
-      { id: 'gte', label: 'is at least', value: 'number' },
-      { id: 'lte', label: 'is at most', value: 'number' },
-    ],
-  },
-  {
-    id: 'status',
-    label: 'Status',
-    operators: [{ id: 'is', label: 'is', value: 'option' }],
-    options: [
-      { value: 'active', label: 'Active' },
-      { value: 'on_leave', label: 'On leave' },
-    ],
-  },
-  {
-    id: 'missing',
-    label: 'Record',
-    operators: [{ id: 'missing', label: 'has missing information', value: 'none' }],
-  },
-];
-
-const started: FilterGroup = {
+const twoConditions: FilterGroup = {
   match: 'all',
   conditions: [
-    { id: 'c1', field: 'team', operator: 'in', values: ['engineering', 'research'] },
-    { id: 'c2', field: 'start', operator: 'between', values: ['2026-01-01', '2026-03-31'] },
+    { id: 'c1', field: 'team', operator: 'in', values: ['engineering', 'design'] },
+    { id: 'c2', field: 'start', operator: 'between', values: ['2024-01-01', '2024-03-31'] },
   ],
 };
 
@@ -85,107 +35,196 @@ const meta = {
     docs: {
       description: {
         component: [
-          'Conditions, one per row: a field, an operator, a value. All or any, never a tree: nested groups are where a filter stops being checkable by reading it.',
+          'Build a filter out of conditions: a field, an operator and a value, joined by "and" or "or". Applied filters then show as chips above the results.',
           '',
           '### Presentational',
           '',
-          'The application supplies the fields, the operators it will honour for each, and the options it may offer. The builder evaluates nothing and holds no state, so the application decides whether a change applies at once or waits for an Apply.',
+          'The application supplies the fields, the operators it will honour for each (and the kind of value each asks for: text, a number, a date, a period, one option or any of them), and the options it may offer. The builder evaluates nothing and holds no state, so the application decides whether a change applies at once or waits for an Apply.',
           '',
           '### Values are canonical strings',
           '',
-          'A text, a number, an ISO date, an option key, never a rendered label: a relabelled option does not silently break a saved filter. `isConditionComplete` says whether a row has said enough to apply.',
+          'A text, a number, an ISO date, an option key, never a rendered label: a relabelled option does not silently break a saved filter. `isConditionComplete` says whether a row has said enough to apply, and `describeFilter()` turns the whole value into the one sentence people read to check it.',
+          '',
+          'With a `title` the builder is a card of its own with a Clear; without one it is the bare rows, for a panel that has its own. `allowGroups` is the advanced mode: see Complex filters. Under a finger each condition becomes a small card with its parts stacked.',
         ].join('\n'),
       },
     },
   },
-  args: { fields, value: started, onChange: fn(), newId },
+  args: {
+    fields: peopleFields,
+    value: twoConditions,
+    onChange: fn(),
+    newId,
+    title: 'Filters',
+  },
 } satisfies Meta<typeof FilterBuilder>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
-  render: function Playground(args) {
+  render: function PlaygroundStory(args) {
     const [value, setValue] = useState(args.value);
-    const complete = value.conditions.filter((c) => isConditionComplete(fields, c)).length;
+    const all = conditionsOf(value);
+    const complete = all.filter((c) => isConditionComplete(peopleFields, c)).length;
     return (
-      <div className="flex max-w-3xl flex-col gap-4">
+      <div className="flex max-w-3xl flex-col gap-3">
         <FilterBuilder
           {...args}
           value={value}
           onChange={(v) => {
-            setValue(v);
             args.onChange(v);
+            setValue(v);
           }}
+          action={
+            <Button size="sm" variant="primary">
+              Show 48 people
+            </Button>
+          }
         />
         <p aria-live="polite" className="text-sm text-fg-muted">
-          {complete} of {value.conditions.length} conditions ready to apply
+          {complete} of {all.length} conditions ready to apply
         </p>
       </div>
     );
   },
 };
 
-export const Empty: Story = {
-  name: 'Nothing yet',
-  args: { value: { match: 'all', conditions: [] } },
-  render: function EmptyStory(args) {
+export const InAPanel: Story = {
+  name: 'In a panel',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'No `title`: the bare rows, for a sheet or a side panel that already has a heading, a Clear and an Apply of its own.',
+      },
+    },
+  },
+  args: { title: undefined, label: 'Conditions' },
+  render: function PanelStory(args) {
     const [value, setValue] = useState(args.value);
-    return <FilterBuilder {...args} value={value} onChange={setValue} />;
+    return <FilterBuilder {...args} className="max-w-3xl" value={value} onChange={setValue} />;
   },
 };
 
-export const AnyOf: Story = {
+export const NothingYet: Story = {
+  name: 'Nothing yet',
+  render: function EmptyStory(args) {
+    const [value, setValue] = useState<FilterGroup>({ match: 'all', conditions: [] });
+    return (
+      <FilterBuilder
+        {...args}
+        className="max-w-md"
+        value={value}
+        onChange={setValue}
+        emptyDescription="Add a condition to narrow down 312 people."
+      />
+    );
+  },
+};
+
+export const AnyCondition: Story = {
   name: 'Any condition',
   parameters: {
     docs: {
       description: {
         story:
-          'With `any`, each row after the first reads "or". The words change with the choice, so the sentence stays true.',
+          'Switched to **Any**, the joins read "or". The salary condition has no value, and the caller has said so through `errors`, keyed by the condition id: the builder shows the message, it never decides what is valid. An operator that needs no value, like "is empty", takes no input at all.',
       },
     },
   },
-  args: {
-    value: {
+  render: function AnyStory(args) {
+    const [value, setValue] = useState<FilterGroup>({
       match: 'any',
       conditions: [
-        { id: 'a1', field: 'missing', operator: 'missing', values: [] },
-        { id: 'a2', field: 'title', operator: 'unset', values: [] },
+        { id: 'c1', field: 'location', operator: 'is', values: ['berlin'] },
+        { id: 'c2', field: 'phone', operator: 'empty', values: [] },
+        { id: 'c3', field: 'salary', operator: 'above', values: [] },
       ],
-    },
-  },
-  render: function AnyStory(args) {
-    const [value, setValue] = useState(args.value);
-    return <FilterBuilder {...args} value={value} onChange={setValue} />;
+    });
+    const missing = Object.fromEntries(
+      value.conditions.flatMap((c) =>
+        isConditionComplete(peopleFields, c) ? [] : [[c.id, 'Enter an amount']],
+      ),
+    );
+    return (
+      <FilterBuilder
+        {...args}
+        className="max-w-3xl"
+        value={value}
+        onChange={setValue}
+        errors={missing}
+        action={
+          <Button size="sm" variant="primary">
+            Show 96 people
+          </Button>
+        }
+      />
+    );
   },
 };
 
-export const Chips: Story = {
+export const AppliedAsChips: Story = {
   name: 'Applied, as removable chips',
   parameters: {
     docs: {
       description: {
         story:
-          'Once applied, the conditions belong above the results as chips: each one removable on its own, with a named button, and a way to clear them all. `Badge` with `onRemove` is the chip.',
+          'Once applied, each condition is a `Chip` above the results: the field muted, then the value, and a remove button named for what it removes, so "Remove Team is Engineering" is what a screen reader hears.',
       },
     },
   },
   render: function ChipsStory() {
-    const [chips, setChips] = useState(['Team is Engineering or Research', 'Started in Q1 2026']);
+    const [value, setValue] = useState<FilterGroup>({
+      match: 'all',
+      conditions: [
+        { id: 'c1', field: 'team', operator: 'is', values: ['engineering'] },
+        { id: 'c2', field: 'start', operator: 'after', values: ['2024-01-01'] },
+        { id: 'c3', field: 'location', operator: 'is', values: ['berlin'] },
+      ],
+    });
     return (
-      <ul aria-label="Active filters" className="flex flex-wrap gap-2">
-        {chips.map((chip) => (
-          <li key={chip}>
-            <Badge
-              onRemove={() => {
-                setChips((all) => all.filter((c) => c !== chip));
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {value.conditions.map((item) => {
+            const field = peopleFields.find((entry) => entry.id === item.field);
+            const operator = field?.operators.find((entry) => entry.id === item.operator);
+            const first = item.values[0] ?? '';
+            const shown = field?.options?.find((option) => option.value === first)?.label ?? first;
+            return (
+              <Chip
+                key={item.id}
+                selected
+                field={field?.label ?? item.field}
+                // The field names the subject, so the value reads without its
+                // "is": "Team Engineering", "Start after 2024-01-01".
+                removeLabel={`Remove ${describeFilter({ ...value, conditions: [item] }, peopleFields)}`}
+                onRemove={() => {
+                  setValue({ ...value, conditions: value.conditions.filter((c) => c !== item) });
+                }}
+              >
+                {item.operator === 'is'
+                  ? shown
+                  : `${(operator?.label ?? item.operator).replace(/^is /, '')} ${shown}`}
+              </Chip>
+            );
+          })}
+          {value.conditions.length > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setValue({ ...value, conditions: [] });
               }}
             >
-              {chip}
-            </Badge>
-          </li>
-        ))}
-      </ul>
+              Clear all
+            </Button>
+          ) : null}
+        </div>
+        <p aria-live="polite" className="text-sm text-fg-muted">
+          {value.conditions.length === 0 ? 'Everyone, 312 people' : `${String(48)} people match`}
+        </p>
+      </div>
     );
   },
 };

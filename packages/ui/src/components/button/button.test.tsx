@@ -51,6 +51,6 @@ describe('<Button>', () => {
     render(<Button className="rounded-full">Filter</Button>);
     const button = screen.getByRole('button', { name: 'Filter' });
     expect(button.className).toContain('rounded-full');
-    expect(button.className).not.toContain('rounded-md');
+    expect(button.className).not.toContain('rounded-control');
   });
 });

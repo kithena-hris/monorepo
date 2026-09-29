@@ -71,11 +71,11 @@ function makePeople(count: number, offset = 200_000): Person[] {
 
 function PersonRow({ person }: { person: Person }): JSX.Element {
   return (
-    <div className="flex items-center gap-3 border-b border-border px-3 py-2">
-      <Avatar size="sm" name={person.name} />
+    <div className="flex min-h-14 items-center gap-3 border-b border-border px-4.5 py-2 touch:min-h-16 touch:px-4">
+      <Avatar name={person.name} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-fg">{person.name}</p>
-        <p className="truncate text-xs text-fg-subtle">
+        <p className="truncate text-sm font-semibold text-fg">{person.name}</p>
+        <p className="truncate text-xs text-fg-muted">
           {person.role} · {person.id}
         </p>
       </div>
@@ -96,7 +96,7 @@ export const TwentyThousand: Story = {
         label="Everyone"
         itemKey={(person) => person.id}
         estimateItemHeight={56}
-        className="h-96 rounded-lg border border-border"
+        className="h-96"
         renderItem={(person) => <PersonRow person={person} />}
       />
     );
@@ -120,10 +120,10 @@ export const VariableHeights: Story = {
         label="Notes"
         itemKey={(note) => note.id}
         estimateItemHeight={72}
-        className="h-96 rounded-lg border border-border"
+        className="h-96"
         renderItem={(note, index) => (
-          <div className="border-b border-border px-3 py-2">
-            <p className="text-sm font-medium text-fg">{note.name}</p>
+          <div className="border-b border-border px-4.5 py-3 touch:px-4">
+            <p className="text-sm font-semibold text-fg">{note.name}</p>
             {/* Deterministic, so the story renders the same every time. */}
             <p className="text-xs text-fg-muted">{'A short line. '.repeat((index % 5) + 1)}</p>
           </div>
@@ -158,9 +158,11 @@ export const Keyboard: Story = {
         label="Everyone, keyboard reachable"
         itemKey={(person) => person.id}
         estimateItemHeight={40}
-        className="h-64 rounded-lg border border-border"
+        className="h-64"
         renderItem={(person) => (
-          <p className="border-b border-border px-3 py-2 text-sm text-fg">{person.name}</p>
+          <p className="flex min-h-12 items-center border-b border-border px-4.5 text-sm text-fg touch:min-h-14 touch:px-4">
+            {person.name}
+          </p>
         )}
       />
     );
@@ -179,7 +181,7 @@ export const Empty: Story = {
         items={noPeople}
         label="Everyone"
         itemKey={(person) => person.id}
-        className="h-48 rounded-lg border border-border"
+        className="h-48"
         empty="No one matches these filters."
         renderItem={(person) => <p>{person.name}</p>}
       />

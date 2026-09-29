@@ -4,6 +4,7 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
+import { Progress } from '../progress/progress';
 
 /**
  * Where you are in a sequence that has an end.
@@ -57,7 +58,13 @@ export interface StepperProps extends Omit<ComponentPropsWithoutRef<'nav'>, 'onS
   steps: readonly StepperStep[];
   /** Index of the step in progress. */
   current: number;
-  orientation?: 'horizontal' | 'vertical';
+  /**
+   * `horizontal` runs across the page at a desk and, under a finger, becomes
+   * a progress bar with "2 of 3": a row of circles at phone width is a row of
+   * labels truncated to three letters. `vertical` stays a list everywhere, and
+   * `auto` is across at a desk and down the page under a finger.
+   */
+  orientation?: 'horizontal' | 'vertical' | 'auto';
   size?: 'sm' | 'md';
   /**
    * Makes finished steps clickable. Steps ahead of the current one stay inert:
@@ -86,25 +93,71 @@ const statusText: Record<StepStatus, string> = {
 /**
  * Filled markers carry white, not the tone's `*-fg`.
  *
- * `success-fg` and friends are dark, and they exist for text on the `*-subtle`
- * washes. Putting one on a saturated fill measured at 1.55:1 for the completed
- * step and 1.31:1 for the current one, which is invisible rather than merely
- * low. The completed step uses `success-solid` because white on the ordinary
- * success green is 3.99:1, just under the 4.5 a step number needs.
+ * `accent-fg` and friends are dark, and they exist for text on the `*-subtle`
+ * washes. Putting one on a saturated fill measured well under 3:1, which is
+ * invisible rather than merely low. The current step is the exception: it is
+ * the soft wash with a ring, so its number is `accent-fg` on `accent-subtle`,
+ * the pairing that wash exists for.
  */
 const markerTone: Record<StepStatus, string> = {
-  complete: 'border-success-solid bg-success-solid text-fg-on-solid',
-  current: 'border-accent-solid bg-accent-solid text-fg-on-solid',
-  upcoming: 'border-border bg-surface text-fg-subtle',
-  error: 'border-danger-solid bg-danger-solid text-fg-on-solid',
+  complete: 'bg-accent-solid text-fg-on-accent',
+  current: 'bg-accent-subtle text-accent-fg ring-2 ring-accent ring-inset',
+  upcoming: 'bg-surface-sunken text-fg-muted',
+  error: 'bg-danger-solid text-fg-on-solid',
 };
 
-const labelTone: Record<StepStatus, string> = {
-  complete: 'text-fg',
-  current: 'text-fg',
-  upcoming: 'text-fg-muted',
-  error: 'text-danger-fg',
+/*
+ * Marker above its words across the page, beside them down it. The words get
+ * the whole width of their step either way, so a label that would have
+ * truncated beside a marker has room under it.
+ *
+ * Written out per orientation, and for `auto` as the horizontal classes with
+ * `touch:` versions of the vertical ones, because Tailwind can only generate a
+ * class it can read whole in the source.
+ */
+const horizontalLayout = {
+  list: 'w-full flex-row items-start gap-2',
+  item: 'flex-1',
+  step: 'flex-col gap-2',
+  gap: '',
+  text: 'w-full',
+  label: 'text-sm',
+  description: 'line-clamp-2 text-xs',
+  railSm: 'end-0 h-0.5 start-8 top-[11px]',
+  railMd: 'end-0 h-0.5 start-9 top-[13px]',
 };
+
+const layoutFor = {
+  horizontal: horizontalLayout,
+  vertical: {
+    list: 'flex-col',
+    item: '',
+    step: 'gap-3.5',
+    gap: 'pb-4.5',
+    text: 'flex-1 pt-0.5',
+    label: 'text-base',
+    description: 'text-sm',
+    railSm: 'bottom-1 w-0.5 start-[11px] top-7',
+    railMd: 'bottom-1 w-0.5 start-[13px] top-8',
+  },
+  auto: {
+    list: cn(horizontalLayout.list, 'touch:w-auto touch:flex-col touch:gap-0'),
+    item: 'flex-1 touch:flex-none',
+    step: 'flex-col gap-2 touch:flex-row touch:gap-3.5',
+    gap: 'touch:pb-4.5',
+    text: 'w-full touch:w-auto touch:flex-1 touch:pt-0.5',
+    label: 'text-sm touch:text-base',
+    description: 'line-clamp-2 text-xs touch:line-clamp-none touch:text-sm',
+    railSm: cn(
+      horizontalLayout.railSm,
+      'touch:end-auto touch:h-auto touch:w-0.5 touch:start-[11px] touch:top-7 touch:bottom-1',
+    ),
+    railMd: cn(
+      horizontalLayout.railMd,
+      'touch:end-auto touch:h-auto touch:w-0.5 touch:start-[13px] touch:top-8 touch:bottom-1',
+    ),
+  },
+} as const;
 
 export function Stepper({
   steps,
@@ -116,12 +169,40 @@ export function Stepper({
   className,
   ...props
 }: StepperProps): JSX.Element {
-  const markerSize = size === 'sm' ? 'size-6 text-2xs' : 'size-8 text-xs';
+  const markerSize = size === 'sm' ? 'size-6 text-xs' : 'size-7 text-sm';
+  const o = layoutFor[orientation];
+
   const horizontal = orientation === 'horizontal';
+  // The step in progress, counted from one, and never past the last step.
+  const shown = Math.min(current + 1, steps.length);
+  const failed = steps.some((step, index) => statusOf(step, index, current) === 'error');
 
   return (
     <nav aria-label={label} className={cn('min-w-0', className)} {...props}>
-      <ol className={cn('flex', horizontal ? 'flex-row items-start' : 'flex-col')}>
+      {/*
+       * The phone version of a horizontal stepper. Both are rendered and CSS
+       * picks one, because the pointer, not the component, decides: a
+       * `display: none` copy is absent for a screen reader too, so nothing is
+       * read twice.
+       */}
+      {horizontal ? (
+        <div className="hidden items-center gap-2.5 touch:flex">
+          <Progress
+            value={shown}
+            max={steps.length}
+            label={label}
+            valueLabel={`Step ${String(shown)} of ${String(steps.length)}: ${steps[shown - 1]?.label ?? ''}`}
+            tone={failed ? 'danger' : 'accent'}
+          />
+          <span
+            aria-hidden
+            className="shrink-0 text-sm font-semibold whitespace-nowrap tabular-nums"
+          >
+            {shown} of {steps.length}
+          </span>
+        </div>
+      ) : null}
+      <ol className={cn('flex', o.list, horizontal && 'touch:hidden')}>
         {steps.map((step, index) => {
           const status = statusOf(step, index, current);
           const last = index === steps.length - 1;
@@ -131,7 +212,7 @@ export function Stepper({
           const marker = (
             <span
               className={cn(
-                'flex shrink-0 items-center justify-center rounded-full border-2 font-semibold',
+                'flex shrink-0 items-center justify-center rounded-full font-bold tabular-nums',
                 'transition-colors duration-(--animate-duration-fast)',
                 markerSize,
                 markerTone[status],
@@ -139,9 +220,9 @@ export function Stepper({
             >
               {step.icon ??
                 (status === 'complete' ? (
-                  <Check aria-hidden className="size-4" />
+                  <Check aria-hidden className="size-4" strokeWidth={2.5} />
                 ) : status === 'error' ? (
-                  <X aria-hidden className="size-4" />
+                  <X aria-hidden className="size-4" strokeWidth={2.5} />
                 ) : (
                   index + 1
                 ))}
@@ -149,14 +230,14 @@ export function Stepper({
           );
 
           const text = (
-            <span
-              className={cn(
-                'min-w-0',
-                // A phone shows the current step's words only; the rest are read, not drawn.
-                horizontal && status !== 'current' && 'touch:sr-only',
-              )}
-            >
-              <span className={cn('block truncate text-sm font-medium', labelTone[status])}>
+            <span className={cn('min-w-0', o.text)}>
+              <span
+                className={cn(
+                  'block truncate font-semibold',
+                  o.label,
+                  status === 'upcoming' ? 'text-fg-muted' : 'text-fg',
+                )}
+              >
                 {step.label}
               </span>
               {horizontal && status === 'current' ? (
@@ -165,12 +246,22 @@ export function Stepper({
                 </span>
               ) : null}
               {step.description === undefined ? null : (
-                <span className="block truncate text-2xs text-fg-subtle">{step.description}</span>
+                <span
+                  className={cn(
+                    'mt-0.5 block',
+                    o.description,
+                    status === 'error' ? 'text-danger-fg' : 'text-fg-muted',
+                  )}
+                >
+                  {step.description}
+                </span>
               )}
               {/* The status in words. The ring is a decoration; this is the fact. */}
               <span className="sr-only">{statusText[status]}</span>
             </span>
           );
+
+          const layout = cn('flex min-w-0 items-start', o.step, !last && o.gap);
 
           const body = reachable ? (
             <button
@@ -179,16 +270,17 @@ export function Stepper({
                 onStepChange(index, step);
               }}
               className={cn(
-                'relative tap-target flex min-w-0 touch:min-h-tap items-center gap-2 rounded-sm text-start',
+                layout,
+                'w-full touch:min-h-tap rounded-sm text-start',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-                'hover:[&_span:first-child]:brightness-110',
+                'hover:[&>span:first-child]:brightness-110',
               )}
             >
               {marker}
               {text}
             </button>
           ) : (
-            <span className="flex min-w-0 items-center gap-2">
+            <span className={layout}>
               {marker}
               {text}
             </span>
@@ -200,32 +292,24 @@ export function Stepper({
               // `aria-current` rather than a colour: it is what a screen reader
               // announces when it reaches the step someone is actually on.
               {...(status === 'current' ? { 'aria-current': 'step' as const } : {})}
-              className={cn(
-                'flex min-w-0',
-                horizontal
-                  ? cn(
-                      'flex-row items-center',
-                      last ? 'shrink' : 'flex-1',
-                      // Sized by its label, so the one label a phone shows is not
-                      // squeezed into the same fifth as a bare marker.
-                      status === 'current' && 'touch:basis-auto',
-                    )
-                  : 'flex-col',
-              )}
+              className={cn('relative min-w-0', o.item)}
             >
               {body}
 
-              {/* The rail between steps. Coloured up to the current one so the
-                  sequence reads as a route travelled, not a row of badges. */}
+              {/*
+               * The rail to the next step, drawn from this marker's far edge
+               * to the edge of the step. Absolute, so the marker and its words
+               * can stay one button without the rail becoming part of it.
+               * Coloured once the step is done, so the sequence reads as a
+               * route travelled, not a row of badges.
+               */}
               {last ? null : (
                 <span
                   aria-hidden
                   className={cn(
-                    'shrink-0 rounded-full transition-colors duration-(--animate-duration-normal)',
-                    index < current ? 'bg-success' : 'bg-border',
-                    horizontal
-                      ? 'mx-3 h-0.5 min-w-6 flex-1'
-                      : cn('my-1 w-0.5', size === 'sm' ? 'ms-3 h-5' : 'ms-4 h-6'),
+                    'pointer-events-none absolute rounded-full transition-colors duration-(--animate-duration-normal)',
+                    status === 'complete' ? 'bg-accent' : 'bg-border-strong',
+                    size === 'sm' ? o.railSm : o.railMd,
                   )}
                 />
               )}

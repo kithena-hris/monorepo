@@ -51,14 +51,67 @@ export interface ReachMarkProps extends Omit<SVGProps<SVGSVGElement>, 'children'
   compact?: boolean;
   /** Names the mark where it is the only thing identifying the product. */
   title?: string;
+  /**
+   * The app mark: the glyph reversed out of an accent tile, for an app icon, a
+   * favicon or the corner of a sidebar. Without it the mark is the bare glyph
+   * in `currentColor`.
+   *
+   * The tile's corner is 9/32 of its side, the same proportion at every size,
+   * so a 20px mark and a 96px home-screen icon are one shape scaled.
+   *
+   * `true` and `'accent'` are the brand tile. `'invert'` is the one-colour
+   * version, ink on the page's own opposite, for print and for a surface that
+   * is already busy. `'light'` is a white tile with an accent glyph in either theme, for
+   * placing the mark on an accent ground where an accent tile would vanish.
+   */
+  tile?: boolean | 'accent' | 'invert' | 'light';
 }
+
+/*
+ * Tile and glyph, per tone. Pairs, because the two only ever change together:
+ * each glyph colour is the one that clears contrast on its own tile.
+ */
+const tileTone = {
+  accent: { tile: 'fill-accent-solid', glyph: 'stroke-fg-on-accent', dot: 'fill-fg-on-accent' },
+  invert: { tile: 'fill-invert', glyph: 'stroke-fg-on-invert', dot: 'fill-fg-on-invert' },
+  light: { tile: 'fill-fg-on-accent', glyph: 'stroke-accent-solid', dot: 'fill-accent-solid' },
+} as const;
 
 export function ReachMark({
   compact = false,
   title,
+  tile = false,
   className,
   ...props
 }: ReachMarkProps): JSX.Element {
+  if (tile !== false) {
+    const tone = tileTone[tile === true ? 'accent' : tile];
+    return (
+      <svg
+        viewBox="0 0 32 32"
+        fill="none"
+        {...(title === undefined ? { 'aria-hidden': true } : { role: 'img' })}
+        className={cn('size-8 shrink-0', className)}
+        {...props}
+      >
+        {title === undefined ? null : <title>{title}</title>}
+        <rect width="32" height="32" rx="9" className={tone.tile} />
+        {/* The same glyph on the 24px grid, centred on the tile, at the
+            slightly heavier stroke a reversed-out line needs to hold its
+            weight against a saturated ground. */}
+        <g
+          transform="translate(4 4)"
+          strokeWidth={2.8}
+          strokeLinecap="round"
+          className={tone.glyph}
+        >
+          <path d="M6 20 V13 C6 8 10 4.6 14.2 6.2" />
+          <circle cx={18.5} cy={7.8} r={2.1} stroke="none" className={tone.dot} />
+        </g>
+      </svg>
+    );
+  }
+
   return (
     <svg
       viewBox="0 0 24 24"
@@ -98,17 +151,20 @@ export interface ReachWordmarkProps extends Omit<SVGProps<SVGSVGElement>, 'child
 }
 
 /**
- * The word, set in the system's own typeface.
+ * The word, set in the system's own display face.
  *
- * Lowercase, because the product is a toolkit rather than an institution, and
- * because the round shoulders of the `r`, `e` and `a` echo the mark's corners.
- * Tracking is pulled in slightly so the word reads as one object next to the
- * mark rather than as a caption under it.
+ * Bold and tracked in, so the word reads as one object next to the mark rather
+ * than as a caption under it. The face is the platform's, which is also every
+ * heading's, so the name is set exactly as a page title would be.
+ *
+ * `textLength` pins the word to the width the lockup was drawn at. The face
+ * differs by platform, and without it the word would change width between a
+ * Mac and a Windows machine and knock the lockup's spacing out.
  */
 export function ReachWordmark({ title, className, ...props }: ReachWordmarkProps): JSX.Element {
   return (
     <svg
-      viewBox="0 0 132 32"
+      viewBox="0 0 80 32"
       fill="currentColor"
       {...(title === undefined ? { 'aria-hidden': true } : { role: 'img' })}
       className={cn('h-6 w-auto', className)}
@@ -118,12 +174,13 @@ export function ReachWordmark({ title, className, ...props }: ReachWordmarkProps
       <text
         x="0"
         y="24"
-        fontFamily="InterVariable, Inter, ui-sans-serif, system-ui, sans-serif"
+        fontFamily="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif"
         fontSize="26"
-        fontWeight="600"
-        letterSpacing="-0.9"
+        fontWeight="700"
+        textLength="78"
+        lengthAdjust="spacingAndGlyphs"
       >
-        reach
+        Reach
       </text>
     </svg>
   );
@@ -135,33 +192,52 @@ export interface ReachLogoProps {
   /** Adds the subtitle that says what it is. */
   showSubtitle?: boolean;
   compact?: boolean;
+  /** The lockup's scale: a 20px, 32px or 56px mark, the word in proportion. */
+  size?: 'sm' | 'md' | 'lg';
+  /** The tile's tone. `light` on an accent ground, `invert` for one colour. */
+  tone?: 'accent' | 'invert' | 'light';
   className?: string;
 }
 
+/*
+ * Mark, word and gap per size, written out so Tailwind can see each class.
+ * The word is three quarters of the mark's height and the gap about a third,
+ * so every size is the same lockup scaled.
+ */
+const lockupSize = {
+  sm: { mark: 'size-5', word: 'h-4', gap: 'gap-1.5' },
+  md: { mark: 'size-8', word: 'h-6', gap: 'gap-2.5' },
+  lg: { mark: 'size-14', word: 'h-10', gap: 'gap-4' },
+} as const;
+
 /**
- * The lockup.
+ * The lockup: the app mark and the word.
  *
- * The gap between mark and word is one quarter of the mark's height, the same
- * relationship a button keeps between its icon and its label. Clear space
- * around the lockup is half the mark's height on every side, and the space to
- * the right of the target must never be crowded: the room in front of the dot
- * is what makes it a reach rather than a full stop.
+ * The gap between mark and word is about a third of the mark's height and the
+ * word three quarters of it, so the two sit as one object the way a button's
+ * icon and label do. Clear space around the lockup is half the mark's height
+ * on every side, and the space to the right of the target must never be
+ * crowded: the room in front of the dot is what makes it a reach rather than a
+ * full stop.
  */
 export function ReachLogo({
   variant = 'full',
   showSubtitle = false,
   compact = false,
+  size = 'md',
+  tone = 'accent',
   className,
 }: ReachLogoProps): JSX.Element {
   if (variant === 'mark') {
     return <ReachMark compact={compact} title="Reach UI" className={cn('size-8', className)} />;
   }
 
+  const scale = lockupSize[size];
   return (
-    <span className={cn('inline-flex items-center gap-2 text-fg', className)}>
-      <ReachMark compact={compact} className="size-8" />
-      <span className="flex flex-col leading-none">
-        <ReachWordmark title="Reach UI" className="h-6" />
+    <span className={cn('inline-flex items-center text-fg', scale.gap, className)}>
+      <ReachMark tile={tone} className={scale.mark} />
+      <span className="flex flex-col items-start leading-none">
+        <ReachWordmark title="Reach UI" className={scale.word} />
         {showSubtitle ? (
           <span className="mt-1 text-2xs font-medium tracking-[0.18em] text-fg-subtle uppercase">
             Design system

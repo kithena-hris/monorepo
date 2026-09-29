@@ -63,7 +63,9 @@ const meta = {
           '',
           '### Sizes',
           '',
-          '`full` is edge to edge everywhere. `inset` and `column` are full on a phone and become an inset surface from `md`, which keeps a sliver of the page behind visible, that sliver is what tells the user this is *over* their work rather than instead of it.',
+          'Three sizes: `small` (420px) and `medium` (640px) are cards in the middle, as tall as their content; `full` is edge to edge everywhere. On a phone every modal page is full screen, and size only matters from 40rem of space up.',
+          '',
+          'Two presentations sit beside them. `inset` and `column` are full on a phone and become an inset surface from `md`, which keeps a sliver of the page behind visible, that sliver is what tells the user this is *over* their work rather than instead of it.',
         ].join('\n'),
       },
     },
@@ -71,11 +73,11 @@ const meta = {
   argTypes: {
     size: {
       description:
-        'How much of the screen it takes at `md` and above. All three are edge to edge on a phone, where there is no "behind" to show.',
+        'How much of the screen it takes once there is room. Every size is edge to edge on a phone, where there is no "behind" to show.',
       control: 'inline-radio',
-      options: ['full', 'inset', 'column'],
+      options: ['small', 'medium', 'full', 'inset', 'column'],
       table: {
-        type: { summary: "'full' | 'inset' | 'column'" },
+        type: { summary: "'small' | 'medium' | 'full' | 'inset' | 'column'" },
         defaultValue: { summary: 'full' },
         category: 'Appearance',
       },
@@ -87,7 +89,7 @@ const meta = {
       table: { type: { summary: '(event: KeyboardEvent) => void' }, category: 'Behaviour' },
     },
     onPointerDownOutside: {
-      description: 'Only fires for `inset` and `column`; `full` has no outside.',
+      description: 'Fires for every size but `full`, which has no outside.',
       control: false,
       table: { type: { summary: '(event) => void' }, category: 'Behaviour' },
     },
@@ -113,7 +115,7 @@ function Behind({ children }: { children: JSX.Element }): JSX.Element {
   return (
     <div className="w-[min(64rem,90vw)] rounded-lg border border-border bg-canvas p-4">
       <Stack gap={4}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold text-fg">Requisitions</h1>
             <p className="text-sm text-fg-muted">
@@ -188,7 +190,7 @@ export const Playground: Story = {
               </>
             }
           />
-          <ModalPageBody className="p-4 sm:p-6">
+          <ModalPageBody className="p-6 touch:p-4">
             <Container size="md">
               <Stack gap={5}>
                 <PageSection surface title="Basics">
@@ -238,14 +240,14 @@ export const Sizes: Story = {
     docs: {
       description: {
         story:
-          'Open each in turn. `full` commits to the task and hides everything else. `inset` and `column` leave a margin of the page behind visible, which is what tells the user this is over their work rather than instead of it: worth the loss of a few rem when the task is short.',
+          'Open each in turn. `small` (420px) and `medium` (640px) sit in the middle, as tall as their content; `full` commits to the task and hides everything else. `inset` and `column` are the two presentations beside them, leaving a margin of the page behind visible: worth the loss of a few rem when the task is short.\n\nOn a phone every one of them is full screen.',
       },
     },
   },
   render: (args) => (
     <Behind>
-      <div className="flex gap-2">
-        {(['full', 'inset', 'column'] as const).map((size) => (
+      <div className="flex flex-wrap justify-center gap-2">
+        {(['small', 'medium', 'full', 'inset', 'column'] as const).map((size) => (
           <ModalPage key={size}>
             <ModalPageTrigger asChild>
               <Button>{size}</Button>
@@ -253,16 +255,19 @@ export const Sizes: Story = {
             <ModalPageContent {...args} size={size}>
               <ModalPageHeader
                 title={`Size: ${size}`}
-                description="Resize the canvas below 768px, all three become edge to edge."
+                description="Below 640px of space, every size is edge to edge."
               />
               <ModalPageBody className="p-6">
                 <Container size="sm">
                   <Stack gap={3}>
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <Card key={i} padded className="text-sm text-fg-muted">
-                        The body is the only scroll container. Row {i + 1}.
-                      </Card>
-                    ))}
+                    {Array.from(
+                      { length: size === 'small' ? 3 : size === 'medium' ? 5 : 12 },
+                      (_, i) => (
+                        <Card key={i} padded className="text-sm text-fg-muted">
+                          The body is the only scroll container. Row {i + 1}.
+                        </Card>
+                      ),
+                    )}
                   </Stack>
                 </Container>
               </ModalPageBody>
@@ -318,7 +323,7 @@ export const AsAFlow: Story = {
                 size="sm"
               />
             </div>
-            <ModalPageBody className="p-4 sm:p-6">
+            <ModalPageBody className="p-6 touch:p-4">
               <Stack gap={4}>
                 <h2 className="text-md font-semibold text-fg">{steps[step]}</h2>
                 {step === 3 ? (
@@ -420,7 +425,7 @@ export const GuardingUnsavedWork: Story = {
                 ) : null
               }
             />
-            <ModalPageBody className="p-4 sm:p-6">
+            <ModalPageBody className="p-6 touch:p-4">
               <Stack gap={3}>
                 {warned ? (
                   <Alert tone="warning" title="This policy has unsaved changes">

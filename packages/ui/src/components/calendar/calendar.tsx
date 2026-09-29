@@ -256,31 +256,37 @@ export function Calendar(props: CalendarProps): JSX.Element {
     mode === 'single' ? date === single : date === range?.start || date === range?.end;
 
   return (
-    <div className={cn('w-full max-w-xs select-none', className)} role="group" aria-label={label}>
+    <div
+      className={cn('w-full max-w-70 select-none touch:max-w-none', className)}
+      role="group"
+      aria-label={label}
+    >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-label="Previous month"
-          onClick={() => {
-            setMonth(addMonths(visibleMonth, -1));
-          }}
-          startIcon={<ChevronLeft />}
-        />
         {/* Polite, not assertive: paging months should be announced, not
             interrupt whatever the user was already hearing. */}
-        <p aria-live="polite" className="text-base font-medium text-fg">
+        <p aria-live="polite" className="ps-1.5 text-base font-semibold text-fg touch:text-md">
           {monthFormatter.format(new Date(parseIsoDate(visibleMonth)))}
         </p>
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-label="Next month"
-          onClick={() => {
-            setMonth(addMonths(visibleMonth, 1));
-          }}
-          startIcon={<ChevronRight />}
-        />
+        <div className="flex gap-0.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Previous month"
+            onClick={() => {
+              setMonth(addMonths(visibleMonth, -1));
+            }}
+            startIcon={<ChevronLeft />}
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Next month"
+            onClick={() => {
+              setMonth(addMonths(visibleMonth, 1));
+            }}
+            startIcon={<ChevronRight />}
+          />
+        </div>
       </div>
 
       <table className="w-full border-collapse">
@@ -290,7 +296,7 @@ export function Calendar(props: CalendarProps): JSX.Element {
               <th
                 key={name}
                 scope="col"
-                className="pb-1 text-center text-2xs font-medium text-fg-subtle"
+                className="h-7 text-center text-2xs font-semibold text-fg-subtle"
               >
                 {/* The short name is shown; the long one is read out, because
                     "Mo" is announced as "mo". */}
@@ -309,9 +315,26 @@ export function Calendar(props: CalendarProps): JSX.Element {
                 const selectedDay = isSelected(date);
                 const between = inRange(date);
                 const marker = markers?.[date];
+                // The band under a range runs edge to edge between the ends
+                // and stops at the centre of each end's circle.
+                const isStart = range?.start === date;
+                const isEnd = range?.end === date;
+                const band =
+                  between ||
+                  (Boolean(range?.end) && range?.start !== range?.end && (isStart || isEnd));
 
                 return (
-                  <td key={date} className="p-0 text-center">
+                  <td key={date} className="relative h-9 p-0 text-center touch:h-11">
+                    {band ? (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'absolute inset-y-0.75 bg-accent-subtle',
+                          isStart ? 'start-1/2' : 'start-0',
+                          isEnd ? 'end-1/2' : 'end-0',
+                        )}
+                      />
+                    ) : null}
                     <button
                       type="button"
                       disabled={disabled}
@@ -322,14 +345,20 @@ export function Calendar(props: CalendarProps): JSX.Element {
                         handleSelect(date);
                       }}
                       className={cn(
-                        'relative mx-auto grid size-9 touch:size-11 place-items-center rounded-md text-sm tabular-nums',
+                        // A 32px circle in a 36px cell at a desk, 40 in 44
+                        // under a thumb: the cell is the target, the circle
+                        // is what a selection looks like.
+                        'tap-target relative mx-auto grid size-8 place-items-center rounded-full touch:size-10',
+                        'text-sm font-medium tabular-nums touch:text-base',
                         'transition-colors duration-(--animate-duration-fast)',
-                        'focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-border-focus',
+                        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
                         outsideMonth ? 'text-fg-subtle' : 'text-fg',
-                        !disabled && 'hover:bg-surface-hover',
-                        between && 'rounded-none bg-accent-subtle',
-                        selectedDay && 'bg-accent-solid text-fg-on-accent hover:bg-accent-hover',
-                        date === today && !selectedDay && 'font-semibold text-accent-fg',
+                        !disabled && !selectedDay && 'hover:bg-surface-hover',
+                        selectedDay &&
+                          'bg-accent-solid font-bold text-fg-on-accent hover:bg-accent-hover',
+                        date === today &&
+                          !selectedDay &&
+                          'font-bold text-accent-fg ring-[1.5px] ring-accent ring-inset',
                         disabled && 'cursor-not-allowed text-fg-disabled line-through',
                       )}
                     >
@@ -338,7 +367,7 @@ export function Calendar(props: CalendarProps): JSX.Element {
                         <span
                           aria-hidden
                           className={cn(
-                            'absolute bottom-1 size-1 rounded-full',
+                            'absolute bottom-0.75 size-[5px] rounded-full touch:bottom-1.25',
                             dotTone[marker.tone],
                             selectedDay && 'bg-fg-on-accent',
                           )}

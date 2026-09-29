@@ -2,7 +2,7 @@
 
 import * as CollapsiblePrimitive from '@radix-ui/react-collapsible';
 import { Slot } from '@radix-ui/react-slot';
-import { ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   Children,
   cloneElement,
@@ -195,10 +195,12 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
   flyout?: ReactNode;
 }
 
+// 14px at a desk, 16px under a finger, which the type scale has no step
+// for: `sm` is 13 and `base` 15 at a desk.
 const itemByLevel = {
-  1: 'min-h-tap gap-3 px-3 text-base',
-  2: 'min-h-8 touch:min-h-tap gap-2.5 px-2.5 text-sm',
-  3: 'min-h-7 touch:min-h-tap gap-2 px-2 text-sm',
+  1: 'min-h-9.5 touch:min-h-12 gap-2.5 px-2.5 text-[0.875rem] touch:text-[1rem]',
+  2: 'min-h-9.5 touch:min-h-12 gap-2.5 px-2.5 text-[0.875rem] touch:text-[1rem]',
+  3: 'min-h-7 touch:min-h-tap gap-2 px-2.5 text-sm',
 } as const;
 
 export function NavItem({
@@ -258,9 +260,11 @@ export function NavItem({
                     ? 'border-transparent bg-accent-subtle text-accent-fg'
                     : 'border-border bg-surface text-fg-muted group-hover/nav-item:border-border-strong group-hover/nav-item:text-fg',
                 )
-              : level === 1
-                ? '[&_svg]:size-4'
-                : '[&_svg]:size-3.5',
+              : cn(
+                  // The icon is quieter than the label until the item is current.
+                  current ? 'text-accent-fg' : 'text-fg-muted group-hover/nav-item:text-fg',
+                  level === 3 ? '[&_svg]:size-3.5' : '[&_svg]:size-[18px]',
+                ),
           )}
         >
           {icon}
@@ -312,7 +316,9 @@ export function NavItem({
       aria-current={current ? 'page' : undefined}
       aria-describedby={described && !asIcon ? describedBy : undefined}
       className={cn(
-        'group/nav-item relative flex items-center rounded-md',
+        // A filled, rounded row, so the current item reads as a place the
+        // reader is standing rather than as a selected row in a table.
+        'group/nav-item relative flex items-center rounded-[0.75rem]',
         // A described item is two lines and a tile: aligned to the top, with
         // room around it, and a floor that is a tap target on any pointer.
         described && !asIcon && 'min-h-tap items-start py-2',
@@ -320,8 +326,8 @@ export function NavItem({
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
         itemByLevel[level],
         current
-          ? 'bg-accent-subtle text-accent-fg'
-          : 'text-fg-muted hover:bg-surface-hover hover:text-fg',
+          ? 'bg-accent-subtle font-semibold text-accent-fg'
+          : 'font-medium text-fg hover:bg-surface-hover',
         asIcon && 'justify-center px-0',
         className,
       )}
@@ -334,7 +340,9 @@ export function NavItem({
 
   if (flyout !== undefined) {
     return (
-      <Popover open={fly.open} onOpenChange={fly.setOpen} modal={false}>
+      // Anchored under a finger too: the flyout is a column beside its item,
+      // rendered in place for Tab order, never a sheet.
+      <Popover open={fly.open} onOpenChange={fly.setOpen} modal={false} sheetOnTouch={false}>
         <PopoverAnchor asChild>
           <li className="min-w-0" {...fly.anchorProps}>
             {link}
@@ -580,11 +588,11 @@ export function NavGroup({
 
   if (!collapsible) {
     return (
-      <li className={cn('min-w-0 pt-3 first:pt-0', className)} {...props}>
+      <li className={cn('min-w-0 pt-3.5 first:pt-0', className)} {...props}>
         <h3
           id={labelId}
           className={cn(
-            'px-3 pb-1 text-xs font-semibold text-fg-muted',
+            'px-2.5 pb-1.5 text-xs font-semibold text-fg-subtle',
             // A menu column's heading: small capitals over a hairline, the
             // way a console heads a column of destinations.
             menuColumn &&
@@ -601,27 +609,29 @@ export function NavGroup({
   }
 
   return (
-    <li className={cn('min-w-0 pt-1', className)} {...props}>
+    <li className={cn('min-w-0 pt-2', className)} {...props}>
       <CollapsiblePrimitive.Root defaultOpen={defaultOpen}>
         <CollapsiblePrimitive.Trigger
           className={cn(
-            'group/nav-group flex min-h-8 touch:min-h-tap w-full items-center gap-2 rounded-md px-3 text-start',
-            'text-xs font-semibold text-fg-muted',
+            'group/nav-group flex min-h-8 touch:min-h-tap w-full items-center gap-2 rounded-[0.75rem] px-2.5 text-start',
+            'text-xs font-semibold text-fg-subtle',
             'transition-colors duration-(--animate-duration-fast) hover:bg-surface-hover hover:text-fg',
             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
           )}
         >
-          <ChevronRight
-            aria-hidden
-            className="size-3 shrink-0 transition-transform duration-(--animate-duration-normal) ease-standard group-data-[state=open]/nav-group:rotate-90"
-          />
           {icon ? (
             <span aria-hidden className="shrink-0 [&_svg]:size-3.5">
               {icon}
             </span>
           ) : null}
           <span className="min-w-0 flex-1 truncate">{label}</span>
-          {badge ? <span className="shrink-0 normal-case">{badge}</span> : null}
+          {badge ? <span className="shrink-0">{badge}</span> : null}
+          {/* At the end, where a toggle sits, so the heading still lines up
+              with the headings that do not fold. */}
+          <ChevronDown
+            aria-hidden
+            className="size-3.5 shrink-0 transition-transform duration-(--animate-duration-normal) ease-standard group-data-[state=open]/nav-group:rotate-180"
+          />
         </CollapsiblePrimitive.Trigger>
 
         <CollapsiblePrimitive.Content
@@ -630,25 +640,77 @@ export function NavGroup({
             'data-[state=open]:animate-collapse-down data-[state=closed]:animate-collapse-up',
           )}
         >
-          <ul className="min-w-0 space-y-0.5 pt-0.5">{children}</ul>
+          {/* Indented to the label of an item with an icon, so the group's
+              rows read as belonging to the heading above them. */}
+          <ul className="min-w-0 space-y-0.5 ps-6 pt-0.5">{children}</ul>
         </CollapsiblePrimitive.Content>
       </CollapsiblePrimitive.Root>
     </li>
   );
 }
 
+export type TertiaryNavStatus = 'success' | 'warning' | 'danger' | 'info';
+
+export interface TertiaryNavItem {
+  id: string;
+  label: string;
+  badge?: ReactNode;
+  /** Defaults to `#id`, an anchor in this page. A section that is a page of its own passes its URL. */
+  href?: string;
+  /** A number: documents on file, open tasks. */
+  count?: number;
+  /** A dot, for a section that is complete, needs attention or is blocked. Spoken, not only coloured. */
+  status?: TertiaryNavStatus;
+  /** 1 indents a subsection, in a table of contents. */
+  depth?: 0 | 1;
+}
+
 export interface TertiaryNavProps
   // `onSelect` is omitted too: the DOM's is a `ReactEventHandler`, and this
   // one takes the section id. Shadowing it would be a silent type conflict.
-  extends Omit<ComponentPropsWithoutRef<'nav'>, 'children' | 'onSelect'> {
+  extends Omit<ComponentPropsWithoutRef<'nav'>, 'children' | 'onSelect' | 'title'> {
   label: string;
-  items: readonly { id: string; label: string; badge?: ReactNode }[];
+  items: readonly TertiaryNavItem[];
   /** The section currently in view. The caller owns the scroll observation. */
   activeId?: string;
   onSelect?: (id: string) => void;
   /** Renders horizontally, for a rail that does not exist on a narrow screen. */
   orientation?: 'vertical' | 'horizontal';
+  /** A visible heading over a vertical list: the record's name, or "On this page". */
+  title?: ReactNode;
+  /**
+   * `location` (the default) for anchors within one document. `page` for
+   * sections that are pages of a record, Personal, Employment, Pay, where
+   * choosing one changes what is on screen.
+   */
+  current?: 'location' | 'page';
+  /**
+   * How a vertical list marks the current item: `line`, the accent stretch of
+   * a rule down the side, for a table of contents; `fill`, a washed row, for
+   * a list of sections carrying counts and status.
+   */
+  variant?: 'line' | 'fill';
+  /**
+   * What a vertical list becomes under a finger: `pills`, a scrolling row
+   * under the title; `list`, rows that each push a screen. Left out, it stays
+   * a column at a finger's size.
+   */
+  touchLayout?: 'pills' | 'list';
 }
+
+const statusDot: Record<TertiaryNavStatus, string> = {
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  info: 'bg-info',
+};
+
+const statusWord: Record<TertiaryNavStatus, string> = {
+  success: 'complete',
+  warning: 'needs attention',
+  danger: 'blocked',
+  info: 'information',
+};
 
 /**
  * In-page navigation: the sections of the page you are already on.
@@ -665,6 +727,10 @@ export interface TertiaryNavProps
  *    says "current location" rather than "current page", which is the
  *    difference the reader needs.
  *
+ * The exception is a record's sections that are pages of their own, which
+ * pass `href` and `current="page"`: the same list, telling the truth about
+ * what choosing an item does.
+ *
  * Which section is active is the caller's business, an `IntersectionObserver`
  * over the headings, usually. Putting a scroll listener in here would make
  * every consumer pay for one whether they wanted it or not.
@@ -676,51 +742,129 @@ export function TertiaryNav({
   activeId,
   onSelect,
   orientation = 'vertical',
+  title,
+  current = 'location',
+  variant = 'line',
+  touchLayout,
   ...props
 }: TertiaryNavProps): JSX.Element {
+  const titleId = useId();
+  const vertical = orientation === 'vertical';
+  const fill = vertical && variant === 'fill';
+  const touchPills = vertical && touchLayout === 'pills';
+  const touchList = vertical && touchLayout === 'list';
   return (
     <nav aria-label={label} className={cn('min-w-0', className)} {...props}>
+      {title && vertical ? (
+        <p
+          id={titleId}
+          className={cn(
+            'pb-2.5 text-xs font-semibold text-fg-subtle',
+            fill ? 'px-3' : 'ps-3.5',
+            (touchPills || touchList) && 'touch:sr-only',
+          )}
+        >
+          {title}
+        </p>
+      ) : null}
       <ul
+        aria-labelledby={title && vertical ? titleId : undefined}
         className={cn(
           'min-w-0',
           orientation === 'vertical'
-            ? 'space-y-px border-s border-border'
-            : 'flex gap-1 overflow-x-auto border-b border-border pb-px',
+            ? fill
+              ? 'space-y-0.5'
+              : 'space-y-px border-s border-border'
+            : // A scrolling row of pills, as a phone shows it under the title.
+              // The vertical padding is the room each pill's tap-target hit
+              // area needs inside a strip that clips.
+              'flex gap-1.5 overflow-x-auto overscroll-x-contain py-1',
+          touchPills &&
+            'touch:flex touch:gap-1.5 touch:space-y-0 touch:overflow-x-auto touch:overscroll-x-contain touch:border-0 touch:py-1',
+          touchList &&
+            'touch:space-y-0 touch:overflow-hidden touch:rounded-xl touch:border-0 touch:bg-surface touch:shadow-sm',
         )}
       >
         {items.map((item) => {
           const active = item.id === activeId;
           return (
-            <li key={item.id} className="min-w-0">
+            <li
+              key={item.id}
+              className={cn(
+                orientation === 'vertical' ? 'min-w-0' : 'shrink-0',
+                touchPills && 'touch:shrink-0',
+              )}
+            >
               <a
-                href={`#${item.id}`}
+                href={item.href ?? `#${item.id}`}
                 // `location`, not `page`: the page has not changed, the
                 // reader's position within it has.
-                aria-current={active ? 'location' : undefined}
+                aria-current={active ? current : undefined}
                 onClick={() => {
                   onSelect?.(item.id);
                 }}
                 className={cn(
-                  'flex min-h-7 touch:min-h-tap items-center gap-2 truncate text-sm',
+                  'relative flex items-center gap-2 text-sm',
                   'transition-[color,border-color,background-color] duration-(--animate-duration-fast) ease-standard',
                   orientation === 'vertical'
-                    ? cn(
-                        '-ms-px border-s-2 ps-3',
-                        active
-                          ? 'border-accent font-medium text-accent-fg'
-                          : 'border-transparent text-fg-muted hover:border-border-strong hover:text-fg',
-                      )
+                    ? fill
+                      ? cn(
+                          'min-h-8.5 touch:min-h-tap truncate rounded-sm px-3',
+                          active
+                            ? 'bg-surface-sunken font-semibold text-fg'
+                            : 'font-medium text-fg-muted hover:bg-surface-hover hover:text-fg',
+                        )
+                      : cn(
+                          'min-h-7 touch:min-h-tap -ms-px truncate border-s-2 ps-3.5',
+                          item.depth === 1 && 'ps-7',
+                          active
+                            ? 'border-accent font-semibold text-accent-fg'
+                            : 'border-transparent font-medium text-fg-muted hover:border-border-strong hover:text-fg',
+                        )
                     : cn(
-                        '-mb-px shrink-0 border-b-2 px-3',
+                        'h-8 touch:h-9 tap-target shrink-0 rounded-control px-3.5 font-semibold',
                         active
-                          ? 'border-accent font-medium text-accent-fg'
-                          : 'border-transparent text-fg-muted hover:border-border-strong hover:text-fg',
+                          ? 'bg-invert text-fg-on-invert'
+                          : 'bg-surface-sunken text-fg-muted hover:bg-surface-hover hover:text-fg',
                       ),
+                  // The same pill, for a column that becomes a row under a finger.
+                  touchPills &&
+                    cn(
+                      'tap-target touch:h-9 touch:min-h-0 touch:shrink-0 touch:rounded-control touch:border-0 touch:px-3.5 touch:font-semibold',
+                      active
+                        ? 'touch:bg-invert touch:text-fg-on-invert'
+                        : 'touch:bg-surface-sunken touch:text-fg-muted',
+                    ),
+                  // A settings-style row that pushes its section's screen.
+                  touchList &&
+                    'touch:ms-0 touch:min-h-13 touch:rounded-none touch:border-0 touch:border-b touch:border-border touch:bg-transparent touch:px-4 touch:font-medium touch:text-fg',
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                 )}
               >
-                <span className="min-w-0 truncate">{item.label}</span>
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 {item.badge ? <span className="shrink-0">{item.badge}</span> : null}
+                {item.count != null ? (
+                  <span
+                    className={cn(
+                      'shrink-0 text-xs font-semibold text-fg-subtle tabular-nums',
+                      touchList && 'touch:text-base touch:font-normal touch:text-fg-muted',
+                      touchPills && active && 'touch:text-fg-on-invert',
+                    )}
+                  >
+                    {item.count}
+                  </span>
+                ) : null}
+                {item.status ? (
+                  <span className={cn('size-2 shrink-0 rounded-full', statusDot[item.status])}>
+                    <span className="sr-only">, {statusWord[item.status]}</span>
+                  </span>
+                ) : null}
+                {touchList ? (
+                  <ChevronRight
+                    aria-hidden
+                    className="hidden size-4 shrink-0 text-fg-subtle touch:block"
+                  />
+                ) : null}
               </a>
             </li>
           );

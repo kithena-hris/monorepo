@@ -33,8 +33,9 @@
  *   about and the one no static check can see, since the colour only exists
  *   while an element is focused.
  * - Measures the chart palette at its source. Series colour comes from a closed
- *   union of six tones, so six readings cover every mark any chart can draw,
- *   including the ones no story renders.
+ *   union of tones (the status inks and `chart-1`…`chart-6`), so one reading
+ *   per tone covers every mark any chart can draw, including the ones no story
+ *   renders.
  *
  * ### What it still does not cover
  *
@@ -335,7 +336,7 @@ function measure(options) {
   // a number about no part of the picture.
   //
   // Measuring the palette rather than the rendered marks is not a shortcut
-  // here: `ChartTone` is a closed union of six names, and every series colour
+  // here: `ChartTone` is a closed union of named tones, and every series colour
   // in every chart resolves to one of them. Checking the six against the
   // surfaces a chart can sit on covers every mark that can ever be drawn,
   // including the ones no story happens to render.
@@ -347,6 +348,12 @@ function measure(options) {
       'danger-fg',
       'info-fg',
       'fg-subtle',
+      'chart-1',
+      'chart-2',
+      'chart-3',
+      'chart-4',
+      'chart-5',
+      'chart-6',
     ];
     const CHART_SURFACES = ['surface', 'surface-sunken'];
     const root = getComputedStyle(document.documentElement);
@@ -421,6 +428,10 @@ let stories = pageUrl
       .filter(
         (entry) =>
           (entry.type === 'story' || entry.type === 'docs') &&
+          // The Web and Mobile copies of each story (see
+          // apps/storybook/.storybook/story-views.ts) render the story already
+          // swept here, under the same two profiles this sweep runs anyway.
+          !entry.importPath?.includes('/generated/views/') &&
           (wanted.size === 0 || wanted.has(entry.id)) &&
           (!process.env.STORY_FILTER || entry.id.includes(process.env.STORY_FILTER)),
       )

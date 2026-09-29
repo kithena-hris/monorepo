@@ -61,10 +61,10 @@ const layout = cva('grid min-h-dvh bg-canvas', {
       stacked: 'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1',
       /** Navigation rail beside content. The default application shell. */
       sidebar:
-        'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)]',
+        'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1 @3xl/page:grid-cols-[auto_minmax(0,1fr)]',
       /** Navigation, content, and a detail rail. Three panes at desk sizes. */
       'sidebar-aside':
-        'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_auto]',
+        'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1 @3xl/page:grid-cols-[auto_minmax(0,1fr)] @7xl/page:grid-cols-[auto_minmax(0,1fr)_auto]',
       /** No navigation at all: onboarding, a signature flow, a modal page. */
       focused: 'grid-rows-[auto_auto_minmax(0,1fr)_auto_auto] grid-cols-1',
       /** Content fills the viewport and manages its own scrolling, a Kanban board, a calendar. */
@@ -152,7 +152,7 @@ export interface PageLayoutProps
   header?: ReactNode;
   /** Full-width strip under the header: an outage notice, an impersonation warning. */
   banner?: ReactNode;
-  /** Primary navigation. Rendered as `<nav>`; hidden below `md`: pair it with `bottomBar` or a `Sheet`. */
+  /** Primary navigation. Rendered as `<nav>`; hidden while the layout is narrower than 48rem (`@3xl/page`), a container width rather than the viewport: pair it with `bottomBar` or a `Sheet`. */
   sidebar?: ReactNode;
   /**
    * Pinned to the top of the sidebar, sharing its row with the collapse
@@ -168,7 +168,7 @@ export interface PageLayoutProps
    * the rail is collapsed: keep what survives at 3.5rem to a mark.
    */
   sidebarHeader?: ReactNode;
-  /** Secondary rail: activity, help, a detail summary. Rendered as `<aside>`; hidden below `xl`. */
+  /** Secondary rail: activity, help, a detail summary. Rendered as `<aside>`; hidden while the layout is narrower than 80rem (`@7xl/page`). */
   aside?: ReactNode;
   /** Status strip at the bottom of the page flow. Rendered as `<footer>`. */
   footer?: ReactNode;
@@ -190,12 +190,18 @@ export interface PageLayoutProps
    * Classes for the bottom bar's own wrapper, which carries the border and the
    * sticky positioning.
    *
-   * `md:hidden` is what a mobile tab bar wants, and it has to go here rather
+   * `@3xl/page:hidden` is what a mobile tab bar wants (the width the sidebar appears at), and it has to go here rather
    * than on the content: hiding only the content leaves the wrapper behind as a
    * one-pixel bordered strip across the bottom of every desktop page. Reach's
    * own shell story had exactly that.
    */
   bottomBarClassName?: string;
+  /**
+   * `bar` is a strip across the bottom edge: a form's action row. `floating`
+   * is a glass pill that the page scrolls under, the shape a phone's tab bar
+   * takes.
+   */
+  bottomBarVariant?: 'bar' | 'floating';
   /** Accessible name for the `<main>` landmark when a page has more than one region worth naming. */
   contentLabel?: string;
 }
@@ -204,6 +210,7 @@ export function PageLayout({
   className,
   contentClassName,
   bottomBarClassName,
+  bottomBarVariant = 'bar',
   contentLabel,
   preset,
   header,
@@ -248,93 +255,108 @@ export function PageLayout({
   }, [sidebarShortcut, sidebarState]);
 
   return (
-    <div className={cn('relative', layout({ preset }), className)} {...props}>
-      {header ? (
-        <header
-          // `col-span-full` rather than a grid area: the header spans every
-          // column at every breakpoint, including the ones where the sidebar
-          // column does not exist.
-          //
-          // Structural chrome, so it takes the heavier weight: this bar
-          // separates a region of the app rather than drawing attention to a
-          // control, and a thicker material is what reads as "the app frame".
-          // The attribute is what `prefers-reduced-transparency` and
-          // `prefers-contrast` key off in base.css, translucency is a setting a
-          // user can decline and a class name cannot be queried.
-          data-material="chrome"
-          className={cn(
-            'sticky top-0 z-30 row-start-1 col-span-full border-b border-border bg-surface/95',
-            'backdrop-blur-material backdrop-saturate-(--reach-material-saturate)',
-            'pt-safe-top ps-safe-left pe-safe-right',
-            // Supports-backdrop-filter, because a solid fallback is better
-            // than a translucent bar over unreadable text on a browser that
-            // ignores the blur.
-            'supports-[backdrop-filter]:bg-surface/80',
-          )}
-        >
-          {header}
-        </header>
-      ) : null}
-
-      {banner ? <div className="row-start-2 col-span-full">{banner}</div> : null}
-
-      {hasSidebar ? (
-        <nav
-          id={sidebarId}
-          aria-label="Main"
-          data-collapsed={sidebarState.collapsed || undefined}
-          className={cn(
-            'group/sidebar relative row-start-3 hidden shrink-0 border-e border-border bg-surface',
-            // Above the content, so a flyout from one of its items (`NavItem`'s
-            // `flyout`) paints over the page rather than under a sticky toolbar.
-            'md:z-30',
-            /*
-             * A flex column, not a block.
-             *
-             * The rail toggle below is a sibling *above* the caller's sidebar,
-             * so in a block container a sidebar asking for `h-full` gets the
-             * nav's whole height and then sits under a 32px toggle — 32px
-             * taller than the column it lives in. The visible symptom is a
-             * sidebar that scrolls as one piece and takes whatever is pinned to
-             * its bottom, usually the profile and sign-out, below the fold.
-             *
-             * As a flex column the toggle takes its own height and the sidebar
-             * slot takes the rest, so `h-full` inside it means what a caller
-             * expects.
-             */
-            'md:flex md:flex-col',
-            'ps-safe-left',
-            // Its own scroll container, sticky under the header: a 40-item
-            // navigation must not push the page taller than the content.
+    /*
+     * The query container, and nothing else.
+     *
+     * Whether the rails fit is a question about the width this layout was
+     * given, not about the window: a shell rendered inside a 390px phone
+     * preview on a wide monitor, or inside a panel, must drop its sidebar
+     * exactly as it would on the phone. An element cannot query its own width,
+     * so the grid sits one level down and every rail asks `@…/page`. Named, so
+     * a caller who makes the grid a container of its own does not capture the
+     * question.
+     */
+    <div className="@container/page">
+      <div className={cn('relative', layout({ preset }), className)} {...props}>
+        {header ? (
+          <header
+            // `col-span-full` rather than a grid area: the header spans every
+            // column at every breakpoint, including the ones where the sidebar
+            // column does not exist.
             //
-            // The offset is the header's height, and only when there is one.
-            // It was 3.5rem unconditionally, so a layout with no header
-            // reserved a header's worth of space it never filled — the
-            // sidebar stuck 56px down the page and stopped 56px short of the
-            // bottom.
-            'md:sticky md:overscroll-contain',
-            header ? 'md:top-14 md:max-h-[calc(100dvh-3.5rem)]' : 'md:top-0 md:max-h-dvh',
-            // The width animates rather than snapping. `overflow-x-hidden`
-            // matters as much as the duration: without it the labels spill
-            // across the content for the length of the transition.
-            sidebarState.enabled &&
-              'overflow-x-hidden transition-[width] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
-            sidebarState.enabled &&
-              sidebarCollapse.mode === 'rail' &&
-              sidebarState.collapsed &&
-              'md:w-14',
-            sidebarState.enabled &&
-              sidebarCollapse.mode === 'hidden' &&
-              sidebarState.collapsed &&
-              'md:w-0 md:border-e-0',
-          )}
-          // Only when nothing is left to interact with. A collapsed *rail*
-          // still holds every destination, so making it inert would remove
-          // navigation the user can plainly see.
-          inert={sidebarCollapse.mode === 'hidden' && sidebarState.collapsed ? true : undefined}
-        >
-          <RailContext value={{ collapsed: sidebarState.collapsed }}>
-            {/*
+            // Structural chrome, so it takes the heavier weight: this bar
+            // separates a region of the app rather than drawing attention to a
+            // control, and a thicker material is what reads as "the app frame".
+            // The attribute is what `prefers-reduced-transparency` and
+            // `prefers-contrast` key off in base.css, translucency is a setting a
+            // user can decline and a class name cannot be queried.
+            data-material="chrome"
+            className={cn(
+              'sticky top-0 z-30 row-start-1 col-span-full border-b border-glass-line bg-surface',
+              'backdrop-blur-material backdrop-saturate-(--reach-material-saturate)',
+              'pt-safe-top ps-safe-left pe-safe-right',
+              // Supports-backdrop-filter, because a solid fallback is better
+              // than a translucent bar over unreadable text on a browser that
+              // ignores the blur. `glass` is the one tint every material in the
+              // system shares, so the top bar and the tab bar are one substance.
+              'supports-[backdrop-filter]:bg-glass',
+            )}
+          >
+            {header}
+          </header>
+        ) : null}
+
+        {banner ? <div className="row-start-2 col-span-full">{banner}</div> : null}
+
+        {hasSidebar ? (
+          <nav
+            id={sidebarId}
+            aria-label="Main"
+            data-collapsed={sidebarState.collapsed || undefined}
+            className={cn(
+              'group/sidebar relative row-start-3 hidden shrink-0 border-e border-border bg-surface',
+              // Above the content, so a flyout from one of its items (`NavItem`'s
+              // `flyout`) paints over the page rather than under a sticky toolbar.
+              '@3xl/page:z-30',
+              /*
+               * A flex column, not a block.
+               *
+               * The rail toggle below is a sibling *above* the caller's sidebar,
+               * so in a block container a sidebar asking for `h-full` gets the
+               * nav's whole height and then sits under a 32px toggle — 32px
+               * taller than the column it lives in. The visible symptom is a
+               * sidebar that scrolls as one piece and takes whatever is pinned to
+               * its bottom, usually the profile and sign-out, below the fold.
+               *
+               * As a flex column the toggle takes its own height and the sidebar
+               * slot takes the rest, so `h-full` inside it means what a caller
+               * expects.
+               */
+              '@3xl/page:flex @3xl/page:flex-col',
+              'ps-safe-left',
+              // Its own scroll container, sticky under the header: a 40-item
+              // navigation must not push the page taller than the content.
+              //
+              // The offset is the header's height, and only when there is one.
+              // It was 3.5rem unconditionally, so a layout with no header
+              // reserved a header's worth of space it never filled — the
+              // sidebar stuck 56px down the page and stopped 56px short of the
+              // bottom.
+              '@3xl/page:sticky @3xl/page:overscroll-contain',
+              header
+                ? '@3xl/page:top-14 @3xl/page:max-h-[calc(100dvh-3.5rem)]'
+                : '@3xl/page:top-0 @3xl/page:max-h-dvh',
+              // The width animates rather than snapping. `overflow-x-hidden`
+              // matters as much as the duration: without it the labels spill
+              // across the content for the length of the transition.
+              sidebarState.enabled &&
+                'overflow-x-hidden transition-[width] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
+              sidebarState.enabled &&
+                sidebarCollapse.mode === 'rail' &&
+                sidebarState.collapsed &&
+                '@3xl/page:w-14',
+              sidebarState.enabled &&
+                sidebarCollapse.mode === 'hidden' &&
+                sidebarState.collapsed &&
+                '@3xl/page:w-0 @3xl/page:border-e-0',
+            )}
+            // Only when nothing is left to interact with. A collapsed *rail*
+            // still holds every destination, so making it inert would remove
+            // navigation the user can plainly see.
+            inert={sidebarCollapse.mode === 'hidden' && sidebarState.collapsed ? true : undefined}
+          >
+            <RailContext value={{ collapsed: sidebarState.collapsed }}>
+              {/*
               One row, holding whatever the caller pinned at the top and the
               collapse control at its end.
 
@@ -342,171 +364,189 @@ export function PageLayout({
               unchanged and one with a header no longer pays for a strip of
               chrome above it.
             */}
-            {(sidebarHeader ??
-            (sidebarState.enabled &&
-              !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed))) ? (
-              // The same inset as the column below it (`p-3`, `p-2` as a rail),
-              // so the brand lines up with the navigation; the brand's slot is
-              // a control tall, so it centres on the collapse button beside it.
-              // As a rail the two stack: the mark alone, the button under it.
-              <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 px-3 pt-3 pb-1 group-data-[collapsed]/sidebar:flex-col group-data-[collapsed]/sidebar:px-2 group-data-[collapsed]/sidebar:pt-2">
-                <div className="flex min-h-control-md min-w-0 flex-1 items-center group-data-[collapsed]/sidebar:justify-center">
-                  {sidebarHeader}
+              {(sidebarHeader ??
+              (sidebarState.enabled &&
+                !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed))) ? (
+                // The same inset as the column below it (`p-3`, `p-2` as a rail),
+                // so the brand lines up with the navigation; the brand's slot is
+                // a control tall, so it centres on the collapse button beside it.
+                // As a rail the two stack: the mark alone, the button under it.
+                <div className="bg-surface sticky top-0 z-10 flex items-center gap-2 px-3 pt-3 pb-1 group-data-[collapsed]/sidebar:flex-col group-data-[collapsed]/sidebar:px-2 group-data-[collapsed]/sidebar:pt-2">
+                  <div className="flex min-h-control-md min-w-0 flex-1 items-center group-data-[collapsed]/sidebar:justify-center">
+                    {sidebarHeader}
+                  </div>
+                  {sidebarState.enabled &&
+                  !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed) ? (
+                    <RailToggle
+                      side="start"
+                      controls={sidebarId}
+                      collapsed={sidebarState.collapsed}
+                      onToggle={sidebarState.toggle}
+                      label="navigation"
+                      shortcut={sidebarShortcut}
+                      className="shrink-0"
+                    />
+                  ) : null}
                 </div>
-                {sidebarState.enabled &&
-                !(sidebarCollapse.mode === 'hidden' && sidebarState.collapsed) ? (
-                  <RailToggle
-                    side="start"
-                    controls={sidebarId}
-                    collapsed={sidebarState.collapsed}
-                    onToggle={sidebarState.toggle}
-                    label="navigation"
-                    shortcut={sidebarShortcut}
-                    className="shrink-0"
-                  />
-                ) : null}
-              </div>
-            ) : null}
-            {/*
+              ) : null}
+              {/*
               `min-h-0` so this can be shorter than its content and let the
               caller scroll a region inside it, rather than growing the column
               and pushing anything pinned to the bottom out of reach.
             */}
-            <div className="min-h-0 flex-1">{sidebar}</div>
-          </RailContext>
-        </nav>
-      ) : null}
+              <div className="min-h-0 flex-1">{sidebar}</div>
+            </RailContext>
+          </nav>
+        ) : null}
 
-      <main
-        aria-label={contentLabel}
-        className={cn(
-          'row-start-3 min-w-0',
-          /*
-           * `clip`, not `auto`, outside the canvas preset. The grid sizes this
-           * row to its content, so the window is what scrolls; `overflow-y-auto`
-           * made this element a scroll container that never scrolled, and a
-           * `sticky bottom-0` inside it — a form's Save, kept above a phone's
-           * keyboard — stuck to the bottom of the content instead of the
-           * screen. `overflow-x: clip` still keeps a wide child from pushing
-           * the page sideways, and creates no scroll container.
-           */
-          preset === 'canvas' ? 'overflow-hidden' : 'overflow-x-clip',
-          /*
-           * Smooth only where smoothness is ours to give.
-           *
-           * `scroll-behavior` governs *programmatic* scrolling — an anchor, a
-           * `scrollIntoView`, a "back to top" — and nothing else. A wheel, a
-           * trackpad and a finger are already smooth, and are the browser's to
-           * animate; a script that intercepts them is how an app ends up with
-           * scrolling that fights the hardware and ignores the platform's
-           * momentum curve. So this is a property, not a library.
-           *
-           * Not inherited, so it stays on this scroller and does not reach the
-           * listbox inside a `Combobox`, where a keyboard user arrowing down a
-           * long list wants the option under the cursor *now*.
-           *
-           * `base.css` forces it back to `auto` under `prefers-reduced-motion`,
-           * which is why there is no `motion-safe:` here.
-           *
-           * The padding is the sticky header's height, so an anchored target
-           * lands below the header rather than under it.
-           */
-          'scroll-smooth',
-          header ? 'scroll-pt-14' : null,
-          !hasSidebar && 'col-span-full',
-          contentClassName,
-        )}
-      >
-        {children}
-      </main>
-
-      {hasAside ? (
-        <aside
-          id={asideId}
-          aria-label="Details"
-          data-collapsed={asideState.collapsed || undefined}
+        <main
+          aria-label={contentLabel}
           className={cn(
-            'row-start-3 hidden shrink-0 border-s border-border bg-surface xl:block',
-            'pe-safe-right',
-            'xl:sticky xl:top-14 xl:max-h-[calc(100dvh-3.5rem)] xl:overflow-y-auto xl:overscroll-contain',
-            asideState.enabled &&
-              'overflow-x-hidden transition-[width] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
-            asideState.enabled &&
-              asideCollapse.mode === 'rail' &&
-              asideState.collapsed &&
-              'xl:w-14',
-            asideState.enabled &&
-              asideCollapse.mode === 'hidden' &&
-              asideState.collapsed &&
-              'xl:w-0 xl:border-s-0',
-          )}
-          inert={asideCollapse.mode === 'hidden' && asideState.collapsed ? true : undefined}
-        >
-          <RailContext value={{ collapsed: asideState.collapsed }}>
-            {asideState.enabled && !(asideCollapse.mode === 'hidden' && asideState.collapsed) ? (
-              <RailToggle
-                side="end"
-                controls={asideId}
-                collapsed={asideState.collapsed}
-                onToggle={asideState.toggle}
-                label="details"
-                shortcut={null}
-                className="sticky top-0 z-10 flex justify-start p-2 pb-0"
-              />
-            ) : null}
-            {aside}
-          </RailContext>
-        </aside>
-      ) : null}
-
-      {/*
-       * A panel that collapses to zero width takes any control inside it with
-       * it, and then the only way back is a keyboard shortcut nobody was told
-       * about. So the reopen control for `hidden` mode is pinned to the layout
-       * edge: absolutely positioned, which keeps it out of the grid and stops
-       * it creating a column of its own.
-       */}
-      {hasSidebar && sidebarCollapse.mode === 'hidden' && sidebarState.collapsed ? (
-        <RailToggle
-          side="start"
-          controls={sidebarId}
-          collapsed
-          onToggle={sidebarState.toggle}
-          label="navigation"
-          shortcut={sidebarShortcut}
-          className="absolute top-16 start-2 z-30 hidden md:block"
-        />
-      ) : null}
-
-      {hasAside && asideCollapse.mode === 'hidden' && asideState.collapsed ? (
-        <RailToggle
-          side="end"
-          controls={asideId}
-          collapsed
-          onToggle={asideState.toggle}
-          label="details"
-          shortcut={null}
-          className="absolute top-16 end-2 z-30 hidden xl:block"
-        />
-      ) : null}
-
-      {footer ? (
-        <footer className="row-start-4 col-span-full border-t border-border bg-surface pb-safe-bottom">
-          {footer}
-        </footer>
-      ) : null}
-
-      {bottomBar ? (
-        <div
-          className={cn(
-            'sticky bottom-0 z-30 row-start-5 col-span-full border-t border-border bg-surface',
-            'pb-safe-bottom ps-safe-left pe-safe-right',
-            bottomBarClassName,
+            'row-start-3 min-w-0',
+            /*
+             * `clip`, not `auto`, outside the canvas preset. The grid sizes this
+             * row to its content, so the window is what scrolls; `overflow-y-auto`
+             * made this element a scroll container that never scrolled, and a
+             * `sticky bottom-0` inside it — a form's Save, kept above a phone's
+             * keyboard — stuck to the bottom of the content instead of the
+             * screen. `overflow-x: clip` still keeps a wide child from pushing
+             * the page sideways, and creates no scroll container.
+             */
+            preset === 'canvas' ? 'overflow-hidden' : 'overflow-x-clip',
+            /*
+             * Smooth only where smoothness is ours to give.
+             *
+             * `scroll-behavior` governs *programmatic* scrolling — an anchor, a
+             * `scrollIntoView`, a "back to top" — and nothing else. A wheel, a
+             * trackpad and a finger are already smooth, and are the browser's to
+             * animate; a script that intercepts them is how an app ends up with
+             * scrolling that fights the hardware and ignores the platform's
+             * momentum curve. So this is a property, not a library.
+             *
+             * Not inherited, so it stays on this scroller and does not reach the
+             * listbox inside a `Combobox`, where a keyboard user arrowing down a
+             * long list wants the option under the cursor *now*.
+             *
+             * `base.css` forces it back to `auto` under `prefers-reduced-motion`,
+             * which is why there is no `motion-safe:` here.
+             *
+             * The padding is the sticky header's height, so an anchored target
+             * lands below the header rather than under it.
+             */
+            'scroll-smooth',
+            header ? 'scroll-pt-14' : null,
+            !hasSidebar && 'col-span-full',
+            contentClassName,
           )}
         >
-          {bottomBar}
-        </div>
-      ) : null}
+          {children}
+        </main>
+
+        {hasAside ? (
+          <aside
+            id={asideId}
+            aria-label="Details"
+            data-collapsed={asideState.collapsed || undefined}
+            className={cn(
+              'row-start-3 hidden shrink-0 border-s border-border bg-surface @7xl/page:block',
+              'pe-safe-right',
+              '@7xl/page:sticky @7xl/page:top-14 @7xl/page:max-h-[calc(100dvh-3.5rem)] @7xl/page:overflow-y-auto @7xl/page:overscroll-contain',
+              asideState.enabled &&
+                'overflow-x-hidden transition-[width] duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
+              asideState.enabled &&
+                asideCollapse.mode === 'rail' &&
+                asideState.collapsed &&
+                '@7xl/page:w-14',
+              asideState.enabled &&
+                asideCollapse.mode === 'hidden' &&
+                asideState.collapsed &&
+                '@7xl/page:w-0 @7xl/page:border-s-0',
+            )}
+            inert={asideCollapse.mode === 'hidden' && asideState.collapsed ? true : undefined}
+          >
+            <RailContext value={{ collapsed: asideState.collapsed }}>
+              {asideState.enabled && !(asideCollapse.mode === 'hidden' && asideState.collapsed) ? (
+                <RailToggle
+                  side="end"
+                  controls={asideId}
+                  collapsed={asideState.collapsed}
+                  onToggle={asideState.toggle}
+                  label="details"
+                  shortcut={null}
+                  className="sticky top-0 z-10 flex justify-start p-2 pb-0"
+                />
+              ) : null}
+              {aside}
+            </RailContext>
+          </aside>
+        ) : null}
+
+        {/*
+         * A panel that collapses to zero width takes any control inside it with
+         * it, and then the only way back is a keyboard shortcut nobody was told
+         * about. So the reopen control for `hidden` mode is pinned to the layout
+         * edge: absolutely positioned, which keeps it out of the grid and stops
+         * it creating a column of its own.
+         */}
+        {hasSidebar && sidebarCollapse.mode === 'hidden' && sidebarState.collapsed ? (
+          <RailToggle
+            side="start"
+            controls={sidebarId}
+            collapsed
+            onToggle={sidebarState.toggle}
+            label="navigation"
+            shortcut={sidebarShortcut}
+            className="absolute top-16 start-2 z-30 hidden @3xl/page:block"
+          />
+        ) : null}
+
+        {hasAside && asideCollapse.mode === 'hidden' && asideState.collapsed ? (
+          <RailToggle
+            side="end"
+            controls={asideId}
+            collapsed
+            onToggle={asideState.toggle}
+            label="details"
+            shortcut={null}
+            className="absolute top-16 end-2 z-30 hidden @7xl/page:block"
+          />
+        ) : null}
+
+        {footer ? (
+          <footer className="row-start-4 col-span-full border-t border-border bg-surface pb-safe-bottom">
+            {footer}
+          </footer>
+        ) : null}
+
+        {bottomBar ? (
+          <div
+            data-material={bottomBarVariant === 'floating' ? 'chrome' : undefined}
+            className={cn(
+              'sticky bottom-0 z-30 row-start-5 col-span-full',
+              bottomBarVariant === 'bar'
+                ? 'border-t border-border bg-surface pb-safe-bottom ps-safe-left pe-safe-right'
+                : [
+                    /*
+                     * A pill floating over the content rather than a strip across
+                     * the bottom of it. The page scrolls *under* it, which is the
+                     * reason for the glass: the content is still there, just
+                     * behind the bar, instead of ending at a hard edge 64px short
+                     * of the screen.
+                     *
+                     * The margin, not padding, carries the home indicator, so the
+                     * pill sits above it rather than stretching down behind it.
+                     */
+                    'mx-2.5 mb-[max(0.75rem,env(safe-area-inset-bottom))] rounded-full p-1',
+                    'border border-glass-line bg-surface shadow-md supports-[backdrop-filter]:bg-glass',
+                    'backdrop-blur-material backdrop-saturate-(--reach-material-saturate)',
+                  ],
+              bottomBarClassName,
+            )}
+          >
+            {bottomBar}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -668,14 +708,19 @@ export function PageHeader({
       </>
     );
   return (
-    <div className={cn('flex flex-col gap-3', className)} {...props}>
+    // A container, so the actions go full width when the header is narrow
+    // rather than when the window is: a header in a phone frame, a sheet or a
+    // side panel is narrow on any monitor.
+    <div className={cn('@container flex flex-col gap-3', className)} {...props}>
       {trail}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1
+              // The display face, heavy and tracked in: under a finger `lg` is
+              // the large title a phone opens a screen with.
               className={cn(
-                'min-w-0 font-semibold text-fg',
+                'min-w-0 font-display font-bold tracking-tight text-fg',
                 size === 'lg' ? 'text-2xl' : 'text-lg',
               )}
             >
@@ -690,7 +735,7 @@ export function PageHeader({
           ) : null}
         </div>
         {allActions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 max-xs:w-full max-xs:[&>*]:flex-1">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 @max-md:w-full @max-md:[&>*]:flex-1">
             {allActions}
           </div>
         ) : null}
@@ -725,7 +770,9 @@ export function PageSection({
     <section
       className={cn(
         'min-w-0',
-        surface && 'rounded-lg border border-border bg-surface p-4 sm:p-6',
+        // A fill and a soft shadow rather than a ruled box, and a little
+        // tighter under a finger, where the phone's own margin is already 16px.
+        surface && 'rounded-lg bg-surface p-5 shadow-sm touch:p-4',
         className,
       )}
       {...props}
@@ -733,9 +780,13 @@ export function PageSection({
       {title || actions ? (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
-            {title ? <h2 className="text-lg font-semibold text-fg">{title}</h2> : null}
+            {title ? (
+              <h2 className="font-display text-md font-bold tracking-tight text-fg touch:text-lg">
+                {title}
+              </h2>
+            ) : null}
             {description ? (
-              <p className="mt-1 max-w-prose text-sm text-pretty text-fg-muted">{description}</p>
+              <p className="mt-0.5 max-w-prose text-sm text-pretty text-fg-muted">{description}</p>
             ) : null}
           </div>
           {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

@@ -193,17 +193,17 @@ export const SelectionBar: Story = {
   },
   render: function SelectionStory(args) {
     const rows = [
-      { id: '1', name: 'Grace Hopper', team: 'Platform' },
-      { id: '2', name: 'Ada Lovelace', team: 'Platform' },
-      { id: '3', name: 'Radia Perlman', team: 'Payroll' },
-      { id: '4', name: 'Barbara Liskov', team: 'Platform' },
+      { id: '1', name: 'Priya Shah', team: 'Engineering' },
+      { id: '2', name: 'Jonas Weber', team: 'Engineering' },
+      { id: '3', name: 'Amara Okafor', team: 'Design' },
+      { id: '4', name: 'Lucas Moreau', team: 'Sales' },
     ];
     const [selected, setSelected] = useState<string[]>([]);
 
     return (
       <div className="max-w-2xl">
         <Reveal {...args} open={selected.length > 0} from="top">
-          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-accent bg-accent-subtle px-3 py-2">
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg bg-accent-subtle px-3 py-2">
             <p aria-live="polite" className="text-sm font-medium text-accent-fg">
               {selected.length} selected
             </p>
@@ -286,14 +286,14 @@ export const Stagger: Story = {
   },
   render: function StaggerStory() {
     const people = [
-      'Grace Hopper',
-      'Ada Lovelace',
-      'Radia Perlman',
-      'Barbara Liskov',
-      'Katherine Johnson',
-      'Margaret Hamilton',
-      'Joan Clarke',
-      'Anita Borg',
+      'Priya Shah',
+      'Jonas Weber',
+      'Amara Okafor',
+      'Lucas Moreau',
+      'Mei Tanaka',
+      'Diego Alvarez',
+      'Sofia Lindqvist',
+      'Nora Becker',
     ];
     const [selected, setSelected] = useState<string[]>([]);
     const all = selected.length === people.length;
@@ -310,11 +310,11 @@ export const Stagger: Story = {
 
         <ul className="space-y-2">
           {people.map((name, index) => (
-            <li key={name} className="relative rounded-lg border border-border bg-surface p-3">
+            <li key={name} className="relative rounded-md bg-surface p-3 shadow-sm">
               <span
                 aria-hidden
                 style={staggerStyle(index)}
-                className={`pointer-events-none absolute inset-0 rounded-lg ring-2 ring-accent ring-offset-1 ring-offset-canvas transition-opacity duration-(--animate-duration-normal) ease-standard ${
+                className={`pointer-events-none absolute inset-0 rounded-md ring-2 ring-accent ring-offset-1 ring-offset-canvas transition-opacity duration-(--animate-duration-normal) ease-standard ${
                   selected.includes(name) ? 'opacity-100' : 'opacity-0'
                 }`}
               />
@@ -338,8 +338,9 @@ export const InlineValidation: Story = {
     },
   },
   render: function ValidationStory(args) {
-    const [value, setValue] = useState('');
-    const invalid = value.length > 0 && !value.includes('@');
+    const [value, setValue] = useState('priya@');
+    // Something after the @, and a dot somewhere in it.
+    const invalid = value.length > 0 && !/@[^@.]+\.[^@.]+/.test(value);
 
     return (
       <div className="max-w-sm space-y-1.5">
@@ -350,14 +351,14 @@ export const InlineValidation: Story = {
           id="reveal-email"
           value={value}
           aria-invalid={invalid || undefined}
-          placeholder="Type something without an @"
+          placeholder="priya@reach.co"
           onChange={(event) => {
             setValue(event.target.value);
           }}
         />
         <Reveal {...args} open={invalid} from="top">
           <p role="alert" className="pt-1 text-xs font-medium text-danger-fg">
-            That does not look like an email address.
+            Use a full address, like priya@reach.co.
           </p>
         </Reveal>
         <div className="flex items-center gap-2 pt-2">

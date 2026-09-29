@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
+import { fn } from 'storybook/test';
 
 import { Button } from '../button/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
@@ -195,6 +196,11 @@ const meta = {
     disabled: false,
     invalid: false,
     showCount: true,
+    // Explicit, not the global implicit actions: the editor reports its
+    // document once as it mounts, and an implicit action called during a
+    // render is an error in Storybook.
+    onChange: fn(),
+    onChangeJson: fn(),
   },
 } satisfies Meta<typeof RichTextEditor>;
 
@@ -295,7 +301,7 @@ export const States: Story = {
     },
   },
   render: (args) => (
-    <div className="grid max-w-5xl gap-6 lg:grid-cols-3">
+    <div className="grid max-w-5xl gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
       <div className="space-y-1.5">
         <RichTextEditor
           {...args}
@@ -346,7 +352,7 @@ export const Roundtrip: Story = {
     const [showSource, setShowSource] = useState(false);
 
     return (
-      <div className="grid max-w-6xl gap-5 lg:grid-cols-2">
+      <div className="grid max-w-6xl gap-5 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
         <RichTextEditor
           {...args}
           label="Editing"

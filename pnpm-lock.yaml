@@ -16,7 +16,7 @@ overrides:
   ts-deepmerge: '>=8.0.0'
   fast-uri@<3.1.6: '>=3.1.8 <4'
   hono@<4.13.5: '>=4.13.8 <5'
-  undici@>=6 <6.28.0: ^6.28.0
+  undici@>=6 <6.28.1: ^6.28.1
   js-yaml@>=4 <4.3.2: ^4.3.2
   tmp@<0.2.6: ^0.2.6
   adm-zip@<0.6.1: ^0.6.1
@@ -11089,8 +11089,8 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
-  undici@6.28.0:
-    resolution: {integrity: sha512-LIY910g9TI13YS95lrMFrs8Rm/u/irgHeTWoKCoteeJ04CUJ92eEfj0rVn+7VKMPBpUPiUoBKfhNyLI23EE/KA==}
+  undici@6.29.0:
+    resolution: {integrity: sha512-R+RODBqp6i2pPflGdq+xIOUkl+RNfGgHwoinecKu/JCuf2uO06cOKoDbI2P7Dn6KcswdKwrczbU6IYJ6K8X+wg==}
     engines: {node: '>=18.17'}
 
   undici@7.29.0:
@@ -16789,7 +16789,7 @@ snapshots:
       is-buffer: 2.0.5
       is-node-process: 1.2.0
       throttleit: 2.1.0
-      undici: 6.28.0
+      undici: 6.29.0
 
   '@vercel/cli-config@0.2.4':
     dependencies:
@@ -22581,7 +22581,7 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici@6.28.0: {}
+  undici@6.29.0: {}
 
   undici@7.29.0: {}
 
@@ -22895,7 +22895,7 @@ snapshots:
       semver: 7.7.1
       tar: 7.5.21
       trieve-ts-sdk: 0.0.80
-      undici: 6.28.0
+      undici: 6.29.0
       zod: 3.25.76
     transitivePeerDependencies:
       - '@cfworker/json-schema'

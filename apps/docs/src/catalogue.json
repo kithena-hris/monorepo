@@ -3,7 +3,7 @@
     "id": "foundations",
     "title": "Foundations",
     "blurb": "The decisions everything else inherits. Colour, type, elevation, shape and motion are read live from the shipped stylesheet, so what you see is what the components resolve. Typography is documented as utilities rather than a text component, because a system with a <Text> ends up with two ways to write a heading.",
-    "items": ["Tokens", "Typography", "Motion", "Responsive", "Patterns", "Brand", "App marks"]
+    "items": ["Tokens", "Typography", "Motion", "Responsive", "Patterns", "Brand", "App marks", "Third-party marks"]
   },
   {
     "id": "layouts",
@@ -36,7 +36,9 @@
       "ImageUploader",
       "Dropzone",
       "RichTextEditor",
-      "FileUploader"
+      "FileUploader",
+      "TimePicker",
+      "Form sections"
     ]
   },
   {
@@ -53,7 +55,18 @@
       "Timeline",
       "Org chart",
       "Movement",
-      "Pay"
+      "Pay",
+      "Combo",
+      "Stacked area",
+      "Gauge",
+      "Radar",
+      "Treemap",
+      "Histogram",
+      "Cohort",
+      "Bullet",
+      "Calendar heatmap",
+      "Bubble",
+      "KPI dashboard"
     ]
   },
   {
@@ -97,8 +110,30 @@
       "Tabs",
       "Timeline",
       "Toast",
+      "VirtualList",
       "Tooltip",
-      "VirtualList"
+      "Action sheet",
+      "App bars",
+      "Assistant",
+      "Banner",
+      "Carousel",
+      "Chat",
+      "Chip",
+      "Coach mark",
+      "ColumnChooser",
+      "Command palette",
+      "Complex filters",
+      "FilterBuilder",
+      "Floating button",
+      "Grouped navigation",
+      "Hover card",
+      "KeyValues",
+      "List item",
+      "Notification centre",
+      "Scheduler",
+      "Segmented control",
+      "Tertiary navigation",
+      "TreeView"
     ]
   },
   {

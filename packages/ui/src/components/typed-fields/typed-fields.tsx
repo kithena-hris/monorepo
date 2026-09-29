@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, type ComponentPropsWithoutRef, type JSX } from 'react';
-import { Search, X } from 'lucide-react';
+import { CircleX, Search } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { Input, type InputProps } from '../input/input';
@@ -91,11 +91,11 @@ export function SearchField({
               input.current?.focus();
             }}
             className={cn(
-              'flex size-tap items-center justify-center rounded-sm text-fg-subtle',
+              'tap-target relative -me-1 flex size-7 items-center justify-center rounded-full text-fg-subtle',
               'hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
             )}
           >
-            <X aria-hidden className="size-4" />
+            <CircleX aria-hidden className="size-[1.125rem]" />
           </button>
         )
       }
@@ -225,7 +225,7 @@ export function CurrencyField({
       type="text"
       inputMode="decimal"
       autoComplete="off"
-      startAdornment={<span className="text-xs">{symbolFor(currency, locale)}</span>}
+      startAdornment={<span className="text-fg-muted">{symbolFor(currency, locale)}</span>}
       // While it has focus the field shows exactly what was typed. Reformatting
       // mid-entry moves the caret, and a caret that jumps as you type a salary
       // is how people end up entering it twice.
@@ -360,7 +360,7 @@ export function PhoneField({
               setCode(event.target.value);
             }}
             className={cn(
-              'min-h-tap cursor-pointer rounded-sm bg-transparent py-0 pe-1 text-xs tabular-nums text-fg',
+              'min-h-tap cursor-pointer rounded-sm bg-transparent py-0 pe-1 tabular-nums text-fg',
               'outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
             )}
           >
@@ -370,9 +370,7 @@ export function PhoneField({
               </option>
             ))}
           </select>
-          <span aria-hidden className="text-fg-subtle">
-            |
-          </span>
+          <span aria-hidden className="h-5 w-px bg-border-strong" />
         </>
       }
       {...props}

@@ -16,12 +16,14 @@ import { cn } from '../../lib/cn';
  * about eventually" is exactly that case.
  */
 
-const track = cva('relative w-full overflow-hidden rounded-full bg-surface-sunken', {
+const track = cva('relative w-full overflow-hidden rounded-full bg-surface-active', {
   variants: {
+    // A finger-sized screen gets a thicker bar: the same value has to read at
+    // arm's length, not at a desk.
     size: {
       sm: 'h-1',
-      md: 'h-2',
-      lg: 'h-3',
+      md: 'h-1.5 touch:h-2',
+      lg: 'h-2.5 touch:h-3',
     },
   },
   defaultVariants: { size: 'md' },
@@ -51,6 +53,12 @@ export interface ProgressProps
   label: string;
   /** Prints the percentage beside the label. */
   showValue?: boolean;
+  /**
+   * Printed in place of the percentage, and read out in its place: "7 of 11
+   * tasks", "About 2 min left". The count is often the fact people want, and
+   * the bar already shows the proportion.
+   */
+  valueLabel?: string;
 }
 
 export function Progress({
@@ -61,6 +69,7 @@ export function Progress({
   tone,
   label,
   showValue = false,
+  valueLabel,
   ...props
 }: ProgressProps): JSX.Element {
   const indeterminate = value === null;
@@ -70,12 +79,12 @@ export function Progress({
   return (
     <div className="w-full">
       {showValue ? (
-        <div className="mb-1.5 flex items-baseline justify-between gap-3">
-          <span className="text-sm text-fg-muted">{label}</span>
-          <span className="text-sm font-medium tabular-nums text-fg">
+        <div className="mb-2 flex items-baseline justify-between gap-3 text-sm font-medium">
+          <span className="text-fg">{label}</span>
+          <span className="tabular-nums text-fg-muted">
             {/* The *unclamped* figure: 106% of an entitlement is the fact worth
                 printing, even though the bar itself stops at full. */}
-            {indeterminate ? '—' : `${String(Math.round(raw))}%`}
+            {valueLabel ?? (indeterminate ? '' : `${String(Math.round(raw))}%`)}
           </span>
         </div>
       ) : null}
@@ -86,7 +95,8 @@ export function Progress({
         // above `valuemax` is invalid ARIA, and Radix rightly warns about it.
         value={indeterminate ? null : Math.min(value, max)}
         max={max}
-        aria-valuetext={indeterminate ? undefined : `${String(Math.round(raw))}%`}
+        // `||`, not `??`: an empty label means "print nothing", not "say nothing".
+        aria-valuetext={valueLabel || (indeterminate ? undefined : `${String(Math.round(raw))}%`)}
         aria-label={showValue ? undefined : label}
         aria-labelledby={undefined}
         className={cn(track({ size }), className)}
@@ -140,7 +150,7 @@ export function CircularProgress({
 }: CircularProgressProps): JSX.Element {
   const indeterminate = value === null;
   const percent = indeterminate ? 25 : Math.min(100, Math.max(0, (value / max) * 100));
-  const stroke = Math.max(3, Math.round(size / 12));
+  const stroke = Math.max(3, Math.round(size / 9));
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
 
@@ -168,7 +178,7 @@ export function CircularProgress({
           r={radius}
           fill="none"
           strokeWidth={stroke}
-          className="stroke-surface-sunken"
+          className="stroke-surface-active"
         />
         <circle
           cx={size / 2}
@@ -188,10 +198,12 @@ export function CircularProgress({
       </svg>
       {showValue && !indeterminate ? (
         <span
-          className="absolute font-medium tabular-nums text-fg"
-          style={{ fontSize: Math.max(10, size / 4) }}
+          className="absolute font-bold tabular-nums text-fg"
+          style={{ fontSize: Math.max(10, Math.round(size / 4)) }}
         >
           {Math.round(percent)}
+          {/* Below 40px the sign crowds the number out of the ring. */}
+          {size >= 40 ? '%' : null}
         </span>
       ) : null}
     </div>

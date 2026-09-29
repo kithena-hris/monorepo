@@ -57,7 +57,11 @@ export interface RatingProps {
   /** Display only: no tab stop, fractions rendered, announced as text. */
   readOnly?: boolean;
   disabled?: boolean;
-  /** Replaces the star. Anything that reads as a scale, a heart, a flame. */
+  /**
+   * Replaces the star. Anything that reads as a scale, a heart, a flame.
+   * Size it as the star of the same `size` is (`md`: `size-7 touch:size-9`):
+   * the tap pitch under a thumb is worked out from that size.
+   */
   symbol?: ReactNode;
   tone?: 'warning' | 'accent' | 'success' | 'danger';
   className?: string;
@@ -65,7 +69,12 @@ export interface RatingProps {
   name?: string;
 }
 
-const symbolSize = { sm: 'size-4', md: 'size-5', lg: 'size-7' } as const;
+// 28px at a desk and 36px under a thumb by default, as the design draws them.
+const symbolSize = {
+  sm: 'size-4 touch:size-5',
+  md: 'size-7 touch:size-9',
+  lg: 'size-9 touch:size-10',
+} as const;
 const gapSize = { sm: 'gap-0.5', md: 'gap-1', lg: 'gap-1.5' } as const;
 /*
  * Under a finger each symbol sits on a 44px pitch, and its hit area fills the
@@ -74,9 +83,9 @@ const gapSize = { sm: 'gap-0.5', md: 'gap-1', lg: 'gap-1.5' } as const;
  * lands on the nearer one rather than on whichever comes later in the DOM.
  */
 const touchPitch = {
-  sm: 'touch:gap-7 touch:[&>[role=radio]]:after:inset-[-0.875rem]',
-  md: 'touch:gap-6 touch:[&>[role=radio]]:after:inset-[-0.75rem]',
-  lg: 'touch:gap-4 touch:[&>[role=radio]]:after:inset-[-0.5rem]',
+  sm: 'touch:gap-6 touch:[&>[role=radio]]:after:inset-[-0.75rem]',
+  md: 'touch:gap-2 touch:[&>[role=radio]]:after:inset-[-0.25rem]',
+  lg: 'touch:gap-1 touch:[&>[role=radio]]:after:inset-[-0.125rem]',
 } as const;
 // The `-fg` end of each ramp, not the base. A base tone is mixed to sit on its
 // own tinted background; amber-600 on white measures 2.76:1, and a filled star
@@ -148,7 +157,9 @@ export function Rating({
           const fill = Math.max(0, Math.min(1, value - index));
           return (
             <span key={index} aria-hidden className="relative inline-block">
-              <span className="text-icon-muted">
+              {/* An empty star is a solid shape in the strong fill, not an
+                  outline: the filled part then reads as the same star, lit. */}
+              <span className="text-icon-muted [&_svg]:fill-current">
                 {symbol ?? <Star className={symbolSize[size]} />}
               </span>
               {fill > 0 ? (
@@ -195,7 +206,7 @@ export function Rating({
           gapSize[size],
           touchPitch[size],
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-          disabled && 'pointer-events-none opacity-55',
+          disabled && 'pointer-events-none opacity-50',
         )}
       >
         {Array.from({ length: max }, (_, index) => {
@@ -222,12 +233,12 @@ export function Rating({
                 // `touchPitch`.
                 'relative touch:after:absolute touch:after:content-[""]',
                 'transition-[color,transform] duration-(--animate-duration-fast) ease-standard',
-                'hover:scale-110 active:scale-95',
+                'hover:scale-110 active:scale-95 motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
                 active ? toneClass[tone] : 'text-icon-muted',
               )}
             >
-              <span aria-hidden className={active ? 'fill-current' : undefined}>
-                {symbol ?? <Star className={cn(symbolSize[size], active && 'fill-current')} />}
+              <span aria-hidden className="[&_svg]:fill-current">
+                {symbol ?? <Star className={cn(symbolSize[size], 'fill-current')} />}
               </span>
             </span>
           );

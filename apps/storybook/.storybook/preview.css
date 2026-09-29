@@ -30,6 +30,82 @@ html {
   background-color: var(--reach-color-canvas);
 }
 
+/* The side-by-side view (see `withSideBySide` in preview.tsx). The desk copy
+   takes what is left; the phone is fixed at 390, the width the mobile design is
+   drawn at, and wraps underneath when the canvas is too narrow for both. */
+.reach-views {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 2rem;
+  width: 100%;
+}
+
+.reach-views[data-fullscreen] {
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* A centred story is shrink-wrapped by Storybook, so `100%` has nothing to
+   resolve against and the two views would stack. Size to the content instead. */
+.reach-views[data-centered] {
+  width: max-content;
+  max-width: 100%;
+}
+
+.reach-views--single {
+  justify-content: center;
+}
+
+.reach-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.reach-view--web {
+  flex: 1 1 28rem;
+}
+
+.reach-view--mobile {
+  flex: 0 0 390px;
+}
+
+.reach-view-label {
+  margin: 0;
+  font: 600 0.75rem/1 var(--font-sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--reach-color-fg-muted);
+}
+
+.reach-view-body {
+  min-width: 0;
+}
+
+.reach-phone {
+  position: relative;
+  box-sizing: border-box;
+  width: 390px;
+  min-height: 34rem;
+  padding: 1rem;
+  overflow: auto;
+  border-radius: 2.5rem;
+  background-color: var(--reach-color-canvas);
+  box-shadow:
+    0 0 0 1px var(--reach-color-border-strong),
+    var(--reach-shadow-lg);
+  /* Makes the frame the containing block for fixed descendants, so an open
+     dialog is a dialog on this phone rather than on the whole window. */
+  transform: translateZ(0);
+  container-type: inline-size;
+}
+
+.reach-views[data-fullscreen] .reach-phone {
+  padding: 0;
+}
+
 .sb-show-main {
   background-color: var(--reach-color-canvas);
   color: var(--reach-color-fg);

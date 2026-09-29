@@ -3,6 +3,11 @@ import { fileURLToPath } from 'node:url';
 
 import type { StorybookConfig } from '@storybook/react-vite';
 
+import { generateStoryViews, watchStoryViews } from './story-views.ts';
+
+generateStoryViews();
+watchStoryViews();
+
 const reachFavicon = readFileSync(fileURLToPath(new URL('./favicon.svg', import.meta.url)), 'utf8');
 
 const config: StorybookConfig = {
@@ -20,6 +25,8 @@ const config: StorybookConfig = {
     // specifier rather than passing the set to globby, so a negation line is
     // matched as a literal path and silently keeps the file.
     '../../../packages/ui/src/**/!(kithena).stories.@(ts|tsx)',
+    // Each story above as a folder of two, Web and Mobile. See `story-views.ts`.
+    '../generated/views/**/*.stories.ts',
     /*
      * Everything except Kithena's mark.
      *

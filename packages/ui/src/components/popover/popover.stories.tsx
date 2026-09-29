@@ -1,11 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Info, Settings2 } from 'lucide-react';
+import { CalendarDays, ChevronDown, Filter } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '../button/button';
-import { Checkbox } from '../checkbox/checkbox';
-import { Separator } from '../separator/separator';
-import { Slider } from '../slider/slider';
+import { Badge } from '../badge/badge';
+import { Field, FieldLabel } from '../field/field';
+import { Input } from '../input/input';
+import {
+  ColumnChooser as ColumnChooserControl,
+  orderColumns,
+  type ColumnChoice,
+  type ColumnChooserValue,
+} from '../table/column-chooser';
+import { ToggleGroup, ToggleGroupItem } from '../toggle/toggle';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from './popover';
 
 const meta = {
@@ -104,17 +111,27 @@ export const Playground: Story = {
   render: (args) => (
     <Popover>
       <PopoverTrigger asChild>
-        <Button startIcon={<Settings2 />}>Display options</Button>
+        <Button endIcon={<ChevronDown />}>Details</Button>
       </PopoverTrigger>
-      <PopoverContent {...args} className="w-72">
-        <p className="text-base font-medium text-fg">Display</p>
-        <p className="mt-1 text-sm text-fg-muted">
-          Changes apply immediately and are remembered for this table.
-        </p>
+      <PopoverContent {...args} className="w-65 space-y-1">
+        <p className="text-base font-semibold text-fg">Working hours</p>
+        <p className="text-sm text-fg-muted">Mon–Fri, 9:00–17:30 CET</p>
+        <p className="text-sm text-fg-muted">Core hours 10:00–16:00</p>
       </PopoverContent>
     </Popover>
   ),
 };
+
+const allColumns: ColumnChoice[] = [
+  // The row's identity: a table with no name column is a grid of anonymous numbers.
+  { id: 'name', label: 'Name', locked: true },
+  { id: 'team', label: 'Team' },
+  { id: 'location', label: 'Location' },
+  { id: 'status', label: 'Status' },
+  { id: 'start', label: 'Start date' },
+  { id: 'salary', label: 'Salary' },
+];
+const defaultColumns = allColumns.slice(0, 5).map((column) => column.id);
 
 export const ColumnChooser: Story = {
   name: 'A working column chooser',
@@ -122,55 +139,30 @@ export const ColumnChooser: Story = {
     docs: {
       description: {
         story:
-          'The canonical popover: several small controls that commit immediately, with no Save button. Note the count in the trigger, a popover hides its state, so something outside it has to say what the state is.',
+          'The canonical popover, and the reason `ColumnChooser` exists: several small controls that commit immediately, with no Save button. Note the count in the trigger, a popover hides its state, so something outside it has to say what the state is.',
       },
     },
   },
-  render: function ColumnsStory(args) {
-    const allColumns = ['Employee', 'Team', 'Manager', 'Location', 'Start date', 'Base salary'];
-    const [visible, setVisible] = useState<string[]>(['Employee', 'Team', 'Base salary']);
+  render: function ColumnsStory() {
+    const initial = { order: allColumns.map((column) => column.id), visible: defaultColumns };
+    const [value, setValue] = useState<ColumnChooserValue>(initial);
 
     return (
       <div className="space-y-3 text-center">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button startIcon={<Settings2 />}>Columns ({visible.length})</Button>
-          </PopoverTrigger>
-          <PopoverContent {...args} className="w-64">
-            <p className="mb-2 text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
-              Visible columns
-            </p>
-            <div className="space-y-1">
-              {allColumns.map((column) => (
-                <label
-                  key={column}
-                  className="flex min-h-tap cursor-pointer items-center gap-2.5 rounded-sm px-1 text-base text-fg hover:bg-surface-hover"
-                >
-                  <Checkbox
-                    checked={visible.includes(column)}
-                    // The first column is the row's identity; a table with no
-                    // identity column is a grid of anonymous numbers.
-                    disabled={column === 'Employee'}
-                    onCheckedChange={(checked) => {
-                      setVisible((current) =>
-                        checked ? [...current, column] : current.filter((c) => c !== column),
-                      );
-                    }}
-                  />
-                  {column}
-                </label>
-              ))}
-            </div>
-            <Separator className="my-2" />
-            <PopoverClose asChild>
-              <Button size="sm" variant="ghost" fullWidth>
-                Done
-              </Button>
-            </PopoverClose>
-          </PopoverContent>
-        </Popover>
+        <ColumnChooserControl
+          columns={allColumns}
+          value={value}
+          onChange={setValue}
+          onReset={() => {
+            setValue(initial);
+          }}
+        />
         <p aria-live="polite" className="text-sm text-fg-muted">
-          Showing {visible.join(', ')}
+          Showing{' '}
+          {orderColumns(allColumns, value.order)
+            .filter((column) => column.locked === true || value.visible.includes(column.id))
+            .map((column) => column.label)
+            .join(', ')}
         </p>
       </div>
     );
@@ -183,7 +175,7 @@ export const Sides: Story = {
     docs: {
       description: {
         story:
-          'The `side` is a preference, not an instruction. Scroll this story until a trigger nears an edge and the panel flips, which is why a design that depends on the panel being below is a design that breaks on a laptop.',
+          'The `side` is a preference, not an instruction. Scroll this story until a trigger nears an edge and the panel flips, which is why a design that depends on the panel being below is a design that breaks on a laptop.\n\nOn a phone there is no side: every popover opens as a sheet from the bottom, where the thumb is, and a swipe down closes it. `sheetOnTouch={false}` on `Popover` keeps a panel anchored when its position is the point, as a combobox list or a tour step does.',
       },
     },
   },
@@ -209,42 +201,64 @@ export const WithARange: Story = {
     docs: {
       description: {
         story:
-          'A slider inside a popover, which is the case that proves the panel is not a tooltip: it is focusable, it survives a drag that leaves its bounds, and the value it edits is applied live behind it.',
+          'A small form inside a popover, which is the case that proves the panel is not a tooltip: it takes focus, holds real controls, and applies only when asked. The count on the trigger says what is set while the panel is closed.',
       },
     },
   },
-  render: function RangeStory(args) {
-    const [range, setRange] = useState([45000, 95000]);
-    const currency = new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency: 'EUR',
-      maximumFractionDigits: 0,
-    });
+  render: function FilterStory(args) {
+    const [status, setStatus] = useState('active');
 
     return (
-      <div className="space-y-3 text-center">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button startIcon={<Info />}>Salary band</Button>
-          </PopoverTrigger>
-          <PopoverContent {...args} className="w-72">
-            <Slider
-              label="Base salary"
-              thumbLabels={['Minimum salary', 'Maximum salary']}
-              min={20000}
-              max={200000}
-              step={2500}
-              minStepsBetweenThumbs={1}
-              value={range}
-              onValueChange={setRange}
-              valueDisplay={`${currency.format(range[0] ?? 0)} – ${currency.format(range[1] ?? 0)}`}
-            />
-          </PopoverContent>
-        </Popover>
-        <p aria-live="polite" className="text-sm text-fg-muted">
-          Filtering {currency.format(range[0] ?? 0)} to {currency.format(range[1] ?? 0)}
-        </p>
-      </div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button startIcon={<Filter />}>
+            Filter
+            <Badge size="sm" tone="accent">
+              2
+            </Badge>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent {...args} className="w-75 space-y-2.5">
+          <Field>
+            <FieldLabel>Start date</FieldLabel>
+            <Input defaultValue="After 1 Jan 2024" endAdornment={<CalendarDays />} />
+          </Field>
+          <div className="space-y-1.5">
+            <p id="filter-status" className="text-sm font-semibold text-fg">
+              Status
+            </p>
+            <ToggleGroup
+              type="single"
+              aria-labelledby="filter-status"
+              value={status}
+              onValueChange={(next) => {
+                if (next) setStatus(next);
+              }}
+              className="flex w-full [&>*]:flex-1"
+            >
+              <ToggleGroupItem value="any" size="sm">
+                Any
+              </ToggleGroupItem>
+              <ToggleGroupItem value="active" size="sm">
+                Active
+              </ToggleGroupItem>
+              <ToggleGroupItem value="leave" size="sm">
+                Leave
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          <div className="flex justify-end gap-1.5">
+            <Button size="sm" variant="ghost">
+              Clear
+            </Button>
+            <PopoverClose asChild>
+              <Button size="sm" variant="primary">
+                Apply
+              </Button>
+            </PopoverClose>
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   },
 };

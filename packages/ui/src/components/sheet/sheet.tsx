@@ -8,6 +8,7 @@ import { useCallback, useRef, type ComponentPropsWithoutRef, type JSX } from 're
 import { cn } from '../../lib/cn';
 import { useCoarsePointer, usePrefersReducedMotion } from '../../lib/use-media-query';
 import { useDragDismiss, type DragAxis } from '../../lib/use-drag-dismiss';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * An edge-anchored panel: detail without losing the list behind it.
@@ -22,17 +23,35 @@ import { useDragDismiss, type DragAxis } from '../../lib/use-drag-dismiss';
  * for anything the user needs to reference while working elsewhere.
  */
 
+/*
+ * The vertical edges float: an 8px margin and a rounded panel, so the page
+ * behind reads as still there. The horizontal edges are flush sheets with a
+ * 40px leading radius, the shape a phone's own sheets have.
+ */
 const sheet = cva(
-  ['fixed z-50 flex flex-col border-border bg-surface shadow-xl', 'focus-visible:outline-none'],
+  ['fixed z-50 flex flex-col bg-surface-raised text-fg shadow-xl', 'focus-visible:outline-none'],
   {
     variants: {
       side: {
         right:
-          'inset-y-0 right-0 h-full w-full border-l pe-safe-right sm:max-w-md data-[state=open]:animate-slide-in-right data-[state=closed]:animate-slide-out-right',
-        left: 'inset-y-0 left-0 h-full w-full border-r ps-safe-left sm:max-w-md data-[state=open]:animate-slide-in-left data-[state=closed]:animate-slide-out-left',
+          'inset-y-2 right-2 w-[calc(100%-1rem)] rounded-lg pe-safe-right sm:max-w-md data-[state=open]:animate-slide-in-right data-[state=closed]:animate-slide-out-right',
+        left: 'inset-y-2 left-2 w-[calc(100%-1rem)] rounded-lg ps-safe-left sm:max-w-md data-[state=open]:animate-slide-in-left data-[state=closed]:animate-slide-out-left',
         bottom:
-          'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl border-t pb-safe-bottom data-[state=open]:animate-slide-in-bottom data-[state=closed]:animate-slide-out-bottom',
-        top: 'inset-x-0 top-0 max-h-[92dvh] rounded-b-2xl border-b pt-safe-top data-[state=open]:animate-slide-in-top data-[state=closed]:animate-slide-out-top',
+          'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl pb-safe-bottom data-[state=open]:animate-slide-in-bottom data-[state=closed]:animate-slide-out-bottom',
+        top: 'inset-x-0 top-0 max-h-[92dvh] rounded-b-2xl pt-safe-top data-[state=open]:animate-slide-in-top data-[state=closed]:animate-slide-out-top',
+        /*
+         * The default: a side panel at a desk, a bottom sheet under a finger.
+         * A thumb reaches the bottom of a phone and not its far edge, and a
+         * panel that covers the whole screen from the right is a page that
+         * forgot it was one. Decided by the pointer, never the window width.
+         */
+        auto: cn(
+          'inset-y-2 right-2 w-[calc(100%-1rem)] rounded-lg pe-safe-right sm:max-w-md',
+          'data-[state=open]:animate-slide-in-right data-[state=closed]:animate-slide-out-right',
+          'touch:inset-x-0 touch:top-auto touch:bottom-0 touch:w-full touch:max-w-none! touch:pe-0',
+          'touch:rounded-none touch:rounded-t-2xl touch:pb-safe-bottom',
+          'touch:data-[state=open]:animate-slide-in-bottom touch:data-[state=closed]:animate-slide-out-bottom',
+        ),
       },
       size: {
         sm: '',
@@ -46,18 +65,25 @@ const sheet = cva(
     compoundVariants: [
       // Width applies to the vertical edges, height to the horizontal ones, so
       // one `size` prop cannot be a single class list.
-      { side: ['left', 'right'], size: 'sm', class: 'sm:max-w-sm' },
-      { side: ['left', 'right'], size: 'md', class: 'sm:max-w-md' },
-      { side: ['left', 'right'], size: 'lg', class: 'sm:max-w-2xl' },
-      { side: ['left', 'right'], size: 'xl', class: 'sm:max-w-4xl' },
-      { side: ['left', 'right'], size: 'full', class: 'sm:max-w-none' },
+      { side: ['left', 'right', 'auto'], size: 'sm', class: 'sm:max-w-sm' },
+      { side: ['left', 'right', 'auto'], size: 'md', class: 'sm:max-w-md' },
+      { side: ['left', 'right', 'auto'], size: 'lg', class: 'sm:max-w-2xl' },
+      { side: ['left', 'right', 'auto'], size: 'xl', class: 'sm:max-w-4xl' },
+      { side: ['left', 'right', 'auto'], size: 'full', class: 'sm:max-w-none' },
       { side: ['top', 'bottom'], size: 'sm', class: 'max-h-[40dvh]' },
       { side: ['top', 'bottom'], size: 'md', class: 'max-h-[65dvh]' },
       { side: ['top', 'bottom'], size: 'lg', class: 'max-h-[92dvh]' },
       { side: ['top', 'bottom'], size: 'xl', class: 'max-h-[92dvh]' },
       { side: ['top', 'bottom'], size: 'full', class: 'h-dvh max-h-dvh' },
+      // Percentages of the containing block rather than `dvh`: the same thing
+      // on a phone, and still right when the sheet is mounted in a frame
+      // narrower and shorter than the window, as a phone preview is.
+      { side: 'auto', size: 'sm', class: 'touch:max-h-[40%]' },
+      { side: 'auto', size: 'md', class: 'touch:max-h-[65%]' },
+      { side: 'auto', size: 'lg', class: 'touch:max-h-[92%]' },
+      { side: 'auto', size: 'full', class: 'touch:h-full touch:max-h-full' },
     ],
-    defaultVariants: { side: 'right', size: 'md' },
+    defaultVariants: { side: 'auto', size: 'md' },
   },
 );
 
@@ -104,8 +130,11 @@ export function SheetContent({
   swipeToDismiss,
   ...props
 }: SheetContentProps): JSX.Element {
-  const resolvedSide = side ?? 'right';
   const coarse = useCoarsePointer();
+  const auto = side === undefined || side === null || side === 'auto';
+  // Which edge the panel is actually on, for the gesture. `auto` is a bottom
+  // sheet exactly when the `touch:` classes above make it one.
+  const resolvedSide = auto ? (coarse ? 'bottom' : 'right') : side;
   const reducedMotion = usePrefersReducedMotion();
 
   /*
@@ -149,21 +178,27 @@ export function SheetContent({
    * a full-height panel is the universal look of a resize handle, so drawing one
    * promises resizing and delivers dismissal.
    */
-  const handle = dragEnabled && (resolvedSide === 'bottom' || resolvedSide === 'top');
+  const handle = auto || (dragEnabled && (resolvedSide === 'bottom' || resolvedSide === 'top'));
   const grabHandle = (
     <div
       // Decorative. The gesture it advertises is an enhancement over the close
       // button and Escape, both of which remain, so there is nothing here for a
       // screen reader to act on.
       aria-hidden="true"
-      className="grid h-6 shrink-0 cursor-grab place-items-center active:cursor-grabbing"
+      className={cn(
+        'grid h-5 shrink-0 cursor-grab place-items-center active:cursor-grabbing',
+        // Tucked into the header's top padding rather than stacked above it.
+        auto || resolvedSide === 'bottom' ? 'pt-2 -mb-3' : 'pb-2 -mt-3',
+        // An `auto` sheet is only a bottom sheet under a finger.
+        auto && 'hidden touch:grid',
+      )}
     >
-      <div className="h-1 w-9 rounded-full bg-border-strong" />
+      <div className="h-[5px] w-9 rounded-full bg-surface-active" />
     </div>
   );
 
   return (
-    <DialogPrimitive.Portal>
+    <DialogPrimitive.Portal container={usePortalContainer()}>
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(
@@ -198,11 +233,11 @@ export function SheetContent({
             thumb. In flow rather than absolutely positioned, so it takes its own
             height and the header below it starts underneath, an absolute handle
             sits on top of the sheet's title. */}
-        {handle && resolvedSide === 'bottom' ? grabHandle : null}
+        {handle && (auto || resolvedSide === 'bottom') ? grabHandle : null}
         {children}
         {/* Top sheet: same affordance, at that panel's own free edge, which is
             the bottom one. Last in flow for the same reason. */}
-        {handle && resolvedSide === 'top' ? grabHandle : null}
+        {handle && !auto && resolvedSide === 'top' ? grabHandle : null}
         {/*
          * The gesture's handle on Radix. Kept mounted independently of
          * `showCloseButton`, because a panel can legitimately have no visible
@@ -224,8 +259,8 @@ export function SheetContent({
         {showCloseButton ? (
           <DialogPrimitive.Close
             className={cn(
-              'absolute top-4 right-4 grid size-8 place-items-center rounded-sm text-fg-subtle tap-target',
-              'transition-colors hover:bg-surface-hover hover:text-fg',
+              'absolute top-4 right-4 grid size-8 place-items-center rounded-full tap-target',
+              'bg-surface-sunken text-fg transition-colors hover:bg-surface-hover',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
             )}
           >
@@ -242,7 +277,7 @@ export function SheetHeader({ className, ...props }: ComponentPropsWithoutRef<'d
   return (
     <div
       className={cn(
-        'shrink-0 space-y-1 border-b border-border px-5 py-4 pr-14 pt-safe-top',
+        'shrink-0 space-y-1 px-5 pt-[max(1.25rem,var(--spacing-safe-top))] pb-2 pr-14',
         className,
       )}
       {...props}
@@ -255,7 +290,10 @@ export function SheetTitle({
   ...props
 }: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>): JSX.Element {
   return (
-    <DialogPrimitive.Title className={cn('text-lg font-semibold text-fg', className)} {...props} />
+    <DialogPrimitive.Title
+      className={cn('font-display text-lg font-bold tracking-tight text-fg', className)}
+      {...props}
+    />
   );
 }
 
@@ -286,9 +324,9 @@ export function SheetFooter({ className, ...props }: ComponentPropsWithoutRef<'d
   return (
     <div
       className={cn(
-        'flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-surface px-5 py-3',
-        'sm:flex-row sm:justify-end',
-        '[&>*]:w-full sm:[&>*]:w-auto',
+        'flex shrink-0 flex-wrap justify-end gap-2 bg-surface-raised px-5 pt-3 pb-5',
+        // Under a thumb the actions share the row, each a full-width target.
+        'touch:[&>*]:flex-1',
         className,
       )}
       {...props}

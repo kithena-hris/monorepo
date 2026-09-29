@@ -29,7 +29,16 @@
  * completely different hit areas. These ask the question that actually
  * determines the answer.
  */
-@custom-variant touch (@media (pointer: coarse));
+/* A finger, whether the media query says so or a subtree declares it with
+   `data-pointer="coarse"` (see the density block in tokens.css). */
+@custom-variant touch {
+  @media (pointer: coarse) {
+    @slot;
+  }
+  &:where([data-pointer='coarse'], [data-pointer='coarse'] *) {
+    @slot;
+  }
+}
 @custom-variant stylus (@media (pointer: fine) and (hover: none));
 @custom-variant pointer-fine (@media (pointer: fine));
 
@@ -49,10 +58,15 @@
   /* ------------------------------------------------------------------ */
   --color-canvas: var(--reach-color-canvas);
   --color-surface: var(--reach-color-surface);
+  --color-surface-raised: var(--reach-color-surface-raised);
   --color-surface-sunken: var(--reach-color-surface-sunken);
   --color-surface-hover: var(--reach-color-surface-hover);
   --color-surface-active: var(--reach-color-surface-active);
   --color-overlay: var(--reach-color-overlay);
+  --color-glass: var(--reach-color-glass);
+  --color-glass-line: var(--reach-color-glass-line);
+  --color-invert: var(--reach-color-invert);
+  --color-fg-on-invert: var(--reach-color-fg-on-invert);
 
   --color-fg: var(--reach-color-fg);
   --color-fg-muted: var(--reach-color-fg-muted);
@@ -97,6 +111,13 @@
   --color-info-border: var(--reach-color-info-border);
   --color-info-fg: var(--reach-color-info-fg);
 
+  --color-chart-1: var(--reach-color-chart-1);
+  --color-chart-2: var(--reach-color-chart-2);
+  --color-chart-3: var(--reach-color-chart-3);
+  --color-chart-4: var(--reach-color-chart-4);
+  --color-chart-5: var(--reach-color-chart-5);
+  --color-chart-6: var(--reach-color-chart-6);
+
   /* ------------------------------------------------------------------ */
   /* Type                                                                */
   /*                                                                     */
@@ -104,9 +125,15 @@
   /* call: payroll and leave balances are read in columns, and            */
   /* proportional digits make a column of money unscannable.              */
   /* ------------------------------------------------------------------ */
+  /* The platform's own face: SF Pro on Apple devices, Segoe UI Variable on
+     Windows. Each ships optical sizes and tracking tables a web font would
+     have to approximate, and costs nothing to load. */
   --font-sans:
-    'InterVariable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI',
+    system-ui, sans-serif;
+  --font-display:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI',
+    system-ui, sans-serif;
   --font-mono:
     ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
@@ -129,46 +156,45 @@
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
   --text-2xs--letter-spacing: 0.01em;
-  --text-xs: 0.75rem;
-  --text-xs--line-height: 1.125rem;
+  --text-xs: var(--reach-text-xs);
+  --text-xs--line-height: 1.4;
   --text-xs--letter-spacing: 0.006em;
-  /* `sm` and `base` were 13px and 14px, and the screens built on them read as
-     fine print: descriptions, table cells and navigation all sat at 13px. One
-     step up each, with the leading opened to match, is the readability pass
-     that reaches every screen at once rather than one class at a time. */
-  --text-sm: 0.875rem;
-  --text-sm--line-height: 1.375rem;
+  --text-sm: var(--reach-text-sm);
+  --text-sm--line-height: 1.4;
   --text-sm--letter-spacing: 0.004em;
-  --text-base: 0.9375rem;
-  --text-base--line-height: 1.5rem;
+  --text-base: var(--reach-text-base);
+  --text-base--line-height: var(--reach-text-base-leading);
   --text-base--letter-spacing: 0.002em;
   /* The hinge of the ramp: 16px is where the face is already correct, so it
      takes no correction in either direction. */
-  --text-md: 1rem;
-  --text-md--line-height: 1.5rem;
+  --text-md: var(--reach-text-md);
+  --text-md--line-height: 1.55;
   --text-md--letter-spacing: 0em;
-  --text-lg: 1.125rem;
-  --text-lg--line-height: 1.625rem;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.25;
   --text-lg--letter-spacing: -0.01em;
-  --text-xl: 1.375rem;
-  --text-xl--line-height: 1.875rem;
+  --text-xl: 1.5rem;
+  --text-xl--line-height: 1.2;
   --text-xl--letter-spacing: -0.015em;
-  --text-2xl: 1.75rem;
-  --text-2xl--line-height: 2.25rem;
-  --text-2xl--letter-spacing: -0.02em;
-  --text-3xl: 2.25rem;
-  --text-3xl--line-height: 2.625rem;
-  --text-3xl--letter-spacing: -0.025em;
+  --text-2xl: 2.125rem;
+  --text-2xl--line-height: 1.1;
+  --text-2xl--letter-spacing: -0.025em;
+  --text-3xl: 3.25rem;
+  --text-3xl--line-height: 1.05;
+  --text-3xl--letter-spacing: -0.035em;
 
   /* ------------------------------------------------------------------ */
   /* Shape                                                               */
   /* ------------------------------------------------------------------ */
-  --radius-xs: 0.25rem;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.25rem;
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.625rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --radius-2xl: 2.5rem;
+  /* Buttons, inputs' pill cousins, chips: fully round. One knob, so a
+     product that wants squarer controls changes one value. */
+  --radius-control: var(--reach-radius-control);
 
   --shadow-xs: var(--reach-shadow-xs);
   --shadow-sm: var(--reach-shadow-sm);
@@ -207,6 +233,7 @@
   --spacing-control-sm: var(--reach-control-sm);
   --spacing-control-md: var(--reach-control-md);
   --spacing-control-lg: var(--reach-control-lg);
+  --spacing-field: var(--reach-field-md);
   --spacing-tap: var(--reach-tap-min);
 
   /* Safe areas. `pb-safe-bottom` on a sticky action bar is the difference
@@ -489,10 +516,7 @@
   @keyframes flyout-out {
     to {
       opacity: 0;
-      transform: translate(
-          calc(var(--flyout-x, -8px) * 0.75),
-          calc(var(--flyout-y, 0px) * 0.75)
-        )
+      transform: translate(calc(var(--flyout-x, -8px) * 0.75), calc(var(--flyout-y, 0px) * 0.75))
         scale(0.99);
     }
   }
@@ -612,11 +636,14 @@
       transform: scaleX(0);
     }
   }
-  /* Paired with `pathLength="1"`, so the dash length is the whole path
-     regardless of how long the path actually is. */
+  /* A wipe from the start edge, not a dash. The chart lines are drawn with
+     `vector-effect: non-scaling-stroke` in a stretched viewBox, and Chrome
+     measures a dash on such a path in screen pixels while `pathLength` stays
+     in user units: a one-unit dash came out as a line broken into pieces.
+     Clipping the element is independent of how its stroke is measured. */
   @keyframes draw-line {
     from {
-      stroke-dashoffset: 1;
+      clip-path: inset(0 100% 0 0);
     }
   }
   /* Paired with `pathLength="1"`, so the whole ring is one unit and an arc is
@@ -659,7 +686,7 @@
  * placed absolutely, like a dialog's close button.
  */
 @utility tap-target {
-  @media (pointer: coarse) {
+  @variant touch {
     &::before {
       content: '';
       position: absolute;

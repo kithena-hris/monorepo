@@ -170,36 +170,44 @@ export function Dropzone({
           input.current?.click();
         }}
         className={cn(
-          'flex w-full items-center rounded-md border-2 border-dashed text-start',
+          'group/drop flex w-full items-center rounded-[1.125rem] border-2 border-dashed touch:rounded-[1.375rem]',
           'transition-[background-color,border-color] duration-(--animate-duration-fast)',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-          variant === 'panel' ? 'flex-col justify-center gap-2 px-6 py-8' : 'gap-3 px-3 py-2',
+          variant === 'panel'
+            ? 'flex-col justify-center gap-2.5 px-5 py-7 text-center'
+            : 'gap-3 px-4 py-3 text-start',
           disabled
-            ? 'cursor-not-allowed border-border bg-surface-sunken opacity-60'
-            : 'cursor-pointer border-border hover:border-accent hover:bg-accent-subtle/40',
+            ? 'cursor-not-allowed border-border-strong opacity-50'
+            : 'cursor-pointer border-border-strong hover:border-accent hover:bg-accent-subtle/40',
           over && !rejecting && 'border-accent bg-accent-subtle',
           rejecting && 'border-danger bg-danger-subtle',
         )}
       >
         {children ?? (
           <>
-            <Upload
+            {/* The icon sits in a filled disc, which turns accent while a
+                file is over the zone: the one change visible from across the
+                room. */}
+            <span
               aria-hidden
               className={cn(
-                'shrink-0 text-fg-subtle',
-                variant === 'panel' ? 'size-6' : 'size-4',
-                over && !rejecting && 'text-accent-fg',
-                rejecting && 'text-danger-fg',
+                'grid shrink-0 place-items-center rounded-full bg-surface-sunken text-fg-muted',
+                'transition-colors duration-(--animate-duration-fast)',
+                variant === 'panel' ? 'size-12 [&_svg]:size-5.5' : 'size-9 [&_svg]:size-4.5',
+                over && !rejecting && 'bg-accent-solid text-fg-on-accent',
+                rejecting && 'bg-danger-solid text-fg-on-solid',
               )}
-            />
+            >
+              <Upload />
+            </span>
             <span className="min-w-0">
-              <span className="block truncate text-sm font-medium text-fg">{label}</span>
+              <span className="block truncate text-sm font-semibold text-fg">{label}</span>
               {/* The reject message replaces the hint rather than joining it:
                   two lines of instruction at the moment of a drop is one too
                   many to read. */}
               <span
                 className={cn(
-                  'block truncate text-xs',
+                  'mt-0.5 block truncate text-xs',
                   rejecting ? 'text-danger-fg' : 'text-fg-muted',
                 )}
               >

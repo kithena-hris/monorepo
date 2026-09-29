@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { ArrowRight, Check, Download, Plus, Trash } from 'lucide-react';
+import { ArrowRight, Check, Download, Plus, Search, Trash } from 'lucide-react';
 
+import { Badge } from '../badge/badge';
+import { Kbd } from '../kbd/kbd';
 import { Button } from './button';
 
 const meta = {
@@ -20,11 +22,15 @@ const meta = {
           '| Variant | Use it for |',
           '| --- | --- |',
           '| `primary` | The single action the screen exists to perform. |',
-          '| `secondary` | The everyday default: cancel, back, export, filter. |',
-          '| `subtle` | A promoted secondary action that must not outrank the primary. |',
+          '| `secondary` | The everyday default, a quiet fill: cancel, back, export, filter. |',
+          '| `tinted` | A promoted secondary action that must not outrank the primary. `subtle` is the same thing under its earlier name. |',
+          '| `outline` | A secondary action on a filled surface, where a grey fill would disappear. |',
           '| `ghost` | Actions inside dense surfaces: table rows, toolbars, card headers. |',
-          '| `destructive` | Deletes or offboards. Always behind a confirmation. |',
-          '| `link` | Inline in prose, where a rectangle would break the line. |',
+          '| `danger` | Deletes or offboards. Always behind a confirmation. `destructive` is its earlier name. |',
+          '| `danger-soft` | A removal that is one of several row actions, where solid red would shout. |',
+          '| `invert` | The one action on a tinted or image surface, where the accent would not hold. |',
+          '| `on-invert` | A secondary action on an inverted fill, such as Discard on a save bar. |',
+          '| `link` | Inline in prose, where a pill would break the line. |',
           '',
           '### Guarantees',
           '',
@@ -39,20 +45,33 @@ const meta = {
     variant: {
       description: 'Visual weight, which is the same thing as importance.',
       control: 'inline-radio',
-      options: ['primary', 'secondary', 'subtle', 'ghost', 'destructive', 'link'],
+      options: [
+        'primary',
+        'secondary',
+        'tinted',
+        'outline',
+        'ghost',
+        'danger',
+        'danger-soft',
+        'invert',
+        'link',
+      ],
       table: {
-        type: { summary: "'primary' | 'secondary' | 'subtle' | 'ghost' | 'destructive' | 'link'" },
+        type: {
+          summary:
+            "'primary' | 'secondary' | 'tinted' | 'outline' | 'ghost' | 'danger' | 'danger-soft' | 'invert' | 'link'",
+        },
         defaultValue: { summary: 'secondary' },
         category: 'Appearance',
       },
     },
     size: {
       description:
-        'Height, taken from the shared control scale so a button lines up with an input on the same row.',
+        'Height: 28/32/40/48px at a desk, 32/36/52/56px under a finger. `md` and `lg` share the control scale, so a button lines up with an input on the same row.',
       control: 'inline-radio',
-      options: ['sm', 'md', 'lg'],
+      options: ['xs', 'sm', 'md', 'lg'],
       table: {
-        type: { summary: "'sm' | 'md' | 'lg'" },
+        type: { summary: "'xs' | 'sm' | 'md' | 'lg'" },
         defaultValue: { summary: 'md' },
         category: 'Appearance',
       },
@@ -176,17 +195,57 @@ export const Variants: Story = {
       <Button {...args} variant="secondary">
         Secondary
       </Button>
-      <Button {...args} variant="subtle">
-        Subtle
+      <Button {...args} variant="tinted">
+        Tinted
+      </Button>
+      <Button {...args} variant="outline">
+        Outline
       </Button>
       <Button {...args} variant="ghost">
         Ghost
       </Button>
-      <Button {...args} variant="destructive">
-        Destructive
+      <Button {...args} variant="danger">
+        Danger
+      </Button>
+      <Button {...args} variant="danger-soft">
+        Danger soft
+      </Button>
+      <Button {...args} variant="invert">
+        Invert
       </Button>
       <Button {...args} variant="link">
         Link
+      </Button>
+      {/* Only readable on the fill it is for, so it is shown on one. */}
+      <span className="inline-flex rounded-control bg-invert p-1.5 [--reach-color-border-focus:var(--reach-color-fg-on-invert)]">
+        <Button {...args} variant="on-invert">
+          On invert
+        </Button>
+      </span>
+    </div>
+  ),
+};
+
+export const WithCount: Story = {
+  name: 'With a count',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A count rides inside the pill as a `Badge`, and the accessible name carries the number, so "Approvals, 3" is what a screen reader hears.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button {...args} variant="secondary" aria-label="Approvals, 3 waiting">
+        Approvals
+        <Badge size="sm" tone="danger" variant="solid">
+          3
+        </Badge>
+      </Button>
+      <Button {...args} variant="tinted" startIcon={<Plus />}>
+        Add people
       </Button>
     </div>
   ),
@@ -197,12 +256,15 @@ export const Sizes: Story = {
     docs: {
       description: {
         story:
-          'Heights come from `--spacing-control-{sm,md,lg}`, shared with `Input` and `SelectTrigger`. That is why a filter bar lines up without anyone nudging a margin.',
+          '`md` and `lg` come from `--spacing-control-{md,lg}`, shared with `Input` and `SelectTrigger`, which is why a filter bar lines up without anyone nudging a margin. `xs` and `sm` are for dense rows and toolbars.',
       },
     },
   },
   render: (args) => (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3">
+      <Button {...args} size="xs">
+        Extra small
+      </Button>
       <Button {...args} size="sm">
         Small
       </Button>
@@ -240,6 +302,13 @@ export const WithIcons: Story = {
       <Button {...args} variant="secondary" startIcon={<Trash />} aria-label="Delete record">
         {null}
       </Button>
+      <Button {...args} variant="secondary" startIcon={<Search />} aria-keyshortcuts="Meta+K">
+        Search
+        <span className="inline-flex gap-0.5" aria-hidden>
+          <Kbd keyName="mod" />
+          <Kbd>K</Kbd>
+        </span>
+      </Button>
     </div>
   ),
 };
@@ -250,17 +319,23 @@ export const Loading: Story = {
     docs: {
       description: {
         story:
-          'The button keeps its exact width, so a double-click never lands on whatever moved into that spot. `aria-busy` and a named `loadingLabel` carry the same fact to assistive tech.',
+          'The button keeps its width and its colour, so a double-click never lands on whatever moved into that spot. With a leading icon the spinner takes the icon’s place and the label stays; without one the spinner covers the label. `aria-busy` and a named `loadingLabel` carry the same fact to assistive tech.',
       },
     },
   },
   render: (args) => (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3">
+      <Button {...args} startIcon={<Check />} loadingLabel="Saving">
+        Saving
+      </Button>
+      <Button {...args} variant="secondary" startIcon={<Download />} loadingLabel="Exporting">
+        Exporting
+      </Button>
       <Button {...args}>Submit request</Button>
       <Button {...args} variant="secondary" loadingLabel="Saving the draft">
         Save draft
       </Button>
-      <Button {...args} variant="destructive" size="lg" loadingLabel="Offboarding">
+      <Button {...args} variant="danger" size="lg" loadingLabel="Offboarding">
         Offboard
       </Button>
     </div>
@@ -287,6 +362,12 @@ export const Disabled: Story = {
       </Button>
       <Button {...args} variant="ghost">
         Reassign
+      </Button>
+      <Button {...args} variant="outline">
+        Export
+      </Button>
+      <Button {...args} variant="danger">
+        Offboard
       </Button>
     </div>
   ),

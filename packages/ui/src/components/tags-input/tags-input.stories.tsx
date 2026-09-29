@@ -166,7 +166,9 @@ export const Validated: Story = {
     docs: {
       description: {
         story: [
-          'Try `not-an-address`, then a personal domain, then the same address twice. Each refusal says what was wrong in words.',
+          'Try `not-an-address`, then a personal domain, then the same address twice. Each refusal says what was wrong in words, and a duplicate lights up the tag it ran into.',
+          '',
+          'A value handed in that `validate` would refuse, `jonas@acme` here, stays in the list marked as invalid, so an imported list shows what needs fixing instead of quietly losing it.',
           '',
           'The email check here is a shape check, not a validator. The only way to know an address exists is to send to it, a regex that rejects `user+tag@sub.domain.museum` has broken a valid address to catch a typo it would not have caught anyway.',
         ].join('\n'),
@@ -174,7 +176,7 @@ export const Validated: Story = {
     },
   },
   render: function ValidatedStory(args) {
-    const [value, setValue] = useState<readonly string[]>(['grace@acme.example']);
+    const [value, setValue] = useState<readonly string[]>(['grace@acme.example', 'jonas@acme']);
     const addressList = 'ada@acme.example, radia@acme.example; barbara@acme.example';
     return (
       <div className="max-w-md space-y-3">
@@ -291,7 +293,7 @@ export const Limits: Story = {
 export const States: Story = {
   name: 'Sizes and states',
   render: (args) => (
-    <div className="grid max-w-3xl gap-4 md:grid-cols-2">
+    <div className="grid max-w-3xl gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
       <TagsInput
         {...args}
         size="sm"

@@ -4,7 +4,6 @@ import { fn } from 'storybook/test';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
 import { SortableList, type SortableItem } from './sortable';
 
 interface Approver extends SortableItem {
@@ -78,43 +77,42 @@ export const Playground: Story = {
     const [items, setItems] = useState<Approver[]>(approvers);
 
     return (
-      <Card className="max-w-lg">
-        <CardHeader>
-          <CardTitle>Approval chain</CardTitle>
+      <section className="max-w-lg space-y-3">
+        <header className="flex items-center justify-between gap-3 px-1">
+          <h3 className="text-md font-semibold text-fg">Approval chain</h3>
           <Badge size="sm">{items.length} steps</Badge>
-        </CardHeader>
-        <CardContent>
-          <SortableList
-            {...args}
-            items={items}
-            onReorder={(move) => {
-              args.onReorder(move);
-              setItems((current) => {
-                const byId = new Map(current.map((item) => [item.id, item]));
-                return move.order.flatMap((id) => byId.get(id) ?? []);
-              });
-            }}
-          >
-            {(item, info) => (
-              <div className="flex items-center gap-2">
-                <span className="w-5 shrink-0 text-2xs tabular-nums text-fg-subtle">
-                  {info.index + 1}
-                </span>
-                <Avatar size="sm" name={item.name} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-fg">{item.name}</p>
-                  <p className="truncate text-2xs text-fg-subtle">{item.role}</p>
-                </div>
-                {item.locked === true ? (
-                  <Badge size="sm" tone="neutral">
-                    Fixed
-                  </Badge>
-                ) : null}
+        </header>
+
+        <SortableList
+          {...args}
+          items={items}
+          onReorder={(move) => {
+            args.onReorder(move);
+            setItems((current) => {
+              const byId = new Map(current.map((item) => [item.id, item]));
+              return move.order.flatMap((id) => byId.get(id) ?? []);
+            });
+          }}
+        >
+          {(item, info) => (
+            <div className="flex items-center gap-3">
+              <span className="w-5 shrink-0 text-xs font-semibold tabular-nums text-fg-subtle">
+                {info.index + 1}
+              </span>
+              <Avatar size="sm" name={item.name} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-fg">{item.name}</p>
+                <p className="truncate text-xs text-fg-muted">{item.role}</p>
               </div>
-            )}
-          </SortableList>
-        </CardContent>
-      </Card>
+              {item.locked === true ? (
+                <Badge size="sm" tone="neutral">
+                  Fixed
+                </Badge>
+              ) : null}
+            </div>
+          )}
+        </SortableList>
+      </section>
     );
   },
 };
@@ -133,31 +131,30 @@ export const Locked: Story = {
     const [items, setItems] = useState<Approver[]>(approvers);
 
     return (
-      <Card className="max-w-lg">
-        <CardHeader>
-          <CardTitle>Approval chain</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SortableList
-            {...args}
-            items={items}
-            onReorder={(move) => {
-              args.onReorder(move);
-              setItems((current) => {
-                const byId = new Map(current.map((item) => [item.id, item]));
-                return move.order.flatMap((id) => byId.get(id) ?? []);
-              });
-            }}
-          >
-            {(item) => (
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm text-fg">{item.name}</span>
-                <span className="truncate text-2xs text-fg-subtle">{item.role}</span>
-              </div>
-            )}
-          </SortableList>
-        </CardContent>
-      </Card>
+      <section className="max-w-lg space-y-3">
+        <header className="flex items-center justify-between gap-3 px-1">
+          <h3 className="text-md font-semibold text-fg">Approval chain</h3>
+        </header>
+
+        <SortableList
+          {...args}
+          items={items}
+          onReorder={(move) => {
+            args.onReorder(move);
+            setItems((current) => {
+              const byId = new Map(current.map((item) => [item.id, item]));
+              return move.order.flatMap((id) => byId.get(id) ?? []);
+            });
+          }}
+        >
+          {(item) => (
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-sm text-fg">{item.name}</span>
+              <span className="truncate text-xs text-fg-muted">{item.role}</span>
+            </div>
+          )}
+        </SortableList>
+      </section>
     );
   },
 };
@@ -177,26 +174,25 @@ export const WholeRow: Story = {
     const [items, setItems] = useState<Approver[]>(approvers.filter((item) => !item.locked));
 
     return (
-      <Card className="max-w-lg">
-        <CardHeader>
-          <CardTitle>Interview stages</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SortableList
-            {...args}
-            items={items}
-            onReorder={(move) => {
-              args.onReorder(move);
-              setItems((current) => {
-                const byId = new Map(current.map((item) => [item.id, item]));
-                return move.order.flatMap((id) => byId.get(id) ?? []);
-              });
-            }}
-          >
-            {(item) => <span className="truncate text-sm text-fg">{item.name}</span>}
-          </SortableList>
-        </CardContent>
-      </Card>
+      <section className="max-w-lg space-y-3">
+        <header className="flex items-center justify-between gap-3 px-1">
+          <h3 className="text-md font-semibold text-fg">Interview stages</h3>
+        </header>
+
+        <SortableList
+          {...args}
+          items={items}
+          onReorder={(move) => {
+            args.onReorder(move);
+            setItems((current) => {
+              const byId = new Map(current.map((item) => [item.id, item]));
+              return move.order.flatMap((id) => byId.get(id) ?? []);
+            });
+          }}
+        >
+          {(item) => <span className="truncate text-sm text-fg">{item.name}</span>}
+        </SortableList>
+      </section>
     );
   },
 };
@@ -215,27 +211,26 @@ export const NamedRows: Story = {
     const [items, setItems] = useState<Approver[]>(approvers);
 
     return (
-      <Card className="max-w-lg">
-        <CardHeader>
-          <CardTitle>Approval chain</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SortableList
-            {...args}
-            items={items}
-            itemLabel={(item) => item.name}
-            onReorder={(move) => {
-              args.onReorder(move);
-              setItems((current) => {
-                const byId = new Map(current.map((item) => [item.id, item]));
-                return move.order.flatMap((id) => byId.get(id) ?? []);
-              });
-            }}
-          >
-            {(item) => <span className="truncate text-sm text-fg">{item.name}</span>}
-          </SortableList>
-        </CardContent>
-      </Card>
+      <section className="max-w-lg space-y-3">
+        <header className="flex items-center justify-between gap-3 px-1">
+          <h3 className="text-md font-semibold text-fg">Approval chain</h3>
+        </header>
+
+        <SortableList
+          {...args}
+          items={items}
+          itemLabel={(item) => item.name}
+          onReorder={(move) => {
+            args.onReorder(move);
+            setItems((current) => {
+              const byId = new Map(current.map((item) => [item.id, item]));
+              return move.order.flatMap((id) => byId.get(id) ?? []);
+            });
+          }}
+        >
+          {(item) => <span className="truncate text-sm text-fg">{item.name}</span>}
+        </SortableList>
+      </section>
     );
   },
 };

@@ -362,7 +362,7 @@ export const Failure: Story = {
               Copy (works here)
             </Button>
             <Button
-              variant="destructive"
+              variant="danger"
               onClick={() => {
                 void refused.copy('ES91 2100 0418 4502 0005 1332');
               }}

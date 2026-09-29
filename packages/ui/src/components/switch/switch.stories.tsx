@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { Badge } from '../badge/badge';
+import { Field, FieldControl, FieldDescription, FieldError, FieldLabel } from '../field/field';
 import { Separator } from '../separator/separator';
 import { Switch } from './switch';
 
@@ -56,8 +56,18 @@ const meta = {
       control: false,
       table: { type: { summary: '(checked: boolean) => void' }, category: 'State' },
     },
+    loading: {
+      description:
+        'The change is being saved: a spinner in the thumb, `aria-busy`, and presses ignored until it settles. Roll back and show a `FieldError` if it fails.',
+      control: 'boolean',
+      table: {
+        type: { summary: 'boolean' },
+        defaultValue: { summary: 'false' },
+        category: 'State',
+      },
+    },
     disabled: {
-      description: 'Blocks interaction. Use it while a change is in flight, and say why nearby.',
+      description: 'Blocks interaction, for a setting fixed by something else. Say why nearby.',
       control: 'boolean',
       table: {
         type: { summary: 'boolean' },
@@ -221,54 +231,47 @@ export const Pending: Story = {
     docs: {
       description: {
         story:
-          'The case a switch has to get right. It moves optimistically, disables while the write is in flight, and rolls back *visibly* with a message when the server refuses. A switch that silently snaps back is indistinguishable from a broken finger.',
+          'The case a switch has to get right. It moves optimistically, `loading` puts a spinner in the thumb and ignores presses while the write is in flight, and it rolls back *visibly*, with a `FieldError` saying so, when the server refuses. A switch that silently snaps back is indistinguishable from a broken finger. Flip the second one: it fails every time.',
       },
     },
   },
   render: function PendingStory() {
     const [checked, setChecked] = useState(false);
-    const [state, setState] = useState<'idle' | 'saving' | 'failed'>('idle');
+    const [state, setState] = useState<'idle' | 'saving' | 'failed'>('failed');
 
     return (
-      <div className="max-w-md space-y-2">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <label htmlFor="payroll-lock" className="text-base font-medium text-fg">
-              Lock the August pay run
-            </label>
-            <p className="mt-0.5 text-sm text-fg-muted">
-              Stops further edits. Reversible until the run is submitted to the bank.
-            </p>
+      <div className="w-[22rem] max-w-full space-y-4">
+        <Field orientation="horizontal">
+          <div className="min-w-0">
+            <FieldLabel>Share calendar</FieldLabel>
+            <FieldDescription>Saving…</FieldDescription>
           </div>
-          <div className="mt-1 flex shrink-0 items-center gap-2">
-            {state === 'saving' ? <Badge size="sm">Saving…</Badge> : null}
+          <FieldControl>
+            <Switch checked loading />
+          </FieldControl>
+        </Field>
+        <Field orientation="horizontal" invalid={state === 'failed'}>
+          <div className="min-w-0">
+            <FieldLabel>Share calendar</FieldLabel>
+            {state === 'saving' ? <FieldDescription>Saving…</FieldDescription> : null}
+            <FieldError>Couldn’t save. We turned it back off.</FieldError>
+          </div>
+          <FieldControl>
             <Switch
-              id="payroll-lock"
               checked={checked}
-              disabled={state === 'saving'}
+              loading={state === 'saving'}
               onCheckedChange={(next) => {
                 setChecked(next);
                 setState('saving');
-                // Stand-in for the mutation. The second flip fails, to show
-                // the rollback rather than only the happy path.
+                // Stand-in for the mutation, which always refuses here.
                 setTimeout(() => {
-                  if (next) {
-                    setState('idle');
-                  } else {
-                    setChecked(true);
-                    setState('failed');
-                  }
+                  setChecked(!next);
+                  setState('failed');
                 }, 900);
               }}
             />
-          </div>
-        </div>
-        {state === 'failed' ? (
-          <p role="alert" className="text-sm font-medium text-danger-fg">
-            Could not unlock: the run has already been sent to the bank. The switch has been put
-            back.
-          </p>
-        ) : null}
+          </FieldControl>
+        </Field>
       </div>
     );
   },

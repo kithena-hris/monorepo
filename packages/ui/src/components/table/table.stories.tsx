@@ -1,14 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { fn } from 'storybook/test';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import { Checkbox } from '../checkbox/checkbox';
 import { EmptyState, Skeleton } from '../feedback/feedback';
+import { KeyValues } from '../key-values/key-values';
 import { Money } from '../money/money';
 import { Button } from '../button/button';
-import { DataTable, type DataColumn, type DataTableSort } from './data-table';
+import { DataTable, type DataColumn } from './data-table';
 import {
   Table,
   TableBody,
@@ -75,6 +76,105 @@ const statusLabel = {
   'on-leave': 'On leave',
   offboarding: 'Offboarding',
 } as const;
+
+/** A wider cast for the stories that need teams, places and a salary to add up. */
+interface Person {
+  id: string;
+  name: string;
+  team: string;
+  location: string;
+  status: 'Active' | 'On leave' | 'Onboarding' | 'Offboarding' | 'Invited';
+  start: string;
+  fte: string;
+  salaryMinorUnits: string;
+  bonusMinorUnits: string;
+  change: string;
+}
+
+const people: Person[] = [
+  ['Priya Shah', 'Engineering', 'Berlin', 'Active', '2024-09-02', '1.0', 92000, 4600, '+4.5%'],
+  ['Jonas Weber', 'Engineering', 'Berlin', 'Active', '2021-01-14', '1.0', 118000, 8000, '+6.0%'],
+  ['Amara Okafor', 'Design', 'London', 'On leave', '2022-06-20', '0.8', 84000, 0, '—'],
+  ['Lucas Moreau', 'Sales', 'Paris', 'Onboarding', '2026-09-21', '1.0', 71000, 3550, '+3.0%'],
+  ['Mei Tanaka', 'Finance', 'Remote', 'Active', '2023-03-06', '0.6', 78000, 1200, '−2.0%'],
+  ['Diego Alvarez', 'Support', 'Madrid', 'Offboarding', '2020-11-02', '1.0', 66000, 0, '—'],
+  ['Sofia Lindqvist', 'People', 'Stockholm', 'Active', '2025-02-10', '1.0', 69000, 0, '—'],
+  ['Nora Becker', 'People', 'Berlin', 'Active', '2019-04-01', '1.0', 124000, 0, '—'],
+  ['Omar Haddad', 'Engineering', 'Remote', 'Active', '2023-07-18', '1.0', 88000, 0, '—'],
+  ['Yuki Sato', 'Engineering', 'Tokyo', 'Invited', '2026-10-01', '1.0', 90000, 0, '—'],
+  ['Tom Fischer', 'Sales', 'Munich', 'Active', '2022-05-09', '1.0', 97000, 0, '—'],
+  ['Zara Ahmed', 'Finance', 'London', 'Active', '2021-08-03', '1.0', 109000, 0, '—'],
+].map(([name, team, location, status, start, fte, salary, bonus, change], index) => ({
+  id: `P-${String(index + 1).padStart(3, '0')}`,
+  name: String(name),
+  team: String(team),
+  location: String(location),
+  status: status as Person['status'],
+  start: String(start),
+  fte: String(fte),
+  salaryMinorUnits: `${String(salary)}00`,
+  bonusMinorUnits: `${String(bonus)}00`,
+  change: String(change),
+}));
+
+const personTone = {
+  Active: 'success',
+  'On leave': 'warning',
+  Onboarding: 'info',
+  Offboarding: 'neutral',
+  Invited: 'accent',
+} as const;
+
+const shortDate = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+const personName: DataColumn<Person> = {
+  id: 'name',
+  header: 'Name',
+  sortBy: (p) => p.name,
+  cell: (p) => (
+    <span className="flex min-w-0 items-center gap-2.5">
+      <Avatar size="sm" name={p.name} />
+      <span className="truncate font-semibold">{p.name}</span>
+    </span>
+  ),
+};
+
+const personColumns: DataColumn<Person>[] = [
+  personName,
+  { id: 'team', header: 'Team', sortBy: (p) => p.team, cell: (p) => p.team },
+  { id: 'location', header: 'Location', sortBy: (p) => p.location, cell: (p) => p.location },
+  {
+    id: 'status',
+    header: 'Status',
+    width: '8rem',
+    cell: (p) => (
+      <Badge dot size="sm" tone={personTone[p.status]}>
+        {p.status}
+      </Badge>
+    ),
+  },
+  {
+    id: 'start',
+    header: 'Start date',
+    shortHeader: 'Started',
+    width: '8rem',
+    sortBy: (p) => p.start,
+    cell: (p) => (
+      <time dateTime={p.start} className="text-fg-muted">
+        {shortDate.format(new Date(p.start))}
+      </time>
+    ),
+  },
+];
+
+/** Adds minor-unit strings without leaving integers: money is never a float. */
+const sumMinor = (values: readonly string[]): string =>
+  values.reduce((total, value) => total + BigInt(value), 0n).toString();
 
 const meta = {
   title: 'Components/Table',
@@ -218,40 +318,91 @@ export const NumericAlignment: Story = {
   parameters: {
     docs: {
       description: {
-        story:
-          'The same column twice. On the left, `numeric`: right-aligned, tabular. On the right, default cells. Scan down each and the difference stops being a matter of taste.',
+        story: [
+          'Right-align numbers and money, with tabular figures and the same number of decimals down the whole column, so a column of amounts can be compared by eye. `numeric` does all three.',
+          '',
+          'Under a finger the row is a card, and the one figure it is compared on moves up beside the name: `cardTrailing` on the base salary. The other values wrap underneath, each after its `shortHeader`.',
+        ].join('\n'),
       },
     },
   },
-  render: () => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Employee</TableHead>
-          <TableHead numeric>numeric</TableHead>
-          <TableHead>default</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => (
-          <TableRow key={row.id}>
-            <TableCell>{row.name}</TableCell>
-            <TableCell numeric>
-              <Money minorUnits={row.salaryMinorUnits} currency="EUR" locale="en-IE" />
-            </TableCell>
-            <TableCell className="[font-variant-numeric:proportional-nums]">
-              <Money
-                minorUnits={row.salaryMinorUnits}
-                currency="EUR"
-                locale="en-IE"
-                className="[font-variant-numeric:proportional-nums]"
-              />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  ),
+  render: () => {
+    const shown = people.slice(0, 6);
+    return (
+      <div className="space-y-2">
+        <DataTable<Person>
+          label="Compensation"
+          rows={shown}
+          rowId={(p) => p.id}
+          describeRow={(p) => p.name}
+          columns={[
+            personName,
+            { id: 'team', header: 'Team', shortHeader: 'Team', cell: (p) => p.team },
+            {
+              id: 'fte',
+              header: 'FTE',
+              shortHeader: 'FTE',
+              numeric: true,
+              width: '4rem',
+              cell: (p) => p.fte,
+            },
+            {
+              id: 'salary',
+              header: 'Base salary',
+              numeric: true,
+              cardTrailing: true,
+              width: '8rem',
+              cell: (p) => <Money minorUnits={p.salaryMinorUnits} currency="EUR" locale="en-GB" />,
+            },
+            {
+              id: 'bonus',
+              header: 'Bonus',
+              shortHeader: 'Bonus',
+              numeric: true,
+              width: '7rem',
+              cell: (p) => <Money minorUnits={p.bonusMinorUnits} currency="EUR" locale="en-GB" />,
+            },
+            {
+              id: 'change',
+              header: 'Change',
+              shortHeader: 'Change',
+              numeric: true,
+              width: '6rem',
+              cell: (p) => (
+                <span
+                  className={
+                    p.change.startsWith('+')
+                      ? 'text-success-fg'
+                      : p.change.startsWith('−')
+                        ? 'text-danger-fg'
+                        : 'text-fg-subtle'
+                  }
+                >
+                  {p.change}
+                </span>
+              ),
+            },
+          ]}
+        />
+        <p className="flex justify-between px-1 text-sm text-fg-muted">
+          <span>Totals</span>
+          <span className="font-semibold text-fg tabular-nums">
+            <Money
+              minorUnits={sumMinor(shown.map((p) => p.salaryMinorUnits))}
+              currency="EUR"
+              locale="en-GB"
+            />
+            {' · '}
+            <Money
+              minorUnits={sumMinor(shown.map((p) => p.bonusMinorUnits))}
+              currency="EUR"
+              locale="en-GB"
+            />
+          </span>
+        </p>
+      </div>
+    );
+  },
 };
 
 export const InteractiveRows: Story = {
@@ -391,6 +542,10 @@ const dataColumns: DataColumn<Row>[] = [
   {
     id: 'hiredOn',
     header: 'Hired',
+    // The one column that reads as a bare value on a card without saying what
+    // it is: "2019-04-01" needs "Hired" in front of it; "Active" does not.
+    shortHeader: 'Hired',
+    numeric: true,
     sortBy: (row) => row.hiredOn,
     cell: (row) => row.hiredOn,
   },
@@ -404,26 +559,19 @@ const dataColumns: DataColumn<Row>[] = [
 ];
 
 const detailFor = (row: Row) => (
-  <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-    <div className="flex gap-2">
-      <dt className="text-fg-subtle">Employee number</dt>
-      <dd className="font-medium text-fg">{row.id}</dd>
-    </div>
-    <div className="flex gap-2">
-      <dt className="text-fg-subtle">Hired</dt>
-      <dd className="font-medium text-fg">{row.hiredOn}</dd>
-    </div>
-    <div className="flex gap-2">
-      <dt className="text-fg-subtle">Status</dt>
-      <dd className="font-medium text-fg">{statusLabel[row.status]}</dd>
-    </div>
-    <div className="flex gap-2">
-      <dt className="text-fg-subtle">Base salary</dt>
-      <dd className="font-medium text-fg">
-        <Money minorUnits={row.salaryMinorUnits} currency="EUR" />
-      </dd>
-    </div>
-  </dl>
+  <KeyValues
+    layout="aligned"
+    className="max-w-md"
+    items={[
+      { label: 'Employee number', value: row.id },
+      { label: 'Hired', value: row.hiredOn },
+      { label: 'Status', value: statusLabel[row.status] },
+      {
+        label: 'Base salary',
+        value: <Money minorUnits={row.salaryMinorUnits} currency="EUR" />,
+      },
+    ]}
+  />
 );
 
 export const Expandable: Story = {
@@ -513,38 +661,30 @@ export const Sorting: Story = {
     docs: {
       description: {
         story: [
-          'Any column with a `sortBy` becomes a sort control. `aria-sort` goes on the `<th>`, an arrow glyph tells a screen reader nothing.',
+          'Click to sort, click again to reverse. With `multiSort`, **shift-click adds a second sort**, and the small numbers in the headers show the order. Here: by team, then by start date, newest first. Under a finger the headers become chips and a strip says "Sorted by Team, then start date".',
           '',
-          'Sorting is **uncontrolled by default and it sorts for you**: `sortBy` returns the value to compare, numbers compare as numbers, and strings go through `localeCompare` so *Ärztin* lands where a German reader expects rather than after *Z*.',
+          'Any column with a `sortBy` becomes a sort control. `aria-sort` goes on the `<th>` of the primary sort only, as ARIA asks; a secondary one says its place in its button name.',
           '',
-          'Pass `sort` and it becomes controlled and the rows arrive in whatever order you decided, which is what server-side sorting looks like. `onSortChange` fires either way; check the Actions panel.',
+          'Sorting is **uncontrolled by default and it sorts for you**, through TanStack Table: `sortBy` returns the value to compare, numbers compare as numbers, and strings compare naturally. Pass `sort` (one sort or a list) and it becomes controlled, and the rows arrive in whatever order you decided, which is what server-side sorting looks like. `onSortsChange` has the whole list; `onSortChange` the primary.',
         ].join('\n'),
       },
     },
   },
-  render: function SortingStory() {
-    const [sort, setSort] = useState<DataTableSort | null>({
-      columnId: 'salary',
-      direction: 'descending',
-    });
-    const log = fn().mockName('onSortChange({ columnId, direction })');
-
-    return (
-      <DataTable<Row>
-        label="Employees"
-        rows={rows}
-        columns={dataColumns}
-        rowId={(row) => row.id}
-        describeRow={(row) => row.name}
-        defaultSort={sort}
-        onSortChange={(next) => {
-          setSort(next);
-          log(next);
-        }}
-        caption="Sorted by salary, highest first."
-      />
-    );
-  },
+  render: () => (
+    <DataTable<Person>
+      label="People"
+      rows={people.slice(0, 10)}
+      columns={personColumns}
+      rowId={(p) => p.id}
+      describeRow={(p) => p.name}
+      multiSort
+      defaultSort={[
+        { columnId: 'team', direction: 'ascending' },
+        { columnId: 'start', direction: 'descending' },
+      ]}
+      onSortsChange={fn().mockName('onSortsChange(sorts)')}
+    />
+  ),
 };
 
 export const Reorderable: Story = {
@@ -594,7 +734,7 @@ export const Everything: Story = {
         story: [
           'Selection, expansion, sorting and a sticky header on one table, and that is the reason for it of it being one component. Every capability is a prop, every one is off by default, and the leading columns arrange themselves in a fixed order (reorder, select, expand) so a row never rearranges under the pointer as capabilities are switched on.',
           '',
-          'Resize the preview: the identity column is `sticky`, so the names stay put while the rest scrolls sideways. That is the mobile answer for a table, not turning rows into cards, which throws away the header association, the column order and any chance of comparing two rows.',
+          'On a desk the identity column is `sticky`, so the names stay put while the rest scrolls sideways. Under a finger each row becomes a card: see the next story.',
         ].join('\n'),
       },
     },
@@ -630,16 +770,15 @@ export const Everything: Story = {
 
 export const NarrowScreen: Story = {
   name: 'DataTable, on a phone',
-  globals: { viewport: { value: 'iphone15', isRotated: false } },
   parameters: {
     docs: {
       description: {
         story: [
-          'The same table at 393px. It **stays a table**: it scrolls sideways with the identity column pinned, so a name is always attached to whatever figure you have scrolled to.',
+          'Under a coarse pointer each row becomes a card: the first column is the title and the others wrap beneath it, prefixed with their `shortHeader` where one is set. Sortable headers turn into a row of chips, and the select-all box gets a visible "Select all".',
           '',
-          'The tempting alternative, one card per row: reads well in a screenshot and badly in use: it drops the header association, it drops the column order, and it makes comparing two rows impossible, which is most of what anybody opens a table for.',
+          'It is the same `<table>` with different CSS, not a second tree, so a screen reader still hears "Hired, 2019-04-01" with the header attached, and selection, expansion and the handles all keep working.',
           '',
-          'What does change on a small screen is the touch targets. Every control here is at least `--reach-tap-min` (44px) because `@media (pointer: coarse)` re-points the density tokens, the checkbox, the chevron and the drag handle grow without a single breakpoint being written.',
+          'The switch is the pointer, never the width. A narrow window on a desk still has a mouse, and still gets columns.',
         ].join('\n'),
       },
     },
@@ -666,6 +805,27 @@ export const NarrowScreen: Story = {
       />
     );
   },
+};
+
+export const Dense: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`dense` for a ledger read line by line: 40px rows, 13px type and tighter gutters. It changes nothing under a finger, where the rows are cards and 44px is the floor anyway.',
+      },
+    },
+  },
+  render: () => (
+    <DataTable<Row>
+      label="Employees"
+      rows={rows}
+      columns={dataColumns}
+      rowId={(row) => row.id}
+      describeRow={(row) => row.name}
+      dense
+    />
+  ),
 };
 
 /**
@@ -721,8 +881,8 @@ export const Virtualized: Story = {
  * arrow keys on a header's edge), and the next page fetched as the reader
  * nears the end, then virtualized like any other long table.
  */
-export const InfiniteStripedResizable: Story = {
-  name: 'Infinite, striped, resizable',
+export const InfiniteVirtualized: Story = {
+  name: 'Infinite and virtualized',
   render: function InfiniteTable() {
     const page = (from: number): Row[] =>
       Array.from({ length: 50 }, (_, i) => {
@@ -758,26 +918,12 @@ export const InfiniteStripedResizable: Story = {
         resizable
         stickyHeader
         virtualize
+        loadingMore={loading}
         onEndReached={more}
         containerClassName="h-[32rem]"
       />
     );
   },
-};
-
-/** Rows under a heading per group, in group order: the heading counts what it holds. */
-export const Grouped: Story = {
-  render: () => (
-    <DataTable<Row>
-      label="Employees by status"
-      rows={[...rows].sort((a, b) => a.status.localeCompare(b.status))}
-      columns={dataColumns}
-      rowId={(row) => row.id}
-      describeRow={(row) => row.name}
-      groupBy={(row) => row.status}
-      striped
-    />
-  ),
 };
 
 /**
@@ -910,6 +1056,105 @@ export const VirtualizationOff: Story = {
         virtualize={false}
         stickyHeader
         containerClassName="h-[28rem]"
+      />
+    );
+  },
+};
+
+export const Grouped: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story: [
+          '`groupBy` returns the value to group on, which need not be a column. Each group gets a header row with its count and, under each column that has an `aggregate`, a summary: here the salary total, added in minor units so it stays exact.',
+          '',
+          "The headers collapse. A collapsed group keeps its count and its sum, which is often all a reader wanted from it. `defaultCollapsedGroups` starts Sales shut. The grouping itself is TanStack Table's.",
+        ].join('\n'),
+      },
+    },
+  },
+  render: function GroupedStory() {
+    const byTeam = useCallback((p: Person) => p.team, []);
+    return (
+      <DataTable<Person>
+        label="Salaries by team"
+        rows={people.filter((p) => ['Engineering', 'Design', 'Sales'].includes(p.team))}
+        rowId={(p) => p.id}
+        describeRow={(p) => p.name}
+        groupBy={byTeam}
+        defaultCollapsedGroups={['Sales']}
+        columns={[
+          personName,
+          { id: 'location', header: 'Location', cell: (p) => p.location },
+          {
+            id: 'fte',
+            header: 'FTE',
+            shortHeader: 'FTE',
+            numeric: true,
+            width: '4rem',
+            cell: (p) => p.fte,
+          },
+          {
+            id: 'salary',
+            header: 'Base salary',
+            numeric: true,
+            cardTrailing: true,
+            width: '8rem',
+            cell: (p) => <Money minorUnits={p.salaryMinorUnits} currency="EUR" locale="en-GB" />,
+            aggregate: (group) => (
+              <Money
+                minorUnits={sumMinor(group.map((p) => p.salaryMinorUnits))}
+                currency="EUR"
+                locale="en-GB"
+              />
+            ),
+          },
+        ]}
+      />
+    );
+  },
+};
+
+export const InfiniteStripedResizable: Story = {
+  name: 'Infinite, striped, resizable',
+  parameters: {
+    docs: {
+      description: {
+        story: [
+          '**Infinite:** `onEndReached` is called as the reader nears the end of what is loaded, and `loadingMore` shows a "Loading more" row under the last one and holds further calls off while the page is on its way. Scroll the table: it loads twelve more at a time, up to 48.',
+          '',
+          '**Striped:** `striped` tints every other row, for a wide table read across rather than down.',
+          '',
+          '**Resizable:** drag the edge of a header, or Tab to it and use the arrow keys (Shift for bigger steps). The table lays out on the widths, so a cell ellipsizes rather than pushing its neighbours; `columnWidths` and `onColumnWidthsChange` keep them. Under a finger the table is cards and there is nothing to resize.',
+        ].join('\n'),
+      },
+    },
+  },
+  render: function InfiniteStory() {
+    const [shown, setShown] = useState<Person[]>(() => people.slice());
+    const [loading, setLoading] = useState(false);
+    const more = (): void => {
+      setLoading(true);
+      setTimeout(() => {
+        setShown((current) =>
+          current.concat(people.map((p) => ({ ...p, id: `${p.id}-${String(current.length)}` }))),
+        );
+        setLoading(false);
+      }, 900);
+    };
+    return (
+      <DataTable<Person>
+        label="People"
+        rows={shown}
+        columns={personColumns.slice(0, 4)}
+        rowId={(p) => p.id}
+        describeRow={(p) => p.name}
+        striped
+        resizable
+        stickyHeader
+        containerClassName="max-h-96"
+        loadingMore={loading}
+        {...(shown.length >= 48 ? {} : { onEndReached: more })}
       />
     );
   },

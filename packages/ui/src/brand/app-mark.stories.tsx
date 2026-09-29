@@ -4,7 +4,7 @@ import { Button } from '../components/button/button';
 import { AppMark } from './app-mark';
 
 const meta = {
-  title: 'Foundations/App marks',
+  title: 'Foundations/Third-party marks',
   component: AppMark,
   args: { app: 'slack' },
   parameters: {
@@ -37,7 +37,10 @@ export const Sizes: Story = {
   ),
 };
 
-export const Mono: Story = { args: { tone: 'mono' }, render: (args) => <AppMark {...args} className="size-8 text-fg" /> };
+export const Mono: Story = {
+  args: { tone: 'mono' },
+  render: (args) => <AppMark {...args} className="size-8 text-fg" />,
+};
 
 /** Beside the name, on the control that connects it. */
 export const InAButton: Story = {

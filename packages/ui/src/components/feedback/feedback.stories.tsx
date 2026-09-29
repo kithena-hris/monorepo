@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { CalendarOff, Inbox, Search } from 'lucide-react';
+import { Inbox, RotateCw, SearchX, UserPlus } from 'lucide-react';
 
 import { Button } from '../button/button';
+import { Card } from '../card/card';
 import { Alert, EmptyState, Skeleton } from './feedback';
 
 const meta = {
@@ -36,12 +37,33 @@ const meta = {
     tone: {
       description: 'Severity. Also decides whether the message announces assertively.',
       control: 'inline-radio',
-      options: ['info', 'success', 'warning', 'danger'],
+      options: ['info', 'success', 'warning', 'danger', 'accent', 'neutral'],
       table: {
-        type: { summary: "'info' | 'success' | 'warning' | 'danger'" },
+        type: { summary: "'info' | 'success' | 'warning' | 'danger' | 'accent' | 'neutral'" },
         defaultValue: { summary: 'info' },
         category: 'Appearance',
       },
+    },
+    variant: {
+      description:
+        '`soft` among content, `outline` on a busy background, `solid` for a blocking problem, `banner` edge to edge.',
+      control: 'inline-radio',
+      options: ['soft', 'outline', 'solid', 'banner'],
+      table: {
+        type: { summary: "'soft' | 'outline' | 'solid' | 'banner'" },
+        defaultValue: { summary: 'soft' },
+        category: 'Appearance',
+      },
+    },
+    actions: {
+      description: 'Actions under the message: Retry, View details.',
+      control: false,
+      table: { type: { summary: 'ReactNode' }, category: 'Content' },
+    },
+    onDismiss: {
+      description: 'Renders a close control. The caller removes the alert.',
+      control: false,
+      table: { type: { summary: '() => void' }, category: 'Events' },
     },
     title: {
       description: 'The headline. State the fact; keep the detail for the body.',
@@ -122,8 +144,22 @@ export const AlertTones: Story = {
       >
         This request exceeds the remaining 2026 entitlement by 1.5 days.
       </Alert>
-      <Alert tone="danger" title="Could not reach the payroll module">
+      <Alert
+        tone="danger"
+        title="Could not reach the payroll module"
+        actions={
+          <Button size="xs" variant="secondary" startIcon={<RotateCw />}>
+            Retry now
+          </Button>
+        }
+      >
         The request was queued and will be retried automatically. Nothing has been lost.
+      </Alert>
+      <Alert tone="accent" title="New: split leave across two blocks">
+        Parental leave can now be taken in up to two blocks in the first year.
+      </Alert>
+      <Alert tone="neutral" title="Office closed on 24 December" onDismiss={() => undefined}>
+        Requests for that day are approved automatically and do not use a balance.
       </Alert>
     </div>
   ),
@@ -134,17 +170,35 @@ export const AlertVariations: Story = {
   parameters: {
     docs: {
       description: {
-        story:
-          'Title only, body only, and without the icon, all three read correctly on their own.',
+        story: [
+          '`soft` is the default, inside content. `outline` keeps the surface and marks only the edge, for a busy background. `solid` is the full colour, for a blocking problem only. `banner` runs edge to edge across the top of a page or a panel.',
+          '',
+          'Title only, body only and no icon all read correctly on their own.',
+        ].join('\n'),
       },
     },
   },
   render: () => (
-    <div className="grid max-w-2xl gap-3">
-      <Alert tone="info" title="Two approvals are waiting on you." />
-      <Alert tone="warning">
-        This tenant has no payroll provider configured, so no run can be scheduled.
+    <div className="grid max-w-2xl gap-2">
+      <Alert tone="warning" title="Soft" onDismiss={() => undefined}>
+        Default, inside content.
       </Alert>
+      <Alert tone="warning" variant="outline" title="Outline">
+        On busy backgrounds.
+      </Alert>
+      <Alert tone="danger" variant="solid" title="Solid">
+        Blocking problems only.
+      </Alert>
+      <Alert
+        tone="info"
+        variant="banner"
+        title="Banner · full width, top of the page"
+        actions={
+          <Button size="xs" variant="secondary">
+            Review
+          </Button>
+        }
+      />
       <Alert tone="success" hideIcon title="Saved">
         The change takes effect on 1 September 2026.
       </Alert>
@@ -162,7 +216,7 @@ export const Skeletons: Story = {
     },
   },
   render: () => (
-    <div className="max-w-md space-y-3 rounded-lg border border-border p-5">
+    <Card padded className="max-w-md space-y-3">
       <div className="flex items-center gap-3">
         <Skeleton className="size-10 rounded-full" />
         <div className="flex-1 space-y-2">
@@ -173,7 +227,7 @@ export const Skeletons: Story = {
       <Skeleton className="h-3 w-full" />
       <Skeleton className="h-3 w-5/6" />
       <Skeleton className="h-3 w-2/3" />
-    </div>
+    </Card>
   ),
 };
 
@@ -183,29 +237,43 @@ export const EmptyStates: Story = {
     docs: {
       description: {
         story:
-          'Three different reasons for emptiness: nothing yet, nothing in this period, and nothing matching a filter. Each deserves different words, and only the last one should offer to clear a filter.',
+          'Different reasons for emptiness deserve different words: nothing yet, nothing matching a search, and nothing because the work has not started. Only the search offers to clear it, and only the invitation takes the accent.',
       },
     },
   },
   render: () => (
-    <div className="grid max-w-2xl gap-4">
-      <EmptyState
-        icon={<Inbox />}
-        title="No requests waiting on you"
-        description="Anything your reports file will land here for approval."
-      />
-      <EmptyState
-        icon={<CalendarOff />}
-        title="No leave recorded in 2026"
-        description="Balances start accruing from the hire date. This person joined on 3 June 2026."
-        action={<Button variant="primary">File a request</Button>}
-      />
-      <EmptyState
-        icon={<Search />}
-        title="No one matches those filters"
-        description="Three filters are active. Clearing the location filter would show 118 people."
-        action={<Button variant="secondary">Clear filters</Button>}
-      />
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13.75rem),1fr))] gap-3">
+      <Card padded>
+        <EmptyState
+          className="p-1.5"
+          icon={<Inbox />}
+          title="Nothing to approve"
+          description="New requests will show up here."
+        />
+      </Card>
+      <Card padded>
+        <EmptyState
+          className="p-1.5"
+          icon={<SearchX />}
+          title="No matches for “Priyaa”"
+          description="Check the spelling or search by email."
+          action={
+            <Button variant="secondary" size="sm">
+              Clear search
+            </Button>
+          }
+        />
+      </Card>
+      <Card padded>
+        <EmptyState
+          className="p-1.5"
+          tone="accent"
+          icon={<UserPlus />}
+          title="Invite your team"
+          description="Add people to start tracking time off."
+          action={<Button size="sm">Invite</Button>}
+        />
+      </Card>
     </div>
   ),
 };

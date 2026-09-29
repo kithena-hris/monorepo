@@ -62,13 +62,15 @@ export function ScrollBar({
       orientation={orientation}
       className={cn(
         'flex touch-none p-0.5 transition-opacity duration-(--animate-duration-normal) select-none',
-        orientation === 'vertical' && 'h-full w-2.5 border-l border-l-transparent',
-        orientation === 'horizontal' && 'h-2.5 flex-col border-t border-t-transparent',
+        // Inset from the ends, so the thumb reads as floating over the content
+        // rather than as a gutter ruled down the panel's edge.
+        orientation === 'vertical' && 'h-full w-2.5 py-2',
+        orientation === 'horizontal' && 'h-2.5 flex-col px-2',
         className,
       )}
       {...props}
     >
-      <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border-strong hover:bg-fg-subtle" />
+      <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-fg-subtle/50 transition-colors hover:bg-fg-subtle/80" />
     </ScrollAreaPrimitive.ScrollAreaScrollbar>
   );
 }

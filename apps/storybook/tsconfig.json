@@ -7,6 +7,9 @@
     "moduleResolution": "Bundler",
     "types": ["vite/client", "node"],
     "noEmit": true,
+    // Storybook loads `main.ts` through Node's own TypeScript support, which
+    // needs the `.ts` on a relative import.
+    "allowImportingTsExtensions": true,
     "composite": false,
     "incremental": false,
     "declaration": false,

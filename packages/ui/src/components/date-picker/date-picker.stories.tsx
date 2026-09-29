@@ -247,7 +247,7 @@ export const InAForm: Story = {
     const [end, setEnd] = useState<IsoDate | null>('2026-09-16');
 
     return (
-      <div className="grid w-[28rem] grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid w-full max-w-[28rem] grid-cols-1 gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-fg">First day of leave</label>
           <DatePicker

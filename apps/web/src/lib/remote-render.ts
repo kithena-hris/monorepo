@@ -143,6 +143,8 @@ export async function renderRemote(
   props: string,
   prefix: string,
   path: string = RENDERER,
+  /** The page's budget; a test asking *why* a build fails can afford longer. */
+  wallMs: number = WALL_MS,
 ): Promise<string> {
   if (refused.has(sha)) throw new Error('the build was refused');
   const renderer = warmRenderer(code, sha, path);
@@ -150,10 +152,10 @@ export async function renderRemote(
     const id = ++nextId;
     const timer = setTimeout(() => {
       renderer.pending.delete(id);
-      reject(new Error(`the render took longer than ${String(WALL_MS)} ms`));
+      reject(new Error(`the render took longer than ${String(wallMs)} ms`));
       // Still answering others means busy; silent this long means stuck.
-      if (Date.now() - renderer.heard >= WALL_MS) stop(renderer, 'the renderer stopped answering');
-    }, WALL_MS);
+      if (Date.now() - renderer.heard >= wallMs) stop(renderer, 'the renderer stopped answering');
+    }, wallMs);
     renderer.pending.set(id, { resolve, reject, timer });
     renderer.ready.then(
       () => {

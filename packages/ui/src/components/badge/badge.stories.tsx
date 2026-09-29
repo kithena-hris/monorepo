@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { Bell } from 'lucide-react';
+import { useState } from 'react';
+
+import { Avatar } from '../avatar/avatar';
+import { Button } from '../button/button';
 import { Badge } from './badge';
 
 const meta = {
@@ -27,7 +32,7 @@ const meta = {
           '| `sensitive` | Not a state but a property: handled with more care, a change waits for somebody else. Outlined, and always with its glyph. |',
           '| `attention` | Wanted and missing: a field nobody has filled in. Dashed, and always with its glyph. |',
           '',
-          'A badge is not a button. If it can be pressed. It is a `Button` with `variant="subtle"`.',
+          'A badge is not a button. If it can be pressed, it is a `Button` with `variant="tinted"`.',
         ].join('\n'),
       },
     },
@@ -36,21 +41,43 @@ const meta = {
     tone: {
       description: 'Semantic meaning. Reinforces the label; never replaces it.',
       control: 'inline-radio',
-      options: ['neutral', 'accent', 'success', 'warning', 'danger', 'info', 'sensitive', 'attention'],
+      options: [
+        'neutral',
+        'accent',
+        'success',
+        'warning',
+        'danger',
+        'info',
+        'sensitive',
+        'attention',
+      ],
       table: {
         type: {
-          summary: "'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'sensitive' | 'attention'",
+          summary:
+            "'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'sensitive' | 'attention'",
         },
         defaultValue: { summary: 'neutral' },
         category: 'Appearance',
       },
     },
-    size: {
-      description: '`sm` for inside table rows, `md` for headers and standalone use.',
+    variant: {
+      description:
+        '`soft` is the wash for a status among other content, `solid` the fill for the one badge that must be seen first, `outline` a property rather than a state.',
       control: 'inline-radio',
-      options: ['sm', 'md'],
+      options: ['soft', 'solid', 'outline'],
       table: {
-        type: { summary: "'sm' | 'md'" },
+        type: { summary: "'soft' | 'solid' | 'outline'" },
+        defaultValue: { summary: 'soft' },
+        category: 'Appearance',
+      },
+    },
+    size: {
+      description:
+        '`xs` for a count pinned to a control, `sm` for inside table rows, `md` for headers and standalone use, `lg` beside a large title.',
+      control: 'inline-radio',
+      options: ['xs', 'sm', 'md', 'lg'],
+      table: {
+        type: { summary: "'xs' | 'sm' | 'md' | 'lg'" },
         defaultValue: { summary: 'md' },
         category: 'Appearance',
       },
@@ -75,7 +102,7 @@ const meta = {
       table: { type: { summary: 'string' }, category: 'Escape hatches' },
     },
   },
-  args: { children: 'Approved', tone: 'success', size: 'md', dot: false },
+  args: { children: 'Approved', tone: 'success', variant: 'soft', size: 'md', dot: false },
 } satisfies Meta<typeof Badge>;
 
 export default meta;
@@ -165,17 +192,90 @@ export const Sizes: Story = {
     docs: {
       description: {
         story:
-          '`sm` sits inside a 40px table row without pushing it taller; `md` is the standalone default.',
+          '`xs` is a count on a control; `sm` sits inside a 40px table row without pushing it taller; `md` is the standalone default.',
       },
     },
   },
   render: (args) => (
     <div className="flex items-center gap-3">
+      <Badge {...args} size="xs">
+        12
+      </Badge>
       <Badge {...args} size="sm">
         Small
       </Badge>
       <Badge {...args} size="md">
         Medium
+      </Badge>
+      <Badge {...args} size="lg">
+        Large
+      </Badge>
+    </div>
+  ),
+};
+
+export const Solid: Story = {
+  args: { variant: 'solid' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`variant="solid"`, for the one badge a screen needs seen first, or a count pinned to a control. Every tone keeps 4.5:1 in both themes; warning and info have no fill dark enough for white text, so they fill with their text colour instead.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <span className="relative inline-flex">
+        <Button variant="secondary" aria-label="Notifications, 3 unread" startIcon={<Bell />} />
+        <Badge
+          variant="solid"
+          tone="danger"
+          size="xs"
+          aria-hidden
+          className="pointer-events-none absolute -top-0.5 -right-0.5 ring-2 ring-canvas"
+        >
+          3
+        </Badge>
+      </span>
+      <Badge {...args} tone="neutral">
+        Draft
+      </Badge>
+      <Badge {...args} tone="accent">
+        New
+      </Badge>
+      <Badge {...args} tone="success">
+        Paid
+      </Badge>
+      <Badge {...args} tone="warning">
+        Due today
+      </Badge>
+      <Badge {...args} tone="danger">
+        Overdue
+      </Badge>
+      <Badge {...args} tone="info">
+        Synced
+      </Badge>
+    </div>
+  ),
+};
+
+export const Outline: Story = {
+  args: { variant: 'outline', tone: 'neutral' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'No tone colour at all. For a fact about the record that is not a status — a contract type, a location.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge {...args}>Full time</Badge>
+      <Badge {...args}>Lisbon</Badge>
+      <Badge {...args} dot>
+        Remote
       </Badge>
     </div>
   ),
@@ -219,7 +319,7 @@ export const InATableRow: Story = {
     },
   },
   render: () => (
-    <div className="max-w-md divide-y divide-border rounded-lg border border-border bg-surface">
+    <div className="max-w-md divide-y divide-border rounded-lg bg-surface shadow-sm">
       {(
         [
           ['Grace Hopper', 'Active', 'success'],
@@ -244,17 +344,30 @@ export const Removable: Story = {
     docs: {
       description: {
         story:
-          '`onRemove` turns a badge into a chip: an applied filter, a chosen tag. The remove button is a real button named for what it removes ("Remove Team: Engineering"), because "×" read aloud is "times".',
+          '`onRemove` adds a remove control and makes the badge a chip: an applied filter, a chosen team. Only the control is a button, and its name says what goes.',
       },
     },
   },
-  render: () => (
-    <ul aria-label="Active filters" className="flex flex-wrap gap-2">
-      {['Team: Engineering', 'Started after 1 Jan 2026', 'Has missing information'].map((chip) => (
-        <li key={chip}>
-          <Badge onRemove={() => undefined}>{chip}</Badge>
-        </li>
-      ))}
-    </ul>
-  ),
+  render: function Render() {
+    const [chips, setChips] = useState(['Engineering', 'Berlin', 'Priya Shah']);
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {chips.map((chip, index) => (
+          <Badge
+            key={chip}
+            size="lg"
+            tone={index === 0 ? 'accent' : 'neutral'}
+            onRemove={() => {
+              setChips((current) => current.filter((item) => item !== chip));
+            }}
+            removeLabel={`Remove ${chip}`}
+            className={index === 2 ? 'ps-1' : undefined}
+          >
+            {index === 2 ? <Avatar name={chip} size="xs" aria-hidden /> : null}
+            {chip}
+          </Badge>
+        ))}
+      </div>
+    );
+  },
 };

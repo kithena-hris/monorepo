@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useLayoutEffect, useState, useSyncExternalStore, type RefObject } from 'react';
 
 /**
  * Subscribe to a media query.
@@ -21,15 +21,25 @@ import { useSyncExternalStore } from 'react';
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
     (onChange) => {
+      if (!canMatch()) return () => undefined;
       const list = window.matchMedia(query);
       list.addEventListener('change', onChange);
       return () => {
         list.removeEventListener('change', onChange);
       };
     },
-    () => window.matchMedia(query).matches,
+    () => canMatch() && window.matchMedia(query).matches,
     () => false,
   );
+}
+
+/**
+ * Whether this window can answer a media query at all. A test environment
+ * (jsdom) has no `matchMedia`, and a component that asks should render its
+ * default rather than throw: the question is optional, the screen is not.
+ */
+function canMatch(): boolean {
+  return typeof window.matchMedia === 'function';
 }
 
 /**
@@ -57,6 +67,22 @@ export function useBreakpoint(name: Breakpoint): boolean {
 /** True when the primary pointer cannot hover, a finger, not a mouse. */
 export function useCoarsePointer(): boolean {
   return useMediaQuery('(pointer: coarse)');
+}
+
+/**
+ * Whether the element in `ref` sits under a finger: the page's primary pointer
+ * is coarse, or an ancestor declares `data-pointer="coarse"`, as the docs'
+ * phone frame does. For the rare component whose *structure* changes under a
+ * finger; styling uses the `touch:` variant, which answers the same question
+ * in CSS.
+ */
+export function useCoarsePointerAt(ref: RefObject<Element | null>): boolean {
+  const media = useCoarsePointer();
+  const [subtree, setSubtree] = useState(false);
+  useLayoutEffect(() => {
+    setSubtree(ref.current?.closest('[data-pointer="coarse"]') != null);
+  }, [ref]);
+  return media || subtree;
 }
 
 /**

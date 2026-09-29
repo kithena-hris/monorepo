@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { usePortalContainer } from '../../lib/portal-container';
 
 /**
  * Modal dialog.
@@ -29,7 +30,7 @@ export function DialogContent({
   showCloseButton?: boolean;
 }): JSX.Element {
   return (
-    <DialogPrimitive.Portal>
+    <DialogPrimitive.Portal container={usePortalContainer()}>
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(
@@ -40,21 +41,25 @@ export function DialogContent({
       <DialogPrimitive.Content
         data-scroll-lock
         className={cn(
-          'fixed z-50 flex flex-col border border-border bg-surface shadow-xl',
+          'fixed z-50 flex flex-col bg-surface-raised text-fg shadow-xl',
           'focus-visible:outline-none',
-          // Below `sm` this is a bottom sheet, not a shrunken dialog. A centred
-          // modal on a 375px screen puts its actions under the thumb's blind
-          // spot and its close button at the top-left corner, the hardest point
-          // on the device to reach one-handed.
+          // At a desk, centred, with a margin kept to the window edge however
+          // narrow the window gets.
+          'top-1/2 left-1/2 max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2',
+          'rounded-[1.5rem]',
+          'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
+          // Under a finger it is a bottom sheet, not a shrunken dialog. A centred
+          // modal puts its actions out of the thumb's reach and its close button
+          // in the corner hardest to reach one-handed. This follows the pointer,
+          // not the window width: a tablet is held the same way a phone is.
           //
           // `dvh`, not `vh`: mobile Safari's `vh` is the height with the URL bar
           // hidden, so a `90vh` sheet is taller than the visible page until the
           // user scrolls.
-          'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl border-b-0 pb-safe-bottom',
-          'data-[state=open]:animate-slide-in-bottom data-[state=closed]:animate-slide-out-bottom',
-          'sm:inset-x-auto sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:w-full sm:max-w-lg',
-          'sm:max-h-[85dvh] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:border-b sm:pb-0',
-          'sm:data-[state=open]:animate-scale-in sm:data-[state=closed]:animate-scale-out',
+          'touch:inset-x-2 touch:top-auto touch:bottom-[max(0.5rem,var(--spacing-safe-bottom))]',
+          'touch:max-h-[92dvh] touch:w-auto touch:max-w-none touch:translate-x-0 touch:translate-y-0',
+          'touch:rounded-[2.25rem]',
+          'touch:data-[state=open]:animate-slide-in-bottom touch:data-[state=closed]:animate-slide-out-bottom',
           className,
         )}
         {...props}
@@ -64,14 +69,14 @@ export function DialogContent({
             button, Escape or the overlay, all of which work without a gesture. */}
         <div
           aria-hidden
-          className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-border-strong sm:hidden"
+          className="mx-auto mt-2 hidden h-[5px] w-9 shrink-0 rounded-full bg-border-strong touch:block"
         />
         {children}
         {showCloseButton ? (
           <DialogPrimitive.Close
             className={cn(
-              'absolute top-4 right-4 grid size-7 place-items-center rounded-sm text-fg-subtle tap-target',
-              'transition-colors hover:bg-surface-hover hover:text-fg',
+              'absolute top-4 right-4 grid size-8 place-items-center rounded-full text-fg-muted tap-target',
+              'transition-colors hover:bg-surface-sunken hover:text-fg touch:bg-surface-sunken',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
             )}
           >
@@ -90,7 +95,10 @@ export function DialogHeader({
 }: ComponentPropsWithoutRef<'div'>): JSX.Element {
   return (
     <div
-      className={cn('shrink-0 space-y-1.5 px-5 pt-5 pr-14 pb-4 sm:px-6 sm:pt-6', className)}
+      className={cn(
+        'shrink-0 space-y-1.5 px-6 pt-6 pr-14 pb-4 touch:px-5.5 touch:pt-4 touch:pr-14',
+        className,
+      )}
       {...props}
     />
   );
@@ -102,7 +110,11 @@ export function DialogTitle({
 }: ComponentPropsWithoutRef<typeof DialogPrimitive.Title>): JSX.Element {
   return (
     <DialogPrimitive.Title
-      className={cn('text-lg leading-none font-semibold text-fg', className)}
+      className={cn(
+        'font-display text-lg leading-tight font-bold tracking-tight text-fg',
+        'touch:text-[1.125rem] touch:font-semibold',
+        className,
+      )}
       {...props}
     />
   );
@@ -113,7 +125,10 @@ export function DialogDescription({
   ...props
 }: ComponentPropsWithoutRef<typeof DialogPrimitive.Description>): JSX.Element {
   return (
-    <DialogPrimitive.Description className={cn('text-sm text-fg-muted', className)} {...props} />
+    <DialogPrimitive.Description
+      className={cn('text-[0.875rem] leading-normal text-fg-muted touch:text-sm', className)}
+      {...props}
+    />
   );
 }
 
@@ -124,7 +139,7 @@ export function DialogBody({ className, ...props }: ComponentPropsWithoutRef<'di
   return (
     <div
       className={cn(
-        'min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-2 sm:px-6',
+        'min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-2 touch:px-5.5',
         className,
       )}
       {...props}
@@ -138,11 +153,12 @@ export function DialogFooter({
 }: ComponentPropsWithoutRef<'div'>): JSX.Element {
   return (
     <div
-      // Reversed on a phone so the confirming action sits at the bottom, under
-      // the thumb, and full width so it is not a 90px target on a 430px screen.
+      // Under a finger the actions share the row equally, so neither is a 90px
+      // target on a 400px sheet, and wrap to a second row rather than squeeze
+      // a long label. The confirming action stays last, on the thumb's side.
       className={cn(
-        'flex shrink-0 flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:justify-end sm:px-6',
-        '[&>*]:w-full sm:[&>*]:w-auto',
+        'flex shrink-0 flex-wrap justify-end gap-2 px-6 pt-2 pb-6',
+        'touch:px-5.5 touch:pb-5.5 touch:[&>*]:flex-[1_1_8rem]',
         className,
       )}
       {...props}

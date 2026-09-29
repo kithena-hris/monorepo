@@ -89,18 +89,24 @@ export interface InlineProps extends StackProps {
    */
   wrap?: boolean;
   /**
-   * Stack vertically below the `sm` breakpoint. The honest default for a
-   * header's action group, where three side-by-side buttons at 375px each end
-   * up too narrow to read.
+   * Stack vertically when the surrounding container is narrower than `xs`
+   * (26rem), `sm` (40rem) or `md` (48rem). The honest default for a header's
+   * action group, where three side-by-side buttons at 375px each end up too
+   * narrow to read.
+   *
+   * A container query against the nearest `@container` ancestor, not the
+   * viewport: `PageLayout`, `PageHeader` and `ListDetail` all are one, so a
+   * row inside a phone-width column collapses on any monitor. With no
+   * container above it the row simply keeps wrapping.
    */
   collapseBelow?: 'none' | 'xs' | 'sm' | 'md';
 }
 
 const collapseClass = {
   none: '',
-  xs: 'max-xs:flex-col max-xs:items-stretch',
-  sm: 'max-sm:flex-col max-sm:items-stretch',
-  md: 'max-md:flex-col max-md:items-stretch',
+  xs: '@max-[26rem]:flex-col @max-[26rem]:items-stretch',
+  sm: '@max-[40rem]:flex-col @max-[40rem]:items-stretch',
+  md: '@max-3xl:flex-col @max-3xl:items-stretch',
 } as const;
 
 /** Horizontal flow. */
@@ -184,7 +190,14 @@ export interface ContainerProps extends ComponentPropsWithoutRef<'div'> {
   gutter?: boolean;
 }
 
-/** Centred measure with responsive gutters. */
+/**
+ * Centred measure with gutters that grow with the space.
+ *
+ * The gutter is a percentage of the width it sits in, clamped to 16–32px,
+ * rather than three breakpoint steps: 16px on a phone, 24px at a tablet's
+ * width, 32px on a desk, and the right answer in a phone preview or a panel
+ * without asking the window anything.
+ */
 export function Container({
   className,
   size = 'lg',
@@ -197,7 +210,7 @@ export function Container({
         'mx-auto w-full',
         containerSize[size],
         gutter &&
-          'px-4 ps-[max(1rem,var(--spacing-safe-left))] pe-[max(1rem,var(--spacing-safe-right))] sm:px-6 lg:px-8',
+          'ps-[max(clamp(1rem,4%,2rem),var(--spacing-safe-left))] pe-[max(clamp(1rem,4%,2rem),var(--spacing-safe-right))]',
         className,
       )}
       {...props}
@@ -210,21 +223,24 @@ export interface SplitProps extends ComponentPropsWithoutRef<'div'> {
   aside: ReactNode;
   /** Which side the aside sits on at wide sizes. */
   side?: 'start' | 'end';
-  /** Below this width the two panes stack, aside last. */
+  /**
+   * Below this width *of the split itself* the two panes stack, aside last:
+   * `md` 48rem, `lg` 64rem, `xl` 80rem.
+   */
   stackBelow?: 'md' | 'lg' | 'xl';
   gap?: Gap;
 }
 
 const splitClass = {
-  md: 'md:grid-cols-[minmax(0,1fr)_20rem]',
-  lg: 'lg:grid-cols-[minmax(0,1fr)_22rem]',
-  xl: 'xl:grid-cols-[minmax(0,1fr)_24rem]',
+  md: '@3xl:grid-cols-[minmax(0,1fr)_20rem]',
+  lg: '@5xl:grid-cols-[minmax(0,1fr)_22rem]',
+  xl: '@7xl:grid-cols-[minmax(0,1fr)_24rem]',
 } as const;
 
 const splitStartClass = {
-  md: 'md:grid-cols-[20rem_minmax(0,1fr)]',
-  lg: 'lg:grid-cols-[22rem_minmax(0,1fr)]',
-  xl: 'xl:grid-cols-[24rem_minmax(0,1fr)]',
+  md: '@3xl:grid-cols-[20rem_minmax(0,1fr)]',
+  lg: '@5xl:grid-cols-[22rem_minmax(0,1fr)]',
+  xl: '@7xl:grid-cols-[24rem_minmax(0,1fr)]',
 } as const;
 
 /**
@@ -241,19 +257,24 @@ export function Split({
   children,
   ...props
 }: SplitProps): JSX.Element {
+  // The wrapper is the query container: whether a 22rem rail fits beside the
+  // content depends on the space the split was given, and an element cannot
+  // query its own width.
   return (
-    <div
-      className={cn(
-        'grid grid-cols-1',
-        gapClass[gap],
-        side === 'end' ? splitClass[stackBelow] : splitStartClass[stackBelow],
-        className,
-      )}
-      {...props}
-    >
-      {side === 'start' ? <div className="min-w-0">{aside}</div> : null}
-      <div className="min-w-0">{children}</div>
-      {side === 'end' ? <div className="min-w-0">{aside}</div> : null}
+    <div className="@container">
+      <div
+        className={cn(
+          'grid grid-cols-1',
+          gapClass[gap],
+          side === 'end' ? splitClass[stackBelow] : splitStartClass[stackBelow],
+          className,
+        )}
+        {...props}
+      >
+        {side === 'start' ? <div className="min-w-0">{aside}</div> : null}
+        <div className="min-w-0">{children}</div>
+        {side === 'end' ? <div className="min-w-0">{aside}</div> : null}
+      </div>
     </div>
   );
 }

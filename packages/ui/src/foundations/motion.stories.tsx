@@ -306,7 +306,7 @@ export const Entrances: Story = {
     return (
       <Replay label="Play them again">
         {(key) => (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,14rem),1fr))] gap-4">
             {animations.map(([name, className]) => (
               <div key={name} className="space-y-2 overflow-hidden">
                 <code className="font-mono text-2xs text-fg-subtle">{name}</code>
@@ -414,7 +414,7 @@ export const ReducedMotion: Story = {
     return (
       <Replay label="Play them again">
         {(key) => (
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,12rem),1fr))] gap-4">
             {(['animate-fade-in', 'animate-scale-in', 'animate-slide-up'] as const).map((name) => (
               <div key={name} className="space-y-2">
                 <code className="font-mono text-2xs text-fg-subtle">{name}</code>

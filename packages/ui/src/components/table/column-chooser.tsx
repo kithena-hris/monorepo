@@ -1,12 +1,14 @@
 'use client';
 
-import { Columns3 } from 'lucide-react';
-import { useId, type JSX } from 'react';
+import { Columns3, Lock } from 'lucide-react';
+import { useId, useState, type JSX } from 'react';
 
+import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
+import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '../popover/popover';
 import { SortableList } from '../sortable/sortable';
+import { SearchField } from '../typed-fields/typed-fields';
 
 /**
  * Which columns a table shows, and in what order.
@@ -19,9 +21,15 @@ import { SortableList } from '../sortable/sortable';
  * ### Showing and ordering are one list
  *
  * A checkbox list beside a separate "reorder" dialog makes somebody find the
- * same column twice. Here each row is both: tick it to show it, drag it (or
- * use its Move buttons, which are the keyboard's and the screen reader's
- * way) to place it.
+ * same column twice. Here each row is both: tick it to show it, drag it by
+ * its grip to place it. Its Move buttons, the keyboard's and the screen
+ * reader's way, appear when focus is in the row. The boxes commit as they are
+ * ticked, with no Save button: each change is small, visible behind the panel
+ * and undone by ticking again.
+ *
+ * Past eight columns the list gets a search box. While a search is typed the
+ * grips go away: reordering a filtered list has no clear meaning for the rows
+ * it is hiding.
  *
  * ### A locked column stays
  *
@@ -61,6 +69,9 @@ export interface ColumnChooserProps {
   size?: 'sm' | 'md';
 }
 
+/** Past this many columns the list gets a search box. */
+const SEARCH_FROM = 8;
+
 /**
  * The columns in the order to show them: the saved order first, then any
  * column the saved order has never heard of (a field added since), and never
@@ -90,6 +101,7 @@ export function ColumnChooser({
   size = 'md',
 }: ColumnChooserProps): JSX.Element {
   const headingId = useId();
+  const [query, setQuery] = useState('');
   const ordered = orderColumns(columns, value.order);
   const shown = new Set(value.visible);
   const isShown = (c: ColumnChoice): boolean => c.locked === true || shown.has(c.id);
@@ -105,52 +117,119 @@ export function ColumnChooser({
     });
   };
 
+  const needle = query.trim().toLowerCase();
+  const matching = needle
+    ? ordered.filter((column) => column.label.toLowerCase().includes(needle))
+    : ordered;
+
+  const row = (column: ColumnChoice): JSX.Element => (
+    // The row is the label, so the whole strip toggles the box.
+    <label
+      className={cn(
+        'flex min-h-8 min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-sm text-fg touch:min-h-11 touch:text-base',
+        column.locked === true && 'cursor-default',
+      )}
+    >
+      <Checkbox
+        checked={isShown(column)}
+        disabled={column.locked === true}
+        onCheckedChange={(checked) => {
+          toggle(column.id, checked === true);
+        }}
+      />
+      <span className="min-w-0 flex-1 truncate">{column.label}</span>
+      {column.locked === true ? (
+        <Lock aria-hidden className="size-4 shrink-0 text-fg-subtle" />
+      ) : null}
+    </label>
+  );
+
   return (
-    <Popover>
+    <Popover
+      onOpenChange={(open) => {
+        if (!open) setQuery('');
+      }}
+    >
       <PopoverTrigger asChild>
-        <Button size={size} startIcon={<Columns3 />}>
-          {label} ({count} of {ordered.length})
+        <Button size={size} variant="subtle" startIcon={<Columns3 />}>
+          {label}
+          <span className="sr-only">
+            {' '}
+            ({count} of {ordered.length})
+          </span>
+          <span
+            aria-hidden
+            className="grid h-5 min-w-5 place-items-center rounded-full bg-accent-fg/12 px-1.5 text-2xs font-bold tabular-nums"
+          >
+            {count}
+          </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80" aria-labelledby={headingId}>
-        <div className="flex items-center justify-between gap-2 pb-2">
-          <p id={headingId} className="text-base font-medium text-fg">
+      <PopoverContent
+        align="end"
+        className="flex w-80 flex-col gap-1 p-3"
+        aria-labelledby={headingId}
+      >
+        <div className="flex items-center gap-2 pb-1">
+          <p id={headingId} className="text-base font-semibold text-fg">
             Show and order columns
           </p>
-          {onReset === undefined ? null : (
+          <p className="ms-auto text-xs font-medium text-fg-muted tabular-nums">
+            {count} of {ordered.length}
+          </p>
+        </div>
+
+        {ordered.length >= SEARCH_FROM ? (
+          <SearchField
+            label="Find a column"
+            placeholder="Find a column"
+            value={query}
+            onValueChange={setQuery}
+            className="mb-1"
+          />
+        ) : null}
+
+        <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain">
+          {needle ? (
+            <ul aria-label="Columns" className="flex flex-col gap-0.5">
+              {matching.map((column) => (
+                <li key={column.id} className="flex items-center gap-3 px-1">
+                  {row(column)}
+                </li>
+              ))}
+              {matching.length === 0 ? (
+                <li className="px-1 py-2 text-sm text-fg-muted">No column called “{query}”.</li>
+              ) : null}
+            </ul>
+          ) : (
+            <SortableList
+              appearance="plain"
+              label="Columns"
+              items={ordered}
+              itemLabel={(c) => c.label}
+              moveButtons="on-focus"
+              onReorder={(move) => {
+                onChange({ order: move.order, visible: value.visible });
+              }}
+            >
+              {row}
+            </SortableList>
+          )}
+        </div>
+
+        <div className="mt-1 flex items-center justify-between gap-2">
+          {onReset === undefined ? (
+            <span />
+          ) : (
             <Button size="sm" variant="ghost" onClick={onReset}>
               Reset
             </Button>
           )}
-        </div>
-        <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain">
-          <SortableList
-            label="Columns"
-            items={ordered}
-            itemLabel={(c) => c.label}
-            onReorder={(move) => {
-              onChange({ order: move.order, visible: value.visible });
-            }}
-          >
-            {(column) => {
-              const id = `${headingId}-${column.id}`;
-              return (
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <Checkbox
-                    id={id}
-                    checked={isShown(column)}
-                    disabled={column.locked === true}
-                    onCheckedChange={(checked) => {
-                      toggle(column.id, checked === true);
-                    }}
-                  />
-                  <label htmlFor={id} className="min-w-0 cursor-pointer truncate text-base text-fg">
-                    {column.label}
-                  </label>
-                </span>
-              );
-            }}
-          </SortableList>
+          <PopoverClose asChild>
+            <Button size="sm" variant="primary">
+              Done
+            </Button>
+          </PopoverClose>
         </div>
       </PopoverContent>
     </Popover>

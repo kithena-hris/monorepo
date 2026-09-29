@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Bold, Grid2x2, Italic, List, Rows3, Table2, Underline } from 'lucide-react';
 import { useState } from 'react';
 
+import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control';
 import { Toggle, ToggleGroup, ToggleGroupItem } from './toggle';
 
 const meta = {
@@ -53,12 +54,12 @@ const meta = {
     },
     variant: {
       description:
-        '`ghost` for a toggle inside a toolbar that already has a surface; `outline` when it stands alone and needs an edge.',
+        '`fill` by default: a filled pill that takes the accent wash when on. `ghost` inside a toolbar that already has a surface; `outline` when it needs an edge.',
       control: 'inline-radio',
-      options: ['ghost', 'outline'],
+      options: ['fill', 'ghost', 'outline'],
       table: {
-        type: { summary: "'ghost' | 'outline'" },
-        defaultValue: { summary: 'ghost' },
+        type: { summary: "'fill' | 'ghost' | 'outline'" },
+        defaultValue: { summary: 'fill' },
         category: 'Appearance',
       },
     },
@@ -102,7 +103,7 @@ const meta = {
   },
   args: {
     children: 'Show archived',
-    variant: 'outline',
+    variant: 'fill',
     size: 'md',
     iconOnly: false,
     disabled: false,
@@ -120,12 +121,16 @@ export const Variants: Story = {
     docs: {
       description: {
         story:
-          "Both variants, unpressed and pressed. The pressed state changes background *and* text colour, a border colour alone is not a state change anyone notices at arm's length, let alone across a room.",
+          "Each variant, unpressed and pressed. The pressed state changes background *and* text colour, a border colour alone is not a state change anyone notices at arm's length, let alone across a room.",
       },
     },
   },
   render: () => (
     <div className="flex flex-wrap items-center gap-3">
+      <Toggle variant="fill">Fill</Toggle>
+      <Toggle variant="fill" defaultPressed>
+        Fill, pressed
+      </Toggle>
       <Toggle variant="ghost">Ghost</Toggle>
       <Toggle variant="ghost" defaultPressed>
         Ghost, pressed
@@ -172,7 +177,7 @@ export const SegmentedSingle: Story = {
     docs: {
       description: {
         story:
-          'A view switcher. This is `type="single"` with a value that can never be empty, which is why the group is a radio group and not three toggles that happen to be adjacent.',
+          'A view switcher is `SegmentedControl`, not a `ToggleGroup`: one value that can never be empty, a radio group rather than four toggles that happen to be adjacent, and a thumb that slides to the choice. `ToggleGroup` stays right for a formatting toolbar, where nothing or several can be on.',
       },
     },
   },
@@ -180,33 +185,24 @@ export const SegmentedSingle: Story = {
     const [view, setView] = useState('table');
     return (
       <div className="space-y-3 text-center">
-        <ToggleGroup
-          type="single"
-          value={view}
-          onValueChange={(next) => {
-            // An empty string arrives when the pressed segment is pressed
-            // again. A view switcher has no "no view" state, so it is ignored.
-            if (next) setView(next);
-          }}
-          aria-label="View"
-        >
-          <ToggleGroupItem value="table" aria-label="Table view">
+        <SegmentedControl value={view} onValueChange={setView} aria-label="View">
+          <SegmentedControlItem value="table">
             <Table2 />
             Table
-          </ToggleGroupItem>
-          <ToggleGroupItem value="rows" aria-label="Row view">
+          </SegmentedControlItem>
+          <SegmentedControlItem value="rows">
             <Rows3 />
             Rows
-          </ToggleGroupItem>
-          <ToggleGroupItem value="grid" aria-label="Grid view">
+          </SegmentedControlItem>
+          <SegmentedControlItem value="grid">
             <Grid2x2 />
             Grid
-          </ToggleGroupItem>
-          <ToggleGroupItem value="list" aria-label="List view">
+          </SegmentedControlItem>
+          <SegmentedControlItem value="list">
             <List />
             List
-          </ToggleGroupItem>
-        </ToggleGroup>
+          </SegmentedControlItem>
+        </SegmentedControl>
         <p aria-live="polite" className="text-sm text-fg-muted">
           Showing the <span className="font-medium text-fg">{view}</span> view
         </p>

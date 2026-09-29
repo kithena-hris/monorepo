@@ -14,6 +14,7 @@ import {
 
 import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
+import { fieldShell, floatShell, floatValue } from '../field/field-styles';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
 
 /**
@@ -85,12 +86,6 @@ export interface ComboboxProps {
   'aria-describedby'?: string;
   'aria-invalid'?: boolean;
 }
-
-const sizeClass = {
-  sm: 'h-control-sm text-xs px-2.5',
-  md: 'h-control-md text-base px-3',
-  lg: 'h-control-lg text-md px-3.5',
-} as const;
 
 export function Combobox({
   options,
@@ -274,6 +269,8 @@ export function Combobox({
 
   const popover = (
     <Popover
+      // The list belongs under its field, where the choice is read in place.
+      sheetOnTouch={false}
       // Modal, so the list scrolls inside a Dialog: the panel is portalled out
       // of the dialog, whose scroll lock otherwise swallows the wheel and the
       // touch drag over it. Modal gives the panel a scroll lock of its own that
@@ -292,19 +289,22 @@ export function Combobox({
         disabled={disabled}
         aria-label={label}
         aria-describedby={describedBy}
+        // Under a thumb the label of a 56px trigger floats inside it, as it
+        // does on an `Input`.
+        data-float={size === 'sm' ? undefined : ''}
+        data-invalid={invalid || undefined}
         className={cn(
-          'flex w-full items-center justify-between gap-2 rounded-md border border-border bg-surface',
-          'text-left text-fg transition-colors duration-(--animate-duration-fast)',
-          'hover:border-border-strong',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-          'disabled:pointer-events-none disabled:opacity-55',
-          invalid && 'border-danger',
-          sizeClass[size],
+          fieldShell({ size }),
+          size !== 'sm' && floatShell,
+          'cursor-pointer justify-between text-start focus-visible:outline-none',
+          'data-[state=open]:bg-surface data-[state=open]:ring-2 data-[state=open]:ring-accent data-[state=open]:ring-inset',
           className,
         )}
       >
-        <span className={cn('min-w-0 flex-1 truncate', selected.length === 0 && 'text-fg-subtle')}>
-          {triggerLabel}
+        <span className={cn('flex min-w-0 flex-1 items-center self-stretch', floatValue)}>
+          <span className={cn('truncate', selected.length === 0 && 'text-fg-subtle')}>
+            {triggerLabel}
+          </span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {clearable && selected.length > 0 ? (
@@ -326,26 +326,28 @@ export function Combobox({
                   onChange(multiple ? [] : null);
                 }
               }}
-              className="tap-target relative grid size-5 place-items-center rounded-xs text-fg-subtle hover:bg-surface-hover hover:text-fg"
+              className="tap-target relative grid size-6 place-items-center rounded-full text-fg-subtle hover:bg-surface-active hover:text-fg"
             >
-              <X className="size-3.5" aria-hidden />
+              <X className="size-4" aria-hidden />
             </span>
           ) : null}
-          <ChevronsUpDown className="size-4 text-fg-subtle" aria-hidden />
+          <ChevronsUpDown className="size-[1.125rem] text-fg-muted" aria-hidden />
         </span>
       </PopoverTrigger>
 
       <PopoverContent
         matchTriggerWidth
-        className="p-0"
+        className="p-1.5 touch:rounded-[1.25rem]"
         // Focus belongs in the search input the moment the panel opens.
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           inputRef.current?.focus();
         }}
       >
-        <div className="flex items-center gap-2 border-b border-border px-3">
-          <Search className="size-4 shrink-0 text-fg-subtle" aria-hidden />
+        {/* The search is a small filled field inside the panel, not a strip
+            ruled off from it. */}
+        <div className="m-0.5 mb-1.5 flex h-control-sm items-center gap-2 rounded-[0.625rem] bg-surface-sunken px-2.5 focus-within:ring-2 focus-within:ring-accent focus-within:ring-inset touch:rounded-[0.875rem]">
+          <Search className="size-4 shrink-0 text-fg-muted" aria-hidden />
           <input
             ref={inputRef}
             role="combobox"
@@ -364,12 +366,12 @@ export function Combobox({
               onSearchChange?.(event.target.value);
             }}
             onKeyDown={onKeyDown}
-            className="h-10 w-full bg-transparent text-base text-fg outline-none placeholder:text-fg-subtle"
+            className="h-full w-full min-w-0 bg-transparent text-sm text-fg outline-none placeholder:text-fg-subtle"
           />
         </div>
 
         {multiple && selectedOptions.length > 0 ? (
-          <div className="flex flex-wrap gap-1 border-b border-border p-2">
+          <div className="flex flex-wrap gap-1 px-1 pb-1.5">
             {selectedOptions.map((option) => (
               // Pops in on arrival: a chip that only fades reads as a
               // rendering glitch, while one that grows the last few percent
@@ -391,7 +393,7 @@ export function Combobox({
           role="listbox"
           aria-label={label}
           aria-multiselectable={multiple || undefined}
-          className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height,16rem)-7rem))] min-h-24 overflow-y-auto overscroll-contain p-1"
+          className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height,16rem)-7rem))] min-h-24 overflow-y-auto overscroll-contain touch:max-h-[min(50vh,calc(var(--radix-popover-content-available-height,50vh)-7rem))]"
         >
           {loading ? (
             <li className="px-3 py-6 text-center text-sm text-fg-muted">Searching…</li>
@@ -401,7 +403,7 @@ export function Combobox({
             grouped.map(([group, items]) => (
               <li key={group || 'ungrouped'}>
                 {group ? (
-                  <div className="px-2 pt-2 pb-1 text-2xs font-semibold tracking-wide text-fg-subtle uppercase">
+                  <div className="px-2.5 pt-2 pb-1 text-xs font-semibold text-fg-subtle">
                     {group}
                   </div>
                 ) : null}
@@ -423,8 +425,10 @@ export function Combobox({
                           setActiveIndex(index);
                         }}
                         className={cn(
-                          'flex min-h-tap cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-base',
-                          index === activeIndex && 'bg-surface-hover',
+                          'flex min-h-9 cursor-pointer items-center gap-2.5 rounded-[0.5625rem] px-2.5 py-1.5 text-sm',
+                          'touch:min-h-12 touch:rounded-[0.875rem] touch:px-3 touch:text-md',
+                          index === activeIndex && 'bg-surface-sunken',
+                          isSelected && 'font-semibold',
                           option.disabled && 'pointer-events-none opacity-55',
                         )}
                       >
@@ -441,7 +445,7 @@ export function Combobox({
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-fg">{option.label}</span>
                           {option.description ? (
-                            <span className="block truncate text-xs text-fg-muted">
+                            <span className="block truncate text-xs font-normal text-fg-muted">
                               {option.description}
                             </span>
                           ) : null}

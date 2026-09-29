@@ -31,7 +31,7 @@ const meta = {
   argTypes: {
     label: {
       description:
-        'What the number is. Rendered small and uppercase; keep it to two or three words.',
+        'What the number is. Rendered small above the value; keep it to two or three words.',
       control: 'text',
       table: { type: { summary: 'string' }, category: 'Content' },
     },
@@ -74,7 +74,8 @@ const meta = {
       },
     },
     chart: {
-      description: 'A `Sparkline` or other small chart, rendered under the value.',
+      description:
+        'A `Sparkline` or other small chart, beside the value, dropping under it when the tile is narrow.',
       control: false,
       table: { type: { summary: 'ReactNode' }, category: 'Content' },
     },
@@ -120,7 +121,7 @@ export const DirectionIsNotSentiment: Story = {
     },
   },
   render: () => (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,14rem),1fr))] gap-4">
       <Stat
         label="Headcount"
         value="912"
@@ -141,7 +142,8 @@ export const DirectionIsNotSentiment: Story = {
       />
       <Stat
         label="Time to hire"
-        value="38 days"
+        value="38"
+        unit="days"
         delta="−6 days"
         deltaLabel="vs Q1"
         direction="down"
@@ -171,7 +173,7 @@ export const WithMoney: Story = {
     },
   },
   render: () => (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4">
       <Stat
         label="Monthly payroll"
         value={<Money minorUnits="98345000" currency="EUR" locale="en-IE" />}
@@ -212,7 +214,7 @@ export const WithSparkline: Story = {
     },
   },
   render: () => (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
       <Stat
         label="Headcount"
         value="912"
@@ -268,27 +270,20 @@ export const InANarrowColumn: Story = {
     docs: {
       description: {
         story:
-          'The left column is 240px, the right is full width. The value steps down a size in the narrow one, from the container query, not from the viewport, which is identical for both.',
+          'A 220px sidebar column at a desk, the full width on a phone. The value is sized by the tile it sits in, from a container query rather than the viewport, so it steps down in the narrow column without the page having to say so.',
       },
     },
   },
   render: () => (
-    <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
+    <div className="flex w-55 max-w-full flex-col gap-2.5 touch:w-full">
+      <Stat label="Headcount" value="312" delta="+12" direction="up" sentiment="positive" />
       <Stat
-        label="Pending approvals"
-        value="7"
-        delta="+3"
-        deltaLabel="since Monday"
-        direction="up"
-        sentiment="negative"
-      />
-      <Stat
-        label="Pending approvals"
-        value="7"
-        delta="+3"
-        deltaLabel="since Monday"
-        direction="up"
-        sentiment="negative"
+        label="Leavers"
+        value="4"
+        delta="−2"
+        direction="down"
+        sentiment="positive"
+        description="Fewer leavers is down, and that is good."
       />
     </div>
   ),

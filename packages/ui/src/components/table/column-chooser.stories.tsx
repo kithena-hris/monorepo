@@ -27,7 +27,7 @@ const meta = {
     docs: {
       description: {
         component: [
-          'Which columns a table shows, and in what order, as one list: tick a row to show it, drag it or use its Move buttons to place it.',
+          'Which columns a table shows, and in what order, as one list: tick a row to show it, drag it by its grip or use its Move buttons (shown when focus is in the row) to place it. Ticks commit as they are made, with no Save button. Past eight columns the list gets a search box, and the grips step aside while it is in use.',
           '',
           '### Controlled, and remembers nothing',
           '',
@@ -63,6 +63,43 @@ export const Playground: Story = {
         }}
         onReset={() => {
           setValue(initial);
+        }}
+      />
+    );
+  },
+};
+
+const many = [
+  ...columns,
+  { id: 'status', label: 'Status' },
+  { id: 'salary', label: 'Salary' },
+  { id: 'employee-id', label: 'Employee ID' },
+];
+
+export const ManyColumns: Story = {
+  name: 'Many columns',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Past eight columns a search box finds one by name. While it holds a query the list is filtered and the grips step aside: reordering a filtered list has no clear meaning for the rows it hides.',
+      },
+    },
+  },
+  render: function ManyColumns(args) {
+    const start: ColumnChooserValue = {
+      order: many.map((c) => c.id),
+      visible: ['name', 'title', 'team', 'status', 'start'],
+    };
+    const [value, setValue] = useState(start);
+    return (
+      <ColumnChooser
+        {...args}
+        columns={many}
+        value={value}
+        onChange={setValue}
+        onReset={() => {
+          setValue(start);
         }}
       />
     );
@@ -159,8 +196,7 @@ export const WithATable: Story = {
       key === undefined
         ? rows
         : rows.toSorted(
-            (a, b) =>
-              a[key].localeCompare(b[key]) * (sort?.direction === 'descending' ? -1 : 1),
+            (a, b) => a[key].localeCompare(b[key]) * (sort?.direction === 'descending' ? -1 : 1),
           );
     return (
       <div className="flex flex-col gap-3">

@@ -307,11 +307,12 @@ const meta = {
       table: { type: { summary: '(column) => ReactNode' }, category: 'Content' },
     },
     columnWidth: {
-      description: 'Fixed column width. The board scrolls horizontally past the viewport.',
+      description:
+        'Fixed column width. The board scrolls horizontally past the viewport. Leave it unset for the default: 260px at a desk, 300px under a thumb.',
       control: 'text',
       table: {
         type: { summary: 'string' },
-        defaultValue: { summary: '19rem' },
+        defaultValue: { summary: '260px, 300px under touch' },
         category: 'Appearance',
       },
     },
@@ -394,7 +395,6 @@ const meta = {
     columns: initialColumns,
     items: initialItems,
     label: 'Hiring pipeline',
-    columnWidth: '19rem',
     dragActivator: { mode: 'handle', position: 'middle-start', reveal: 'hover' },
     autoScroll: { mode: 'auto', speed: 'normal' },
     motion: { preset: 'smooth' },

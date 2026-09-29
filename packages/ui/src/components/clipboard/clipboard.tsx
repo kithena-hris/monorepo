@@ -163,7 +163,7 @@ export function CopyButton({
 
   const button = (
     <Button
-      variant={variant}
+      variant={status === 'copied' ? 'tinted' : variant}
       size={size}
       aria-label={iconOnly ? label : undefined}
       onClick={() => {
@@ -184,7 +184,7 @@ export function CopyButton({
           <Check
             aria-hidden
             className={cn(
-              'absolute text-success-fg transition-[opacity,transform] duration-(--animate-duration-fast) ease-standard',
+              'absolute transition-[opacity,transform] duration-(--animate-duration-fast) ease-standard',
               status === 'copied' ? 'scale-100 opacity-100' : 'scale-75 opacity-0',
             )}
           />
@@ -271,8 +271,12 @@ export function CopyField({
   return (
     <div
       className={cn(
-        'flex items-center gap-1 rounded-md border border-border bg-surface-sunken ps-3 pe-1',
-        size === 'sm' ? 'h-control-sm text-xs' : 'h-control-md text-base',
+        // A read-only field: the edge without the fill, so it does not look
+        // like something to type into, and the copy control inside the shape.
+        'flex items-center gap-1 ps-3 pe-1 shadow-[inset_0_0_0_1px_var(--reach-color-border)] touch:ps-4',
+        size === 'sm'
+          ? 'h-control-sm rounded-sm text-sm touch:rounded-md'
+          : 'h-field rounded-[0.75rem] text-base touch:rounded-[1rem] touch:pe-2',
         className,
       )}
       {...props}
@@ -280,7 +284,7 @@ export function CopyField({
       <span className={cn('min-w-0 flex-1 truncate text-fg', mono && 'font-mono text-xs')}>
         {display ?? value}
       </span>
-      <CopyButton value={value} label={label} size="sm" />
+      <CopyButton value={value} label={label} size="xs" />
     </div>
   );
 }

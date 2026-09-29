@@ -39,6 +39,13 @@ import type { ChartTone } from './chart';
  * a distribution, say, with `value` as its median. It says where most of the
  * figures sit without drawing any one of them, which is what an aggregate
  * that must not name anybody needs. `spreadLabel` says what it is.
+ *
+ * ### People are dots, and the ones outside are loud
+ *
+ * `people` draws one dot per salary along the row, so "who sits where" is a
+ * picture rather than a table. A dot inside the band is hollow and quiet; one
+ * outside is solid danger with a halo, and the row's readout counts them in
+ * words, for the same reason as `value` above.
  */
 
 export interface RangeBand {
@@ -53,6 +60,8 @@ export interface RangeBand {
   meta?: string;
   /** An inner range drawn across the row: where most of the figures sit. */
   spread?: { low: number; high: number };
+  /** Individual figures, one dot each. Those outside the band are highlighted. */
+  people?: readonly number[];
   tone?: ChartTone;
 }
 
@@ -63,6 +72,8 @@ export interface RangeChartProps {
   valueLabel: string;
   /** What `spread` is: "Middle half". */
   spreadLabel?: string;
+  /** What `mid` is: "Midpoint" for a policy, "Median" for a distribution. */
+  midLabel?: string;
   format?: (value: number) => string;
   /** Row height in pixels. */
   rowHeight?: number;
@@ -74,12 +85,23 @@ export interface RangeChartProps {
   className?: string;
 }
 
+/** How many of a band's people sit outside it. */
+function outsideOf(band: RangeBand): number {
+  return (band.people ?? []).filter((figure) => figure < band.min || figure > band.max).length;
+}
+
 /** A position on the shared scale, as a CSS length. */
 function percent(value: number): string {
   return `${String(value)}%`;
 }
 
 const bandTone: Record<ChartTone, string> = {
+  'chart-1': 'bg-chart-1/25',
+  'chart-2': 'bg-chart-2/25',
+  'chart-3': 'bg-chart-3/25',
+  'chart-4': 'bg-chart-4/25',
+  'chart-5': 'bg-chart-5/25',
+  'chart-6': 'bg-chart-6/25',
   accent: 'bg-accent/25',
   success: 'bg-success/25',
   warning: 'bg-warning/25',
@@ -89,6 +111,12 @@ const bandTone: Record<ChartTone, string> = {
 };
 
 const edgeTone: Record<ChartTone, string> = {
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
+  'chart-5': 'bg-chart-5',
+  'chart-6': 'bg-chart-6',
   accent: 'bg-accent',
   success: 'bg-success',
   warning: 'bg-warning',
@@ -97,11 +125,28 @@ const edgeTone: Record<ChartTone, string> = {
   neutral: 'bg-fg-subtle',
 };
 
+/** The ring round a value marker: hollow, so a marker on the band's edge still reads as a point. */
+const ringTone: Record<ChartTone, string> = {
+  'chart-1': 'ring-chart-1',
+  'chart-2': 'ring-chart-2',
+  'chart-3': 'ring-chart-3',
+  'chart-4': 'ring-chart-4',
+  'chart-5': 'ring-chart-5',
+  'chart-6': 'ring-chart-6',
+  accent: 'ring-accent',
+  success: 'ring-success',
+  warning: 'ring-warning',
+  danger: 'ring-danger',
+  info: 'ring-info',
+  neutral: 'ring-fg-subtle',
+};
+
 export function RangeChart({
   data,
   label,
   valueLabel,
   spreadLabel = 'Spread',
+  midLabel = 'Midpoint',
   format = (value) => String(value),
   rowHeight: rowHeightProp = 34,
   labelWidth = 140,
@@ -116,12 +161,23 @@ export function RangeChart({
   // One scale for every row, so two bands can be compared by eye. Per-row
   // scales would make a narrow band look as wide as a broad one.
   const floor = Math.min(
-    ...data.flatMap((band) => [band.min, band.value ?? band.min, band.spread?.low ?? band.min]),
+    ...data.flatMap((band) => [
+      band.min,
+      band.value ?? band.min,
+      band.spread?.low ?? band.min,
+      ...(band.people ?? []),
+    ]),
   );
   const ceiling = Math.max(
-    ...data.flatMap((band) => [band.max, band.value ?? band.max, band.spread?.high ?? band.max]),
+    ...data.flatMap((band) => [
+      band.max,
+      band.value ?? band.max,
+      band.spread?.high ?? band.max,
+      ...(band.people ?? []),
+    ]),
   );
   const spreads = data.some((band) => band.spread !== undefined);
+  const counted = data.some((band) => band.people !== undefined);
   const span = Math.max(ceiling - floor, 1);
   const at = (value: number): number =>
     ((Math.min(Math.max(value, floor), ceiling) - floor) / span) * 100;
@@ -147,7 +203,7 @@ export function RangeChart({
               className="flex flex-col justify-center pe-3"
               style={{ height: rowHeight }}
             >
-              <span className="truncate text-sm text-fg">{band.label}</span>
+              <span className="truncate text-sm font-medium text-fg-muted">{band.label}</span>
               {band.meta === undefined ? null : (
                 <span className="truncate text-2xs text-fg-subtle">{band.meta}</span>
               )}
@@ -158,7 +214,7 @@ export function RangeChart({
         <div className="relative min-w-0 flex-1">
           {data.map((band, index) => {
             const mid = band.mid ?? (band.min + band.max) / 2;
-            const tone = band.tone ?? 'accent';
+            const tone = band.tone ?? 'chart-1';
             const selected = selectedLabel === band.label;
             const below = band.value !== undefined && band.value < band.min;
             const above = band.value !== undefined && band.value > band.max;
@@ -173,16 +229,24 @@ export function RangeChart({
                     : ', above the maximum'
                   : `, ${String(Math.round(((band.value - band.min) / Math.max(band.max - band.min, 1)) * 100))}% through the band`;
 
-            const readout = `${band.label}: ${format(band.min)} to ${format(band.max)}, midpoint ${format(mid)}${
+            const outsiders = outsideOf(band);
+            const readout = `${band.label}: ${format(band.min)} to ${format(band.max)}, ${midLabel.toLowerCase()} ${format(mid)}${
               band.value === undefined ? '' : `. ${valueLabel} ${format(band.value)}${position}`
             }${
               band.spread === undefined
                 ? ''
                 : `. ${spreadLabel} ${format(band.spread.low)} to ${format(band.spread.high)}`
+            }${
+              band.people === undefined
+                ? ''
+                : `. ${String(band.people.length)} people, ${
+                    outsiders === 0 ? 'all inside the band' : `${String(outsiders)} outside it`
+                  }`
             }`;
 
             return (
               <div key={band.label} className="relative" style={{ height: rowHeight }}>
+                <span aria-hidden className="absolute inset-x-0 top-1/2 h-px bg-border" />
                 <Tooltip content={readout} side="top">
                   <div
                     role={onSelect ? 'button' : 'img'}
@@ -196,13 +260,13 @@ export function RangeChart({
                         : undefined
                     }
                     className={cn(
-                      'absolute inset-y-2 rounded-sm',
+                      'absolute inset-y-2 rounded-full',
                       'origin-left transition-[opacity,box-shadow] duration-(--animate-duration-fast)',
                       'motion-safe:animate-grow-x',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                       bandTone[tone],
                       onSelect && 'cursor-pointer hover:brightness-105',
-                      selected && 'ring-2 ring-border-focus',
+                      selected && 'ring-2 ring-accent',
                       selectedLabel !== undefined && !selected && 'opacity-50',
                     )}
                     style={{
@@ -215,7 +279,7 @@ export function RangeChart({
                         is a policy. */}
                     <span
                       aria-hidden
-                      className="absolute inset-y-0 w-px bg-fg-subtle/60"
+                      className="absolute -inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-fg"
                       style={{
                         insetInlineStart: percent(
                           ((mid - band.min) / Math.max(band.max - band.min, 1)) * 100,
@@ -229,7 +293,7 @@ export function RangeChart({
                   <span
                     aria-hidden
                     className={cn(
-                      'pointer-events-none absolute inset-y-3 rounded-xs opacity-50',
+                      'pointer-events-none absolute inset-y-[calc(0.5rem-2px)] rounded-[6px] opacity-45',
                       edgeTone[tone],
                     )}
                     style={{
@@ -239,15 +303,38 @@ export function RangeChart({
                   />
                 )}
 
+                {(band.people ?? []).map((figure, dot) => {
+                  const out = figure < band.min || figure > band.max;
+                  return (
+                    <span
+                      key={dot}
+                      aria-hidden
+                      className={cn(
+                        'pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full',
+                        'motion-safe:animate-pop-in',
+                        out
+                          ? 'z-10 size-3 bg-danger ring-3 ring-danger-subtle'
+                          : cn('size-[9px] bg-surface ring-2 ring-inset', ringTone[tone]),
+                      )}
+                      style={{
+                        insetInlineStart: percent(at(figure)),
+                        animationDelay: `min(calc(${String(index * 40 + dot * 20)}ms), 320ms)`,
+                      }}
+                    />
+                  );
+                })}
+
                 {band.value === undefined ? null : (
                   <span
                     aria-hidden
                     className={cn(
-                      'absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-xs',
+                      'absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full',
                       'motion-safe:animate-pop-in',
                       // Out of band is a different colour *and* a different
                       // sentence in the readout above.
-                      outside ? 'bg-danger ring-2 ring-surface' : edgeTone[tone],
+                      outside
+                        ? 'size-3 bg-danger ring-3 ring-danger-subtle'
+                        : cn('size-[9px] bg-surface ring-2 ring-inset', ringTone[tone]),
                     )}
                     style={{ insetInlineStart: percent(at(band.value)) }}
                   />
@@ -258,53 +345,92 @@ export function RangeChart({
         </div>
       </div>
 
-      <div aria-hidden className="mt-1 flex justify-between text-2xs text-fg-subtle">
+      <div aria-hidden className="mt-2 flex justify-between text-[11px] font-medium text-fg-subtle">
         <span>{format(floor)}</span>
         <span className="font-medium">{valueLabel}</span>
         <span>{format(ceiling)}</span>
       </div>
 
-      <table className="sr-only">
-        <caption>{label}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Band</th>
-            <th scope="col">Minimum</th>
-            <th scope="col">Midpoint</th>
-            <th scope="col">Maximum</th>
-            <th scope="col">{valueLabel}</th>
-            {spreads ? <th scope="col">{spreadLabel}</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((band) => (
-            <tr key={band.label}>
-              <th scope="row">{band.label}</th>
-              <td>{format(band.min)}</td>
-              <td>{format(band.mid ?? (band.min + band.max) / 2)}</td>
-              <td>{format(band.max)}</td>
-              <td>
-                {band.value === undefined
-                  ? 'Not compared'
-                  : `${format(band.value)}${
-                      band.value < band.min
-                        ? ' (below minimum)'
-                        : band.value > band.max
-                          ? ' (above maximum)'
-                          : ''
-                    }`}
-              </td>
-              {spreads ? (
-                <td>
-                  {band.spread === undefined
-                    ? 'None'
-                    : `${format(band.spread.low)} to ${format(band.spread.high)}`}
-                </td>
-              ) : null}
+      {/* A key only when the row carries more than a band: the inner range and
+          the median are two marks nobody can name by looking. */}
+      {spreads ? (
+        <ul
+          aria-hidden
+          className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-fg-muted"
+        >
+          <li className="flex items-center gap-1.5">
+            <span
+              className={cn('h-2.5 w-3.5 rounded-full', bandTone[data[0]?.tone ?? 'chart-1'])}
+            />
+            Band
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                'h-2.5 w-3.5 rounded-[3px] opacity-45',
+                edgeTone[data[0]?.tone ?? 'chart-1'],
+              )}
+            />
+            {spreadLabel}
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span className="h-3 w-0.5 rounded-full bg-fg" />
+            {midLabel}
+          </li>
+        </ul>
+      ) : null}
+
+      <div className="sr-only">
+        <table>
+          <caption>{label}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Band</th>
+              <th scope="col">Minimum</th>
+              <th scope="col">{midLabel}</th>
+              <th scope="col">Maximum</th>
+              <th scope="col">{valueLabel}</th>
+              {spreads ? <th scope="col">{spreadLabel}</th> : null}
+              {counted ? <th scope="col">Outside the band</th> : null}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((band) => (
+              <tr key={band.label}>
+                <th scope="row">{band.label}</th>
+                <td>{format(band.min)}</td>
+                <td>{format(band.mid ?? (band.min + band.max) / 2)}</td>
+                <td>{format(band.max)}</td>
+                <td>
+                  {band.value === undefined
+                    ? 'Not compared'
+                    : `${format(band.value)}${
+                        band.value < band.min
+                          ? ' (below minimum)'
+                          : band.value > band.max
+                            ? ' (above maximum)'
+                            : ''
+                      }`}
+                </td>
+                {spreads ? (
+                  <td>
+                    {band.spread === undefined
+                      ? 'None'
+                      : `${format(band.spread.low)} to ${format(band.spread.high)}`}
+                  </td>
+                ) : null}
+                {counted ? (
+                  <td>
+                    {band.people === undefined
+                      ? 'Not counted'
+                      : `${String(outsideOf(band))} of ${String(band.people.length)}`}
+                  </td>
+                ) : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </ChartFrame>
   );
 }

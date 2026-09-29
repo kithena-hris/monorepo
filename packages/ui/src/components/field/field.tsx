@@ -7,6 +7,13 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
+import {
+  fieldErrorClass,
+  fieldHintClass,
+  fieldLabelClass,
+  floatLabel,
+  floatRoot,
+} from './field-styles';
 
 /**
  * Form field wiring.
@@ -17,6 +24,18 @@ import { Badge } from '../badge/badge';
  * association is generated here and the control only has to opt in via
  * `FieldControl`.
  */
+
+/*
+ * The label takes column one and the first row; everything else stacks in
+ * column two. Under touch the grid collapses to one column, so the children
+ * fall back into source order: label, control, description, error.
+ */
+const fieldColumns = cn(
+  'grid grid-cols-[10rem_minmax(0,1fr)] items-start gap-x-4',
+  '*:col-start-2 [&>label]:col-start-1 [&>label]:row-start-1 [&>label]:min-h-field touch:[&>label]:min-h-0',
+  'touch:grid-cols-1 touch:*:col-start-1',
+  floatRoot,
+);
 
 interface FieldContextValue {
   controlId: string;
@@ -58,8 +77,18 @@ export interface FieldProps extends ComponentPropsWithoutRef<'div'> {
    * somebody is expected to complete.
    */
   missing?: boolean;
-  /** Lay the label out beside the control instead of above it. */
-  orientation?: 'vertical' | 'horizontal';
+  /**
+   * Where the label goes.
+   *
+   * - `vertical`: above the control.
+   * - `horizontal`: beside it, pushed to the far edge. For a switch or a
+   *   checkbox, whose row is the label.
+   * - `columns`: in a 160px column to its left, with the description and
+   *   error under the control. For a desk form whose labels line up down the
+   *   page. Under a thumb it stacks like `vertical`, because a phone has no
+   *   room for a label column.
+   */
+  orientation?: 'vertical' | 'horizontal' | 'columns';
 }
 
 export function Field({
@@ -94,11 +123,12 @@ export function Field({
         data-disabled={disabled || undefined}
         className={cn(
           'group/field flex gap-1.5',
-          orientation === 'vertical'
-            ? 'flex-col'
-            : // A control beside its label is a row a thumb has to hit on its own;
-              // at the tap floor, two rows' hit areas never overlap.
-              'flex-row items-center justify-between gap-4 touch:min-h-tap',
+          orientation === 'vertical' && cn('flex-col', floatRoot),
+          // A control beside its label is a row a thumb has to hit on its own;
+          // at the tap floor, two rows' hit areas never overlap.
+          orientation === 'horizontal' &&
+            'flex-row items-center justify-between gap-4 touch:min-h-tap',
+          orientation === 'columns' && fieldColumns,
           className,
         )}
         {...props}
@@ -115,11 +145,7 @@ export function FieldLabel({ className, children, ...props }: FieldLabelProps): 
   return (
     <LabelPrimitive.Root
       htmlFor={controlId}
-      className={cn(
-        'flex items-center gap-1 text-sm leading-none font-medium text-fg',
-        disabled && 'text-fg-disabled',
-        className,
-      )}
+      className={cn(fieldLabelClass, floatLabel, disabled && 'text-fg-disabled', className)}
       {...props}
     >
       {children}
@@ -165,7 +191,8 @@ export function FieldDescription({
   return (
     <p
       id={descriptionId}
-      className={cn('text-sm', tone === 'warning' ? 'text-warning-fg' : 'text-fg-muted', className)}
+      data-caution={tone === 'warning' || undefined}
+      className={cn(fieldHintClass, tone === 'warning' && 'text-warning-fg', className)}
       {...props}
     />
   );
@@ -189,7 +216,7 @@ export function FieldError({
       id={errorId}
       role="alert"
       aria-live="polite"
-      className={cn('text-xs font-medium text-danger-fg', className)}
+      className={cn(fieldErrorClass, className)}
       {...props}
     >
       {children}

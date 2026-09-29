@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { Alert } from '../feedback/feedback';
 import { Button } from '../button/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
 import { ImageUploader, type ImageUploadRejection, type UploadedImage } from './image-uploader';
@@ -108,8 +107,20 @@ const meta = {
       control: { type: 'range', min: 0, max: 100 },
       table: { type: { summary: 'number | null' }, category: 'State' },
     },
+    layout: {
+      description:
+        '`tiles`: square previews with their own remove button and upload ring, ending in an "Add" tile that is the file input. `list`: a dropzone with a card per image.',
+      control: 'inline-radio',
+      options: ['tiles', 'list'],
+      table: {
+        type: { summary: "'list' | 'tiles'" },
+        defaultValue: { summary: 'list' },
+        category: 'Appearance',
+      },
+    },
     aspect: {
-      description: 'Preview shape. `square` for an avatar, `wide` for a banner.',
+      description:
+        'Preview shape in the `list` layout. `square` for an avatar, `wide` for a banner.',
       control: 'inline-radio',
       options: ['square', 'wide', 'auto'],
       table: {
@@ -153,6 +164,7 @@ const meta = {
     disabled: false,
     invalid: false,
     aspect: 'auto',
+    layout: 'tiles',
     value: [],
     onChange: () => undefined,
   },
@@ -161,8 +173,52 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/**
+ * A stand-in photograph: a sky, a sun and two hills, as an SVG data URI. The
+ * stories run in Chromium with no network, so the image has to be inline.
+ */
+function samplePhoto(
+  name: string,
+  [sky, hill]: readonly [string, string],
+  extra: Partial<UploadedImage> = {},
+): UploadedImage {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="${sky}"/><circle cx="68" cy="30" r="10" fill="#fff" fill-opacity="0.8"/><path d="M0 70 30 44 56 66 74 52 96 68V96H0Z" fill="${hill}"/></svg>`;
+  return {
+    id: name,
+    file: new File([svg], name, { type: 'image/svg+xml' }),
+    previewUrl: `data:image/svg+xml,${encodeURIComponent(svg)}`,
+    ...extra,
+  };
+}
+
+const BLUE = ['#9cc3f0', '#3f6fb5'] as const;
+const GREEN = ['#bfe3c8', '#3d8a5a'] as const;
+const AMBER = ['#f6d9a8', '#b8741f'] as const;
+const PLUM = ['#dcc6ee', '#7a4fa6'] as const;
+
 export const Playground: Story = {
   render: function PlaygroundStory(args) {
+    const [images, setImages] = useState<readonly UploadedImage[]>([]);
+    return (
+      <div className="max-w-md">
+        <ImageUploader {...args} value={images} onChange={setImages} />
+      </div>
+    );
+  },
+};
+
+export const Dropzone: Story = {
+  name: 'As a dropzone',
+  args: { layout: 'list' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The `list` layout: a dropzone with a card per image under it, for a document scan where the file name and size matter as much as the picture.',
+      },
+    },
+  },
+  render: function DropzoneStory(args) {
     const [images, setImages] = useState<readonly UploadedImage[]>([]);
     return (
       <div className="max-w-md">
@@ -177,19 +233,23 @@ export const Multiple: Story = {
   args: {
     multiple: true,
     maxFiles: 6,
-    label: 'Supporting documents',
-    hint: 'Scans of the signed contract. Up to 6 images.',
+    label: 'Office photos',
+    hint: 'Shown on the careers page. Up to 6 images.',
   },
   parameters: {
     docs: {
       description: {
         story:
-          'The grid grows as files land, each preview animating in rather than appearing. Try dropping seven: the seventh is rejected by name with the reason, because a file that silently vanishes reads as a broken upload.',
+          'Each tile has its own remove button, and the "Add" tile at the end is the file input. Try adding four more: the seventh is rejected by name with the reason, because a file that silently vanishes reads as a broken upload.',
       },
     },
   },
   render: function MultiStory(args) {
-    const [images, setImages] = useState<readonly UploadedImage[]>([]);
+    const [images, setImages] = useState<readonly UploadedImage[]>(() => [
+      samplePhoto('lobby.jpg', BLUE),
+      samplePhoto('garden.jpg', GREEN),
+      samplePhoto('kitchen.jpg', AMBER),
+    ]);
     return (
       <div className="max-w-2xl">
         <ImageUploader {...args} value={images} onChange={setImages} />
@@ -201,36 +261,39 @@ export const Multiple: Story = {
 export const Constrained: Story = {
   name: 'With a dimension floor',
   args: {
-    label: 'Company logo',
-    hint: 'PNG or WebP with a transparent background works best.',
-    accept: ['image/png', 'image/webp'],
-    maxSize: 1024 * 1024,
-    minDimensions: { width: 512, height: 512 },
-    aspect: 'square',
+    label: 'Office photo',
+    hint: 'At least 1200 × 800, so it stays sharp on the careers page.',
+    minDimensions: { width: 1200, height: 800 },
   },
   parameters: {
     docs: {
       description: {
         story:
-          'A byte limit does not catch a 4 kB 60×60 JPEG, it passes every size check and looks like porridge at 200px. The floor is enforced after decode, which is the only place the intrinsic size exists. Drop a small image to see the rejection.',
+          'A byte limit does not catch a 4 kB 60×60 JPEG, it passes every size check and looks like porridge at 200px. The floor is enforced after decode, which is the only place the intrinsic size exists. In the tile layout a refused image stays on screen, ringed, until it is dismissed, so it is obvious which one was wrong. The one here is marked by the caller with `invalid`; drop a small image to see the uploader do it.',
       },
     },
   },
   render: function ConstrainedStory(args) {
-    const [images, setImages] = useState<readonly UploadedImage[]>([]);
+    const [images, setImages] = useState<readonly UploadedImage[]>(() => [
+      samplePhoto('office.jpg', PLUM, { invalid: true, width: 640, height: 480 }),
+    ]);
     const [rejected, setRejected] = useState<readonly ImageUploadRejection[]>([]);
+    const flagged = images.find((image) => image.invalid);
 
     return (
-      <div className="max-w-md space-y-3">
-        <ImageUploader {...args} value={images} onChange={setImages} onReject={setRejected} />
-        {rejected.length > 0 ? (
-          <Alert tone="warning" title={`${String(rejected.length)} file(s) refused`}>
-            <ul className="list-disc ps-4">
-              {rejected.map((rejection) => (
-                <li key={`${rejection.file.name}-${rejection.reason}`}>{rejection.message}</li>
-              ))}
-            </ul>
-          </Alert>
+      <div className="max-w-md space-y-2">
+        <ImageUploader
+          {...args}
+          multiple
+          maxFiles={2}
+          value={images}
+          onChange={setImages}
+          onReject={setRejected}
+        />
+        {flagged && rejected.length === 0 ? (
+          <p className="text-sm text-danger-fg">
+            {flagged.file.name} is 640 × 480. Use at least 1200 × 800.
+          </p>
         ) : null}
       </div>
     );
@@ -239,15 +302,41 @@ export const Constrained: Story = {
 
 export const Uploading: Story = {
   name: 'In flight',
+  args: { multiple: true, maxFiles: 6, label: 'Office photos', hint: undefined },
   parameters: {
     docs: {
       description: {
         story:
-          'Note the shape of an honest upload: it starts **indeterminate** while the request is opening, and only becomes a percentage once bytes are actually moving. A bar that creeps to 90% and stops made a promise the network could not keep.',
+          'Each image carries its own `progress`, and its tile shows a ring over a dimmed preview until it lands. `null` spins while the request is still opening: a ring that creeps to 90% and stops made a promise the network could not keep. A tile in flight has no remove button.',
       },
     },
   },
   render: function UploadingStory(args) {
+    const [images, setImages] = useState<readonly UploadedImage[]>(() => [
+      samplePhoto('lobby.jpg', BLUE, { progress: 64 }),
+      samplePhoto('terrace.jpg', PLUM, { progress: 22 }),
+      samplePhoto('kitchen.jpg', AMBER),
+    ]);
+    return (
+      <div className="max-w-md">
+        <ImageUploader {...args} value={images} onChange={setImages} />
+      </div>
+    );
+  },
+};
+
+export const ListUploading: Story = {
+  name: 'In flight, as a dropzone',
+  args: { layout: 'list' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'In the `list` layout one `progress` for the whole uploader replaces the dropzone with a bar. It starts **indeterminate** while the request is opening, and only becomes a percentage once bytes are actually moving.',
+      },
+    },
+  },
+  render: function ListUploadingStory(args) {
     const [images, setImages] = useState<readonly UploadedImage[]>([]);
     const [progress, setProgress] = useState<number | null | undefined>(undefined);
 
@@ -290,14 +379,14 @@ export const States: Story = {
     docs: {
       description: {
         story:
-          'The invalid state pairs the red border with `aria-invalid` **and** a message, a colour alone is not a validation message. Disabled says why, because a dropzone that refuses files without explaining generates a support ticket.',
+          'The invalid state pairs the red border with `aria-invalid` **and** a message, a colour alone is not a validation message. When the uploader itself refuses a file for its type, the "Add" tile says "Not an image" as well. Disabled says why, because an uploader that refuses files without explaining generates a support ticket.',
       },
     },
   },
   render: function StatesStory(args) {
     const [images, setImages] = useState<readonly UploadedImage[]>([]);
     return (
-      <div className="grid max-w-4xl gap-6 md:grid-cols-2">
+      <div className="grid max-w-4xl gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
         <div className="space-y-1.5">
           <ImageUploader
             {...args}
@@ -307,8 +396,8 @@ export const States: Story = {
             value={images}
             onChange={setImages}
           />
-          <p role="alert" className="text-xs font-medium text-danger-fg">
-            A scan of the identity document is required.
+          <p role="alert" className="text-sm text-danger-fg">
+            notes.pdf is a PDF. Use PNG, JPG or WebP.
           </p>
         </div>
         <ImageUploader
@@ -394,7 +483,7 @@ export const AvatarShapes: Story = {
         <CardHeader>
           <CardTitle>Company images</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-6 sm:grid-cols-2">
+        <CardContent className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
           <AvatarUploader
             label="Logo"
             hint="The mark, beside their name in lists."
@@ -461,8 +550,32 @@ export const AvatarStored: Story = {
   },
 };
 
-export const AvatarMenu: Story = {
+export const AvatarPhotoIsTheControl: Story = {
   name: 'AvatarUploader — the photo is the control',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'On hover or focus the photo shows "Change". On touch, tapping it opens the options. There is no separate button to find: the thing you want to change is the thing you press.',
+      },
+    },
+  },
+  render: function PhotoControlStory() {
+    const [images, setImages] = useState<readonly UploadedImage[]>([]);
+    return (
+      <AvatarUploader
+        label="Profile photo"
+        hint="Square works best. At least 400 × 400."
+        src={STORED_IMAGE}
+        value={images}
+        onChange={setImages}
+      />
+    );
+  },
+};
+
+export const AvatarMenu: Story = {
+  name: 'AvatarUploader — a menu on the photo',
   parameters: {
     docs: {
       description: {
@@ -487,7 +600,13 @@ export const AvatarMenu: Story = {
             if (next.length === 0) setStored(null);
           }}
         />
-        <AvatarUploader label="Photo" controls="menu" size="lg" value={[]} onChange={() => undefined} />
+        <AvatarUploader
+          label="Photo"
+          controls="menu"
+          size="lg"
+          value={[]}
+          onChange={() => undefined}
+        />
       </div>
     );
   },

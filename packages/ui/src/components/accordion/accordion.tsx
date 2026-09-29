@@ -1,7 +1,7 @@
 'use client';
 
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Lock } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
@@ -41,7 +41,11 @@ export function Accordion({ className, ...props }: AccordionProps): JSX.Element 
 
   return (
     <AccordionPrimitive.Root
-      className={cn('divide-y divide-border rounded-lg border border-border bg-surface', className)}
+      className={cn(
+        'divide-y divide-border overflow-hidden rounded-[1.125rem] bg-surface shadow-sm',
+        'touch:rounded-[1.375rem]',
+        className,
+      )}
       {...forwarded}
     />
   );
@@ -59,6 +63,10 @@ export interface AccordionTriggerProps extends ComponentPropsWithoutRef<
 > {
   /** Right-aligned summary that stays visible while the panel is closed. */
   meta?: ReactNode;
+  /** A second line under the title, for what the section holds. */
+  description?: ReactNode;
+  /** A leading glyph. Decorative; the title names the section. */
+  icon?: ReactNode;
   /**
    * The heading level the trigger sits in. Each header is a real heading, so
    * a screen reader can jump between sections; `3` suits an accordion under a
@@ -72,6 +80,8 @@ export function AccordionTrigger({
   className,
   children,
   meta,
+  description,
+  icon,
   level = 3,
   ...props
 }: AccordionTriggerProps): JSX.Element {
@@ -81,19 +91,37 @@ export function AccordionTrigger({
       <Heading className="flex">
         <AccordionPrimitive.Trigger
           className={cn(
-            'group flex min-h-tap flex-1 items-center gap-3 px-4 py-3 text-left text-base font-medium text-fg',
+            'group flex min-h-14 flex-1 items-center gap-3 px-5 py-3 text-left text-base font-semibold text-fg',
+            'touch:min-h-15 touch:px-4',
             'transition-colors duration-(--animate-duration-fast) hover:bg-surface-hover',
             'active:bg-surface-active',
             'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+            'data-disabled:text-fg-disabled data-disabled:hover:bg-transparent',
             className,
           )}
           {...props}
         >
-          <span className="min-w-0 flex-1 truncate">{children}</span>
-          {meta ? <span className="shrink-0 text-sm text-fg-muted">{meta}</span> : null}
+          {icon ? (
+            <span aria-hidden className="shrink-0 text-fg-muted [&_svg]:size-[1.125rem]">
+              {icon}
+            </span>
+          ) : null}
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="truncate">{children}</span>
+            {description ? (
+              <span className="truncate text-sm font-normal text-fg-muted">{description}</span>
+            ) : null}
+          </span>
+          {meta ? <span className="shrink-0 text-sm font-normal text-fg-muted">{meta}</span> : null}
           <ChevronDown
             aria-hidden
-            className="size-4 shrink-0 text-fg-subtle transition-transform duration-(--animate-duration-normal) ease-standard group-data-[state=open]:rotate-180"
+            className="size-[1.125rem] shrink-0 text-fg-muted transition-transform duration-(--animate-duration-normal) ease-standard group-data-disabled:hidden group-data-[state=open]:rotate-180"
+          />
+          {/* A locked section says so, rather than showing a chevron that
+              does nothing. The reason belongs in `description`. */}
+          <Lock
+            aria-hidden
+            className="hidden size-4 shrink-0 text-fg-subtle group-data-disabled:block"
           />
         </AccordionPrimitive.Trigger>
       </Heading>
@@ -109,12 +137,12 @@ export function AccordionContent({
   return (
     <AccordionPrimitive.Content
       className={cn(
-        'overflow-hidden text-base text-fg-muted',
+        'overflow-hidden text-[0.875rem] leading-relaxed text-fg-muted touch:text-[1rem]',
         'data-[state=open]:animate-collapse-down data-[state=closed]:animate-collapse-up',
       )}
       {...props}
     >
-      <div className={cn('px-4 pt-1 pb-4', className)}>{children}</div>
+      <div className={cn('px-5 pb-4.5 touch:px-4', className)}>{children}</div>
     </AccordionPrimitive.Content>
   );
 }

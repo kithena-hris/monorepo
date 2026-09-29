@@ -275,7 +275,7 @@ export const WhenToVirtualize: Story = {
     }, []);
 
     return (
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-6">
         <div>
           <h3 className="mb-2 text-sm font-semibold text-fg">ScrollArea</h3>
           <div ref={plainRef}>

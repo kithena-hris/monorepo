@@ -62,9 +62,9 @@
 
   html {
     -webkit-text-size-adjust: 100%;
-    font-feature-settings:
-      'cv11' on,
-      'ss01' on;
+    /* No `font-feature-settings`. The stylistic sets it used to switch on were
+       Inter's; the face is now the platform's own, which draws its alternates
+       itself, and a feature tag the font does not carry is noise at best. */
     font-variation-settings: normal;
     scrollbar-gutter: stable;
 

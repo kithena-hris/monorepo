@@ -48,7 +48,9 @@ export function ChatWindow({
   footer,
 }: ChatWindowProps): JSX.Element {
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    // A window beside the page on every pointer, never a sheet: the page has
+    // to stay usable while it is open.
+    <Popover open={open} onOpenChange={onOpenChange} sheetOnTouch={false}>
       <PopoverTrigger asChild>
         <Button
           variant="primary"

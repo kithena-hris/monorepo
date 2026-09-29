@@ -4,8 +4,17 @@ import * as SwitchPrimitive from '@radix-ui/react-switch';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { Spinner } from '../spinner/spinner';
 
-export type SwitchProps = ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>;
+export interface SwitchProps extends ComponentPropsWithoutRef<typeof SwitchPrimitive.Root> {
+  /**
+   * The change is being saved. The thumb carries a spinner, the switch is
+   * `aria-busy`, and it ignores further presses until the write settles, at
+   * full opacity, because it has not been refused, only not yet confirmed.
+   * If the write fails, put `checked` back and say so in a `FieldError`.
+   */
+  loading?: boolean;
+}
 
 /**
  * Immediate on/off.
@@ -13,26 +22,45 @@ export type SwitchProps = ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>;
  * A switch commits the moment it moves. If the setting needs a Save button,
  * it is a checkbox, not a switch.
  */
-export function Switch({ className, ...props }: SwitchProps): JSX.Element {
+export function Switch({
+  className,
+  loading = false,
+  onClick,
+  ...props
+}: SwitchProps): JSX.Element {
   return (
     <SwitchPrimitive.Root
+      aria-busy={loading || undefined}
+      data-loading={loading || undefined}
+      onClick={(event) => {
+        // Radix skips its toggle when the event is already prevented, which
+        // covers Space and Enter too: both arrive here as a click.
+        if (loading) event.preventDefault();
+        onClick?.(event);
+      }}
       className={cn(
-        'peer relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full',
+        // 36 x 22 at a desk; the 51 x 31 a phone's own switches use under a
+        // thumb, where "on" is the platform's green rather than the accent.
+        'peer relative inline-flex h-[1.375rem] w-9 shrink-0 cursor-pointer items-center rounded-full',
+        'touch:h-[1.9375rem] touch:w-[3.1875rem]',
         'tap-target',
-        'border border-transparent bg-surface-active shadow-xs',
+        'bg-surface-active',
         'transition-[background-color,transform] duration-(--animate-duration-fast) ease-standard',
         // Confirms the press on pointer-down, before the state has flipped.
         'active:scale-[0.97] motion-reduce:active:scale-100',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-        'data-[state=checked]:bg-accent',
-        'disabled:cursor-not-allowed disabled:opacity-55',
+        'data-[state=checked]:bg-accent touch:data-[state=checked]:bg-success-solid',
+        'aria-invalid:data-[state=checked]:bg-danger-solid',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        'data-loading:cursor-progress',
         className,
       )}
       {...props}
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          'pointer-events-none block size-4 rounded-full bg-surface shadow-sm ring-0',
+          'pointer-events-none grid size-[1.125rem] place-items-center rounded-full bg-fg-on-accent ring-0 touch:size-[1.6875rem]',
+          'shadow-[0_1px_3px_oklch(0%_0_0/0.25)]',
           /*
            * The thumb is the one part of a switch that is a physical object: it
            * is a thing that slides in a track, and it is the only element on the
@@ -46,9 +74,18 @@ export function Switch({ className, ...props }: SwitchProps): JSX.Element {
            * crossfade.
            */
           'transition-transform duration-(--animate-duration-spring-snap) ease-spring-snap',
-          'translate-x-0.5 data-[state=checked]:translate-x-[1.125rem]',
+          'translate-x-0.5 data-[state=checked]:translate-x-4 touch:data-[state=checked]:translate-x-[1.375rem]',
+          'rtl:-translate-x-0.5 rtl:data-[state=checked]:-translate-x-4 touch:rtl:data-[state=checked]:-translate-x-[1.375rem]',
         )}
-      />
+      >
+        {loading ? (
+          <Spinner
+            size={null}
+            label="Saving"
+            className="text-accent-fg [&_svg]:size-2.5 touch:[&_svg]:size-[1.1875rem]"
+          />
+        ) : null}
+      </SwitchPrimitive.Thumb>
     </SwitchPrimitive.Root>
   );
 }

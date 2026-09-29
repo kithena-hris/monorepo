@@ -22,15 +22,64 @@ export { Alert, EmptyState, Skeleton } from './components/feedback/feedback';
 export type { AlertProps, EmptyStateProps } from './components/feedback/feedback';
 
 export {
+  NotificationCenter,
+  NotificationGroup,
+  NotificationItem,
+  NotificationPanel,
+} from './components/notification-center/notification-center';
+export type {
+  NotificationCenterProps,
+  NotificationGroupProps,
+  NotificationItemProps,
+  NotificationPanelProps,
+} from './components/notification-center/notification-center';
+
+export {
+  AssistantComposer,
+  AssistantLauncher,
+  AssistantMark,
+  AssistantMessage,
+  AssistantPanel,
+  AssistantSource,
+  AssistantSources,
+  AssistantStep,
+  AssistantSteps,
+  AssistantSuggestion,
+  AssistantSuggestions,
+} from './components/assistant/assistant';
+export type {
+  AssistantComposerProps,
+  AssistantLauncherProps,
+  AssistantMessageProps,
+  AssistantPanelProps,
+  AssistantSourceProps,
+  AssistantSuggestionProps,
+} from './components/assistant/assistant';
+
+export {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogIcon,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './components/alert-dialog/alert-dialog';
+export type { AlertDialogIconProps } from './components/alert-dialog/alert-dialog';
+
+export {
+  ActionSheet,
+  ActionSheetContent,
+  ActionSheetItem,
+  ActionSheetTrigger,
+} from './components/action-sheet/action-sheet';
+export type {
+  ActionSheetContentProps,
+  ActionSheetItemProps,
+  ActionSheetProps,
+} from './components/action-sheet/action-sheet';
 
 export {
   Breadcrumb,
@@ -53,6 +102,22 @@ export {
   parseIsoDate,
 } from './components/calendar/calendar';
 export type { CalendarProps, DateRange, IsoDate } from './components/calendar/calendar';
+
+export {
+  ChatComposer,
+  ChatDivider,
+  ChatLog,
+  ChatMessage,
+  ChatTyping,
+} from './components/chat/chat';
+export type {
+  ChatComposerProps,
+  ChatLogProps,
+  ChatMessageProps,
+  ChatTypingProps,
+} from './components/chat/chat';
+export { ChatWindow } from './components/chat/chat-window';
+export type { ChatWindowProps } from './components/chat/chat-window';
 
 export {
   BarChart,
@@ -106,11 +171,51 @@ export type {
   TimelineUnit,
 } from './components/chart/timeline-chart';
 
+export { ChartCard } from './components/chart/chart-card';
+export type { ChartCardProps } from './components/chart/chart-card';
+
+export { ComboChart } from './components/chart/combo-chart';
+export type { ComboChartProps, ComboPoint } from './components/chart/combo-chart';
+
+export { StackedAreaChart } from './components/chart/stacked-area-chart';
+export type { StackedAreaChartProps } from './components/chart/stacked-area-chart';
+
+export { Gauge } from './components/chart/gauge';
+export type { GaugeProps } from './components/chart/gauge';
+
+export { RadarChart } from './components/chart/radar-chart';
+export type { RadarChartProps, RadarSeries } from './components/chart/radar-chart';
+
+export { TreemapChart } from './components/chart/treemap-chart';
+export type { TreemapChartProps, TreemapItem } from './components/chart/treemap-chart';
+
+export { HistogramChart } from './components/chart/histogram-chart';
+export type { HistogramChartProps } from './components/chart/histogram-chart';
+export { binValues, linearFit, squarify } from './components/chart/geometry';
+export type { BinOptions, HistogramBin } from './components/chart/geometry';
+
+export { CohortChart } from './components/chart/cohort-chart';
+export type { CohortChartProps, CohortRow } from './components/chart/cohort-chart';
+
+export { BulletChart } from './components/chart/bullet-chart';
+export type { BulletChartProps, BulletMeasure } from './components/chart/bullet-chart';
+
+export { CalendarHeatmap } from './components/chart/calendar-heatmap';
+export type { CalendarDay, CalendarHeatmapProps } from './components/chart/calendar-heatmap';
+
+export { BubbleChart } from './components/chart/bubble-chart';
+export type { BubbleChartProps, BubblePoint } from './components/chart/bubble-chart';
+
 export { Dropzone } from './components/dropzone/dropzone';
 export type { DropzoneProps } from './components/dropzone/dropzone';
 
 export { SortableList } from './components/sortable/sortable';
-export type { SortableItem, SortableListProps, SortableMove } from './components/sortable/sortable';
+export type {
+  SortableAppearance,
+  SortableItem,
+  SortableListProps,
+  SortableMove,
+} from './components/sortable/sortable';
 
 export { Stepper } from './components/stepper/stepper';
 export type { StepStatus, StepperProps, StepperStep } from './components/stepper/stepper';
@@ -126,6 +231,20 @@ export type {
 
 export { Combobox } from './components/combobox/combobox';
 export type { ComboboxOption, ComboboxProps } from './components/combobox/combobox';
+
+export {
+  Command,
+  CommandPalette,
+  filterCommands,
+} from './components/command-palette/command-palette';
+export type {
+  CommandItem,
+  CommandPaletteProps,
+  CommandProps,
+} from './components/command-palette/command-palette';
+
+export { Carousel, nearestSlide, scrollEdges } from './components/carousel/carousel';
+export type { CarouselProps } from './components/carousel/carousel';
 
 export {
   ContextMenu,
@@ -164,15 +283,21 @@ export type {
   KithenaWordmarkProps,
 } from './brand/kithena-logo';
 
-export { ChatComposer, ChatLog, ChatMessage } from './components/chat/chat';
-export { ChatWindow } from './components/chat/chat-window';
-export type { ChatWindowProps } from './components/chat/chat-window';
-export type { ChatComposerProps, ChatLogProps, ChatMessageProps } from './components/chat/chat';
 export { Badge } from './components/badge/badge';
 export type { BadgeProps } from './components/badge/badge';
 
+export { Banner } from './components/banner/banner';
+export type { BannerProps } from './components/banner/banner';
+
 export { Button } from './components/button/button';
 export type { ButtonProps, ButtonVariants } from './components/button/button';
+
+export { FloatingButton, SpeedDial } from './components/floating-button/floating-button';
+export type {
+  FloatingButtonProps,
+  SpeedDialAction,
+  SpeedDialProps,
+} from './components/floating-button/floating-button';
 
 export {
   Card,
@@ -186,6 +311,17 @@ export type { CardProps } from './components/card/card';
 
 export { Checkbox } from './components/checkbox/checkbox';
 export type { CheckboxProps } from './components/checkbox/checkbox';
+
+export { Chip, ChipGroup, ChipGroupItem, ChipRow } from './components/chip/chip';
+export type {
+  ChipGroupItemProps,
+  ChipGroupProps,
+  ChipProps,
+  ChipRowProps,
+} from './components/chip/chip';
+
+export { CoachMark, CoachMarkDot } from './components/coach-mark/coach-mark';
+export type { CoachMarkProps } from './components/coach-mark/coach-mark';
 
 export {
   Dialog,
@@ -234,6 +370,9 @@ export type {
   UploadStatus,
 } from './components/file-uploader/file-uploader';
 
+export { FormSaveBar, FormSection, FormSections } from './components/form-sections/form-sections';
+export type { FormSaveBarProps, FormSectionProps } from './components/form-sections/form-sections';
+
 export { AvatarUploader, ImageUploader } from './components/image-uploader/image-uploader';
 export type {
   AvatarUploaderProps,
@@ -259,8 +398,6 @@ export { Input, Textarea } from './components/input/input';
 export type { InputProps, TextareaProps } from './components/input/input';
 
 export { Kbd } from './components/kbd/kbd';
-export { KeyValues } from './components/key-values/key-values';
-export type { KeyValuesProps } from './components/key-values/key-values';
 export type { KbdProps } from './components/kbd/kbd';
 
 export { Nav, NavGroup, NavItem, NavList, TertiaryNav } from './components/nav/nav';
@@ -271,6 +408,26 @@ export type {
   NavProps,
   TertiaryNavProps,
 } from './components/nav/nav';
+
+export type { TertiaryNavItem, TertiaryNavStatus } from './components/nav/nav';
+export { TertiaryNavMenu } from './components/nav/tertiary-nav-menu';
+export type { TertiaryNavMenuProps } from './components/nav/tertiary-nav-menu';
+
+export { GroupedNav, filterNavGroups } from './components/nav/grouped-nav';
+export type {
+  GroupedNavGroup,
+  GroupedNavItem,
+  GroupedNavProps,
+} from './components/nav/grouped-nav';
+
+export { AppBar, AppBarBack, NavRail, TabBar, TabBarItem } from './components/app-bar/app-bar';
+export type {
+  AppBarBackProps,
+  AppBarProps,
+  NavRailProps,
+  TabBarItemProps,
+  TabBarProps,
+} from './components/app-bar/app-bar';
 
 export { AutoGrid, Container, Inline, Split, Stack } from './components/layout/layout';
 export type {
@@ -315,6 +472,9 @@ export type { MoneyProps } from './components/money/money';
 export { ListDetail } from './components/list-detail/list-detail';
 export type { ListDetailProps } from './components/list-detail/list-detail';
 
+export { List, ListItem } from './components/list-item/list-item';
+export type { ListItemProps, SwipeAction } from './components/list-item/list-item';
+
 export {
   ModalPage,
   ModalPageBody,
@@ -356,7 +516,10 @@ export {
   PopoverContent,
   PopoverTrigger,
 } from './components/popover/popover';
-export type { PopoverContentProps } from './components/popover/popover';
+export type { PopoverContentProps, PopoverProps } from './components/popover/popover';
+
+export { HoverCard, HoverCardContent, HoverCardTrigger } from './components/hover-card/hover-card';
+export type { HoverCardProps, HoverCardTriggerProps } from './components/hover-card/hover-card';
 
 export { CircularProgress, Progress } from './components/progress/progress';
 
@@ -376,6 +539,15 @@ export type { RadioGroupItemProps } from './components/radio-group/radio-group';
 export { ScrollArea, ScrollBar } from './components/scroll-area/scroll-area';
 export { VirtualList, type VirtualListProps } from './components/virtual-list/virtual-list';
 export type { ScrollAreaProps } from './components/scroll-area/scroll-area';
+
+export {
+  SegmentedControl,
+  SegmentedControlItem,
+} from './components/segmented-control/segmented-control';
+export type {
+  SegmentedControlItemProps,
+  SegmentedControlProps,
+} from './components/segmented-control/segmented-control';
 
 export {
   Select,
@@ -451,8 +623,18 @@ export type {
   FilterField,
   FilterGroup,
   FilterOperator,
+  FilterSubgroup,
   FilterValueKind,
 } from './components/filter-builder/filter-builder';
+export {
+  addCondition as addFilterCondition,
+  addGroup as addFilterGroup,
+  conditionsOf as filterConditions,
+  describeFilter,
+  removeItem as removeFilterItem,
+  setMatch as setFilterMatch,
+  updateCondition as updateFilterCondition,
+} from './components/filter-builder/filter-model';
 
 export { DataTable } from './components/table/data-table';
 export type {
@@ -461,6 +643,22 @@ export type {
   DataTableReorder,
   DataTableSort,
 } from './components/table/data-table';
+
+export { KeyValues } from './components/key-values/key-values';
+export type { KeyValueItem, KeyValuesProps } from './components/key-values/key-values';
+
+export { TreeView } from './components/tree-view/tree-view';
+export type { TreeViewNode, TreeViewProps } from './components/tree-view/tree-view';
+
+export { Scheduler } from './components/scheduler/scheduler';
+export type {
+  SchedulerColumn,
+  SchedulerEvent,
+  SchedulerProps,
+  SchedulerTone,
+} from './components/scheduler/scheduler';
+export { dayColumns, formatMinutes } from './components/scheduler/scheduler-model';
+export type { DayColumn, Minutes } from './components/scheduler/scheduler-model';
 
 export {
   CurrencyField,
@@ -481,6 +679,9 @@ export type { TagsInputProps } from './components/tags-input/tags-input';
 export { Timeline, TimelineItem } from './components/timeline/timeline';
 export type { TimelineItemProps } from './components/timeline/timeline';
 
+export { TimePicker, formatTime, parseTime, timeSlots } from './components/time-picker/time-picker';
+export type { TimePickerProps } from './components/time-picker/time-picker';
+
 export { ToastProvider, ToastViewport, useToast } from './components/toast/toast';
 export type { ToastOptions, ToastTone } from './components/toast/toast';
 
@@ -495,11 +696,13 @@ export type { IconGroup, IconName, LucideIcon } from './icons/index';
 
 export { brandRamp } from './lib/brand-ramp';
 export { cn } from './lib/cn';
+export { PortalContainerProvider, usePortalContainer } from './lib/portal-container';
 
 export {
   breakpointQuery,
   useBreakpoint,
   useCoarsePointer,
+  useCoarsePointerAt,
   useMediaQuery,
   usePrefersReducedMotion,
 } from './lib/use-media-query';
