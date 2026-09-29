@@ -81,9 +81,11 @@ const meta = {
           '| `hidden` | Nothing, plus a control pinned to the layout edge to bring it back. Right for a detail rail, where half-visible content is worse than none. |',
           '| `none` | Fixed. |',
           '',
-          'The toggle carries `aria-expanded` and `aria-controls`, and its accessible name says which rail and which direction, "Hide navigation", never "Toggle". A `hidden` rail is also `inert` while away; a `rail` one is not, because it still holds every destination in plain sight.',
+          'The toggle carries `aria-expanded` and `aria-controls`, and its accessible name says which rail and which direction, "Collapse sidebar", never "Toggle". A `hidden` rail is also `inert` while away; a `rail` one is not, because it still holds every destination in plain sight.',
           '',
-          '**⌘B / Ctrl+B** toggles the sidebar. The modifier follows the platform, and the binding reads `event.key` rather than `event.code` so a Dvorak or AZERTY layout gets the letter it is looking at.',
+          '`⌘\\` / `Ctrl+\\` toggles the sidebar (not ⌘B, which is bold in every text field). The modifier follows the platform, and the binding reads `event.key` rather than `event.code` so a Dvorak or AZERTY layout gets the key it is looking at.',
+          '',
+          'A `rail` collapses in two phases, labels first and then the width, and instantly under reduced motion. Its edge can be dragged: past 160px it opens, back under it snaps shut. `storageKey` remembers the choice on this device; with nothing remembered and no `defaultCollapsed`, a layout under 1024px starts as the rail. The sidebar appears from a 640px container.',
         ].join('\n'),
       },
     },
@@ -180,11 +182,11 @@ const meta = {
     },
     sidebarShortcut: {
       description:
-        'Letter bound with the platform modifier. `null` disables it. `b` is what every editor and issue tracker has settled on, which is the only reason to prefer it.',
+        'Key bound with the platform modifier. `null` disables it. Backslash by default: ⌘B is bold in every text field, and a layout-wide binding must not take it.',
       control: 'text',
       table: {
         type: { summary: 'string | null' },
-        defaultValue: { summary: 'b' },
+        defaultValue: { summary: '\\' },
         category: 'Collapsing',
       },
     },
@@ -742,7 +744,7 @@ export const Collapsing: Story = {
     docs: {
       description: {
         story: [
-          'Hover the layout and both toggles fade in, one at the top of each rail. Or press **⌘B / Ctrl+B** for the sidebar.',
+          'A toggle at the top of each rail. Or press `⌘\\` / `Ctrl+\\` for the sidebar.',
           '',
           'The two modes differ on purpose. The sidebar collapses to a **rail**: every destination is still there, in the same order, as an icon with a tooltip and a screen-reader label. Nothing is `inert`, because nothing is hidden. The aside collapses to **nothing**, a half-width detail panel is worse than none, and its reopen control is pinned to the layout edge, since a control inside a zero-width panel goes with it.',
           '',

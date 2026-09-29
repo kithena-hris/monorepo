@@ -19,6 +19,7 @@ import { currentTenant } from '../lib/branding';
 import { homeData } from '../lib/home';
 import { shellData } from '../lib/shell';
 import { currentPerson, displayName } from '../lib/session';
+import { sidebarCollapsed } from '../lib/signed-in';
 
 /**
  * The first screen a person sees at their company.
@@ -91,6 +92,7 @@ export default async function Home(): Promise<JSX.Element> {
       logoUrl={tenant?.branding.logoUrl ?? null}
       entitlements={person.entitlements}
       shell={shell}
+      sidebarCollapsed={await sidebarCollapsed()}
     >
       {/*
         Their zone beside the greeting: it answers a question somebody has

@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Archive, Calendar, Check, Ellipsis, FileText, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 
+import { icons } from '../../icons';
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
@@ -364,5 +365,40 @@ export const WithSectionHeaders: Story = {
         </section>
       ))}
     </div>
+  ),
+};
+
+/**
+ * A place rather than a person: `icon` puts the glyph in a 40px tile, and
+ * with a description the row is 72pt, room for a line on what it holds.
+ */
+export const Places: Story = {
+  render: () => (
+    <List className="max-w-md">
+      <ListItem
+        asChild
+        chevron
+        icon={<icons.overview />}
+        description="Your tasks and what needs HR"
+      >
+        <a href="#overview">Overview</a>
+      </ListItem>
+      <ListItem
+        asChild
+        chevron
+        icon={<icons.approve />}
+        description="4 waiting for you"
+        trailing={
+          <Badge size="xs" variant="solid" tone="danger">
+            4<span className="sr-only"> need action</span>
+          </Badge>
+        }
+      >
+        <a href="#approvals">Approvals</a>
+      </ListItem>
+      <ListItem asChild chevron icon={<icons.transfer />} description="Move data in and out">
+        <a href="#import-export">Import &amp; export</a>
+      </ListItem>
+    </List>
   ),
 };

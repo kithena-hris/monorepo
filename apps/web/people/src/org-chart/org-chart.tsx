@@ -1,6 +1,5 @@
 import {
   Avatar,
-  Badge,
   Button,
   Card,
   EmptyState,
@@ -16,10 +15,12 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { ViewSwitch, type DirectoryView } from '../directory/directory';
 import { Loaded, type Loadable } from '../load';
 
 /**
- * The org chart (W6, W7, M11).
+ * The Directory's org chart view (V3, MV4; W6, W7, M11), at
+ * `/people/directory/org-chart`.
  *
  * Everybody this viewer may see, drawn from each person's manager as People
  * holds it: pan, zoom, search, and a click on a card to see who they are
@@ -27,8 +28,9 @@ import { Loaded, type Loadable } from '../load';
  * managers to the top. Under a finger the chart opens as a tree that folds
  * open and closed, with the canvas one tap away (Reach's own phone mode).
  *
- * The chart is the directory seen another way, so the switch in the header
- * goes back to the table and the cards.
+ * The chart is the directory seen another way, so it shares the Directory's
+ * header with Org chart chosen, and the switch goes back to the list and the
+ * cards with the same search and filters.
  */
 export interface OrgPerson {
   readonly id: string;
@@ -53,8 +55,8 @@ export interface OrgChartState {
 export interface OrgChartScreenProps {
   readonly load: Loadable<OrgChartState>;
   readonly onOpen: (personId: string) => void;
-  /** Back to the directory as a table or as cards. */
-  readonly onDirectory?: (view: 'table' | 'cards') => void;
+  /** Back to the directory as a list or as cards. */
+  readonly onViewChange?: (view: DirectoryView) => void;
 }
 
 const TONE: Readonly<Record<string, 'info' | 'warning' | 'neutral'>> = {
@@ -63,10 +65,10 @@ const TONE: Readonly<Record<string, 'info' | 'warning' | 'neutral'>> = {
   'Starting soon': 'info',
 };
 
-export function OrgChartScreen({ load, onOpen, onDirectory }: OrgChartScreenProps): JSX.Element {
+export function OrgChartScreen({ load, onOpen, onViewChange }: OrgChartScreenProps): JSX.Element {
   return (
     <Loaded load={load} what="the org chart">
-      {(state) => <Body state={state} onOpen={onOpen} onDirectory={onDirectory} />}
+      {(state) => <Body state={state} onOpen={onOpen} onViewChange={onViewChange} />}
     </Loaded>
   );
 }
@@ -74,11 +76,11 @@ export function OrgChartScreen({ load, onOpen, onDirectory }: OrgChartScreenProp
 function Body({
   state,
   onOpen,
-  onDirectory,
+  onViewChange,
 }: {
   readonly state: OrgChartState;
   readonly onOpen: OrgChartScreenProps['onOpen'];
-  readonly onDirectory: OrgChartScreenProps['onDirectory'];
+  readonly onViewChange: OrgChartScreenProps['onViewChange'];
 }): JSX.Element {
   const coarse = useCoarsePointer();
   const [orientation, setOrientation] = useState<'vertical' | 'horizontal'>('vertical');
@@ -105,53 +107,19 @@ function Body({
   return (
     <Stack gap={5}>
       <PageHeader
-        title="Org chart"
-        meta={
-          <Badge size="sm" tone="accent">
-            New
-          </Badge>
-        }
+        title="Directory"
         description={`${state.people.length.toLocaleString('en-GB')} people · ${String(managers.size)} managers${
           state.truncated ? ' · the first pages of the directory' : ''
         }`}
         actions={
-          coarse ? undefined : (
-            <span className="flex flex-wrap items-center gap-2">
-              <SegmentedControl
-                aria-label="Direction"
-                size="sm"
-                value={orientation}
-                onValueChange={(next) => {
-                  setOrientation(next === 'horizontal' ? 'horizontal' : 'vertical');
-                }}
-              >
-                <SegmentedControlItem value="vertical">Top down</SegmentedControlItem>
-                <SegmentedControlItem value="horizontal">Left to right</SegmentedControlItem>
-              </SegmentedControl>
-              {onDirectory === undefined ? null : (
-                <SegmentedControl
-                  aria-label="Show people as"
-                  size="sm"
-                  value="chart"
-                  onValueChange={(next) => {
-                    if (next === 'table' || next === 'cards') onDirectory(next);
-                  }}
-                >
-                  <SegmentedControlItem iconOnly value="table" aria-label="Table">
-                    <icons.table aria-hidden />
-                  </SegmentedControlItem>
-                  <SegmentedControlItem iconOnly value="cards" aria-label="Cards">
-                    <icons.people aria-hidden />
-                  </SegmentedControlItem>
-                  <SegmentedControlItem iconOnly value="chart" aria-label="Org chart">
-                    <icons.organisation aria-hidden />
-                  </SegmentedControlItem>
-                </SegmentedControl>
-              )}
-            </span>
+          onViewChange === undefined ? undefined : (
+            <ViewSwitch view="org-chart" onChange={onViewChange} />
           )
         }
       />
+      {onViewChange === undefined ? null : (
+        <ViewSwitch phone view="org-chart" onChange={onViewChange} />
+      )}
       {nodes.length === 0 ? (
         <EmptyState
           icon={<icons.organisation />}
@@ -172,6 +140,27 @@ function Body({
               nodes={nodes}
               orientation={orientation}
               searchable
+              searchPlaceholder="Find a person or team"
+              // The direction sits on the canvas it turns; a phone's tree has none.
+              {...(coarse
+                ? {}
+                : {
+                    toolbar: (
+                      <SegmentedControl
+                        aria-label="Direction"
+                        size="sm"
+                        value={orientation}
+                        onValueChange={(next) => {
+                          setOrientation(next === 'horizontal' ? 'horizontal' : 'vertical');
+                        }}
+                      >
+                        <SegmentedControlItem value="vertical">Top down</SegmentedControlItem>
+                        <SegmentedControlItem value="horizontal">
+                          Left to right
+                        </SegmentedControlItem>
+                      </SegmentedControl>
+                    ),
+                  })}
               minimap
               height={coarse ? 'auto' : 'calc(100dvh - 17rem)'}
               focusMode="chain"

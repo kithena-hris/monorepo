@@ -543,6 +543,27 @@ const workers = Math.max(
   Math.floor(Number(process.env.CONTRAST_WORKERS)) || Math.min(availableParallelism(), 4),
 );
 
+/*
+ * A navigation that does not go quiet in 20s gets one more try, of 60s.
+ *
+ * The Storybook dev server shares the runner's cores with the renderers, and
+ * now and then a story it serves in a second takes longer than that to go
+ * quiet: a different story each run, on main and on branches that touched
+ * nothing it renders. A shard's first story is the worst case, since it pays
+ * for the dev server compiling on demand while every worker opens at once;
+ * a second 20s was not always enough for that. A second timeout is still
+ * counted as unmeasured, so a story that genuinely never settles fails the
+ * gate as before.
+ */
+async function settle(page, url) {
+  try {
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
+  } catch (error) {
+    if (error?.name !== 'TimeoutError') throw error;
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+  }
+}
+
 const failures = [];
 const skipped = [];
 let ringsSeen = 0;
@@ -579,7 +600,7 @@ async function worker() {
         '&globals=theme:' +
         theme;
     try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
+      await settle(page, url);
 
       if (story.standalone) {
         // An ordinary page has no Storybook global to drive, so the class
@@ -682,6 +703,32 @@ async function worker() {
     }
   }
   for (const page of pages.values()) await page.context().close();
+}
+
+/*
+ * One visit before the timed ones, measured by nothing.
+ *
+ * On a fresh runner the Storybook dev server pre-bundles its dependencies on
+ * the first request it serves, and whichever story a shard opens first waited
+ * through that under the same 20s (and then 60s) as every other: the same
+ * story, every run, never settling, and never a contrast finding. Paying the
+ * cold start here, with room for it, leaves every measured story a warm
+ * server. A failure here is ignored; the story is still visited, and judged,
+ * below.
+ */
+{
+  const first = jobs.find((job) => !job.story.standalone);
+  if (first !== undefined) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page
+      .goto(`${BASE}/iframe.html?id=${first.story.id}&viewMode=${first.story.viewMode}`, {
+        waitUntil: 'networkidle',
+        timeout: 180000,
+      })
+      .catch(() => undefined);
+    await context.close();
+  }
 }
 
 await Promise.all(Array.from({ length: Math.min(workers, jobs.length) }, worker));

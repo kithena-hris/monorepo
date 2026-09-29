@@ -10,7 +10,7 @@ import { signedIn } from '../../lib/signed-in';
  * at a desk, so the two never disagree.
  */
 export default async function Inbox(): Promise<JSX.Element> {
-  const { person, entitlements, company, logoUrl, shell } = await signedIn();
+  const { person, entitlements, company, logoUrl, shell, sidebarCollapsed } = await signedIn();
   return (
     <AppShell
       person={person}
@@ -18,6 +18,7 @@ export default async function Inbox(): Promise<JSX.Element> {
       logoUrl={logoUrl}
       entitlements={entitlements}
       shell={shell}
+      sidebarCollapsed={sidebarCollapsed}
     >
       <div className="flex flex-col gap-5">
         <PageHeader

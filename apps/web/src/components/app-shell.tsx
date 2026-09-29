@@ -11,6 +11,10 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   filterCommands,
   Kbd,
@@ -43,9 +47,10 @@ import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from '
 
 import { searchPeople } from '../app/people/actions';
 import { EMPTY_SHELL, type ShellData } from '../lib/shell-data';
+import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { THEME_KEY } from '../lib/theme';
 import { Assistant } from './assistant';
-import { iconOf, PeopleSections } from './people-nav';
+import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
 import { since } from './since';
 
 /*
@@ -70,10 +75,13 @@ const ThemeLight = icons.theme;
  * in the top corner, the assistant in the bottom one, and a tab bar where
  * there is no room for a sidebar.
  *
- * `PageLayout` owns the grid, the collapsed rail and the `⌘B` shortcut, and
- * `Nav` owns the list semantics. Where the layout is too narrow for a sidebar
- * (a container width, never the window's) the tab bar takes over: Home,
- * People, Inbox and Me, the way every app on a phone already works.
+ * `PageLayout` owns the grid, the collapsed rail (its buttons, its edge, the
+ * `⌘\` shortcut and remembering it on this device) and `Nav` owns the list
+ * semantics. People's sections sit inline under its item while you are in
+ * People; in the collapsed rail they are its flyout. Where the layout is too
+ * narrow for a sidebar (a 640px container, never the window's) the tab bar
+ * takes over: Home, People, Inbox and Me, the way every app on a phone
+ * already works.
  */
 export interface AppShellProps {
   readonly person: { readonly name: string; readonly email: string | null };
@@ -90,6 +98,13 @@ export interface AppShellProps {
   readonly shell?: ShellData;
   /** The People manifest route on screen, to mark it in the menu. */
   readonly route?: string | null;
+  /**
+   * Whether this device keeps the sidebar collapsed, read from its cookie on
+   * the server (`sidebarCollapsed`), so the first paint is already the rail
+   * or the full sidebar. `undefined`: never chosen, and a narrow layout starts
+   * as the rail.
+   */
+  readonly sidebarCollapsed?: boolean | undefined;
   readonly children: ReactNode;
 }
 
@@ -171,8 +186,8 @@ function useTheme(): readonly [boolean, (next: boolean) => void] {
 }
 
 /**
- * G then P opens People, from anywhere but a field: the shortcut the People
- * menu's footer promises.
+ * G then P opens People, and G then M your own profile, from anywhere but a
+ * field: the shortcuts the People flyout and the account menu print.
  */
 function useGoShortcut(entitled: boolean): void {
   const router = useRouter();
@@ -188,9 +203,10 @@ function useGoShortcut(entitled: boolean): void {
         armed = Date.now();
         return;
       }
-      if (key === 'p' && Date.now() - armed < 1000) {
+      const to = key === 'p' ? '/people' : key === 'm' ? '/people/me' : null;
+      if (to !== null && Date.now() - armed < 1000) {
         armed = 0;
-        router.push('/people');
+        router.push(to);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -207,6 +223,7 @@ export function AppShell({
   entitlements,
   shell = EMPTY_SHELL,
   route = null,
+  sidebarCollapsed,
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
@@ -225,12 +242,19 @@ export function AppShell({
     <TooltipProvider>
       <PageLayout
         preset="sidebar"
-        sidebarCollapse={{ mode: 'rail', defaultCollapsed: false }}
+        // Collapsed or not is remembered on this device, in a cookie the
+        // server reads; with nothing remembered, a layout under 1024px starts
+        // as the rail.
+        sidebarCollapse={{
+          mode: 'rail',
+          ...(sidebarCollapsed === undefined ? {} : { defaultCollapsed: sidebarCollapsed }),
+          onCollapsedChange: rememberSidebar,
+        }}
         bottomBar={<MobileTabs areas={areas} inbox={shell.notices.length} />}
         bottomBarVariant="floating"
-        // Where the sidebar is (a 48rem container), the tab bar is not.
-        bottomBarClassName="@3xl/page:hidden"
-        contentClassName="relative px-4 pt-3 pb-28 @3xl/page:px-10 @3xl/page:pt-8 @3xl/page:pb-12"
+        // Where the sidebar is (a 40rem container), the tab bar is not.
+        bottomBarClassName="@min-[40rem]/page:hidden"
+        contentClassName="relative px-4 pt-3 pb-28 @min-[40rem]/page:px-10 @min-[40rem]/page:pt-8 @min-[40rem]/page:pb-12"
         /*
           The company's mark where theirs exists, ours where it does not.
 
@@ -241,7 +265,10 @@ export function AppShell({
         sidebarHeader={
           logoUrl === null ? (
             <>
-              <KithenaLogo className="text-fg h-6 w-auto shrink-0 group-data-[collapsed]/sidebar:hidden" />
+              <KithenaLogo
+                data-rail-label=""
+                className="text-fg h-6 w-auto shrink-0 group-data-[collapsed]/sidebar:hidden"
+              />
               <KithenaMark
                 title="Kithena"
                 className="text-fg hidden size-7 group-data-[collapsed]/sidebar:block"
@@ -250,7 +277,10 @@ export function AppShell({
           ) : (
             <div className="flex min-w-0 items-center gap-2.5">
               <Avatar size="md" shape="rounded" fit="contain" src={logoUrl} name={companyName} />
-              <span className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden">
+              <span
+                data-rail-label=""
+                className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
+              >
                 {companyName}
               </span>
             </div>
@@ -269,6 +299,16 @@ export function AppShell({
                       current={isCurrent(area.href, pathname)}
                       {...(area.href === '/people' && shell.sections.length > 0
                         ? {
+                            // Inline while you are in People (V2); from the
+                            // collapsed rail, the same six as a flyout (V8).
+                            subnav: (
+                              <PeopleSubnav
+                                sections={shell.sections}
+                                route={route}
+                                counts={shell.counts}
+                              />
+                            ),
+                            expanded: isCurrent(area.href, pathname),
                             flyout: (
                               <PeopleSections
                                 sections={shell.sections}
@@ -276,7 +316,7 @@ export function AppShell({
                                 counts={shell.counts}
                               />
                             ),
-                            flyoutSize: 'lg' as const,
+                            flyoutSize: 'compact' as const,
                           }
                         : {})}
                     >
@@ -313,6 +353,8 @@ export function AppShell({
               <PersonMenu
                 person={person}
                 subtitle={[role, companyName].filter((x) => x !== null).join(' · ')}
+                companyName={companyName}
+                timeOff={areas.some((a) => a.href === '/time-off' && a.built)}
                 dark={dark}
                 onTheme={setTheme}
               />
@@ -339,7 +381,7 @@ export function AppShell({
 function TopCorner({ shell }: { readonly shell: ShellData }): JSX.Element {
   const [open, setOpen] = useState(false);
   return (
-    <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @3xl/page:flex">
+    <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @min-[40rem]/page:flex">
       <Button
         size="sm"
         className="w-56 justify-start rounded-control text-fg-muted"
@@ -464,10 +506,21 @@ function SearchPalette({
     () =>
       [
         { path: '/', label: 'Home', icon: 'home', group: 'Pages' },
-        ...shell.sections.map((s) => ({ ...s, group: 'People' })),
+        ...shell.sections.flatMap((s) => [
+          { ...s, group: 'People' },
+          // Each tab of an umbrella page is somewhere to go too, under its section.
+          ...(s.tabs ?? []).map((t) => ({
+            id: `tab:${t.path}`,
+            path: t.path,
+            label: t.label,
+            icon: s.icon,
+            description: `In ${s.label}`,
+            group: 'People',
+          })),
+        ]),
         ...shell.settings.map((s) => ({ ...s, group: 'Settings' })),
       ].map((p) => ({
-        id: p.path,
+        id: 'id' in p ? p.id : p.path,
         label: p.label,
         group: p.group,
         icon: iconOf(p.icon),
@@ -514,7 +567,12 @@ function SearchPalette({
 }
 
 /**
- * The person, at the end of the sidebar.
+ * The person, at the end of the sidebar: the account menu (V9).
+ *
+ * Who you are, then what is yours: your own profile (`G` `M`), your time off,
+ * your preferences, the company you are in, and signing out. Your profile is
+ * about you rather than about managing people, so it lives here, one click
+ * from anywhere, rather than among People's sections.
  *
  * Opens on hover **and** on click and keyboard. Hover alone would put signing
  * out behind a gesture a keyboard cannot make and a touch screen does not have
@@ -526,11 +584,19 @@ function SearchPalette({
 function PersonMenu({
   person,
   subtitle,
+  companyName,
+  timeOff,
   dark,
   onTheme,
 }: {
   person: AppShellProps['person'];
   subtitle: string;
+  companyName: string;
+  /**
+   * Whether time off is there to open: the company has it and the area is
+   * built, as the sidebar's row says. Otherwise the item is disabled.
+   */
+  timeOff: boolean;
   dark: boolean;
   onTheme: (next: boolean) => void;
 }): JSX.Element {
@@ -539,7 +605,7 @@ function PersonMenu({
     <DropdownMenu openOnHover>
       <DropdownMenuTrigger className="hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center gap-2.5 rounded-md p-2.5 text-left shadow-[inset_0_0_0_1px_var(--reach-color-border)] focus-visible:outline-2 focus-visible:outline-offset-2 group-data-[collapsed]/sidebar:justify-center group-data-[collapsed]/sidebar:p-1 group-data-[collapsed]/sidebar:shadow-none">
         <Avatar name={person.name} size="md" />
-        <span className="min-w-0 flex-1 group-data-[collapsed]/sidebar:hidden">
+        <span data-rail-label="" className="min-w-0 flex-1 group-data-[collapsed]/sidebar:hidden">
           <span className="block truncate text-sm font-semibold">{person.name}</span>
           {subtitle === '' ? null : (
             <span className="text-fg-muted block truncate text-xs">{subtitle}</span>
@@ -547,18 +613,75 @@ function PersonMenu({
         </span>
         <icons.expand
           aria-hidden
+          data-rail-label=""
           className="text-fg-subtle size-4 shrink-0 group-data-[collapsed]/sidebar:hidden"
         />
       </DropdownMenuTrigger>
 
       {/* Out to the right like the navigation's flyouts, its foot level with the trigger's. */}
-      <DropdownMenuContent side="right" align="end" sideOffset={16} className="w-56">
-        <DropdownMenuLabel className="truncate font-normal">
-          {person.email ?? person.name}
+      <DropdownMenuContent side="right" align="end" sideOffset={16} className="w-65">
+        <DropdownMenuLabel className="flex items-center gap-2.5 py-2 text-sm font-normal text-fg">
+          <Avatar name={person.name} size="sm" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate">{person.name}</span>
+            <span className="block truncate text-xs text-fg-muted">
+              {subtitle === '' ? (person.email ?? '') : subtitle}
+            </span>
+          </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <ThemeChoice dark={dark} onChange={onTheme} />
+        <DropdownMenuItem asChild>
+          <Link href="/people/me">
+            <icons.person />
+            My profile
+            <DropdownMenuShortcut className="flex gap-0.75">
+              <Kbd>G</Kbd>
+              <Kbd>M</Kbd>
+            </DropdownMenuShortcut>
+          </Link>
+        </DropdownMenuItem>
+        {/* Not a link until the company has time off: an item that 404s says less than a disabled one. */}
+        {timeOff ? (
+          <DropdownMenuItem asChild>
+            <Link href="/time-off">
+              <icons.calendar />
+              My time off
+            </Link>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem disabled>
+            <icons.calendar />
+            My time off
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <icons.adjust />
+            Preferences
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-52">
+            <ThemeChoice dark={dark} onChange={onTheme} />
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
+        {/* The session knows one company: it is listed, ticked, so the menu says where you are. */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <icons.company />
+            Switch company
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-52">
+            <DropdownMenuLabel>Your companies</DropdownMenuLabel>
+            <DropdownMenuCheckboxItem
+              checked
+              onSelect={(event) => {
+                event.preventDefault();
+              }}
+            >
+              <span className="truncate">{companyName}</span>
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuItem
           onSelect={() => {
             signOut.current?.requestSubmit();
@@ -663,6 +786,14 @@ export function AccountSheet({
       </SheetContent>
     </Sheet>
   );
+}
+
+/**
+ * Remembers the person's choice for the server's next render. A year, like
+ * any preference; `Lax`, because it only shapes the page.
+ */
+function rememberSidebar(collapsed: boolean): void {
+  document.cookie = `${SIDEBAR_COOKIE}=${collapsed ? 'collapsed' : 'expanded'}; path=/; max-age=31536000; samesite=lax`;
 }
 
 /**

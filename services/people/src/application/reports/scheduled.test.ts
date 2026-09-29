@@ -280,8 +280,8 @@ describe('a scheduled summary', () => {
     clock.set('2026-09-23T07:30:00.000Z');
     await sweep(TENANT);
     expect(mail.map((m) => [m.url, m.format, m.cadence])).toEqual([
-      [`${ORIGIN}/people/analytics`, 'summary', 'daily'],
-      [`${ORIGIN}/people/analytics`, 'summary', 'daily'],
+      [`${ORIGIN}/people/insights/headcount`, 'summary', 'daily'],
+      [`${ORIGIN}/people/insights/headcount`, 'summary', 'daily'],
     ]);
   });
 });

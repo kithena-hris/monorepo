@@ -33,6 +33,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { DATA_HEALTH } from '../data-health';
 import { Loaded, type Loadable, type Outcome } from '../load';
 
 /**
@@ -55,6 +56,8 @@ export interface DuplicatePair {
   readonly personIds: readonly string[];
   readonly names: readonly string[];
   readonly reasons: readonly string[];
+  /** How alike the two are, 0 to 1, where People scores it. It does not yet: absent. */
+  readonly match?: number | null;
 }
 
 export interface ComparedPerson {
@@ -118,7 +121,7 @@ export function Duplicates(props: DuplicatesProps): JSX.Element {
       {(state) =>
         state.comparison === null ? (
           <Stack gap={8}>
-            <Queue items={state.items} onCompare={props.onCompare} />
+            <Queue items={state.items} onCompare={props.onCompare} onDismiss={props.onDismiss} />
             <Merges merges={state.merges ?? []} onUnmerge={props.onUnmerge} />
           </Stack>
         ) : (
@@ -135,19 +138,32 @@ export function Duplicates(props: DuplicatesProps): JSX.Element {
   );
 }
 
+/**
+ * The queue (V5): each pair side by side, why it looks alike, how strong the
+ * match is where People scores one, and the two answers. "Not the same" takes
+ * the pair out for good; "Compare" opens the side-by-side merge.
+ */
 function Queue({
   items,
   onCompare,
+  onDismiss,
 }: {
   readonly items: readonly DuplicatePair[];
   readonly onCompare: DuplicatesProps['onCompare'];
+  readonly onDismiss: DuplicatesProps['onDismiss'];
 }): JSX.Element {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [refused, setRefused] = useState<string | null>(null);
+  // A score is People's to give; with none, there is no column to show an empty one in.
+  const scored = items.some((pair) => pair.match != null);
   return (
-    <Stack gap={6}>
-      <PageHeader
-        title="Possible duplicates"
-        description="Records that look like the same person. Nothing is merged until you decide."
-      />
+    <Stack gap={5}>
+      <PageHeader title={DATA_HEALTH.title} description={DATA_HEALTH.description} />
+      {refused === null ? null : (
+        <Alert tone="danger" title="Not done">
+          {refused}
+        </Alert>
+      )}
       {items.length === 0 ? (
         <EmptyState
           title="Nothing looks duplicated"
@@ -157,37 +173,70 @@ function Queue({
         <Table aria-label="Possible duplicates">
           <TableHeader>
             <TableRow>
-              <TableHead>Records</TableHead>
-              <TableHead>Why they look alike</TableHead>
-              <TableHead>Review</TableHead>
+              <TableHead>Possible duplicate</TableHead>
+              <TableHead>Why we think so</TableHead>
+              {scored ? <TableHead className="w-25">Match</TableHead> : null}
+              <TableHead className="w-50">
+                <span className="sr-only">Decide</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((pair) => {
               const [a = '', b = ''] = pair.personIds;
+              const [first = '', second = ''] = pair.names;
               const names = pair.names.join(' and ');
+              const key = `${a}/${b}`;
               return (
-                <TableRow key={`${a}/${b}`}>
-                  <TableCell>{names}</TableCell>
+                <TableRow key={key}>
                   <TableCell>
-                    <span className="flex flex-wrap gap-2">
-                      {pair.reasons.map((r) => (
-                        <Badge key={r} tone="warning" size="sm">
-                          {r}
-                        </Badge>
-                      ))}
+                    <span className="flex items-center gap-2 font-semibold whitespace-nowrap">
+                      <Avatar size="sm" name={first} />
+                      {first}
+                      <icons.transfer aria-label="and" className="size-3.5 text-fg-subtle" />
+                      <Avatar size="sm" name={second} />
+                      {second}
                     </span>
                   </TableCell>
+                  <TableCell>{pair.reasons.join(', ')}</TableCell>
+                  {scored ? (
+                    <TableCell>
+                      {pair.match == null ? null : (
+                        <Badge tone="warning" size="sm">
+                          {`${String(Math.round(pair.match * 100))}%`}
+                        </Badge>
+                      )}
+                    </TableCell>
+                  ) : null}
                   <TableCell>
-                    <Button
-                      size="sm"
-                      aria-label={`Compare ${names}`}
-                      onClick={() => {
-                        onCompare(a, b);
-                      }}
-                    >
-                      Compare
-                    </Button>
+                    <span className="flex justify-end gap-1.5">
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        aria-label={`${names} are not the same person`}
+                        loading={busy === key}
+                        loadingLabel="Saving"
+                        onClick={() => {
+                          setBusy(key);
+                          setRefused(null);
+                          void onDismiss(a, b).then((outcome) => {
+                            setBusy(null);
+                            if (!outcome.ok) setRefused(outcome.message);
+                          });
+                        }}
+                      >
+                        Not the same
+                      </Button>
+                      <Button
+                        size="xs"
+                        aria-label={`Compare ${names}`}
+                        onClick={() => {
+                          onCompare(a, b);
+                        }}
+                      >
+                        Compare
+                      </Button>
+                    </span>
                   </TableCell>
                 </TableRow>
               );

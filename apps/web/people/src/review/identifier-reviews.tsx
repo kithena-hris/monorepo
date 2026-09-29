@@ -27,6 +27,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { DATA_HEALTH } from '../data-health';
 import { Loaded, type Loadable, type Outcome } from '../load';
 
 /**
@@ -125,10 +126,11 @@ function Queue({
 
   return (
     <Stack gap={5}>
-      <PageHeader
-        title="ID verification"
-        description="National identifiers that failed a check, or need a person to look at them. Whatever you decide is final."
-      />
+      <PageHeader title={DATA_HEALTH.title} description={DATA_HEALTH.description} />
+      <p className="text-sm text-fg-muted">
+        National identifiers that failed a check, or need a person to look at them. Whatever you
+        decide is final.
+      </p>
       {refused === null ? null : (
         <Alert tone="danger" title="Could not show the value">
           {refused}

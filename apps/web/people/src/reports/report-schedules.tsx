@@ -332,34 +332,57 @@ function Schedules({
           }
         />
       )}
-      <AlertDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null);
+      <DeleteSchedule
+        row={deleting}
+        onClose={() => {
+          setDeleting(null);
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Nobody will receive it again, and its run history is deleted with it.
-          </AlertDialogDescription>
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button>Cancel</Button>
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (deleting !== null) act(onDelete(deleting.id));
-                setDeleting(null);
-              }}
-            >
-              Delete
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onDelete={(id) => {
+          act(onDelete(id));
+        }}
+      />
     </Stack>
+  );
+}
+
+/** "Delete this schedule?", asked before it goes, here and in Insights' Schedules. */
+export function DeleteSchedule({
+  row,
+  onClose,
+  onDelete,
+}: {
+  readonly row: ScheduleRow | null;
+  readonly onClose: () => void;
+  readonly onDelete: (id: string) => void;
+}): JSX.Element {
+  return (
+    <AlertDialog
+      open={row !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogTitle>Delete {row?.name}?</AlertDialogTitle>
+        <AlertDialogDescription>
+          Nobody will receive it again, and its run history is deleted with it.
+        </AlertDialogDescription>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button>Cancel</Button>
+          </AlertDialogCancel>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (row !== null) onDelete(row.id);
+              onClose();
+            }}
+          >
+            Delete
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -396,7 +419,7 @@ export function needsConfirmation(row: ScheduleRow | null, draft: ScheduleDraft)
 const EVERYBODY = 'everybody';
 const SAVED_FILTER = 'filter';
 
-function ScheduleForm({
+export function ScheduleForm({
   state,
   row,
   onClose,
@@ -762,7 +785,8 @@ function ScheduleForm({
                 and a manager’s file can be much shorter than HR’s.
               </p>
               <p>
-                People who have left or lost access receive nothing. Emails contain a sign-in link, never data.
+                People who have left or lost access receive nothing. Emails contain a sign-in link,
+                never data.
               </p>
             </Stack>
           </DialogBody>

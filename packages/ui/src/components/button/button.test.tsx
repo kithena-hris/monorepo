@@ -53,4 +53,15 @@ describe('<Button>', () => {
     expect(button.className).toContain('rounded-full');
     expect(button.className).not.toContain('rounded-control');
   });
+
+  it('is an icon button as a link that holds only its icon', () => {
+    render(
+      <Button asChild startIcon={<svg data-testid="icon" />}>
+        <a href="/new" aria-label="Add person" />
+      </Button>,
+    );
+    const link = screen.getByRole('link', { name: 'Add person' });
+    expect(link).toHaveClass('aspect-square');
+    expect(link).toContainElement(screen.getByTestId('icon'));
+  });
 });

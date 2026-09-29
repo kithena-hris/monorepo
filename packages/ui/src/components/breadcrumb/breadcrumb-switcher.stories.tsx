@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { icons } from '../../icons';
+import { Badge } from '../badge/badge';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -117,6 +119,88 @@ export const GroupedSiblings: Story = {
 export const OnAPhone: Story = {
   name: 'On a phone',
   args: { label: 'Directory', menuLabel: 'People sections', groups: sections, variant: 'title' },
+  render: (args) => (
+    <div className="flex justify-center rounded-lg bg-surface-sunken p-1">
+      <BreadcrumbMenu {...args} />
+    </div>
+  ),
+};
+
+const six = [
+  { href: '#overview', label: 'Overview', icon: <icons.overview /> },
+  { href: '#directory', label: 'Directory', icon: <icons.people /> },
+  { href: '#approvals', label: 'Approvals', icon: <icons.approve />, count: 4 },
+  { href: '#data-health', label: 'Data health', icon: <icons.health />, count: 6, current: true },
+  { href: '#import-export', label: 'Import & export', icon: <icons.transfer /> },
+  { href: '#insights', label: 'Insights', icon: <icons.analytics /> },
+].map(({ count, ...item }) => ({
+  ...item,
+  ...(count === undefined
+    ? {}
+    : {
+        badge: (
+          <Badge size="xs" variant="solid" tone={item.label === 'Approvals' ? 'danger' : 'warning'}>
+            {count}
+            <span className="sr-only"> need action</span>
+          </Badge>
+        ),
+      }),
+}));
+
+const tabs = ['Completeness', 'ID checks', 'Duplicates', 'Access requests'].map((label) => ({
+  href: `#${label.toLowerCase().replaceAll(' ', '-')}`,
+  label,
+  current: label === 'Duplicates',
+}));
+
+/**
+ * An umbrella page's trail has two switchers: the section, which lists the
+ * sections with their icons and, under "In Data health", its tabs, ticked;
+ * and the tab. The section's is no longer the page (`current={false}`).
+ */
+export const TwoSwitchers: Story = {
+  name: 'Two switchers',
+  args: { label: 'Data health', menuLabel: 'People sections', groups: [] },
+  render: () => (
+    <Breadcrumb>
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink href="#people">People</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbMenu
+            label="Data health"
+            current={false}
+            menuLabel="People sections"
+            groups={[
+              { label: 'People', items: six.map(({ badge: _badge, ...item }) => item) },
+              { label: 'In Data health', items: tabs },
+            ]}
+          />
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbMenu
+            label="Duplicates"
+            menuLabel="Data health tabs"
+            groups={[{ label: 'Data health', items: tabs }]}
+          />
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
+  ),
+};
+
+/** Under a finger, the title switcher's half sheet: each section with its icon, count and a tick. */
+export const WithIconsAndCounts: Story = {
+  name: 'With icons and counts',
+  args: {
+    label: 'Data health',
+    menuLabel: 'People sections, switch',
+    groups: [{ label: 'People', items: six }],
+    variant: 'title',
+  },
   render: (args) => (
     <div className="flex justify-center rounded-lg bg-surface-sunken p-1">
       <BreadcrumbMenu {...args} />

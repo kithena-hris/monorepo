@@ -107,6 +107,12 @@ export interface NavListProps extends ComponentPropsWithoutRef<'ul'> {
    * window's.
    */
   columns?: 1 | 2 | 3;
+  /**
+   * `ruled` is an item's own pages, listed under it in the sidebar (its
+   * `subnav`): 38px rows along a rule down the start side, level with the
+   * parent's icon, the current one drawn as an accent stretch of that rule.
+   */
+  variant?: 'plain' | 'ruled';
 }
 
 const listByLevel = {
@@ -126,12 +132,29 @@ const listColumns = {
 /** Set by a `NavList` with columns: its groups are a menu's columns, headed as such. */
 const MenuColumns = createContext(false);
 
+/** Set by a `ruled` `NavList`: its items are an item's pages, along the rule. */
+const RuledList = createContext(false);
+
+/**
+ * Set by a compact `MegaMenu`: its described items are one column of rows,
+ * the count at the end of the row rather than beside the name.
+ */
+export const CompactMenu = createContext(false);
+
 export function NavList({
   className,
   level = 1,
   columns = 1,
+  variant = 'plain',
   ...props
 }: NavListProps): JSX.Element {
+  if (variant === 'ruled') {
+    return (
+      <RuledList value={true}>
+        <ul className={cn('min-w-0 space-y-0.5 pt-0.5', className)} {...props} />
+      </RuledList>
+    );
+  }
   const list = (
     <ul className={cn('min-w-0', listByLevel[level], listColumns[columns], className)} {...props} />
   );
@@ -175,9 +198,22 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
   description?: ReactNode;
   /**
    * How much room the `flyout` gets: `sm` (default) for a short list of
-   * sections, `lg` for a menu of described places in columns.
+   * sections, `lg` for a menu of described places in columns, `compact` for
+   * seven described places or fewer in one column (a compact `MegaMenu`).
    */
-  flyoutSize?: 'sm' | 'lg';
+  flyoutSize?: 'sm' | 'lg' | 'compact';
+  /**
+   * This destination's own pages, listed under it rather than beside it: a
+   * `NavList variant="ruled"` of level-2 items. Shown while `expanded`; a
+   * chevron says which way it is. The parent is then not marked current, the
+   * page under it is.
+   *
+   * With both this and a `flyout`, the flyout is the collapsed rail's only:
+   * in an expanded sidebar the pages are inline and nothing opens on hover.
+   */
+  subnav?: ReactNode;
+  /** Whether `subnav` is shown. Usually: whether the current page is under this one. */
+  expanded?: boolean;
   /**
    * The sections of this destination, shown beside it on demand rather than
    * as a column that is always open. Usually a `Nav` of level-2 items.
@@ -216,12 +252,21 @@ export function NavItem({
   flyout,
   description,
   flyoutSize = 'sm',
+  subnav,
+  expanded = false,
   ...props
 }: NavItemProps): JSX.Element {
   const collapsed = useRailCollapsed();
   const describedBy = useId();
   const described = description !== undefined && description !== null;
+  const ruled = use(RuledList) && level === 2;
+  const compact = use(CompactMenu) && described;
   const fly = useFlyout();
+  const showSubnav = subnav !== undefined && expanded && !collapsed;
+  // The page under it carries the mark; the parent as well would be two for one place.
+  const marked = current && !showSubnav;
+  // With its pages inline, nothing hovers: the flyout is the collapsed rail's.
+  const flies = flyout !== undefined && (subnav === undefined || collapsed);
   const Comp = asChild ? Slot : 'a';
   /*
    * With `asChild` the one child is the link, and the label is its children.
@@ -257,13 +302,18 @@ export function NavItem({
               ? cn(
                   'flex size-10 items-center justify-center rounded-[0.75rem] [&_svg]:size-[1.1875rem]',
                   'transition-colors duration-(--animate-duration-fast)',
-                  current
+                  marked
                     ? 'bg-accent-subtle text-accent-fg'
                     : 'bg-surface-sunken text-fg group-hover/nav-item:bg-surface-active',
                 )
               : cn(
-                  // The icon is quieter than the label until the item is current.
-                  current ? 'text-accent-fg' : 'text-fg-muted group-hover/nav-item:text-fg',
+                  // The icon is quieter than the label until the item is current,
+                  // or open over its pages.
+                  marked
+                    ? 'text-accent-fg'
+                    : showSubnav
+                      ? 'text-fg'
+                      : 'text-fg-muted group-hover/nav-item:text-fg',
                   level === 3 ? '[&_svg]:size-3.5' : '[&_svg]:size-[18px]',
                 ),
           )}
@@ -276,29 +326,46 @@ export function NavItem({
        * The label is never removed, only hidden. A rail whose items have no
        * accessible name is a rail nobody can navigate with a screen reader,
        * and `sr-only` costs nothing.
+       *
+       * `data-rail-label` is what fades first when the rail collapses
+       * (`PageLayout`), before the width moves.
        */}
       {described && !asIcon ? (
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           {/* The count sits with the name it counts, as a menu reads it. */}
           <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate font-semibold text-fg">{label}</span>
-            {badge ? <span className="shrink-0">{badge}</span> : null}
+            <span
+              className={cn('truncate font-semibold text-fg', compact && 'text-[0.9375rem]/[1.3]')}
+            >
+              {label}
+            </span>
+            {badge && !compact ? <span className="shrink-0">{badge}</span> : null}
           </span>
           {/* Out of the link's name, into its description: the item is still
               announced as its label, then this line. */}
           <span
             id={describedBy}
             aria-hidden
-            className="line-clamp-2 text-xs leading-snug text-fg-muted"
+            className={cn(
+              'line-clamp-2 text-xs leading-snug text-fg-muted',
+              compact && 'text-[0.8125rem]/[1.4]',
+            )}
           >
             {description}
           </span>
         </span>
       ) : (
-        <span className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>{label}</span>
+        <span data-rail-label="" className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>
+          {label}
+        </span>
       )}
 
-      {badge && !asIcon && !described ? <span className="shrink-0">{badge}</span> : null}
+      {/* In a compact menu the count ends the row, where a list puts it. */}
+      {badge && !asIcon && (!described || compact) ? (
+        <span data-rail-label="" className="shrink-0">
+          {badge}
+        </span>
+      ) : null}
 
       {/*
        * A count still has to reach someone using the rail. It becomes a dot on
@@ -312,13 +379,24 @@ export function NavItem({
       ) : null}
 
       {action && !asIcon ? <span className="shrink-0">{action}</span> : null}
+
+      {/* Which way its pages are: open under it, or somewhere to go. */}
+      {subnav !== undefined && !asIcon ? (
+        <span data-rail-label="" aria-hidden className="shrink-0 text-fg-subtle">
+          {showSubnav ? (
+            <ChevronDown className="size-[15px]" />
+          ) : (
+            <ChevronRight className="size-[15px] rtl:rotate-180" />
+          )}
+        </span>
+      ) : null}
     </>
   );
 
   const link = (
     <Comp
       // `aria-current` is the state. The background is the reminder.
-      aria-current={current ? 'page' : undefined}
+      aria-current={marked ? 'page' : undefined}
       aria-describedby={described && !asIcon ? describedBy : undefined}
       className={cn(
         // A filled, rounded row, so the current item reads as a place the
@@ -329,25 +407,41 @@ export function NavItem({
         described && !asIcon && 'min-h-tap items-start py-2',
         'transition-[background-color,color] duration-(--animate-duration-fast) ease-standard',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
-        itemByLevel[level],
-        current
-          ? described && !asIcon
-            ? // In a menu of described places the tile carries the accent; a
-              // washed row as well would be two marks for one fact.
-              'bg-surface-sunken'
-            : 'bg-accent-subtle font-semibold text-accent-fg'
-          : 'font-medium text-fg hover:bg-surface-hover',
+        ruled
+          ? cn(
+              // Along the rule, which runs level with the parent's icon.
+              'ms-5.25 min-h-9.5 gap-2 rounded-[0.625rem] ps-4.75 pe-2.5 text-[0.875rem] touch:min-h-12 touch:text-[1rem]',
+              'before:absolute before:inset-y-0 before:start-0 before:w-[1.5px] before:bg-border-strong',
+              marked
+                ? 'bg-accent-subtle font-semibold text-accent-fg before:w-0.5 before:bg-accent'
+                : 'font-medium text-fg-muted hover:bg-surface-hover hover:text-fg',
+            )
+          : cn(
+              itemByLevel[level],
+              marked
+                ? described && !asIcon
+                  ? // In a menu of described places the tile carries the accent; a
+                    // washed row as well would be two marks for one fact.
+                    'bg-surface-sunken'
+                  : 'bg-accent-subtle font-semibold text-accent-fg'
+                : cn(
+                    'text-fg hover:bg-surface-hover',
+                    showSubnav ? 'font-semibold' : 'font-medium',
+                  ),
+            ),
+        // In a compact menu, one row a tile high, centred on it.
+        compact && 'items-center gap-3 rounded-[0.875rem] p-2.5',
         asIcon && 'justify-center px-0',
         className,
       )}
       {...props}
-      {...(flyout === undefined ? {} : fly.triggerProps)}
+      {...(flies ? fly.triggerProps : {})}
     >
       {child === null ? inside : cloneElement(child, undefined, inside)}
     </Comp>
   );
 
-  if (flyout !== undefined) {
+  if (flies) {
     return (
       // Anchored under a finger too: the flyout is a column beside its item,
       // rendered in place for Tab order, never a sheet.
@@ -368,7 +462,9 @@ export function NavItem({
               className={cn(
                 flyoutSize === 'lg'
                   ? 'w-[min(51.25rem,calc(100vw-6rem))] rounded-xl p-5'
-                  : 'w-60 p-2',
+                  : flyoutSize === 'compact'
+                    ? 'w-[min(21.25rem,calc(100vw-6rem))] rounded-[1.375rem] p-2.5 shadow-xl'
+                    : 'w-60 p-2',
                 // Out of the item and back into it, rather than the popover's zoom.
                 'origin-left popover-motion',
               )}
@@ -405,7 +501,11 @@ export function NavItem({
       </Tooltip>
     </li>
   ) : (
-    <li className="min-w-0">{link}</li>
+    <li className="min-w-0">
+      {link}
+      {/* Its pages, under it: a list inside its item, the way an outline reads. */}
+      {showSubnav ? <div data-rail-label="">{subnav}</div> : null}
+    </li>
   );
 }
 
@@ -670,6 +770,8 @@ export type TertiaryNavStatus = 'success' | 'warning' | 'danger' | 'info';
 export interface TertiaryNavItem {
   id: string;
   label: string;
+  /** A shorter label for under a finger, where a row of pills has less room: "Access". */
+  shortLabel?: string;
   badge?: ReactNode;
   /** Defaults to `#id`, an anchor in this page. A section that is a page of its own passes its URL. */
   href?: string;
@@ -690,7 +792,11 @@ export interface TertiaryNavProps
   /** The section currently in view. The caller owns the scroll observation. */
   activeId?: string;
   onSelect?: (id: string) => void;
-  /** Renders horizontally, for a rail that does not exist on a narrow screen. */
+  /**
+   * Renders horizontally: the tabs of a page, each its own URL, under the
+   * page's header (`href` and `current="page"`), or a rail that does not
+   * exist on a narrow screen.
+   */
   orientation?: 'vertical' | 'horizontal';
   /** A visible heading over a vertical list: the record's name, or "On this page". */
   title?: ReactNode;
@@ -701,15 +807,18 @@ export interface TertiaryNavProps
    */
   current?: 'location' | 'page';
   /**
-   * How a vertical list marks the current item: `line`, the accent stretch of
-   * a rule down the side, for a table of contents; `fill`, a washed row, for
-   * a list of sections carrying counts and status.
+   * How the current item is marked. Vertical: `line`, the accent stretch of a
+   * rule down the side, for a table of contents; `fill`, a washed row, for a
+   * list of sections carrying counts and status (vertical's default is
+   * `line`). Horizontal: `fill`, a row of pills (the default); `line`, tabs
+   * underlined in the accent over a hairline, each count a pill: an umbrella
+   * page's tabs under its header.
    */
   variant?: 'line' | 'fill';
   /**
-   * What a vertical list becomes under a finger: `pills`, a scrolling row
-   * under the title; `list`, rows that each push a screen. Left out, it stays
-   * a column at a finger's size.
+   * What the list becomes under a finger: `pills`, a scrolling row of pills
+   * (under the title, for a vertical list); `list`, rows that each push a
+   * screen (vertical only). Left out, it stays as it is at a finger's size.
    */
   touchLayout?: 'pills' | 'list';
 }
@@ -760,14 +869,16 @@ export function TertiaryNav({
   orientation = 'vertical',
   title,
   current = 'location',
-  variant = 'line',
+  variant,
   touchLayout,
   ...props
 }: TertiaryNavProps): JSX.Element {
   const titleId = useId();
   const vertical = orientation === 'vertical';
   const fill = vertical && variant === 'fill';
-  const touchPills = vertical && touchLayout === 'pills';
+  // Horizontal: tabs on a line when asked for, otherwise pills.
+  const tabs = !vertical && variant === 'line';
+  const touchPills = (vertical || tabs) && touchLayout === 'pills';
   const touchList = vertical && touchLayout === 'list';
   return (
     <nav aria-label={label} className={cn('min-w-0', className)} {...props}>
@@ -791,12 +902,16 @@ export function TertiaryNav({
             ? fill
               ? 'space-y-0.5'
               : 'space-y-px border-s border-border'
-            : // A scrolling row of pills, as a phone shows it under the title.
-              // The vertical padding is the room each pill's tap-target hit
-              // area needs inside a strip that clips.
-              'flex gap-1.5 overflow-x-auto overscroll-x-contain py-1',
+            : tabs
+              ? // Tabs over a hairline the marker sits on, scrolling when
+                // there are more than fit.
+                'flex gap-1 overflow-x-auto overscroll-x-contain shadow-[inset_0_-1px_0_var(--color-border)] [scrollbar-width:none] touch:gap-0'
+              : // A scrolling row of pills, as a phone shows it under the title.
+                // The vertical padding is the room each pill's tap-target hit
+                // area needs inside a strip that clips.
+                'flex gap-1.5 overflow-x-auto overscroll-x-contain py-1',
           touchPills &&
-            'touch:flex touch:gap-1.5 touch:space-y-0 touch:overflow-x-auto touch:overscroll-x-contain touch:border-0 touch:py-1',
+            'touch:flex touch:gap-1.5 touch:space-y-0 touch:overflow-x-auto touch:overscroll-x-contain touch:border-0 touch:py-1 touch:shadow-none',
           touchList &&
             'touch:space-y-0 touch:overflow-hidden touch:rounded-xl touch:border-0 touch:bg-surface touch:shadow-sm',
         )}
@@ -808,6 +923,8 @@ export function TertiaryNav({
               key={item.id}
               className={cn(
                 orientation === 'vertical' ? 'min-w-0' : 'shrink-0',
+                // Under a finger, tabs share the row out between them.
+                tabs && !touchPills && 'touch:flex-1',
                 touchPills && 'touch:shrink-0',
               )}
             >
@@ -837,19 +954,39 @@ export function TertiaryNav({
                             ? 'border-accent font-semibold text-accent-fg'
                             : 'border-transparent font-medium text-fg-muted hover:border-border-strong hover:text-fg',
                         )
-                    : cn(
-                        'h-8 touch:h-9 tap-target shrink-0 rounded-control px-3.5 font-semibold',
-                        active
-                          ? 'bg-invert text-fg-on-invert'
-                          : 'bg-surface-sunken text-fg-muted hover:bg-surface-hover hover:text-fg',
-                      ),
-                  // The same pill, for a column that becomes a row under a finger.
+                    : tabs
+                      ? cn(
+                          'h-11 shrink-0 px-3 font-semibold touch:text-[0.9375rem]',
+                          !touchPills && 'touch:h-12 touch:justify-center',
+                          active ? 'text-fg' : 'text-fg-muted hover:text-fg',
+                          // The marker: a 3px stretch of accent standing on the hairline.
+                          active &&
+                            'after:absolute after:inset-x-3 after:bottom-0 after:h-[3px] after:rounded-t-[3px] after:bg-accent',
+                          touchPills && 'touch:after:hidden',
+                        )
+                      : cn(
+                          'h-8 touch:h-9 tap-target shrink-0 rounded-control px-3.5 font-semibold',
+                          active
+                            ? 'bg-invert text-fg-on-invert'
+                            : 'bg-surface-sunken text-fg-muted hover:bg-surface-hover hover:text-fg',
+                        ),
+                  /*
+                   * The same pill, for a column or a row of tabs that becomes
+                   * pills under a finger.
+                   *
+                   * Important, and it has to be. These override the desk's own
+                   * classes (`text-fg`, `h-11`, `px-3`), and a remote's
+                   * stylesheet, loaded after the shell's into the same layer,
+                   * may define those again: a later `.text-fg` beats an earlier
+                   * `touch:text-fg-on-invert` of the same specificity, and the
+                   * active pill's label went the colour of its fill.
+                   */
                   touchPills &&
                     cn(
-                      'tap-target touch:h-9 touch:min-h-0 touch:shrink-0 touch:rounded-control touch:border-0 touch:px-3.5 touch:font-semibold',
+                      'tap-target touch:h-9! touch:min-h-0! touch:shrink-0 touch:rounded-control! touch:border-0! touch:px-3.5! touch:text-[0.9375rem]! touch:font-semibold',
                       active
-                        ? 'touch:bg-invert touch:text-fg-on-invert'
-                        : 'touch:bg-surface-sunken touch:text-fg-muted',
+                        ? 'touch:bg-invert! touch:text-fg-on-invert!'
+                        : 'touch:bg-surface-sunken! touch:text-fg-muted!',
                     ),
                   // A settings-style row that pushes its section's screen.
                   touchList &&
@@ -857,14 +994,36 @@ export function TertiaryNav({
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                 )}
               >
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                <span className={cn('min-w-0 truncate', !tabs && 'flex-1')}>
+                  {item.shortLabel === undefined ? (
+                    item.label
+                  ) : (
+                    // One of the two is displayed, and that one is the link's name.
+                    <>
+                      <span className="touch:hidden">{item.label}</span>
+                      <span className="hidden touch:inline!">{item.shortLabel}</span>
+                    </>
+                  )}
+                </span>
                 {item.badge ? <span className="shrink-0">{item.badge}</span> : null}
-                {item.count != null ? (
+                {item.count != null && tabs ? (
+                  // Each tab's own count, as a pill: filled on the tab you are on.
+                  <span
+                    className={cn(
+                      'inline-grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[0.6875rem] font-bold tabular-nums',
+                      active
+                        ? 'bg-accent-solid text-fg-on-accent'
+                        : 'bg-surface-active text-fg-muted',
+                    )}
+                  >
+                    {item.count}
+                  </span>
+                ) : item.count != null ? (
                   <span
                     className={cn(
                       'shrink-0 text-xs font-semibold text-fg-subtle tabular-nums',
                       touchList && 'touch:text-base touch:font-normal touch:text-fg-muted',
-                      touchPills && active && 'touch:text-fg-on-invert',
+                      touchPills && active && 'touch:text-fg-on-invert!',
                     )}
                   >
                     {item.count}

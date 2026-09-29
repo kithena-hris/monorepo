@@ -7,8 +7,10 @@ import {
   BreadcrumbMenu,
   BreadcrumbPage,
   BreadcrumbSeparator,
+  Badge,
   Button,
   PageHeaderFrame,
+  TertiaryNav,
   icons,
   type IconName,
 } from '@reach/ui';
@@ -32,8 +34,9 @@ export interface Frame {
    */
   readonly trail?: readonly { readonly href: string; readonly label: string }[];
   /**
-   * The section's siblings, grouped: the last crumb becomes a menu of them, so
-   * the next section over is one step away. Absent, it is plain text.
+   * The sections, grouped: the section's crumb becomes a menu of them, so the
+   * next section over is one step away. Absent, it is plain text. `icon` is a
+   * Reach icon name; `count` is what needs action there.
    */
   readonly siblings?: readonly {
     readonly label: string;
@@ -41,10 +44,25 @@ export interface Frame {
       readonly href: string;
       readonly label: string;
       readonly current?: boolean;
+      readonly icon?: string;
+      readonly count?: number;
     }[];
   }[];
   /** What the siblings are, for a screen reader: "People sections". */
   readonly siblingsLabel?: string;
+  /**
+   * The umbrella page's tabs this viewer may open, in order, each its own URL.
+   * Drawn under the screen's header, so a screen never draws its own. Absent:
+   * no tabs.
+   */
+  readonly tabs?: readonly {
+    readonly href: string;
+    readonly label: string;
+    /** Its label as a pill under a finger, where one is shorter: "Access". */
+    readonly short?: string;
+    readonly current: boolean;
+    readonly count?: number;
+  }[];
   readonly actions?: readonly {
     readonly href: string;
     readonly label: string;
@@ -64,7 +82,33 @@ function phoneBack(
   return last?.href === '/people' ? { href: '/people/menu', label: last.label } : last;
 }
 
-/** The host's frame around a screen: its breadcrumb (a phone's bar under a finger) and actions. */
+/** A Reach icon by name; an unknown name draws nothing rather than failing. */
+function iconOf(name: string | undefined): ReactNode {
+  return name !== undefined && name in icons
+    ? createElement(icons[name as IconName], { 'aria-hidden': true })
+    : undefined;
+}
+
+/** What needs action in a section, as the sidebar shows it: approvals urgent, the rest a warning. */
+function countOf(href: string, count: number | undefined): ReactNode {
+  return count === undefined ? undefined : (
+    <Badge size="xs" variant="solid" tone={href.endsWith('/approvals') ? 'danger' : 'warning'}>
+      {count}
+      <span className="sr-only"> waiting</span>
+    </Badge>
+  );
+}
+
+/**
+ * The host's frame around a screen: its breadcrumb (a phone's bar under a
+ * finger), its actions, and an umbrella page's tabs.
+ *
+ * At a desk the trail ends in two switchers on an umbrella page, "People ›
+ * Data health ▾ › Duplicates ▾": the section's menu lists the sections and,
+ * under "In Data health", its tabs, the one you are on ticked; the tab's lists
+ * the tabs. Under a finger the bar's title is the section's switcher, each
+ * section with its icon and count, and the tabs are a row of pills.
+ */
 export function ScreenFrame({
   frame,
   children,
@@ -78,11 +122,36 @@ export function ScreenFrame({
     trail = [{ href: '/people', label: 'People' }],
     siblings = [],
     siblingsLabel = 'Sections',
+    tabs = [],
   } = frame;
+  const tab = tabs.find((t) => t.current);
+  const withIcons = siblings.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({ ...item, icon: iconOf(item.icon) })),
+  }));
   return (
     <PageHeaderFrame
       // A switcher in the phone's bar names the page; the large title would repeat it.
       quietTitleOnTouch={section !== null && siblings.length > 0}
+      tabs={
+        tabs.length === 0 ? undefined : (
+          <TertiaryNav
+            label={`${section ?? 'Page'} tabs`}
+            orientation="horizontal"
+            variant="line"
+            current="page"
+            touchLayout="pills"
+            {...(tab === undefined ? {} : { activeId: tab.href })}
+            items={tabs.map((t) => ({
+              id: t.href,
+              href: t.href,
+              label: t.label,
+              ...(t.short === undefined ? {} : { shortLabel: t.short }),
+              ...(t.count === undefined ? {} : { count: t.count }),
+            }))}
+          />
+        )
+      }
       breadcrumb={
         section === null ? undefined : (
           <>
@@ -99,11 +168,55 @@ export function ScreenFrame({
                 ))}
                 <BreadcrumbItem>
                   {siblings.length === 0 ? (
-                    <BreadcrumbPage>{section}</BreadcrumbPage>
+                    tab === undefined ? (
+                      <BreadcrumbPage>{section}</BreadcrumbPage>
+                    ) : (
+                      <span className="font-medium text-fg-muted">{section}</span>
+                    )
                   ) : (
-                    <BreadcrumbMenu label={section} groups={siblings} menuLabel={siblingsLabel} />
+                    <BreadcrumbMenu
+                      label={section}
+                      current={tab === undefined}
+                      menuLabel={siblingsLabel}
+                      groups={
+                        tab === undefined
+                          ? withIcons
+                          : [
+                              ...withIcons,
+                              {
+                                label: `In ${section}`,
+                                items: tabs.map((t) => ({
+                                  href: t.href,
+                                  label: t.label,
+                                  current: t.current,
+                                })),
+                              },
+                            ]
+                      }
+                    />
                   )}
                 </BreadcrumbItem>
+                {tab === undefined ? null : (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbMenu
+                        label={tab.label}
+                        menuLabel={`${section} tabs`}
+                        groups={[
+                          {
+                            label: section,
+                            items: tabs.map((t) => ({
+                              href: t.href,
+                              label: t.label,
+                              current: t.current,
+                            })),
+                          },
+                        ]}
+                      />
+                    </BreadcrumbItem>
+                  </>
+                )}
               </BreadcrumbList>
             </Breadcrumb>
             {/*
@@ -128,7 +241,14 @@ export function ScreenFrame({
                   <BreadcrumbMenu
                     variant="title"
                     label={section}
-                    groups={siblings}
+                    groups={siblings.map((group) => ({
+                      ...group,
+                      items: group.items.map((item) => ({
+                        ...item,
+                        icon: iconOf(item.icon),
+                        badge: countOf(item.href, item.count),
+                      })),
+                    }))}
                     menuLabel={`${siblingsLabel}, switch`}
                   />
                 )}
@@ -138,22 +258,34 @@ export function ScreenFrame({
           </>
         )
       }
+      // Under a finger the actions are the phone bar's, top right, as icons.
+      touchBarActions
       actions={
         actions.length === 0
           ? undefined
           : actions.map((a) => (
-              <Button
-                key={a.href}
-                variant="primary"
-                asChild
-                startIcon={
-                  a.icon !== undefined && a.icon in icons
-                    ? createElement(icons[a.icon as IconName], { 'aria-hidden': true })
-                    : undefined
-                }
-              >
-                <a href={a.href}>{a.label}</a>
-              </Button>
+              <Fragment key={a.href}>
+                <Button
+                  variant="primary"
+                  asChild
+                  startIcon={iconOf(a.icon)}
+                  className="touch:hidden"
+                >
+                  <a href={a.href}>{a.label}</a>
+                </Button>
+                <Button
+                  size="xs"
+                  asChild
+                  startIcon={iconOf(a.icon)}
+                  className="hidden touch:inline-flex"
+                >
+                  {a.icon === undefined ? (
+                    <a href={a.href}>{a.label}</a>
+                  ) : (
+                    <a href={a.href} aria-label={a.label} />
+                  )}
+                </Button>
+              </Fragment>
             ))
       }
     >

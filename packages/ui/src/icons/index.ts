@@ -35,10 +35,12 @@ import {
   Archive,
   ArrowDown,
   ArrowLeft,
+  ArrowLeftRight,
   ArrowRight,
   ArrowUp,
   Ban,
   Bell,
+  Building2,
   BuildingComplex,
   Calendar,
   CalendarDays,
@@ -68,10 +70,12 @@ import {
   GripVertical,
   Hash,
   Heart,
+  HeartPulse,
   House,
   ImagePlus,
   Inbox,
   Info,
+  LayoutDashboard,
   Link2,
   LoaderCircle,
   Lock,
@@ -123,6 +127,13 @@ import {
   Wallet,
   X,
   type LucideIcon,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  FileClock,
+  FileSpreadsheet,
+  LayoutGrid,
+  List,
+  Network,
   ChartColumn,
   FileChartColumn,
   GitMerge,
@@ -146,6 +157,9 @@ export const iconGroups = {
     duplicate: Copy,
     download: Download,
     upload: Upload,
+    /** Bringing records in, or taking them out: a whole data set, not one file. */
+    import: ArrowDownToLine,
+    export: ArrowUpFromLine,
     share: Share2,
     send: Send,
     search: Search,
@@ -207,6 +221,8 @@ export const iconGroups = {
     inbox: Inbox,
     notifications: Bell,
     history: RotateCcwClock,
+    /** An area's front page: the summary of everything under it. */
+    overview: LayoutDashboard,
   },
   /** The nouns of an HRIS. This is the group that keeps a product coherent. */
   domain: {
@@ -217,6 +233,8 @@ export const iconGroups = {
     offboard: UserMinus,
     team: Users,
     organisation: BuildingComplex,
+    /** The company an account belongs to, as in switching between them. */
+    company: Building2,
     location: MapPin,
     calendar: Calendar,
     leave: CalendarDays,
@@ -226,12 +244,24 @@ export const iconGroups = {
     file: File,
     folder: Folder,
     table: Table2,
+    /** Rows of values: a file somebody fills in and brings back. */
+    spreadsheet: FileSpreadsheet,
+    /** The same records, as a list, as cards, or as the tree above them. */
+    list: List,
+    cards: LayoutGrid,
+    hierarchy: Network,
     /** Charts of a population: headcount, movement, pay. */
     analytics: ChartColumn,
     /** A report as a document somebody receives. */
     report: FileChartColumn,
+    /** A report that goes out on its own, on a schedule. */
+    scheduled: FileClock,
     /** Something waiting to be checked by a person. */
     review: ScanSearch,
+    /** How sound the records are: gaps, checks, duplicates. */
+    health: HeartPulse,
+    /** Data moving both ways, in and out. */
+    transfer: ArrowLeftRight,
     /** Two records becoming one. */
     merge: GitMerge,
     /** Done by the product itself, not a person: a scheduled job, a rule. */

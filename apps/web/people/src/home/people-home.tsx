@@ -538,7 +538,7 @@ function ReportingLine({
                 : `${String(line.peers)} ${line.peers === 1 ? 'other person reports' : 'others report'} to ${manager.name}.`}
             </p>
           )}
-          <ShowAll href="/people/org-chart">Open org chart</ShowAll>
+          <ShowAll href="/people/directory/org-chart">Open org chart</ShowAll>
         </div>
       </Stack>
     </Section>
@@ -561,7 +561,7 @@ function Team({
       }
       action={
         line.reportsFilter === null ? undefined : (
-          <ShowAll href={`/people/directory?filter=${encodeURIComponent(line.reportsFilter)}`}>
+          <ShowAll href={`/people/directory/list?filter=${encodeURIComponent(line.reportsFilter)}`}>
             {line.reportsTotal > line.reports.length
               ? `Show all ${String(line.reportsTotal)}`
               : 'In the directory'}
@@ -679,7 +679,7 @@ function HrOverview({
         title={`${String(team.toFill)} ${team.toFill === 1 ? 'detail waits' : 'details wait'} for HR`}
         description={`${String(team.waiting)} ${team.waiting === 1 ? 'person has' : 'people have'} something of their own to add`}
         action="Review"
-        href="/people/completeness"
+        href="/people/data-health/completeness"
       />,
     );
   }
@@ -692,7 +692,7 @@ function HrOverview({
         title={`${String(hr.identifiers)} ${hr.identifiers === 1 ? 'identifier needs' : 'identifiers need'} review`}
         description="A national identifier failed its country’s check"
         action="Review"
-        href="/people/identifier-reviews"
+        href="/people/data-health/id-checks"
       />,
     );
   }
@@ -705,7 +705,7 @@ function HrOverview({
         title={`${String(hr.duplicates)} possible ${hr.duplicates === 1 ? 'duplicate' : 'duplicates'}`}
         description="Records that look like the same person"
         action="Compare"
-        href="/people/duplicates"
+        href="/people/data-health/duplicates"
       />,
     );
   }
@@ -718,7 +718,7 @@ function HrOverview({
         title={`${String(hr.accessRequests)} access ${hr.accessRequests === 1 ? 'request' : 'requests'}`}
         description="Somebody asked to see unmasked values"
         action="Decide"
-        href="/people/full-values"
+        href="/people/data-health/access-requests"
       />,
     );
   }
@@ -728,7 +728,7 @@ function HrOverview({
       <div className="grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4">
         {headcount === null ? null : (
           <Figure
-            href="/people/analytics"
+            href="/people/insights/headcount"
             label="Headcount"
             value={headcount.value.toLocaleString('en-GB')}
             description={
@@ -743,7 +743,7 @@ function HrOverview({
         )}
         {hr.complete === null ? null : (
           <Figure
-            href="/people/completeness"
+            href="/people/data-health/completeness"
             label="Complete records"
             value={hr.complete.percent}
             unit="%"
@@ -764,7 +764,7 @@ function HrOverview({
         )}
         {hr.expiring === null ? null : (
           <Figure
-            href="/people/analytics"
+            href="/people/insights/data-quality"
             label="Expiring in 90 days"
             value={hr.expiring}
             description="permits, contracts and probations"
@@ -799,7 +799,7 @@ function HrOverview({
       {hr.starting.length === 0 ? null : (
         <Section
           title="Starting soon"
-          action={<ShowAll href="/people/directory">Directory</ShowAll>}
+          action={<ShowAll href="/people/directory/list">Directory</ShowAll>}
         >
           <List aria-label="Starting soon" className="-mx-2 bg-transparent shadow-none">
             {hr.starting.map((p) => (

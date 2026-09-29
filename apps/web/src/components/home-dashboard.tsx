@@ -111,7 +111,7 @@ export function HomeDashboard({
             )}
             {dir?.incomplete == null ? null : (
               <Tile
-                href="/people/completeness"
+                href="/people/data-health/completeness"
                 label="Incomplete records"
                 value={dir.incomplete}
                 description={`of ${dir.total.toLocaleString('en-GB')} people`}
@@ -119,7 +119,7 @@ export function HomeDashboard({
             )}
             {dir?.notStarted == null ? null : (
               <Tile
-                href="/people/directory?conditions=%5B%7B%22key%22%3A%22status%22%2C%22op%22%3A%22is%22%2C%22values%22%3A%5B%22pre_hire%22%5D%7D%5D"
+                href="/people/directory/list?conditions=%5B%7B%22key%22%3A%22status%22%2C%22op%22%3A%22is%22%2C%22values%22%3A%5B%22pre_hire%22%5D%7D%5D"
                 label="Starting soon"
                 value={dir.notStarted}
                 description="hired, not started yet"

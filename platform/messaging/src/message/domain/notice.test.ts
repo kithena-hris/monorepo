@@ -120,7 +120,7 @@ describe('renderNotice: scheduled_report', () => {
   it('sends a summary to the numbers rather than with them', () => {
     const result = renderNotice(
       { kind: 'scheduled_report', cadence: 'monthly', format: 'summary' },
-      'https://acme.app.kithena.com/people/analytics',
+      'https://acme.app.kithena.com/people/insights/headcount',
       ACME,
     );
     if (!result.ok) throw new Error('expected a message');

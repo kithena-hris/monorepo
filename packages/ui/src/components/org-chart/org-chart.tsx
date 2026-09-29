@@ -224,6 +224,13 @@ export interface OrgChartProps extends OrgNodeEvents {
   focusMode?: OrgFocusMode;
   /** Renders the person search, which focuses whoever is picked. */
   searchable?: boolean;
+  /**
+   * The search's placeholder. It matches a card's name, title and `meta`, so
+   * a chart whose `meta` is the team can say "Find a person or team".
+   */
+  searchPlaceholder?: string;
+  /** More controls on the chart's toolbar, after the search: a direction switch, a view. */
+  toolbar?: ReactNode;
 
   /** Canvas scale. Uncontrolled when omitted. */
   zoom?: number;
@@ -450,6 +457,8 @@ export function OrgChart({
   defaultFocusId = null,
   focusMode = 'chain',
   searchable = false,
+  searchPlaceholder = 'Search people',
+  toolbar: controls,
   zoom: controlledZoom,
   onZoomChange,
   defaultZoom = 1,
@@ -1461,7 +1470,7 @@ export function OrgChart({
               size="sm"
               className="w-64"
               label="Find someone"
-              placeholder="Search people"
+              placeholder={searchPlaceholder}
               searchPlaceholder="Name or title"
               emptyMessage="Nobody by that name."
               clearable
@@ -1469,13 +1478,18 @@ export function OrgChart({
               onChange={(value) => {
                 setFocus(typeof value === 'string' ? value : null);
               }}
-              options={nodes.map((node) => ({
-                value: node.id,
-                label: node.name,
-                ...(node.title === undefined ? {} : { description: node.title }),
-              }))}
+              options={nodes.map((node) => {
+                // The second line is searched too, so a team finds its people.
+                const described = [node.title, node.meta].filter((x) => x !== undefined);
+                return {
+                  value: node.id,
+                  label: node.name,
+                  ...(described.length === 0 ? {} : { description: described.join(' · ') }),
+                };
+              })}
             />
           ) : null}
+          {controls}
 
           <Button
             size="sm"

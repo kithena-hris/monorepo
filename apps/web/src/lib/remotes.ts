@@ -24,10 +24,16 @@ import { z } from 'zod';
  * `owns` lists the other routes, as the manifest writes them (`/people/:id`),
  * that belong to a section: on those it is the current one too. The remote
  * says which screens are under which place; the host never guesses from a URL.
+ *
+ * `tabs` makes a section an umbrella page: its tools, in order, each a route
+ * of its own and each a `Place` with its own `for` and `owns`. The section's
+ * `path` is its first tab's.
  */
-const Place = z.object({
+const Tab = z.object({
   path: z.string().startsWith('/'),
   label: z.string().min(1),
+  /** A shorter label, for a tab as a pill under a finger: "Access" for "Access requests". */
+  short: z.string().min(1).optional(),
   /** One sentence on what the place is for, under its label in a menu or on a card. */
   description: z.string().min(1).optional(),
   /** A Reach icon name (`icons`), drawn beside the label where there is room. */
@@ -37,6 +43,11 @@ const Place = z.object({
   owns: z.array(z.string().startsWith('/')).optional(),
   /** An action's pages: offered only there. Absent, everywhere in the area. */
   on: z.array(z.string().startsWith('/')).optional(),
+});
+const Place = Tab.extend({
+  /** A shorter line than `description`, under the label on a phone's row. */
+  summary: z.string().min(1).optional(),
+  tabs: z.array(Tab).min(1).optional(),
 });
 export type Place = z.infer<typeof Place>;
 
@@ -52,7 +63,13 @@ const RouteManifest = z.object({
   settings: z.array(Place).default([]),
 });
 
-/** The sections and actions this viewer's roles open, in the manifest's order. */
+/**
+ * The sections and actions this viewer's roles open, in the manifest's order.
+ *
+ * An umbrella section keeps only the tabs the viewer opens, and links to the
+ * first of them: a finance viewer's Data health is its access requests. One
+ * whose tabs they open none of is not theirs at all.
+ */
 export function placesFor(
   nav: {
     readonly sections: readonly Place[];
@@ -65,35 +82,61 @@ export function placesFor(
   readonly actions: readonly Place[];
   readonly settings: readonly Place[];
 } {
-  const opens = (p: Place): boolean => p.for === undefined || p.for.some((r) => roles[r] === true);
+  const opens = (p: Pick<Place, 'for'>): boolean =>
+    p.for === undefined || p.for.some((r) => roles[r] === true);
   return {
-    sections: nav.sections.filter(opens),
+    sections: nav.sections.filter(opens).flatMap((section): Place[] => {
+      if (section.tabs === undefined) return [section];
+      const tabs = section.tabs.filter(opens);
+      const first = tabs[0];
+      return first === undefined ? [] : [{ ...section, path: first.path, tabs }];
+    }),
     actions: nav.actions.filter(opens),
     settings: (nav.settings ?? []).filter(opens),
   };
 }
 
-/**
- * The place this screen is under: the one at its route, or the one whose
- * `owns` lists it. The manifest decides, so a profile is the Directory's
- * because People says so, not because of what its URL looks like.
- */
-export function currentPlace(places: readonly Place[], route: string | null): Place | undefined {
-  return places.find((p) => p.path === route || p.owns?.includes(route ?? '') === true);
+/** Whether `route` is this place's own, or one it owns. */
+function claims(place: Pick<Place, 'path' | 'owns'>, route: string | null): boolean {
+  return place.path === route || place.owns?.includes(route ?? '') === true;
 }
 
 /**
- * What a screen's own header shows of the host's navigation: the section it
- * is under, for the breadcrumb (the front page too, as Overview), and the
- * actions this viewer may start. An action is left off its own screen, whose
- * form is then the only copy of it. `_home` is the area's own path, kept for
- * callers that name it.
+ * The place this screen is under: the one at its route, the one whose `owns`
+ * lists it, or the umbrella whose tab it is (or whose tab owns it). The
+ * manifest decides, so a profile is the Directory's because People says so,
+ * not because of what its URL looks like.
  */
-export function headerFrame(
-  places: { readonly sections: readonly Place[]; readonly actions: readonly Place[] },
-  route: string | null,
-  _home: string,
-): {
+export function currentPlace(places: readonly Place[], route: string | null): Place | undefined {
+  return places.find((p) => claims(p, route) || p.tabs?.some((t) => claims(t, route)) === true);
+}
+
+/** The tab of `section` this screen is: the one at its route, or the one that owns it. */
+export function currentTab(section: Place | undefined, route: string | null): Place | undefined {
+  return section?.tabs?.find((t) => claims(t, route));
+}
+
+/**
+ * Where a path no route answers sends this viewer, when it is the bare start
+ * of their places: `/people/data-health` to the first tab of Data health they
+ * open, `/people/directory` to its first view. Only places the viewer opens
+ * count (`placesFor`), in order; anything else is `undefined`, and a 404.
+ */
+export function firstUnder(sections: readonly Place[], path: string): string | undefined {
+  const prefix = `${path.replace(/\/+$/, '')}/`;
+  return sections
+    .flatMap((s) => [s.path, ...(s.tabs ?? []).map((t) => t.path)])
+    .find((p) => p.startsWith(prefix) && !p.includes('/:'));
+}
+
+/** Counts that need action: by section path, and by tab path. */
+export interface PlaceCounts {
+  readonly sections?: Readonly<Record<string, number>>;
+  readonly tabs?: Readonly<Record<string, number>>;
+}
+
+/** What the host puts in a screen's header (`frame.tsx`'s `Frame`), as JSON. */
+export interface HeaderFrame {
   readonly section: string | null;
   readonly actions: readonly {
     readonly href: string;
@@ -102,14 +145,53 @@ export function headerFrame(
   }[];
   readonly siblings: readonly Siblings[];
   readonly siblingsLabel: string;
-} {
-  const here = currentPlace(places.sections, route) ?? currentPlace(places.actions, route);
+  /** The umbrella page's tabs this viewer opens, in order; absent where there are none. */
+  readonly tabs?: readonly {
+    readonly href: string;
+    readonly label: string;
+    readonly short?: string;
+    readonly current: boolean;
+    readonly count?: number;
+  }[];
+}
+
+/**
+ * What a screen's own header shows of the host's navigation: the section it
+ * is under, for the breadcrumb (the front page too, as Overview), with its
+ * siblings (their icons and counts) and, on an umbrella page, its tabs; and
+ * the actions this viewer may start. An action is left off its own screen,
+ * whose form is then the only copy of it. `_home` is the area's own path,
+ * kept for callers that name it.
+ */
+export function headerFrame(
+  places: { readonly sections: readonly Place[]; readonly actions: readonly Place[] },
+  route: string | null,
+  _home: string,
+  counts: PlaceCounts = {},
+): HeaderFrame {
+  const section = currentPlace(places.sections, route);
+  const here = section ?? currentPlace(places.actions, route);
+  const tab = currentTab(section, route);
   return {
     // People's front page is a section like the rest: "People › Overview", with
     // its siblings a click away, as every other People screen opens.
     section: here === undefined ? null : here.label,
-    siblings: siblingsOf(places.sections, here),
+    siblings: siblingsOf(places.sections, here, counts.sections),
     siblingsLabel: 'People sections',
+    ...(section?.tabs === undefined
+      ? {}
+      : {
+          tabs: section.tabs.map((t) => {
+            const n = counts.tabs?.[t.path];
+            return {
+              href: t.path,
+              label: t.label,
+              ...(t.short === undefined ? {} : { short: t.short }),
+              current: t === tab,
+              ...(n === undefined ? {} : { count: n }),
+            };
+          }),
+        }),
     actions: places.actions
       .filter((a) => currentPlace([a], route) === undefined)
       .filter((a) => a.on === undefined || (route !== null && a.on.includes(route)))
@@ -128,17 +210,32 @@ export interface Siblings {
     readonly href: string;
     readonly label: string;
     readonly current: boolean;
+    /** A Reach icon name. */
+    readonly icon?: string;
+    /** What needs action there. */
+    readonly count?: number;
   }[];
 }
 
-/** Places by their manifest group, in order, marking `here`. */
-export function siblingsOf(places: readonly Place[], here: Place | undefined): Siblings[] {
+/** Places by their manifest group ("People" when none), in order, marking `here`. */
+export function siblingsOf(
+  places: readonly Place[],
+  here: Place | undefined,
+  counts: Readonly<Record<string, number>> = {},
+): Siblings[] {
   const groups = new Map<string, Siblings['items'][number][]>();
   for (const p of places) {
-    const group = p.group ?? 'Sections';
+    const group = p.group ?? 'People';
+    const n = counts[p.path];
     groups.set(group, [
       ...(groups.get(group) ?? []),
-      { href: p.path, label: p.label, current: p === here },
+      {
+        href: p.path,
+        label: p.label,
+        current: p === here,
+        ...(p.icon === undefined ? {} : { icon: p.icon }),
+        ...(n === undefined ? {} : { count: n }),
+      },
     ]);
   }
   return [...groups].map(([label, items]) => ({ label, items }));
