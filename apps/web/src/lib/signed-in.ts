@@ -9,6 +9,7 @@ import { currentPerson, displayName } from './session';
 import { shellData, type ShellData } from './shell';
 import { prefsFrom, type ShortcutPrefs } from './shortcuts';
 import { SIDEBAR_COOKIE, sidebarCollapsedFrom } from './sidebar';
+import { RETURN_COOKIE } from './session-cookie';
 
 /**
  * Whether this device keeps the sidebar collapsed, from its cookie, for the
@@ -24,7 +25,12 @@ export async function sidebarCollapsed(): Promise<boolean | undefined> {
  * out to their company's sign-in page.
  */
 export async function signedIn(): Promise<{
-  readonly person: { readonly name: string; readonly email: string | null };
+  readonly person: {
+    readonly name: string;
+    readonly email: string | null;
+    /** An administrator viewing the app as this person, read-only: who. Null otherwise. */
+    readonly viewing: { readonly by: string | null } | null;
+  };
   readonly entitlements: readonly string[];
   readonly company: string;
   readonly logoUrl: string | null;
@@ -34,7 +40,11 @@ export async function signedIn(): Promise<{
   readonly shortcuts: ShortcutPrefs;
 }> {
   const person = await currentPerson();
-  if (person === null) redirect('/login');
+  // A view as somebody that is over — its thirty minutes, or ended elsewhere —
+  // goes back to the administrator's own session, not to the employee's.
+  if (person === null) {
+    redirect((await cookies()).has(RETURN_COOKIE) ? '/auth/view-as/end' : '/login');
+  }
   const [tenant, shell, collapsed, shortcuts] = await Promise.all([
     currentTenant(),
     shellData(person.entitlements),
@@ -48,6 +58,7 @@ export async function signedIn(): Promise<{
           ? displayName(person.workEmail)
           : `${person.name.given} ${person.name.family}`,
       email: person.workEmail,
+      viewing: person.viewing === null ? null : { by: person.viewing.adminName },
     },
     entitlements: person.entitlements,
     company: tenant?.branding.displayName ?? tenant?.slug ?? 'your company',

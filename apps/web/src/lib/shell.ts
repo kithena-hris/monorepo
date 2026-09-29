@@ -70,6 +70,7 @@ const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
     counts: counts?.sections ?? {},
     tabCounts: counts?.tabs ?? {},
     notices: data === null ? [] : noticesOf(data),
+    viewedAs: data?.viewedAs ?? [],
     now: data?.now ?? null,
   };
 });

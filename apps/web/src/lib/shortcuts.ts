@@ -161,6 +161,16 @@ export const SHORTCUTS: readonly Shortcut[] = [
   row('completeness', 'fill', 'Fill in (Completeness)', 'fills in the gaps', 'f'),
   row('completeness', 'remind', 'Remind (Completeness)', 'sends a reminder', 'r'),
   row('directory', 'edit', 'Edit the profile (Directory)', 'edits the profile', 'e'),
+  // V for view: on a profile an administrator may view as, it asks why and
+  // starts; while viewing as somebody, it ends the view.
+  {
+    id: 'view-as',
+    group: 'Actions',
+    label: 'View as this person, or end viewing as them',
+    does: 'views as them, or ends it',
+    keys: ['v'],
+    icon: 'visible',
+  },
   {
     id: 'create',
     group: 'Create',

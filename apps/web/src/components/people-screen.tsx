@@ -375,6 +375,13 @@ export function PeopleScreen({
                 // The employee record as a PDF (PEO-061), as this viewer reads it.
                 onDownloadRecord: async (reason: string) =>
                   download(await actions.exportRecord(id, reason)),
+                // An administrator views the app as them: the whole page, and
+                // the shell around it, are then theirs — a full load, not a refresh.
+                onViewAs: async (reason: string) => {
+                  const started = await actions.viewAs(id, reason);
+                  if (started.ok) window.location.assign('/');
+                  return started;
+                },
                 // Ask them for empty details; People says which fields may be asked for.
                 onRequest: thenRefresh((keys: readonly string[]) =>
                   actions.requestDetails(id, keys),
