@@ -36,6 +36,13 @@ export interface SignedIn {
    * what a module is told in the principal.
    */
   readonly entitlements: readonly string[];
+  /** When the session ends, ISO; null where identity did not say. */
+  readonly expiresAt: string | null;
+  /**
+   * A People administrator viewing the app as this person, read-only: who
+   * they are. The session is this person's; null on their own.
+   */
+  readonly viewing: { readonly adminAccountId: string; readonly adminName: string | null } | null;
 }
 
 /** Once per request: the shell's layout and the page under it both ask. */
@@ -99,11 +106,22 @@ export const currentPerson = cache(async (): Promise<SignedIn | null> => {
       entitlements: Array.isArray(entitlements)
         ? entitlements.filter((e): e is string => typeof e === 'string')
         : [],
+      expiresAt: read('expiresAt'),
+      viewing: viewingOf(Reflect.get(body, 'viewing')),
     };
   } catch {
     return null;
   }
 });
+
+function viewingOf(value: unknown): SignedIn['viewing'] {
+  if (value === null || typeof value !== 'object') return null;
+  const admin: unknown = Reflect.get(value, 'adminAccountId');
+  const name: unknown = Reflect.get(value, 'adminName');
+  return typeof admin === 'string'
+    ? { adminAccountId: admin, adminName: typeof name === 'string' ? name : null }
+    : null;
+}
 
 /**
  * What to call somebody, from the only thing identity holds about them.

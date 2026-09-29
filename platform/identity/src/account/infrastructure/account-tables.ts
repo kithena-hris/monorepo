@@ -74,6 +74,9 @@ export const session = platform.table(
     aaguid: text('aaguid'),
     // A support session's operator and why; null on a person's own session.
     impersonatedBy: uuid('impersonated_by'),
+    // The People administrator viewing as this account (20260929170000); null
+    // otherwise. `reason` is theirs then.
+    viewedBy: uuid('viewed_by'),
     reason: text('reason'),
   },
   // Declared here as well as in the migration so a query that would collide

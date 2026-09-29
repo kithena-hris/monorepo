@@ -20,7 +20,18 @@ export interface ShellNotice {
   readonly href: string;
   /** Whose change it is, for the avatar. */
   readonly person: string | null;
-  readonly kind: 'approval' | 'missing';
+  readonly kind: 'approval' | 'missing' | 'viewed';
+}
+
+/** A People administrator viewed the app as this person: over, and told afterwards. */
+export interface ViewedAs {
+  readonly id: string;
+  /** The administrator, by name; null where People has no record of them. */
+  readonly by: string | null;
+  readonly at: string;
+  readonly endedAt: string;
+  /** Special-category data of theirs, or that they may read, was visible. */
+  readonly specialCategory: boolean;
 }
 
 export interface ShellData {
@@ -36,6 +47,8 @@ export interface ShellData {
   /** By a tab's path, each tab's own count: what the tab row shows. */
   readonly tabCounts: Readonly<Record<string, number>>;
   readonly notices: readonly ShellNotice[];
+  /** Every time an administrator viewed the app as them, newest first: the Inbox keeps them. */
+  readonly viewedAs: readonly ViewedAs[];
   /** When People answered, for "12m ago". */
   readonly now: string | null;
 }
@@ -48,6 +61,7 @@ export const EMPTY_SHELL: ShellData = {
   counts: {},
   tabCounts: {},
   notices: [],
+  viewedAs: [],
   now: null,
 };
 
@@ -72,6 +86,22 @@ export interface Overview {
     readonly ownedBy: string | null;
   }[];
   readonly team: { readonly waiting: number; readonly toFill: number } | null;
+  /** Absent from a People that predates it. */
+  readonly viewedAs?: readonly ViewedAs[];
+}
+
+/** How long the bell tells somebody they were viewed as; the Inbox keeps it after. */
+const TOLD_FOR_MS = 14 * 24 * 60 * 60 * 1000;
+
+/** "Grace Hopper viewed Kithena as you", in words the person reads. */
+export function viewedAsNotice(v: ViewedAs): Pick<ShellNotice, 'title' | 'detail'> {
+  const minutes = Math.max(1, Math.round((Date.parse(v.endedAt) - Date.parse(v.at)) / 60_000));
+  return {
+    title: `${v.by ?? 'A People administrator'} viewed Kithena as you`,
+    detail: `For ${String(minutes)} min, read-only: nothing was changed.${
+      v.specialCategory ? ' Your sensitive personal details were visible.' : ''
+    }`,
+  };
 }
 
 /** The notices, newest decisions first, then what the person themselves has to add. */
@@ -102,7 +132,18 @@ export function noticesOf(overview: Overview): ShellNotice[] {
       person: null,
       kind: 'missing',
     }));
-  return [...approvals, ...missing];
+  const now = Date.parse(overview.now);
+  const viewed = (overview.viewedAs ?? [])
+    .filter((v) => now - Date.parse(v.endedAt) < TOLD_FOR_MS)
+    .map((v): ShellNotice => ({
+      id: `viewed:${v.id}`,
+      ...viewedAsNotice(v),
+      at: v.endedAt,
+      href: '/inbox',
+      person: v.by,
+      kind: 'viewed',
+    }));
+  return [...viewed, ...approvals, ...missing];
 }
 
 /**

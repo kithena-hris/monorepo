@@ -32,6 +32,13 @@ export interface Viewer {
    * when the principal carries one, the reason they gave.
    */
   readonly support?: { readonly operatorId: string; readonly reason: string | null };
+  /**
+   * Set when a People administrator is viewing the app as this account (the
+   * principal's `viewedBy`): everything reads exactly as it does for the
+   * employee — `accountId` and `roles` are theirs — and nothing is written
+   * (`writable`, `domain/access/view-as.ts`). `by` is the administrator.
+   */
+  readonly viewing?: { readonly by: string };
 }
 
 /** The envelope's actor for this viewer: the operator rides along when it is support. */

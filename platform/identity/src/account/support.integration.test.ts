@@ -194,7 +194,7 @@ describe('the support session', () => {
 
     await expect(identity.sql`
       UPDATE platform.session SET expires_at = started_at + interval '61 minutes'
-       WHERE id = ${sessionId}::uuid`).rejects.toThrow(/session_support_shape/);
+       WHERE id = ${sessionId}::uuid`).rejects.toThrow(/session_shape/);
   });
 
   it('ends when its hour does', async () => {

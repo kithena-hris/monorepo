@@ -46,10 +46,34 @@ export function tenantTransaction(db: PostgresJsDatabase): InTenantTransaction {
       return open.tx.transaction((tx) => sharing({ tx, tenantId }, () => fn({ tx, tenantId })));
     }
     return db.transaction(async (tx) => {
+      // First, before any other statement, or Postgres refuses to change it.
+      if (viewOnly.getStore() === true) await tx.execute(sql`SET TRANSACTION READ ONLY`);
       await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
       return fn({ tx, tenantId });
     });
   };
+}
+
+const viewOnly = new AsyncLocalStorage<true>();
+
+/**
+ * Run `fn` so that every unit of work it opens is a read-only transaction:
+ * one request by a People administrator viewing as somebody
+ * (`domain/access/view-as.ts`). The transports refuse a write up front and
+ * say why; this is what holds for everything they did not think of — a read
+ * that records something, a use case added later — because Postgres itself
+ * refuses the INSERT (`25006`, `isViewOnlyRefusal`).
+ */
+export function readOnly<T>(fn: () => T): T {
+  return viewOnly.run(true, fn);
+}
+
+/** A write Postgres refused because the request was read-only. */
+export function isViewOnlyRefusal(error: unknown): boolean {
+  for (let e: unknown = error; e !== null && typeof e === 'object'; e = Reflect.get(e, 'cause')) {
+    if (Reflect.get(e, 'code') === '25006') return true;
+  }
+  return false;
 }
 
 const shared = new AsyncLocalStorage<TenantScope>();

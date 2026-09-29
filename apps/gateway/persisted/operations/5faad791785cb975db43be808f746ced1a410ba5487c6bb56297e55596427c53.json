@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation StartViewingAs($personId: ID!, $reason: String!) {\n    startViewingAs(personId: $personId, reason: $reason) { code expiresAt }\n  }"}

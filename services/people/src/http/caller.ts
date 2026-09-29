@@ -28,6 +28,12 @@ import { effectiveRoles, SUPPORT_ROLES } from '../domain/access/roles.js';
  * support agent: every tenant role, whatever the header or OpenFGA says, and
  * `viewer.support` naming the operator, so what it does is recorded as
  * theirs. `impersonationReason`, when forwarded, is the reason they gave.
+ *
+ * **Viewing as an employee.** A principal with `viewedBy` — the router copies
+ * it from an `act` of kind `view_as` — is a People administrator seeing the
+ * app as `userId`, the employee: the employee's own roles and relations, so
+ * every read is theirs, and `viewer.viewing` naming the administrator, so no
+ * write is (`writable`). Never support, whatever else it carries.
  */
 
 const Forwarded = z.object({
@@ -37,6 +43,7 @@ const Forwarded = z.object({
   entitlements: z.array(z.string()).default([]),
   impersonatedBy: z.uuid().nullable().optional(),
   impersonationReason: z.string().trim().max(500).nullable().optional(),
+  viewedBy: z.uuid().nullable().optional(),
 });
 
 export type CallerFrom = (request: HeaderCarrier) => Result<Asking> | Promise<Result<Asking>>;
@@ -93,22 +100,46 @@ function askingFrom(
   }
   const correlation = request.headers['x-correlation-id'];
   const operator = principal.impersonatedBy ?? null;
+  const viewedBy = principal.viewedBy ?? null;
   const reason = principal.impersonationReason ?? '';
+  // Never both: identity puts one actor on a token. A principal claiming two
+  // is not one the router built, and is nobody.
+  if (operator !== null && viewedBy !== null) {
+    return err(failure('UNAUTHENTICATED', 'A principal is support or viewing, not both'));
+  }
   return ok({
     tenantId: principal.tenantId,
     viewer:
-      operator === null
-        ? { accountId: principal.userId, roles: effectiveRoles(principal.roles) }
-        : {
+      operator !== null
+        ? {
             accountId: principal.userId,
             roles: SUPPORT_ROLES,
             support: { operatorId: operator, reason: reason === '' ? null : reason },
-          },
+          }
+        : viewedBy !== null
+          ? // The employee, exactly: their account, their roles (OpenFGA's,
+            // resolved next as for anybody), and read-only.
+            {
+              accountId: principal.userId,
+              roles: effectiveRoles(principal.roles),
+              viewing: { by: viewedBy },
+            }
+          : { accountId: principal.userId, roles: effectiveRoles(principal.roles) },
     correlationId:
       typeof correlation === 'string' && z.uuid().safeParse(correlation).success
         ? correlation
         : randomUUID(),
   });
+}
+
+/**
+ * Whether the router says this request is an administrator viewing as
+ * somebody: everything it touches is then read-only (`readOnly`,
+ * `unit-of-work.ts`). Only with the internal token, like every other claim.
+ */
+export function viewingRequest(request: HeaderCarrier, internalToken: string): boolean {
+  const principal = forwardedFrom(request, internalToken);
+  return principal.ok && (principal.value.viewedBy ?? null) !== null;
 }
 
 /** Entitled by the list the caller forwarded: standalone, and the tests. */

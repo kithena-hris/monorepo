@@ -2,6 +2,8 @@ import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import { SESSION_COOKIE } from '../../../lib/session';
+import { RETURN_COOKIE } from '../../../lib/session-cookie';
+import { readReturn } from '../../../lib/view-as';
 
 /**
  * Signing out.
@@ -16,8 +18,12 @@ import { SESSION_COOKIE } from '../../../lib/session';
  * used to do only the first and said so in a comment; that gap is closed.
  */
 export async function POST(): Promise<Response> {
-  const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
+  const jar = await cookies();
+  const sessionId = jar.get(SESSION_COOKIE)?.value;
   const tenantId = (await headers()).get('x-tenant-id');
+  // Signing out while viewing as somebody ends the view (identity records it)
+  // and signs the administrator out too: this browser keeps neither.
+  const own = readReturn(jar.get(RETURN_COOKIE)?.value)?.sessionId;
 
   /*
    * Revoked first, cleared second.
@@ -27,14 +33,15 @@ export async function POST(): Promise<Response> {
    * The reverse order would mean a failure between the two steps leaves a
    * browser holding a cookie for a session that is still live.
    */
-  if (sessionId !== undefined && sessionId !== '' && tenantId !== null && tenantId !== '') {
+  for (const id of [sessionId, own]) {
+    if (id === undefined || id === '' || tenantId === null || tenantId === '') continue;
     await fetch(`${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session/revoke`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '',
       },
-      body: JSON.stringify({ sessionId, tenantId }),
+      body: JSON.stringify({ sessionId: id, tenantId }),
       cache: 'no-store',
       // Swallowed on purpose. A person who clicked "sign out" gets signed out
       // of this browser even if identity is unreachable; the row then lapses on
@@ -56,13 +63,15 @@ export async function POST(): Promise<Response> {
    */
   const response = new NextResponse(null, { status: 303, headers: { location: '/' } });
 
-  response.cookies.set(SESSION_COOKIE, '', {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 0,
-  });
+  for (const name of [SESSION_COOKIE, RETURN_COOKIE]) {
+    response.cookies.set(name, '', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    });
+  }
 
   return response;
 }

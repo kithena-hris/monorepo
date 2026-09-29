@@ -85,7 +85,18 @@ export interface SessionRoutesDeps {
     readonly amr: readonly string[];
     /** The operator behind a support session, which the token claims as `act`. */
     readonly impersonatedBy: string | null;
+    /** The administrator behind a view-as session, claimed as `act` of kind `view_as`. */
+    readonly viewedBy: string | null;
+    /** The session's own end, which no token outlives. */
+    readonly expiresAt: string;
   }) => Promise<{ readonly token: string; readonly expiresAt: string }>;
+  /**
+   * Close whatever view-as sessions at this company have run out of time,
+   * recording each end once (`view-as-store.ts`). Asked on every session
+   * check, so an end is recorded the first time anybody at the company —
+   * the employee included — is next seen. Never throws.
+   */
+  readonly settle?: (tenantId: string) => Promise<void>;
 }
 
 export function sessionRoutes({
@@ -97,6 +108,7 @@ export function sessionRoutes({
   redeemHandoff,
   revoke,
   issueAccessToken,
+  settle,
 }: SessionRoutesDeps) {
   return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
     const path = (request.url ?? '').split('?')[0] ?? '';
@@ -173,6 +185,7 @@ export function sessionRoutes({
 
     if (sessionId === '' || tenantId === '') return json(400, {});
 
+    if (path === SESSION) await settle?.(tenantId);
     const session = await authenticate(tenantId, sessionId);
 
     if (path === TOKEN) {
@@ -183,6 +196,8 @@ export function sessionRoutes({
         authenticatedAt: session.value.authenticatedAt,
         amr: session.value.amr,
         impersonatedBy: session.value.impersonatedBy ?? null,
+        viewedBy: session.value.viewedBy ?? null,
+        expiresAt: session.value.expiresAt,
       });
       return json(200, {
         accessToken: issued.token,
@@ -196,9 +211,11 @@ export function sessionRoutes({
     // for all four, and the differences are only useful to somebody probing.
     if (!session.ok) return json(401, {});
 
-    const [profile, entitlements] = await Promise.all([
+    const viewedBy = session.value.viewedBy ?? null;
+    const [profile, entitlements, viewer] = await Promise.all([
       profileOf(tenantId, session.value.accountId),
       entitlementsOf(tenantId),
+      viewedBy === null ? null : profileOf(tenantId, viewedBy),
     ]);
 
     return json(200, {
@@ -225,6 +242,22 @@ export function sessionRoutes({
       entitlements,
       authenticatedAt: session.value.authenticatedAt,
       expiresAt: session.value.expiresAt,
+      /*
+       * A People administrator viewing as this person, read-only, until
+       * `expiresAt`: whose view it is, for the account menu, and the one
+       * thing that tells the tenant app to offer "End viewing as …". Null on
+       * the person's own session.
+       */
+      viewing:
+        viewedBy === null
+          ? null
+          : {
+              adminAccountId: viewedBy,
+              adminName:
+                viewer?.givenName == null || viewer.familyName == null
+                  ? (viewer?.workEmail ?? null)
+                  : `${viewer.preferredName ?? viewer.givenName} ${viewer.familyName}`,
+            },
     });
   };
 }

@@ -11,6 +11,7 @@ import {
 } from './export.js';
 import type { ObjectStore } from './object-store.js';
 import { userActor } from '../person/ports.js';
+import { writable } from '../../domain/access/view-as.js';
 
 /**
  * An export, run to the end: built, stored, linked, audited, announced
@@ -181,6 +182,10 @@ export async function runExportJob(
   deps: ExportJobDeps,
   request: ExportJobRequest,
 ): Promise<Result<ExportJobResult>> {
+  // A job is its requester's act, run later: never one an administrator
+  // viewing as somebody asked for, however it reached the queue.
+  const may = writable(request.viewer);
+  if (!may.ok) return may;
   const done = async (run: CompletedExport): Promise<Result<ExportJobResult>> =>
     ok({
       exportId: run.exportId,

@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
   EmptyState,
   Field,
@@ -46,6 +47,10 @@ import {
   Textarea,
   Tooltip,
   icons,
+  useScreenCommand,
+  useShortcutKeys,
+  keysOf,
+  KbdShortcut,
   useCoarsePointer,
   usePageHeaderFrame,
   type IsoDate,
@@ -100,6 +105,8 @@ export interface ProfileState {
     readonly missing: number | null;
     /** The viewer may choose this photo: it is theirs, or they are HR. */
     readonly canChangePhoto?: boolean;
+    /** The viewer, a People administrator, may view the app as them. */
+    readonly canViewAs?: boolean;
   };
   /**
    * Only what this viewer may read, already filtered by the application layer.
@@ -169,6 +176,12 @@ export interface ProfileProps {
   readonly onApprovals?: () => void;
   /** This record as a PDF, as the viewer may read it (PEO-061). Absent where not offered. */
   readonly onDownloadRecord?: (reason: string) => Promise<Outcome>;
+  /**
+   * A People administrator views the app as this person, read-only, for
+   * thirty minutes, with a reason; offered where People says it may be
+   * (`person.canViewAs`). The page is then theirs, so the host moves on.
+   */
+  readonly onViewAs?: (reason: string) => Promise<Outcome>;
   /** A new photo, picked here: uploaded by the shell, which answers with where it now is. */
   readonly onPhoto?: (file: File) => Promise<PhotoOutcome>;
   /** Open with this field's section in edit mode and the cursor in it: a link to one missing detail. */
@@ -219,6 +232,7 @@ export function Profile({
   onSelfApprove,
   onApprovals,
   onDownloadRecord,
+  onViewAs,
   onPhoto,
   focusField,
   onRequest,
@@ -250,6 +264,7 @@ export function Profile({
               onSelfApprove={onSelfApprove}
               onApprovals={onApprovals}
               onDownloadRecord={onDownloadRecord}
+              onViewAs={onViewAs}
               onRequest={onRequest}
               onChangeDated={onChangeDated}
               tab={tab}
@@ -273,6 +288,7 @@ function Record({
   onSelfApprove,
   onApprovals,
   onDownloadRecord,
+  onViewAs,
   onPhoto,
   focusField,
   onRequest,
@@ -295,6 +311,7 @@ function Record({
   readonly onSelfApprove: ProfileProps['onSelfApprove'];
   readonly onApprovals: ProfileProps['onApprovals'];
   readonly onDownloadRecord: ProfileProps['onDownloadRecord'];
+  readonly onViewAs: ProfileProps['onViewAs'];
   readonly onRequest: ProfileProps['onRequest'];
 }): JSX.Element {
   // A link to one missing detail opens its section, with the cursor in it.
@@ -371,6 +388,21 @@ function Record({
       : Math.round(((required - Math.min(gaps.length, required)) / required) * 100);
   const [pdf, setPdf] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Viewing as them: an administrator's, where People offers it. `V` and ⌘K
+  // open the same dialog as the menu.
+  const [viewing, setViewing] = useState(false);
+  const viewAs = onViewAs !== undefined && person.canViewAs === true ? onViewAs : undefined;
+  useScreenCommand(
+    viewAs === undefined
+      ? null
+      : {
+          id: 'view-as',
+          label: `View as ${person.name}`,
+          run: () => {
+            setViewing(true);
+          },
+        },
+  );
 
   return (
     <Stack gap={6}>
@@ -470,6 +502,10 @@ function Record({
                             setPdf(true);
                           }
                     }
+                    viewAsLabel={viewAs === undefined ? null : `View as ${firstName}`}
+                    onViewAs={() => {
+                      setViewing(true);
+                    }}
                   />
                   {firstWritable === undefined ? null : (
                     <Button
@@ -527,6 +563,14 @@ function Record({
       )}
       {onDownloadRecord === undefined ? null : (
         <RecordPdf open={pdf} onOpenChange={setPdf} onDownload={onDownloadRecord} />
+      )}
+      {viewAs === undefined ? null : (
+        <ViewAsDialog
+          name={person.name}
+          open={viewing}
+          onOpenChange={setViewing}
+          onViewAs={viewAs}
+        />
       )}
       <ReviewNotices
         reviews={state.reviews}
@@ -1048,7 +1092,12 @@ function RecordActions({
   onHistory,
   onDownload,
   onPlacement,
+  viewAsLabel,
+  onViewAs,
 }: {
+  /** "View as Alan", where it is offered; null elsewhere. */
+  readonly viewAsLabel: string | null;
+  readonly onViewAs: () => void;
   readonly moves: readonly MoveKind[];
   readonly onMove: (kind: MoveKind) => void;
   /** Change their legal entity or work location, dated. */
@@ -1062,6 +1111,8 @@ function RecordActions({
   // An item that puts the cursor somewhere keeps it there: the menu would
   // otherwise hand focus back to its trigger as it closes.
   const moved = useRef(false);
+  // The app's keys for it (`view-as` in its one table), as this person has them.
+  const viewAsKeys = keysOf('view-as', useShortcutKeys());
   const record = [
     firstMissing === null ? null : (
       <DropdownMenuItem
@@ -1094,6 +1145,17 @@ function RecordActions({
       <DropdownMenuItem key="pdf" onSelect={onDownload}>
         <icons.download aria-hidden />
         Download PDF
+      </DropdownMenuItem>
+    ),
+    viewAsLabel === null ? null : (
+      <DropdownMenuItem key="view-as" onSelect={onViewAs}>
+        <icons.visible aria-hidden />
+        {viewAsLabel}
+        {viewAsKeys.length === 0 ? null : (
+          <DropdownMenuShortcut>
+            <KbdShortcut keys={viewAsKeys} />
+          </DropdownMenuShortcut>
+        )}
       </DropdownMenuItem>
     ),
   ].filter((x) => x !== null);
@@ -1309,6 +1371,101 @@ function PlacementDialog({
  * a reason, recorded with it (§15.1), so the reason is asked for up front
  * rather than after a refusal.
  */
+/**
+ * Viewing the app as this person: what it means, said before it starts, and
+ * the reason, which is required and kept in the activity log.
+ */
+function ViewAsDialog({
+  name,
+  open,
+  onOpenChange: setOpen,
+  onViewAs,
+}: {
+  readonly name: string;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly onViewAs: (reason: string) => Promise<Outcome>;
+}): JSX.Element {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const first = name.split(' ')[0] ?? name;
+  const start = (): void => {
+    if (reason.trim() === '') {
+      setRefused('Say why you are viewing as them.');
+      return;
+    }
+    setBusy(true);
+    setRefused(null);
+    void onViewAs(reason.trim()).then((outcome) => {
+      // On success the page becomes theirs; stay busy until it has.
+      if (!outcome.ok) {
+        setBusy(false);
+        setRefused(outcome.message);
+      }
+    });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setReason('');
+          setRefused(null);
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>View as {name}</DialogTitle>
+          <DialogDescription>
+            See Kithena exactly as {first} does, including their private details, for up to 30
+            minutes. Nothing can be changed while you do.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <Stack gap={4}>
+            <Field required>
+              <FieldLabel>Reason</FieldLabel>
+              <FieldControl>
+                <Textarea
+                  value={reason}
+                  maxLength={500}
+                  onChange={(e) => {
+                    setReason(e.target.value);
+                  }}
+                />
+              </FieldControl>
+              <FieldDescription>
+                Kept in the activity log. {first} is told afterwards that you viewed as them.
+              </FieldDescription>
+            </Field>
+            {refused === null ? null : (
+              <Alert tone="danger" title="Not started">
+                {refused}
+              </Alert>
+            )}
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            onClick={() => {
+              setOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button variant="primary" loading={busy} loadingLabel="Starting" onClick={start}>
+            View as {first}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function RecordPdf({
   open,
   onOpenChange: setOpen,

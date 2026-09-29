@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { FINANCE, HR, PEOPLE_NAV } from './people-nav.fixture';
 import { placesFor } from './remotes';
-import { countsOf, type Overview } from './shell-data';
+import { countsOf, noticesOf, type Overview } from './shell-data';
 
 const overview = (roles: Overview['roles'], approvals: number): Overview => ({
   roles,
@@ -38,5 +38,34 @@ describe('countsOf', () => {
     expect(tabs).toEqual({ '/people/data-health/access-requests': 2 });
     expect(sections).toEqual({ '/people/data-health/access-requests': 2 });
     expect(countsOf(overview(FINANCE, 0), null, [])).toEqual({ sections: {}, tabs: {} });
+  });
+});
+
+describe('telling somebody they were viewed as', () => {
+  const viewed = (endedAt: string, specialCategory: boolean) => ({
+    id: `v-${endedAt}`,
+    by: 'Grace Hopper',
+    at: new Date(Date.parse(endedAt) - 12 * 60_000).toISOString(),
+    endedAt,
+    specialCategory,
+  });
+
+  it('is a notice for a fortnight after it ended, saying who, how long, and what showed', () => {
+    const notices = noticesOf({
+      ...overview(HR, 0),
+      viewedAs: [viewed('2026-09-29T08:00:00.000Z', true), viewed('2026-09-01T08:00:00.000Z', false)],
+    });
+    expect(notices).toEqual([
+      {
+        id: 'viewed:v-2026-09-29T08:00:00.000Z',
+        title: 'Grace Hopper viewed Kithena as you',
+        detail:
+          'For 12 min, read-only: nothing was changed. Your sensitive personal details were visible.',
+        at: '2026-09-29T08:00:00.000Z',
+        href: '/inbox',
+        person: 'Grace Hopper',
+        kind: 'viewed',
+      },
+    ]);
   });
 });

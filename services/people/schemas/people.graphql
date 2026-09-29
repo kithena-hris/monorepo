@@ -1233,6 +1233,10 @@ type Mutation {
     """Bytes, exactly: the PUT is signed for this length."""
     size: Int!
   ): ImportUploadTarget
+  """
+  A People administrator views the app as this person, read-only, for thirty minutes; never another administrator, never from support or from inside another view. The reason is kept in the activity log.
+  """
+  startViewingAs(personId: ID!, reason: String!): ViewAsStart
   """End the employment once its last working day has come; HR only."""
   terminatePerson(
     eligibleForRehire: Boolean
@@ -1638,6 +1642,10 @@ type PeopleOverview {
   roles: PeopleOverviewRoles
   setup: PeopleOverviewSetup
   team: PeopleOverviewTeam
+  """
+  When a People administrator viewed the app as them, once each was over, newest first.
+  """
+  viewedAs: [PeopleViewedAs!]
 }
 
 type PeopleOverviewApproval {
@@ -1931,6 +1939,16 @@ type PeopleTransferImported {
   updated: Int
 }
 
+type PeopleViewedAs {
+  at: String
+  """The administrator, by name."""
+  by: String
+  endedAt: String
+  id: ID
+  """Special-category data of theirs, or that they may read, was visible."""
+  specialCategory: Boolean
+}
+
 type Person @key(fields: "id") {
   attributes: [Attribute!]
   id: ID
@@ -2004,6 +2022,10 @@ type ProfilePerson {
   avatarUrl: String
   """The viewer may choose this photo: it is theirs, or they are HR."""
   canChangePhoto: Boolean
+  """
+  The viewer, a People administrator, may view the app as this person: read-only, for thirty minutes (`startViewingAs`).
+  """
+  canViewAs: Boolean
   """Null when the viewer may not judge this record’s completeness."""
   missing: Int
   name: String
@@ -2557,6 +2579,16 @@ type UpcomingErasure {
   Unreviewed floors: nothing is erased automatically until counsel reviews them.
   """
   waitingForReview: [String!]
+}
+
+"""
+A view-as session, begun: the tenant app’s server redeems the code for it, as after a sign-in.
+"""
+type ViewAsStart {
+  """Identity’s handoff code: single use, sixty seconds, this company only."""
+  code: String
+  """Thirty minutes after it began."""
+  expiresAt: String
 }
 
 type VisibilityRule {

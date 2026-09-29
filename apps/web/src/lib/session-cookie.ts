@@ -14,3 +14,12 @@
  * leans on. See `lib/session.ts`.
  */
 export const SESSION_COOKIE = '__Host-ksession';
+
+/**
+ * While a People administrator views the app as somebody, their own session,
+ * put aside: `__Host-ksession` is then the view-as session, and this is what
+ * ending it — or its thirty minutes running out — puts back. Its value is
+ * `<own session>.<person viewed>.<own session's end, epoch ms>`
+ * (`returnCookie`, `lib/view-as.ts`). Absent the rest of the time.
+ */
+export const RETURN_COOKIE = '__Host-kreturn';

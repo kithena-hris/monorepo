@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { resolveTenant, type Tenant } from './lib/tenant';
-import { SESSION_COOKIE } from './lib/session-cookie';
+import { RETURN_COOKIE, SESSION_COOKIE } from './lib/session-cookie';
 
 /**
  * Tenant resolution, before anything else runs.
@@ -112,8 +112,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
    * is.
    */
   if (!PUBLIC_PATH.test(request.nextUrl.pathname) && !request.cookies.has(SESSION_COOKIE)) {
-    const login = new URL('/login', request.url);
-    return NextResponse.redirect(login);
+    // A view as somebody whose cookie expired with it (thirty minutes): put
+    // the administrator's own session back rather than asking them to sign in.
+    const to = request.cookies.has(RETURN_COOKIE) ? '/auth/view-as/end' : '/login';
+    return NextResponse.redirect(new URL(to, request.url));
   }
 
   return NextResponse.next({ request: { headers } });

@@ -15,8 +15,11 @@ import { presentsInternalToken, readJsonBody } from '../../shared/internal-token
  *
  * - `GET`: 200 `{ value }`, `value` null when never set; 404 for an account
  *   this company does not have.
- * - `PUT` `{ value }`: 204, or 400 for a value that is not an object (or a
- *   body too large to read), 413 for a value past 16 KB, 404 as above.
+ * - `PUT` `{ value, sessionId }`: 204, or 400 for a value that is not an
+ *   object (or a body too large to read, or no session named), 413 for a
+ *   value past 16 KB, 404 as above, and 403 when the session writing is an
+ *   administrator viewing as this person: viewing is read-only, and a
+ *   person's shortcuts are theirs to change.
  */
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const PATH = new RegExp(
@@ -31,13 +34,14 @@ export interface PreferenceRoutesDeps {
   readonly internalToken: string;
   /** The value, `null` when never set, or `undefined` when the account is not this tenant's. */
   readonly read: (tenantId: string, accountId: string, name: string) => Promise<unknown>;
-  /** False when the account is not this tenant's. */
   readonly write: (
     tenantId: string,
     accountId: string,
     name: string,
     value: Readonly<Record<string, unknown>>,
-  ) => Promise<boolean>;
+    /** The session the tenant app is writing for. */
+    sessionId: string,
+  ) => Promise<'written' | 'unknown' | 'view_only'>;
 }
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
@@ -81,8 +85,13 @@ export function preferenceRoutes({ internalToken, read, write }: PreferenceRoute
       response.writeHead(413).end();
       return true;
     }
-    const known = await write(tenantId, accountId, name, value);
-    response.writeHead(known ? 204 : 404).end();
+    const sessionId = isObject(body) ? body['sessionId'] : undefined;
+    if (typeof sessionId !== 'string' || !new RegExp(`^${UUID}$`, 'i').test(sessionId)) {
+      response.writeHead(400).end();
+      return true;
+    }
+    const written = await write(tenantId, accountId, name, value, sessionId);
+    response.writeHead(written === 'written' ? 204 : written === 'view_only' ? 403 : 404).end();
     return true;
   };
 }

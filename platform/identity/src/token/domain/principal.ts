@@ -19,6 +19,11 @@ export interface PrincipalClaims {
   readonly userId: string;
   readonly tenantId: string;
   readonly impersonatedBy: string | null;
+  /**
+   * The People administrator viewing as this account, read-only; null
+   * otherwise. Never together with `impersonatedBy`.
+   */
+  readonly viewedBy: string | null;
   readonly authenticatedAt: string;
   readonly amr: readonly string[];
 }
@@ -44,10 +49,13 @@ export interface AuthenticatedSession {
 
 export interface ImpersonationContext {
   /**
-   * The back-office operator behind a support session (`platform.operator.id`).
-   * `userId` is then the company's support account, and the token says both.
+   * The back-office operator behind a support session (`platform.operator.id`),
+   * or the People administrator behind a view-as session (their account).
+   * `userId` is then the company's support account, or the employee.
    */
   readonly by: string;
+  /** Support unless said otherwise: the two are never confused downstream. */
+  readonly kind?: 'support' | 'view_as';
 }
 
 export function principalFrom(
@@ -57,7 +65,9 @@ export function principalFrom(
   return {
     userId: session.accountId,
     tenantId: session.tenantId,
-    impersonatedBy: impersonation?.by ?? null,
+    impersonatedBy:
+      impersonation !== null && impersonation.kind !== 'view_as' ? impersonation.by : null,
+    viewedBy: impersonation?.kind === 'view_as' ? impersonation.by : null,
     authenticatedAt: session.authenticatedAt,
     amr: session.amr,
   };

@@ -1,7 +1,7 @@
 import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-import { SESSION_COOKIE } from '../../../lib/session-cookie';
+import { RETURN_COOKIE, SESSION_COOKIE } from '../../../lib/session-cookie';
 
 /**
  * Where a sign-in that happened on the auth origin lands.
@@ -89,8 +89,12 @@ export async function GET(request: Request): Promise<Response> {
    * nobody out. Swallowed like the sign-out route's: the cookie is replaced
    * either way, and the old row then lapses on its own lifetime.
    */
-  const previous = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (previous !== undefined && previous !== '' && previous !== body.sessionId) {
+  const jar = await cookies();
+  // And an administrator's own session put aside while viewing as somebody:
+  // arriving replaces both, and ends the view (identity records it).
+  const aside = jar.get(RETURN_COOKIE)?.value.split('.')[0];
+  for (const previous of [jar.get(SESSION_COOKIE)?.value, aside]) {
+    if (previous === undefined || previous === '' || previous === body.sessionId) continue;
     await fetch(`${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session/revoke`, {
       method: 'POST',
       headers: {
@@ -127,5 +131,14 @@ export async function GET(request: Request): Promise<Response> {
     ...(expires === null || Number.isNaN(expires.getTime()) ? {} : { expires }),
   });
 
+  if (aside !== undefined) {
+    landed.cookies.set(RETURN_COOKIE, '', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 0,
+    });
+  }
   return landed;
 }

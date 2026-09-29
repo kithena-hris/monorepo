@@ -42,6 +42,7 @@ import {
   TabBarItem,
   TooltipProvider,
   icons,
+  runScreenCommand,
   setShortcutKeys,
   useScreenCommands,
   type CommandItem,
@@ -123,7 +124,16 @@ const ThemeDark = icons.themeDark;
  * already works.
  */
 export interface AppShellProps {
-  readonly person: { readonly name: string; readonly email: string | null };
+  readonly person: {
+    readonly name: string;
+    readonly email: string | null;
+    /**
+     * A People administrator viewing the app as this person, read-only: who
+     * (`by`). No banner — the account area says whose view it is, and "End
+     * viewing as …" heads its menu and ⌘K. Null or absent on their own.
+     */
+    readonly viewing?: { readonly by: string | null } | null;
+  };
   readonly companyName: string;
   /** The company's mark, shown above the areas when they have uploaded one. */
   readonly logoUrl?: string | null;
@@ -239,6 +249,7 @@ function useShortcutsFor({
   route,
   openPalette,
   openHelp,
+  viewing,
 }: {
   readonly prefs: ShortcutPrefs;
   readonly shell: ShellData;
@@ -247,6 +258,8 @@ function useShortcutsFor({
   readonly route: string | null;
   readonly openPalette: () => void;
   readonly openHelp: () => void;
+  /** Viewing as somebody: `V` ends it. */
+  readonly viewing: boolean;
 }): ShortcutsValue {
   const router = useRouter();
   const apple = useApple();
@@ -302,6 +315,11 @@ function useShortcutsFor({
       if (id === 'create') {
         if (create === null) return false;
         create.run();
+        return true;
+      }
+      if (id === 'view-as') {
+        if (!viewing) return runScreenCommand('view-as');
+        endViewing();
         return true;
       }
       if (id === 'form.submit') return submitFocused(event?.target ?? document.activeElement);
@@ -408,6 +426,7 @@ export function AppShell({
     openHelp: useCallback(() => {
       setHelpOpen(true);
     }, []),
+    viewing: person.viewing != null,
   });
   // `useHint` for what is drawn here, above the provider it reads.
   const hint = (path: string): JSX.Element | undefined => {
@@ -543,7 +562,11 @@ export function AppShell({
               </Nav>
               <PersonMenu
                 person={person}
-                subtitle={[role, companyName].filter((x) => x !== null).join(' · ')}
+                subtitle={
+                  person.viewing == null
+                    ? [role, companyName].filter((x) => x !== null).join(' · ')
+                    : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`
+                }
                 companyName={companyName}
                 timeOff={areas.some((a) => a.href === '/time-off' && a.built)}
                 dark={dark}
@@ -559,6 +582,7 @@ export function AppShell({
           onOpenChange={setPaletteOpen}
           dark={dark}
           onTheme={setTheme}
+          viewing={person.viewing == null ? null : person.name}
         />
         {/*
           No boundary here, on purpose: a navigation is a transition and keeps
@@ -588,12 +612,15 @@ function TopCorner({
   onOpenChange: setOpen,
   dark,
   onTheme,
+  viewing,
 }: {
   readonly shell: ShellData;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly dark: boolean;
   readonly onTheme: (dark: boolean) => void;
+  /** Whose view this is, while an administrator views as them; null otherwise. */
+  readonly viewing: string | null;
 }): JSX.Element {
   return (
     <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @min-[40rem]/page:flex">
@@ -614,6 +641,7 @@ function TopCorner({
         shell={shell}
         dark={dark}
         onTheme={onTheme}
+        viewing={viewing}
       />
       <Notices shell={shell} />
     </div>
@@ -674,6 +702,8 @@ export function NoticeList({ shell }: { readonly shell: ShellData }): JSX.Elemen
                 icon:
                   n.kind === 'missing' ? (
                     <icons.person aria-hidden />
+                  ) : n.kind === 'viewed' ? (
+                    <icons.visible aria-hidden />
                   ) : (
                     <icons.approve aria-hidden />
                   ),
@@ -717,12 +747,14 @@ function SearchPalette({
   shell,
   dark,
   onTheme,
+  viewing,
 }: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly shell: ShellData;
   readonly dark: boolean;
   readonly onTheme: (dark: boolean) => void;
+  readonly viewing: string | null;
 }): JSX.Element {
   const router = useRouter();
   const { prefs, table, destinations, keysFor, openHelp, create } = useShortcuts();
@@ -833,7 +865,14 @@ function SearchPalette({
           ]),
       ...commands
         .filter((c) => c.id !== 'create')
-        .map((c) => ({ id: `command:${c.id}`, label: c.label, group: 'Actions', onSelect: c.run })),
+        .map((c) => ({
+          id: `command:${c.id}`,
+          label: c.label,
+          group: 'Actions',
+          ...(c.id === 'view-as' ? { icon: iconOf('visible') } : {}),
+          ...keysOfId(c.id),
+          onSelect: c.run,
+        })),
       ...(exports
         ? [
             {
@@ -902,7 +941,25 @@ function SearchPalette({
       ? ranked.map((item) => (recent.includes(item.id) ? { ...item, group: 'Recent' } : item))
       : ranked;
 
+  // While viewing as somebody, the way back comes before anything else.
+  const viewKeys = shownKeys(table.find((s) => s.id === 'view-as')?.keys, prefs.characterKeys);
+  const back: CommandItem[] =
+    viewing === null
+      ? []
+      : [
+          {
+            id: 'view-as.end',
+            label: `End viewing as ${viewing}`,
+            group: `Viewing as ${viewing}`,
+            icon: iconOf('close'),
+            keywords: ['view as', 'stop', 'exit'],
+            ...(viewKeys.length === 0 ? {} : { shortcut: viewKeys }),
+            onSelect: endViewing,
+          },
+        ];
+
   const items = [
+    ...filterCommands(back, query),
     ...found.map((p): CommandItem => ({
       id: `person:${p.value}`,
       label: p.label,
@@ -972,6 +1029,7 @@ function PersonMenu({
   const signOut = useRef<HTMLFormElement>(null);
   const { prefs, table, openHelp } = useShortcuts();
   const hint = useHint();
+  const viewKeys = shownKeys(table.find((s) => s.id === 'view-as')?.keys, prefs.characterKeys);
   return (
     <DropdownMenu openOnHover>
       <DropdownMenuTrigger className="hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center gap-2.5 rounded-md p-2.5 text-left shadow-[inset_0_0_0_1px_var(--reach-color-border)] focus-visible:outline-2 focus-visible:outline-offset-2 group-data-[collapsed]/sidebar:justify-center group-data-[collapsed]/sidebar:p-1 group-data-[collapsed]/sidebar:shadow-none">
@@ -1001,6 +1059,20 @@ function PersonMenu({
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {person.viewing == null ? null : (
+          <>
+            <DropdownMenuItem onSelect={endViewing}>
+              <icons.close />
+              End viewing as {person.name}
+              {viewKeys.length === 0 ? null : (
+                <DropdownMenuShortcut className="flex">
+                  <KbdShortcut keys={viewKeys} />
+                </DropdownMenuShortcut>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem asChild>
           <Link href="/people/me">
             <icons.person />
@@ -1130,9 +1202,24 @@ export function AccountSheet({
       <SheetContent side="bottom" className="pb-safe-bottom">
         <SheetHeader>
           <SheetTitle>{person.name}</SheetTitle>
-          <SheetDescription>{person.email ?? person.name}</SheetDescription>
+          <SheetDescription>
+            {person.viewing == null
+              ? (person.email ?? person.name)
+              : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`}
+          </SheetDescription>
         </SheetHeader>
         <SheetBody>
+          {person.viewing == null ? null : (
+            <Button
+              variant="primary"
+              fullWidth
+              startIcon={<icons.close />}
+              className="mb-2"
+              onClick={endViewing}
+            >
+              End viewing as {person.name}
+            </Button>
+          )}
           <Nav label="Account">
             <NavList>
               <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
@@ -1162,6 +1249,25 @@ export function AccountSheet({
       </SheetContent>
     </Sheet>
   );
+}
+
+/**
+ * Ends viewing as somebody: a POST to `/auth/view-as/end`, which signs the
+ * view-as session out and puts the administrator's own back. A full
+ * navigation, since everything on the page was the employee's.
+ */
+function endViewing(): void {
+  const form = document.createElement('form');
+  form.method = 'post';
+  form.action = '/auth/view-as/end';
+  form.hidden = true;
+  document.body.append(form);
+  form.submit();
+}
+
+/** A shortcut's keys as a hint shows them: none once single keys are off. */
+function shownKeys(keys: readonly string[] | undefined, characterKeys: boolean): readonly string[] {
+  return keys === undefined || (!characterKeys && keys.some(isCharacterKey)) ? [] : keys;
 }
 
 /**

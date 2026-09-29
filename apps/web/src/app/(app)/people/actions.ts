@@ -3,6 +3,7 @@
 import { people, type PeopleAnswer } from '../../../lib/people';
 import { VIEWS } from '../../../lib/people-views';
 import { loadScreen } from '../../../lib/people-screens';
+import { startViewing } from '../../../lib/view-as';
 
 /**
  * What the People screens' buttons do: server actions, each one operation
@@ -43,6 +44,17 @@ function formInputs(changed: Values): Record<string, unknown>[] {
     // A sealed value's last four is what was shown, not something to write back.
     return [];
   });
+}
+
+/* ------------------------------------------------------------- view as -- */
+
+/**
+ * A People administrator views the app as this person, read-only, for thirty
+ * minutes, saying why. People decides whether they may; the cookies are
+ * swapped here (`lib/view-as.ts`), and the page then loads as them.
+ */
+export async function viewAs(personId: string, reason: string): Promise<Outcome> {
+  return startViewing(personId, reason);
 }
 
 /* ------------------------------------------------------------- records -- */

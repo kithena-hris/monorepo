@@ -87,7 +87,7 @@ export const OPERATIONS = {
 
   Profile: `query Profile($personId: ID) {
     peopleProfile(personId: $personId) {
-      person { name summary avatarUrl missing canChangePhoto }
+      person { name summary avatarUrl missing canChangePhoto canViewAs }
       sections { key label visibility readsLogged fields { ...RecordFieldParts } }
       values { ...EntryParts }
       calendar { today timeZone }
@@ -237,6 +237,7 @@ export const OPERATIONS = {
       missing { key label sectionKey section ownedBy }
       team { waiting toFill }
       setup { photo fields { key sectionKey label description dataType required } }
+      viewedAs { id by at endedAt specialCategory }
     }
   }`,
 
@@ -762,6 +763,15 @@ export const OPERATIONS = {
 
   CompletePhotoUpload: `mutation CompletePhotoUpload($personId: ID, $uploadId: ID!, $key: String!) {
     completePhotoUpload(personId: $personId, uploadId: $uploadId, idempotencyKey: $key) { avatarUrl }
+  }`,
+
+  /**
+   * A People administrator starts viewing the app as somebody: a handoff code
+   * this app's server redeems at once (`lib/view-as.ts`). Never sent to a
+   * browser.
+   */
+  StartViewingAs: `mutation StartViewingAs($personId: ID!, $reason: String!) {
+    startViewingAs(personId: $personId, reason: $reason) { code expiresAt }
   }`,
 
   RequestDetails: `mutation RequestDetails($personId: ID!, $keys: [String!]!, $key: String!) {

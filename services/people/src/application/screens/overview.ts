@@ -8,6 +8,7 @@ import { run } from '../person/service.js';
 import { avatarsOf } from './photo.js';
 import { actors, ownRecord } from './people.js';
 import { nameOf, NOBODY, type ScreenDeps, type Tx } from './record.js';
+import type { ViewedAs } from '../person/view-as.js';
 
 /**
  * Where People starts: the signed-in person, where they sit, and what is
@@ -97,6 +98,12 @@ export interface OverviewView {
   /** HR's summary of everybody's gaps; null for anybody else. */
   readonly team: { readonly waiting: number; readonly toFill: number } | null;
   /**
+   * The times a People administrator viewed the app as them, once each was
+   * over, newest first (decided 2026-09-29): who, when, until when, and
+   * whether special-category data was visible. Never the reason.
+   */
+  readonly viewedAs: readonly ViewedAs[];
+  /**
    * What signing up still asks of them, on the first screen they land on: a
    * photo when the company asks for one and they have none, and the image and
    * document fields collected at sign-up that are still empty. The sign-up
@@ -135,6 +142,10 @@ export async function overviewView(
     const approvals = await approvalsPart(deps, tx, asking);
     const team = everyone.isHr ? await teamPart(deps, tx, asking.tenantId) : null;
 
+    const viewedAs =
+      deps.viewedAs === undefined
+        ? []
+        : await deps.viewedAs(tx, asking.tenantId, asking.viewer.accountId, deps.clock.instant());
     const personId = await deps.personOf(tx, asking.tenantId, asking.viewer.accountId);
     const record =
       personId === null ? null : await ownRecord(deps, tx, asking, personId, () => true);
@@ -148,6 +159,7 @@ export async function overviewView(
         missing: [],
         team,
         setup: null,
+        viewedAs,
       });
     }
     const { view, sections } = record.value;
@@ -222,6 +234,7 @@ export async function overviewView(
         asked === 'off' && setupFields.length === 0
           ? null
           : { photo: asked === 'off' ? null : asked, fields: setupFields },
+      viewedAs,
     });
   });
 }

@@ -166,6 +166,8 @@ describe('every mutation (PEO-113)', () => {
     // An import's upload (§14.2): a retried start is a fresh upload, and completing checks.
     // A photo's start likewise; completing one keeps it, so that is keyed.
     // Connecting a chat app only computes where to send the administrator.
+    // Viewing as somebody writes nothing here: identity makes the session and
+    // records it, and a retry is a second, separately recorded view.
     expect(unkeyed.toSorted()).toEqual([
       'completeImportUpload',
       'connectChatApp',
@@ -174,6 +176,7 @@ describe('every mutation (PEO-113)', () => {
       'startFileUpload',
       'startImportUpload',
       'startPhotoUpload',
+      'startViewingAs',
     ]);
   });
 

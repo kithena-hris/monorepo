@@ -14,6 +14,7 @@ import type { PhotoStore } from './photo-store.js';
 import type { FileStore } from './file-store.js';
 import type { AssistantPort } from '../assistant/assistant-port.js';
 import type { ChatDeps } from '../settings/chat-port.js';
+import type { ViewAsDeps, ViewedAs } from '../person/view-as.js';
 import type {
   ReminderCompany,
   ReminderMailer,
@@ -40,6 +41,15 @@ import type {
 
 export interface ScreenDeps {
   readonly service: PeopleService;
+  /** Viewing as an employee (`person/view-as.ts`). Absent, it is never offered. */
+  readonly viewAs?: ViewAsDeps;
+  /** The views of an account that are over, newest first: its notices. Absent, none. */
+  readonly viewedAs?: (
+    tx: Tx,
+    tenantId: string,
+    accountId: string,
+    now: string,
+  ) => Promise<readonly ViewedAs[]>;
   readonly relations: RelationsResolver;
   readonly clock: Clock;
   /** Which person signs in as an account (`PersonReader.personOf`). */

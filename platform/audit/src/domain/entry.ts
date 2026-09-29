@@ -10,6 +10,8 @@ import type {
   SettingsActivityRecorded,
   SupportSessionStarted,
   TenantAdministratorNamed,
+  ViewAsEnded,
+  ViewAsStarted,
 } from '@kithena/contracts';
 
 /**
@@ -212,6 +214,30 @@ const SAYS: Readonly<Record<string, (payload: never) => Said>> = {
     },
   }),
 
+  // A People administrator viewing the app as an employee, read-only: the one
+  // path by which an administrator reads what only the employee may, so the
+  // log says whether special-category data was visible.
+  'identity.view_as.started': (p: Payload<typeof ViewAsStarted>) => ({
+    module: 'identity',
+    area: 'sensitive_access',
+    action: 'Started viewing as',
+    detail: viewedSpecial(p.specialCategory),
+    subject: { kind: 'account', id: p.subjectAccountId, label: null },
+    reason: p.reason,
+    actor: { kind: 'person', accountId: p.adminAccountId, onBehalfOf: null, operatorLabel: null },
+  }),
+
+  'identity.view_as.ended': (p: Payload<typeof ViewAsEnded>) => ({
+    module: 'identity',
+    area: 'sensitive_access',
+    action: 'Stopped viewing as',
+    detail: `${p.endedBy === 'admin' ? 'Ended by them.' : 'Ended at the 30-minute limit.'} ${viewedSpecial(p.specialCategory)}`,
+    subject: { kind: 'account', id: p.subjectAccountId, label: null },
+    reason: p.reason,
+    // Whose view it was, whichever ended it.
+    actor: { kind: 'person', accountId: p.adminAccountId, onBehalfOf: null, operatorLabel: null },
+  }),
+
   'identity.tenant.administrator_named': (p: Payload<typeof TenantAdministratorNamed>) =>
     administrator('Named', p.entitlement, p.accountId, p.namedBy),
 
@@ -221,6 +247,11 @@ const SAYS: Readonly<Record<string, (payload: never) => Said>> = {
     removedBy: string | null;
   }) => administrator('Removed', p.entitlement, p.accountId, p.removedBy),
 };
+
+const viewedSpecial = (visible: boolean): string =>
+  visible
+    ? 'Special-category data was visible: the employee’s view shows it.'
+    : 'No special-category data was visible.';
 
 /** A module as a sentence names it, where its key alone would read wrong. */
 const MODULE_NAMES: Readonly<Record<string, string>> = { people: 'People', timeoff: 'Time Off' };

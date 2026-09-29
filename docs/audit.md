@@ -76,6 +76,7 @@ rules out.
 | `people.person.identifier_revealed`           | sensitive access  | Read an identifier in full, whose             |
 | `identity.support.session_started`            | sign-in & support | Kithena support signed in, with the reason    |
 | `identity.tenant.administrator_named/removed` | roles             | Kithena support named or removed an admin     |
+| `identity.view_as.started` / `.ended`         | sensitive access  | Started or stopped viewing as an employee, with the reason and whether special-category data was visible |
 
 Anything else on those topics is ignored. A module a company lacks publishes
 nothing, so it contributes no areas.
@@ -88,6 +89,14 @@ and the reason. The
 reason has to travel this way — the router builds People's principal by string
 concatenation, so free text never reaches People, and People's own entries for
 the session carry the operator but no reason.
+
+**Viewing as an employee** (`docs/auth-administration.md`) is two events of
+identity's: `identity.view_as.started`, in the transaction that creates the
+session, and `identity.view_as.ended`, once, when it is signed out or found
+over. Both name the administrator as the actor and the employee's account as
+the subject, carry the reason, and say whether special-category data was
+visible — the one path by which an administrator reads what only the employee
+may. The screens visited while viewing are not logged one by one.
 
 **Ordinary sign-ins are not logged.** `identity.session.started` is one per
 person per device per day; in the log it would bury the three settings changes

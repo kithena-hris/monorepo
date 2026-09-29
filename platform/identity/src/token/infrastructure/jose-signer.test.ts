@@ -105,6 +105,25 @@ describe('a minted token', () => {
     expect(claimsOf(acting)['act']).toEqual({ sub: '00000000-0000-4000-8000-0000000000c9' });
   });
 
+  it('says a view-as actor is one, so it is never taken for support', async () => {
+    const { mint } = await subject();
+    const admin = '00000000-0000-4000-8000-0000000000e1';
+
+    const claims = claimsOf(await mint(principalFrom(session, { by: admin, kind: 'view_as' })));
+
+    expect(claims['sub']).toBe(session.accountId);
+    expect(claims['act']).toEqual({ sub: admin, kind: 'view_as' });
+  });
+
+  it('never outlives the session it was minted for', async () => {
+    const { mint } = await subject();
+    // Minted at 10:00 for a session ending at 10:05: five minutes, not fifteen.
+    const claims = claimsOf(
+      await mint(principalFrom(session), { notAfter: '2026-04-01T10:05:00.000Z' }),
+    );
+    expect(Number(claims['exp'])).toBe(Date.parse('2026-04-01T10:05:00.000Z') / 1000);
+  });
+
   it('is labelled with the key that signed it', async () => {
     const { signer, mint } = await subject();
     const header = decodeProtectedHeader(await mint(principalFrom(session)));

@@ -179,6 +179,43 @@ describe('Kithena support (decided 2026-09-29)', () => {
   });
 });
 
+describe('viewing as an employee (decided 2026-09-29)', () => {
+  const ADMIN = '00000000-0000-4000-8000-0000000000a9';
+  const EMPLOYEE = '00000000-0000-4000-8000-0000000000b1';
+  const routed = (over: Record<string, unknown>) => ({
+    headers: { 'x-internal-token': 'router-secret', 'x-kithena-principal': principal(over) },
+  });
+
+  it('is the employee, with the employee’s own roles from OpenFGA, and names the administrator', async () => {
+    let askedFor = '';
+    const withRoles = withTenantRoles(callerFrom, (_tenant, account) => {
+      askedFor = account;
+      return Promise.resolve(new Set<string>());
+    });
+    // Whatever roles the header claims: the employee's are OpenFGA's.
+    const viewing = await withRoles(routed({ viewedBy: ADMIN, roles: ['people_admin'] }));
+    expect(viewing.ok && viewing.value.viewer).toEqual({
+      accountId: EMPLOYEE,
+      roles: new Set(),
+      viewing: { by: ADMIN },
+    });
+    expect(askedFor).toBe(EMPLOYEE);
+  });
+
+  it('is never Kithena support', () => {
+    const viewing = callerFrom(routed({ viewedBy: ADMIN }));
+    expect(viewing.ok && viewing.value.viewer.support).toBeUndefined();
+    // Claiming both is claiming to be two things at once: nobody.
+    const both = callerFrom(routed({ viewedBy: ADMIN, impersonatedBy: ADMIN }));
+    expect(!both.ok && both.error.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('is never claimed without the internal token', () => {
+    const forged = callerFrom({ headers: { 'x-kithena-principal': principal({ viewedBy: ADMIN }) } });
+    expect(forged.ok).toBe(false);
+  });
+});
+
 describe('what the company bought (PEO-114)', () => {
   const routed = (over: Record<string, unknown> = {}) => ({
     headers: { 'x-internal-token': 'router-secret', 'x-kithena-principal': principal(over) },
