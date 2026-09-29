@@ -114,23 +114,25 @@ export function ScreenFrame({
             */}
             <nav
               aria-label="Back"
-              className="-mt-1 hidden min-h-12 items-center gap-2 touch:grid touch:grid-cols-[1fr_auto_1fr]"
+              className="-mt-1 hidden min-h-12 items-center gap-2 touch:grid touch:grid-cols-[6rem_minmax(0,1fr)_6rem]"
             >
-              <AppBarBack asChild className="justify-self-start">
+              <AppBarBack asChild className="max-w-full min-w-0 justify-self-start">
                 <a href={phoneBack(trail)?.href ?? '/people/menu'}>
                   {phoneBack(trail)?.label ?? 'People'}
                 </a>
               </AppBarBack>
-              {siblings.length === 0 ? (
-                <span className="truncate text-md font-semibold">{section}</span>
-              ) : (
-                <BreadcrumbMenu
-                  variant="title"
-                  label={section}
-                  groups={siblings}
-                  menuLabel={`${siblingsLabel}, switch`}
-                />
-              )}
+              <div className="flex min-w-0 justify-center">
+                {siblings.length === 0 ? (
+                  <span className="truncate text-md font-semibold">{section}</span>
+                ) : (
+                  <BreadcrumbMenu
+                    variant="title"
+                    label={section}
+                    groups={siblings}
+                    menuLabel={`${siblingsLabel}, switch`}
+                  />
+                )}
+              </div>
               <span />
             </nav>
           </>

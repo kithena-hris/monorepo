@@ -1,17 +1,15 @@
 import {
   Avatar,
+  Badge,
   Button,
+  ChangeDiff,
+  ChipGroup,
+  ChipGroupItem,
+  DataTable,
   EmptyState,
   PageHeader,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SearchField,
   Stack,
-  Timeline,
-  TimelineItem,
-  icons,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
@@ -19,8 +17,8 @@ import { Loaded, type Loadable } from '../load';
 
 /**
  * Every change to People's settings: who made it, when on the reader's own
- * clock, and what, in words — newest first, grouped by day, narrowed to one
- * area if asked. Recorded as each command succeeds, so a change made through
+ * clock, and what, in words — newest first, a row opening onto what it was
+ * and what it became, narrowed to one area if asked. Recorded as each command succeeds, so a change made through
  * the API reads the same as one made here.
  */
 
@@ -74,27 +72,6 @@ export function changesIn(
   return found.length === 0 ? null : found;
 }
 
-/** What changed: each setting on its own line, what it was struck through beside what it is. */
-function Detail({ text }: { readonly text: string }): JSX.Element {
-  const changed = changesIn(text);
-  if (changed === null) return <span className="text-fg">{text}</span>;
-  return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-      {changed.map((c) => (
-        <div key={c.what} className="contents">
-          <dt className="text-fg-muted">{c.what}</dt>
-          <dd className="flex flex-wrap items-center gap-1.5">
-            <span className="text-fg-muted line-through">{c.from}</span>
-            <icons.next aria-hidden className="size-3.5 text-fg-subtle" />
-            <span className="sr-only">changed to</span>
-            <span className="font-medium text-fg">{c.to}</span>
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 const AREA_NAME: Readonly<Record<string, string>> = Object.fromEntries(
   AREAS.filter((a) => a.value !== 'all').map((a) => [a.value, a.label]),
 );
@@ -109,43 +86,55 @@ function useZone(): string | undefined {
 }
 
 export function SettingsActivity(props: SettingsActivityProps): JSX.Element {
+  const [query, setQuery] = useState('');
   return (
     <Stack gap={6}>
-      <PageHeader
-        title="Activity log"
-        description="Every change to People’s settings: what changed, who changed it, and when."
-        actions={
-          <Select
-            value={props.area ?? 'all'}
-            onValueChange={(v) => {
-              props.onArea(v === 'all' ? null : (v as ActivityArea));
-            }}
-          >
-            <SelectTrigger aria-label="Settings area" className="w-auto min-w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AREAS.map((a) => (
-                <SelectItem key={a.value} value={a.value}>
-                  {a.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-      />
+      <PageHeader title="Activity log" description="Every settings change, who made it and when." />
+      {/* Search what is loaded, and narrow to one area (S19). */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="w-72 touch:w-full">
+          <SearchField
+            label="Search changes"
+            placeholder="Search changes"
+            value={query}
+            onValueChange={setQuery}
+          />
+        </div>
+        <ChipGroup
+          type="single"
+          scroll
+          aria-label="Settings area"
+          value={props.area ?? 'all'}
+          onValueChange={(v) => {
+            props.onArea(v === '' || v === 'all' ? null : (v as ActivityArea));
+          }}
+          className="min-w-0 gap-1.5"
+        >
+          {AREAS.map((a) => (
+            <ChipGroupItem key={a.value} value={a.value} variant="view">
+              {a.label}
+            </ChipGroupItem>
+          ))}
+        </ChipGroup>
+      </div>
       <Loaded load={props.load} what="the activity">
-        {(state) => <Entries state={state} {...props} />}
+        {(state) => <Entries state={state} query={query} {...props} />}
       </Loaded>
     </Stack>
   );
 }
 
+type Entry = SettingsActivityState['entries'][number];
+
 function Entries({
   state,
+  query,
   onOlder,
   onNewest,
-}: SettingsActivityProps & { readonly state: SettingsActivityState }): JSX.Element {
+}: SettingsActivityProps & {
+  readonly state: SettingsActivityState;
+  readonly query: string;
+}): JSX.Element {
   const zone = useZone();
   if (state.entries.length === 0) {
     return (
@@ -155,54 +144,88 @@ function Entries({
       />
     );
   }
-  const day = (iso: string) =>
-    new Intl.DateTimeFormat(undefined, { timeZone: zone, dateStyle: 'full' }).format(new Date(iso));
-  const time = (iso: string) =>
-    new Intl.DateTimeFormat(undefined, { timeZone: zone, timeStyle: 'short' }).format(
-      new Date(iso),
+  const when = (iso: string) =>
+    new Intl.DateTimeFormat(undefined, {
+      timeZone: zone,
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(iso));
+  const needle = query.trim().toLowerCase();
+  const rows =
+    needle === ''
+      ? state.entries
+      : state.entries.filter((e) =>
+          [e.action, e.subject, e.detail, e.by, e.name].some(
+            (v) => v?.toLowerCase().includes(needle) === true,
+          ),
+        );
+  const what = (e: Entry) =>
+    e.subject === null ? (
+      e.action
+    ) : (
+      <>
+        {e.action}: <span className="font-semibold">{e.subject}</span>
+      </>
     );
-  const days = new Map<string, SettingsActivityState['entries'][number][]>();
-  for (const e of state.entries) days.set(day(e.at), [...(days.get(day(e.at)) ?? []), e]);
 
   return (
-    <Stack gap={6}>
-      {[...days].map(([label, entries]) => (
-        <section key={label} aria-label={label} className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-fg-muted">{label}</h2>
-          <Timeline aria-label={`Changes on ${label}`}>
-            {entries.map((e, i) => (
-              <TimelineItem
-                key={e.id}
-                last={i === entries.length - 1}
-                marker={<Avatar size="sm" name={e.name ?? e.by} src={e.avatarUrl ?? undefined} />}
-                title={
-                  e.subject === null ? (
-                    e.action
-                  ) : (
-                    <>
-                      {e.action}: <span className="font-semibold">{e.subject}</span>
-                    </>
-                  )
-                }
-                timestamp={
-                  <time dateTime={e.at} title={new Date(e.at).toISOString()}>
-                    {time(e.at)}
-                  </time>
-                }
-              >
-                <span className="flex flex-col gap-1">
-                  {e.detail === undefined || e.detail === null ? null : (
-                    <Detail text={e.detail} />
-                  )}
-                  <span className="text-fg-muted">
-                    {e.by === 'You' ? 'By you' : `By ${e.by}`} · {AREA_NAME[e.area] ?? 'Settings'}
-                  </span>
-                </span>
-              </TimelineItem>
-            ))}
-          </Timeline>
-        </section>
-      ))}
+    <Stack gap={4}>
+      <DataTable<Entry>
+        label="Settings changes"
+        rows={rows}
+        rowId={(e) => e.id}
+        columns={[
+          {
+            id: 'when',
+            header: 'When',
+            width: '9.5rem',
+            cell: (e) => (
+              <time dateTime={e.at} title={new Date(e.at).toISOString()} className="tabular-nums">
+                {when(e.at)}
+              </time>
+            ),
+          },
+          {
+            id: 'who',
+            header: 'Who',
+            cell: (e) => (
+              <span className="flex items-center gap-2.5">
+                <Avatar size="sm" name={e.name ?? e.by} src={e.avatarUrl ?? undefined} />
+                {e.by}
+              </span>
+            ),
+          },
+          { id: 'what', header: 'What changed', cell: what },
+          {
+            id: 'area',
+            header: 'Area',
+            cardTrailing: true,
+            cell: (e) => <Badge>{AREA_NAME[e.area] ?? 'Settings'}</Badge>,
+          },
+        ]}
+        renderDetail={(e) => {
+          const changed = e.detail == null ? null : changesIn(e.detail);
+          if (changed !== null)
+            return (
+              <ChangeDiff
+                items={changed.map((c) => ({
+                  id: c.what,
+                  label: c.what,
+                  before: c.from,
+                  after: c.to,
+                }))}
+              />
+            );
+          return (
+            <p className="text-sm text-fg-muted">{e.detail ?? 'No more detail was recorded.'}</p>
+          );
+        }}
+      />
+      {rows.length === 0 ? (
+        <p className="text-sm text-fg-muted">No change on this page matches “{query.trim()}”.</p>
+      ) : null}
       {onOlder === undefined && onNewest === undefined ? null : (
         <nav aria-label="Older activity" className="flex gap-2">
           {onNewest === undefined ? null : <Button onClick={onNewest}>Newest</Button>}

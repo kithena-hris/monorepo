@@ -24,6 +24,8 @@ import { Integrations as IntegrationsScreen } from './settings/integrations/inte
 import { SettingsActivity as SettingsActivityScreen } from './settings/activity';
 import { RoleSettings as RoleSettingsScreen } from './settings/roles';
 import { Organisation as OrganisationScreen } from './settings/organisation';
+import { ReminderSettings as ReminderSettingsScreen } from './settings/reminders';
+import { CountryPacks as CountryPacksScreen } from './settings/country-packs';
 import { PeopleSettings as PeopleSettingsScreen } from './settings/overview';
 import { WebhookLog as WebhookLogScreen } from './settings/integrations/webhook-log';
 import { FullValues as FullValuesScreen } from './export/full-values';
@@ -51,6 +53,8 @@ export const Integrations = framed(IntegrationsScreen);
 export const SettingsActivity = framed(SettingsActivityScreen);
 export const RoleSettings = framed(RoleSettingsScreen);
 export const Organisation = framed(OrganisationScreen);
+export const ReminderSettings = framed(ReminderSettingsScreen);
+export const CountryPacks = framed(CountryPacksScreen);
 export const PeopleSettings = framed(PeopleSettingsScreen);
 export const WebhookLog = framed(WebhookLogScreen);
 export const FullValues = framed(FullValuesScreen);

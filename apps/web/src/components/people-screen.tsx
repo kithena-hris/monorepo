@@ -615,6 +615,15 @@ export function PeopleScreen({
         };
       case 'ReportRuns':
         return { load: loadable };
+      case 'ReminderSettings':
+        return {
+          load: loadable,
+          onCohortMinimum: thenRefresh((cohortMinimum: number) =>
+            actions.updateSettings({ cohortMinimum }),
+          ),
+        };
+      case 'CountryPacks':
+        return { load: loadable };
       case 'RoleSettings':
         return {
           load: loadable,

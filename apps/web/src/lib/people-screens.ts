@@ -163,6 +163,18 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       return read('Organisation');
     case 'PeopleSettings':
       return settingsOverview();
+    case 'ReminderSettings':
+      return reminderSettings();
+    case 'CountryPacks': {
+      const [setup, organisation] = await Promise.all([read('Setup'), read('Organisation')]);
+      if (setup.status !== 'ready') return setup;
+      const { packs } = setup.data as { packs: unknown[] };
+      const entities =
+        organisation.status === 'ready'
+          ? (organisation.data as { legalEntities: unknown[] }).legalEntities
+          : [];
+      return { status: 'ready', data: { packs, entities } };
+    }
     case 'FullValues':
       return read('FullValues');
     case 'IdentifierReviews':
@@ -354,6 +366,41 @@ async function overview(): Promise<ScreenLoad> {
             .join(' · '),
           missing: p.missing,
         })),
+      },
+    },
+  };
+}
+
+/**
+ * Completeness and reminders (S20): the reminder rule People runs today
+ * (the day a detail goes missing, then weekly, in working hours), whether the
+ * chat notice for it is on, and the reporting floor from the organisation.
+ * The HR digest and the directory policy have no source yet and are left out.
+ */
+async function reminderSettings(): Promise<ScreenLoad> {
+  const [organisation, chat] = await Promise.all([read('Organisation'), read('Chat')]);
+  if (organisation.status !== 'ready') return organisation;
+  const org = organisation.data as { canManage: boolean; settings: { cohortMinimum: number } };
+  const chatData =
+    chat.status === 'ready'
+      ? (chat.data as {
+          apps: { connection: unknown }[];
+          notices: { key: string; on: boolean }[];
+        })
+      : null;
+  const inChat =
+    chatData !== null &&
+    chatData.apps.some((a) => a.connection !== null) &&
+    chatData.notices.some((n) => n.key === 'profile_reminder' && n.on);
+  return {
+    status: 'ready',
+    data: {
+      canManage: org.canManage,
+      cohortMinimum: org.settings.cohortMinimum,
+      reminders: {
+        cadence: 'The day a detail goes missing, then once a week',
+        window: '09:00 to 18:00, on their own clock',
+        inChat,
       },
     },
   };

@@ -111,6 +111,14 @@
     {
       "path": "/settings/people/activity",
       "component": "SettingsActivity"
+    },
+    {
+      "path": "/settings/people/reminders",
+      "component": "ReminderSettings"
+    },
+    {
+      "path": "/settings/people/country-packs",
+      "component": "CountryPacks"
     }
   ],
   "actions": [
@@ -254,6 +262,20 @@
       "owns": ["/settings/people/integrations/:id"],
       "description": "Slack, webhooks and identity provider sync.",
       "icon": "link"
+    },
+    {
+      "path": "/settings/people/reminders",
+      "label": "Completeness and reminders",
+      "for": ["hr", "admin"],
+      "description": "When people are reminded about missing details, and how small a group reports describe.",
+      "icon": "notifications"
+    },
+    {
+      "path": "/settings/people/country-packs",
+      "label": "Country packs",
+      "for": ["admin"],
+      "description": "The identifiers, fields and rules each country needs.",
+      "icon": "location"
     },
     {
       "path": "/settings/people/activity",

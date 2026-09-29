@@ -75,7 +75,7 @@ import {
   predicateProblem,
   type PredicateField,
 } from './predicate-editor';
-import { AUDIENCES, accessOf, fromAccess } from './access';
+import { AUDIENCES, TypeIcon, accessOf, fromAccess } from './access';
 import { readBack, summary } from './read-back';
 import {
   CLASSIFICATION_LABEL,
@@ -627,38 +627,63 @@ export function FieldEditor({
                   <FieldDescription>What people see above the field on a form.</FieldDescription>
                   <FieldError>{show.label}</FieldError>
                 </Field>
-                <Field disabled={editing}>
-                  <FieldLabel>Type of answer</FieldLabel>
-                  <Select
-                    value={draft.dataType}
-                    disabled={editing}
-                    onValueChange={(value) => {
-                      set({ dataType: value as DataType });
-                    }}
-                  >
-                    <FieldControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FieldControl>
-                    <SelectContent>
-                      {DATA_TYPE_GROUPS.map((group) => (
-                        <SelectGroup key={group.label}>
-                          <SelectLabel>{group.label}</SelectLabel>
-                          {group.types.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {DATA_TYPE_LABEL[type]}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
+                {editing ? (
+                  <Field disabled>
+                    <FieldLabel>Type of answer</FieldLabel>
+                    <Select
+                      value={draft.dataType}
+                      disabled={editing}
+                      onValueChange={(value) => {
+                        set({ dataType: value as DataType });
+                      }}
+                    >
+                      <FieldControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FieldControl>
+                      <SelectContent>
+                        {DATA_TYPE_GROUPS.map((group) => (
+                          <SelectGroup key={group.label}>
+                            <SelectLabel>{group.label}</SelectLabel>
+                            {group.types.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {DATA_TYPE_LABEL[type]}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      {DATA_TYPE_HINT[draft.dataType]} The type cannot change once the field exists.
+                    </FieldDescription>
+                  </Field>
+                ) : (
+                  // A new field picks its type from tiles (S9): the picture is
+                  // how the eye finds one, and each says what it checks below.
+                  <fieldset className="flex flex-col gap-2.5">
+                    <legend className="mb-2.5 text-sm font-medium">Type of answer</legend>
+                    <RadioGroup
+                      aria-label="Type of answer"
+                      aria-describedby="editor-type-hint"
+                      value={draft.dataType}
+                      onValueChange={(value) => {
+                        set({ dataType: value as DataType });
+                      }}
+                      className="grid grid-cols-2 gap-2"
+                    >
+                      {DATA_TYPE_GROUPS.flatMap((group) => group.types).map((type) => (
+                        <RadioCard key={type} value={type} icon={<TypeIcon dataType={type} />}>
+                          {DATA_TYPE_LABEL[type]}
+                        </RadioCard>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>
-                    {DATA_TYPE_HINT[draft.dataType]}
-                    {editing ? ' The type cannot change once the field exists.' : ''}
-                  </FieldDescription>
-                </Field>
+                    </RadioGroup>
+                    <p id="editor-type-hint" className="text-sm text-fg-muted">
+                      {DATA_TYPE_HINT[draft.dataType]}
+                    </p>
+                  </fieldset>
+                )}
                 {WITH_OPTIONS.has(draft.dataType) ? (
                   <TagsInput
                     label="Options"
