@@ -120,6 +120,53 @@ describe('an entry from an event', () => {
     });
   });
 
+  it('says viewing as an employee, started and ended, with the reason and whether special-category data showed', () => {
+    const EMPLOYEE = '00000000-0000-4000-8000-0000000000b2';
+    const common = {
+      sessionId: '00000000-0000-4000-8000-0000000000c2',
+      adminAccountId: ADA,
+      subjectAccountId: EMPLOYEE,
+      reason: 'Payslip question',
+    };
+    const started = entryFrom(
+      event('identity.view_as.started', {
+        ...common,
+        specialCategory: true,
+        expiresAt: '2026-09-29T10:30:00.000Z',
+      }),
+    );
+    expect(started).toMatchObject({
+      module: 'identity',
+      area: 'sensitive_access',
+      action: 'Started viewing as',
+      detail: 'Special-category data was visible: the employee’s view shows it.',
+      actor: { kind: 'person', accountId: ADA, onBehalfOf: null },
+      subject: { kind: 'account', id: EMPLOYEE, label: null },
+      reason: 'Payslip question',
+    });
+
+    const lapsed = entryFrom(
+      event(
+        'identity.view_as.ended',
+        {
+          ...common,
+          specialCategory: false,
+          startedAt: '2026-09-29T10:00:00.000Z',
+          endedBy: 'time_limit',
+        },
+        { actor: { kind: 'system', process: 'identity.view_as.time_limit' } },
+      ),
+    );
+    expect(lapsed).toMatchObject({
+      action: 'Stopped viewing as',
+      detail: 'Ended at the 30-minute limit. No special-category data was visible.',
+      // Whose view it was, even when the clock ended it.
+      actor: { kind: 'person', accountId: ADA },
+      subject: { kind: 'account', id: EMPLOYEE },
+      reason: 'Payslip question',
+    });
+  });
+
   it('counts an import without naming anybody in it', () => {
     const entry = entryFrom(
       event('people.import.completed', {
