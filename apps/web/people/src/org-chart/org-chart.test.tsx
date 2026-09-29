@@ -44,6 +44,26 @@ describe('the org chart', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('is the Directory with Org chart chosen, its search and direction on the canvas (V3)', async () => {
+    const user = fast();
+    const onViewChange = vi.fn();
+    render(
+      <OrgChartScreen
+        load={{ status: 'ready', data: { people, truncated: false } }}
+        onOpen={vi.fn()}
+        onViewChange={onViewChange}
+      />,
+      { wrapper: TooltipProvider },
+    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Directory' })).toBeInTheDocument();
+    const [views] = screen.getAllByRole('radiogroup', { name: 'Show people as' });
+    expect(within(views as HTMLElement).getByRole('radio', { name: 'Org chart' })).toBeChecked();
+    expect(screen.getByRole('radiogroup', { name: 'Direction' })).toBeInTheDocument();
+    expect(screen.getByText('Find a person or team')).toBeInTheDocument();
+    await user.click(within(views as HTMLElement).getByRole('radio', { name: 'Cards' }));
+    expect(onViewChange).toHaveBeenCalledWith('cards');
+  });
+
   it('says so when there is nobody to chart', () => {
     render(
       <OrgChartScreen

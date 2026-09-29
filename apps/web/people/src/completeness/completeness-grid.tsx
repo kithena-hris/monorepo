@@ -4,13 +4,13 @@ import {
   Badge,
   Button,
   Card,
-  ChipGroup,
-  ChipGroupItem,
   DataTable,
   EmptyState,
-  HorizontalBarChart,
   InlineCell,
+  List,
+  ListItem,
   PageHeader,
+  Progress,
   Select,
   SelectContent,
   SelectItem,
@@ -20,8 +20,9 @@ import {
   Stat,
   type DataColumn,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useEffect, useState, type JSX } from 'react';
 
+import { DATA_HEALTH } from '../data-health';
 import { Loaded, type IdentifierFinding, type Loadable } from '../load';
 import { PeopleSearch, PersonPicker, type SearchPeople } from '../record/attribute-input';
 
@@ -58,8 +59,6 @@ export interface CompletenessState {
   readonly rows: readonly GapRow[];
   /** From analytics, where the viewer may read it: complete records, overall. */
   readonly complete?: { readonly percent: number; readonly incomplete: number } | null;
-  /** From analytics: how complete each section is, for the by-section view (R2). */
-  readonly bySection?: readonly { readonly label: string; readonly value: number }[] | null;
 }
 
 /** One person's answers, however many fields they cover: one write, one event. */
@@ -98,8 +97,10 @@ export interface CompletenessGridProps {
 }
 
 /**
- * HR's missing values, as one grid over exactly the missing cells (PRD §8.4,
- * design screen 8).
+ * Data health's Completeness tab (V4, MV2; PRD §8.4, design screen 8).
+ *
+ * First who is missing what, one row a person, as a list to read. "Fill in"
+ * opens the grid over exactly the missing cells, at that person's first one.
  *
  * The work is filling one field twenty-seven times, not twenty-seven fields
  * once, so the grid shows one field's column at a time and the keyboard runs
@@ -107,6 +108,10 @@ export interface CompletenessGridProps {
  * cell is a real `Select` or `Input` inside `DataTable`, never a div that turns
  * into one on click. A save sends one change per person, however many fields
  * were filled for them, so each person raises one `profile_updated`.
+ *
+ * Every row is HR's to fill: People counts the employees' own gaps, it does
+ * not list them (they are the employee's task and weekly reminder), so there
+ * is no row to remind from and no "Remind" button.
  */
 export function CompletenessGrid({
   load,
@@ -131,7 +136,8 @@ function Grid({
 }: Omit<CompletenessGridProps, 'load' | 'searchPeople'> & {
   readonly state: CompletenessState;
 }): JSX.Element {
-  const [view, setView] = useState<'grid' | 'sections'>('grid');
+  /** Filling in, from whose row: the grid, and that person's first cell focused. */
+  const [filling, setFilling] = useState<{ readonly from: string } | null>(null);
   // personId → key → value, across every field the admin has worked through.
   const [edits, setEdits] = useState<Readonly<Record<string, Readonly<Record<string, string>>>>>(
     {},
@@ -150,6 +156,16 @@ function Grid({
   // Only the fields somebody on this page is missing: a column of nothing is noise.
   const fields = state.fields.filter((f) => state.rows.some((r) => r.missing.includes(f.key)));
   const rows = state.rows;
+  const labelOf = new Map(state.fields.map((f) => [f.key, f.label]));
+
+  // "Fill in" lands on that person's first missing cell, in the grid's column order.
+  useEffect(() => {
+    if (filling === null) return;
+    const missing = rows.find((r) => r.personId === filling.from)?.missing ?? [];
+    const first = fields.find((f) => missing.includes(f.key));
+    if (first !== undefined) document.getElementById(`cell-${filling.from}-${first.key}`)?.focus();
+    // Once per "Fill in", not on every keystroke in the grid.
+  }, [filling]);
 
   const set = (personId: string, key: string, value: string): void => {
     setOutcome(null);
@@ -238,7 +254,12 @@ function Grid({
             set(r.personId, field.key, next);
           }}
         >
-          <SelectTrigger aria-label={name} size="sm" className="min-w-32">
+          <SelectTrigger
+            id={`cell-${r.personId}-${field.key}`}
+            aria-label={name}
+            size="sm"
+            className="min-w-32"
+          >
             <SelectValue placeholder="Missing" />
           </SelectTrigger>
           <SelectContent>
@@ -277,24 +298,25 @@ function Grid({
     );
   };
 
-  const columns: DataColumn<GapRow>[] = [
-    {
-      id: 'person',
-      header: 'Person',
-      width: '15rem',
-      sticky: true,
-      cell: (r) => (
-        <span className="flex items-center gap-2.5">
-          <Avatar size="md" name={r.name} />
-          <span className="min-w-0">
-            <span className="block truncate font-semibold">{r.name}</span>
-            <span className="block truncate text-xs text-fg-muted">
-              {[r.department, r.manager].filter((x) => x !== null).join(' · ')}
-            </span>
+  const person: DataColumn<GapRow> = {
+    id: 'person',
+    header: 'Person',
+    width: '15rem',
+    sticky: true,
+    cell: (r) => (
+      <span className="flex items-center gap-2.5">
+        <Avatar size="md" name={r.name} />
+        <span className="min-w-0">
+          <span className="block truncate font-semibold">{r.name}</span>
+          <span className="block truncate text-xs text-fg-muted">
+            {[r.department, r.manager].filter((x) => x !== null).join(' · ')}
           </span>
         </span>
-      ),
-    },
+      </span>
+    ),
+  };
+  const columns: DataColumn<GapRow>[] = [
+    person,
     ...fields.map((field): DataColumn<GapRow> => ({
       id: field.key,
       header:
@@ -312,30 +334,86 @@ function Grid({
     })),
   ];
 
+  const missingOf = (r: GapRow): string[] => r.missing.map((key) => labelOf.get(key) ?? key);
+  const fillIn = (r: GapRow): JSX.Element => (
+    <Button
+      size="xs"
+      variant="primary"
+      aria-label={`Fill in ${r.name}`}
+      onClick={() => {
+        setFilling({ from: r.personId });
+      }}
+    >
+      Fill in
+    </Button>
+  );
+  const list: DataColumn<GapRow>[] = [
+    { ...person, sticky: false },
+    {
+      id: 'missing',
+      header: 'Missing',
+      cell: (r) => (
+        <span className="flex flex-wrap gap-1.5">
+          {missingOf(r).map((label) => (
+            <Badge key={label} size="sm">
+              {label}
+            </Badge>
+          ))}
+        </span>
+      ),
+    },
+    {
+      id: 'who',
+      header: 'Who fills it in',
+      width: '9rem',
+      cell: () => (
+        <Badge size="sm" tone="accent">
+          HR
+        </Badge>
+      ),
+    },
+    { id: 'fill', header: <span className="sr-only">Fill in</span>, width: '7rem', cell: fillIn },
+  ];
+
+  const waiting = `${state.waiting.people.toLocaleString('en-GB')} waiting on employees`;
+  const toFill = `${state.toFill.toLocaleString('en-GB')} for HR`;
+
   return (
     <Stack gap={5}>
       <PageHeader
-        title="Data completeness"
-        description={state.since}
+        title={DATA_HEALTH.title}
+        description={DATA_HEALTH.description}
         actions={
-          <Button
-            variant="primary"
-            disabled={pending === 0}
-            loading={saving}
-            loadingLabel="Saving"
-            onClick={() => {
-              void save();
-            }}
-          >
-            {shown.length > 0
-              ? 'Save anyway'
-              : pending === 0
-                ? 'Save'
-                : `Save ${String(pending)} ${pending === 1 ? 'change' : 'changes'}`}
-          </Button>
+          filling === null ? undefined : (
+            <>
+              <Button
+                onClick={() => {
+                  setFilling(null);
+                }}
+              >
+                Back to the list
+              </Button>
+              <Button
+                variant="primary"
+                disabled={pending === 0}
+                loading={saving}
+                loadingLabel="Saving"
+                onClick={() => {
+                  void save();
+                }}
+              >
+                {shown.length > 0
+                  ? 'Save anyway'
+                  : pending === 0
+                    ? 'Save'
+                    : `Save ${String(pending)} ${pending === 1 ? 'change' : 'changes'}`}
+              </Button>
+            </>
+          )
         }
       />
-      <div className="grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4">
+      {/* At a desk, the four figures; a phone gets the one that matters, as a bar. */}
+      <div className="grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4 touch:hidden">
         {state.complete == null ? null : (
           <Stat
             label="Complete"
@@ -344,18 +422,33 @@ function Grid({
             description={`${state.complete.incomplete.toLocaleString('en-GB')} records incomplete`}
           />
         )}
-        <Stat label="Yours to fill" value={state.toFill} description="Fill them in below" />
         <Stat
           label="Waiting on employees"
           value={state.waiting.people}
           description={
             state.waiting.lastReminded === null
-              ? 'Their gaps are reminders, not work for this grid'
+              ? 'Reminded by email once a week'
               : `Last reminded ${state.waiting.lastReminded}`
           }
         />
-        <Stat label="Completed this week" value={state.completedThisWeek} />
+        <Stat label="For HR to fill in" value={state.toFill} description="Fill them in below" />
       </div>
+      <Card padded className="hidden touch:block">
+        {state.complete == null ? null : (
+          <p className="mb-2 flex items-baseline gap-2">
+            <span className="font-display text-3xl font-bold tabular-nums">
+              {state.complete.percent}%
+            </span>
+            <span className="text-sm text-fg-muted">complete</span>
+          </p>
+        )}
+        {state.complete == null ? null : (
+          <Progress value={state.complete.percent} label="Records complete" className="mb-2" />
+        )}
+        <p className="text-sm text-fg-muted">
+          {waiting} · {toFill}
+        </p>
+      </Card>
 
       {shown.length === 0 ? null : (
         <Alert tone="warning" title="Our checks suggest some of these may be wrong">
@@ -378,40 +471,12 @@ function Grid({
         </Alert>
       )}
 
-      {state.bySection == null || state.bySection.length === 0 ? null : (
-        <ChipGroup
-          type="single"
-          aria-label="View"
-          value={view}
-          onValueChange={(next) => {
-            if (next === 'grid' || next === 'sections') setView(next);
-          }}
-        >
-          <ChipGroupItem value="grid" variant="view">
-            HR to fill in <span className="font-medium tabular-nums">{state.toFill}</span>
-          </ChipGroupItem>
-          <ChipGroupItem value="sections" variant="view">
-            By section
-          </ChipGroupItem>
-        </ChipGroup>
-      )}
-
-      {view === 'sections' && state.bySection != null ? (
-        // R2: where the gaps are, section by section.
-        <Card padded>
-          <h2 className="mb-4 text-md font-bold">Complete, by section</h2>
-          <HorizontalBarChart
-            data={state.bySection}
-            label="Percent complete, by section"
-            format={(v) => `${String(v)}%`}
-          />
-        </Card>
-      ) : fields.length === 0 ? (
+      {fields.length === 0 ? (
         <EmptyState
           title="Nothing is missing"
           description="Every field HR fills in has a value for everybody it applies to."
         />
-      ) : (
+      ) : filling !== null ? (
         <>
           <DataTable
             label="Missing values"
@@ -423,6 +488,29 @@ function Grid({
           <p className="text-sm text-fg-muted">
             Tab moves across, ↵ moves down. Nothing is saved until you press Save.
           </p>
+        </>
+      ) : (
+        <>
+          <DataTable
+            label="Missing information"
+            rows={rows}
+            columns={list}
+            rowId={(r) => r.personId}
+            containerClassName="touch:hidden"
+            empty={<EmptyState title="Nobody is missing anything" />}
+          />
+          <List aria-label="Missing information" className="hidden touch:block">
+            {rows.map((r) => (
+              <ListItem
+                key={r.personId}
+                leading={<Avatar size="lg" name={r.name} />}
+                description={`Missing: ${missingOf(r).join(', ')}`}
+                trailing={fillIn(r)}
+              >
+                {r.name}
+              </ListItem>
+            ))}
+          </List>
         </>
       )}
       {onNextPage === undefined && onFirstPage === undefined ? null : (

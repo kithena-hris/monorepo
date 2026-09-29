@@ -492,7 +492,7 @@ function Record({
             </Button>
           ) : null}
           <Button asChild startIcon={<icons.organisation aria-hidden />}>
-            <a href="/people/org-chart">Org chart</a>
+            <a href="/people/directory/org-chart">Org chart</a>
           </Button>
         </div>
       </div>

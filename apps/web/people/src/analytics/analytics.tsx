@@ -1,11 +1,15 @@
 import {
   Alert,
   AutoGrid,
+  Avatar,
   BarChart,
   Button,
+  EmptyState,
   FunnelChart,
   HeatmapChart,
   HorizontalBarChart,
+  List,
+  ListItem,
   PageHeader,
   PageSection,
   RangeChart,
@@ -21,10 +25,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TertiaryNav,
   TimelineChart,
   TrendChart,
   WaterfallChart,
+  icons,
   type ChartPoint,
   type RangeBand,
   type FunnelStage,
@@ -35,7 +39,9 @@ import {
 import { useId, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable } from '../load';
+import type { ReportSchedulesState } from '../reports/report-schedules';
 import { SegmentSelect, type SegmentRef } from '../segments';
+import { Schedules, type ScheduleActions } from './schedules';
 
 /**
  * What People may answer about its own data, already shaped by the query
@@ -121,6 +127,8 @@ export interface AnalyticsState {
   /** The saved segment applied, and those the viewer could apply (PEO-068). */
   readonly segment?: SegmentRef | null;
   readonly segments?: readonly SegmentRef[];
+  /** The report schedules, read beside the analytics; null where People refuses them. */
+  readonly schedules?: ReportSchedulesState | null;
 }
 
 export interface SelfIdChart {
@@ -169,6 +177,10 @@ export interface ExpiryItem {
 
 export interface AnalyticsProps {
   readonly load: Loadable<AnalyticsState>;
+  /** The tab its route names; the host draws the row of tabs. */
+  readonly tab?: InsightsTab;
+  /** What the Schedules button may do. Without it, no button. */
+  readonly schedules?: ScheduleActions;
   /** Applied by the shell, server-side: `?segment=<id>`. */
   readonly segmentId?: string | null;
   readonly onSegmentChange?: (segmentId: string | null) => void;
@@ -213,23 +225,38 @@ export function expiryRows(items: readonly ExpiryItem[]): TimelineRow[] {
   return [...lanes.values()];
 }
 
+/** Insights' four tabs, each a route: `/people/insights/<tab>`. */
+export type InsightsTab = 'headcount' | 'turnover' | 'data-quality' | 'pay';
+
+const grid = 'grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-2';
+
 /**
- * Workforce analytics (PRD §16, design screen 12).
+ * Insights (V7, MV6; PRD §16, design screen 12): workforce analytics, a tab
+ * at a time, with the report schedules behind a button on the page.
  *
- * Stat tiles with a sparkline, then one section per question, each with its
- * chart. Every chart carries its own screen-reader table, and every section
- * also offers its numbers as a visible `Table` one tap away, because a chart
- * is never the only way to get a number.
+ * The tab is the route, and the host draws the tabs; this screen draws the
+ * one it is given. Each tab opens with its figures, then one section per
+ * question, each with its chart. Every chart carries its own screen-reader
+ * table, and every section also offers its numbers as a visible `Table` one
+ * tap away, because a chart is never the only way to get a number.
  */
 export function Analytics({
   load,
+  tab = 'headcount',
   segmentId = null,
   onSegmentChange,
+  schedules,
 }: AnalyticsProps): JSX.Element {
   return (
     <Loaded load={load} what="the analytics">
       {(state) => (
-        <Workforce state={state} segmentId={segmentId} onSegmentChange={onSegmentChange} />
+        <Workforce
+          state={state}
+          tab={tab}
+          segmentId={segmentId}
+          onSegmentChange={onSegmentChange}
+          schedules={schedules}
+        />
       )}
     </Loaded>
   );
@@ -237,27 +264,337 @@ export function Analytics({
 
 function Workforce({
   state,
+  tab,
   segmentId,
   onSegmentChange,
+  schedules,
 }: {
   readonly state: AnalyticsState;
+  readonly tab: InsightsTab;
   readonly segmentId: string | null;
   readonly onSegmentChange: AnalyticsProps['onSegmentChange'];
+  readonly schedules: AnalyticsProps['schedules'];
 }): JSX.Element {
   const { headcount, attrition, complete, movement } = state;
+  // The schedules HR may manage, and the actions to manage them with.
+  const reports =
+    schedules !== undefined && state.schedules != null && state.schedules.canManage
+      ? state.schedules
+      : null;
+  const running = reports?.schedules.filter((s) => !s.paused).length ?? 0;
+  const joined =
+    state.joiners == null ? null : state.joiners.cells.reduce((n, c) => n + c.value, 0);
+
+  const figures: JSX.Element[] = [];
+  const sections: JSX.Element[] = [];
+  if (tab === 'headcount') {
+    figures.push(
+      <Stat
+        key="headcount"
+        label="Headcount"
+        value={headcount.value.toLocaleString()}
+        {...(headcount.change === null
+          ? {}
+          : {
+              delta: `${headcount.change > 0 ? '+' : ''}${String(headcount.change)}`,
+              deltaLabel: 'since last month',
+              direction:
+                headcount.change > 0
+                  ? ('up' as const)
+                  : headcount.change < 0
+                    ? ('down' as const)
+                    : ('flat' as const),
+            })}
+        chart={
+          headcount.trend.length > 1 ? (
+            <Sparkline data={headcount.trend} label="Headcount by month" />
+          ) : undefined
+        }
+      />,
+    );
+    if (joined !== null) figures.push(<Stat key="joined" label="Joined, 12M" value={joined} />);
+    if (attrition !== null) {
+      figures.push(
+        <Stat
+          key="left"
+          label="Left, 12M"
+          value={attrition.leavers}
+          description={`${percent(attrition.percent)} attrition`}
+        />,
+      );
+    }
+    if (headcount.trend.length > 1) {
+      sections.push(
+        <ChartSection
+          key="trend"
+          title="Headcount by month"
+          description={`${headcount.value.toLocaleString()} today`}
+          numbers={headcount.trend.map((p) => [p.label, p.value])}
+        >
+          <TrendChart
+            label="Headcount by month"
+            series={[{ label: 'Headcount', data: headcount.trend }]}
+            area
+            showLastPoint
+          />
+        </ChartSection>,
+      );
+    }
+    if (movement !== null) {
+      sections.push(
+        <ChartSection
+          key="movement"
+          title="Where the change came from"
+          description={`${movement.period} · the numbers reconcile to the closing headcount`}
+          numbers={[
+            ['Opening', movement.opening],
+            ['Joiners', movement.joiners],
+            ['Internal moves', movement.moves],
+            ['Leavers', -movement.leavers],
+            ['Closing', movement.closing],
+          ]}
+        >
+          <WaterfallChart
+            label="Headcount movement"
+            data={[
+              { label: 'Opening', value: movement.opening, total: true },
+              { label: 'Joiners', value: movement.joiners, tone: 'success' },
+              { label: 'Moves', value: movement.moves },
+              { label: 'Leavers', value: -movement.leavers, tone: 'danger' },
+              { label: 'Closing', value: movement.closing, total: true },
+            ]}
+          />
+        </ChartSection>,
+      );
+    }
+    if (state.composition != null && state.composition.categories.length > 0) {
+      const composition = state.composition;
+      sections.push(
+        <ChartSection
+          key="composition"
+          title="What we are made of"
+          description="Headcount by department, split by employment type"
+          numbers={composition.categories.flatMap((category, i) =>
+            composition.series.map((s): [string, number] => [
+              `${category}, ${s.label}`,
+              s.values[i] ?? 0,
+            ]),
+          )}
+        >
+          <StackedBarChart
+            label="Headcount by department and employment type"
+            categories={composition.categories}
+            series={composition.series}
+          />
+        </ChartSection>,
+      );
+    }
+    if (state.joiners != null && state.joiners.cells.length > 0) {
+      const joiners = state.joiners;
+      sections.push(
+        <ChartSection
+          key="joiners"
+          title="When people join"
+          description="Joiners by department and month, the last 12 months"
+          numbers={joiners.cells.map((c) => [`${c.row}, ${c.column}`, c.value])}
+        >
+          <ScrollArea className="w-full">
+            <div className="min-w-[36rem]">
+              <HeatmapChart
+                label="Joiners by department and month"
+                rows={joiners.departments}
+                columns={joiners.months}
+                cells={joiners.cells}
+                describe={(value, row, column) =>
+                  `${String(value)} ${value === 1 ? 'joiner' : 'joiners'} in ${row}, ${column}`
+                }
+              />
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </ChartSection>,
+      );
+    }
+  }
+
+  if (tab === 'turnover') {
+    if (attrition !== null) {
+      figures.push(
+        <Stat
+          key="attrition"
+          label="Attrition, rolling 12 months"
+          value={percent(attrition.percent)}
+          description={`Annualised over ${String(attrition.leavers)} leavers: ${attrition.formula}`}
+        />,
+      );
+    }
+    if (attrition?.trend !== undefined && attrition.trend.length >= 2) {
+      sections.push(
+        <ChartSection
+          key="attrition"
+          title="Are people leaving faster"
+          description={`Rolling 12 months: ${attrition.formula}`}
+          numbers={attrition.trend.map((p) => [p.label, percent(p.value)])}
+        >
+          <TrendChart
+            label="Attrition, rolling 12 months"
+            series={[{ label: 'Attrition', tone: 'danger', data: attrition.trend }]}
+            format={percent}
+          />
+        </ChartSection>,
+      );
+    }
+    if (state.tenure != null) {
+      const tenure = state.tenure;
+      sections.push(
+        <ChartSection
+          key="tenure"
+          title="Who is at risk of leaving"
+          description="Tenure today, beside the tenure at leaving of the last 12 months' leavers"
+          numbers={tenure.flatMap((b): [string, number][] => [
+            [`${b.label}: here now`, b.headcount],
+            [`${b.label}: left`, b.leavers],
+          ])}
+        >
+          <StackedBarChart
+            label="Tenure bands"
+            categories={tenure.map((b) => b.label)}
+            series={[
+              {
+                label: 'Left in the last 12 months',
+                tone: 'danger',
+                values: tenure.map((b) => b.leavers),
+              },
+              { label: 'Here now', tone: 'accent', values: tenure.map((b) => b.headcount) },
+            ]}
+          />
+        </ChartSection>,
+      );
+    }
+    if (state.span != null && state.span.length > 0) {
+      const span = state.span;
+      sections.push(
+        <ChartSection
+          key="span"
+          title="Is the org shaped sensibly"
+          description="How many managers have how many direct reports"
+          numbers={span.map((p) => [p.label, p.value])}
+        >
+          <BarChart label="Span of control" data={span} showValues />
+        </ChartSection>,
+      );
+    }
+  }
+
+  if (tab === 'data-quality') {
+    if (complete !== null) {
+      figures.push(
+        <Stat
+          key="complete"
+          label="Records complete"
+          value={percent(complete.percent)}
+          description={`${String(complete.incomplete)} records are incomplete`}
+        />,
+      );
+    }
+    if (state.expiringIn90Days !== null) {
+      figures.push(
+        <Stat key="expiring" label="Expiring in 90 days" value={state.expiringIn90Days} />,
+      );
+    }
+    if (state.completenessBySection !== null) {
+      const bySection = state.completenessBySection;
+      sections.push(
+        <ChartSection
+          key="sections"
+          title="Where our data is thin"
+          description="Completeness by section"
+          numbers={bySection.map((p) => [p.label, percent(p.value)])}
+        >
+          <HorizontalBarChart
+            label="Completeness by section"
+            data={bySection}
+            format={percent}
+            showValues
+          />
+        </ChartSection>,
+      );
+    }
+    if (state.expiries !== null) {
+      const expiries = state.expiries;
+      sections.push(
+        <ChartSection
+          key="expiries"
+          title="What expires next"
+          description="Work permits, fixed-term contracts, probation and certifications over the next 90 days"
+          numbers={expiries.items.map((item): [string, string] => [
+            `${item.name ?? 'Unnamed'}: ${expiryOf(item.kind).label}`,
+            item.day,
+          ])}
+        >
+          {/* A time axis squeezed to a phone is a smear: it scrolls instead. */}
+          <ScrollArea className="w-full">
+            <div className="min-w-[36rem]">
+              <TimelineChart
+                label="Expiries"
+                rows={expiryRows(expiries.items)}
+                today={expiries.today}
+                unit="week"
+                empty="Nothing expires in the next 90 days."
+              />
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </ChartSection>,
+      );
+    }
+    if (state.funnel !== null) {
+      sections.push(
+        <ChartSection
+          key="funnel"
+          title="Where new joiners stall"
+          description="Invited through to a complete record"
+          numbers={state.funnel.map((s) => [s.label, s.value])}
+        >
+          <FunnelChart label="Onboarding funnel" data={state.funnel} showConversion />
+        </ChartSection>,
+      );
+    }
+  }
+
+  if (tab === 'pay') {
+    if (state.pay != null) sections.push(<PaySections key="pay" pay={state.pay} />);
+    for (const q of state.selfId ?? []) sections.push(<SelfIdSection key={q.key} question={q} />);
+  }
+
   return (
     <Stack gap={6}>
       <PageHeader
-        title="Workforce analytics"
+        title="Insights"
         description={`${state.asOf}${state.segment ? ` · ${state.segment.name}` : ''} · ${state.sourceNote}`}
         actions={
-          onSegmentChange === undefined ? undefined : (
-            <SegmentSelect
-              segments={state.segments ?? []}
-              value={segmentId}
-              onChange={onSegmentChange}
-            />
-          )
+          <>
+            {onSegmentChange === undefined ? null : (
+              <SegmentSelect
+                segments={state.segments ?? []}
+                value={segmentId}
+                onChange={onSegmentChange}
+              />
+            )}
+            {reports === null || schedules === undefined ? null : (
+              <>
+                <span className="touch:hidden">
+                  <Schedules state={reports} actions={schedules} />
+                </span>
+                {/* A phone's bar keeps the clock; the page is a tap away. */}
+                <Button asChild variant="ghost" className="hidden touch:inline-flex">
+                  <a href="/people/reports" aria-label="Scheduled reports">
+                    <icons.scheduled aria-hidden />
+                  </a>
+                </Button>
+              </>
+            )}
+          </>
         }
       />
       {state.segment ? (
@@ -273,280 +610,44 @@ function Workforce({
         </Alert>
       ) : null}
 
-      <AutoGrid minItemWidth="11rem" gap={3}>
-        <Stat
-          label="Headcount"
-          value={headcount.value.toLocaleString()}
-          {...(headcount.change === null
-            ? {}
-            : {
-                delta: `${headcount.change > 0 ? '+' : ''}${String(headcount.change)}`,
-                deltaLabel: 'since last month',
-                direction:
-                  headcount.change > 0
-                    ? ('up' as const)
-                    : headcount.change < 0
-                      ? ('down' as const)
-                      : ('flat' as const),
-              })}
-          chart={
-            headcount.trend.length > 1 ? (
-              <Sparkline data={headcount.trend} label="Headcount by month" />
-            ) : undefined
-          }
-        />
-        {attrition === null ? null : (
-          <Stat label="Attrition, rolling 12 months" value={percent(attrition.percent)} />
-        )}
-        {complete === null ? null : (
-          <Stat label="Records complete" value={percent(complete.percent)} />
-        )}
-        {state.expiringIn90Days === null ? null : (
-          <Stat label="Expiring in 90 days" value={state.expiringIn90Days} />
-        )}
-      </AutoGrid>
-      {attrition === null && complete === null ? null : (
-        <p className="text-xs text-fg-muted">
-          {attrition === null
-            ? ''
-            : `Attrition is annualised over ${String(attrition.leavers)} leavers: ${attrition.formula}. `}
-          {complete === null ? '' : `${String(complete.incomplete)} records are incomplete.`}
-        </p>
+      {figures.length === 0 ? null : (
+        <AutoGrid minItemWidth="11rem" gap={3}>
+          {figures}
+        </AutoGrid>
+      )}
+      {sections.length === 0 ? (
+        figures.length === 0 ? (
+          <EmptyState
+            icon={<icons.analytics />}
+            title="Nothing to show on this tab"
+            description="None of its figures are yours to see, or People has none to draw yet."
+          />
+        ) : null
+      ) : (
+        <div className={grid}>{sections}</div>
       )}
 
-      {/*
-        The questions grouped as the design reads them (I1–I4): headcount,
-        turnover, data quality, pay and diversity, each a jump from the row
-        of pills. Every chart stays on the page, with its numbers a tap away.
-      */}
-      <TertiaryNav
-        label="Analytics topics"
-        orientation="horizontal"
-        items={[
-          ...(state.movement !== null ||
-          (state.composition != null && state.composition.categories.length > 0) ||
-          (state.joiners != null && state.joiners.cells.length > 0)
-            ? [{ id: 'topic-headcount', label: 'Headcount' }]
-            : []),
-          ...((attrition?.trend !== undefined && attrition.trend.length >= 2) ||
-          state.tenure != null ||
-          (state.span != null && state.span.length > 0)
-            ? [{ id: 'topic-turnover', label: 'Turnover' }]
-            : []),
-          ...(state.completenessBySection !== null ||
-          state.expiries !== null ||
-          state.funnel !== null
-            ? [{ id: 'topic-quality', label: 'Data quality' }]
-            : []),
-          ...(state.pay != null ? [{ id: 'topic-pay', label: 'Pay' }] : []),
-          ...(state.selfId != null && state.selfId.length > 0
-            ? [{ id: 'topic-diversity', label: 'Diversity' }]
-            : []),
-        ]}
-      />
-      {state.movement !== null ||
-      (state.composition != null && state.composition.categories.length > 0) ||
-      (state.joiners != null && state.joiners.cells.length > 0) ? (
-        <div
-          id="topic-headcount"
-          className="grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-2"
-        >
-          {movement === null ? null : (
-            <ChartSection
-              title="Where the change came from"
-              description={`${movement.period} · the numbers reconcile to the closing headcount`}
-              numbers={[
-                ['Opening', movement.opening],
-                ['Joiners', movement.joiners],
-                ['Internal moves', movement.moves],
-                ['Leavers', -movement.leavers],
-                ['Closing', movement.closing],
-              ]}
-            >
-              <WaterfallChart
-                label="Headcount movement"
-                data={[
-                  { label: 'Opening', value: movement.opening, total: true },
-                  { label: 'Joiners', value: movement.joiners, tone: 'success' },
-                  { label: 'Moves', value: movement.moves },
-                  { label: 'Leavers', value: -movement.leavers, tone: 'danger' },
-                  { label: 'Closing', value: movement.closing, total: true },
-                ]}
+      {reports === null ? null : (
+        // Under a finger, the schedules sit at the foot of the page too (MV6).
+        <List aria-label="Report schedules" className="hidden touch:block">
+          <ListItem
+            asChild
+            chevron
+            leading={
+              <Avatar
+                size="lg"
+                shape="rounded"
+                tone="neutral"
+                name="Scheduled reports"
+                fallback={<icons.scheduled aria-hidden />}
               />
-            </ChartSection>
-          )}
-          {state.composition == null || state.composition.categories.length === 0 ? null : (
-            <ChartSection
-              title="What we are made of"
-              description="Headcount by department, split by employment type"
-              numbers={state.composition.categories.flatMap((category, i) =>
-                (state.composition?.series ?? []).map((s): [string, number] => [
-                  `${category}, ${s.label}`,
-                  s.values[i] ?? 0,
-                ]),
-              )}
-            >
-              <StackedBarChart
-                label="Headcount by department and employment type"
-                categories={state.composition.categories}
-                series={state.composition.series}
-              />
-            </ChartSection>
-          )}
-          {state.joiners == null || state.joiners.cells.length === 0 ? null : (
-            <ChartSection
-              title="When people join"
-              description="Joiners by department and month, the last 12 months"
-              numbers={state.joiners.cells.map((c) => [`${c.row}, ${c.column}`, c.value])}
-            >
-              <ScrollArea className="w-full">
-                <div className="min-w-[36rem]">
-                  <HeatmapChart
-                    label="Joiners by department and month"
-                    rows={state.joiners.departments}
-                    columns={state.joiners.months}
-                    cells={state.joiners.cells}
-                    describe={(value, row, column) =>
-                      `${String(value)} ${value === 1 ? 'joiner' : 'joiners'} in ${row}, ${column}`
-                    }
-                  />
-                </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </ChartSection>
-          )}
-        </div>
-      ) : null}
-      {(attrition?.trend !== undefined && attrition.trend.length >= 2) ||
-      state.tenure != null ||
-      (state.span != null && state.span.length > 0) ? (
-        <div
-          id="topic-turnover"
-          className="grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-2"
-        >
-          {attrition?.trend === undefined || attrition.trend.length < 2 ? null : (
-            <ChartSection
-              title="Are people leaving faster"
-              description={`Rolling 12 months: ${attrition.formula}`}
-              numbers={attrition.trend.map((p) => [p.label, percent(p.value)])}
-            >
-              <TrendChart
-                label="Attrition, rolling 12 months"
-                series={[{ label: 'Attrition', tone: 'danger', data: attrition.trend }]}
-                format={percent}
-              />
-            </ChartSection>
-          )}
-          {state.tenure == null ? null : (
-            <ChartSection
-              title="Who is at risk of leaving"
-              description="Tenure today, beside the tenure at leaving of the last 12 months' leavers"
-              numbers={state.tenure.flatMap((b): [string, number][] => [
-                [`${b.label}: here now`, b.headcount],
-                [`${b.label}: left`, b.leavers],
-              ])}
-            >
-              <StackedBarChart
-                label="Tenure bands"
-                categories={state.tenure.map((b) => b.label)}
-                series={[
-                  {
-                    label: 'Left in the last 12 months',
-                    tone: 'danger',
-                    values: state.tenure.map((b) => b.leavers),
-                  },
-                  {
-                    label: 'Here now',
-                    tone: 'accent',
-                    values: state.tenure.map((b) => b.headcount),
-                  },
-                ]}
-              />
-            </ChartSection>
-          )}
-          {state.span == null || state.span.length === 0 ? null : (
-            <ChartSection
-              title="Is the org shaped sensibly"
-              description="How many managers have how many direct reports"
-              numbers={state.span.map((p) => [p.label, p.value])}
-            >
-              <BarChart label="Span of control" data={state.span} showValues />
-            </ChartSection>
-          )}
-        </div>
-      ) : null}
-      {state.completenessBySection !== null || state.expiries !== null || state.funnel !== null ? (
-        <div
-          id="topic-quality"
-          className="grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-2"
-        >
-          {state.completenessBySection === null ? null : (
-            <ChartSection
-              title="Where our data is thin"
-              description="Completeness by section"
-              numbers={state.completenessBySection.map((p) => [p.label, percent(p.value)])}
-            >
-              <HorizontalBarChart
-                label="Completeness by section"
-                data={state.completenessBySection}
-                format={percent}
-                showValues
-              />
-            </ChartSection>
-          )}
-          {state.expiries === null ? null : (
-            <ChartSection
-              title="What expires next"
-              description="Work permits, fixed-term contracts, probation and certifications over the next 90 days"
-              numbers={state.expiries.items.map((item): [string, string] => [
-                `${item.name ?? 'Unnamed'}: ${expiryOf(item.kind).label}`,
-                item.day,
-              ])}
-            >
-              {/* A time axis squeezed to a phone is a smear: it scrolls instead. */}
-              <ScrollArea className="w-full">
-                <div className="min-w-[36rem]">
-                  <TimelineChart
-                    label="Expiries"
-                    rows={expiryRows(state.expiries.items)}
-                    today={state.expiries.today}
-                    unit="week"
-                    empty="Nothing expires in the next 90 days."
-                  />
-                </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </ChartSection>
-          )}
-          {state.funnel === null ? null : (
-            <ChartSection
-              title="Where new joiners stall"
-              description="Invited through to a complete record"
-              numbers={state.funnel.map((s) => [s.label, s.value])}
-            >
-              <FunnelChart label="Onboarding funnel" data={state.funnel} showConversion />
-            </ChartSection>
-          )}
-        </div>
-      ) : null}
-      {state.pay != null ? (
-        <div
-          id="topic-pay"
-          className="grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-2"
-        >
-          <PaySections pay={state.pay} />
-        </div>
-      ) : null}
-      {state.selfId != null && state.selfId.length > 0 ? (
-        <div
-          id="topic-diversity"
-          className="grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-2"
-        >
-          {state.selfId.map((q) => (
-            <SelfIdSection key={q.key} question={q} />
-          ))}
-        </div>
-      ) : null}
+            }
+            description={`${String(running)} active`}
+          >
+            <a href="/people/reports">Scheduled reports</a>
+          </ListItem>
+        </List>
+      )}
     </Stack>
   );
 }

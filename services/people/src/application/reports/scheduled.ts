@@ -523,7 +523,7 @@ async function linkFor(
     everyone,
   );
   if (chart === null) return err(failure('NOT_A_VIEWER', 'Nothing to chart for this person'));
-  const url = new URL('/people/analytics', run.company.origin);
+  const url = new URL('/people/insights/headcount', run.company.origin);
   if (prepared.segmentId !== null) {
     const version = await deps.exports.schemas.current(tx, tenantId);
     const definitions = version?.document.attributes.filter((d) => d.deprecatedAt === null) ?? [];

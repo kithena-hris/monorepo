@@ -157,8 +157,10 @@ export interface DirectoryProps {
     readonly incomplete: boolean;
     readonly segmentId: string | null;
   }) => void;
-  /** Shows the org chart instead of the list. */
-  readonly onOrgChart?: () => void;
+  /** Which view this is: the route says, not the screen (`/people/directory/cards`). */
+  readonly view?: 'list' | 'cards';
+  /** Another view of the same people, search and filters kept. Without it, no switch. */
+  readonly onViewChange?: (view: DirectoryView) => void;
   /** Save the filters in force as a segment. */
   readonly onSaveSegment?: (segment: { name: string; shared: boolean }) => Promise<Outcome>;
   readonly onOpen: (personId: string) => void;
@@ -348,7 +350,7 @@ export function describeCondition(
  * row a tap to their profile.
  */
 export function Directory(props: DirectoryProps): JSX.Element {
-  const { load } = props;
+  const { load, view = 'list', onViewChange } = props;
   const summary = load.status === 'ready' ? summaryOf(load.data) : undefined;
 
   return (
@@ -357,13 +359,12 @@ export function Directory(props: DirectoryProps): JSX.Element {
         title="Directory"
         description={summary}
         actions={
-          props.onImport === undefined ? undefined : (
-            <Button startIcon={<icons.upload aria-hidden />} onClick={props.onImport}>
-              Import
-            </Button>
+          onViewChange === undefined ? undefined : (
+            <ViewSwitch view={view} onChange={onViewChange} />
           )
         }
       />
+      {onViewChange === undefined ? null : <ViewSwitch phone view={view} onChange={onViewChange} />}
       <Loaded load={load} what="the directory">
         {(state) => <Body {...props} state={state} />}
       </Loaded>
@@ -378,7 +379,60 @@ const STATUS_TONE: Record<string, 'success' | 'neutral' | 'warning' | 'info'> = 
   'Starting soon': 'info',
 };
 
-type View = 'table' | 'cards';
+/** The three ways of seeing the same people (V2, V3), each a route of its own. */
+export type DirectoryView = 'list' | 'cards' | 'org-chart';
+
+/**
+ * List, Cards or Org chart, labelled, in the header's actions (V2). Under a
+ * finger (MV3, MV4) a full-width List / Org chart at the top of the page:
+ * a phone shows people as a list whichever of the first two was chosen.
+ */
+export function ViewSwitch({
+  view,
+  onChange,
+  phone = false,
+}: {
+  readonly view: DirectoryView;
+  readonly onChange: (view: DirectoryView) => void;
+  readonly phone?: boolean;
+}): JSX.Element {
+  const chosen = (next: string): void => {
+    if (next === 'list' || next === 'cards' || next === 'org-chart') onChange(next);
+  };
+  return phone ? (
+    <SegmentedControl
+      aria-label="Show people as"
+      fullWidth
+      value={view === 'org-chart' ? 'org-chart' : 'list'}
+      onValueChange={chosen}
+      className="hidden touch:flex"
+    >
+      <SegmentedControlItem value="list">List</SegmentedControlItem>
+      <SegmentedControlItem value="org-chart">Org chart</SegmentedControlItem>
+    </SegmentedControl>
+  ) : (
+    <SegmentedControl
+      aria-label="Show people as"
+      size="sm"
+      value={view}
+      onValueChange={chosen}
+      className="touch:hidden"
+    >
+      <SegmentedControlItem value="list">
+        <icons.list aria-hidden />
+        List
+      </SegmentedControlItem>
+      <SegmentedControlItem value="cards">
+        <icons.cards aria-hidden />
+        Cards
+      </SegmentedControlItem>
+      <SegmentedControlItem value="org-chart">
+        <icons.hierarchy aria-hidden />
+        Org chart
+      </SegmentedControlItem>
+    </SegmentedControl>
+  );
+}
 
 /**
  * The views across the top: one at a time, each applied by the shell on the
@@ -508,14 +562,13 @@ function Body({
   onNextPage,
   onFirstPage,
   onLoadMore,
-  onOrgChart,
+  view = 'list',
   next = null,
   group = null,
   onGroupChange,
   incomplete = false,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const coarse = useCoarsePointer();
-  const [view, setView] = useState<View>('table');
   const [peek, setPeek] = useState<string | null>(null);
   const columnsChosen = useColumns(state.columns);
   const widths = useWidths();
@@ -554,6 +607,14 @@ function Body({
           onImport === undefined
             ? 'Nobody has been added to People yet.'
             : 'Add people one at a time with Add person, or import a spreadsheet of everybody.'
+        }
+        // Import lives in Import & export; an empty directory is where it is wanted first.
+        action={
+          onImport === undefined ? undefined : (
+            <Button startIcon={<icons.import aria-hidden />} onClick={onImport}>
+              Import
+            </Button>
+          )
         }
       />
     );
@@ -939,28 +1000,7 @@ function Body({
         actions={
           coarse ? undefined : (
             <span className="flex flex-wrap items-center gap-2">
-              <SegmentedControl
-                aria-label="Show people as"
-                size="sm"
-                value={view}
-                onValueChange={(next) => {
-                  if (next === 'chart') onOrgChart?.();
-                  else setView(next as View);
-                }}
-              >
-                <SegmentedControlItem iconOnly value="table" aria-label="Table">
-                  <icons.table aria-hidden />
-                </SegmentedControlItem>
-                <SegmentedControlItem iconOnly value="cards" aria-label="Cards">
-                  <icons.people aria-hidden />
-                </SegmentedControlItem>
-                {onOrgChart === undefined ? null : (
-                  <SegmentedControlItem iconOnly value="chart" aria-label="Org chart">
-                    <icons.organisation aria-hidden />
-                  </SegmentedControlItem>
-                )}
-              </SegmentedControl>
-              {onGroupChange === undefined || groupable.length === 0 || view !== 'table' ? null : (
+              {onGroupChange === undefined || groupable.length === 0 || view !== 'list' ? null : (
                 <Select
                   value={grouping?.key ?? ANY}
                   onValueChange={(value) => {
@@ -1000,7 +1040,7 @@ function Body({
           )
         }
       />
-      {peeked !== null && view === 'table' && !coarse ? (
+      {peeked !== null && view === 'list' && !coarse ? (
         <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4">
           {table}
           <QuickLook

@@ -80,7 +80,7 @@ describe('the overview', () => {
     const team = part('Your direct reports 8');
     expect(within(team).getByRole('link', { name: 'Show all 8' })).toHaveAttribute(
       'href',
-      `/people/directory?filter=${encodeURIComponent(`manager_id:${ADA}`)}`,
+      `/people/directory/list?filter=${encodeURIComponent(`manager_id:${ADA}`)}`,
     );
     expect(within(team).getByRole('link', { name: /Tim Berners-Lee/ })).toHaveAttribute(
       'href',
@@ -115,7 +115,7 @@ describe('the overview', () => {
     expect(attention).toHaveTextContent('11 details wait for HR');
     expect(
       within(attention).getByRole('link', { name: /Review: 3 identifiers need review/ }),
-    ).toHaveAttribute('href', '/people/identifier-reviews');
+    ).toHaveAttribute('href', '/people/data-health/id-checks');
     expect(screen.getByText('Headcount')).toBeInTheDocument();
     expect(part('Starting soon')).toHaveTextContent('Mei Tanaka');
     expect(await axeViolations(hr.container)).toEqual([]);

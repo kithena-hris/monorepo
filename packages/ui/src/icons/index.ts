@@ -127,6 +127,13 @@ import {
   Wallet,
   X,
   type LucideIcon,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  FileClock,
+  FileSpreadsheet,
+  LayoutGrid,
+  List,
+  Network,
   ChartColumn,
   FileChartColumn,
   GitMerge,
@@ -150,6 +157,9 @@ export const iconGroups = {
     duplicate: Copy,
     download: Download,
     upload: Upload,
+    /** Bringing records in, or taking them out: a whole data set, not one file. */
+    import: ArrowDownToLine,
+    export: ArrowUpFromLine,
     share: Share2,
     send: Send,
     search: Search,
@@ -234,10 +244,18 @@ export const iconGroups = {
     file: File,
     folder: Folder,
     table: Table2,
+    /** Rows of values: a file somebody fills in and brings back. */
+    spreadsheet: FileSpreadsheet,
+    /** The same records, as a list, as cards, or as the tree above them. */
+    list: List,
+    cards: LayoutGrid,
+    hierarchy: Network,
     /** Charts of a population: headcount, movement, pay. */
     analytics: ChartColumn,
     /** A report as a document somebody receives. */
     report: FileChartColumn,
+    /** A report that goes out on its own, on a schedule. */
+    scheduled: FileClock,
     /** Something waiting to be checked by a person. */
     review: ScanSearch,
     /** How sound the records are: gaps, checks, duplicates. */
