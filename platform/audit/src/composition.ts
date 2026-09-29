@@ -43,11 +43,21 @@ export function retentionFrom(value: string | undefined): number | null {
   return days;
 }
 
+/**
+ * Where `just dev` puts things, for a laptop only: the compose Postgres as
+ * `svc_audit` (`tools/scripts/init-db.sql`), and the token `apps/gateway/
+ * scripts/dev.sh` hands the router. Production takes neither default: an
+ * unset URL keeps nothing and an unset token refuses every read.
+ */
+const DEV_DATABASE_URL = 'postgres://svc_audit:kithena@localhost:5432/kithena';
+
 export function configFrom(env: NodeJS.ProcessEnv): Config {
+  const dev = env['NODE_ENV'] !== 'production';
   return {
-    databaseUrl: env['AUDIT_DATABASE_URL'],
+    databaseUrl: env['AUDIT_DATABASE_URL'] ?? (dev ? DEV_DATABASE_URL : undefined),
     kafka: kafkaConfigFrom(env, 'audit'),
-    internalToken: env['AUDIT_API_TOKEN'] ?? '',
+    internalToken:
+      env['AUDIT_API_TOKEN'] ?? (dev ? (env['INTERNAL_API_TOKEN'] ?? 'dev-only-key') : ''),
     openFgaUrl: env['OPENFGA_URL'],
     openFgaStoreId: env['OPENFGA_STORE_ID'],
     retentionDays: retentionFrom(env['AUDIT_RETENTION_DAYS']),

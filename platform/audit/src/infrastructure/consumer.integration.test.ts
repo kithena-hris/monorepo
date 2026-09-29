@@ -126,7 +126,7 @@ describe('the audit consumer', () => {
       });
     }
     await consumer.stop();
-    expect(rows.map((r) => r.action).sort()).toEqual([
+    expect(rows.map((r) => r.action).toSorted()).toEqual([
       'Granted a role',
       'Kithena support signed in',
     ]);

@@ -1,1 +1,0 @@
-{"version":1,"body":"query SettingsActivity($before: ID, $area: String) {\n    peopleSettingsActivity(before: $before, area: $area) {\n      entries { id at action subject detail area by name avatarUrl kind reason }\n      next\n    }\n  }"}

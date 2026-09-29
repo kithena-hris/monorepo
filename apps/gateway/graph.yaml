@@ -10,3 +10,7 @@ subgraphs:
     routing_url: http://localhost:4002/graphql
     introspection:
       url: http://localhost:4002/graphql
+  - name: audit
+    routing_url: http://localhost:4103/graphql
+    introspection:
+      url: http://localhost:4103/graphql
