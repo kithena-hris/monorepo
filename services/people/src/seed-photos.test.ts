@@ -17,7 +17,7 @@ describe('Dunder Mifflin’s avatars', () => {
 
   it('draws the same PNG every time', () => {
     const png = drawAvatar(avatarFor('dwight.schrute', 0));
-    expect([...png.slice(1, 4)]).toEqual([0x50, 0x4e, 0x47]);
+    expect(Array.from(png.subarray(1, 4))).toEqual([0x50, 0x4e, 0x47]);
     expect(drawAvatar(avatarFor('dwight.schrute', 0))).toEqual(png);
   });
 });
