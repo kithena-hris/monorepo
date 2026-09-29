@@ -4,6 +4,7 @@ import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { isValidElement, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
 
+import { resolveChild } from '../../lib/child';
 import { cn } from '../../lib/cn';
 import { Spinner } from '../spinner/spinner';
 
@@ -147,10 +148,9 @@ export function Button({
   const Comp = asChild ? Slot : 'button';
   // With `asChild` the label is the child's own content: a link holding
   // nothing but the icon (named by `aria-label`) is an icon button too.
+  const child = asChild ? resolveChild(children) : children;
   const label =
-    asChild && isValidElement<{ children?: ReactNode }>(children)
-      ? children.props.children
-      : children;
+    asChild && isValidElement<{ children?: ReactNode }>(child) ? child.props.children : children;
   const iconOnly = !label && Boolean(startIcon ?? endIcon);
   // With a leading icon the spinner takes the icon's place and the label
   // stays readable; without one it covers the label, which keeps its width.
