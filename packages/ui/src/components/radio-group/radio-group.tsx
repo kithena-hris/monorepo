@@ -55,7 +55,9 @@ export function RadioGroupItem({
   const descriptionId = `${controlId}-description`;
 
   return (
-    <div className="flex items-start gap-2.5 has-[:disabled]:opacity-50">
+    // A disabled option dims its dot and its label, never its description: that
+    // line is usually why it cannot be chosen, and has to stay readable.
+    <div className="group/radio flex items-start gap-2.5">
       <RadioGroupPrimitive.Item
         id={controlId}
         aria-describedby={description ? descriptionId : undefined}
@@ -70,7 +72,7 @@ export function RadioGroupItem({
           'hover:border-accent',
           'data-[state=checked]:border-accent data-[state=checked]:bg-accent',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-          'disabled:pointer-events-none',
+          'disabled:pointer-events-none disabled:opacity-50',
           'aria-invalid:border-danger',
           'touch:before:absolute touch:before:top-1/2 touch:before:left-1/2 touch:before:size-tap',
           'touch:before:-translate-x-1/2 touch:before:-translate-y-1/2 touch:before:content-[""]',
@@ -81,7 +83,10 @@ export function RadioGroupItem({
         <RadioGroupPrimitive.Indicator className="size-[0.4375rem] rounded-full bg-fg-on-accent data-[state=checked]:animate-scale-in touch:size-2.5" />
       </RadioGroupPrimitive.Item>
       <div className="min-w-0">
-        <label htmlFor={controlId} className="block cursor-pointer text-base text-fg select-none">
+        <label
+          htmlFor={controlId}
+          className="block cursor-pointer text-base text-fg select-none group-has-[:disabled]/radio:cursor-default group-has-[:disabled]/radio:opacity-50"
+        >
           {children}
         </label>
         {description ? (

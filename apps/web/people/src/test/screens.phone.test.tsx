@@ -254,7 +254,8 @@ describe('at 390×844, with a finger', () => {
     const dialog = screen.getByRole('dialog');
     // Anchored to the bottom edge, not centred: read from the style rather than
     // the box, which is mid-way through sliding in.
-    expect(getComputedStyle(dialog).bottom).toBe('0px');
+    // Reach 2 floats the sheet a half-rem above the edge (or the safe area).
+    expect(Number.parseFloat(getComputedStyle(dialog).bottom)).toBeLessThanOrEqual(8);
     expect(underFloor(dialog)).toEqual([]);
   });
 
@@ -390,7 +391,12 @@ describe('at 390×844, with a finger', () => {
 
   it('People home', async () => {
     await checked(
-      <PeopleHome load={{ status: 'ready', data: overview({ roles: { hr: true, admin: true, finance: false } }) }} />,
+      <PeopleHome
+        load={{
+          status: 'ready',
+          data: overview({ roles: { hr: true, admin: true, finance: false } }),
+        }}
+      />,
     );
   });
 
@@ -568,7 +574,10 @@ describe('at 390×844, with a finger', () => {
                 key: 'hr',
                 label: 'HR',
                 visibility: ['hr'],
-                fields: [field({ key: 'job_title', label: 'Job title' }), field({ key: 'desk', label: 'Desk' })],
+                fields: [
+                  field({ key: 'job_title', label: 'Job title' }),
+                  field({ key: 'desk', label: 'Desk' }),
+                ],
               },
             ],
             today: '2026-09-26',
@@ -584,7 +593,15 @@ describe('at 390×844, with a finger', () => {
                 personId: 'l',
                 name: 'Lena Moreau',
                 outcome: 'changed',
-                changes: [{ key: 'job_title', label: 'Job title', dated: true, before: null, after: 'Lead' }],
+                changes: [
+                  {
+                    key: 'job_title',
+                    label: 'Job title',
+                    dated: true,
+                    before: null,
+                    after: 'Lead',
+                  },
+                ],
                 refusal: null,
                 findings: [],
               },
@@ -757,7 +774,12 @@ describe('at 390×844, with a finger', () => {
             comparison: {
               people: [
                 { id: 'p1', name: 'Ada Lovelace', status: 'active', refusal: null },
-                { id: 'p2', name: 'Augusta Lovelace', status: 'provisional', refusal: 'Never hired.' },
+                {
+                  id: 'p2',
+                  name: 'Augusta Lovelace',
+                  status: 'provisional',
+                  refusal: 'Never hired.',
+                },
               ],
               rows: [
                 {
