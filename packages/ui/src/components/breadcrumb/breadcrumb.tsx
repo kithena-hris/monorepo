@@ -1,3 +1,5 @@
+'use client';
+
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis } from 'lucide-react';
 import {
   Fragment,

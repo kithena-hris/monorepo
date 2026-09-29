@@ -1,3 +1,5 @@
+'use client';
+
 import { Check } from 'lucide-react';
 import { useId, type ComponentPropsWithRef, type JSX } from 'react';
 
