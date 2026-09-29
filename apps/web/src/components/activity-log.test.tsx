@@ -30,6 +30,7 @@ const base: ActivityEntry = {
   actorKind: 'person',
   actorAccountId: ADA_ACCOUNT,
   onBehalfOf: null,
+  operatorLabel: null,
   subjectKind: 'setting',
   subjectId: null,
   subjectLabel: 'HR',
@@ -45,6 +46,7 @@ const entries: ActivityEntry[] = [
     actorKind: 'support',
     actorAccountId: '00000000-0000-4000-8000-0000000000a9',
     onBehalfOf: '6a30103a-b9d3-4e3e-8e07-5a5ea8d77d71',
+    operatorLabel: 'jane@kithena.com',
     action: 'Added a field',
     subjectLabel: 'Work phone',
     supportSignIn: { entryId: 'x', at: '2026-09-29T10:00:00.000Z', reason: 'Ticket 4411' },
@@ -83,7 +85,7 @@ describe('Settings › Activity', () => {
       />,
     );
     expect(screen.getAllByText('Ada Lovelace').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Kithena support').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Kithena support (jane@kithena.com)').length).toBeGreaterThan(0);
     expect(screen.getAllByText('System').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
   });
@@ -117,10 +119,16 @@ describe('Settings › Activity', () => {
     });
   });
 
+  it('says the log is not available yet, rather than an error, while it is not deployed', () => {
+    render(<ActivityLog load={{ status: 'unavailable' }} named={{}} filters={activityFilters({})} />);
+    expect(screen.getByText('The activity log isn’t available yet')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('tells somebody who may not read it why, rather than showing an empty log', () => {
     render(
       <ActivityLog
-        load={{ status: 'forbidden', message: 'no' }}
+        load={{ status: 'forbidden' }}
         named={{}}
         filters={activityFilters({})}
       />,

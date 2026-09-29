@@ -11,6 +11,7 @@ describe('identity.support.session_started', () => {
     sessionId: '00000000-0000-4000-8000-0000000000b1',
     accountId: '00000000-0000-4000-8000-0000000000a1',
     operatorId: '00000000-0000-4000-8000-0000000000f1',
+    operatorEmail: 'jane@kithena.com',
     reason: 'Ticket 4411: the import is stuck',
     expiresAt: '2026-09-29T11:00:00.000Z',
   };

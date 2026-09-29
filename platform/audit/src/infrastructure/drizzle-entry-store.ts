@@ -30,6 +30,7 @@ type Row = {
   actor_kind: string;
   actor_account_id: string | null;
   on_behalf_of: string | null;
+  operator_label: string | null;
   subject_kind: string | null;
   subject_id: string | null;
   subject_label: string | null;
@@ -37,6 +38,7 @@ type Row = {
   sign_in_id: string | null;
   sign_in_at: Date | string | null;
   sign_in_reason: string | null;
+  named_operator: string | null;
 };
 
 const iso = (v: Date | string): string => new Date(v).toISOString();
@@ -51,11 +53,12 @@ export function drizzleEntryStore(inTenant: InTenant): EntryStore {
         const rows = await tx.execute(sql`
           INSERT INTO audit.entry
             (tenant_id, source_event_id, occurred_at, recorded_at, module, area, action, detail,
-             actor_kind, actor_account_id, on_behalf_of, subject_kind, subject_id, subject_label,
+             actor_kind, actor_account_id, on_behalf_of, operator_label, subject_kind, subject_id,
+             subject_label,
              reason)
           VALUES (${e.tenantId}::uuid, ${e.sourceEventId}::uuid, ${e.occurredAt}::timestamptz,
                   ${e.recordedAt}::timestamptz, ${e.module}, ${e.area}, ${e.action}, ${e.detail},
-                  ${e.actor.kind}, ${e.actor.accountId}::uuid, ${e.actor.onBehalfOf}::uuid,
+                  ${e.actor.kind}, ${e.actor.accountId}::uuid, ${e.actor.onBehalfOf}::uuid, ${e.actor.operatorLabel},
                   ${e.subject?.kind ?? null}, ${e.subject?.id ?? null}, ${e.subject?.label ?? null},
                   ${e.reason})
           ON CONFLICT (tenant_id, source_event_id) DO NOTHING
@@ -67,10 +70,11 @@ export function drizzleEntryStore(inTenant: InTenant): EntryStore {
       inTenant(tenantId, async (tx) => {
         const search = f.search === null || f.search.trim() === '' ? null : likeOf(f.search.trim());
         const rows = await tx.execute<Row>(sql`
-          SELECT e.*, s.id AS sign_in_id, s.occurred_at AS sign_in_at, s.reason AS sign_in_reason
+          SELECT e.*, s.id AS sign_in_id, s.occurred_at AS sign_in_at, s.reason AS sign_in_reason,
+                 COALESCE(e.operator_label, s.operator_label) AS named_operator
             FROM audit.entry e
             LEFT JOIN LATERAL (
-              SELECT si.id, si.occurred_at, si.reason
+              SELECT si.id, si.occurred_at, si.reason, si.operator_label
                 FROM audit.entry si
                WHERE e.actor_kind = 'support' AND e.area <> 'sign_in'
                  AND si.tenant_id = e.tenant_id AND si.area = 'sign_in'
@@ -109,6 +113,7 @@ export function drizzleEntryStore(inTenant: InTenant): EntryStore {
             kind: r.actor_kind as ActorKind,
             accountId: r.actor_account_id,
             onBehalfOf: r.on_behalf_of,
+            operatorLabel: r.named_operator,
           },
           subject:
             r.subject_kind === null

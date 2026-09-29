@@ -67,7 +67,7 @@ function entry(over: Partial<Entry> = {}): Entry {
     area: 'fields',
     action: 'Added a field',
     detail: null,
-    actor: { kind: 'person', accountId: ADA, onBehalfOf: null },
+    actor: { kind: 'person', accountId: ADA, onBehalfOf: null, operatorLabel: null },
     subject: { kind: 'setting', id: null, label: 'Work phone' },
     reason: null,
     ...over,
@@ -138,7 +138,7 @@ describe('the log in Postgres', () => {
         occurredAt: at(3),
         area: 'sensitive_access',
         action: 'Read an identifier in full',
-        actor: { kind: 'system', accountId: null, onBehalfOf: null },
+        actor: { kind: 'system', accountId: null, onBehalfOf: null, operatorLabel: null },
         subject: { kind: 'person', id: ADA, label: null },
       }),
     );
@@ -171,10 +171,15 @@ describe('the log in Postgres', () => {
     ).toEqual(['Exported people', 'Granted a role']);
   });
 
-  it('links what support did to the sign-in it did it in, and so to the reason', async () => {
+  it('links what support did to the sign-in it did it in, and so to the reason and the operator', async () => {
     const store = drizzleEntryStore(inTenant);
     const tenant = '00000000-0000-4000-8000-00000000000d';
-    const support = { kind: 'support' as const, accountId: SUPPORT, onBehalfOf: OPERATOR };
+    const support = {
+      kind: 'support' as const,
+      accountId: SUPPORT,
+      onBehalfOf: OPERATOR,
+      operatorLabel: null,
+    };
     await store.append(
       entry({
         tenantId: tenant,
@@ -193,7 +198,7 @@ describe('the log in Postgres', () => {
         area: 'sign_in',
         action: 'Kithena support signed in',
         occurredAt: '2026-09-29T10:00:00.000Z',
-        actor: support,
+        actor: { ...support, operatorLabel: 'jane@kithena.com' },
         reason: 'Ticket 4411',
       }),
     );
@@ -213,6 +218,10 @@ describe('the log in Postgres', () => {
     expect(rows.find((e) => e.action === 'Added a field')?.supportSignIn?.reason).toBe(
       'Ticket 4411',
     );
+    // And names the operator as that sign-in did.
+    expect(rows.find((e) => e.action === 'Added a field')?.actor.operatorLabel).toBe(
+      'jane@kithena.com',
+    );
     expect(rows.find((e) => e.action === 'Stale')?.supportSignIn).toBeNull();
     expect(rows.find((e) => e.reason === 'Ticket 4411')?.supportSignIn).toBeNull();
   });
@@ -220,7 +229,11 @@ describe('the log in Postgres', () => {
   it('refuses support that does not say which operator', async () => {
     const store = drizzleEntryStore(inTenant);
     await expect(
-      store.append(entry({ actor: { kind: 'support', accountId: SUPPORT, onBehalfOf: null } })),
+      store.append(
+        entry({
+          actor: { kind: 'support', accountId: SUPPORT, onBehalfOf: null, operatorLabel: null },
+        }),
+      ),
     ).rejects.toThrow();
   });
 

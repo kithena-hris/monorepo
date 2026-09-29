@@ -102,6 +102,8 @@ export interface ActivityEntry {
   readonly actorKind: string;
   readonly actorAccountId: string | null;
   readonly onBehalfOf: string | null;
+  /** The support operator's work address, from their sign-in. */
+  readonly operatorLabel: string | null;
   readonly subjectKind: string | null;
   readonly subjectId: string | null;
   readonly subjectLabel: string | null;

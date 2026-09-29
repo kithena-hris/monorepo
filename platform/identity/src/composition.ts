@@ -1848,8 +1848,14 @@ export async function compose(config: Config): Promise<RequestHandler> {
            * same transaction as the row: the reason reaches nothing else,
            * because the router forwards no free text to a module. Aggregate
            * the session, not the support account, which is announced to
-           * nobody.
+           * nobody. The operator's address names them to the company, as
+           * "Kithena support (jane@…)": their id means nothing there.
            */
+          const [operator] = [
+            ...(await tx.execute(sql`
+              SELECT email FROM platform.operator WHERE id = ${input.operatorId}::uuid
+            `)),
+          ];
           await publishToOutbox(tx, platformOutbox, [
             {
               eventId: uuidv7(),
@@ -1866,6 +1872,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
                 sessionId: input.sessionId,
                 accountId,
                 operatorId: input.operatorId,
+                operatorEmail: text(operator?.['email']),
                 reason: input.reason,
                 expiresAt: input.expiresAt,
               }),

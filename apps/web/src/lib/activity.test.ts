@@ -51,6 +51,7 @@ describe('what a page needs named', () => {
       action: 'Granted a role',
       detail: null,
       onBehalfOf: null,
+      operatorLabel: null,
       subjectLabel: null,
       reason: null,
       supportSignIn: null,

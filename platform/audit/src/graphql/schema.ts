@@ -75,6 +75,12 @@ const Entry = builder.objectRef<StoredEntry>('AuditEntry').implement({
       description: 'The Kithena support operator, when support acted.',
       resolve: (e) => e.actor.onBehalfOf,
     }),
+    operatorLabel: t.string({
+      nullable: true,
+      description:
+        'How the log names that operator: their work address, from the support sign-in.',
+      resolve: (e) => e.actor.operatorLabel,
+    }),
     subjectKind: t.string({ nullable: true, resolve: (e) => e.subject?.kind ?? null }),
     subjectId: t.id({ nullable: true, resolve: (e) => e.subject?.id ?? null }),
     subjectLabel: t.string({ nullable: true, resolve: (e) => e.subject?.label ?? null }),

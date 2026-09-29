@@ -243,6 +243,7 @@ describe('the support session', () => {
     const row = (await audit()).find((r) => r.session_id === sessionId);
     expect(started.find((p) => p['sessionId'] === sessionId)).toMatchObject({
       operatorId: row?.operator_id,
+      operatorEmail: 'grace@kithena.example',
       reason: 'Ticket 4411',
       accountId: (await supportAccount()).id,
     });

@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Alert,
   Avatar,
   Badge,
   Breadcrumb,
@@ -45,8 +44,14 @@ import { withQuery } from '../lib/url-state';
 
 export type ActivityLoad =
   | { readonly status: 'ready'; readonly page: ActivityPage }
-  | { readonly status: 'forbidden'; readonly message: string }
-  | { readonly status: 'error'; readonly message: string };
+  | { readonly status: 'forbidden' }
+  /**
+   * The log could not be read for any other reason: the audit service not
+   * deployed, not reachable, or not yet given the router's token. Said as
+   * "not available yet", never as an error — the rest of the app does not
+   * depend on it.
+   */
+  | { readonly status: 'unavailable' };
 
 /** Names and faces People gave, by account id and by person id. */
 export type Named = Readonly<
@@ -76,7 +81,9 @@ function who(e: ActivityEntry, named: Named): { name: string; avatar: ReactNode 
   switch (e.actorKind) {
     case 'support':
       return {
-        name: 'Kithena support',
+        // Which of Kithena's people, by the address their sign-in gave.
+        name:
+          e.operatorLabel === null ? 'Kithena support' : `Kithena support (${e.operatorLabel})`,
         avatar: <Avatar size="sm" name="Kithena support" fallback={<icons.help aria-hidden />} />,
       };
     case 'system':
@@ -270,10 +277,12 @@ export function ActivityLog({
           title="The activity log is for administrators and HR"
           description="Ask one of your People administrators if you need to know who changed something."
         />
-      ) : load.status === 'error' ? (
-        <Alert tone="danger" title="The activity log could not be read">
-          {load.message}
-        </Alert>
+      ) : load.status === 'unavailable' ? (
+        <EmptyState
+          icon={<icons.history />}
+          title="The activity log isn’t available yet"
+          description="It is still being set up for your workspace. Nothing is lost: what happens in the meantime is listed here once it is ready."
+        />
       ) : (
         <Entries
           page={load.page}
@@ -448,7 +457,6 @@ function Detail({
               : `During Kithena support’s sign-in at ${when(e.supportSignIn.at)}${
                   e.supportSignIn.reason === null ? '' : `, for: ${e.supportSignIn.reason}`
                 }`}
-          {e.onBehalfOf === null ? '' : ` · operator ${e.onBehalfOf.slice(0, 8)}`}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
@@ -471,7 +479,7 @@ function Detail({
               onFilter({ by: e.actorKind, actor: null });
             }}
           >
-            Only {actor === 'An integration' ? 'integrations' : actor}
+            Only {WHO.find((w) => w.value === e.actorKind)?.label ?? actor}
           </Button>
         )}
         {record === null || e.subjectId === null ? null : (

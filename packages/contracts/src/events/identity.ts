@@ -541,6 +541,11 @@ export const SupportSessionStarted = defineEvent(
     accountId: AccountId,
     /** The back-office operator (`platform.operator.id`); not an account at the company. */
     operatorId: z.uuid().register(policy, asInternal()),
+    /**
+     * The operator's work address, which is how the company's log names them:
+     * "Kithena support (jane@kithena.com)". Kithena's staff, not the company's.
+     */
+    operatorEmail: z.email().max(320).register(policy, asContact()),
     /** What the operator said it was for: a ticket number or a sentence. */
     reason: z.string().min(1).max(500).register(policy, asFreeText()),
     /** One hour after it started, never extended. */

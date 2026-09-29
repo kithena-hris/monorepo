@@ -92,6 +92,7 @@ describe('the audit consumer', () => {
         sessionId: '00000000-0000-4000-8000-0000000000b1',
         accountId: SUPPORT,
         operatorId: OPERATOR,
+        operatorEmail: 'jane@kithena.com',
         reason: 'Ticket 4411',
         expiresAt: '2026-09-29T10:30:00.000Z',
       },

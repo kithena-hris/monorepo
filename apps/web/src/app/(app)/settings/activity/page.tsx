@@ -57,7 +57,10 @@ export default async function Activity({
       }
     }
   } else {
-    load = { status: answer.code === 'FORBIDDEN' ? 'forbidden' : 'error', message: answer.message };
+    // Refused by the log itself is the reader's answer. Anything else — no
+    // audit subgraph in the graph, the service down, its token not set — is
+    // the log not being there yet, and says so rather than failing.
+    load = { status: answer.code === 'FORBIDDEN' ? 'forbidden' : 'unavailable' };
   }
 
   return <ActivityLog load={load} named={named} filters={filters} />;

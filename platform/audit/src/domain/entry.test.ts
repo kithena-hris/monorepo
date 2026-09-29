@@ -45,7 +45,7 @@ describe('an entry from an event', () => {
       area: 'fields',
       action: 'Changed a field',
       detail: 'Seen by: HR → HR and their manager.',
-      actor: { kind: 'person', accountId: ADA, onBehalfOf: null },
+      actor: { kind: 'person', accountId: ADA, onBehalfOf: null, operatorLabel: null },
       subject: { kind: 'setting', id: null, label: 'Work phone' },
       reason: null,
     });
@@ -61,6 +61,7 @@ describe('an entry from an event', () => {
       kind: 'support',
       accountId: SUPPORT_ACCOUNT,
       onBehalfOf: OPERATOR,
+      operatorLabel: null,
     });
   });
 
@@ -75,11 +76,21 @@ describe('an entry from an event', () => {
         actor: { kind: 'system', process: 'people.consumer' },
       }),
     );
-    expect(scim?.actor).toEqual({ kind: 'integration', accountId: null, onBehalfOf: null });
-    expect(job?.actor).toEqual({ kind: 'system', accountId: null, onBehalfOf: null });
+    expect(scim?.actor).toEqual({
+      kind: 'integration',
+      accountId: null,
+      onBehalfOf: null,
+      operatorLabel: null,
+    });
+    expect(job?.actor).toEqual({
+      kind: 'system',
+      accountId: null,
+      onBehalfOf: null,
+      operatorLabel: null,
+    });
   });
 
-  it('says a support sign-in with its reason, as the operator', () => {
+  it('says a support sign-in with its reason, naming the operator by their address', () => {
     const entry = entryFrom(
       event(
         'identity.support.session_started',
@@ -87,6 +98,7 @@ describe('an entry from an event', () => {
           sessionId: '00000000-0000-4000-8000-0000000000b1',
           accountId: SUPPORT_ACCOUNT,
           operatorId: OPERATOR,
+          operatorEmail: 'jane@kithena.com',
           reason: 'Ticket 4411',
           expiresAt: '2026-09-29T11:00:00.000Z',
         },
@@ -97,7 +109,12 @@ describe('an entry from an event', () => {
       module: 'identity',
       area: 'sign_in',
       action: 'Kithena support signed in',
-      actor: { kind: 'support', accountId: SUPPORT_ACCOUNT, onBehalfOf: OPERATOR },
+      actor: {
+        kind: 'support',
+        accountId: SUPPORT_ACCOUNT,
+        onBehalfOf: OPERATOR,
+        operatorLabel: 'jane@kithena.com',
+      },
       subject: { kind: 'session', id: '00000000-0000-4000-8000-0000000000b1', label: null },
       reason: 'Ticket 4411',
     });

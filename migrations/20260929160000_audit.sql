@@ -35,6 +35,9 @@ CREATE TABLE audit.entry (
   actor_account_id uuid,
   -- The back-office operator, when Kithena support acted.
   on_behalf_of     uuid,
+  -- How the company's log names that operator: their work address, carried by
+  -- the support sign-in. An action in that sign-in reads it from there.
+  operator_label   text,
   -- What it was done to: a person, an account, a setting, an export …
   subject_kind     text,
   subject_id       text,
@@ -59,7 +62,8 @@ CREATE TABLE audit.entry (
   CONSTRAINT entry_action_sane CHECK (length(action) BETWEEN 1 AND 200),
   CONSTRAINT entry_detail_sane CHECK (detail IS NULL OR length(detail) <= 500),
   CONSTRAINT entry_subject_sane CHECK (subject_label IS NULL OR length(subject_label) <= 300),
-  CONSTRAINT entry_reason_sane CHECK (reason IS NULL OR length(reason) <= 500)
+  CONSTRAINT entry_reason_sane CHECK (reason IS NULL OR length(reason) <= 500),
+  CONSTRAINT entry_operator_sane CHECK (operator_label IS NULL OR length(operator_label) <= 320)
 );
 
 -- Newest first, which is how it is read.

@@ -22,6 +22,10 @@ type AuditEntry {
   occurredAt: String
   """The Kithena support operator, when support acted."""
   onBehalfOf: ID
+  """
+  How the log names that operator: their work address, from the support sign-in.
+  """
+  operatorLabel: String
   reason: String
   recordedAt: String
   subjectId: ID

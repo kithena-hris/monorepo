@@ -43,6 +43,12 @@ export interface EntryActor {
   readonly accountId: string | null;
   /** The back-office operator, when Kithena support acted. */
   readonly onBehalfOf: string | null;
+  /**
+   * How the company's log names that operator — their work address, from the
+   * sign-in — so support reads "Kithena support (jane@kithena.com)". Null
+   * for everybody else, and on an action whose sign-in names them instead.
+   */
+  readonly operatorLabel: string | null;
 }
 
 export interface EntrySubject {
@@ -85,12 +91,17 @@ export function actorOf(actor: Actor): EntryActor {
   switch (actor.kind) {
     case 'user':
       return actor.onBehalfOf === undefined
-        ? { kind: 'person', accountId: actor.userId, onBehalfOf: null }
-        : { kind: 'support', accountId: actor.userId, onBehalfOf: actor.onBehalfOf };
+        ? { kind: 'person', accountId: actor.userId, onBehalfOf: null, operatorLabel: null }
+        : {
+            kind: 'support',
+            accountId: actor.userId,
+            onBehalfOf: actor.onBehalfOf,
+            operatorLabel: null,
+          };
     case 'integration':
-      return { kind: 'integration', accountId: null, onBehalfOf: null };
+      return { kind: 'integration', accountId: null, onBehalfOf: null, operatorLabel: null };
     case 'system':
-      return { kind: 'system', accountId: null, onBehalfOf: null };
+      return { kind: 'system', accountId: null, onBehalfOf: null, operatorLabel: null };
   }
 }
 
@@ -193,7 +204,12 @@ const SAYS: Readonly<Record<string, (payload: never) => Said>> = {
     action: 'Kithena support signed in',
     subject: { kind: 'session', id: p.sessionId, label: null },
     reason: p.reason,
-    actor: { kind: 'support', accountId: p.accountId, onBehalfOf: p.operatorId },
+    actor: {
+      kind: 'support',
+      accountId: p.accountId,
+      onBehalfOf: p.operatorId,
+      operatorLabel: p.operatorEmail,
+    },
   }),
 
   'identity.tenant.administrator_named': (p: Payload<typeof TenantAdministratorNamed>) =>
@@ -225,7 +241,14 @@ function administrator(
     subject: { kind: 'account', id: accountId, label: null },
     ...(operator === null
       ? {}
-      : { actor: { kind: 'support' as const, accountId: null, onBehalfOf: operator } }),
+      : {
+          actor: {
+            kind: 'support' as const,
+            accountId: null,
+            onBehalfOf: operator,
+            operatorLabel: null,
+          },
+        }),
   };
 }
 
