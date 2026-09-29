@@ -120,6 +120,8 @@ beforeAll(async () => {
     '20260923130000_people_import_export.sql',
     '20260924250000_people_import_report.sql',
     '20260924360000_people_import_upload.sql',
+    '20260923200000_people_export.sql',
+    '20260929120000_people_transfer_history.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
   ]) {
@@ -165,7 +167,7 @@ afterAll(async () => {
   await stopPg?.();
 });
 
-async function upload(bytes: Uint8Array) {
+async function upload(bytes: Uint8Array, fileName?: string) {
   const file = await parseUpload(bytes);
   if (!file.ok) throw new Error(file.error.message);
   const version = versionOf(1, attributes);
@@ -178,7 +180,12 @@ async function upload(bytes: Uint8Array) {
   const mapping = resolveMapping(proposed, {}, version, HR_RELATIONS);
   if (!mapping.ok) throw new Error(mapping.error.message);
   return inTenantResult(inTenant, TENANT, (tx) =>
-    commitImport(tx, deps, { ...asking, file: file.value, mapping: mapping.value }),
+    commitImport(tx, deps, {
+      ...asking,
+      file: file.value,
+      mapping: mapping.value,
+      ...(fileName === undefined ? {} : { fileName }),
+    }),
   );
 }
 
@@ -191,13 +198,18 @@ describe('an import over Postgres', () => {
 
   it('writes each row in its own savepoint: the one refused leaves nothing behind', async () => {
     const people = await count(sql`SELECT count(*) AS n FROM people.person`);
-    const result = await upload(bytes);
+    const result = await upload(bytes, 'new-joiners-sep.csv');
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.status !== 'imported') return;
     expect(result.value.counts).toMatchObject({ created: 9, blocked: 2 });
     // Nine people, and no provisional orphan from the row whose claim failed.
     expect(await count(sql`SELECT count(*) AS n FROM people.person`)).toBe(people + 9);
     expect(new TextDecoder().decode(result.value.report)).toContain('work_email is already in use');
+    // The name it was uploaded under, for the shared history; never a value in it.
+    const named = await admin.execute<{ name: string | null }>(
+      sql`SELECT name FROM people.import WHERE id = ${result.value.importId}::uuid`,
+    );
+    expect([...named].map((r) => r.name)).toEqual(['new-joiners-sep.csv']);
   });
 
   it('the same file twice creates one set of people, even uploaded twice at once', async () => {

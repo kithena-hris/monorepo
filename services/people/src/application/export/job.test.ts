@@ -94,6 +94,24 @@ describe('a financial export', () => {
     expect(done.ok).toBe(true);
   });
 
+  it('keeps the format, the reason and the field keys in the ledger, for the shared history', async () => {
+    const { deps } = setup();
+    const done = await runExportJob(tx, deps, {
+      ...asking(HR),
+      format: 'xlsx',
+      fields: ['given_name', 'job_title'],
+      reason: '  Quarterly headcount for Finance ',
+    });
+    if (!done.ok) throw new Error(done.error.message);
+    const kept = await deps.ledger.find(tx, asking(HR).tenantId, done.value.exportId);
+    expect(kept).toMatchObject({
+      status: 'completed',
+      format: 'xlsx',
+      reason: 'Quarterly headcount for Finance',
+      attributeKeys: ['given_name', 'job_title'],
+    });
+  });
+
   it('never carries a special-category field, whatever the reason', async () => {
     const { deps } = setup();
     const refused = await runExportJob(tx, deps, {
