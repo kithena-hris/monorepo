@@ -275,6 +275,8 @@ export function ScreenFrame({
                   asChild
                   startIcon={iconOf(a.icon)}
                   className="touch:hidden"
+                  // A page's action is what C makes there (the shell's `create`).
+                  shortcut="create"
                 >
                   <a href={a.href}>{a.label}</a>
                 </Button>

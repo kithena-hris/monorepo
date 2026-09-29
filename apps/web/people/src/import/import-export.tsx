@@ -226,6 +226,7 @@ export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element 
                 href="/people/export"
                 start="New export"
                 startIcon={<icons.download aria-hidden />}
+                shortcut="create"
               />
             </div>
             {state.history === null ? null : (
@@ -253,6 +254,7 @@ function Action({
   start,
   startIcon,
   more = null,
+  shortcut,
 }: {
   readonly icon: ReactNode;
   readonly title: string;
@@ -265,6 +267,8 @@ function Action({
   readonly startIcon: ReactNode;
   /** A second button beside the start, at a desk: the import's template. */
   readonly more?: ReactNode;
+  /** The shortcut the start answers to (C for a new export), shown in its tooltip. */
+  readonly shortcut?: string;
 }): JSX.Element {
   return (
     <>
@@ -284,7 +288,12 @@ function Action({
           ))}
         </div>
         <div className="flex gap-2">
-          <Button asChild variant="primary" startIcon={startIcon}>
+          <Button
+            asChild
+            variant="primary"
+            startIcon={startIcon}
+            {...(shortcut === undefined ? {} : { shortcut })}
+          >
             <a href={href}>{start}</a>
           </Button>
           {more}

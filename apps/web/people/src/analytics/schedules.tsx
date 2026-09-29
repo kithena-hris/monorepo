@@ -14,6 +14,7 @@ import {
   PopoverTrigger,
   TooltipProvider,
   icons,
+  useScreenCommand,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -71,6 +72,14 @@ export function Schedules({
     setOpen(false);
     setEditing({ row });
   };
+  // C on Insights is a new schedule: the shell's key and its palette run it.
+  useScreenCommand({
+    id: 'create',
+    label: 'New schedule',
+    run: () => {
+      edit(null);
+    },
+  });
 
   return (
     <TooltipProvider>
@@ -95,6 +104,8 @@ export function Schedules({
               size="xs"
               variant="primary"
               startIcon={<icons.add aria-hidden />}
+              aria-label="New schedule"
+              shortcut="create"
               onClick={() => {
                 edit(null);
               }}

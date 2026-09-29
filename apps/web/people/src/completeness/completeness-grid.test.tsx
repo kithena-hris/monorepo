@@ -105,7 +105,7 @@ describe('CompletenessGrid', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Data health' })).toBeInTheDocument();
     expect(screen.getByText('Waiting on employees')).toBeInTheDocument();
     expect(screen.getByText('For HR to fill in')).toBeInTheDocument();
-    const table = screen.getByRole('table', { name: 'Missing information' });
+    const table = screen.getByRole('grid', { name: 'Missing information' });
     expect(within(table).getByText('Desk')).toBeInTheDocument();
     expect(within(table).getAllByText('HR')).toHaveLength(3);
     // The person's own gaps are listed too, as theirs to fill.
