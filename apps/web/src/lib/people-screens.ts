@@ -132,12 +132,24 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       };
     }
     case 'ImportExport': {
-      // Importing stays HR's, as it was. People lists no past imports or exports yet.
-      const roles = await read('Home');
+      // Importing stays HR's, as it was. The history is HR's and People
+      // administrators': one People refuses this viewer is left out, not an error.
+      const before = given(query.search['before']);
+      const [roles, history] = await Promise.all([
+        read('Home'),
+        read('TransferHistory', { before }),
+      ]);
       if (roles.status !== 'ready') return roles;
       return {
         status: 'ready',
-        data: { canImport: (roles.data as { hr?: boolean }).hr === true, history: null },
+        data: {
+          canImport: (roles.data as { hr?: boolean }).hr === true,
+          history:
+            history.status === 'ready'
+              ? { ...(history.data as object), paged: before !== null }
+              : null,
+          now: new Date().toISOString(),
+        },
       };
     }
     case 'FieldRegistry':

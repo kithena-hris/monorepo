@@ -580,18 +580,24 @@ describe('at 390×844, with a finger', () => {
           status: 'ready',
           data: {
             canImport: true,
-            history: [
-              {
-                id: 'i1',
-                kind: 'import',
-                title: 'new-joiners.csv',
-                by: { name: 'Ada Lovelace', avatarUrl: null },
-                at: '15 Sep',
-                result: '2 blocked',
-                tone: 'warning',
-                href: '/files/i1',
-              },
-            ],
+            now: '2026-09-29T15:00:00.000Z',
+            history: {
+              items: [
+                {
+                  id: 'i1',
+                  kind: 'import',
+                  title: 'new-joiners.csv',
+                  by: { name: 'Ada Lovelace', avatarUrl: null },
+                  at: '2026-09-15T09:00:00.000Z',
+                  imported: { created: 12, updated: 0, blocked: 2 },
+                  exported: null,
+                  downloadable: false,
+                  reportUrl: 'https://files.test/report?sig=s',
+                },
+              ],
+              next: null,
+              paged: false,
+            },
           },
         }}
       />,
@@ -599,11 +605,10 @@ describe('at 390×844, with a finger', () => {
     expect(screen.getByRole('link', { name: 'Import' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Export' })).toBeVisible();
     expect(screen.queryByRole('table')).toBeNull();
-    expect(
-      within(screen.getByRole('list', { name: 'Imports and exports' })).getByRole('link', {
-        name: /new-joiners\.csv/,
-      }),
-    ).toBeVisible();
+    const history = within(screen.getByRole('list', { name: 'Imports and exports' }));
+    expect(history.getByRole('link', { name: /new-joiners\.csv/ })).toBeVisible();
+    // The row's line is the result, then when.
+    expect(history.getByText('12 created · 2 blocked · 15 Sep')).toBeVisible();
   });
 
   it('bulk edit, its preview as one card per person (PEO-071)', async () => {

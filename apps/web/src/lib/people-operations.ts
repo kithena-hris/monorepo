@@ -151,7 +151,7 @@ export const OPERATIONS = {
 
   Duplicates: `query Duplicates($a: ID, $b: ID) {
     peopleDuplicates(a: $a, b: $b) {
-      items { personIds names reasons }
+      items { personIds names reasons match }
       merges { absorbedId survivorId absorbedName survivorName mergedAt reversed kept account refusal }
       comparison {
         people { id name status refusal }
@@ -378,12 +378,36 @@ export const OPERATIONS = {
     peopleExport(id: $id) { id status expiresAt links { name url } }
   }`,
 
+  /** Import & export's one history (V6): both ledgers, newest first; HR and People admins. */
+  TransferHistory: `query TransferHistory($before: ID) {
+    peopleTransferHistory(before: $before) {
+      items {
+        id kind title at downloadable reportUrl
+        by { name avatarUrl }
+        imported { created updated blocked }
+        exported { rows format }
+      }
+      next
+    }
+  }`,
+
+  /** The import template: a header row as CSV text, for the shell's download route. */
+  ImportTemplate: `query ImportTemplate {
+    peopleImportTemplate
+  }`,
+
+  /** One Insights tab as CSV text, for the shell's download route. */
+  AnalyticsExport: `query AnalyticsExport($tab: String!, $segment: ID) {
+    peopleAnalyticsExport(tab: $tab, segment: $segment)
+  }`,
+
   Analytics: `query Analytics($segment: ID) {
     peopleAnalytics(segment: $segment) {
       asOf source sourceNote
       segment { id name }
       segments { id name }
       headcount { value change trend { label value } }
+      startingSoon
       attrition { percent leavers formula trend { label value } }
       complete { percent incomplete }
       expiringIn90Days
