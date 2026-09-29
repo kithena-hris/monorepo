@@ -2,7 +2,7 @@
 
 import * as ProgressPrimitive from '@radix-ui/react-progress';
 import { cva, type VariantProps } from 'class-variance-authority';
-import type { ComponentPropsWithoutRef, JSX } from 'react';
+import { useId, type ComponentPropsWithoutRef, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -75,12 +75,15 @@ export function Progress({
   const indeterminate = value === null;
   const raw = indeterminate ? 0 : (value / max) * 100;
   const percent = indeterminate ? 0 : Math.min(100, Math.max(0, raw));
+  const labelId = useId();
 
   return (
     <div className="w-full">
       {showValue ? (
         <div className="mb-2 flex items-baseline justify-between gap-3 text-sm font-medium">
-          <span className="text-fg">{label}</span>
+          <span id={labelId} className="text-fg">
+            {label}
+          </span>
           <span className="tabular-nums text-fg-muted">
             {/* The *unclamped* figure: 106% of an entitlement is the fact worth
                 printing, even though the bar itself stops at full. */}
@@ -97,8 +100,9 @@ export function Progress({
         max={max}
         // `||`, not `??`: an empty label means "print nothing", not "say nothing".
         aria-valuetext={valueLabel || (indeterminate ? undefined : `${String(Math.round(raw))}%`)}
+        // Printed, the label names the bar by reference; otherwise it is the name.
         aria-label={showValue ? undefined : label}
-        aria-labelledby={undefined}
+        aria-labelledby={showValue ? labelId : undefined}
         className={cn(track({ size }), className)}
         {...props}
       >

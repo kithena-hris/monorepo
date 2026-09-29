@@ -17,8 +17,9 @@ import { Avatar, type AvatarProps } from '../avatar/avatar';
  * because it is information the reader acts on rather than decoration.
  *
  * With `href` the name is a link stretched over the whole card, so the card is
- * one target and still an `<a>` (middle-click, open in a new tab). Actions sit
- * above the stretched link and stay their own targets.
+ * one target and still an `<a>` (middle-click, open in a new tab), and a row
+ * shows the chevron that says so. Actions sit above the stretched link and
+ * stay their own targets.
  */
 export interface PersonCardProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
   readonly name: string;
@@ -92,7 +93,9 @@ export function PersonCard({
         {note ? <p className="mt-1 text-xs font-medium text-info-fg">{note}</p> : null}
       </div>
       {row ? (
-        <ChevronRight aria-hidden className="size-4 shrink-0 text-fg-subtle" />
+        href === undefined ? null : (
+          <ChevronRight aria-hidden className="size-4 shrink-0 text-fg-subtle" />
+        )
       ) : (
         <>
           {badges ? <div className="flex flex-wrap justify-center gap-1.5">{badges}</div> : null}

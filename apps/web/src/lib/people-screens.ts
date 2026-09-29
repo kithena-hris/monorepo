@@ -139,7 +139,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'RoleSettings':
       return read('RoleSettings');
     case 'PeopleHome':
-      return read('Overview');
+      return overview();
     case 'Organisation':
       return read('Organisation');
     case 'PeopleSettings':
@@ -205,6 +205,85 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
 }
 
 export { today };
+
+/** A person on a directory page, as People answers one. */
+interface DirectoryRow {
+  readonly id: string;
+  readonly name: string;
+  readonly avatarUrl: string | null;
+  readonly values: readonly { readonly key: string; readonly value: string }[];
+  readonly missing: number | null;
+}
+
+/**
+ * The overview, and for HR the figures beside it (W2): headcount and complete
+ * records from analytics, how many identifiers, duplicates and access
+ * requests wait, and who is starting. Each read is People's own, as the
+ * person signed in; one People refuses is left out of the figures rather
+ * than failing the page.
+ */
+async function overview(): Promise<ScreenLoad> {
+  const base = await read('Overview');
+  if (base.status !== 'ready') return base;
+  const data = base.data as { roles?: { hr?: boolean } };
+  if (data.roles?.hr !== true) return base;
+  const [analytics, ids, dupes, access, starting] = await Promise.all([
+    people<{
+      headcount: {
+        value: number;
+        change: number | null;
+        trend: { label: string; value: number }[];
+      };
+      complete: { percent: number; incomplete: number } | null;
+      expiringIn90Days: number | null;
+      joiners: { months: string[]; cells: { row: string; column: string; value: number }[] } | null;
+    }>('Analytics', { segment: null }),
+    people<{ items: unknown[] }>('IdentifierReviews'),
+    people<{ items: unknown[] }>('Duplicates', { a: null, b: null }),
+    people<{ requests: { state: string }[] }>('FullValues'),
+    people<{ people: DirectoryRow[] }>('Directory', {
+      conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }],
+      sort: 'hire_date:asc',
+    }),
+  ]);
+  const a = analytics.ok ? analytics.data : null;
+  const joiners =
+    a?.joiners == null
+      ? []
+      : a.joiners.months.map((month) => ({
+          label: month,
+          value:
+            a.joiners?.cells.filter((c) => c.column === month).reduce((n, c) => n + c.value, 0) ??
+            0,
+        }));
+  const value = (p: DirectoryRow, key: string) => p.values.find((v) => v.key === key)?.value;
+  return {
+    status: 'ready',
+    data: {
+      ...(base.data as object),
+      hr: {
+        headcount: a?.headcount ?? null,
+        complete: a?.complete ?? null,
+        expiring: a?.expiringIn90Days ?? null,
+        identifiers: ids.ok ? ids.data.items.length : null,
+        duplicates: dupes.ok ? dupes.data.items.length : null,
+        accessRequests: access.ok
+          ? access.data.requests.filter((r) => r.state === 'pending').length
+          : null,
+        joiners,
+        starting: (starting.ok ? starting.data.people : []).slice(0, 5).map((p) => ({
+          id: p.id,
+          name: p.name,
+          avatarUrl: p.avatarUrl,
+          detail: [value(p, 'job_title'), value(p, 'hire_date')]
+            .filter((x) => x !== undefined && x !== '')
+            .join(' · '),
+          missing: p.missing,
+        })),
+      },
+    },
+  };
+}
 
 /**
  * People's settings read back for the Settings page: the four screens' own
