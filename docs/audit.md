@@ -125,6 +125,11 @@ then People) makes it seconds.
 | `subject_label`    | its name at the time, in words: a field's label, a location's name. Never a person's value. |
 | `reason`           | what the actor gave as the reason, when there was one.                                       |
 
+A few settings entries name a field or section by its key (`manager_id`)
+rather than its label, because People's router words them from the request's
+path; the old People view looked the label up when it read, and the log keeps
+what was said. Resolving the label when People publishes is a small follow-up.
+
 **Never a value.** The payloads it reads were built not to carry one (the
 contracts refuse a special-category or encrypted value, and these events carry
 keys, counts and words), and the mapping takes only words from them. A person
@@ -138,7 +143,8 @@ viewer may read it.
 **Actors.** The envelope's `actor` decides it: a `user` is a `person`; a `user`
 with `onBehalfOf` is `support`, the operator in `on_behalf_of`; an
 `integration` and a `system` are themselves. An administrator the back office
-named is `support`, the operator in `on_behalf_of`.
+named is `support`, the operator in `on_behalf_of`, when the event names the
+operator; otherwise whoever the envelope says.
 
 **Which sign-in an action came from.** An entry by support is linked, when it
 is read, to the support sign-in it happened in: the latest one by the same
@@ -161,8 +167,8 @@ owns the model and the tuples. Without `OPENFGA_URL` it refuses every read;
 failing open would publish the log to everyone.
 
 A company without People has nobody holding either relation, and so nobody
-reading the log. That is right for now: the only areas it could show are
-sign-ins.
+reading the log. That is right for now: all it could show is support's sign-ins
+and the administrators the back office named.
 
 ---
 
@@ -188,7 +194,8 @@ and the system are named by kind, never looked up.
 **Filters**, all in the address: area (several: `?area=fields,roles`), who
 (`?actor=<account>` for a person, `?by=person|support|system|integration`), whose
 record (`?subject=<id>`), a date range (`?from=`, `?to=`, calendar dates, the
-viewer's zone), and search (`?q=`, over the action, detail and subject). Newest
+viewer's zone, which the page adds as `?tz=`), and search (`?q=`, over the
+action, detail, subject and reason). Newest
 first, 50 a page, `?before=<entry>` for older.
 
 **Where it is linked from.** Settings has it as its own card, and `G L` goes there. People's
@@ -222,3 +229,23 @@ with counsel; the log is where it will be enforced.
 Locally: `svc_audit` has LOGIN, password `kithena`, on a database made from
 `tools/scripts/init-db.sql`. A volume older than that has the role `NOLOGIN`
 from the migration; `ALTER ROLE svc_audit LOGIN PASSWORD 'kithena'` once.
+
+---
+
+## Not deployed yet
+
+Everything above runs locally. Production needs, beside People on the VM (the
+audit service holds a Kafka consumer, so it is a container like Slack's rather
+than a function like messaging's):
+
+- a `platform/audit/Dockerfile` (Slack's, on 4103) and its image built and
+  pushed by the staging and production workflows, with an `audit` target in
+  `tools/scripts/src/affected-targets.ts`;
+- an `audit` service in `deploy/vm/compose.yaml` with `KAFKA_BROKERS`,
+  `OPENFGA_URL` and `AUDIT_DATABASE_URL` as `svc_audit`, and `deploy.sh` giving
+  `svc_audit` its login and password after `migrate`, as it does `svc_slack`;
+- `AUDIT_API_TOKEN` as a secret, written to both `audit.env` and `router.env`;
+- `audit` in the workflows' `graph.deploy.yaml` at `http://audit:4103/graphql`.
+
+Until then the deployed supergraph has no `auditActivity`, and Settings ›
+Activity says the log could not be read.
