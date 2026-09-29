@@ -214,6 +214,7 @@
         {
           "path": "/people/data-health/access-requests",
           "label": "Access requests",
+          "short": "Access",
           "for": ["finance", "hr"]
         }
       ]
@@ -247,11 +248,13 @@
         },
         {
           "path": "/people/insights/data-quality",
-          "label": "Data quality"
+          "label": "Data quality",
+          "short": "Quality"
         },
         {
           "path": "/people/insights/pay",
-          "label": "Pay & diversity"
+          "label": "Pay & diversity",
+          "short": "Pay"
         }
       ]
     }

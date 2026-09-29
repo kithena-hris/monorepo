@@ -50,7 +50,13 @@ export async function PeopleArea({
   if (!person.entitlements.includes('module.people')) notFound();
 
   const route = await peopleRoute(path);
-  if (route === undefined) {
+  // A section's bare path also fits `/people/:id`; it is the section, not a
+  // person called `data-health`, whatever this viewer may open under it.
+  const bare =
+    route != null &&
+    Object.keys(route.params).length > 0 &&
+    firstUnder(route.nav.sections, path) !== undefined;
+  if (route === undefined || bare) {
     // A section's bare path (`/people/data-health`) is the first of its tabs
     // this person opens, query and all; anything else nobody answers is a 404.
     const to =
