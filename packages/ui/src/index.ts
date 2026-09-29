@@ -499,6 +499,7 @@ export {
   PageLayout,
   PageSection,
   Toolbar,
+  usePageHeaderFrame,
   useRailCollapsed,
 } from './components/page-layout/page-layout';
 export type {

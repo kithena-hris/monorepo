@@ -644,6 +644,15 @@ interface PageHeaderFrameValue {
 
 const PageHeaderFrameContext = createContext<PageHeaderFrameValue>({});
 
+/**
+ * What a frame put around the page: its breadcrumb and actions. For a screen
+ * whose header is not a plain `PageHeader` (a record with its photo beside
+ * the title) and has to place the trail itself.
+ */
+export function usePageHeaderFrame(): PageHeaderFrameValue {
+  return useContext(PageHeaderFrameContext);
+}
+
 export interface PageHeaderFrameProps extends PageHeaderFrameValue {
   readonly children?: ReactNode;
 }
@@ -731,7 +740,9 @@ export function PageHeader({
               className={cn(
                 'min-w-0 font-display font-bold tracking-tight text-fg',
                 size === 'lg' ? 'text-2xl' : 'text-lg',
-                frame.quietTitleOnTouch === true && 'touch:sr-only',
+                // Only when the frame's own trail is drawn: a page that places the
+                // trail itself (a record beside its photo) keeps its title.
+                frame.quietTitleOnTouch === true && breadcrumb === undefined && 'touch:sr-only',
               )}
             >
               {title}

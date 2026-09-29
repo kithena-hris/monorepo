@@ -1,4 +1,4 @@
-import { Badge, Money } from '@reach/ui';
+import { MaskedValue, Money } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { FileValue, isFileField } from './files';
@@ -13,8 +13,8 @@ export const longDate = (iso: string): string => date.format(Date.parse(`${iso}T
  * One value, read-only, the way a person reads it.
  *
  * Money goes through `Money` from minor units, never a float. An encrypted
- * value shows its last four and says it is encrypted; the plaintext is not in
- * the view model to show. A readable field with nothing in it says so in words,
+ * value is masked, showing its last four; the plaintext is not in the view
+ * model to show. A readable field with nothing in it says so in words,
  * never a blank, because a blank is ambiguous between "not held" and "not
  * printed" (§15.4).
  */
@@ -29,7 +29,8 @@ export function DisplayValue({
     return <span className="text-fg-muted">Not provided</span>;
   }
   if (typeof value === 'boolean') return <>{value ? 'Yes' : 'No'}</>;
-  if (typeof value === 'string' && isFileField(field)) return <FileValue field={field} id={value} />;
+  if (typeof value === 'string' && isFileField(field))
+    return <FileValue field={field} id={value} />;
   if (typeof value === 'string') {
     const option = field.options.find((o) => o.value === value);
     if (option !== undefined) return <>{option.label}</>;
@@ -42,11 +43,12 @@ export function DisplayValue({
     return <Money minorUnits={value.amountMinor} currency={value.currency} />;
   }
   if ('last4' in value) {
+    // Masked, as People sent it: the plaintext is not in the view model.
     return (
-      <span className="inline-flex items-center gap-2">
-        <span className="font-mono">{value.last4 === null ? '••••' : `•••• ${value.last4}`}</span>
-        <Badge size="sm">Encrypted</Badge>
-      </span>
+      <MaskedValue
+        masked={value.last4 === null ? '••••' : `•••• ${value.last4}`}
+        label={field.label}
+      />
     );
   }
   return <>{value.map((v) => field.options.find((o) => o.value === v)?.label ?? v).join(', ')}</>;

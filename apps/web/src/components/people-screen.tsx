@@ -302,6 +302,20 @@ export function PeopleScreen({
                 onPlace: thenRefresh((placement: Parameters<typeof actions.placePerson>[1]) =>
                   actions.placePerson(id, placement),
                 ),
+                // One value from a date (W11): People's effective-dated write for one person.
+                onChangeDated: thenRefresh(
+                  async (change: {
+                    values: Readonly<Record<string, unknown>>;
+                    effectiveFrom: string;
+                  }) => {
+                    const done = await actions.commitBulkEdit({
+                      personIds: [id],
+                      values: change.values,
+                      effectiveFrom: change.effectiveFrom,
+                    });
+                    return done.ok ? { ok: true as const } : done;
+                  },
+                ),
                 // The employee record as a PDF (PEO-061), as this viewer reads it.
                 onDownloadRecord: async (reason: string) =>
                   download(await actions.exportRecord(id, reason)),

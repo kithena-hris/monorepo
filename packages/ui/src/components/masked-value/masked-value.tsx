@@ -74,7 +74,7 @@ export function MaskedValue({
   return (
     <span
       className={cn(
-        'inline-flex h-7.5 max-w-full items-center gap-2 rounded-sm ps-2.5 pe-1 font-mono text-sm font-medium touch:h-9 touch:text-base',
+        'inline-flex h-7.5 w-fit max-w-full items-center gap-2 rounded-sm ps-2.5 pe-1 font-mono text-sm font-medium touch:h-9 touch:text-base',
         shown ? 'bg-warning-subtle text-fg' : 'bg-surface-sunken text-fg-muted',
         action === undefined && 'pe-2.5',
         className,

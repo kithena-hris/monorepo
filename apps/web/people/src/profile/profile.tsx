@@ -4,6 +4,8 @@ import {
   AvatarUploader,
   Badge,
   Button,
+  Card,
+  CircularProgress,
   DatePicker,
   Dialog,
   DialogBody,
@@ -26,19 +28,43 @@ import {
   FieldLabel,
   PageHeader,
   PageSection,
+  RadioGroup,
+  RadioGroupItem,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
   Stack,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  TertiaryNav,
   Textarea,
   Tooltip,
   icons,
+  useCoarsePointer,
+  usePageHeaderFrame,
+  type IsoDate,
   type UploadedImage,
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
-import { PeopleSearch, type SearchPeople } from '../record/attribute-input';
+import { AttributeInput, PeopleSearch, type SearchPeople } from '../record/attribute-input';
 import { DisplayValue, longDate } from '../record/display';
-import { FieldFiles, type FileInfo, type UploadOutcome } from '../record/files';
-import { isMissing, type PendingValue, type RecordSection, type Values } from '../record/model';
+import { FieldFiles, isFileField, type FileInfo, type UploadOutcome } from '../record/files';
+import {
+  isMissing,
+  type AttributeValue,
+  type PendingValue,
+  type RecordField,
+  type RecordSection,
+  type Values,
+} from '../record/model';
 import { MissingJump, MissingMark } from '../record/missing';
 import { ReportingLine, type ReportingLineState } from './reporting-line';
 import { PendingNote, SensitiveMark } from '../record/pending';
@@ -153,6 +179,14 @@ export interface ProfileProps {
   readonly onRequest?: (keys: readonly string[]) => Promise<Outcome>;
   /** Keep a file for an image or document field; saving the field points the record at it. */
   readonly onUploadFile?: (key: string, file: File) => Promise<UploadOutcome>;
+  /**
+   * HR's: change one value from a date (W11), today or later, as People's
+   * effective-dated write. A sensitive field goes for approval instead.
+   */
+  readonly onChangeDated?: (change: {
+    readonly values: Values;
+    readonly effectiveFrom: string;
+  }) => Promise<Outcome>;
 }
 
 export type PhotoOutcome =
@@ -185,6 +219,7 @@ export function Profile({
   focusField,
   onRequest,
   onUploadFile,
+  onChangeDated,
 }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
@@ -210,6 +245,7 @@ export function Profile({
               onApprovals={onApprovals}
               onDownloadRecord={onDownloadRecord}
               onRequest={onRequest}
+              onChangeDated={onChangeDated}
             />
           </FieldFiles.Provider>
         )}
@@ -232,8 +268,10 @@ function Record({
   onPhoto,
   focusField,
   onRequest,
+  onChangeDated,
 }: {
   readonly state: ProfileState;
+  readonly onChangeDated: ProfileProps['onChangeDated'];
   readonly onPhoto: ProfileProps['onPhoto'];
   readonly focusField: ProfileProps['focusField'];
   readonly onSave: ProfileProps['onSave'];
@@ -302,102 +340,160 @@ function Record({
   const firstName = person.name.split(' ')[0] ?? person.name;
   const status = state.employment?.status ?? null;
   const [moving, setMoving] = useState<MoveKind | null>(null);
+  const [tab, setTab] = useState('overview');
+  const [dating, setDating] = useState<RecordField | null>(null);
+  const frame = usePageHeaderFrame();
+  const coarse = useCoarsePointer();
+  const firstWritable = sections.find((s) => s.fields.some((f) => !f.readOnly));
+  // Their own record (W12): nobody moves their own employment or asks themselves.
+  const own = onMove === undefined && onRequest === undefined && person.missing !== null;
+  const required = sections.flatMap((s) => s.fields).filter((f) => f.required).length;
+  const percent =
+    required === 0
+      ? 100
+      : Math.round(((required - Math.min(gaps.length, required)) / required) * 100);
   const [pdf, setPdf] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <Stack gap={6}>
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-        {onPhoto !== undefined && person.canChangePhoto === true ? (
-          <PhotoPicker name={person.name} src={person.avatarUrl} onPhoto={onPhoto} />
-        ) : (
-          <Avatar size="3xl" name={person.name} src={person.avatarUrl ?? undefined} />
-        )}
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <PageHeader
-            title={person.name}
-            description={person.summary ?? undefined}
-            meta={
-              status === null && person.missing === null && !state.calendar ? undefined : (
-                <span className="flex flex-wrap items-center gap-2">
-                  {status === null ? null : (
-                    <Badge tone={status === 'active' ? 'success' : 'neutral'}>
-                      {statusLabel(status)}
-                    </Badge>
-                  )}
-                  {person.missing === null ? null : gaps.length === 0 ? (
-                    <Badge tone="success">Complete</Badge>
-                  ) : (
-                    <MissingJump
-                      labels={gaps.map((g) => g.label)}
-                      onJump={() => {
-                        const first = gaps[0];
-                        if (first !== undefined) open(first.key);
-                      }}
-                    />
-                  )}
-                  {/* HR's: what day it is for them, on their own clock (PEO-119). */}
-                  {state.calendar ? (
-                    <span className="text-sm text-fg-muted">
-                      Their day{' '}
-                      <span className="text-fg" data-testid="their-day">
-                        {state.calendar.today} ({state.calendar.timeZone})
-                      </span>
-                    </span>
-                  ) : null}
-                </span>
-              )
-            }
-            actions={
-              <RecordActions
-                moves={onMove === undefined || !state.calendar ? [] : offeredMoves(status)}
-                onMove={setMoving}
-                {...(state.placement && onPlace
-                  ? {
-                      onPlacement: () => {
-                        setPlacing(true);
-                      },
-                    }
-                  : {})}
-                firstMissing={gaps[0] ?? null}
-                onFirstMissing={(key) => {
-                  open(key);
-                }}
-                askFor={
-                  askable.length === 0 || onRequest === undefined
-                    ? null
-                    : {
-                        label:
-                          askable.length === 1
-                            ? `Ask ${firstName} for ${askable[0]?.label ?? 'this'}`
-                            : `Ask ${firstName} for ${String(askable.length)} empty details`,
-                        run: () => {
-                          void onRequest(askable.map((f) => f.key)).then((outcome) => {
-                            setNotice(
-                              outcome.ok
-                                ? `${firstName} has been asked, by email.`
-                                : `Not sent: ${outcome.message}`,
-                            );
-                          });
-                        },
-                      }
-                }
-                onHistory={onHistory}
-                onDownload={
-                  onDownloadRecord === undefined
-                    ? undefined
-                    : () => {
-                        setPdf(true);
-                      }
-                }
-              />
-            }
-          />
-          {notice === null ? null : (
-            <p role="status" className="text-sm text-fg-muted">
-              {notice}
-            </p>
+      <div className="flex flex-col gap-4">
+        {frame.breadcrumb}
+        <div className="flex flex-wrap items-center gap-5 touch:flex-col touch:text-center">
+          {onPhoto !== undefined && person.canChangePhoto === true ? (
+            <PhotoPicker name={person.name} src={person.avatarUrl} onPhoto={onPhoto} />
+          ) : (
+            <Avatar
+              size="3xl"
+              name={person.name}
+              src={person.avatarUrl ?? undefined}
+              {...(status === 'active'
+                ? { status: 'success' as const, statusLabel: 'Active' }
+                : {})}
+            />
           )}
+          <div className="flex min-w-0 flex-1 flex-col gap-3 touch:w-full touch:items-center">
+            <PageHeader
+              className="touch:items-center"
+              // The trail is drawn above the photo; the header has none of its own.
+              breadcrumb={false}
+              title={person.name}
+              description={person.summary ?? undefined}
+              meta={
+                status === null && person.missing === null && !state.calendar ? undefined : (
+                  <span className="flex flex-wrap items-center gap-2">
+                    {status === null ? null : (
+                      <Badge dot tone={status === 'active' ? 'success' : 'neutral'}>
+                        {statusLabel(status)}
+                      </Badge>
+                    )}
+                    {person.missing === null ? null : gaps.length === 0 ? (
+                      <Badge tone="success">Complete</Badge>
+                    ) : (
+                      <MissingJump
+                        labels={gaps.map((g) => g.label)}
+                        onJump={() => {
+                          const first = gaps[0];
+                          if (first !== undefined) open(first.key);
+                        }}
+                      />
+                    )}
+                    {/* HR's: what day it is for them, on their own clock (PEO-119). */}
+                    {state.calendar ? (
+                      <span className="text-sm text-fg-muted">
+                        Their day{' '}
+                        <span className="text-fg" data-testid="their-day">
+                          {state.calendar.today} ({state.calendar.timeZone})
+                        </span>
+                      </span>
+                    ) : null}
+                  </span>
+                )
+              }
+              actions={
+                <span className="flex items-center gap-2">
+                  <RecordActions
+                    moves={onMove === undefined || !state.calendar ? [] : offeredMoves(status)}
+                    onMove={setMoving}
+                    {...(state.placement && onPlace
+                      ? {
+                          onPlacement: () => {
+                            setPlacing(true);
+                          },
+                        }
+                      : {})}
+                    firstMissing={gaps[0] ?? null}
+                    onFirstMissing={(key) => {
+                      open(key);
+                    }}
+                    askFor={
+                      askable.length === 0 || onRequest === undefined
+                        ? null
+                        : {
+                            label:
+                              askable.length === 1
+                                ? `Ask ${firstName} for ${askable[0]?.label ?? 'this'}`
+                                : `Ask ${firstName} for ${String(askable.length)} empty details`,
+                            run: () => {
+                              void onRequest(askable.map((f) => f.key)).then((outcome) => {
+                                setNotice(
+                                  outcome.ok
+                                    ? `${firstName} has been asked, by email.`
+                                    : `Not sent: ${outcome.message}`,
+                                );
+                              });
+                            },
+                          }
+                    }
+                    onHistory={onHistory}
+                    onDownload={
+                      onDownloadRecord === undefined
+                        ? undefined
+                        : () => {
+                            setPdf(true);
+                          }
+                    }
+                  />
+                  {firstWritable === undefined ? null : (
+                    <Button
+                      variant="primary"
+                      startIcon={<icons.edit aria-hidden />}
+                      onClick={() => {
+                        setTab('overview');
+                        setEditing(firstWritable.key);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </span>
+              }
+            />
+            {notice === null ? null : (
+              <p role="status" className="text-sm text-fg-muted">
+                {notice}
+              </p>
+            )}
+          </div>
+        </div>
+        {/*
+          Under a finger, the ways to reach them, as a phone's contact card
+          has them: only those their record holds for this viewer.
+        */}
+        <div className="hidden gap-2 touch:grid touch:grid-cols-3">
+          {typeof values['work_email'] === 'string' && values['work_email'] !== '' ? (
+            <Button asChild startIcon={<icons.email aria-hidden />}>
+              <a href={`mailto:${values['work_email']}`}>Email</a>
+            </Button>
+          ) : null}
+          {typeof values['work_phone'] === 'string' && values['work_phone'] !== '' ? (
+            <Button asChild startIcon={<icons.phone aria-hidden />}>
+              <a href={`tel:${values['work_phone']}`}>Call</a>
+            </Button>
+          ) : null}
+          <Button asChild startIcon={<icons.organisation aria-hidden />}>
+            <a href="/people/org-chart">Org chart</a>
+          </Button>
         </div>
       </div>
       {moving === null || onMove === undefined || !state.calendar ? null : (
@@ -460,6 +556,18 @@ function Record({
           {[...requests.values()].map((r) => r.label).join(', ')}.
         </Alert>
       )}
+      {dating === null || onChangeDated === undefined ? null : (
+        <DatedChange
+          field={dating}
+          name={firstName}
+          current={values[dating.key]}
+          today={state.calendar?.today ?? null}
+          onChange={onChangeDated}
+          onClose={() => {
+            setDating(null);
+          }}
+        />
+      )}
       {/* Where they work (PEO-123): changed from Actions, dated, in a dialog. */}
       {state.placement && onPlace && placing ? (
         <PlacementDialog
@@ -470,173 +578,379 @@ function Record({
           }}
         />
       ) : null}
-      {/* The record, and beside it on a desk who they report to. */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <Stack gap={6} className="min-w-0">
-          {sections.length === 0 ? (
-            <EmptyState title="Nothing else to show" />
-          ) : (
-            sections.map((section) => {
-              const writable = section.fields.some((f) => !f.readOnly);
-              return (
-                <PageSection
-                  key={section.key}
-                  surface
-                  title={section.label}
-                  actions={
-                    <span className="flex items-center gap-2">
-                      {gapsIn(section).length === 0 ? null : (
-                        <MissingMark count={gapsIn(section).length} />
-                      )}
-                      {section.readsLogged ? <Badge size="sm">Reads are logged</Badge> : null}
-                      {writable && editing !== section.key ? (
-                        <Button
-                          size="sm"
-                          aria-label={`Edit ${section.label}`}
-                          onClick={() => {
-                            setEditing(section.key);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      ) : null}
-                    </span>
-                  }
-                >
-                  {(held[section.key] ?? []).length === 0 || editing === section.key ? null : (
-                    <Alert tone="info" title="Sent to HR for approval">
-                      {(held[section.key] ?? []).join(' and ')}{' '}
-                      {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until HR
-                      approves; the record keeps what it had until then.
-                    </Alert>
-                  )}
-                  {editing === section.key ? (
-                    <SectionForm
-                      section={section}
-                      values={values}
-                      pending={pending}
-                      {...(onWithdraw === undefined ? {} : { onWithdraw })}
-                      {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
-                      {...(onCheck === undefined ? {} : { onCheck })}
-                      {...(focus === undefined ? {} : { focusKey: focus })}
-                      footer={
-                        <Button
-                          onClick={() => {
-                            setEditing(null);
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      }
-                      onSave={async (key, changed) => {
-                        const outcome = await onSave(key, changed);
-                        if (outcome.ok) {
-                          // A value sent for approval is not the record's yet (PEO-077).
-                          const waiting = new Set(outcome.held ?? []);
-                          const applied = Object.fromEntries(
-                            Object.entries(changed).filter(
-                              ([k]) =>
-                                !waiting.has(section.fields.find((f) => f.key === k)?.label ?? k),
-                            ),
-                          );
-                          setValues((v) => ({ ...v, ...applied }));
-                          setHeld((h) => ({ ...h, [key]: outcome.held ?? [] }));
-                          setEditing(null);
-                        }
-                        return outcome;
-                      }}
-                    />
-                  ) : (
-                    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(10rem,auto)_1fr]">
-                      {section.fields.map((field) => {
-                        const gap = field.missing === true && isMissing(values[field.key]);
-                        return (
-                          <div key={field.key} className="contents">
-                            <dt
-                              id={`field-${field.key}`}
-                              className="flex flex-wrap items-center gap-2 text-sm text-fg-muted"
-                            >
-                              {field.label}
-                              <SensitiveMark field={field} />
-                              {gap ? <MissingMark /> : null}
-                            </dt>
-                            <dd className="flex flex-col gap-1 text-sm">
-                              {gap ? (
-                                <span className="flex flex-wrap items-center gap-2 text-fg-muted">
-                                  {field.readOnly
-                                    ? `Not provided yet. ${field.ownedBy ?? 'HR'} fills this in.`
-                                    : 'Not provided yet.'}
-                                  {field.readOnly ? null : (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      aria-label={`Add ${field.label}`}
-                                      onClick={() => {
-                                        open(field.key);
-                                      }}
-                                    >
-                                      Add
-                                    </Button>
-                                  )}
-                                  {onRequest !== undefined && field.askable === true ? (
-                                    <AskButton
-                                      field={field.label}
-                                      keyName={field.key}
-                                      firstName={firstName}
-                                      asked={requests.get(field.key) ?? null}
-                                      onRequest={onRequest}
-                                    />
-                                  ) : null}
-                                </span>
-                              ) : onRequest !== undefined &&
-                                field.askable === true &&
-                                isMissing(values[field.key]) ? (
-                                <span className="flex flex-wrap items-center gap-1">
-                                  <DisplayValue field={field} value={values[field.key]} />
-                                  <AskButton
-                                    field={field.label}
-                                    keyName={field.key}
-                                    firstName={firstName}
-                                    asked={requests.get(field.key) ?? null}
-                                    onRequest={onRequest}
-                                  />
-                                </span>
-                              ) : (
-                                <DisplayValue field={field} value={values[field.key]} />
-                              )}
-                              {pending
-                                .filter((p) => p.key === field.key)
-                                .map((p) => (
-                                  <PendingNote
-                                    key={p.id}
-                                    field={field}
-                                    pending={p}
-                                    onWithdraw={onWithdraw}
-                                    onSelfApprove={onSelfApprove}
-                                  />
-                                ))}
-                            </dd>
-                          </div>
-                        );
-                      })}
-                    </dl>
-                  )}
-                </PageSection>
-              );
-            })
-          )}
-          <EmploymentPeriods periods={state.employment?.periods ?? []} />
-        </Stack>
-        {state.reportingLine === undefined ? null : (
-          <aside className="lg:sticky lg:top-6">
-            <ReportingLine
-              line={state.reportingLine}
-              person={{ name: person.name, title: person.summary, avatarUrl: person.avatarUrl }}
-            />
-          </aside>
+      {/*
+        The record in tabs (W8–W10): the overview holds every section, and each
+        section has a tab of its own, so a long record is one click from any
+        part of it. History is its own page, and the last tab goes there.
+      */}
+      <Tabs
+        value={tab}
+        onValueChange={(next) => {
+          if (next === 'history') onHistory?.();
+          else setTab(next);
+        }}
+      >
+        {sections.length < 2 || own ? null : (
+          <TabsList
+            variant={coarse ? 'pill' : 'line'}
+            aria-label="Parts of the record"
+            className="max-w-full overflow-x-auto"
+          >
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            {sections.map((section) => (
+              <TabsTrigger key={section.key} value={section.key}>
+                {section.label}
+              </TabsTrigger>
+            ))}
+            {onHistory === undefined ? null : <TabsTrigger value="history">History</TabsTrigger>}
+          </TabsList>
         )}
-      </div>
+        {/* The record, and beside it on a desk who they report to. */}
+        <TabsContent
+          value={tab}
+          className={
+            own
+              ? 'grid grid-cols-[minmax(0,1fr)] gap-6 @5xl/page:grid-cols-[16.25rem_minmax(0,1fr)] @5xl/page:items-start'
+              : 'grid grid-cols-[minmax(0,1fr)] gap-6 @5xl/page:grid-cols-[minmax(0,1fr)_20rem] @5xl/page:items-start'
+          }
+        >
+          {own ? (
+            // How complete their record is, and each part of it, done or not (W12).
+            <Card
+              padded
+              className="flex flex-col items-center gap-3 @5xl/page:sticky @5xl/page:top-6"
+            >
+              <CircularProgress
+                value={percent}
+                size={84}
+                label="Your record"
+                tone={percent === 100 ? 'success' : 'accent'}
+              />
+              <p className="font-bold">
+                {percent === 100 ? 'Your record is complete' : `${String(percent)}% complete`}
+              </p>
+              {gaps.length === 0 ? null : (
+                <p className="text-sm text-fg-muted">
+                  {gaps.length} {gaps.length === 1 ? 'detail' : 'details'} left
+                </p>
+              )}
+              <TertiaryNav
+                label="Parts of your record"
+                variant="fill"
+                touchLayout="pills"
+                className="w-full"
+                items={sections.map((section) => ({
+                  id: `section-${section.key}`,
+                  label: section.label,
+                  status:
+                    gapsIn(section).length === 0 ? ('success' as const) : ('warning' as const),
+                }))}
+              />
+            </Card>
+          ) : null}
+          <Stack gap={6} className="min-w-0">
+            {sections.length === 0 ? (
+              <EmptyState title="Nothing else to show" />
+            ) : (
+              sections
+                .filter((section) => tab === 'overview' || tab === section.key)
+                .map((section) => {
+                  const writable = section.fields.some((f) => !f.readOnly);
+                  return (
+                    <PageSection
+                      key={section.key}
+                      id={`section-${section.key}`}
+                      surface
+                      className="@container scroll-mt-4"
+                      title={section.label}
+                      actions={
+                        <span className="flex items-center gap-2">
+                          {gapsIn(section).length === 0 ? null : (
+                            <MissingMark count={gapsIn(section).length} />
+                          )}
+                          {section.readsLogged ? <Badge size="sm">Reads are logged</Badge> : null}
+                          {writable && editing !== section.key ? (
+                            <Button
+                              size="sm"
+                              aria-label={`Edit ${section.label}`}
+                              onClick={() => {
+                                setEditing(section.key);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          ) : null}
+                        </span>
+                      }
+                    >
+                      {(held[section.key] ?? []).length === 0 || editing === section.key ? null : (
+                        <Alert tone="info" title="Sent to HR for approval">
+                          {(held[section.key] ?? []).join(' and ')}{' '}
+                          {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until
+                          HR approves; the record keeps what it had until then.
+                        </Alert>
+                      )}
+                      {editing === section.key ? (
+                        <SectionForm
+                          section={section}
+                          values={values}
+                          pending={pending}
+                          {...(onWithdraw === undefined ? {} : { onWithdraw })}
+                          {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
+                          {...(onCheck === undefined ? {} : { onCheck })}
+                          {...(focus === undefined ? {} : { focusKey: focus })}
+                          footer={
+                            <Button
+                              onClick={() => {
+                                setEditing(null);
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          }
+                          onSave={async (key, changed) => {
+                            const outcome = await onSave(key, changed);
+                            if (outcome.ok) {
+                              // A value sent for approval is not the record's yet (PEO-077).
+                              const waiting = new Set(outcome.held ?? []);
+                              const applied = Object.fromEntries(
+                                Object.entries(changed).filter(
+                                  ([k]) =>
+                                    !waiting.has(
+                                      section.fields.find((f) => f.key === k)?.label ?? k,
+                                    ),
+                                ),
+                              );
+                              setValues((v) => ({ ...v, ...applied }));
+                              setHeld((h) => ({ ...h, [key]: outcome.held ?? [] }));
+                              setEditing(null);
+                            }
+                            return outcome;
+                          }}
+                        />
+                      ) : (
+                        <dl className="-mt-1 flex flex-col">
+                          {section.fields.map((field) => {
+                            const gap = field.missing === true && isMissing(values[field.key]);
+                            return (
+                              <div
+                                key={field.key}
+                                className="relative grid min-h-12 items-center gap-x-4 gap-y-1 border-b border-border py-1.5 last:border-b-0 @md:grid-cols-[11.25rem_minmax(0,1fr)] touch:py-2.5"
+                              >
+                                <dt
+                                  id={`field-${field.key}`}
+                                  className="flex flex-wrap items-center gap-1.5 text-sm text-fg-muted"
+                                >
+                                  {field.label}
+                                  <SensitiveMark field={field} />
+                                  {gap ? <MissingMark /> : null}
+                                </dt>
+                                <dd className="flex min-w-0 flex-col gap-1 text-sm font-medium touch:text-base">
+                                  {onChangeDated === undefined ||
+                                  !state.calendar ||
+                                  field.readOnly ||
+                                  isFileField(field) ? null : (
+                                    <Button
+                                      variant="ghost"
+                                      size="xs"
+                                      className="relative tap-target self-end -my-1 @md:absolute @md:end-4"
+                                      aria-label={`Change ${field.label} from a date`}
+                                      startIcon={<icons.history aria-hidden />}
+                                      onClick={() => {
+                                        setDating(field);
+                                      }}
+                                    />
+                                  )}
+                                  {gap ? (
+                                    <span className="flex flex-wrap items-center gap-2 text-fg-muted">
+                                      {field.readOnly
+                                        ? `Not provided yet. ${field.ownedBy ?? 'HR'} fills this in.`
+                                        : 'Not provided yet.'}
+                                      {field.readOnly ? null : (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          aria-label={`Add ${field.label}`}
+                                          onClick={() => {
+                                            open(field.key);
+                                          }}
+                                        >
+                                          Add
+                                        </Button>
+                                      )}
+                                      {onRequest !== undefined && field.askable === true ? (
+                                        <AskButton
+                                          field={field.label}
+                                          keyName={field.key}
+                                          firstName={firstName}
+                                          asked={requests.get(field.key) ?? null}
+                                          onRequest={onRequest}
+                                        />
+                                      ) : null}
+                                    </span>
+                                  ) : onRequest !== undefined &&
+                                    field.askable === true &&
+                                    isMissing(values[field.key]) ? (
+                                    <span className="flex flex-wrap items-center gap-1">
+                                      <DisplayValue field={field} value={values[field.key]} />
+                                      <AskButton
+                                        field={field.label}
+                                        keyName={field.key}
+                                        firstName={firstName}
+                                        asked={requests.get(field.key) ?? null}
+                                        onRequest={onRequest}
+                                      />
+                                    </span>
+                                  ) : (
+                                    <DisplayValue field={field} value={values[field.key]} />
+                                  )}
+                                  {pending
+                                    .filter((p) => p.key === field.key)
+                                    .map((p) => (
+                                      <PendingNote
+                                        key={p.id}
+                                        field={field}
+                                        pending={p}
+                                        onWithdraw={onWithdraw}
+                                        onSelfApprove={onSelfApprove}
+                                      />
+                                    ))}
+                                </dd>
+                              </div>
+                            );
+                          })}
+                        </dl>
+                      )}
+                    </PageSection>
+                  );
+                })
+            )}
+            {tab === 'overview' ? (
+              <EmploymentPeriods periods={state.employment?.periods ?? []} />
+            ) : null}
+          </Stack>
+          {state.reportingLine === undefined ? null : (
+            <aside className="@5xl/page:sticky @5xl/page:top-6">
+              <ReportingLine
+                line={state.reportingLine}
+                person={{ name: person.name, title: person.summary, avatarUrl: person.avatarUrl }}
+              />
+            </aside>
+          )}
+        </TabsContent>
+      </Tabs>
     </Stack>
+  );
+}
+
+/**
+ * One value, changed from a date (W11): the new value, when it takes effect,
+ * and what happens because of it. Today, or a day People applies it on; a
+ * sensitive field goes to Approvals and applies only once somebody else
+ * agrees. Every change keeps the value it replaces in the history.
+ */
+function DatedChange({
+  field,
+  name,
+  current,
+  today,
+  onChange,
+  onClose,
+}: {
+  readonly field: RecordField;
+  readonly name: string;
+  readonly current: AttributeValue | undefined;
+  readonly today: string | null;
+  readonly onChange: NonNullable<ProfileProps['onChangeDated']>;
+  readonly onClose: () => void;
+}): JSX.Element {
+  const [value, setValue] = useState<AttributeValue>(current ?? null);
+  const [when, setWhen] = useState<'today' | 'date'>('today');
+  const [from, setFrom] = useState<IsoDate | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const day = today ?? new Date().toISOString().slice(0, 10);
+  const effectiveFrom = when === 'today' ? day : from;
+  return (
+    <Sheet
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <SheetContent size="lg">
+        <SheetHeader>
+          <SheetTitle>Change {field.label.toLowerCase()}</SheetTitle>
+          <SheetDescription>{name} · the old value stays in the history</SheetDescription>
+        </SheetHeader>
+        <SheetBody>
+          <form
+            aria-label={`Change ${field.label}`}
+            id={`dated-${field.key}`}
+            className="flex flex-col gap-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (effectiveFrom === null) return;
+              setBusy(true);
+              setRefused(null);
+              void onChange({ values: { [field.key]: value }, effectiveFrom }).then((outcome) => {
+                setBusy(false);
+                if (outcome.ok) onClose();
+                else setRefused(outcome.message);
+              });
+            }}
+          >
+            <AttributeInput
+              field={{ ...field, readOnly: false }}
+              value={value}
+              onChange={setValue}
+            />
+            <Field>
+              <FieldLabel>When does it take effect?</FieldLabel>
+              <RadioGroup
+                value={when}
+                onValueChange={(next) => {
+                  setWhen(next === 'date' ? 'date' : 'today');
+                }}
+              >
+                <RadioGroupItem value="today" description="From the start of their day.">
+                  Today
+                </RadioGroupItem>
+                <RadioGroupItem value="date" description="It shows as scheduled until then.">
+                  On a date
+                </RadioGroupItem>
+              </RadioGroup>
+            </Field>
+            {when === 'date' ? (
+              <DatePicker label="Takes effect on" value={from} onChange={setFrom} />
+            ) : null}
+            {field.sensitive === true ? (
+              <Alert tone="warning" title="This needs a second approver">
+                {field.label} is sensitive, so somebody else in HR approves it before it applies.
+              </Alert>
+            ) : null}
+            {refused === null ? null : (
+              <Alert tone="danger" title="Not changed">
+                {refused}
+              </Alert>
+            )}
+          </form>
+        </SheetBody>
+        <SheetFooter>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            type="submit"
+            form={`dated-${field.key}`}
+            variant="primary"
+            loading={busy}
+            loadingLabel="Saving"
+            disabled={effectiveFrom === null}
+          >
+            {field.sensitive === true ? 'Send for approval' : 'Save change'}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -788,7 +1102,7 @@ function RecordActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button endIcon={<icons.expand aria-hidden />}>Actions</Button>
+        <Button aria-label="Actions" startIcon={<icons.more aria-hidden />} />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
