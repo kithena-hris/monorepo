@@ -21,6 +21,7 @@ import {
 } from '@reach/ui';
 import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
+import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
 
 /**
@@ -69,6 +70,12 @@ export interface ImportExportState {
 
 export interface ImportExportProps {
   readonly load: Loadable<ImportExportState>;
+  /** The history narrowed to imports or exports (`?kind=`), held by the host. */
+  readonly kind?: HistoryKind;
+  readonly onKindChange?: (kind: HistoryKind) => void;
+  /** The history's search (`?q=`), once typing rests. */
+  readonly search?: string;
+  readonly onSearchChange?: (search: string) => void;
 }
 
 export type HistoryKind = 'all' | 'import' | 'export';
@@ -174,7 +181,7 @@ export function filterHistory(
   );
 }
 
-export function ImportExport({ load }: ImportExportProps): JSX.Element {
+export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element {
   return (
     <Stack gap={5}>
       <PageHeader
@@ -221,7 +228,9 @@ export function ImportExport({ load }: ImportExportProps): JSX.Element {
                 startIcon={<icons.download aria-hidden />}
               />
             </div>
-            {state.history === null ? null : <History history={state.history} now={state.now} />}
+            {state.history === null ? null : (
+              <History history={state.history} now={state.now} {...held} />
+            )}
           </>
         )}
       </Loaded>
@@ -303,13 +312,23 @@ const KIND = {
 function History({
   history,
   now,
-}: {
+  ...held
+}: Omit<ImportExportProps, 'load'> & {
   readonly history: NonNullable<ImportExportState['history']>;
   readonly now: string;
 }): JSX.Element {
-  const [kind, setKind] = useState<HistoryKind>('all');
-  const [search, setSearch] = useState('');
+  const [kind, setKind] = useHeld<HistoryKind>(held.kind, held.onKindChange, 'all');
+  const [search, setSearch] = useTyped(held.search ?? '', held.onSearchChange);
   const zone = useZone();
+  // Older and newest keep what the history is narrowed to.
+  const page = (before: string | null): string => {
+    const q = new URLSearchParams();
+    if (before !== null) q.set('before', before);
+    if (kind !== 'all') q.set('kind', kind);
+    if (search.trim() !== '') q.set('q', search);
+    const qs = q.toString();
+    return qs === '' ? HERE : `${HERE}?${qs}`;
+  };
   const shown = filterHistory(history.items, kind, search);
   const when = (e: TransferEntry) => whenOf(e.at, now, zone);
   return (
@@ -441,12 +460,12 @@ function History({
         <nav aria-label="Older history" className="flex gap-2">
           {history.paged ? (
             <Button asChild>
-              <a href={HERE}>Newest</a>
+              <a href={page(null)}>Newest</a>
             </Button>
           ) : null}
           {history.next === null ? null : (
             <Button asChild>
-              <a href={`${HERE}?before=${encodeURIComponent(history.next)}`}>Older</a>
+              <a href={page(history.next)}>Older</a>
             </Button>
           )}
         </nav>

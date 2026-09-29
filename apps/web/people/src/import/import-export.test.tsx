@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
@@ -173,5 +173,40 @@ describe('ImportExport', () => {
       'href',
       '/people/import-export',
     );
+  });
+});
+
+describe('the history’s filters, in the address', () => {
+  it('opens narrowed as a link left it, and keeps it on the older pages', () => {
+    render(
+      <ImportExport
+        load={{ status: 'ready', data: state({ history: { items, next: 'e2', paged: false } }) }}
+        kind="export"
+        onKindChange={vi.fn()}
+        search="payroll"
+        onSearchChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: 'Exports' })).toBeChecked();
+    expect(screen.getByRole('searchbox', { name: 'Search the history' })).toHaveValue('payroll');
+    expect(screen.queryByText('new-joiners.csv')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Older' })).toHaveAttribute(
+      'href',
+      '/people/import-export?before=e2&kind=export&q=payroll',
+    );
+  });
+
+  it('hands a chosen kind to the host', async () => {
+    const user = fast();
+    const onKindChange = vi.fn();
+    render(
+      <ImportExport
+        load={{ status: 'ready', data: state() }}
+        kind="all"
+        onKindChange={onKindChange}
+      />,
+    );
+    await user.click(screen.getByRole('radio', { name: 'Imports' }));
+    expect(onKindChange).toHaveBeenCalledWith('import');
   });
 });

@@ -14,6 +14,7 @@ import {
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
+import { useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
 
 /**
@@ -53,6 +54,9 @@ export interface SettingsActivityProps {
   readonly onOlder?: (before: string) => void;
   /** Back to the newest. */
   readonly onNewest?: () => void;
+  /** The search over what is loaded (`?q=`), once typing rests. */
+  readonly search?: string;
+  readonly onSearchChange?: (search: string) => void;
 }
 
 const AREAS: readonly { readonly value: ActivityArea | 'all'; readonly label: string }[] = [
@@ -89,7 +93,7 @@ function useZone(): string | undefined {
 }
 
 export function SettingsActivity(props: SettingsActivityProps): JSX.Element {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useTyped(props.search ?? '', props.onSearchChange);
   return (
     <Stack gap={6}>
       <PageHeader title="Activity log" description="Every settings change, who made it and when." />

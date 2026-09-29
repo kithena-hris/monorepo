@@ -24,8 +24,8 @@ describe('inAppHref', () => {
       ),
     ).toBe('/people/reports/1');
     expect(
-      inAppHref(clickOn('<a data-target href="/people/directory/list?search=a#x">D</a>'), ORIGIN),
-    ).toBe('/people/directory/list?search=a#x');
+      inAppHref(clickOn('<a data-target href="/people/directory/list?q=a#x">D</a>'), ORIGIN),
+    ).toBe('/people/directory/list?q=a#x');
   });
 
   it('leaves the browser a new tab, a download, another origin and a handled click', () => {

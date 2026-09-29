@@ -15,6 +15,7 @@ import {
 } from '../lib/remotes';
 import { shellData } from '../lib/shell';
 import { currentPerson } from '../lib/session';
+import { withQuery } from '../lib/url-state';
 import { workspaceConfig } from '../lib/workspace';
 
 /**
@@ -98,9 +99,26 @@ export async function PeopleArea({
     route === null ? { sections: [], actions: [], settings: [] } : placesFor(route.nav, roles);
   const here = route?.path ?? null;
 
+  const header = headerFrame(places, here, '/people', {
+    sections: shell.counts,
+    tabs: shell.tabCounts,
+  });
+  // Every Insights tab reads the same segment, so moving between them keeps it.
+  const segment = search['segment'];
   const frame =
     area === 'people'
-      ? headerFrame(places, here, '/people', { sections: shell.counts, tabs: shell.tabCounts })
+      ? here?.startsWith('/people/insights/') === true &&
+        segment !== undefined &&
+        segment !== '' &&
+        header.tabs !== undefined
+        ? {
+            ...header,
+            tabs: header.tabs.map((t) => ({
+              ...t,
+              href: withQuery(t.href, {}, { segment }),
+            })),
+          }
+        : header
       : {
           // The settings overview is "Settings › People"; a setting is
           // "Settings › People › Roles". No actions: nobody adds an employee

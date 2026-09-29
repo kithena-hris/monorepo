@@ -22,6 +22,7 @@ import {
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
+import { useHeld } from '../held';
 import { Loaded, type Loadable } from '../load';
 import { DisplayValue, longDate } from '../record/display';
 import type { AttributeValue, RecordField, RecordSection, Values } from '../record/model';
@@ -69,6 +70,9 @@ export interface PersonHistoryProps {
   readonly onAsOf: (asOf: string | null) => void;
   /** Back to the profile. */
   readonly onBack?: () => void;
+  /** The one field the history is narrowed to (`?field=`), held by the host; null for every field. */
+  readonly field?: string | null;
+  readonly onFieldChange?: (field: string | null) => void;
 }
 
 const ALL = 'all';
@@ -108,10 +112,10 @@ const dayKey = (iso: string, zone: string | undefined): string =>
  * picker away. What the viewer may not read now is not in `load` at all, and a
  * sealed field shows only that it changed.
  */
-export function PersonHistory({ load, onAsOf, onBack }: PersonHistoryProps): JSX.Element {
+export function PersonHistory({ load, ...props }: PersonHistoryProps): JSX.Element {
   return (
     <Loaded load={load} what="this history">
-      {(state) => <History state={state} onAsOf={onAsOf} onBack={onBack} />}
+      {(state) => <History state={state} {...props} />}
     </Loaded>
   );
 }
@@ -120,16 +124,19 @@ function History({
   state,
   onAsOf,
   onBack,
-}: {
-  readonly state: HistoryState;
-  readonly onAsOf: PersonHistoryProps['onAsOf'];
-  readonly onBack: PersonHistoryProps['onBack'];
-}): JSX.Element {
-  const [only, setOnly] = useState(ALL);
+  field,
+  onFieldChange,
+}: Omit<PersonHistoryProps, 'load'> & { readonly state: HistoryState }): JSX.Element {
+  const [chosen, choose] = useHeld<string | null>(field, onFieldChange, null);
   const zone = useViewerZone();
   const fields = new Map<string, RecordField>(
     state.sections.flatMap((s) => s.fields.map((f) => [f.key, f] as const)),
   );
+  // A field this viewer may read, or every field.
+  const only = chosen !== null && fields.has(chosen) ? chosen : ALL;
+  const setOnly = (next: string): void => {
+    choose(next === ALL ? null : next);
+  };
   const dated = new Set(state.dated);
   const sections = state.sections
     .map((s) => ({ ...s, fields: s.fields.filter((f) => only === ALL || f.key === only) }))

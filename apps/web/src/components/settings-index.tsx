@@ -11,7 +11,10 @@ import {
   icons,
   type IconName,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState, type JSX } from 'react';
+
+import { noteInAddress } from '../lib/url-state';
 
 /**
  * Settings (S1): every module's settings as cards that say how each is set
@@ -48,7 +51,26 @@ export function SettingsIndex({
 }: {
   readonly modules: readonly SettingsModule[];
 }): JSX.Element {
-  const [query, setQuery] = useState('');
+  // The search is in the address (`?q=`), once typing rests: a link to
+  // "the settings about Slack" opens with them found.
+  const held = useSearchParams().get('q') ?? '';
+  const [query, setQuery] = useState(held);
+  const sent = useRef(held);
+  useEffect(() => {
+    if (held === sent.current) return;
+    sent.current = held;
+    setQuery(held);
+  }, [held]);
+  useEffect(() => {
+    if (query === sent.current) return undefined;
+    const timer = setTimeout(() => {
+      sent.current = query;
+      noteInAddress({ q: query.trim() === '' ? null : query }, 'replace');
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [query]);
   const [active, setActive] = useState(modules[0]?.key);
   const needle = query.trim().toLowerCase();
   const module = modules.find((m) => m.key === active) ?? modules[0];

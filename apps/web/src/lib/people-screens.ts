@@ -4,6 +4,7 @@ import { currentTenant } from './branding';
 import { people, type PeopleAnswer } from './people';
 import type { OperationName } from './people-operations';
 import { VIEWS } from './people-views';
+import { directoryQuery, oneOf } from './url-state';
 
 /**
  * The data each People screen is drawn from, fetched here, on the server,
@@ -52,62 +53,47 @@ async function read(
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
 const today = (): string => new Date().toISOString().slice(0, 10);
 
-/**
- * The directory's conditions from `?conditions=`, a JSON list, or null. Only
- * their shape is checked here; People decides what may be asked.
- */
-export function conditionsOf(
-  raw: string | undefined,
-): { key: string; op: string; values: string[] }[] | null {
-  if (raw === undefined || raw === '') return null;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return null;
-    const ok = parsed.filter(
-      (c): c is { key: string; op: string; values: string[] } =>
-        typeof c === 'object' &&
-        c !== null &&
-        typeof (c as { key?: unknown }).key === 'string' &&
-        typeof (c as { op?: unknown }).op === 'string' &&
-        Array.isArray((c as { values?: unknown }).values) &&
-        (c as { values: unknown[] }).values.every((v) => typeof v === 'string'),
-    );
-    return ok.length === 0 ? null : ok.map(({ key, op, values }) => ({ key, op, values }));
-  } catch {
-    return null;
-  }
-}
-
 /** A query-string value, or null for one that was not given. */
 const given = (value: string | undefined): string | null =>
   value === undefined || value === '' ? null : value;
 
+/** The settings areas the activity log narrows to (`?area=`). */
+const ACTIVITY_AREAS = ['fields', 'organisation', 'roles', 'integrations'] as const;
+
+/** A calendar date from the address, or null for anything else. */
+const dateOf = (value: string | undefined): string | null =>
+  value !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+
+/**
+ * A read narrowed by the address, or, where People refuses what the address
+ * asked for, the same read without it. A link made by somebody who may see
+ * more (a column this viewer cannot read, a segment not shared with them) or
+ * a stale cursor opens the screen as its bare address shows it, not an error.
+ * Only an unreachable People is left as it came.
+ */
+async function orBare<V extends Record<string, unknown>>(
+  asked: V,
+  run: (narrowing: V) => Promise<ScreenLoad>,
+): Promise<ScreenLoad> {
+  const first = await run(asked);
+  const narrowed = Object.values(asked).some((v) => v !== null);
+  if (first.status !== 'error' || first.unreachable === true || !narrowed) return first;
+  return run(Object.fromEntries(Object.keys(asked).map((k) => [k, null])) as V);
+}
+
 export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   switch (component) {
     case 'Directory':
-      return read(
-        'Directory',
-        {
-          search: given(query.search['search']),
-          filter: given(query.search['filter']),
-          after: given(query.search['after']),
-          segment: given(query.search['segment']),
-          incomplete: query.search['incomplete'] === 'true' ? true : null,
-          conditions: conditionsOf(query.search['conditions']),
-          match: query.search['match'] === 'any' ? 'any' : null,
-          sort: given(query.search['sort']),
-        },
-        VIEWS.Directory,
+      return orBare(directoryQuery(query.search), (asked) =>
+        read('Directory', asked, VIEWS.Directory),
       );
     case 'OrgChart':
       return orgChart();
     case 'Profile':
       return read('Profile', { personId: query.params['id'] ?? null }, VIEWS.Profile);
     case 'PersonHistory':
-      return read(
-        'History',
-        { personId: query.params['id'] ?? null, asOf: given(query.search['asOf']) },
-        VIEWS.PersonHistory,
+      return orBare({ asOf: dateOf(query.search['asOf']) }, (asked) =>
+        read('History', { personId: query.params['id'] ?? null, ...asked }, VIEWS.PersonHistory),
       );
     case 'Onboarding':
       return read('Onboarding', {}, VIEWS.Onboarding);
@@ -120,7 +106,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'CompletenessGrid': {
       // Beside the grid, analytics' own figure: complete overall. By section is Insights'.
       const [grid, analytics] = await Promise.all([
-        read('Completeness', { after: given(query.search['after']) }),
+        orBare({ after: given(query.search['after']) }, (asked) => read('Completeness', asked)),
         people<{
           complete: {
             percent: number;
@@ -144,7 +130,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       const before = given(query.search['before']);
       const [roles, history] = await Promise.all([
         read('Home'),
-        read('TransferHistory', { before }),
+        orBare({ before }, (asked) => read('TransferHistory', asked)),
       ]);
       if (roles.status !== 'ready') return roles;
       return {
@@ -162,10 +148,13 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'FieldRegistry':
       return read('Registry');
     case 'SettingsActivity':
-      return read('SettingsActivity', {
-        before: given(query.search['before']),
-        area: given(query.search['area']),
-      });
+      return orBare(
+        {
+          before: given(query.search['before']),
+          area: oneOf(query.search['area'], ACTIVITY_AREAS, null),
+        },
+        (asked) => read('SettingsActivity', asked),
+      );
     case 'Integrations': {
       // Chat apps beside the rest; a chat service that is down hides its section, not the page.
       const [integrations, chat] = await Promise.all([read('Integrations'), read('Chat')]);
@@ -205,12 +194,13 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'Approvals':
       return read('Approvals', {}, VIEWS.Approvals);
     case 'Duplicates':
-      return read('Duplicates', { a: given(query.search['a']), b: given(query.search['b']) });
+      return orBare({ a: given(query.search['a']), b: given(query.search['b']) }, (asked) =>
+        read('Duplicates', asked),
+      );
     case 'WebhookLog':
-      return read('WebhookDeliveries', {
-        endpointId: query.params['id'] ?? '',
-        after: given(query.search['after']),
-      });
+      return orBare({ after: given(query.search['after']) }, (asked) =>
+        read('WebhookDeliveries', { endpointId: query.params['id'] ?? '', ...asked }),
+      );
     case 'ReportSchedules':
       return read('ReportSchedules');
     case 'ReportRuns':
@@ -234,7 +224,9 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       // Every tab reads the same answer; the schedules behind its button come
       // beside it, and one People refuses this viewer is left out.
       const [analytics, schedules] = await Promise.all([
-        read('Analytics', { segment: given(query.search['segment']) }, VIEWS.Analytics),
+        orBare({ segment: given(query.search['segment']) }, (asked) =>
+          read('Analytics', asked, VIEWS.Analytics),
+        ),
         read('ReportSchedules'),
       ]);
       if (analytics.status !== 'ready') return analytics;

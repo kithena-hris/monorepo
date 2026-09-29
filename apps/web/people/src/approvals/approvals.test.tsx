@@ -341,3 +341,28 @@ describe('a doubted identifier HR could not accept (PEO-125)', () => {
     expect(screen.getByRole('region', { name: /Adam Novak/ })).toBeInTheDocument();
   });
 });
+
+describe('the approvals tab, in the address', () => {
+  it('opens on the tab a link named, and hands a chosen one to the host', async () => {
+    const user = fast();
+    const onTabChange = vi.fn();
+    render(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: {
+            isHr: true,
+            items: [item, { ...item, id: 'c2', mine: true, canDecide: false, name: 'Me' }],
+          },
+        }}
+        onDecide={vi.fn(done)}
+        onWithdraw={vi.fn(done)}
+        tab="asked"
+        onTabChange={onTabChange}
+      />,
+    );
+    expect(screen.getByRole('tab', { name: /I asked/ })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('tab', { name: /Waiting for me/ }));
+    expect(onTabChange).toHaveBeenCalledWith('mine');
+  });
+});

@@ -51,6 +51,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { AUDIENCES, TypeIcon, accessOf } from './access';
+import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type {
   ClassificationAdvice,
@@ -92,6 +93,15 @@ export interface FieldRegistryProps {
   readonly onAssistant?: (key: string, share: boolean) => Promise<Outcome>;
   /** Put a field on the sign-up flow, optional or required, or take it off (a draft change). */
   readonly onSignup?: (key: string, ask: 'off' | 'optional' | 'required') => Promise<Outcome>;
+  /** The search over every field (`?q=`), once typing rests. */
+  readonly search?: string;
+  readonly onSearchChange?: (search: string) => void;
+  /** Which fields the list shows (`?show=required`), held by the host; one it does not know is all. */
+  readonly show?: string | null;
+  readonly onShowChange?: (show: string) => void;
+  /** The section open on the left (`?section=<key>`); null for the first. */
+  readonly section?: string | null;
+  readonly onSectionChange?: (section: string | null) => void;
 }
 
 /**
@@ -135,6 +145,7 @@ function Registry({
   onPublish,
   onSignup,
   onAssistant,
+  ...held
 }: FieldRegistryProps & { readonly draft: RegistryDraft }): JSX.Element {
   const [previewing, setPreviewing] = useState(false);
   // The order as the admin last left it, shown until the shell hands back a
@@ -143,15 +154,18 @@ function Registry({
   const [fieldOrder, setFieldOrder] = useState<Readonly<Record<string, readonly string[] | null>>>(
     {},
   );
-  const [chosen, setChosen] = useState<string | null>(null);
+  const [picked, setChosen] = useHeld<string | null>(held.section, held.onSectionChange, null);
   const [editing, setEditing] = useState<{ field: RegistryField | null } | null>(null);
   const [adding, setAdding] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [only, setOnly] = useState<Filter>('all');
+  const [query, setQuery] = useTyped(held.search ?? '', held.onSearchChange);
+  const [shown, setOnly] = useHeld<string>(held.show, held.onShowChange, 'all');
+  const only: Filter = Object.hasOwn(FILTERS, shown) ? (shown as Filter) : 'all';
 
   const sections = arranged(draft.sections, sectionOrder);
+  // A section this draft has; a link to one since removed opens the first.
+  const chosen = sections.some((s) => s.key === picked) ? picked : null;
   const section = sections.find((s) => s.key === chosen) ?? sections[0];
   const fields =
     section === undefined
@@ -233,7 +247,7 @@ function Registry({
           <Select
             value={only}
             onValueChange={(value) => {
-              setOnly(value as Filter);
+              setOnly(value);
             }}
           >
             <SelectTrigger aria-label="Show" className="w-auto min-w-48">
