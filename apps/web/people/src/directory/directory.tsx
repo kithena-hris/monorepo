@@ -615,7 +615,7 @@ function Body({
         // Import lives in Import & export; an empty directory is where it is wanted first.
         action={
           onImport === undefined ? undefined : (
-            <Button startIcon={<icons.import aria-hidden />} onClick={onImport}>
+            <Button startIcon={<icons.upload aria-hidden />} onClick={onImport}>
               Import
             </Button>
           )

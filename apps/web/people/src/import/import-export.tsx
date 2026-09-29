@@ -194,7 +194,7 @@ export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element 
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @3xl/page:grid-cols-2 touch:grid-cols-2 touch:gap-2.5">
               {state.canImport ? (
                 <Action
-                  icon={<icons.import aria-hidden />}
+                  icon={<icons.upload aria-hidden />}
                   title="Import people"
                   short="Import"
                   description="Create or update people in bulk. Nothing is written until you accept a dry run."
@@ -217,7 +217,7 @@ export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element 
                 />
               ) : null}
               <Action
-                icon={<icons.export aria-hidden />}
+                icon={<icons.download aria-hidden />}
                 title="Export people"
                 short="Export"
                 description="Download people data. Field permissions apply, and each export records why."
@@ -313,8 +313,8 @@ function Action({
 }
 
 const KIND = {
-  import: { label: 'Import', tone: 'info', icon: <icons.import aria-hidden /> },
-  export: { label: 'Export', tone: 'accent', icon: <icons.export aria-hidden /> },
+  import: { label: 'Import', tone: 'info', icon: <icons.upload aria-hidden /> },
+  export: { label: 'Export', tone: 'accent', icon: <icons.download aria-hidden /> },
 } as const;
 
 /** One history for both, newest first: every import and export, whoever ran it. */
