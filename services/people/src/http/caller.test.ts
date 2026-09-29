@@ -58,7 +58,12 @@ describe('who is calling', () => {
     const routed = await withRoles({
       headers: { 'x-internal-token': 'router-secret', 'x-kithena-principal': principal() },
     });
-    expect(routed.ok && [...routed.value.viewer.roles]).toEqual(['people_admin']);
+    // An administrator holds HR's and finance's rights too (decided 2026-09-29).
+    expect(routed.ok && [...routed.value.viewer.roles].toSorted()).toEqual([
+      'finance',
+      'hr',
+      'people_admin',
+    ]);
     expect(asked).toEqual([
       '00000000-0000-4000-8000-000000000001 00000000-0000-4000-8000-0000000000b1',
     ]);
@@ -67,6 +72,110 @@ describe('who is calling', () => {
     const forged = await withRoles({ headers: { 'x-kithena-principal': principal() } });
     expect(forged.ok).toBe(false);
     expect(asked).toHaveLength(1);
+  });
+});
+
+describe('an administrator’s roles (decided 2026-09-29)', () => {
+  const routed = (roles: string[]) =>
+    callerFrom({
+      headers: {
+        'x-internal-token': 'router-secret',
+        'x-kithena-principal': principal({ roles }),
+      },
+    });
+
+  it('include HR’s and finance’s, standalone as with OpenFGA', () => {
+    const admin = routed(['people_admin']);
+    expect(admin.ok && [...admin.value.viewer.roles].toSorted()).toEqual([
+      'finance',
+      'hr',
+      'people_admin',
+    ]);
+  });
+
+  it('are not given to HR or finance', () => {
+    const hr = routed(['hr']);
+    expect(hr.ok && [...hr.value.viewer.roles]).toEqual(['hr']);
+    const finance = routed(['finance']);
+    expect(finance.ok && [...finance.value.viewer.roles]).toEqual(['finance']);
+  });
+
+  it('with OpenFGA, are whatever it answers for HR or finance, and no more', async () => {
+    const withRoles = withTenantRoles(callerFrom, () => Promise.resolve(new Set(['hr'])));
+    const hr = await withRoles({
+      headers: { 'x-internal-token': 'router-secret', 'x-kithena-principal': principal() },
+    });
+    expect(hr.ok && [...hr.value.viewer.roles]).toEqual(['hr']);
+  });
+});
+
+describe('Kithena support (decided 2026-09-29)', () => {
+  const OPERATOR = '00000000-0000-4000-8000-0000000000c1';
+  const routed = (over: Record<string, unknown>) => ({
+    headers: { 'x-internal-token': 'router-secret', 'x-kithena-principal': principal(over) },
+  });
+
+  it('is a principal the router forwards with impersonatedBy: a full administrator', () => {
+    const support = callerFrom(
+      routed({ roles: [], impersonatedBy: OPERATOR, impersonationReason: ' Ticket 4812 ' }),
+    );
+    expect(support.ok && support.value.viewer.support).toEqual({
+      operatorId: OPERATOR,
+      reason: 'Ticket 4812',
+    });
+    expect(support.ok && [...support.value.viewer.roles].toSorted()).toEqual([
+      'finance',
+      'hr',
+      'people_admin',
+    ]);
+  });
+
+  it('keeps its reason optional: the operator is always recorded, the reason when forwarded', () => {
+    const support = callerFrom(routed({ impersonatedBy: OPERATOR }));
+    expect(support.ok && support.value.viewer.support).toEqual({
+      operatorId: OPERATOR,
+      reason: null,
+    });
+  });
+
+  it('is nobody else: no impersonatedBy, or null, is an ordinary caller', () => {
+    for (const over of [{}, { impersonatedBy: null }]) {
+      const plain = callerFrom(routed({ ...over, roles: [] }));
+      expect(plain.ok && plain.value.viewer.support).toBeUndefined();
+      expect(plain.ok && plain.value.viewer.roles.size).toBe(0);
+    }
+  });
+
+  it('is refused when impersonatedBy is not an account, or the reason is too long', () => {
+    for (const over of [
+      { impersonatedBy: 'root' },
+      { impersonatedBy: OPERATOR, impersonationReason: 'x'.repeat(501) },
+    ]) {
+      const refused = callerFrom(routed(over));
+      expect(!refused.ok && refused.error.code).toBe('UNAUTHENTICATED');
+    }
+  });
+
+  it('is never claimed without the internal token', () => {
+    const forged = callerFrom({
+      headers: { 'x-kithena-principal': principal({ impersonatedBy: OPERATOR }) },
+    });
+    expect(!forged.ok && forged.error.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('keeps its roles with OpenFGA, which holds no tuple for it and is not asked', async () => {
+    let asked = false;
+    const withRoles = withTenantRoles(callerFrom, () => {
+      asked = true;
+      return Promise.resolve(new Set<string>());
+    });
+    const support = await withRoles(routed({ impersonatedBy: OPERATOR }));
+    expect(support.ok && [...support.value.viewer.roles].toSorted()).toEqual([
+      'finance',
+      'hr',
+      'people_admin',
+    ]);
+    expect(asked).toBe(false);
   });
 });
 

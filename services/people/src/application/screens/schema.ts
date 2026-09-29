@@ -27,6 +27,7 @@ import {
 } from '../../domain/schema/signup.js';
 import { sortKeys, type PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking } from '../person/person-access.js';
+import { userActor } from '../person/ports.js';
 import { run } from '../person/service.js';
 import type { PublishSchema } from '../schema/publish-schema.js';
 import type { DraftWriter, SchemaRepository } from '../schema/schema-repository.js';
@@ -560,7 +561,7 @@ async function applyRequiredFrom(
 function request(deps: SchemaScreenDeps, asking: Asking, next: number) {
   return {
     tenantId: asking.tenantId,
-    actor: { kind: 'user', userId: asking.viewer.accountId } as const,
+    actor: userActor(asking.viewer),
     publishedBy: asking.viewer.accountId,
     correlationId: asking.correlationId,
     artifactUrl: deps.artifactUrl(next),

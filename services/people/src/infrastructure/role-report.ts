@@ -8,7 +8,10 @@ import { drizzleRoleStore } from './drizzle-role-store.js';
 import type { InTenantTransaction } from './unit-of-work.js';
 
 /**
- * Tell identity who holds People's administrator roles in one tenant:
+ * Tell identity who was *granted* People's administrator roles in one tenant
+ * — the grants, not the rights: an administrator also has HR's and finance's
+ * rights without a grant for either, and Kithena support has every right
+ * without any grant, so neither shows here beyond what was granted:
  * `PUT /api/internal/tenants/<id>/module-roles/module.people`, a
  * `ModuleRoleReport`.
  *

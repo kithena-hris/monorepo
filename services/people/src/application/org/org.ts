@@ -26,6 +26,7 @@ import {
 } from '../../domain/org/calendar.js';
 import { checkScheme } from '../../domain/org/numbering.js';
 import type { Viewer } from '../person/ports.js';
+import { userActor } from '../person/ports.js';
 import type { EmployeeNumbers, NumberingView } from './numbering.js';
 
 /**
@@ -238,7 +239,7 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
     asking.viewer.roles.has('people_admin')
       ? ok({
           tenantId: asking.tenantId,
-          actor: { kind: 'user', userId: asking.viewer.accountId },
+          actor: userActor(asking.viewer),
           correlationId: asking.correlationId,
           causationId: null,
         })

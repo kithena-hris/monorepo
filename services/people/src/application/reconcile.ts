@@ -39,7 +39,18 @@ export interface ProvisionContext {
   readonly causationId: string | null;
 }
 
-/** Creates the provisional record, or does nothing when one exists. True when it wrote. */
+/**
+ * An address under `.invalid`, the top-level domain RFC 2606 reserves for
+ * addresses that can never exist. Identity gives Kithena support one, and no
+ * employee can have one, so no person is ever provisioned for it — People's
+ * own defence, beside identity never announcing a support account.
+ */
+export const isNobodysAddress = (email: string): boolean => /\.invalid$/i.test(email.trim());
+
+/**
+ * Creates the provisional record, or does nothing when one exists or the
+ * account is nobody's (`isNobodysAddress`). True when it wrote.
+ */
 export interface ProvisionalPeople {
   provision(
     tx: PostgresJsDatabase,

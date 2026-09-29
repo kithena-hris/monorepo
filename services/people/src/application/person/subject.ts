@@ -1,7 +1,7 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { EmploymentType, WorkModel } from '@kithena/contracts';
 
-import type { ExternalSource } from '../../domain/access/field-access.js';
+import { SUPPORT_RELATIONS, type ExternalSource } from '../../domain/access/field-access.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
 import type { PersonReader, PersonRecord, RelationsResolver } from './ports.js';
 
@@ -95,5 +95,30 @@ export function withSubjects(resolver: RelationsResolver, reader: PersonReader):
       ]);
       return record === null ? relations : { ...relations, subject: factsOf(record) };
     },
+  };
+}
+
+/**
+ * Kithena support is a full administrator to everybody and nobody's self or
+ * manager (decided 2026-09-29), whatever the resolver underneath would say:
+ * OpenFGA holds no tuple for it, and must not. Wraps the resolver before
+ * `withSubjects`, so the record's facts still travel on the answer.
+ */
+export function withSupport(resolver: RelationsResolver): RelationsResolver {
+  const reach = resolver.reach?.bind(resolver);
+  const nobody = { self: new Set<string>(), direct: new Set<string>(), chain: new Set<string>() };
+  return {
+    ...(reach === undefined
+      ? {}
+      : {
+          reach: (tx, tenantId, viewer) =>
+            viewer.support === undefined
+              ? reach(tx, tenantId, viewer)
+              : Promise.resolve({ ...nobody, complete: true }),
+        }),
+    relations: (tx, tenantId, viewer, personId) =>
+      viewer.support === undefined
+        ? resolver.relations(tx, tenantId, viewer, personId)
+        : Promise.resolve(SUPPORT_RELATIONS),
   };
 }

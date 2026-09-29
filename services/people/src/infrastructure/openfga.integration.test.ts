@@ -297,8 +297,14 @@ describe('OpenFGA relations for People', () => {
       isFinance: false,
       isInManagerChain: false,
     });
-    // The roles every other check reads come from the same tuples.
-    expect([...(await fga.roles(ACME, BOSS.account))].toSorted()).toEqual(['hr', 'people_admin']);
+    // The roles every other check reads come from the same tuples, and an
+    // administrator's include finance's, never granted (decided 2026-09-29).
+    expect([...(await fga.roles(ACME, BOSS.account))].toSorted()).toEqual([
+      'finance',
+      'hr',
+      'people_admin',
+    ]);
+    expect(await relations(ACME, BOSS.account, OTHER.person)).toMatchObject({ isFinance: true });
     expect(await fga.roles(GLOBEX, BOSS.account)).toEqual(new Set());
     // And the second person in a tenant is not its administrator.
     expect(await relations(ACME, MANAGER.account, OTHER.person)).toMatchObject({
@@ -340,7 +346,9 @@ describe('OpenFGA relations for People', () => {
   it('grants a second named administrator and revokes them when the back office removes them', async () => {
     expect(await handle(named(ACME, MANAGER.account, 3))).toBe('applied');
     await relay();
-    expect(await fga.roles(ACME, MANAGER.account)).toEqual(new Set(['people_admin', 'hr']));
+    expect(await fga.roles(ACME, MANAGER.account)).toEqual(
+      new Set(['people_admin', 'hr', 'finance']),
+    );
 
     expect(await handle(removed(ACME, MANAGER.account, 4))).toBe('applied');
     expect(await handle(removed(ACME, MANAGER.account, 4))).toBe('unchanged');
@@ -350,5 +358,45 @@ describe('OpenFGA relations for People', () => {
     // Never the last people_admin: the company would have nobody to grant anything.
     expect(await handle(removed(ACME, BOSS.account, 5))).toBe('unchanged');
     expect((await fga.roles(ACME, BOSS.account)).has('people_admin')).toBe(true);
+  });
+
+  it('gives an administrator HR’s and finance’s relations from the one grant, and takes them with it', async () => {
+    const asBoss = {
+      tenantId: ACME,
+      viewer: { accountId: BOSS.account, roles: new Set<string>() },
+      correlationId: '00000000-0000-4000-8000-00000000c0e0',
+    };
+    const change = { accountId: EMPLOYEE.account, reason: 'Runs People' };
+    const as = (role: 'people_admin' | 'hr', kind: 'grant' | 'revoke') =>
+      inTenant(ACME, ({ tx }) => roles[kind](tx, { ...asBoss, ...change, role }));
+
+    expect((await as('people_admin', 'grant')).ok).toBe(true);
+    await relay();
+    expect(await relations(ACME, EMPLOYEE.account, MANAGER.person)).toMatchObject({
+      isAdmin: true,
+      isHr: true,
+      isFinance: true,
+    });
+    // Only the grant is a tuple: nothing was written for hr or finance.
+    const synced = await inTenant(ACME, ({ tx }) => fga.syncRoles(tx, ACME, EMPLOYEE.account));
+    expect(synced).toBe('unchanged');
+
+    expect((await as('people_admin', 'revoke')).ok).toBe(true);
+    await relay();
+    expect(await relations(ACME, EMPLOYEE.account, MANAGER.person)).toMatchObject({
+      isAdmin: false,
+      isHr: false,
+      isFinance: false,
+    });
+
+    // HR is not finance, and not an administrator.
+    expect((await as('hr', 'grant')).ok).toBe(true);
+    await relay();
+    expect(await relations(ACME, EMPLOYEE.account, MANAGER.person)).toMatchObject({
+      isHr: true,
+      isFinance: false,
+      isAdmin: false,
+    });
+    expect([...(await fga.roles(ACME, EMPLOYEE.account))]).toEqual(['hr']);
   });
 });

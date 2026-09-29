@@ -1,6 +1,7 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
+import type { Viewer } from '../person/ports.js';
 import { exportableColumns } from './export.js';
 import {
   checkReason,
@@ -30,11 +31,18 @@ import {
 
 export const QUEUE_THRESHOLD = 2000;
 
-/** What goes on the queue: JSON, so the viewer's roles are an array. */
+/**
+ * What goes on the queue: JSON, so the viewer's roles are an array. Support
+ * rides along, or the job would run as an account nothing is granted to.
+ */
 export interface QueuedExport {
   readonly exportId: string;
   readonly request: Omit<ExportJobRequest, 'viewer' | 'exportId'> & {
-    readonly viewer: { readonly accountId: string; readonly roles: readonly string[] };
+    readonly viewer: {
+      readonly accountId: string;
+      readonly roles: readonly string[];
+      readonly support?: Viewer['support'];
+    };
   };
 }
 
@@ -82,7 +90,14 @@ export async function requestExport(
     exportId,
     job: {
       exportId,
-      request: { ...rest, viewer: { accountId: viewer.accountId, roles: [...viewer.roles] } },
+      request: {
+        ...rest,
+        viewer: {
+          accountId: viewer.accountId,
+          roles: [...viewer.roles],
+          ...(viewer.support === undefined ? {} : { support: viewer.support }),
+        },
+      },
     },
   });
 }
@@ -96,7 +111,11 @@ export function runQueuedExport(
   return runExportJob(tx, deps, {
     ...job.request,
     exportId: job.exportId,
-    viewer: { accountId: job.request.viewer.accountId, roles: new Set(job.request.viewer.roles) },
+    viewer: {
+      accountId: job.request.viewer.accountId,
+      roles: new Set(job.request.viewer.roles),
+      ...(job.request.viewer.support === undefined ? {} : { support: job.request.viewer.support }),
+    },
   });
 }
 

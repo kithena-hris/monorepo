@@ -13,9 +13,9 @@ import type { RelationsResolver } from '../application/person/ports.js';
  *     type user
  *     type tenant
  *       relations
- *         define hr: [user]
- *         define finance: [user]
  *         define people_admin: [user]
+ *         define hr: [user] or people_admin
+ *         define finance: [user] or people_admin
  *     type person
  *       relations
  *         define account: [user]
@@ -34,6 +34,11 @@ import type { RelationsResolver } from '../application/person/ports.js';
  *
  * `hr`, `finance` and `people_admin` sit on the tenant, and the tenant asked
  * about is the one the request is in. HR at one company is nobody at another.
+ * A People administrator is HR and finance too (decided 2026-09-29): the
+ * computed `or people_admin` answers every check of `hr` or `finance` for
+ * them, while the tuples stay what was granted — `syncRoles` reads and writes
+ * direct tuples only, and the roles screen shows the grants. The model is
+ * rewritten on boot when it differs from this one (`prepare`).
  *
  * The standalone implementation, `drizzleRelations`, answers the same
  * questions from `people.person` and the forwarded roles, and is what runs
@@ -45,7 +50,13 @@ export const PEOPLE_AUTHORIZATION_MODEL = {
     { type: 'user' },
     {
       type: 'tenant',
-      relations: { hr: { this: {} }, finance: { this: {} }, people_admin: { this: {} } },
+      relations: {
+        hr: { union: { child: [{ this: {} }, { computedUserset: { relation: 'people_admin' } }] } },
+        finance: {
+          union: { child: [{ this: {} }, { computedUserset: { relation: 'people_admin' } }] },
+        },
+        people_admin: { this: {} },
+      },
       metadata: {
         relations: {
           hr: { directly_related_user_types: [{ type: 'user' }] },
@@ -125,7 +136,10 @@ export interface OpenFga {
     tenantId: string,
     accountId: string,
   ): Promise<'applied' | 'unchanged'>;
-  /** The tenant roles this account holds: `hr`, `finance`, `people_admin`. */
+  /**
+   * The tenant roles this account may act with: `hr`, `finance`,
+   * `people_admin` — an administrator's include HR's and finance's.
+   */
   roles(tenantId: string, accountId: string): Promise<ReadonlySet<string>>;
 }
 

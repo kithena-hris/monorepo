@@ -5,6 +5,7 @@ import { TenantId, type AttributeDefinition } from '@kithena/contracts';
 import { isMappablePath, extensionKeyOf, type MappingEntry } from '../../domain/scim/resource.js';
 import type { Asking } from '../person/person-access.js';
 import type { RelationsResolver } from '../person/ports.js';
+import { userActor } from '../person/ports.js';
 import { run, type PeopleService } from '../person/service.js';
 import { LIFECYCLE_KEYS } from '../person/core.js';
 import type { ScimConnection, ScimStore } from './ports.js';
@@ -107,7 +108,7 @@ export function scimConnections(deps: ConnectionDeps): ScimConnections {
     occurredAt: deps.clock.instant(),
     effectiveFrom: null,
     aggregate: { type: 'ScimConnection', id: connection.id, version: 1 },
-    actor: { kind: 'user', userId: asking.viewer.accountId },
+    actor: userActor(asking.viewer),
     correlationId: asking.correlationId,
     causationId: null,
     payload: { connectionId: connection.id, change, system: connection.system, ownedKeys },

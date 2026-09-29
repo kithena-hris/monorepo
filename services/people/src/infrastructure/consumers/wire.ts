@@ -19,7 +19,7 @@ import { roleReportFrom } from '../role-report.js';
 import { signupReportFrom } from '../signup-report.js';
 import { personAccess } from '../../application/person/person-access.js';
 import { enterAsSelf, type EnterAsSelf } from '../../application/person/self-entry.js';
-import { withSources, withSubjects } from '../../application/person/subject.js';
+import { withSources, withSubjects, withSupport } from '../../application/person/subject.js';
 import { drizzleEmployeeNumbers } from '../drizzle-org-store.js';
 import { drizzlePersonRepository } from '../drizzle-person-repository.js';
 import { drizzleRelations, drizzleSchemaVersions } from '../drizzle-person-reader.js';
@@ -178,7 +178,7 @@ function selfEntryFrom(env: NodeJS.ProcessEnv): EnterAsSelf | null {
     reader,
     schemas: drizzleSchemaVersions(),
     relations: withSources(
-      withSubjects(openFgaFrom(env)?.relations ?? drizzleRelations(), reader),
+      withSubjects(withSupport(openFgaFrom(env)?.relations ?? drizzleRelations()), reader),
       drizzleScimStore(),
     ),
     approvals: {

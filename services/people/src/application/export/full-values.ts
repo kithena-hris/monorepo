@@ -19,6 +19,7 @@ import {
   type Grant,
 } from '../../domain/approval/approval.js';
 import type { Asking } from '../person/person-access.js';
+import { userActor } from '../person/ports.js';
 import { nameOf } from '../screens/record.js';
 import { buildExport, exportableColumns, type Reveal } from './export.js';
 import type { ExportJobDeps } from './job.js';
@@ -202,7 +203,7 @@ export async function requestFullValues(
     event(
       deps,
       request,
-      user(asking.viewer.accountId),
+      userActor(asking.viewer),
       asking.correlationId,
       FullValuesRequested.name,
       FullValuesRequested.payload.parse({
@@ -250,7 +251,7 @@ export async function decideFullValues(
     event(
       deps,
       next,
-      user(asking.viewer.accountId),
+      userActor(asking.viewer),
       asking.correlationId,
       FullValuesDecided.name,
       FullValuesDecided.payload.parse({
