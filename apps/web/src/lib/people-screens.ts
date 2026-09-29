@@ -118,22 +118,26 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         VIEWS.BulkEdit,
       );
     case 'CompletenessGrid': {
-      // Beside the grid, analytics' own figures: complete overall, and by section (R2).
+      // Beside the grid, analytics' own figure: complete overall. By section is Insights'.
       const [grid, analytics] = await Promise.all([
         read('Completeness', { after: given(query.search['after']) }),
-        people<{
-          complete: { percent: number; incomplete: number } | null;
-          completenessBySection: { label: string; value: number }[] | null;
-        }>('Analytics', { segment: null }),
+        people<{ complete: { percent: number; incomplete: number } | null }>('Analytics', {
+          segment: null,
+        }),
       ]);
       if (grid.status !== 'ready' || !analytics.ok) return grid;
       return {
         status: 'ready',
-        data: {
-          ...(grid.data as object),
-          complete: analytics.data.complete,
-          bySection: analytics.data.completenessBySection,
-        },
+        data: { ...(grid.data as object), complete: analytics.data.complete },
+      };
+    }
+    case 'ImportExport': {
+      // Importing stays HR's, as it was. People lists no past imports or exports yet.
+      const roles = await read('Home');
+      if (roles.status !== 'ready') return roles;
+      return {
+        status: 'ready',
+        data: { canImport: (roles.data as { hr?: boolean }).hr === true, history: null },
       };
     }
     case 'FieldRegistry':
@@ -207,8 +211,22 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         },
       };
     }
-    case 'Analytics':
-      return read('Analytics', { segment: given(query.search['segment']) }, VIEWS.Analytics);
+    case 'Analytics': {
+      // Every tab reads the same answer; the schedules behind its button come
+      // beside it, and one People refuses this viewer is left out.
+      const [analytics, schedules] = await Promise.all([
+        read('Analytics', { segment: given(query.search['segment']) }, VIEWS.Analytics),
+        read('ReportSchedules'),
+      ]);
+      if (analytics.status !== 'ready') return analytics;
+      return {
+        status: 'ready',
+        data: {
+          ...(analytics.data as object),
+          schedules: schedules.status === 'ready' ? schedules.data : null,
+        },
+      };
+    }
     case 'PeopleSetup': {
       const loaded = await read('Setup', {}, VIEWS.PeopleSetup);
       if (loaded.status !== 'ready') return loaded;

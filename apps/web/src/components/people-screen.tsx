@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route } from 'next';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/people/actions';
@@ -209,6 +209,16 @@ export function PeopleScreen({
   const go = (to: string): void => {
     router.push(to);
   };
+  // A tab or a view is the last segment of its route (`/people/insights/turnover`,
+  // `/people/directory/cards`): literal routes, so an unknown one never gets here.
+  const leaf = usePathname().split('/').at(-1) ?? '';
+  // Switching a directory view keeps the search and the filters, not the page.
+  const carried = ((): string => {
+    const q = new URLSearchParams(search);
+    q.delete('after');
+    const qs = q.toString();
+    return qs === '' ? '' : `?${qs}`;
+  })();
 
   /** A write, then the page again from the server when it went through. */
   const thenRefresh =
@@ -260,7 +270,7 @@ export function PeopleScreen({
             return added;
           },
           onCancel: () => {
-            go('/people/directory');
+            go('/people/directory/list');
           },
           onImport: () => {
             go('/people/import');
@@ -357,6 +367,7 @@ export function PeopleScreen({
         }
         // A new search or filter starts at the first page; a page is a
         // history entry, so Back returns to the one before (PEO-117).
+        const view = leaf === 'cards' ? 'cards' : 'list';
         const query = (next: {
           search?: string;
           filters?: Record<string, string>;
@@ -390,7 +401,7 @@ export function PeopleScreen({
           if (segment !== null && segment !== '') q.set('segment', segment);
           if (next.after !== undefined) q.set('after', next.after);
           const qs = q.toString();
-          const to = `/people/directory${qs === '' ? '' : `?${qs}`}` as Route;
+          const to = `/people/directory/${view}${qs === '' ? '' : `?${qs}`}` as Route;
           if (next.after === undefined) router.replace(to);
           else router.push(to);
         };
@@ -435,8 +446,9 @@ export function PeopleScreen({
               filters: {},
             });
           },
-          onOrgChart: () => {
-            go('/people/org-chart');
+          view,
+          onViewChange: (next: string) => {
+            go(`/people/directory/${next}${carried}`);
           },
           // Advanced conditions and the order, in the URL so a view is a link.
           onConditionsChange: (
@@ -518,14 +530,16 @@ export function PeopleScreen({
             ? {}
             : {
                 onNextPage: () => {
-                  router.push(`/people/completeness?after=${encodeURIComponent(next)}` as Route);
+                  router.push(
+                    `/people/data-health/completeness?after=${encodeURIComponent(next)}` as Route,
+                  );
                 },
               }),
           ...(search['after'] === undefined
             ? {}
             : {
                 onFirstPage: () => {
-                  router.push('/people/completeness');
+                  router.push('/people/data-health/completeness');
                 },
               }),
         };
@@ -540,7 +554,7 @@ export function PeopleScreen({
           onCommitHire: actions.commitBulkHire,
           searchPeople: actions.searchPeople,
           onBack: () => {
-            go('/people/directory');
+            go('/people/directory/list');
           },
         };
       case 'FieldRegistry':
@@ -655,8 +669,8 @@ export function PeopleScreen({
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
-          onDirectory: () => {
-            go('/people/directory');
+          onViewChange: (next: string) => {
+            go(`/people/directory/${next}${carried}`);
           },
         };
       case 'PeopleSettings':
@@ -708,14 +722,15 @@ export function PeopleScreen({
             go(`/people/${personId}`);
           },
         };
-      case 'Duplicates':
+      case 'Duplicates': {
+        const list = '/people/data-health/duplicates';
         return {
           load: loadable,
           onCompare: (a: string, b: string) => {
-            go(`/people/duplicates?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
+            go(`${list}?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
           },
           onBack: () => {
-            go('/people/duplicates');
+            go(list);
           },
           // Afterwards the survivor's record: the merge's answer, as People now holds it.
           onMerge: async (survivorId: string, absorbedId: string, take: readonly string[]) => {
@@ -723,9 +738,13 @@ export function PeopleScreen({
             if (merged.ok) go(`/people/${encodeURIComponent(survivorId)}`);
             return merged;
           },
+          // From the list, the list again; from a comparison, back to the list.
           onDismiss: async (a: string, b: string) => {
             const dismissed = await actions.dismissDuplicate([a, b]);
-            if (dismissed.ok) go('/people/duplicates');
+            if (dismissed.ok) {
+              if (search['a'] === undefined) refresh();
+              else go(list);
+            }
             return dismissed;
           },
           // Afterwards the restored record, as People now holds it.
@@ -735,6 +754,7 @@ export function PeopleScreen({
             return undone;
           },
         };
+      }
       case 'WebhookLog': {
         const next =
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
@@ -841,15 +861,25 @@ export function PeopleScreen({
       case 'Analytics':
         return {
           load: loadable,
+          tab: leaf,
           segmentId: search['segment'] ?? null,
           onSegmentChange: (segment: string | null) => {
+            const here = `/people/insights/${leaf}`;
             router.replace(
-              segment === null
-                ? '/people/analytics'
-                : `/people/analytics?segment=${encodeURIComponent(segment)}`,
+              segment === null ? here : `${here}?segment=${encodeURIComponent(segment)}`,
             );
           },
+          // The Schedules button: the schedules page's own actions.
+          schedules: {
+            onCreate: thenRefresh(actions.createReportSchedule),
+            onUpdate: thenRefresh(actions.updateReportSchedule),
+            onPause: thenRefresh(actions.pauseReportSchedule),
+            onResume: thenRefresh(actions.resumeReportSchedule),
+            onDelete: thenRefresh(actions.deleteReportSchedule),
+          },
         };
+      case 'ImportExport':
+        return { load: loadable };
       default:
         return {};
     }
