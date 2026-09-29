@@ -195,10 +195,11 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
   flyout?: ReactNode;
 }
 
-// 14px at a desk, 16px under a finger, which the type scale has no step
-// for: `sm` is 13 and `base` 15 at a desk.
+// A primary item is a 44px row of 15px type, the sidebar's own scale; the
+// levels below it are 14px at a desk, 16px under a finger, which the type
+// scale has no step for: `sm` is 13 and `base` 15 at a desk.
 const itemByLevel = {
-  1: 'min-h-9.5 touch:min-h-12 gap-2.5 px-2.5 text-[0.875rem] touch:text-[1rem]',
+  1: 'min-h-11 touch:min-h-12 gap-3 px-3 text-[0.9375rem] touch:text-[1rem]',
   2: 'min-h-9.5 touch:min-h-12 gap-2.5 px-2.5 text-[0.875rem] touch:text-[1rem]',
   3: 'min-h-7 touch:min-h-tap gap-2 px-2.5 text-sm',
 } as const;
@@ -254,11 +255,11 @@ export function NavItem({
             'shrink-0',
             described
               ? cn(
-                  'flex size-8 items-center justify-center rounded-md border [&_svg]:size-4',
+                  'flex size-10 items-center justify-center rounded-[0.75rem] [&_svg]:size-[1.1875rem]',
                   'transition-colors duration-(--animate-duration-fast)',
                   current
-                    ? 'border-transparent bg-accent-subtle text-accent-fg'
-                    : 'border-border bg-surface text-fg-muted group-hover/nav-item:border-border-strong group-hover/nav-item:text-fg',
+                    ? 'bg-accent-subtle text-accent-fg'
+                    : 'bg-surface-sunken text-fg group-hover/nav-item:bg-surface-active',
                 )
               : cn(
                   // The icon is quieter than the label until the item is current.
@@ -278,7 +279,11 @@ export function NavItem({
        */}
       {described && !asIcon ? (
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate font-medium text-fg">{label}</span>
+          {/* The count sits with the name it counts, as a menu reads it. */}
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-semibold text-fg">{label}</span>
+            {badge ? <span className="shrink-0">{badge}</span> : null}
+          </span>
           {/* Out of the link's name, into its description: the item is still
               announced as its label, then this line. */}
           <span
@@ -293,7 +298,7 @@ export function NavItem({
         <span className={cn('min-w-0 flex-1 truncate', asIcon && 'sr-only')}>{label}</span>
       )}
 
-      {badge && !asIcon ? <span className="shrink-0">{badge}</span> : null}
+      {badge && !asIcon && !described ? <span className="shrink-0">{badge}</span> : null}
 
       {/*
        * A count still has to reach someone using the rail. It becomes a dot on
@@ -326,7 +331,11 @@ export function NavItem({
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
         itemByLevel[level],
         current
-          ? 'bg-accent-subtle font-semibold text-accent-fg'
+          ? described && !asIcon
+            ? // In a menu of described places the tile carries the accent; a
+              // washed row as well would be two marks for one fact.
+              'bg-surface-sunken'
+            : 'bg-accent-subtle font-semibold text-accent-fg'
           : 'font-medium text-fg hover:bg-surface-hover',
         asIcon && 'justify-center px-0',
         className,
@@ -357,7 +366,9 @@ export function NavItem({
               // is inside is navigation that names itself.
               role={undefined}
               className={cn(
-                flyoutSize === 'lg' ? 'w-[min(46rem,calc(100vw-6rem))] p-4' : 'w-60 p-2',
+                flyoutSize === 'lg'
+                  ? 'w-[min(51.25rem,calc(100vw-6rem))] rounded-xl p-5'
+                  : 'w-60 p-2',
                 // Out of the item and back into it, rather than the popover's zoom.
                 'origin-left popover-motion',
               )}
@@ -496,9 +507,14 @@ function useFlyout() {
         if (event.key !== 'ArrowRight') return;
         event.preventDefault();
         show();
-        // After the content has mounted.
+        // After the content has mounted. Into the sections themselves when the
+        // flyout has any, past a mega menu's search and recent chips.
         requestAnimationFrame(() => {
-          content.current?.querySelector<HTMLElement>('a[href], button:not(:disabled)')?.focus();
+          const root = content.current;
+          (
+            root?.querySelector<HTMLElement>('nav a[href]') ??
+            root?.querySelector<HTMLElement>('a[href], button:not(:disabled)')
+          )?.focus();
         });
       },
     },
@@ -588,7 +604,7 @@ export function NavGroup({
 
   if (!collapsible) {
     return (
-      <li className={cn('min-w-0 pt-3.5 first:pt-0', className)} {...props}>
+      <li className={cn('min-w-0 pt-3.5 first:pt-0', menuColumn && 'pt-0', className)} {...props}>
         <h3
           id={labelId}
           className={cn(

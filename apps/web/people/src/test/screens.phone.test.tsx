@@ -209,14 +209,11 @@ describe('at 390×844, with a finger', () => {
       />,
     );
     const sheet = await screen.findByRole('dialog', { name: 'Edit Permit' });
-    for (let step = 1; step <= 2; step += 1) {
-      await userEvent.click(within(sheet).getByRole('button', { name: 'Next' }));
-      await settled();
-      expect(await violations(document.body)).toEqual([]);
-      // The conditions and the rules; the stepper above them is Reach's, and
-      // measured where Reach is.
-      for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
-    }
+    await settled();
+    expect(await violations(document.body)).toEqual([]);
+    // Every part is on one page: the conditions and the rules; the section
+    // list and the access matrix are Reach's, and measured where Reach is.
+    for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
   });
 
   it('publishing, as a sheet from the bottom', async () => {
@@ -461,7 +458,7 @@ describe('at 390×844, with a finger', () => {
     expect(underFloor(document.body)).toEqual([]);
   });
 
-  it('the directory, as cards', async () => {
+  it('the directory, as a list of people', async () => {
     await checked(
       <Directory
         load={{
@@ -506,9 +503,10 @@ describe('at 390×844, with a finger', () => {
         onOpen={vi.fn()}
       />,
     );
-    // A phone gets cards; the table is a desk's.
+    // A phone gets a list of people, each row their profile; the table is a desk's.
     expect(screen.queryByRole('table')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Details for Lena Moreau' })).toBeVisible();
+    const people = screen.getByRole('list', { name: 'People' });
+    expect(within(people).getByRole('link', { name: /Lena Moreau/ })).toBeVisible();
   });
 
   it('the completeness grid, as one card per person', async () => {

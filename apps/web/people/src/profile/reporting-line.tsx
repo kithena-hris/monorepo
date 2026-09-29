@@ -1,4 +1,4 @@
-import { Avatar, AvatarGroup, PageSection, Timeline, TimelineItem, Tooltip } from '@reach/ui';
+import { Avatar, AvatarGroup, PageSection, PersonCard, Tooltip } from '@reach/ui';
 import type { JSX } from 'react';
 
 /**
@@ -39,29 +39,30 @@ export function ReportingLine({
   return (
     <PageSection surface title="Reporting line">
       <div className="flex flex-col gap-5">
-        <Timeline aria-label={`${person.name}’s reporting line`}>
+        {/* The chain as the org chart draws it: a card each, joined by a rule. */}
+        <ol aria-label={`${person.name}’s reporting line`} className="flex flex-col">
           {line.chain.map((p) => (
-            <TimelineItem
-              key={p.id}
-              marker={<Avatar size="sm" name={p.name} src={p.avatarUrl ?? undefined} />}
-              title={
-                <a href={profileOf(p.id)} className="underline-offset-4 hover:underline">
-                  {p.name}
-                </a>
-              }
-            >
-              {p.title ?? ''}
-            </TimelineItem>
+            <li key={p.id} className="flex flex-col">
+              <PersonCard
+                layout="row"
+                name={p.name}
+                description={p.title ?? undefined}
+                href={profileOf(p.id)}
+                {...(p.avatarUrl === null ? {} : { avatarSrc: p.avatarUrl })}
+              />
+              <span aria-hidden className="mx-auto h-3.5 w-0.5 bg-border-strong" />
+            </li>
           ))}
-          <TimelineItem
-            last
-            tone="accent"
-            marker={<Avatar size="sm" name={person.name} src={person.avatarUrl ?? undefined} />}
-            title={<span className="font-semibold">{person.name}</span>}
-          >
-            {person.title ?? ''}
-          </TimelineItem>
-        </Timeline>
+          <li>
+            <PersonCard
+              layout="row"
+              selected
+              name={person.name}
+              description={person.title ?? undefined}
+              {...(person.avatarUrl === null ? {} : { avatarSrc: person.avatarUrl })}
+            />
+          </li>
+        </ol>
         {line.peers.length === 0 ? null : (
           <div className="flex flex-col gap-2 border-t border-border pt-4">
             <p className="text-sm text-fg-muted">

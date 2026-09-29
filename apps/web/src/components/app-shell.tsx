@@ -2,14 +2,9 @@
 
 import {
   Avatar,
+  Badge,
   Button,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
+  CommandPalette,
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -17,22 +12,41 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  filterCommands,
+  Kbd,
   KithenaLogo,
   KithenaMark,
   Nav,
   NavItem,
   NavList,
+  NotificationCenter,
+  NotificationItem,
   PageLayout,
+  Separator,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  TabBar,
+  TabBarItem,
   TooltipProvider,
+  icons,
+  type CommandItem,
 } from '@reach/ui';
-import { icons } from '@reach/ui';
 import type { Route } from 'next';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useState, type JSX, type ReactNode } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
 
+import { searchPeople } from '../app/people/actions';
+import { EMPTY_SHELL, type ShellData } from '../lib/shell-data';
 import { THEME_KEY } from '../lib/theme';
 import { Assistant } from './assistant';
+import { iconOf, PeopleSections } from './people-nav';
+import { since } from './since';
 
 /*
  * Reach's icon set, by meaning rather than by drawing.
@@ -52,13 +66,14 @@ const ThemeDark = icons.themeDark;
 const ThemeLight = icons.theme;
 
 /**
- * The signed-in shell: sidebar, content, and the person at the bottom of it.
+ * The signed-in shell: the sidebar with its People menu, search and the bell
+ * in the top corner, the assistant in the bottom one, and a tab bar where
+ * there is no room for a sidebar.
  *
  * `PageLayout` owns the grid, the collapsed rail and the `⌘B` shortcut, and
- * `Nav` owns the list semantics — `<ul>`/`<li>` so a screen reader announces
- * how much navigation there is, and `aria-current="page"` on the current item
- * rather than a colour. Neither is re-implemented here, which is the whole
- * point of them existing.
+ * `Nav` owns the list semantics. Where the layout is too narrow for a sidebar
+ * (a container width, never the window's) the tab bar takes over: Home,
+ * People, Inbox and Me, the way every app on a phone already works.
  */
 export interface AppShellProps {
   readonly person: { readonly name: string; readonly email: string | null };
@@ -71,12 +86,10 @@ export interface AppShellProps {
    * it is something this company does not have.
    */
   readonly entitlements: readonly string[];
-  /**
-   * An area's own sections, by the area's `href`: shown beside its sidebar
-   * item on hover, focus or a tap (`NavItem`'s `flyout`) rather than as a
-   * column that takes width from every screen.
-   */
-  readonly sections?: Readonly<Record<string, ReactNode>>;
+  /** People's places, counts and notices for this person (`shellData`). */
+  readonly shell?: ShellData;
+  /** The People manifest route on screen, to mark it in the menu. */
+  readonly route?: string | null;
   readonly children: ReactNode;
 }
 
@@ -118,6 +131,14 @@ function isCurrent(href: string, pathname: string): boolean {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** What their access is called, for the line under their name. */
+function roleOf(roles: ShellData['roles']): string | null {
+  if (roles.admin) return 'Administrator';
+  if (roles.hr) return 'HR';
+  if (roles.finance) return 'Finance';
+  return null;
+}
+
 /**
  * Light or dark, for whatever in this shell offers it.
  *
@@ -149,68 +170,78 @@ function useTheme(): readonly [boolean, (next: boolean) => void] {
   ] as const;
 }
 
+/**
+ * G then P opens People, from anywhere but a field: the shortcut the People
+ * menu's footer promises.
+ */
+function useGoShortcut(entitled: boolean): void {
+  const router = useRouter();
+  useEffect(() => {
+    if (!entitled) return undefined;
+    let armed = 0;
+    const onKey = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const key = event.key.toLowerCase();
+      if (key === 'g') {
+        armed = Date.now();
+        return;
+      }
+      if (key === 'p' && Date.now() - armed < 1000) {
+        armed = 0;
+        router.push('/people');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [entitled, router]);
+}
+
 export function AppShell({
   person,
   companyName,
   logoUrl = null,
   entitlements,
-  sections = {},
+  shell = EMPTY_SHELL,
+  route = null,
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
   const areas = areasFor(entitlements);
   const pathname = usePathname();
+  const role = roleOf(shell.roles);
+  useGoShortcut(entitlements.includes('module.people'));
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
    *
    * `NavItem` renders a `Tooltip` when the rail is collapsed — that is how a
    * destination keeps its name when the label is gone — and Radix throws
-   * without a provider above it. It is a hard error at render rather than a
-   * type error, which is why building and typechecking both passed and the
-   * page still 500'd.
+   * without a provider above it.
    */
   return (
     <TooltipProvider>
       <PageLayout
-        // Without this the grid is a single column and the sidebar renders
-        // across the whole page: `hasSidebar` is true the moment one is
-        // passed, but the column template comes from `preset`, which defaults
-        // to `stacked`.
         preset="sidebar"
         sidebarCollapse={{ mode: 'rail', defaultCollapsed: false }}
-        /*
-          Below `md` the sidebar is gone — `PageLayout` hides it, because a
-          240px rail on a 390px screen is most of the screen. Without a
-          replacement that left a phone with a page and no way off it, which is
-          what "the sidebar is gone" looked like.
-
-          Tabs rather than a hamburger: the destinations are four, they fit, and
-          a bar that is always on screen costs one tap where a drawer costs two
-          and hides where you are. It is the pattern every app on the device
-          already uses, which is the argument for it.
-        */
-        bottomBar={<MobileTabs areas={areas} person={person} dark={dark} onTheme={setTheme} />}
-        bottomBarClassName="md:hidden"
-        contentClassName="px-6 py-8"
+        bottomBar={<MobileTabs areas={areas} inbox={shell.notices.length} />}
+        bottomBarVariant="floating"
+        // Where the sidebar is (a 48rem container), the tab bar is not.
+        bottomBarClassName="@3xl/page:hidden"
+        contentClassName="relative px-4 pt-3 pb-28 @3xl/page:px-10 @3xl/page:pt-8 @3xl/page:pb-12"
         /*
           The company's mark where theirs exists, ours where it does not.
 
           Not both. This is the top-left of an employee's own workplace tool and
           the question it answers is "whose account am I in" — a person signing
-          in to Acme should see Acme. Kithena is the vendor, and a vendor's mark
-          stacked above a customer's is an advertisement in a place that is
-          supposed to be orienting.
-
-          In `sidebarHeader` rather than inside the sidebar itself, so it shares
-          the row with the collapse control instead of sitting under a strip of
-          empty chrome. The name collapses with the rail; the mark survives,
-          which is what the 3.5rem column has room for.
+          in to Acme should see Acme.
         */
         sidebarHeader={
           logoUrl === null ? (
             <>
               <KithenaLogo className="text-fg h-6 w-auto shrink-0 group-data-[collapsed]/sidebar:hidden" />
-              {/* As a rail, the mark alone: the wordmark has no room. */}
               <KithenaMark
                 title="Kithena"
                 className="text-fg hidden size-7 group-data-[collapsed]/sidebar:block"
@@ -226,42 +257,28 @@ export function AppShell({
           )
         }
         sidebar={
-          <div
-            // The expanded width lives here, not in PageLayout: its grid column
-            // is `auto`, so the rail is as wide as whatever it is given. The
-            // collapsed width is the layout's own `md:w-14`, which is why this
-            // one drops away once the rail is collapsed.
-            // `min-h-0` matters more than it looks. A flex child's default
-            // `min-height: auto` refuses to shrink below its content, so the
-            // scrolling region below would grow the column instead of
-            // scrolling and the whole sidebar — profile included — would move
-            // off-screen together.
-            className="flex h-full min-h-0 w-60 flex-col gap-4 p-3 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2"
-          >
-            {/*
-              The areas scroll; the mark above and the person below do not.
-
-              `flex-1 min-h-0 overflow-y-auto` rather than letting the column
-              grow: with enough modules switched on this list is taller than the
-              viewport, and a sidebar that scrolls as one piece takes the
-              profile and sign-out with it — so the control somebody reaches for
-              to leave is the one that disappears first. Pinning the ends and
-              scrolling the middle keeps both reachable at any height.
-            */}
+          <div className="flex h-full min-h-0 w-62 flex-col gap-1 px-3.5 pt-2 pb-4 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2">
             <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
               <NavList>
                 {areas.map((area) =>
                   area.built ? (
-                    // A Next `Link`: moving between areas keeps the page, as
-                    // moving within one does.
                     <NavItem
                       key={area.label}
                       asChild
                       icon={area.icon}
                       current={isCurrent(area.href, pathname)}
-                      flyout={sections[area.href]}
-                      // An area's places in columns, each described: room for a menu.
-                      flyoutSize="lg"
+                      {...(area.href === '/people' && shell.sections.length > 0
+                        ? {
+                            flyout: (
+                              <PeopleSections
+                                sections={shell.sections}
+                                route={route}
+                                counts={shell.counts}
+                              />
+                            ),
+                            flyoutSize: 'lg' as const,
+                          }
+                        : {})}
                     >
                       <Link href={area.href as Route}>{area.label}</Link>
                     </NavItem>
@@ -274,6 +291,7 @@ export function AppShell({
                       // 404s is worse than one that says "not yet".
                       aria-disabled
                       tabIndex={-1}
+                      className="opacity-60"
                     >
                       {area.label}
                     </NavItem>
@@ -282,16 +300,9 @@ export function AppShell({
               </NavList>
             </Nav>
 
-            {/* Pinned. `shrink-0` so it keeps its height when the list above
-                is long, and `mt-auto` so it sits at the bottom when the list is
-                short rather than floating under the last item.
-
-                Settings sits here rather than in the scrolling list above: it
-                is where you go to change something rather than somewhere you
-                work, so it belongs with the account controls and not among the
-                areas — and pinned, it stays reachable however many modules a
-                company switches on. */}
-            <div className="border-border mt-auto flex shrink-0 flex-col gap-3 border-t pt-3">
+            {/* Pinned: settings and the person stay reachable however long the list above grows. */}
+            <div className="mt-auto flex shrink-0 flex-col gap-2">
+              <Separator className="mx-1.5 my-1 group-data-[collapsed]/sidebar:hidden" />
               <Nav label="Account">
                 <NavList>
                   <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
@@ -299,11 +310,17 @@ export function AppShell({
                   </NavItem>
                 </NavList>
               </Nav>
-              <PersonMenu person={person} dark={dark} onTheme={setTheme} />
+              <PersonMenu
+                person={person}
+                subtitle={[role, companyName].filter((x) => x !== null).join(' · ')}
+                dark={dark}
+                onTheme={setTheme}
+              />
             </div>
           </div>
         }
       >
+        <TopCorner shell={shell} />
         {children}
       </PageLayout>
       <Assistant />
@@ -312,30 +329,226 @@ export function AppShell({
 }
 
 /**
+ * Search and the bell, in the top corner of the content at a desk.
+ *
+ * Search is the command palette: every People page this person may open, and
+ * anybody they may read, found as they type (`searchPeople`). The bell is
+ * what People says is waiting for them — approvals to decide, details to add —
+ * which is the same list the phone's Inbox tab shows.
+ */
+function TopCorner({ shell }: { readonly shell: ShellData }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @3xl/page:flex">
+      <Button
+        size="sm"
+        className="w-56 justify-start rounded-control text-fg-muted"
+        startIcon={<icons.search aria-hidden />}
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        <span className="flex-1 text-start font-normal">Search people</span>
+        <Kbd keyName="mod" />
+        <Kbd>K</Kbd>
+      </Button>
+      <SearchPalette open={open} onOpenChange={setOpen} shell={shell} />
+      <Notices shell={shell} />
+    </div>
+  );
+}
+
+/** The bell and what is behind it. */
+export function Notices({ shell }: { readonly shell: ShellData }): JSX.Element {
+  const count = shell.notices.length;
+  return (
+    <NotificationCenter
+      title="Notifications"
+      trigger={
+        <Button
+          variant="ghost"
+          size="sm"
+          className="relative"
+          aria-label={count === 0 ? 'Notifications' : `Notifications, ${String(count)} waiting`}
+          startIcon={<icons.notifications aria-hidden />}
+        >
+          {count === 0 ? null : (
+            <Badge
+              size="xs"
+              variant="solid"
+              tone="danger"
+              aria-hidden
+              className="absolute -top-0.5 -end-0.5 ring-2 ring-canvas"
+            >
+              {count}
+            </Badge>
+          )}
+        </Button>
+      }
+    >
+      {count === 0 ? (
+        <p className="px-4 py-6 text-sm text-fg-muted">Nothing is waiting for you.</p>
+      ) : (
+        <NoticeList shell={shell} />
+      )}
+    </NotificationCenter>
+  );
+}
+
+/** The notices as items: the bell's panel, and the Inbox page. */
+export function NoticeList({ shell }: { readonly shell: ShellData }): JSX.Element {
+  return (
+    <>
+      {shell.notices.map((n) => (
+        <NotificationItem
+          key={n.id}
+          title={n.title}
+          description={n.detail}
+          time={n.at === null || shell.now === null ? 'To do' : since(n.at, shell.now)}
+          unread
+          href={n.href}
+          {...(n.person === null
+            ? {
+                icon:
+                  n.kind === 'missing' ? (
+                    <icons.person aria-hidden />
+                  ) : (
+                    <icons.approve aria-hidden />
+                  ),
+                tone: 'warning' as const,
+              }
+            : { avatar: <Avatar name={n.person} size="lg" /> })}
+        />
+      ))}
+    </>
+  );
+}
+
+/** ⌘K: pages and people, from one field. */
+function SearchPalette({
+  open,
+  onOpenChange,
+  shell,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly shell: ShellData;
+}): JSX.Element {
+  const router = useRouter();
+  const [query, setQuery] = useState('');
+  const [found, setFound] = useState<readonly { value: string; label: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const text = query.trim();
+    if (text.length < 2) {
+      setFound([]);
+      return undefined;
+    }
+    setLoading(true);
+    let live = true;
+    const timer = setTimeout(() => {
+      void searchPeople(text).then((people) => {
+        if (!live) return;
+        setFound(people.slice(0, 8));
+        setLoading(false);
+      });
+    }, 200);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
+  const pages = useMemo<CommandItem[]>(
+    () =>
+      [
+        { path: '/', label: 'Home', icon: 'home', group: 'Pages' },
+        ...shell.sections.map((s) => ({ ...s, group: 'People' })),
+        ...shell.settings.map((s) => ({ ...s, group: 'Settings' })),
+      ].map((p) => ({
+        id: p.path,
+        label: p.label,
+        group: p.group,
+        icon: iconOf(p.icon),
+        ...('description' in p && p.description !== undefined
+          ? { description: p.description }
+          : {}),
+        onSelect: () => {
+          router.push(p.path);
+        },
+      })),
+    [shell, router],
+  );
+
+  const items = [
+    ...found.map((p): CommandItem => ({
+      id: `person:${p.value}`,
+      label: p.label,
+      group: 'People you can see',
+      avatar: <Avatar name={p.label} size="sm" />,
+      onSelect: () => {
+        router.push(`/people/${p.value}` as Route);
+      },
+    })),
+    ...filterCommands(pages, query),
+  ];
+
+  return (
+    <CommandPalette
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) setQuery('');
+      }}
+      hotkey="k"
+      label="Search people and pages"
+      placeholder="Search people and pages"
+      items={items}
+      filter={false}
+      loading={loading}
+      onQueryChange={setQuery}
+      empty="Nobody and nothing by that name."
+    />
+  );
+}
+
+/**
  * The person, at the end of the sidebar.
  *
  * Opens on hover **and** on click and keyboard. Hover alone would put signing
  * out behind a gesture a keyboard cannot make and a touch screen does not have
- * — which is also why this is a menu rather than a `HoverCard`, whose content
- * Radix documents as non-essential. Signing out is not non-essential.
+ * — which is also why this is a menu rather than a `HoverCard`.
  *
  * Sign-out is a form rather than a link. It changes server state, and a `GET`
  * that ends a session is one a prefetcher or a link scanner can fire.
  */
 function PersonMenu({
   person,
+  subtitle,
   dark,
   onTheme,
 }: {
   person: AppShellProps['person'];
+  subtitle: string;
   dark: boolean;
   onTheme: (next: boolean) => void;
 }): JSX.Element {
+  const signOut = useRef<HTMLFormElement>(null);
   return (
     <DropdownMenu openOnHover>
-      <DropdownMenuTrigger className="border-border hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center gap-3 rounded-md border px-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2">
-        <Avatar name={person.name} size="sm" />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{person.name}</span>
+      <DropdownMenuTrigger className="hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center gap-2.5 rounded-md p-2.5 text-left shadow-[inset_0_0_0_1px_var(--reach-color-border)] focus-visible:outline-2 focus-visible:outline-offset-2 group-data-[collapsed]/sidebar:justify-center group-data-[collapsed]/sidebar:p-1 group-data-[collapsed]/sidebar:shadow-none">
+        <Avatar name={person.name} size="md" />
+        <span className="min-w-0 flex-1 group-data-[collapsed]/sidebar:hidden">
+          <span className="block truncate text-sm font-semibold">{person.name}</span>
+          {subtitle === '' ? null : (
+            <span className="text-fg-muted block truncate text-xs">{subtitle}</span>
+          )}
+        </span>
+        <icons.expand
+          aria-hidden
+          className="text-fg-subtle size-4 shrink-0 group-data-[collapsed]/sidebar:hidden"
+        />
       </DropdownMenuTrigger>
 
       {/* Out to the right like the navigation's flyouts, its foot level with the trigger's. */}
@@ -346,33 +559,25 @@ function PersonMenu({
         <DropdownMenuSeparator />
         <ThemeChoice dark={dark} onChange={onTheme} />
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <form action="/auth/sign-out" method="post" className="w-full">
-            <button type="submit" className="flex w-full items-center gap-2">
-              <SignOut />
-              Sign out
-            </button>
-          </form>
+        <DropdownMenuItem
+          onSelect={() => {
+            signOut.current?.requestSubmit();
+          }}
+        >
+          <SignOut />
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
+      {/* A POST, so no prefetcher or link scanner can end a session. */}
+      <form ref={signOut} action="/auth/sign-out" method="post" hidden />
     </DropdownMenu>
   );
 }
 
 /**
  * Light or dark, in the menu where the rest of this person's preferences are.
- *
- * A checkbox item rather than a button in the sidebar: the rail collapses to
- * 3.5rem and a preference is not worth one of the few slots that survive that.
- * It is also where every tool this audience already uses keeps it.
- *
  * `onSelect` is prevented from closing the menu, so somebody can look at the
- * result and change their mind without opening it again — which is most of what
- * anybody does with this control.
- *
- * The state is read from the DOM rather than from storage, because the inline
- * script in the root layout may have honoured a stored choice that disagrees
- * with the system preference. Reading anything else would show the wrong tick.
+ * result and change their mind without opening it again.
  */
 function ThemeChoice({
   dark,
@@ -396,103 +601,133 @@ function ThemeChoice({
 }
 
 /**
- * The sidebar, for a screen too narrow to hold one.
+ * The account, for a screen with no sidebar: settings, the theme and signing
+ * out, behind the person's avatar in a phone's title bar.
+ */
+export function AccountSheet({
+  person,
+}: {
+  readonly person: AppShellProps['person'];
+}): JSX.Element {
+  const [dark, setTheme] = useTheme();
+  const pathname = usePathname();
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="relative tap-target rounded-full p-0"
+          aria-label="Your account"
+        >
+          <Avatar name={person.name} size="md" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="bottom" className="pb-safe-bottom">
+        <SheetHeader>
+          <SheetTitle>{person.name}</SheetTitle>
+          <SheetDescription>{person.email ?? person.name}</SheetDescription>
+        </SheetHeader>
+        <SheetBody>
+          <Nav label="Account">
+            <NavList>
+              <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
+                <Link href="/settings">Settings</Link>
+              </NavItem>
+            </NavList>
+          </Nav>
+          <Button
+            variant="ghost"
+            fullWidth
+            aria-pressed={dark}
+            startIcon={dark ? <ThemeLight /> : <ThemeDark />}
+            className="mt-2 justify-start"
+            onClick={() => {
+              setTheme(!dark);
+            }}
+          >
+            {dark ? 'Light mode' : 'Dark mode'}
+          </Button>
+          <form action="/auth/sign-out" method="post" className="mt-1 w-full">
+            <Button
+              type="submit"
+              variant="ghost"
+              fullWidth
+              startIcon={<SignOut />}
+              className="justify-start"
+            >
+              Sign out
+            </Button>
+          </form>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/**
+ * The sidebar, for a layout too narrow to hold one: a floating tab bar.
  *
- * Everything the rail offers is reachable here and nothing is dropped: the four
- * areas are tabs, and the fifth slot opens a sheet holding what the sidebar
- * keeps pinned to its foot — settings, the theme, the person, signing out.
- *
- * Five is the ceiling. A sixth tab on a 390px screen is a 60px target with a
- * clipped word under it, and the thing that gets cut is always the one
- * somebody needs; the sheet is what stops the list growing into the labels.
+ * Home, People, Inbox and Me. People opens the section list (the sidebar's
+ * menu, as a page); Inbox is what the bell holds; Me is their own record.
+ * Areas that are not built yet are left off here rather than disabled: five
+ * slots is the ceiling, and a dead tab costs one of them.
  */
 function MobileTabs({
   areas,
-  person,
-  dark,
-  onTheme,
+  inbox,
 }: {
   readonly areas: typeof AREAS;
-  readonly person: AppShellProps['person'];
-  readonly dark: boolean;
-  readonly onTheme: (next: boolean) => void;
+  readonly inbox: number;
 }): JSX.Element {
   const pathname = usePathname();
+  const people = areas.some((a) => a.href === '/people');
+  const tabs: readonly {
+    href: string;
+    label: string;
+    icon: JSX.Element;
+    current: boolean;
+    count?: number;
+  }[] = [
+    { href: '/', label: 'Home', icon: <Home />, current: pathname === '/' },
+    ...(people
+      ? [
+          {
+            href: '/people/menu',
+            label: 'People',
+            icon: <People />,
+            current: isCurrent('/people', pathname) && !isCurrent('/people/me', pathname),
+          },
+          {
+            href: '/inbox',
+            label: 'Inbox',
+            icon: <icons.inbox />,
+            current: pathname === '/inbox',
+            count: inbox,
+          },
+          {
+            href: '/people/me',
+            label: 'Me',
+            icon: <icons.person />,
+            current: isCurrent('/people/me', pathname),
+          },
+        ]
+      : []),
+  ];
   return (
-    <nav aria-label="Main, compact" className="flex">
-      {areas.map((area) => (
-        <Link
-          key={area.label}
-          href={area.href as Route}
-          aria-current={isCurrent(area.href, pathname) ? 'page' : undefined}
-          // Not yet built, like the sidebar's copy of the same list.
-          {...(area.built ? {} : { 'aria-disabled': true, tabIndex: -1 })}
-          className={`focus-visible:outline-border-focus flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs focus-visible:outline-2 focus-visible:-outline-offset-2 ${
-            isCurrent(area.href, pathname) ? 'text-accent-fg' : 'text-fg-muted'
-          } ${area.built ? '' : 'opacity-60'}`}
+    <TabBar label="Main, compact" className="border-0 bg-transparent p-0 shadow-none">
+      {tabs.map((t) => (
+        <TabBarItem
+          key={t.href}
+          asChild
+          icon={t.icon}
+          label={t.label}
+          current={t.current}
+          {...(t.count === undefined || t.count === 0 ? {} : { count: t.count })}
         >
-          <span aria-hidden className="[&_svg]:size-5">
-            {area.icon}
-          </span>
-          {area.label}
-        </Link>
+          <Link href={t.href as Route} />
+        </TabBarItem>
       ))}
-
-      <Sheet>
-        <SheetTrigger asChild>
-          <button
-            type="button"
-            className="focus-visible:outline-border-focus text-fg-muted flex min-h-tap flex-1 flex-col items-center justify-center gap-0.5 py-2 text-2xs focus-visible:outline-2 focus-visible:-outline-offset-2"
-          >
-            <Avatar name={person.name} size="xs" />
-            You
-          </button>
-        </SheetTrigger>
-
-        <SheetContent side="bottom" className="pb-safe-bottom">
-          <SheetHeader>
-            <SheetTitle>{person.name}</SheetTitle>
-            <SheetDescription>{person.email ?? person.name}</SheetDescription>
-          </SheetHeader>
-          <SheetBody>
-            <Nav label="Account">
-              <NavList>
-                <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
-                  <Link href="/settings">Settings</Link>
-                </NavItem>
-              </NavList>
-            </Nav>
-
-            <Button
-              variant="ghost"
-              fullWidth
-              aria-pressed={dark}
-              startIcon={dark ? <ThemeLight /> : <ThemeDark />}
-              className="mt-2 justify-start"
-              onClick={() => {
-                onTheme(!dark);
-              }}
-            >
-              {dark ? 'Light mode' : 'Dark mode'}
-            </Button>
-
-            {/* A form, not a link, for the same reason as in the sidebar: it
-                changes server state, and a `GET` that ends a session is one a
-                prefetcher can fire. */}
-            <form action="/auth/sign-out" method="post" className="mt-1 w-full">
-              <Button
-                type="submit"
-                variant="ghost"
-                fullWidth
-                startIcon={<SignOut />}
-                className="justify-start"
-              >
-                Sign out
-              </Button>
-            </form>
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
-    </nav>
+    </TabBar>
   );
 }

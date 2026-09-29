@@ -130,6 +130,36 @@ export const ChoiceChips: Story = {
   ),
 };
 
+export const ViewChips: Story = {
+  name: 'View chips',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A row of saved views over a list: one at a time, the chosen one inverted, each with its count where there is one.',
+      },
+    },
+  },
+  render: () => (
+    <ChipGroup type="single" defaultValue="Everyone" aria-label="Views">
+      {(
+        [
+          ['Everyone', 412],
+          ['My team', 9],
+          ['New joiners', 14],
+          ['Leaving', 3],
+          ['Incomplete', 88],
+        ] as const
+      ).map(([view, count]) => (
+        <ChipGroupItem key={view} value={view} variant="view">
+          {view}
+          <span className="font-medium tabular-nums">{count}</span>
+        </ChipGroupItem>
+      ))}
+    </ChipGroup>
+  ),
+};
+
 export const InputChips: Story = {
   name: 'Input chips',
   parameters: {

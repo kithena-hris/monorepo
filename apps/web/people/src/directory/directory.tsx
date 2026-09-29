@@ -2,14 +2,23 @@ import {
   Avatar,
   Badge,
   Button,
-  Card,
+  Chip,
+  ChipGroup,
+  ChipGroupItem,
+  ChipRow,
   ColumnChooser,
   DataTable,
   EmptyState,
   FilterBuilder,
-  ListDetail,
+  KeyValues,
+  List,
+  ListItem,
   PageHeader,
+  PersonCard,
+  QuickLook,
   SearchField,
+  SegmentedControl,
+  SegmentedControlItem,
   Select,
   SelectContent,
   SelectItem,
@@ -26,7 +35,7 @@ import {
   Toolbar,
   icons,
   isConditionComplete,
-  useBreakpoint,
+  useCoarsePointer,
   type ColumnChooserValue,
   type DataColumn,
   type DataTableSort,
@@ -39,7 +48,7 @@ import { useEffect, useState, type JSX, type ReactNode } from 'react';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { longDate } from '../record/display';
 import { MissingMark } from '../record/missing';
-import { SaveSegment, SegmentSelect, type SegmentRef } from '../segments';
+import { SaveSegment, type SegmentRef } from '../segments';
 
 /** A column, generated from the published schema: only what this viewer may read. */
 export interface DirectoryColumn {
@@ -139,6 +148,17 @@ export interface DirectoryProps {
   /** The saved segment applied, server-side: `?segment=<id>`. */
   readonly segmentId?: string | null;
   readonly onSegmentChange?: (segmentId: string | null) => void;
+  /**
+   * A view from the row across the top: its conditions, whether only the
+   * incomplete, and a saved segment, with everything else cleared.
+   */
+  readonly onView?: (view: {
+    readonly conditions: readonly DirectoryCondition[];
+    readonly incomplete: boolean;
+    readonly segmentId: string | null;
+  }) => void;
+  /** Shows the org chart instead of the list. */
+  readonly onOrgChart?: () => void;
   /** Save the filters in force as a segment. */
   readonly onSaveSegment?: (segment: { name: string; shared: boolean }) => Promise<Outcome>;
   readonly onOpen: (personId: string) => void;
@@ -311,42 +331,762 @@ export function describeCondition(
 }
 
 /**
- * The directory (PRD §13.1, design screen 7).
+ * The directory (W3–W5, M2–M3).
  *
  * Columns come from the published schema rather than from this file, so a
  * field a tenant invented on Tuesday is a column and a filter by Wednesday.
  * Search, conditions, order and paging run where the rows are — the shell
  * passes them to People, a page of people at a time (PEO-117) — because
- * 50,000 rows do not travel to a browser to be searched. Completeness is a
- * count, not a percentage: "2 missing" is actionable and "94%" is not.
+ * 50,000 rows do not travel to a browser to be searched.
+ *
+ * Over the list, the views (everybody, who is starting, who is leaving, whose
+ * record is incomplete, each saved view), then the search with the filters in
+ * force as chips, and the way to switch between a table, cards and the org
+ * chart. A row opens a quick look beside the table (W3b) so a reader checks
+ * somebody without losing their place: ↑ and ↓ move to the next person, ↵
+ * opens the full profile. Under a finger the table is a list of people, each
+ * row a tap to their profile.
  */
 export function Directory(props: DirectoryProps): JSX.Element {
   const { load } = props;
   const summary = load.status === 'ready' ? summaryOf(load.data) : undefined;
 
   return (
-    <Stack gap={6}>
+    <Stack gap={5}>
       <PageHeader
         title="Directory"
         description={summary}
         actions={
-          <span className="flex gap-2">
-            {props.onExport === undefined ? null : (
-              <Button startIcon={<icons.download aria-hidden />} onClick={props.onExport}>
-                Export
-              </Button>
-            )}
-            {props.onImport === undefined ? null : (
-              <Button startIcon={<icons.upload aria-hidden />} onClick={props.onImport}>
-                Import
-              </Button>
-            )}
-          </span>
+          props.onImport === undefined ? undefined : (
+            <Button startIcon={<icons.upload aria-hidden />} onClick={props.onImport}>
+              Import
+            </Button>
+          )
         }
       />
       <Loaded load={load} what="the directory">
-        {(state) => <Table {...props} state={state} />}
+        {(state) => <Body {...props} state={state} />}
       </Loaded>
+    </Stack>
+  );
+}
+
+const STATUS_TONE: Record<string, 'success' | 'neutral' | 'warning' | 'info'> = {
+  Active: 'success',
+  'On leave': 'info',
+  'On notice': 'warning',
+  'Starting soon': 'info',
+};
+
+type View = 'table' | 'cards';
+
+/**
+ * The views across the top: one at a time, each applied by the shell on the
+ * server like any filter. A count shows where People gave one; the rest are
+ * views, not totals.
+ */
+function Views({
+  state,
+  conditions,
+  segmentId,
+  incomplete,
+  onView,
+  onSaveSegment,
+  canSave,
+}: {
+  readonly state: DirectoryState;
+  readonly conditions: readonly DirectoryCondition[];
+  readonly segmentId: string | null;
+  readonly incomplete: boolean;
+  readonly onView?: DirectoryProps['onView'];
+  readonly onSaveSegment?: DirectoryProps['onSaveSegment'];
+  readonly canSave: boolean;
+}): JSX.Element | null {
+  const statuses = (state.fields ?? []).some((f) => f.key === 'status');
+  const statusIs = (value: string) =>
+    conditions.length === 1 &&
+    conditions[0]?.key === 'status' &&
+    conditions[0].values.length === 1 &&
+    conditions[0].values[0] === value;
+  const everyone = conditions.length === 0 && !incomplete && segmentId === null;
+  const status = (value: string) => ({
+    conditions: [{ key: 'status', op: 'in', values: [value] }],
+    incomplete: false,
+    segmentId: null,
+  });
+  const views = [
+    {
+      id: 'everyone',
+      label: 'Everyone',
+      count: everyone ? state.total : null,
+      on: everyone,
+      view: { conditions: [], incomplete: false, segmentId: null },
+    },
+    ...(statuses
+      ? [
+          {
+            id: 'starting',
+            label: 'Starting soon',
+            count: everyone ? state.notStarted : null,
+            on: statusIs('pre_hire'),
+            view: status('pre_hire'),
+          },
+          {
+            id: 'leaving',
+            label: 'Leaving',
+            count: null,
+            on: statusIs('notice'),
+            view: status('notice'),
+          },
+        ]
+      : []),
+    ...(state.incomplete === null
+      ? []
+      : [
+          {
+            id: 'incomplete',
+            label: 'Incomplete',
+            count: everyone ? state.incomplete : null,
+            on: incomplete,
+            view: { conditions: [], incomplete: true, segmentId: null },
+          },
+        ]),
+    ...(state.segments ?? []).map((s) => ({
+      id: `segment:${s.id}`,
+      label: s.name,
+      count: null,
+      on: segmentId === s.id,
+      view: { conditions: [], incomplete: false, segmentId: s.id },
+    })),
+  ];
+  if (onView === undefined || views.length < 2) {
+    return canSave && onSaveSegment !== undefined ? <SaveSegment onSave={onSaveSegment} /> : null;
+  }
+  const active = views.find((v) => v.on)?.id ?? '';
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      <ChipGroup
+        type="single"
+        scroll
+        aria-label="Views"
+        value={active}
+        onValueChange={(id) => {
+          const chosen = views.find((v) => v.id === (id === '' ? 'everyone' : id));
+          if (chosen !== undefined) onView(chosen.view);
+        }}
+        className="min-w-0 gap-1.5"
+      >
+        {views.map((v) => (
+          <ChipGroupItem key={v.id} value={v.id} variant="view">
+            {v.label}
+            {v.count === null ? null : (
+              <span className="font-medium tabular-nums">{v.count.toLocaleString('en-GB')}</span>
+            )}
+          </ChipGroupItem>
+        ))}
+      </ChipGroup>
+      {canSave && onSaveSegment !== undefined ? <SaveSegment onSave={onSaveSegment} /> : null}
+    </div>
+  );
+}
+
+function Body({
+  state,
+  search,
+  onSearchChange,
+  filters,
+  onFiltersChange,
+  onConditionsChange,
+  onSortChange,
+  segmentId = null,
+  onView,
+  onSaveSegment,
+  onOpen,
+  onExport,
+  onImport,
+  onBulkEdit,
+  onNextPage,
+  onFirstPage,
+  onLoadMore,
+  onOrgChart,
+  next = null,
+  group = null,
+  onGroupChange,
+  incomplete = false,
+}: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
+  const coarse = useCoarsePointer();
+  const [view, setView] = useState<View>('table');
+  const [peek, setPeek] = useState<string | null>(null);
+  const columnsChosen = useColumns(state.columns);
+  const widths = useWidths();
+  const loaded = useRows(state.people, next, onLoadMore);
+  const fields = state.fields ?? [];
+  const conditions = state.query?.conditions ?? [];
+  const match = state.query?.match === 'any' ? 'any' : 'all';
+  const sort = state.query?.sort ?? null;
+  const kindOf = new Map(fields.map((f) => [f.key, f.kind]));
+  // What people can be grouped by: a choice, a place, a manager, a status.
+  const groupable = fields.filter(
+    (f) => f.kind === 'select' || f.kind === 'status' || f.kind === 'person',
+  );
+  const grouping = groupable.find((f) => f.key === group) ?? null;
+  const groupOf = (p: DirectoryPerson): string =>
+    grouping === null
+      ? ''
+      : (p.people?.find((r) => r.key === grouping.key)?.name ??
+        (p.values[grouping.key] || `No ${grouping.label.toLowerCase()}`));
+
+  // Nobody at all, rather than nobody matching: say so, and where adding
+  // happens. No buttons of its own: Import is in the header and adding one
+  // person is People's manifest action beside every screen.
+  const narrowed =
+    search.trim() !== '' ||
+    Object.keys(filters).length > 0 ||
+    conditions.length > 0 ||
+    incomplete ||
+    segmentId !== null ||
+    onFirstPage !== undefined;
+  if (state.people.length === 0 && !narrowed) {
+    return (
+      <EmptyState
+        title="No employees yet"
+        description={
+          onImport === undefined
+            ? 'Nobody has been added to People yet.'
+            : 'Add people one at a time with Add person, or import a spreadsheet of everybody.'
+        }
+      />
+    );
+  }
+
+  const cell = (p: DirectoryPerson, c: DirectoryColumn): ReactNode => {
+    // A manager is a person: their face and their full name.
+    const ref = p.people?.find((r) => r.key === c.key);
+    if (ref !== undefined) {
+      return (
+        <span className="flex min-w-0 items-center gap-2">
+          <Avatar size="sm" name={ref.name} src={ref.avatarUrl ?? undefined} />
+          <span className="truncate">{ref.name}</span>
+        </span>
+      );
+    }
+    const value = p.values[c.key];
+    if (value === undefined || value === '') return <span className="text-fg-subtle">—</span>;
+    if (c.key === 'status') {
+      return (
+        <Badge size="sm" dot tone={STATUS_TONE[value] ?? 'neutral'}>
+          {value}
+        </Badge>
+      );
+    }
+    if (kindOf.get(c.key) === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return <span className="whitespace-nowrap tabular-nums">{longDate(value)}</span>;
+    }
+    if (c.key === 'employee_number') return <span className="font-mono text-sm">{value}</span>;
+    return value;
+  };
+
+  const byKey = new Map(state.columns.map((c) => [c.key, c]));
+  const shown = columnsChosen.value.order.filter(
+    (k) => k !== PERSON && columnsChosen.value.visible.includes(k) && byKey.has(k),
+  );
+  const shownColumns = shown.flatMap((k) => byKey.get(k) ?? []);
+  /** "Backend engineer · Madrid": the first two columns People shows, in words. */
+  const lineOf = (p: DirectoryPerson): string =>
+    shownColumns
+      .filter((c) => c.key !== 'status' && p.people?.some((r) => r.key === c.key) !== true)
+      .map((c) => p.values[c.key])
+      .filter((v) => v !== undefined && v !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(v))
+      .slice(0, 2)
+      .join(' · ');
+
+  const rows = loaded.rows;
+  const peeked = rows.find((p) => p.id === peek) ?? null;
+  const move = (step: 1 | -1) => {
+    const at = rows.findIndex((p) => p.id === peek);
+    const to = rows[at + step];
+    if (to === undefined) return;
+    setPeek(to.id);
+    document.getElementById(`person-${to.id}`)?.focus();
+  };
+
+  const nameCell = (p: DirectoryPerson): JSX.Element => (
+    <span className="flex min-w-0 items-center gap-3">
+      <Avatar size="md" name={p.name} src={p.avatarUrl ?? undefined} />
+      <span className="min-w-0">
+        {/*
+          The name is the row's control: Space or a click opens the quick
+          look, ↵ the full profile, and ↑ ↓ walk the people without leaving
+          the list.
+        */}
+        <button
+          id={`person-${p.id}`}
+          type="button"
+          className="block max-w-full truncate rounded-xs text-start font-semibold text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+          onClick={(event) => {
+            event.stopPropagation();
+            setPeek(p.id);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              onOpen(p.id);
+            } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              const at = rows.findIndex((r) => r.id === p.id);
+              const to = rows[at + (event.key === 'ArrowDown' ? 1 : -1)];
+              if (to === undefined) return;
+              if (peek !== null) setPeek(to.id);
+              document.getElementById(`person-${to.id}`)?.focus();
+            } else if (event.key === 'Escape' && peek !== null) {
+              setPeek(null);
+            }
+          }}
+        >
+          {p.name}
+        </button>
+        {p.email === null ? null : (
+          <span className="block truncate text-xs text-fg-muted">{p.email}</span>
+        )}
+      </span>
+    </span>
+  );
+
+  const columns: DataColumn<DirectoryPerson>[] = [
+    {
+      id: PERSON,
+      header: 'Name',
+      width: '17rem',
+      sticky: true,
+      sortBy: (p) => p.name,
+      cell: nameCell,
+    },
+    ...shownColumns.map((c): DataColumn<DirectoryPerson> => ({
+      id: c.key,
+      header: c.label,
+      ...(c.sortable === false || onSortChange === undefined || grouping !== null
+        ? {}
+        : { sortBy: (p: DirectoryPerson) => p.values[c.key] ?? '' }),
+      cell: (p) => cell(p, c),
+    })),
+  ];
+  if (state.people.some((p) => p.missing !== null)) {
+    columns.push({
+      id: 'record',
+      header: 'Record',
+      width: '9rem',
+      cell: (p) =>
+        p.missing === null ? null : p.missing === 0 ? (
+          <Badge tone="success" size="sm">
+            Complete
+          </Badge>
+        ) : (
+          <MissingMark count={p.missing} />
+        ),
+    });
+  }
+
+  // The chips: every condition in force, each removable, then Clear all.
+  const chips: { key: string; field: string; text: string; remove: () => void }[] = [
+    ...conditions.map((c, i) => ({
+      key: `c${String(i)}`,
+      field: '',
+      text: describeCondition(fields, c),
+      remove: () => {
+        onConditionsChange?.(
+          conditions.filter((_, j) => j !== i),
+          match,
+        );
+      },
+    })),
+    ...Object.entries(filters).map(([key, value]) => {
+      const f = state.filterable.find((x) => x.key === key);
+      return {
+        key: `f${key}`,
+        field: f?.label ?? key,
+        text: f?.options.find((o) => o.value === value)?.label ?? value,
+        remove: () => {
+          onFiltersChange(Object.fromEntries(Object.entries(filters).filter(([k]) => k !== key)));
+        },
+      };
+    }),
+  ];
+
+  const tableSort: DataTableSort | null =
+    sort === null
+      ? null
+      : {
+          columnId: sort.key === 'name' ? PERSON : sort.key,
+          direction: sort.direction === 'asc' ? 'ascending' : 'descending',
+        };
+
+  const empty = (
+    <EmptyState
+      title="Nobody matches"
+      description="Remove a filter or change the search to see more people."
+    />
+  );
+
+  const table = coarse ? (
+    // Under a finger: a list of people, each row their profile.
+    rows.length === 0 ? (
+      empty
+    ) : (
+      <List aria-label="People">
+        {rows.map((p) => (
+          <ListItem
+            key={p.id}
+            asChild
+            leading={
+              <Avatar
+                name={p.name}
+                src={p.avatarUrl ?? undefined}
+                size="xl"
+                {...(p.values['status'] === 'Active'
+                  ? { status: 'success' as const, statusLabel: 'Active' }
+                  : p.values['status'] === 'On leave'
+                    ? { status: 'info' as const, statusLabel: 'On leave' }
+                    : {})}
+              />
+            }
+            description={lineOf(p)}
+            {...(p.values['status'] === undefined || p.values['status'] === 'Active'
+              ? { chevron: true }
+              : {
+                  trailing: (
+                    <Badge size="sm" tone={STATUS_TONE[p.values['status']] ?? 'neutral'}>
+                      {p.values['status']}
+                    </Badge>
+                  ),
+                })}
+          >
+            <a
+              href={`/people/${p.id}`}
+              onClick={(event) => {
+                event.preventDefault();
+                onOpen(p.id);
+              }}
+            >
+              {p.name}
+            </a>
+          </ListItem>
+        ))}
+      </List>
+    )
+  ) : view === 'cards' ? (
+    rows.length === 0 ? (
+      empty
+    ) : (
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-3.5">
+        {rows.map((p) => (
+          <li key={p.id} className="min-w-0">
+            <PersonCard
+              name={p.name}
+              description={lineOf(p)}
+              {...(p.avatarUrl === null ? {} : { avatarSrc: p.avatarUrl })}
+              {...(p.values['status'] === 'Active'
+                ? { status: 'success' as const, statusLabel: 'Active' }
+                : p.values['status'] === 'On leave'
+                  ? { status: 'info' as const, statusLabel: 'On leave' }
+                  : {})}
+              badges={
+                p.missing === null || p.missing === 0 ? undefined : (
+                  <MissingMark count={p.missing} />
+                )
+              }
+              actions={
+                <>
+                  {p.email === null ? null : (
+                    <Button asChild size="xs" aria-label={`Email ${p.name}`}>
+                      <a href={`mailto:${p.email}`}>
+                        <icons.email aria-hidden />
+                      </a>
+                    </Button>
+                  )}
+                  <Button
+                    size="xs"
+                    onClick={() => {
+                      onOpen(p.id);
+                    }}
+                  >
+                    Profile
+                  </Button>
+                </>
+              }
+              className="h-full"
+            />
+          </li>
+        ))}
+      </ul>
+    )
+  ) : (
+    <DataTable
+      label="People"
+      rows={rows}
+      {...(grouping === null ? {} : { groupBy: groupOf })}
+      resizable
+      columnWidths={widths.widths}
+      onColumnWidthsChange={widths.choose}
+      activeRowId={peek}
+      // Infinite: the table scrolls in a window of its own, the next page
+      // loads near the end, and past 100 rows only what is on screen is
+      // mounted (Reach's `auto`).
+      estimateRowHeight={57}
+      containerClassName="max-h-[calc(100dvh-18rem)] min-h-96"
+      {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
+      columns={columns}
+      rowId={(p) => p.id}
+      describeRow={(p) => p.name}
+      onRowClick={(p) => {
+        setPeek(p.id);
+      }}
+      {...(onSortChange === undefined || grouping !== null
+        ? {}
+        : {
+            sort: tableSort,
+            onSortChange: (s: DataTableSort | null) => {
+              onSortChange(
+                s === null
+                  ? null
+                  : {
+                      key: s.columnId === PERSON ? 'name' : s.columnId,
+                      direction: s.direction === 'ascending' ? 'asc' : 'desc',
+                    },
+              );
+            },
+          })}
+      {...(onBulkEdit === undefined
+        ? {}
+        : {
+            selectable: true,
+            bulkActions: (picked: DirectoryPerson[]) => (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => {
+                  onBulkEdit(picked.map((p) => p.id));
+                }}
+              >
+                Edit together
+              </Button>
+            ),
+          })}
+      stickyHeader
+      empty={empty}
+    />
+  );
+
+  return (
+    <Stack gap={4}>
+      <Views
+        state={state}
+        conditions={conditions}
+        segmentId={segmentId}
+        incomplete={incomplete}
+        {...(onView === undefined ? {} : { onView })}
+        {...(onSaveSegment === undefined ? {} : { onSaveSegment })}
+        canSave={Object.keys(filters).length > 0}
+      />
+      <Toolbar
+        search={
+          <SearchField
+            label="Search people"
+            placeholder="Search by name, email or employee number"
+            size="sm"
+            value={search}
+            onValueChange={onSearchChange}
+            containerClassName="w-full @3xl:w-90"
+          />
+        }
+        filters={
+          <ChipRow role="group" aria-label="Filters in force">
+            {match === 'any' && conditions.length > 1 ? (
+              <span className="text-xs text-fg-muted">Any of:</span>
+            ) : null}
+            {chips.map((chip) => (
+              <Chip
+                key={chip.key}
+                {...(chip.field === '' ? {} : { field: chip.field })}
+                onRemove={chip.remove}
+                removeLabel={`Remove ${chip.field === '' ? '' : `${chip.field} `}${chip.text}`}
+              >
+                {chip.text}
+              </Chip>
+            ))}
+            {onConditionsChange === undefined || fields.length === 0 ? null : (
+              <Filters
+                key="filters"
+                fields={fields}
+                conditions={conditions}
+                match={match}
+                onApply={onConditionsChange}
+              />
+            )}
+            {chips.length === 0 ? null : (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (conditions.length > 0) onConditionsChange?.([], 'all');
+                  if (Object.keys(filters).length > 0) onFiltersChange({});
+                }}
+              >
+                Clear all
+              </Button>
+            )}
+          </ChipRow>
+        }
+        actions={
+          coarse ? undefined : (
+            <span className="flex flex-wrap items-center gap-2">
+              <SegmentedControl
+                aria-label="Show people as"
+                size="sm"
+                value={view}
+                onValueChange={(next) => {
+                  if (next === 'chart') onOrgChart?.();
+                  else setView(next as View);
+                }}
+              >
+                <SegmentedControlItem iconOnly value="table" aria-label="Table">
+                  <icons.table aria-hidden />
+                </SegmentedControlItem>
+                <SegmentedControlItem iconOnly value="cards" aria-label="Cards">
+                  <icons.people aria-hidden />
+                </SegmentedControlItem>
+                {onOrgChart === undefined ? null : (
+                  <SegmentedControlItem iconOnly value="chart" aria-label="Org chart">
+                    <icons.organisation aria-hidden />
+                  </SegmentedControlItem>
+                )}
+              </SegmentedControl>
+              {onGroupChange === undefined || groupable.length === 0 || view !== 'table' ? null : (
+                <Select
+                  value={grouping?.key ?? ANY}
+                  onValueChange={(value) => {
+                    onGroupChange(value === ANY ? null : value);
+                  }}
+                >
+                  <SelectTrigger aria-label="Group by" size="sm" className="w-auto min-w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ANY}>No grouping</SelectItem>
+                    {groupable.map((f) => (
+                      <SelectItem key={f.key} value={f.key}>
+                        Group by {f.label.toLowerCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <ColumnChooser
+                columns={[
+                  { id: PERSON, label: 'Name', locked: true },
+                  ...state.columns.map((c) => ({ id: c.key, label: c.label })),
+                ]}
+                value={columnsChosen.value}
+                onChange={columnsChosen.choose}
+                onReset={() => {
+                  columnsChosen.choose(null);
+                }}
+              />
+              {onExport === undefined ? null : (
+                <Button size="sm" startIcon={<icons.download aria-hidden />} onClick={onExport}>
+                  Export
+                </Button>
+              )}
+            </span>
+          )
+        }
+      />
+      {peeked !== null && view === 'table' && !coarse ? (
+        <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4">
+          {table}
+          <QuickLook
+            className="sticky top-4"
+            media={
+              <Avatar
+                name={peeked.name}
+                src={peeked.avatarUrl ?? undefined}
+                size="2xl"
+                {...(peeked.values['status'] === 'Active'
+                  ? { status: 'success' as const, statusLabel: 'Active' }
+                  : {})}
+              />
+            }
+            title={peeked.name}
+            description={lineOf(peeked)}
+            href={`/people/${peeked.id}`}
+            onOpen={() => {
+              onOpen(peeked.id);
+            }}
+            onClose={() => {
+              setPeek(null);
+              document.getElementById(`person-${peeked.id}`)?.focus();
+            }}
+            onPrevious={() => {
+              move(-1);
+            }}
+            onNext={() => {
+              move(1);
+            }}
+            actions={
+              <>
+                {peeked.email === null ? null : (
+                  <Button asChild size="sm" startIcon={<icons.email aria-hidden />}>
+                    <a href={`mailto:${peeked.email}`}>Email</a>
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => {
+                    onOpen(peeked.id);
+                  }}
+                >
+                  Profile
+                </Button>
+              </>
+            }
+          >
+            <KeyValues
+              items={shownColumns
+                .slice(0, 5)
+                .map((c) => ({ id: c.key, label: c.label, value: cell(peeked, c) }))}
+            />
+            {peeked.missing === null || peeked.missing === 0 ? null : (
+              <p className="flex items-center gap-2 text-sm text-fg-muted">
+                <MissingMark count={peeked.missing} />
+                required {peeked.missing === 1 ? 'detail' : 'details'} to fill in
+              </p>
+            )}
+          </QuickLook>
+        </div>
+      ) : (
+        table
+      )}
+      {onLoadMore === undefined ? null : (
+        <p role="status" className="text-xs text-fg-muted">
+          {loaded.loading
+            ? 'Loading more people…'
+            : `Showing ${String(rows.length)} of ${String(state.total)}`}
+        </p>
+      )}
+      {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
+        <div>
+          <Button loading={loaded.loading} loadingLabel="Loading more" onClick={loaded.loadMore}>
+            Show more people
+          </Button>
+        </div>
+      ) : null}
+      {onLoadMore !== undefined ||
+      (onNextPage === undefined && onFirstPage === undefined) ? null : (
+        <nav aria-label="Pages of people" className="flex justify-end gap-2">
+          {onFirstPage === undefined ? null : <Button onClick={onFirstPage}>First page</Button>}
+          {onNextPage === undefined ? null : <Button onClick={onNextPage}>Next page</Button>}
+        </nav>
+      )}
     </Stack>
   );
 }
@@ -385,387 +1125,6 @@ function useColumns(columns: readonly DirectoryColumn[]) {
   return { value: { order, visible: value.visible.filter((k) => known.has(k)) }, choose };
 }
 
-const STATUS_TONE: Record<string, 'success' | 'neutral' | 'warning' | 'info'> = {
-  Active: 'success',
-  'On leave': 'info',
-  'On notice': 'warning',
-  'Starting soon': 'info',
-};
-
-function Table({
-  state,
-  search,
-  onSearchChange,
-  filters,
-  onFiltersChange,
-  onConditionsChange,
-  onSortChange,
-  segmentId = null,
-  onSegmentChange,
-  onSaveSegment,
-  onOpen,
-  onImport,
-  onBulkEdit,
-  onNextPage,
-  onFirstPage,
-  onLoadMore,
-  next = null,
-  group = null,
-  onGroupChange,
-  incomplete = false,
-  onIncompleteChange,
-}: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
-  const wide = useBreakpoint('md');
-  const columnsChosen = useColumns(state.columns);
-  const widths = useWidths();
-  const loaded = useRows(state.people, next, onLoadMore);
-  const fields = state.fields ?? [];
-  const conditions = state.query?.conditions ?? [];
-  const match = state.query?.match === 'any' ? 'any' : 'all';
-  const sort = state.query?.sort ?? null;
-  const kindOf = new Map(fields.map((f) => [f.key, f.kind]));
-  // What people can be grouped by: a choice, a place, a manager, a status.
-  const groupable = fields.filter(
-    (f) => f.kind === 'select' || f.kind === 'status' || f.kind === 'person',
-  );
-  const grouping = groupable.find((f) => f.key === group) ?? null;
-  const groupOf = (p: DirectoryPerson): string =>
-    grouping === null
-      ? ''
-      : (p.people?.find((r) => r.key === grouping.key)?.name ??
-        (p.values[grouping.key] || `No ${grouping.label.toLowerCase()}`));
-
-  // Nobody at all, rather than nobody matching: say so, and where adding
-  // happens. No buttons of its own: Import is in the header and Add employee
-  // is People's manifest action beside every screen, and a second copy of
-  // either on one screen is noise.
-  const narrowed =
-    search.trim() !== '' ||
-    Object.keys(filters).length > 0 ||
-    conditions.length > 0 ||
-    incomplete ||
-    segmentId !== null ||
-    onFirstPage !== undefined;
-  if (state.people.length === 0 && !narrowed) {
-    return (
-      <EmptyState
-        title="No employees yet"
-        description={
-          onImport === undefined
-            ? 'Nobody has been added to People yet.'
-            : 'Add people one at a time with Add employee, or import a spreadsheet of everybody.'
-        }
-      />
-    );
-  }
-
-  const cell = (p: DirectoryPerson, c: DirectoryColumn): ReactNode => {
-    // A manager is a person: their face and their full name.
-    const ref = p.people?.find((r) => r.key === c.key);
-    if (ref !== undefined) {
-      return (
-        <span className="flex min-w-0 items-center gap-2">
-          <Avatar size="xs" name={ref.name} src={ref.avatarUrl ?? undefined} />
-          <span className="truncate">{ref.name}</span>
-        </span>
-      );
-    }
-    const value = p.values[c.key];
-    if (value === undefined || value === '') return <span className="text-fg-subtle">—</span>;
-    if (c.key === 'status') {
-      return (
-        <Badge size="sm" tone={STATUS_TONE[value] ?? 'neutral'}>
-          {value}
-        </Badge>
-      );
-    }
-    if (kindOf.get(c.key) === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return <span className="whitespace-nowrap tabular-nums">{longDate(value)}</span>;
-    }
-    return value;
-  };
-
-  const byKey = new Map(state.columns.map((c) => [c.key, c]));
-  const shown = columnsChosen.value.order.filter(
-    (k) => k !== PERSON && columnsChosen.value.visible.includes(k) && byKey.has(k),
-  );
-  const columns: DataColumn<DirectoryPerson>[] = [
-    {
-      id: PERSON,
-      header: 'Name',
-      width: '17rem',
-      sticky: true,
-      sortBy: (p) => p.name,
-      cell: (p) => (
-        <span className="flex items-center gap-3">
-          <Avatar size="sm" name={p.name} src={p.avatarUrl ?? undefined} />
-          <span className="min-w-0">
-            <span className="block truncate font-medium text-fg">{p.name}</span>
-            {p.email === null ? null : (
-              <span className="block truncate text-xs text-fg-muted">{p.email}</span>
-            )}
-          </span>
-        </span>
-      ),
-    },
-    ...shown.map((key): DataColumn<DirectoryPerson> => {
-      const c = byKey.get(key) as DirectoryColumn;
-      return {
-        id: c.key,
-        header: c.label,
-        ...(c.sortable === false || onSortChange === undefined || grouping !== null
-          ? {}
-          : { sortBy: (p: DirectoryPerson) => p.values[c.key] ?? '' }),
-        cell: (p) => cell(p, c),
-      };
-    }),
-  ];
-  if (state.people.some((p) => p.missing !== null)) {
-    columns.push({
-      id: 'record',
-      header: 'Record',
-      width: '9rem',
-      cell: (p) =>
-        p.missing === null ? null : p.missing === 0 ? (
-          <Badge tone="success" size="sm">
-            Complete
-          </Badge>
-        ) : (
-          <MissingMark count={p.missing} />
-        ),
-    });
-  }
-
-  // The chips: every condition in force, each removable, then Clear all.
-  const chips: { key: string; text: string; remove: () => void }[] = [
-    ...conditions.map((c, i) => ({
-      key: `c${String(i)}`,
-      text: describeCondition(fields, c),
-      remove: () => {
-        onConditionsChange?.(
-          conditions.filter((_, j) => j !== i),
-          match,
-        );
-      },
-    })),
-    ...Object.entries(filters).map(([key, value]) => {
-      const f = state.filterable.find((x) => x.key === key);
-      return {
-        key: `f${key}`,
-        text: `${f?.label ?? key}: ${f?.options.find((o) => o.value === value)?.label ?? value}`,
-        remove: () => {
-          onFiltersChange(Object.fromEntries(Object.entries(filters).filter(([k]) => k !== key)));
-        },
-      };
-    }),
-  ];
-
-  const tableSort: DataTableSort | null =
-    sort === null
-      ? null
-      : {
-          columnId: sort.key === 'name' ? PERSON : sort.key,
-          direction: sort.direction === 'asc' ? 'ascending' : 'descending',
-        };
-
-  return (
-    <Stack gap={4}>
-      <Toolbar
-        search={<SearchField label="Search people" value={search} onValueChange={onSearchChange} />}
-        filters={[
-          onConditionsChange === undefined || fields.length === 0 ? null : (
-            <Filters
-              key="filters"
-              fields={fields}
-              conditions={conditions}
-              match={match}
-              onApply={onConditionsChange}
-            />
-          ),
-          onGroupChange === undefined || groupable.length === 0 ? null : (
-            <Select
-              key="group"
-              value={grouping?.key ?? ANY}
-              onValueChange={(value) => {
-                onGroupChange(value === ANY ? null : value);
-              }}
-            >
-              <SelectTrigger aria-label="Group by" className="w-auto min-w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ANY}>No grouping</SelectItem>
-                {groupable.map((f) => (
-                  <SelectItem key={f.key} value={f.key}>
-                    Group by {f.label.toLowerCase()}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ),
-          onSegmentChange === undefined ? null : (
-            <SegmentSelect
-              key="segment"
-              segments={state.segments ?? []}
-              value={segmentId}
-              onChange={onSegmentChange}
-            />
-          ),
-          // HR's: only the people with something missing (the verdict's, as HR may see it).
-          state.incomplete === null || onIncompleteChange === undefined ? null : (
-            <Select
-              key="incomplete"
-              value={incomplete ? 'missing' : ANY}
-              onValueChange={(value) => {
-                onIncompleteChange(value === 'missing');
-              }}
-            >
-              <SelectTrigger aria-label="Record" className="w-auto min-w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ANY}>Any record</SelectItem>
-                <SelectItem value="missing">Missing information</SelectItem>
-              </SelectContent>
-            </Select>
-          ),
-        ]}
-        actions={
-          <span className="flex flex-wrap items-center gap-2">
-            {onSaveSegment === undefined || Object.keys(filters).length === 0 ? null : (
-              <SaveSegment onSave={onSaveSegment} />
-            )}
-            {wide ? (
-              <ColumnChooser
-                columns={[
-                  { id: PERSON, label: 'Name', locked: true },
-                  ...state.columns.map((c) => ({ id: c.key, label: c.label })),
-                ]}
-                value={columnsChosen.value}
-                onChange={columnsChosen.choose}
-                onReset={() => {
-                  columnsChosen.choose(null);
-                }}
-              />
-            ) : null}
-          </span>
-        }
-      />
-      {chips.length === 0 ? null : (
-        <div className="flex flex-wrap items-center gap-2" aria-label="Filters in force">
-          {match === 'any' && conditions.length > 1 ? (
-            <span className="text-xs text-fg-muted">Any of:</span>
-          ) : null}
-          {chips.map((chip) => (
-            <Badge key={chip.key} onRemove={chip.remove} removeLabel={`Remove ${chip.text}`}>
-              {chip.text}
-            </Badge>
-          ))}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              if (conditions.length > 0) onConditionsChange?.([], 'all');
-              if (Object.keys(filters).length > 0) onFiltersChange({});
-            }}
-          >
-            Clear all
-          </Button>
-        </div>
-      )}
-      {wide ? (
-        <DataTable
-          label="People"
-          rows={loaded.rows}
-          {...(grouping === null ? {} : { groupBy: groupOf })}
-          striped
-          resizable
-          columnWidths={widths.widths}
-          onColumnWidthsChange={widths.choose}
-          // Infinite: the table scrolls in a window of its own, the next page
-          // loads near the end, and past 100 rows only what is on screen is
-          // mounted (Reach's `auto`).
-          estimateRowHeight={57}
-          containerClassName="max-h-[calc(100dvh-16rem)] min-h-96"
-          {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
-          columns={columns}
-          rowId={(p) => p.id}
-          describeRow={(p) => p.name}
-          onRowClick={(p) => {
-            onOpen(p.id);
-          }}
-          {...(onSortChange === undefined || grouping !== null
-            ? {}
-            : {
-                sort: tableSort,
-                onSortChange: (next: DataTableSort | null) => {
-                  onSortChange(
-                    next === null
-                      ? null
-                      : {
-                          key: next.columnId === PERSON ? 'name' : next.columnId,
-                          direction: next.direction === 'ascending' ? 'asc' : 'desc',
-                        },
-                  );
-                },
-              })}
-          {...(onBulkEdit === undefined
-            ? {}
-            : {
-                selectable: true,
-                bulkActions: (rows: DirectoryPerson[]) => (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => {
-                      onBulkEdit(rows.map((p) => p.id));
-                    }}
-                  >
-                    Edit together
-                  </Button>
-                ),
-              })}
-          stickyHeader
-          empty={
-            <EmptyState
-              title="Nobody matches"
-              description="Remove a filter or change the search to see more people."
-            />
-          }
-        />
-      ) : (
-        <Cards
-          state={{ ...state, people: loaded.rows }}
-          columns={shown.flatMap((k) => byKey.get(k) ?? [])}
-          cell={cell}
-          onOpen={onOpen}
-        />
-      )}
-      {onLoadMore === undefined ? null : (
-        <p role="status" className="text-xs text-fg-muted">
-          {loaded.loading
-            ? 'Loading more people…'
-            : `Showing ${String(loaded.rows.length)} of ${String(state.total)}`}
-        </p>
-      )}
-      {!wide && loaded.loadMore !== undefined ? (
-        <div>
-          <Button loading={loaded.loading} loadingLabel="Loading more" onClick={loaded.loadMore}>
-            Show more people
-          </Button>
-        </div>
-      ) : null}
-      {onLoadMore !== undefined ||
-      (onNextPage === undefined && onFirstPage === undefined) ? null : (
-        <nav aria-label="Pages of people" className="flex justify-end gap-2">
-          {onFirstPage === undefined ? null : <Button onClick={onFirstPage}>First page</Button>}
-          {onNextPage === undefined ? null : <Button onClick={onNextPage}>Next page</Button>}
-        </nav>
-      )}
-    </Stack>
-  );
-}
-
 /**
  * The advanced filters: conditions, one per row, all or any of them, in a
  * side panel so the table keeps the page. Nothing applies until Apply, so a
@@ -798,8 +1157,9 @@ function Filters({
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <Button
-        startIcon={<icons.filter aria-hidden />}
+      <Chip
+        variant={conditions.length === 0 ? 'dashed' : 'filled'}
+        startIcon={<icons.add aria-hidden />}
         onClick={() => {
           const current = fromState();
           // Opened with nothing yet: one empty row to start from.
@@ -821,8 +1181,8 @@ function Filters({
           setOpen(true);
         }}
       >
-        {conditions.length === 0 ? 'Filters' : `Filters (${String(conditions.length)})`}
-      </Button>
+        {conditions.length === 0 ? 'Add filter' : `Filters (${String(conditions.length)})`}
+      </Chip>
       <SheetContent side="right" size="lg">
         <SheetHeader>
           <SheetTitle>Filter people</SheetTitle>
@@ -866,101 +1226,5 @@ function Filters({
         </SheetFooter>
       </SheetContent>
     </Sheet>
-  );
-}
-
-/**
- * The directory on a phone (§17.2): a card per person carrying the two
- * columns that matter, the rest one tap away in the detail pane. The same
- * people, the same filters; only the layout differs, and `useBreakpoint`
- * decides — nothing asks what device this is.
- */
-function Cards({
-  state,
-  columns,
-  cell,
-  onOpen,
-}: {
-  readonly state: DirectoryState;
-  readonly columns: readonly DirectoryColumn[];
-  readonly cell: (p: DirectoryPerson, c: DirectoryColumn) => ReactNode;
-  readonly onOpen: (personId: string) => void;
-}): JSX.Element {
-  const [chosen, setChosen] = useState<string | null>(null);
-  const person = state.people.find((p) => p.id === chosen) ?? null;
-  const [first, second] = columns;
-
-  if (state.people.length === 0) {
-    return (
-      <EmptyState
-        title="Nobody matches"
-        description="Remove a filter or change the search to see more people."
-      />
-    );
-  }
-  return (
-    <ListDetail
-      listLabel="People"
-      detailLabel={person?.name ?? 'Person'}
-      selected={person !== null}
-      onBack={() => {
-        setChosen(null);
-      }}
-      backLabel="All people"
-      list={
-        <ul className="flex flex-col gap-2">
-          {state.people.map((p) => (
-            <li key={p.id}>
-              <Card className="flex items-center gap-3 p-3">
-                <Avatar size="md" name={p.name} src={p.avatarUrl ?? undefined} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{p.name}</span>
-                  <span className="block truncate text-xs text-fg-muted">
-                    {[first, second]
-                      .map((c) => (c === undefined ? undefined : p.values[c.key]))
-                      .filter((v) => v !== undefined && v !== '')
-                      .join(' · ')}
-                  </span>
-                </span>
-                {p.missing === null || p.missing === 0 ? null : <MissingMark count={p.missing} />}
-                <Button
-                  size="sm"
-                  aria-label={`Details for ${p.name}`}
-                  onClick={() => {
-                    setChosen(p.id);
-                  }}
-                >
-                  Details
-                </Button>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      }
-      detail={
-        person === null ? null : (
-          <Stack gap={4} className="p-4">
-            <dl className="grid gap-3">
-              {columns.map((c) => (
-                <div key={c.key}>
-                  <dt className="text-xs text-fg-muted">{c.label}</dt>
-                  <dd className="text-sm">{cell(person, c)}</dd>
-                </div>
-              ))}
-            </dl>
-            <div>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  onOpen(person.id);
-                }}
-              >
-                Open profile
-              </Button>
-            </div>
-          </Stack>
-        )
-      }
-    />
   );
 }

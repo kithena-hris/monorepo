@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { currentTenant } from './branding';
-import { people } from './people';
+import { people, type PeopleAnswer } from './people';
 import type { OperationName } from './people-operations';
 import { VIEWS } from './people-views';
 
@@ -99,6 +99,8 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         },
         VIEWS.Directory,
       );
+    case 'OrgChart':
+      return orgChart();
     case 'Profile':
       return read('Profile', { personId: query.params['id'] ?? null }, VIEWS.Profile);
     case 'PersonHistory':
@@ -115,8 +117,25 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         { personIds: (query.search['people'] ?? '').split(',').filter((id) => id !== '') },
         VIEWS.BulkEdit,
       );
-    case 'CompletenessGrid':
-      return read('Completeness', { after: given(query.search['after']) });
+    case 'CompletenessGrid': {
+      // Beside the grid, analytics' own figures: complete overall, and by section (R2).
+      const [grid, analytics] = await Promise.all([
+        read('Completeness', { after: given(query.search['after']) }),
+        people<{
+          complete: { percent: number; incomplete: number } | null;
+          completenessBySection: { label: string; value: number }[] | null;
+        }>('Analytics', { segment: null }),
+      ]);
+      if (grid.status !== 'ready' || !analytics.ok) return grid;
+      return {
+        status: 'ready',
+        data: {
+          ...(grid.data as object),
+          complete: analytics.data.complete,
+          bySection: analytics.data.completenessBySection,
+        },
+      };
+    }
     case 'FieldRegistry':
       return read('Registry');
     case 'SettingsActivity':
@@ -139,11 +158,23 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'RoleSettings':
       return read('RoleSettings');
     case 'PeopleHome':
-      return read('Overview');
+      return overview();
     case 'Organisation':
       return read('Organisation');
     case 'PeopleSettings':
       return settingsOverview();
+    case 'ReminderSettings':
+      return reminderSettings();
+    case 'CountryPacks': {
+      const [setup, organisation] = await Promise.all([read('Setup'), read('Organisation')]);
+      if (setup.status !== 'ready') return setup;
+      const { packs } = setup.data as { packs: unknown[] };
+      const entities =
+        organisation.status === 'ready'
+          ? (organisation.data as { legalEntities: unknown[] }).legalEntities
+          : [];
+      return { status: 'ready', data: { packs, entities } };
+    }
     case 'FullValues':
       return read('FullValues');
     case 'IdentifierReviews':
@@ -205,6 +236,175 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
 }
 
 export { today };
+
+/** How many directory pages the org chart reads: 40 of 50, two thousand people. */
+const CHART_PAGES = 40;
+
+type ChartRow = DirectoryRow & {
+  readonly people?: readonly { readonly key: string; readonly id: string; readonly name: string }[];
+};
+
+/**
+ * Everybody this viewer may see, with their manager, for the org chart: the
+ * directory, page after page, as People answers it (PEO-117). The manager is
+ * the person column People resolves; a viewer who may not read it gets a
+ * chart of roots, which says so by being flat rather than guessing.
+ */
+async function orgChart(): Promise<ScreenLoad> {
+  const found: unknown[] = [];
+  let after: string | null = null;
+  for (let page = 0; page < CHART_PAGES; page += 1) {
+    // Each page needs the cursor of the one before.
+    const answer: PeopleAnswer<{ people: ChartRow[]; next: string | null }> = await people(
+      'Directory',
+      {
+        after,
+        sort: 'name:asc',
+      },
+    );
+    if (!answer.ok) {
+      if (page > 0) return { status: 'ready', data: { people: found, truncated: true } };
+      return answer.code === 'UNREACHABLE'
+        ? { status: 'error', message: answer.message, unreachable: true }
+        : { status: 'error', message: answer.message, code: answer.code };
+    }
+    const value = (p: ChartRow, key: string) => {
+      const v = p.values.find((x) => x.key === key)?.value;
+      return v === undefined || v === '' ? null : v;
+    };
+    for (const p of answer.data.people) {
+      const manager = p.people?.find((r) => r.key === 'manager_id');
+      found.push({
+        id: p.id,
+        name: p.name,
+        title: value(p, 'job_title'),
+        managerId: manager?.id ?? null,
+        managerName: manager?.name ?? null,
+        avatarUrl: p.avatarUrl,
+        status: value(p, 'status'),
+        team: value(p, 'department'),
+        location: value(p, 'location_id'),
+      });
+    }
+    after = answer.data.next;
+    if (after === null) return { status: 'ready', data: { people: found, truncated: false } };
+  }
+  return { status: 'ready', data: { people: found, truncated: true } };
+}
+
+/** A person on a directory page, as People answers one. */
+interface DirectoryRow {
+  readonly id: string;
+  readonly name: string;
+  readonly avatarUrl: string | null;
+  readonly values: readonly { readonly key: string; readonly value: string }[];
+  readonly missing: number | null;
+}
+
+/**
+ * The overview, and for HR the figures beside it (W2): headcount and complete
+ * records from analytics, how many identifiers, duplicates and access
+ * requests wait, and who is starting. Each read is People's own, as the
+ * person signed in; one People refuses is left out of the figures rather
+ * than failing the page.
+ */
+async function overview(): Promise<ScreenLoad> {
+  const base = await read('Overview');
+  if (base.status !== 'ready') return base;
+  const data = base.data as { roles?: { hr?: boolean } };
+  if (data.roles?.hr !== true) return base;
+  const [analytics, ids, dupes, access, starting] = await Promise.all([
+    people<{
+      headcount: {
+        value: number;
+        change: number | null;
+        trend: { label: string; value: number }[];
+      };
+      complete: { percent: number; incomplete: number } | null;
+      expiringIn90Days: number | null;
+      joiners: { months: string[]; cells: { row: string; column: string; value: number }[] } | null;
+    }>('Analytics', { segment: null }),
+    people<{ items: unknown[] }>('IdentifierReviews'),
+    people<{ items: unknown[] }>('Duplicates', { a: null, b: null }),
+    people<{ requests: { state: string }[] }>('FullValues'),
+    people<{ people: DirectoryRow[] }>('Directory', {
+      conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }],
+      sort: 'hire_date:asc',
+    }),
+  ]);
+  const a = analytics.ok ? analytics.data : null;
+  const joiners =
+    a?.joiners == null
+      ? []
+      : a.joiners.months.map((month) => ({
+          label: month,
+          value:
+            a.joiners?.cells.filter((c) => c.column === month).reduce((n, c) => n + c.value, 0) ??
+            0,
+        }));
+  const value = (p: DirectoryRow, key: string) => p.values.find((v) => v.key === key)?.value;
+  return {
+    status: 'ready',
+    data: {
+      ...(base.data as object),
+      hr: {
+        headcount: a?.headcount ?? null,
+        complete: a?.complete ?? null,
+        expiring: a?.expiringIn90Days ?? null,
+        identifiers: ids.ok ? ids.data.items.length : null,
+        duplicates: dupes.ok ? dupes.data.items.length : null,
+        accessRequests: access.ok
+          ? access.data.requests.filter((r) => r.state === 'pending').length
+          : null,
+        joiners,
+        starting: (starting.ok ? starting.data.people : []).slice(0, 5).map((p) => ({
+          id: p.id,
+          name: p.name,
+          avatarUrl: p.avatarUrl,
+          detail: [value(p, 'job_title'), value(p, 'hire_date')]
+            .filter((x) => x !== undefined && x !== '')
+            .join(' · '),
+          missing: p.missing,
+        })),
+      },
+    },
+  };
+}
+
+/**
+ * Completeness and reminders (S20): the reminder rule People runs today
+ * (the day a detail goes missing, then weekly, in working hours), whether the
+ * chat notice for it is on, and the reporting floor from the organisation.
+ * The HR digest and the directory policy have no source yet and are left out.
+ */
+async function reminderSettings(): Promise<ScreenLoad> {
+  const [organisation, chat] = await Promise.all([read('Organisation'), read('Chat')]);
+  if (organisation.status !== 'ready') return organisation;
+  const org = organisation.data as { canManage: boolean; settings: { cohortMinimum: number } };
+  const chatData =
+    chat.status === 'ready'
+      ? (chat.data as {
+          apps: { connection: unknown }[];
+          notices: { key: string; on: boolean }[];
+        })
+      : null;
+  const inChat =
+    chatData !== null &&
+    chatData.apps.some((a) => a.connection !== null) &&
+    chatData.notices.some((n) => n.key === 'profile_reminder' && n.on);
+  return {
+    status: 'ready',
+    data: {
+      canManage: org.canManage,
+      cohortMinimum: org.settings.cohortMinimum,
+      reminders: {
+        cadence: 'The day a detail goes missing, then once a week',
+        window: '09:00 to 18:00, on their own clock',
+        inChat,
+      },
+    },
+  };
+}
 
 /**
  * People's settings read back for the Settings page: the four screens' own

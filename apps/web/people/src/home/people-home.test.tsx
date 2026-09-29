@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@reach/ui';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -25,10 +26,10 @@ const part = (name: string): HTMLElement => {
 describe('the overview', () => {
   it('opens on the person: photo, name, what they do, where, since when, and their profile', async () => {
     const { container } = render(<PeopleHome load={ready(overview())} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Ada Lovelace' })).toBeInTheDocument();
-    expect(screen.getByText('Engineer · Research')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Ada Lovelace' })).toBeInTheDocument();
+    expect(screen.getByText('Engineer · Research · Madrid office')).toBeInTheDocument();
     const details = screen.getByRole('list', { name: 'Your details' });
-    expect(within(details).getByText(/Madrid office/)).toBeInTheDocument();
     expect(within(details).getByText(/11:30 local time/)).toBeInTheDocument();
     expect(within(details).getByText(/Joined 4 Mar 2024 · 2 years, 6 months/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View your profile' })).toHaveAttribute(
@@ -54,7 +55,7 @@ describe('the overview', () => {
 
   it('links each missing detail of theirs to the field itself, and names who fills the rest', () => {
     render(<PeopleHome load={ready(overview())} />);
-    const missing = part('Your missing information');
+    const missing = part('Your profile is 71% complete');
     expect(within(missing).getByText('2 of 7 required details missing')).toBeInTheDocument();
     expect(within(missing).getByRole('link', { name: /Emergency contact/ })).toHaveAttribute(
       'href',
@@ -76,19 +77,48 @@ describe('the overview', () => {
       expect.stringContaining('Alan Turing'),
     ]);
     expect(within(line).getByText(/3 others report to Alan Turing/)).toBeInTheDocument();
-    expect(within(line).getByRole('link', { name: 'Show all 8' })).toHaveAttribute(
+    const team = part('Your direct reports 8');
+    expect(within(team).getByRole('link', { name: 'Show all 8' })).toHaveAttribute(
       'href',
       `/people/directory?filter=${encodeURIComponent(`manager_id:${ADA}`)}`,
     );
-    expect(within(line).getByRole('link', { name: /Tim Berners-Lee/ })).toHaveAttribute(
+    expect(within(team).getByRole('link', { name: /Tim Berners-Lee/ })).toHaveAttribute(
       'href',
       '/people/00000000-0000-4000-8000-0000000000a5',
     );
   });
 
-  it('gives HR the team’s gaps, and never an employee', () => {
-    const hr = render(<PeopleHome load={ready(overview())} />);
-    expect(part('Everybody’s records')).toHaveTextContent('11 details wait for HR');
+  it('gives HR the records’ figures and queues, and never an employee', async () => {
+    const figures = {
+      headcount: {
+        value: 412,
+        change: 14,
+        trend: [
+          { label: 'Aug', value: 398 },
+          { label: 'Sep', value: 412 },
+        ],
+      },
+      complete: { percent: 79, incomplete: 88 },
+      expiring: 6,
+      identifiers: 3,
+      duplicates: 2,
+      accessRequests: 1,
+      joiners: [{ label: 'Sep', value: 14 }],
+      starting: [
+        { id: 'm', name: 'Mei Tanaka', avatarUrl: null, detail: 'Data analyst', missing: 3 },
+      ],
+    };
+    const hr = render(<PeopleHome load={ready({ ...overview(), hr: figures })} />, {
+      wrapper: TooltipProvider,
+    });
+    const attention = part('Needs attention');
+    expect(attention).toHaveTextContent('11 details wait for HR');
+    expect(
+      within(attention).getByRole('link', { name: /Review: 3 identifiers need review/ }),
+    ).toHaveAttribute('href', '/people/identifier-reviews');
+    expect(screen.getByText('Headcount')).toBeInTheDocument();
+    expect(part('Starting soon')).toHaveTextContent('Mei Tanaka');
+    expect(await axeViolations(hr.container)).toEqual([]);
     hr.unmount();
     render(
       <PeopleHome
@@ -101,7 +131,7 @@ describe('the overview', () => {
         )}
       />,
     );
-    expect(maybe('Everybody’s records')).toBeNull();
+    expect(maybe('Needs attention')).toBeNull();
     expect(maybe('Waiting for your approval')).toBeNull();
   });
 
@@ -120,7 +150,7 @@ describe('the overview', () => {
 
   it('still opens for an account with no record, and lists no places of its own', async () => {
     const { container } = render(<PeopleHome load={ready(nobody({ hr: true }))} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'People' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Overview' })).toBeInTheDocument();
     expect(maybe('Your reporting line')).toBeNull();
     // The sections are the sidebar's and the breadcrumb's; the overview stays clean.
     expect(screen.queryByRole('navigation')).toBeNull();
@@ -170,11 +200,7 @@ describe('finishing sign-up on the overview', () => {
     };
     const user = fast();
     const { container } = render(
-      <PeopleHome
-        load={{ status: 'ready', data }}
-        onPhoto={vi.fn()}
-        onSetupFile={onSetupFile}
-      />,
+      <PeopleHome load={{ status: 'ready', data }} onPhoto={vi.fn()} onSetupFile={onSetupFile} />,
     );
     expect(screen.getByText('Finish setting up your account')).toBeInTheDocument();
     expect(screen.getByLabelText('Your photo')).toHaveAttribute('type', 'file');

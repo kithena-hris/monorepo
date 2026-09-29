@@ -99,6 +99,16 @@ export function RadioGroupItem({
   );
 }
 
+export interface RadioCardProps extends RadioGroupItemProps {
+  /**
+   * A glyph in place of the dot, for a grid of kinds to pick from (a type of
+   * answer, a kind of document) where the picture is how the eye finds one.
+   * The card keeps its fill and ring when chosen, so the choice still reads
+   * as a shape; the radio itself stays for the keyboard and a screen reader.
+   */
+  icon?: ReactNode;
+}
+
 /**
  * The same control as a set of cards, for a choice that deserves the weight,
  * a pay schedule, a termination reason. The whole card is the target, which is
@@ -108,9 +118,10 @@ export function RadioCard({
   className,
   children,
   description,
+  icon,
   id,
   ...props
-}: RadioGroupItemProps): JSX.Element {
+}: RadioCardProps): JSX.Element {
   const generatedId = useId();
   const controlId = id ?? generatedId;
   const descriptionId = `${controlId}-description`;
@@ -123,6 +134,9 @@ export function RadioCard({
         // A raised card; the chosen one takes the accent wash and a 2px ring,
         // so the choice is a shape as well as a colour.
         'flex cursor-pointer items-start gap-3 rounded-md bg-surface p-4 shadow-sm touch:rounded-[1.125rem]',
+        icon === undefined
+          ? null
+          : 'items-center bg-surface-sunken p-3.5 shadow-none [&>svg]:size-[1.125rem] [&>svg]:shrink-0',
         'transition-[background-color,box-shadow] duration-(--animate-duration-normal) ease-standard',
         'hover:bg-surface-hover',
         'has-[[data-state=checked]]:bg-accent-subtle has-[[data-state=checked]]:ring-2 has-[[data-state=checked]]:ring-accent has-[[data-state=checked]]:ring-inset',
@@ -141,6 +155,9 @@ export function RadioCard({
         aria-labelledby={labelId}
         aria-describedby={description ? descriptionId : undefined}
         className={cn(
+          // With a glyph the dot is not drawn: the radio stays, focusable and
+          // named, and the card's ring is its state.
+          icon === undefined ? null : 'sr-only',
           'mt-0.5 grid size-[1.125rem] shrink-0 place-items-center rounded-full border-[1.5px] border-border-strong',
           'touch:mt-0 touch:size-6',
           'transition-colors duration-(--animate-duration-fast)',
@@ -152,8 +169,15 @@ export function RadioCard({
       >
         <RadioGroupPrimitive.Indicator className="size-[0.4375rem] rounded-full bg-fg-on-accent data-[state=checked]:animate-scale-in touch:size-2.5" />
       </RadioGroupPrimitive.Item>
+      {icon}
       <div className="min-w-0">
-        <span id={labelId} className="block text-base font-semibold text-fg">
+        <span
+          id={labelId}
+          className={cn(
+            'block text-base font-semibold text-fg',
+            icon === undefined ? null : 'text-sm font-medium',
+          )}
+        >
           {children}
         </span>
         {description ? (

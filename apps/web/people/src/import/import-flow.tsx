@@ -1,6 +1,6 @@
 import {
   Alert,
-  AutoGrid,
+  Card,
   Badge,
   Button,
   Checkbox,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
   Stack,
-  Stat,
+  ImportSummary,
   Stepper,
   type DataColumn,
   type UploadItem,
@@ -180,22 +180,38 @@ export function ImportFlow(props: ImportFlowProps): JSX.Element {
             {stage.step === 'map' ? <Mapping stage={stage} {...props} /> : null}
             {stage.step === 'review' ? <Review stage={stage} {...props} /> : null}
             {stage.step === 'done' ? (
-              <Alert tone="success" title={`${stage.file.name} is imported`}>
-                {stage.created} created, {stage.updated} updated
-                {stage.blocked > 0
-                  ? `, ${String(stage.blocked)} left out and in the blocked file`
-                  : ''}
-                .
-                {(stage.forReview ?? 0) > 0
-                  ? ` ${String(stage.forReview)} national identifiers our checks doubt went to HR's review.`
-                  : ''}
-                {(stage.held ?? 0) > 0
-                  ? ` ${String(stage.held)} sensitive ${stage.held === 1 ? 'value waits' : 'values wait'} for HR's approval and ${stage.held === 1 ? 'is' : 'are'} not applied until then.`
-                  : ''}
-                {stage.appliedWithoutApproval === true
-                  ? ' Sensitive values were applied without approval, and each change records that you chose to.'
-                  : ''}
-              </Alert>
+              <Card padded className="flex max-w-3xl flex-col gap-4">
+                <ImportSummary
+                  label="What the import did"
+                  tiles={[
+                    { id: 'created', label: 'Created', count: stage.created, tone: 'success' },
+                    { id: 'updated', label: 'Updated', count: stage.updated, tone: 'info' },
+                    { id: 'skipped', label: 'Skipped', count: stage.blocked, tone: 'neutral' },
+                  ]}
+                />
+                <Alert tone="success" title={`${stage.file.name} is imported`}>
+                  {stage.created} created, {stage.updated} updated
+                  {stage.blocked > 0
+                    ? `, ${String(stage.blocked)} left out and in the blocked file`
+                    : ''}
+                  .
+                  {(stage.forReview ?? 0) > 0
+                    ? ` ${String(stage.forReview)} national identifiers our checks doubt went to HR's review.`
+                    : ''}
+                  {(stage.held ?? 0) > 0
+                    ? ` ${String(stage.held)} sensitive ${stage.held === 1 ? 'value waits' : 'values wait'} for HR's approval and ${stage.held === 1 ? 'is' : 'are'} not applied until then.`
+                    : ''}
+                  {stage.appliedWithoutApproval === true
+                    ? ' Sensitive values were applied without approval, and each change records that you chose to.'
+                    : ''}
+                </Alert>
+                {stage.created > 0 ? (
+                  <Alert tone="info" title="Nobody has been invited yet">
+                    New people are pre-hire or provisional. Invite each from their record when
+                    you’re ready.
+                  </Alert>
+                ) : null}
+              </Card>
             ) : null}
           </Stack>
         )}
@@ -320,7 +336,9 @@ function Mapping({
               ) : null}
               {stage.fields.map((f) => (
                 <SelectItem key={f.key} value={f.key}>
-                  {f.sensitive === true ? `${f.label} (sensitive: changes wait for approval)` : f.label}
+                  {f.sensitive === true
+                    ? `${f.label} (sensitive: changes wait for approval)`
+                    : f.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -409,23 +427,32 @@ function Review({
   const blockedColumns: DataColumn<BlockedRow>[] = [
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
     { id: 'person', header: 'Person', cell: (r) => r.person ?? '(no name)' },
-    { id: 'problem', header: 'Problem', cell: (r) => r.problem },
     {
       id: 'cell',
       header: 'Cell',
-      cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
+      cell: (r) => (
+        <span className="rounded-xs bg-danger-subtle px-2 py-0.5 font-mono text-xs text-danger-fg">
+          {r.cell}
+        </span>
+      ),
     },
+    { id: 'problem', header: 'Why it’s blocked', cell: (r) => r.problem },
   ];
 
   return (
     <Stack gap={5}>
-      <AutoGrid minItemWidth="8rem" gap={3}>
-        <Stat label="Create" value={counts.create} />
-        <Stat label="Update" value={counts.update} />
-        <Stat label="Unchanged" value={counts.unchanged} />
-        <Stat label="Blocked" value={counts.blocked} />
-        <Stat label="Duplicate" value={counts.duplicate} />
-      </AutoGrid>
+      {/* How the dry run sorted the rows (R7): the blocked ones are what needs you. */}
+      <ImportSummary
+        label="Rows by outcome"
+        tiles={[
+          { id: 'create', label: 'Create', count: counts.create, tone: 'success' },
+          { id: 'update', label: 'Update', count: counts.update, tone: 'info' },
+          { id: 'unchanged', label: 'Unchanged', count: counts.unchanged, tone: 'neutral' },
+          { id: 'blocked', label: 'Blocked', count: counts.blocked, tone: 'danger' },
+          { id: 'duplicate', label: 'Duplicate', count: counts.duplicate, tone: 'warning' },
+        ]}
+        selected={counts.blocked + counts.duplicate > 0 ? 'blocked' : null}
+      />
 
       {incomplete.count > 0 ? (
         <Alert
@@ -479,7 +506,8 @@ function Review({
             tone="warning"
             title={`Our checks suggest ${String(findings.length)} ${findings.length === 1 ? 'identifier' : 'identifiers'} may be wrong`}
           >
-            These rows will import, and HR will review each value. If a value is wrong, fix it in the file first.
+            These rows will import, and HR will review each value. If a value is wrong, fix it in
+            the file first.
           </Alert>
           <DataTable
             label="Identifiers to check"

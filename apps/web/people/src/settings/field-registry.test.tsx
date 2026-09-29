@@ -237,10 +237,13 @@ describe('FieldRegistry', () => {
     await user.click(buttonNamed('Health & safety'));
     await user.click(buttonNamed('Add field'));
     const sheet = await screen.findByRole('dialog', { name: 'New field' });
-    expect(within(sheet).getByText('Health & safety · step 1 of 4')).toBeInTheDocument();
+    expect(
+      within(sheet).getByRole('navigation', { name: 'Parts of the field' }),
+    ).toBeInTheDocument();
+    expect(within(sheet).getAllByText(/Health & safety/).length).toBeGreaterThan(0);
   });
 
-  it('adds a field in four steps, classification last, special category only with a tick', async () => {
+  it('adds a field on one page, sensitivity last, special category only with a tick', async () => {
     const user = fast();
     const onSaveField = vi.fn(ok);
     const advise = vi.fn(() =>
@@ -270,7 +273,7 @@ describe('FieldRegistry', () => {
     );
 
     const sheet = await screen.findByRole('dialog', { name: 'New field' });
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
     expect(within(sheet).getByText('Give the field a name.')).toBeInTheDocument();
 
     // Pasted, not typed: nineteen keystrokes re-render the whole sheet nineteen
@@ -282,30 +285,29 @@ describe('FieldRegistry', () => {
     expect(within(sheet).getByLabelText('Key')).toHaveValue('accommodation_notes');
     // The preview draws the field with the name as it is typed.
     expect(within(sheet).getByRole('textbox', { name: 'Accommodation notes' })).toBeInTheDocument();
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
 
     // Step 2: owners default from the section, and visibility is read back.
-    const changers = within(sheet).getByRole('group', { name: 'Who can change it?' });
-    expect(within(changers).getByRole('checkbox', { name: 'HR' })).toBeChecked();
+    expect(within(sheet).getByRole('button', { name: 'HR changes it' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(within(sheet).getByText(/HR can see and edit this\./)).toBeInTheDocument();
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
 
     // Step 3: when it is asked. The section is filled in by the employee, so onboarding.
     expect(within(sheet).getByRole('radio', { name: /During onboarding/ })).toBeChecked();
-    expect(advise).not.toHaveBeenCalled();
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
 
-    // Step 4: the judgment is asked for from metadata, never a value.
-    expect(advise).toHaveBeenCalledWith({
+    // Sensitivity: the judgment is asked for from metadata, never a value.
+    expect(await within(sheet).findByText('This looks like health data.')).toBeInTheDocument();
+    expect(advise).toHaveBeenLastCalledWith({
       label: 'Accommodation notes',
       description: null,
       dataType: 'text',
       sectionKey: 'health',
       options: [],
     });
-    expect(await within(sheet).findByText('This looks like health data.')).toBeInTheDocument();
     // Forced up to special category: nothing below the floor is offered.
-    expect(within(sheet).getAllByRole('radio')).toHaveLength(1);
+    const kind = within(sheet).getByRole('group', { name: 'What kind of data is this?' });
+    expect(within(kind).getAllByRole('radio')).toHaveLength(1);
     // And the review reads it all back in plain words.
     expect(
       within(sheet).getByText(
@@ -336,8 +338,7 @@ describe('FieldRegistry', () => {
     );
   });
 
-  it('is axe-clean with the field editor open on every step', async () => {
-    const user = fast();
+  it('is axe-clean with the field editor open, every part on one page', async () => {
     const [hr] = draft.sections;
     const costCentre = draft.fields.find((f) => f.key === 'cost_centre');
     if (hr === undefined || costCentre === undefined) throw new Error('fixture changed');
@@ -365,13 +366,10 @@ describe('FieldRegistry', () => {
       />,
     );
     const sheet = await screen.findByRole('dialog', { name: 'Edit Cost centre' });
-    for (let step = 0; step < 3; step += 1) {
-      expect(await axeViolations(sheet)).toEqual([]);
-      await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    }
     await within(sheet).findByText('Two answers are close');
     // `choose` offers what is at or above the floor and pre-selects nothing new.
-    expect(within(sheet).getAllByRole('radio')).toHaveLength(3);
+    const kind = within(sheet).getByRole('group', { name: 'What kind of data is this?' });
+    expect(within(kind).getAllByRole('radio')).toHaveLength(3);
     expect(await axeViolations(sheet)).toEqual([]);
   });
 
@@ -398,8 +396,6 @@ describe('FieldRegistry', () => {
     // The key is an advanced option, behind its own disclosure.
     await user.click(within(sheet).getByRole('button', { name: /^Key for integrations/ }));
     expect(within(sheet).getByLabelText('Key')).toHaveValue('pronouns');
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
 
     // Every stage is a radio with a name and a sentence saying what it does.
     const stages = within(
@@ -441,15 +437,14 @@ describe('FieldRegistry', () => {
       />,
     );
     const sheet = await screen.findByRole('dialog', { name: 'Edit Cost centre' });
-    within(sheet).getByRole('button', { name: 'Next' }).focus();
-    await user.keyboard('{Enter}');
-    await user.keyboard('{Enter}');
+    // Every part is on the page, each a link away in the list beside it.
     expect(within(sheet).getByRole('group', { name: 'When is it asked?' })).toBeInTheDocument();
-    // A finished step is a button in the stepper; a step ahead is not.
-    const first = within(sheet).getByRole('button', { name: /The field/ });
-    expect(within(sheet).queryByRole('button', { name: /Review/ })).toBeNull();
-    first.focus();
-    await user.keyboard('{Enter}');
+    const parts = within(sheet).getByRole('navigation', { name: 'Parts of the field' });
+    expect(within(parts).getByRole('link', { name: /When it’s asked/ })).toHaveAttribute(
+      'href',
+      '#editor-when',
+    );
+    await user.click(within(parts).getByRole('link', { name: /The field/ }));
     expect(within(sheet).getByLabelText(/^Field name/)).toHaveValue('Cost centre');
   });
 
@@ -480,10 +475,7 @@ describe('FieldRegistry', () => {
       />,
     );
     const sheet = await screen.findByRole('dialog', { name: 'Edit Cost centre' });
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('radio', { name: /Any time, on their profile/ }));
-    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await within(sheet).findByText('Ordinary job data.');
     expect(within(sheet).getByText('What changes when you publish')).toBeInTheDocument();
     expect(
@@ -533,8 +525,12 @@ describe('FieldRegistry', () => {
             : f,
       ),
     };
-    render(<FieldRegistry {...props({ load: { status: 'ready', data: shareable }, onAssistant })} />);
-    await user.click(screen.getByRole('button', { name: /Employee number: Assistant: not shared/ }));
+    render(
+      <FieldRegistry {...props({ load: { status: 'ready', data: shareable }, onAssistant })} />,
+    );
+    await user.click(
+      screen.getByRole('button', { name: /Employee number: Assistant: not shared/ }),
+    );
     await user.click(screen.getByRole('menuitemradio', { name: 'Shared' }));
     expect(onAssistant).toHaveBeenCalledWith('employee_number', true);
   });

@@ -11,7 +11,7 @@ vi.mock('next/link', () => ({
   default: (props: ComponentPropsWithoutRef<'a'>) => <a data-next-link="" {...props} />,
 }));
 
-const { PeopleBar, PeopleSections, currentPlace } = await import('./people-nav');
+const { PeopleMenu, PeopleSections, currentPlace } = await import('./people-nav');
 const { headerFrame, placesFor } = await import('../lib/remotes');
 const manifest = (await import('../../people/public/routes.json')).default;
 
@@ -21,19 +21,16 @@ afterEach(() => {
 
 const nav = { sections: manifest.sections, actions: manifest.actions };
 
-/** The flyout's sections and the bar above the screen, as one People screen draws them. */
-function People(props: Parameters<typeof PeopleBar>[0]) {
+/** The sidebar's People menu, as the shell hangs it off the People item. */
+function People(props: Parameters<typeof PeopleSections>[0]) {
   return (
-    <>
+    <main>
       <PeopleSections sections={props.sections} route={props.route} />
-      <main>
-        <PeopleBar {...props} />
-      </main>
-    </>
+    </main>
   );
 }
 
-describe('PeopleSections and PeopleBar', () => {
+describe('PeopleSections', () => {
   it('lists HR’s sections as client-side links and marks the current one', async () => {
     const { container } = render(
       <People
@@ -49,7 +46,7 @@ describe('PeopleSections and PeopleBar', () => {
     expect(links.getByRole('link', { name: 'Approvals' })).toBeTruthy();
     // No second header row: the breadcrumb and the actions are the screen's.
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Add person' })).toBeNull();
     const result = await axe.run(container, {
       rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
     });
@@ -77,13 +74,28 @@ describe('PeopleSections and PeopleBar', () => {
   });
 });
 
+describe('PeopleMenu', () => {
+  it('lists the sections as rows, with a count only where something waits', () => {
+    const hr = placesFor(nav, { hr: true, admin: false, finance: false });
+    render(
+      <main>
+        <PeopleMenu {...hr} route={null} counts={{ '/people/approvals': 4 }} />
+      </main>,
+    );
+    const approvals = screen.getByRole('link', { name: /Approvals/ });
+    expect(approvals.textContent).toContain('4');
+    expect(screen.getByRole('link', { name: 'Directory' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Records' })).toBeTruthy();
+  });
+});
+
 describe('headerFrame', () => {
   const hr = placesFor(nav, { hr: true, admin: false, finance: false });
 
   it('names the section for the breadcrumb and offers adding somebody', () => {
     const frame = headerFrame(hr, '/people/directory', '/people');
     expect(frame.section).toBe('Directory');
-    expect(frame.actions).toEqual([{ href: '/people/new', label: 'Add employee' }]);
+    expect(frame.actions).toEqual([{ href: '/people/new', label: 'Add person', icon: 'hire' }]);
     // The last crumb is a menu of the other sections, grouped, this one marked.
     const workspace = frame.siblings.find((g) => g.label === 'Workspace');
     expect(workspace?.items.find((i) => i.current)?.label).toBe('Directory');
@@ -92,10 +104,10 @@ describe('headerFrame', () => {
     expect(headerFrame(hr, '/people/:id', '/people').section).toBe('Directory');
   });
 
-  it('has no trail on People’s front page, and no Add employee on its own form', () => {
-    expect(headerFrame(hr, '/people', '/people').section).toBeNull();
+  it('names People’s front page as Overview, and offers no Add employee on its own form', () => {
+    expect(headerFrame(hr, '/people', '/people').section).toBe('Overview');
     const adding = headerFrame(hr, '/people/new', '/people');
-    expect(adding.section).toBe('Add employee');
+    expect(adding.section).toBe('Add person');
     expect(adding.actions).toEqual([]);
   });
 
@@ -129,7 +141,7 @@ describe('currentPlace', () => {
     );
     // Adding somebody is an action, not a section.
     expect(at('/people/new')).toBeUndefined();
-    expect(currentPlace(manifest.actions, '/people/new')?.label).toBe('Add employee');
+    expect(currentPlace(manifest.actions, '/people/new')?.label).toBe('Add person');
   });
 
   it('marks the section of a profile, and no section on adding somebody', () => {

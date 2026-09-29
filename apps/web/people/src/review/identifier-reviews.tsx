@@ -1,7 +1,9 @@
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
+  Card,
   Dialog,
   DialogBody,
   DialogContent,
@@ -15,14 +17,12 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  List,
+  ListDetail,
+  ListItem,
+  MaskedValue,
   PageHeader,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Textarea,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -70,8 +70,7 @@ export interface IdentifierReviewsState {
 }
 
 export type Revealed =
-  | { readonly ok: true; readonly value: string }
-  | { readonly ok: false; readonly message: string };
+  { readonly ok: true; readonly value: string } | { readonly ok: false; readonly message: string };
 
 export interface IdentifierReviewsProps {
   readonly load: Loadable<IdentifierReviewsState>;
@@ -95,7 +94,11 @@ const id = (item: ReviewItem): string => `${item.personId}/${item.attributeKey}`
 const day = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-export function IdentifierReviews({ load, onDecide, onReveal }: IdentifierReviewsProps): JSX.Element {
+export function IdentifierReviews({
+  load,
+  onDecide,
+  onReveal,
+}: IdentifierReviewsProps): JSX.Element {
   return (
     <Loaded load={load} what="identifiers to review">
       {(state) => <Queue state={state} onDecide={onDecide} onReveal={onReveal} />}
@@ -115,75 +118,106 @@ function Queue({
   const [deciding, setDeciding] = useState<{ item: ReviewItem; accept: boolean } | null>(null);
   const [shown, setShown] = useState<Readonly<Record<string, string>>>({});
   const [refused, setRefused] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  const current = state.items.find((i) => id(i) === picked) ?? state.items[0] ?? null;
+  const worst = (item: ReviewItem) =>
+    item.findings.some((f) => f.level === 'mismatch') ? LEVEL.mismatch : LEVEL.attention;
+
   return (
-    <Stack gap={6}>
+    <Stack gap={5}>
       <PageHeader
-        title="Identifiers to review"
-        description="Saved, but our checks doubt them. Whatever you decide is final."
+        title="ID verification"
+        description="National identifiers that failed a check, or need a person to look at them. Whatever you decide is final."
       />
       {refused === null ? null : (
         <Alert tone="danger" title="Could not show the value">
           {refused}
         </Alert>
       )}
-      {state.items.length === 0 ? (
+      {state.items.length === 0 || current === null ? (
         <EmptyState
           title="Nothing to review"
           description="Every national identifier entered so far passed its country's checks, or has been reviewed."
         />
       ) : (
-        <Table aria-label="Identifiers to review">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Person</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>What the checks found</TableHead>
-              <TableHead>Decide</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {state.items.map((item) => (
-              <TableRow key={id(item)}>
-                <TableCell>
-                  {item.name}
-                  <span className="block text-fg-muted text-sm">
-                    {item.label}, entered {day(item.enteredAt)}
-                  </span>
-                  {item.held === true ? (
-                    <Badge tone="warning" size="sm">
-                      Waiting for approval
+        <ListDetail
+          listWidth="27.5rem"
+          listLabel="Identifiers to review"
+          detailLabel={`${current.name}’s ${current.label}`}
+          selected={picked !== null}
+          onBack={() => {
+            setPicked(null);
+          }}
+          backLabel="All identifiers"
+          list={
+            <List aria-label="Identifiers to review">
+              {state.items.map((item) => (
+                <ListItem
+                  key={id(item)}
+                  asChild
+                  selected={id(item) === id(current)}
+                  leading={<Avatar size="lg" name={item.name} />}
+                  description={`${item.label} · ${item.findings[0]?.message ?? ''}`}
+                  trailing={
+                    <Badge tone={worst(item).tone} size="sm">
+                      {worst(item) === LEVEL.mismatch ? 'Failed' : 'Unverifiable'}
                     </Badge>
-                  ) : null}
-                </TableCell>
-                <TableCell>
-                  {shown[id(item)] !== undefined ? (
-                    <span className="font-mono">{shown[id(item)]}</span>
-                  ) : (
-                    <Stack gap={2}>
-                      <span className="font-mono">
-                        {item.last4 === null ? '—' : `•••• ${item.last4}`}
-                      </span>
-                      <div>
-                        <Button
-                          size="sm"
-                          aria-label={`Show ${item.name}'s ${item.label} in full`}
-                          onClick={() => {
-                            setRefused(null);
-                            void onReveal(item.personId, item.attributeKey).then((r) => {
-                              if (r.ok) setShown((s) => ({ ...s, [id(item)]: r.value }));
-                              else setRefused(r.message);
-                            });
-                          }}
-                        >
-                          Show value
-                        </Button>
-                      </div>
-                    </Stack>
-                  )}
-                </TableCell>
-                <TableCell>
+                  }
+                >
+                  <button
+                    type="button"
+                    aria-current={id(item) === id(current) ? true : undefined}
+                    onClick={() => {
+                      setPicked(id(item));
+                    }}
+                  >
+                    {item.name}
+                  </button>
+                </ListItem>
+              ))}
+            </List>
+          }
+          detail={
+            <div className="flex flex-col gap-4 rounded-lg bg-surface p-5 shadow-sm touch:rounded-[1.375rem] touch:p-4">
+              <div className="flex items-center gap-3">
+                <Avatar size="xl" name={current.name} />
+                <div className="min-w-0">
+                  <h2 className="text-md font-bold">
+                    {current.name} · {current.label}
+                  </h2>
+                  <p className="text-sm text-fg-muted">Entered on {day(current.enteredAt)}</p>
+                </div>
+                {current.held === true ? (
+                  <Badge tone="warning" size="sm" className="ms-auto">
+                    Waiting for approval
+                  </Badge>
+                ) : null}
+              </div>
+              <div className="grid gap-3 @md:grid-cols-2 @container">
+                <Card variant="fill" padded className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-fg-muted">What they entered</p>
+                  <MaskedValue
+                    masked={current.last4 === null ? '—' : `•••• ${current.last4}`}
+                    value={shown[id(current)] ?? null}
+                    label={`${current.name}'s ${current.label} in full`}
+                    onReveal={() => {
+                      setRefused(null);
+                      void onReveal(current.personId, current.attributeKey).then((r) => {
+                        if (r.ok) setShown((s) => ({ ...s, [id(current)]: r.value }));
+                        else setRefused(r.message);
+                      });
+                    }}
+                    onHide={() => {
+                      setShown((s) =>
+                        Object.fromEntries(Object.entries(s).filter(([k]) => k !== id(current))),
+                      );
+                    }}
+                  />
+                </Card>
+                <Card variant="fill" padded className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-fg-muted">What the checks found</p>
                   <ul className="flex flex-col gap-2">
-                    {item.findings.map((f) => {
+                    {current.findings.map((f) => {
                       const level = f.level === 'mismatch' ? LEVEL.mismatch : LEVEL.attention;
                       return (
                         <li key={f.code} className="flex flex-col gap-1">
@@ -197,34 +231,32 @@ function Queue({
                       );
                     })}
                   </ul>
-                </TableCell>
-                <TableCell>
-                  <span className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      aria-label={`Accept ${item.name}'s ${item.label}`}
-                      onClick={() => {
-                        setDeciding({ item, accept: true });
-                      }}
-                    >
-                      Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      aria-label={`Send ${item.name}'s ${item.label} back`}
-                      onClick={() => {
-                        setDeciding({ item, accept: false });
-                      }}
-                    >
-                      Send back
-                    </Button>
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </Card>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="ghost"
+                  aria-label={`Accept ${current.name}'s ${current.label}`}
+                  onClick={() => {
+                    setDeciding({ item: current, accept: true });
+                  }}
+                >
+                  Mark as correct anyway
+                </Button>
+                <Button
+                  variant="primary"
+                  className="ms-auto"
+                  aria-label={`Send ${current.name}'s ${current.label} back`}
+                  onClick={() => {
+                    setDeciding({ item: current, accept: false });
+                  }}
+                >
+                  Ask {current.name.split(' ')[0]} to correct it
+                </Button>
+              </div>
+            </div>
+          }
+        />
       )}
       {deciding === null ? null : (
         <Decide

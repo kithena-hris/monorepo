@@ -78,6 +78,12 @@ export interface AlertProps
   title?: ReactNode;
   /** Suppress the leading icon when the surrounding layout already conveys tone. */
   hideIcon?: boolean;
+  /**
+   * Replaces the tone's glyph when the message has a better one: a lock for
+   * "some values are masked", a quote for a plain-words summary. Still drawn in
+   * the tone's colour.
+   */
+  icon?: ReactNode;
   /** Trailing action, typically a `Button` with `variant="ghost"`. */
   action?: ReactNode;
   /**
@@ -103,6 +109,7 @@ export function Alert({
   variant,
   title,
   hideIcon = false,
+  icon,
   action,
   actions,
   onDismiss,
@@ -123,7 +130,17 @@ export function Alert({
       className={cn(alert({ tone, variant }), 'motion-safe:animate-slide-up', className)}
       {...props}
     >
-      {hideIcon ? null : (
+      {hideIcon ? null : icon !== undefined ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'mt-px shrink-0 [&_svg]:size-5',
+            solid ? null : alertIconTone[resolvedTone],
+          )}
+        >
+          {icon}
+        </span>
+      ) : (
         <Icon
           className={cn('mt-px size-5 shrink-0', solid ? null : alertIconTone[resolvedTone])}
           aria-hidden="true"

@@ -324,7 +324,9 @@ export async function setFieldAssistant(field: string, share: boolean): Promise<
 export async function connectChatApp(
   app: string,
   origin: string,
-): Promise<{ readonly ok: true; readonly url: string } | { readonly ok: false; readonly message: string }> {
+): Promise<
+  { readonly ok: true; readonly url: string } | { readonly ok: false; readonly message: string }
+> {
   const answer = await people<string>('ConnectChatApp', { app, origin });
   return answer.ok ? { ok: true, url: answer.data } : { ok: false, message: answer.message };
 }
@@ -827,6 +829,7 @@ export async function requestExport(choice: {
   asOf: string;
   format: 'xlsx' | 'csv' | 'pdf';
   photos?: boolean;
+  reason?: string;
 }): Promise<Exported> {
   // A saved segment is an audience (PEO-068): People applies it as this person.
   const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
@@ -836,6 +839,7 @@ export async function requestExport(choice: {
     asOf: choice.asOf,
     segmentId,
     ...(choice.photos === true ? { includePhotos: true } : {}),
+    ...(choice.reason === undefined || choice.reason === '' ? {} : { reason: choice.reason }),
   });
 }
 

@@ -30,7 +30,11 @@ export interface PeopleScreenProps {
   /** The breadcrumb's section and the actions, for the screen's own header (`headerFrame`). */
   readonly frame?: {
     readonly section: string | null;
-    readonly actions: readonly { readonly href: string; readonly label: string }[];
+    readonly actions: readonly {
+      readonly href: string;
+      readonly label: string;
+      readonly icon?: string;
+    }[];
     /** The links before the section; absent, People alone. */
     readonly trail?: readonly { readonly href: string; readonly label: string }[];
     /** The section's siblings, grouped, for the breadcrumb's menu. */
@@ -298,6 +302,20 @@ export function PeopleScreen({
                 onPlace: thenRefresh((placement: Parameters<typeof actions.placePerson>[1]) =>
                   actions.placePerson(id, placement),
                 ),
+                // One value from a date (W11): People's effective-dated write for one person.
+                onChangeDated: thenRefresh(
+                  async (change: {
+                    values: Readonly<Record<string, unknown>>;
+                    effectiveFrom: string;
+                  }) => {
+                    const done = await actions.commitBulkEdit({
+                      personIds: [id],
+                      values: change.values,
+                      effectiveFrom: change.effectiveFrom,
+                    });
+                    return done.ok ? { ok: true as const } : done;
+                  },
+                ),
                 // The employee record as a PDF (PEO-061), as this viewer reads it.
                 onDownloadRecord: async (reason: string) =>
                   download(await actions.exportRecord(id, reason)),
@@ -402,6 +420,23 @@ export function PeopleScreen({
           incomplete: search['incomplete'] === 'true',
           onIncompleteChange: (incomplete: boolean) => {
             query({ incomplete });
+          },
+          // A view across the top: its conditions alone, everything else cleared.
+          onView: (view: {
+            conditions: readonly { key: string; op: string; values: readonly string[] }[];
+            incomplete: boolean;
+            segmentId: string | null;
+          }) => {
+            query({
+              conditions: JSON.stringify(view.conditions),
+              match: 'all',
+              incomplete: view.incomplete,
+              segment: view.segmentId,
+              filters: {},
+            });
+          },
+          onOrgChart: () => {
+            go('/people/org-chart');
           },
           // Advanced conditions and the order, in the URL so a view is a link.
           onConditionsChange: (
@@ -560,7 +595,10 @@ export function PeopleScreen({
             fieldsHref: '/settings/people/fields',
             returned:
               search['connected'] !== undefined
-                ? { ok: true, message: `${search['connected']} is connected. Choose below what it sends.` }
+                ? {
+                    ok: true,
+                    message: `${search['connected']} is connected. Choose below what it sends.`,
+                  }
                 : search['notConnected'] !== undefined
                   ? { ok: false, message: search['notConnected'] }
                   : null,
@@ -576,6 +614,15 @@ export function PeopleScreen({
           onDelete: thenRefresh(actions.deleteReportSchedule),
         };
       case 'ReportRuns':
+        return { load: loadable };
+      case 'ReminderSettings':
+        return {
+          load: loadable,
+          onCohortMinimum: thenRefresh((cohortMinimum: number) =>
+            actions.updateSettings({ cohortMinimum }),
+          ),
+        };
+      case 'CountryPacks':
         return { load: loadable };
       case 'RoleSettings':
         return {
@@ -594,10 +641,22 @@ export function PeopleScreen({
           ) => {
             const up = await uploadFile(null, field.key, file);
             if (!up.ok) return up;
-            const saved = await actions.saveOwnSection(field.sectionKey, { [field.key]: up.file.id });
+            const saved = await actions.saveOwnSection(field.sectionKey, {
+              [field.key]: up.file.id,
+            });
             if (!saved.ok) return { ok: false as const, message: saved.message };
             refresh();
             return up;
+          },
+        };
+      case 'OrgChart':
+        return {
+          load: loadable,
+          onOpen: (personId: string) => {
+            go(`/people/${personId}`);
+          },
+          onDirectory: () => {
+            go('/people/directory');
           },
         };
       case 'PeopleSettings':

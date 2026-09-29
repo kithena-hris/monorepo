@@ -1,14 +1,15 @@
 'use client';
 
 import {
+  AssistantComposer,
+  AssistantLauncher,
+  AssistantMessage,
+  AssistantPanel,
+  AssistantSuggestion,
+  AssistantSuggestions,
   Avatar,
   Button,
-  ChatComposer,
-  ChatLog,
-  ChatMessage,
-  ChatWindow,
   icons,
-  KithenaMark,
 } from '@reach/ui';
 import Link from 'next/link';
 import type { Route } from 'next';
@@ -18,9 +19,10 @@ import { askAssistant } from '../app/assistant/actions';
 import type { AssistantReply } from '../lib/assistant';
 
 /**
- * The assistant, in the app: a small chat window from a button floating in
- * the bottom-right corner of every page, or ⌘J from anywhere. The page stays
- * in view and usable beside it.
+ * The assistant, in the app: a panel floating in the bottom corner of every
+ * page from Reach's launcher, or ⌘J from anywhere. The page stays in view and
+ * usable beside it on a desk; under a finger it fills the screen, and the
+ * launcher sits clear of the tab bar.
  *
  * It asks every module the company has (`lib/assistant.ts`) and answers as the
  * person asking, with only what they could see themselves. The conversation
@@ -31,44 +33,53 @@ import type { AssistantReply } from '../lib/assistant';
 
 interface Turn {
   readonly id: number;
-  readonly from: 'self' | 'other';
+  readonly from: 'user' | 'assistant';
   readonly text: string;
   readonly people?: AssistantReply['people'];
 }
 
-const SUGGESTIONS = [
-  'Who reports to me?',
-  'How many people are in each department?',
-  'Who started this year?',
-  'What is waiting for my approval?',
+const SUGGESTIONS: readonly { readonly text: string; readonly icon: JSX.Element }[] = [
+  { text: 'Who reports to me?', icon: <icons.team aria-hidden /> },
+  { text: 'How many people are in each department?', icon: <icons.analytics aria-hidden /> },
+  { text: 'Who started this year?', icon: <icons.hire aria-hidden /> },
+  { text: 'What is waiting for my approval?', icon: <icons.inbox aria-hidden /> },
 ];
 
-const Mark = (): JSX.Element => <KithenaMark className="size-6" />;
-
 export function Assistant(): JSX.Element {
-  const [open, onOpenChange] = useState(false);
+  const [open, setOpen] = useState(false);
   const [turns, setTurns] = useState<readonly Turn[]>([]);
+  const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
-  const box = useRef<HTMLTextAreaElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const next = useRef(0);
+  // A stopped question's answer is dropped when it arrives: a server action
+  // cannot be called back, only ignored.
+  const asked = useRef(0);
 
   // ⌘J (Ctrl+J elsewhere) opens it from anywhere, and closes it again.
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'j') {
         event.preventDefault();
-        onOpenChange(!open);
+        setOpen((was) => !was);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, [open, onOpenChange]);
+  }, []);
+
+  // Straight into the question box on opening.
+  useEffect(() => {
+    if (open) panel.current?.querySelector('textarea')?.focus();
+  }, [open]);
 
   const ask = (question: string): void => {
-    const earlier = turns.filter((t) => t.from === 'self').map((t) => t.text);
-    setTurns((all) => [...all, { id: next.current++, from: 'self', text: question }]);
+    const earlier = turns.filter((t) => t.from === 'user').map((t) => t.text);
+    const mine = ++asked.current;
+    setTurns((all) => [...all, { id: next.current++, from: 'user', text: question }]);
+    setDraft('');
     setBusy(true);
     void askAssistant(question, earlier)
       .catch(() => ({
@@ -77,81 +88,105 @@ export function Assistant(): JSX.Element {
         from: [],
       }))
       .then((reply) => {
+        if (mine !== asked.current) return;
         setTurns((all) => [
           ...all,
-          { id: next.current++, from: 'other', text: reply.text, people: reply.people },
+          { id: next.current++, from: 'assistant', text: reply.text, people: reply.people },
         ]);
         setBusy(false);
-        box.current?.focus();
+        panel.current?.querySelector('textarea')?.focus();
       });
   };
 
+  if (!open) {
+    return (
+      <AssistantLauncher
+        label="Ask Kithena"
+        onOpen={() => {
+          setOpen(true);
+        }}
+        // The corner on a desk; clear of the tab bar under a finger.
+        className="fixed end-6 bottom-6 z-40 touch:end-4 touch:bottom-24"
+      />
+    );
+  }
+
   return (
-    <ChatWindow
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Ask Kithena"
-      description="Answers only with what you can see in Kithena yourself."
-      launcherLabel="Ask Kithena"
-      launcherIcon={<icons.assistant aria-hidden />}
-      // Clear of the phone's tab bar; the corner on a desk.
-      launcherClassName="bottom-20 md:bottom-6"
-      footer={
-        <ChatComposer
-          inputRef={box}
-          label="Ask Kithena a question"
-          placeholder="Ask about your people…"
-          busy={busy}
-          onSend={ask}
-        />
-      }
+    <div
+      ref={panel}
+      className="fixed end-6 bottom-6 z-40 flex h-[min(35rem,calc(100dvh-3rem))] w-[25rem] max-w-[calc(100vw-3rem)] touch:inset-0 touch:h-auto touch:w-auto touch:max-w-none"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setOpen(false);
+      }}
     >
-      <ChatLog label="Conversation with Kithena" className="min-h-0 flex-1">
-        <ChatMessage from="other" author="Kithena" avatar={<Mark />}>
-          Hi! Ask me about the people in your company: who is in a team, who reports to whom, how
-          many people work where, or what is waiting for you.
-        </ChatMessage>
+      <AssistantPanel
+        title="Ask Kithena"
+        subtitle="Answers only with what you can see yourself"
+        busy={busy}
+        className="touch:rounded-none"
+        {...(turns.length === 0
+          ? {}
+          : {
+              onNewChat: () => {
+                asked.current += 1;
+                setTurns([]);
+                setBusy(false);
+              },
+            })}
+        onClose={() => {
+          setOpen(false);
+        }}
+        composer={
+          <AssistantComposer
+            value={draft}
+            onValueChange={setDraft}
+            onSubmit={ask}
+            streaming={busy}
+            onStop={() => {
+              asked.current += 1;
+              setBusy(false);
+            }}
+            placeholder="Ask about your people…"
+          />
+        }
+      >
+        <AssistantMessage from="assistant">
+          <p>
+            Hi! Ask me about the people in your company: who is in a team, who reports to whom, how
+            many people work where, or what is waiting for you.
+          </p>
+        </AssistantMessage>
         {turns.length === 0 ? (
-          <div className="flex flex-wrap gap-2 pl-9">
+          <AssistantSuggestions aria-label="Try asking">
             {SUGGESTIONS.map((s) => (
-              <Button
-                key={s}
-                size="sm"
-                variant="secondary"
+              <AssistantSuggestion
+                key={s.text}
+                icon={s.icon}
                 onClick={() => {
-                  ask(s);
+                  ask(s.text);
                 }}
               >
-                {s}
-              </Button>
+                {s.text}
+              </AssistantSuggestion>
             ))}
-          </div>
+          </AssistantSuggestions>
         ) : null}
         {turns.map((t) => (
-          <ChatMessage
-            key={t.id}
-            from={t.from}
-            author={t.from === 'self' ? 'You' : 'Kithena'}
-            {...(t.from === 'other' ? { avatar: <Mark /> } : {})}
-            {...(t.people !== undefined && t.people.length > 0
-              ? {
-                  footer: (
-                    <Mentioned
-                      people={t.people}
-                      onOpen={() => {
-                        onOpenChange(false);
-                      }}
-                    />
-                  ),
-                }
-              : {})}
-          >
-            {t.text}
-          </ChatMessage>
+          <AssistantMessage key={t.id} from={t.from}>
+            {t.from === 'user' ? t.text : <p>{t.text}</p>}
+            {t.people !== undefined && t.people.length > 0 ? (
+              <Mentioned
+                people={t.people}
+                onOpen={() => {
+                  setOpen(false);
+                }}
+              />
+            ) : null}
+          </AssistantMessage>
         ))}
-        {busy ? <ChatMessage from="other" author="Kithena" avatar={<Mark />} pending /> : null}
-      </ChatLog>
-    </ChatWindow>
+        {busy ? <AssistantMessage from="assistant" streaming /> : null}
+      </AssistantPanel>
+    </div>
   );
 }
 

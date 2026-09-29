@@ -371,6 +371,12 @@ export interface DataTableProps<T extends TableRow> {
   /** A word for what a row is, used in every generated control name. */
   describeRow?: (row: T) => string;
   onRowClick?: (row: T) => void;
+  /**
+   * The row whose record is open beside the table, in a quick look or a
+   * detail pane: marked with the accent edge and `aria-current`, so the
+   * reader keeps their place while the pane changes.
+   */
+  activeRowId?: string | null;
   /** Shown in place of the body when there are no rows. */
   empty?: ReactNode;
   stickyHeader?: boolean;
@@ -431,6 +437,7 @@ export function DataTable<T extends TableRow>({
   onReorder,
   describeRow,
   onRowClick,
+  activeRowId = null,
   empty = 'Nothing to show.',
   stickyHeader = false,
   dense = false,
@@ -924,6 +931,12 @@ export function DataTable<T extends TableRow>({
                 {...(virtualized ? { 'aria-rowindex': rowIndex + 2 } : {})}
                 reorderable={canReorder}
                 selected={picked.has(id)}
+                {...(activeRowId === id
+                  ? {
+                      'aria-current': true as const,
+                      'data-active': true,
+                    }
+                  : {})}
                 {...(onRowClick
                   ? {
                       onClick: () => {
@@ -1179,6 +1192,8 @@ function DataRow({
   'aria-rowindex'?: number;
   'data-index'?: number;
   'data-striped'?: boolean;
+  'aria-current'?: true;
+  'data-active'?: boolean;
 }): JSX.Element {
   const {
     attributes,
@@ -1205,6 +1220,8 @@ function DataRow({
         // Held: raised, shadowed and tipped a hair, the same pick-up cue as a
         // Kanban card, so a dragged row reads as lifted rather than selected.
         isDragging && 'z-10 rounded-md bg-surface-raised shadow-lg [rotate:-0.5deg]',
+        // The open record: an accent edge down the leading side, on the fill.
+        'data-active:bg-accent-subtle data-active:shadow-[inset_3px_0_0_var(--reach-color-accent)]',
       )}
       {...(onClick ? { onClick } : {})}
       {...rest}

@@ -37,7 +37,7 @@ describe('HR’s review of doubted identifiers (PEO-125)', () => {
     );
     expect(await axeViolations(container)).toEqual([]);
     expect(screen.getByText('•••• 678A')).toBeInTheDocument();
-    expect(screen.getByText(/control letter does not compute/)).toBeInTheDocument();
+    expect(screen.getAllByText(/control letter does not compute/).length).toBeGreaterThan(0);
     expect(screen.queryByText('12345678A')).not.toBeInTheDocument();
 
     await fast().click(screen.getByRole('button', { name: /Show Lucía Ortega's NIF/ }));
@@ -82,8 +82,9 @@ describe('HR’s review of doubted identifiers (PEO-125)', () => {
     expect(await axeViolations(container)).toEqual([]);
     expect(screen.getByText('Waiting for approval')).toBeInTheDocument();
     await fast().click(screen.getByRole('button', { name: /Send Lucía Ortega's NIF \/ NIE back/ }));
-    expect(screen.getByText(/The change is declined, and Lucía Ortega is asked to correct it/))
-      .toBeInTheDocument();
+    expect(
+      screen.getByText(/The change is declined, and Lucía Ortega is asked to correct it/),
+    ).toBeInTheDocument();
     expect(await axeViolations(document.body)).toEqual([]);
   });
 
@@ -128,7 +129,10 @@ describe('a form carrying a doubtful identifier (PEO-125)', () => {
   it('warns before saving, on the field and above the button, and still lets it be saved', async () => {
     const onCheck = vi.fn(() => Promise.resolve({ ok: true as const, findings: [finding] }));
     const onSave = vi.fn(() =>
-      Promise.resolve({ ok: true as const, findings: [{ ...finding, review: 'pending' as const }] }),
+      Promise.resolve({
+        ok: true as const,
+        findings: [{ ...finding, review: 'pending' as const }],
+      }),
     );
     const { container } = render(
       <SectionForm section={section} values={{}} onSave={onSave} onCheck={onCheck} />,

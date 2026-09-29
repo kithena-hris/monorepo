@@ -46,8 +46,8 @@ describe('the approvals inbox (PEO-077)', () => {
       />,
     );
     expect(await axeViolations(container)).toEqual([]);
-    // Under her group's heading row, her change.
-    const row = screen.getAllByRole('row', { name: /Lucía Ortega/ }).at(-1) as HTMLElement;
+    // Her change, open beside the list.
+    const row = screen.getByRole('region', { name: /Lucía Ortega/ });
     expect(within(row).getByText('Needs approval')).toBeInTheDocument();
     expect(within(row).getByText('Pending approval')).toBeInTheDocument();
     expect(within(row).getByText('•••• 3000')).toBeInTheDocument();
@@ -70,8 +70,11 @@ describe('the approvals inbox (PEO-077)', () => {
       />,
     );
     const user = fast();
+    // Their own change is under I asked, with nothing to decide on it.
+    await user.click(screen.getByRole('tab', { name: /I asked/ }));
     expect(screen.queryByRole('button', { name: /Approve the change to Me's/ })).toBeNull();
     expect(screen.getByText(/Another HR member must approve your change/)).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /Waiting for me/ }));
     await user.click(screen.getByRole('button', { name: /Approve the change to Lucía Ortega's/ }));
     await user.type(screen.getByLabelText('Note'), 'Checked against the form');
     await user.click(screen.getByRole('button', { name: 'Approve' }));
@@ -87,7 +90,9 @@ describe('the approvals inbox (PEO-077)', () => {
           status: 'ready',
           data: {
             isHr: true,
-            items: [{ ...item, name: 'Priya Shah', mine: true, canDecide: false, canSelfApprove: true }],
+            items: [
+              { ...item, name: 'Priya Shah', mine: true, canDecide: false, canSelfApprove: true },
+            ],
           },
         }}
         onDecide={onDecide}
@@ -102,9 +107,14 @@ describe('the approvals inbox (PEO-077)', () => {
       screen.getByRole('button', { name: "Approve the change to Priya Shah's IBAN yourself" }),
     );
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText(/No other HR member can approve this change/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/audit log will show you approved your own change because no one else could/))
-      .toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/No other HR member can approve this change/),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        /audit log will show you approved your own change because no one else could/,
+      ),
+    ).toBeInTheDocument();
     expect(await axeViolations(document.body)).toEqual([]);
     expect(onSelfApprove).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('button', { name: 'Approve it myself' }));
@@ -142,8 +152,8 @@ describe('the approvals inbox (PEO-077)', () => {
       />,
     );
     expect(await axeViolations(container)).toEqual([]);
-    // Under her group's heading row, her change.
-    const row = screen.getAllByRole('row', { name: /Lucía Ortega/ }).at(-1) as HTMLElement;
+    // Her change, open beside the list.
+    const row = screen.getByRole('region', { name: /Lucía Ortega/ });
     expect(within(row).getByText('Awaiting identifier review')).toBeInTheDocument();
     expect(within(row).queryByText('Pending approval')).toBeNull();
     expect(within(row).getByText('The control letter does not compute.')).toBeInTheDocument();
@@ -305,21 +315,29 @@ describe('a doubted identifier HR could not accept (PEO-125)', () => {
     expect(screen.getByRole('form', { name: 'Identification' })).toBeInTheDocument();
   });
 
-  it('is one table, grouped by employee', () => {
+  it('lists the changes for HR, one open beside the list, and the ones they asked apart', async () => {
+    const user = fast();
     render(
       <Approvals
         load={{
           status: 'ready',
-          data: { isHr: true, items: [item, { ...item, id: 'second', key: 'iban', label: 'IBAN' }] },
+          data: {
+            isHr: true,
+            items: [
+              item,
+              { ...item, id: 'second', name: 'Tom Fischer', personId: 'p2' },
+              { ...item, id: 'mine', name: 'Adam Novak', mine: true, canDecide: false },
+            ],
+          },
         }}
         onDecide={vi.fn(done)}
         onWithdraw={vi.fn(done)}
       />,
     );
-    const groups = screen.getAllByRole('rowheader');
-    expect(groups.length).toBeGreaterThan(0);
-    expect(groups[0]).toHaveTextContent('2 changes');
-    expect(screen.getAllByRole('table')).toHaveLength(1);
-    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.getByRole('region', { name: /Lucía Ortega/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Tom Fischer/ }));
+    expect(screen.getByRole('region', { name: /Tom Fischer/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /I asked/ }));
+    expect(screen.getByRole('region', { name: /Adam Novak/ })).toBeInTheDocument();
   });
 });

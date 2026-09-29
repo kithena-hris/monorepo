@@ -1,5 +1,15 @@
-import { ChevronDown, ChevronLeft, ChevronRight, Ellipsis } from 'lucide-react';
-import { Fragment, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
+'use client';
+
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Ellipsis } from 'lucide-react';
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { Slot, Slottable } from '@radix-ui/react-slot';
 
@@ -13,6 +23,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../dropdown-menu/dropdown-menu';
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '../sheet/sheet';
+import { useCoarsePointer } from '../../lib/use-media-query';
 
 /**
  * Where this record sits, and how to get back up.
@@ -190,37 +209,182 @@ export interface BreadcrumbMenuProps {
    * href and the label and must return an `<a>` or a framework `Link`.
    */
   readonly renderLink?: (item: { href: string; label: string }) => ReactNode;
+  /**
+   * `crumb` (default) is the last crumb of a trail. `title` is the same
+   * switcher as a page title, the way a phone's navigation bar carries it:
+   * the title itself opens the siblings.
+   */
+  readonly variant?: 'crumb' | 'title';
 }
+
+/** Items whose label contains the query, groups that still have one. Pure, for the tests. */
+export function filterSiblings(
+  groups: BreadcrumbMenuProps['groups'],
+  query: string,
+): BreadcrumbMenuProps['groups'] {
+  const needle = query.trim().toLowerCase();
+  if (needle === '') return groups;
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.label.toLowerCase().includes(needle)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+/** Below this many siblings a filter is more to read than it saves. */
+const FILTER_FROM = 7;
 
 /**
  * The last crumb, as a menu of its siblings: "People › Directory ▾".
  *
  * Still the page you are on (`aria-current`), and also the fastest way to the
  * next section over without going back to the area first. A menu button, not
- * a link: it opens the list rather than going anywhere, and the list is links.
+ * a link: it opens the list rather than going anywhere, and the list is links,
+ * the current one ticked.
+ *
+ * A long list gets a filter at the top: typing narrows it, ↓ goes into what is
+ * left, and ↵ opens the first match. Under a finger the list is a sheet from
+ * the bottom rather than a dropdown under a 44px trigger, grouped the same way.
  */
 export function BreadcrumbMenu({
   label,
   groups,
   menuLabel,
   renderLink = ({ href, label: text }) => <a href={href}>{text}</a>,
+  variant = 'crumb',
 }: BreadcrumbMenuProps): JSX.Element {
+  const coarse = useCoarsePointer();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const content = useRef<HTMLDivElement | null>(null);
+  const count = groups.reduce((n, g) => n + g.items.length, 0);
+  const filterable = count >= FILTER_FROM;
+  const shown = filterSiblings(groups, query);
+
+  // A long list opens with the caret in its filter, after the menu has taken focus.
+  useEffect(() => {
+    if (!open || !filterable || coarse) return undefined;
+    const frame = requestAnimationFrame(() => {
+      content.current?.querySelector('input')?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [open, filterable, coarse]);
+
+  const trigger = (
+    <button
+      type="button"
+      aria-current="page"
+      aria-label={`${label}, ${menuLabel}`}
+      className={cn(
+        'relative tap-target inline-flex items-center gap-1 rounded-sm text-fg',
+        'hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
+        'data-[state=open]:bg-surface-hover',
+        variant === 'title'
+          ? 'min-h-11 max-w-full px-2 text-md font-semibold'
+          : // The negative margins widen the hover wash past the text; the
+            // maximum has to allow for them, or the label truncates itself.
+            '-mx-1 max-w-[calc(100%+0.5rem)] px-1 font-medium',
+      )}
+    >
+      <span className="truncate">{label}</span>
+      <ChevronDown aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
+    </button>
+  );
+
+  const reset = (next: boolean): void => {
+    setOpen(next);
+    if (!next) setQuery('');
+  };
+
+  if (coarse) {
+    return (
+      <Sheet open={open} onOpenChange={reset}>
+        <SheetTrigger asChild>{trigger}</SheetTrigger>
+        <SheetContent side="bottom" size="lg">
+          <SheetHeader>
+            <SheetTitle>{menuLabel}</SheetTitle>
+          </SheetHeader>
+          <SheetBody>
+            <nav aria-label={menuLabel} className="flex flex-col gap-4 pb-4">
+              {groups.map((group) => (
+                <div key={group.label} className="flex flex-col gap-2">
+                  <h3 className="px-1 text-xs font-semibold text-fg-subtle">{group.label}</h3>
+                  <ul className="overflow-hidden rounded-[1.125rem] bg-surface-sunken">
+                    {group.items.map((item) => (
+                      <li
+                        key={item.href}
+                        className="relative border-b border-border last:border-b-0"
+                      >
+                        <Slot
+                          aria-current={item.current === true ? 'page' : undefined}
+                          className={cn(
+                            'flex min-h-tap items-center px-3.5 pe-11 text-base text-fg',
+                            'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+                            item.current === true && 'font-semibold',
+                          )}
+                          onClick={() => {
+                            reset(false);
+                          }}
+                        >
+                          {renderLink(item)}
+                        </Slot>
+                        {item.current === true ? (
+                          <Check
+                            aria-hidden
+                            className="pointer-events-none absolute end-3.5 top-1/2 size-4.5 -translate-y-1/2 text-accent-fg"
+                          />
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </nav>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-current="page"
-        aria-label={`${label}, ${menuLabel}`}
-        className={cn(
-          'relative tap-target inline-flex max-w-full items-center gap-1 rounded-sm px-1 -mx-1 font-medium text-fg',
-          'hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
-          'data-[state=open]:bg-surface-hover',
-        )}
-      >
-        <span className="truncate">{label}</span>
-        <ChevronDown aria-hidden className="size-3.5 shrink-0 text-fg-muted" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-56">
-        {groups.map((group, index) => (
+    <DropdownMenu open={open} onOpenChange={reset}>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-60" aria-label={menuLabel}>
+        {filterable ? (
+          <div ref={content} className="p-1 pb-1.5">
+            <input
+              type="search"
+              value={query}
+              aria-label={`Filter ${menuLabel.toLowerCase()}`}
+              placeholder="Filter"
+              onChange={(event) => {
+                setQuery(event.target.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  content.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+                  return;
+                }
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  content.current?.querySelector<HTMLElement>('[role="menuitem"]')?.click();
+                  return;
+                }
+                // The menu's own typeahead would take the letters; the field keeps them.
+                if (event.key !== 'Escape' && event.key !== 'Tab') event.stopPropagation();
+              }}
+              className="h-8 w-full rounded-sm bg-surface-sunken px-2.5 text-sm text-fg outline-none placeholder:text-fg-subtle focus-visible:shadow-[inset_0_0_0_2px_var(--reach-color-border-focus)]"
+            />
+          </div>
+        ) : null}
+        {shown.length === 0 ? (
+          <p className="px-2.5 py-2 text-sm text-fg-muted">Nothing matches.</p>
+        ) : null}
+        {shown.map((group, index) => (
           <Fragment key={group.label}>
             {index === 0 ? null : <DropdownMenuSeparator />}
             <DropdownMenuGroup>
@@ -230,9 +394,12 @@ export function BreadcrumbMenu({
                   key={item.href}
                   asChild
                   {...(item.current === true ? { 'aria-current': 'page' as const } : {})}
-                  className={cn(item.current === true && 'font-medium text-accent-fg')}
+                  className={cn(
+                    item.current === true &&
+                      "font-semibold after:ms-auto after:ps-4 after:text-accent-fg after:content-['✓'_/_'']",
+                  )}
                 >
-                  {renderLink(item)}
+                  <Slot>{renderLink(item)}</Slot>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuGroup>

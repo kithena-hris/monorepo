@@ -519,10 +519,20 @@ jobs:
   # accessibility pass by what a diff appears to touch is how such a gate
   # quietly stops being one.
   design-system-axe:
-    name: design-system (axe)
+    # Every story rendered, with axe and the 44px tap floor, at a desk and on a
+    # phone: about 1,200 story tests since Reach 2, which ran past 7 minutes on
+    # one runner and made this the slowest part of `design-system`. Vitest's
+    # `--shard` splits the test files; turbo hands it to both suites (Reach's
+    # stories and the People app's phone screens). A suite with fewer files
+    # than shards leaves some shards empty, hence `--passWithNoTests`.
+    name: design-system (axe ${{ matrix.shard }})
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - name: checkout
         if: needs.changes.outputs.ui == 'true'
@@ -540,15 +550,16 @@ jobs:
       - name: chromium
         if: needs.changes.outputs.ui == 'true'
         run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
-      - name: axe over every story
+      - name: axe over every story, one shard
         if: needs.changes.outputs.ui == 'true'
-        run: pnpm test:stories
+        run: pnpm turbo run test:stories -- --shard=${{ matrix.shard }}/6 --passWithNoTests
       - name: nothing to check
         if: needs.changes.outputs.ui != 'true'
         run: echo "::notice::No UI change; axe runs in full on main."
 
-  # The required check: green only when every design-system shard and the axe
-  # pass are.
+  # The required check: green only when every design-system shard and every
+  # axe shard are. A matrix job's result is success only when all its shards
+  # are, so the shard counts can change without touching the branch ruleset.
   design-system-all:
     name: design-system
     needs: [design-system, design-system-axe]

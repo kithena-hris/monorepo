@@ -634,9 +634,24 @@ function RailToggle({
 interface PageHeaderFrameValue {
   readonly breadcrumb?: ReactNode;
   readonly actions?: ReactNode;
+  /**
+   * Under a finger the frame's breadcrumb is a phone's navigation bar whose
+   * small title names the page, so the large title under it would say the
+   * same thing twice: `true` keeps it for a screen reader only.
+   */
+  readonly quietTitleOnTouch?: boolean;
 }
 
 const PageHeaderFrameContext = createContext<PageHeaderFrameValue>({});
+
+/**
+ * What a frame put around the page: its breadcrumb and actions. For a screen
+ * whose header is not a plain `PageHeader` (a record with its photo beside
+ * the title) and has to place the trail itself.
+ */
+export function usePageHeaderFrame(): PageHeaderFrameValue {
+  return useContext(PageHeaderFrameContext);
+}
 
 export interface PageHeaderFrameProps extends PageHeaderFrameValue {
   readonly children?: ReactNode;
@@ -656,10 +671,13 @@ export interface PageHeaderFrameProps extends PageHeaderFrameValue {
 export function PageHeaderFrame({
   breadcrumb,
   actions,
+  quietTitleOnTouch = false,
   children,
 }: PageHeaderFrameProps): JSX.Element {
   return (
-    <PageHeaderFrameContext value={{ breadcrumb, actions }}>{children}</PageHeaderFrameContext>
+    <PageHeaderFrameContext value={{ breadcrumb, actions, quietTitleOnTouch }}>
+      {children}
+    </PageHeaderFrameContext>
   );
 }
 
@@ -722,6 +740,9 @@ export function PageHeader({
               className={cn(
                 'min-w-0 font-display font-bold tracking-tight text-fg',
                 size === 'lg' ? 'text-2xl' : 'text-lg',
+                // Only when the frame's own trail is drawn: a page that places the
+                // trail itself (a record beside its photo) keeps its title.
+                frame.quietTitleOnTouch === true && breadcrumb === undefined && 'touch:sr-only',
               )}
             >
               {title}

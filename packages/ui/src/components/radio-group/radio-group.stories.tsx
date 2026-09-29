@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
+import { icons } from '../../icons';
+
 import { RadioCard, RadioGroup, RadioGroupItem } from './radio-group';
 
 const meta = {
@@ -261,4 +263,39 @@ export const DisabledOption: Story = {
       </RadioGroup>
     </div>
   ),
+};
+
+/** A grid of kinds to pick from: a glyph in place of the dot, the card's ring as its state. */
+export const CardsWithIcons: Story = {
+  name: 'As cards with icons',
+  render: function CardsWithIconsStory() {
+    const [value, setValue] = useState('list');
+    return (
+      <RadioGroup
+        aria-label="Type of answer"
+        value={value}
+        onValueChange={setValue}
+        className="grid max-w-xl grid-cols-2 gap-2.5"
+      >
+        <RadioCard value="text" icon={<icons.document aria-hidden />}>
+          Short text
+        </RadioCard>
+        <RadioCard value="list" icon={<icons.tag aria-hidden />}>
+          One of a list
+        </RadioCard>
+        <RadioCard value="date" icon={<icons.calendar aria-hidden />}>
+          Date
+        </RadioCard>
+        <RadioCard value="email" icon={<icons.email aria-hidden />}>
+          Email
+        </RadioCard>
+        <RadioCard value="phone" icon={<icons.phone aria-hidden />}>
+          Phone number
+        </RadioCard>
+        <RadioCard value="person" icon={<icons.person aria-hidden />}>
+          A person
+        </RadioCard>
+      </RadioGroup>
+    );
+  },
 };

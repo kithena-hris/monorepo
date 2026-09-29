@@ -35,6 +35,8 @@ Object.assign(window, {
 });
 Object.assign(Element.prototype, {
   scrollIntoView: () => undefined,
+  scrollTo: () => undefined,
+  getAnimations: () => [],
   hasPointerCapture: () => false,
   releasePointerCapture: () => undefined,
 });

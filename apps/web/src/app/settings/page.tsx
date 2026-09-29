@@ -1,22 +1,11 @@
-import {
-  Avatar,
-  Card,
-  EmptyState,
-  PageHeader,
-  PageSection,
-  Stack,
-  icons,
-  type IconName,
-} from '@reach/ui';
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
-import { peopleFlyout } from '../../components/people-flyout';
 import { AppShell } from '../../components/app-shell';
+import { SettingsIndex, type SettingsModule } from '../../components/settings-index';
 import { currentTenant } from '../../lib/branding';
-import { people } from '../../lib/people';
 import { settingsOverview } from '../../lib/people-screens';
-import { peopleRoute, placesFor, type Place } from '../../lib/remotes';
+import { shellData } from '../../lib/shell';
 import { currentPerson, displayName } from '../../lib/session';
 
 /**
@@ -88,89 +77,70 @@ function peopleNow(data: {
             // What leaves: every field some enabled endpoint receives.
             `${plural(
               new Set(
-                endpoints.filter((e) => e['enabled'] !== false).flatMap((e) => list(e['allowlist'])),
+                endpoints
+                  .filter((e) => e['enabled'] !== false)
+                  .flatMap((e) => list(e['allowlist'])),
               ).size,
               'field',
             )} sent out`,
-            scim.length === 0 ? 'no provisioning' : `provisioning from ${String(scim[0]?.['system'])}`,
+            scim.length === 0
+              ? 'no provisioning'
+              : `provisioning from ${String(scim[0]?.['system'])}`,
           ].join(' · '),
   };
 }
 
-function iconOf(name: string | undefined): JSX.Element {
-  const Icon = name !== undefined && name in icons ? icons[name as IconName] : icons.settings;
-  return <Icon aria-hidden />;
-}
-
-/** One setting: its mark, what it is, what it governs and what is set now. The whole tile opens it. */
-function SettingTile({
-  place,
-  now,
-}: {
-  readonly place: Place;
-  readonly now: string | null;
-}): JSX.Element {
-  return (
-    <li>
-      <Card interactive className="relative flex h-full items-start gap-4 p-4">
-        <Avatar
-          size="lg"
-          shape="rounded"
-          name={place.label}
-          fallback={<span className="text-fg-muted [&_svg]:size-5">{iconOf(place.icon)}</span>}
-        />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h3 className="text-base font-medium text-fg">
-            {/* The title's link covers the tile: one tab stop, named by the setting. */}
-            <a href={place.path} className="after:absolute after:inset-0 focus-visible:outline-none">
-              {place.label}
-            </a>
-          </h3>
-          {place.description === undefined ? null : (
-            <p className="text-sm text-fg-muted">{place.description}</p>
-          )}
-          {now === null || now === '' ? null : (
-            <p className="mt-1 text-xs font-medium text-fg tabular-nums">{now}</p>
-          )}
-        </div>
-        <icons.next aria-hidden className="mt-1 size-4 shrink-0 text-fg-subtle" />
-      </Card>
-    </li>
-  );
+/** What wants attention in People's settings: a draft to publish, a role nobody holds. */
+function peopleAttention(data: {
+  fields: Json | null;
+  roles: Json | null;
+}): Record<string, { badge: string; chip: string }> {
+  const out: Record<string, { badge: string; chip: string }> = {};
+  const drafts = Number(data.fields?.['unpublishedChanges'] ?? 0);
+  if (drafts > 0) {
+    out['/settings/people/fields'] = {
+      badge: plural(drafts, 'draft'),
+      chip: `${plural(drafts, 'draft')} to publish`,
+    };
+  }
+  const finance = list(data.roles?.['people']).filter((p) =>
+    list(p['roles']).includes('finance' as never),
+  ).length;
+  if (data.roles !== null && finance === 0) {
+    out['/settings/people/roles'] = { badge: 'Needs attention', chip: 'Nobody in finance' };
+  }
+  return out;
 }
 
 export default async function Settings(): Promise<JSX.Element> {
   const person = await currentPerson();
   if (person === null) redirect('/login');
 
-  const modules: {
-    readonly key: string;
-    readonly title: string;
-    readonly description: string;
-    readonly settings: readonly Place[];
-    readonly now: Record<string, string | null>;
-  }[] = [];
+  const modules: SettingsModule[] = [];
+  const shell = await shellData(person.entitlements);
 
-  if (person.entitlements.includes('module.people')) {
-    const [route, home] = await Promise.all([
-      peopleRoute('/settings/people'),
-      people<{ hr: boolean; admin: boolean; finance: boolean }>('Home'),
-    ]);
-    const roles = home.ok ? home.data : { hr: false, admin: false, finance: false };
-    const settings = route == null ? [] : placesFor(route.nav, roles).settings;
-    if (settings.length > 0) {
-      const overview = await settingsOverview();
-      modules.push({
-        key: 'people',
-        title: 'People',
-        description: 'Your employee records: what they hold, who can see and change them, and where they go.',
-        settings,
-        now:
-          overview.status === 'ready'
-            ? peopleNow(overview.data as Parameters<typeof peopleNow>[0])
-            : {},
-      });
-    }
+  if (shell.settings.length > 0) {
+    const overview = await settingsOverview();
+    const data =
+      overview.status === 'ready'
+        ? (overview.data as Parameters<typeof peopleNow>[0])
+        : { fields: null, organisation: null, roles: null, integrations: null };
+    const now = peopleNow(data);
+    const attention = peopleAttention(data);
+    modules.push({
+      key: 'people',
+      title: 'People',
+      description:
+        'Your employee records: what they hold, who can see and change them, and where they go.',
+      settings: shell.settings.map((place) => ({
+        path: place.path,
+        label: place.label,
+        description: place.description,
+        icon: place.icon,
+        now: now[place.path] ?? null,
+        attention: attention[place.path] ?? null,
+      })),
+    });
   }
 
   const tenant = await currentTenant();
@@ -184,30 +154,9 @@ export default async function Settings(): Promise<JSX.Element> {
       companyName={tenant?.branding.displayName ?? tenant?.slug ?? 'your company'}
       logoUrl={tenant?.branding.logoUrl ?? null}
       entitlements={person.entitlements}
-      sections={await peopleFlyout(person.entitlements)}
+      shell={shell}
     >
-      <Stack gap={8}>
-        <PageHeader
-          title="Settings"
-          description="How Kithena works for your company. Open a setting to see it in full and change it."
-        />
-        {modules.length === 0 ? (
-          <EmptyState
-            title="Nothing here for you to change"
-            description="Settings are for your company's administrators and HR. Ask one of them if something needs changing."
-          />
-        ) : (
-          modules.map((m) => (
-            <PageSection key={m.key} title={m.title} description={m.description}>
-              <ul className="grid gap-3 md:grid-cols-2">
-                {m.settings.map((place) => (
-                  <SettingTile key={place.path} place={place} now={m.now[place.path] ?? null} />
-                ))}
-              </ul>
-            </PageSection>
-          ))
-        )}
-      </Stack>
+      <SettingsIndex modules={modules} />
     </AppShell>
   );
 }

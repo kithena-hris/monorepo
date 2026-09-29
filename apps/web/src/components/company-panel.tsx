@@ -33,7 +33,7 @@ export function CompanyPanel({ branding }: { branding: Branding }): JSX.Element 
         cover photograph there is no wash at all — the photograph is the brand
         there, and tinting it would be the one thing a customer notices.
       */
-      className={`bg-surface border-border relative isolate flex flex-col gap-4 overflow-hidden border-b p-8 md:min-h-dvh md:w-2/5 md:border-r md:border-b-0 ${
+      className={`bg-surface border-border relative isolate flex flex-col gap-4 overflow-hidden border-b p-8 @3xl:min-h-dvh @3xl:w-2/5 @3xl:border-r @3xl:border-b-0 ${
         hasCover
           ? 'justify-end'
           : 'from-accent-subtle justify-center bg-gradient-to-b to-transparent'

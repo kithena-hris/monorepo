@@ -2,21 +2,21 @@ import {
   Alert,
   Button,
   Checkbox,
+  ChipGroup,
+  ChipGroupItem,
   DatePicker,
   Field,
   FieldControl,
   FieldDescription,
   FieldLabel,
+  KeyValues,
   PageHeader,
   PageSection,
   RadioCard,
   RadioGroup,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Stack,
+  Textarea,
+  icons,
   type IsoDate,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
@@ -60,6 +60,8 @@ export interface ExportChoice {
   readonly format: ExportFormat;
   /** Profile photos too, as a ZIP beside the file. */
   readonly photos?: boolean;
+  /** Why: saved with the export and shown in the audit log. */
+  readonly reason?: string;
 }
 
 export interface ExportBuilderProps {
@@ -68,14 +70,16 @@ export interface ExportBuilderProps {
 }
 
 const FORMATS: readonly { value: ExportFormat; label: string; description: string }[] = [
-  { value: 'xlsx', label: 'Excel (.xlsx)', description: 'For a person to read and edit.' },
   { value: 'csv', label: 'CSV', description: 'For another system, or to import back.' },
+  { value: 'xlsx', label: 'Excel', description: 'For a person to read and edit.' },
   {
     value: 'pdf',
     label: 'PDF roster',
-    description: 'To print or file. Landscape, with the headers and the filter on every page.',
+    description: 'To print or file, with the filter on every page.',
   },
 ];
+
+const FORMAT_LABEL: Record<ExportFormat, string> = { xlsx: 'Excel', csv: 'CSV', pdf: 'PDF roster' };
 
 /**
  * Who, which fields, as of when, and what format (PRD §15.1, design screen 11).
@@ -91,7 +95,7 @@ export function ExportBuilder({ load, onExport }: ExportBuilderProps): JSX.Eleme
     <Stack gap={6}>
       <PageHeader
         title="Export"
-        description="Columns come from the published schema, with the label on row 1 and the key the re-importer reads on row 2."
+        description="Download people data. Each export is recorded with who asked, which fields and why."
       />
       <Loaded load={load} what="the export builder">
         {(state) => (
@@ -180,148 +184,195 @@ function Builder({
       asOf,
       format,
       ...(photos && format !== 'pdf' ? { photos: true } : {}),
+      reason: reason.trim(),
     });
     setBusy(false);
     setOutcome(result);
   };
 
+  const [reason, setReason] = useState('');
   return (
-    <Stack gap={6}>
-      <PageSection surface title="Who">
-        <Field className="max-w-sm">
-          <FieldLabel>People</FieldLabel>
-          <Select value={who} onValueChange={setWho}>
-            <FieldControl>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-            </FieldControl>
-            <SelectContent>
-              {state.who.map((w) => (
-                <SelectItem key={w.value} value={w.value}>
-                  {w.label} ({w.count})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      </PageSection>
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1fr)_21.25rem] @5xl/page:items-start">
+      <Stack gap={4}>
+        <PageSection surface title="1 · Who">
+          <ChipGroup
+            type="single"
+            aria-label="Who to export"
+            value={who}
+            onValueChange={(next) => {
+              if (next !== '') setWho(next);
+            }}
+          >
+            {state.who.map((w) => (
+              <ChipGroupItem key={w.value} value={w.value} variant="view">
+                {w.label} <span className="font-medium tabular-nums">{w.count}</span>
+              </ChipGroupItem>
+            ))}
+          </ChipGroup>
+        </PageSection>
 
-      <PageSection surface title="As of" description="Any past date works. History makes it free.">
-        <DatePicker
-          label="As of"
-          value={asOf}
-          max={state.today}
-          onChange={(next) => {
-            if (next !== null) setAsOf(next);
-          }}
-        />
-      </PageSection>
-
-      <PageSection surface title="Fields" description={`${String(fields.size)} selected`}>
-        <Stack gap={5}>
-          {state.sections.map((section) => {
-            const keys = section.fields.map((f) => f.key);
-            const picked = keys.filter((k) => fields.has(k)).length;
-            return (
-              <fieldset key={section.key} className="flex flex-col gap-2">
-                <legend className="sr-only">{section.label}</legend>
-                <Field orientation="horizontal" className="justify-start">
-                  <FieldControl>
-                    <Checkbox
-                      checked={
-                        picked === keys.length ? true : picked === 0 ? false : 'indeterminate'
-                      }
-                      onCheckedChange={(on) => {
-                        toggle(keys, on === true);
-                      }}
-                    />
-                  </FieldControl>
-                  <FieldLabel className="font-semibold">{section.label}</FieldLabel>
-                </Field>
-                <div className="flex flex-col gap-2 ps-7">
-                  {section.fields.map((f) => (
-                    <Field key={f.key} orientation="horizontal" className="justify-start">
-                      <FieldControl>
-                        <Checkbox
-                          checked={fields.has(f.key)}
-                          onCheckedChange={(on) => {
-                            toggle([f.key], on === true);
-                          }}
-                        />
-                      </FieldControl>
-                      <FieldLabel>{f.label}</FieldLabel>
-                    </Field>
-                  ))}
-                </div>
-              </fieldset>
-            );
-          })}
-        </Stack>
-      </PageSection>
-
-      <PageSection surface title="Format">
-        <RadioGroup
-          aria-label="Format"
-          value={format}
-          onValueChange={(value) => {
-            setFormat(value as ExportFormat);
-          }}
+        <PageSection
+          surface
+          title="2 · Which fields"
+          description={`${String(fields.size)} selected`}
         >
-          {FORMATS.map((f) => (
-            <RadioCard key={f.value} value={f.value} description={f.description}>
-              {f.label}
-            </RadioCard>
-          ))}
-        </RadioGroup>
-        <Field orientation="horizontal" className="mt-4 justify-start" disabled={format === 'pdf'}>
-          <FieldControl>
-            <Checkbox
-              checked={photos && format !== 'pdf'}
-              disabled={format === 'pdf'}
-              onCheckedChange={(on) => {
-                setPhotos(on === true);
-              }}
-            />
-          </FieldControl>
-          <div>
-            <FieldLabel>Include profile photos</FieldLabel>
-            <FieldDescription>
-              {format === 'pdf'
-                ? 'Not available for PDF.'
-                : 'Adds a ZIP of photos, named by employee number.'}
-            </FieldDescription>
+          <div className="grid gap-5 @container @2xl:grid-cols-3">
+            {state.sections.map((section) => {
+              const keys = section.fields.map((f) => f.key);
+              const picked = keys.filter((k) => fields.has(k)).length;
+              return (
+                <fieldset key={section.key} className="flex flex-col gap-2">
+                  <legend className="sr-only">{section.label}</legend>
+                  <Field orientation="horizontal" className="justify-start">
+                    <FieldControl>
+                      <Checkbox
+                        checked={
+                          picked === keys.length ? true : picked === 0 ? false : 'indeterminate'
+                        }
+                        onCheckedChange={(on) => {
+                          toggle(keys, on === true);
+                        }}
+                      />
+                    </FieldControl>
+                    <FieldLabel className="font-semibold">{section.label}</FieldLabel>
+                  </Field>
+                  <div className="flex flex-col gap-2 ps-7">
+                    {section.fields.map((f) => (
+                      <Field key={f.key} orientation="horizontal" className="justify-start">
+                        <FieldControl>
+                          <Checkbox
+                            checked={fields.has(f.key)}
+                            onCheckedChange={(on) => {
+                              toggle([f.key], on === true);
+                            }}
+                          />
+                        </FieldControl>
+                        <FieldLabel>{f.label}</FieldLabel>
+                      </Field>
+                    ))}
+                  </div>
+                </fieldset>
+              );
+            })}
           </div>
-        </Field>
-      </PageSection>
+        </PageSection>
 
-      <Alert tone="info">
-        Bank accounts and national identifiers export masked. Health and diversity answers are not
-        in a standard export at all.
-      </Alert>
-      {outcome === null ? null : outcome.ok ? (
-        <Alert tone="success">
-          Your export is being prepared. A large one arrives as a notification with a link that
-          expires in 24 hours.
-        </Alert>
-      ) : (
-        <Alert tone="danger" title="No export was made">
-          {outcome.message}
-        </Alert>
-      )}
-      <div>
-        <Button
-          variant="primary"
-          disabled={fields.size === 0 || who === ''}
-          loading={busy}
-          loadingLabel="Exporting"
-          onClick={() => {
-            void run();
-          }}
+        <PageSection
+          surface
+          title="3 · As of when"
+          description="Values as they were at the end of that day. Any past date works."
         >
-          Export {count} {count === 1 ? 'person' : 'people'}
-        </Button>
-      </div>
-    </Stack>
+          <DatePicker
+            label="As of"
+            value={asOf}
+            max={state.today}
+            onChange={(next) => {
+              if (next !== null) setAsOf(next);
+            }}
+          />
+        </PageSection>
+
+        <PageSection surface title="4 · Format">
+          <RadioGroup
+            aria-label="Format"
+            value={format}
+            onValueChange={(value) => {
+              setFormat(value as ExportFormat);
+            }}
+            className="grid-cols-1 @container @xl:grid-cols-3"
+          >
+            {FORMATS.map((f) => (
+              <RadioCard key={f.value} value={f.value} description={f.description}>
+                {f.label}
+              </RadioCard>
+            ))}
+          </RadioGroup>
+          <Field
+            orientation="horizontal"
+            className="mt-4 justify-start"
+            disabled={format === 'pdf'}
+          >
+            <FieldControl>
+              <Checkbox
+                checked={photos && format !== 'pdf'}
+                disabled={format === 'pdf'}
+                onCheckedChange={(on) => {
+                  setPhotos(on === true);
+                }}
+              />
+            </FieldControl>
+            <div>
+              <FieldLabel>Include profile photos</FieldLabel>
+              <FieldDescription>
+                {format === 'pdf'
+                  ? 'Not available for PDF.'
+                  : 'Adds a ZIP of photos, named by employee number.'}
+              </FieldDescription>
+            </div>
+          </Field>
+        </PageSection>
+      </Stack>
+
+      <Stack gap={4} className="@5xl/page:sticky @5xl/page:top-6">
+        <PageSection surface title="Why are you exporting?">
+          <Field required>
+            <FieldLabel className="sr-only">Reason</FieldLabel>
+            <FieldControl>
+              <Textarea
+                value={reason}
+                maxLength={500}
+                placeholder="Quarterly headcount report for Finance"
+                onChange={(e) => {
+                  setReason(e.target.value);
+                }}
+              />
+            </FieldControl>
+            <FieldDescription>
+              Required. Saved with the export and shown in the audit log.
+            </FieldDescription>
+          </Field>
+        </PageSection>
+        <PageSection surface title="Summary">
+          <Stack gap={4}>
+            <KeyValues
+              layout="split"
+              items={[
+                { label: 'People', value: String(count) },
+                { label: 'Fields', value: String(fields.size) },
+                { label: 'As of', value: asOf },
+                { label: 'Format', value: FORMAT_LABEL[format] },
+              ]}
+            />
+            <Alert tone="info">
+              Bank accounts and national identifiers export masked. Health and diversity answers are
+              not in a standard export at all.
+            </Alert>
+            {outcome === null ? null : outcome.ok ? (
+              <Alert tone="success">
+                Your export is being prepared. A large one arrives as a notification with a link
+                that expires in 24 hours.
+              </Alert>
+            ) : (
+              <Alert tone="danger" title="No export was made">
+                {outcome.message}
+              </Alert>
+            )}
+            <Button
+              variant="primary"
+              fullWidth
+              startIcon={<icons.download aria-hidden />}
+              disabled={fields.size === 0 || who === '' || reason.trim() === ''}
+              loading={busy}
+              loadingLabel="Exporting"
+              onClick={() => {
+                void run();
+              }}
+            >
+              Export {count} {count === 1 ? 'person' : 'people'}
+            </Button>
+          </Stack>
+        </PageSection>
+      </Stack>
+    </div>
   );
 }
