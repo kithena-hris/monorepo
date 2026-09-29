@@ -21,6 +21,7 @@ vi.mock('../app/(app)/settings/shortcuts/actions', () => ({
 vi.mock('../app/assistant/actions', () => ({ askAssistant: vi.fn() }));
 
 const { AppShell } = await import('./app-shell');
+const { useScreenCommand } = await import('@reach/ui');
 const { shortcutHandler } = await import('./shortcuts');
 const { placesFor } = await import('../lib/remotes');
 const { EMPTY_SHELL } = await import('../lib/shell-data');
@@ -58,6 +59,8 @@ const shell = {
   roles: { hr: true, admin: false, finance: false },
   sections: hr.sections,
   settings: hr.settings,
+  // The manifest's own, with where each is offered (`on`).
+  actions: placesFor({ sections: [], actions: manifest.actions }, HR).actions,
   routes: manifest.routes.map((r) => r.path),
 };
 
@@ -131,7 +134,7 @@ describe('the key handler', () => {
     expect(run).not.toHaveBeenCalled();
     // A shortcut with a modifier still works: that is what WCAG 2.1.4 leaves on.
     on(new KeyboardEvent('keydown', { key: 'D', metaKey: true, shiftKey: true }));
-    expect(run).toHaveBeenCalledWith('go.directory');
+    expect(run).toHaveBeenCalledWith('go.directory', expect.anything());
   });
 
   it('forgets the G after a second', () => {
@@ -161,7 +164,7 @@ describe('the shortcuts, in the shell', () => {
       'go.activity': '/settings/activity',
       'go.shortcuts': '/settings/shortcuts',
     };
-    for (const shortcut of SHORTCUTS.filter((s) => s.group === 'Go to')) {
+    for (const shortcut of SHORTCUTS.filter((s) => s.id.startsWith('go.'))) {
       push.mockClear();
       press(...shortcut.keys);
       if (expected[shortcut.id] === undefined) {
@@ -215,12 +218,12 @@ describe('the shortcuts, in the shell', () => {
       press('?');
     });
     const dialog = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' });
-    const goTo = within(within(dialog).getByRole('region', { name: 'Go to' }));
+    const goTo = within(within(dialog).getByRole('region', { name: 'Navigation' }));
     expect(goTo.getByText('Directory')).toBeTruthy();
     // Time off is not built here, so it is not listed as somewhere to go.
     expect(goTo.queryByText('Time off')).toBeNull();
     expect(within(dialog).getByRole('region', { name: 'Everywhere' }).textContent).toContain(
-      'Search people and pages',
+      'Search and run a command',
     );
     expect(within(dialog).getByRole('switch', { name: 'Single-key shortcuts' })).toBeTruthy();
     expect(within(dialog).getByRole('link', { name: 'Change shortcuts' }).getAttribute('href')).toBe(
@@ -245,4 +248,102 @@ describe('the shortcuts, in the shell', () => {
       '?',
     );
   });
+});
+
+describe('C, ⌘Enter and the palette’s actions', () => {
+  it('C makes what the page makes: Add person on People, an export on Import & export', () => {
+    pathname = '/people/directory/list';
+    const { unmount } = renderShell();
+    press('c');
+    expect(push).toHaveBeenLastCalledWith('/people/new');
+    unmount();
+    pathname = '/people/import-export';
+    renderShell();
+    press('c');
+    expect(push).toHaveBeenLastCalledWith('/people/export');
+  });
+
+  it('C runs what the screen offers instead, and does nothing where nothing is made', () => {
+    const newSchedule = vi.fn();
+    function Insights(): null {
+      useScreenCommand({ id: 'create', label: 'New schedule', run: newSchedule });
+      return null;
+    }
+    pathname = '/people/insights/headcount';
+    const { unmount } = renderShell(<Insights />);
+    press('c');
+    expect(newSchedule).toHaveBeenCalledTimes(1);
+    expect(push).not.toHaveBeenCalled();
+    unmount();
+    pathname = '/settings';
+    renderShell();
+    press('c');
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('⌘Enter submits the form a field is in, even while typing in it', () => {
+    const submitted = vi.fn((event: SubmitEvent) => {
+      event.preventDefault();
+    });
+    renderShell(
+      <form aria-label="Note" onSubmit={(event) => {
+          submitted(event.nativeEvent);
+        }}>
+        <textarea aria-label="Note text" />
+        <button type="submit">Save</button>
+      </form>,
+    );
+    const field = screen.getByRole('textbox', { name: 'Note text' });
+    field.focus();
+    fireEvent.keyDown(field, { key: 'Enter', ctrlKey: true });
+    expect(submitted).toHaveBeenCalledTimes(1);
+    // A plain Enter in a textarea is a new line, not a submit.
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(submitted).toHaveBeenCalledTimes(1);
+  });
+
+  it('⌘K runs actions too, each with its keys, and what ran last comes first', async () => {
+    pathname = '/people/directory/list';
+    renderShell();
+    act(() => {
+      fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true });
+    });
+    const palette = await screen.findByRole('dialog', { name: 'Search people and pages' });
+    const create = within(palette).getByRole('option', { name: /Create… Add person/ });
+    expect(create.textContent).toContain('C');
+    expect(within(palette).getByRole('option', { name: /Switch to dark mode/ })).toBeTruthy();
+    expect(within(palette).getByRole('option', { name: /Show keyboard shortcuts/ })).toBeTruthy();
+    act(() => {
+      fireEvent.click(within(palette).getByRole('option', { name: /Inbox/ }));
+    });
+    expect(push).toHaveBeenLastCalledWith('/inbox');
+    act(() => {
+      fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true });
+    });
+    const again = await screen.findByRole('dialog', { name: 'Search people and pages' });
+    const recent = within(again).getByRole('group', { name: 'Recent' });
+    expect(within(recent).getByRole('option', { name: /Inbox/ })).toBeTruthy();
+  });
+
+  it('is axe-clean with a row of a list focused', async () => {
+    const { DataTable } = await import('@reach/ui');
+    const { container } = renderShell(
+      <DataTable
+        label="People"
+        rows={[{ id: 'a', name: 'Ada' }, { id: 'b', name: 'Grace' }]}
+        rowId={(r) => r.id}
+        columns={[{ id: 'name', header: 'Name', cell: (r) => r.name }]}
+        selectable
+        onRowClick={vi.fn()}
+      />,
+    );
+    // J from the page: into the list, on its first row.
+    press('j');
+    const row = document.activeElement;
+    expect(row?.getAttribute('data-row-id')).toBe('a');
+    const result = await axe.run(container, {
+      rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
+    });
+    expect(result.violations.map((v) => v.id)).toEqual([]);
+  }, 20_000);
 });

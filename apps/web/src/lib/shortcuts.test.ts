@@ -25,7 +25,7 @@ describe('the shortcut table', () => {
   });
 
   it('goes everywhere with G then a letter', () => {
-    const goTo = SHORTCUTS.filter((s) => s.group === 'Go to');
+    const goTo = SHORTCUTS.filter((s) => s.id.startsWith('go.'));
     expect(goTo.map((s) => s.label)).toEqual([
       'Home',
       'Time off',
@@ -133,6 +133,38 @@ describe('refusing keys', () => {
   });
 });
 
+describe('when keys can be live together', () => {
+  const table = effective({});
+
+  it('lets two screens’ row actions share a letter, and nothing else', () => {
+    // R declines on Approvals and reminds on Completeness: never both focused.
+    expect(problemWith(table, 'row.remind', ['r'])).toBeNull();
+    expect(problemWith(table, 'row.edit', ['r'])).toBeNull();
+    // A row's key is live with the list's and the page's.
+    expect(problemWith(table, 'row.remind', ['x'])).toBe(
+      'X already selects the row. Choose another.',
+    );
+    expect(problemWith(table, 'row.edit', ['c'])).toBe('C already creates. Choose another.');
+    expect(problemWith(table, 'list.select', ['c'])).toBe('C already creates. Choose another.');
+    // But not on the same screen.
+    expect(problemWith(table, 'row.decline', ['a'])).toBe(
+      'A already approves the change. Choose another.',
+    );
+  });
+
+  it('keeps list and row keys to one chord, and lets Space stay the quick look', () => {
+    expect(problemWith(table, 'list.select', ['g', 'x'])).toBe(
+      'A key for a list or a row is one key, with or without a modifier. Choose another.',
+    );
+    expect(problemWith(table, 'list.preview', ['space'])).toBeNull();
+    expect(problemWith(table, 'go.home', ['space'])).toBe(
+      'Space belongs to your browser or computer. Choose another.',
+    );
+    expect(problemWith(table, 'list.extend-next', ['shift+n'], true)).toBeNull();
+    expect(spoken(['shift+j'], true)).toBe('⇧J');
+  });
+});
+
 describe('reading stored preferences', () => {
   it('keeps what parses and falls back to the defaults for anything else', () => {
     const stored = { bindings: { 'go.home': ['g', 'z'] }, characterKeys: false };
@@ -155,7 +187,7 @@ describe('where each go-to shortcut goes', () => {
     activity: true,
   };
   const at = (id: string, reach = hr) =>
-    destinationOf(SHORTCUTS.find((s) => s.id === id) ?? { id, group: 'Go to', label: id, does: '', keys: [] }, reach);
+    destinationOf(SHORTCUTS.find((s) => s.id === id) ?? { id, group: 'Navigation', label: id, does: '', keys: [] }, reach);
 
   it('opens each People section at the first page under it this viewer opens', () => {
     expect(at('go.directory')).toBe('/people/directory/list');

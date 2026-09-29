@@ -65,6 +65,7 @@ const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
     roles,
     sections: places.sections,
     settings: places.settings,
+    actions: places.actions,
     routes: route.routes,
     counts: counts?.sections ?? {},
     tabCounts: counts?.tabs ?? {},
