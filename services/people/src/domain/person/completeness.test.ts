@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedClock } from '@kithena/domain-kit';
 import { AttributeDefinition, type AttributeDefinitionInput } from '@kithena/contracts';
 
-import { assessCompleteness, notApplicable } from './completeness.js';
+import { assessCompleteness, blocksPayroll, notApplicable } from './completeness.js';
 import type { PersonFacts } from '../schema/requiredness.js';
 
 /**
@@ -329,5 +329,48 @@ describe('a published predicate on special-category data (PEO-065)', () => {
     expect(notApplicable(definitions, holding, clock, 'Europe/Madrid')).toEqual(
       notApplicable(definitions, not, clock, 'Europe/Madrid'),
     );
+  });
+});
+
+describe('a gap that blocks payroll', () => {
+  // Derived, not a flag a tenant sets: bank, tax or ID details, or anything
+  // finance fills in. Payroll cannot pay somebody without them.
+  it('is a financial field', () => {
+    const bank = define({
+      key: 'iban',
+      encrypted: true,
+      classification: {
+        classification: 'confidential',
+        piiKind: 'financial',
+        exportable: false,
+        aiEligible: false,
+      },
+    });
+    expect(blocksPayroll(bank)).toBe(true);
+  });
+
+  it('is a bank account or a national identifier by type', () => {
+    expect(
+      blocksPayroll(
+        define({ key: 'account', dataType: 'bank_account', typeConfig: { kind: 'bank_account', country: 'ES' } }),
+      ),
+    ).toBe(true);
+    expect(
+      blocksPayroll(
+        define({
+          key: 'nif',
+          dataType: 'national_id',
+          typeConfig: { kind: 'national_id', country: 'ES', scheme: 'NIF' },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('is anything finance fills in', () => {
+    expect(blocksPayroll(define({ key: 'tax_code', ownership: ['finance'] }))).toBe(true);
+  });
+
+  it('is not an ordinary HR field', () => {
+    expect(blocksPayroll(define({ key: 'cost_centre' }))).toBe(false);
   });
 });

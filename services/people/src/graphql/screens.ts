@@ -810,7 +810,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   const Waiting = builder.objectRef<Completeness['waiting']>('CompletenessWaiting').implement({
     fields: (t) => ({
       people: t.exposeInt('people'),
-      lastReminded: t.exposeString('lastReminded', { nullable: true }),
+      lastReminded: t.exposeString('lastReminded', {
+        nullable: true,
+        description: 'When anybody still waiting was last sent the weekly reminder; ISO 8601.',
+      }),
+      due: t.exposeInt('due', {
+        nullable: true,
+        description: 'How many remindWaiting would remind now; null where it cannot run.',
+      }),
     }),
   });
   const GridField = builder
@@ -835,6 +842,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       department: t.exposeString('department', { nullable: true }),
       manager: t.exposeString('manager', { nullable: true }),
       missing: t.stringList({ resolve: (r) => list(r.missing) }),
+      owner: t.exposeString('owner', { description: 'Who fills these in: hr or employee.' }),
+      remindedAt: t.exposeString('remindedAt', {
+        nullable: true,
+        description: 'Employee rows: their last reminder, weekly or asked for.',
+      }),
     }),
   });
   const CompletenessRef = builder.objectRef<Completeness>('PeopleCompleteness').implement({
@@ -843,6 +855,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       waiting: t.field({ type: Waiting, resolve: (v) => v.waiting }),
       completedThisWeek: t.exposeInt('completedThisWeek'),
       toFill: t.exposeInt('toFill', { description: 'Over everybody, not only this page' }),
+      blocking: t.exposeInt('blocking', {
+        nullable: true,
+        description: 'People missing bank, tax or ID details, whoever fills them in.',
+      }),
       fields: t.field({ type: [GridField], resolve: (v) => list(v.fields) }),
       rows: t.field({ type: [GridRow], resolve: (v) => list(v.rows) }),
       next: t.exposeString('next', { nullable: true }),
@@ -1302,6 +1318,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       percent: t.exposeFloat('percent'),
       incomplete: t.exposeInt('incomplete'),
+      change: t.exposeInt('change', {
+        nullable: true,
+        description: 'Points since the snapshot a month ago; null when there is none that day.',
+      }),
+      trend: t.field({
+        type: [Point],
+        description: 'Percent complete by month, snapshot months only.',
+        resolve: (c) => list(c.trend),
+      }),
     }),
   });
   const Movement = builder.objectRef<NonNullable<A['movement']>>('AnalyticsMovement').implement({
@@ -1381,6 +1406,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       asOf: t.exposeString('asOf'),
       source: t.exposeString('source'),
       sourceNote: t.exposeString('sourceNote'),
+      minimum: t.exposeInt('minimum', {
+        description: 'The cohort minimum in force: smaller groups are withheld.',
+      }),
       headcount: t.field({ type: Headcount, resolve: (v) => v.headcount }),
       attrition: t.field({ type: Attrition, nullable: true, resolve: (v) => v.attrition }),
       complete: t.field({ type: Complete, nullable: true, resolve: (v) => v.complete }),
@@ -1857,6 +1885,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
             ? `/v1/views/completeness?after=${encodeURIComponent(args.after)}`
             : '/v1/views/completeness',
         ),
+    }),
+    peopleHeadcount: t.int({
+      description: 'How many people you could find by searching: a count only.',
+      resolve: async (_root, _args, ctx) =>
+        (await viaRest<{ count: number }>(ctx, 'GET', '/v1/views/headcount')).count,
     }),
     peoplePicker: t.field({
       type: Picker,
@@ -2383,7 +2416,34 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     values: ['accept', 'send_back'] as const,
   });
 
+  const Reminded = builder
+    .objectRef<{ readonly sent: number; readonly failed: number; readonly skipped: number }>(
+      'RemindersSent',
+    )
+    .implement({
+      fields: (t) => ({
+        sent: t.exposeInt('sent'),
+        failed: t.exposeInt('failed'),
+        skipped: t.exposeInt('skipped', {
+          description: 'Waiting, and not due: reminded this week, outside their hours, or no email.',
+        }),
+      }),
+    });
+
   builder.mutationFields((t) => ({
+    remindWaiting: t.field({
+      type: Reminded,
+      description:
+        'Send the weekly reminder now to everybody due one; nobody gets two in a week (HR).',
+      args: { idempotencyKey: t.arg.string({ required: true }) },
+      resolve: (_root, args, ctx) =>
+        viaRest<{ sent: number; failed: number; skipped: number }>(
+          ctx,
+          'POST',
+          '/v1/views/completeness/remind',
+          { body: {}, key: args.idempotencyKey },
+        ),
+    }),
     saveOwnSection: t.field({
       type: SectionSaved,
       args: {

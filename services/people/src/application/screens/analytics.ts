@@ -4,11 +4,14 @@ import type { AttributeDefinition } from '@kithena/contracts';
 import {
   attritionTrend,
   chartFilters,
+  completeByMonth,
   completeness,
+  completenessByDay,
   composition,
   expiryTimeline,
   headcountTrend,
   joinerHeatmap,
+  percentComplete,
   movementWaterfall,
   selfIdBreakdown,
   spanOfControl,
@@ -17,6 +20,7 @@ import {
   type ChartContext,
   type Filters,
 } from '../analytics/queries.js';
+import { cohortMinimum } from '../analytics/access.js';
 import { payCharts, type PayCell } from '../analytics/pay.js';
 import { selfIdFields } from '../analytics/snapshot.js';
 import { fromMinor } from '../import/cells.js';
@@ -84,7 +88,19 @@ export interface AnalyticsView {
     /** Rolling 12-month attrition, in percent, by month (PEO-067). */
     readonly trend: readonly Point[];
   } | null;
-  readonly complete: { readonly percent: number; readonly incomplete: number } | null;
+  /** Groups smaller than this are withheld from every breakdown (§11). */
+  readonly minimum: number;
+  readonly complete: {
+    readonly percent: number;
+    readonly incomplete: number;
+    /**
+     * Points since the snapshot a month ago; null when that day has none,
+     * rather than a figure computed against nothing.
+     */
+    readonly change: number | null;
+    /** Percent complete by month, snapshot months only. */
+    readonly trend: readonly Point[];
+  } | null;
   readonly expiringIn90Days: number | null;
   readonly movement: {
     readonly period: string;
@@ -272,6 +288,11 @@ export async function analyticsView(
     const attrition = await attritionTrend(ctx, range(minusMonths(today, 12)));
     const latest = attrition.ok ? attrition.value.points.at(-1) : undefined;
     const states = await completeness(ctx, { asOf: today, ...(filters ? { filters } : {}) });
+    const completeDays = await completenessByDay(ctx, range(minusMonths(today, 12)));
+    const monthAgo = completeDays.ok
+      ? completeDays.value.find((d) => d.day === minusMonths(today, 1))
+      : undefined;
+    const then = monthAgo === undefined ? null : percentComplete(monthAgo);
     const moved = await movementWaterfall(ctx, range(minusMonths(today, 1)));
 
     const expiring =
@@ -300,7 +321,7 @@ export async function analyticsView(
     const department = labeller(definitions, 'org_unit');
     const employment = labeller(definitions, 'employment_type');
 
-    const total = states.ok ? states.value.states.complete + states.value.states.incomplete : 0;
+    const percent = states.ok ? percentComplete(states.value.states) : null;
     const bySection = new Map<string, number>();
     if (states.ok && states.value.byField !== null) {
       for (const f of states.value.byField) {
@@ -340,11 +361,16 @@ export async function analyticsView(
                 p.rate === null ? [] : [{ label: p.month, value: Math.round(p.rate * 1000) / 10 }],
               ),
             },
+      minimum: cohortMinimum(ctx.cohortMinimum),
       complete:
-        states.ok && total > 0
+        states.ok && percent !== null
           ? {
-              percent: Math.round((states.value.states.complete / total) * 100),
+              percent,
               incomplete: states.value.states.incomplete,
+              change: then === null ? null : percent - then,
+              trend: completeDays.ok
+                ? completeByMonth(completeDays.value).map((p) => ({ label: p.month, value: p.percent }))
+                : [],
             }
           : null,
       // The items drawn, so the tile and the chart cannot disagree by a hidden one.

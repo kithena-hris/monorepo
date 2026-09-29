@@ -15,7 +15,11 @@ import type { FileStore } from './file-store.js';
 import type { AssistantPort } from '../assistant/assistant-port.js';
 import type { ChatDeps } from '../settings/chat-port.js';
 import type { ActivityStore } from '../settings/activity-store.js';
-import type { ReminderCompany, ReminderMailer } from '../completeness/reminders.js';
+import type {
+  ReminderCompany,
+  ReminderMailer,
+  SweepOutcome,
+} from '../completeness/reminders.js';
 import type {
   FormValue,
   FormValues,
@@ -45,6 +49,21 @@ export interface ScreenDeps {
   readonly calendars: Calendars;
   /** The completeness grid's totals over everybody (PEO-122). */
   readonly gapTotals: (tx: Tx, tenantId: string) => Promise<GapTotals>;
+  /** The completeness screen's payroll and reminder figures. Absent, they are not shown. */
+  readonly gapFigures?: (
+    tx: Tx,
+    tenantId: string,
+    ask: {
+      /** The keys whose gap blocks payroll (`blocksPayroll`). */
+      readonly payroll: readonly string[];
+      /** Whose "due" is read: `reminderDueBefore(now)`. */
+      readonly now: Date;
+      /** The people on the page, for their last reminder. */
+      readonly people: readonly string[];
+    },
+  ) => Promise<GapFigures>;
+  /** The weekly reminder sweep, run for one tenant now. Absent, nobody is reminded from a screen. */
+  readonly remindNow?: (tenantId: string) => Promise<SweepOutcome>;
   /** Saved segments (PEO-068). Absent, their routes answer UNAVAILABLE. */
   readonly segments?: { readonly store: SegmentStore; readonly newId: () => string };
   /** People's photos. Absent, nobody has one and none may be set. */
@@ -102,6 +121,18 @@ export interface GapTotals {
   readonly waiting: number;
   /** Per key HR or Finance fills in, how many people are missing it. */
   readonly staff: readonly { readonly key: string; readonly people: number }[];
+}
+
+/** Over `people.completeness_gap`, beside the totals (V4). */
+export interface GapFigures {
+  /** People with a gap in one of the payroll keys, whoever fills it in. */
+  readonly blocking: number;
+  /** The last weekly reminder anybody still waiting was sent; null when none was. */
+  readonly lastReminded: string | null;
+  /** People the sweep would remind now, before each one's working-hours window. */
+  readonly due: number;
+  /** Per person asked about: their last reminder, weekly or asked for by somebody. */
+  readonly remindedAt: ReadonlyMap<string, string>;
 }
 
 /** Today on the tenant's default calendar: the day a screen about everybody is drawn for. */

@@ -183,6 +183,23 @@ export function notApplicable(
  * employee is HR's to chase, since asking both produces two people each
  * waiting for the other.
  */
+/**
+ * Whether a missing value of this field stops payroll paying the person.
+ *
+ * Derived rather than a flag a tenant sets: bank, tax or ID details — a field
+ * classified `financial`, a `bank_account` or a `national_id` — or anything
+ * finance fills in. A gap only counts when the field is required of the
+ * person, which a completeness gap already is.
+ */
+export function blocksPayroll(definition: AttributeDefinition): boolean {
+  return (
+    definition.classification.piiKind === 'financial' ||
+    definition.dataType === 'bank_account' ||
+    definition.dataType === 'national_id' ||
+    definition.ownership.includes('finance')
+  );
+}
+
 export function gapsByOwner(verdict: CompletenessVerdict): {
   readonly employee: readonly MissingAttribute[];
   readonly staff: readonly MissingAttribute[];

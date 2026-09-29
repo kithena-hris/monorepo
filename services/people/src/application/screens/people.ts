@@ -7,6 +7,7 @@ import { visibleTo } from '../../domain/access/field-access.js';
 import { filterable, REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
 import { mayChangePhoto } from '../../domain/person/photo.js';
 import { askable } from '../../domain/person/detail-request.js';
+import { blocksPayroll, gapsByOwner } from '../../domain/person/completeness.js';
 import type { FileInfoView } from './files.js';
 import { avatarsOf } from './photo.js';
 import { run } from '../person/service.js';
@@ -111,6 +112,21 @@ export async function pickerView(
     });
     if (!listed.ok) return listed;
     return ok({ options: pickable(listed.value.items), next: listed.value.next });
+  });
+}
+
+/**
+ * How many people this viewer could find by searching (MV1's "Search 412
+ * people"): the directory's own count, so HR's includes leavers and nobody
+ * else's does. A count, and nothing about anybody.
+ */
+export async function peopleHeadcount(
+  deps: ScreenDeps,
+  asking: Asking,
+): Promise<Result<{ readonly count: number }>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const counted = await deps.service.access.count(tx, asking);
+    return counted.ok ? ok({ count: counted.value.all }) : counted;
   });
 }
 
@@ -1517,10 +1533,18 @@ export async function directoryView(
 
 export interface CompletenessView {
   readonly since: string;
-  readonly waiting: { readonly people: number; readonly lastReminded: string | null };
+  readonly waiting: {
+    readonly people: number;
+    /** The last weekly reminder anybody waiting was sent; null when none was, or unknown. */
+    readonly lastReminded: string | null;
+    /** How many the sweep would remind now; null where it cannot be run from here. */
+    readonly due: number | null;
+  };
   readonly completedThisWeek: number;
   /** HR's missing values over everybody, not only this page. */
   readonly toFill: number;
+  /** People missing bank, tax or ID details (`blocksPayroll`); null where not known. */
+  readonly blocking: number | null;
   readonly fields: readonly {
     readonly key: string;
     readonly label: string;
@@ -1536,6 +1560,10 @@ export interface CompletenessView {
     readonly department: string | null;
     readonly manager: string | null;
     readonly missing: readonly string[];
+    /** Who fills these in: HR, in the grid, or the person, reminded. */
+    readonly owner: 'hr' | 'employee';
+    /** The person's last reminder, weekly or asked for; null for HR's rows and for never. */
+    readonly remindedAt: string | null;
   }[];
   /** The cursor for the page after this one; null on the last page. */
   readonly next: string | null;
@@ -1545,12 +1573,13 @@ export interface CompletenessView {
 export const GRID_PAGE = DIRECTORY_PAGE;
 
 /**
- * HR's grid over exactly the missing cells HR owns (§8.4). Employee-owned
- * gaps are counted, not shown: they are the employee's task and reminder.
+ * Who is missing what (§8.4, V4): a row for HR's gaps, which HR fills in the
+ * grid, and a row for the person's own, which they are reminded of. A gap
+ * Finance alone fills is neither: it is not HR's to chase.
  *
- * Paged by keyset over the people with a gap HR fills (PEO-122, PEO-124),
+ * Paged by keyset over the people with such a gap (PEO-122, PEO-124),
  * through `PersonAccess.list`, so page 1,000 costs what page 1 does; the
- * totals and the field list are over everybody, from the gap rows.
+ * totals and HR's field list are over everybody, from the gap rows.
  */
 export async function completenessView(
   deps: ScreenDeps,
@@ -1564,17 +1593,31 @@ export async function completenessView(
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
     const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
     const hrs = (key: string) => byKey.get(key)?.ownership.includes('hr') === true;
-    // Selected by the keys the grid shows, HR's, so a page is never short of
-    // people whose only gap is Finance's.
+    // `gapsByOwner`'s rule: theirs alone, not also HR's or Finance's.
+    const theirs = (key: string) => {
+      const owners = byKey.get(key)?.ownership ?? [];
+      return owners.includes('employee') && !owners.some((o) => o === 'hr' || o === 'finance');
+    };
+    // Selected by the keys the rows show, so a page is never short of people
+    // whose only gap is Finance's.
     const listed = await deps.service.access.list(tx, {
       ...asking,
-      gaps: [...byKey.keys()].filter(hrs),
+      gaps: [...byKey.keys()].filter((k) => hrs(k) || theirs(k)),
+      gapsIn: 'any',
       after: query.after ?? null,
       limit: GRID_PAGE,
     });
     if (!listed.ok) return listed;
     const page = listed.value.items;
     const totals = await deps.gapTotals(tx, asking.tenantId);
+    const figures =
+      deps.gapFigures === undefined
+        ? null
+        : await deps.gapFigures(tx, asking.tenantId, {
+            payroll: version.document.attributes.filter(blocksPayroll).map((d) => d.key),
+            now: deps.clock.now(),
+            people: page.map((p) => p.id),
+          });
     const managers = page
       .map((p) => p.attributes['manager_id'])
       .filter((m): m is string => typeof m === 'string');
@@ -1592,10 +1635,8 @@ export async function completenessView(
         personId: person.id,
       });
       if (!verdict.ok) continue;
-      const missing = verdict.value.missing.filter((m) => m.owners.includes('hr'));
-      if (missing.length === 0) continue;
       const manager = person.attributes['manager_id'];
-      rows.push({
+      const row = {
         personId: person.id,
         name: names.get(person.id) ?? 'Unnamed',
         department:
@@ -1603,17 +1644,38 @@ export async function completenessView(
             ? person.attributes['department']
             : null,
         manager: typeof manager === 'string' ? (names.get(manager) ?? null) : null,
-        missing: missing.map((m) => m.key),
-      });
+      };
+      const hr = verdict.value.missing.filter((m) => m.owners.includes('hr'));
+      if (hr.length > 0) {
+        rows.push({ ...row, missing: hr.map((m) => m.key), owner: 'hr', remindedAt: null });
+      }
+      const own = gapsByOwner(verdict.value).employee;
+      if (own.length > 0) {
+        rows.push({
+          ...row,
+          missing: own.map((m) => m.key),
+          owner: 'employee',
+          remindedAt: figures?.remindedAt.get(person.id) ?? null,
+        });
+      }
     }
     const staff = totals.staff.filter((s) => hrs(s.key));
+    // HR's fields over everybody, then the labels of the person's own on this page.
+    const shown = new Set(staff.map((s) => s.key));
+    const own = [
+      ...new Set(rows.filter((r) => r.owner === 'employee').flatMap((r) => r.missing)),
+    ].filter((k) => !shown.has(k));
     return ok({
       since: `Since version ${String(version.version)} was published on ${version.publishedAt.slice(0, 10)}`,
-      // ponytail: reminders are not sent yet (PEO-084), so nobody has been reminded.
-      waiting: { people: totals.waiting, lastReminded: null },
+      waiting: {
+        people: totals.waiting,
+        lastReminded: figures?.lastReminded ?? null,
+        due: figures === null || deps.remindNow === undefined ? null : figures.due,
+      },
       completedThisWeek: 0,
       toFill: staff.reduce((n, s) => n + s.people, 0),
-      fields: staff.flatMap(({ key }) => {
+      blocking: figures?.blocking ?? null,
+      fields: [...staff.map((s) => s.key), ...own].flatMap((key) => {
         const d = byKey.get(key);
         if (d === undefined) return [];
         return [
@@ -1637,7 +1699,40 @@ export async function completenessView(
   });
 }
 
-/** The grid's bulk save: one write, and so one event, per person. */
+/**
+ * "Remind N people" (V4): the weekly sweep, run for the tenant now, HR's
+ * alone. The sweep's own claim is the rate limit — nobody reminded in the last
+ * week is claimed, and nobody outside their working hours — so pressing it
+ * twice sends nothing twice. Whoever waits and was not sent one is `skipped`:
+ * not due yet, outside their hours, or with no work email to send to.
+ */
+export async function remindWaiting(
+  deps: ScreenDeps,
+  asking: Asking,
+): Promise<
+  Result<{ readonly sent: number; readonly failed: number; readonly skipped: number }>
+> {
+  const sweep = deps.remindNow;
+  if (sweep === undefined) {
+    return err(failure('UNAVAILABLE', 'Reminders are not sent from here'));
+  }
+  const waiting = await run(deps.service, asking.tenantId, async (tx) => {
+    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+    if (!everyone.isHr) return err(failure('FORBIDDEN', 'Reminding people is HR’s'));
+    return ok((await deps.gapTotals(tx, asking.tenantId)).waiting);
+  });
+  if (!waiting.ok) return waiting;
+  const swept = await sweep(asking.tenantId);
+  if (swept.waiting) {
+    return err(failure('UNAVAILABLE', 'The company’s details have not reached People yet'));
+  }
+  return ok({
+    sent: swept.sent,
+    failed: swept.failed,
+    skipped: Math.max(0, waiting.value - swept.sent - swept.failed),
+  });
+}
+
 /** A grid cell's warning: which person, and what the checks found there (PEO-125). */
 export type GridFinding = IdentifierFindingView & { readonly personId: string };
 
