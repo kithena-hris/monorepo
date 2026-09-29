@@ -25,7 +25,7 @@ export default async function PeopleMenuPage(): Promise<JSX.Element> {
       sidebarCollapsed={sidebarCollapsed}
     >
       <div className="flex flex-col gap-5">
-        <PageHeader title="People" actions={<AccountSheet person={person} />} />
+        <PageHeader title="People" actions={<AccountSheet person={person} />} touchBarActions />
         <PeopleMenu sections={shell.sections} route={null} counts={shell.counts} />
       </div>
     </AppShell>

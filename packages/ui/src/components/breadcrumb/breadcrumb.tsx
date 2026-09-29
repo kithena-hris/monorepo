@@ -312,8 +312,9 @@ export function BreadcrumbMenu({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const content = useRef<HTMLDivElement | null>(null);
-  const count = groups.reduce((n, g) => n + g.items.length, 0);
-  const filterable = count >= FILTER_FROM;
+  // The longest group, not the total: six sections and a page's four tabs
+  // read at a glance, a list of eight settings does not.
+  const filterable = Math.max(0, ...groups.map((g) => g.items.length)) >= FILTER_FROM;
   const shown = filterSiblings(groups, query);
 
   // A long list opens with the caret in its filter, after the menu has taken focus.

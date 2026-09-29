@@ -970,13 +970,23 @@ export function TertiaryNav({
                             ? 'bg-invert text-fg-on-invert'
                             : 'bg-surface-sunken text-fg-muted hover:bg-surface-hover hover:text-fg',
                         ),
-                  // The same pill, for a column that becomes a row under a finger.
+                  /*
+                   * The same pill, for a column or a row of tabs that becomes
+                   * pills under a finger.
+                   *
+                   * Important, and it has to be. These override the desk's own
+                   * classes (`text-fg`, `h-11`, `px-3`), and a remote's
+                   * stylesheet, loaded after the shell's into the same layer,
+                   * may define those again: a later `.text-fg` beats an earlier
+                   * `touch:text-fg-on-invert` of the same specificity, and the
+                   * active pill's label went the colour of its fill.
+                   */
                   touchPills &&
                     cn(
-                      'tap-target touch:h-9 touch:min-h-0 touch:shrink-0 touch:rounded-control touch:border-0 touch:px-3.5 touch:font-semibold',
+                      'tap-target touch:h-9! touch:min-h-0! touch:shrink-0 touch:rounded-control! touch:border-0! touch:px-3.5! touch:text-[0.9375rem]! touch:font-semibold',
                       active
-                        ? 'touch:bg-invert touch:text-fg-on-invert'
-                        : 'touch:bg-surface-sunken touch:text-fg-muted',
+                        ? 'touch:bg-invert! touch:text-fg-on-invert!'
+                        : 'touch:bg-surface-sunken! touch:text-fg-muted!',
                     ),
                   // A settings-style row that pushes its section's screen.
                   touchList &&
@@ -991,7 +1001,7 @@ export function TertiaryNav({
                     // One of the two is displayed, and that one is the link's name.
                     <>
                       <span className="touch:hidden">{item.label}</span>
-                      <span className="hidden touch:inline">{item.shortLabel}</span>
+                      <span className="hidden touch:inline!">{item.shortLabel}</span>
                     </>
                   )}
                 </span>
@@ -1013,7 +1023,7 @@ export function TertiaryNav({
                     className={cn(
                       'shrink-0 text-xs font-semibold text-fg-subtle tabular-nums',
                       touchList && 'touch:text-base touch:font-normal touch:text-fg-muted',
-                      touchPills && active && 'touch:text-fg-on-invert',
+                      touchPills && active && 'touch:text-fg-on-invert!',
                     )}
                   >
                     {item.count}
