@@ -27,6 +27,8 @@ export interface ShellData {
   readonly roles: { readonly hr: boolean; readonly admin: boolean; readonly finance: boolean };
   readonly sections: readonly Place[];
   readonly settings: readonly Place[];
+  /** Every People route, as its manifest writes them: which one the address is (`matchPath`). */
+  readonly routes: readonly string[];
   /** By a section's path: only what needs somebody to act, never a total. */
   readonly counts: Readonly<Record<string, number>>;
   /** By a tab's path, each tab's own count: what the tab row shows. */
@@ -40,6 +42,7 @@ export const EMPTY_SHELL: ShellData = {
   roles: { hr: false, admin: false, finance: false },
   sections: [],
   settings: [],
+  routes: [],
   counts: {},
   tabCounts: {},
   notices: [],

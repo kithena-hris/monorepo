@@ -1,4 +1,4 @@
-import { people } from '../../../../lib/people';
+import { people } from '../../../../../lib/people';
 
 /**
  * A person's photo, as an image the page's `<img>` can load.

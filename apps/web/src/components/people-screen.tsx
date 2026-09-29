@@ -1,10 +1,11 @@
 'use client';
 
+import { Skeleton } from '@reach/ui';
 import type { Route } from 'next';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useTransition, type JSX } from 'react';
 
-import * as actions from '../app/people/actions';
+import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
@@ -906,7 +907,16 @@ export function PeopleScreen({
       area="People"
       route={route}
       props={frame === undefined ? props : { ...props, frame }}
-      onNavigate={go}
+      // Drawn in the browser, the screen is its header's shape until it is: the
+      // trail and the tabs the frame will give it.
+      fallback={
+        <Skeleton
+          shape="page"
+          label="Loading People"
+          breadcrumb={frame?.section != null}
+          tabs={frame?.tabs?.length ?? 0}
+        />
+      }
     />
   );
 }

@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 
-import { PeopleArea, flatSearch } from '../../../components/people-area';
+import { PeopleArea, flatSearch } from '../../../../components/people-area';
 
 /** Everything under `/people`, rendered by the People remote (`PeopleArea`). */
 export default async function People({

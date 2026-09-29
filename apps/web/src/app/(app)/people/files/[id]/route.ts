@@ -1,4 +1,4 @@
-import { people } from '../../../../lib/people';
+import { people } from '../../../../../lib/people';
 
 /**
  * A file an image or document field holds, as the browser opens it.

@@ -1,4 +1,4 @@
-import { people } from '../../../../../lib/people';
+import { people } from '../../../../../../lib/people';
 
 /**
  * Where a chat app (Slack today) sends the administrator back after they
@@ -25,7 +25,10 @@ export async function GET(
   const state = url.searchParams.get('state');
   if (url.searchParams.get('error') !== null || code === null || state === null) {
     // Cancelled on the chat app's side: nothing to say but that.
-    back.searchParams.set('notConnected', `${name} was not connected. You can try again whenever you like.`);
+    back.searchParams.set(
+      'notConnected',
+      `${name} was not connected. You can try again whenever you like.`,
+    );
     return Response.redirect(back, 303);
   }
   const answer = await people('CompleteChatApp', { app, code, state });
