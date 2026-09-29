@@ -195,7 +195,12 @@ describe('headerFrame', () => {
       },
       { href: '/people/data-health/id-checks', label: 'ID checks', current: false },
       { href: '/people/data-health/duplicates', label: 'Duplicates', current: true, count: 2 },
-      { href: '/people/data-health/access-requests', label: 'Access requests', current: false },
+      {
+        href: '/people/data-health/access-requests',
+        label: 'Access requests',
+        short: 'Access',
+        current: false,
+      },
     ]);
   });
 

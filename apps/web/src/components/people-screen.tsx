@@ -52,6 +52,8 @@ export interface PeopleScreenProps {
     readonly tabs?: readonly {
       readonly href: string;
       readonly label: string;
+      /** Its label as a pill under a finger, where one is shorter. */
+      readonly short?: string;
       readonly current: boolean;
       readonly count?: number;
     }[];

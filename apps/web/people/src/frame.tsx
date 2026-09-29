@@ -58,6 +58,8 @@ export interface Frame {
   readonly tabs?: readonly {
     readonly href: string;
     readonly label: string;
+    /** Its label as a pill under a finger, where one is shorter: "Access". */
+    readonly short?: string;
     readonly current: boolean;
     readonly count?: number;
   }[];
@@ -144,6 +146,7 @@ export function ScreenFrame({
               id: t.href,
               href: t.href,
               label: t.label,
+              ...(t.short === undefined ? {} : { shortLabel: t.short }),
               ...(t.count === undefined ? {} : { count: t.count }),
             }))}
           />

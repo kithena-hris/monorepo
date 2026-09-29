@@ -32,6 +32,8 @@ import { z } from 'zod';
 const Tab = z.object({
   path: z.string().startsWith('/'),
   label: z.string().min(1),
+  /** A shorter label, for a tab as a pill under a finger: "Access" for "Access requests". */
+  short: z.string().min(1).optional(),
   /** One sentence on what the place is for, under its label in a menu or on a card. */
   description: z.string().min(1).optional(),
   /** A Reach icon name (`icons`), drawn beside the label where there is room. */
@@ -147,6 +149,7 @@ export interface HeaderFrame {
   readonly tabs?: readonly {
     readonly href: string;
     readonly label: string;
+    readonly short?: string;
     readonly current: boolean;
     readonly count?: number;
   }[];
@@ -183,6 +186,7 @@ export function headerFrame(
             return {
               href: t.path,
               label: t.label,
+              ...(t.short === undefined ? {} : { short: t.short }),
               current: t === tab,
               ...(n === undefined ? {} : { count: n }),
             };

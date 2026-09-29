@@ -50,6 +50,7 @@ export const PEOPLE_NAV: { readonly sections: Place[]; readonly actions: Place[]
         {
           path: '/people/data-health/access-requests',
           label: 'Access requests',
+          short: 'Access',
           for: ['finance', 'hr'],
         },
       ],
@@ -73,8 +74,8 @@ export const PEOPLE_NAV: { readonly sections: Place[]; readonly actions: Place[]
       tabs: [
         { path: '/people/insights/headcount', label: 'Headcount' },
         { path: '/people/insights/turnover', label: 'Turnover' },
-        { path: '/people/insights/data-quality', label: 'Data quality' },
-        { path: '/people/insights/pay', label: 'Pay & diversity' },
+        { path: '/people/insights/data-quality', label: 'Data quality', short: 'Quality' },
+        { path: '/people/insights/pay', label: 'Pay & diversity', short: 'Pay' },
       ],
     },
   ],

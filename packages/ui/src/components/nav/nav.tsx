@@ -770,6 +770,8 @@ export type TertiaryNavStatus = 'success' | 'warning' | 'danger' | 'info';
 export interface TertiaryNavItem {
   id: string;
   label: string;
+  /** A shorter label for under a finger, where a row of pills has less room: "Access". */
+  shortLabel?: string;
   badge?: ReactNode;
   /** Defaults to `#id`, an anchor in this page. A section that is a page of its own passes its URL. */
   href?: string;
@@ -982,7 +984,17 @@ export function TertiaryNav({
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                 )}
               >
-                <span className={cn('min-w-0 truncate', !tabs && 'flex-1')}>{item.label}</span>
+                <span className={cn('min-w-0 truncate', !tabs && 'flex-1')}>
+                  {item.shortLabel === undefined ? (
+                    item.label
+                  ) : (
+                    // One of the two is displayed, and that one is the link's name.
+                    <>
+                      <span className="touch:hidden">{item.label}</span>
+                      <span className="hidden touch:inline">{item.shortLabel}</span>
+                    </>
+                  )}
+                </span>
                 {item.badge ? <span className="shrink-0">{item.badge}</span> : null}
                 {item.count != null && tabs ? (
                   // Each tab's own count, as a pill: filled on the tab you are on.
