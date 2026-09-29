@@ -46,7 +46,7 @@ describe('PeopleSections', () => {
     expect(links.getByRole('link', { name: 'Approvals' })).toBeTruthy();
     // No second header row: the breadcrumb and the actions are the screen's.
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Add employee' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Add person' })).toBeNull();
     const result = await axe.run(container, {
       rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
     });
@@ -95,7 +95,7 @@ describe('headerFrame', () => {
   it('names the section for the breadcrumb and offers adding somebody', () => {
     const frame = headerFrame(hr, '/people/directory', '/people');
     expect(frame.section).toBe('Directory');
-    expect(frame.actions).toEqual([{ href: '/people/new', label: 'Add employee' }]);
+    expect(frame.actions).toEqual([{ href: '/people/new', label: 'Add person', icon: 'hire' }]);
     // The last crumb is a menu of the other sections, grouped, this one marked.
     const workspace = frame.siblings.find((g) => g.label === 'Workspace');
     expect(workspace?.items.find((i) => i.current)?.label).toBe('Directory');
@@ -104,10 +104,10 @@ describe('headerFrame', () => {
     expect(headerFrame(hr, '/people/:id', '/people').section).toBe('Directory');
   });
 
-  it('has no trail on People’s front page, and no Add employee on its own form', () => {
-    expect(headerFrame(hr, '/people', '/people').section).toBeNull();
+  it('names People’s front page as Overview, and offers no Add employee on its own form', () => {
+    expect(headerFrame(hr, '/people', '/people').section).toBe('Overview');
     const adding = headerFrame(hr, '/people/new', '/people');
-    expect(adding.section).toBe('Add employee');
+    expect(adding.section).toBe('Add person');
     expect(adding.actions).toEqual([]);
   });
 
@@ -141,7 +141,7 @@ describe('currentPlace', () => {
     );
     // Adding somebody is an action, not a section.
     expect(at('/people/new')).toBeUndefined();
-    expect(currentPlace(manifest.actions, '/people/new')?.label).toBe('Add employee');
+    expect(currentPlace(manifest.actions, '/people/new')?.label).toBe('Add person');
   });
 
   it('marks the section of a profile, and no section on adding somebody', () => {

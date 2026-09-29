@@ -84,29 +84,40 @@ export function currentPlace(places: readonly Place[], route: string | null): Pl
 
 /**
  * What a screen's own header shows of the host's navigation: the section it
- * is under, for the breadcrumb (none on the area's front page, where a trail
- * of one says nothing), and the actions this viewer may start. An action is
- * left off its own screen, whose form is then the only copy of it.
+ * is under, for the breadcrumb (the front page too, as Overview), and the
+ * actions this viewer may start. An action is left off its own screen, whose
+ * form is then the only copy of it. `_home` is the area's own path, kept for
+ * callers that name it.
  */
 export function headerFrame(
   places: { readonly sections: readonly Place[]; readonly actions: readonly Place[] },
   route: string | null,
-  home: string,
+  _home: string,
 ): {
   readonly section: string | null;
-  readonly actions: readonly { readonly href: string; readonly label: string }[];
+  readonly actions: readonly {
+    readonly href: string;
+    readonly label: string;
+    readonly icon?: string;
+  }[];
   readonly siblings: readonly Siblings[];
   readonly siblingsLabel: string;
 } {
   const here = currentPlace(places.sections, route) ?? currentPlace(places.actions, route);
   return {
-    section: here === undefined || here.path === home ? null : here.label,
+    // People's front page is a section like the rest: "People › Overview", with
+    // its siblings a click away, as every other People screen opens.
+    section: here === undefined ? null : here.label,
     siblings: siblingsOf(places.sections, here),
     siblingsLabel: 'People sections',
     actions: places.actions
       .filter((a) => currentPlace([a], route) === undefined)
       .filter((a) => a.on === undefined || (route !== null && a.on.includes(route)))
-      .map((a) => ({ href: a.path, label: a.label })),
+      .map((a) => ({
+        href: a.path,
+        label: a.label,
+        ...(a.icon === undefined ? {} : { icon: a.icon }),
+      })),
   };
 }
 

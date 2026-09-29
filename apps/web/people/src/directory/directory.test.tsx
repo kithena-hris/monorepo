@@ -150,26 +150,35 @@ describe('Directory', () => {
 
   it('lets HR narrow to people with something missing, through the shell', async () => {
     const user = fast();
-    const onIncompleteChange = vi.fn();
-    const { rerender } = render(<Directory {...props({ onIncompleteChange })} />);
-    await user.click(screen.getByRole('combobox', { name: 'Record' }));
-    await user.click(await screen.findByRole('option', { name: 'Missing information' }));
-    expect(onIncompleteChange).toHaveBeenCalledWith(true);
+    const onView = vi.fn();
+    const { rerender } = render(<Directory {...props({ onView })} />);
+    await user.click(screen.getByRole('radio', { name: /Incomplete/ }));
+    expect(onView).toHaveBeenCalledWith({ conditions: [], incomplete: true, segmentId: null });
     // Nobody but HR is counted, so nobody else is offered it.
     rerender(
       <Directory
-        {...props({ onIncompleteChange, load: { status: 'ready', data: { ...state, incomplete: null } } })}
+        {...props({ onView, load: { status: 'ready', data: { ...state, incomplete: null } } })}
       />,
     );
-    expect(screen.queryByRole('combobox', { name: 'Record' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: /Incomplete/ })).toBeNull();
   });
 
-  it('opens a person', async () => {
+  it('opens a quick look beside the list, then the person (W3b)', async () => {
     const user = fast();
     const onOpen = vi.fn();
-    render(<Directory {...props({ onOpen })} />);
-    await user.click(screen.getByText('Lena Moreau'));
-    expect(onOpen).toHaveBeenCalledWith('l');
+    const { container } = render(<Directory {...props({ onOpen })} />);
+    await user.click(screen.getByRole('button', { name: 'Lena Moreau' }));
+    const look = screen.getByRole('complementary', { name: 'Quick look' });
+    expect(within(look).getByRole('heading', { name: 'Lena Moreau' })).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+    // ↑ moves the look to the person above, ↵ opens them.
+    screen.getByRole('button', { name: 'Lena Moreau' }).focus();
+    await user.keyboard('{ArrowUp}');
+    expect(within(look).getByRole('heading', { name: 'Adam Reyes' })).toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    expect(onOpen).toHaveBeenCalledWith('a');
+    await user.click(within(look).getByRole('button', { name: 'Profile' }));
+    expect(onOpen).toHaveBeenLastCalledWith('a');
   });
 
   it('lets HR choose people and edit them together, and nobody else choose at all (PEO-071)', async () => {
@@ -206,7 +215,7 @@ describe('Directory', () => {
     const empty = { status: 'ready', data: { ...state, people: [] } } as const;
     const { container, rerender } = render(<Directory {...props({ load: empty, onImport })} />);
     expect(screen.getByText('No employees yet')).toBeInTheDocument();
-    expect(screen.getByText(/one at a time with Add employee/)).toBeInTheDocument();
+    expect(screen.getByText(/one at a time with Add person/)).toBeInTheDocument();
     // Adding one person is the host's manifest action beside the screen, never a copy here.
     expect(screen.queryByRole('button', { name: 'Add employee' })).toBeNull();
     const imports = screen.getAllByRole('button', { name: 'Import' });
@@ -242,38 +251,38 @@ describe('Directory', () => {
 
   it('applies a saved segment through the shell, and saves the filters as one (PEO-068)', async () => {
     const user = fast();
-    const onSegmentChange = vi.fn();
+    const onView = vi.fn();
     const onSaveSegment = vi.fn(() => Promise.resolve({ ok: true as const }));
     const withSegments = { ...state, segments: [{ id: 'seg-1', name: 'Madrid engineering' }] };
     const { container, rerender } = render(
       <Directory
         {...props({
           load: { status: 'ready', data: withSegments },
-          onSegmentChange,
+          onView,
           onSaveSegment,
         })}
       />,
     );
     // Nothing to save until a filter is set.
-    expect(screen.queryByRole('button', { name: 'Save as segment' })).toBeNull();
-    await user.click(screen.getByRole('combobox', { name: 'Segment' }));
-    await user.click(await screen.findByRole('option', { name: 'Segment: Madrid engineering' }));
-    expect(onSegmentChange).toHaveBeenCalledWith('seg-1');
+    expect(screen.queryByRole('button', { name: 'Save view' })).toBeNull();
+    await user.click(screen.getByRole('radio', { name: 'Madrid engineering' }));
+    expect(onView).toHaveBeenCalledWith({ conditions: [], incomplete: false, segmentId: 'seg-1' });
 
     rerender(
       <Directory
         {...props({
           load: { status: 'ready', data: withSegments },
           filters: { cost_centre: 'ENG-204' },
-          onSegmentChange,
+          onView,
           onSaveSegment,
         })}
       />,
     );
-    await user.click(screen.getByRole('button', { name: 'Save as segment' }));
+    await user.click(screen.getByRole('button', { name: 'Save view' }));
     await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'ENG-204');
-    await user.click(screen.getByRole('switch', { name: 'Share with everybody in the company' }));
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('radio', { name: 'Share with the company' }));
+    const panel = screen.getByRole('dialog');
+    await user.click(within(panel).getByRole('button', { name: 'Save view' }));
     expect(onSaveSegment).toHaveBeenCalledWith({ name: 'ENG-204', shared: true });
     expect(await axeViolations(container)).toEqual([]);
   });
@@ -341,7 +350,11 @@ describe('Directory', () => {
     expect(onGroupChange).toHaveBeenCalledWith('cost_centre');
     rerender(
       <Directory
-        {...props({ load: { status: 'ready', data: grouped }, onGroupChange, group: 'cost_centre' })}
+        {...props({
+          load: { status: 'ready', data: grouped },
+          onGroupChange,
+          group: 'cost_centre',
+        })}
       />,
     );
     expect(screen.getByRole('rowheader')).toHaveTextContent('ENG-2042');

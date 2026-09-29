@@ -112,14 +112,9 @@
   "actions": [
     {
       "path": "/people/new",
-      "label": "Add employee",
-      "for": [
-        "hr"
-      ],
-      "on": [
-        "/people",
-        "/people/directory"
-      ],
+      "label": "Add person",
+      "for": ["hr"],
+      "on": ["/people", "/people/directory"],
       "icon": "hire"
     }
   ],
@@ -135,11 +130,7 @@
       "path": "/people/directory",
       "label": "Directory",
       "group": "Workspace",
-      "owns": [
-        "/people/:id",
-        "/people/:id/history",
-        "/people/bulk-edit"
-      ],
+      "owns": ["/people/:id", "/people/:id/history", "/people/bulk-edit"],
       "icon": "people",
       "description": "Search, filter and view every employee record."
     },
@@ -147,10 +138,7 @@
       "path": "/people/me",
       "label": "My profile",
       "group": "Workspace",
-      "owns": [
-        "/people/me/history",
-        "/people/onboarding"
-      ],
+      "owns": ["/people/me/history", "/people/onboarding"],
       "icon": "person",
       "description": "Your personal and employment details."
     },
@@ -165,9 +153,7 @@
       "path": "/people/completeness",
       "label": "Data completeness",
       "group": "Records",
-      "for": [
-        "hr"
-      ],
+      "for": ["hr"],
       "icon": "missing",
       "description": "Employee records with required details outstanding."
     },
@@ -175,9 +161,7 @@
       "path": "/people/identifier-reviews",
       "label": "ID verification",
       "group": "Records",
-      "for": [
-        "hr"
-      ],
+      "for": ["hr"],
       "icon": "review",
       "description": "National identifiers flagged for HR review."
     },
@@ -185,9 +169,7 @@
       "path": "/people/duplicates",
       "label": "Duplicate records",
       "group": "Records",
-      "for": [
-        "hr"
-      ],
+      "for": ["hr"],
       "icon": "merge",
       "description": "Potential duplicates to merge or dismiss."
     },
@@ -195,9 +177,7 @@
       "path": "/people/import",
       "label": "Import",
       "group": "Records",
-      "for": [
-        "hr"
-      ],
+      "for": ["hr"],
       "icon": "upload",
       "description": "Create or update employees in bulk from a spreadsheet."
     },
@@ -212,10 +192,7 @@
       "path": "/people/full-values",
       "label": "Sensitive data access",
       "group": "Records",
-      "for": [
-        "finance",
-        "hr"
-      ],
+      "for": ["finance", "hr"],
       "icon": "sensitive",
       "description": "Request and audit access to unmasked values."
     },
@@ -223,9 +200,7 @@
       "path": "/people/analytics",
       "label": "Workforce analytics",
       "group": "Insights",
-      "for": [
-        "hr"
-      ],
+      "for": ["hr"],
       "icon": "analytics",
       "description": "Headcount, turnover and compensation trends."
     },
@@ -233,13 +208,8 @@
       "path": "/people/reports",
       "label": "Report schedules",
       "group": "Insights",
-      "for": [
-        "hr",
-        "admin"
-      ],
-      "owns": [
-        "/people/reports/:id"
-      ],
+      "for": ["hr", "admin"],
+      "owns": ["/people/reports/:id"],
       "icon": "report",
       "description": "Recurring reports delivered to each recipient."
     }
@@ -248,12 +218,8 @@
     {
       "path": "/settings/people/fields",
       "label": "Employee fields",
-      "for": [
-        "admin"
-      ],
-      "owns": [
-        "/people/setup"
-      ],
+      "for": ["admin"],
+      "owns": ["/people/setup"],
       "description": "The details kept on each person, who sees them and when they’re asked.",
       "icon": "document"
     },
@@ -266,32 +232,22 @@
     {
       "path": "/settings/people/roles",
       "label": "Roles",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Who has HR, administrator and finance access.",
       "icon": "permission"
     },
     {
       "path": "/settings/people/integrations",
       "label": "Integrations",
-      "for": [
-        "admin"
-      ],
-      "owns": [
-        "/settings/people/integrations/:id"
-      ],
+      "for": ["admin"],
+      "owns": ["/settings/people/integrations/:id"],
       "description": "Slack, webhooks and identity provider sync.",
       "icon": "link"
     },
     {
       "path": "/settings/people/activity",
       "label": "Activity log",
-      "for": [
-        "hr",
-        "admin"
-      ],
+      "for": ["hr", "admin"],
       "description": "Every settings change, who made it and when.",
       "icon": "history"
     }

@@ -42,6 +42,15 @@ const chip = cva(
         // as something already chosen.
         dashed:
           'bg-transparent text-fg-muted shadow-[inset_0_0_0_1.5px_var(--color-border-strong)]',
+        /**
+         * A view among views: "Everyone", "Starting soon", "Incomplete". The
+         * chosen one is inverted, the way a segmented list of saved views
+         * reads, so the choice is a shape of contrast rather than a tint.
+         */
+        view: [
+          'h-8 px-3.5 font-semibold bg-surface-sunken text-fg touch:h-9',
+          'data-[state=on]:bg-invert data-[state=on]:text-fg-on-invert data-[state=on]:hover:bg-invert',
+        ],
       },
       invalid: {
         true: 'bg-danger-subtle text-danger-fg shadow-[inset_0_0_0_1.5px_var(--color-danger)]',
@@ -267,17 +276,24 @@ export function ChipRow({ max, className, children, ...props }: ChipRowProps): J
 }
 
 export interface ChipGroupItemProps
-  extends ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Item>, ChipContentProps {}
+  extends ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Item>, ChipContentProps {
+  /** `view` for a row of saved views, the chosen one inverted. */
+  variant?: 'filled' | 'view';
+}
 
 export function ChipGroupItem({
   className,
   startIcon,
   field,
   children,
+  variant = 'filled',
   ...props
 }: ChipGroupItemProps): JSX.Element {
   return (
-    <ToggleGroupPrimitive.Item className={cn(chip(), 'group/chip', className)} {...props}>
+    <ToggleGroupPrimitive.Item
+      className={cn(chip({ variant }), 'group/chip', className)}
+      {...props}
+    >
       {/* Only a filter chip ticks. Radix renders a multiple-choice item as a
           toggle button (`aria-pressed`) and a single-choice one as a radio
           (`aria-checked`), where exactly one is on and the fill is enough. */}

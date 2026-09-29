@@ -30,7 +30,11 @@ export interface PeopleScreenProps {
   /** The breadcrumb's section and the actions, for the screen's own header (`headerFrame`). */
   readonly frame?: {
     readonly section: string | null;
-    readonly actions: readonly { readonly href: string; readonly label: string }[];
+    readonly actions: readonly {
+      readonly href: string;
+      readonly label: string;
+      readonly icon?: string;
+    }[];
     /** The links before the section; absent, People alone. */
     readonly trail?: readonly { readonly href: string; readonly label: string }[];
     /** The section's siblings, grouped, for the breadcrumb's menu. */
@@ -403,6 +407,23 @@ export function PeopleScreen({
           onIncompleteChange: (incomplete: boolean) => {
             query({ incomplete });
           },
+          // A view across the top: its conditions alone, everything else cleared.
+          onView: (view: {
+            conditions: readonly { key: string; op: string; values: readonly string[] }[];
+            incomplete: boolean;
+            segmentId: string | null;
+          }) => {
+            query({
+              conditions: JSON.stringify(view.conditions),
+              match: 'all',
+              incomplete: view.incomplete,
+              segment: view.segmentId,
+              filters: {},
+            });
+          },
+          onOrgChart: () => {
+            go('/people/org-chart');
+          },
           // Advanced conditions and the order, in the URL so a view is a link.
           onConditionsChange: (
             conditions: readonly { key: string; op: string; values: readonly string[] }[],
@@ -560,7 +581,10 @@ export function PeopleScreen({
             fieldsHref: '/settings/people/fields',
             returned:
               search['connected'] !== undefined
-                ? { ok: true, message: `${search['connected']} is connected. Choose below what it sends.` }
+                ? {
+                    ok: true,
+                    message: `${search['connected']} is connected. Choose below what it sends.`,
+                  }
                 : search['notConnected'] !== undefined
                   ? { ok: false, message: search['notConnected'] }
                   : null,
@@ -594,7 +618,9 @@ export function PeopleScreen({
           ) => {
             const up = await uploadFile(null, field.key, file);
             if (!up.ok) return up;
-            const saved = await actions.saveOwnSection(field.sectionKey, { [field.key]: up.file.id });
+            const saved = await actions.saveOwnSection(field.sectionKey, {
+              [field.key]: up.file.id,
+            });
             if (!saved.ok) return { ok: false as const, message: saved.message };
             refresh();
             return up;

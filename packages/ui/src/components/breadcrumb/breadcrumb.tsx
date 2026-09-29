@@ -277,10 +277,14 @@ export function BreadcrumbMenu({
       aria-current="page"
       aria-label={`${label}, ${menuLabel}`}
       className={cn(
-        'relative tap-target inline-flex max-w-full items-center gap-1 rounded-sm text-fg',
+        'relative tap-target inline-flex items-center gap-1 rounded-sm text-fg',
         'hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
         'data-[state=open]:bg-surface-hover',
-        variant === 'title' ? 'min-h-11 px-2 text-md font-semibold' : '-mx-1 px-1 font-medium',
+        variant === 'title'
+          ? 'min-h-11 max-w-full px-2 text-md font-semibold'
+          : // The negative margins widen the hover wash past the text; the
+            // maximum has to allow for them, or the label truncates itself.
+            '-mx-1 max-w-[calc(100%+0.5rem)] px-1 font-medium',
       )}
     >
       <span className="truncate">{label}</span>
