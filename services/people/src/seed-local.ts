@@ -6,7 +6,7 @@ import postgres from 'postgres';
 import { logger } from '@kithena/telemetry';
 
 import { wirePeople } from './http/server.js';
-import { samplePhoto } from './seed-photos.js';
+import { CHARACTERS, avatarFor, drawAvatar } from './seed-photos.js';
 import { COMPANIES, PART_TIME, type SeedCompany } from './seed-companies.js';
 import { consumerFrom } from './infrastructure/consumers/wire.js';
 import { tenantTransaction } from './infrastructure/unit-of-work.js';
@@ -379,9 +379,11 @@ async function seedCompany(company: SeedCompany): Promise<void> {
   }
   logger.info({ slug, backfilled }, 'working hours set');
 
-  // A photo for each sample employee but the administrator, uploaded the way
-  // the profile uploads one: a presigned PUT to the upload bucket, then People
-  // checks and keeps it. Skipped, with a warning, without an upload bucket.
+  // A photo for each sample employee, uploaded the way the profile uploads
+  // one: a presigned PUT to the upload bucket, then People checks and keeps
+  // it. The administrator gets one only as a character (`seed-photos.ts`):
+  // Acme's Ada is left to pick her own. Skipped, with a warning, without an
+  // upload bucket.
   const photographed = new Set(
     (
       await owner<{ person_id: string }[]>`
@@ -390,10 +392,11 @@ async function seedCompany(company: SeedCompany): Promise<void> {
   );
   let photos = 0;
   for (const [index, person] of company.people.entries()) {
-    if (person.handle === company.admin.handle) continue;
-    const row = byHandle.get(person.handle);
+    const isAdmin = person.handle === company.admin.handle;
+    if (isAdmin && CHARACTERS[person.handle] === undefined) continue;
+    const row = isAdmin ? adminRow : byHandle.get(person.handle);
     if (row === undefined || photographed.has(row.id)) continue;
-    const bytes = samplePhoto(index);
+    const bytes = drawAvatar(avatarFor(person.handle, index));
     // eslint-disable-next-line no-await-in-loop -- in order
     const started = await asAdmin('POST', '/v1/views/photos/uploads', {
       personId: row.id,
