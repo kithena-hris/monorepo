@@ -513,3 +513,15 @@ describe('Analytics', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
+
+describe('Analytics, the cohort minimum (V7)', () => {
+  it('says which groups are hidden, from the minimum People applied', () => {
+    const { rerender } = render(
+      <Analytics load={{ status: 'ready', data: { ...workforce, minimum: 25 } }} />,
+    );
+    expect(screen.getByText(/Groups under 25 people are hidden\.$/)).toBeInTheDocument();
+    // Not said, not guessed.
+    rerender(<Analytics load={{ status: 'ready', data: workforce }} />);
+    expect(screen.queryByText(/Groups under/)).toBeNull();
+  });
+});

@@ -121,7 +121,14 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       // Beside the grid, analytics' own figure: complete overall. By section is Insights'.
       const [grid, analytics] = await Promise.all([
         read('Completeness', { after: given(query.search['after']) }),
-        people<{ complete: { percent: number; incomplete: number } | null }>('Analytics', {
+        people<{
+          complete: {
+            percent: number;
+            incomplete: number;
+            change: number | null;
+            trend: { label: string; value: number }[];
+          } | null;
+        }>('Analytics', {
           segment: null,
         }),
       ]);

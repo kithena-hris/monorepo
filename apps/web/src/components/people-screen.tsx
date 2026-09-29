@@ -541,6 +541,11 @@ export function PeopleScreen({
           onSave: thenRefresh(actions.saveGrid),
           onCheck: actions.checkGrid,
           searchPeople: actions.searchPeople,
+          // Everybody due, through the weekly sweep; one person, through asking them.
+          onRemindAll: thenRefresh(actions.remindWaiting),
+          onRemind: thenRefresh((personId: string, keys: readonly string[]) =>
+            actions.requestDetails(personId, keys),
+          ),
           ...(next === null
             ? {}
             : {

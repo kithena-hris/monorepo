@@ -525,9 +525,10 @@ describe('at 390×844, with a finger', () => {
           status: 'ready',
           data: {
             since: 'Since version 4',
-            waiting: { people: 61, lastReminded: null },
+            waiting: { people: 61, lastReminded: null, due: 61 },
             completedThisWeek: 3,
             toFill: 2,
+            blocking: 4,
             fields: [
               {
                 key: 'cost_centre',
@@ -543,6 +544,8 @@ describe('at 390×844, with a finger', () => {
                 department: 'Engineering',
                 manager: null,
                 missing: ['cost_centre'],
+                owner: 'hr',
+                remindedAt: null,
               },
               {
                 personId: 'j',
@@ -550,11 +553,24 @@ describe('at 390×844, with a finger', () => {
                 department: 'Engineering',
                 manager: null,
                 missing: ['cost_centre'],
+                owner: 'hr',
+                remindedAt: null,
+              },
+              // Hers to give: reminded, not filled in (MV2).
+              {
+                personId: 'u',
+                name: 'Lucía Fernández',
+                department: 'Sales',
+                manager: null,
+                missing: ['cost_centre'],
+                owner: 'employee',
+                remindedAt: null,
               },
             ],
           },
         }}
         onSave={ok}
+        onRemind={ok}
         // Paged (PEO-122): the page buttons are finger-sized too.
         onNextPage={vi.fn()}
         onFirstPage={vi.fn()}
@@ -564,7 +580,9 @@ describe('at 390×844, with a finger', () => {
     // A phone gets the percentage as a bar, and a row a person (MV2); the table is a desk's.
     expect(screen.queryByRole('table', { name: 'Missing information' })).toBeNull();
     const people = screen.getByRole('list', { name: 'Missing information' });
-    expect(within(people).getAllByText('Missing: Cost centre')).toHaveLength(2);
+    expect(within(people).getAllByText('Missing: Cost centre')).toHaveLength(3);
+    // Hers to give: Remind, not Fill in.
+    expect(within(people).getByRole('button', { name: 'Remind Lucía Fernández' })).toBeVisible();
     await userEvent.click(within(people).getByRole('button', { name: 'Fill in Lena Moreau' }));
     await settled();
     expect(underFloor(document.body)).toEqual([]);

@@ -57,6 +57,8 @@ export interface AnalyticsState {
   readonly source: 'snapshot' | 'history';
   /** "snapshot taken 04:00 today". */
   readonly sourceNote: string;
+  /** The cohort minimum in force: smaller groups are hidden. Absent: not said. */
+  readonly minimum?: number;
   readonly headcount: {
     readonly value: number;
     readonly change: number | null;
@@ -573,7 +575,11 @@ function Workforce({
         title="Insights"
         // A phone's bar holds the clock (MV6), as the design draws it.
         touchBarActions
-        description={`${state.asOf}${state.segment ? ` · ${state.segment.name}` : ''} · ${state.sourceNote}`}
+        description={`${state.asOf}${state.segment ? ` · ${state.segment.name}` : ''} · ${state.sourceNote}${
+          state.minimum === undefined
+            ? ''
+            : ` Groups under ${String(state.minimum)} people are hidden.`
+        }`}
         actions={
           <>
             {onSegmentChange === undefined ? null : (
