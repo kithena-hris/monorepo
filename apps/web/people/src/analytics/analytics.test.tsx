@@ -59,15 +59,42 @@ const workforce: AnalyticsState = {
 };
 
 describe('Analytics', () => {
+  it('draws the tab its route names, titled Insights, and no other tab’s questions', async () => {
+    const { rerender } = render(<Analytics load={{ status: 'ready', data: workforce }} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Insights' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Headcount by month' })).toBeInTheDocument();
+    expect(screen.getByText('11.4% attrition')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Where our data is thin' })).toBeNull();
+
+    rerender(<Analytics tab="data-quality" load={{ status: 'ready', data: workforce }} />);
+    expect(screen.getByRole('heading', { name: 'Where our data is thin' })).toBeInTheDocument();
+    expect(screen.getByText('Records complete')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Headcount by month' })).toBeNull();
+
+    // A tab with nothing this viewer may see says so, rather than an empty page.
+    rerender(<Analytics tab="pay" load={{ status: 'ready', data: workforce }} />);
+    expect(screen.getByText('Nothing to show on this tab')).toBeInTheDocument();
+  });
+
   it('answers each question with a chart and its numbers one tap away', async () => {
     const user = fast();
-    const { container } = render(<Analytics load={{ status: 'ready', data: workforce }} />);
+    const { container, rerender } = render(
+      <Analytics load={{ status: 'ready', data: workforce }} />,
+    );
     expect(screen.getAllByText('912').length).toBeGreaterThan(0);
-    expect(screen.getByText('11.4%')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
 
+    const section = screen
+      .getByRole('heading', { name: 'Where the change came from' })
+      .closest('section');
+    if (section === null) throw new Error('no movement section');
+    await user.click(within(section).getByRole('button', { name: 'Show the numbers' }));
+    expect(
+      screen.getByRole('table', { name: 'Where the change came from: the numbers' }),
+    ).toHaveTextContent('Closing912');
+
+    rerender(<Analytics tab="data-quality" load={{ status: 'ready', data: workforce }} />);
     for (const title of [
-      'Where the change came from',
       'Where our data is thin',
       'What expires next',
       'Where new joiners stall',
@@ -77,9 +104,6 @@ describe('Analytics', () => {
       await user.click(within(section).getByRole('button', { name: 'Show the numbers' }));
       expect(within(section).getByRole('table', { name: `${title}: the numbers` })).toBeVisible();
     }
-    expect(
-      screen.getByRole('table', { name: 'Where the change came from: the numbers' }),
-    ).toHaveTextContent('Closing912');
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -90,6 +114,7 @@ describe('Analytics', () => {
           status: 'ready',
           data: { ...workforce, attrition: null, completenessBySection: null, funnel: null },
         }}
+        tab="data-quality"
       />,
     );
     for (const gone of ['Attrition', 'Where our data is thin', 'Where new joiners stall']) {
@@ -99,7 +124,9 @@ describe('Analytics', () => {
 
   it('draws what expires as one lane per person, with the dates in its table (PEO-122)', async () => {
     const user = fast();
-    const { container } = render(<Analytics load={{ status: 'ready', data: workforce }} />);
+    const { container } = render(
+      <Analytics tab="data-quality" load={{ status: 'ready', data: workforce }} />,
+    );
     const section = screen.getByRole('heading', { name: 'What expires next' }).closest('section');
     if (section === null) throw new Error('no expiry section');
     // Sana's permit and certification share her lane; Rui has his own.
@@ -111,7 +138,9 @@ describe('Analytics', () => {
     expect(table).toHaveTextContent('Sana Khan: Certification2026-11-02');
     expect(table).toHaveTextContent('Rui Dias: Contract ends2026-10-26');
     // Every bar is reachable from the keyboard.
-    const bars = within(section).getAllByRole('img', { name: /Work permit|Contract ends|Certification/ });
+    const bars = within(section).getAllByRole('img', {
+      name: /Work permit|Contract ends|Certification/,
+    });
     expect(bars.length).toBe(3);
     bars[0]?.focus();
     expect(bars[0]).toHaveFocus();
@@ -134,12 +163,17 @@ describe('Analytics', () => {
   it('says when nothing expires, and draws nothing for a viewer who may see no expiry', () => {
     const { rerender } = render(
       <Analytics
-        load={{ status: 'ready', data: { ...workforce, expiries: { today: '2026-09-22', items: [] } } }}
+        tab="data-quality"
+        load={{
+          status: 'ready',
+          data: { ...workforce, expiries: { today: '2026-09-22', items: [] } },
+        }}
       />,
     );
     expect(screen.getByText('Nothing expires in the next 90 days.')).toBeInTheDocument();
     rerender(
       <Analytics
+        tab="data-quality"
         load={{ status: 'ready', data: { ...workforce, expiries: null, expiringIn90Days: null } }}
       />,
     );
@@ -213,27 +247,39 @@ describe('Analytics', () => {
 
   it('draws attrition, composition, tenure, span and joiners, each with its numbers (PEO-067)', async () => {
     const user = fast();
-    const { container } = render(<Analytics load={{ status: 'ready', data: remaining }} />);
-    for (const title of [
-      'Are people leaving faster',
-      'What we are made of',
-      'Who is at risk of leaving',
-      'Is the org shaped sensibly',
-      'When people join',
-    ]) {
+    const { container, rerender } = render(
+      <Analytics tab="turnover" load={{ status: 'ready', data: remaining }} />,
+    );
+    const open = async (title: string) => {
       const section = screen.getByRole('heading', { name: title }).closest('section');
       if (section === null) throw new Error(`no section for ${title}`);
       await user.click(within(section).getByRole('button', { name: 'Show the numbers' }));
       expect(within(section).getByRole('table', { name: `${title}: the numbers` })).toBeVisible();
+    };
+    for (const title of [
+      'Are people leaving faster',
+      'Who is at risk of leaving',
+      'Is the org shaped sensibly',
+    ]) {
+      await open(title);
     }
     expect(
       screen.getByRole('table', { name: 'Who is at risk of leaving: the numbers' }),
     ).toHaveTextContent('6 to 12 months: left19');
     expect(await axeViolations(container)).toEqual([]);
+
+    rerender(<Analytics tab="headcount" load={{ status: 'ready', data: remaining }} />);
+    for (const title of ['What we are made of', 'When people join']) await open(title);
+    // Joined in 12 months: the joiners' heatmap, summed.
+    expect(screen.getByText('Joined, 12M').parentElement?.parentElement).toHaveTextContent(
+      'Joined, 12M6',
+    );
   });
 
   it('shows a withheld self-ID question as insufficient data, with no number to read (PEO-070)', async () => {
-    const { container } = render(<Analytics load={{ status: 'ready', data: remaining }} />);
+    const { container } = render(
+      <Analytics tab="pay" load={{ status: 'ready', data: remaining }} />,
+    );
     const withheld = screen.getByRole('heading', { name: 'Disability' }).closest('section');
     if (withheld === null) throw new Error('no section for Disability');
     expect(within(withheld).getByText('Insufficient data')).toBeInTheDocument();
@@ -258,6 +304,7 @@ describe('Analytics', () => {
           data: { ...remaining, segments: [{ id: 'seg-1', name: 'Engineering' }] },
         }}
         onSegmentChange={onSegmentChange}
+        tab="turnover"
       />,
     );
     await user.click(screen.getByRole('combobox', { name: 'Segment' }));
@@ -279,6 +326,7 @@ describe('Analytics', () => {
         }}
         segmentId="seg-1"
         onSegmentChange={onSegmentChange}
+        tab="turnover"
       />,
     );
     expect(screen.getByText(/Showing the people you may see in Engineering/)).toBeInTheDocument();
@@ -353,7 +401,7 @@ describe('Analytics', () => {
   it('draws pay per currency, median inside the band, and a small group as words only (PEO-078)', async () => {
     const user = fast();
     const { container } = render(
-      <Analytics load={{ status: 'ready', data: { ...remaining, pay } }} />,
+      <Analytics tab="pay" load={{ status: 'ready', data: { ...remaining, pay } }} />,
     );
     for (const title of [
       'How pay sits in each band, EUR',
@@ -382,9 +430,79 @@ describe('Analytics', () => {
   });
 
   it('draws no pay section for anybody People sent none (PEO-078)', () => {
-    render(<Analytics load={{ status: 'ready', data: { ...remaining, pay: null } }} />);
+    render(<Analytics tab="pay" load={{ status: 'ready', data: { ...remaining, pay: null } }} />);
     expect(screen.queryByRole('heading', { name: /How pay sits/ })).toBeNull();
     expect(screen.queryByRole('heading', { name: /Compa-ratio/ })).toBeNull();
+  });
+
+  it('keeps report schedules behind a button that counts the running ones (V7)', async () => {
+    const user = fast();
+    const done = () => Promise.resolve({ ok: true as const });
+    const actions = {
+      onCreate: vi.fn(done),
+      onUpdate: vi.fn(done),
+      onPause: vi.fn(done),
+      onResume: vi.fn(done),
+      onDelete: vi.fn(done),
+    };
+    const schedule = {
+      id: 's1',
+      name: 'Monthly headcount',
+      ownerName: 'Ada Lovelace',
+      paused: false,
+      segmentId: null,
+      segmentName: null,
+      filter: [],
+      kind: 'summary' as const,
+      format: null,
+      fields: null,
+      reason: null,
+      every: 'month' as const,
+      weekday: null,
+      day: 1,
+      hour: 8,
+      legalEntityId: null,
+      recipients: [
+        { accountId: 'a', name: 'Nora Becker' },
+        { accountId: 'b', name: 'Sofia Lindqvist' },
+        { accountId: 'c', name: 'Tom Fischer' },
+      ],
+      lastRun: null,
+    };
+    const schedules = {
+      canManage: true,
+      schedules: [schedule, { ...schedule, id: 's2', name: 'Expiring permits', paused: true }],
+      segments: [],
+      people: [],
+      legalEntities: [],
+      fields: [],
+    };
+    const { container, rerender } = render(
+      <Analytics
+        load={{ status: 'ready', data: { ...workforce, schedules } }}
+        schedules={actions}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Schedules, 1 active' }));
+    const list = await screen.findByRole('list', { name: 'Scheduled reports' });
+    expect(
+      within(list).getByText('Monthly on day 1 at 08:00 · Nora Becker, Sofia Lindqvist and 1 more'),
+    ).toBeInTheDocument();
+    expect(within(list).getByText('Paused')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+
+    await user.click(within(list).getByRole('button', { name: 'More for Expiring permits' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Resume' }));
+    expect(actions.onResume).toHaveBeenCalledWith('s2');
+
+    // For a viewer People refuses them, there is no button.
+    rerender(
+      <Analytics
+        load={{ status: 'ready', data: { ...workforce, schedules: null } }}
+        schedules={actions}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /^Schedules/ })).toBeNull();
   });
 
   it('has loading and error states', async () => {
