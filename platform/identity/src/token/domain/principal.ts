@@ -43,7 +43,10 @@ export interface AuthenticatedSession {
 }
 
 export interface ImpersonationContext {
-  /** The support agent's account. Always logged, never silent. */
+  /**
+   * The back-office operator behind a support session (`platform.operator.id`).
+   * `userId` is then the company's support account, and the token says both.
+   */
   readonly by: string;
 }
 

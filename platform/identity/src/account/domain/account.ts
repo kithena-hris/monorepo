@@ -84,7 +84,14 @@ export interface AccountSnapshot {
   readonly timeZone: string;
   readonly sessions: readonly Session[];
   readonly sessionLimit: number;
+  /**
+   * `member` for a person; `support` for the one account per company that the
+   * back office signs in as (`support.ts`). Absent means member.
+   */
+  readonly kind?: AccountKind;
 }
+
+export type AccountKind = 'member' | 'support';
 
 /**
  * What a transition needs from outside itself, passed in rather than reached for.
@@ -111,6 +118,16 @@ export interface StartSessionInput {
 /** `platform.account.session_limit`'s default. Tenant policy overrides it. */
 const DEFAULT_SESSION_LIMIT = 4;
 
+/**
+ * A support account is signed into by the back office and by nothing else: no
+ * passkey session, no invitation, no enrolment, no recovery. Its sessions are
+ * written by the support path, hold no slot, and never pass through here.
+ */
+const SupportAccount = failure(
+  'SUPPORT_ACCOUNT',
+  'The support account is signed into from the back office only',
+);
+
 const InvalidTransition = (from: AccountStatus, action: string): ReturnType<typeof failure> =>
   failure('INVALID_TRANSITION', `An account that is ${from} cannot be ${action}`);
 
@@ -128,6 +145,7 @@ export class Account extends AggregateRoot<string> {
   readonly #employmentStart: string;
   readonly #timeZone: string;
   readonly #sessionLimit: number;
+  readonly #kind: AccountKind;
 
   private constructor(snapshot: AccountSnapshot) {
     super(snapshot.id);
@@ -143,6 +161,7 @@ export class Account extends AggregateRoot<string> {
     this.#employmentStart = snapshot.employmentStart;
     this.#timeZone = snapshot.timeZone;
     this.#sessionLimit = snapshot.sessionLimit;
+    this.#kind = snapshot.kind ?? 'member';
   }
 
   /** Rebuild from storage. Raises nothing — this is not a transition. */
@@ -221,6 +240,7 @@ export class Account extends AggregateRoot<string> {
     input: { readonly expiresAt: string; readonly secondChannel: SecondChannel },
     ctx: EventContext,
   ): Result<void> {
+    if (this.#kind === 'support') return err(SupportAccount);
     if (this.#status !== 'provisioned' && this.#status !== 'invited') {
       return err(InvalidTransition(this.#status, 'invited'));
     }
@@ -278,6 +298,7 @@ export class Account extends AggregateRoot<string> {
     captured?: CapturedProfile,
     answers?: SignupAnswers,
   ): Result<void> {
+    if (this.#kind === 'support') return err(SupportAccount);
     if (this.#status !== 'active') return err(InvalidTransition(this.#status, 'recovered'));
 
     this.#raise('identity.account.recovered', { accountId: this.id, credentialId }, ctx);
@@ -308,6 +329,7 @@ export class Account extends AggregateRoot<string> {
     captured?: CapturedProfile,
     answers?: SignupAnswers,
   ): Result<void> {
+    if (this.#kind === 'support') return err(SupportAccount);
     if (this.#status !== 'invited') return err(InvalidTransition(this.#status, 'enrolled'));
 
     if (ctx.clock.date(this.#timeZone) < this.#employmentStart) {
@@ -358,6 +380,7 @@ export class Account extends AggregateRoot<string> {
 
   /** Sign a device in, evicting the least recently used one if there is no room. */
   startSession(input: StartSessionInput, ctx: EventContext): Result<SlotAllocation> {
+    if (this.#kind === 'support') return err(SupportAccount);
     if (this.#status !== 'active') return err(InvalidTransition(this.#status, 'signed in'));
 
     const allocation = allocateSlot(this.#sessions, this.#sessionLimit);
