@@ -1,10 +1,10 @@
-import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { outboxTable, publish } from '@kithena/db-kit';
 
 import type { AccountRepository } from '../application/account-repository.js';
 import type { CachedSession } from '../application/session-cache.js';
-import type { AccountSnapshot, AccountStatus } from '../domain/account.js';
+import type { AccountKind, AccountSnapshot, AccountStatus } from '../domain/account.js';
 import type { Session } from '../domain/session.js';
 import type { PersonName } from '../../shared/person-name.js';
 import { account, identity, session } from './account-tables.js';
@@ -27,10 +27,12 @@ export function drizzleAccountRepository(): AccountRepository {
       const row = rows[0];
       if (!row) return null;
 
+      // Slotted sessions only. A support session holds no slot and is not the
+      // aggregate's: the support path writes it and nothing here may touch it.
       const sessions = await tx
         .select()
         .from(session)
-        .where(eq(session.accountId, accountId))
+        .where(and(eq(session.accountId, accountId), isNotNull(session.slot)))
         .orderBy(session.slot);
 
       return {
@@ -42,9 +44,10 @@ export function drizzleAccountRepository(): AccountRepository {
         employmentStart: row.employmentStart,
         timeZone: row.timeZone,
         sessionLimit: row.sessionLimit,
+        kind: row.kind as AccountKind,
         sessions: sessions.map((s): Session => ({
           id: s.id,
-          slot: s.slot,
+          slot: s.slot ?? 0,
           startedAt: s.startedAt,
           lastSeenAt: s.lastSeenAt,
           amr: s.amr,
@@ -99,12 +102,17 @@ export function drizzleAccountRepository(): AccountRepository {
       // Gone first. A session that was evicted has to release its slot before
       // the session taking that slot is inserted, or the two collide inside our
       // own transaction rather than against a competing one.
+      // Slotted only, like `load`: a support session is not the aggregate's.
       await tx
         .delete(session)
         .where(
           liveIds.length > 0
-            ? and(eq(session.accountId, aggregate.id), notInArray(session.id, liveIds))
-            : eq(session.accountId, aggregate.id),
+            ? and(
+                eq(session.accountId, aggregate.id),
+                isNotNull(session.slot),
+                notInArray(session.id, liveIds),
+              )
+            : and(eq(session.accountId, aggregate.id), isNotNull(session.slot)),
         );
 
       const existing =
@@ -176,6 +184,7 @@ export async function loadSession(
       authenticatedAt: session.startedAt,
       expiresAt: session.expiresAt,
       lastSeenAt: session.lastSeenAt,
+      impersonatedBy: session.impersonatedBy,
     })
     .from(session)
     .innerJoin(account, eq(account.id, session.accountId))
@@ -272,9 +281,15 @@ export async function accountsPage(
     })
     .from(account)
     .where(
+      // Members only: the support account is never announced to People, and
+      // this listing is what People reconciles its people from.
       after === null
-        ? sql`${account.status} <> 'terminated'`
-        : and(sql`${account.status} <> 'terminated'`, sql`${account.id} > ${after}::uuid`),
+        ? and(sql`${account.status} <> 'terminated'`, eq(account.kind, 'member'))
+        : and(
+            sql`${account.status} <> 'terminated'`,
+            eq(account.kind, 'member'),
+            sql`${account.id} > ${after}::uuid`,
+          ),
     )
     .orderBy(account.id)
     .limit(limit);

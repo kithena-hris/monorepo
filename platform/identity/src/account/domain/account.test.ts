@@ -149,10 +149,7 @@ describe('the profile captured at enrolment', () => {
     const account = Account.rehydrate(snapshot({ status: 'invited' }));
     account.enrol('cred-1', context(clock), captured);
     const names = account.drainEvents().map((e) => e.eventName);
-    expect(names).toEqual([
-      'identity.account.enrolled',
-      'identity.account.profile_captured',
-    ]);
+    expect(names).toEqual(['identity.account.enrolled', 'identity.account.profile_captured']);
   });
 
   it('carries whether a mobile is on file, never the number', () => {
@@ -366,6 +363,46 @@ describe('suspension holds the door without closing it', () => {
 });
 
 /* ------------------------------------------------------------- sessions -- */
+
+const support = () => Account.rehydrate(snapshot({ kind: 'support' }));
+
+describe('a support account signs in only through the back office', () => {
+  const clock = fixedClock('2026-09-29T09:00:00.000Z');
+
+  it('cannot start a session the way a person does', () => {
+    // The passkey path ends here. A support account has no credential, and if
+    // one ever reached it this is where it is refused.
+    const result = support().startSession({ id: 's1', device, amr: ['hwk'] }, context(clock));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('SUPPORT_ACCOUNT');
+  });
+
+  it('cannot be recovered onto a passkey', () => {
+    // Recovery serves exactly an active account, so without this a recovery
+    // link would be the one way to give support a credential.
+    const result = support().recover('cred-1', context(clock));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('SUPPORT_ACCOUNT');
+  });
+
+  it('cannot be invited or enrolled', () => {
+    const invited = Account.rehydrate(snapshot({ kind: 'support', status: 'invited' }));
+    expect(invited.enrol('cred-1', context(clock)).ok).toBe(false);
+    expect(
+      support().invite(
+        { expiresAt: '2026-10-02T09:00:00.000Z', secondChannel: 'in_person' },
+        context(clock),
+      ).ok,
+    ).toBe(false);
+  });
+
+  it('leaves an ordinary account as it was', () => {
+    const member = Account.rehydrate(snapshot());
+    expect(member.startSession({ id: 's1', device, amr: ['hwk'] }, context(clock)).ok).toBe(true);
+  });
+});
 
 describe('starting a session', () => {
   const clock = fixedClock('2026-04-01T09:00:00.000Z');

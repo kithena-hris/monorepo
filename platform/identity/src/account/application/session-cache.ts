@@ -24,6 +24,11 @@ export interface CachedSession {
   /** Absolute expiry. Not extended by activity. */
   readonly expiresAt: string;
   readonly lastSeenAt: string;
+  /**
+   * The operator, on a support session; null or absent on a person's own. What
+   * puts `act` in the access token, so every module sees who is really asking.
+   */
+  readonly impersonatedBy?: string | null;
 }
 
 export interface SessionCache {

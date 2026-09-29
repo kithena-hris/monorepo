@@ -1,5 +1,6 @@
 import { countryRules, themePreset } from '@kithena/contracts';
 import {
+  Alert,
   Avatar,
   Badge,
   Breadcrumb,
@@ -32,6 +33,7 @@ import type { EmployeeActionResult } from '../../../components/employee-actions'
 import { AddressCard } from '../../../components/address-card';
 import { CompanyModules, type SaveModulesResult } from '../../../components/company-modules';
 import { CompanySummaryTile } from '../../../components/company-summary-tile';
+import { SupportSignIn } from '../../../components/support-sign-in';
 import type { GrantAgainResult } from '../../../components/module-roles-drift';
 import type { ModuleRoles } from '../../../lib/modules';
 import type { Invitation, InviteResult } from '../../../components/invite-employee-form';
@@ -391,6 +393,8 @@ export default async function Company({
     counts,
   };
 
+  // Where "Sign in as support" lands its new tab when identity refused it.
+  const support = query['support'];
   const justCreated = query['created'] === '1';
   const justSaved = query['saved'] === '1';
 
@@ -404,6 +408,13 @@ export default async function Company({
         />
       ) : null}
       {justSaved ? <SavedToast companyName={company.displayName} /> : null}
+      {support === 'reason' || support === 'failed' ? (
+        <Alert tone="danger" title="Support sign-in did not start" className="mb-6">
+          {support === 'reason'
+            ? 'Give a reason: a ticket number or a sentence.'
+            : 'Identity refused it or could not be reached. Nothing was started; try again.'}
+        </Alert>
+      ) : null}
 
       {/*
         The company's own images, shown the way their sign-in page shows them
@@ -524,9 +535,12 @@ export default async function Company({
               </>
             }
             actions={
-              <Button asChild variant="secondary" size="sm">
-                <Link href={`/companies/${company.id}/edit`}>Edit</Link>
-              </Button>
+              <>
+                <SupportSignIn companyId={company.id} companyName={company.displayName} />
+                <Button asChild variant="secondary" size="sm">
+                  <Link href={`/companies/${company.id}/edit`}>Edit</Link>
+                </Button>
+              </>
             }
           />
         </div>

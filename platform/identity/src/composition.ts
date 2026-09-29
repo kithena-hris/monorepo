@@ -26,6 +26,10 @@ import { authenticate } from './account/application/authenticate.js';
 import { issueHandoff, redeemHandoff } from './account/application/handoff.js';
 import { revokeSession } from './account/application/revoke-session.js';
 import { sessionRoutes } from './account/http/session-routes.js';
+import { startSupport } from './account/application/start-support.js';
+import { supportRoutes } from './account/http/support-routes.js';
+import { SUPPORT_AMR, supportAccountProfile } from './account/domain/support.js';
+import { admitOperatorSession } from './operator/domain/operator.js';
 import { asInstant } from './credential/infrastructure/drizzle-enrolment-token-store.js';
 import { Account, type EventContext } from './account/domain/account.js';
 import type { AccountRepository } from './account/application/account-repository.js';
@@ -352,6 +356,7 @@ async function findAccountByEmail(
     SELECT id, identity_id, status
       FROM platform.account
      WHERE tenant_id = ${tenantId}::uuid AND lower(work_email) = lower(${email})
+       AND kind = 'member'
   `);
   const row = [...rows][0];
   if (!row) return null;
@@ -360,6 +365,48 @@ async function findAccountByEmail(
     identityId: text(row['identity_id']),
     status: text(row['status']),
   };
+}
+
+/**
+ * The company's support account, created the first time support is started.
+ *
+ * Active from the moment it exists, with a fresh identity that holds no
+ * credential and never will (the enrolment trigger in 20260929130000). Two
+ * operators starting at once both reach the insert; `account_support_key`
+ * makes the second a no-op that then reads the first's row, at the cost of one
+ * inert identity row.
+ */
+async function supportAccountIn(
+  tx: PostgresJsDatabase,
+  tenantId: string,
+  slug: string,
+): Promise<string> {
+  const find = async () =>
+    [
+      ...(await tx.execute(sql`
+        SELECT id FROM platform.account WHERE tenant_id = ${tenantId}::uuid AND kind = 'support'
+      `)),
+    ][0];
+
+  const found = await find();
+  if (found) return text(found['id']);
+
+  const identityId = uuidv7();
+  const profile = supportAccountProfile(slug);
+  await tx.execute(sql`INSERT INTO platform.identity (id) VALUES (${identityId}::uuid)`);
+  await tx.execute(sql`
+    INSERT INTO platform.account
+      (id, tenant_id, identity_id, status, kind, work_email, given_name, family_name,
+       time_zone, employment_start)
+    VALUES (${uuidv7()}::uuid, ${tenantId}::uuid, ${identityId}::uuid, 'active', 'support',
+            ${profile.workEmail}, ${profile.givenName}, ${profile.familyName},
+            'Etc/UTC', current_date)
+    ON CONFLICT (tenant_id) WHERE kind = 'support' DO NOTHING
+  `);
+
+  const created = await find();
+  if (!created) throw new Error('support account vanished as it was created');
+  return text(created['id']);
 }
 
 export async function compose(config: Config): Promise<RequestHandler> {
@@ -599,9 +646,15 @@ export async function compose(config: Config): Promise<RequestHandler> {
     internalToken: config.internalToken,
     entitlementsOf,
     issueAccessToken: async (session) => {
-      const token = await mintAccess(principalFrom(session), {
-        entitlements: await entitlementsOf(session.tenantId),
-      });
+      const token = await mintAccess(
+        principalFrom(
+          session,
+          session.impersonatedBy === null ? null : { by: session.impersonatedBy },
+        ),
+        {
+          entitlements: await entitlementsOf(session.tenantId),
+        },
+      );
       return {
         token,
         expiresAt: new Date(
@@ -1311,6 +1364,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
               ...(await tx.execute(sql`
                 SELECT status FROM platform.account
                  WHERE id = ${accountId}::uuid AND tenant_id = ${tenantId}::uuid
+                   AND kind = 'member'
               `)),
             ][0];
             return row ? text(row['status']) : null;
@@ -1457,7 +1511,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
             await tx.execute(sql`
               SELECT id, work_email, status, created_at
                 FROM platform.account
-               WHERE tenant_id = ${id}::uuid
+               WHERE tenant_id = ${id}::uuid AND kind = 'member'
                ORDER BY created_at
             `),
             await namedAdministrators(tx, id),
@@ -1735,6 +1789,67 @@ export async function compose(config: Config): Promise<RequestHandler> {
   });
 
   /*
+   * Support access: an operator signs in to a company as its support agent
+   * (`docs/auth-administration.md`, "Support access").
+   */
+  const support = supportRoutes({
+    internalToken: config.internalToken,
+    start: startSupport({
+      clock: systemClock,
+      newId: () => uuidv7(),
+      // Every live back-office operator is a support agent, acting as
+      // themselves. A separate support roster changes this and nothing else.
+      supportAgentOf: async (operatorSessionId) => {
+        const session = await operators.sessionById(operatorSessionId);
+        if (!session || !admitOperatorSession(session, systemClock).ok) return null;
+        return session.operatorId;
+      },
+      issueHandoff: issueHandoff({ store: handoffStore, clock: systemClock }),
+      /*
+       * The support account, its session and the audit row, in one tenant
+       * transaction: a session that exists has an audit row, and the other way.
+       *
+       * Raw SQL rather than the `Account` aggregate, which refuses a support
+       * account everything (`account.ts`) and would raise events. None is
+       * raised here on purpose: `identity.account.provisioned` would make People
+       * create a person, and the support account is not one.
+       */
+      begin: (input) =>
+        inTenantTransaction(input.tenantId, async (tx) => {
+          const tenant = [
+            ...(await tx.execute(sql`
+              SELECT slug FROM platform.tenant WHERE id = ${input.tenantId}::uuid
+            `)),
+          ][0];
+          if (!tenant) return false;
+
+          const accountId = await supportAccountIn(tx, input.tenantId, text(tenant['slug']));
+          await tx.execute(sql`
+            INSERT INTO platform.session
+              (id, tenant_id, account_id, slot, started_at, last_seen_at, expires_at, amr,
+               impersonated_by, reason)
+            VALUES (${input.sessionId}::uuid, ${input.tenantId}::uuid, ${accountId}::uuid, NULL,
+                    ${input.startedAt}::timestamptz, ${input.startedAt}::timestamptz,
+                    ${input.expiresAt}::timestamptz, ${textArray([SUPPORT_AMR])},
+                    ${input.operatorId}::uuid, ${input.reason})
+          `);
+          await tx.execute(sql`
+            INSERT INTO platform.support_access
+              (id, tenant_id, operator_id, reason, session_id, started_at, expires_at)
+            VALUES (${uuidv7()}::uuid, ${input.tenantId}::uuid, ${input.operatorId}::uuid,
+                    ${input.reason}, ${input.sessionId}::uuid,
+                    ${input.startedAt}::timestamptz, ${input.expiresAt}::timestamptz)
+          `);
+          logger.info(
+            { tenantId: input.tenantId, operatorId: input.operatorId, sessionId: input.sessionId },
+            'support session started',
+          );
+          return true;
+        }),
+    }),
+  });
+
+  /*
    * Routes, tried in order.
    *
    * A list rather than a router. There are four, matched by prefix, and a
@@ -1744,6 +1859,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
   return async (request, response) =>
     jwks(request, response) ||
     (await sessions(request, response)) ||
+    (await support(request, response)) ||
     (await webauthn(request, response)) ||
     (await enrolment(request, response)) ||
     (await operator(request, response)) ||

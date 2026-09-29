@@ -444,71 +444,81 @@ seed reports the question set to identity when `IDENTITY_URL` is set.
 
 ## Support access
 
-HR can allow or forbid CX from entering their tenant. That is the right control.
-Here is what it should be, in a slightly stronger form.
+An operator signs in to a company as its support agent, from the back office,
+and works in the company's own app with an administrator's rights for an hour.
 
-### A standing toggle is the weak version
+This replaced the earlier proposal in this section — HR approving each visit
+just in time, a read-only and banner-marked session of 60 minutes, and a
+standing `always / on approval / never` toggle — by the owner's decision on
+2026-09-29. What follows is what is built.
 
-A boolean that is on for years is a boolean nobody has thought about since
-onboarding. It will be on everywhere, and it will be on at the moment it matters.
-
-**Just-in-time access is the strong version:**
+### The flow
 
 ```
-CX opens a ticket, requests access, states a reason
-   └─▶ HR sees it in-app and by email: who, why, which ticket, how long
-        └─▶ HR approves for a bounded window (default 60 minutes)
-             └─▶ CX gets a scoped, expiring, banner-marked session
-                  └─▶ window closes automatically; a second visit asks again
+back office, company page ── "Sign in as support", reason required
+   └─▶ POST companies/[id]/support          (new tab, from the operator's click)
+        └─▶ identity  POST /api/internal/support/start
+             { operatorSessionId, tenantId, reason }
+             ├─ the operator comes from that session, never from the body
+             ├─ the company's support account, created on first use
+             ├─ a support session: 1 hour, no slot, amr ['support']
+             ├─ platform.support_access, same transaction
+             └─ a handoff code: 60 seconds, single use, this company only
+   └─▶ 303 acme.app…/auth/callback?code=…   (no referrer)
+        └─▶ the code is redeemed; whatever session this browser had on that
+            host is ended in identity; the cookie is set to expire with the
+            support session
 ```
 
-Keep the standing toggle as `always / on approval / never`, defaulting to **on
-approval**. Customers who want frictionless support set it to `always` knowingly;
-enterprise and public-sector buyers will specifically ask for the approval mode
-and be delighted it exists.
+For now the support agent and the back-office operator are one persona: any
+active, signed-in operator may start support and acts as themselves.
+`supportAgentOf` in `platform/identity/src/account/application/start-support.ts`
+is the one place that decides it, so a separate support roster is a change
+there and nowhere else.
 
-Retain a genuine break-glass for the case where HR is locked out and cannot
-approve anything — dual-controlled on our side, hard-capped in duration, and
-reported to the customer afterwards whether or not they ask.
+### The support account is nobody
 
-### What an impersonated session can do
+Each company has one `platform.account` with `kind = 'support'`, called
+"Kithena support", at `support@<slug>.support.kithena.invalid` — an address
+nothing can deliver to (RFC 2606). It is the technical vessel for the session
+and not an employee:
 
-`Principal.impersonatedBy` already exists in `auth-kit`, which is the right
-shape: impersonation is a property of the principal, so every layer that
-authorises anything can see it. Not a flag the UI knows about.
+- never announced to People: no `identity.account.*` event is raised for it,
+  and the account listing People reconciles from leaves it out, so no person
+  is ever created for it;
+- left out of the back office's list of the company's people, its counts and
+  the accounts that can be named administrator.
 
-|                                                   |                                                                                      |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| **Read-only by default**                          | Writing requires a separate, explicitly granted mode                                 |
-| **Special-category data is redacted**             | Health, biometric, and anything the classification registry marks `special-category` |
-| **Cannot change auth policy**                     | Otherwise support access is a route to permanent access                              |
-| **Cannot add or remove admins**                   | Same reason                                                                          |
-| **Cannot approve anything**                       | No payroll changes, no leave approvals, no offers                                    |
-| **Cannot start another impersonation**            | No chaining                                                                          |
-| **Does not consume the employee's session slots** | Support must never evict a real device                                               |
-| **Visibly banner-marked**                         | For the CX agent, and in the audit trail                                             |
+It cannot be signed into any other way. The aggregate refuses it a passkey
+session, an invitation, an enrolment and a recovery; `accounts_for_identity`,
+which the passkey sign-in asks, returns members only; its identity holds no
+credential; and a trigger refuses it an enrolment link, the only way a
+credential is ever attached.
 
-The redaction row is the one worth pausing on, because it costs almost nothing to
-build. `packages/contracts/src/classification.ts` already tags every field, and
-`tools/codegen` already walks the registry to emit the Pino redaction paths and
-the AI deny list. **The impersonation deny list is a third output of the same
-walk.** No hand-maintained list, no field that gets added in 2027 and forgotten,
-and it fails closed because an unclassified field fails the build.
+### The session
 
-### The employee's side of it
+A `platform.session` row on the support account with `impersonated_by` (the
+operator) and `reason`, and **no slot**: it takes nobody's place and evicts
+nobody, and several operators can be in at once. **One hour, absolute**, never
+extended — a CHECK constraint caps `expires_at` at `started_at + 1 hour`, so no
+writer can store a longer one, and nothing moves `expires_at` after it is
+written. The tenant app's cookie is given the same expiry.
 
-Every impersonated session is visible to the tenant — not in a log we would
-produce on request, but on a screen HR can open, and on the employee's own
-security page:
+The access token for it carries `act: { sub: <operator id> }` (RFC 8693), and
+the router forwards that as `impersonatedBy` in `x-kithena-principal`. A
+principal with `impersonatedBy` is support: People gives it full administrator
+rights (HR, finance and `people_admin`), and there is **no banner** in the
+tenant app.
 
-> A Kithena support agent viewed your record on 4 March, 14:12–14:31,
-> for ticket #4821, approved by Priya Raman.
+### The record
 
-Article 15 gives a data subject the right to know who processed their data. Most
-vendors answer that with a support ticket and a PDF a fortnight later. Answering
-it with a screen is cheap, and it is the kind of thing that survives contact with
-a works council — which, in Germany, is the body that can block your deployment
-outright.
+Every start writes `platform.support_access` (operator, company, reason,
+session, start and end) in the same transaction as the session. It has no
+foreign key to the session, so it outlives sign-out, revocation and expiry, and
+the service role can insert and read it but not change or delete it.
+
+People's activity log attributes what support does to "Kithena support", with
+the operator and the reason recorded beside each entry.
 
 ---
 

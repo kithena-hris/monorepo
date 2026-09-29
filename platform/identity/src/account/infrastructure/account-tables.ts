@@ -48,6 +48,8 @@ export const account = platform.table(
     // People's end of employment suspended the account from. Null: never.
     peopleAccessAt: instant('people_access_at'),
     accessEndedFrom: text('access_ended_from'),
+    // `member`, or `support` for the account the back office signs in as.
+    kind: text('kind').notNull().default('member'),
     version: integer('version').notNull(),
     createdAt: instant('created_at').notNull(),
     updatedAt: instant('updated_at').notNull(),
@@ -61,7 +63,8 @@ export const session = platform.table(
     id: uuid('id').primaryKey(),
     tenantId: uuid('tenant_id').notNull(),
     accountId: uuid('account_id').notNull(),
-    slot: smallint('slot').notNull(),
+    // Null for a support session, which holds no slot (20260929130000).
+    slot: smallint('slot'),
     startedAt: instant('started_at').notNull(),
     lastSeenAt: instant('last_seen_at').notNull(),
     expiresAt: instant('expires_at').notNull(),
@@ -69,6 +72,9 @@ export const session = platform.table(
     ip: text('ip'),
     userAgent: text('user_agent'),
     aaguid: text('aaguid'),
+    // A support session's operator and why; null on a person's own session.
+    impersonatedBy: uuid('impersonated_by'),
+    reason: text('reason'),
   },
   // Declared here as well as in the migration so a query that would collide
   // reads as a collision rather than as a mystery from the driver.
