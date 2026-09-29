@@ -645,7 +645,11 @@ async function worker() {
             return document.documentElement.classList.contains('dark') === (want === 'dark');
           },
           theme,
-          { timeout: 10000 },
+          // 30s, not 10: "Virtualization off" puts 600 rows (8,551 nodes) in
+          // the document on purpose and takes about six seconds to render on
+          // a laptop; on the CI runner, beside three other pages, it missed
+          // 10s. A story that never renders still fails, just later.
+          { timeout: 30000 },
         );
       }
       // Puts Blink into keyboard modality so `:focus-visible` matches the
