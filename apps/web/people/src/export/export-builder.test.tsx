@@ -47,12 +47,16 @@ describe('ExportBuilder', () => {
       expect(container.textContent).not.toContain(withheld);
     }
     expect(screen.queryByText(/everything/i)).toBeNull();
+    // No reason, no export: it is saved with the export and shown in the audit log.
+    expect(screen.getByRole('button', { name: 'Export 8 people' })).toBeDisabled();
+    await user.type(screen.getByRole('textbox', { name: /Reason/ }), 'Team offsite');
     await user.click(screen.getByRole('button', { name: 'Export 8 people' }));
     expect(onExport).toHaveBeenCalledWith({
       who: 'team',
       fields: ['work_model'],
       asOf: '2026-09-22',
       format: 'xlsx',
+      reason: 'Team offsite',
     });
     expect(await axeViolations(container)).toEqual([]);
   });
@@ -68,12 +72,14 @@ describe('ExportBuilder', () => {
       'indeterminate',
     );
     await user.click(screen.getByRole('radio', { name: /CSV/ }));
+    await user.type(screen.getByRole('textbox', { name: /Reason/ }), 'Payroll check');
     await user.click(screen.getByRole('button', { name: 'Export 412 people' }));
     expect(onExport).toHaveBeenCalledWith({
       who: 'filter',
       fields: ['employee_number'],
       asOf: '2026-09-22',
       format: 'csv',
+      reason: 'Payroll check',
     });
     expect(await screen.findByText(/Your export is being prepared/)).toBeInTheDocument();
 
@@ -90,6 +96,7 @@ describe('ExportBuilder', () => {
         onExport={() => Promise.resolve({ ok: false, message: 'Pay exports need a stated reason' })}
       />,
     );
+    await user.type(screen.getByRole('textbox', { name: /Reason/ }), 'x');
     await user.click(screen.getByRole('button', { name: 'Export 412 people' }));
     expect(await screen.findByText('Pay exports need a stated reason')).toBeInTheDocument();
     await user.click(screen.getByRole('checkbox', { name: 'HR information' }));

@@ -1,7 +1,9 @@
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
+  Card,
   Checkbox,
   Dialog,
   DialogBody,
@@ -16,6 +18,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  KeyValues,
   PageHeader,
   PageSection,
   Stack,
@@ -103,22 +106,69 @@ function Requests({
   return (
     <Stack gap={6}>
       <PageHeader
-        title="Full values"
-        description="Masked fields in full, for finance, with HR’s approval: one download, once, within 24 hours."
+        title="Sensitive data access"
+        description="Who can see unmasked values, for how long and why: one download, once, within 24 hours of HR’s approval. Every request is logged."
       />
       {state.canRequest ? <Ask state={state} onRequest={onRequest} /> : null}
       {state.canDecide ? (
         <PageSection title="Waiting for a decision">
           {waiting.length === 0 ? (
-            <EmptyState title="Nothing to decide" description="A request appears here when finance asks." />
-          ) : (
-            <List
-              label="Waiting for a decision"
-              requests={waiting}
-              onDecide={(request, approve) => {
-                setDeciding({ request, approve });
-              }}
+            <EmptyState
+              title="Nothing to decide"
+              description="A request appears here when finance asks."
             />
+          ) : (
+            // Each request as the decision it is (R11): who, what, why, and the two answers.
+            <div className="grid gap-4 @5xl/page:grid-cols-2">
+              {waiting.map((r) => {
+                const who = r.requestedBy ?? 'Somebody in finance';
+                return (
+                  <Card key={r.id} padded className="flex flex-col gap-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar size="xl" name={who} />
+                      <div className="min-w-0">
+                        <h3 className="text-md font-bold">
+                          {who} wants to see {r.fields.join(', ').toLowerCase()}
+                        </h3>
+                        <p className="text-sm text-fg-muted">Asked {day(r.requestedAt)}</p>
+                      </div>
+                    </div>
+                    <KeyValues
+                      layout="aligned"
+                      labelWidth="7.5rem"
+                      items={[
+                        { label: 'Fields', value: r.fields.join(', ') },
+                        { label: 'Reason', value: r.reason },
+                        { label: 'Expires', value: `${day(r.expiresAt)} if nobody decides` },
+                      ]}
+                    />
+                    <Alert tone="warning" title="These values are masked everywhere else">
+                      Approving issues one download, once, within 24 hours. The people whose values
+                      are read can see that it happened.
+                    </Alert>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button
+                        aria-label={`Reject the request from ${who}`}
+                        onClick={() => {
+                          setDeciding({ request: r, approve: false });
+                        }}
+                      >
+                        Decline
+                      </Button>
+                      <Button
+                        variant="primary"
+                        aria-label={`Approve the request from ${who}`}
+                        onClick={() => {
+                          setDeciding({ request: r, approve: true });
+                        }}
+                      >
+                        Allow
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </PageSection>
       ) : null}
@@ -243,7 +293,9 @@ function Ask({
 
   if (state.fields.length === 0) {
     return (
-      <Alert tone="info">Nothing in the published fields is masked in an export, so there is nothing to ask for.</Alert>
+      <Alert tone="info">
+        Nothing in the published fields is masked in an export, so there is nothing to ask for.
+      </Alert>
     );
   }
   const problems = { fields: chosen.length === 0, reason: reason.trim() === '' };
@@ -278,7 +330,9 @@ function Ask({
                   <Checkbox
                     checked={chosen.includes(f.key)}
                     onCheckedChange={(on) => {
-                      setChosen((c) => (on === true ? [...c, f.key] : c.filter((k) => k !== f.key)));
+                      setChosen((c) =>
+                        on === true ? [...c, f.key] : c.filter((k) => k !== f.key),
+                      );
                     }}
                   />
                 </FieldControl>
