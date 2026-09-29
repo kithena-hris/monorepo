@@ -1,5 +1,6 @@
 import {
   Alert,
+  Card,
   Button,
   Checkbox,
   DatePicker,
@@ -68,7 +69,11 @@ export interface EmploymentState {
 }
 
 export type LifecycleMove =
-  | { readonly kind: 'giveNotice'; readonly lastWorkingDay: string; readonly reason?: LeavingReason }
+  | {
+      readonly kind: 'giveNotice';
+      readonly lastWorkingDay: string;
+      readonly reason?: LeavingReason;
+    }
   | { readonly kind: 'withdrawNotice' }
   | {
       readonly kind: 'terminate';
@@ -235,7 +240,9 @@ export function EmploymentPeriods({
           {periods.toReversed().map((p) => (
             <TableRow key={p.period}>
               <TableCell>{longDate(p.startedOn)}</TableCell>
-              <TableCell>{p.lastWorkingDay === null ? 'Current' : longDate(p.lastWorkingDay)}</TableCell>
+              <TableCell>
+                {p.lastWorkingDay === null ? 'Current' : longDate(p.lastWorkingDay)}
+              </TableCell>
               <TableCell>
                 {p.lastWorkingDay === null ? '—' : reasonLabel(p.leavingReason)}
                 {p.eligibleForRehire === false ? (
@@ -313,7 +320,7 @@ function MoveDialog({
   // A rehire starts after the last working day, so it is offered the day after it at the earliest.
   const [day, setDay] = useState<IsoDate | null>(
     kind === 'rehire' && lastPeriod?.lastWorkingDay != null
-      ? [today, dayAfter(lastPeriod.lastWorkingDay)].toSorted().at(-1) ?? today
+      ? ([today, dayAfter(lastPeriod.lastWorkingDay)].toSorted().at(-1) ?? today)
       : today,
   );
   const [reason, setReason] = useState<LeavingReason | ''>('');
@@ -471,6 +478,28 @@ function MoveDialog({
       </Alert>,
     );
   }
+  if ((kind === 'giveNotice' || kind === 'terminate') && day !== null) {
+    // What the move sets going, on their own calendar (W15).
+    body.push(
+      <Card key="happens" variant="fill" padded>
+        <p className="text-xs font-semibold text-fg-muted">What happens</p>
+        <ul className="mt-2 flex list-disc flex-col gap-1 ps-4 text-sm">
+          <li>
+            {name} stays {kind === 'giveNotice' ? 'employed' : 'active'} until the end of{' '}
+            {longDate(day)}, on their own calendar.
+          </li>
+          <li>
+            {kind === 'terminate' && endNow
+              ? 'Their access ends now.'
+              : 'Their access ends at the end of that day, not at midnight UTC.'}
+          </li>
+          {kind === 'giveNotice' ? (
+            <li>If they stay, withdraw the notice any time before then.</li>
+          ) : null}
+        </ul>
+      </Card>,
+    );
+  }
   if (notEligible) {
     body.push(
       <Alert key="warn" tone="warning">
@@ -502,7 +531,13 @@ function MoveDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{LABEL[kind]}</DialogTitle>
+          <DialogTitle>
+            {kind === 'giveNotice'
+              ? `${name} is leaving`
+              : kind === 'hire'
+                ? `Is ${name} an employee?`
+                : LABEL[kind]}
+          </DialogTitle>
           <DialogDescription>{WHAT[kind]}</DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -583,7 +618,9 @@ export function PlacementPickers({
           value={entity}
           onValueChange={(next) => {
             onEntity(next);
-            if (!placement.locations.some((l) => l.value === location && l.legalEntityId === next)) {
+            if (
+              !placement.locations.some((l) => l.value === location && l.legalEntityId === next)
+            ) {
               onLocation('');
             }
           }}

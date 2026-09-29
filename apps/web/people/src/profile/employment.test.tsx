@@ -76,7 +76,10 @@ const first: EmploymentPeriod = {
   rehireOverrideReason: null,
 };
 
-const state = (status: string, periods: readonly EmploymentPeriod[] = [first]): EmploymentState => ({
+const state = (
+  status: string,
+  periods: readonly EmploymentPeriod[] = [first],
+): EmploymentState => ({
   calendar,
   employment: { status, periods },
 });
@@ -90,7 +93,9 @@ describe('lifecycle moves on a profile (PEO-120)', () => {
   });
 
   it('offers what the status allows, and nothing on one’s own profile', async () => {
-    const { container, rerender } = render(<Employment state={state('active')} onMove={vi.fn(done)} />);
+    const { container, rerender } = render(
+      <Employment state={state('active')} onMove={vi.fn(done)} />,
+    );
     for (const name of ['Give notice', 'Start leave', 'Terminate']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
@@ -112,8 +117,12 @@ describe('lifecycle moves on a profile (PEO-120)', () => {
     const { rerender } = render(<EmploymentPeriods periods={[first]} />);
     // One period says nothing the start date does not.
     expect(screen.queryByRole('table')).toBeNull();
-    rerender(<EmploymentPeriods periods={[left, { ...first, period: 2, startedOn: '2026-06-01' }]} />);
-    const rows = within(screen.getByRole('table', { name: 'Employment periods' })).getAllByRole('row');
+    rerender(
+      <EmploymentPeriods periods={[left, { ...first, period: 2, startedOn: '2026-06-01' }]} />,
+    );
+    const rows = within(screen.getByRole('table', { name: 'Employment periods' })).getAllByRole(
+      'row',
+    );
     // Newest first, under the header row.
     expect(rows[1]).toHaveTextContent('Current');
     expect(rows[2]).toHaveTextContent('Resigned');
@@ -187,7 +196,7 @@ describe('lifecycle moves on a profile (PEO-120)', () => {
     );
     const user = fast();
     await user.click(screen.getByRole('button', { name: 'Hire' }));
-    const dialog = screen.getByRole('dialog', { name: 'Hire' });
+    const dialog = screen.getByRole('dialog', { name: /an employee\?/ });
     expect(within(dialog).getByText(/Ada Lovelace becomes an employee from/)).toBeInTheDocument();
     expect(await axeViolations(container.ownerDocument.body)).toEqual([]);
 
@@ -222,7 +231,7 @@ describe('lifecycle moves on a profile (PEO-120)', () => {
     );
     const user = fast();
     await user.click(screen.getByRole('button', { name: 'Hire' }));
-    const dialog = screen.getByRole('dialog', { name: 'Hire' });
+    const dialog = screen.getByRole('dialog', { name: /an employee\?/ });
     expect(within(dialog).queryByRole('combobox')).toBeNull();
     await user.click(within(dialog).getByRole('button', { name: 'Hire' }));
     expect(onMove).toHaveBeenCalledWith({ kind: 'hire', hireDate: '2026-09-24' });
