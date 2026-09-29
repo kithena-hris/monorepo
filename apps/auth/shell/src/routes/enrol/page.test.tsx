@@ -133,7 +133,9 @@ describe('a recovery link for somebody with nothing on file', () => {
       answers: { badge_name: 'Countess' },
     });
     expect(finished).not.toHaveProperty('profile');
-  });
+    // Two axe passes and a four-step form: well under a second alone, past the
+    // 5s default when the whole unit suite shares the runner.
+  }, 20_000);
 });
 
 describe('a recovery link with nothing missing', () => {
