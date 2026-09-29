@@ -705,6 +705,32 @@ async function worker() {
   for (const page of pages.values()) await page.context().close();
 }
 
+/*
+ * One visit before the timed ones, measured by nothing.
+ *
+ * On a fresh runner the Storybook dev server pre-bundles its dependencies on
+ * the first request it serves, and whichever story a shard opens first waited
+ * through that under the same 20s (and then 60s) as every other: the same
+ * story, every run, never settling, and never a contrast finding. Paying the
+ * cold start here, with room for it, leaves every measured story a warm
+ * server. A failure here is ignored; the story is still visited, and judged,
+ * below.
+ */
+{
+  const first = jobs.find((job) => !job.story.standalone);
+  if (first !== undefined) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page
+      .goto(`${BASE}/iframe.html?id=${first.story.id}&viewMode=${first.story.viewMode}`, {
+        waitUntil: 'networkidle',
+        timeout: 180000,
+      })
+      .catch(() => undefined);
+    await context.close();
+  }
+}
+
 await Promise.all(Array.from({ length: Math.min(workers, jobs.length) }, worker));
 await browser.close();
 
