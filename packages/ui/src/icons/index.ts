@@ -75,6 +75,7 @@ import {
   ImagePlus,
   Inbox,
   Info,
+  Keyboard,
   LayoutDashboard,
   Link2,
   LoaderCircle,
@@ -223,6 +224,8 @@ export const iconGroups = {
     history: RotateCcwClock,
     /** An area's front page: the summary of everything under it. */
     overview: LayoutDashboard,
+    /** The keys that get you there: a list of shortcuts, or changing them. */
+    shortcuts: Keyboard,
   },
   /** The nouns of an HRIS. This is the group that keeps a product coherent. */
   domain: {

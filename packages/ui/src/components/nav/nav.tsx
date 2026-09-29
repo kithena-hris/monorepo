@@ -229,6 +229,14 @@ export interface NavItemProps extends Omit<ComponentPropsWithoutRef<'a'>, 'child
    * sections are the one thing a rail cannot otherwise show.
    */
   flyout?: ReactNode;
+  /**
+   * The keys that open this destination (`<KbdShortcut keys={['g', 'p']} />`).
+   * In the collapsed rail it is the tooltip's second line; in a compact menu
+   * it ends the row; in a sidebar, where every row is a destination, it shows
+   * on the row under the pointer or the focus. Never under a finger, and never
+   * in the link's name: the keys are a hint, not what the link is called.
+   */
+  shortcut?: ReactNode;
 }
 
 // A primary item is a 44px row of 15px type, the sidebar's own scale; the
@@ -254,6 +262,7 @@ export function NavItem({
   flyoutSize = 'sm',
   subnav,
   expanded = false,
+  shortcut,
   ...props
 }: NavItemProps): JSX.Element {
   const collapsed = useRailCollapsed();
@@ -378,6 +387,20 @@ export function NavItem({
         />
       ) : null}
 
+      {shortcut !== undefined && shortcut !== null && !asIcon ? (
+        <span
+          aria-hidden
+          data-rail-label=""
+          className={cn(
+            'flex shrink-0 text-fg-muted touch:hidden',
+            !compact &&
+              'opacity-0 transition-opacity duration-(--animate-duration-fast) group-hover/nav-item:opacity-100 group-focus-visible/nav-item:opacity-100',
+          )}
+        >
+          {shortcut}
+        </span>
+      ) : null}
+
       {action && !asIcon ? <span className="shrink-0">{action}</span> : null}
 
       {/* Which way its pages are: open under it, or somewhere to go. */}
@@ -496,6 +519,7 @@ export function NavItem({
           )
         }
         side="right"
+        {...(shortcut === undefined || shortcut === null ? {} : { shortcut })}
       >
         {link}
       </Tooltip>
