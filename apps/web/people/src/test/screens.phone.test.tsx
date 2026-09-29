@@ -458,7 +458,7 @@ describe('at 390×844, with a finger', () => {
     expect(underFloor(document.body)).toEqual([]);
   });
 
-  it('the directory, as cards', async () => {
+  it('the directory, as a list of people', async () => {
     await checked(
       <Directory
         load={{
@@ -503,9 +503,10 @@ describe('at 390×844, with a finger', () => {
         onOpen={vi.fn()}
       />,
     );
-    // A phone gets cards; the table is a desk's.
+    // A phone gets a list of people, each row their profile; the table is a desk's.
     expect(screen.queryByRole('table')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Details for Lena Moreau' })).toBeVisible();
+    const people = screen.getByRole('list', { name: 'People' });
+    expect(within(people).getByRole('link', { name: /Lena Moreau/ })).toBeVisible();
   });
 
   it('the completeness grid, as one card per person', async () => {

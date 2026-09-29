@@ -846,7 +846,7 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
     await decides.goto(`${stack.shell}/people/full-values`);
     await decides.waitForLoadState('networkidle');
     await decides
-      .getByRole('table', { name: 'Waiting for a decision' })
+      .getByRole('list', { name: 'Waiting for a decision' })
       .getByRole('button', { name: /^Approve the request from/ })
       .click();
     const dialog = decides.getByRole('dialog', { name: 'Approve the request' });
@@ -943,7 +943,7 @@ describe('PEO-121: the webhook delivery log', () => {
 });
 
 describe('Employee fields: a field from a template, explained, then published', () => {
-  it('adds T-shirt size in four steps, says when it is asked, and publishes it', async () => {
+  it('adds T-shirt size on one page, says when it is asked, and publishes it', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     await page.goto(`${stack.shell}/settings/people/fields`);
@@ -953,14 +953,12 @@ describe('Employee fields: a field from a template, explained, then published', 
     await page.getByRole('button', { name: 'Add field' }).click();
     const sheet = page.getByRole('dialog', { name: 'New field' });
     await sheet.getByRole('button', { name: 'T-shirt size' }).click();
-    await sheet.getByRole('button', { name: 'Next' }).click();
-    await sheet.getByRole('group', { name: 'Who can see it?' }).waitFor();
-    await sheet.getByRole('button', { name: 'Next' }).click();
+    // Every part is on the page, with the list of parts beside it.
+    await sheet.getByRole('navigation', { name: 'Parts of the field' }).waitFor();
     // Each moment it can be asked, with what it does.
     const onboarding = sheet.getByRole('radio', { name: 'During onboarding' });
     expect(await onboarding.isChecked()).toBe(true);
     expect(await onboarding.getAttribute('aria-describedby')).toBeTruthy();
-    await sheet.getByRole('button', { name: 'Next' }).click();
     await sheet
       .getByText(/The employee is asked for their T-shirt size during onboarding\./)
       .waitFor({ timeout: 30_000 });
@@ -1123,9 +1121,10 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     const approvals = await hr.newPage();
     await approvals.goto(`${stack.shell}/people/approvals`);
     await approvals.waitForLoadState('networkidle');
-    const inbox = approvals.getByRole('table', { name: 'Changes waiting for approval' });
-    await inbox.getByText('Awaiting identifier review').waitFor({ timeout: 30_000 });
-    await inbox.getByText(/control letter does not compute/).waitFor();
+    // The inbox is a list beside the selected change; its detail is the page's.
+    const inbox = approvals.getByRole('main');
+    await inbox.getByText('Awaiting identifier review').first().waitFor({ timeout: 30_000 });
+    await inbox.getByText(/control letter does not compute/).first().waitFor();
     expect(
       await inbox.getByRole('button', { name: /^Approve the change to .*NIF \/ NIE$/ }).count(),
     ).toBe(0);
@@ -1136,8 +1135,8 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     await (await sections(reviews)).getByRole('link', { name: 'ID verification' }).click();
     await reviews.waitForURL(/\/people\/identifier-reviews$/);
     await reviews.waitForLoadState('networkidle');
-    const table = reviews.getByRole('table', { name: 'Identifiers to review' });
-    await table.getByText(/control letter does not compute/).waitFor({ timeout: 30_000 });
+    const table = reviews.getByRole('main');
+    await table.getByText(/control letter does not compute/).first().waitFor({ timeout: 30_000 });
     expect(await table.getByText('12345678A').count()).toBe(0);
     await table.getByRole('button', { name: /^Show .* NIF \/ NIE in full$/ }).click();
     await table.getByText('12345678A').waitFor({ timeout: 30_000 });
@@ -1217,7 +1216,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     const reviews = await hr.newPage();
     await reviews.goto(`${stack.shell}/people/identifier-reviews`);
     await reviews.waitForLoadState('networkidle');
-    const table = reviews.getByRole('table', { name: 'Identifiers to review' });
+    const table = reviews.getByRole('main');
     await table.getByText('Waiting for approval').waitFor({ timeout: 30_000 });
     await table.getByRole('button', { name: /^Send .* NIF \/ NIE back$/ }).click();
     const dialog = reviews.getByRole('dialog');

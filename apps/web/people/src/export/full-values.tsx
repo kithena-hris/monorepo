@@ -119,56 +119,58 @@ function Requests({
             />
           ) : (
             // Each request as the decision it is (R11): who, what, why, and the two answers.
-            <div className="grid gap-4 @5xl/page:grid-cols-2">
+            <ul aria-label="Waiting for a decision" className="grid gap-4 @5xl/page:grid-cols-2">
               {waiting.map((r) => {
                 const who = r.requestedBy ?? 'Somebody in finance';
                 return (
-                  <Card key={r.id} padded className="flex flex-col gap-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar size="xl" name={who} />
-                      <div className="min-w-0">
-                        <h3 className="text-md font-bold">
-                          {who} wants to see {r.fields.join(', ').toLowerCase()}
-                        </h3>
-                        <p className="text-sm text-fg-muted">Asked {day(r.requestedAt)}</p>
+                  <li key={r.id} className="flex">
+                    <Card padded className="flex flex-1 flex-col gap-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar size="xl" name={who} />
+                        <div className="min-w-0">
+                          <h3 className="text-md font-bold">
+                            {who} wants to see {r.fields.join(', ').toLowerCase()}
+                          </h3>
+                          <p className="text-sm text-fg-muted">Asked {day(r.requestedAt)}</p>
+                        </div>
                       </div>
-                    </div>
-                    <KeyValues
-                      layout="aligned"
-                      labelWidth="7.5rem"
-                      items={[
-                        { label: 'Fields', value: r.fields.join(', ') },
-                        { label: 'Reason', value: r.reason },
-                        { label: 'Expires', value: `${day(r.expiresAt)} if nobody decides` },
-                      ]}
-                    />
-                    <Alert tone="warning" title="These values are masked everywhere else">
-                      Approving issues one download, once, within 24 hours. The people whose values
-                      are read can see that it happened.
-                    </Alert>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Button
-                        aria-label={`Reject the request from ${who}`}
-                        onClick={() => {
-                          setDeciding({ request: r, approve: false });
-                        }}
-                      >
-                        Decline
-                      </Button>
-                      <Button
-                        variant="primary"
-                        aria-label={`Approve the request from ${who}`}
-                        onClick={() => {
-                          setDeciding({ request: r, approve: true });
-                        }}
-                      >
-                        Allow
-                      </Button>
-                    </div>
-                  </Card>
+                      <KeyValues
+                        layout="aligned"
+                        labelWidth="7.5rem"
+                        items={[
+                          { label: 'Fields', value: r.fields.join(', ') },
+                          { label: 'Reason', value: r.reason },
+                          { label: 'Expires', value: `${day(r.expiresAt)} if nobody decides` },
+                        ]}
+                      />
+                      <Alert tone="warning" title="These values are masked everywhere else">
+                        Approving issues one download, once, within 24 hours. The people whose
+                        values are read can see that it happened.
+                      </Alert>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          aria-label={`Reject the request from ${who}`}
+                          onClick={() => {
+                            setDeciding({ request: r, approve: false });
+                          }}
+                        >
+                          Decline
+                        </Button>
+                        <Button
+                          variant="primary"
+                          aria-label={`Approve the request from ${who}`}
+                          onClick={() => {
+                            setDeciding({ request: r, approve: true });
+                          }}
+                        >
+                          Allow
+                        </Button>
+                      </div>
+                    </Card>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
         </PageSection>
       ) : null}
