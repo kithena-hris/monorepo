@@ -41,6 +41,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
+import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 
 /**
@@ -184,6 +185,9 @@ export interface OrganisationProps {
     scheme: { prefix: string; digits: number; start: number },
   ) => Promise<Outcome>;
   readonly onSetPayBand?: (band: PayBandInput) => Promise<Outcome>;
+  /** The part of the settings on screen (`?tab=locations`), held by the host. */
+  readonly tab?: string | null;
+  readonly onTabChange?: (tab: string) => void;
 }
 
 /** Today where a zone is: a location's zone change is in force once its day has begun there. */
@@ -217,6 +221,15 @@ type Editing =
 function Settings(props: OrganisationProps & { readonly state: OrganisationState }): JSX.Element {
   const { state } = props;
   const [editing, setEditing] = useState<Editing | null>(null);
+  const [chosen, setTab] = useHeld<string>(props.tab, props.onTabChange, 'entities');
+  const tabs = [
+    'entities',
+    'locations',
+    'numbering',
+    'company',
+    ...(state.payBands == null ? [] : ['pay']),
+  ];
+  const tab = tabs.includes(chosen) ? chosen : 'entities';
   const close = (): void => {
     setEditing(null);
   };
@@ -229,7 +242,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
       {state.canManage ? null : (
         <Alert tone="info">Only a People administrator can change these.</Alert>
       )}
-      <Tabs defaultValue="entities">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="Organisation settings">
           <TabsTrigger value="entities">Legal entities</TabsTrigger>
           <TabsTrigger value="locations">Locations</TabsTrigger>

@@ -382,3 +382,26 @@ describe('Directory', () => {
     expect(screen.getByRole('rowheader')).toHaveTextContent('ENG-2042');
   });
 });
+
+describe('the directory’s search, in the address', () => {
+  it('shows each key at once and asks the shell once typing rests', async () => {
+    const user = fast();
+    const onSearchChange = vi.fn();
+    render(<Directory {...props({ onSearchChange })} />);
+    const box = screen.getByRole('searchbox', { name: 'Search people' });
+    await user.type(box, 'ada');
+    expect(box).toHaveValue('ada');
+    expect(onSearchChange).not.toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(onSearchChange).toHaveBeenCalledWith('ada');
+    });
+    expect(onSearchChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens with the search a link carried, and follows the address when it changes', () => {
+    const { rerender } = render(<Directory {...props({ search: 'lena' })} />);
+    expect(screen.getByRole('searchbox', { name: 'Search people' })).toHaveValue('lena');
+    rerender(<Directory {...props({ search: '' })} />);
+    expect(screen.getByRole('searchbox', { name: 'Search people' })).toHaveValue('');
+  });
+});

@@ -16,6 +16,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { ViewSwitch, type DirectoryView } from '../directory/directory';
+import { useHeld } from '../held';
 import { Loaded, type Loadable } from '../load';
 
 /**
@@ -57,7 +58,15 @@ export interface OrgChartScreenProps {
   readonly onOpen: (personId: string) => void;
   /** Back to the directory as a list or as cards. */
   readonly onViewChange?: (view: DirectoryView) => void;
+  /** Which way the tree grows, held by the host (`?layout=horizontal`). */
+  readonly layout?: Orientation;
+  readonly onLayoutChange?: (layout: Orientation) => void;
+  /** Whose chain the search focused (`?focus=<id>`); null for everybody. */
+  readonly focusId?: string | null;
+  readonly onFocusChange?: (personId: string | null) => void;
 }
+
+export type Orientation = 'vertical' | 'horizontal';
 
 const TONE: Readonly<Record<string, 'info' | 'warning' | 'neutral'>> = {
   'On leave': 'info',
@@ -65,10 +74,10 @@ const TONE: Readonly<Record<string, 'info' | 'warning' | 'neutral'>> = {
   'Starting soon': 'info',
 };
 
-export function OrgChartScreen({ load, onOpen, onViewChange }: OrgChartScreenProps): JSX.Element {
+export function OrgChartScreen({ load, ...props }: OrgChartScreenProps): JSX.Element {
   return (
     <Loaded load={load} what="the org chart">
-      {(state) => <Body state={state} onOpen={onOpen} onViewChange={onViewChange} />}
+      {(state) => <Body state={state} {...props} />}
     </Loaded>
   );
 }
@@ -77,15 +86,18 @@ function Body({
   state,
   onOpen,
   onViewChange,
-}: {
-  readonly state: OrgChartState;
-  readonly onOpen: OrgChartScreenProps['onOpen'];
-  readonly onViewChange: OrgChartScreenProps['onViewChange'];
-}): JSX.Element {
+  layout,
+  onLayoutChange,
+  focusId,
+  onFocusChange,
+}: Omit<OrgChartScreenProps, 'load'> & { readonly state: OrgChartState }): JSX.Element {
   const coarse = useCoarsePointer();
-  const [orientation, setOrientation] = useState<'vertical' | 'horizontal'>('vertical');
+  const [orientation, setOrientation] = useHeld<Orientation>(layout, onLayoutChange, 'vertical');
+  const [focused, setFocused] = useHeld<string | null>(focusId, onFocusChange, null);
   const [picked, setPicked] = useState<string | null>(null);
   const ids = new Set(state.people.map((p) => p.id));
+  // Somebody a link focused who is not on this viewer's chart: everybody.
+  const focus = focused !== null && ids.has(focused) ? focused : null;
   const managers = new Set(
     state.people.flatMap((p) => (p.managerId === null ? [] : [p.managerId])),
   );
@@ -164,6 +176,8 @@ function Body({
               minimap
               height={coarse ? 'auto' : 'calc(100dvh - 17rem)'}
               focusMode="chain"
+              focusId={focus}
+              onFocusChange={setFocused}
               {...(picked === null ? {} : { selectedId: picked })}
               onSelect={(node) => {
                 if (coarse) onOpen(node.id);

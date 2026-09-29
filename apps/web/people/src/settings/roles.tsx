@@ -33,6 +33,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
+import { useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 
 /**
@@ -65,6 +66,9 @@ export interface RoleSettingsProps {
   readonly load: Loadable<RolesState>;
   readonly onGrant: (accountId: string, role: TenantRole, reason: string) => Promise<Outcome>;
   readonly onRevoke: (accountId: string, role: TenantRole, reason: string) => Promise<Outcome>;
+  /** The search over who holds a role (`?q=`), once typing rests. */
+  readonly search?: string;
+  readonly onSearchChange?: (search: string) => void;
 }
 
 const ROLES: readonly {
@@ -113,9 +117,11 @@ function Roles({
   state,
   onGrant,
   onRevoke,
+  search,
+  onSearchChange,
 }: RoleSettingsProps & { readonly state: RolesState }): JSX.Element {
   const [pending, setPending] = useState<Pending | null>(null);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useTyped(search ?? '', onSearchChange);
   const admins = state.people.filter((p) => p.roles.includes('people_admin')).length;
   const holders = (role: TenantRole) => state.people.filter((p) => p.roles.includes(role));
   const nameOf = (p: RolesPerson) => p.name ?? p.workEmail ?? 'Somebody without a record yet';

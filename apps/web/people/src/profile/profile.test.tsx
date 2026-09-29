@@ -535,3 +535,40 @@ describe('a profile read again', () => {
     expect(screen.queryByText('Hybrid')).toBeNull();
   });
 });
+
+describe('the record’s tab, in the address', () => {
+  it('opens on the section a link named, and hands a chosen tab to the host', async () => {
+    const user = fast();
+    const onTabChange = vi.fn();
+    render(
+      <Profile
+        load={{ status: 'ready', data: asHr }}
+        onSave={vi.fn()}
+        onMove={vi.fn()}
+        tab="compensation"
+        onTabChange={onTabChange}
+      />,
+    );
+    expect(screen.getByRole('tab', { name: 'Compensation' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.queryByText('Hybrid')).toBeNull();
+    await user.click(screen.getByRole('tab', { name: 'Overview' }));
+    expect(onTabChange).toHaveBeenCalledWith('overview');
+  });
+
+  it('opens on the overview for a section this record does not have', () => {
+    render(
+      <Profile
+        load={{ status: 'ready', data: asHr }}
+        onSave={vi.fn()}
+        onMove={vi.fn()}
+        tab="nonsense"
+        onTabChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Hybrid')).toBeInTheDocument();
+  });
+});

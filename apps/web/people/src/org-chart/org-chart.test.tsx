@@ -75,3 +75,41 @@ describe('the org chart', () => {
     expect(screen.getByText('Nobody to chart yet')).toBeInTheDocument();
   });
 });
+
+describe('the org chart’s direction and search, in the address', () => {
+  it('opens as a link left it, and hands each change to the host', async () => {
+    const user = fast();
+    const onLayoutChange = vi.fn();
+    render(
+      <OrgChartScreen
+        load={{ status: 'ready', data: { people, truncated: false } }}
+        onOpen={vi.fn()}
+        layout="horizontal"
+        onLayoutChange={onLayoutChange}
+        focusId="a"
+        onFocusChange={vi.fn()}
+      />,
+      { wrapper: TooltipProvider },
+    );
+    const direction = screen.getByRole('radiogroup', { name: 'Direction' });
+    expect(within(direction).getByRole('radio', { name: 'Left to right' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Find someone' })).toHaveTextContent('Adam Novak');
+    await user.click(within(direction).getByRole('radio', { name: 'Top down' }));
+    expect(onLayoutChange).toHaveBeenCalledWith('vertical');
+  });
+
+  it('shows everybody for a focus that is not on this viewer’s chart', () => {
+    render(
+      <OrgChartScreen
+        load={{ status: 'ready', data: { people, truncated: false } }}
+        onOpen={vi.fn()}
+        focusId="somebody-else"
+        onFocusChange={vi.fn()}
+      />,
+      { wrapper: TooltipProvider },
+    );
+    expect(screen.getByRole('button', { name: 'Find someone' })).not.toHaveTextContent(
+      /Adam|Marco|Nora/,
+    );
+  });
+});
