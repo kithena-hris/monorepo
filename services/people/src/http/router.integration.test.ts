@@ -485,6 +485,31 @@ describe('the tenant app through the router (PEO-113)', () => {
     expect(body.errors?.[0]?.message).toBe('Only HR imports people');
   });
 
+  it('forwards a view-as actor as viewedBy, so People reads as the employee and writes nothing', async () => {
+    const ADMIN = '00000000-0000-4000-8000-0000000000b7';
+    const save = await shellOperation('SaveOwnSection');
+    const variables = { changed: [{ key: 'job_title', text: 'Chief' }], key: randomUUID() };
+    const viewing = await token({ act: { sub: ADMIN, kind: 'view_as' } });
+
+    // Ada's own record reads as hers.
+    const read = await asShell(viewing, await shellOperation('Profile'));
+    const body = (await read.json()) as { data?: { peopleProfile: { values: { key: string }[] } } };
+    expect(body.data?.peopleProfile.values).toContainEqual(
+      expect.objectContaining({ key: 'job_title', text: 'Engineer' }),
+    );
+    // And nothing she could change herself is changed.
+    const refused = (await (await asShell(viewing, save, variables)).json()) as {
+      errors?: { extensions?: { code?: string } }[];
+    };
+    expect(refused.errors?.[0]?.extensions?.code, JSON.stringify(refused)).toBe('VIEW_ONLY');
+
+    // The same actor without the kind is support, which the view-as kind never becomes.
+    const support = (await (
+      await asShell(await token({ act: { sub: ADMIN } }), save, { ...variables, key: randomUUID() })
+    ).json()) as { errors?: { extensions?: { code?: string } }[] };
+    expect(support.errors?.[0]?.extensions?.code).not.toBe('VIEW_ONLY');
+  });
+
   it('refuses a multipart request: the router takes no file uploads', async () => {
     const form = new FormData();
     form.set('operations', JSON.stringify({ query: '{ __typename }', variables: {} }));
