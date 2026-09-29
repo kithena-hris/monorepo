@@ -82,20 +82,21 @@ async function eventually<T>(
 
 /** The People item in the shell's sidebar, which People's sections hang off. */
 const peopleItem = (page: Page) =>
-  // Exact: the People menu, open beside it, ends with a "Settings › People" link.
+  // Exact: the collapsed rail's People flyout ends with a "Settings › People" link.
   page.getByRole('navigation', { name: 'Areas' }).getByRole('link', { name: 'People', exact: true });
 
 /**
- * People's own navigation, opened the way a keyboard opens it: focus on the
- * People item in the sidebar brings its sections out beside it, and they are
- * next in Tab order.
+ * People's own navigation in an expanded sidebar: its sections, listed inline
+ * under the People item while you are anywhere in People (V2), and next after
+ * it in Tab order. Nothing has to be opened.
  */
 async function sections(page: Page) {
   await page.waitForLoadState('networkidle');
-  await peopleItem(page).focus();
-  const nav = page.getByRole('navigation', { name: 'People sections' });
-  await nav.waitFor();
-  return nav;
+  const list = page
+    .getByRole('navigation', { name: 'Areas' })
+    .getByRole('list', { name: 'People sections' });
+  await list.waitFor();
+  return list;
 }
 
 const person = (id: string) =>
@@ -1396,24 +1397,37 @@ describe('People inside the shell: its sections, and always a way to add somebod
       (rows) => rows.length === 1,
     );
 
-    // The shell's sidebar, and People's sections only when asked for: the
-    // screen has the width until then.
+    // The shell's sidebar, and People's sections inline under its item while
+    // you are in People (V2): nothing opens on hover, nothing covers the screen.
     await page.goto(`${shell}/people`);
     await page.waitForLoadState('networkidle');
     expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
-    const closed = page.getByRole('navigation', { name: 'People sections' });
-    expect(await closed.count()).toBe(0);
-    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('false');
-    // Hover opens them, after a moment, beside People.
-    await peopleItem(page).hover();
-    await closed.waitFor();
-    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('true');
-    // Escape closes them.
-    await page.keyboard.press('Escape');
-    await closed.waitFor({ state: 'detached' });
-    await page.mouse.move(900, 600);
     const nav = await sections(page);
     expect(await nav.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
+    // The People item is a place to go, not a menu to open.
+    expect(await peopleItem(page).getAttribute('aria-expanded')).toBeNull();
+    const flyout = page.getByRole('navigation', { name: 'People sections' });
+    await peopleItem(page).hover();
+    await page.waitForTimeout(300);
+    expect(await flyout.count()).toBe(0);
+
+    // Collapsed to the rail, the same sections come out beside People on
+    // hover (V8), after a moment, and Escape puts them away.
+    await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+    await nav.waitFor({ state: 'detached' });
+    await page.mouse.move(900, 600);
+    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('false');
+    await peopleItem(page).hover();
+    await flyout.waitFor();
+    expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('true');
+    expect(
+      await flyout.getByRole('link', { name: /^Overview/ }).getAttribute('aria-current'),
+    ).toBe('page');
+    await page.keyboard.press('Escape');
+    await flyout.waitFor({ state: 'detached' });
+    await page.mouse.move(900, 600);
+    await page.getByRole('button', { name: 'Expand sidebar' }).click();
+    await sections(page);
     // Overview carries the design's trail, People › Overview, whose last crumb
     // switches to a sibling section (N2).
     await page.getByRole('navigation', { name: 'Breadcrumb' }).waitFor();
@@ -1446,7 +1460,19 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(await add.count()).toBe(1);
     expect(await screenHeader.getByRole('link', { name: 'Add person' }).count()).toBe(1);
     expect(
-      await add.evaluate((a) => /Org chart/.test(a.previousElementSibling?.textContent ?? '')),
+      await add.evaluate((a) => {
+        // Before it in the row as laid out. The phone bar that holds the
+        // frame's actions is `display: contents` at a desk: a wrapper, not a box.
+        let at: Element = a;
+        while (
+          at.previousElementSibling === null &&
+          at.parentElement !== null &&
+          getComputedStyle(at.parentElement).display === 'contents'
+        ) {
+          at = at.parentElement;
+        }
+        return /Org chart/.test(at.previousElementSibling?.textContent ?? '');
+      }),
     ).toBe(true);
     expect(await page.getByRole('main').getByRole('button', { name: 'Add person' }).count()).toBe(0);
     await add.click();
@@ -1459,7 +1485,6 @@ describe('People inside the shell: its sections, and always a way to add somebod
     // section is current.
     expect(await add.count()).toBe(0);
     expect(await (await sections(page)).locator('[aria-current="page"]').count()).toBe(0);
-    await page.keyboard.press('Escape');
     await form.getByRole('textbox', { name: /Legal first name/ }).fill('Lena');
     await form.getByRole('textbox', { name: /Legal family name/ }).fill('Moreau');
     await form.getByRole('textbox', { name: /Work email/ }).fill('lena@globex.example');
@@ -1486,28 +1511,26 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(await kept()).toBe(true);
 
     // Every section is reachable from the keyboard and stays inside the shell:
-    // focus on People, ArrowRight into its sections, Tab to the one wanted,
-    // Enter — a client-side move, the sidebar still there, never another origin.
+    // focus on People, Tab on into its sections to the one wanted, Enter — a
+    // client-side move, the sidebar still there, never another origin.
     const hrefs = await (await sections(page))
       .getByRole('link')
       .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
     expect(hrefs).toContain('/people/import-export');
     for (const href of hrefs) {
       await sections(page);
-      await page.keyboard.press('ArrowRight');
-      // ArrowRight moves focus into the sections, once they have drawn.
-      await expect
-        .poll(() =>
-          page.evaluate(
-            () => document.activeElement?.closest('[aria-label="People sections"]') != null,
-          ),
-        )
-        .toBe(true);
+      await peopleItem(page).focus();
       for (let tabs = 0; tabs <= hrefs.length; tabs += 1) {
+        await page.keyboard.press('Tab');
         const at = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
         if (at === href) break;
-        await page.keyboard.press('Tab');
       }
+      // Straight from People into its sections: nothing sits between them.
+      expect(
+        await page.evaluate(
+          () => document.activeElement?.closest('[aria-label="People sections"]') != null,
+        ),
+      ).toBe(true);
       expect(await page.evaluate(() => document.activeElement?.getAttribute('href'))).toBe(href);
       await page.keyboard.press('Enter');
       await page.waitForURL((url) => url.pathname === href);
