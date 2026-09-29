@@ -56,9 +56,20 @@ export interface DuplicatePair {
   readonly personIds: readonly string[];
   readonly names: readonly string[];
   readonly reasons: readonly string[];
-  /** How alike the two are, 0 to 1, where People scores it. It does not yet: absent. */
-  readonly match?: number | null;
+  /**
+   * How strong the match is, as People bands it from why the two look alike:
+   * a word, never a percentage nobody measured. Absent from an older People.
+   */
+  readonly match?: MatchBand | null;
 }
+
+export type MatchBand = 'strong' | 'likely' | 'possible';
+
+const BAND: Readonly<Record<MatchBand, string>> = {
+  strong: 'Strong',
+  likely: 'Likely',
+  possible: 'Possible',
+};
 
 export interface ComparedPerson {
   readonly id: string;
@@ -140,7 +151,7 @@ export function Duplicates(props: DuplicatesProps): JSX.Element {
 
 /**
  * The queue (V5): each pair side by side, why it looks alike, how strong the
- * match is where People scores one, and the two answers. "Not the same" takes
+ * match is (Strong, Likely, Possible), and the two answers. "Not the same" takes
  * the pair out for good; "Compare" opens the side-by-side merge.
  */
 function Queue({
@@ -154,7 +165,7 @@ function Queue({
 }): JSX.Element {
   const [busy, setBusy] = useState<string | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
-  // A score is People's to give; with none, there is no column to show an empty one in.
+  // A band is People's to give; from an older People with none, there is no column to show an empty one in.
   const scored = items.some((pair) => pair.match != null);
   return (
     <Stack gap={5}>
@@ -203,7 +214,7 @@ function Queue({
                     <TableCell>
                       {pair.match == null ? null : (
                         <Badge tone="warning" size="sm">
-                          {`${String(Math.round(pair.match * 100))}%`}
+                          {BAND[pair.match]}
                         </Badge>
                       )}
                     </TableCell>
@@ -229,6 +240,7 @@ function Queue({
                       </Button>
                       <Button
                         size="xs"
+                        variant="secondary"
                         aria-label={`Compare ${names}`}
                         onClick={() => {
                           onCompare(a, b);

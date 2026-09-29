@@ -62,6 +62,8 @@ export interface AnalyticsState {
     readonly change: number | null;
     readonly trend: readonly ChartPoint[];
   };
+  /** Hired, not started yet: HR's, and never under a segment. Absent or null: not shown. */
+  readonly startingSoon?: number | null;
   readonly attrition: {
     readonly percent: number;
     readonly leavers: number;
@@ -230,6 +232,12 @@ export type InsightsTab = 'headcount' | 'turnover' | 'data-quality' | 'pay';
 
 const grid = 'grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-2';
 
+/** One tab's numbers as CSV, for the segment on screen: the shell's download route. */
+export const exportUrl = (tab: InsightsTab, segmentId: string | null): string =>
+  `/people/downloads/insights?tab=${tab}${
+    segmentId === null ? '' : `&segment=${encodeURIComponent(segmentId)}`
+  }`;
+
 /**
  * Insights (V7, MV6; PRD §16, design screen 12): workforce analytics, a tab
  * at a time, with the report schedules behind a button on the page.
@@ -320,6 +328,18 @@ function Workforce({
           label="Left, 12M"
           value={attrition.leavers}
           description={`${percent(attrition.percent)} attrition`}
+        />,
+      );
+    }
+    // The design's fourth figure was open roles, which are recruiting's to
+    // count; pre-hires are People's, and the honest figure in that place.
+    if (state.startingSoon != null) {
+      figures.push(
+        <Stat
+          key="starting"
+          label="Starting soon"
+          value={state.startingSoon}
+          description="Hired, not started yet"
         />,
       );
     }
@@ -596,6 +616,17 @@ function Workforce({
                 </Button>
               </>
             )}
+            {/* This tab's numbers as a file, at a desk (V7). */}
+            <Button
+              asChild
+              variant="secondary"
+              startIcon={<icons.download aria-hidden />}
+              className="touch:hidden"
+            >
+              <a href={exportUrl(tab, state.segment?.id ?? null)} download>
+                Export
+              </a>
+            </Button>
           </>
         }
       />
