@@ -211,6 +211,20 @@ describe('an entry from an event', () => {
     });
   });
 
+  it('names a module as a sentence would', () => {
+    const entry = entryFrom(
+      event('identity.tenant.administrator_removed', {
+        entitlement: 'module.timeoff',
+        accountId: ADA,
+        removedBy: null,
+        confirmedLast: false,
+      }),
+    );
+    expect(entry?.action).toBe('Removed an administrator of Time Off');
+    // No operator named: whoever raised it, not support.
+    expect(entry?.actor.kind).toBe('person');
+  });
+
   it('ignores what the log does not keep, ordinary sign-ins among them', () => {
     expect(entryFrom(event('identity.session.started', {}))).toBeNull();
     expect(entryFrom(event('people.person.hired', {}))).toBeNull();

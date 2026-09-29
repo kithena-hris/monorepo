@@ -38,12 +38,21 @@ export default async function Activity({
     if (ids.accountIds.length > 0 || ids.personIds.length > 0) {
       // Without People, or where it refuses, entries are named by kind alone.
       const names = await people<{
-        people: { accountId: string | null; personId: string; name: string; avatarUrl: string | null }[];
+        people: {
+          accountId: string | null;
+          personId: string;
+          name: string;
+          avatarUrl: string | null;
+        }[];
       }>('Names', ids);
       if (names.ok) {
         for (const p of names.data.people) {
           const face = { name: p.name, avatarUrl: p.avatarUrl, personId: p.personId };
-          named = { ...named, [p.personId]: face, ...(p.accountId === null ? {} : { [p.accountId]: face }) };
+          named = {
+            ...named,
+            [p.personId]: face,
+            ...(p.accountId === null ? {} : { [p.accountId]: face }),
+          };
         }
       }
     }

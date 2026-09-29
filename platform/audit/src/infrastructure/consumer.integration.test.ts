@@ -120,7 +120,15 @@ describe('the audit consumer', () => {
     while (Date.now() < deadline && rows.length < 2) {
       await new Promise((r) => setTimeout(r, 500));
       rows = await store.page(TENANT, {
-        filter: { areas: [], actorKind: null, actor: null, subject: null, from: null, until: null, search: null },
+        filter: {
+          areas: [],
+          actorKind: null,
+          actor: null,
+          subject: null,
+          from: null,
+          until: null,
+          search: null,
+        },
         before: null,
         limit: 10,
       });

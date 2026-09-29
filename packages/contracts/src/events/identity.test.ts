@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { AccountProfileCaptured, AccountSignupAnswered, SupportSessionStarted } from './identity.js';
+import {
+  AccountProfileCaptured,
+  AccountSignupAnswered,
+  SupportSessionStarted,
+} from './identity.js';
 
 describe('identity.support.session_started', () => {
   const payload = {

@@ -58,9 +58,27 @@ describe('what a page needs named', () => {
     expect(
       idsToName({
         entries: [
-          { ...entry, actorKind: 'person', actorAccountId: 'a1', subjectKind: 'person', subjectId: 'p1' },
-          { ...entry, actorKind: 'support', actorAccountId: 'a9', subjectKind: 'account', subjectId: 'a2' },
-          { ...entry, actorKind: 'system', actorAccountId: null, subjectKind: null, subjectId: null },
+          {
+            ...entry,
+            actorKind: 'person',
+            actorAccountId: 'a1',
+            subjectKind: 'person',
+            subjectId: 'p1',
+          },
+          {
+            ...entry,
+            actorKind: 'support',
+            actorAccountId: 'a9',
+            subjectKind: 'account',
+            subjectId: 'a2',
+          },
+          {
+            ...entry,
+            actorKind: 'system',
+            actorAccountId: null,
+            subjectKind: null,
+            subjectId: null,
+          },
         ],
         next: null,
       }),

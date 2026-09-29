@@ -2,7 +2,14 @@ import * as z from 'zod';
 import { defineEvent } from '../event.js';
 import { CalendarDate, Instant } from '../primitives.js';
 import { ModuleEntitlement } from '../entitlements.js';
-import { policy, asContact, asFreeText, asIdentity, asInternal, asPublic } from '../classification.js';
+import {
+  policy,
+  asContact,
+  asFreeText,
+  asIdentity,
+  asInternal,
+  asPublic,
+} from '../classification.js';
 import { AttributeKey } from '../people/primitives.js';
 import { SignupAnswerValue } from '../signup-questions.js';
 

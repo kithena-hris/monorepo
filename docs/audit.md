@@ -212,9 +212,9 @@ with counsel; the log is where it will be enforced.
 
 | Variable               | Notes                                                                                   |
 | ---------------------- | --------------------------------------------------------------------------------------- |
-| `AUDIT_DATABASE_URL`   | as `svc_audit`. Absent: nothing is served or consumed, and it says so.                  |
+| `AUDIT_DATABASE_URL`   | as `svc_audit`. Absent in production: nothing is served or consumed, and it says so. In development it defaults to the compose Postgres as `svc_audit`. |
 | `KAFKA_BROKERS`, `KAFKA_*` | as People's (`packages/db-kit/src/kafka.ts`). Absent: nothing is consumed.          |
-| `AUDIT_API_TOKEN`      | what the router presents. Absent: every read is refused.                                |
+| `AUDIT_API_TOKEN`      | what the router presents (the router's own `AUDIT_API_TOKEN`). Absent in production: every read is refused. In development it falls back to `INTERNAL_API_TOKEN`, then `dev-only-key`, as `apps/gateway/scripts/dev.sh` does. |
 | `OPENFGA_URL`, `OPENFGA_STORE_ID` | People's store. Absent: every read is refused.                               |
 | `AUDIT_RETENTION_DAYS` | absent: keep everything (PEO-129).                                                      |
 | `PORT`                 | 4103.                                                                                   |

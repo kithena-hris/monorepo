@@ -206,6 +206,9 @@ const SAYS: Readonly<Record<string, (payload: never) => Said>> = {
   }) => administrator('Removed', p.entitlement, p.accountId, p.removedBy),
 };
 
+/** A module as a sentence names it, where its key alone would read wrong. */
+const MODULE_NAMES: Readonly<Record<string, string>> = { people: 'People', timeoff: 'Time Off' };
+
 /** The back office naming or removing a module's administrator: Kithena support, when it says who. */
 function administrator(
   verb: 'Named' | 'Removed',
@@ -213,11 +216,12 @@ function administrator(
   accountId: string,
   operator: string | null,
 ): Said {
-  const module = entitlement.replace(/^module\./, '');
+  const key = entitlement.replace(/^module\./, '');
+  const name = MODULE_NAMES[key] ?? `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
   return {
     module: 'identity',
     area: 'roles',
-    action: `${verb} an administrator of ${module.charAt(0).toUpperCase()}${module.slice(1)}`,
+    action: `${verb} an administrator of ${name}`,
     subject: { kind: 'account', id: accountId, label: null },
     ...(operator === null
       ? {}

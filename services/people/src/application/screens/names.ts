@@ -48,7 +48,12 @@ export async function namesView(
       const name = read.ok ? nameOf(read.value.attributes) : null;
       if (name !== null) named.push({ accountId, personId, name });
     }
-    const avatars = await avatarsOf(deps, tx, asking.tenantId, named.map((p) => p.personId));
+    const avatars = await avatarsOf(
+      deps,
+      tx,
+      asking.tenantId,
+      named.map((p) => p.personId),
+    );
     return ok({
       people: named.map((p) => ({ ...p, avatarUrl: avatars.get(p.personId) ?? null })),
     });

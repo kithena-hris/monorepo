@@ -1980,7 +1980,10 @@ it is written down here rather than left in a PR description.
       grant, so every export is kept indefinitely; no retention period is
       decided and the only "6 years" in the code is the unrelated de-labour
       floor. Decide the period (with counsel, beside PEO-037), then enforce
-      it and say it on the Export card. Found building #197.
+      it and say it on the Export card. Found building #197. The central
+      activity log (`platform/audit`, `docs/audit.md`) is under the same
+      decision: it keeps everything today, and `AUDIT_RETENTION_DAYS` is its
+      one configuration point once a period is decided.
 - [ ] **PEO-130** A field flag for "payroll cannot run without this".
       "Blocking payroll" on Data health › Completeness is derived: a required
       gap in a field that is `piiKind: financial`, a `bank_account` or

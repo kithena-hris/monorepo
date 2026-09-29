@@ -4,6 +4,12 @@ import {
   Alert,
   Avatar,
   Badge,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
   Button,
   ChangeDiff,
   Chip,
@@ -44,7 +50,10 @@ export type ActivityLoad =
 
 /** Names and faces People gave, by account id and by person id. */
 export type Named = Readonly<
-  Record<string, { readonly name: string; readonly avatarUrl: string | null; readonly personId: string }>
+  Record<
+    string,
+    { readonly name: string; readonly avatarUrl: string | null; readonly personId: string }
+  >
 >;
 
 const AREA_NAME: Readonly<Record<string, string>> = Object.fromEntries(
@@ -115,7 +124,10 @@ export function ActivityLog({
   const zone = useZone();
 
   /** A filter changed: a new address, answered by the server, from the newest page. */
-  const go = (patch: Readonly<Record<string, string | null>>, mode: 'push' | 'replace' = 'push') => {
+  const go = (
+    patch: Readonly<Record<string, string | null>>,
+    mode: 'push' | 'replace' = 'push',
+  ) => {
     const to = withQuery(pathname, params.toString(), { before: null, ...patch });
     if (mode === 'push') router.push(to, { scroll: false });
     else router.replace(to, { scroll: false });
@@ -142,14 +154,26 @@ export function ActivityLog({
   }, [query]);
 
   const readerZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const actorName =
-    filters.actor === null ? null : (named[filters.actor]?.name ?? 'one person');
+  const actorName = filters.actor === null ? null : (named[filters.actor]?.name ?? 'one person');
   const subjectName =
     filters.subject === null ? null : (named[filters.subject]?.name ?? 'one record');
 
   return (
     <Stack gap={6}>
       <PageHeader
+        breadcrumb={
+          <Breadcrumb className="touch:hidden">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/settings">Settings</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Activity</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
         title="Activity"
         description="Who did what, and when, across your company’s workspace. Never the values themselves."
       />
@@ -164,11 +188,16 @@ export function ActivityLog({
             containerClassName="w-full max-w-[22rem]"
           />
           <DatePicker
+            className="w-64 touch:w-full"
             mode="range"
             size="sm"
             label="When"
             placeholder="Any time"
-            value={filters.from === null && filters.to === null ? null : { start: filters.from, end: filters.to }}
+            value={
+              filters.from === null && filters.to === null
+                ? null
+                : { start: filters.from, end: filters.to }
+            }
             onChange={(range) => {
               const on = range.start !== null || range.end !== null;
               go({ from: range.start, to: range.end, tz: on ? readerZone() : null });
@@ -397,7 +426,9 @@ function Detail({
   return (
     <Stack gap={3}>
       {changed === null ? (
-        <p className="text-sm text-fg-muted">{e.detail ?? 'No more detail was recorded.'}</p>
+        e.detail === null && (e.reason !== null || e.actorKind === 'support') ? null : (
+          <p className="text-sm text-fg-muted">{e.detail ?? 'No more detail was recorded.'}</p>
+        )
       ) : (
         <ChangeDiff
           items={changed.map((c) => ({ id: c.what, label: c.what, before: c.from, after: c.to }))}

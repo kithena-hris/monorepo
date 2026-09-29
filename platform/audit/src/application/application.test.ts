@@ -15,7 +15,11 @@ function memoryStore(): EntryStore & { readonly rows: StoredEntry[] } {
     rows,
     append(entry: Entry) {
       if (rows.some((r) => r.sourceEventId === entry.sourceEventId)) return Promise.resolve(false);
-      rows.unshift({ ...entry, id: `e${String(rows.length).padStart(3, '0')}`, supportSignIn: null });
+      rows.unshift({
+        ...entry,
+        id: `e${String(rows.length).padStart(3, '0')}`,
+        supportSignIn: null,
+      });
       return Promise.resolve(true);
     },
     page(_tenantId, { before, limit }) {
@@ -68,10 +72,14 @@ describe('recording an event', () => {
       onRejected: (name) => rejected.push(name),
     });
     expect(
-      await record(envelope('01890000-0000-7000-8000-000000000002', { eventName: 'people.person.hired' })),
+      await record(
+        envelope('01890000-0000-7000-8000-000000000002', { eventName: 'people.person.hired' }),
+      ),
     ).toBe('ignored');
     expect(
-      await record(envelope('01890000-0000-7000-8000-000000000003', { payload: { area: 'payroll' } })),
+      await record(
+        envelope('01890000-0000-7000-8000-000000000003', { payload: { area: 'payroll' } }),
+      ),
     ).toBe('rejected');
     expect(await record('not an envelope')).toBe('ignored');
     expect(rejected).toEqual(['people.settings.activity_recorded']);

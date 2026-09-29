@@ -32,10 +32,15 @@ export const Forbidden = failure(
 export function readActivity(deps: {
   readonly store: EntryStore;
   readonly readers: Readers;
-}): (reader: Reader, query: { readonly filter: Filter; readonly before: string | null }) => Promise<Result<ActivityPage>> {
+}): (
+  reader: Reader,
+  query: { readonly filter: Filter; readonly before: string | null },
+) => Promise<Result<ActivityPage>> {
   return async (reader, query) => {
     const support = reader.supportOperator !== null;
-    const roles = support ? new Set<string>() : await deps.readers.roles(reader.tenantId, reader.accountId);
+    const roles = support
+      ? new Set<string>()
+      : await deps.readers.roles(reader.tenantId, reader.accountId);
     if (!mayRead({ roles, support })) return err(Forbidden);
     const rows = await deps.store.page(reader.tenantId, { ...query, limit: PAGE + 1 });
     const entries = rows.slice(0, PAGE);

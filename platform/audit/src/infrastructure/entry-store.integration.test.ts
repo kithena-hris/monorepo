@@ -110,14 +110,18 @@ describe('the log in Postgres', () => {
     await expect(
       inTenant(ACME, (tx) => tx.execute(sql`UPDATE audit.entry SET action = 'Nothing happened'`)),
     ).rejects.toThrow();
-    await expect(inTenant(ACME, (tx) => tx.execute(sql`DELETE FROM audit.entry`))).rejects.toThrow();
+    await expect(
+      inTenant(ACME, (tx) => tx.execute(sql`DELETE FROM audit.entry`)),
+    ).rejects.toThrow();
   });
 
   it('narrows by area, who, whose record, when and words, newest first', async () => {
     const store = drizzleEntryStore(inTenant);
     const tenant = '00000000-0000-4000-8000-00000000000c';
     const at = (day: number) => `2026-09-${String(day).padStart(2, '0')}T12:00:00.000Z`;
-    await store.append(entry({ tenantId: tenant, occurredAt: at(1), area: 'roles', action: 'Granted a role' }));
+    await store.append(
+      entry({ tenantId: tenant, occurredAt: at(1), area: 'roles', action: 'Granted a role' }),
+    );
     await store.append(
       entry({
         tenantId: tenant,
@@ -223,8 +227,12 @@ describe('the log in Postgres', () => {
   it('lets retention remove old entries, through its one function, for every company', async () => {
     const store = drizzleEntryStore(inTenant);
     const tenant = '00000000-0000-4000-8000-00000000000e';
-    await store.append(entry({ tenantId: tenant, occurredAt: '2020-01-01T00:00:00.000Z', action: 'Old' }));
-    await store.append(entry({ tenantId: tenant, occurredAt: '2026-09-29T00:00:00.000Z', action: 'New' }));
+    await store.append(
+      entry({ tenantId: tenant, occurredAt: '2020-01-01T00:00:00.000Z', action: 'Old' }),
+    );
+    await store.append(
+      entry({ tenantId: tenant, occurredAt: '2026-09-29T00:00:00.000Z', action: 'New' }),
+    );
     expect(await purgeBefore(db, '2021-01-01T00:00:00.000Z')).toBeGreaterThanOrEqual(1);
     const left = await store.page(tenant, { filter: ALL, before: null, limit: 10 });
     expect(left.map((e) => e.action)).toEqual(['New']);

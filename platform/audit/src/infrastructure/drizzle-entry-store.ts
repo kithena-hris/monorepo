@@ -95,37 +95,35 @@ export function drizzleEntryStore(inTenant: InTenant): EntryStore {
                     WHERE b.tenant_id = ${tenantId}::uuid AND b.id = ${before}::uuid))
            ORDER BY e.occurred_at DESC, e.id DESC
            LIMIT ${limit}`);
-        return [...rows].map(
-          (r): StoredEntry => ({
-            id: r.id,
-            tenantId: r.tenant_id,
-            sourceEventId: r.source_event_id,
-            occurredAt: iso(r.occurred_at),
-            recordedAt: iso(r.recorded_at),
-            module: r.module as Entry['module'],
-            area: r.area as Area,
-            action: r.action,
-            detail: r.detail,
-            actor: {
-              kind: r.actor_kind as ActorKind,
-              accountId: r.actor_account_id,
-              onBehalfOf: r.on_behalf_of,
-            },
-            subject:
-              r.subject_kind === null
-                ? null
-                : {
-                    kind: r.subject_kind as EntrySubject['kind'],
-                    id: r.subject_id,
-                    label: r.subject_label,
-                  },
-            reason: r.reason,
-            supportSignIn:
-              r.sign_in_id === null || r.sign_in_at === null
-                ? null
-                : { entryId: r.sign_in_id, at: iso(r.sign_in_at), reason: r.sign_in_reason },
-          }),
-        );
+        return [...rows].map((r): StoredEntry => ({
+          id: r.id,
+          tenantId: r.tenant_id,
+          sourceEventId: r.source_event_id,
+          occurredAt: iso(r.occurred_at),
+          recordedAt: iso(r.recorded_at),
+          module: r.module as Entry['module'],
+          area: r.area as Area,
+          action: r.action,
+          detail: r.detail,
+          actor: {
+            kind: r.actor_kind as ActorKind,
+            accountId: r.actor_account_id,
+            onBehalfOf: r.on_behalf_of,
+          },
+          subject:
+            r.subject_kind === null
+              ? null
+              : {
+                  kind: r.subject_kind as EntrySubject['kind'],
+                  id: r.subject_id,
+                  label: r.subject_label,
+                },
+          reason: r.reason,
+          supportSignIn:
+            r.sign_in_id === null || r.sign_in_at === null
+              ? null
+              : { entryId: r.sign_in_id, at: iso(r.sign_in_at), reason: r.sign_in_reason },
+        }));
       }),
   };
 }
