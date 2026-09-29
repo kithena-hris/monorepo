@@ -3,7 +3,12 @@ import { outboxTable, publish } from '@kithena/db-kit';
 import { err, failure, ok, type PendingEvent, type Result } from '@kithena/domain-kit';
 import { ExportCompleted, type Actor, type AttributeDefinition } from '@kithena/contracts';
 
-import { buildExport, type ExportDeps, type ExportRequest } from './export.js';
+import {
+  buildExport,
+  type ExportDeps,
+  type ExportFormat,
+  type ExportRequest,
+} from './export.js';
 import type { ObjectStore } from './object-store.js';
 
 /**
@@ -77,6 +82,13 @@ export interface CompletedExport {
   readonly rowCount: number;
   readonly fileNames: readonly string[];
   readonly expiresAt: string;
+  /**
+   * What the history shows, as `people.export.completed` carries it. Null on
+   * an export completed before the ledger kept them.
+   */
+  readonly format: ExportFormat | null;
+  readonly reason: string | null;
+  readonly attributeKeys: readonly string[] | null;
 }
 
 export type LedgerEntry =
@@ -204,6 +216,9 @@ export async function runExportJob(
     rowCount: built.value.rowCount,
     fileNames: built.value.files.map((f) => f.name),
     expiresAt,
+    format: request.format,
+    reason: reason === '' ? null : reason,
+    attributeKeys: built.value.attributeKeys,
   };
   if (!(await deps.ledger.complete(tx, run))) {
     const prior = await deps.ledger.find(tx, request.tenantId, exportId);

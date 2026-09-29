@@ -19,7 +19,7 @@ import {
   TableRow,
   icons,
 } from '@reach/ui';
-import { useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 
@@ -28,30 +28,43 @@ import { Loaded, type Loadable } from '../load';
  * of both. The flows themselves are unchanged; this page starts them.
  *
  * Importing is HR's, as it always was: anybody else sees Export alone. The
- * history is People's to keep. It keeps none it can list yet, so the page says
- * that rather than drawing rows it does not have.
+ * history is People's, from its two ledgers, and HR's and People
+ * administrators' to read; anybody else is shown none rather than an empty one.
  */
 
-/** One import or export, as People would word it. */
+/** One import or export, as People's history answers it. Worded here. */
 export interface TransferEntry {
   readonly id: string;
   readonly kind: 'import' | 'export';
-  /** The file's name for an import; for an export, the reason recorded with it. */
-  readonly title: string;
-  readonly by: { readonly name: string; readonly avatarUrl: string | null } | null;
-  /** When, in words: "Today 14:02", "15 Sep". */
+  /** The file's name for an import; for an export, its reason, else its file. */
+  readonly title: string | null;
+  readonly by: { readonly name: string; readonly avatarUrl: string | null };
+  /** When it started or was asked for, as an instant. */
   readonly at: string;
-  /** "369 created or updated", "124 people · Excel". */
-  readonly result: string;
-  readonly tone: 'success' | 'warning' | 'danger' | 'neutral';
-  /** The import's report or the export's file, while there is one. */
-  readonly href: string | null;
+  readonly imported: {
+    readonly created: number;
+    readonly updated: number;
+    readonly blocked: number;
+  } | null;
+  readonly exported: { readonly rows: number; readonly format: string | null } | null;
+  /** The viewer's own export, still there to download. */
+  readonly downloadable: boolean;
+  /** An import's blocked-row report, while it is kept: a link that expires. */
+  readonly reportUrl: string | null;
 }
 
 export interface ImportExportState {
   readonly canImport: boolean;
-  /** Newest first. `null`: People keeps no history of these it can list. */
-  readonly history: readonly TransferEntry[] | null;
+  /** Newest first, a page at a time. `null`: not this viewer's to read. */
+  readonly history: {
+    readonly items: readonly TransferEntry[];
+    /** The cursor for older entries; null on the last page. */
+    readonly next: string | null;
+    /** An older page, so "Newest" leads back. */
+    readonly paged: boolean;
+  } | null;
+  /** When the page was read, so "Today" means the same on the server and in the browser. */
+  readonly now: string;
 }
 
 export interface ImportExportProps {
@@ -59,6 +72,91 @@ export interface ImportExportProps {
 }
 
 export type HistoryKind = 'all' | 'import' | 'export';
+
+/** Where the page lives, and so its older pages. */
+const HERE = '/people/import-export';
+/** The template, as a file: the shell's download route. */
+export const TEMPLATE_URL = '/people/downloads/import-template';
+
+const FORMAT: Readonly<Record<string, string>> = { csv: 'CSV', xlsx: 'Excel', pdf: 'PDF' };
+
+/** What it was: the file, the reason, or what kind it is when People kept neither. */
+export const titleOf = (e: TransferEntry): string =>
+  e.title ?? (e.kind === 'import' ? 'An imported file' : 'An export');
+
+/** What came of it, in words, and how loudly: blocked rows are a warning. */
+export function resultOf(e: TransferEntry): {
+  readonly text: string;
+  readonly tone: 'success' | 'warning' | 'neutral';
+} {
+  if (e.imported !== null) {
+    const { created, updated, blocked } = e.imported;
+    if (blocked === 0) {
+      return { text: `${String(created + updated)} created or updated`, tone: 'success' };
+    }
+    const parts = [
+      created > 0 ? `${String(created)} created` : null,
+      updated > 0 ? `${String(updated)} updated` : null,
+      `${String(blocked)} blocked`,
+    ].filter((p) => p !== null);
+    return { text: parts.join(' · '), tone: 'warning' };
+  }
+  if (e.exported !== null) {
+    const { rows } = e.exported;
+    const people = `${rows.toLocaleString('en-GB')} ${rows === 1 ? 'person' : 'people'}`;
+    const format = e.exported.format === null ? undefined : FORMAT[e.exported.format];
+    return { text: format === undefined ? people : `${people} · ${format}`, tone: 'neutral' };
+  }
+  return { text: e.kind === 'import' ? 'Importing' : 'Being prepared', tone: 'neutral' };
+}
+
+/** An import's report, or an export's files: the export page hands the asker theirs. */
+export const hrefOf = (e: TransferEntry): string | null =>
+  e.kind === 'import'
+    ? e.reportUrl
+    : e.downloadable
+      ? `/people/export?export=${encodeURIComponent(e.id)}`
+      : null;
+
+/**
+ * When, as the design words it: "Today 14:02", "Mon 09:02" within the week,
+ * "15 Sep" before that. In the reader's zone once in their browser.
+ */
+export function whenOf(at: string, now: string, zone: string | undefined): string {
+  const day = (iso: string) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: zone, dateStyle: 'short' }).format(new Date(iso));
+  const time = new Intl.DateTimeFormat('en-GB', {
+    timeZone: zone,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(at));
+  if (day(at) === day(now)) return `Today ${time}`;
+  const days = (Date.parse(day(now)) - Date.parse(day(at))) / 86_400_000;
+  if (days > 0 && days < 7) {
+    const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: zone, weekday: 'short' }).format(
+      new Date(at),
+    );
+    return `${weekday} ${time}`;
+  }
+  // "15 Sep": en-GB now abbreviates September as "Sept", so the parts are put together here.
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    day: 'numeric',
+    month: 'short',
+  }).formatToParts(new Date(at));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+  return `${part('day')} ${part('month')}`;
+}
+
+/** The reader's zone once in their browser; UTC for the server's render and the first. */
+function useZone(): string | undefined {
+  const [zone, setZone] = useState<string | undefined>('UTC');
+  useEffect(() => {
+    setZone(undefined);
+  }, []);
+  return zone;
+}
 
 /** The history under its switch and its search: a file, a person or a reason. */
 export function filterHistory(
@@ -71,8 +169,8 @@ export function filterHistory(
     (e) =>
       (kind === 'all' || e.kind === kind) &&
       (needle === '' ||
-        e.title.toLocaleLowerCase().includes(needle) ||
-        (e.by?.name.toLocaleLowerCase().includes(needle) ?? false)),
+        titleOf(e).toLocaleLowerCase().includes(needle) ||
+        e.by.name.toLocaleLowerCase().includes(needle)),
   );
 }
 
@@ -98,6 +196,17 @@ export function ImportExport({ load }: ImportExportProps): JSX.Element {
                   href="/people/import"
                   start="Start import"
                   startIcon={<icons.upload aria-hidden />}
+                  more={
+                    <Button
+                      asChild
+                      variant="secondary"
+                      startIcon={<icons.spreadsheet aria-hidden />}
+                    >
+                      <a href={TEMPLATE_URL} download>
+                        Template
+                      </a>
+                    </Button>
+                  }
                 />
               ) : null}
               <Action
@@ -112,7 +221,7 @@ export function ImportExport({ load }: ImportExportProps): JSX.Element {
                 startIcon={<icons.download aria-hidden />}
               />
             </div>
-            <History history={state.history} />
+            {state.history === null ? null : <History history={state.history} now={state.now} />}
           </>
         )}
       </Loaded>
@@ -121,8 +230,8 @@ export function ImportExport({ load }: ImportExportProps): JSX.Element {
 }
 
 /**
- * A way in or out. At a desk a card with what it takes and its start button;
- * under a finger a tile that is itself the link.
+ * A way in or out. At a desk a card with what it takes and its buttons; under
+ * a finger a tile that is itself the link.
  */
 function Action({
   icon,
@@ -134,6 +243,7 @@ function Action({
   href,
   start,
   startIcon,
+  more = null,
 }: {
   readonly icon: ReactNode;
   readonly title: string;
@@ -144,6 +254,8 @@ function Action({
   readonly href: string;
   readonly start: string;
   readonly startIcon: ReactNode;
+  /** A second button beside the start, at a desk: the import's template. */
+  readonly more?: ReactNode;
 }): JSX.Element {
   return (
     <>
@@ -166,6 +278,7 @@ function Action({
           <Button asChild variant="primary" startIcon={startIcon}>
             <a href={href}>{start}</a>
           </Button>
+          {more}
         </div>
       </Card>
       <Card interactive padded className="relative hidden flex-col gap-2.5 touch:flex">
@@ -187,24 +300,18 @@ const KIND = {
 } as const;
 
 /** One history for both, newest first: every import and export, whoever ran it. */
-function History({ history }: { readonly history: readonly TransferEntry[] | null }): JSX.Element {
+function History({
+  history,
+  now,
+}: {
+  readonly history: NonNullable<ImportExportState['history']>;
+  readonly now: string;
+}): JSX.Element {
   const [kind, setKind] = useState<HistoryKind>('all');
   const [search, setSearch] = useState('');
-  if (history === null) {
-    return (
-      <section aria-labelledby="history" className="flex flex-col gap-3">
-        <h2 id="history" className="text-md font-semibold">
-          History
-        </h2>
-        <EmptyState
-          icon={<icons.history />}
-          title="No history to show yet"
-          description="Past imports and exports are not listed here yet. Each export is still recorded with who asked, which fields and why."
-        />
-      </section>
-    );
-  }
-  const shown = filterHistory(history, kind, search);
+  const zone = useZone();
+  const shown = filterHistory(history.items, kind, search);
+  const when = (e: TransferEntry) => whenOf(e.at, now, zone);
   return (
     <section aria-labelledby="history" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -235,7 +342,7 @@ function History({ history }: { readonly history: readonly TransferEntry[] | nul
       </div>
       {shown.length === 0 ? (
         <EmptyState
-          title={history.length === 0 ? 'Nothing imported or exported yet' : 'Nothing matches'}
+          title={history.items.length === 0 ? 'Nothing imported or exported yet' : 'Nothing matches'}
         />
       ) : (
         <>
@@ -253,78 +360,96 @@ function History({ history }: { readonly history: readonly TransferEntry[] | nul
               </TableRow>
             </TableHeader>
             <TableBody>
-              {shown.map((e) => (
-                <TableRow key={e.id}>
-                  <TableCell>
-                    <Badge size="sm" tone={KIND[e.kind].tone}>
-                      {KIND[e.kind].icon}
-                      {KIND[e.kind].label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{e.title}</TableCell>
-                  <TableCell>
-                    {e.by === null ? (
-                      <span className="text-fg-subtle">—</span>
-                    ) : (
+              {shown.map((e) => {
+                const title = titleOf(e);
+                const result = resultOf(e);
+                const href = hrefOf(e);
+                return (
+                  <TableRow key={e.id}>
+                    <TableCell>
+                      <Badge size="sm" tone={KIND[e.kind].tone}>
+                        {KIND[e.kind].icon}
+                        {KIND[e.kind].label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-normal">{title}</TableCell>
+                    <TableCell>
                       <span className="flex items-center gap-2">
                         <Avatar size="sm" name={e.by.name} src={e.by.avatarUrl ?? undefined} />
                         {e.by.name}
                       </span>
-                    )}
-                  </TableCell>
-                  <TableCell>{e.at}</TableCell>
-                  <TableCell>
-                    {e.tone === 'neutral' ? (
-                      e.result
-                    ) : (
-                      <Badge size="sm" tone={e.tone}>
-                        {e.result}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {e.href === null ? null : (
-                      <Button asChild size="xs" variant="ghost">
-                        <a
-                          href={e.href}
-                          aria-label={
-                            e.kind === 'import' ? `Report of ${e.title}` : `Download ${e.title}`
-                          }
-                        >
-                          {e.kind === 'import' ? (
-                            <icons.document aria-hidden />
-                          ) : (
-                            <icons.download aria-hidden />
-                          )}
-                        </a>
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>{when(e)}</TableCell>
+                    <TableCell>
+                      {result.tone === 'neutral' ? (
+                        result.text
+                      ) : (
+                        <Badge size="sm" tone={result.tone}>
+                          {result.text}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {href === null ? null : (
+                        <Button asChild size="xs" variant="ghost">
+                          <a
+                            href={href}
+                            aria-label={
+                              e.kind === 'import' ? `Report of ${title}` : `Download ${title}`
+                            }
+                          >
+                            {e.kind === 'import' ? (
+                              <icons.document aria-hidden />
+                            ) : (
+                              <icons.download aria-hidden />
+                            )}
+                          </a>
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
           <List aria-label="Imports and exports" className="hidden touch:block">
-            {shown.map((e) => (
-              <ListItem
-                key={e.id}
-                leading={
-                  <Avatar
-                    size="lg"
-                    shape="rounded"
-                    tone={KIND[e.kind].tone}
-                    name={KIND[e.kind].label}
-                    fallback={KIND[e.kind].icon}
-                  />
-                }
-                description={`${e.result} · ${e.at}`}
-                {...(e.href === null ? {} : { asChild: true, chevron: true })}
-              >
-                {e.href === null ? e.title : <a href={e.href}>{e.title}</a>}
-              </ListItem>
-            ))}
+            {shown.map((e) => {
+              const href = hrefOf(e);
+              return (
+                <ListItem
+                  key={e.id}
+                  leading={
+                    <Avatar
+                      size="lg"
+                      shape="rounded"
+                      tone={KIND[e.kind].tone}
+                      name={KIND[e.kind].label}
+                      fallback={KIND[e.kind].icon}
+                    />
+                  }
+                  description={`${resultOf(e).text} · ${when(e)}`}
+                  {...(href === null ? {} : { asChild: true, chevron: true })}
+                >
+                  {href === null ? titleOf(e) : <a href={href}>{titleOf(e)}</a>}
+                </ListItem>
+              );
+            })}
           </List>
         </>
+      )}
+      {history.next === null && !history.paged ? null : (
+        <nav aria-label="Older history" className="flex gap-2">
+          {history.paged ? (
+            <Button asChild>
+              <a href={HERE}>Newest</a>
+            </Button>
+          ) : null}
+          {history.next === null ? null : (
+            <Button asChild>
+              <a href={`${HERE}?before=${encodeURIComponent(history.next)}`}>Older</a>
+            </Button>
+          )}
+        </nav>
       )}
     </section>
   );

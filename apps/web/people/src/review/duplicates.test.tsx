@@ -11,6 +11,7 @@ const queue: DuplicatesState = {
       personIds: ['p1', 'p2'],
       names: ['Ada Lovelace', 'Augusta Lovelace'],
       reasons: ['Same work email'],
+      match: 'likely',
     },
   ],
   comparison: null,
@@ -102,8 +103,21 @@ describe('HR’s duplicate review (PEO-074)', () => {
     expect(screen.getByText('Same work email')).toBeInTheDocument();
     await fast().click(screen.getByRole('button', { name: /Compare Ada Lovelace and Augusta/ }));
     expect(onCompare).toHaveBeenCalledWith('p1', 'p2');
-    // Titled as its section; People scores no match yet, so there is no column for one.
+    // Titled as its section; the match is a band People gives, never a percentage.
     expect(screen.getByRole('heading', { level: 1, name: 'Data health' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Match' })).toBeInTheDocument();
+    expect(screen.getByText('Likely')).toBeInTheDocument();
+    expect(screen.queryByText(/%/u)).toBeNull();
+  });
+
+  it('draws no Match column for pairs People gave no band', () => {
+    const { personIds, names, reasons } = queue.items[0] ?? { personIds: [], names: [], reasons: [] };
+    render(
+      <Duplicates
+        {...props}
+        load={{ status: 'ready', data: { ...queue, items: [{ personIds, names, reasons }] } }}
+      />,
+    );
     expect(screen.queryByRole('columnheader', { name: 'Match' })).toBeNull();
   });
 

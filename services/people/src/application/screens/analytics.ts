@@ -81,6 +81,13 @@ export interface AnalyticsView {
     readonly change: number | null;
     readonly trend: readonly Point[];
   };
+  /**
+   * Hired and not started yet (`pre_hire`, "Starting soon"): HR's only, the
+   * tenant's count. Null for anybody else — a manager's directory is wider
+   * than their chain, so it would not be theirs — and under a segment, which
+   * the snapshot cannot hold a pre-hire in (they are not on the headcount yet).
+   */
+  readonly startingSoon: number | null;
   readonly attrition: {
     readonly percent: number;
     readonly leavers: number;
@@ -281,6 +288,13 @@ export async function analyticsView(
     const trend = await headcountTrend(ctx, range(minusMonths(today, 12)));
     // The one chart every viewer gets: a segment they may not use stops here.
     if (!trend.ok) return trend;
+    const starting =
+      viewer.kind === 'hr' && filters === undefined
+        ? await deps.service.access.count(tx, {
+            ...asking,
+            refine: { conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }] },
+          })
+        : null;
     const points = trend.value.points;
     const last = points.at(-1);
     const before = points.at(-2);
@@ -350,6 +364,7 @@ export async function analyticsView(
           last !== undefined && before !== undefined ? last.headcount - before.headcount : null,
         trend: points.map((p) => ({ label: p.month, value: p.headcount })),
       },
+      startingSoon: starting?.ok === true ? starting.value.all : null,
       attrition:
         !attrition.ok || latest === undefined || latest.rate === null
           ? null
@@ -547,4 +562,91 @@ export function payExport(pay: PayView): readonly (readonly string[])[] {
     ...rowsOf('salary by tenure', pay.tenure, false),
     ...rowsOf('compa-ratio by grade', pay.compa, true),
   ];
+}
+
+/** Insights' four tabs, each a route: `/people/insights/<tab>`. */
+export const INSIGHTS_TABS = ['headcount', 'turnover', 'data-quality', 'pay'] as const;
+export type InsightsTab = (typeof INSIGHTS_TABS)[number];
+
+/**
+ * The rows a CSV of one Insights tab carries (§16.3: exporting a chart exports
+ * its data), for the tab and segment the viewer is looking at. Built from the
+ * view and nothing else, as `payExport` is: a chart the viewer may not see is
+ * null there and absent here, and the cohort minimum was applied where the
+ * numbers were counted. Aggregates only — the expiry timeline names people,
+ * so it stays on the screen and out of a file.
+ *
+ * One shape, `chart, group, series, value`, for every tab but pay, whose
+ * quartiles are `payExport`'s own columns.
+ */
+export function analyticsExport(
+  view: AnalyticsView,
+  tab: InsightsTab,
+): readonly (readonly string[])[] {
+  const n = String;
+  const rows: string[][] = [];
+  const add = (chart: string, group: string, series: string, value: number) => {
+    rows.push([chart, group, series, n(value)]);
+  };
+  if (tab === 'pay') {
+    const pay: (readonly string[])[] =
+      view.pay === null
+        ? [['chart', 'group', 'currency', 'people', '25th percentile', 'median', '75th percentile']]
+        : [...payExport(view.pay)];
+    for (const q of view.selfId ?? []) {
+      if (q.status !== 'ok') pay.push([q.label, '', '', INSUFFICIENT, '', '', '']);
+      else for (const c of q.cells) pay.push([q.label, c.label, '', n(c.value), '', '', '']);
+    }
+    return pay;
+  }
+  const day = view.asOf;
+  if (tab === 'headcount') {
+    add('Headcount', day, '', view.headcount.value);
+    if (view.startingSoon !== null) add('Starting soon', day, '', view.startingSoon);
+    for (const p of view.headcount.trend) add('Headcount by month', p.label, '', p.value);
+    const m = view.movement;
+    if (m !== null) {
+      const where = 'Where the change came from';
+      add(where, 'Opening', m.period, m.opening);
+      add(where, 'Joined', m.period, m.joiners);
+      add(where, 'Moved', m.period, m.moves);
+      add(where, 'Left', m.period, m.leavers);
+      add(where, 'Closing', m.period, m.closing);
+    }
+    const c = view.composition;
+    if (c !== null) {
+      for (const s of c.series) {
+        c.categories.forEach((category, i) => {
+          add('Headcount by department', category, s.label, s.values[i] ?? 0);
+        });
+      }
+    }
+    for (const cell of view.joiners?.cells ?? []) {
+      add('Joiners by department', cell.row, cell.column, cell.value);
+    }
+  }
+  if (tab === 'turnover') {
+    const a = view.attrition;
+    if (a !== null) {
+      add('Attrition, rolling 12 months', day, 'percent', a.percent);
+      add('Left, 12 months', day, '', a.leavers);
+      for (const p of a.trend) add('Attrition by month', p.label, 'percent', p.value);
+    }
+    for (const b of view.tenure ?? []) {
+      add('Tenure', b.label, 'Here now', b.headcount);
+      add('Tenure', b.label, 'Left in 12 months', b.leavers);
+    }
+    for (const p of view.span ?? []) add('Span of control', p.label, 'managers', p.value);
+  }
+  if (tab === 'data-quality') {
+    if (view.complete !== null) {
+      add('Records complete', day, 'percent', view.complete.percent);
+      add('Incomplete records', day, '', view.complete.incomplete);
+    }
+    if (view.expiringIn90Days !== null) add('Expiring in 90 days', day, '', view.expiringIn90Days);
+    for (const p of view.completenessBySection ?? []) {
+      add('Missing details by section', p.label, '', p.value);
+    }
+  }
+  return [['chart', 'group', 'series', 'value'], ...rows];
 }

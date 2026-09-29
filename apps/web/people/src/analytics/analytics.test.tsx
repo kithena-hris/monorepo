@@ -76,6 +76,45 @@ describe('Analytics', () => {
     expect(screen.getByText('Nothing to show on this tab')).toBeInTheDocument();
   });
 
+  it('counts who starts soon beside the headcount, only where People sent the figure', () => {
+    const { rerender } = render(
+      <Analytics load={{ status: 'ready', data: { ...workforce, startingSoon: 4 } }} />,
+    );
+    expect(screen.getByText('Starting soon').parentElement?.parentElement).toHaveTextContent(
+      'Starting soon4',
+    );
+    expect(screen.getByText('Hired, not started yet')).toBeInTheDocument();
+    // Never "Open roles": People does not count them, recruiting would.
+    expect(screen.queryByText('Open roles')).toBeNull();
+
+    rerender(<Analytics load={{ status: 'ready', data: { ...workforce, startingSoon: null } }} />);
+    expect(screen.queryByText('Starting soon')).toBeNull();
+  });
+
+  it('exports the tab on screen, for the segment on screen, as a file', () => {
+    const { rerender } = render(
+      <Analytics tab="turnover" load={{ status: 'ready', data: workforce }} />,
+    );
+    const link = screen.getByRole('link', { name: 'Export' });
+    expect(link).toHaveAttribute('href', '/people/downloads/insights?tab=turnover');
+    expect(link).toHaveAttribute('download');
+
+    rerender(
+      <Analytics
+        tab="headcount"
+        segmentId="seg-1"
+        load={{
+          status: 'ready',
+          data: { ...workforce, segment: { id: 'seg-1', name: 'Engineering' } },
+        }}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'Export' })).toHaveAttribute(
+      'href',
+      '/people/downloads/insights?tab=headcount&segment=seg-1',
+    );
+  });
+
   it('answers each question with a chart and its numbers one tap away', async () => {
     const user = fast();
     const { container, rerender } = render(

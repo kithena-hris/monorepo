@@ -280,6 +280,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         personIds: t.idList({ resolve: (d) => [...d.personIds] }),
         names: t.stringList({ resolve: (d) => [...d.names] }),
         reasons: t.stringList({ resolve: (d) => list(d.reasons) }),
+        match: t.exposeString('match', {
+          description:
+            'strong, likely or possible: a band from the signals, never a percentage (`matchBand`).',
+        }),
       }),
     });
   const ComparedPersonRef = builder.objectRef<ComparedPerson>('ComparedPerson').implement({
@@ -1410,6 +1414,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: 'The cohort minimum in force: smaller groups are withheld.',
       }),
       headcount: t.field({ type: Headcount, resolve: (v) => v.headcount }),
+      startingSoon: t.exposeInt('startingSoon', {
+        nullable: true,
+        description: 'Hired, not started yet; HR’s only, never under a segment.',
+      }),
       attrition: t.field({ type: Attrition, nullable: true, resolve: (v) => v.attrition }),
       complete: t.field({ type: Complete, nullable: true, resolve: (v) => v.complete }),
       expiringIn90Days: t.exposeInt('expiringIn90Days', { nullable: true }),

@@ -156,6 +156,8 @@ async function boot(analyzed: boolean): Promise<Database> {
     '20260923120000_people_webhooks.sql',
     '20260923130000_people_import_export.sql',
     '20260924250000_people_import_report.sql',
+    '20260923200000_people_export.sql',
+    '20260929120000_people_transfer_history.sql',
     '20260924170000_people_calendar.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924340000_people_person_key_lookup.sql',

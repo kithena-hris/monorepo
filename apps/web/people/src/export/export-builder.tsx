@@ -43,8 +43,9 @@ export interface ExportState {
     readonly fields: readonly { readonly key: string; readonly label: string }[];
   }[];
   /**
-   * A scheduled report's file, when its email's link opened this page
-   * (PEO-069). `missing` is somebody else's, or one that no longer exists.
+   * An export's files, when a link opened this page with it: a scheduled
+   * report's email (PEO-069), or the history's download. `missing` is
+   * somebody else's, or one that no longer exists.
    */
   readonly ready?: {
     readonly status: 'queued' | 'completed' | 'expired' | 'missing';
@@ -109,15 +110,15 @@ export function ExportBuilder({ load, onExport }: ExportBuilderProps): JSX.Eleme
   );
 }
 
-/** The file a scheduled report's email pointed at: the recipient's own, for 24 hours. */
+/** The export a link pointed at: the asker's own, for 24 hours. */
 function Ready({ ready }: { readonly ready: NonNullable<ExportState['ready']> }): JSX.Element {
   if (ready.status === 'completed') {
     return (
-      <Alert tone="success" title="Your scheduled report is ready">
+      <Alert tone="success" title="Your export is ready">
         <Stack gap={3}>
           <p>
-            It holds only what you can see in People. The link stops working 24 hours after the
-            report was made.
+            It holds only what you can see in People. The links stop working 24 hours after it was
+            made.
           </p>
           <div className="flex flex-wrap gap-2">
             {ready.links.map((link) => (
@@ -133,14 +134,14 @@ function Ready({ ready }: { readonly ready: NonNullable<ExportState['ready']> })
   if (ready.status === 'queued') {
     return (
       <Alert tone="info">
-        Your scheduled report is still being prepared. Try again in a minute.
+        Your export is still being prepared. Try again in a minute.
       </Alert>
     );
   }
   return (
-    <Alert tone="warning" title="This report is no longer available">
+    <Alert tone="warning" title="This export is no longer available">
       {ready.status === 'expired'
-        ? 'Scheduled reports are deleted 24 hours after they are made. The next one arrives as scheduled.'
+        ? 'Exports are deleted 24 hours after they are made. A scheduled report’s next one arrives as scheduled.'
         : 'It was made for somebody else, or it no longer exists.'}
     </Alert>
   );

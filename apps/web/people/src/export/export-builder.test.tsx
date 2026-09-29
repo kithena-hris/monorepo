@@ -147,7 +147,7 @@ describe('ExportBuilder', () => {
         onExport={vi.fn()}
       />,
     );
-    expect(screen.getByText('This report is no longer available')).toBeTruthy();
+    expect(screen.getByText('This export is no longer available')).toBeTruthy();
     expect(screen.queryByRole('link', { name: /^Download/ })).toBeNull();
   });
 

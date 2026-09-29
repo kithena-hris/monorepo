@@ -58,6 +58,8 @@ export interface ImportLedger {
       checksum: string;
       actorId: string;
       rowCount: number;
+      /** The file's name as uploaded, for the history; never a value in it. */
+      name: string | null;
     },
   ): Promise<{ claimed: true } | { claimed: false; importId: string }>;
   complete(
@@ -218,10 +220,13 @@ interface Outcome {
   readonly reason: string | null;
 }
 
+/** A dry run's input, and the name the file was uploaded under. */
+export type CommitInput = DryRunInput & { readonly fileName?: string };
+
 export async function commitImport(
   tx: PostgresJsDatabase,
   deps: CommitDeps,
-  input: DryRunInput,
+  input: CommitInput,
 ): Promise<Result<CommitResult>> {
   const planned = await dryRun(tx, deps, input);
   if (!planned.ok) return planned;
@@ -234,6 +239,8 @@ export async function commitImport(
     checksum: input.file.checksum,
     actorId: input.viewer.accountId,
     rowCount: plan.rowsRead,
+    // The upload allows an empty name; the column holds a real one or none.
+    name: input.fileName === undefined || input.fileName === '' ? null : input.fileName,
   });
   if (!claim.claimed) {
     return ok({
@@ -373,7 +380,7 @@ export async function commitImport(
 export async function commitImportRetrying(
   inTenant: InTenant,
   deps: CommitDeps,
-  input: DryRunInput,
+  input: CommitInput,
   options: {
     readonly attempts?: number;
     readonly backoffMs?: number;

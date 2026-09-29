@@ -381,7 +381,10 @@ describe('who sees pay', () => {
   function deps(cohortMinimum = 10): ScreenDeps {
     return {
       service: {
-        access: {} as never,
+        // HR's "Starting soon" count; pay is what this file is about.
+        access: {
+          count: () => Promise.resolve(ok({ all: 0, active: 0, notStarted: 0 })),
+        } as never,
         schemas: { current: () => Promise.resolve(version) } as never,
         inTenant: (tenantId, fn) => inTenant(tenantId, fn),
         org: {

@@ -474,6 +474,10 @@ type DuplicateDismissed {
 
 """Two records that look like one human, and why. Never a value."""
 type DuplicatePair {
+  """
+  strong, likely or possible: a band from the signals, never a percentage (`matchBand`).
+  """
+  match: String
   names: [String!]
   personIds: [ID!]
   reasons: [String!]
@@ -1377,6 +1381,8 @@ type PeopleAnalytics {
   sourceNote: String
   """Managers by number of direct reports"""
   span: [AnalyticsPoint!]
+  """Hired, not started yet; HR’s only, never under a segment."""
+  startingSoon: Int
   tenure: [AnalyticsTenureBand!]
 }
 
@@ -1891,6 +1897,50 @@ type PeopleSetupOption {
   value: String
 }
 
+"""
+One import or export, as its ledger keeps it. Never a value, never a stored link.
+"""
+type PeopleTransfer {
+  at: String
+  by: PeopleTransferBy
+  """
+  The viewer’s own export, still there: `peopleExport(id)` hands them its files.
+  """
+  downloadable: Boolean
+  exported: PeopleTransferExported
+  id: ID
+  imported: PeopleTransferImported
+  """import or export."""
+  kind: String
+  """An import’s blocked-row report while it is kept: a link that expires."""
+  reportUrl: String
+  """An import’s file name; an export’s reason, else the file it made."""
+  title: String
+}
+
+type PeopleTransferBy {
+  avatarUrl: String
+  name: String
+}
+
+type PeopleTransferExported {
+  """csv, xlsx or pdf; null on an export from before the ledger kept it."""
+  format: String
+  rows: Int
+}
+
+type PeopleTransferHistory {
+  items: [PeopleTransfer!]
+  next: ID
+}
+
+type PeopleTransferImported {
+  """Refused rows and duplicates together."""
+  blocked: Int
+  created: Int
+  updated: Int
+}
+
 type Person @key(fields: "id") {
   attributes: [Attribute!]
   id: ID
@@ -2026,6 +2076,10 @@ type Query {
   people(after: String, asOf: String, first: Int): PersonPage
   peopleAnalytics(segment: ID): PeopleAnalytics
   """
+  One Insights tab’s numbers as CSV, for a segment or everybody the viewer may chart.
+  """
+  peopleAnalyticsExport(segment: ID, tab: String!): String
+  """
   Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.
   """
   peopleApprovals: PeopleApprovals
@@ -2087,6 +2141,10 @@ type Query {
   peopleIdentifierCheck(changed: [FormValueInput!]!, personId: ID): IdentifierCheck
   """Doubted national identifiers waiting for HR (PEO-125); HR only."""
   peopleIdentifierReviews: PeopleIdentifierReviews
+  """
+  A header-only CSV of the fields the viewer may import, by label; HR only (`GET /v1/imports/template`).
+  """
+  peopleImportTemplate: String
   peopleIntegrations: PeopleIntegrations
   peopleOnboarding: PeopleOnboarding
   peopleOrganisation: PeopleOrganisation
@@ -2112,6 +2170,10 @@ type Query {
   peopleSettings: PeopleSettings
   peopleSettingsActivity(area: String, before: ID): PeopleSettingsActivity
   peopleSetup: PeopleSetup
+  """
+  Imports and exports, newest first, 50 at a time; HR and People administrators.
+  """
+  peopleTransferHistory(before: ID): PeopleTransferHistory
   """
   One endpoint’s delivery log, newest first, 50 at a time; people_admin only.
   """

@@ -157,6 +157,9 @@ describe('the ledger', () => {
       rowCount: 3,
       fileNames: ['people.csv', "o'brien.csv"],
       expiresAt: '2026-09-23T09:00:00.000Z',
+      format: 'csv' as const,
+      reason: 'Payroll reconciliation, September',
+      attributeKeys: ['given_name', "o'brien_code"],
     };
 
     await inTenant(ACME, ({ tx }) => ledger.queue(tx, run));

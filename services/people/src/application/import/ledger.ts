@@ -25,9 +25,9 @@ export function drizzleImportLedger(): ImportLedger {
       // upload of the same file blocks on the index until this transaction
       // ends, then finds the row and does nothing.
       const inserted = await tx.execute<{ id: string }>(sql`
-        INSERT INTO people.import (tenant_id, id, checksum, actor_id, row_count)
+        INSERT INTO people.import (tenant_id, id, checksum, actor_id, row_count, name)
         VALUES (${entry.tenantId}::uuid, ${entry.importId}::uuid, ${entry.checksum},
-                ${entry.actorId}::uuid, ${entry.rowCount})
+                ${entry.actorId}::uuid, ${entry.rowCount}, ${entry.name})
         ON CONFLICT (tenant_id, checksum) DO NOTHING
         RETURNING id`);
       if ([...inserted].length > 0) {
