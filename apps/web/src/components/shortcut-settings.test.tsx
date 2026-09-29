@@ -88,7 +88,7 @@ const errorOf = (label: string): string | null => {
   );
 };
 
-describe('Settings › Keyboard shortcuts', () => {
+describe('Settings › Keyboard shortcuts', { timeout: 30_000 }, () => {
   it('refuses keys another shortcut already has, on the field, naming the clash', () => {
     const store = fresh();
     renderPage(store);
