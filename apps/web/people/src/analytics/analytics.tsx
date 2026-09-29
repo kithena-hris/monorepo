@@ -571,6 +571,8 @@ function Workforce({
     <Stack gap={6}>
       <PageHeader
         title="Insights"
+        // A phone's bar holds the clock (MV6), as the design draws it.
+        touchBarActions
         description={`${state.asOf}${state.segment ? ` · ${state.segment.name}` : ''} · ${state.sourceNote}`}
         actions={
           <>
