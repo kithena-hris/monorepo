@@ -13,6 +13,7 @@ const view: AnalyticsView = {
   asOf: '2026-09-22',
   source: 'snapshot',
   sourceNote: 'From the daily snapshot.',
+  minimum: 10,
   segment: null,
   segments: [],
   headcount: {
@@ -30,7 +31,7 @@ const view: AnalyticsView = {
     formula: 'leavers ÷ average headcount',
     trend: [{ label: '2026-09', value: 6.4 }],
   },
-  complete: { percent: 81, incomplete: 78 },
+  complete: { percent: 81, incomplete: 78, change: null, trend: [] },
   expiringIn90Days: 2,
   movement: {
     period: '2026-08-22 to 2026-09-22',
