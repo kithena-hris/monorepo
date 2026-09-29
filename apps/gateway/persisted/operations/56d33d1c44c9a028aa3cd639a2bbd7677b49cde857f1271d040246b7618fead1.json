@@ -1,0 +1,1 @@
+{"version":1,"body":"query Names($accountIds: [ID!], $personIds: [ID!]) {\n    peopleNames(accountIds: $accountIds, personIds: $personIds) {\n      people { accountId personId name avatarUrl }\n    }\n  }"}

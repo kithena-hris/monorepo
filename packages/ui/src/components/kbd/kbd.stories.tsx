@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from '../button/button';
 import { Input } from '../input/input';
 import { Tooltip } from '../tooltip/tooltip';
-import { Kbd } from './kbd';
+import { Kbd, KbdShortcut } from './kbd';
 
 const meta = {
   title: 'Components/Kbd',
@@ -161,5 +161,35 @@ export const InATooltip: Story = {
     >
       <Button variant="primary">Approve</Button>
     </Tooltip>
+  ),
+};
+
+export const FromChords: Story = {
+  name: 'A shortcut, from chords',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`KbdShortcut` draws the chords a key handler matches (`chordOf` writes them), so a hint and the handler read one value. Modifiers still swap per platform. A sequence reads aloud with "then" between its keys.',
+      },
+    },
+  },
+  render: () => (
+    <div className="space-y-2 text-sm text-fg-muted">
+      {(
+        [
+          [['g', 'd'], 'Go to the directory'],
+          [['mod+k'], 'Search'],
+          [['mod+shift+a'], 'Approve the selected request'],
+          [['?'], 'Show every shortcut'],
+          [['escape'], 'Close'],
+        ] as const
+      ).map(([keys, description]) => (
+        <div key={description} className="flex items-center gap-3">
+          <KbdShortcut keys={keys} />
+          <span>{description}</span>
+        </div>
+      ))}
+    </div>
   ),
 };

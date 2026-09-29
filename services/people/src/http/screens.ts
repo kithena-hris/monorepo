@@ -74,7 +74,7 @@ import {
 } from '../application/screens/photo.js';
 import { deleteSegment, saveSegment, segmentsView } from '../application/screens/segments.js';
 import { requestDetails } from '../application/screens/requests.js';
-import { activityView } from '../application/settings/activity.js';
+import { namesView } from '../application/screens/names.js';
 import {
   chatView,
   completeChat,
@@ -532,22 +532,15 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         ask(deps, asking, input.question, input.earlier),
       ),
     },
-    // The Settings activity log, newest first (`?before=<id>&area=fields`).
+    // Names and faces for the central activity log's ids (`?accounts=a,b&people=c`).
     {
       method: 'GET',
-      pattern: /^\/v1\/views\/settings\/activity$/,
+      pattern: /^\/v1\/views\/names$/,
       handle: async (asking, _r, _p, query) => {
-        const area = query.get('area');
+        const ids = (key: string) =>
+          (query.get(key) ?? '').split(',').filter((id) => new RegExp(`^${UUID}$`).test(id));
         return answer(
-          await activityView(deps, asking, {
-            before: new RegExp(`^${UUID}$`).test(query.get('before') ?? '')
-              ? query.get('before')
-              : null,
-            area:
-              area === 'fields' || area === 'organisation' || area === 'roles' || area === 'integrations'
-                ? area
-                : null,
-          }),
+          await namesView(deps, asking, { accountIds: ids('accounts'), personIds: ids('people') }),
         );
       },
     },

@@ -1,6 +1,6 @@
 import type { AttributeDefinition } from '@kithena/contracts';
 
-import type { ActivityArea } from '../application/settings/activity.js';
+import type { ActivityArea } from '../application/settings/activity-store.js';
 import { PEOPLE_NOTICES } from '../application/settings/chat.js';
 
 /** A chat app's name as the log says it. */
@@ -20,6 +20,12 @@ type Body = Record<string, unknown>;
 type Said = {
   readonly action: string;
   readonly subject?: string | null;
+  /**
+   * A section's or field's key, where the path names it rather than the body:
+   * the router puts its label in `subject` before the log is written, so the
+   * log says "Work phone", not `work_phone` (`docs/audit.md`).
+   */
+  readonly subjectKey?: string | null;
   /** What it did, in one plain sentence. */
   readonly detail?: string | null;
 };
@@ -95,7 +101,7 @@ const RULES: readonly Rule[] = [
   {
     path: new RegExp(`^/v1/schema/draft/sections/${ID}/order$`),
     area: 'fields',
-    say: (_m, _b, id) => ({ action: 'Reordered the fields in a section', subject: id ?? null }),
+    say: (_m, _b, id) => ({ action: 'Reordered the fields in a section', subjectKey: id ?? null }),
   },
   {
     path: new RegExp(`^/v1/schema/draft/attributes/${ID}/signup$`),
@@ -107,7 +113,7 @@ const RULES: readonly Rule[] = [
           : b['ask'] === 'required'
             ? 'Required a field at sign-up'
             : 'Asked a field at sign-up, optional',
-      subject: id ?? null,
+      subjectKey: id ?? null,
       detail:
         b['ask'] === 'off'
           ? 'Sign-up no longer asks for it.'
@@ -124,7 +130,7 @@ const RULES: readonly Rule[] = [
         b['share'] === true
           ? 'Shared a field with the assistant'
           : 'Stopped sharing a field with the assistant',
-      subject: id ?? null,
+      subjectKey: id ?? null,
       detail:
         b['share'] === true
           ? 'The assistant can answer questions about it, in Kithena and in chat apps. It learns the field’s name and choices, never anybody’s value.'
@@ -347,6 +353,8 @@ export type ActivityTarget = { readonly kind: 'field'; readonly key: string } | 
 /** What the log reads to compare: the thing, as it is. */
 export interface ActivityReads {
   field(key: string): Promise<AttributeDefinition | null>;
+  /** A section's or field's label in the draft, by its key; null when there is none. */
+  label?(key: string): Promise<string | null>;
   settings(): Promise<{
     readonly defaultTimeZone: string;
     readonly cohortMinimum: number;

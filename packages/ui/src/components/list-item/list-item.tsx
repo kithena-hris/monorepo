@@ -4,8 +4,10 @@ import { ChevronRight } from 'lucide-react';
 import {
   cloneElement,
   isValidElement,
+  useEffect,
   useRef,
   type ComponentPropsWithoutRef,
+  type KeyboardEvent as ReactKeyboardEvent,
   type JSX,
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
@@ -15,6 +17,14 @@ import {
 
 import { resolveChild } from '../../lib/child';
 import { cn } from '../../lib/cn';
+import {
+  actionPressed,
+  pressed,
+  sequenceArmed,
+  shortcutKeys,
+  type RowAction,
+} from '../../lib/shortcut-keys';
+import { RowMenu } from '../table/row-menu';
 
 /**
  * The row most lists are built from, and the rounded group that holds them.
@@ -47,9 +57,81 @@ import { cn } from '../../lib/cn';
  * finds them in reading order like any other control.
  */
 
-export function List({ className, ...props }: ComponentPropsWithoutRef<'ul'>): JSX.Element {
+export interface ListProps extends ComponentPropsWithoutRef<'ul'> {
+  /**
+   * The rows that open something move from the keyboard, with a roving focus:
+   * Tab reaches one row (the one last focused, the current one, else the
+   * first), J and K or ↓ and ↑ move between them, Home and End jump, Enter or
+   * O opens, a row's `actions` keys run them, and Escape leaves the list. The
+   * letters are the app's (`setShortcutKeys`) and go quiet when it turns
+   * character keys off.
+   */
+  navigable?: boolean;
+}
+
+/** The rows of a navigable list: each interactive row's own element. */
+function rowsOf(list: HTMLUListElement): HTMLElement[] {
+  return [...list.querySelectorAll<HTMLElement>(':scope > li [data-list-row]')];
+}
+
+export function List({
+  className,
+  navigable = false,
+  onKeyDown,
+  ...props
+}: ListProps): JSX.Element {
+  const ref = useRef<HTMLUListElement | null>(null);
+  // One row in the tab order: the focused one, the current one, else the first.
+  useEffect(() => {
+    const list = ref.current;
+    if (!navigable || list === null) return;
+    const rows = rowsOf(list);
+    const active =
+      rows.find((row) => row === document.activeElement) ??
+      rows.find((row) => row.dataset['listRoving'] === 'true') ??
+      rows.find((row) => row.getAttribute('aria-current') !== null) ??
+      rows[0];
+    for (const row of rows) row.tabIndex = row === active ? 0 : -1;
+  });
   return (
     <ul
+      ref={ref}
+      onKeyDown={(event) => {
+        onKeyDown?.(event);
+        const list = ref.current;
+        if (!navigable || list === null || event.defaultPrevented || sequenceArmed()) return;
+        const rows = rowsOf(list);
+        const index = rows.findIndex((row) => row === event.target);
+        if (index === -1) return;
+        const plain = !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
+        const is = (id: string): boolean => pressed(event, id);
+        const to =
+          (plain && event.key === 'ArrowDown') || is('list.next')
+            ? index + 1
+            : (plain && event.key === 'ArrowUp') || is('list.previous')
+              ? index - 1
+              : plain && event.key === 'Home'
+                ? 0
+                : plain && event.key === 'End'
+                  ? rows.length - 1
+                  : null;
+        if (to !== null) {
+          const next = rows[Math.max(0, Math.min(rows.length - 1, to))];
+          if (next !== undefined) {
+            for (const row of rows) row.tabIndex = row === next ? 0 : -1;
+            for (const row of rows) delete row.dataset['listRoving'];
+            next.dataset['listRoving'] = 'true';
+            next.focus();
+          }
+        } else if (is('list.open')) {
+          rows[index]?.click();
+        } else if (plain && event.key === 'Escape') {
+          rows[index]?.blur();
+          return;
+        } else return;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
       className={cn(
         'overflow-hidden rounded-[1.125rem] bg-surface shadow-sm touch:rounded-[1.375rem]',
         // A hairline between rows, drawn as an inset shadow so it takes no
@@ -95,6 +177,12 @@ export interface ListItemProps extends Omit<ComponentPropsWithoutRef<'li'>, 'tit
   swipeActions?: readonly SwipeAction[];
   /** Lets a full-width pull run the first action. On by default. */
   fullSwipe?: boolean;
+  /**
+   * What can be done to this row: a menu at its end with each one's keys,
+   * which run it while the row has focus (an interactive row, in a
+   * `navigable` list).
+   */
+  actions?: readonly RowAction[];
 }
 
 export interface SwipeAction {
@@ -306,6 +394,7 @@ export function ListItem({
   asChild = false,
   swipeActions,
   fullSwipe = true,
+  actions,
   children: given,
   ...props
 }: ListItemProps): JSX.Element {
@@ -365,10 +454,26 @@ export function ListItem({
   );
 
   const child = interactive ? (children as ChildElement) : null;
+  const acts = actions !== undefined && actions.length > 0 ? actions : null;
   const body = child
     ? cloneElement(
         child,
-        { className: cn(row, child.props.className) },
+        {
+          className: cn(row, acts && 'min-w-0 flex-1', child.props.className),
+          'data-list-row': '',
+          ...(acts
+            ? {
+                onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
+                  if (event.target !== event.currentTarget || sequenceArmed()) return;
+                  const action = actionPressed(event, acts, shortcutKeys());
+                  if (action === undefined) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  action.onSelect();
+                },
+              }
+            : {}),
+        } as Record<string, unknown>,
         content(child.props.children),
       )
     : null;
@@ -437,7 +542,12 @@ export function ListItem({
   }
 
   if (body) {
-    return (
+    return acts ? (
+      <li className={cn('flex items-center pe-2', selected && 'bg-accent-subtle', className)} {...props}>
+        {body}
+        <RowMenu name={typeof child?.props.children === 'string' ? child.props.children : 'this row'} actions={acts} />
+      </li>
+    ) : (
       <li className={className} {...props}>
         {body}
       </li>

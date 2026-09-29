@@ -19,9 +19,12 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { keysOf, useShortcutKeys } from '../../lib/shortcut-keys';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
+import { KbdShortcut } from '../kbd/kbd';
 import { Spinner } from '../spinner/spinner';
+import { Tooltip, TooltipProvider } from '../tooltip/tooltip';
 
 /**
  * An assistant that answers from the reader's policies and data, and acts once
@@ -436,6 +439,8 @@ export interface AssistantLauncherProps extends ComponentPropsWithoutRef<'div'> 
   nudge?: ReactNode;
   onDismissNudge?: () => void;
   label?: string;
+  /** The id of the shortcut that opens it (`setShortcutKeys`): shown in its tooltip. */
+  shortcut?: string;
 }
 
 /** The floating button that opens the panel, with an optional greeting. */
@@ -444,9 +449,26 @@ export function AssistantLauncher({
   nudge,
   onDismissNudge,
   label = 'Open assistant',
+  shortcut,
   className,
   ...props
 }: AssistantLauncherProps): JSX.Element {
+  const keys = keysOf(shortcut, useShortcutKeys());
+  const launcher = (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onOpen}
+      className={cn(
+        'grid size-14 place-items-center rounded-full bg-accent-solid text-fg-on-accent shadow-lg',
+        'transition-[background-color,transform] duration-(--animate-duration-fast) ease-standard',
+        'hover:bg-accent-hover active:scale-95 motion-reduce:active:scale-100',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+      )}
+    >
+      <Sparkles aria-hidden className="size-6" />
+    </button>
+  );
   return (
     <div className={cn('flex flex-col items-end gap-2.5', className)} {...props}>
       {nudge ? (
@@ -467,19 +489,15 @@ export function AssistantLauncher({
           ) : null}
         </div>
       ) : null}
-      <button
-        type="button"
-        aria-label={label}
-        onClick={onOpen}
-        className={cn(
-          'grid size-14 place-items-center rounded-full bg-accent-solid text-fg-on-accent shadow-lg',
-          'transition-[background-color,transform] duration-(--animate-duration-fast) ease-standard',
-          'hover:bg-accent-hover active:scale-95 motion-reduce:active:scale-100',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
-        )}
-      >
-        <Sparkles aria-hidden className="size-6" />
-      </button>
+      {keys.length === 0 ? (
+        launcher
+      ) : (
+        <TooltipProvider>
+          <Tooltip content={label} shortcut={<KbdShortcut keys={keys} />} side="left">
+            {launcher}
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 }

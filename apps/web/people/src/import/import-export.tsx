@@ -226,6 +226,7 @@ export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element 
                 href="/people/export"
                 start="New export"
                 startIcon={<icons.download aria-hidden />}
+                shortcut="create"
               />
             </div>
             {state.history === null ? null : (
@@ -253,6 +254,7 @@ function Action({
   start,
   startIcon,
   more = null,
+  shortcut,
 }: {
   readonly icon: ReactNode;
   readonly title: string;
@@ -265,6 +267,8 @@ function Action({
   readonly startIcon: ReactNode;
   /** A second button beside the start, at a desk: the import's template. */
   readonly more?: ReactNode;
+  /** The shortcut the start answers to (C for a new export), shown in its tooltip. */
+  readonly shortcut?: string;
 }): JSX.Element {
   return (
     <>
@@ -284,7 +288,12 @@ function Action({
           ))}
         </div>
         <div className="flex gap-2">
-          <Button asChild variant="primary" startIcon={startIcon}>
+          <Button
+            asChild
+            variant="primary"
+            startIcon={startIcon}
+            {...(shortcut === undefined ? {} : { shortcut })}
+          >
             <a href={href}>{start}</a>
           </Button>
           {more}
@@ -358,6 +367,10 @@ function History({
           onValueChange={setSearch}
           containerClassName="ms-auto w-full @3xl/page:w-75 touch:hidden"
         />
+        {/* The company's activity log, narrowed to these (`docs/audit.md`). */}
+        <Button asChild size="sm" variant="ghost" startIcon={<icons.history aria-hidden />}>
+          <a href="/settings/activity?area=imports_exports">See all activity</a>
+        </Button>
       </div>
       {shown.length === 0 ? (
         <EmptyState

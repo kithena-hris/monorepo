@@ -2,7 +2,6 @@
 
 import {
   Badge,
-  Kbd,
   List,
   ListItem,
   MegaMenu,
@@ -19,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import { useState, type JSX } from 'react';
 
 import { currentPlace, type Place } from '../lib/remotes';
+import { useHint } from './shortcuts';
 
 export { currentPlace };
 
@@ -74,6 +74,7 @@ function countOf(counts: Readonly<Record<string, number>>, path: string): { badg
 /** The sidebar's People pages, inline under its item (V2): ruled rows with their counts. */
 export function PeopleSubnav({ sections, route, counts = {} }: PeopleNavProps): JSX.Element {
   const current = currentPlace(sections, route);
+  const hint = useHint();
   return (
     <NavList variant="ruled" aria-label="People sections">
       {sections.map((s) => (
@@ -82,6 +83,7 @@ export function PeopleSubnav({ sections, route, counts = {} }: PeopleNavProps): 
           asChild
           level={2}
           current={s === current}
+          shortcut={hint(s.path)}
           {...countOf(counts, s.path)}
         >
           <Link href={s.path}>{s.label}</Link>
@@ -100,18 +102,14 @@ export function PeopleSections({
   route,
   counts = {},
 }: PeopleNavProps): JSX.Element | null {
+  const hint = useHint();
   if (sections.length === 0) return null;
   const current = currentPlace(sections, route);
   return (
     <MegaMenu
       size="compact"
       title="People"
-      shortcut={
-        <>
-          <Kbd>G</Kbd>
-          <Kbd>P</Kbd>
-        </>
-      }
+      shortcut={hint('/people')}
       footer={
         <>
           <icons.settings aria-hidden />
@@ -137,6 +135,7 @@ export function PeopleSections({
               current={s === current}
               icon={iconOf(s.icon)}
               description={s.description}
+              shortcut={hint(s.path)}
               {...countOf(counts, s.path)}
             >
               <Link href={s.path}>{s.label}</Link>

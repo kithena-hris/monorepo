@@ -583,7 +583,6 @@ function screenDeps(
     segments: { store: drizzleSegments(), newId: uuidv7 },
     photos: drizzlePhotos(),
     files: drizzleFiles(),
-    activity: drizzleActivity(),
     transfers: drizzleTransfers(),
     ...assistantFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
@@ -780,6 +779,14 @@ export function wirePeople(server: Server): void {
       reads: (tx, tenantId) => ({
         field: async (key) =>
           (await activitySchema.loadDraft(tx, tenantId)).attributes.find((a) => a.key === key) ?? null,
+        // A section's or field's name, for a log entry the path named by key.
+        label: async (key) => {
+          const draft = await activitySchema.loadDraft(tx, tenantId);
+          return (
+            [...draft.sections, ...draft.attributes].find((x) => x.key === key)?.label.default ??
+            null
+          );
+        },
         settings: async () => {
           const s = await activityOrg.settings(tx, tenantId);
           return {

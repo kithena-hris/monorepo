@@ -115,7 +115,7 @@ const everything: CommandItem[] = [
     id: 'message-priya',
     label: 'Message Priya',
     icon: <MessageCircle />,
-    shortcut: ['⌘', 'M'],
+    shortcut: ['mod+m'],
     group: 'Actions',
   },
 ];

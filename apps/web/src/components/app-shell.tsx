@@ -20,7 +20,7 @@ import {
   FieldControl,
   FieldLabel,
   filterCommands,
-  Kbd,
+  KbdShortcut,
   KithenaLogo,
   KithenaMark,
   Nav,
@@ -42,12 +42,15 @@ import {
   TabBarItem,
   TooltipProvider,
   icons,
+  setShortcutKeys,
+  useScreenCommands,
   type CommandItem,
 } from '@reach/ui';
 import type { Route } from 'next';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -58,13 +61,35 @@ import {
 } from 'react';
 
 import { searchPeople } from '../app/(app)/people/actions';
+import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
 import { EMPTY_SHELL, type ShellData } from '../lib/shell-data';
 import { useInAppLinks } from '../lib/links';
 import { matchPath } from '../lib/remotes';
+import {
+  DEFAULT_PREFS,
+  adjacentPage,
+  createOn,
+  destinationOf,
+  effective,
+  isCharacterKey,
+  type ShortcutPrefs,
+} from '../lib/shortcuts';
 import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
 import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
+import {
+  Shortcuts,
+  ShortcutsHelp,
+  focusList,
+  focusPageSearch,
+  shortcutHandler,
+  submitFocused,
+  useApple,
+  useHint,
+  useShortcuts,
+  type ShortcutsValue,
+} from './shortcuts';
 
 import { since } from './since';
 
@@ -117,6 +142,8 @@ export interface AppShellProps {
    * as the rail.
    */
   readonly sidebarCollapsed?: boolean | undefined;
+  /** This person's keyboard shortcuts, as identity keeps them (`ShortcutPrefs`). */
+  readonly shortcuts?: ShortcutPrefs;
   readonly children: ReactNode;
 }
 
@@ -199,34 +226,152 @@ function useTheme(): readonly [boolean, (next: boolean) => void] {
 }
 
 /**
- * G then P opens People, and G then M your own profile, from anywhere but a
- * field: the shortcuts the People flyout and the account menu print.
+ * The shortcuts, run: the table with this person's keys, where each go-to
+ * key takes this viewer, and the one handler for all of them. `/` focuses the
+ * page's search, or opens the palette where a page has none; `[` and `]` step
+ * through the tabs or the Directory's views; `?` opens the list.
  */
-function useGoShortcut(entitled: boolean): void {
+function useShortcutsFor({
+  prefs: saved,
+  shell,
+  people,
+  timeOff,
+  route,
+  openPalette,
+  openHelp,
+}: {
+  readonly prefs: ShortcutPrefs;
+  readonly shell: ShellData;
+  readonly people: boolean;
+  readonly timeOff: boolean;
+  readonly route: string | null;
+  readonly openPalette: () => void;
+  readonly openHelp: () => void;
+}): ShortcutsValue {
   const router = useRouter();
+  const apple = useApple();
+  const pathname = usePathname();
+  const commands = useScreenCommands();
+  // Shown as chosen at once; the server's answer replaces it, or a refusal restores it.
+  const [prefs, setPrefs] = useState(saved);
   useEffect(() => {
-    if (!entitled) return undefined;
-    let armed = 0;
-    const onKey = (event: KeyboardEvent): void => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const key = event.key.toLowerCase();
-      if (key === 'g') {
-        armed = Date.now();
-        return;
+    setPrefs(saved);
+  }, [saved]);
+  const table = useMemo(() => effective(prefs.bindings), [prefs.bindings]);
+  const destinations = useMemo(() => {
+    const reach = {
+      sections: shell.sections,
+      people,
+      timeOff,
+      activity: shell.roles.admin || shell.roles.hr,
+    };
+    return new Map(
+      table.flatMap((s) => {
+        const to = destinationOf(s, reach);
+        return to === null ? [] : [[s.id, to] as const];
+      }),
+    );
+  }, [table, shell, people, timeOff]);
+
+  // Reach's lists, rows and buttons read the same keys: one table.
+  useEffect(() => {
+    setShortcutKeys({
+      keys: Object.fromEntries(table.map((s) => [s.id, s.keys])),
+      characterKeys: prefs.characterKeys,
+    });
+  }, [table, prefs.characterKeys]);
+
+  // What C makes here: what the screen offers, else the area's action for this page.
+  const offered = commands.findLast((c) => c.id === 'create');
+  const fallback = createOn(shell.actions ?? [], route, pathname);
+  const create =
+    offered !== undefined
+      ? { label: offered.label, run: offered.run }
+      : fallback === null
+        ? null
+        : {
+            label: fallback.label,
+            run: () => {
+              router.push(fallback.path);
+            },
+          };
+
+  const run = useRef<(id: string, event?: KeyboardEvent) => boolean>(() => false);
+  useEffect(() => {
+    run.current = (id, event) => {
+      if (id === 'create') {
+        if (create === null) return false;
+        create.run();
+        return true;
       }
-      const to = key === 'p' ? '/people' : key === 'm' ? '/people/me' : null;
-      if (to !== null && Date.now() - armed < 1000) {
-        armed = 0;
+      if (id === 'form.submit') return submitFocused(event?.target ?? document.activeElement);
+      if (id === 'list.next' || id === 'list.previous') return focusList();
+      if (id === 'help') {
+        openHelp();
+        return true;
+      }
+      if (id === 'page.search') {
+        if (!focusPageSearch()) openPalette();
+        return true;
+      }
+      if (id === 'page.previous' || id === 'page.next') {
+        const to = adjacentPage(shell.sections, route, window.location, id === 'page.next' ? 1 : -1);
+        if (to === null) return false;
         router.push(to);
+        return true;
       }
+      const to = destinations.get(id);
+      if (to === undefined) return false;
+      router.push(to);
+      return true;
     };
-    window.addEventListener('keydown', onKey);
+  });
+  useEffect(() => {
+    const handler = shortcutHandler({
+      table,
+      characterKeys: prefs.characterKeys,
+      run: (id, event) => run.current(id, event),
+    });
+    window.addEventListener('keydown', handler);
     return () => {
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', handler);
     };
-  }, [entitled, router]);
+  }, [table, prefs.characterKeys]);
+
+  const keysFor = useMemo(() => {
+    const byPath = new Map<string, readonly string[]>();
+    for (const s of table) {
+      const to = destinations.get(s.id);
+      if (to !== undefined && !byPath.has(to)) byPath.set(to, s.keys);
+    }
+    // Hints only for keys that work: none for single keys once they are off.
+    return (path: string): readonly string[] | undefined => {
+      const keys = byPath.get(path);
+      return keys !== undefined && !prefs.characterKeys && keys.some(isCharacterKey)
+        ? undefined
+        : keys;
+    };
+  }, [table, destinations, prefs.characterKeys]);
+  return {
+    prefs,
+    table,
+    destinations,
+    keysFor,
+    openHelp,
+    create,
+    save: async (next) => {
+      const before = prefs;
+      setPrefs(next);
+      const result = await saveShortcuts(next, apple);
+      if (!result.ok) {
+        setPrefs(before);
+        return result.message;
+      }
+      // The layout reads them again, so every hint and the handler agree with what was kept.
+      router.refresh();
+      return null;
+    },
+  };
 }
 
 export function AppShell({
@@ -236,6 +381,7 @@ export function AppShell({
   entitlements,
   shell = EMPTY_SHELL,
   sidebarCollapsed,
+  shortcuts = DEFAULT_PREFS,
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
@@ -248,7 +394,26 @@ export function AppShell({
   const route = isCurrent('/people', pathname)
     ? (matchPath(shell.routes, pathname)?.path ?? null)
     : null;
-  useGoShortcut(entitlements.includes('module.people'));
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const keys = useShortcutsFor({
+    prefs: shortcuts,
+    shell,
+    people: entitlements.includes('module.people'),
+    timeOff: areas.some((a) => a.href === '/time-off' && a.built),
+    route,
+    openPalette: useCallback(() => {
+      setPaletteOpen(true);
+    }, []),
+    openHelp: useCallback(() => {
+      setHelpOpen(true);
+    }, []),
+  });
+  // `useHint` for what is drawn here, above the provider it reads.
+  const hint = (path: string): JSX.Element | undefined => {
+    const k = keys.keysFor(path);
+    return k === undefined ? undefined : <KbdShortcut keys={k} />;
+  };
   useInAppLinks();
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
@@ -258,6 +423,7 @@ export function AppShell({
    * without a provider above it.
    */
   return (
+    <Shortcuts value={keys}>
     <TooltipProvider>
       <PageLayout
         preset="sidebar"
@@ -316,6 +482,7 @@ export function AppShell({
                       asChild
                       icon={area.icon}
                       current={isCurrent(area.href, pathname)}
+                      shortcut={hint(area.href)}
                       {...(area.href === '/people' && shell.sections.length > 0
                         ? {
                             // Inline while you are in People (V2); from the
@@ -364,7 +531,12 @@ export function AppShell({
               <Separator className="mx-1.5 my-1 group-data-[collapsed]/sidebar:hidden" />
               <Nav label="Account">
                 <NavList>
-                  <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
+                  <NavItem
+                    asChild
+                    icon={<Settings />}
+                    current={isCurrent('/settings', pathname)}
+                    shortcut={hint('/settings')}
+                  >
                     <Link href="/settings">Settings</Link>
                   </NavItem>
                 </NavList>
@@ -381,7 +553,13 @@ export function AppShell({
           </div>
         }
       >
-        <TopCorner shell={shell} />
+        <TopCorner
+          shell={shell}
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          dark={dark}
+          onTheme={setTheme}
+        />
         {/*
           No boundary here, on purpose: a navigation is a transition and keeps
           this page on screen until the next is ready, and a first load waits
@@ -390,7 +568,9 @@ export function AppShell({
         {children}
       </PageLayout>
       <Assistant />
+      <ShortcutsHelp open={helpOpen} onOpenChange={setHelpOpen} />
     </TooltipProvider>
+    </Shortcuts>
   );
 }
 
@@ -402,8 +582,19 @@ export function AppShell({
  * what People says is waiting for them — approvals to decide, details to add —
  * which is the same list the phone's Inbox tab shows.
  */
-function TopCorner({ shell }: { readonly shell: ShellData }): JSX.Element {
-  const [open, setOpen] = useState(false);
+function TopCorner({
+  shell,
+  open,
+  onOpenChange: setOpen,
+  dark,
+  onTheme,
+}: {
+  readonly shell: ShellData;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly dark: boolean;
+  readonly onTheme: (dark: boolean) => void;
+}): JSX.Element {
   return (
     <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @min-[40rem]/page:flex">
       <Button
@@ -415,10 +606,15 @@ function TopCorner({ shell }: { readonly shell: ShellData }): JSX.Element {
         }}
       >
         <span className="flex-1 text-start font-normal">Search people</span>
-        <Kbd keyName="mod" />
-        <Kbd>K</Kbd>
+        <KbdShortcut keys={useShortcuts().table.find((s) => s.id === 'palette')?.keys ?? []} />
       </Button>
-      <SearchPalette open={open} onOpenChange={setOpen} shell={shell} />
+      <SearchPalette
+        open={open}
+        onOpenChange={setOpen}
+        shell={shell}
+        dark={dark}
+        onTheme={onTheme}
+      />
       <Notices shell={shell} />
     </div>
   );
@@ -490,17 +686,51 @@ export function NoticeList({ shell }: { readonly shell: ShellData }): JSX.Elemen
   );
 }
 
-/** ⌘K: pages and people, from one field. */
+/** The palette's last commands on this device, most recent first: a convenience, so the browser's. */
+const RECENT = 'kithena.palette.recent';
+function recentCommands(): readonly string[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(RECENT) ?? '[]');
+    return Array.isArray(stored) ? stored.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function rememberCommand(id: string): void {
+  try {
+    localStorage.setItem(
+      RECENT,
+      JSON.stringify([id, ...recentCommands().filter((other) => other !== id)].slice(0, 5)),
+    );
+  } catch {
+    // Private windows and blocked storage: the palette simply has no recents.
+  }
+}
+
+/**
+ * ⌘K: pages, people and actions, from one field. Each action shows its keys;
+ * what was run last on this device comes first.
+ */
 function SearchPalette({
   open,
   onOpenChange,
   shell,
+  dark,
+  onTheme,
 }: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly shell: ShellData;
+  readonly dark: boolean;
+  readonly onTheme: (dark: boolean) => void;
 }): JSX.Element {
   const router = useRouter();
+  const { prefs, table, destinations, keysFor, openHelp, create } = useShortcuts();
+  const commands = useScreenCommands();
+  const [recent, setRecent] = useState<readonly string[]>([]);
+  useEffect(() => {
+    if (open) setRecent(recentCommands());
+  }, [open]);
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<readonly { value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -529,7 +759,21 @@ function SearchPalette({
   const pages = useMemo<CommandItem[]>(
     () =>
       [
-        { path: '/', label: 'Home', icon: 'home', group: 'Pages' },
+        // Every go-to destination People's sections do not already list: home,
+        // the inbox, your profile, settings and what is under it.
+        ...table.flatMap((s) => {
+          const path = destinations.get(s.id);
+          if (path === undefined || shell.sections.some((p) => p.path === path)) return [];
+          return [
+            {
+              id: s.id,
+              path,
+              label: s.label,
+              icon: s.icon,
+              group: path.startsWith('/settings') ? 'Settings' : 'Pages',
+            },
+          ];
+        }),
         ...shell.sections.flatMap((s) => [
           { ...s, group: 'People' },
           // Each tab of an umbrella page is somewhere to go too, under its section.
@@ -543,20 +787,120 @@ function SearchPalette({
           })),
         ]),
         ...shell.settings.map((s) => ({ ...s, group: 'Settings' })),
-      ].map((p) => ({
-        id: 'id' in p ? p.id : p.path,
-        label: p.label,
-        group: p.group,
-        icon: iconOf(p.icon),
-        ...('description' in p && p.description !== undefined
-          ? { description: p.description }
-          : {}),
-        onSelect: () => {
-          router.push(p.path);
-        },
-      })),
-    [shell, router],
+      ]
+        .map((p): CommandItem => {
+          const keys = keysFor(p.path);
+          return {
+            id: 'id' in p ? p.id : p.path,
+            label: p.label,
+            group: p.group,
+            icon: iconOf(p.icon),
+            ...('description' in p && p.description !== undefined
+              ? { description: p.description }
+              : {}),
+            ...(keys === undefined ? {} : { shortcut: keys }),
+            onSelect: () => {
+              router.push(p.path);
+            },
+          };
+        })
+        .concat(actionsOf()),
+    [shell, router, prefs, table, destinations, keysFor, openHelp, create, commands, dark, onTheme],
   );
+
+  /** What the palette runs rather than opens, each with its keys where it has some. */
+  function actionsOf(): CommandItem[] {
+    const keysOfId = (id: string): { shortcut?: readonly string[] } => {
+      const keys = table.find((s) => s.id === id)?.keys;
+      return keys === undefined || (!prefs.characterKeys && keys.some(isCharacterKey))
+        ? {}
+        : { shortcut: keys };
+    };
+    const exports = shell.sections.some((section) => section.path === '/people/import-export');
+    return [
+      ...(create === null || create === undefined
+        ? []
+        : [
+            {
+              id: 'create',
+              label: `Create… ${create.label}`,
+              group: 'Actions',
+              icon: iconOf('add'),
+              keywords: ['new', 'add'],
+              ...keysOfId('create'),
+              onSelect: create.run,
+            },
+          ]),
+      ...commands
+        .filter((c) => c.id !== 'create')
+        .map((c) => ({ id: `command:${c.id}`, label: c.label, group: 'Actions', onSelect: c.run })),
+      ...(exports
+        ? [
+            {
+              id: 'export',
+              label: 'Export people',
+              group: 'Actions',
+              icon: iconOf('export'),
+              keywords: ['download', 'csv'],
+              onSelect: () => {
+                router.push('/people/export');
+              },
+            },
+          ]
+        : []),
+      {
+        id: 'theme',
+        label: dark ? 'Switch to light mode' : 'Switch to dark mode',
+        group: 'Actions',
+        icon: iconOf('themeDark'),
+        keywords: ['theme', 'dark', 'light'],
+        onSelect: () => {
+          onTheme(!dark);
+        },
+      },
+      {
+        id: 'sidebar',
+        label: 'Collapse or expand the sidebar',
+        group: 'Actions',
+        icon: iconOf('menu'),
+        ...keysOfId('sidebar'),
+        onSelect: () => {
+          // ponytail: `PageLayout` owns the rail and answers ⌘\; the palette presses
+          // it rather than holding a second copy of that state.
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: '\\', ctrlKey: true }));
+        },
+      },
+      {
+        id: 'help',
+        label: 'Show keyboard shortcuts',
+        group: 'Actions',
+        icon: iconOf('shortcuts'),
+        keywords: ['keys', 'hotkeys'],
+        ...keysOfId('help'),
+        onSelect: openHelp,
+      },
+    ];
+  }
+
+  // Recent first: in a group of their own with nothing typed, and ahead of an
+  // equal match when something is.
+  const ranked = [...pages]
+    .map((item) => ({
+      ...item,
+      onSelect: () => {
+        rememberCommand(item.id);
+        item.onSelect?.();
+      },
+    }))
+    .toSorted((a, b) => rank(a.id) - rank(b.id));
+  function rank(id: string): number {
+    const at = recent.indexOf(id);
+    return at === -1 ? recent.length : at;
+  }
+  const shown =
+    query.trim() === ''
+      ? ranked.map((item) => (recent.includes(item.id) ? { ...item, group: 'Recent' } : item))
+      : ranked;
 
   const items = [
     ...found.map((p): CommandItem => ({
@@ -568,7 +912,7 @@ function SearchPalette({
         router.push(`/people/${p.value}` as Route);
       },
     })),
-    ...filterCommands(pages, query),
+    ...filterCommands(shown, query),
   ];
 
   return (
@@ -594,6 +938,7 @@ function SearchPalette({
  * The person, at the end of the sidebar: the account menu (V9).
  *
  * Who you are, then what is yours: your own profile (`G` `M`), your time off,
+ * the keyboard shortcuts,
  * your preferences, the company you are in, and signing out. Your profile is
  * about you rather than about managing people, so it lives here, one click
  * from anywhere, rather than among People's sections.
@@ -625,6 +970,8 @@ function PersonMenu({
   onTheme: (next: boolean) => void;
 }): JSX.Element {
   const signOut = useRef<HTMLFormElement>(null);
+  const { prefs, table, openHelp } = useShortcuts();
+  const hint = useHint();
   return (
     <DropdownMenu openOnHover>
       <DropdownMenuTrigger className="hover:bg-surface-hover focus-visible:outline-border-focus flex min-h-tap w-full items-center gap-2.5 rounded-md p-2.5 text-left shadow-[inset_0_0_0_1px_var(--reach-color-border)] focus-visible:outline-2 focus-visible:outline-offset-2 group-data-[collapsed]/sidebar:justify-center group-data-[collapsed]/sidebar:p-1 group-data-[collapsed]/sidebar:shadow-none">
@@ -658,10 +1005,9 @@ function PersonMenu({
           <Link href="/people/me">
             <icons.person />
             My profile
-            <DropdownMenuShortcut className="flex gap-0.75">
-              <Kbd>G</Kbd>
-              <Kbd>M</Kbd>
-            </DropdownMenuShortcut>
+            {hint('/people/me') === undefined ? null : (
+              <DropdownMenuShortcut className="flex">{hint('/people/me')}</DropdownMenuShortcut>
+            )}
           </Link>
         </DropdownMenuItem>
         {/* Not a link until the company has time off: an item that 404s says less than a disabled one. */}
@@ -678,6 +1024,15 @@ function PersonMenu({
             My time off
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem onSelect={openHelp}>
+          <icons.shortcuts />
+          Keyboard shortcuts
+          {prefs.characterKeys ? (
+            <DropdownMenuShortcut className="flex">
+              <KbdShortcut keys={table.find((s) => s.id === 'help')?.keys ?? []} />
+            </DropdownMenuShortcut>
+          ) : null}
+        </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <icons.adjust />

@@ -402,8 +402,8 @@ export type {
 export { Input, Textarea } from './components/input/input';
 export type { InputProps, TextareaProps } from './components/input/input';
 
-export { Kbd } from './components/kbd/kbd';
-export type { KbdProps } from './components/kbd/kbd';
+export { Kbd, KbdShortcut, chordOf, keysOfChord } from './components/kbd/kbd';
+export type { KbdProps, KbdShortcutProps } from './components/kbd/kbd';
 
 export { Nav, NavGroup, NavItem, NavList, TertiaryNav } from './components/nav/nav';
 export type {
@@ -481,7 +481,7 @@ export { ListDetail } from './components/list-detail/list-detail';
 export type { ListDetailProps } from './components/list-detail/list-detail';
 
 export { List, ListItem } from './components/list-item/list-item';
-export type { ListItemProps, SwipeAction } from './components/list-item/list-item';
+export type { ListItemProps, ListProps, SwipeAction } from './components/list-item/list-item';
 
 export {
   ModalPage,
@@ -717,6 +717,11 @@ export type {
 export { SettingsCard } from './components/settings-card/settings-card';
 export type { SettingsCardProps } from './components/settings-card/settings-card';
 
+export { KeyRecorder } from './components/shortcuts/key-recorder';
+export type { KeyRecorderProps } from './components/shortcuts/key-recorder';
+export { ShortcutsDialog } from './components/shortcuts/shortcuts-dialog';
+export type { ShortcutGroup, ShortcutsDialogProps } from './components/shortcuts/shortcuts-dialog';
+
 export { TreeView } from './components/tree-view/tree-view';
 export type { TreeViewNode, TreeViewProps } from './components/tree-view/tree-view';
 
@@ -766,6 +771,22 @@ export type { IconGroup, IconName, LucideIcon } from './icons/index';
 
 export { brandRamp } from './lib/brand-ramp';
 export { cn } from './lib/cn';
+export {
+  LIST_KEYS,
+  armSequence,
+  isCharacterChord,
+  keysOf,
+  pressed,
+  runScreenCommand,
+  screenCommands,
+  sequenceArmed,
+  setShortcutKeys,
+  shortcutKeys,
+  useScreenCommand,
+  useScreenCommands,
+  useShortcutKeys,
+} from './lib/shortcut-keys';
+export type { RowAction, ScreenCommand, ShortcutKeys } from './lib/shortcut-keys';
 export { PortalContainerProvider, usePortalContainer } from './lib/portal-container';
 
 export {

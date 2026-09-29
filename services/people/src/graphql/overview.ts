@@ -1,7 +1,7 @@
 import type { OverviewView } from '../application/screens/overview.js';
 import type { PhotoView } from '../application/screens/photo.js';
 import type { FileView } from '../application/screens/files.js';
-import type { ActivityView } from '../application/settings/activity.js';
+import type { NamesView } from '../application/screens/names.js';
 import type { AssistantAnswer } from '../application/assistant/ask.js';
 import type { ChatView } from '../application/settings/chat.js';
 import type { PeopleBuilder, ViaRest } from './builder.js';
@@ -182,40 +182,16 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     }),
   });
 
-  const ActivityEntry = builder
-    .objectRef<ActivityView['entries'][number]>('PeopleSettingsActivityEntry')
-    .implement({
-      fields: (t) => ({
-        id: t.exposeID('id'),
-        at: t.exposeString('at'),
-        action: t.exposeString('action'),
-        subject: t.exposeString('subject', { nullable: true }),
-        detail: t.exposeString('detail', {
-          nullable: true,
-          description: 'What it did, in one plain sentence.',
-        }),
-        area: t.exposeString('area', {
-          description: 'fields, organisation, roles or integrations.',
-        }),
-        by: t.exposeString('by'),
-        name: t.exposeString('name', { description: 'Who did it, by name, "You" included.' }),
-        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
-        kind: t.exposeString('kind', {
-          description:
-            'person; support for Kithena support, signed in from the back office; or system for an account nobody in People holds.',
-        }),
-        reason: t.exposeString('reason', {
-          nullable: true,
-          description: 'Why Kithena support was signed in, as the operator said. Null otherwise.',
-        }),
-      }),
-    });
-  const Activity = builder.objectRef<ActivityView>('PeopleSettingsActivity').implement({
-    description: 'Every change to People’s settings, newest first: who, when and what.',
+  const Named = builder.objectRef<NamesView['people'][number]>('PeopleNamed').implement({
     fields: (t) => ({
-      entries: t.field({ type: [ActivityEntry], resolve: (v) => list(v.entries) }),
-      next: t.exposeString('next', { nullable: true }),
+      accountId: t.exposeID('accountId', { nullable: true }),
+      personId: t.exposeID('personId'),
+      name: t.exposeString('name'),
+      avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
     }),
+  });
+  const Names = builder.objectRef<NamesView>('PeopleNames').implement({
+    fields: (t) => ({ people: t.field({ type: [Named], resolve: (v) => list(v.people) }) }),
   });
 
   const AnswerPerson = builder
@@ -373,19 +349,16 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
           body: { question: args.question, earlier: args.earlier ?? [] },
         }),
     }),
-    peopleSettingsActivity: t.field({
-      type: Activity,
-      args: { before: t.arg.id(), area: t.arg.string() },
+    peopleNames: t.field({
+      type: Names,
+      description:
+        'Names and faces for account and person ids another service holds (the activity log), as the viewer may read them.',
+      args: { accountIds: t.arg.idList(), personIds: t.arg.idList() },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
-        if (args.before) query.set('before', args.before);
-        if (args.area) query.set('area', args.area);
-        const qs = query.toString();
-        return viaRest<ActivityView>(
-          ctx,
-          'GET',
-          `/v1/views/settings/activity${qs === '' ? '' : `?${qs}`}`,
-        );
+        if (args.accountIds) query.set('accounts', args.accountIds.join(','));
+        if (args.personIds) query.set('people', args.personIds.join(','));
+        return viaRest<NamesView>(ctx, 'GET', `/v1/views/names?${query.toString()}`);
       },
     }),
     peopleFile: t.field({

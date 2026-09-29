@@ -3,6 +3,8 @@ import type { JSX } from 'react';
 
 import { SettingsIndex, type SettingsModule } from '../../../components/settings-index';
 import { settingsOverview } from '../../../lib/people-screens';
+import { readPreference } from '../../../lib/preferences';
+import { prefsFrom } from '../../../lib/shortcuts';
 import { shellData } from '../../../lib/shell';
 import { currentPerson } from '../../../lib/session';
 
@@ -140,6 +142,51 @@ export default async function Settings(): Promise<JSX.Element> {
       })),
     });
   }
+
+  // The company's activity log (`/settings/activity`): the shell's, across
+  // modules, for whoever may read it — People administrators and HR.
+  if (shell.roles.admin || shell.roles.hr) {
+    modules.push({
+      key: 'activity',
+      title: 'Activity',
+      description: 'Who did what, and when, across every module your company has.',
+      settings: [
+        {
+          path: '/settings/activity',
+          label: 'Activity log',
+          description:
+            'Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins, with filters.',
+          icon: 'history',
+          now: null,
+          attention: null,
+        },
+      ],
+    });
+  }
+
+  // A person's own settings, after the company's: everybody has these.
+  const shortcuts = prefsFrom(await readPreference('shortcuts'));
+  const changed = Object.keys(shortcuts.bindings).length;
+  modules.push({
+    key: 'you',
+    title: 'You',
+    description: 'How the app works for you. Only you see and change these.',
+    settings: [
+      {
+        path: '/settings/shortcuts',
+        label: 'Keyboard shortcuts',
+        description: 'The keys that take you somewhere, and whether single keys work at all.',
+        icon: 'shortcuts',
+        now: [
+          changed === 0 ? 'The defaults' : plural(changed, 'changed shortcut'),
+          shortcuts.characterKeys ? null : 'single keys off',
+        ]
+          .filter((x) => x !== null)
+          .join(' · '),
+        attention: null,
+      },
+    ],
+  });
 
   return <SettingsIndex modules={modules} />;
 }

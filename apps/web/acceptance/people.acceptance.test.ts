@@ -774,7 +774,7 @@ describe('Hiring somebody added without a start date', () => {
     const page = await context.newPage();
     await page.goto(`${stack.shell}/people/directory/list?q=Bulkhire`);
     await page.waitForLoadState('networkidle');
-    const people = page.getByRole('table', { name: 'People' });
+    const people = page.getByRole('grid', { name: 'People' });
     await people.getByText('Alan Bulkhire').waitFor({ timeout: 30_000 });
     await page.getByRole('checkbox', { name: 'Select Alan Bulkhire' }).click();
     await page.getByRole('checkbox', { name: 'Select Joan Bulkhire' }).click();
@@ -1247,8 +1247,18 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
 
     // The employee sees why on their record, and opens the field to correct it.
     await own.reload();
-    await own.getByText('HR could not accept your NIF / NIE').waitFor({ timeout: 30_000 });
-    await own.getByText(/The letter on your card is X\. Please correct it\./).waitFor();
+    // The record draws the notice for a desk and for a phone, one of them
+    // hidden: wait for whichever is shown, not for exactly one match.
+    await own
+      .getByText('HR could not accept your NIF / NIE')
+      .filter({ visible: true })
+      .first()
+      .waitFor({ timeout: 30_000 });
+    await own
+      .getByText(/The letter on your card is X\. Please correct it\./)
+      .filter({ visible: true })
+      .first()
+      .waitFor();
     await own.getByRole('button', { name: 'Correct NIF / NIE' }).click();
     await own.getByRole('form', { name: 'Identification & right to work' }).waitFor();
 
@@ -1505,7 +1515,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(lena).toEqual({ status: 'active', hire_date: new Date().toISOString().slice(0, 10) });
     await (await sections(page)).getByRole('link', { name: 'Directory' }).click();
     await page.waitForURL(/\/people\/directory\/list$/);
-    await page.getByRole('table', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
+    await page.getByRole('grid', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
     // Counts that say what the list holds: everybody, then who is active.
     await page.getByText(/^\d+ (people|person) · \d+ active/).waitFor();
     expect(await kept()).toBe(true);

@@ -17,7 +17,7 @@ import {
 import { elementFrom } from '../../lib/dom';
 import { cn } from '../../lib/cn';
 import { usePortalContainer } from '../../lib/portal-container';
-import { Kbd } from '../kbd/kbd';
+import { Kbd, KbdShortcut } from '../kbd/kbd';
 import { Spinner } from '../spinner/spinner';
 
 /**
@@ -60,7 +60,10 @@ export interface CommandItem {
   group?: string;
   /** Extra words that should find this item without being shown. */
   keywords?: readonly string[];
-  /** Keys shown beside the item, e.g. `['G', 'T']`. Hidden under a finger. */
+  /**
+   * Keys shown beside the item, as chords (`KbdShortcut`): `['g', 't']` is G
+   * then T, `['mod+k']` is ⌘K. Hidden under a finger.
+   */
   shortcut?: readonly string[];
   disabled?: boolean;
   onSelect?: () => void;
@@ -358,11 +361,11 @@ export function Command({
                         ) : null}
                       </span>
                       {item.shortcut ? (
-                        <span aria-hidden className="flex shrink-0 gap-1 touch:hidden">
-                          {item.shortcut.map((key) => (
-                            <Kbd key={key}>{key}</Kbd>
-                          ))}
-                        </span>
+                        <KbdShortcut
+                          aria-hidden
+                          keys={item.shortcut}
+                          className="shrink-0 touch:hidden"
+                        />
                       ) : null}
                       {item.items ? (
                         <ChevronRight aria-hidden className="size-4 shrink-0 text-fg-subtle" />

@@ -6,7 +6,10 @@ import { isValidElement, type ComponentPropsWithoutRef, type JSX, type ReactNode
 
 import { resolveChild } from '../../lib/child';
 import { cn } from '../../lib/cn';
+import { keysOf, useShortcutKeys } from '../../lib/shortcut-keys';
+import { KbdShortcut } from '../kbd/kbd';
 import { Spinner } from '../spinner/spinner';
+import { Tooltip, TooltipProvider } from '../tooltip/tooltip';
 
 const button = cva(
   [
@@ -122,6 +125,13 @@ export interface ButtonProps
   loadingLabel?: string;
   startIcon?: ReactNode;
   endIcon?: ReactNode;
+  /**
+   * The id of the keyboard shortcut that does what this button does
+   * (`setShortcutKeys`). Its keys join the button's name in a tooltip, after
+   * the usual hover delay, the way a menu item shows them on its right. No
+   * tooltip while the shortcut has no keys, or its keys are turned off.
+   */
+  shortcut?: string;
 }
 
 /**
@@ -143,8 +153,10 @@ export function Button({
   disabled,
   children,
   type,
+  shortcut,
   ...props
 }: ButtonProps): JSX.Element {
+  const keys = keysOf(shortcut, useShortcutKeys());
   const Comp = asChild ? Slot : 'button';
   // With `asChild` the label is the child's own content: a link holding
   // nothing but the icon (named by `aria-label`) is an icon button too.
@@ -159,11 +171,13 @@ export function Button({
     <Spinner size={size === 'lg' || size === 'md' ? 'md' : 'sm'} label={loadingLabel} />
   );
 
-  return (
+  const element = (
     <Comp
       // An unspecified `type` inside a form defaults to `submit`, which is how
       // a "Cancel" button ends up submitting the form.
       type={asChild ? undefined : (type ?? 'button')}
+      // What ⌘Enter looks for in a dialog without a form: its primary action.
+      data-variant={variant ?? 'secondary'}
       className={cn(button({ variant, size, iconOnly, fullWidth }), className)}
       disabled={asChild ? undefined : (disabled ?? loading)}
       data-loading={loading ? (inline ? 'inline' : 'overlay') : undefined}
@@ -185,5 +199,15 @@ export function Button({
       )}
       {endIcon}
     </Comp>
+  );
+  if (keys.length === 0) return element;
+  const name = props['aria-label'] ?? (typeof label === 'string' ? label : undefined);
+  return (
+    // Its own provider: a button can be drawn in a root no app provider reaches.
+    <TooltipProvider>
+      <Tooltip content={name} shortcut={<KbdShortcut keys={keys} />}>
+        {element}
+      </Tooltip>
+    </TooltipProvider>
   );
 }

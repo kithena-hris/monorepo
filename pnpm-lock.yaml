@@ -730,6 +730,55 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.1.1(@noble/hashes@1.8.0))(vite@8.3.1(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(sass-embedded@1.103.1)(sass@1.103.1)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
 
+  platform/audit:
+    dependencies:
+      '@kithena/auth-kit':
+        specifier: workspace:*
+        version: link:../../packages/auth-kit
+      '@kithena/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@kithena/db-kit':
+        specifier: workspace:*
+        version: link:../../packages/db-kit
+      '@kithena/domain-kit':
+        specifier: workspace:*
+        version: link:../../packages/domain-kit
+      '@kithena/graphql-kit':
+        specifier: workspace:*
+        version: link:../../packages/graphql-kit
+      '@kithena/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
+      '@openfga/sdk':
+        specifier: ^0.9.7
+        version: 0.9.7
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(postgres@3.4.9)
+      graphql:
+        specifier: ^16.11.0
+        version: 16.14.2
+      graphql-yoga:
+        specifier: ^5.24.1
+        version: 5.24.1(graphql@16.14.2)
+      kafkajs:
+        specifier: ^2.2.4
+        version: 2.2.4
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.9
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@kithena/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.1.1(@noble/hashes@1.8.0))(vite@8.3.1(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0)(sass-embedded@1.103.1)(sass@1.103.1)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
+
   platform/identity:
     dependencies:
       '@kithena/auth-kit':
@@ -1477,24 +1526,12 @@ packages:
   '@emnapi/wasi-threads@1.2.3':
     resolution: {integrity: sha512-ELEBe8PsLvvJ6QMr0zLt8ffvOHW/dc1m3CEzNMg7aJUv3bMaoDtw2TXyDAwkYBuroxxuHEwhRTLJSe5sya547g==}
 
-  '@envelop/core@5.5.1':
-    resolution: {integrity: sha512-3DQg8sFskDo386TkL5j12jyRAdip/8yzK3x7YGbZBgobZ4aKXrvDU0GppU0SnmrpQnNaiTUsxBs9LKkwQ/eyvw==}
-    engines: {node: '>=18.0.0'}
-
   '@envelop/core@5.6.1':
     resolution: {integrity: sha512-KEbJ7yrAA+W7IY9MZzpZJ77w/72ndaV/16+hhPapd+0Ohjqffl0mmF3QWy62/m3nRP4qidD+1eiEjJhS/O38Tg==}
     engines: {node: '>=18.0.0'}
 
-  '@envelop/instrumentation@1.0.0':
-    resolution: {integrity: sha512-cxgkB66RQB95H3X27jlnxCRNTmPuSTgmBAq6/4n2Dtv4hsk4yz8FadA1ggmd0uZzvKqWD6CR+WFgTjhDqg7eyw==}
-    engines: {node: '>=18.0.0'}
-
   '@envelop/instrumentation@1.0.1':
     resolution: {integrity: sha512-FuexE2qd3Yc1Kh1DjTliwGxb9kyyv4ySBNnfJOxnQasVmGdcqX6AkkO5sIMxLWFRftp8PErOcIn2dQW/1RwytQ==}
-    engines: {node: '>=18.0.0'}
-
-  '@envelop/types@5.2.1':
-    resolution: {integrity: sha512-CsFmA3u3c2QoLDTfEpGr4t25fjMU31nyvse7IzWTvb0ZycuPjMjb0fjlheh+PbhBYb9YLugnT2uY6Mwcg1o+Zg==}
     engines: {node: '>=18.0.0'}
 
   '@envelop/types@5.2.2':
@@ -12179,14 +12216,6 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@envelop/core@5.5.1':
-    dependencies:
-      '@envelop/instrumentation': 1.0.0
-      '@envelop/types': 5.2.1
-      '@whatwg-node/promise-helpers': 1.3.2
-      tslib: 2.8.1
-    optional: true
-
   '@envelop/core@5.6.1':
     dependencies:
       '@envelop/instrumentation': 1.0.1
@@ -12194,22 +12223,10 @@ snapshots:
       '@whatwg-node/promise-helpers': 1.3.2
       tslib: 2.8.1
 
-  '@envelop/instrumentation@1.0.0':
-    dependencies:
-      '@whatwg-node/promise-helpers': 1.3.2
-      tslib: 2.8.1
-    optional: true
-
   '@envelop/instrumentation@1.0.1':
     dependencies:
       '@whatwg-node/promise-helpers': 1.3.2
       tslib: 2.8.1
-
-  '@envelop/types@5.2.1':
-    dependencies:
-      '@whatwg-node/promise-helpers': 1.3.2
-      tslib: 2.8.1
-    optional: true
 
   '@envelop/types@5.2.2':
     dependencies:
@@ -12298,41 +12315,41 @@ snapshots:
     dependencies:
       graphql: 16.14.2
     optionalDependencies:
-      '@envelop/core': 5.5.1
+      '@envelop/core': 5.6.1
 
   '@escape.tech/graphql-armor-cost-limit@2.4.3':
     dependencies:
       graphql: 16.14.2
     optionalDependencies:
-      '@envelop/core': 5.5.1
+      '@envelop/core': 5.6.1
       '@escape.tech/graphql-armor-types': 0.7.0
 
   '@escape.tech/graphql-armor-max-aliases@2.6.2':
     dependencies:
       graphql: 16.14.2
     optionalDependencies:
-      '@envelop/core': 5.5.1
+      '@envelop/core': 5.6.1
       '@escape.tech/graphql-armor-types': 0.7.0
 
   '@escape.tech/graphql-armor-max-depth@2.4.2':
     dependencies:
       graphql: 16.14.2
     optionalDependencies:
-      '@envelop/core': 5.5.1
+      '@envelop/core': 5.6.1
       '@escape.tech/graphql-armor-types': 0.7.0
 
   '@escape.tech/graphql-armor-max-directives@2.3.1':
     dependencies:
       graphql: 16.14.2
     optionalDependencies:
-      '@envelop/core': 5.5.1
+      '@envelop/core': 5.6.1
       '@escape.tech/graphql-armor-types': 0.7.0
 
   '@escape.tech/graphql-armor-max-tokens@2.5.1':
     dependencies:
       graphql: 16.14.2
     optionalDependencies:
-      '@envelop/core': 5.5.1
+      '@envelop/core': 5.6.1
       '@escape.tech/graphql-armor-types': 0.7.0
 
   '@escape.tech/graphql-armor-types@0.7.0':

@@ -245,10 +245,25 @@ export const OPERATIONS = {
     peoplePhoto(personId: $personId) { mediaType data checksum }
   }`,
 
-  SettingsActivity: `query SettingsActivity($before: ID, $area: String) {
-    peopleSettingsActivity(before: $before, area: $area) {
-      entries { id at action subject detail area by name avatarUrl kind reason }
+  /**
+   * The central activity log (`platform/audit`, `docs/audit.md`): not People's,
+   * but reached the same way, through the router, and listed here because this
+   * is the tenant app's one list of operations.
+   */
+  Activity: `query Activity($areas: [String!], $by: String, $actor: ID, $subject: ID, $from: String, $to: String, $zone: String, $search: String, $before: ID) {
+    auditActivity(areas: $areas, by: $by, actor: $actor, subject: $subject, from: $from, to: $to, zone: $zone, search: $search, before: $before) {
+      entries {
+        id occurredAt module area action detail actorKind actorAccountId onBehalfOf operatorLabel
+        subjectKind subjectId subjectLabel reason supportSignIn { entryId at reason }
+      }
       next
+    }
+  }`,
+
+  /** Names and faces for the activity log's ids, as the viewer may read them. */
+  Names: `query Names($accountIds: [ID!], $personIds: [ID!]) {
+    peopleNames(accountIds: $accountIds, personIds: $personIds) {
+      people { accountId personId name avatarUrl }
     }
   }`,
 

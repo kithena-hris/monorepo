@@ -129,10 +129,6 @@
       "component": "PeopleSettings"
     },
     {
-      "path": "/settings/people/activity",
-      "component": "SettingsActivity"
-    },
-    {
       "path": "/settings/people/reminders",
       "component": "ReminderSettings"
     },
@@ -304,10 +300,10 @@
       "icon": "location"
     },
     {
-      "path": "/settings/people/activity",
+      "path": "/settings/activity?area=fields,organisation,roles,integrations",
       "label": "Activity log",
       "for": ["hr", "admin"],
-      "description": "Every settings change, who made it and when.",
+      "description": "Every settings change, who made it and when, in the company’s activity log.",
       "icon": "history"
     }
   ]

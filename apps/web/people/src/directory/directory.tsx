@@ -905,6 +905,24 @@ function Body({
       onRowClick={(p) => {
         setPeek(p.id);
       }}
+      // From the keyboard: Enter or O to the profile, Space for the quick look.
+      onRowOpen={(p) => {
+        onOpen(p.id);
+      }}
+      onRowPreview={(p) => {
+        setPeek(peek === p.id ? null : p.id);
+      }}
+      rowActions={(p) => [
+        {
+          id: 'edit',
+          label: 'Edit profile',
+          shortcut: 'row.edit',
+          icon: <icons.edit aria-hidden />,
+          onSelect: () => {
+            onOpen(p.id);
+          },
+        },
+      ]}
       {...(onSortChange === undefined || grouping !== null
         ? {}
         : {

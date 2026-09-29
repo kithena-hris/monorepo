@@ -33,6 +33,19 @@ describe('the settings activity log’s words', () => {
     });
   });
 
+  it('hands over a key the path named, for the router to say as its label', () => {
+    expect(
+      settingsActivity(
+        'PUT',
+        '/v1/schema/draft/attributes/work_phone/signup',
+        JSON.stringify({ ask: 'required' }),
+      ),
+    ).toMatchObject({ action: 'Required a field at sign-up', subjectKey: 'work_phone' });
+    expect(
+      settingsActivity('PUT', '/v1/schema/draft/sections/contact/order', '{"order":[]}'),
+    ).toMatchObject({ subjectKey: 'contact' });
+  });
+
   it('never logs a read, a person’s record, or a webhook’s URL', () => {
     expect(settingsActivity('GET', '/v1/settings', '')).toBeNull();
     expect(settingsActivity('PATCH', '/v1/people/1', '{}')).toBeNull();

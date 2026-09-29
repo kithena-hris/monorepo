@@ -48,7 +48,8 @@
       "FileUploader",
       "TimePicker",
       "Form sections",
-      "Access matrix"
+      "Access matrix",
+      "KeyRecorder"
     ]
   },
   {
@@ -158,7 +159,8 @@
       "Merge compare",
       "Completeness meter",
       "Person card",
-      "Quick look"
+      "Quick look",
+      "ShortcutsDialog"
     ]
   },
   {

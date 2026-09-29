@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  DataTable,
   Dialog,
   DialogBody,
   DialogContent,
@@ -30,6 +31,7 @@ import {
   TableRow,
   Textarea,
   icons,
+  type DataColumn,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -167,6 +169,87 @@ function Queue({
   const [refused, setRefused] = useState<string | null>(null);
   // A band is People's to give; from an older People with none, there is no column to show an empty one in.
   const scored = items.some((pair) => pair.match != null);
+  const dismiss = (a: string, b: string): void => {
+    setBusy(`${a}/${b}`);
+    setRefused(null);
+    void onDismiss(a, b).then((outcome) => {
+      setBusy(null);
+      if (!outcome.ok) setRefused(outcome.message);
+    });
+  };
+  const columns: DataColumn<DuplicatePair>[] = [
+    {
+      id: 'pair',
+      header: 'Possible duplicate',
+      cell: (pair) => {
+        const [first = '', second = ''] = pair.names;
+        return (
+          <span className="flex items-center gap-2 font-semibold whitespace-nowrap">
+            <Avatar size="sm" name={first} />
+            {first}
+            <icons.transfer aria-label="and" className="size-3.5 text-fg-subtle" />
+            <Avatar size="sm" name={second} />
+            {second}
+          </span>
+        );
+      },
+    },
+    { id: 'why', header: 'Why we think so', cell: (pair) => pair.reasons.join(', ') },
+    ...(scored
+      ? [
+          {
+            id: 'match',
+            header: 'Match',
+            width: '6.25rem',
+            cell: (pair: DuplicatePair) =>
+              pair.match == null ? null : (
+                <Badge tone="warning" size="sm">
+                  {BAND[pair.match]}
+                </Badge>
+              ),
+          },
+        ]
+      : []),
+    {
+      id: 'decide',
+      header: <span className="sr-only">Decide</span>,
+      width: '12.5rem',
+      cell: (pair) => {
+        const [a = '', b = ''] = pair.personIds;
+        const names = pair.names.join(' and ');
+        return (
+          <span className="flex justify-end gap-1.5">
+            <Button
+              size="xs"
+              variant="ghost"
+              aria-label={`${names} are not the same person`}
+              shortcut="row.not-same"
+              loading={busy === `${a}/${b}`}
+              loadingLabel="Saving"
+              onClick={(event) => {
+                event.stopPropagation();
+                dismiss(a, b);
+              }}
+            >
+              Not the same
+            </Button>
+            <Button
+              size="xs"
+              variant="secondary"
+              aria-label={`Compare ${names}`}
+              shortcut="row.merge"
+              onClick={(event) => {
+                event.stopPropagation();
+                onCompare(a, b);
+              }}
+            >
+              Compare
+            </Button>
+          </span>
+        );
+      },
+    },
+  ];
   return (
     <Stack gap={5}>
       <PageHeader title={DATA_HEALTH.title} description={DATA_HEALTH.description} />
@@ -181,80 +264,40 @@ function Queue({
           description="No two records share a work email, a name and birth date, or a unique value."
         />
       ) : (
-        <Table aria-label="Possible duplicates">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Possible duplicate</TableHead>
-              <TableHead>Why we think so</TableHead>
-              {scored ? <TableHead className="w-25">Match</TableHead> : null}
-              <TableHead className="w-50">
-                <span className="sr-only">Decide</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((pair) => {
-              const [a = '', b = ''] = pair.personIds;
-              const [first = '', second = ''] = pair.names;
-              const names = pair.names.join(' and ');
-              const key = `${a}/${b}`;
-              return (
-                <TableRow key={key}>
-                  <TableCell>
-                    <span className="flex items-center gap-2 font-semibold whitespace-nowrap">
-                      <Avatar size="sm" name={first} />
-                      {first}
-                      <icons.transfer aria-label="and" className="size-3.5 text-fg-subtle" />
-                      <Avatar size="sm" name={second} />
-                      {second}
-                    </span>
-                  </TableCell>
-                  <TableCell>{pair.reasons.join(', ')}</TableCell>
-                  {scored ? (
-                    <TableCell>
-                      {pair.match == null ? null : (
-                        <Badge tone="warning" size="sm">
-                          {BAND[pair.match]}
-                        </Badge>
-                      )}
-                    </TableCell>
-                  ) : null}
-                  <TableCell>
-                    <span className="flex justify-end gap-1.5">
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        aria-label={`${names} are not the same person`}
-                        loading={busy === key}
-                        loadingLabel="Saving"
-                        onClick={() => {
-                          setBusy(key);
-                          setRefused(null);
-                          void onDismiss(a, b).then((outcome) => {
-                            setBusy(null);
-                            if (!outcome.ok) setRefused(outcome.message);
-                          });
-                        }}
-                      >
-                        Not the same
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="secondary"
-                        aria-label={`Compare ${names}`}
-                        onClick={() => {
-                          onCompare(a, b);
-                        }}
-                      >
-                        Compare
-                      </Button>
-                    </span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <DataTable
+          label="Possible duplicates"
+          rows={items}
+          rowId={(pair) => pair.personIds.join('/')}
+          describeRow={(pair) => pair.names.join(' and ')}
+          // A click or Enter compares; M from the row's menu or its key too.
+          onRowClick={(pair) => {
+            const [a = '', b = ''] = pair.personIds;
+            onCompare(a, b);
+          }}
+          rowActions={(pair) => {
+            const [a = '', b = ''] = pair.personIds;
+            return [
+              {
+                id: 'compare',
+                label: 'Compare or merge',
+                shortcut: 'row.merge',
+                icon: <icons.transfer aria-hidden />,
+                onSelect: () => {
+                  onCompare(a, b);
+                },
+              },
+              {
+                id: 'not-same',
+                label: 'Not the same person',
+                shortcut: 'row.not-same',
+                onSelect: () => {
+                  dismiss(a, b);
+                },
+              },
+            ];
+          }}
+          columns={columns}
+        />
       )}
     </Stack>
   );

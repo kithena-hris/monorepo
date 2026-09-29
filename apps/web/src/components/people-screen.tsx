@@ -7,6 +7,7 @@ import { useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
+import { DIRECTORY_VIEWS, viewHref } from '../lib/shortcuts';
 import { filtersOf, noteInAddress, oneOf, withQuery, type HistoryMode } from '../lib/url-state';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
@@ -254,13 +255,10 @@ export function PeopleScreen({
   /** Search text, as a key: empty is the default and left out. */
   const typed = (text: string): string | null => (text.trim() === '' ? null : text);
   // Switching a directory view keeps the search and the filters, not the page,
-  // nor what only the org chart reads.
+  // nor what only the org chart reads: the same address `]` goes to.
   const switchView = (view: string): void => {
-    const q = new URLSearchParams(window.location.search);
-    q.delete('after');
-    if (view !== 'org-chart') for (const key of ['focus', 'layout']) q.delete(key);
-    const qs = q.toString();
-    go(`/people/directory/${view}${qs === '' ? '' : `?${qs}`}`);
+    const known = oneOf(view, DIRECTORY_VIEWS, null);
+    if (known !== null) go(viewHref(known, window.location.search));
   };
 
   /** A write, then the page again from the server when it went through. */
@@ -732,32 +730,6 @@ export function PeopleScreen({
         };
       case 'PeopleSettings':
         return { load: loadable };
-      // Pages of the log are URLs, so Back returns to the one before.
-      case 'SettingsActivity': {
-        const area = oneOf(at('area'), ['fields', 'organisation', 'roles', 'integrations'], null);
-        return {
-          load: loadable,
-          area,
-          // People answers an area and a page; the search is over what came.
-          onArea: (next: string | null) => {
-            navigate({ area: next, before: null });
-          },
-          onOlder: (before: string) => {
-            navigate({ before });
-          },
-          ...(at('before') === null
-            ? {}
-            : {
-                onNewest: () => {
-                  navigate({ before: null });
-                },
-              }),
-          search: at('q') ?? '',
-          onSearchChange: (text: string) => {
-            note({ q: typed(text) }, 'replace');
-          },
-        };
-      }
       case 'FullValues':
         return {
           load: loadable,

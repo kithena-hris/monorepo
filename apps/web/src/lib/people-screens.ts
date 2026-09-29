@@ -4,7 +4,7 @@ import { currentTenant } from './branding';
 import { people, type PeopleAnswer } from './people';
 import type { OperationName } from './people-operations';
 import { VIEWS } from './people-views';
-import { directoryQuery, oneOf } from './url-state';
+import { directoryQuery } from './url-state';
 
 /**
  * The data each People screen is drawn from, fetched here, on the server,
@@ -64,9 +64,6 @@ const today = (): string => new Date().toISOString().slice(0, 10);
 /** A query-string value, or null for one that was not given. */
 const given = (value: string | undefined): string | null =>
   value === undefined || value === '' ? null : value;
-
-/** The settings areas the activity log narrows to (`?area=`). */
-const ACTIVITY_AREAS = ['fields', 'organisation', 'roles', 'integrations'] as const;
 
 /** A calendar date from the address, or null for anything else. */
 const dateOf = (value: string | undefined): string | null =>
@@ -156,14 +153,6 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     }
     case 'FieldRegistry':
       return read('Registry');
-    case 'SettingsActivity':
-      return orBare(
-        {
-          before: given(query.search['before']),
-          area: oneOf(query.search['area'], ACTIVITY_AREAS, null),
-        },
-        (asked) => read('SettingsActivity', asked),
-      );
     case 'Integrations': {
       // Chat apps beside the rest; a chat service that is down hides its section, not the page.
       const [integrations, chat] = await Promise.all([read('Integrations'), read('Chat')]);

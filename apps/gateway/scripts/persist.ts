@@ -22,20 +22,30 @@ import { OPERATIONS } from '../../web/src/lib/people-operations.ts';
 
 const HERE = fileURLToPath(new URL('..', import.meta.url));
 const OUT = join(HERE, 'persisted/operations');
-const SDL = join(HERE, '../../services/people/schemas/people.graphql');
+// Every subgraph the tenant app reads: an operation is valid when one of them
+// answers it (none spans two yet), People's or the activity log's.
+const SDLS = [
+  join(HERE, '../../services/people/schemas/people.graphql'),
+  join(HERE, '../../platform/audit/schemas/audit.graphql'),
+];
 
-const schema = buildASTSchema(parse(await readFile(SDL, 'utf8')), { assumeValidSDL: true });
+const schemas = await Promise.all(
+  SDLS.map(async (sdl) =>
+    buildASTSchema(parse(await readFile(sdl, 'utf8')), { assumeValidSDL: true }),
+  ),
+);
 
 const wanted = new Map<string, string>();
 const problems: string[] = [];
 for (const [name, body] of Object.entries(OPERATIONS)) {
-  const errors = validate(schema, parse(body));
+  const each = schemas.map((schema) => validate(schema, parse(body)));
+  const errors = each.find((e) => e.length === 0) ?? each[0] ?? [];
   if (errors.length > 0) problems.push(`${name}: ${errors.map((e) => e.message).join('; ')}`);
   const hash = createHash('sha256').update(body).digest('hex');
   wanted.set(`${hash}.json`, `${JSON.stringify({ version: 1, body })}\n`);
 }
 if (problems.length > 0) {
-  console.error(`Operations People's schema refuses:\n${problems.join('\n')}`);
+  console.error(`Operations no subgraph's schema accepts:\n${problems.join('\n')}`);
   process.exit(1);
 }
 

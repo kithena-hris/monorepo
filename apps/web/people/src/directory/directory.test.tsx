@@ -236,7 +236,7 @@ describe('Directory', () => {
     const { container, rerender } = render(<Directory {...props({ onViewChange })} />);
     const views = screen.getAllByRole('radiogroup', { name: 'Show people as' })[0] as HTMLElement;
     expect(within(views).getByRole('radio', { name: 'List' })).toBeChecked();
-    expect(screen.getByRole('table', { name: 'People' })).toBeInTheDocument();
+    expect(screen.getByRole('grid', { name: 'People' })).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
 
     rerender(<Directory {...props({ onViewChange, view: 'cards' })} />);
