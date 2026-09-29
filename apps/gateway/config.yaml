@@ -82,9 +82,15 @@ headers:
           # Concatenated rather than `toJSON`, which this router's expression
           # language does not offer. Safe because `sub` and `tid` come from a
           # token identity signed, and are uuids; People re-validates both.
+          #
+          # `impersonatedBy` is the operator behind a support session: `act.sub`
+          # (RFC 8693), which identity puts only on a support session's token,
+          # also a uuid. Null otherwise, so a principal always says which.
           expression: >-
             '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
-            request.auth.claims.tid + '","roles":[],"entitlements":${KITHENA_ENTITLEMENTS}}'
+            request.auth.claims.tid + '","impersonatedBy":' +
+            (request.auth.claims.act?.sub == nil ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            ',"roles":[],"entitlements":${KITHENA_ENTITLEMENTS}}'
         - op: 'set'
           name: 'x-internal-token'
           value: '${PEOPLE_API_TOKEN}'
