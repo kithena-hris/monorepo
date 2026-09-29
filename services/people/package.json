@@ -17,8 +17,8 @@
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1139.0",
-    "@aws-sdk/s3-request-presigner": "^3.1139.0",
+    "@aws-sdk/client-s3": "^3.1142.0",
+    "@aws-sdk/s3-request-presigner": "^3.1142.0",
     "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/db-kit": "workspace:*",

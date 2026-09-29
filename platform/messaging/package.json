@@ -22,7 +22,7 @@
     "drizzle-orm": "^0.45.3",
     "nodemailer": "^10.0.10",
     "postgres": "^3.4.5",
-    "resend": "^6.28.1",
+    "resend": "^6.30.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

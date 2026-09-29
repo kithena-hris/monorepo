@@ -12,7 +12,7 @@
     "test:acceptance": "vitest run --config vitest.acceptance.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-ec2": "^3.1141.0",
+    "@aws-sdk/client-ec2": "^3.1142.0",
     "@hookform/resolvers": "^5.9.1",
     "@kithena/contracts": "workspace:*",
     "@module-federation/runtime": "2.9.1",

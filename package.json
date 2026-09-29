@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
-    "@types/node": "^24.13.6",
+    "@types/node": "^24.19.0",
     "@typescript/typescript6": "npm:@typescript/typescript6@^6.0.2",
     "dependency-cruiser": "^18.4.0",
     "eslint": "^10.11.0",
@@ -46,7 +46,7 @@
     "prettier": "^3.9.9",
     "syncpack": "^15.3.3",
     "tsx": "^4.23.15",
-    "turbo": "^2.11.3",
+    "turbo": "^2.11.5",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
@@ -75,7 +75,7 @@
       "js-yaml@>=4 <4.3.2": "^4.3.2",
       "tmp@<0.2.6": "^0.2.6",
       "adm-zip@<0.6.1": "^0.6.1",
-      "@types/node": "^24.13.6"
+      "@types/node": "^24.19.0"
     },
     "packageExtensions": {
       "@modern-js/server-utils": {
