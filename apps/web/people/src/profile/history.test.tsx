@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
@@ -145,6 +145,38 @@ describe('PersonHistory', () => {
     const [item] = screen.getAllByRole('listitem');
     expect(item).toHaveTextContent('Mobile added');
     expect(item).toHaveTextContent('Done automatically');
+  });
+
+  it('names Kithena support, with the product’s icon, and never as automatic', async () => {
+    render(
+      <PersonHistory
+        load={{
+          status: 'ready',
+          data: {
+            ...march,
+            asOf: null,
+            changes: [
+              change({
+                id: 'support',
+                key: 'mobile',
+                value: '+34 600',
+                effectiveFrom: '2026-03-15',
+                by: 'Kithena support',
+                actor: { kind: 'support', avatarUrl: null },
+              }),
+            ],
+          },
+        }}
+        onAsOf={vi.fn()}
+      />,
+    );
+    const [item] = screen.getAllByRole('listitem');
+    expect(item).toHaveTextContent('By Kithena support');
+    expect(item).not.toHaveTextContent('Done automatically');
+    // The avatar waits a beat before its fallback.
+    await waitFor(() => {
+      expect(item?.querySelector('svg')).not.toBeNull();
+    });
   });
 
   it('narrows to one field, and goes back to today', async () => {

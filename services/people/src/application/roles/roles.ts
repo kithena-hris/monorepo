@@ -6,11 +6,13 @@ import {
   backOfficeRemoval,
   decideGrant,
   decideRevoke,
+  effectiveRoles,
   TENANT_ROLES,
   type Holdings,
   type TenantRole,
 } from '../../domain/access/roles.js';
 import type { Viewer } from '../person/ports.js';
+import { userActor } from '../person/ports.js';
 
 /**
  * Tenant roles through People's application layer (PEO-112; PRD §6.6).
@@ -188,6 +190,7 @@ export function tenantRoles(deps: {
       target: asked.accountId,
       role: asked.role,
       reason: asked.reason,
+      bySupport: asked.viewer.support !== undefined,
     });
     if (!decided.ok) return decided;
     if (decided.value === 'unchanged') return ok(holderOf(held, asked.accountId));
@@ -208,7 +211,7 @@ export function tenantRoles(deps: {
           tenantId: asked.tenantId,
           correlationId: asked.correlationId,
           causationId: null,
-          actor: { kind: 'user', userId: asked.viewer.accountId },
+          actor: userActor(asked.viewer),
         },
         {
           accountId: asked.accountId,
@@ -225,8 +228,9 @@ export function tenantRoles(deps: {
   return {
     async list(tx, asking) {
       const held = await store.holdings(tx, asking.tenantId);
-      const mine = held.get(asking.viewer.accountId);
-      if (mine?.has('people_admin') !== true && mine?.has('hr') !== true) {
+      // HR's rights, which every administrator and Kithena support hold.
+      const mine = effectiveRoles(held.get(asking.viewer.accountId) ?? []);
+      if (asking.viewer.support === undefined && !mine.has('hr')) {
         return err(NotAllowedToList);
       }
       return ok({

@@ -28,7 +28,11 @@ export interface ViewerRelations {
   readonly isInManagerChain: boolean;
   readonly isHr: boolean;
   readonly isFinance: boolean;
-  /** `people_admin`: may edit the schema. Not a key to every value in it. */
+  /**
+   * `people_admin`: may edit the schema, and may do anything HR or finance
+   * may — resolved with `isHr` and `isFinance` set too (OpenFGA's model;
+   * `effectiveRoles` standalone), so no rule here has to ask twice.
+   */
   readonly isAdmin: boolean;
   /**
    * The person being looked at, when there is one, for custom visibility
@@ -64,6 +68,21 @@ const ownedByIntegration = (definition: AttributeDefinition, viewer: ViewerRelat
   viewer.integrationId !== undefined &&
   viewer.sources?.get(definition.key)?.connectionId === viewer.integrationId;
 
+/**
+ * Kithena support, signed in from the back office (decided 2026-09-29): a
+ * full administrator of the company — HR, finance and `people_admin` — and
+ * nobody's self or manager, since it is not an employee and has no record.
+ * What nobody may read stays unread; what only the employee owns, unwritten.
+ */
+export const SUPPORT_RELATIONS: ViewerRelations = {
+  isSelf: false,
+  isManager: false,
+  isInManagerChain: false,
+  isHr: true,
+  isFinance: true,
+  isAdmin: true,
+};
+
 /** Which scopes this viewer satisfies. `directory` is everyone in the tenant. */
 function scopesOf(viewer: ViewerRelations): ReadonlySet<ViewerScope> {
   const scopes = new Set<ViewerScope>(['directory']);
@@ -92,8 +111,9 @@ function rolesOf(viewer: ViewerRelations): ReadonlySet<WriterRole> {
  *
  * An empty `visibility` means nobody, and that is a real configuration rather
  * than an oversight — §6.7 requires it for voluntary self-identification,
- * which is answerable only in aggregate. `admin` is deliberately not a
- * fallback: editing the schema is not a key to every value in it.
+ * which is answerable only in aggregate. Not even an administrator reads it:
+ * an administrator reads what HR and finance read (through `isHr` and
+ * `isFinance`, which their relations carry), and nothing past that.
  */
 export function visibleTo(definition: AttributeDefinition, viewer: ViewerRelations): boolean {
   // An integration reads back what it is the source of, and never a sealed
@@ -128,8 +148,9 @@ export function visibleTo(definition: AttributeDefinition, viewer: ViewerRelatio
  * Status is a lifecycle state, not an attribute, so no visibility setting or
  * rule reaches it. HR reads it, and the person reads their own; nobody else
  * does. "On leave" or "on notice" shown to a manager or a peer is the
- * disclosure §7 refuses a visibility rule for, and finance and `people_admin`
- * need it for nothing they do. A withheld status is absent, like a field.
+ * disclosure §7 refuses a visibility rule for, and finance needs it for
+ * nothing it does. An administrator reads it as HR does, since its relations
+ * carry `isHr`. A withheld status is absent, like a field.
  */
 export function statusVisibleTo(viewer: ViewerRelations): boolean {
   return viewer.isHr || viewer.isSelf;

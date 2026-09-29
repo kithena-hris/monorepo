@@ -80,7 +80,8 @@ const ROLES: readonly {
   {
     role: 'people_admin',
     label: 'People administrator',
-    means: 'Changes the fields, the settings and who holds a role.',
+    means:
+      'Changes the fields, the settings and who holds a role, and does anything HR and Finance can.',
     icon: <icons.permission aria-hidden />,
   },
   {
@@ -139,6 +140,10 @@ function Roles({
         title="Roles"
         description="Who has administrator, HR and finance access. Managers and employees get theirs from the org chart, not from here."
       />
+      {/* What was granted is what is listed; an administrator's rights reach further (decided 2026-09-29). */}
+      <p className="text-sm text-fg-muted">
+        A People administrator also has everything HR and Finance have, without holding those roles.
+      </p>
       {state.canManage ? null : (
         <Alert tone="info">Only a People administrator can change who holds a role.</Alert>
       )}
@@ -172,8 +177,8 @@ function Roles({
         })}
       </ul>
       {holders('finance').length === 0 ? (
-        <Alert tone="warning" title="Nobody has Finance access">
-          Pay and bank details approvals fall to HR until someone is added.
+        <Alert tone="warning" title="Nobody is granted Finance">
+          People administrators have Finance’s access until someone is added.
         </Alert>
       ) : null}
       {state.people.length === 0 ? (

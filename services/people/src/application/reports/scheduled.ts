@@ -1,6 +1,7 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, ok, type Clock, type Result } from '@kithena/domain-kit';
 
+import { effectiveRoles } from '../../domain/access/roles.js';
 import { entityZone } from '../../domain/org/calendar.js';
 import {
   checkSchedule,
@@ -436,7 +437,7 @@ async function runOne(
       outcomes.push({ accountId, outcome: 'not_eligible' });
       continue;
     }
-    const viewer: Viewer = { accountId, roles: new Set(p.holdings.get(accountId) ?? []) };
+    const viewer: Viewer = { accountId, roles: effectiveRoles(p.holdings.get(accountId) ?? []) };
     try {
       // eslint-disable-next-line no-await-in-loop -- one recipient's file at a time
       const link = await deps.inTenant(tenantId, ({ tx }) =>

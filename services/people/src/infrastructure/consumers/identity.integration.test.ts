@@ -119,13 +119,13 @@ function envelope(eventName: string, payload: object, tenantId = ACME) {
   };
 }
 
-const provisioned = (tenantId = ACME) =>
+const provisioned = (tenantId = ACME, workEmail = 'ines@acme.test') =>
   envelope(
     'identity.account.provisioned',
     {
       accountId: ACCOUNT,
       identityId: '00000000-0000-4000-8000-0000000000d1',
-      workEmail: 'ines@acme.test',
+      workEmail,
       timeZone: 'Europe/Madrid',
       employmentStart: '2026-10-01',
       via: 'admin_api',
@@ -195,6 +195,17 @@ describe('identity.account.provisioned', () => {
       identityAccountId: ACCOUNT,
       employmentStart: '2026-10-01',
     });
+  });
+
+  it('never makes a person of Kithena support, should its account ever be announced', async () => {
+    // Identity announces no support account (decided 2026-09-29); this is
+    // People's own defence: an address under the reserved `.invalid` is nobody's.
+    const support = provisioned(ACME, 'support@acme.support.kithena.invalid');
+    expect(await handle(support)).toBe('unchanged');
+    expect(await people()).toEqual([]);
+    expect(await outboxCount()).toBe(0);
+    // Anybody else is provisioned as ever.
+    expect(await handle(provisioned(ACME, 'ines@acme.invalid.example'))).toBe('applied');
   });
 
   it('is idempotent on identityAccountId: a redelivery writes no row and no event', async () => {

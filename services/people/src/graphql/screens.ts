@@ -643,7 +643,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   const HistoryActorRef = builder.objectRef<HistoryChange['actor']>('HistoryActor').implement({
     description: 'Who made a change, to draw: a person with their photo, or not a person.',
     fields: (t) => ({
-      kind: t.exposeString('kind', { description: 'person, integration or system.' }),
+      kind: t.exposeString('kind', {
+        description: 'person, integration, system, or support for Kithena support.',
+      }),
       avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
     }),
   });

@@ -3,10 +3,11 @@ import { publish } from '@kithena/db-kit';
 import { AccountsPage, type Actor } from '@kithena/contracts';
 import type { Clock, PendingEvent } from '@kithena/domain-kit';
 
-import type {
-  AccountDirectory,
-  IdentityAccount,
-  ProvisionalPeople,
+import {
+  isNobodysAddress,
+  type AccountDirectory,
+  type IdentityAccount,
+  type ProvisionalPeople,
 } from '../../application/reconcile.js';
 import { outbox, person } from '../tables.js';
 
@@ -32,6 +33,8 @@ export interface ProvisionerDeps {
 export function drizzleProvisionalPeople(deps: ProvisionerDeps): ProvisionalPeople {
   return {
     async provision(tx, tenantId, account, ctx) {
+      // Kithena support is never a person here (decided 2026-09-29).
+      if (isNobodysAddress(account.workEmail)) return false;
       /*
        * Idempotent because of `person_identity_account_key`, not because of a
        * lookup first. Two deliveries of one event racing each other both reach

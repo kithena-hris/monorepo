@@ -563,7 +563,7 @@ person:<id>  manager       user:<account>          (direct)
 person:<id>  manager_chain user:<account>          (transitive, via org unit)
 tenant:<id>  hr            user:<account>
 tenant:<id>  finance       user:<account>
-tenant:<id>  people_admin  user:<account>          (may edit the schema)
+tenant:<id>  people_admin  user:<account>          (may edit the schema, and do anything hr or finance may)
 ```
 
 **As built (PEO-092).** The model is People's own OpenFGA store, `people`,
@@ -571,7 +571,8 @@ found by name or created on boot, with the model in
 `services/people/src/infrastructure/openfga.ts`:
 
 ```
-type tenant   hr, finance, people_admin: [user]
+type tenant   people_admin: [user]
+              hr, finance: [user] or people_admin
 type person   account: [user]                  (§6.6's `self`; OpenFGA reserves the word)
               reports_to: [person]
               manager: account from reports_to
@@ -627,6 +628,42 @@ type person   account: [user]                  (§6.6's `self`; OpenFGA reserves
   event is consumed. A role claimed in the forwarded principal is ignored. The
   code that reads `viewer.roles` (settings, legal entities, finance's full
   values) therefore sees OpenFGA's answer.
+- **An administrator may do anything HR or finance may** (the owner's decision,
+  2026-09-29). A `people_admin` reads and writes every field HR or finance
+  reads and writes — pay, bank details, finance's full values, pay analytics —
+  and moves people through the lifecycle as HR does. It is decided once, at
+  the root: the model's `hr` and `finance` are `[user] or people_admin`, so
+  every OpenFGA check answers it, and standalone the caller's roles are
+  expanded once where they are built (`effectiveRoles`, in `http/caller.ts`;
+  the chat assistant and scheduled reports, which build a viewer from the
+  grants, expand them the same way). What was *granted* is unchanged: the
+  tuples and `people.role_grant` hold only the grants, the roles screen and
+  the back office's role report show only them, and the roles screen says an
+  administrator also has HR's and finance's rights. Who *has* HR's rights —
+  the approvers a pending change waits on, who is told about it, whether a
+  requester may approve alone, whether the back office's removal leaves the
+  company without HR — counts every administrator.
+
+  Three things are not permissions and do not change, because they are
+  separation of duties: nobody decides their own request or a change to
+  their own record while another approver can; granting still needs a
+  granted `people_admin`, never to oneself; and a field whose `visibility` is
+  empty (§6.7) is readable by nobody, an administrator included.
+- **Kithena support** (the owner's decision, 2026-09-29;
+  `docs/auth-administration.md`, "Support access"). An operator signs in from
+  the back office as the company's support account, with a reason; the
+  router forwards `impersonatedBy` (the operator) in the principal. People
+  treats such a principal as a full administrator — every tenant role, `hr`,
+  `finance` and `people_admin` relations to everybody, and nobody's self or
+  manager — without a tuple or a grant, so it is never listed, reported,
+  counted as the company's last administrator or as an approver anybody
+  waits on. It is not an employee: no person is created for it (identity
+  never announces the account, and People refuses to provision an address
+  under `.invalid`). What it does is recorded as the support account with the
+  operator beside it: `onBehalfOf` on every event's actor and history row,
+  `on_behalf_of` and `reason` on the settings log (20260929140000). The log
+  and a person's history name it "Kithena support", with the product's icon,
+  and the log shows the reason.
 - **The manager chain is the reporting line.** Org units have no heads in the
   data yet, so an org unit grants nothing; `org_changed` re-syncs the person and
   is where that would start.

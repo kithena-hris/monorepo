@@ -7,6 +7,7 @@ import { REPORT_LIFETIME_MS, type ObjectStore } from '../export/object-store.js'
 import { inTenantResult, type Asking, type PersonAccess } from '../person/person-access.js';
 import { holds } from '../person/pending-changes.js';
 import type { InTenant } from '../person/ports.js';
+import { userActor } from '../person/ports.js';
 import { writeCsv } from './csv.js';
 import { PERSON_ID_COLUMN } from './parse.js';
 import {
@@ -250,7 +251,7 @@ export async function commitImport(
     });
   }
 
-  const actor: Actor = { kind: 'user', userId: input.viewer.accountId };
+  const actor: Actor = userActor(input.viewer);
   const attributeKeys = [
     ...new Set([
       ...input.mapping.flatMap((m) =>

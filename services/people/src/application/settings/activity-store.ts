@@ -15,6 +15,13 @@ export interface ActivityEntry {
   /** What it did, in one plain sentence; null on entries from before it was kept. */
   readonly detail: string | null;
   readonly area: ActivityArea;
+  /**
+   * Kithena support's entries: the back-office operator who started the
+   * session (`actor` is the company's support account), and the reason they
+   * gave when the request carried it. Absent for everybody else.
+   */
+  readonly onBehalfOf?: string | null;
+  readonly reason?: string | null;
 }
 
 export interface ActivityStore {

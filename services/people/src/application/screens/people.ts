@@ -673,7 +673,7 @@ export interface HistoryChange {
   readonly by: string;
   /** Who, to draw: a person with their photo if the viewer may read them, or not a person. */
   readonly actor: {
-    readonly kind: 'person' | 'integration' | 'system';
+    readonly kind: 'person' | 'integration' | 'system' | 'support';
     readonly avatarUrl: string | null;
   };
   /** The change this one corrects. */
@@ -790,7 +790,9 @@ export async function historyView(
         actor: {
           kind:
             e.actor.kind === 'user'
-              ? ('person' as const)
+              ? e.actor.onBehalfOf === undefined
+                ? ('person' as const)
+                : ('support' as const)
               : e.actor.kind === 'integration'
                 ? ('integration' as const)
                 : ('system' as const),
@@ -838,9 +840,13 @@ async function actorFaces(
   );
 }
 
+/** What a person's history and the settings log call an action Kithena support took. */
+export const SUPPORT = 'Kithena support';
+
 /**
  * Who made each change, in words the viewer may read. A person is named only
- * if this viewer can read their name; otherwise "A colleague".
+ * if this viewer can read their name; otherwise "A colleague". Kithena
+ * support is named as itself, to everybody, the support agent included.
  */
 export async function actors(
   deps: ScreenDeps,
@@ -850,7 +856,7 @@ export async function actors(
 ): Promise<(actor: Actor) => string> {
   const names = new Map<string, string>();
   for (const actor of all) {
-    if (actor.kind !== 'user' || names.has(actor.userId)) continue;
+    if (actor.kind !== 'user' || actor.onBehalfOf !== undefined || names.has(actor.userId)) continue;
     if (actor.userId === asking.viewer.accountId) {
       names.set(actor.userId, 'You');
       continue;
@@ -865,7 +871,9 @@ export async function actors(
   }
   return (actor) =>
     actor.kind === 'user'
-      ? (names.get(actor.userId) ?? 'A colleague')
+      ? actor.onBehalfOf === undefined
+        ? (names.get(actor.userId) ?? 'A colleague')
+        : SUPPORT
       : actor.kind === 'integration'
         ? `An integration (${actor.provider})`
         : 'Automatically';

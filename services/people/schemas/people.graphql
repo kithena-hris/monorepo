@@ -635,7 +635,7 @@ Who made a change, to draw: a person with their photo, or not a person.
 """
 type HistoryActor {
   avatarUrl: String
-  """person, integration or system."""
+  """person, integration, system, or support for Kithena support."""
   kind: String
 }
 
@@ -1865,10 +1865,16 @@ type PeopleSettingsActivityEntry {
   """What it did, in one plain sentence."""
   detail: String
   id: ID
-  """person, or system for an account nobody in People holds."""
+  """
+  person; support for Kithena support, signed in from the back office; or system for an account nobody in People holds.
+  """
   kind: String
   """Who did it, by name, "You" included."""
   name: String
+  """
+  Why Kithena support was signed in, as the operator said. Null otherwise.
+  """
+  reason: String
   subject: String
 }
 

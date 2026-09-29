@@ -78,3 +78,77 @@ describe('a leaver’s roles when their access ends', () => {
     expect(s.events).toEqual([]);
   });
 });
+
+describe('Kithena support and the roles (decided 2026-09-29)', () => {
+  const SUPPORT = '00000000-0000-4000-8000-0000000000c1';
+  const OPERATOR = '00000000-0000-4000-8000-0000000000e1';
+  const ADMIN = '00000000-0000-4000-8000-0000000000b3';
+  const support = {
+    accountId: SUPPORT,
+    roles: new Set(['people_admin', 'hr', 'finance']),
+    support: { operatorId: OPERATOR, reason: 'Ticket 4812' },
+  };
+  const at = { tenantId: ACME, correlationId: 'c' };
+  const make = (rows: [string, string][]) => {
+    const s = store(rows);
+    s.candidates = () =>
+      Promise.resolve([{ accountId: OTHER, personId: 'p', name: null, workEmail: null }]);
+    const clock = fixedClock('2026-09-30T12:00:00.000Z');
+    return { s, roles: tenantRoles({ store: s, clock, newId: () => 'e' }) };
+  };
+
+  it('lists who holds what, and is not among them', async () => {
+    const { roles } = make([[ADMIN, 'people_admin']]);
+    const listed = await roles.list(tx, { ...at, viewer: support });
+    expect(listed.ok && listed.value.holders.map((h) => h.accountId)).toEqual([ADMIN]);
+  });
+
+  it('grants as an administrator, recorded as the operator’s', async () => {
+    const { roles, s } = make([[ADMIN, 'people_admin']]);
+    const granted = await roles.grant(tx, {
+      ...at,
+      viewer: support,
+      accountId: OTHER,
+      role: 'finance',
+      reason: 'Asked for by the customer',
+    });
+    expect(granted.ok).toBe(true);
+    expect(s.events[0]?.actor).toEqual({ kind: 'user', userId: SUPPORT, onBehalfOf: OPERATOR });
+  });
+
+  it('never revokes the company’s last administrator', async () => {
+    const { roles } = make([[ADMIN, 'people_admin']]);
+    const refused = await roles.revoke(tx, {
+      ...at,
+      viewer: support,
+      accountId: ADMIN,
+      role: 'people_admin',
+      reason: 'No',
+    });
+    expect(!refused.ok && refused.error.code).toBe('LAST_ADMIN');
+  });
+
+  it('is nothing without its session: the same account, not support, is refused', async () => {
+    const { roles } = make([[ADMIN, 'people_admin']]);
+    const plain = { accountId: SUPPORT, roles: new Set(['people_admin', 'hr', 'finance']) };
+    const listed = await roles.list(tx, { ...at, viewer: plain });
+    expect(!listed.ok && listed.error.code).toBe('FORBIDDEN');
+    const granted = await roles.grant(tx, {
+      ...at,
+      viewer: plain,
+      accountId: OTHER,
+      role: 'hr',
+      reason: 'x',
+    });
+    expect(!granted.ok && granted.error.code).toBe('FORBIDDEN');
+  });
+
+  it('lets an administrator list, as HR always could, and not finance', async () => {
+    const admin = { accountId: ADMIN, roles: new Set<string>() };
+    expect((await make([[ADMIN, 'people_admin']]).roles.list(tx, { ...at, viewer: admin })).ok).toBe(
+      true,
+    );
+    const refused = await make([[ADMIN, 'finance']]).roles.list(tx, { ...at, viewer: admin });
+    expect(!refused.ok && refused.error.code).toBe('FORBIDDEN');
+  });
+});
