@@ -626,6 +626,16 @@ export function PeopleScreen({
             return up;
           },
         };
+      case 'OrgChart':
+        return {
+          load: loadable,
+          onOpen: (personId: string) => {
+            go(`/people/${personId}`);
+          },
+          onDirectory: () => {
+            go('/people/directory');
+          },
+        };
       case 'PeopleSettings':
         return { load: loadable };
       // Pages of the log are URLs, so Back returns to the one before.

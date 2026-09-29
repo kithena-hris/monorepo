@@ -93,6 +93,10 @@
       "component": "ReportRuns"
     },
     {
+      "path": "/people/org-chart",
+      "component": "OrgChart"
+    },
+    {
       "path": "/people/:id",
       "component": "Profile"
     },
@@ -133,6 +137,13 @@
       "owns": ["/people/:id", "/people/:id/history", "/people/bulk-edit"],
       "icon": "people",
       "description": "Search, filter and view every employee record."
+    },
+    {
+      "path": "/people/org-chart",
+      "label": "Org chart",
+      "group": "Workspace",
+      "icon": "organisation",
+      "description": "Who reports to whom, across the whole company."
     },
     {
       "path": "/people/me",
