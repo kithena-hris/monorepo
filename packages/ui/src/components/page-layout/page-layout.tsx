@@ -207,6 +207,8 @@ function useCollapse(
   enabled: boolean;
   collapsed: boolean;
   fading: boolean;
+  /** False until the starting state is settled: nothing animates into it. */
+  settled: boolean;
   toggle: () => void;
   set: (next: boolean, animate?: boolean) => void;
 } {
@@ -215,6 +217,7 @@ function useCollapse(
     config.mode !== 'none' ? (config.defaultCollapsed ?? false) : false,
   );
   const [fading, setFading] = useState(false);
+  const [settled, setSettled] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const collapsed = controlled ?? internal;
   const storageKey = config.mode === 'rail' ? config.storageKey : undefined;
@@ -234,12 +237,13 @@ function useCollapse(
     }
   }, []);
 
-  useEffect(
-    () => () => {
+  // After the layout effect has settled where it starts, so it does not ease there.
+  useEffect(() => {
+    setSettled(true);
+    return () => {
       if (timer.current !== null) clearTimeout(timer.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const set = useCallback(
     (next: boolean, animate = true) => {
@@ -278,7 +282,7 @@ function useCollapse(
     set(!collapsed);
   }, [collapsed, set]);
 
-  return { enabled: config.mode !== 'none', collapsed, fading, toggle, set };
+  return { enabled: config.mode !== 'none', collapsed, fading, settled, toggle, set };
 }
 
 export interface PageLayoutProps
@@ -478,6 +482,7 @@ export function PageLayout({
               // The width eases rather than snapping, after the labels have
               // gone (`useCollapse`); a drag moves it directly.
               sidebarState.enabled &&
+                sidebarState.settled &&
                 'transition-[width] duration-[240ms] ease-standard motion-reduce:transition-none data-dragging:transition-none',
               // What a rail fades before its width moves, and brings back after.
               '[&_[data-rail-label]]:transition-opacity [&_[data-rail-label]]:duration-[120ms] motion-reduce:[&_[data-rail-label]]:transition-none',
