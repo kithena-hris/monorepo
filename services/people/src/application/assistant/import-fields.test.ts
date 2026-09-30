@@ -189,7 +189,7 @@ describe('proposing fields for new columns', () => {
 
   it('sends the model the headers and shapes, never a value', async () => {
     const w = world({
-      answer: { calls: [{ name: 'finish', input: { summary: 'Five fields.' } }] },
+      answer: { proposals: [], skipped: [], summary: 'Five fields.' },
     });
     const v = await proposed(w);
     expect(v.byModel).toBe(true);
@@ -207,28 +207,25 @@ describe('proposing fields for new columns', () => {
     const v = await proposed(
       world({
         answer: {
-          calls: [
+          proposals: [
             {
-              name: 'propose_field',
-              input: {
-                column: 3,
-                field: {
-                  label: 'Shirt size',
-                  dataType: 'select',
-                  options: ['XXXL'],
-                  required: false,
-                  ownership: ['employee'],
-                  visibility: ['self', 'hr'],
-                  classification: 'internal',
-                  piiKind: 'none',
-                  encrypted: false,
-                  aiEligible: true,
-                },
-                newSection: 'Equipment',
-                why: 'For the welcome pack.',
-                forExisting: 'leave',
-                forExistingWhy: 'Nice to have.',
+              column: 3,
+              field: {
+                label: 'Shirt size',
+                dataType: 'select',
+                options: ['XXXL'],
+                required: false,
+                ownership: ['employee'],
+                visibility: ['self', 'hr'],
+                classification: 'internal',
+                piiKind: 'none',
+                encrypted: false,
+                aiEligible: true,
               },
+              newSection: 'Equipment',
+              why: 'For the welcome pack.',
+              forExisting: 'leave',
+              forExistingWhy: 'Nice to have.',
             },
           ],
         },
@@ -241,8 +238,52 @@ describe('proposing fields for new columns', () => {
     });
   });
 
+  it('asks about a wide file in chunks, side by side, and falls back where a chunk fails', async () => {
+    const w = world();
+    const wide: NewFieldsFile = {
+      unmatched: Array.from({ length: 30 }, (_, i) => ({
+        index: i + 1,
+        header: `Extra ${String(i + 1)}`,
+        cells: ['a', 'b', 'a'],
+      })),
+      rows: FILE.rows,
+    };
+    const sent: Prompt[] = [];
+    const deps = {
+      ...w.deps,
+      importFile: () => Promise.resolve(ok(wide)),
+      fieldPlanner: {
+        loadPolicies: () => Promise.resolve(),
+        complete: (_t: string, prompt: Prompt) => {
+          sent.push(prompt);
+          // The second chunk's model times out.
+          if (sent.length === 2) return Promise.reject(new Error('the model answered 504'));
+          return Promise.resolve({ ok: true as const, value: JSON.stringify({ proposals: [], skipped: [] }) });
+        },
+      },
+    } as NewFieldsDeps;
+    const got = await proposeNewFields(deps, w.asking, w.step);
+    expect(sent.map((p) => (p.context['columns'] as unknown[]).length)).toEqual([12, 12, 6]);
+    expect(got.ok && got.value.proposals.length).toBe(30);
+    expect(got.ok && got.value.byModel).toBe(true);
+  });
+
+  it('keeps People’s own proposal when the model does not answer in JSON', async () => {
+    const w = world();
+    const deps = {
+      ...w.deps,
+      fieldPlanner: {
+        loadPolicies: () => Promise.resolve(),
+        complete: () => Promise.resolve({ ok: true as const, value: 'Sure! Here are some fields…' }),
+      },
+    } as NewFieldsDeps;
+    const got = await proposeNewFields(deps, w.asking, w.step);
+    expect(got.ok && got.value.byModel).toBe(false);
+    expect(got.ok && got.value.proposals.map((p) => p.key)).toContain('iban');
+  });
+
   it('shows HR without an administrator the whole proposal, read-only, and never asks the model', async () => {
-    const w = world({ viewer: HR, answer: { calls: [] } });
+    const w = world({ viewer: HR, answer: { proposals: [] } });
     const v = await proposed(w);
     expect(v.canCreate).toBe(false);
     expect(v.blocked).toMatch(/Only a People administrator/u);

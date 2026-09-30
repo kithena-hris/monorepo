@@ -3,13 +3,20 @@ import type { ColumnSeen } from './new-fields.js';
 /**
  * What the model is told about new information in an imported file.
  *
- * The instruction is the same for every company and every file, so it is
- * cached with the tools. The context is the columns — each header, and the
+ * The instruction is the same for every company and every file, and says
+ * exactly what JSON to answer with (`ModelAnswer`, read strictly item by
+ * item). The context is the columns — each header, and the
  * shape of its values in words, never a value — and the sections and fields
  * the company already has, by name.
  */
 
-export const NEW_FIELDS_INSTRUCTION = `An HR team is importing a spreadsheet of employees. Some columns match no field the company has. For each listed column, propose one employee field with propose_field, or call skip_column when it holds nothing an HR system should keep or repeats a field the company already has. Then call finish once with a one-sentence summary. Nothing you propose is applied until HR reviews it and a People administrator approves it.
+export const NEW_FIELDS_INSTRUCTION = `An HR team is importing a spreadsheet of employees. Some columns match no field the company has. For each listed column, propose one employee field, or skip it when it holds nothing an HR system should keep or repeats a field the company already has. Nothing you propose is applied until HR reviews it and a People administrator approves it.
+
+Answer with one JSON object and nothing else, in exactly this shape:
+{"proposals":[{"column":3,"field":{"label":"Emergency contact","dataType":"text","required":false,"ownership":["employee","hr"],"visibility":["self","hr"],"classification":"confidential","piiKind":"contact","encrypted":false,"aiEligible":false},"newSection":"Emergency contact","why":"Personal contact details the employee keeps up to date.","forExisting":"ask","forExistingWhy":"Only they know it."}],"skipped":[{"column":7,"why":"Repeats the existing work email."}],"summary":"One sentence, naming no person and no value."}
+- Every listed column appears once, in proposals or in skipped. Use "sectionKey" (an existing section's key) instead of "newSection" when an existing section fits.
+- field may also carry "options" (choices, for select only), "country" (two letters, for bank_account) and "description" (help text). No other keys anywhere.
+- dataType is one of: text, long_text, number, decimal, percentage, date, boolean, select, email, phone, url, country, bank_account.
 
 You see each column's header and the shape of its values ("dates, dd/mm/yyyy", "4 distinct short values"), never a value. Work from those alone.
 

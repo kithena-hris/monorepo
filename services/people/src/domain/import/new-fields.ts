@@ -87,58 +87,33 @@ export const ColumnProposal = z.strictObject({
 });
 export type ColumnProposal = z.infer<typeof ColumnProposal>;
 
-/* -------------------------------------------------------------- tools -- */
+/* --------------------------------------------------- the model's answer -- */
 
+/** One column's field, as the model proposes it. Read strictly: anything else is dropped. */
 export const ProposeField = z.strictObject({
-  column: z.int().min(0).max(1000).describe('The column’s index, as listed'),
+  column: z.int().min(0).max(1000),
   field: NewField,
-  sectionKey: z.string().max(64).optional().describe('An existing section’s key, when one fits'),
-  newSection: Label.optional().describe(
-    'Otherwise the name of a new section; columns that belong together share one',
-  ),
-  why: z.string().trim().min(1).max(200).describe('One line: why this field is set up this way'),
-  forExisting: z
-    .enum(['ask', 'hr', 'leave', 'default'])
-    .describe(
-      'For people already here that the file gives no value: ask them (their own details), hr (HR records it), leave it empty (nice to have), default (one value suits everyone missing it)',
-    ),
-  forExistingWhy: z.string().trim().min(1).max(200).describe('One line: why'),
+  sectionKey: z.string().max(64).optional(),
+  newSection: Label.optional(),
+  why: z.string().trim().min(1).max(200),
+  forExisting: z.enum(['ask', 'hr', 'leave', 'default']),
+  forExistingWhy: z.string().trim().min(1).max(200),
 });
 export const SkipColumn = z.strictObject({
   column: z.int().min(0).max(1000),
   why: z.string().trim().min(1).max(200),
 });
-export const Finish = z.strictObject({
-  summary: z
-    .string()
-    .trim()
-    .min(1)
-    .max(300)
-    .describe('One sentence, naming no person and no value'),
+
+/**
+ * What the model answers: one JSON object. The envelope is read first and
+ * each item on its own, so one malformed proposal is dropped and counted
+ * rather than costing the rest.
+ */
+export const ModelAnswer = z.object({
+  proposals: z.array(z.unknown()).max(200).default([]),
+  skipped: z.array(z.unknown()).max(200).default([]),
+  summary: z.string().trim().max(300).optional(),
 });
-
-export interface Tool {
-  readonly name: string;
-  readonly description: string;
-  readonly input: z.ZodType;
-}
-
-/** What a model is offered. None of them writes anything. */
-export const NEW_FIELD_TOOLS: readonly Tool[] = [
-  {
-    name: 'propose_field',
-    description:
-      'Propose one employee field for one column of the file, and what happens for people already here.',
-    input: ProposeField,
-  },
-  {
-    name: 'skip_column',
-    description:
-      'Say a column holds nothing an HR system should keep, or that duplicates an existing field.',
-    input: SkipColumn,
-  },
-  { name: 'finish', description: 'Call once, last, with a one-sentence summary.', input: Finish },
-];
 
 /* ------------------------------------------------------------ defaults -- */
 
@@ -378,66 +353,69 @@ function recommendFor(
 /* ------------------------------------------------------ the model's view -- */
 
 /**
- * The model's proposals laid over People's own: per column, a valid proposal
- * from the model replaces the local one; a column it skipped is left out
- * (and says why); a column it did not mention keeps People's. Choices always
- * come from the file, and a default's value too: the model saw neither.
+ * The model's answers laid over People's own proposals: per column, a valid
+ * proposal from the model replaces the local one; a column it skipped is left
+ * out (and says why); a column it did not mention keeps People's. Choices
+ * always come from the file, and a default's value too: the model saw
+ * neither. One answer per chunk of columns; an answer that is not the
+ * envelope at all counts as one unreadable item.
  */
 export function withModel(
   local: readonly Omit<ColumnProposal, 'key'>[],
-  calls: readonly { readonly name: string; readonly input: unknown }[],
+  answers: readonly unknown[],
   sections: readonly { readonly key: string; readonly label: string }[],
   seen: readonly ColumnSeen[],
 ): { proposals: Omit<ColumnProposal, 'key'>[]; summary: string | null; unreadable: number } {
   const byColumn = new Map(local.map((p) => [p.column, p]));
   let summary: string | null = null;
   let unreadable = 0;
-  for (const call of calls) {
-    if (call.name === 'finish') {
-      const done = Finish.safeParse(call.input);
-      if (done.success) summary = done.data.summary;
-      else unreadable += 1;
+  for (const raw of answers) {
+    const answer = ModelAnswer.safeParse(raw);
+    if (!answer.success) {
+      unreadable += 1;
       continue;
     }
-    if (call.name === 'skip_column') {
-      const skip = SkipColumn.safeParse(call.input);
+    summary ??= answer.data.summary ?? null;
+    for (const item of answer.data.skipped) {
+      const skip = SkipColumn.safeParse(item);
       const was = skip.success ? byColumn.get(skip.data.column) : undefined;
       if (skip.success && was)
         byColumn.set(skip.data.column, { ...was, include: false, why: skip.data.why });
       else unreadable += 1;
-      continue;
     }
-    const proposed = call.name === 'propose_field' ? ProposeField.safeParse(call.input) : null;
-    const was = proposed?.success ? byColumn.get(proposed.data.column) : undefined;
-    if (!proposed?.success || was === undefined) {
-      unreadable += 1;
-      continue;
+    for (const item of answer.data.proposals) {
+      const proposed = ProposeField.safeParse(item);
+      const was = proposed.success ? byColumn.get(proposed.data.column) : undefined;
+      if (!proposed.success || was === undefined) {
+        unreadable += 1;
+        continue;
+      }
+      const p = proposed.data;
+      const column = seen.find((s) => s.column === p.column);
+      const placement: Placement =
+        p.sectionKey !== undefined && sections.some((s) => s.key === p.sectionKey)
+          ? { sectionKey: p.sectionKey }
+          : { newSection: p.newSection ?? was.header };
+      const forExisting: ForExisting =
+        p.forExisting === 'default'
+          ? column?.single == null
+            ? { kind: 'leave' }
+            : { kind: 'default', value: column.single }
+          : { kind: p.forExisting };
+      byColumn.set(p.column, {
+        ...was,
+        field: {
+          ...p.field,
+          ...(p.field.dataType === 'select' || p.field.dataType === 'multi_select'
+            ? { options: [...(column?.local.options ?? [])] }
+            : {}),
+        },
+        placement,
+        why: p.why,
+        forExisting,
+        forExistingWhy: p.forExistingWhy,
+      });
     }
-    const p = proposed.data;
-    const column = seen.find((s) => s.column === p.column);
-    const placement: Placement =
-      p.sectionKey !== undefined && sections.some((s) => s.key === p.sectionKey)
-        ? { sectionKey: p.sectionKey }
-        : { newSection: p.newSection ?? was.header };
-    const forExisting: ForExisting =
-      p.forExisting === 'default'
-        ? column?.single == null
-          ? { kind: 'leave' }
-          : { kind: 'default', value: column.single }
-        : { kind: p.forExisting };
-    byColumn.set(p.column, {
-      ...was,
-      field: {
-        ...p.field,
-        ...(p.field.dataType === 'select' || p.field.dataType === 'multi_select'
-          ? { options: [...(column?.local.options ?? [])] }
-          : {}),
-      },
-      placement,
-      why: p.why,
-      forExisting,
-      forExistingWhy: p.forExistingWhy,
-    });
   }
   return { proposals: [...byColumn.values()], summary, unreadable };
 }

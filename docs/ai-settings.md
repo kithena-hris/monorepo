@@ -44,10 +44,17 @@ written before the OK.
 
 - Everything is People's, server-side (`application/assistant/import-fields.ts`).
   The browser never calls a model.
-- The model is Claude (`claude-opus-5-5` by default, `IMPORT_FIELDS_MODEL`),
-  over the Anthropic SDK, only through the AI gateway, only where
-  `ANTHROPIC_API_KEY` is set. It is offered three tools: `propose_field`,
-  `skip_column`, `finish`. None of them writes.
+- The model is **the assistant's own**: the OpenAI-compatible chat API in
+  `infrastructure/assistant/model.ts`, configured by `ASSISTANT_BASE_URL`,
+  `ASSISTANT_API_KEY` and `ASSISTANT_MODEL`, the same settings the People
+  assistant already uses. **No new key or provider is needed**; where the
+  assistant runs, this runs. It is reached only through the AI gateway.
+- It answers **one JSON object** (`response_format: json_object`): proposals,
+  skipped columns and a summary, in the shape the instruction spells out.
+  People reads it with a strict Zod schema (`ModelAnswer`, `ProposeField`,
+  `SkipColumn` in `domain/import/new-fields.ts`), item by item, so one
+  malformed proposal is dropped and counted rather than costing the rest.
+  Nothing it answers writes anything.
 - **It is shown each column's header and the shape of its values, never a
   value**: "dates, dd/mm/yyyy", "8 digits + letter", "4 distinct short
   values", "IBAN-like, country ES" (`domain/import/column-shape.ts`), and the
@@ -57,9 +64,11 @@ written before the OK.
   check runs, and any free text shaped like a value (an email address, six or
   more digits in a run) is refused (`AI_VALUE_SHAPED`), so a header that is
   really a pasted value never leaves.
-- The tools and the instruction are the cached prefix; the columns vary after
-  it. Effort `medium`, streaming, server-side fallback on a refusal.
-- With no key, when the company's budget is spent (20 proposals an hour,
+- A wide file is sent in chunks of 12 columns, side by side, each with room
+  for 6,000 tokens of answer and a 60-second timeout, so the whole answers
+  well inside the shell's two-minute write. A chunk that fails or does not
+  answer in JSON keeps People's own proposal for its columns.
+- With no model configured, when the company's budget is spent (20 proposals an hour,
   `IMPORT_FIELDS_PLANS_PER_HOUR`; in memory per process), or when the answer
   cannot be read, People's own rules propose (`domain/import/new-fields.ts`):
   an IBAN is financial, encrypted and never the assistant's; an emergency
@@ -105,9 +114,6 @@ the field's visibility.
 - Proposals and the review cross GraphQL as JSON text; their shape is the Zod
   schema in `domain/import/new-fields.ts`, checked again on the way in.
 - The budget is per process until People runs more than one.
-- A model request that takes longer than the shell's two-minute write timeout
-  fails and falls back to the mapping step's "press again to import without
-  the new columns".
 - Not checked against how BambooHR, HiBob, Personio or Rippling handle
   unknown columns today; the flow follows the pattern the brief describes
   (detect, propose a field, decide what happens to existing records).

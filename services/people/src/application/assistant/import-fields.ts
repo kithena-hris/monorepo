@@ -92,9 +92,8 @@ export interface NewFieldsView {
 }
 
 const NOBODY = '00000000-0000-0000-0000-000000000000';
-const Calls = z.object({
-  calls: z.array(z.object({ name: z.string().max(64), input: z.unknown() })).max(400),
-});
+/** Columns per model request: a dozen proposals is a few thousand tokens of answer. */
+const CHUNK = 12;
 
 const ONLY_ADMIN =
   'Only a People administrator can add fields. Ask one to run this import, or import without these columns.';
@@ -233,30 +232,34 @@ export async function proposeNewFields(
   });
   if (!loaded.ok) return loaded;
   // Headers, shapes, and the names of sections and fields. Never a cell.
-  const answered = await planner.complete(asking.tenantId, {
-    instruction: NEW_FIELDS_INSTRUCTION,
-    context: newFieldsContext(
-      g.seen,
-      g.sections.map((s) => ({
-        ...s,
-        fields: g.draft.attributes
-          .filter((a) => a.sectionKey === s.key && a.deprecatedAt === null)
-          .map((a) => a.label.default),
-      })),
-    ),
-    about: 'configuration',
-  });
-  let calls: { name: string; input: unknown }[] | null = null;
-  if (answered.ok) {
-    try {
-      const parsed = Calls.safeParse(JSON.parse(answered.value));
-      calls = parsed.success ? parsed.data.calls : null;
-    } catch {
-      calls = null;
-    }
-  }
-  if (calls === null) return ok(view(g, withKeys(local, taken), false));
-  const merged = withModel(local, calls, g.sections, g.seen);
+  // A wide file goes in chunks, side by side, so each answer stays small and
+  // the whole well inside the shell's two-minute write.
+  const sections = g.sections.map((s) => ({
+    ...s,
+    fields: g.draft.attributes
+      .filter((a) => a.sectionKey === s.key && a.deprecatedAt === null)
+      .map((a) => a.label.default),
+  }));
+  const chunks: ColumnSeen[][] = [];
+  for (let at = 0; at < g.seen.length; at += CHUNK) chunks.push(g.seen.slice(at, at + CHUNK));
+  const answers = await Promise.all(
+    chunks.map(async (chunk): Promise<unknown> => {
+      try {
+        const answered = await planner.complete(asking.tenantId, {
+          instruction: NEW_FIELDS_INSTRUCTION,
+          context: newFieldsContext(chunk, sections),
+          about: 'configuration',
+        });
+        return answered.ok ? (JSON.parse(answered.value) as unknown) : null;
+      } catch {
+        // No answer, or not JSON: People's own proposal stands for these columns.
+        return null;
+      }
+    }),
+  );
+  const heard = answers.filter((a) => a !== null);
+  if (heard.length === 0) return ok(view(g, withKeys(local, taken), false));
+  const merged = withModel(local, heard, g.sections, g.seen);
   return ok(view(g, withKeys(merged.proposals, taken), true));
 }
 

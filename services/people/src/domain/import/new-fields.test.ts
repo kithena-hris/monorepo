@@ -132,33 +132,33 @@ describe('with a model', () => {
       local,
       [
         {
-          name: 'propose_field',
-          input: {
-            column: 5,
-            field: {
-              label: 'Shirt size',
-              dataType: 'select',
-              options: ['invented'],
-              required: false,
-              ownership: ['employee'],
-              visibility: ['self', 'hr'],
-              classification: 'internal',
-              piiKind: 'none',
-              encrypted: false,
-              aiEligible: true,
+          proposals: [
+            {
+              column: 5,
+              field: {
+                label: 'Shirt size',
+                dataType: 'select',
+                options: ['invented'],
+                required: false,
+                ownership: ['employee'],
+                visibility: ['self', 'hr'],
+                classification: 'internal',
+                piiKind: 'none',
+                encrypted: false,
+                aiEligible: true,
+              },
+              newSection: 'Equipment',
+              why: 'For the welcome pack.',
+              forExisting: 'default',
+              forExistingWhy: 'Most people are M.',
             },
-            newSection: 'Equipment',
-            why: 'For the welcome pack.',
-            forExisting: 'default',
-            forExistingWhy: 'Most people are M.',
-          },
+            // Not the shape: dropped and counted, the rest kept.
+            { column: 99 },
+          ],
+          skipped: [{ column: 7, why: 'Already held as the legal entity’s country.' }],
+          summary: 'Three new fields.',
         },
-        {
-          name: 'skip_column',
-          input: { column: 7, why: 'Already held as the legal entity’s country.' },
-        },
-        { name: 'propose_field', input: { column: 99 } },
-        { name: 'finish', input: { summary: 'Three new fields.' } },
+        'not an answer at all',
       ],
       SECTIONS,
       Object.values(FILE),
@@ -173,7 +173,7 @@ describe('with a model', () => {
     expect(proposals.find((p) => p.column === 7)).toMatchObject({ include: false });
     expect(proposals.find((p) => p.column === 3)?.forExisting).toEqual({ kind: 'ask' });
     expect(summary).toBe('Three new fields.');
-    expect(unreadable).toBe(1);
+    expect(unreadable).toBe(2);
   });
 
   it('gives each field a key its label makes, never one already taken', () => {
