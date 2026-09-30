@@ -1,5 +1,6 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
+import { refresh } from 'next/cache';
 import { cookies, headers } from 'next/headers';
 import { cache } from 'react';
 
@@ -135,6 +136,25 @@ const read = cache((name: OperationName, variables: string): Promise<PeopleAnswe
   send(name, JSON.parse(variables) as Record<string, unknown>),
 );
 
+/**
+ * A write went through, so what the browser holds may be out of date: the
+ * action's own answer carries the page drawn again, and every page the
+ * client router kept (`staleTimes` in `next.config.mjs`) is dropped, so Back
+ * and a second visit ask again. In one place because every write passes
+ * here; a screen that forgets to refresh cannot leave another page stale.
+ *
+ * Not a file kept for a field: nothing shows it until the form's Save, which
+ * is a write of its own. Only a server action can refresh; a route handler's
+ * write (a chat app's sign-in coming back) ends in a full page load anyway.
+ */
+function changed(): void {
+  try {
+    refresh();
+  } catch {
+    // Not a server action.
+  }
+}
+
 const hashes = new Map<OperationName, string>();
 const hashOf = (name: OperationName): string => {
   let hash = hashes.get(name);
@@ -209,6 +229,7 @@ async function send(
         message: error?.message ?? 'People did not answer',
       };
     }
+    if (keyed && name !== 'CompleteFileUpload') changed();
     // Every operation asks for one root field.
     return { ok: true, data: Object.values(answer.data)[0] };
   } catch (cause) {
