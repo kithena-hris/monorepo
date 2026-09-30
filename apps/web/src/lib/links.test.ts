@@ -48,6 +48,11 @@ describe('inAppHref', () => {
   });
 });
 
+/** The pointer arriving over the element with this id. */
+function over(id: string): void {
+  document.getElementById(id)?.dispatchEvent(new Event('pointerover', { bubbles: true }));
+}
+
 describe('useInAppLinks', () => {
   it('prefetches a plain link on hover, only where there is a page', () => {
     renderHook(() => {
@@ -55,9 +60,6 @@ describe('useInAppLinks', () => {
     });
     document.body.innerHTML =
       '<a id="tab" href="/people/insights/turnover">T</a><a id="file" href="/files/1">F</a>';
-    const over = (id: string): void => {
-      document.getElementById(id)?.dispatchEvent(new Event('pointerover', { bubbles: true }));
-    };
     over('tab');
     over('tab');
     over('file');
