@@ -560,10 +560,11 @@ export function AppShell({
                   ) : (
                     <NavItem
                       key={area.label}
-                      href={area.href}
                       icon={area.icon}
-                      // Not yet built. Disabled rather than absent: a link that
-                      // 404s is worse than one that says "not yet".
+                      // Not yet built. Disabled rather than absent, and not a
+                      // link at all — no `href` — as the account menu's item
+                      // and `g t` are not: a link that 404s is worse than one
+                      // that says "not yet".
                       aria-disabled
                       tabIndex={-1}
                       className="opacity-60"
