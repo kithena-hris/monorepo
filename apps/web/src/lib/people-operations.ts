@@ -137,6 +137,7 @@ export const OPERATIONS = {
       items {
         id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
         reason mine canDecide canSelfApprove awaitingReview findings { level code message }
+        flags { code reason }
         value { ...EntryParts }
         current { ...EntryParts }
       }
@@ -450,11 +451,17 @@ export const OPERATIONS = {
         tenure { ...PayGroup }
         compa { ...PayGroup }
       }
+      whatChanged { phrasable tabs { tab sentences } }
     }
   }
   fragment PayGroup on AnalyticsPayGroup {
     label currency status people p25 median p75
     band { minimumMinor midpointMinor maximumMinor }
+  }`,
+
+  /** One Insights tab's "what changed", worded by the assistant where there is one. */
+  WhatChanged: `query WhatChanged($tab: String!, $segment: ID) {
+    peopleWhatChanged(tab: $tab, segment: $segment) { tab sentences byModel }
   }`,
 
   PublishPreview: `query PublishPreview($requiredFrom: String!) {

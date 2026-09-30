@@ -127,6 +127,15 @@ type AnalyticsPayGroup {
   status: String
 }
 
+"""
+One tab’s “what changed”: the figures are always People’s; the words are the assistant’s when `byModel`.
+"""
+type AnalyticsPhrased {
+  byModel: Boolean
+  sentences: [String!]
+  tab: String
+}
+
 type AnalyticsPoint {
   label: String
   value: Float
@@ -153,11 +162,31 @@ type AnalyticsSeries {
   values: [Int!]
 }
 
+"""One tab’s “what changed”, in People’s own words, from its figures."""
+type AnalyticsTabSummary {
+  sentences: [String!]
+  tab: String
+}
+
 type AnalyticsTenureBand {
   headcount: Int
   label: String
   """Left in the 12 months before, by tenure at leaving"""
   leavers: Int
+}
+
+type AnalyticsWhatChanged {
+  """The assistant may reword it: ask `peopleWhatChanged` for its words."""
+  phrasable: Boolean
+  tabs: [AnalyticsTabSummary!]
+}
+
+"""
+Something unusual about a change, found by People’s rules, for whoever decides it. It never blocks.
+"""
+type ApprovalFlag {
+  code: String
+  reason: String
 }
 
 type ApprovalItem {
@@ -169,6 +198,8 @@ type ApprovalItem {
   effectiveFrom: String
   expiresAt: String
   findings: [IdentifierFinding!]
+  """Only to whoever decides it; empty for anybody else."""
+  flags: [ApprovalFlag!]
   id: ID
   key: String
   kind: String
@@ -1403,6 +1434,7 @@ type PeopleAnalytics {
   """Hired, not started yet; HR’s only, never under a segment."""
   startingSoon: Int
   tenure: [AnalyticsTenureBand!]
+  whatChanged: AnalyticsWhatChanged
 }
 
 """
@@ -2208,6 +2240,10 @@ type Query {
   One endpoint’s delivery log, newest first, 50 at a time; people_admin only.
   """
   peopleWebhookDeliveries(after: ID, endpointId: ID!): WebhookDeliveries
+  """
+  One Insights tab’s “what changed”, reworded by the assistant where there is one. It is shown placeholders, never a figure.
+  """
+  peopleWhatChanged(segment: ID, tab: String!): AnalyticsPhrased
   person(asOf: String, id: ID!): Person
 }
 

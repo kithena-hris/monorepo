@@ -930,6 +930,8 @@ export function PeopleScreen({
           onSegmentChange: (segment: string | null) => {
             navigate({ segment });
           },
+          // "What changed", in the assistant's words where People says it may.
+          onWhatChanged: (tab: string) => actions.whatChanged(tab, at('segment')),
           // The Schedules button: the schedules page's own actions.
           schedules: {
             onCreate: thenRefresh(actions.createReportSchedule),

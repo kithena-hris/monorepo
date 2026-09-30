@@ -998,6 +998,23 @@ export async function deleteReportSchedule(id: string): Promise<Outcome> {
   return outcome(people('DeleteReportSchedule', { id }));
 }
 
+/* ------------------------------------------------------- what changed -- */
+
+/**
+ * One Insights tab's "what changed", worded by the assistant where there is
+ * one; null when People could not be asked, and the screen keeps its own words.
+ */
+export async function whatChanged(
+  tab: string,
+  segment: string | null,
+): Promise<{ readonly sentences: readonly string[]; readonly byModel: boolean } | null> {
+  const answer = await people<{ sentences: readonly string[]; byModel: boolean }>('WhatChanged', {
+    tab,
+    segment,
+  });
+  return answer.ok ? { sentences: answer.data.sentences, byModel: answer.data.byModel } : null;
+}
+
 /**
  * The directory's next page, for its infinite scroll: the same query the page
  * was drawn with (search, filters, conditions, order), from `after`.
