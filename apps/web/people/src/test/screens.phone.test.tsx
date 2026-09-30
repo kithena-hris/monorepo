@@ -11,6 +11,8 @@ import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
 import { ImportFlow } from '../import/import-flow';
+import { NewInformation, type NewFieldsView } from '../import/new-information';
+import { NEW_FIELDS } from '../import/new-information.fixture';
 import { Onboarding } from '../onboarding/onboarding';
 import { PersonHistory } from '../profile/history';
 import { Profile } from '../profile/profile';
@@ -883,6 +885,50 @@ describe('at 390×844, with a finger', () => {
         onBack={vi.fn()}
       />,
     );
+  });
+
+  describe('new information in an import', () => {
+    const newInformation = (over: Partial<NewFieldsView> = {}) => (
+      <NewInformation
+        view={{ ...NEW_FIELDS, ...over }}
+        onReview={(proposals) =>
+          Promise.resolve({
+            ok: true as const,
+            data: { ...NEW_FIELDS, proposals: NEW_FIELDS.proposals.filter((p) => proposals.some((q) => q.column === p.column)), summary: 'Adds 4 fields. Values for 128 people from this file. 342 people will be asked for their emergency contact.', problems: [] },
+          })
+        }
+        onApply={ok}
+        onSkip={vi.fn()}
+        onBack={vi.fn()}
+      />
+    );
+
+    it('the proposed fields, one edited', async () => {
+      await checked(newInformation());
+      await userEvent.click(screen.getByRole('button', { name: 'Change T-shirt size' }));
+      await settled();
+      expect(await violations(document.body)).toEqual([]);
+      expect(underFloor(document.body)).toEqual([]);
+    });
+
+    it('people not in the file, then the review', async () => {
+      await checked(newInformation());
+      await userEvent.click(screen.getByRole('button', { name: 'Next: people not in this file' }));
+      await settled();
+      expect(await violations(document.body)).toEqual([]);
+      expect(underFloor(document.body)).toEqual([]);
+      await userEvent.click(screen.getByRole('button', { name: 'Review' }));
+      await screen.findByText(/342 people will be asked/u);
+      await settled();
+      expect(await violations(document.body)).toEqual([]);
+      expect(underFloor(document.body)).toEqual([]);
+    });
+
+    it('for HR without an administrator', async () => {
+      await checked(
+        newInformation({ canCreate: false, blocked: 'Only a People administrator can add fields.' }),
+      );
+    });
   });
 
   it('the import review', async () => {
