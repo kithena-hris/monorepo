@@ -668,8 +668,10 @@ export async function compose(config: Config): Promise<RequestHandler> {
             ? { by: session.viewedBy, kind: 'view_as' as const }
             : null;
       // Never past the session's own end: a view-as session's last token
-      // must not carry it beyond its thirty minutes.
-      const notAfter = new Date(
+      // must not carry it beyond its thirty minutes. The minter applies the
+      // lifetime itself from its own clock read; capping it here too, from an
+      // earlier read, cut a second off whenever the two straddled one.
+      const expiresAt = new Date(
         Math.min(
           systemClock.now().getTime() + ACCESS_TOKEN_SECONDS * 1000,
           Date.parse(session.expiresAt),
@@ -677,9 +679,9 @@ export async function compose(config: Config): Promise<RequestHandler> {
       ).toISOString();
       const token = await mintAccess(principalFrom(session, actor), {
         entitlements: await entitlementsOf(session.tenantId),
-        notAfter,
+        notAfter: session.expiresAt,
       });
-      return { token, expiresAt: notAfter };
+      return { token, expiresAt };
     },
     settle: async (tenantId) => {
       try {
