@@ -467,6 +467,7 @@ describe('the directory’s search, in the address', () => {
         note: 'The assistant isn’t set up here, so People read it without the assistant.',
         unused: ['managers'],
         filters: 2,
+        search: null,
       }),
     );
     const { container } = render(<Directory {...props({ onSearchChange, onAsk })} />);
@@ -474,11 +475,14 @@ describe('the directory’s search, in the address', () => {
     await user.type(box, 'managers in Sales{Enter}');
     expect(onAsk).toHaveBeenCalledWith('managers in Sales');
     expect(
-      await screen.findByText(/“managers in Sales” was read by People as the filters above/u),
-    ).toHaveTextContent(/isn’t set up here.*Not used: managers\./u);
-    // What typing would have sent after it rests never goes.
+      await screen.findByText(/“managers in Sales” was read as the filters above/u),
+    ).toHaveTextContent(
+      /isn’t set up here.*Not understood: managers\. Change or remove any of them\./u,
+    );
+    // What typing would have sent after it rests never goes, and the field is the search again.
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(onSearchChange).not.toHaveBeenCalled();
+    expect(box).toHaveValue('');
     expect(await axeViolations(container)).toEqual([]);
   });
 

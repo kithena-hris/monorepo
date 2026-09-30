@@ -507,6 +507,19 @@ describe('at 390×844, with a finger', () => {
         onOpen={vi.fn()}
         view="cards"
         onViewChange={vi.fn()}
+        // Search in words and the next page as the list ends, on a phone too.
+        onAsk={() =>
+          Promise.resolve({
+            ok: true as const,
+            by: 'rules' as const,
+            note: null,
+            unused: [],
+            filters: 1,
+            search: null,
+          })
+        }
+        onLoadMore={() => new Promise(() => undefined)}
+        next="cursor-1"
       />,
     );
     // A phone gets a list of people, each row their profile; the table is a desk's.
@@ -971,6 +984,9 @@ describe('at 390×844, with a finger', () => {
           },
         }}
         onExport={ok}
+        onDescribe={() =>
+          Promise.resolve({ ok: true as const, by: 'rules' as const, note: null, notes: [] })
+        }
       />,
     );
   });

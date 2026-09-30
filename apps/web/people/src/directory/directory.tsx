@@ -215,6 +215,8 @@ export type DirectoryAsked =
       readonly unused: readonly string[];
       /** How many conditions and orders it became; none, and names were searched for it. */
       readonly filters: number;
+      /** A name it held, searched beside the filters; null for none. */
+      readonly search: string | null;
     }
   | { readonly ok: false; readonly message: string };
 
@@ -246,13 +248,14 @@ function Understood({
     answer.filters === 0
       ? 'matched none of the filters, so names were searched for it.'
       : answer.by === 'assistant'
-        ? 'was read by the assistant as the filters above. Change or remove any of them.'
-        : 'was read by People as the filters above. Change or remove any of them.';
+        ? 'was read by the assistant as the filters above.'
+        : 'was read as the filters above.';
   return (
     <p role="status" className="text-sm text-fg-muted">
       {quoted} {read}
       {answer.note === null ? null : ` ${answer.note}`}
-      {answer.unused.length === 0 ? null : ` Not used: ${answer.unused.join(', ')}.`}
+      {answer.unused.length === 0 ? null : ` Not understood: ${answer.unused.join(', ')}.`}
+      {answer.filters === 0 ? null : ' Change or remove any of them.'}
     </p>
   );
 }
@@ -680,6 +683,8 @@ function Body({
     setAsked({ sentence: text, answer: null });
     void onAsk(text).then((answer) => {
       setAsked((a) => (a?.sentence === text ? { sentence: text, answer } : a));
+      // It became filters: the field holds only a name it named, and the sentence is quoted.
+      if (answer.ok && answer.filters > 0) hold(answer.search ?? '');
     });
   };
   const fields = state.fields ?? [];
