@@ -369,6 +369,19 @@ function Detail({
           </span>
         </div>
       </div>
+      {/* First, so a decider reads them before the diff and the buttons. */}
+      {(item.flags ?? []).length === 0 ? null : (
+        <Alert tone="warning" title="Worth a second look" icon={<icons.flagged aria-hidden />}>
+          <ul className="flex list-disc flex-col gap-1 ps-4">
+            {(item.flags ?? []).map((f) => (
+              <li key={f.code}>{f.reason}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-fg-muted">
+            People’s checks found this. It doesn’t stop you approving or rejecting.
+          </p>
+        </Alert>
+      )}
       {item.readable ? (
         <ChangeDiff
           items={[
@@ -387,18 +400,6 @@ function Detail({
         </p>
       )}
       {item.reason === null ? null : <p className="text-sm">“{item.reason}”</p>}
-      {(item.flags ?? []).length === 0 ? null : (
-        <Alert tone="warning" title="Worth a second look" icon={<icons.flagged aria-hidden />}>
-          <ul className="flex list-disc flex-col gap-1 ps-4">
-            {(item.flags ?? []).map((f) => (
-              <li key={f.code}>{f.reason}</li>
-            ))}
-          </ul>
-          <p className="mt-2 text-fg-muted">
-            People’s checks found this. It doesn’t stop you approving or rejecting.
-          </p>
-        </Alert>
-      )}
       {item.awaitingReview === true && (item.findings ?? []).length > 0 ? (
         <ul className="flex flex-col gap-1 text-sm">
           {(item.findings ?? []).map((f) => (
