@@ -223,8 +223,11 @@ export type DirectoryAsked =
 /** What People made of a sentence, said beside the chips it became. */
 function Understood({
   asked,
+  order,
 }: {
   readonly asked: { readonly sentence: string; readonly answer: DirectoryAsked | null };
+  /** The order in force, in words, which no chip shows. */
+  readonly order: string | null;
 }): JSX.Element | null {
   const { sentence, answer } = asked;
   const quoted = `“${sentence}”`;
@@ -253,6 +256,7 @@ function Understood({
   return (
     <p role="status" className="text-sm text-fg-muted">
       {quoted} {read}
+      {answer.filters === 0 || order === null ? null : ` ${order}.`}
       {answer.note === null ? null : ` ${answer.note}`}
       {answer.unused.length === 0 ? null : ` Not understood: ${answer.unused.join(', ')}.`}
       {answer.filters === 0 ? null : ' Change or remove any of them.'}
@@ -1118,7 +1122,8 @@ function Body({
             onValueChange={type}
             // Enter reads what was typed as filters; a name stays a name search.
             {...(onAsk === undefined ? {} : { onSearch: askIt, enterKeyHint: 'search' as const })}
-            containerClassName="w-full @3xl:w-90"
+            // The toolbar's search slot sets the width: a fixed one overran the chips beside it.
+            containerClassName="w-full"
           />
         }
         filters={
@@ -1202,7 +1207,24 @@ function Body({
           )
         }
       />
-      {asked === null ? null : <Understood asked={asked} />}
+      {asked === null ? null : (
+        <Understood
+          asked={asked}
+          order={
+            sort === null
+              ? null
+              : `Ordered by ${sort.key === 'name' ? 'name' : (fields.find((f) => f.key === sort.key)?.label ?? sort.key).toLowerCase()}, ${
+                  kindOf.get(sort.key) === 'date'
+                    ? sort.direction === 'desc'
+                      ? 'latest first'
+                      : 'earliest first'
+                    : sort.direction === 'desc'
+                      ? 'Z to A'
+                      : 'A to Z'
+                }`
+          }
+        />
+      )}
       {peeked !== null && view === 'list' && !coarse ? (
         <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4">
           {table}
