@@ -1,0 +1,30 @@
+import type { PeopleBuilder, ViaRest } from './builder.js';
+
+/**
+ * Search and export in words, over GraphQL (docs/ai-settings.md): each a
+ * REST route through `viaRest`, so every rule is REST's and the application
+ * layer's. The plan crosses as JSON text, as the import's proposals do: its
+ * shape is `application/assistant/selection.ts`, and a GraphQL copy of it
+ * would be a second, hand-written source. Neither writes anything.
+ */
+export function defineSelectionPlans(builder: PeopleBuilder, viaRest: ViaRest): void {
+  const json = async (promise: Promise<unknown>): Promise<string> => JSON.stringify(await promise);
+  builder.queryFields((t) => ({
+    peopleDirectoryPlan: t.string({
+      description:
+        'What somebody typed in the directory, as its own filters and order (JSON). A name alone is a name search. The model, where there is one, sees the sentence and field names only.',
+      args: { sentence: t.arg.string({ required: true }) },
+      resolve: (_root, args, ctx) =>
+        json(
+          viaRest(ctx, 'POST', '/v1/views/directory/plan', { body: { sentence: args.sentence } }),
+        ),
+    }),
+    peopleExportPlan: t.string({
+      description:
+        'An export described in words, as the builder’s own choices and a drafted reason (JSON). Nothing is exported.',
+      args: { sentence: t.arg.string({ required: true }) },
+      resolve: (_root, args, ctx) =>
+        json(viaRest(ctx, 'POST', '/v1/views/export/plan', { body: { sentence: args.sentence } })),
+    }),
+  }));
+}

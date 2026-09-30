@@ -80,6 +80,7 @@ import {
   ImportStepInput as NewFieldsPropose,
   ReviewInput as NewFieldsReview,
 } from '../application/assistant/import-fields.js';
+import { PlanAsk } from '../application/assistant/selection.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 /**
@@ -166,6 +167,7 @@ const components = {
   NewFieldsPropose,
   NewFieldsReview,
   NewFieldsApply,
+  SelectionAsk: PlanAsk,
   Segment: SegmentBody,
   PayBand: PayBandBody,
   ReportSchedule: ScheduleBody,
@@ -540,6 +542,25 @@ function screenPaths(): Record<string, unknown> {
         'AskBody',
         200,
         '{ text, understood, people }',
+        { safe: true },
+      ),
+    },
+    // Search and export in words (docs/ai-settings.md): a plan, never a write.
+    '/v1/views/directory/plan': {
+      post: screenWrite(
+        'What somebody typed in the directory, as its own conditions and order: a name alone is a name search; the model sees the sentence and field names only',
+        'SelectionAsk',
+        200,
+        '{ search, conditions, match, sort, unused, by, note }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/export/plan': {
+      post: screenWrite(
+        'An export described in words, as the builder’s own choices and a drafted reason; nothing is exported',
+        'SelectionAsk',
+        200,
+        '{ who, conditions, match, audience, count, fields, asOf, format, photos, reason, by, note, notes }',
         { safe: true },
       ),
     },

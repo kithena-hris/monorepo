@@ -1194,6 +1194,8 @@ type Mutation {
   """
   requestExport(
     asOf: String
+    """Only the people these directory conditions pick out."""
+    conditions: [DirectoryConditionInput!]
     fields: [String!]
     filter: String
     """csv, xlsx or pdf."""
@@ -1202,6 +1204,8 @@ type Mutation {
     includeArchived: Boolean
     """Profile photos too, as a ZIP beside a CSV or spreadsheet."""
     includePhotos: Boolean
+    """all (default) or any."""
+    match: String
     personIds: [ID!]
     reason: String
     """With pdf: this person’s employee record instead of a roster."""
@@ -2175,12 +2179,25 @@ type Query {
     sort: String
   ): PeopleDirectory
   """
+  What somebody typed in the directory, as its own filters and order (JSON). A name alone is a name search. The model, where there is one, sees the sentence and field names only.
+  """
+  peopleDirectoryPlan(sentence: String!): String
+  """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
   """
   peopleDuplicates(a: ID, b: ID): PeopleDuplicates
   """The requester’s own export, its links signed again."""
   peopleExport(id: ID!): PeopleExport
-  peopleExportBuilder: PeopleExportBuilder
+  peopleExportBuilder(
+    """The directory’s conditions, offered as one more audience."""
+    conditions: [DirectoryConditionInput!]
+    """all (default) or any."""
+    match: String
+  ): PeopleExportBuilder
+  """
+  An export described in words, as the builder’s own choices and a drafted reason (JSON). Nothing is exported.
+  """
+  peopleExportPlan(sentence: String!): String
   peopleFile(id: ID!): PeopleFile
   peopleFullValues: PeopleFullValues
   """

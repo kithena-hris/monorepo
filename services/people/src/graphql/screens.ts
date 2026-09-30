@@ -1979,7 +1979,26 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleExportBuilder: t.field({
       type: ExportBuilder,
-      resolve: view<ExportBuilderView>(() => '/v1/views/export'),
+      args: {
+        conditions: t.arg({
+          type: [DirectoryConditionInput],
+          description: 'The directory’s conditions, offered as one more audience.',
+        }),
+        match: t.arg.string({ description: 'all (default) or any.' }),
+      },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.conditions && args.conditions.length > 0) {
+          query.set('conditions', JSON.stringify(args.conditions));
+        }
+        if (args.match) query.set('match', args.match);
+        const qs = query.toString();
+        return viaRest<ExportBuilderView>(
+          ctx,
+          'GET',
+          `/v1/views/export${qs === '' ? '' : `?${qs}`}`,
+        );
+      },
     }),
     peopleAnalytics: t.field({
       type: Analytics,
@@ -3052,6 +3071,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         personIds: t.arg.idList(),
         filter: t.arg.string(),
         segmentId: t.arg.id(),
+        conditions: t.arg({
+          type: [DirectoryConditionInput],
+          description: 'Only the people these directory conditions pick out.',
+        }),
+        match: t.arg.string({ description: 'all (default) or any.' }),
         reason: t.arg.string(),
         includePhotos: t.arg.boolean({
           description: 'Profile photos too, as a ZIP beside a CSV or spreadsheet.',
