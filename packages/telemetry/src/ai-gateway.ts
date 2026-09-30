@@ -50,14 +50,26 @@ import type { PolicyRegistry } from './policy-registry.js';
  * shaped like a value — an email address, a long run of digits — is refused
  * (`AI_VALUE_SHAPED`), because that is what a pasted IBAN or identifier looks
  * like, and a settings request never needs one.
+ *
+ * **A prompt about aggregates** (`about: 'aggregates'`) carries sentences
+ * about counted figures with every figure and every group's name held back as
+ * a placeholder (`{n1}`, `{g1}`) that the caller fills in afterwards, so the
+ * model sees no number at all. The key check runs; then any digit in the
+ * context outside a placeholder, any number, and anything shaped like a value
+ * is refused (`AI_VALUE_SHAPED`); then the conservative name rule, since
+ * nobody is named.
  */
 
 export interface Prompt {
   readonly instruction: string;
   /** Every piece of data the model is shown, as the object it came from. */
   readonly context: Readonly<Record<string, unknown>>;
-  /** About how the company is set up, never a person: it names fields and carries no value. */
-  readonly about?: 'configuration';
+  /**
+   * `configuration`: about how the company is set up, never a person: it names
+   * fields and carries no value. `aggregates`: sentences about counted figures,
+   * every figure and group a placeholder: it carries no number at all.
+   */
+  readonly about?: 'configuration' | 'aggregates';
 }
 
 /** Who is asking. The same shape the owning module authorizes a read with. */
@@ -165,6 +177,14 @@ function textsOf(prompt: Prompt): string[] {
   return texts;
 }
 
+/** A number, or a digit outside a `{n1}`/`{g1}` placeholder, anywhere in the context. */
+function figureIn(value: unknown): boolean {
+  if (typeof value === 'number' || typeof value === 'bigint') return true;
+  if (typeof value === 'string') return /\p{Nd}/u.test(value.replaceAll(/\{[a-z]\d{1,2}\}/gu, ''));
+  if (value !== null && typeof value === 'object') return Object.values(value).some(figureIn);
+  return false;
+}
+
 export function aiGateway(deps: {
   registry: PolicyRegistry;
   send: ModelTransport;
@@ -242,6 +262,17 @@ export function aiGateway(deps: {
           );
         }
         return { ok: true, value: await deps.send(prompt) };
+      }
+
+      if (prompt.about === 'aggregates') {
+        const figure = figureIn(prompt.context);
+        const seen = figure ? 'a figure' : valueShaped(textsOf(prompt));
+        if (seen !== undefined) {
+          return refuse(
+            'AI_VALUE_SHAPED',
+            `The prompt holds what looks like ${seen}. It is about aggregates, whose figures and groups stay placeholders`,
+          );
+        }
       }
 
       const refused = await checkFreeText(tenantId, prompt, deny, subjects);
