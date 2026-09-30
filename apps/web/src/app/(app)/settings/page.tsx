@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { SettingsIndex, type SettingsModule } from '../../../components/settings-index';
+import { accessToken } from '../../../lib/people';
 import { settingsOverview } from '../../../lib/people-screens';
 import { readPreference } from '../../../lib/preferences';
 import { prefsFrom } from '../../../lib/shortcuts';
@@ -113,7 +114,9 @@ function peopleAttention(data: {
 }
 
 export default async function Settings(): Promise<JSX.Element> {
-  const person = await currentPerson();
+  // The session, the token and this person's shortcuts at once: none waits on another.
+  const shortcutsSaved = readPreference('shortcuts');
+  const [person] = await Promise.all([currentPerson(), accessToken()]);
   if (person === null) redirect('/login');
 
   const modules: SettingsModule[] = [];
@@ -165,7 +168,7 @@ export default async function Settings(): Promise<JSX.Element> {
   }
 
   // A person's own settings, after the company's: everybody has these.
-  const shortcuts = prefsFrom(await readPreference('shortcuts'));
+  const shortcuts = prefsFrom(await shortcutsSaved);
   const changed = Object.keys(shortcuts.bindings).length;
   modules.push({
     key: 'you',

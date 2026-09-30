@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 
 import { PeopleScreen } from './people-screen';
 import { WorkspaceAsleep } from './workspace-asleep';
+import { accessToken } from '../lib/people';
 import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import {
@@ -43,12 +44,13 @@ export async function PeopleArea({
   readonly search: Readonly<Record<string, string>>;
   readonly area: 'people' | 'settings';
 }): Promise<JSX.Element> {
-  const person = await currentPerson();
+  // All three at once: which screen the path is does not depend on who asks,
+  // and the token is minted (or found) while identity checks the session.
+  const [person, route] = await Promise.all([currentPerson(), peopleRoute(path), accessToken()]);
   if (person === null) redirect('/login');
   // A company that did not buy People has no People screens (PEO-114).
   if (!person.entitlements.includes('module.people')) notFound();
 
-  const route = await peopleRoute(path);
   // A section's bare path also fits `/people/:id`; it is the section, not a
   // person called `data-health`, whatever this viewer may open under it.
   const bare =

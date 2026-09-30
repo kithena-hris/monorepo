@@ -49,18 +49,25 @@ export function shellData(entitlements: readonly string[]): Promise<ShellData> {
 const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
   const entitlements = key === '' ? [] : key.split('\n');
   if (!entitlements.includes('module.people')) return EMPTY_SHELL;
-  const [route, home, overview] = await Promise.all([
+  // The roles on their own: People answers this whether or not anything is
+  // published yet, which the overview does not.
+  const home = people<ShellData['roles']>('Home');
+  const [route, overview, waiting] = await Promise.all([
     peopleRoute('/people').catch(() => undefined),
-    // The roles on their own: People answers this whether or not anything is
-    // published yet, which the overview does not.
-    people<ShellData['roles']>('Home'),
     people<Overview>('Overview'),
+    // What waits for HR, asked as soon as the roles say who this is rather
+    // than after the overview, which takes twice as long.
+    home.then((h) => (h.ok ? waitingFor(h.data) : null)),
   ]);
   const data = overview.ok ? overview.data : null;
-  const roles = home.ok ? home.data : (data?.roles ?? EMPTY_SHELL.roles);
+  const answered = await home;
+  const roles = answered.ok ? answered.data : (data?.roles ?? EMPTY_SHELL.roles);
   if (route === null || route === undefined) return { ...EMPTY_SHELL, roles };
   const places = placesFor(route.nav, roles);
-  const counts = data === null ? null : countsOf(data, await waitingFor(roles), places.sections);
+  const counts =
+    data === null
+      ? null
+      : countsOf(data, answered.ok ? waiting : await waitingFor(roles), places.sections);
   return {
     roles,
     sections: places.sections,

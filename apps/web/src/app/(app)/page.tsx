@@ -17,6 +17,7 @@ import { HomeDashboard } from '../../components/home-dashboard';
 import { LocalTime } from '../../components/local-time';
 import { currentTenant } from '../../lib/branding';
 import { homeData } from '../../lib/home';
+import { accessToken } from '../../lib/people';
 import { currentPerson, displayName } from '../../lib/session';
 
 /**
@@ -32,8 +33,7 @@ import { currentPerson, displayName } from '../../lib/session';
  * router like everything else.
  */
 export default async function Home(): Promise<JSX.Element> {
-  const person = await currentPerson();
-  const tenant = await currentTenant();
+  const [person, tenant] = await Promise.all([currentPerson(), currentTenant(), accessToken()]);
 
   /*
    * Straight to this company's own sign-in page, which is on this hostname.
