@@ -66,7 +66,7 @@ import {
 } from '../../lib/shortcut-keys';
 import { Button } from '../button/button';
 import { Checkbox } from '../checkbox/checkbox';
-import { Spinner } from '../spinner/spinner';
+import { Skeleton } from '../feedback/feedback';
 import { RowMenu } from './row-menu';
 import {
   Table,
@@ -401,7 +401,7 @@ export interface DataTableProps<T extends TableRow> {
    * arrive, so guard it.
    */
   onEndReached?: () => void;
-  /** The next page is on its way: a "Loading more" row sits under the last one. */
+  /** The next page is on its way: a skeleton row, in the rows' shape, sits under the last one. */
   loadingMore?: boolean;
 
   /** Drag handles on every row. Disabled while a sort is active. */
@@ -761,10 +761,7 @@ export function DataTable<T extends TableRow>({
    */
   const keys = useShortcutKeys();
   const moves =
-    onRowOpen !== undefined ||
-    selectable ||
-    rowActions !== undefined ||
-    onRowPreview !== undefined;
+    onRowOpen !== undefined || selectable || rowActions !== undefined || onRowPreview !== undefined;
   const [focusId, setFocusId] = useState<string | null>(null);
   const tabbableId = focusId !== null && place.has(focusId) ? focusId : (ids[0] ?? null);
   // Where a ⇧J run started, and what was selected before it: moving back
@@ -820,7 +817,10 @@ export function DataTable<T extends TableRow>({
     } else if (selectable && is('list.select')) {
       anchor.current = null;
       setPicked(picked.has(id) ? [...picked].filter((entry) => entry !== id) : [...picked, id]);
-    } else if (onRowOpen !== undefined && ((arrow('Enter') && !event.shiftKey) || is('list.open'))) {
+    } else if (
+      onRowOpen !== undefined &&
+      ((arrow('Enter') && !event.shiftKey) || is('list.open'))
+    ) {
       onRowOpen(row);
     } else if (onRowPreview !== undefined && is('list.preview')) {
       onRowPreview(row);
@@ -832,7 +832,8 @@ export function DataTable<T extends TableRow>({
         handled = false;
       }
     } else {
-      const action = rowActions === undefined ? undefined : actionPressed(event, rowActions(row), keys);
+      const action =
+        rowActions === undefined ? undefined : actionPressed(event, rowActions(row), keys);
       if (action === undefined) handled = false;
       else action.onSelect();
     }
@@ -1327,14 +1328,19 @@ export function DataTable<T extends TableRow>({
         {paddingBottom > 0 ? <tr aria-hidden style={{ height: paddingBottom }} /> : null}
 
         {loadingMore ? (
-          <tr className="touch:block">
-            <td colSpan={totalColumns} className="h-12 p-0 touch:block touch:h-13">
-              <span className="flex h-full items-center justify-center gap-2.5 text-sm font-medium text-fg-muted">
-                <Spinner size="sm" label="Loading more" className="text-accent-fg" />
-                <span aria-hidden>Loading more</span>
-              </span>
-            </td>
-          </tr>
+          // A row in the table's own shape, a bar in each cell, as tall as a
+          // row: when the page arrives it takes the row's place and nothing
+          // under the reader's eye moves. A card's shape under a finger.
+          <TableRow aria-busy="true" className="touch:block" style={{ height: estimateRowHeight }}>
+            {Array.from({ length: totalColumns }, (_, i) => (
+              <TableCell key={i} className={i === 0 ? 'touch:block touch:h-13' : 'touch:hidden'}>
+                {i === 0 ? <span className="sr-only">Loading more</span> : null}
+                <Skeleton
+                  className={cn('h-3.5', i === 0 ? 'w-40 max-w-full touch:w-full' : 'w-3/4')}
+                />
+              </TableCell>
+            ))}
+          </TableRow>
         ) : null}
       </TableBody>
     </Table>

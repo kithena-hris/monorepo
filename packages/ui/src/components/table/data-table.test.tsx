@@ -208,6 +208,25 @@ describe('<DataTable> striped, resizable, paged and grouped', () => {
     expect(onEndReached).toHaveBeenCalled();
   });
 
+  it('while the next page loads, a skeleton row in the rows’ shape, and no further asking', () => {
+    const onEndReached = vi.fn();
+    render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        onEndReached={onEndReached}
+        loadingMore
+      />,
+    );
+    const busy = screen.getAllByRole('row').find((r) => r.getAttribute('aria-busy') === 'true');
+    expect(busy).toBeDefined();
+    expect(within(busy ?? document.body).getAllByRole('cell')).toHaveLength(columns.length);
+    expect(busy?.textContent).toBe('Loading more');
+    expect(onEndReached).not.toHaveBeenCalled();
+  });
+
   it('puts rows under a heading per group, counting each', () => {
     render(
       <DataTable
