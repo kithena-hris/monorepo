@@ -40,7 +40,10 @@ describe('pay', () => {
 
   it('flags a rise over the threshold, with the percentage', () => {
     const [flag] = unusual(change({ pay: pay('5000000', '6250000') }), around());
-    expect(flag).toEqual({ code: 'pay_change_large', reason: 'Pay goes up 25% on what is in force.' });
+    expect(flag).toEqual({
+      code: 'pay_change_large',
+      reason: 'Pay goes up 25% on what is in force.',
+    });
   });
 
   it('flags a cut over the threshold', () => {
@@ -73,7 +76,9 @@ describe('dates', () => {
   it('flags a change taking effect long before it was asked for', () => {
     const [flag] = unusual(change({ effectiveFrom: '2026-07-01' }), around());
     expect(flag?.code).toBe('backdated');
-    expect(flag?.reason).toBe('Takes effect 83 days before it was asked for, so payroll corrects the months between.');
+    expect(flag?.reason).toBe(
+      'Takes effect 83 days before it was asked for, so payroll corrects the months between.',
+    );
   });
 
   it('leaves a change dated to the start of the month alone', () => {
@@ -100,7 +105,10 @@ describe('identifiers', () => {
       around(),
     );
     expect(flags).toEqual([
-      { code: 'identifier_checks', reason: 'NIF fails its checks: The check letter does not match.' },
+      {
+        code: 'identifier_checks',
+        reason: 'NIF fails its checks: The check letter does not match.',
+      },
     ]);
   });
 });
@@ -147,7 +155,9 @@ describe('several fields at once', () => {
 
   it('does not count changes far apart, or by someone else', () => {
     expect(codes(change(), [sibling('c2', 1), sibling('c3', 60)])).toEqual([]);
-    expect(codes(change(), [sibling('c2', 1), { ...sibling('c3', 2), requestedBy: ADA }])).toEqual([]);
+    expect(codes(change(), [sibling('c2', 1), { ...sibling('c3', 2), requestedBy: ADA }])).toEqual(
+      [],
+    );
   });
 });
 
@@ -156,7 +166,8 @@ describe('working hours', () => {
     const [flag] = unusual(change({ requestedAt: '2026-09-22T21:40:00.000Z' }), around());
     expect(flag).toEqual({
       code: 'outside_hours',
-      reason: 'Asked for at 23:40 on a Tuesday, Europe/Madrid time, outside working hours, by someone other than the employee.',
+      reason:
+        'Asked for at 23:40 on a Tuesday, Europe/Madrid time, outside working hours, by someone other than the employee.',
     });
   });
 
@@ -165,6 +176,8 @@ describe('working hours', () => {
   });
 
   it('leaves the employee changing their own record at night alone', () => {
-    expect(codes(change({ requestedAt: '2026-09-22T21:40:00.000Z', requestedBy: ADA }))).toEqual([]);
+    expect(codes(change({ requestedAt: '2026-09-22T21:40:00.000Z', requestedBy: ADA }))).toEqual(
+      [],
+    );
   });
 });

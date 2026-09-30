@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  factsFor,
-  filled,
-  phrasedFrom,
-  whatChangedContext,
-  type Figures,
-} from './what-changed.js';
+import { factsFor, filled, phrasedFrom, whatChangedContext, type Figures } from './what-changed.js';
 
 const figures = (over: Partial<Figures> = {}): Figures => ({
   asOf: '2026-09-22',
@@ -51,8 +45,16 @@ const figures = (over: Partial<Figures> = {}): Figures => ({
   },
   pay: {
     grade: [
-      { status: 'ok', median: '9000000', band: { minimumMinor: '5000000', maximumMinor: '8000000' } },
-      { status: 'ok', median: '6000000', band: { minimumMinor: '5000000', maximumMinor: '8000000' } },
+      {
+        status: 'ok',
+        median: '9000000',
+        band: { minimumMinor: '5000000', maximumMinor: '8000000' },
+      },
+      {
+        status: 'ok',
+        median: '6000000',
+        band: { minimumMinor: '5000000', maximumMinor: '8000000' },
+      },
       { status: 'insufficient_data', median: null, band: null },
       { status: 'insufficient_data', median: null, band: null },
     ],
@@ -79,7 +81,12 @@ describe('the facts of each tab, from the numbers and nothing else', () => {
     expect(
       filled(
         factsFor(
-          figures({ headcount: { value: 40, change: 0 }, movement: null, joiners: null, startingSoon: null }),
+          figures({
+            headcount: { value: 40, change: 0 },
+            movement: null,
+            joiners: null,
+            startingSoon: null,
+          }),
           'headcount',
         ),
       ),

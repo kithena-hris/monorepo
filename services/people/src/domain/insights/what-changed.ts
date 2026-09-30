@@ -48,7 +48,11 @@ export interface Figures {
     readonly leavers: number;
   } | null;
   readonly joiners: {
-    readonly cells: readonly { readonly row: string; readonly column: string; readonly value: number }[];
+    readonly cells: readonly {
+      readonly row: string;
+      readonly column: string;
+      readonly value: number;
+    }[];
   } | null;
   readonly attrition: {
     readonly percent: number;
@@ -141,7 +145,9 @@ function headcount(f: Figures, w: Writer): void {
   else if (change === 0) w.say(`Headcount unchanged since last month, at ${w.n(whole(value))}.`);
   else {
     const by = w.n(whole(Math.abs(change)));
-    w.say(`Headcount ${change > 0 ? 'up' : 'down'} ${by} since last month, to ${w.n(whole(value))}.`);
+    w.say(
+      `Headcount ${change > 0 ? 'up' : 'down'} ${by} since last month, to ${w.n(whole(value))}.`,
+    );
   }
   const m = f.movement;
   if (m !== null) {
@@ -153,7 +159,10 @@ function headcount(f: Figures, w: Writer): void {
     if (parts.length > 0) w.say(`${list(parts)} in the last month.`);
   }
   const cells = f.joiners?.cells ?? [];
-  const latest = cells.map((c) => c.column).toSorted().at(-1);
+  const latest = cells
+    .map((c) => c.column)
+    .toSorted()
+    .at(-1);
   const where = most(
     cells.filter((c) => c.column === latest).map((c) => ({ label: c.row, value: c.value })),
     f.minimum,
@@ -173,7 +182,8 @@ function turnover(f: Figures, w: Writer): void {
     w.say(`Attrition ${w.n(`${tidy(a.percent)}%`)} over the last year.`);
   } else {
     const delta = now.value - before.value;
-    if (Math.abs(delta) < 0.5) w.say(`Attrition flat at ${w.n(`${tidy(a.percent)}%`)} over the last year.`);
+    if (Math.abs(delta) < 0.5)
+      w.say(`Attrition flat at ${w.n(`${tidy(a.percent)}%`)} over the last year.`);
     else {
       const by = w.n(tidy(Math.abs(delta)));
       w.say(
@@ -250,10 +260,14 @@ function pay(f: Figures, w: Writer): void {
   const below = banded.filter((g) => g.median.lt(g.band.minimumMinor)).length;
   const hidden = f.pay.grade.filter((g) => g.status !== 'ok').length;
   if (above > 0) {
-    w.say(`${w.n(whole(above))} ${plural(above, 'grade has a median above its band', 'grades have a median above their band')}.`);
+    w.say(
+      `${w.n(whole(above))} ${plural(above, 'grade has a median above its band', 'grades have a median above their band')}.`,
+    );
   }
   if (below > 0) {
-    w.say(`${w.n(whole(below))} ${plural(below, 'grade has a median below its band', 'grades have a median below their band')}.`);
+    w.say(
+      `${w.n(whole(below))} ${plural(below, 'grade has a median below its band', 'grades have a median below their band')}.`,
+    );
   }
   if (hidden > 0) {
     w.say(`${w.n(whole(hidden))} ${plural(hidden, 'grade is', 'grades are')} too small to show.`);
@@ -287,7 +301,10 @@ export const WHAT_CHANGED_INSTRUCTION = [
 ].join(' ');
 
 /** What the model is shown: the tab, and the sentences with every figure and name held back. */
-export const whatChangedContext = (tab: Tab, facts: Facts) => ({
+export const whatChangedContext = (
+  tab: Tab,
+  facts: Facts,
+): { readonly tab: Tab; readonly facts: readonly string[] } => ({
   tab,
   facts: [...facts.sentences],
 });
