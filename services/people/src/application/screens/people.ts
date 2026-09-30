@@ -23,7 +23,9 @@ import type {
   PendingFieldView,
   RecordSection,
 } from './model.js';
-import { approvalsInbox, pendingFor } from '../person/pending-changes.js';
+import { approvalsInbox, pendingFor, type InboxItem } from '../person/pending-changes.js';
+import { unusual, type Flag, type Money } from '../../domain/approval/unusual.js';
+import { personZone, placementOf, type TenantCalendar } from '../../domain/org/calendar.js';
 import { offersViewAs } from '../person/view-as.js';
 import {
   formValues,
@@ -598,6 +600,8 @@ export interface ApprovalItem extends PendingFieldView {
   readonly readable: boolean;
   /** What is in force now, masked the same way; null when unreadable or empty. */
   readonly current: FormValue;
+  /** What looks unusual about it (`domain/approval/unusual.ts`): only for whoever decides it. */
+  readonly flags: readonly Flag[];
 }
 
 export interface ApprovalsView {
@@ -631,6 +635,7 @@ export async function approvalsView(
       inbox.value.items.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
     );
     const items: ApprovalItem[] = [];
+    const flagging = flagger(deps, tx, asking, version?.document.attributes ?? []);
     for (const c of inbox.value.items) {
       const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
       const attributes = person.ok ? person.value.attributes : {};
@@ -654,10 +659,80 @@ export async function approvalsView(
         canSelfApprove: c.canSelfApprove,
         awaitingReview: c.awaitingReview,
         findings: c.findings,
+        // Only to those who decide: a requester is never told which rule they tripped.
+        flags: c.canDecide || c.canSelfApprove ? await flagging(c, attributes, labels) : [],
       });
     }
     return ok({ isHr: inbox.value.isHr, items });
   });
+}
+
+/* ------------------------------------------- unusual changes (flags) -- */
+
+const moneyOf = (value: unknown): Money | null =>
+  value !== null &&
+  typeof value === 'object' &&
+  'amountMinor' in value &&
+  'currency' in value &&
+  !('last4' in value)
+    ? { amountMinor: String(value.amountMinor), currency: String(value.currency) }
+    : null;
+
+/**
+ * The flags on one change in the inbox, from what else was asked about the
+ * same person and the working day where they sit. Pay is compared only when
+ * the decider may read the field and both amounts are in clear, so a flag
+ * never says more about a value than the decider could see for themselves.
+ */
+function flagger(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  definitions: readonly AttributeDefinition[],
+) {
+  const pending = deps.service.pending;
+  const typeOf = new Map(definitions.map((d) => [d.key as string, d.dataType as string]));
+  const history = new Map<string, Awaited<ReturnType<NonNullable<typeof pending>['store']['forPerson']>>>();
+  let calendar: TenantCalendar | undefined;
+  return async (
+    c: InboxItem,
+    attributes: Readonly<Record<string, unknown>>,
+    labels: ReadonlyMap<string, string>,
+  ): Promise<Flag[]> => {
+    if (!pending) return [];
+    calendar ??= await deps.calendars.load(tx, asking.tenantId);
+    let asked = history.get(c.personId);
+    if (asked === undefined) {
+      asked = await pending.store.forPerson(tx, asking.tenantId, c.personId);
+      history.set(c.personId, asked);
+    }
+    const record = await pending.reader.record(tx, asking.tenantId, c.personId);
+    const before = c.readable ? moneyOf(attributes[c.attributeKey]) : null;
+    const after = c.readable ? moneyOf(c.value) : null;
+    return unusual(
+      {
+        id: c.id,
+        label: labels.get(c.attributeKey) ?? c.attributeKey,
+        dataType: typeOf.get(c.attributeKey) ?? 'text',
+        requestedAt: c.requestedAt,
+        requestedBy: c.requestedBy,
+        subjectAccountId: record?.snapshot.identityAccountId ?? null,
+        effectiveFrom: c.effectiveFrom,
+        pay: before !== null && after !== null ? { before, after } : null,
+        findings: c.findings,
+      },
+      {
+        others: asked.map((o) => ({
+          id: o.approval.id,
+          dataType: typeOf.get(o.attributeKey) ?? 'text',
+          requestedAt: o.approval.requestedAt,
+          requestedBy: o.approval.requestedBy,
+          state: o.approval.state,
+        })),
+        zone: personZone(calendar, placementOf(attributes), c.requestedAt),
+      },
+    );
+  };
 }
 
 export { checkSection, saveSection };
