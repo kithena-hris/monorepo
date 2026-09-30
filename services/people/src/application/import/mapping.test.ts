@@ -73,6 +73,17 @@ describe('the cheap rules, with no advisor at all', () => {
     expect(mapping[3]?.reason).toMatch(/no attribute/);
   });
 
+  it('maps a header that spells a key, whatever the label now says', async () => {
+    const renamed = versionOf(2, [{ ...workEmail, label: { default: 'Email at work', translations: {} } }]);
+    const mapping = await proposeMapping({
+      file: { headers: ['Work email'], keys: null },
+      version: renamed,
+      relations: relations(),
+      advisor: null,
+    });
+    expect(mapping.map((m) => [m.status, m.key, m.source])).toEqual([['mapped', 'work_email', 'key']]);
+  });
+
   it('recognises its own report and export columns', async () => {
     const mapping = await proposeMapping({
       file: {
