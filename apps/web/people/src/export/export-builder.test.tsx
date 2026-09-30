@@ -151,6 +151,59 @@ describe('ExportBuilder', () => {
     expect(screen.queryByRole('link', { name: /^Download/ })).toBeNull();
   });
 
+  it('described in words: the host fills the choices in, and the person reviews and exports them', async () => {
+    const user = fast();
+    const onExport = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const onDescribe = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'rules' as const,
+        note: 'The assistant isn’t set up here, so People read it without the assistant.',
+        notes: ['1 October 2026 is still to come, so the export is as of today.'],
+      }),
+    );
+    const view = (initial = {}) => (
+      <ExportBuilder
+        load={{ status: 'ready', data: asHr }}
+        onExport={onExport}
+        onDescribe={onDescribe}
+        initial={initial}
+      />
+    );
+    const { container, rerender } = render(view());
+    await user.type(
+      screen.getByRole('textbox', { name: 'What the export is for' }),
+      'payroll for my team as a csv{Enter}',
+    );
+    expect(onDescribe).toHaveBeenCalledWith('payroll for my team as a csv');
+    expect(
+      await screen.findByText(/Filled in by People from “payroll for my team as a csv”/u),
+    ).toBeTruthy();
+    expect(screen.getByText(/is still to come/u)).toBeTruthy();
+    // The host has put the plan in the address: the builder starts again from it.
+    rerender(
+      view({
+        who: 'team',
+        fields: ['employee_number', 'base_salary', 'not_offered'],
+        asOf: '2026-09-01',
+        format: 'csv',
+        reason: 'Payroll for My team, as of 1 September 2026',
+      }),
+    );
+    expect(screen.getByRole('textbox', { name: /Reason/ })).toHaveValue(
+      'Payroll for My team, as of 1 September 2026',
+    );
+    await user.click(screen.getByRole('button', { name: 'Export 8 people' }));
+    expect(onExport).toHaveBeenCalledWith({
+      who: 'team',
+      fields: ['employee_number', 'base_salary'],
+      asOf: '2026-09-01',
+      format: 'csv',
+      reason: 'Payroll for My team, as of 1 September 2026',
+    });
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('says who is exported when there is only one audience, rather than offering one choice', () => {
     render(<ExportBuilder load={{ status: 'ready', data: asManager }} onExport={vi.fn()} />);
     expect(screen.queryByRole('group', { name: 'Who to export' })).toBeNull();
