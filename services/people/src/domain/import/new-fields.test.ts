@@ -4,6 +4,7 @@ import { shapeOf } from './column-shape.js';
 import {
   asDefinition,
   localProposal,
+  nearly,
   PlanBudget,
   summaryOf,
   withKeys,
@@ -101,6 +102,17 @@ describe('with no model: People’s own proposal', () => {
     ]);
     expect(given.include).toBe(false);
     expect(given.why).toMatch(/existing field “Legal first name”/u);
+  });
+
+  it('nor one spelled a little differently', () => {
+    expect(
+      localProposal(seen(9, 'Cost center', ['CC-1', 'CC-2']), SECTIONS, [
+        { key: 'cost_centre', label: 'Cost centre' },
+      ]).include,
+    ).toBe(false);
+    expect(nearly('Cost center', 'Cost centre')).toBe(true);
+    expect(nearly('Parking spot', 'Parking lot')).toBe(false);
+    expect(nearly('Region', 'Religion')).toBe(false);
   });
 
   it('every proposal says why, in one line', () => {

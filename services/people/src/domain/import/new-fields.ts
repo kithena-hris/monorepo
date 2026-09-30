@@ -257,7 +257,7 @@ export function localProposal(
     business: 'Organisational data HR keeps; managers can see it for their team.',
     plain: 'Ordinary, not sensitive: the employee fills it in, and the assistant may use it.',
   }[kind];
-  const twin = existing.find((f) => f.key === keyFrom(seen.header));
+  const twin = existing.find((f) => f.key === keyFrom(seen.header) || nearly(f.label, seen.header));
   return {
     column: seen.column,
     header: seen.header,
@@ -272,6 +272,43 @@ export function localProposal(
         : `Looks like the existing field “${twin.label}”: choose it for this column on the mapping screen instead.`,
     ...recommendFor(kind, seen),
   };
+}
+
+/**
+ * Two names for one thing, spelled a little differently: "Cost center" and
+ * "Cost centre". The same words but one, and that one a spelling of the
+ * other: as long, give or take a letter, at least five letters, and at most
+ * two edits apart. "Parking spot" is not "Parking lot"; "Region" is not
+ * "Religion".
+ */
+export function nearly(a: string, b: string): boolean {
+  const words = (s: string): string[] =>
+    s
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((w) => w !== '');
+  const x = words(a);
+  const y = words(b);
+  if (x.length !== y.length) return false;
+  const differ = x.flatMap((w, i) => (w === y[i] ? [] : [[w, y[i] ?? ''] as const]));
+  if (differ.length === 0) return true;
+  const [pair] = differ;
+  if (differ.length > 1 || pair === undefined) return false;
+  const [u, v] = pair;
+  if (Math.min(u.length, v.length) < 5 || Math.abs(u.length - v.length) > 1) return false;
+  let row = Array.from({ length: v.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= u.length; i += 1) {
+    const next = [i];
+    for (let j = 1; j <= v.length; j += 1) {
+      next[j] = Math.min(
+        (row[j] ?? 0) + 1,
+        (next[j - 1] ?? 0) + 1,
+        (row[j - 1] ?? 0) + (u[i - 1] === v[j - 1] ? 0 : 1),
+      );
+    }
+    row = next;
+  }
+  return (row[v.length] ?? 99) <= 2;
 }
 
 /** A section whose name fits the kind of data, else a new one named for it. */
