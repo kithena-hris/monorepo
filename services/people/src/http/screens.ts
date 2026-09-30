@@ -100,6 +100,7 @@ import {
   type FileDeps,
 } from '../application/screens/files.js';
 import type { PayBandView } from '../application/analytics/pay.js';
+import { whatChanged, type Phraser } from '../application/screens/what-changed.js';
 import {
   createSchedule,
   deleteSchedule,
@@ -173,6 +174,8 @@ export type ScreenRouteDeps = SchemaScreenDeps &
      * the company's hourly budget for it.
      */
     readonly newFields?: { readonly planner?: AssistantPort; readonly budget: PlanBudget };
+    /** Insights' "what changed", reworded by the assistant; absent, People's own words. */
+    readonly insightsPhraser?: Phraser;
   };
 
 export const ChatConnect = z.strictObject({ origin: z.url().max(300) });
@@ -1239,7 +1242,34 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
         }
         return answer(
-          await analyticsView(deps, asking, segment === undefined ? {} : { segmentId: segment }),
+          await analyticsView(deps, asking, {
+            ...(segment === undefined ? {} : { segmentId: segment }),
+            phrasable: deps.insightsPhraser !== undefined,
+          }),
+        );
+      },
+    },
+    // One tab's "what changed", reworded by the assistant where there is one.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/analytics\/what-changed$/,
+      handle: async (asking, _r, _p, query) => {
+        const tab = query.get('tab') ?? 'headcount';
+        const segment = query.get('segment') ?? undefined;
+        if (!(INSIGHTS_TABS as readonly string[]).includes(tab)) {
+          return refused(
+            failure('BAD_REQUEST', `tab is one of ${INSIGHTS_TABS.join(', ')}`, ['tab']),
+          );
+        }
+        if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
+          return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
+        }
+        return answer(
+          await whatChanged(
+            deps.insightsPhraser === undefined ? deps : { ...deps, phraser: deps.insightsPhraser },
+            asking,
+            { tab: tab as InsightsTab, ...(segment === undefined ? {} : { segmentId: segment }) },
+          ),
         );
       },
     },

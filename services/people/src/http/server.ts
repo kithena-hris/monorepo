@@ -612,6 +612,31 @@ function newFieldsFrom(env: NodeJS.ProcessEnv): NonNullable<ScreenRouteDeps['new
   };
 }
 
+/**
+ * Insights' "what changed", reworded by the assistant's own model
+ * (`ASSISTANT_*`) behind the AI gateway in its `aggregates` mode: a short,
+ * interactive call, eight seconds at most, sixty an hour per company
+ * (`INSIGHTS_PHRASES_PER_HOUR`). With no model configured, People's own words.
+ */
+function insightsPhraserFrom(env: NodeJS.ProcessEnv): Pick<ScreenRouteDeps, 'insightsPhraser'> {
+  const config = modelConfigFrom(env);
+  if (config === null) return {};
+  const gateway = aiGateway({
+    registry: tenantPolicies,
+    send: chatModel({ ...config, timeoutMs: 8_000 }),
+  });
+  return {
+    insightsPhraser: {
+      budget: new PlanBudget(Number(env['INSIGHTS_PHRASES_PER_HOUR'] ?? 60), 3_600_000),
+      assistant: {
+        complete: (tenantId: string, prompt: Prompt) => gateway.complete(tenantId, prompt),
+        loadPolicies: (tx: PostgresJsDatabase, tenantId: string) =>
+          loadTenantPolicies(tx, tenantId, tenantPolicies),
+      },
+    },
+  };
+}
+
 function screenDeps(
   service: ReturnType<typeof peopleService>,
   reports: ObjectStore,
@@ -646,6 +671,7 @@ function screenDeps(
     transfers: drizzleTransfers(),
     ...assistantFrom(process.env),
     newFields: newFieldsFrom(process.env),
+    ...insightsPhraserFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars, service),
     ...chatFrom(process.env),

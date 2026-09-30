@@ -611,6 +611,23 @@ function screenPaths(): Record<string, unknown> {
     '/v1/views/photos/remove': {
       post: screenWrite('Take a photo down: the person’s own, or HR’s', 'PhotoOf', 200, 'Removed'),
     },
+    // Insights' "what changed", reworded by the assistant where there is one.
+    '/v1/views/analytics/what-changed': {
+      get: {
+        summary:
+          "One Insights tab's summary: the figures are People's, the words the assistant's when byModel; it is shown placeholders, never a figure",
+        parameters: [
+          {
+            name: 'tab',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', enum: ['headcount', 'turnover', 'data-quality', 'pay'] },
+          },
+          { name: 'segment', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: { 200: { description: '{ tab, sentences, byModel }' }, ...failure },
+      },
+    },
     // New information in an import's file (docs/ai-settings.md): proposed,
     // reviewed, then added by an administrator before the dry run.
     '/v1/imports/new-fields': {
