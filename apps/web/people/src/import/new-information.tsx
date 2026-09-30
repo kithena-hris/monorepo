@@ -706,10 +706,24 @@ function ExistingCard({
               key={c.kind}
               value={c.kind}
               description={
-                c.kind === recommended ? `${c.means} Recommended: ${p.forExistingWhy}` : c.means
+                c.kind === recommended ? (
+                  <>
+                    {c.means}
+                    <span className="mt-1 block text-fg">Why: {p.forExistingWhy}</span>
+                  </>
+                ) : (
+                  c.means
+                )
               }
             >
-              {c.label}
+              <span className="flex flex-wrap items-center gap-2">
+                {c.label}
+                {c.kind === recommended ? (
+                  <Badge tone="accent" size="sm">
+                    Recommended
+                  </Badge>
+                ) : null}
+              </span>
             </RadioCard>
           ))}
         </RadioGroup>

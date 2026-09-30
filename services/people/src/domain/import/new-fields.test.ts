@@ -95,6 +95,14 @@ describe('with no model: People’s own proposal', () => {
     });
   });
 
+  it('never duplicates a field the company has: a column named like one is left out, and says where it goes', () => {
+    const given = localProposal(seen(8, 'Given name', ['Ana', 'Bo']), SECTIONS, [
+      { key: 'given_name', label: 'Legal first name' },
+    ]);
+    expect(given.include).toBe(false);
+    expect(given.why).toMatch(/existing field “Legal first name”/u);
+  });
+
   it('every proposal says why, in one line', () => {
     for (const s of Object.values(FILE)) {
       const p = localProposal(s, SECTIONS);
@@ -213,6 +221,17 @@ describe('the review in words, with the counts', () => {
         'Values for 128 people from this file. 342 people will be asked for their emergency contact. ' +
         'HR will fill in 60 cost centre values. T-shirt size stays empty for 342 people.',
     );
+    expect(summaryOf(proposals.slice(3), counts, 100, SECTIONS)).toBe(
+      'Adds 1 field: 1 to a new Bank and pay section. Values for 100 people from this file.',
+    );
+    expect(
+      summaryOf(
+        proposals.slice(3),
+        new Map([[6, { fromFile: 1, existingWithout: 5 }]]),
+        1,
+        SECTIONS,
+      ),
+    ).toMatch(/5 people will be asked for their IBAN\.$/u);
   });
 
   it('says so when nothing is added', () => {

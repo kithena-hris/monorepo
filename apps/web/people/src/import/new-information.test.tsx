@@ -66,7 +66,8 @@ describe('new information in this file', () => {
     expect(
       screen.getAllByText('342 people here get no value from this file.').length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText(/Recommended: HR records it/u)).toBeTruthy();
+    expect(screen.getByText(/Why: HR records it/u)).toBeTruthy();
+    expect(screen.getAllByText('Recommended').length).toBe(4);
     expect(await axeViolations(rendered.container)).toEqual([]);
   });
 

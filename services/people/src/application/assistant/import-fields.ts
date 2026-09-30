@@ -216,7 +216,10 @@ export async function proposeNewFields(
   if (!gathered.ok) return gathered;
   const g = gathered.value;
   const taken = takenKeys(g.draft.attributes);
-  const local = g.seen.map((s) => localProposal(s, g.sections));
+  const existing = g.draft.attributes
+    .filter((a) => a.deprecatedAt === null)
+    .map((a) => ({ key: a.key, label: a.label.default }));
+  const local = g.seen.map((s) => localProposal(s, g.sections, existing));
   const planner = deps.fieldPlanner;
   if (g.seen.length === 0 || !g.isAdmin || planner === undefined) {
     return ok(view(g, withKeys(local, taken), false));

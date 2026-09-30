@@ -166,6 +166,8 @@ const SEALABLE = new Set([
 export function localProposal(
   seen: ColumnSeen,
   sections: readonly { readonly key: string; readonly label: string }[],
+  /** The fields the company has: a column named like one is left out, not duplicated. */
+  existing: readonly { readonly key: string; readonly label: string }[] = [],
 ): Omit<ColumnProposal, 'key'> {
   const kind = kindOf(seen.header, seen.local);
   const dataType =
@@ -254,14 +256,19 @@ export function localProposal(
     business: 'Organisational data HR keeps; managers can see it for their team.',
     plain: 'Ordinary, not sensitive: the employee fills it in, and the assistant may use it.',
   }[kind];
+  const twin = existing.find((f) => f.key === keyFrom(seen.header));
   return {
     column: seen.column,
     header: seen.header,
     shape: seen.local.shape,
-    include: true,
+    // "Given name" is `given_name`, whatever its label says: never a second one.
+    include: twin === undefined,
     field,
     placement: placementFor(kind, seen.header, sections),
-    why,
+    why:
+      twin === undefined
+        ? why
+        : `Looks like the existing field “${twin.label}”: choose it for this column on the mapping screen instead.`,
     ...recommendFor(kind, seen),
   };
 }
@@ -486,7 +493,9 @@ export interface ColumnCounts {
 
 const plural = (n: number, one: string, many: string): string =>
   `${String(n)} ${n === 1 ? one : many}`;
-const lowerFirst = (s: string): string => (s === '' ? s : s.charAt(0).toLowerCase() + s.slice(1));
+/** "Emergency contact" reads "emergency contact" mid-sentence; "IBAN" stays "IBAN". */
+const lowerFirst = (s: string): string =>
+  /^\p{Lu}\p{Ll}/u.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
 
 /**
  * The review in one paragraph, in words: "Adds 3 fields: 2 to Personal
