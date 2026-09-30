@@ -1,4 +1,4 @@
-import type { NewField } from './new-fields.js';
+import type { AttributeDataType } from '@kithena/contracts';
 
 /**
  * An imported column that matches no field: what its values look like, and a
@@ -14,7 +14,7 @@ import type { NewField } from './new-fields.js';
 export interface ColumnShape {
   /** In words, with no value in them. */
   readonly shape: string;
-  readonly dataType: NewField['dataType'];
+  readonly dataType: AttributeDataType;
   /** A short list's distinct values, first seen first: for the review, never a model. */
   readonly options: readonly string[];
   /** An IBAN's country, when every one agrees. */
@@ -47,7 +47,7 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
   const values = raw.map((v) => v.trim()).filter((v) => v !== '');
   const shape = (
     s: string,
-    dataType: NewField['dataType'],
+    dataType: AttributeDataType,
     extra: Partial<ColumnShape> = {},
   ): ColumnShape => ({
     shape: s,
