@@ -284,7 +284,7 @@ export async function reviewNewFields(
   const g = gathered.value;
   const kept = keptOf(input.proposals, g.seen);
   if (!kept.ok) return kept;
-  const built = build(g.draft, kept.value);
+  const built = draftWithNewFields(g.draft, kept.value);
   return ok({ ...view(g, input.proposals, false), problems: built.problems });
 }
 
@@ -309,7 +309,7 @@ function keptOf(
 }
 
 /** The draft with the new sections and fields in it, or what it refused. Nothing stored. */
-function build(
+export function draftWithNewFields(
   current: { readonly sections: readonly Section[]; readonly attributes: readonly Attribute[] },
   kept: readonly ColumnProposal[],
 ): {
@@ -421,7 +421,7 @@ export async function applyNewFields(
   if (!kept.ok) return kept;
   if (kept.value.length === 0)
     return err(failure('VALUE_INVALID', 'Choose at least one column to add', ['proposals']));
-  const built = build(g.draft, kept.value);
+  const built = draftWithNewFields(g.draft, kept.value);
   const [problem] = built.problems;
   if (problem !== undefined) {
     const header = kept.value.find((p) => p.column === problem.column)?.header ?? 'A column';

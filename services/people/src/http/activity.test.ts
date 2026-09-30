@@ -2,6 +2,25 @@ import { describe, expect, it } from 'vitest';
 
 import { settingsActivity } from './activity.js';
 
+describe('new fields from an import', () => {
+  it('is one entry, AI-assisted, with the review’s words and never the file', () => {
+    const said = settingsActivity(
+      'POST',
+      '/v1/imports/new-fields/apply',
+      JSON.stringify({
+        uploadId: '00000000-0000-4000-8000-0000000000f1',
+        proposals: [{ include: true }, { include: true }, { include: false }],
+        summary: 'Adds 2 fields: 2 to Employment. Values for 128 people from this file.',
+      }),
+    );
+    expect(said).toEqual({
+      action: 'Added 2 fields from an import, with the AI assistant',
+      detail: 'Adds 2 fields: 2 to Employment. Values for 128 people from this file.',
+      area: 'fields',
+    });
+  });
+});
+
 describe('the settings activity log’s words', () => {
   it('describes a settings command from its path and what was typed', () => {
     expect(
