@@ -261,9 +261,7 @@ describe('an export described in words, read by People’s own rules', () => {
   it('a date still to come is today, and says so', () => {
     const plan = exportByRules('payroll as of 1 November', exportable);
     expect(plan.asOf).toBe('2026-10-02');
-    expect(plan.notes).toEqual([
-      '1 November 2026 is still to come, so the export is as of today.',
-    ]);
+    expect(plan.notes).toEqual(['1 November 2026 is still to come, so the export is as of today.']);
   });
 
   it('a saved view by its name, a format, and photos', () => {

@@ -51,7 +51,11 @@ export type Audience =
 export interface ExportCatalogue {
   readonly today: string;
   /** What this person may export, in the builder's order. */
-  readonly fields: readonly { readonly key: string; readonly label: string; readonly section: string }[];
+  readonly fields: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly section: string;
+  }[];
   /** The builder's audiences: everybody, and each saved view. */
   readonly audiences: readonly { readonly value: string; readonly label: string }[];
   /** What an audience may be narrowed by: the directory's own conditions. */
@@ -81,8 +85,7 @@ interface Token {
   readonly stem: string;
 }
 
-const TOKEN =
-  /\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}|[\p{L}\p{N}]+(?:['’][\p{L}]+)*/gu;
+const TOKEN = /\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}|[\p{L}\p{N}]+(?:['’][\p{L}]+)*/gu;
 
 const fold = (s: string): string =>
   s.normalize('NFKD').replaceAll(/\p{M}/gu, '').toLowerCase().replaceAll('’', "'");
@@ -113,7 +116,9 @@ const STOP = new Set(
 );
 
 const HIRE = new Set(
-  'hired hire hires joined joining joiner joiners join joins started starting start starts'.split(' '),
+  'hired hire hires joined joining joiner joiners join joins started starting start starts'.split(
+    ' ',
+  ),
 );
 const BEFORE = new Set(['before', 'until', 'prior', 'earlier']);
 const AFTER = new Set(['after', 'since', 'from']);
@@ -140,7 +145,9 @@ const MONTHS = [
 
 const monthOf = (word: string): number | null => {
   if (word.length < 3) return null;
-  const at = MONTHS.findIndex((m) => m === word || (word.length >= 3 && m.startsWith(word) && word.length <= 4));
+  const at = MONTHS.findIndex(
+    (m) => m === word || (word.length >= 3 && m.startsWith(word) && word.length <= 4),
+  );
   return at < 0 ? null : at + 1;
 };
 
@@ -588,11 +595,18 @@ function checkedCondition(
   const op: IntentOp = field.options.length > 0 && c.op === 'is' ? 'in' : c.op;
   if (!(FITS[field.kind] ?? FITS['text'] ?? []).includes(op)) return null;
   const values = op === 'empty' || op === 'not_empty' ? [] : c.values.map((v) => v.trim());
-  const arity = op === 'between' ? 2 : op === 'in' ? -1 : op === 'empty' || op === 'not_empty' ? 0 : 1;
+  const arity =
+    op === 'between' ? 2 : op === 'in' ? -1 : op === 'empty' || op === 'not_empty' ? 0 : 1;
   if (arity >= 0 && values.length !== arity) return null;
   if (arity < 0 && values.length === 0) return null;
   if (field.kind === 'date' && values.length > 0) {
-    if (!values.every((v) => v === '' || (ISO.test(v) && valid(...(v.split('-').map(Number) as [number, number, number]))))) {
+    if (
+      !values.every(
+        (v) =>
+          v === '' ||
+          (ISO.test(v) && valid(...(v.split('-').map(Number) as [number, number, number]))),
+      )
+    ) {
       return null;
     }
     if (values.every((v) => v === '')) return null;
@@ -600,8 +614,7 @@ function checkedCondition(
   if (field.kind === 'number' && !values.every((v) => /^-?\d+(\.\d+)?$/u.test(v))) return null;
   if (field.options.length > 0 && values.length > 0) {
     const mapped = values.map(
-      (v) =>
-        field.options.find((o) => o.value === v || fold(o.label) === fold(v))?.value,
+      (v) => field.options.find((o) => o.value === v || fold(o.label) === fold(v))?.value,
     );
     if (mapped.some((v) => v === undefined)) return null;
     return { key: c.key, op, values: [...new Set(mapped as string[])] };
@@ -714,7 +727,10 @@ export function draftedReason(plan: ExportPlan, cat: ExportCatalogue, payroll: b
 /** An as-of date no later than today, and a note when it had to be. */
 function notAfterToday(date: string, today: string): { asOf: string; notes: string[] } {
   return date > today
-    ? { asOf: today, notes: [`${spokenDate(date)} is still to come, so the export is as of today.`] }
+    ? {
+        asOf: today,
+        notes: [`${spokenDate(date)} is still to come, so the export is as of today.`],
+      }
     : { asOf: date, notes: [] };
 }
 
@@ -728,7 +744,8 @@ export function exportByRules(sentence: string, cat: ExportCatalogue): ExportPla
   let notes: string[] = [];
   for (let i = 0; i < ts.length; i += 1) {
     const w = ts[i]?.word;
-    const lead = w === 'as' && ['of', 'at', 'on'].includes(ts[i + 1]?.word ?? '') ? 2 : w === 'on' ? 1 : 0;
+    const lead =
+      w === 'as' && ['of', 'at', 'on'].includes(ts[i + 1]?.word ?? '') ? 2 : w === 'on' ? 1 : 0;
     if (lead === 0) continue;
     const span = dateAt(ts, i + lead, cat.today);
     if (span === null) continue;
@@ -791,7 +808,10 @@ export function exportByRules(sentence: string, cat: ExportCatalogue): ExportPla
         for (const f of cat.fields) if (f.section === section) named.add(f.key);
       }
     }
-    fields = named.size === 0 ? cat.fields.map((f) => f.key) : cat.fields.filter((f) => named.has(f.key)).map((f) => f.key);
+    fields =
+      named.size === 0
+        ? cat.fields.map((f) => f.key)
+        : cat.fields.filter((f) => named.has(f.key)).map((f) => f.key);
   }
 
   if (audience.kind === 'everyone') {
@@ -898,4 +918,3 @@ export function exportContext(sentence: string, cat: ExportCatalogue): Record<st
 /** Whether a sentence mentions payroll, for the drafted reason. */
 export const aboutPayroll = (sentence: string): boolean =>
   tokens(sentence).some((t) => t.word === 'payroll');
-
