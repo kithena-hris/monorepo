@@ -75,6 +75,11 @@ import {
   ChatComplete,
   ChatNotice,
 } from './screens.js';
+import {
+  ApplyInput as NewFieldsApply,
+  ImportStepInput as NewFieldsPropose,
+  ReviewInput as NewFieldsReview,
+} from '../application/assistant/import-fields.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 /**
@@ -158,6 +163,9 @@ const components = {
   ChatComplete,
   ChatNotice,
   ImportStep: ImportStepBody,
+  NewFieldsPropose,
+  NewFieldsReview,
+  NewFieldsApply,
   Segment: SegmentBody,
   PayBand: PayBandBody,
   ReportSchedule: ScheduleBody,
@@ -261,7 +269,7 @@ function screenPaths(): Record<string, unknown> {
     },
     '/v1/views/completeness/identifier-check': {
       post: screenWrite(
-        "What saving these grid cells would be warned about (PEO-125); nothing is kept",
+        'What saving these grid cells would be warned about (PEO-125); nothing is kept',
         'CompletenessChanges',
         200,
         '{ findings }, each with its personId',
@@ -572,9 +580,15 @@ function screenPaths(): Record<string, unknown> {
       ),
     },
     '/v1/chat/apps/{key}/disconnect': {
-      post: screenWrite('Disconnect a chat app: it leaves the workspace', null, 200, 'Disconnected', {
-        path: 'key',
-      }),
+      post: screenWrite(
+        'Disconnect a chat app: it leaves the workspace',
+        null,
+        200,
+        'Disconnected',
+        {
+          path: 'key',
+        },
+      ),
     },
     '/v1/chat/notices/{key}': {
       put: screenWrite(
@@ -596,6 +610,34 @@ function screenPaths(): Record<string, unknown> {
     },
     '/v1/views/photos/remove': {
       post: screenWrite('Take a photo down: the person’s own, or HR’s', 'PhotoOf', 200, 'Removed'),
+    },
+    // New information in an import's file (docs/ai-settings.md): proposed,
+    // reviewed, then added by an administrator before the dry run.
+    '/v1/imports/new-fields': {
+      post: screenWrite(
+        'Fields proposed for the columns that match none; nothing is written',
+        'NewFieldsPropose',
+        200,
+        'One proposal per column, and what happens for people not in the file',
+        { safe: true },
+      ),
+    },
+    '/v1/imports/new-fields/review': {
+      post: screenWrite(
+        'The proposals as HR left them, checked, with the review in words; nothing is written',
+        'NewFieldsReview',
+        200,
+        'The checked proposals and the review',
+        { safe: true },
+      ),
+    },
+    '/v1/imports/new-fields/apply': {
+      post: screenWrite(
+        'Add the fields, publish, and write the defaults: one transaction, an administrator’s',
+        'NewFieldsApply',
+        201,
+        'The new fields’ keys',
+      ),
     },
     '/v1/imports/dry-run': {
       post: screenWrite(
