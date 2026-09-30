@@ -366,3 +366,41 @@ describe('the approvals tab, in the address', () => {
     expect(onTabChange).toHaveBeenCalledWith('mine');
   });
 });
+
+describe('unusual changes, flagged for whoever decides', () => {
+  const flagged: ApprovalItem = {
+    ...item,
+    flags: [
+      { code: 'bank_repeat', reason: 'Bank details were changed more than once within 30 days.' },
+      { code: 'outside_hours', reason: 'Asked for at 23:40 on a Sunday, Europe/Madrid time.' },
+    ],
+  };
+
+  it('counts the flags on the row and gives each reason on the change, deciding as before', async () => {
+    const onDecide = vi.fn(done);
+    const { container } = render(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: { isHr: true, items: [flagged, { ...item, id: 'c2', name: 'Rui Dias' }] },
+        }}
+        onDecide={onDecide}
+        onWithdraw={vi.fn(done)}
+      />,
+    );
+    expect(await axeViolations(container)).toEqual([]);
+    const list = screen.getByRole('list', { name: 'Changes waiting for a decision' });
+    expect(within(list).getAllByText('2 flags')).toHaveLength(1);
+    const detail = screen.getByRole('region', { name: /Lucía Ortega/ });
+    const note = within(detail).getByRole('alert');
+    expect(within(note).getByText('Worth a second look')).toBeInTheDocument();
+    expect(
+      within(note).getByText('Bank details were changed more than once within 30 days.'),
+    ).toBeInTheDocument();
+    // A flag informs; it never blocks.
+    const user = fast();
+    await user.click(screen.getByRole('button', { name: /Approve the change to Lucía Ortega's/ }));
+    await user.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(onDecide).toHaveBeenCalledWith('c1', true, null);
+  });
+});

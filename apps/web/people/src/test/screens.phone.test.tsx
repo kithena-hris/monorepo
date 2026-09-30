@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
 import { Analytics } from '../analytics/analytics';
+import { Approvals } from '../approvals/approvals';
 import { BulkEdit } from '../bulk/bulk-edit';
 import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
@@ -1015,15 +1016,69 @@ describe('at 390×844, with a finger', () => {
               { label: 'Invited', value: 128 },
               { label: 'Complete', value: 61 },
             ],
+            whatChanged: {
+              phrasable: false,
+              tabs: [
+                {
+                  tab: 'data-quality',
+                  sentences: ['Records 79% complete; 88 incomplete.', '1 work permit expires in October.'],
+                },
+              ],
+            },
           },
         }}
       />,
     );
+    expect(screen.getByText('What changed')).toBeInTheDocument();
     // No chart forces the page sideways; a time axis scrolls inside its own box.
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
     // The expiry lanes are the taller, finger-sized ones a coarse pointer gets (PEO-122).
     const lane = screen.getAllByTitle('Sana Khan')[0]?.parentElement;
     expect(lane?.getBoundingClientRect().height).toBeGreaterThanOrEqual(56);
+  });
+});
+
+describe('approvals on a phone, with a flagged change', () => {
+  it('draws the flags on the row and the change, and every target is a finger’s', async () => {
+    await checked(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: {
+            isHr: true,
+            items: [
+              {
+                id: 'c1',
+                personId: 'p1',
+                name: 'Lucía Ortega',
+                key: 'iban',
+                label: 'IBAN',
+                kind: 'value',
+                value: { last4: '1332' },
+                current: { last4: '3000' },
+                readable: true,
+                effectiveFrom: '2026-09-22',
+                requestedAt: '2026-09-22T21:40:00.000Z',
+                expiresAt: '2026-09-29T21:40:00.000Z',
+                requestedBy: 'Marco Rossi',
+                reason: null,
+                mine: false,
+                canDecide: true,
+                flags: [
+                  {
+                    code: 'bank_by_other',
+                    reason: 'Bank details were changed by someone other than the employee.',
+                  },
+                ],
+              },
+            ],
+          },
+        }}
+        onDecide={ok}
+        onWithdraw={ok}
+      />,
+    );
+    expect(screen.getByText('1 flag')).toBeInTheDocument();
   });
 });
 
