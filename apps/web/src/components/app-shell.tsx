@@ -51,6 +51,8 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  createContext,
+  use,
   useCallback,
   useEffect,
   useMemo,
@@ -184,6 +186,17 @@ const AREAS: readonly {
     module: 'module.documents',
   },
 ];
+
+/**
+ * The shell's People data, for what is drawn inside the shell before the page
+ * it belongs to has arrived: a loading skeleton knows the tabs its page will
+ * have from here (`PeopleLoading`).
+ */
+const ShellContext = createContext<ShellData>(EMPTY_SHELL);
+
+export function useShellData(): ShellData {
+  return use(ShellContext);
+}
 
 /** The areas this company has: home, and each module it bought. */
 function areasFor(entitlements: readonly string[]): typeof AREAS {
@@ -442,6 +455,7 @@ export function AppShell({
    * without a provider above it.
    */
   return (
+    <ShellContext value={shell}>
     <Shortcuts value={keys}>
     <TooltipProvider>
       <PageLayout
@@ -585,9 +599,9 @@ export function AppShell({
           viewing={person.viewing == null ? null : person.name}
         />
         {/*
-          No boundary here, on purpose: a navigation is a transition and keeps
-          this page on screen until the next is ready, and a first load waits
-          for the page rather than flashing a stand-in for it.
+          The page's own `loading.tsx` stands in for it while it is fetched: a
+          prefetched link shows that skeleton on the frame after the click,
+          in the page's shape, rather than leaving the last page frozen.
         */}
         {children}
       </PageLayout>
@@ -595,6 +609,7 @@ export function AppShell({
       <ShortcutsHelp open={helpOpen} onOpenChange={setHelpOpen} />
     </TooltipProvider>
     </Shortcuts>
+    </ShellContext>
   );
 }
 
