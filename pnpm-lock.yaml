@@ -931,6 +931,9 @@ importers:
       exceljs:
         specifier: 4.4.0
         version: 4.4.0
+      graphql:
+        specifier: ^16.11.0
+        version: 16.14.2
       graphql-yoga:
         specifier: ^5.24.1
         version: 5.24.1(graphql@16.14.2)
@@ -962,9 +965,6 @@ importers:
       fast-formula-parser:
         specifier: 1.0.19
         version: 1.0.19
-      graphql:
-        specifier: ^16.11.0
-        version: 16.14.2
       jose:
         specifier: ^6.2.12
         version: 6.2.12
