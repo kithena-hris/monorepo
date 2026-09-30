@@ -427,7 +427,19 @@ function conditionsFrom(
     const fieldWords = new Set(stems(field.label));
     for (const option of field.options) {
       const phrase = stems(option.label);
-      const at = find(ts, used, phrase);
+      // An option that is an everyday word ("People", a department) is that
+      // option only as a name is written, mid-sentence, or beside its field.
+      const everyday = phrase.length === 1 && STOP.has(phrase[0] ?? '');
+      const at = everyday
+        ? ts.findIndex(
+            (t, i) =>
+              !used.has(i) &&
+              t.stem === phrase[0] &&
+              ((i > 0 && /^\p{Lu}/u.test(t.raw)) ||
+                fieldWords.has(ts[i - 1]?.stem ?? '') ||
+                fieldWords.has(ts[i + 1]?.stem ?? '')),
+          )
+        : find(ts, used, phrase);
       if (at >= 0) {
         picked.push({ at, length: phrase.length, field, value: option.value });
         continue;
@@ -460,6 +472,25 @@ function conditionsFrom(
   const options = [...values.entries()]
     .toSorted((a, b) => a[1].at - b[1].at)
     .map(([key, v]) => ({ key, op: 'in' as const, values: v.values }));
+
+  // A role in the plural ("engineers", "managers", "analysts"): the job title
+  // mentions it. Only a role's ending, because a name ("James", "Lewis") ends
+  // in s as often as not.
+  const title = fields.find((f) => f.key === 'job_title' && f.kind === 'text');
+  if (title !== undefined) {
+    const at = ts.findIndex(
+      (t, i) =>
+        !used.has(i) &&
+        !STOP.has(t.word) &&
+        !CUES.has(t.word) &&
+        /^\p{L}{3,}(er|or|ist|yst|ant|ent|ian|eer|ect|ern|ner|ead)s$/u.test(t.word),
+    );
+    const role = ts[at];
+    if (role !== undefined) {
+      used.add(at);
+      found.push({ at, condition: { key: title.key, op: 'contains', values: [role.stem] } });
+    }
+  }
 
   return [...options, ...found.toSorted((a, b) => a.at - b.at).map((f) => f.condition)];
 }
@@ -693,7 +724,9 @@ export function directoryContext(
 /** The words that make a field payroll's (payroll needs these, and not a T-shirt size). */
 const PAYROLL = new Set(
   stems(
-    'name employee number start hire entity salary pay bank account iban tax national identifier address contract cost centre center',
+    'name employee number start hire entity salary pay bank account iban tax national identifier address contract cost centre center ' +
+      // The tax and social-security identifiers, as countries name them.
+      'nif nie naf nss ssn nino tin bsn social security',
   ),
 );
 

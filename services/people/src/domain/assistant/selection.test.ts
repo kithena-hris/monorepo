@@ -58,13 +58,14 @@ const fields: readonly PlannedField[] = [
 ];
 
 describe('a sentence read by People’s own rules, for the directory', () => {
-  it('engineers in Barcelona starting next month: the place and the month; the rest said', () => {
+  it('engineers in Barcelona starting next month: the place, the role and the month', () => {
     const plan = directoryByRules('engineers in Barcelona starting next month', fields, TODAY);
     expect(plan.conditions).toEqual([
       { key: 'location_id', op: 'in', values: ['bcn'] },
+      { key: 'job_title', op: 'contains', values: ['engineer'] },
       { key: 'hire_date', op: 'between', values: ['2026-10-01', '2026-10-31'] },
     ]);
-    expect(plan.unused).toEqual(['engineers']);
+    expect(plan.unused).toEqual([]);
     expect(plan.search).toBeNull();
   });
 
@@ -74,13 +75,37 @@ describe('a sentence read by People’s own rules, for the directory', () => {
     expect(plan.unused).toEqual([]);
   });
 
-  it('managers in Sales hired before 2024: the department, and on or before the last day of 2023', () => {
+  it('managers in Sales hired before 2024: the department, the role, and on or before the last day of 2023', () => {
     const plan = directoryByRules('managers in Sales hired before 2024', fields, TODAY);
     expect(plan.conditions).toEqual([
       { key: 'department', op: 'in', values: ['sales'] },
+      { key: 'job_title', op: 'contains', values: ['manager'] },
       { key: 'hire_date', op: 'before', values: ['2023-12-31'] },
     ]);
-    expect(plan.unused).toEqual(['managers']);
+    expect(plan.unused).toEqual([]);
+  });
+
+  it('a name ending in s is not a role; an everyday word is an option only as a name is written', () => {
+    const withPeople: readonly PlannedField[] = [
+      ...fields,
+      {
+        key: 'team',
+        label: 'Team',
+        kind: 'select',
+        options: [{ value: 'people', label: 'People' }],
+        ai: true,
+      },
+    ];
+    expect(directoryByRules('James Lewis', withPeople, TODAY).conditions).toEqual([]);
+    expect(directoryByRules('people missing a job title', withPeople, TODAY).conditions).toEqual([
+      { key: 'job_title', op: 'empty', values: [] },
+    ]);
+    expect(directoryByRules('everyone in People', withPeople, TODAY).conditions).toEqual([
+      { key: 'team', op: 'in', values: ['people'] },
+    ]);
+    expect(directoryByRules('people team', withPeople, TODAY).conditions).toEqual([
+      { key: 'team', op: 'in', values: ['people'] },
+    ]);
   });
 
   it('since, after, in and between, each with its bounds', () => {
