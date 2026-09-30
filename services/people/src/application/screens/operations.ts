@@ -22,7 +22,7 @@ import type { EndpointInput, WebhookService } from '../../infrastructure/webhook
 import { visibleTo } from '../../domain/access/field-access.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { importTemplate } from '../import/template.js';
-import { dryRun, type ClassifiedRow } from '../import/dry-run.js';
+import { dryRun, NOT_SET_UP, type ClassifiedRow } from '../import/dry-run.js';
 import {
   proposeMapping,
   resolveMapping,
@@ -457,7 +457,7 @@ async function prepare(
   const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
   if (!relations.isHr) return onlyHr();
   const version = await deps.service.schemas.current(tx, asking.tenantId);
-  if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Publish the employee fields first'));
+  if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', NOT_SET_UP));
   const file = await parseUpload(bytes);
   if (!file.ok) return file;
   const proposed = await proposeMapping({
@@ -516,7 +516,7 @@ export async function importTemplateFile(
     const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     if (!relations.isHr) return onlyHr();
     const version = await deps.service.schemas.current(tx, asking.tenantId);
-    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Publish the employee fields first'));
+    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', NOT_SET_UP));
     return ok(importTemplate(version, relations));
   });
 }

@@ -121,6 +121,12 @@ describe('ImportExport', () => {
     expect(screen.queryByRole('heading', { name: 'History' })).toBeNull();
   });
 
+  it('offers no template before the employee record is set up: there is nothing to template yet', () => {
+    render(<ImportExport load={{ status: 'ready', data: state({ setUp: false }) }} />);
+    expect(screen.getByRole('link', { name: 'Start import' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Template' })).toBeNull();
+  });
+
   it('says so when nothing has been imported or exported yet', () => {
     render(
       <ImportExport

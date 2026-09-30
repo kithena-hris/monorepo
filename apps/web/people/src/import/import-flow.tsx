@@ -148,6 +148,13 @@ export interface ImportFlowProps {
   readonly onDownloadBlocked: () => void;
   readonly onBack: () => void;
   /**
+   * Nothing is published yet, so there is nothing to import against: setup
+   * comes first, because the legal entity and its country pack decide which
+   * fields the law requires. `href` is setup, for an administrator; null for
+   * HR without administrator rights, who is told who sets it up.
+   */
+  readonly setup?: { readonly href: string | null };
+  /**
    * New information in the file (docs/ai-settings.md): fields proposed for
    * the columns that match none, reviewed, and added before the dry run.
    * Absent, those columns are simply not imported.
@@ -195,7 +202,13 @@ export function ImportFlow(props: ImportFlowProps): JSX.Element {
               steps={STEPS}
               current={STEPS.findIndex((s) => s.id === stage.step)}
             />
-            {stage.step === 'upload' ? <Upload onUpload={props.onUpload} /> : null}
+            {stage.step === 'upload' ? (
+              props.setup === undefined ? (
+                <Upload onUpload={props.onUpload} />
+              ) : (
+                <SetupFirst href={props.setup.href} />
+              )
+            ) : null}
             {stage.step === 'map' ? <Mapping stage={stage} {...props} /> : null}
             {stage.step === 'review' ? <Review stage={stage} {...props} /> : null}
             {stage.step === 'done' ? (
@@ -256,6 +269,27 @@ function Refused({ message }: { readonly message: string | null }): JSX.Element 
   return message === null ? null : (
     <Alert tone="danger" title="That did not go through">
       {message}
+    </Alert>
+  );
+}
+
+function SetupFirst({ href }: { readonly href: string | null }): JSX.Element {
+  return (
+    <Alert
+      tone="info"
+      title="Set up the employee record first"
+      action={
+        href === null ? undefined : (
+          <Button asChild variant="primary" size="sm">
+            <a href={href}>Set up the employee record</a>
+          </Button>
+        )
+      }
+    >
+      The legal entity and its country pack decide which fields the law requires, so a file is
+      imported against them. Once they are published the import carries on here, and the columns in
+      your file that match no field become new fields for you to review.
+      {href === null ? ' A People administrator sets it up; ask one, then import here.' : ''}
     </Alert>
   );
 }

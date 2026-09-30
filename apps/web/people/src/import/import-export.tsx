@@ -56,6 +56,8 @@ export interface TransferEntry {
 
 export interface ImportExportState {
   readonly canImport: boolean;
+  /** False while nothing is published: the import sends setup first. Absent is set up. */
+  readonly setUp?: boolean;
   /** Newest first, a page at a time. `null`: not this viewer's to read. */
   readonly history: {
     readonly items: readonly TransferEntry[];
@@ -204,15 +206,18 @@ export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element 
                   start="Start import"
                   startIcon={<icons.upload aria-hidden />}
                   more={
-                    <Button
-                      asChild
-                      variant="secondary"
-                      startIcon={<icons.spreadsheet aria-hidden />}
-                    >
-                      <a href={TEMPLATE_URL} download>
-                        Template
-                      </a>
-                    </Button>
+                    // Before setup there are no fields, so nothing to template.
+                    state.setUp === false ? null : (
+                      <Button
+                        asChild
+                        variant="secondary"
+                        startIcon={<icons.spreadsheet aria-hidden />}
+                      >
+                        <a href={TEMPLATE_URL} download>
+                          Template
+                        </a>
+                      </Button>
+                    )
                   }
                 />
               ) : null}

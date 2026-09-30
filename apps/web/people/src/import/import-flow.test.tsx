@@ -102,6 +102,38 @@ function props(
 }
 
 describe('ImportFlow', () => {
+  it('with nothing published, sends an administrator to setup first and says why, with no upload', async () => {
+    const { container } = render(
+      <ImportFlow
+        {...props(
+          { status: 'ready', data: { step: 'upload' } },
+          { setup: { href: '/people/setup?then=/people/import' } },
+        )}
+      />,
+    );
+    expect(screen.getByText('Set up the employee record first')).toBeInTheDocument();
+    expect(
+      screen.getByText(/country pack decide which fields the law requires/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/become new fields for you to review/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Set up the employee record' })).toHaveAttribute(
+      'href',
+      '/people/setup?then=/people/import',
+    );
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('with nothing published, tells HR without administrator rights who sets it up', () => {
+    render(
+      <ImportFlow
+        {...props({ status: 'ready', data: { step: 'upload' } }, { setup: { href: null } })}
+      />,
+    );
+    expect(screen.getByText(/A People administrator sets it up/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Set up the employee record' })).toBeNull();
+  });
+
   it('uploads through a FileUploader, with the upload’s own progress', async () => {
     const user = fast();
     let finish: (outcome: { ok: true }) => void = () => undefined;

@@ -218,6 +218,9 @@ function download(
   return { ok: true };
 }
 
+/** The import, which setup returns to when it was what sent the admin there. */
+const IMPORT = '/people/import';
+
 export function PeopleScreen({
   route,
   load,
@@ -304,8 +307,17 @@ export function PeopleScreen({
           // The first administrator is the only HR member: they approve their own NIF (PEO-077).
           onSelfApprove: thenRefresh(actions.approveAlone),
           onWithdraw: thenRefresh(actions.withdrawPendingChange),
+          // Sent here from an import with nothing published: the import goes on after.
+          ...(search['then'] === IMPORT
+            ? {
+                continuing: {
+                  label: 'Continue to the import',
+                  note: 'Your import carries on once version 1 is published. Columns in your file that match none of these fields become new fields for you to review there.',
+                },
+              }
+            : {}),
           onFinish: () => {
-            go('/people/me');
+            go(search['then'] === IMPORT ? IMPORT : '/people/me');
           },
         };
       // One person by hand; then their record, to fill in the rest.
@@ -993,8 +1005,14 @@ export function PeopleScreen({
           return { ok: true };
         };
         const again = { ok: false, message: 'Choose the file again' } as const;
+        // Nothing published: setup comes first, for an administrator to run.
+        const ready =
+          load.status === 'ready' ? (load.data as { setUp?: boolean; admin?: boolean }) : {};
         return {
           load: { status: 'ready', data: stage },
+          ...(ready.setUp === false
+            ? { setup: { href: ready.admin === true ? `/people/setup?then=${IMPORT}` : null } }
+            : {}),
           onUpload: async (file: File, progress: (percent: number) => void): Promise<Outcome> => {
             const target = await actions.startImportUpload({ name: file.name, size: file.size });
             if (!target.ok) return target;

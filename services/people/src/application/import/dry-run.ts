@@ -267,6 +267,14 @@ async function existingPeople(
   return ok({ byId, byEmail, byNumber, byNameAndBirth });
 }
 
+/**
+ * Why an import waits for setup, and what to do: the legal entity and its
+ * country pack decide which fields the law requires, so a file is read
+ * against them rather than before them. Every step of an import says this.
+ */
+export const NOT_SET_UP =
+  'Set up the employee record first: confirm the legal entity and publish its country pack. Then import, and columns that match no field become new fields for you to review.';
+
 const asking = (input: DryRunInput) => ({
   tenantId: input.tenantId,
   viewer: input.viewer,
@@ -279,8 +287,7 @@ export async function dryRun(
   input: DryRunInput,
 ): Promise<Result<DryRun>> {
   const version = await deps.schemas.current(tx, input.tenantId);
-  if (!version)
-    return err(failure('SCHEMA_NOT_PUBLISHED', 'Publish a People schema before importing'));
+  if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', NOT_SET_UP));
 
   const unresolved = input.mapping.filter((m) => m.status === 'review' || m.status === 'refused');
   if (unresolved.length > 0) {

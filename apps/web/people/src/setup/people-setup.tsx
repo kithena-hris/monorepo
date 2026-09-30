@@ -74,6 +74,11 @@ export interface PeopleSetupProps {
   readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
   readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
   readonly onFinish: () => void;
+  /**
+   * What the admin came for before setup sent them here, such as an import:
+   * said at the top, and the last step's button goes on to it.
+   */
+  readonly continuing?: { readonly label: string; readonly note: string };
 }
 
 const STEPS = [
@@ -119,6 +124,7 @@ function Wizard({
   onSelfApprove,
   onWithdraw,
   onFinish,
+  continuing,
 }: PeopleSetupProps & { readonly state: SetupState }): JSX.Element {
   // Where the admin is, resumed from what the tenant already has: coming back
   // tomorrow starts at the first step not yet done.
@@ -157,6 +163,8 @@ function Wizard({
   return (
     <Stack gap={6}>
       <Stepper label="Setting up the employee record" steps={STEPS} current={step} />
+
+      {continuing === undefined ? null : <Alert tone="info">{continuing.note}</Alert>}
 
       {refused === null ? null : (
         <Alert tone="danger" title="That did not go through">
@@ -371,7 +379,17 @@ function Wizard({
 
       {step === 3 ? (
         state.profile === null ? (
-          <Alert tone="info" title="Version 1 is published">
+          <Alert
+            tone="info"
+            title="Version 1 is published"
+            action={
+              continuing === undefined ? undefined : (
+                <Button size="sm" variant="primary" onClick={onFinish}>
+                  {continuing.label}
+                </Button>
+              )
+            }
+          >
             Your own profile will be ready in a moment.
           </Alert>
         ) : (
@@ -397,7 +415,7 @@ function Wizard({
                 {missing === 0 ? 'Complete' : `${String(missing)} missing`}
               </Badge>
               <Button variant="primary" onClick={onFinish}>
-                {missing === 0 ? 'Finish' : 'Finish later'}
+                {continuing?.label ?? (missing === 0 ? 'Finish' : 'Finish later')}
               </Button>
             </div>
           </Stack>

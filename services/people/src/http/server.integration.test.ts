@@ -36,12 +36,12 @@ const clients: ReturnType<typeof postgres>[] = [];
 let server: Server;
 let base = '';
 
-const headers = (account: string, roles: string[] = []) => ({
+const headers = (account: string, roles: string[] = [], tenantId = ACME) => ({
   'content-type': 'application/json',
   'x-internal-token': 'router-secret',
   'x-kithena-principal': JSON.stringify({
     userId: account,
-    tenantId: ACME,
+    tenantId,
     roles,
     entitlements: ['module.people'],
   }),
@@ -763,5 +763,148 @@ describe('the screens over GraphQL', () => {
     );
     const response = await fetch(`${base}/graphql`, { method: 'POST', headers: hr, body: form });
     expect(response.ok).toBe(false);
+  });
+});
+
+describe('a company that has never published its employee fields', () => {
+  // A tenant of its own: nothing published, nothing in the draft, nobody here.
+  const FRESH = '00000000-0000-4000-8000-00000000000f';
+  const OWNER = '00000000-0000-4000-8000-0000000000f1';
+  type Graph = {
+    data?: Record<string, unknown>;
+    errors?: { message: string; extensions: { code: string } }[];
+  };
+  const graph = async (query: string, variables: Record<string, unknown> = {}) =>
+    (await (
+      await fetch(`${base}/graphql`, {
+        method: 'POST',
+        headers: headers(OWNER, ['people_admin', 'hr'], FRESH),
+        body: JSON.stringify({ query, variables }),
+      })
+    ).json()) as Graph;
+  const file = new TextEncoder().encode(
+    'given_name,family_name,work_email,hire_date,T-shirt size\n' +
+      'Ana,López,ana@fresh.example,2026-10-01,S\n' +
+      'Bo,Chen,bo@fresh.example,2026-10-01,M\n',
+  );
+  const upload = async () => {
+    const started = await graph(
+      `mutation ($name: String!, $size: Int!) {
+        startImportUpload(name: $name, size: $size) { uploadId url method headers { name value } }
+      }`,
+      { name: 'first.csv', size: file.byteLength },
+    );
+    const target = started.data?.['startImportUpload'] as {
+      uploadId: string;
+      url: string;
+      method: string;
+      headers: { name: string; value: string }[];
+    };
+    await fetch(target.url, {
+      method: target.method,
+      headers: Object.fromEntries(
+        target.headers.filter((h) => h.name !== 'content-length').map((h) => [h.name, h.value]),
+      ),
+      body: file,
+    });
+    const completed = await graph(
+      `mutation ($id: ID!) { completeImportUpload(uploadId: $id) {
+        __typename ... on ImportMapStage { step columns { index header status key } fields { key } }
+      } }`,
+      { id: target.uploadId },
+    );
+    return { uploadId: target.uploadId, completed };
+  };
+
+  it('sends HR to setup first, then builds the fields the file brings and imports against them', async () => {
+    // Before setup: the refusal says what to do, not only what is missing.
+    const early = await upload();
+    expect(early.completed.errors?.[0]?.extensions.code).toBe('SCHEMA_NOT_PUBLISHED');
+    expect(early.completed.errors?.[0]?.message).toMatch(/set up the employee record/i);
+    const template = await graph('{ peopleImportTemplate }');
+    expect(template.errors?.[0]?.message).toMatch(/set up the employee record/i);
+
+    // Setup: the legal entity's country pack, published as version 1.
+    const setup = await graph(
+      `mutation ($key: String!) {
+        publishSetup(country: "ES", sections: [], idempotencyKey: $key) { version }
+      }`,
+      { key: 'fresh-setup' },
+    );
+    expect(setup.errors).toBeUndefined();
+    expect(setup.data?.['publishSetup']).toEqual({ version: 1 });
+
+    // Upload: the pack's fields map; the T-shirt size matches nothing.
+    const { uploadId, completed } = await upload();
+    expect(completed.errors).toBeUndefined();
+    const stage = completed.data?.['completeImportUpload'] as {
+      columns: { index: number; header: string; status: string; key: string | null }[];
+    };
+    expect(stage.columns.find((c) => c.header === 'work_email')?.status).toBe('mapped');
+    expect(stage.columns.find((c) => c.header === 'T-shirt size')).toMatchObject({
+      status: 'ignored',
+      key: null,
+    });
+
+    // Proposals: nothing else is waiting in the draft, so nothing blocks them.
+    const step = { uploadId, mapping: {} };
+    const proposed = await graph(`mutation ($step: String!) { proposeImportFields(step: $step) }`, {
+      step: JSON.stringify(step),
+    });
+    expect(proposed.errors).toBeUndefined();
+    const view = JSON.parse(proposed.data?.['proposeImportFields'] as string) as {
+      blocked: string | null;
+      canCreate: boolean;
+      summary: string;
+      proposals: {
+        column: number;
+        key: string;
+        include: boolean;
+        counts: unknown;
+        sensitive: unknown;
+      }[];
+    };
+    expect(view).toMatchObject({ blocked: null, canCreate: true });
+    expect(view.proposals.map((p) => p.column)).toEqual([4]);
+
+    // Apply: the field is added and published as version 2.
+    const applied = await graph(
+      `mutation ($input: String!, $key: String!) { addImportFields(input: $input, idempotencyKey: $key) }`,
+      {
+        // The proposals as the screen sends them back: without the counts it was shown.
+        input: JSON.stringify({
+          ...step,
+          proposals: view.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p),
+          summary: view.summary,
+        }),
+        key: 'fresh-fields',
+      },
+    );
+    expect(applied.errors).toBeUndefined();
+    const added = JSON.parse(applied.data?.['addImportFields'] as string) as {
+      version: number;
+      mapped: Record<string, string>;
+    };
+    expect(added.version).toBe(2);
+    const shirt = added.mapped['4'];
+    expect(shirt).toBeDefined();
+
+    // Map and dry run against version 2, the new column mapped to its new field.
+    const dry = await graph(
+      `mutation ($id: ID!, $mapping: [ImportColumnInput!]!) {
+        dryRunImport(uploadId: $id, mapping: $mapping) {
+          __typename ... on ImportReviewStage { dryRun { counts { create blocked } ignoredColumns } }
+        }
+      }`,
+      { id: uploadId, mapping: [{ column: 4, key: shirt }] },
+    );
+    expect(dry.errors).toBeUndefined();
+    const review = dry.data?.['dryRunImport'] as {
+      __typename: string;
+      dryRun: { counts: { create: number; blocked: number }; ignoredColumns: string[] };
+    };
+    expect(review.__typename).toBe('ImportReviewStage');
+    expect(review.dryRun.ignoredColumns).not.toContain('T-shirt size');
+    expect(review.dryRun.counts.create + review.dryRun.counts.blocked).toBe(2);
   });
 });
