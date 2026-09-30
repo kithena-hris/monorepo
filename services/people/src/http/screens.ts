@@ -19,7 +19,6 @@ import {
   deliveriesView,
   dryRunImport,
   newFieldsFile,
-  exportBuilderView,
   importTemplateFile,
   integrationsView,
   startImportUpload,
@@ -95,6 +94,7 @@ import { writeSameValue } from '../application/screens/bulk-edit.js';
 import { PlanBudget } from '../domain/import/new-fields.js';
 import {
   PlanAsk,
+  exportViewWith,
   planDirectory,
   planExport,
   type SelectionDeps,
@@ -1267,7 +1267,7 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         }
         const { conditions = [], match = 'all' } = refine.data;
         return answer(
-          await exportBuilderView(
+          await exportViewWith(
             deps,
             asking,
             conditions.length === 0 ? undefined : { conditions, match },

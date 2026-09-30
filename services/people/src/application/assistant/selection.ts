@@ -22,7 +22,8 @@ import {
 } from '../../domain/assistant/selection.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import { exportBuilderView } from '../screens/operations.js';
+import type { Condition } from '../person/ports.js';
+import { exportBuilderView, type ExportBuilderView } from '../screens/operations.js';
 import type { ScreenDeps } from '../screens/record.js';
 import { describe, filterFields } from './ask.js';
 import type { AssistantPort } from './assistant-port.js';
@@ -177,6 +178,33 @@ export async function planDirectory(
     by: heard === null ? 'rules' : 'assistant',
     note: heard !== null ? null : 'note' in consulted ? consulted.note : UNREADABLE,
   });
+}
+
+/**
+ * The export builder with the directory's own conditions as one more
+ * audience, counted as this person may list them: from the directory's
+ * Export button, or an export described in words. Conditions they may not
+ * run are refused, as the directory refuses them.
+ */
+export async function exportViewWith(
+  deps: ScreenDeps,
+  asking: Asking,
+  narrowed?: { readonly conditions: readonly Condition[]; readonly match: 'all' | 'any' },
+): Promise<Result<ExportBuilderView>> {
+  const view = await exportBuilderView(deps, asking);
+  if (!view.ok || narrowed === undefined || narrowed.conditions.length === 0) return view;
+  const described = await run(deps.service, asking.tenantId, async (tx) => {
+    const counted = await deps.service.access.count(tx, { ...asking, refine: narrowed });
+    if (!counted.ok) return counted;
+    const fields = await filterFields(deps, tx, asking);
+    return ok({
+      value: 'conditions',
+      label: `Everybody ${describe(narrowed.conditions, fields, narrowed.match)}`,
+      count: counted.value.all,
+    });
+  });
+  if (!described.ok) return described;
+  return ok({ ...view.value, who: [...view.value.who, described.value] });
 }
 
 /**

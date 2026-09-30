@@ -6,7 +6,7 @@ import { utcCalendars } from '../org/org.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
 import type { PeopleService } from '../person/service.js';
-import { planDirectory, planExport, type SelectionDeps } from './selection.js';
+import { exportViewWith, planDirectory, planExport, type SelectionDeps } from './selection.js';
 
 /**
  * Search and export in words, end to end with a fake model behind the real
@@ -295,5 +295,22 @@ describe('an export described in words', () => {
       who: 'conditions',
     });
     expect(plan.ok && plan.value.reason).toMatch(/^People data for Sales, as of /u);
+  });
+
+  it('the builder offers the directory’s conditions as one more audience, and refuses ones the viewer cannot run', async () => {
+    const w = world({ model: false });
+    const view = await exportViewWith(w.deps, w.asking, {
+      conditions: [{ key: 'department', op: 'in', values: ['sales'] }],
+      match: 'all',
+    });
+    expect(view.ok && view.value.who.at(-1)).toMatchObject({
+      value: 'conditions',
+      label: 'Everybody whose department is Sales',
+    });
+    const refused = await exportViewWith(w.deps, w.asking, {
+      conditions: [{ key: 'salary', op: 'not_empty', values: [] }],
+      match: 'all',
+    });
+    expect(refused.ok).toBe(false);
   });
 });

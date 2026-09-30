@@ -44,8 +44,6 @@ import { LINK_LIFETIME_MS } from '../export/object-store.js';
 import { exportableColumns } from '../export/export.js';
 import { holds } from '../person/pending-changes.js';
 import { type Asking } from '../person/person-access.js';
-import type { Condition } from '../person/ports.js';
-import { describe, filterFields } from '../assistant/ask.js';
 import {
   unmappable,
   type ConnectionView,
@@ -853,12 +851,6 @@ export interface ExportBuilderView {
 export async function exportBuilderView(
   deps: ScreenDeps,
   asking: Asking,
-  /**
-   * The directory's own conditions, from its Export button or an export
-   * described in words: offered as one more audience, counted as this
-   * requester may list them. Conditions they may not run are refused.
-   */
-  narrowed?: { readonly conditions: readonly Condition[]; readonly match: 'all' | 'any' },
 ): Promise<Result<ExportBuilderView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const version = await deps.service.schemas.current(tx, asking.tenantId);
@@ -897,17 +889,6 @@ export async function exportBuilderView(
         segments.push({ value: `segment:${s.id}`, label: s.name, count: inSegment.value.all });
       }
     }
-    const described: { value: string; label: string; count: number }[] = [];
-    if (narrowed !== undefined && narrowed.conditions.length > 0) {
-      const inConditions = await deps.service.access.count(tx, { ...asking, refine: narrowed });
-      if (!inConditions.ok) return inConditions;
-      const fields = await filterFields(deps, tx, asking);
-      described.push({
-        value: 'conditions',
-        label: `Everybody ${describe(narrowed.conditions, fields, narrowed.match)}`,
-        count: inConditions.value.all,
-      });
-    }
     return ok({
       today: await tenantToday(deps, tx, asking.tenantId),
       who: [
@@ -917,7 +898,6 @@ export async function exportBuilderView(
           count: counted.value.all,
         },
         ...segments,
-        ...described,
       ],
       sections: version.document.sections
         .toSorted((a, b) => a.order - b.order)
