@@ -58,6 +58,13 @@ async function read(
       : { status: 'error', message: answer.message, code: answer.code };
 }
 
+/**
+ * Nothing published yet. The import's template is the cheapest read that
+ * says so: a header row, HR's as importing is, refused until setup is done.
+ */
+const notSetUp = (load: ScreenLoad): boolean =>
+  load.status === 'error' && load.code === 'SCHEMA_NOT_PUBLISHED';
+
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
 const today = (): string => new Date().toISOString().slice(0, 10);
 
@@ -134,20 +141,33 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       // Importing stays HR's, as it was. The history is HR's and People
       // administrators': one People refuses this viewer is left out, not an error.
       const before = given(query.search['before']);
-      const [roles, history] = await Promise.all([
+      const [roles, history, template] = await Promise.all([
         read('Home'),
         orBare({ before }, (asked) => read('TransferHistory', asked)),
+        read('ImportTemplate'),
       ]);
       if (roles.status !== 'ready') return roles;
       return {
         status: 'ready',
         data: {
           canImport: (roles.data as { hr?: boolean }).hr === true,
+          setUp: !notSetUp(template),
           history:
             history.status === 'ready'
               ? { ...(history.data as object), paged: before !== null }
               : null,
           now: new Date().toISOString(),
+        },
+      };
+    }
+    case 'ImportFlow': {
+      // Whether there is anything to import against yet, and who could set it up.
+      const [roles, template] = await Promise.all([read('Home'), read('ImportTemplate')]);
+      return {
+        status: 'ready',
+        data: {
+          setUp: !notSetUp(template),
+          admin: roles.status === 'ready' && (roles.data as { admin?: boolean }).admin === true,
         },
       };
     }
