@@ -62,7 +62,19 @@ export interface ApprovalItem extends PendingValue {
   readonly readable: boolean;
   /** What is in force now, masked as the field is. */
   readonly current: AttributeValue;
+  /**
+   * What People's rules found unusual about it, each with its reason: only for
+   * whoever decides it. A flag informs; it never stops a decision.
+   */
+  readonly flags?: readonly ApprovalFlag[];
 }
+
+export interface ApprovalFlag {
+  readonly code: string;
+  readonly reason: string;
+}
+
+const flagCount = (n: number): string => `${String(n)} ${n === 1 ? 'flag' : 'flags'}`;
 
 export interface ApprovalsState {
   readonly isHr: boolean;
@@ -173,6 +185,15 @@ function Inbox({
           leading={<Avatar size="lg" name={item.name} />}
           description={`${item.label} · from ${longDate(item.effectiveFrom)}`}
           meta={daysLeft(item.expiresAt, now)}
+          {...((item.flags ?? []).length > 0
+            ? {
+                trailing: (
+                  <Badge size="xs" tone="warning">
+                    {flagCount((item.flags ?? []).length)}
+                  </Badge>
+                ),
+              }
+            : {})}
         >
           <button
             type="button"
@@ -348,6 +369,19 @@ function Detail({
           </span>
         </div>
       </div>
+      {/* First, so a decider reads them before the diff and the buttons. */}
+      {(item.flags ?? []).length === 0 ? null : (
+        <Alert tone="warning" title="Worth a second look" icon={<icons.flagged aria-hidden />}>
+          <ul className="flex list-disc flex-col gap-1 ps-4">
+            {(item.flags ?? []).map((f) => (
+              <li key={f.code}>{f.reason}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-fg-muted">
+            People’s checks found this. It doesn’t stop you approving or rejecting.
+          </p>
+        </Alert>
+      )}
       {item.readable ? (
         <ChangeDiff
           items={[

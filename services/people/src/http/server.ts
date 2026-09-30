@@ -612,6 +612,57 @@ function newFieldsFrom(env: NodeJS.ProcessEnv): NonNullable<ScreenRouteDeps['new
   };
 }
 
+/**
+ * Insights' "what changed", reworded by the assistant's own model
+ * (`ASSISTANT_*`) behind the AI gateway in its `aggregates` mode: a short,
+ * interactive call, eight seconds at most, sixty an hour per company
+ * (`INSIGHTS_PHRASES_PER_HOUR`). With no model configured, People's own words.
+ */
+function insightsPhraserFrom(env: NodeJS.ProcessEnv): Pick<ScreenRouteDeps, 'insightsPhraser'> {
+  const config = modelConfigFrom(env);
+  if (config === null) return {};
+  const gateway = aiGateway({
+    registry: tenantPolicies,
+    send: chatModel({ ...config, timeoutMs: 8_000 }),
+  });
+  return {
+    insightsPhraser: {
+      budget: new PlanBudget(Number(env['INSIGHTS_PHRASES_PER_HOUR'] ?? 60), 3_600_000),
+      assistant: {
+        complete: (tenantId: string, prompt: Prompt) => gateway.complete(tenantId, prompt),
+        loadPolicies: (tx: PostgresJsDatabase, tenantId: string) =>
+          loadTenantPolicies(tx, tenantId, tenantPolicies),
+      },
+    },
+  };
+}
+
+/**
+ * Search and export in words (docs/ai-settings.md): the assistant's own model
+ * (`ASSISTANT_*`), behind the AI gateway, with eight seconds to answer because
+ * somebody is waiting at the search box. Budgets per company per hour; with no
+ * model configured, People's own rules read the sentence.
+ */
+function selectionFrom(env: NodeJS.ProcessEnv): NonNullable<ScreenRouteDeps['selection']> {
+  const config = modelConfigFrom(env);
+  const search = new PlanBudget(Number(env['SEARCH_PLANS_PER_HOUR'] ?? 120), 3_600_000);
+  const exports = new PlanBudget(Number(env['EXPORT_PLANS_PER_HOUR'] ?? 30), 3_600_000);
+  if (config === null) return { search, export: exports };
+  const gateway = aiGateway({
+    registry: tenantPolicies,
+    send: chatModel({ ...config, maxTokens: 2_048, timeoutMs: 8_000 }),
+  });
+  return {
+    search,
+    export: exports,
+    planner: {
+      complete: (tenantId: string, prompt: Prompt) => gateway.complete(tenantId, prompt),
+      loadPolicies: (tx: PostgresJsDatabase, tenantId: string) =>
+        loadTenantPolicies(tx, tenantId, tenantPolicies),
+    },
+  };
+}
+
 function screenDeps(
   service: ReturnType<typeof peopleService>,
   reports: ObjectStore,
@@ -646,6 +697,8 @@ function screenDeps(
     transfers: drizzleTransfers(),
     ...assistantFrom(process.env),
     newFields: newFieldsFrom(process.env),
+    ...insightsPhraserFrom(process.env),
+    selection: selectionFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars, service),
     ...chatFrom(process.env),

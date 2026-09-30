@@ -18,7 +18,7 @@ import {
   type PersonView,
   type SealedValue,
 } from '../person/person-access.js';
-import type { RelationsResolver, SchemaVersions } from '../person/ports.js';
+import type { Condition, RelationsResolver, SchemaVersions } from '../person/ports.js';
 import { nameOf } from '../screens/record.js';
 import { PDF_TYPE, recordPdf, rosterPdf, type Cell } from './pdf.js';
 import { storedZip, type ZipEntry } from './zip.js';
@@ -63,6 +63,15 @@ export interface ExportRequest extends Asking {
    * requester and when the file is built.
    */
   readonly where?: Readonly<Record<string, string>>;
+  /**
+   * Only people these directory conditions pick out (an export described in
+   * words, or the directory's Export button), authorized by the list as the
+   * directory's own are (`refinable`). Never an order: pages go by id.
+   */
+  readonly refine?: {
+    readonly conditions: readonly Condition[];
+    readonly match: 'all' | 'any';
+  };
   /** How the requester described who, for the provenance sheet. */
   readonly filter?: string;
   /** With `pdf`: this one person's employee record instead of a roster (§15.5). */

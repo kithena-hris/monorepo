@@ -21,6 +21,7 @@ import {
   type Filters,
 } from '../analytics/queries.js';
 import { cohortMinimum } from '../analytics/access.js';
+import { factsFor, filled } from '../../domain/insights/what-changed.js';
 import { payCharts, type PayCell } from '../analytics/pay.js';
 import { selfIdFields } from '../analytics/snapshot.js';
 import { fromMinor } from '../import/cells.js';
@@ -158,6 +159,15 @@ export interface AnalyticsView {
   /** Pay in aggregate, finance's only, never under a segment (PEO-078). */
   readonly pay: PayView | null;
   readonly funnel: null;
+  /**
+   * "What changed" at the top of each tab, in People's own words, from the
+   * figures above and nothing else (`domain/insights/what-changed.ts`).
+   * `phrasable` when the assistant may reword them (`what-changed.ts`).
+   */
+  readonly whatChanged: {
+    readonly phrasable: boolean;
+    readonly tabs: readonly { readonly tab: InsightsTab; readonly sentences: readonly string[] }[];
+  };
 }
 
 /**
@@ -253,8 +263,24 @@ export function stacked(
 export async function analyticsView(
   deps: ScreenDeps,
   asking: Asking,
-  request: { readonly segmentId?: string } = {},
+  request: { readonly segmentId?: string; readonly phrasable?: boolean } = {},
 ): Promise<Result<AnalyticsView>> {
+  const charts = await chartsView(deps, asking, request);
+  if (!charts.ok) return charts;
+  return ok({
+    ...charts.value,
+    whatChanged: {
+      phrasable: request.phrasable === true,
+      tabs: INSIGHTS_TABS.map((tab) => ({ tab, sentences: filled(factsFor(charts.value, tab)) })),
+    },
+  });
+}
+
+async function chartsView(
+  deps: ScreenDeps,
+  asking: Asking,
+  request: { readonly segmentId?: string },
+): Promise<Result<Omit<AnalyticsView, 'whatChanged'>>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     const viewer = await chartViewerOf(deps, tx, asking, everyone);

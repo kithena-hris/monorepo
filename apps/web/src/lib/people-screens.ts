@@ -4,7 +4,7 @@ import { currentTenant } from './branding';
 import { people, type PeopleAnswer } from './people';
 import type { OperationName } from './people-operations';
 import { VIEWS } from './people-views';
-import { directoryQuery } from './url-state';
+import { conditionsOf, directoryQuery } from './url-state';
 
 /**
  * The data each People screen is drawn from, fetched here, on the server,
@@ -204,7 +204,15 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'ReportRuns':
       return read('ReportRuns', { id: query.params['id'] ?? '' });
     case 'ExportBuilder': {
-      const builder = await read('ExportBuilder');
+      // The directory's conditions, from its Export button or an export
+      // described in words: one more audience, or the bare builder with a notice.
+      const builder = await orBare(
+        {
+          conditions: conditionsOf(query.search['conditions']),
+          match: query.search['match'] === 'any' ? ('any' as const) : null,
+        },
+        (asked) => read('ExportBuilder', asked),
+      );
       // A scheduled report's email links here with its export (PEO-069).
       const id = given(query.search['export']);
       if (builder.status !== 'ready' || id === null) return builder;

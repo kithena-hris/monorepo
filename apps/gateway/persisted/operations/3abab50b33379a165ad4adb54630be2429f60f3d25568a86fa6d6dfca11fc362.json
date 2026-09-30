@@ -1,0 +1,1 @@
+{"version":1,"body":"query DirectoryPlan($sentence: String!) {\n    peopleDirectoryPlan(sentence: $sentence)\n  }"}

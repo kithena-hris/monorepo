@@ -266,3 +266,56 @@ describe('a prompt about configuration', () => {
     ).resolves.toMatchObject({ ok: false, error: { code: 'AI_POLICY_UNKNOWN' } });
   });
 });
+
+describe('a prompt about aggregates', () => {
+  function loaded() {
+    const s = setup();
+    s.registry.replace(ACME, [{ key: 'iban', policy: denied, labels: ['IBAN'] }]);
+    return s;
+  }
+  const facts = {
+    tab: 'headcount',
+    facts: ['Headcount up {n1} since last month, to {n2}.', 'Most joiners this month are in {g1}.'],
+  };
+
+  it('sends sentences whose figures and groups are placeholders', async () => {
+    const { send, gateway } = loaded();
+    const result = await gateway.complete(ACME, {
+      instruction: 'Phrase it',
+      context: facts,
+      about: 'aggregates',
+    });
+    expect(result).toEqual({ ok: true, value: 'model says hi' });
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['a figure', { ...facts, facts: ['Headcount up 8 since last month, to {n2}.'] }],
+    ['a number', { ...facts, headcount: 128 }],
+    ['a percentage', { ...facts, facts: ['Attrition flat at 4.3% over the last year.'] }],
+    ['an email address', { ...facts, facts: ['Ask maria@acme.example about {g1}.'] }],
+  ])('refuses one carrying %s', async (_what, context) => {
+    const { send, gateway } = loaded();
+    const result = await gateway.complete(ACME, {
+      instruction: 'Phrase it',
+      context,
+      about: 'aggregates',
+    });
+    expect(result).toMatchObject({ ok: false, error: { code: 'AI_VALUE_SHAPED' } });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('still refuses a denied key, and a denied field by name, since nobody is named', async () => {
+    const { gateway } = loaded();
+    await expect(
+      gateway.complete(ACME, { instruction: 'x', context: { iban: 'x' }, about: 'aggregates' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'AI_FIELD_DENIED' } });
+    await expect(
+      gateway.complete(ACME, {
+        instruction: 'x',
+        context: { facts: ['Most missing details are in IBAN.'] },
+        about: 'aggregates',
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'AI_FIELD_NAMED' } });
+  });
+});

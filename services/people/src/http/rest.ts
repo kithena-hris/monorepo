@@ -351,6 +351,19 @@ export const CreateExportBody = z.strictObject({
   filter: z.string().max(500).optional(),
   /** Only the people a saved segment matches, of those you may list (PEO-068). */
   segmentId: z.uuid().optional(),
+  /** Only the people these directory conditions pick out, authorized as the directory's are. */
+  conditions: z
+    .array(
+      z.strictObject({
+        key: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/),
+        op: z.enum(['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty', 'under']),
+        values: z.array(z.string().max(200)).max(50),
+      }),
+    )
+    .max(20)
+    .optional(),
+  /** Whether all the conditions must hold (the default) or any. */
+  match: z.enum(['all', 'any']).optional(),
   /** Required when a financial field is in the file; recorded with the export. */
   reason: z.string().max(500).optional(),
   /** Profile photos too, as a ZIP beside a CSV or spreadsheet. */
@@ -1143,6 +1156,9 @@ export function restRoutes(deps: RestDeps): Route[] {
           ...(v.includeArchived !== undefined ? { includeArchived: v.includeArchived } : {}),
           ...(v.personIds ? { personIds: v.personIds } : {}),
           ...(v.filter !== undefined ? { filter: v.filter } : {}),
+          ...(v.conditions !== undefined && v.conditions.length > 0
+            ? { refine: { conditions: v.conditions, match: v.match ?? 'all' } }
+            : {}),
           ...(v.reason !== undefined ? { reason: v.reason } : {}),
           ...(v.includePhotos === true ? { includePhotos: true } : {}),
         };

@@ -15,6 +15,7 @@ import {
   RangeChart,
   ScrollArea,
   ScrollBar,
+  Skeleton,
   Sparkline,
   Stack,
   Stat,
@@ -36,7 +37,7 @@ import {
   type IsoDate,
   type TimelineRow,
 } from '@reach/ui';
-import { useId, useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useId, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import type { ReportSchedulesState } from '../reports/report-schedules';
@@ -133,6 +134,21 @@ export interface AnalyticsState {
   readonly segments?: readonly SegmentRef[];
   /** The report schedules, read beside the analytics; null where People refuses them. */
   readonly schedules?: ReportSchedulesState | null;
+  /**
+   * "What changed" at the top of each tab, in People's words, from the
+   * figures below. `phrasable`: the assistant may reword it (`onWhatChanged`).
+   */
+  readonly whatChanged?: {
+    readonly phrasable: boolean;
+    readonly tabs: readonly { readonly tab: string; readonly sentences: readonly string[] }[];
+  };
+}
+
+/** One tab's "what changed" as the assistant reworded it, or People's words when it could not. */
+export interface WhatChangedAnswer {
+  readonly sentences: readonly string[];
+  /** The words are the assistant's; the figures are always People's. */
+  readonly byModel: boolean;
 }
 
 export interface SelfIdChart {
@@ -188,6 +204,8 @@ export interface AnalyticsProps {
   /** Applied by the shell, server-side: `?segment=<id>`. */
   readonly segmentId?: string | null;
   readonly onSegmentChange?: (segmentId: string | null) => void;
+  /** Ask for this tab's summary in the assistant's words; null when it could not be had. */
+  readonly onWhatChanged?: (tab: InsightsTab) => Promise<WhatChangedAnswer | null>;
 }
 
 const percent = (n: number): string => `${n.toFixed(1)}%`;
@@ -256,6 +274,7 @@ export function Analytics({
   segmentId = null,
   onSegmentChange,
   schedules,
+  onWhatChanged,
 }: AnalyticsProps): JSX.Element {
   return (
     <Loaded load={load} what="the analytics">
@@ -266,6 +285,7 @@ export function Analytics({
           segmentId={segmentId}
           onSegmentChange={onSegmentChange}
           schedules={schedules}
+          onWhatChanged={onWhatChanged}
         />
       )}
     </Loaded>
@@ -278,12 +298,14 @@ function Workforce({
   segmentId,
   onSegmentChange,
   schedules,
+  onWhatChanged,
 }: {
   readonly state: AnalyticsState;
   readonly tab: InsightsTab;
   readonly segmentId: string | null;
   readonly onSegmentChange: AnalyticsProps['onSegmentChange'];
   readonly schedules: AnalyticsProps['schedules'];
+  readonly onWhatChanged: AnalyticsProps['onWhatChanged'];
 }): JSX.Element {
   const { headcount, attrition, complete, movement } = state;
   // The schedules HR may manage, and the actions to manage them with.
@@ -649,6 +671,7 @@ function Workforce({
         </Alert>
       ) : null}
 
+      <WhatChanged state={state} tab={tab} onWhatChanged={onWhatChanged} />
       {figures.length === 0 ? null : (
         <AutoGrid minItemWidth="11rem" gap={3}>
           {figures}
@@ -688,6 +711,73 @@ function Workforce({
         </List>
       )}
     </Stack>
+  );
+}
+
+/**
+ * "What changed" on this tab: a few sentences from its own figures. People
+ * writes them; where the assistant may reword them, the words are asked for
+ * once per tab and segment, with the note's shape held by a skeleton until
+ * they come, and People's own words stand if they do not. The numbers are
+ * People's either way: the assistant is shown placeholders, never a figure.
+ */
+function WhatChanged({
+  state,
+  tab,
+  onWhatChanged,
+}: {
+  readonly state: AnalyticsState;
+  readonly tab: InsightsTab;
+  readonly onWhatChanged: AnalyticsProps['onWhatChanged'];
+}): JSX.Element | null {
+  const ours = state.whatChanged?.tabs.find((t) => t.tab === tab)?.sentences ?? [];
+  const phrasable =
+    state.whatChanged?.phrasable === true && onWhatChanged !== undefined && ours.length > 0;
+  // What was asked, so an answer for another tab or segment is never shown here.
+  const asked = `${tab}|${state.segment?.id ?? ''}|${ours.join(' ')}`;
+  const [answer, setAnswer] = useState<(WhatChangedAnswer & { readonly asked: string }) | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!phrasable) return undefined;
+    let live = true;
+    void onWhatChanged(tab)
+      .catch(() => null)
+      .then((a) => {
+        if (live) setAnswer({ asked, sentences: a?.sentences ?? ours, byModel: a?.byModel ?? false });
+      });
+    return () => {
+      live = false;
+    };
+    // `asked` stands for the tab, the segment and the figures together.
+  }, [asked, phrasable]);
+
+  if (ours.length === 0) return null;
+  const shown = answer?.asked === asked ? answer : null;
+  const byModel = shown?.byModel === true;
+  return (
+    <Alert
+      tone="neutral"
+      title="What changed"
+      icon={byModel ? <icons.assistant aria-hidden /> : <icons.analytics aria-hidden />}
+    >
+      {phrasable && shown === null ? (
+        <span className="flex flex-col gap-2 pt-1" aria-busy="true">
+          <span className="sr-only">Summarising this tab</span>
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+        </span>
+      ) : (
+        <>
+          <p>{(shown?.sentences ?? ours).join(' ')}</p>
+          {byModel ? (
+            <p className="mt-1 text-sm text-fg-muted">
+              Worded by the assistant from the figures below, which are People’s.
+            </p>
+          ) : null}
+        </>
+      )}
+    </Alert>
   );
 }
 

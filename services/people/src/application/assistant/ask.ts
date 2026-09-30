@@ -7,6 +7,7 @@ import {
   type CatalogueField,
   type Intent,
 } from '../../domain/assistant/intent.js';
+import type { PlannedField } from '../../domain/assistant/selection.js';
 import { REPORTS_TO, refinable, type Asking, type PersonView } from '../person/person-access.js';
 import type { Condition } from '../person/ports.js';
 import { run } from '../person/service.js';
@@ -54,18 +55,30 @@ const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ?
 
 /** The fields this asker may filter everybody by, and that a model may be told about. */
 async function catalogueOf(deps: ScreenDeps, tx: Tx, asking: Asking): Promise<CatalogueField[]> {
+  return (await filterFields(deps, tx, asking)).flatMap(({ ai, ...field }) => (ai ? [field] : []));
+}
+
+/**
+ * The fields this asker may filter everybody by, each saying whether the
+ * assistant may use it (`aiEligible`). The directory's search in words names
+ * the others to a model for "is empty" alone (`domain/assistant/selection.ts`).
+ */
+export async function filterFields(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+): Promise<PlannedField[]> {
   const version = await deps.service.schemas.current(tx, asking.tenantId);
   if (!version) return [];
   const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
   const definitions = version.document.attributes;
   const org = await deps.calendars.load(tx, asking.tenantId);
-  const fields = definitions.flatMap((d): CatalogueField[] => {
+  const fields = definitions.flatMap((d): PlannedField[] => {
     const kind = fieldKind(d.typeConfig.kind);
     if (
       kind === null ||
       d.encrypted ||
       d.deprecatedAt !== null ||
-      !d.classification.aiEligible ||
       !visibleTo(d, everyone) ||
       !refinable(
         definitions,
@@ -89,10 +102,15 @@ async function catalogueOf(deps: ScreenDeps, tx: Tx, asking: Asking): Promise<Ca
                 .filter((e) => e.archived !== true)
                 .map((e) => ({ value: e.id, label: e.name }))
             : [];
-    return [{ key: d.key, label: d.label.default, kind, options }];
+    return [
+      { key: d.key, label: d.label.default, kind, options, ai: d.classification.aiEligible },
+    ];
   });
   return everyone.isHr
-    ? [...fields, { key: 'status', label: 'Status', kind: 'status', options: STATUS_OPTIONS }]
+    ? [
+        ...fields,
+        { key: 'status', label: 'Status', kind: 'status', options: STATUS_OPTIONS, ai: true },
+      ]
     : fields;
 }
 
@@ -124,7 +142,7 @@ function spokenDate(iso: string): string {
  * Who the conditions pick out, as a sentence ends: "whose department is Sales
  * and who started after 1 January 2020". "everyone" when there are none.
  */
-function describe(
+export function describe(
   conditions: readonly Condition[],
   catalogue: readonly CatalogueField[],
   match: 'all' | 'any' = 'all',

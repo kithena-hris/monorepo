@@ -1,4 +1,5 @@
 import type { AnalyticsView } from '../application/screens/analytics.js';
+import type { WhatChanged } from '../application/screens/what-changed.js';
 import type { SegmentView } from '../application/screens/segments.js';
 import type {
   DeliveriesView,
@@ -604,10 +605,25 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       findings: t.field({ type: [FindingRef], resolve: (c) => list(c.findings) }),
     }),
   });
+  const ApprovalFlagRef = builder
+    .objectRef<ApprovalsView['items'][number]['flags'][number]>('ApprovalFlag')
+    .implement({
+      description:
+        'Something unusual about a change, found by People’s rules, for whoever decides it. It never blocks.',
+      fields: (t) => ({
+        code: t.exposeString('code'),
+        reason: t.exposeString('reason'),
+      }),
+    });
   const ApprovalItemRef = builder
     .objectRef<ApprovalsView['items'][number]>('ApprovalItem')
     .implement({
       fields: (t) => ({
+        flags: t.field({
+          type: [ApprovalFlagRef],
+          description: 'Only to whoever decides it; empty for anybody else.',
+          resolve: (c) => list(c.flags),
+        }),
         id: t.exposeID('id'),
         key: t.exposeString('key'),
         label: t.exposeString('label'),
@@ -1409,6 +1425,32 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       compa: t.field({ type: [PayGroup], resolve: (p) => list(p.compa) }),
     }),
   });
+  const TabSummary = builder
+    .objectRef<A['whatChanged']['tabs'][number]>('AnalyticsTabSummary')
+    .implement({
+      description: 'One tab’s “what changed”, in People’s own words, from its figures.',
+      fields: (t) => ({
+        tab: t.exposeString('tab'),
+        sentences: t.stringList({ resolve: (s) => list(s.sentences) }),
+      }),
+    });
+  const WhatChangedRef = builder.objectRef<A['whatChanged']>('AnalyticsWhatChanged').implement({
+    fields: (t) => ({
+      phrasable: t.exposeBoolean('phrasable', {
+        description: 'The assistant may reword it: ask `peopleWhatChanged` for its words.',
+      }),
+      tabs: t.field({ type: [TabSummary], resolve: (w) => list(w.tabs) }),
+    }),
+  });
+  const Phrased = builder.objectRef<WhatChanged>('AnalyticsPhrased').implement({
+    description:
+      'One tab’s “what changed”: the figures are always People’s; the words are the assistant’s when `byModel`.',
+    fields: (t) => ({
+      tab: t.exposeString('tab'),
+      sentences: t.stringList({ resolve: (s) => list(s.sentences) }),
+      byModel: t.exposeBoolean('byModel'),
+    }),
+  });
   const Analytics = builder.objectRef<A>('PeopleAnalytics').implement({
     description:
       'A null figure is one the viewer may not see, or one the cohort minimum suppresses (§11).',
@@ -1465,6 +1507,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: "Finance's only; never under a segment",
         resolve: (v) => v.pay,
       }),
+      whatChanged: t.field({ type: WhatChangedRef, resolve: (v) => v.whatChanged }),
     }),
   });
 
@@ -1936,7 +1979,26 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleExportBuilder: t.field({
       type: ExportBuilder,
-      resolve: view<ExportBuilderView>(() => '/v1/views/export'),
+      args: {
+        conditions: t.arg({
+          type: [DirectoryConditionInput],
+          description: 'The directory’s conditions, offered as one more audience.',
+        }),
+        match: t.arg.string({ description: 'all (default) or any.' }),
+      },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.conditions && args.conditions.length > 0) {
+          query.set('conditions', JSON.stringify(args.conditions));
+        }
+        if (args.match) query.set('match', args.match);
+        const qs = query.toString();
+        return viaRest<ExportBuilderView>(
+          ctx,
+          'GET',
+          `/v1/views/export${qs === '' ? '' : `?${qs}`}`,
+        );
+      },
     }),
     peopleAnalytics: t.field({
       type: Analytics,
@@ -1948,6 +2010,20 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           args.segment
             ? `/v1/views/analytics?segment=${encodeURIComponent(args.segment)}`
             : '/v1/views/analytics',
+        ),
+    }),
+    peopleWhatChanged: t.field({
+      type: Phrased,
+      description:
+        'One Insights tab’s “what changed”, reworded by the assistant where there is one. It is shown placeholders, never a figure.',
+      args: { tab: t.arg.string({ required: true }), segment: t.arg.id() },
+      resolve: (_root, args, ctx) =>
+        viaRest<WhatChanged>(
+          ctx,
+          'GET',
+          `/v1/views/analytics/what-changed?tab=${encodeURIComponent(args.tab)}${
+            args.segment ? `&segment=${encodeURIComponent(args.segment)}` : ''
+          }`,
         ),
     }),
     peopleSegments: t.field({
@@ -2995,6 +3071,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         personIds: t.arg.idList(),
         filter: t.arg.string(),
         segmentId: t.arg.id(),
+        conditions: t.arg({
+          type: [DirectoryConditionInput],
+          description: 'Only the people these directory conditions pick out.',
+        }),
+        match: t.arg.string({ description: 'all (default) or any.' }),
         reason: t.arg.string(),
         includePhotos: t.arg.boolean({
           description: 'Profile photos too, as a ZIP beside a CSV or spreadsheet.',

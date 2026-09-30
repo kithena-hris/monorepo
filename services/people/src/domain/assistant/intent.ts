@@ -99,7 +99,7 @@ const UNCLEAR =
   'I’m not sure I followed that. I can help with questions about your people: who is in a team, who reports to whom, how many people work where, or what is waiting for your approval.';
 
 /** The first `{…}` in what the model wrote: a model sometimes talks around its JSON. */
-function firstObject(text: string): unknown {
+export function firstObject(text: string): unknown {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   if (start < 0 || end <= start) return null;

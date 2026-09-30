@@ -564,3 +564,83 @@ describe('Analytics, the cohort minimum (V7)', () => {
     expect(screen.queryByText(/Groups under/)).toBeNull();
   });
 });
+
+describe('Analytics, what changed', () => {
+  const said = {
+    phrasable: false,
+    tabs: [
+      {
+        tab: 'headcount',
+        sentences: ['Headcount up 10 since last month, to 912.', '4 people are starting soon.'],
+      },
+      { tab: 'turnover', sentences: [] },
+    ],
+  };
+  type Answer = { sentences: string[]; byModel: boolean };
+
+  it('opens each tab with People’s own sentences from its figures, and says nothing on a tab with none', () => {
+    const onWhatChanged = vi.fn(() => Promise.resolve(null));
+    const { rerender } = render(
+      <Analytics
+        load={{ status: 'ready', data: { ...workforce, whatChanged: said } }}
+        onWhatChanged={onWhatChanged}
+      />,
+    );
+    expect(screen.getByText('What changed')).toBeInTheDocument();
+    expect(
+      screen.getByText('Headcount up 10 since last month, to 912. 4 people are starting soon.'),
+    ).toBeInTheDocument();
+    // No assistant: nothing is asked for.
+    expect(onWhatChanged).not.toHaveBeenCalled();
+    rerender(
+      <Analytics
+        tab="turnover"
+        load={{ status: 'ready', data: { ...workforce, whatChanged: said } }}
+        onWhatChanged={onWhatChanged}
+      />,
+    );
+    expect(screen.queryByText('What changed')).toBeNull();
+  });
+
+  it('holds the note’s shape while the assistant words it, then says whose words they are', async () => {
+    let answer: (a: Answer) => void = () => undefined;
+    const onWhatChanged = vi.fn(
+      () =>
+        new Promise<Answer>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const { container } = render(
+      <Analytics
+        load={{
+          status: 'ready',
+          data: { ...workforce, whatChanged: { ...said, phrasable: true } },
+        }}
+        onWhatChanged={onWhatChanged}
+      />,
+    );
+    expect(onWhatChanged).toHaveBeenCalledWith('headcount');
+    expect(screen.getByText('Summarising this tab')).toBeInTheDocument();
+    expect(screen.queryByText(/Headcount up 10/)).toBeNull();
+    answer({ sentences: ['Headcount rose by 10 to 912, with 4 more starting soon.'], byModel: true });
+    expect(
+      await screen.findByText('Headcount rose by 10 to 912, with 4 more starting soon.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Worded by the assistant from the figures below/)).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('keeps People’s words when the assistant cannot be had', async () => {
+    render(
+      <Analytics
+        load={{
+          status: 'ready',
+          data: { ...workforce, whatChanged: { ...said, phrasable: true } },
+        }}
+        onWhatChanged={() => Promise.resolve(null)}
+      />,
+    );
+    expect(await screen.findByText(/Headcount up 10 since last month/)).toBeInTheDocument();
+    expect(screen.queryByText(/Worded by the assistant/)).toBeNull();
+  });
+});

@@ -9,6 +9,7 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  Input,
   KeyValues,
   PageHeader,
   PageSection,
@@ -68,7 +69,31 @@ export interface ExportChoice {
 export interface ExportBuilderProps {
   readonly load: Loadable<ExportState>;
   readonly onExport: (choice: ExportChoice) => Promise<Outcome>;
+  /**
+   * The choices to start from, from the address: an export described in
+   * words, or the directory's Export button. Anything the builder does not
+   * offer this person is left out.
+   */
+  readonly initial?: Partial<ExportChoice>;
+  /**
+   * An export described in words, read as these choices and a drafted reason
+   * (docs/ai-settings.md); the host puts them in the address. Absent: no
+   * description field.
+   */
+  readonly onDescribe?: (sentence: string) => Promise<ExportDescribed>;
 }
+
+/** What People made of an export described in words, once the host has applied it. */
+export type ExportDescribed =
+  | {
+      readonly ok: true;
+      readonly by: 'assistant' | 'rules';
+      /** Why the assistant did not read it, when it did not. */
+      readonly note: string | null;
+      /** What was changed from what was asked ("1 November is still to come"). */
+      readonly notes: readonly string[];
+    }
+  | { readonly ok: false; readonly message: string };
 
 const FORMATS: readonly { value: ExportFormat; label: string; description: string }[] = [
   { value: 'csv', label: 'CSV', description: 'For another system, or to import back.' },
@@ -91,7 +116,16 @@ const FORMAT_LABEL: Record<ExportFormat, string> = { xlsx: 'Excel', csv: 'CSV', 
  * the same rule on the file it builds, so this is the screen agreeing with it
  * rather than the only guard.
  */
-export function ExportBuilder({ load, onExport }: ExportBuilderProps): JSX.Element {
+export function ExportBuilder({
+  load,
+  onExport,
+  initial,
+  onDescribe,
+}: ExportBuilderProps): JSX.Element {
+  const [described, setDescribed] = useState<{
+    readonly sentence: string;
+    readonly answer: ExportDescribed | null;
+  } | null>(null);
   return (
     <Stack gap={6}>
       <PageHeader
@@ -102,11 +136,102 @@ export function ExportBuilder({ load, onExport }: ExportBuilderProps): JSX.Eleme
         {(state) => (
           <Stack gap={6}>
             {state.ready === undefined ? null : <Ready ready={state.ready} />}
-            <Builder state={state} onExport={onExport} />
+            {onDescribe === undefined ? null : (
+              <Describe
+                described={described}
+                onDescribe={(sentence) => {
+                  setDescribed({ sentence, answer: null });
+                  void onDescribe(sentence).then((answer) => {
+                    setDescribed((d) => (d?.sentence === sentence ? { sentence, answer } : d));
+                  });
+                }}
+              />
+            )}
+            {/* A new description is a new starting point: the builder starts again from it. */}
+            <Builder
+              key={JSON.stringify(initial ?? {})}
+              state={state}
+              onExport={onExport}
+              initial={initial ?? {}}
+            />
           </Stack>
         )}
       </Loaded>
     </Stack>
+  );
+}
+
+/**
+ * "Everything payroll needs for the Madrid entity as of 1 October": the
+ * choices below filled in from it, for the person to check and change.
+ * Nothing is exported until they press Export.
+ */
+function Describe({
+  described,
+  onDescribe,
+}: {
+  readonly described: { readonly sentence: string; readonly answer: ExportDescribed | null } | null;
+  readonly onDescribe: (sentence: string) => void;
+}): JSX.Element {
+  const [sentence, setSentence] = useState('');
+  const answer = described?.answer ?? null;
+  const busy = described !== null && answer === null;
+  return (
+    <PageSection
+      surface
+      title="Describe the export"
+      description="Say who and what it is for; the choices below are filled in for you to check."
+    >
+      <form
+        className="flex flex-col gap-3 @xl:flex-row @xl:items-end"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (sentence.trim() !== '') onDescribe(sentence.trim());
+        }}
+      >
+        <Field className="min-w-0 flex-1">
+          <FieldLabel className="sr-only">What the export is for</FieldLabel>
+          <FieldControl>
+            <Input
+              value={sentence}
+              maxLength={300}
+              enterKeyHint="go"
+              placeholder="Everything payroll needs for the Madrid entity as of 1 October"
+              onChange={(e) => {
+                setSentence(e.target.value);
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Button
+          type="submit"
+          startIcon={<icons.assistant aria-hidden />}
+          disabled={sentence.trim() === ''}
+          loading={busy}
+          loadingLabel="Filling in"
+        >
+          Fill in
+        </Button>
+      </form>
+      {answer === null ? null : answer.ok ? (
+        <Alert tone="info" className="mt-4">
+          <Stack gap={1}>
+            <p>
+              {answer.by === 'assistant' ? 'Filled in by the assistant' : 'Filled in by People'}{' '}
+              from “{described?.sentence}”. Check who, the fields, the date and the reason before
+              you export.
+            </p>
+            {[...(answer.note === null ? [] : [answer.note]), ...answer.notes].map((n) => (
+              <p key={n}>{n}</p>
+            ))}
+          </Stack>
+        </Alert>
+      ) : (
+        <Alert tone="danger" className="mt-4" title="Nothing was filled in">
+          {answer.message}
+        </Alert>
+      )}
+    </PageSection>
   );
 }
 
@@ -146,17 +271,26 @@ function Ready({ ready }: { readonly ready: NonNullable<ExportState['ready']> })
 function Builder({
   state,
   onExport,
+  initial,
 }: {
   readonly state: ExportState;
   readonly onExport: ExportBuilderProps['onExport'];
+  readonly initial: Partial<ExportChoice>;
 }): JSX.Element {
-  const [who, setWho] = useState(state.who[0]?.value ?? '');
-  const [asOf, setAsOf] = useState<IsoDate>(state.today);
-  const [format, setFormat] = useState<ExportFormat>('xlsx');
-  const [photos, setPhotos] = useState(false);
-  const [fields, setFields] = useState<ReadonlySet<string>>(
-    () => new Set(state.sections.flatMap((s) => s.fields.map((f) => f.key))),
+  // Where to start: what the address asked for, of what is offered here.
+  const offered = state.sections.flatMap((s) => s.fields.map((f) => f.key));
+  const [who, setWho] = useState(
+    state.who.find((w) => w.value === initial.who)?.value ?? state.who[0]?.value ?? '',
   );
+  const [asOf, setAsOf] = useState<IsoDate>(
+    initial.asOf !== undefined && initial.asOf <= state.today ? initial.asOf : state.today,
+  );
+  const [format, setFormat] = useState<ExportFormat>(initial.format ?? 'xlsx');
+  const [photos, setPhotos] = useState(initial.photos === true);
+  const [fields, setFields] = useState<ReadonlySet<string>>(() => {
+    const asked = offered.filter((k) => initial.fields?.includes(k) === true);
+    return new Set(asked.length > 0 ? asked : offered);
+  });
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const count = state.who.find((w) => w.value === who)?.count ?? 0;
@@ -187,7 +321,7 @@ function Builder({
     setOutcome(result);
   };
 
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState(initial.reason ?? '');
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1fr)_21.25rem] @5xl/page:items-start">
       <Stack gap={4}>

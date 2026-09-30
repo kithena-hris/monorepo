@@ -907,14 +907,27 @@ export async function requestExport(choice: {
   format: 'xlsx' | 'csv' | 'pdf';
   photos?: boolean;
   reason?: string;
+  /** With `who: 'conditions'`: the directory's own conditions, authorized by People as a list's. */
+  conditions?: readonly { key: string; op: string; values: readonly string[] }[];
+  match?: 'all' | 'any';
+  /** Who, in the builder's words, for the file's provenance sheet. */
+  filter?: string;
 }): Promise<Exported> {
   // A saved segment is an audience (PEO-068): People applies it as this person.
   const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
+  const conditions = choice.who === 'conditions' ? (choice.conditions ?? []) : [];
   return exported({
     format: choice.format,
     fields: [...choice.fields],
     asOf: choice.asOf,
     segmentId,
+    ...(conditions.length === 0
+      ? {}
+      : {
+          conditions: conditions.map((c) => ({ key: c.key, op: c.op, values: [...c.values] })),
+          match: choice.match ?? 'all',
+          ...(choice.filter === undefined ? {} : { filter: choice.filter.slice(0, 500) }),
+        }),
     ...(choice.photos === true ? { includePhotos: true } : {}),
     ...(choice.reason === undefined || choice.reason === '' ? {} : { reason: choice.reason }),
   });
@@ -998,6 +1011,23 @@ export async function deleteReportSchedule(id: string): Promise<Outcome> {
   return outcome(people('DeleteReportSchedule', { id }));
 }
 
+/* ------------------------------------------------------- what changed -- */
+
+/**
+ * One Insights tab's "what changed", worded by the assistant where there is
+ * one; null when People could not be asked, and the screen keeps its own words.
+ */
+export async function whatChanged(
+  tab: string,
+  segment: string | null,
+): Promise<{ readonly sentences: readonly string[]; readonly byModel: boolean } | null> {
+  const answer = await people<{ sentences: readonly string[]; byModel: boolean }>('WhatChanged', {
+    tab,
+    segment,
+  });
+  return answer.ok ? { sentences: answer.data.sentences, byModel: answer.data.byModel } : null;
+}
+
 /**
  * The directory's next page, for its infinite scroll: the same query the page
  * was drawn with (search, filters, conditions, order), from `after`.
@@ -1010,4 +1040,16 @@ export async function directoryPage(
   if (load.status !== 'ready') return null;
   const data = load.data as { people?: readonly unknown[]; next?: string | null };
   return { people: data.people ?? [], next: data.next ?? null };
+}
+
+/* ------------------------------------------ search and export in words -- */
+
+/** What was typed in the directory, as its own filters and order (docs/ai-settings.md). A read. */
+export async function planDirectory(sentence: string): Promise<Parsed> {
+  return parsed(people<string>('DirectoryPlan', { sentence }));
+}
+
+/** An export described in words, as the builder's choices and a drafted reason. Nothing is exported. */
+export async function planExport(sentence: string): Promise<Parsed> {
+  return parsed(people<string>('ExportPlan', { sentence }));
 }

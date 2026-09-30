@@ -42,6 +42,10 @@ import { drizzleSegments } from '../../infrastructure/drizzle-segments.js';
 import { analyticsView } from '../screens/analytics.js';
 import type { ScreenDeps } from '../screens/record.js';
 import { saveSegment } from '../screens/segments.js';
+import type { InsightsTab } from '../screens/analytics.js';
+import { whatChanged, type Phraser } from '../screens/what-changed.js';
+import { PlanBudget } from '../../domain/import/new-fields.js';
+import { aiGateway, createPolicyRegistry, type Prompt } from '@kithena/telemetry';
 
 /**
  * Snapshots and the charts over them, against real Postgres as `svc_people`.
@@ -1444,6 +1448,85 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
         tx.execute(sql`SELECT count(*)::int AS n FROM people.segment`),
       );
       expect([...raw][0]).toEqual({ n: 0 });
+    });
+  });
+
+  /**
+   * "What changed" (docs: the AI features brief, feature 2) with a fake model
+   * behind the real AI gateway: the figures are the view's, the model is
+   * shown placeholders only, and any doubt leaves People's own words.
+   */
+  describe('what changed, reworded by a fake model', () => {
+    const OUTSIDER_ACCOUNT = '00000000-0000-4000-8000-0000000000d9';
+    function phrasing(answer: (prompt: Prompt) => string, budget = new PlanBudget(10, 3_600_000)) {
+      const prompts: Prompt[] = [];
+      const registry = createPolicyRegistry({ staticRedaction: [], unknownTenantRedaction: [] });
+      const gateway = aiGateway({
+        registry,
+        send: (prompt) => {
+          prompts.push(prompt);
+          return Promise.resolve(answer(prompt));
+        },
+      });
+      const phraser: Phraser = {
+        budget,
+        assistant: {
+          complete: (tenantId, prompt) => gateway.complete(tenantId, prompt),
+          loadPolicies: () => {
+            registry.replace(ACME, [{ key: 'work_location', policy: { ...SPECIAL }, labels: ['Work location'] }]);
+            return Promise.resolve();
+          },
+        },
+      };
+      const ask = (tab: InsightsTab, account = HR_ACCOUNT, roles = ['hr']) =>
+        whatChanged({ ...deps(`${D3}T12:00:00.000Z`), phraser }, as(account, roles), { tab });
+      return { prompts, ask };
+    }
+    // Deterministic from the prompt: every fact, run together as one sentence.
+    const echo = (prompt: Prompt) =>
+      JSON.stringify({ sentences: [(prompt.context['facts'] as string[]).join(' ')] });
+
+    it('fills the model’s sentences with the view’s own figures, having shown it none', async () => {
+      const { prompts, ask } = phrasing(echo);
+      const shown = await view(HR_ACCOUNT, ['hr']);
+      const answered = await ask('headcount');
+      if (!shown.ok || !answered.ok) throw new Error('no answer');
+      const ours = shown.value.whatChanged.tabs.find((t) => t.tab === 'headcount')?.sentences ?? [];
+      expect(ours.length).toBeGreaterThan(0);
+      expect(answered.value).toEqual({ tab: 'headcount', sentences: [ours.join(' ')], byModel: true });
+      const [prompt] = prompts;
+      expect(prompt?.about).toBe('aggregates');
+      const bare = JSON.stringify(prompt?.context).replaceAll(/\{[ng]\d+\}/gu, '');
+      expect(bare).not.toMatch(/\d/u);
+      expect(bare).not.toContain(String(shown.value.headcount.value));
+    });
+
+    it('keeps People’s words when the model writes a number, times out, or the budget is spent', async () => {
+      const shown = await view(HR_ACCOUNT, ['hr']);
+      if (!shown.ok) throw new Error(shown.error.message);
+      const ours = {
+        tab: 'turnover',
+        sentences: shown.value.whatChanged.tabs.find((t) => t.tab === 'turnover')?.sentences,
+        byModel: false,
+      };
+      const numbered = phrasing(() => JSON.stringify({ sentences: ['Attrition is 5%.'] }));
+      expect(await numbered.ask('turnover')).toEqual({ ok: true, value: ours });
+      const silent = phrasing(() => {
+        throw new Error('The operation was aborted due to timeout');
+      });
+      expect(await silent.ask('turnover')).toEqual({ ok: true, value: ours });
+      const spent = phrasing(echo, new PlanBudget(0, 3_600_000));
+      expect(await spent.ask('turnover')).toEqual({ ok: true, value: ours });
+      expect(spent.prompts).toEqual([]);
+    });
+
+    it('answers only those who may see Insights', async () => {
+      const { ask, prompts } = phrasing(echo);
+      expect(await ask('headcount', OUTSIDER_ACCOUNT, [])).toMatchObject({
+        ok: false,
+        error: { code: 'FORBIDDEN' },
+      });
+      expect(prompts).toEqual([]);
     });
   });
 });

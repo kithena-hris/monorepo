@@ -19,7 +19,6 @@ import {
   deliveriesView,
   dryRunImport,
   newFieldsFile,
-  exportBuilderView,
   importTemplateFile,
   integrationsView,
   startImportUpload,
@@ -94,12 +93,20 @@ import {
 import { writeSameValue } from '../application/screens/bulk-edit.js';
 import { PlanBudget } from '../domain/import/new-fields.js';
 import {
+  PlanAsk,
+  exportViewWith,
+  planDirectory,
+  planExport,
+  type SelectionDeps,
+} from '../application/assistant/selection.js';
+import {
   completeFileUpload,
   fileView,
   startFileUpload,
   type FileDeps,
 } from '../application/screens/files.js';
 import type { PayBandView } from '../application/analytics/pay.js';
+import { whatChanged, type Phraser } from '../application/screens/what-changed.js';
 import {
   createSchedule,
   deleteSchedule,
@@ -173,6 +180,18 @@ export type ScreenRouteDeps = SchemaScreenDeps &
      * the company's hourly budget for it.
      */
     readonly newFields?: { readonly planner?: AssistantPort; readonly budget: PlanBudget };
+    /** Insights' "what changed", reworded by the assistant; absent, People's own words. */
+    readonly insightsPhraser?: Phraser;
+    /**
+     * Search and export in words: the model behind the AI gateway with a
+     * short timeout (absent, People's own rules), and each one's hourly
+     * budget per company.
+     */
+    readonly selection?: {
+      readonly planner?: AssistantPort;
+      readonly search: PlanBudget;
+      readonly export: PlanBudget;
+    };
   };
 
 export const ChatConnect = z.strictObject({ origin: z.url().max(300) });
@@ -505,6 +524,15 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     importFile: (asking, step) => newFieldsFile(deps, asking, importStep(step)),
     writeSame: (tx, asking, ids, values, from) =>
       writeSameValue(deps, tx, asking, ids, values, from),
+  };
+  // Search and export in words: no model configured means no budget to spend.
+  const selection: SelectionDeps = {
+    ...deps,
+    ...(deps.selection?.planner === undefined
+      ? {}
+      : { selectionPlanner: deps.selection.planner }),
+    searchBudget: deps.selection?.search ?? new PlanBudget(0, 3_600_000),
+    exportBudget: deps.selection?.export ?? new PlanBudget(0, 3_600_000),
   };
   const endpoint = (_asking: Asking, resourceId: string) =>
     Promise.resolve<RestResponse>({ status: 200, body: { id: resourceId } });
@@ -1228,7 +1256,37 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: /^\/v1\/views\/export$/,
-      handle: async (asking) => answer(await exportBuilderView(deps, asking)),
+      handle: async (asking, _r, _p, query) => {
+        // The directory's conditions, offered as one more audience.
+        const refine = DirectoryRefine.safeParse({
+          conditions: parseJson(query.get('conditions')),
+          match: query.get('match') ?? undefined,
+        });
+        if (!refine.success) {
+          return refused(failure('BAD_REQUEST', 'conditions or match is malformed', ['conditions']));
+        }
+        const { conditions = [], match = 'all' } = refine.data;
+        return answer(
+          await exportViewWith(
+            deps,
+            asking,
+            conditions.length === 0 ? undefined : { conditions, match },
+          ),
+        );
+      },
+    },
+    /* search and export in words (docs/ai-settings.md): a plan, never a write */
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/directory\/plan$/,
+      safe: true,
+      handle: compute(PlanAsk, (asking, input) => planDirectory(selection, asking, input)),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/export\/plan$/,
+      safe: true,
+      handle: compute(PlanAsk, (asking, input) => planExport(selection, asking, input)),
     },
     {
       method: 'GET',
@@ -1239,7 +1297,34 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
         }
         return answer(
-          await analyticsView(deps, asking, segment === undefined ? {} : { segmentId: segment }),
+          await analyticsView(deps, asking, {
+            ...(segment === undefined ? {} : { segmentId: segment }),
+            phrasable: deps.insightsPhraser !== undefined,
+          }),
+        );
+      },
+    },
+    // One tab's "what changed", reworded by the assistant where there is one.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/analytics\/what-changed$/,
+      handle: async (asking, _r, _p, query) => {
+        const tab = query.get('tab') ?? 'headcount';
+        const segment = query.get('segment') ?? undefined;
+        if (!(INSIGHTS_TABS as readonly string[]).includes(tab)) {
+          return refused(
+            failure('BAD_REQUEST', `tab is one of ${INSIGHTS_TABS.join(', ')}`, ['tab']),
+          );
+        }
+        if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
+          return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
+        }
+        return answer(
+          await whatChanged(
+            deps.insightsPhraser === undefined ? deps : { ...deps, phraser: deps.insightsPhraser },
+            asking,
+            { tab: tab as InsightsTab, ...(segment === undefined ? {} : { segmentId: segment }) },
+          ),
         );
       },
     },

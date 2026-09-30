@@ -47,6 +47,9 @@ const SAFE = [
   'POST /v1/views/bulk-hire/preview',
   // A question in words: a read, answered as the asker.
   'POST /v1/assistant/ask',
+  // Search and export in words: a plan the person reviews; nothing is written.
+  'POST /v1/views/directory/plan',
+  'POST /v1/views/export/plan',
   // A field file's upload, as a photo's: a retried start is a fresh upload.
   'POST /v1/views/files/uploads',
   // Where to send an administrator to connect a chat app: nothing is kept.

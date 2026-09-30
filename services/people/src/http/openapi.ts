@@ -80,6 +80,7 @@ import {
   ImportStepInput as NewFieldsPropose,
   ReviewInput as NewFieldsReview,
 } from '../application/assistant/import-fields.js';
+import { PlanAsk } from '../application/assistant/selection.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 /**
@@ -166,6 +167,7 @@ const components = {
   NewFieldsPropose,
   NewFieldsReview,
   NewFieldsApply,
+  SelectionAsk: PlanAsk,
   Segment: SegmentBody,
   PayBand: PayBandBody,
   ReportSchedule: ScheduleBody,
@@ -543,6 +545,25 @@ function screenPaths(): Record<string, unknown> {
         { safe: true },
       ),
     },
+    // Search and export in words (docs/ai-settings.md): a plan, never a write.
+    '/v1/views/directory/plan': {
+      post: screenWrite(
+        'What somebody typed in the directory, as its own conditions and order: a name alone is a name search; the model sees the sentence and field names only',
+        'SelectionAsk',
+        200,
+        '{ search, conditions, match, sort, unused, by, note }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/export/plan': {
+      post: screenWrite(
+        'An export described in words, as the builder’s own choices and a drafted reason; nothing is exported',
+        'SelectionAsk',
+        200,
+        '{ who, conditions, match, audience, count, fields, asOf, format, photos, reason, by, note, notes }',
+        { safe: true },
+      ),
+    },
     '/v1/schema/draft/attributes/{key}/assistant': {
       post: screenWrite(
         'Whether the assistant, in the app and in chat apps, may use this field. A draft change',
@@ -610,6 +631,23 @@ function screenPaths(): Record<string, unknown> {
     },
     '/v1/views/photos/remove': {
       post: screenWrite('Take a photo down: the person’s own, or HR’s', 'PhotoOf', 200, 'Removed'),
+    },
+    // Insights' "what changed", reworded by the assistant where there is one.
+    '/v1/views/analytics/what-changed': {
+      get: {
+        summary:
+          "One Insights tab's summary: the figures are People's, the words the assistant's when byModel; it is shown placeholders, never a figure",
+        parameters: [
+          {
+            name: 'tab',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', enum: ['headcount', 'turnover', 'data-quality', 'pay'] },
+          },
+          { name: 'segment', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: { 200: { description: '{ tab, sentences, byModel }' }, ...failure },
+      },
     },
     // New information in an import's file (docs/ai-settings.md): proposed,
     // reviewed, then added by an administrator before the dry run.

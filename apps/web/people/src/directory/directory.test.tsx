@@ -343,11 +343,70 @@ describe('Directory', () => {
     expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
     expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
-    expect(screen.getByText('Showing 3 of 420')).toBeInTheDocument();
+    // Said as it lands, to a screen reader too.
+    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Showing 3 of 420');
     // No pager beside an infinite table.
     expect(screen.queryByRole('navigation', { name: 'Pages of people' })).toBeNull();
     expect(onLoadMore).toHaveBeenCalledOnce();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('cards load the next page as the reader nears the end, with cards in their shape meanwhile and no button', async () => {
+    // The sentinel a screen ahead is in view at once: jsdom lays nothing out.
+    const observed: (() => void)[] = [];
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        readonly #call: IntersectionObserverCallback;
+        constructor(call: IntersectionObserverCallback) {
+          this.#call = call;
+        }
+        observe(): void {
+          observed.push(() => {
+            this.#call(
+              [{ isIntersecting: true } as IntersectionObserverEntry],
+              this as unknown as IntersectionObserver,
+            );
+          });
+        }
+        disconnect(): void {}
+      },
+    );
+    let arrive: (page: { people: unknown[]; next: string | null }) => void = () => undefined;
+    const onLoadMore = vi.fn(
+      () =>
+        new Promise<{ people: unknown[]; next: string | null }>((resolve) => {
+          arrive = resolve;
+        }),
+    );
+    const { container } = render(
+      <Directory {...props({ view: 'cards', onLoadMore, next: 'cursor-1' })} />,
+    );
+    for (const call of observed.splice(0)) call();
+    await vi.waitFor(() => {
+      expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Loading more people…');
+    expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(4);
+    expect(screen.queryByRole('button', { name: /more people/i })).toBeNull();
+    arrive({
+      people: [
+        {
+          id: 'k',
+          name: 'Katherine Johnson',
+          email: null,
+          avatarUrl: null,
+          values: {},
+          missing: 0,
+        },
+      ],
+      next: null,
+    });
+    expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Showing 3 of 420');
+    expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(0);
+    expect(await axeViolations(container)).toEqual([]);
+    vi.unstubAllGlobals();
   });
 
   it('groups people under a heading per value, ordered by it on the server', async () => {
@@ -396,6 +455,44 @@ describe('the directory’s search, in the address', () => {
       expect(onSearchChange).toHaveBeenCalledWith('ada');
     });
     expect(onSearchChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('Enter reads what was typed as filters: the name search typing was about to send is not sent', async () => {
+    const user = fast();
+    const onSearchChange = vi.fn();
+    const onAsk = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'rules' as const,
+        note: 'The assistant isn’t set up here, so People read it without the assistant.',
+        unused: ['managers'],
+        filters: 2,
+        search: null,
+      }),
+    );
+    const { container } = render(<Directory {...props({ onSearchChange, onAsk })} />);
+    const box = screen.getByRole('searchbox', { name: 'Search people' });
+    await user.type(box, 'managers in Sales{Enter}');
+    expect(onAsk).toHaveBeenCalledWith('managers in Sales');
+    expect(
+      await screen.findByText(/“managers in Sales” was read as the filters above/u),
+    ).toHaveTextContent(
+      /isn’t set up here.*Not understood: managers\. Change or remove any of them\./u,
+    );
+    // What typing would have sent after it rests never goes, and the field is the search again.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(onSearchChange).not.toHaveBeenCalled();
+    expect(box).toHaveValue('');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('without a way to ask, Enter is only a name search', async () => {
+    const user = fast();
+    render(<Directory {...props()} />);
+    const box = screen.getByRole('searchbox', { name: 'Search people' });
+    expect(box).toHaveAttribute('placeholder', 'Search by name, email or employee number');
+    await user.type(box, 'Ada{Enter}');
+    expect(screen.queryByText(/read by/u)).toBeNull();
   });
 
   it('opens with the search a link carried, and follows the address when it changes', () => {

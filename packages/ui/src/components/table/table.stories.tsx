@@ -1121,7 +1121,7 @@ export const InfiniteStripedResizable: Story = {
     docs: {
       description: {
         story: [
-          '**Infinite:** `onEndReached` is called as the reader nears the end of what is loaded, and `loadingMore` shows a "Loading more" row under the last one and holds further calls off while the page is on its way. Scroll the table: it loads twelve more at a time, up to 48.',
+          '**Infinite:** `onEndReached` is called as the reader nears the end of what is loaded, and `loadingMore` shows a skeleton row, in the rows’ own shape, under the last one and holds further calls off while the page is on its way. Scroll the table: it loads twelve more at a time, up to 48.',
           '',
           '**Striped:** `striped` tints every other row, for a wide table read across rather than down.',
           '',
