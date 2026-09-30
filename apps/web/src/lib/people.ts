@@ -5,6 +5,7 @@ import { cache } from 'react';
 
 import { CLIENT_NAME, OPERATIONS, type OperationName } from './people-operations';
 import { SESSION_COOKIE } from './session-cookie';
+import { timed } from './timing';
 
 /**
  * People, through the Cosmo Router, as the person signed in (PEO-113).
@@ -54,9 +55,9 @@ const accessToken = cache(async (): Promise<string | null> => {
     return null;
   }
   try {
-    const response = await fetch(
-      `${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session/token`,
-      {
+    const response = await timed(
+      'identity.token',
+      fetch(`${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session/token`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -65,7 +66,7 @@ const accessToken = cache(async (): Promise<string | null> => {
         body: JSON.stringify({ sessionId, tenantId }),
         cache: 'no-store',
         signal: AbortSignal.timeout(5_000),
-      },
+      }),
     );
     if (!response.ok) return null;
     const body = (await response.json()) as { accessToken?: unknown };
@@ -106,17 +107,20 @@ export async function people<T>(
     extensions: { persistedQuery: { version: 1, sha256Hash: hashOf(name) } },
   };
   try {
-    const response = await fetch(`${router}/graphql`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${token}`,
-        'graphql-client-name': CLIENT_NAME,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(operation),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(writes ? 120_000 : 10_000),
-    });
+    const response = await timed(
+      `router.${name}`,
+      fetch(`${router}/graphql`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'graphql-client-name': CLIENT_NAME,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(operation),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(writes ? 120_000 : 10_000),
+      }),
+    );
     if (response.status === 401) return signedOut;
     if (GATEWAY_DOWN.has(response.status)) return unreachable;
     const answer = (await response.json().catch(() => null)) as {
