@@ -8,6 +8,14 @@ written before the OK.
 
 ## The flow
 
+0. **Nothing published yet**: setup comes first, because the legal entity
+   and its country pack decide which fields the law requires. The import page
+   says so in place of the uploader and links an administrator to setup
+   (`/people/setup?then=/people/import`), whose last step goes back to the
+   import; HR without administrator rights is told an administrator sets it
+   up. Setup publishes everything in the draft, so the import that follows
+   finds no other unpublished changes, and the file's other columns arrive
+   here as new fields (version 2).
 1. **Upload and map**, as before. Columns map to existing fields by key, by
    label, or by the column-mapping judgment. Existing fields and sections are
    never changed by anything below.
