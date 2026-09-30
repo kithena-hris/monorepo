@@ -901,6 +901,25 @@ export function PeopleScreen({
               stages: s.stages.length > 1 ? s.stages.slice(0, -1) : s.stages,
             }));
           },
+          // New information in the file: proposed, reviewed, added (docs/ai-settings.md).
+          newFields: {
+            propose: async (mapping: Readonly<Record<number, string | null>>) => {
+              const id = importing.uploadId;
+              return id === null ? again : actions.proposeImportFields(id, mapping);
+            },
+            review: async (mapping: Readonly<Record<number, string | null>>, proposals: readonly unknown[]) => {
+              const id = importing.uploadId;
+              return id === null ? again : actions.reviewImportFields(id, mapping, proposals);
+            },
+            apply: async (
+              mapping: Readonly<Record<number, string | null>>,
+              proposals: readonly unknown[],
+              summary: string,
+            ) => {
+              const id = importing.uploadId;
+              return id === null ? again : actions.addImportFields(id, mapping, proposals, summary);
+            },
+          },
         };
       }
       case 'Analytics':
