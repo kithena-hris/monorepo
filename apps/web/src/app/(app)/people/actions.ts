@@ -907,14 +907,24 @@ export async function requestExport(choice: {
   format: 'xlsx' | 'csv' | 'pdf';
   photos?: boolean;
   reason?: string;
+  /** With `who: 'conditions'`: the directory's own conditions, authorized by People as a list's. */
+  conditions?: readonly { key: string; op: string; values: readonly string[] }[];
+  match?: 'all' | 'any';
 }): Promise<Exported> {
   // A saved segment is an audience (PEO-068): People applies it as this person.
   const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
+  const conditions = choice.who === 'conditions' ? (choice.conditions ?? []) : [];
   return exported({
     format: choice.format,
     fields: [...choice.fields],
     asOf: choice.asOf,
     segmentId,
+    ...(conditions.length === 0
+      ? {}
+      : {
+          conditions: conditions.map((c) => ({ key: c.key, op: c.op, values: [...c.values] })),
+          match: choice.match ?? 'all',
+        }),
     ...(choice.photos === true ? { includePhotos: true } : {}),
     ...(choice.reason === undefined || choice.reason === '' ? {} : { reason: choice.reason }),
   });
@@ -1027,4 +1037,16 @@ export async function directoryPage(
   if (load.status !== 'ready') return null;
   const data = load.data as { people?: readonly unknown[]; next?: string | null };
   return { people: data.people ?? [], next: data.next ?? null };
+}
+
+/* ------------------------------------------ search and export in words -- */
+
+/** What was typed in the directory, as its own filters and order (docs/ai-settings.md). A read. */
+export async function planDirectory(sentence: string): Promise<Parsed> {
+  return parsed(people<string>('DirectoryPlan', { sentence }));
+}
+
+/** An export described in words, as the builder's choices and a drafted reason. Nothing is exported. */
+export async function planExport(sentence: string): Promise<Parsed> {
+  return parsed(people<string>('ExportPlan', { sentence }));
 }

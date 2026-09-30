@@ -8,7 +8,14 @@ import { useState, useTransition, type JSX } from 'react';
 import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { DIRECTORY_VIEWS, viewHref } from '../lib/shortcuts';
-import { filtersOf, noteInAddress, oneOf, withQuery, type HistoryMode } from '../lib/url-state';
+import {
+  conditionsOf,
+  filtersOf,
+  noteInAddress,
+  oneOf,
+  withQuery,
+  type HistoryMode,
+} from '../lib/url-state';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
 /**
@@ -505,11 +512,57 @@ export function PeopleScreen({
           },
           ...(can.export === true
             ? {
+                // The conditions in force go with it, as the builder's audience.
                 onExport: () => {
-                  go('/people/export');
+                  const conditions = at('conditions');
+                  go(
+                    conditions === null
+                      ? '/people/export'
+                      : withQuery(
+                          '/people/export',
+                          {},
+                          {
+                            who: 'conditions',
+                            conditions,
+                            match: at('match'),
+                          },
+                        ),
+                  );
                 },
               }
             : {}),
+          // What was typed, on Enter, read as the directory's own filters and
+          // order (docs/ai-settings.md): the plan goes into the address, as a
+          // chip or the Filters sheet would put it, and People answers it.
+          onAsk: async (sentence: string) => {
+            const planned = await actions.planDirectory(sentence);
+            if (!planned.ok) return planned;
+            const plan = planned.data as {
+              search: string | null;
+              conditions: readonly { key: string; op: string; values: readonly string[] }[];
+              match: 'all' | 'any';
+              sort: string | null;
+              unused: readonly string[];
+              by: 'search' | 'assistant' | 'rules';
+              note: string | null;
+            };
+            const filters = plan.conditions.length + (plan.sort === null ? 0 : 1);
+            query(
+              plan.by === 'search' || filters === 0
+                ? { q: plan.search ?? sentence }
+                : {
+                    q: plan.search,
+                    conditions: conditionsKey(plan.conditions),
+                    match: plan.match === 'any' ? 'any' : null,
+                    sort: plan.sort,
+                    filter: null,
+                    segment: null,
+                    incomplete: null,
+                    group: null,
+                  },
+            );
+            return { ok: true, by: plan.by, note: plan.note, unused: plan.unused, filters };
+          },
           ...(can.import === true
             ? {
                 onImport: () => {
@@ -840,12 +893,75 @@ export function PeopleScreen({
             note({ tab: tab === 'entities' ? null : tab }, 'push');
           },
         };
-      case 'ExportBuilder':
+      case 'ExportBuilder': {
+        // Where the builder starts, from the address: an export described in
+        // words, or the directory's Export button with its conditions.
+        const format = oneOf(search['format'], ['xlsx', 'csv', 'pdf'], null);
+        const asOf = search['asOf'];
+        const initial = {
+          ...(search['who'] === undefined ? {} : { who: search['who'] }),
+          ...(search['fields'] === undefined
+            ? {}
+            : { fields: search['fields'].split(',').filter((k) => k !== '') }),
+          ...(asOf !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? { asOf } : {}),
+          ...(format === null ? {} : { format }),
+          ...(search['photos'] === 'true' ? { photos: true } : {}),
+          ...(search['reason'] === undefined ? {} : { reason: search['reason'].slice(0, 500) }),
+        };
         return {
           load: loadable,
+          initial,
           onExport: async (choice: Parameters<typeof actions.requestExport>[0]) =>
-            download(await actions.requestExport(choice)),
+            download(
+              await actions.requestExport({
+                ...choice,
+                // The directory's conditions, as the address carries them; People authorizes them.
+                ...(choice.who === 'conditions'
+                  ? {
+                      conditions: conditionsOf(search['conditions']) ?? [],
+                      match: search['match'] === 'any' ? ('any' as const) : ('all' as const),
+                    }
+                  : {}),
+              }),
+            ),
+          // Described in words (docs/ai-settings.md): the choices go into the
+          // address, and the builder starts again from them for a person to check.
+          onDescribe: async (sentence: string) => {
+            const planned = await actions.planExport(sentence);
+            if (!planned.ok) return planned;
+            const plan = planned.data as {
+              who: string;
+              conditions: readonly { key: string; op: string; values: readonly string[] }[];
+              match: 'all' | 'any';
+              fields: readonly string[];
+              asOf: string;
+              format: string;
+              photos: boolean;
+              reason: string;
+              by: 'assistant' | 'rules';
+              note: string | null;
+              notes: readonly string[];
+            };
+            go(
+              withQuery(
+                '/people/export',
+                {},
+                {
+                  who: plan.who === 'everyone' ? null : plan.who,
+                  conditions: plan.conditions.length === 0 ? null : JSON.stringify(plan.conditions),
+                  match: plan.match === 'any' ? 'any' : null,
+                  fields: plan.fields.join(','),
+                  asOf: plan.asOf,
+                  format: plan.format,
+                  photos: plan.photos ? 'true' : null,
+                  reason: plan.reason,
+                },
+              ),
+            );
+            return { ok: true, by: plan.by, note: plan.note, notes: plan.notes };
+          },
         };
+      }
       case 'ImportFlow': {
         const stage = importing.stages.at(-1) ?? { step: 'upload' };
         const next = (

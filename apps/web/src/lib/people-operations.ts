@@ -391,8 +391,8 @@ export const OPERATIONS = {
     }
   }`,
 
-  ExportBuilder: `query ExportBuilder {
-    peopleExportBuilder {
+  ExportBuilder: `query ExportBuilder($conditions: [DirectoryConditionInput!], $match: String) {
+    peopleExportBuilder(conditions: $conditions, match: $match) {
       today
       who { value label count }
       sections { key label fields { key label } }
@@ -828,11 +828,11 @@ export const OPERATIONS = {
 
   RequestExport: `mutation RequestExport(
     $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String,
-    $includePhotos: Boolean, $key: String!
+    $includePhotos: Boolean, $conditions: [DirectoryConditionInput!], $match: String, $key: String!
   ) {
     requestExport(
       format: $format, fields: $fields, asOf: $asOf, segmentId: $segmentId, recordOf: $recordOf, reason: $reason,
-      includePhotos: $includePhotos, idempotencyKey: $key
+      includePhotos: $includePhotos, conditions: $conditions, match: $match, idempotencyKey: $key
     ) {
       id status rowCount expiresAt links { name url }
     }
@@ -915,6 +915,15 @@ export const OPERATIONS = {
 
   AddImportFields: `mutation AddImportFields($input: String!, $key: String!) {
     addImportFields(input: $input, idempotencyKey: $key)
+  }`,
+
+  // Search and export in words (docs/ai-settings.md). Plans cross as JSON; neither writes.
+  DirectoryPlan: `query DirectoryPlan($sentence: String!) {
+    peopleDirectoryPlan(sentence: $sentence)
+  }`,
+
+  ExportPlan: `query ExportPlan($sentence: String!) {
+    peopleExportPlan(sentence: $sentence)
   }`,
 } as const;
 
