@@ -31,11 +31,14 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
+  Skeleton,
+  Spinner,
   Stack,
   Toolbar,
   icons,
   isConditionComplete,
   useCoarsePointer,
+  useInView,
   type ColumnChooserValue,
   type DataColumn,
   type DataTableSort,
@@ -43,7 +46,7 @@ import {
   type FilterGroup,
   type FilterOperator,
 } from '@reach/ui';
-import { useEffect, useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
@@ -192,6 +195,66 @@ export interface DirectoryProps {
   /** Only people with a required detail missing: HR's, server-side (`?incomplete=true`). */
   readonly incomplete?: boolean;
   readonly onIncompleteChange?: (incomplete: boolean) => void;
+  /**
+   * What was typed, on Enter, read as the directory's own filters and order
+   * (docs/ai-settings.md); the host puts them in the address. A name alone
+   * stays a name search. Absent: the field searches names only.
+   */
+  readonly onAsk?: (sentence: string) => Promise<DirectoryAsked>;
+}
+
+/** What People made of a sentence typed in the search, once the host has applied it. */
+export type DirectoryAsked =
+  | {
+      readonly ok: true;
+      /** A name search, the assistant, or People's own rules. */
+      readonly by: 'search' | 'assistant' | 'rules';
+      /** Why the assistant did not read it, when it did not. */
+      readonly note: string | null;
+      /** Words nothing was made of. */
+      readonly unused: readonly string[];
+      /** How many conditions and orders it became; none, and names were searched for it. */
+      readonly filters: number;
+    }
+  | { readonly ok: false; readonly message: string };
+
+/** What People made of a sentence, said beside the chips it became. */
+function Understood({
+  asked,
+}: {
+  readonly asked: { readonly sentence: string; readonly answer: DirectoryAsked | null };
+}): JSX.Element | null {
+  const { sentence, answer } = asked;
+  const quoted = `“${sentence}”`;
+  if (answer === null) {
+    return (
+      <p role="status" className="flex items-center gap-2 text-sm text-fg-muted">
+        <Spinner size="sm" label="Reading" />
+        <span aria-hidden>Reading {quoted}…</span>
+      </p>
+    );
+  }
+  if (!answer.ok) {
+    return (
+      <p role="status" className="text-sm text-danger-fg">
+        {quoted} could not be read: {answer.message}
+      </p>
+    );
+  }
+  if (answer.by === 'search') return null;
+  const read =
+    answer.filters === 0
+      ? 'matched none of the filters, so names were searched for it.'
+      : answer.by === 'assistant'
+        ? 'was read by the assistant as the filters above. Change or remove any of them.'
+        : 'was read by People as the filters above. Change or remove any of them.';
+  return (
+    <p role="status" className="text-sm text-fg-muted">
+      {quoted} {read}
+      {answer.note === null ? null : ` ${answer.note}`}
+      {answer.unused.length === 0 ? null : ` Not used: ${answer.unused.join(', ')}.`}
+    </p>
+  );
 }
 
 const ANY = '__any';
@@ -235,8 +298,11 @@ function useRows(
     next,
   });
   const [loading, setLoading] = useState(false);
+  // How many the last page added, for the live region: "50 more loaded".
+  const [added, setAdded] = useState<number | null>(null);
   useEffect(() => {
     setMore({ people: [], next });
+    setAdded(null);
   }, [first, next]);
   const loadMore =
     onLoadMore === undefined || more.next === null
@@ -248,6 +314,7 @@ function useRows(
           void onLoadMore(after).then((page) => {
             setLoading(false);
             if (page === null) return;
+            setAdded(page.people.length);
             setMore((m) =>
               m.next !== after
                 ? m
@@ -255,7 +322,24 @@ function useRows(
             );
           });
         };
-  return { rows: [...first, ...more.people], loading, loadMore, done: more.next === null };
+  return { rows: [...first, ...more.people], loading, loadMore, added, done: more.next === null };
+}
+
+/**
+ * The next page as the reader nears the end of a list or of cards, which
+ * scroll with the page rather than in a box of their own as the table does:
+ * a sentinel a screen ahead (`useInView`), asked again each time a page lands
+ * while it is still in view. Keyboard users reach it too: focus moving to
+ * the last person scrolls it into view.
+ */
+function useEndOfPage(on: boolean, loading: boolean, loadMore: (() => void) | undefined) {
+  const [ref, near] = useInView<HTMLDivElement>({ rootMargin: '400px', enabled: on && !loading });
+  const load = useRef(loadMore);
+  load.current = loadMore;
+  useEffect(() => {
+    if (on && near && !loading) load.current?.();
+  }, [on, near, loading]);
+  return ref;
 }
 
 /**
@@ -570,13 +654,34 @@ function Body({
   group = null,
   onGroupChange,
   incomplete = false,
+  onAsk,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const coarse = useCoarsePointer();
-  const [typed, type] = useTyped(search, onSearchChange);
+  const [typed, type, hold] = useTyped(search, onSearchChange);
   const [peek, setPeek] = useState<string | null>(null);
   const columnsChosen = useColumns(state.columns);
   const widths = useWidths();
   const loaded = useRows(state.people, next, onLoadMore);
+  const endOfPage = useEndOfPage(
+    (coarse || view === 'cards') && loaded.loadMore !== undefined,
+    loaded.loading,
+    loaded.loadMore,
+  );
+  // A sentence read as filters: what was typed, and what People made of it.
+  const [asked, setAsked] = useState<{
+    readonly sentence: string;
+    readonly answer: DirectoryAsked | null;
+  } | null>(null);
+  const askIt = (sentence: string): void => {
+    const text = sentence.trim();
+    if (onAsk === undefined || text === '') return;
+    // The name search typing was about to send is not sent: this is read instead.
+    hold();
+    setAsked({ sentence: text, answer: null });
+    void onAsk(text).then((answer) => {
+      setAsked((a) => (a?.sentence === text ? { sentence: text, answer } : a));
+    });
+  };
   const fields = state.fields ?? [];
   const conditions = state.query?.conditions ?? [];
   const match = state.query?.match === 'any' ? 'any' : 'all';
@@ -788,7 +893,12 @@ function Body({
   const empty = (
     <EmptyState
       title="Nobody matches"
-      description="Remove a filter or change the search to see more people."
+      description={
+        // Several words searched as a name: say they can be read as a description.
+        onAsk !== undefined && search.trim().includes(' ')
+          ? 'No name matches that. Press Enter to find people it describes instead, or change the search.'
+          : 'Remove a filter or change the search to see more people.'
+      }
     />
   );
 
@@ -836,6 +946,16 @@ function Body({
             </a>
           </ListItem>
         ))}
+        {loaded.loading ? (
+          // The next person's row, in its shape, until they arrive.
+          <ListItem
+            aria-hidden
+            leading={<Skeleton className="size-14 rounded-full" />}
+            description={<Skeleton className="mt-1.5 h-3 w-32" />}
+          >
+            <Skeleton className="h-4 w-44" />
+          </ListItem>
+        ) : null}
       </List>
     )
   ) : view === 'cards' ? (
@@ -882,6 +1002,14 @@ function Body({
             />
           </li>
         ))}
+        {loaded.loading
+          ? // A row of cards, in their shape, until the next page arrives.
+            ['a', 'b', 'c', 'd'].map((k) => (
+              <li key={`loading-${k}`} aria-hidden className="min-w-0">
+                <Skeleton className="h-full min-h-60 rounded-xl" />
+              </li>
+            ))
+          : null}
       </ul>
     )
   ) : (
@@ -899,6 +1027,7 @@ function Body({
       estimateRowHeight={57}
       containerClassName="max-h-[calc(100dvh-18rem)] min-h-96"
       {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
+      loadingMore={loaded.loading}
       columns={columns}
       rowId={(p) => p.id}
       describeRow={(p) => p.name}
@@ -974,10 +1103,16 @@ function Body({
         search={
           <SearchField
             label="Search people"
-            placeholder="Search by name, email or employee number"
+            placeholder={
+              onAsk === undefined
+                ? 'Search by name, email or employee number'
+                : 'Search by name, or describe who (Enter)'
+            }
             size="sm"
             value={typed}
             onValueChange={type}
+            // Enter reads what was typed as filters; a name stays a name search.
+            {...(onAsk === undefined ? {} : { onSearch: askIt, enterKeyHint: 'search' as const })}
             containerClassName="w-full @3xl:w-90"
           />
         }
@@ -1062,6 +1197,7 @@ function Body({
           )
         }
       />
+      {asked === null ? null : <Understood asked={asked} />}
       {peeked !== null && view === 'list' && !coarse ? (
         <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4">
           {table}
@@ -1128,20 +1264,17 @@ function Body({
       ) : (
         table
       )}
+      {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
+        <div ref={endOfPage} aria-hidden className="h-px" />
+      ) : null}
       {onLoadMore === undefined ? null : (
+        // Said as each page lands, to a screen reader too: "50 more loaded".
         <p role="status" className="text-xs text-fg-muted">
           {loaded.loading
             ? 'Loading more people…'
-            : `Showing ${String(rows.length)} of ${String(state.total)}`}
+            : `${loaded.added === null ? '' : `${String(loaded.added)} more loaded. `}Showing ${String(rows.length)} of ${String(state.total)}`}
         </p>
       )}
-      {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
-        <div>
-          <Button loading={loaded.loading} loadingLabel="Loading more" onClick={loaded.loadMore}>
-            Show more people
-          </Button>
-        </div>
-      ) : null}
       {onLoadMore !== undefined ||
       (onNextPage === undefined && onFirstPage === undefined) ? null : (
         <nav aria-label="Pages of people" className="flex justify-end gap-2">

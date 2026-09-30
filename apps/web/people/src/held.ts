@@ -29,7 +29,7 @@ export const TYPING_MS = 300;
 export function useTyped(
   held: string,
   onCommit: ((text: string) => void) | undefined,
-): readonly [string, (text: string) => void] {
+): readonly [string, (text: string) => void, () => void] {
   const [text, setText] = useState(held);
   const sent = useRef(held);
   const commit = useRef(onCommit);
@@ -58,5 +58,9 @@ export function useTyped(
       commit.current?.(next);
     }, TYPING_MS);
   };
-  return [text, type];
+  // What was typed and not yet sent stays unsent: the screen does something else with it.
+  const hold = (): void => {
+    clearTimeout(timer.current);
+  };
+  return [text, type, hold];
 }
