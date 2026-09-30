@@ -117,3 +117,61 @@ the field's visibility.
 - Not checked against how BambooHR, HiBob, Personio or Rippling handle
   unknown columns today; the flow follows the pattern the brief describes
   (detect, propose a field, decide what happens to existing records).
+
+# Search and export in words
+
+Two places take a sentence and turn it into a selection People already runs:
+the Directory's search field ("engineers in Barcelona starting next month",
+"people missing an emergency contact") and the export builder's "Describe the
+export" ("everything payroll needs for the Madrid entity as of 1 October").
+The planner is `domain/assistant/selection.ts`; the use cases are
+`application/assistant/selection.ts`, behind `POST /v1/views/directory/plan`
+and `POST /v1/views/export/plan` (both write nothing).
+
+- **The result is the screen's own state, in the address.** The Directory gets
+  its `conditions`, `match` and `sort`, shown as the chips it always shows and
+  edited in its Filters sheet; the builder gets `who`, `conditions`, `fields`,
+  `asOf`, `format` and a drafted `reason`, and starts from them. Nothing runs
+  until the person looks: the directory authorizes the conditions as it
+  always does, and the export runs through its own path, with its reason and
+  its log, when they press Export.
+- **A name alone is a name search**, with no model: a few words, no number,
+  nothing the rules recognise (`isPlainSearch`).
+- **What the model sees**: the sentence, today's date in words, and the fields
+  the person may filter by (key, label, kind), with options only where they
+  are configuration and the field is the assistant's (`aiEligible`). A field
+  that is not the assistant's is named with kind `presence`, for "is empty"
+  only, and no options. The export adds the fields the builder offers, by
+  label and section, and its audiences. Never a value from anybody's record.
+  The prompt is `about: 'configuration'`, so the gateway's key check runs and
+  anything shaped like a value (an email address, six digits in a run) is
+  refused before it leaves (`AI_VALUE_SHAPED`); People's rules then read it.
+- **Read strictly**: one JSON object, `z.strictObject` throughout. A field it
+  was not shown, an operator the field does not take, a date that is not a
+  date, an audience not offered, a field not offered: the whole answer is
+  dropped and the rules stand. A reason with markup or a long number is not
+  kept; People drafts one. A date still to come is today, and it says so.
+- **The rules** read option names ("Barcelona", "Sales or Engineering", a
+  long company name by one telling word beside its field: "the Madrid
+  entity"), a field after "missing", "without" or "with", date phrases after
+  "hired", "joined" or "starting" (next month, before 2024, since March 2025,
+  between two dates), an order ("newest"), and a role in the plural
+  ("engineers") as the job title mentioning it. What they make nothing of is
+  said: "Not understood: …". For an export, "payroll" picks the fields whose
+  names payroll needs (names, employee number, start date, entity, pay, bank,
+  tax and social-security identifiers, address).
+- **The model** is the assistant's own (`ASSISTANT_*`), with 8 seconds to
+  answer and room for 2,048 tokens. With no model, when the company's budget
+  is spent (`SEARCH_PLANS_PER_HOUR`, 120; `EXPORT_PLANS_PER_HOUR`, 30; in
+  memory per process), on a refusal, a timeout or an answer that cannot be
+  read, the rules read the sentence, and the screen says which read it and why.
+- **An audience of conditions**: the export takes the directory's own
+  conditions (`conditions`, `match` on `POST /v1/exports`), authorized by the
+  list as the directory's are, and the builder offers them as "Everybody
+  whose department is Sales", counted as the person may list them. The
+  Directory's Export button carries the conditions in force.
+
+The directory's list and cards load the next page as the reader nears the end
+(the table's `onEndReached`; a sentinel for cards and the phone's list), with a
+row or a card in its final shape while it loads, "50 more loaded" said in a
+live region, and the address keeping the filters, never the scroll position.
