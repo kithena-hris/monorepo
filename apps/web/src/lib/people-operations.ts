@@ -828,11 +828,13 @@ export const OPERATIONS = {
 
   RequestExport: `mutation RequestExport(
     $format: String!, $fields: [String!], $asOf: String, $segmentId: ID, $recordOf: ID, $reason: String,
-    $includePhotos: Boolean, $conditions: [DirectoryConditionInput!], $match: String, $key: String!
+    $includePhotos: Boolean, $conditions: [DirectoryConditionInput!], $match: String, $filter: String,
+    $key: String!
   ) {
     requestExport(
       format: $format, fields: $fields, asOf: $asOf, segmentId: $segmentId, recordOf: $recordOf, reason: $reason,
-      includePhotos: $includePhotos, conditions: $conditions, match: $match, idempotencyKey: $key
+      includePhotos: $includePhotos, conditions: $conditions, match: $match, filter: $filter,
+      idempotencyKey: $key
     ) {
       id status rowCount expiresAt links { name url }
     }

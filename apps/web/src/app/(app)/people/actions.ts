@@ -910,6 +910,8 @@ export async function requestExport(choice: {
   /** With `who: 'conditions'`: the directory's own conditions, authorized by People as a list's. */
   conditions?: readonly { key: string; op: string; values: readonly string[] }[];
   match?: 'all' | 'any';
+  /** Who, in the builder's words, for the file's provenance sheet. */
+  filter?: string;
 }): Promise<Exported> {
   // A saved segment is an audience (PEO-068): People applies it as this person.
   const segmentId = choice.who.startsWith('segment:') ? choice.who.slice('segment:'.length) : null;
@@ -924,6 +926,7 @@ export async function requestExport(choice: {
       : {
           conditions: conditions.map((c) => ({ key: c.key, op: c.op, values: [...c.values] })),
           match: choice.match ?? 'all',
+          ...(choice.filter === undefined ? {} : { filter: choice.filter.slice(0, 500) }),
         }),
     ...(choice.photos === true ? { includePhotos: true } : {}),
     ...(choice.reason === undefined || choice.reason === '' ? {} : { reason: choice.reason }),

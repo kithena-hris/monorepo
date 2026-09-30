@@ -561,7 +561,14 @@ export function PeopleScreen({
                     group: null,
                   },
             );
-            return { ok: true, by: plan.by, note: plan.note, unused: plan.unused, filters };
+            return {
+              ok: true,
+              by: plan.by,
+              note: plan.note,
+              unused: plan.unused,
+              filters,
+              search: plan.search,
+            };
           },
           ...(can.import === true
             ? {
@@ -898,6 +905,12 @@ export function PeopleScreen({
         // words, or the directory's Export button with its conditions.
         const format = oneOf(search['format'], ['xlsx', 'csv', 'pdf'], null);
         const asOf = search['asOf'];
+        const exportAudience =
+          load.status === 'ready'
+            ? (load.data as { who?: readonly { value: string; label: string }[] }).who?.find(
+                (w) => w.value === 'conditions',
+              )?.label
+            : undefined;
         const initial = {
           ...(search['who'] === undefined ? {} : { who: search['who'] }),
           ...(search['fields'] === undefined
@@ -920,6 +933,8 @@ export function PeopleScreen({
                   ? {
                       conditions: conditionsOf(search['conditions']) ?? [],
                       match: search['match'] === 'any' ? ('any' as const) : ('all' as const),
+                      // Named on the file's provenance sheet as the builder names it.
+                      ...(exportAudience === undefined ? {} : { filter: exportAudience }),
                     }
                   : {}),
               }),
