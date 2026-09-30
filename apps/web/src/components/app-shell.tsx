@@ -198,6 +198,16 @@ export function useShellData(): ShellData {
   return use(ShellContext);
 }
 
+/** The shell's own pages, beside People's routes (`isPage`). */
+const HOST_PAGES = new Set([
+  '/',
+  '/inbox',
+  '/people/menu',
+  '/settings',
+  '/settings/activity',
+  '/settings/shortcuts',
+]);
+
 /** The areas this company has: home, and each module it bought. */
 function areasFor(entitlements: readonly string[]): typeof AREAS {
   return AREAS.filter((area) => area.module === undefined || entitlements.includes(area.module));
@@ -446,7 +456,13 @@ export function AppShell({
     const k = keys.keysFor(path);
     return k === undefined ? undefined : <KbdShortcut keys={k} />;
   };
-  useInAppLinks();
+  // Hover-prefetch a plain link only where there is a page: People's routes
+  // and the host's own, never a file or a download behind a route handler.
+  const isPage = useCallback(
+    (path: string) => HOST_PAGES.has(path) || matchPath(shell.routes, path) !== undefined,
+    [shell.routes],
+  );
+  useInAppLinks(isPage);
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
    *

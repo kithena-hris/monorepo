@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
-const { inAppHref } = await import('./links');
+const router = { push: vi.fn(), prefetch: vi.fn() };
+vi.mock('next/navigation', () => ({ useRouter: () => router }));
+
+const { inAppHref, useInAppLinks } = await import('./links');
 
 // The page's own origin, as the shell passes it.
 const ORIGIN = window.location.origin;
@@ -41,5 +45,22 @@ describe('inAppHref', () => {
     const handled = clickOn(link);
     handled.preventDefault();
     expect(inAppHref(handled, ORIGIN)).toBeNull();
+  });
+});
+
+describe('useInAppLinks', () => {
+  it('prefetches a plain link on hover, only where there is a page', () => {
+    renderHook(() => {
+      useInAppLinks((path) => path.startsWith('/people/'));
+    });
+    document.body.innerHTML =
+      '<a id="tab" href="/people/insights/turnover">T</a><a id="file" href="/files/1">F</a>';
+    const over = (id: string): void => {
+      document.getElementById(id)?.dispatchEvent(new Event('pointerover', { bubbles: true }));
+    };
+    over('tab');
+    over('tab');
+    over('file');
+    expect(router.prefetch.mock.calls).toEqual([['/people/insights/turnover']]);
   });
 });
