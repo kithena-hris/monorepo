@@ -150,6 +150,21 @@ const RULES: readonly Rule[] = [
     },
   },
   {
+    // New information in an import (docs/ai-settings.md): one entry for the
+    // lot, in the review's words. Never the file.
+    path: /^\/v1\/imports\/new-fields\/apply$/,
+    area: 'fields',
+    say: (_m, b) => {
+      const kept = Array.isArray(b['proposals'])
+        ? b['proposals'].filter((p) => (p as Body | null)?.['include'] === true).length
+        : 0;
+      return {
+        action: `Added ${String(kept)} ${kept === 1 ? 'field' : 'fields'} from an import, with the AI assistant`,
+        detail: typeof b['summary'] === 'string' ? b['summary'].trim().slice(0, 500) || null : null,
+      };
+    },
+  },
+  {
     path: /^\/v1\/schema\/draft\/publish$/,
     area: 'fields',
     say: () => ({

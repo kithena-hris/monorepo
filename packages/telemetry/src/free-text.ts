@@ -211,3 +211,29 @@ export function contains(text: Haystack, value: Needle): boolean {
     }
   }
 }
+
+/**
+ * Whether free text looks like it carries somebody's value, when there is no
+ * value to compare it with: an email address, or six or more digits in a
+ * run, spaced or punctuated however (an IBAN, a phone number, a national
+ * identifier, an account number, a date written in figures).
+ *
+ * For a prompt about how a company is set up (`about: 'configuration'`): its
+ * subject is fields, not people, so there is nobody whose values could be
+ * looked up, and naming a field is the whole point of it. What such a prompt
+ * has no business holding is a value, and these are the shapes values take.
+ * Says what was seen, never the text. A UUID is a record's id, which the
+ * system chose, and is not read as a number.
+ */
+export function valueShaped(
+  texts: readonly string[],
+): 'an email address' | 'a long number' | undefined {
+  for (const text of texts) {
+    const folded = text
+      .normalize('NFKC')
+      .replaceAll(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/giu, ' ');
+    if (/[^\s@<>()]+@[^\s@<>()]+\.\p{L}{2,}/u.test(folded)) return 'an email address';
+    if (/\p{Nd}(?:[\s./-]?\p{Nd}){5,}/u.test(folded)) return 'a long number';
+  }
+  return undefined;
+}

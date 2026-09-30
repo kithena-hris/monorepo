@@ -3,6 +3,9 @@ import ExcelJS from 'exceljs';
 import FormulaParser from 'fast-formula-parser';
 
 import { checksumOf } from '../../domain/schema/publish.js';
+import { shapeOf } from '../../domain/import/column-shape.js';
+import { localProposal, withKeys } from '../../domain/import/new-fields.js';
+import { draftWithNewFields } from '../assistant/import-fields.js';
 import { commitImport } from '../import/commit.js';
 import { dryRun } from '../import/dry-run.js';
 import { commitDeps } from '../import/fixture.js';
@@ -50,6 +53,44 @@ async function open(bytes: Uint8Array) {
 
 const rowValues = (sheet: ExcelJS.Worksheet, n: number) =>
   (sheet.getRow(n).values as unknown[]).slice(1);
+
+describe('a field an import created', () => {
+  it('is exported like any other: its label, its key and its values', async () => {
+    const base = register();
+    const [proposal] = withKeys(
+      [
+        localProposal(
+          { column: 7, header: 'Emergency contact', local: shapeOf(['Luis López', 'Mia Chen']), single: null },
+          base.document.sections.map((s) => ({ key: s.key, label: s.label.default })),
+        ),
+      ],
+      new Set(base.document.attributes.map((a) => a.key as string)),
+    );
+    if (proposal === undefined) throw new Error('no proposal');
+    const built = draftWithNewFields(base.document, [proposal]);
+    expect(built.problems).toEqual([]);
+    const document = {
+      sections: [...base.document.sections, ...built.sections],
+      attributes: [...base.document.attributes, ...built.attributes],
+    };
+    const store = financeTenant([
+      { ...base, version: 5, document, checksum: checksumOf(document) },
+    ]);
+    store.seed('00000000-0000-4000-8000-0000000000a9', {
+      fields: { givenName: 'Luis', familyName: 'Test', employeeNumber: 'E-Luis' },
+      custom: { emergency_contact: 'Ana López' },
+    });
+    const { files, attributeKeys } = await exported(HR, {}, store);
+    expect(attributeKeys).toContain('emergency_contact');
+    const wb = await open(files[0]?.bytes ?? new Uint8Array());
+    const people = wb.getWorksheet('People');
+    if (!people) throw new Error('no People sheet');
+    expect(rowValues(people, 1)).toContain('Emergency contact');
+    const column = rowValues(people, 2).indexOf('emergency_contact');
+    const values = [3, 4, 5, 6].map((n) => rowValues(people, n)[column]);
+    expect(values).toContain('Ana López');
+  });
+});
 
 describe('the XLSX register', () => {
   it('has label then key, in profile order, with no special-category column and the id hidden', async () => {

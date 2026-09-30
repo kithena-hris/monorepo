@@ -168,11 +168,14 @@ describe('every mutation (PEO-113)', () => {
     // Connecting a chat app only computes where to send the administrator.
     // Viewing as somebody writes nothing here: identity makes the session and
     // records it, and a retry is a second, separately recorded view.
+    // Fields for an import's new columns are proposed and reviewed; adding them is keyed.
     expect(unkeyed.toSorted()).toEqual([
       'completeImportUpload',
       'connectChatApp',
       'dryRunImport',
+      'proposeImportFields',
       'revealIdentifier',
+      'reviewImportFields',
       'startFileUpload',
       'startImportUpload',
       'startPhotoUpload',
@@ -255,7 +258,10 @@ describe('legal entities over GraphQL', () => {
   it('creates one for a People administrator and lists it', async () => {
     wireOrg(['people_admin']);
     expect((await query(CREATE, madrid)).data).toEqual({ createLegalEntity: madrid });
-    const listed = await query('{ legalEntities { name archived } peopleSettings { cohortMinimum } }', {});
+    const listed = await query(
+      '{ legalEntities { name archived } peopleSettings { cohortMinimum } }',
+      {},
+    );
     expect(listed.data).toEqual({
       legalEntities: [{ name: 'Acme SL', archived: false }],
       peopleSettings: { cohortMinimum: 10 },

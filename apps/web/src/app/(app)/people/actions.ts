@@ -388,6 +388,62 @@ export async function publishDraft(requiredFrom: string): Promise<Outcome> {
   return outcome(people('PublishDraft', { requiredFrom }));
 }
 
+/* ------------------------------------ new information in an import -- */
+
+type Mapping = Readonly<Record<number, string | null>>;
+type Parsed =
+  | { readonly ok: true; readonly data: unknown }
+  | { readonly ok: false; readonly message: string };
+
+/** An answer that crosses as JSON text (docs/ai-settings.md), read back into its object. */
+async function parsed(answer: Promise<PeopleAnswer<string>>): Promise<Parsed> {
+  const a = await answer;
+  if (!a.ok) return { ok: false, message: a.message };
+  try {
+    return { ok: true, data: JSON.parse(a.data) as unknown };
+  } catch {
+    return { ok: false, message: 'People answered in a way this page cannot read' };
+  }
+}
+
+const stepOf = (uploadId: string, mapping: Mapping) => ({
+  uploadId,
+  mapping: Object.fromEntries(Object.entries(mapping)),
+});
+
+/** Fields proposed for the columns that match none. Nothing is written. */
+export async function proposeImportFields(uploadId: string, mapping: Mapping): Promise<Parsed> {
+  return parsed(people<string>('ProposeImportFields', { step: JSON.stringify(stepOf(uploadId, mapping)) }));
+}
+
+/** The proposals as HR left them, checked, with the review in words. Nothing is written. */
+export async function reviewImportFields(
+  uploadId: string,
+  mapping: Mapping,
+  proposals: readonly unknown[],
+): Promise<Parsed> {
+  return parsed(
+    people<string>('ReviewImportFields', {
+      input: JSON.stringify({ ...stepOf(uploadId, mapping), proposals }),
+    }),
+  );
+}
+
+/** Add the fields, publish, write the defaults: one transaction, an administrator's. */
+export async function addImportFields(
+  uploadId: string,
+  mapping: Mapping,
+  proposals: readonly unknown[],
+  summary: string,
+): Promise<Outcome> {
+  const added = await parsed(
+    people<string>('AddImportFields', {
+      input: JSON.stringify({ ...stepOf(uploadId, mapping), proposals, summary }),
+    }),
+  );
+  return added.ok ? { ok: true } : added;
+}
+
 /* -------------------------------------------------------- integrations -- */
 
 export type WithSecret =

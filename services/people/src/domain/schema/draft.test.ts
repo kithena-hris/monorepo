@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedClock } from '@kithena/domain-kit';
 import type { AttributeDefinitionInput } from '@kithena/contracts';
 
-import { SchemaDraft, type SectionInput } from './draft.js';
+import { keyFrom, SchemaDraft, type SectionInput } from './draft.js';
 
 /**
  * The registry, before anybody publishes it.
@@ -530,5 +530,13 @@ describe('encrypting a field', () => {
       d.addAttribute({ ...attribute, key: 'grade', effectiveDated: true, encrypted: true, origin: 'tenant' })
         .ok,
     ).toBe(false);
+  });
+});
+
+describe('a key from a label', () => {
+  it('is the label in lower case, accents dropped, anything else an underscore', () => {
+    expect(keyFrom('Bank & tax')).toBe('bank_tax');
+    expect(keyFrom('Número de afiliación')).toBe('numero_de_afiliacion');
+    expect(keyFrom('2nd phone')).toBe('f_2nd_phone');
   });
 });

@@ -11,16 +11,14 @@ import {
   type InsightsTab,
 } from '../application/screens/analytics.js';
 import { writeCsv } from '../application/import/csv.js';
-import {
-  transferHistoryView,
-  type TransferHistory,
-} from '../application/screens/transfers.js';
+import { transferHistoryView, type TransferHistory } from '../application/screens/transfers.js';
 import {
   commitImportView,
   completeImportUpload,
   createEndpoint,
   deliveriesView,
   dryRunImport,
+  newFieldsFile,
   exportBuilderView,
   importTemplateFile,
   integrationsView,
@@ -83,6 +81,18 @@ import {
   setChatNotice,
 } from '../application/settings/chat.js';
 import { ask } from '../application/assistant/ask.js';
+import type { AssistantPort } from '../application/assistant/assistant-port.js';
+import {
+  ApplyInput as NewFieldsApply,
+  applyNewFields,
+  ImportStepInput,
+  proposeNewFields,
+  reviewNewFields,
+  ReviewInput as NewFieldsReview,
+  type NewFieldsDeps,
+} from '../application/assistant/import-fields.js';
+import { writeSameValue } from '../application/screens/bulk-edit.js';
+import { PlanBudget } from '../domain/import/new-fields.js';
 import {
   completeFileUpload,
   fileView,
@@ -157,10 +167,19 @@ export type ScreenRouteDeps = SchemaScreenDeps &
     readonly schedules?: ScheduleAdminDeps;
     /** Import & export's one history, over both ledgers. Absent, it answers UNAVAILABLE. */
     readonly transfers?: TransferHistory;
+    /**
+     * New fields from an import's unmatched columns (docs/ai-settings.md):
+     * the model behind the AI gateway (absent, People's own proposal) and
+     * the company's hourly budget for it.
+     */
+    readonly newFields?: { readonly planner?: AssistantPort; readonly budget: PlanBudget };
   };
 
 export const ChatConnect = z.strictObject({ origin: z.url().max(300) });
-export const ChatComplete = z.strictObject({ code: z.string().min(1).max(500), state: z.string().min(1).max(2000) });
+export const ChatComplete = z.strictObject({
+  code: z.string().min(1).max(500),
+  state: z.string().min(1).max(2000),
+});
 export const ChatNotice = z.strictObject({ on: z.boolean() });
 export const Sections = z.strictObject({ changed: z.record(z.string(), z.unknown()) });
 export const Entity = z.strictObject({ name: z.string().max(200), country: z.string().max(2) });
@@ -192,6 +211,15 @@ export const Field = z.strictObject({
     // Null keeps the default from the policy (PEO-077).
     requiresApproval: z.boolean().nullable().default(null),
     encrypted: z.boolean().nullable().default(null),
+    // A bank account's or national identifier's country, and an identifier's scheme.
+    country: z
+      .string()
+      .regex(/^[A-Z]{2}$/u)
+      .nullable()
+      .default(null),
+    scheme: z.string().max(32).nullable().default(null),
+    // Null keeps the default: shared where it could be.
+    aiEligible: z.boolean().nullable().default(null),
   }),
   editing: z.string().max(64).nullable(),
 });
@@ -468,6 +496,16 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   // A photo's upload needs the bucket and the upload ledger, and nothing else of import's.
   const photoDeps: PhotoDeps = { ...deps, newId: () => deps.commit.newId() };
   const fileDeps: FileDeps = { ...deps, newId: () => deps.commit.newId() };
+  // New fields from an import: its file, and one value for many, in this process.
+  const newFields: NewFieldsDeps = {
+    ...deps,
+    ...(deps.newFields?.planner === undefined ? {} : { fieldPlanner: deps.newFields.planner }),
+    // No model configured means no budget to spend either.
+    planBudget: deps.newFields?.budget ?? new PlanBudget(0, 3_600_000),
+    importFile: (asking, step) => newFieldsFile(deps, asking, importStep(step)),
+    writeSame: (tx, asking, ids, values, from) =>
+      writeSameValue(deps, tx, asking, ids, values, from),
+  };
   const endpoint = (_asking: Asking, resourceId: string) =>
     Promise.resolve<RestResponse>({ status: 200, body: { id: resourceId } });
 
@@ -528,9 +566,7 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: /^\/v1\/assistant\/ask$/,
       safe: true,
-      handle: compute(AskBody, (asking, input) =>
-        ask(deps, asking, input.question, input.earlier),
-      ),
+      handle: compute(AskBody, (asking, input) => ask(deps, asking, input.question, input.earlier)),
     },
     // Names and faces for the central activity log's ids (`?accounts=a,b&people=c`).
     {
@@ -548,7 +584,8 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: new RegExp(`^/v1/views/files/${UUID}$`),
-      handle: async (asking, _r, params) => answer(await fileView(deps, asking, params['id'] ?? '')),
+      handle: async (asking, _r, params) =>
+        answer(await fileView(deps, asking, params['id'] ?? '')),
     },
     {
       // Where to put a field's file: a presigned PUT, as a photo's.
@@ -1104,6 +1141,33 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: async (asking, _request, params) =>
         answer(await completeImportUpload(deps, asking, params['id'] ?? '')),
     },
+    /* new information in an import's file (docs/ai-settings.md) */
+    {
+      // Fields proposed for the columns that match none. Nothing is written.
+      method: 'POST',
+      pattern: /^\/v1\/imports\/new-fields$/,
+      safe: true,
+      handle: compute(ImportStepInput, (asking, input) =>
+        proposeNewFields(newFields, asking, input),
+      ),
+    },
+    {
+      // The proposals as HR left them, checked, with the review in words. Nothing is written.
+      method: 'POST',
+      pattern: /^\/v1\/imports\/new-fields\/review$/,
+      safe: true,
+      handle: compute(NewFieldsReview, (asking, input) =>
+        reviewNewFields(newFields, asking, input),
+      ),
+    },
+    {
+      // Add them, publish, and write the defaults: one transaction, an administrator's.
+      method: 'POST',
+      pattern: /^\/v1\/imports\/new-fields\/apply$/,
+      handle: write(NewFieldsApply, (asking, input) => applyNewFields(newFields, asking, input), {
+        status: 201,
+      }),
+    },
     {
       method: 'POST',
       pattern: /^\/v1\/imports\/dry-run$/,
@@ -1187,7 +1251,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         const tab = query.get('tab') ?? 'headcount';
         const segment = query.get('segment') ?? undefined;
         if (!(INSIGHTS_TABS as readonly string[]).includes(tab)) {
-          return refused(failure('BAD_REQUEST', `tab is one of ${INSIGHTS_TABS.join(', ')}`, ['tab']));
+          return refused(
+            failure('BAD_REQUEST', `tab is one of ${INSIGHTS_TABS.join(', ')}`, ['tab']),
+          );
         }
         if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
           return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));

@@ -23,6 +23,8 @@ export interface ModelConfig {
   readonly apiKey: string | null;
   readonly model: string;
   readonly timeoutMs?: number;
+  /** Room for the answer; 1024 by default, which one small JSON object needs. */
+  readonly maxTokens?: number;
 }
 
 export function modelConfigFrom(env: NodeJS.ProcessEnv): ModelConfig | null {
@@ -50,7 +52,7 @@ export function chatModel(config: ModelConfig): ModelTransport {
         temperature: 0,
         // Room for a reasoning model's thinking as well as its answer, which
         // needs little of either: one small JSON object.
-        max_tokens: 1024,
+        max_tokens: config.maxTokens ?? 1024,
         ...(config.model.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}),
         response_format: { type: 'json_object' },
         messages: [

@@ -896,6 +896,19 @@ export const OPERATIONS = {
   DeleteReportSchedule: `mutation DeleteReportSchedule($id: ID!, $key: String!) {
     deleteReportSchedule(id: $id, idempotencyKey: $key) { id }
   }`,
+
+  // New information in an import's file (docs/ai-settings.md). Proposals cross as JSON.
+  ProposeImportFields: `mutation ProposeImportFields($step: String!) {
+    proposeImportFields(step: $step)
+  }`,
+
+  ReviewImportFields: `mutation ReviewImportFields($input: String!) {
+    reviewImportFields(input: $input)
+  }`,
+
+  AddImportFields: `mutation AddImportFields($input: String!, $key: String!) {
+    addImportFields(input: $input, idempotencyKey: $key)
+  }`,
 } as const;
 
 export type OperationName = keyof typeof OPERATIONS;

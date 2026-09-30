@@ -9,6 +9,7 @@ import {
   type ImportStage,
   type ProposedColumn,
 } from './import-flow';
+import { NEW_FIELDS } from './new-information.fixture';
 
 const file = { name: 'acme-people-sept.xlsx', rows: 412, sheet: 'Employees' };
 const fields = [
@@ -180,6 +181,55 @@ describe('ImportFlow', () => {
       2: null,
       3: null,
     });
+  });
+
+  it('proposes fields for new columns, adds them on the OK, then goes on with them mapped', async () => {
+    const user = fast();
+    const order: string[] = [];
+    const onMap = vi.fn((m: Readonly<Record<number, string | null>>) => {
+      order.push('dry run');
+      return Promise.resolve({ ok: true as const, m });
+    });
+    const view = {
+      ...NEW_FIELDS,
+      proposals: NEW_FIELDS.proposals.filter((p) => p.header === 'Cost centre').map((p) => ({ ...p, column: 2, header: 'Old system ID' })),
+    };
+    const newFields = {
+      propose: vi.fn(() => (order.push('propose'), Promise.resolve({ ok: true as const, data: view }))),
+      review: vi.fn(() =>
+        (order.push('review'), Promise.resolve({ ok: true as const, data: { ...view, summary: 'Adds 1 field.', problems: [] } })),
+      ),
+      apply: vi.fn(() => (order.push('add, publish, defaults'), Promise.resolve({ ok: true as const }))),
+    };
+    render(<ImportFlow {...props({ status: 'ready', data: mapping }, { onMap, newFields })} />);
+    await user.click(screen.getByRole('combobox', { name: 'CC goes to' }));
+    await user.click(await screen.findByRole('option', { name: 'Cost centre' }));
+    await user.click(screen.getByRole('button', { name: 'Review before importing' }));
+    await screen.findByRole('heading', { name: 'New information in this file' });
+    expect(onMap).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Next: people not in this file' }));
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+    await user.click(await screen.findByRole('button', { name: 'Add 1 field and continue' }));
+    expect(order).toEqual(['propose', 'review', 'add, publish, defaults', 'dry run']);
+    expect(onMap).toHaveBeenCalledWith({ 0: 'employee_number', 1: 'cost_centre', 2: 'cost_centre', 3: null });
+  });
+
+  it('goes on without the new columns when HR chooses to', async () => {
+    const user = fast();
+    const onMap = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const view = { ...NEW_FIELDS, proposals: NEW_FIELDS.proposals.slice(0, 1).map((p) => ({ ...p, column: 2 })) };
+    const newFields = {
+      propose: () => Promise.resolve({ ok: true as const, data: view }),
+      review: vi.fn(),
+      apply: vi.fn(),
+    };
+    render(<ImportFlow {...props({ status: 'ready', data: mapping }, { onMap, newFields })} />);
+    await user.click(screen.getByRole('combobox', { name: 'CC goes to' }));
+    await user.click(await screen.findByRole('option', { name: 'Cost centre' }));
+    await user.click(screen.getByRole('button', { name: 'Review before importing' }));
+    await user.click(await screen.findByRole('button', { name: 'Import without these columns' }));
+    expect(newFields.apply).not.toHaveBeenCalled();
+    expect(onMap).toHaveBeenCalledWith({ 0: 'employee_number', 1: 'cost_centre', 2: null, 3: null });
   });
 
   it('needs no mapping at all for a file that maps itself, like the blocked-rows file', async () => {

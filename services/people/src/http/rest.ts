@@ -525,6 +525,8 @@ const STATUS: Record<string, number> = {
   VIEW_AS_SELF: 403,
   VIEW_AS_ADMINISTRATOR: 403,
   VIEW_AS_NO_ACCOUNT: 409,
+  // Fields proposed for an import's columns (docs/ai-settings.md): the company's hourly budget.
+  RATE_LIMITED: 429,
 };
 
 export function refused(error: DomainFailure): RestResponse {

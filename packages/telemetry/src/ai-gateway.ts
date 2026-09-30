@@ -1,4 +1,11 @@
-import { contains, haystack, nameNeedle, valueNeedle, type Haystack } from './free-text.js';
+import {
+  contains,
+  haystack,
+  nameNeedle,
+  valueNeedle,
+  valueShaped,
+  type Haystack,
+} from './free-text.js';
 import type { PolicyRegistry } from './policy-registry.js';
 
 /**
@@ -35,12 +42,22 @@ import type { PolicyRegistry } from './policy-registry.js';
  * An unloaded tenant is refused outright, and so is a prompt whose subjects
  * cannot be resolved — not knowing the values is not evidence that the text
  * is clean.
+ *
+ * **A prompt about configuration** (`about: 'configuration'`) is about fields,
+ * not people: setting up the employee fields names them all, sensitive ones
+ * included, and there is nobody whose values could be looked up. The key
+ * check still runs; the name rule does not, and in its place any free text
+ * shaped like a value — an email address, a long run of digits — is refused
+ * (`AI_VALUE_SHAPED`), because that is what a pasted IBAN or identifier looks
+ * like, and a settings request never needs one.
  */
 
 export interface Prompt {
   readonly instruction: string;
   /** Every piece of data the model is shown, as the object it came from. */
   readonly context: Readonly<Record<string, unknown>>;
+  /** About how the company is set up, never a person: it names fields and carries no value. */
+  readonly about?: 'configuration';
 }
 
 /** Who is asking. The same shape the owning module authorizes a read with. */
@@ -79,7 +96,8 @@ export type GatewayErrorCode =
   | 'AI_FIELD_DENIED'
   | 'AI_VALUE_DENIED'
   | 'AI_FIELD_NAMED'
-  | 'AI_SUBJECTS_UNRESOLVED';
+  | 'AI_SUBJECTS_UNRESOLVED'
+  | 'AI_VALUE_SHAPED';
 
 export type GatewayResult =
   | { readonly ok: true; readonly value: string }
@@ -133,6 +151,10 @@ function firstDenied(
 
 /** The instruction and every string or number anywhere in the context: what a model reads as text. */
 function freeText(prompt: Prompt): Haystack {
+  return haystack(textsOf(prompt));
+}
+
+function textsOf(prompt: Prompt): string[] {
   const texts = [prompt.instruction];
   const visit = (value: unknown): void => {
     if (typeof value === 'string') texts.push(value);
@@ -140,7 +162,7 @@ function freeText(prompt: Prompt): Haystack {
     else if (value !== null && typeof value === 'object') for (const child of Object.values(value)) visit(child);
   };
   visit(prompt.context);
-  return haystack(texts);
+  return texts;
 }
 
 export function aiGateway(deps: {
@@ -209,6 +231,17 @@ export function aiGateway(deps: {
       const denied = firstDenied(prompt.context, [], deny);
       if (denied) {
         return refuse('AI_FIELD_DENIED', `${denied.join('.')} may not be sent to a model`, denied);
+      }
+
+      if (prompt.about === 'configuration') {
+        const seen = valueShaped(textsOf(prompt));
+        if (seen !== undefined) {
+          return refuse(
+            'AI_VALUE_SHAPED',
+            `The prompt holds what looks like ${seen}. It is about settings, so it may carry no value from anybody’s record`,
+          );
+        }
+        return { ok: true, value: await deps.send(prompt) };
       }
 
       const refused = await checkFreeText(tenantId, prompt, deny, subjects);

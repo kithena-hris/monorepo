@@ -207,6 +207,38 @@ export async function bulkEdit(
   return seen.ok ? ok({ committed: false, rows: seen.value }) : seen;
 }
 
+/**
+ * One value for many people, in the caller's transaction, through the same
+ * write each bulk edit makes: a new field's default for everybody an import
+ * gives none (`application/assistant/import-fields.ts`). All or nothing: a
+ * refusal for anybody refuses the lot, and the caller's transaction with it.
+ */
+export async function writeSameValue(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  personIds: readonly string[],
+  values: Readonly<Record<string, unknown>>,
+  effectiveFrom: string,
+): Promise<Result<number>> {
+  let written = 0;
+  for (let at = 0; at < personIds.length; at += BULK_PAGE) {
+    const page = personIds.slice(at, at + BULK_PAGE);
+
+    const done = await rows(deps, tx, asking, page, {
+      personIds: page,
+      values,
+      effectiveFrom,
+      applySensitiveWithoutApproval: true,
+    });
+    if (!done.ok) return done;
+    const refused = done.value.find((r) => r.outcome === 'refused');
+    if (refused?.refusal) return err(failure(refused.refusal.code, refused.refusal.message));
+    written += done.value.filter((r) => r.outcome === 'changed').length;
+  }
+  return ok(written);
+}
+
 async function rows(
   deps: ScreenDeps,
   tx: Tx,

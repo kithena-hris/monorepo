@@ -2,7 +2,14 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { systemClock, type DomainFailure } from '@kithena/domain-kit';
-import { aiGateway, drain, logger, onShutdown, tenantPolicies, type Prompt } from '@kithena/telemetry';
+import {
+  aiGateway,
+  drain,
+  logger,
+  onShutdown,
+  tenantPolicies,
+  type Prompt,
+} from '@kithena/telemetry';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { presentsInternalToken } from '@kithena/auth-kit';
 import { sql } from 'drizzle-orm';
@@ -104,6 +111,7 @@ import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
 import { drizzleTransfers } from '../infrastructure/drizzle-transfers.js';
 import { askFromChat, type ChatDeps } from '../application/assistant/from-chat.js';
 import { chatModel, modelConfigFrom } from '../infrastructure/assistant/model.js';
+import { PlanBudget } from '../domain/import/new-fields.js';
 import { loadTenantPolicies } from '../infrastructure/policy-registry.js';
 import { reminderMailerFrom } from '../infrastructure/reminder-mailer.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
@@ -147,7 +155,10 @@ export function relationsFrom(env: NodeJS.ProcessEnv): RelationsResolver {
   // visibility rules (PEO-066), and the attributes an upstream system owns
   // on them (PEO-073), on every path that reads through it.
   return withSources(
-    withSubjects(withSupport(openFgaFrom(env)?.relations ?? drizzleRelations()), drizzlePersonReader()),
+    withSubjects(
+      withSupport(openFgaFrom(env)?.relations ?? drizzleRelations()),
+      drizzlePersonReader(),
+    ),
     drizzleScimStore(),
   );
 }
@@ -577,6 +588,30 @@ function viewAsDeps(service: ReturnType<typeof peopleService>): ViewAsDeps {
   };
 }
 
+/**
+ * New fields from an import (docs/ai-settings.md): the assistant's own model
+ * (`ASSISTANT_*`), behind the AI gateway, with room for a chunk of columns'
+ * proposals and well inside the shell's two-minute write; twenty proposals an
+ * hour per company. With no model configured, People's own proposal.
+ */
+function newFieldsFrom(env: NodeJS.ProcessEnv): NonNullable<ScreenRouteDeps['newFields']> {
+  const config = modelConfigFrom(env);
+  const budget = new PlanBudget(Number(env['IMPORT_FIELDS_PLANS_PER_HOUR'] ?? 20), 3_600_000);
+  if (config === null) return { budget };
+  const gateway = aiGateway({
+    registry: tenantPolicies,
+    send: chatModel({ ...config, maxTokens: 6_000, timeoutMs: 60_000 }),
+  });
+  return {
+    budget,
+    planner: {
+      complete: (tenantId: string, prompt: Prompt) => gateway.complete(tenantId, prompt),
+      loadPolicies: (tx: PostgresJsDatabase, tenantId: string) =>
+        loadTenantPolicies(tx, tenantId, tenantPolicies),
+    },
+  };
+}
+
 function screenDeps(
   service: ReturnType<typeof peopleService>,
   reports: ObjectStore,
@@ -610,6 +645,7 @@ function screenDeps(
     files: drizzleFiles(),
     transfers: drizzleTransfers(),
     ...assistantFrom(process.env),
+    newFields: newFieldsFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars, service),
     ...chatFrom(process.env),
@@ -708,7 +744,6 @@ function startReports(
     running ??= (async () => {
       for (const tenantId of await service.tenants()) {
         try {
-          // eslint-disable-next-line no-await-in-loop -- one tenant at a time is the bound
           const { runs, waiting } = await sweep(tenantId);
           if (runs > 0) logger.info({ tenantId, runs }, 'scheduled reports run');
           if (waiting) logger.info({ tenantId }, 'company not known yet; reports wait');
@@ -747,7 +782,8 @@ function sweepUploads(store: UploadStore | null): () => void {
     store
       .purge(systemClock.instant(), UPLOAD_LIFETIME_MS, SWEEP_UPLOADS_LIMIT)
       .then((deleted) => {
-        if (deleted > 0) logger.info({ module: 'people', deleted }, 'expired import uploads deleted');
+        if (deleted > 0)
+          logger.info({ module: 'people', deleted }, 'expired import uploads deleted');
       })
       .catch((cause: unknown) => {
         logger.error({ module: 'people', err: cause }, 'import upload sweep failed');
@@ -803,7 +839,8 @@ export function wirePeople(server: Server): void {
       // What a field or the company settings were, and are: the log's "from → to".
       reads: (tx, tenantId) => ({
         field: async (key) =>
-          (await activitySchema.loadDraft(tx, tenantId)).attributes.find((a) => a.key === key) ?? null,
+          (await activitySchema.loadDraft(tx, tenantId)).attributes.find((a) => a.key === key) ??
+          null,
         // A section's or field's name, for a log entry the path named by key.
         label: async (key) => {
           const draft = await activitySchema.loadDraft(tx, tenantId);
@@ -872,7 +909,10 @@ export function wirePeople(server: Server): void {
   const answerChat = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     try {
       if (chatToken === '' || !presentsInternalToken({ headers: request.headers }, chatToken)) {
-        send(response, { status: 401, body: { error: { code: 'UNAUTHENTICATED', message: 'Not the Slack service' } } });
+        send(response, {
+          status: 401,
+          body: { error: { code: 'UNAUTHENTICATED', message: 'Not the Slack service' } },
+        });
         return;
       }
       const raw = await bodyOf(request, BODY_LIMIT);
@@ -884,7 +924,10 @@ export function wirePeople(server: Server): void {
       }
       const input = ChatQuestion.safeParse(parsed);
       if (!input.success) {
-        send(response, { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'tenantId, email and question' } } });
+        send(response, {
+          status: 400,
+          body: { error: { code: 'INVALID_INPUT', message: 'tenantId, email and question' } },
+        });
         return;
       }
       const answered = await askFromChat(chatDeps, { ...input.data, correlationId: uuidv7() });
@@ -892,11 +935,23 @@ export function wirePeople(server: Server): void {
         response,
         answered.ok
           ? { status: 200, body: answered.value }
-          : { status: 200, body: { text: answered.error.message, people: [], understood: answered.error.code, answered: false } },
+          : {
+              status: 200,
+              body: {
+                text: answered.error.message,
+                people: [],
+                understood: answered.error.code,
+                answered: false,
+              },
+            },
       );
     } catch (cause) {
       logger.error({ err: cause }, 'a chat question failed');
-      if (!response.headersSent) send(response, { status: 500, body: { error: { code: 'INTERNAL', message: 'Something went wrong' } } });
+      if (!response.headersSent)
+        send(response, {
+          status: 500,
+          body: { error: { code: 'INTERNAL', message: 'Something went wrong' } },
+        });
     }
   };
 
@@ -904,7 +959,10 @@ export function wirePeople(server: Server): void {
   const actChat = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     try {
       if (chatToken === '' || !presentsInternalToken({ headers: request.headers }, chatToken)) {
-        send(response, { status: 401, body: { error: { code: 'UNAUTHENTICATED', message: 'Not the Slack service' } } });
+        send(response, {
+          status: 401,
+          body: { error: { code: 'UNAUTHENTICATED', message: 'Not the Slack service' } },
+        });
         return;
       }
       const raw = await bodyOf(request, BODY_LIMIT);
@@ -916,7 +974,10 @@ export function wirePeople(server: Server): void {
       }
       const input = parseChatAction(parsed);
       if (!input.success) {
-        send(response, { status: 400, body: { error: { code: 'INVALID_INPUT', message: 'Not a chat action' } } });
+        send(response, {
+          status: 400,
+          body: { error: { code: 'INVALID_INPUT', message: 'Not a chat action' } },
+        });
         return;
       }
       const done = await chatAct(
@@ -940,7 +1001,11 @@ export function wirePeople(server: Server): void {
       send(response, { status: 200, body: done });
     } catch (cause) {
       logger.error({ err: cause }, 'a chat action failed');
-      if (!response.headersSent) send(response, { status: 500, body: { error: { code: 'INTERNAL', message: 'Something went wrong' } } });
+      if (!response.headersSent)
+        send(response, {
+          status: 500,
+          body: { error: { code: 'INTERNAL', message: 'Something went wrong' } },
+        });
     }
   };
 
@@ -967,7 +1032,10 @@ export function wirePeople(server: Server): void {
         try {
           const body = await bodyOf(request, BODY_LIMIT);
           if (body === null) {
-            send(response, { status: 413, body: { error: { code: 'TOO_LARGE', message: 'Body too large' } } });
+            send(response, {
+              status: 413,
+              body: { error: { code: 'TOO_LARGE', message: 'Body too large' } },
+            });
             return;
           }
           const answer = await scim({

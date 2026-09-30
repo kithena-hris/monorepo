@@ -25,6 +25,13 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
+import {
+  NewInformation,
+  type Answer,
+  type ColumnProposal as NewColumn,
+  type NewFieldsView,
+  type Reviewed,
+} from './new-information';
 
 export interface ImportFile {
   readonly name: string;
@@ -140,7 +147,19 @@ export interface ImportFlowProps {
   /** The blocked rows as a file that imports once fixed: original cells plus `__reason`. */
   readonly onDownloadBlocked: () => void;
   readonly onBack: () => void;
+  /**
+   * New information in the file (docs/ai-settings.md): fields proposed for
+   * the columns that match none, reviewed, and added before the dry run.
+   * Absent, those columns are simply not imported.
+   */
+  readonly newFields?: {
+    readonly propose: (mapping: Mapping) => Promise<Answer<NewFieldsView>>;
+    readonly review: (mapping: Mapping, proposals: readonly NewColumn[]) => Promise<Answer<Reviewed>>;
+    readonly apply: (mapping: Mapping, proposals: readonly NewColumn[], summary: string) => Promise<Outcome>;
+  };
 }
+
+type Mapping = Readonly<Record<number, string | null>>;
 
 const STEPS = [
   { id: 'upload', label: 'Upload' },
@@ -298,10 +317,14 @@ function Mapping({
   stage,
   onMap,
   onBack,
+  newFields,
 }: ImportFlowProps & { readonly stage: Extract<ImportStage, { step: 'map' }> }): JSX.Element {
   // Only what the admin changed; the proposal stands for everything else.
   const [choices, setChoices] = useState<Readonly<Record<number, string | null>>>({});
   const [busy, refused, attempt] = useAttempt();
+  // New information in the file: proposed once, when the mapping is done.
+  const [newInfo, setNewInfo] = useState<{ view: NewFieldsView; mapping: Mapping } | null>(null);
+  const [withoutNew, setWithoutNew] = useState(false);
   const labelOf = new Map(stage.fields.map((f) => [f.key, f.label]));
 
   const chosen = (c: ProposedColumn): string | null =>
@@ -348,6 +371,31 @@ function Mapping({
     { id: 'confidence', header: 'Confidence', cell: confidence },
   ];
 
+  if (newInfo !== null && newFields !== undefined) {
+    const { view, mapping } = newInfo;
+    return (
+      <NewInformation
+        view={view}
+        onReview={(proposals) => newFields.review(mapping, proposals)}
+        onApply={async (proposals, summary) => {
+          const added = await newFields.apply(mapping, proposals, summary);
+          if (!added.ok) return added;
+          // The new columns now map to their new fields; on to the dry run.
+          const mapped = Object.fromEntries(
+            proposals.filter((p) => p.include).map((p) => [p.column, p.key]),
+          );
+          return onMap({ ...mapping, ...mapped });
+        }}
+        onSkip={() => {
+          void attempt(() => onMap(mapping));
+        }}
+        onBack={() => {
+          setNewInfo(null);
+        }}
+      />
+    );
+  }
+
   return (
     <Stack gap={4}>
       <p className="text-sm">
@@ -377,7 +425,24 @@ function Mapping({
           loadingLabel="Checking every row"
           onClick={() => {
             const mapping = Object.fromEntries(stage.columns.map((c) => [c.index, chosen(c)]));
-            void attempt(() => onMap(mapping));
+            const unplaced = stage.columns.some(
+              (c) => c.status === 'ignored' && c.source === null && chosen(c) === null,
+            );
+            if (newFields === undefined || !unplaced || withoutNew) {
+              void attempt(() => onMap(mapping));
+              return;
+            }
+            void attempt(async () => {
+              const proposed = await newFields.propose(mapping);
+              if (!proposed.ok) {
+                // The import still goes on: without them, on the next press.
+                setWithoutNew(true);
+                return { ok: false, message: `${proposed.message} Press again to import without the new columns.` };
+              }
+              if (proposed.data.proposals.length === 0) return onMap(mapping);
+              setNewInfo({ view: proposed.data, mapping });
+              return { ok: true };
+            });
           }}
         >
           Review before importing

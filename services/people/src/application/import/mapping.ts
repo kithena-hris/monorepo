@@ -141,9 +141,12 @@ export async function proposeMapping(input: ProposeInput): Promise<readonly Colu
     const keyed = input.file.keys?.[index]?.trim() ?? '';
     const bare = header.trim();
 
+    // The header as a key, as written and as a key would spell it: "Given
+    // name" is `given_name` whatever the field's label now says.
     for (const [candidate, source] of [
       [keyed, 'key'],
       [bare, 'key'],
+      [keyFromHeader(bare), 'key'],
     ] as const) {
       if (candidate === '') continue;
       if (isSystem(candidate)) {

@@ -976,6 +976,10 @@ input MoneyInput {
 type Mutation {
   addDraftSection(idempotencyKey: String!, label: String!): WriteOutcome
   """
+  Add the reviewed fields, publish them and write the defaults, in one transaction. A People administrator’s.
+  """
+  addImportFields(idempotencyKey: String!, input: String!): String
+  """
   A page of a bulk edit: one ordinary write per person, each atomic, each answered.
   """
   bulkEditPeople(
@@ -1125,6 +1129,13 @@ type Mutation {
   Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only.
   """
   placePerson(costCentre: String, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID, locationId: ID, orgUnitId: ID, personId: ID!): Person
+  """
+  Fields proposed for the columns of an uploaded import that match none, and what happens for people already here (JSON). The model sees headers and value shapes only. Nothing is written.
+  """
+  proposeImportFields(
+    """JSON: uploadId and the mapping so far"""
+    step: String!
+  ): String
   """Publish the draft. A retry answers the version in force."""
   publishDraft(idempotencyKey: String!, requiredFrom: String!): PublishedVersionNumber
   """
@@ -1175,6 +1186,10 @@ type Mutation {
   HR decides a doubted identifier (PEO-125): accept is final; send_back asks the employee to correct it.
   """
   reviewIdentifier(attributeKey: String!, decision: IdentifierReviewDecision!, idempotencyKey: String!, note: String, personId: ID!): IdentifierDecision
+  """
+  The proposals as HR left them, checked, with the review in words (JSON). Nothing is written.
+  """
+  reviewImportFields(input: String!): String
   """people_admin only; never the last people_admin."""
   revokeRole(accountId: ID!, idempotencyKey: String!, reason: String!, role: TenantRole!): RoleHolder
   revokeScimConnection(id: ID!, idempotencyKey: String!): WriteOutcome
