@@ -4,10 +4,12 @@ import type { Prompt } from '@kithena/telemetry';
 
 import { PlanBudget } from '../../domain/import/new-fields.js';
 import type { Attribute, Section } from '../../domain/schema/draft.js';
-import { define } from '../person/in-memory.js';
+import { define, versionOf } from '../person/in-memory.js';
+import { proposeMapping, resolveMapping } from '../import/mapping.js';
 import type { NewFieldsFile } from '../screens/operations.js';
 import {
   applyNewFields,
+  draftWithNewFields,
   proposeNewFields,
   reviewNewFields,
   type NewFieldsDeps,
@@ -24,6 +26,14 @@ const TENANT = '00000000-0000-4000-8000-000000000001';
 const ADMIN = {
   accountId: '00000000-0000-4000-8000-0000000000a1',
   roles: new Set(['people_admin', 'hr']),
+};
+const HR_ONLY = {
+  isSelf: false,
+  isManager: false,
+  isInManagerChain: false,
+  isHr: true,
+  isFinance: false,
+  isAdmin: false,
 };
 const HR = { accountId: '00000000-0000-4000-8000-0000000000a2', roles: new Set(['hr']) };
 const [P1, P2, P3] = [
@@ -277,7 +287,7 @@ describe('adding them', () => {
     expect(w.attributes.get('emergency_contact')).toMatchObject({
       sectionKey: 'emergency_contact',
       requiredness: { mode: 'always', appliesTo: 'all_records' },
-      ownership: ['employee'],
+      ownership: ['employee', 'hr'],
       classificationSource: 'suggested',
     });
     expect(w.attributes.get('iban')).toMatchObject({
@@ -287,6 +297,35 @@ describe('adding them', () => {
     expect(w.sections.get('emergency_contact')?.label.default).toBe('Emergency contact');
     // The default goes to the people the file gives no value: everybody but P1 and P2.
     expect(w.written).toEqual([{ ids: [P3, 'p4', 'p5'], values: { work_country: 'es' } }]);
+  });
+
+  it('adds only fields the import can then write: the dry run maps every kept column', async () => {
+    const w = world();
+    const v = await proposed(w);
+    const built = draftWithNewFields(
+      { sections: [...w.sections.values()], attributes: [...w.attributes.values()] },
+      strip(v),
+    );
+    const version = versionOf(5, [...w.attributes.values(), ...built.attributes]);
+    const headers = ['Work email', ...FILE.unmatched.map((c) => c.header)];
+    const columns = await proposeMapping({
+      file: { headers, keys: null },
+      version,
+      relations: HR_ONLY,
+      advisor: null,
+    });
+    const choices = Object.fromEntries(
+      v.proposals.map((p) => [p.column, { kind: 'map' as const, key: p.key }]),
+    );
+    const resolved = resolveMapping(columns, choices, version, HR_ONLY);
+    expect(resolved.ok ? resolved.value.map((c) => c.status) : resolved.error.message).toEqual([
+      'mapped',
+      'mapped',
+      'mapped',
+      'mapped',
+      'mapped',
+      'mapped',
+    ]);
   });
 
   it('is all or nothing: one field the draft refuses and nothing is stored or published', async () => {

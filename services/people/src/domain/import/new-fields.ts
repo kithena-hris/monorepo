@@ -181,8 +181,9 @@ export function localProposal(
     description: null,
     required: false,
   };
+  // HR writes the file's values, so HR is always among who fills it in.
   const own = (who: 'employee' | 'hr') =>
-    ({ ownership: [who], visibility: ['self', 'hr'] }) as Pick<
+    ({ ownership: who === 'hr' ? ['hr'] : ['employee', 'hr'], visibility: ['self', 'hr'] }) as Pick<
       NewField,
       'ownership' | 'visibility'
     >;
@@ -425,7 +426,8 @@ export function withKeys(
  * A proposal as a field: who must fill it in follows from what happens for
  * people already here. Asked of them, it is theirs and required of everyone;
  * HR's, it is required and HR's; left empty, it is required of new people
- * only, if at all; a default, as marked.
+ * only, if at all; a default, as marked. HR writes the file's values, so HR
+ * always fills it in and sees it, whatever else was chosen.
  */
 export function asDefinition(p: ColumnProposal): {
   readonly ownership: NewField['ownership'];
@@ -433,37 +435,22 @@ export function asDefinition(p: ColumnProposal): {
   readonly requiredness:
     { mode: 'never' } | { mode: 'always'; appliesTo: 'all_records' | 'new_records' };
 } {
-  const add = <T>(list: readonly T[], x: T): T[] => (list.includes(x) ? [...list] : [...list, x]);
-  switch (p.forExisting.kind) {
-    case 'ask':
-      return {
-        ownership: add(p.field.ownership, 'employee'),
-        visibility: add(p.field.visibility, 'self'),
-        requiredness: { mode: 'always', appliesTo: 'all_records' },
-      };
-    case 'hr':
-      return {
-        ownership: add(p.field.ownership, 'hr'),
-        visibility: add(p.field.visibility, 'hr'),
-        requiredness: { mode: 'always', appliesTo: 'all_records' },
-      };
-    case 'leave':
-      return {
-        ownership: [...p.field.ownership],
-        visibility: [...p.field.visibility],
-        requiredness: p.field.required
-          ? { mode: 'always', appliesTo: 'new_records' }
-          : { mode: 'never' },
-      };
-    case 'default':
-      return {
-        ownership: [...p.field.ownership],
-        visibility: [...p.field.visibility],
-        requiredness: p.field.required
-          ? { mode: 'always', appliesTo: 'all_records' }
-          : { mode: 'never' },
-      };
-  }
+  const add = <T>(list: readonly T[], ...xs: T[]): T[] => [...new Set([...list, ...xs])];
+  const asked = p.forExisting.kind === 'ask';
+  const requiredness =
+    asked || p.forExisting.kind === 'hr'
+      ? ({ mode: 'always', appliesTo: 'all_records' } as const)
+      : p.field.required
+        ? ({
+            mode: 'always',
+            appliesTo: p.forExisting.kind === 'leave' ? 'new_records' : 'all_records',
+          } as const)
+        : ({ mode: 'never' } as const);
+  return {
+    ownership: asked ? add(p.field.ownership, 'employee', 'hr') : add(p.field.ownership, 'hr'),
+    visibility: asked ? add(p.field.visibility, 'self', 'hr') : add(p.field.visibility, 'hr'),
+    requiredness,
+  };
 }
 
 /** Why a proposal needs a second look: sensitive data. Null for ordinary data. */

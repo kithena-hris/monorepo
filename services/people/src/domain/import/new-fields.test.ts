@@ -46,7 +46,7 @@ describe('with no model: People’s own proposal', () => {
       field: {
         piiKind: 'contact',
         classification: 'confidential',
-        ownership: ['employee'],
+        ownership: ['employee', 'hr'],
         aiEligible: false,
       },
       placement: { newSection: 'Emergency contact' },
@@ -185,6 +185,10 @@ describe('what applying means for people already here', () => {
   it('asked: theirs to fill in, required of everybody', () => {
     const rules = asDefinition({ ...cost, forExisting: { kind: 'ask' } });
     expect(rules.ownership).toEqual(['hr', 'employee']);
+    // HR writes the file's values: always among who fills it in.
+    expect(
+      asDefinition({ ...shirt, field: { ...shirt.field, ownership: ['employee'] } }).ownership,
+    ).toEqual(['employee', 'hr']);
     expect(rules.visibility).toContain('self');
     expect(rules.requiredness).toEqual({ mode: 'always', appliesTo: 'all_records' });
   });
