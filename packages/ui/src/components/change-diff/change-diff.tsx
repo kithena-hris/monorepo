@@ -73,9 +73,9 @@ export function ChangeDiff({
             className={cn(
               'grid items-center gap-x-2.5 gap-y-1 border-b border-border py-2.5 last:border-b-0',
               selectable && withActions
-                ? 'grid-cols-[1.125rem_9.375rem_minmax(0,1fr)_1.125rem_minmax(0,1fr)_auto]'
+                ? 'grid-cols-[11.5rem_minmax(0,1fr)_1.125rem_minmax(0,1fr)_auto]'
                 : selectable
-                  ? 'grid-cols-[1.125rem_9.375rem_minmax(0,1fr)_1.125rem_minmax(0,1fr)]'
+                  ? 'grid-cols-[11.5rem_minmax(0,1fr)_1.125rem_minmax(0,1fr)]'
                   : withActions
                     ? 'grid-cols-[9.375rem_minmax(0,1fr)_1.125rem_minmax(0,1fr)_auto]'
                     : 'grid-cols-[9.375rem_minmax(0,1fr)_1.125rem_minmax(0,1fr)]',
@@ -83,19 +83,21 @@ export function ChangeDiff({
               selectable && item.selected === false && 'opacity-70',
             )}
           >
-            {selectable ? (
-              <Checkbox
-                checked={item.selected === true}
-                aria-label={
-                  item.selectLabel ??
-                  (typeof item.label === 'string' ? item.label : `Change ${String(index + 1)}`)
-                }
-                onCheckedChange={(checked) => {
-                  onSelectedChange(id, checked === true);
-                }}
-              />
-            ) : null}
-            <dt className="text-sm text-fg-muted">{item.label}</dt>
+<dt className="flex items-center gap-2.5 text-sm text-fg-muted">
+              {selectable ? (
+                <Checkbox
+                  checked={item.selected === true}
+                  aria-label={
+                    item.selectLabel ??
+                    (typeof item.label === 'string' ? item.label : `Change ${String(index + 1)}`)
+                  }
+                  onCheckedChange={(checked) => {
+                    onSelectedChange(id, checked === true);
+                  }}
+                />
+              ) : null}
+              {item.label}
+            </dt>
             <dd className="contents">
               {isNew ? (
                 <span className="text-sm text-fg-subtle touch:hidden" aria-hidden>
