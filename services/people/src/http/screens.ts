@@ -18,7 +18,7 @@ import {
   createEndpoint,
   deliveriesView,
   dryRunImport,
-  unmatchedColumns,
+  newFieldsFile,
   exportBuilderView,
   importTemplateFile,
   integrationsView,
@@ -81,20 +81,18 @@ import {
   setChatNotice,
 } from '../application/settings/chat.js';
 import { ask } from '../application/assistant/ask.js';
-import { proposeImportFields } from '../application/assistant/import-fields.js';
 import type { AssistantPort } from '../application/assistant/assistant-port.js';
 import {
-  applySettings,
-  ApplyInput,
-  proposeSettings,
-  readSettingsFrom,
-  REQUEST_LIMIT,
-  settingsPromptOf,
-  type SettingsAssistantDeps,
-  type SettingsDispatch,
-} from '../application/assistant/settings.js';
-import { PlanBudget } from '../domain/assistant/settings-plan.js';
-import type { PromptScope } from '../domain/assistant/settings-prompt.js';
+  ApplyInput as NewFieldsApply,
+  applyNewFields,
+  ImportStepInput,
+  proposeNewFields,
+  reviewNewFields,
+  ReviewInput as NewFieldsReview,
+  type NewFieldsDeps,
+} from '../application/assistant/import-fields.js';
+import { writeSameValue } from '../application/screens/bulk-edit.js';
+import { PlanBudget } from '../domain/import/new-fields.js';
 import {
   completeFileUpload,
   fileView,
@@ -113,7 +111,6 @@ import {
 } from '../application/reports/scheduled.js';
 import { reportRunsView, reportSchedulesView } from '../application/screens/reports.js';
 import {
-  addCountryPack,
   addSection,
   adviseClassification,
   confirmEntity,
@@ -121,9 +118,6 @@ import {
   publishDraft,
   publishSetup,
   registryView,
-  removeField,
-  removeSection,
-  renameSection,
   reorderFields,
   reorderSections,
   saveField,
@@ -145,7 +139,6 @@ import {
   refused,
   UUID,
   type Route,
-  type RestRequest,
   type RestResponse,
 } from './rest.js';
 
@@ -175,15 +168,11 @@ export type ScreenRouteDeps = SchemaScreenDeps &
     /** Import & export's one history, over both ledgers. Absent, it answers UNAVAILABLE. */
     readonly transfers?: TransferHistory;
     /**
-     * Settings set up in words (docs/ai-settings.md): the model behind the AI
-     * gateway (absent, the flow says it is not configured), the per-company
-     * budget, and REST itself, which applying a plan runs each command through.
+     * New fields from an import's unmatched columns (docs/ai-settings.md):
+     * the model behind the AI gateway (absent, People's own proposal) and
+     * the company's hourly budget for it.
      */
-    readonly settingsAssistant?: {
-      readonly planner?: AssistantPort;
-      readonly budget: PlanBudget;
-      readonly dispatch: (request: RestRequest) => Promise<RestResponse | null>;
-    };
+    readonly newFields?: { readonly planner?: AssistantPort; readonly budget: PlanBudget };
   };
 
 export const ChatConnect = z.strictObject({ origin: z.url().max(300) });
@@ -200,12 +189,6 @@ export const SetupChoice = z.strictObject({
 });
 export const Order = z.strictObject({ order: z.array(z.string().max(64)).max(500) });
 export const Label = z.strictObject({ label: z.string().trim().min(1).max(120) });
-export const NewSection = Label.extend({
-  key: z
-    .string()
-    .regex(/^[a-z][a-z0-9_]{0,63}$/u)
-    .optional(),
-});
 export const Field = z.strictObject({
   input: z.object({
     key: z.string().max(64),
@@ -228,7 +211,7 @@ export const Field = z.strictObject({
     // Null keeps the default from the policy (PEO-077).
     requiresApproval: z.boolean().nullable().default(null),
     encrypted: z.boolean().nullable().default(null),
-    // A national identifier's or a bank account's country, and an identifier's scheme.
+    // A bank account's or national identifier's country, and an identifier's scheme.
     country: z
       .string()
       .regex(/^[A-Z]{2}$/u)
@@ -308,37 +291,6 @@ export const AskBody = z.strictObject({
   question: z.string().trim().min(1).max(500),
   earlier: z.array(z.string().max(500)).max(10).default([]),
 });
-export const PlanRequest = z.strictObject({ request: z.string().max(REQUEST_LIMIT) });
-export const PackBody = z.strictObject({ country: z.string().regex(/^[A-Z]{2}$/u) });
-/** What `GET /v1/views/settings-prompt` copies: a scope, and which one where it names one. */
-export const PromptQuery = z.discriminatedUnion('scope', [
-  z.object({
-    scope: z.enum(['everything', 'fields', 'organisation', 'time_zone', 'reminders', 'roles']),
-  }),
-  z.object({ scope: z.enum(['section', 'field']), key: z.string().max(64) }),
-  z.object({ scope: z.enum(['legal_entity', 'location', 'numbering']), key: z.uuid() }),
-  z.object({ scope: z.literal('country_pack'), key: z.string().regex(/^[A-Z]{2}$/u) }),
-  z.object({ scope: z.literal('role'), key: z.enum(['hr', 'finance', 'people_admin']) }),
-]);
-
-function promptScope(q: z.infer<typeof PromptQuery>): PromptScope {
-  switch (q.scope) {
-    case 'section':
-    case 'field':
-      return { kind: q.scope, key: q.key };
-    case 'legal_entity':
-    case 'location':
-    case 'numbering':
-      return { kind: q.scope, id: q.key };
-    case 'country_pack':
-      return { kind: 'country_pack', country: q.key };
-    case 'role':
-      return { kind: 'role', role: q.key };
-    default:
-      return { kind: q.scope };
-  }
-}
-
 export const DetailAsk = z.strictObject({ keys: z.array(z.string().max(64)).min(1).max(50) });
 export const PhotoStart = z.strictObject({
   personId: z.uuid().nullable(),
@@ -349,7 +301,6 @@ export const UploadStart = z.strictObject({
   size: z.int().min(1),
 });
 /** A step after the upload: which upload, and the mapping once there is one. */
-export const UploadOnly = z.strictObject({ uploadId: z.uuid() });
 export const ImportStepBody = z.strictObject({
   uploadId: z.uuid(),
   mapping: z.record(z.string(), z.string().nullable()).optional(),
@@ -545,16 +496,15 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   // A photo's upload needs the bucket and the upload ledger, and nothing else of import's.
   const photoDeps: PhotoDeps = { ...deps, newId: () => deps.commit.newId() };
   const fileDeps: FileDeps = { ...deps, newId: () => deps.commit.newId() };
-  const settingsDeps: SettingsAssistantDeps = {
-    service: deps.service,
-    relations: deps.relations,
-    clock: deps.clock,
-    ...(deps.settingsAssistant?.planner === undefined
-      ? {}
-      : { settingsPlanner: deps.settingsAssistant.planner }),
-    // Nothing configured means no planner either, so this one is never spent.
-    planBudget: deps.settingsAssistant?.budget ?? new PlanBudget(0, 3_600_000),
-    readSettings: readSettingsFrom(deps),
+  // New fields from an import: its file, and one value for many, in this process.
+  const newFields: NewFieldsDeps = {
+    ...deps,
+    ...(deps.newFields?.planner === undefined ? {} : { fieldPlanner: deps.newFields.planner }),
+    // No model configured means no budget to spend either.
+    planBudget: deps.newFields?.budget ?? new PlanBudget(0, 3_600_000),
+    importFile: (asking, step) => newFieldsFile(deps, asking, importStep(step)),
+    writeSame: (tx, asking, ids, values, from) =>
+      writeSameValue(deps, tx, asking, ids, values, from),
   };
   const endpoint = (_asking: Asking, resourceId: string) =>
     Promise.resolve<RestResponse>({ status: 200, body: { id: resourceId } });
@@ -617,59 +567,6 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       pattern: /^\/v1\/assistant\/ask$/,
       safe: true,
       handle: compute(AskBody, (asking, input) => ask(deps, asking, input.question, input.earlier)),
-    },
-    /* settings set up in words (docs/ai-settings.md) */
-    {
-      // A plan: the model's proposal, read and checked. Changes nothing.
-      method: 'POST',
-      pattern: /^\/v1\/assistant\/settings\/plan$/,
-      safe: true,
-      handle: compute(PlanRequest, (asking, input) =>
-        proposeSettings(settingsDeps, asking, input.request),
-      ),
-    },
-    {
-      method: 'POST',
-      pattern: /^\/v1\/assistant\/settings\/apply$/,
-      handle: async (asking, request) => {
-        const input = body(ApplyInput, request.body);
-        if (!input.ok) return refused(input.error);
-        const rest = deps.settingsAssistant?.dispatch;
-        if (rest === undefined)
-          return refused(failure('UNAVAILABLE', 'Setting up with AI is not available here'));
-        const key = String(request.headers['idempotency-key'] ?? randomUUID()).slice(0, 240);
-        // Each change is the route the screens use, as this caller, keyed
-        // from this request's key, and logged as done with the assistant.
-        const dispatch: SettingsDispatch = async (command, index) => {
-          const answered = await rest({
-            method: command.method,
-            url: command.path,
-            headers: { ...request.headers, 'idempotency-key': `${key}:${String(index)}` },
-            body: JSON.stringify(command.body),
-            via: { assistant: input.value.summary },
-          });
-          if (answered === null) return err(failure('NOT_FOUND', 'No such setting'));
-          if (answered.status >= 300) {
-            const e = (answered.body as { error?: { code?: string; message?: string } } | null)
-              ?.error;
-            return err(failure(e?.code ?? 'INTERNAL', e?.message ?? 'People refused it'));
-          }
-          const id = (answered.body as { id?: unknown } | null)?.id;
-          return ok(typeof id === 'string' ? { id } : undefined);
-        };
-        return answer(await applySettings(settingsDeps, asking, input.value, dispatch));
-      },
-    },
-    {
-      // A setting written out as a request, to paste into "Set up with AI" anywhere.
-      method: 'GET',
-      pattern: /^\/v1\/views\/settings-prompt$/,
-      handle: async (asking, _r, _p, query) => {
-        const scope = PromptQuery.safeParse(Object.fromEntries(query.entries()));
-        if (!scope.success) return refused(failure('VALUE_INVALID', 'Say which setting to copy'));
-        const text = await settingsPromptOf(settingsDeps, asking, promptScope(scope.data));
-        return text.ok ? { status: 200, body: { text: text.value } } : refused(text.error);
-      },
     },
     // Names and faces for the central activity log's ids (`?accounts=a,b&people=c`).
     {
@@ -1008,33 +905,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'POST',
       pattern: /^\/v1\/schema\/draft\/sections$/,
-      handle: write(
-        NewSection,
-        (asking, input) => addSection(deps, asking, input.label, input.key),
-        {
-          status: 201,
-        },
-      ),
-    },
-    {
-      method: 'PATCH',
-      pattern: new RegExp(`^/v1/schema/draft/sections/${KEY}$`),
-      handle: write(Label, (asking, input, key) => renameSection(deps, asking, key, input.label)),
-    },
-    {
-      method: 'POST',
-      pattern: new RegExp(`^/v1/schema/draft/sections/${KEY}/archive$`),
-      handle: write(NoBody, (asking, _input, key) => removeSection(deps, asking, key)),
-    },
-    {
-      method: 'POST',
-      pattern: new RegExp(`^/v1/schema/draft/attributes/${KEY}/archive$`),
-      handle: write(NoBody, (asking, _input, key) => removeField(deps, asking, key)),
-    },
-    {
-      method: 'POST',
-      pattern: /^\/v1\/schema\/draft\/packs$/,
-      handle: write(PackBody, (asking, input) => addCountryPack(deps, asking, input.country)),
+      handle: write(Label, (asking, input) => addSection(deps, asking, input.label), {
+        status: 201,
+      }),
     },
     {
       method: 'PUT',
@@ -1268,18 +1141,32 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       handle: async (asking, _request, params) =>
         answer(await completeImportUpload(deps, asking, params['id'] ?? '')),
     },
+    /* new information in an import's file (docs/ai-settings.md) */
     {
-      // Fields for the columns that match none: proposed, never written here.
+      // Fields proposed for the columns that match none. Nothing is written.
       method: 'POST',
-      pattern: /^\/v1\/imports\/field-proposals$/,
+      pattern: /^\/v1\/imports\/new-fields$/,
       safe: true,
-      handle: compute(UploadOnly, (asking, input) =>
-        proposeImportFields(
-          { ...settingsDeps, unmatched: (a, id) => unmatchedColumns(deps, a, id) },
-          asking,
-          input.uploadId,
-        ),
+      handle: compute(ImportStepInput, (asking, input) =>
+        proposeNewFields(newFields, asking, input),
       ),
+    },
+    {
+      // The proposals as HR left them, checked, with the review in words. Nothing is written.
+      method: 'POST',
+      pattern: /^\/v1\/imports\/new-fields\/review$/,
+      safe: true,
+      handle: compute(NewFieldsReview, (asking, input) =>
+        reviewNewFields(newFields, asking, input),
+      ),
+    },
+    {
+      // Add them, publish, and write the defaults: one transaction, an administrator's.
+      method: 'POST',
+      pattern: /^\/v1\/imports\/new-fields\/apply$/,
+      handle: write(NewFieldsApply, (asking, input) => applyNewFields(newFields, asking, input), {
+        status: 201,
+      }),
     },
     {
       method: 'POST',

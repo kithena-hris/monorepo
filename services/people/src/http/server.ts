@@ -105,10 +105,10 @@ import { drizzleTransfers } from '../infrastructure/drizzle-transfers.js';
 import { askFromChat, type ChatDeps } from '../application/assistant/from-chat.js';
 import { chatModel, modelConfigFrom } from '../infrastructure/assistant/model.js';
 import {
+  claudeFieldModel,
   claudePlannerConfigFrom,
-  claudeSettingsModel,
 } from '../infrastructure/assistant/claude-planner.js';
-import { PlanBudget } from '../domain/assistant/settings-plan.js';
+import { PlanBudget } from '../domain/import/new-fields.js';
 import { loadTenantPolicies } from '../infrastructure/policy-registry.js';
 import { reminderMailerFrom } from '../infrastructure/reminder-mailer.js';
 import { publishSchema } from '../application/schema/publish-schema.js';
@@ -127,13 +127,7 @@ import { callerWithEntitlements, viewingRequest, withTenantRoles } from './calle
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
-import {
-  refused,
-  restHandler,
-  type RestDeps,
-  type RestRequest,
-  type RestResponse,
-} from './rest.js';
+import { refused, restHandler, type RestDeps, type RestResponse } from './rest.js';
 import { SCIM_PREFIX, scimHandler } from './scim.js';
 
 /**
@@ -589,22 +583,17 @@ function viewAsDeps(service: ReturnType<typeof peopleService>): ViewAsDeps {
 }
 
 /**
- * Settings set up in words (docs/ai-settings.md): Claude behind the AI
- * gateway where `ANTHROPIC_API_KEY` is set, twenty plans an hour per company,
- * and REST to apply them through. Without a key the routes answer that it is
- * not configured.
+ * New fields from an import (docs/ai-settings.md): Claude behind the AI
+ * gateway where `ANTHROPIC_API_KEY` is set, twenty proposals an hour per
+ * company. Without a key, People's own proposal.
  */
-function settingsAssistantFrom(
-  env: NodeJS.ProcessEnv,
-  dispatch: (request: RestRequest) => Promise<RestResponse | null>,
-): NonNullable<ScreenRouteDeps['settingsAssistant']> {
+function newFieldsFrom(env: NodeJS.ProcessEnv): NonNullable<ScreenRouteDeps['newFields']> {
   const config = claudePlannerConfigFrom(env);
-  const budget = new PlanBudget(Number(env['SETTINGS_ASSISTANT_PLANS_PER_HOUR'] ?? 20), 3_600_000);
-  if (config === null) return { budget, dispatch };
-  const gateway = aiGateway({ registry: tenantPolicies, send: claudeSettingsModel(config) });
+  const budget = new PlanBudget(Number(env['IMPORT_FIELDS_PLANS_PER_HOUR'] ?? 20), 3_600_000);
+  if (config === null) return { budget };
+  const gateway = aiGateway({ registry: tenantPolicies, send: claudeFieldModel(config) });
   return {
     budget,
-    dispatch,
     planner: {
       complete: (tenantId: string, prompt: Prompt) => gateway.complete(tenantId, prompt),
       loadPolicies: (tx: PostgresJsDatabase, tenantId: string) =>
@@ -617,7 +606,6 @@ function screenDeps(
   service: ReturnType<typeof peopleService>,
   reports: ObjectStore,
   uploads: UploadStore | null,
-  dispatch: (request: RestRequest) => Promise<RestResponse | null> = () => Promise.resolve(null),
 ): ScreenRouteDeps {
   const schema = drizzleSchemaRepository();
   const reader = drizzlePersonReader();
@@ -647,7 +635,7 @@ function screenDeps(
     files: drizzleFiles(),
     transfers: drizzleTransfers(),
     ...assistantFrom(process.env),
-    settingsAssistant: settingsAssistantFrom(process.env, dispatch),
+    newFields: newFieldsFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars, service),
     ...chatFrom(process.env),
@@ -746,7 +734,6 @@ function startReports(
     running ??= (async () => {
       for (const tenantId of await service.tenants()) {
         try {
-          // eslint-disable-next-line no-await-in-loop -- one tenant at a time is the bound
           const { runs, waiting } = await sweep(tenantId);
           if (runs > 0) logger.info({ tenantId, runs }, 'scheduled reports run');
           if (waiting) logger.info({ tenantId }, 'company not known yet; reports wait');
@@ -826,9 +813,6 @@ export function wirePeople(server: Server): void {
   const idempotency = drizzleIdempotency();
   const activitySchema = drizzleSchemaRepository();
   const activityOrg = drizzleOrgStore();
-  // Applying an AI settings plan runs each change through REST itself.
-  let dispatch: (request: RestRequest) => Promise<RestResponse | null> = () =>
-    Promise.resolve(null);
   const rest = restHandler({
     service,
     callerFrom,
@@ -836,10 +820,7 @@ export function wirePeople(server: Server): void {
     exports,
     fullValues: exports.fullValues,
     segments: drizzleSegments(),
-    screens: screenRoutes(
-      screenDeps(service, exports.deps.store, uploads, (request) => dispatch(request)),
-      idempotency,
-    ),
+    screens: screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
     activity: {
       store: drizzleActivity(),
       newId: uuidv7,
@@ -867,7 +848,6 @@ export function wirePeople(server: Server): void {
       }),
     },
   });
-  dispatch = rest;
   // The subgraph's writes are these routes' writes, keyed the same (PEO-113).
   configureGraphQL({ service, callerFrom, rest, viewAs: viewAsDeps(service) });
   // Requests first, then what they use (PEO-118).

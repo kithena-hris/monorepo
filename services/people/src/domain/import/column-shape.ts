@@ -1,4 +1,4 @@
-import type { FieldSpec } from '../assistant/settings-plan.js';
+import type { NewField } from './new-fields.js';
 
 /**
  * An imported column that matches no field: what its values look like, and a
@@ -14,7 +14,7 @@ import type { FieldSpec } from '../assistant/settings-plan.js';
 export interface ColumnShape {
   /** In words, with no value in them. */
   readonly shape: string;
-  readonly dataType: FieldSpec['dataType'];
+  readonly dataType: NewField['dataType'];
   /** A short list's distinct values, first seen first: for the review, never a model. */
   readonly options: readonly string[];
   /** An IBAN's country, when every one agrees. */
@@ -47,7 +47,7 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
   const values = raw.map((v) => v.trim()).filter((v) => v !== '');
   const shape = (
     s: string,
-    dataType: FieldSpec['dataType'],
+    dataType: NewField['dataType'],
     extra: Partial<ColumnShape> = {},
   ): ColumnShape => ({
     shape: s,
@@ -91,9 +91,13 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
     distinct.length < values.length &&
     distinct.every((v) => v.length <= SHORT)
   ) {
-    return shape(`${String(distinct.length)} distinct short values`, 'select', {
-      options: distinct,
-    });
+    return shape(
+      distinct.length === 1
+        ? 'one short value, the same in every row'
+        : `${String(distinct.length)} distinct short values`,
+      'select',
+      { options: distinct },
+    );
   }
   const longest = Math.max(...values.map((v) => v.length));
   return longest > 200
@@ -101,7 +105,9 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
     : shape(`free text, up to ${String(longest)} characters`, 'text');
 }
 
-type Kind = 'financial' | 'identifier' | 'special' | 'contact' | 'birth' | 'plain';
+/** What kind of data a column holds, read from its header and shape: it decides the defaults. */
+export type Kind =
+  'financial' | 'identifier' | 'special' | 'contact' | 'birth' | 'business' | 'plain';
 
 const KINDS: readonly [RegExp, Kind][] = [
   [
@@ -115,104 +121,14 @@ const KINDS: readonly [RegExp, Kind][] = [
   [/health|medical|allerg|disab|religio|ethnic|union|sexual|pregnan|diagnos|blood/u, 'special'],
   [/emergency|next of kin|\bkin\b|phone|mobile|e-?mail|address/u, 'contact'],
   [/birth|\bdob\b/u, 'birth'],
+  [
+    /cost cent|department|division|team|grade|level|job|position|contract|office|site|project|budget/u,
+    'business',
+  ],
 ];
 
-function kindOf(header: string, shape: ColumnShape): Kind {
+export function kindOf(header: string, shape: ColumnShape): Kind {
   const words = header.toLowerCase();
   if (shape.dataType === 'bank_account') return 'financial';
   return KINDS.find(([re]) => re.test(words))?.[1] ?? 'plain';
-}
-
-/** Types People can store sealed (`encryptable` in `domain/schema/draft.ts`). */
-const SEALABLE = new Set([
-  'text',
-  'long_text',
-  'email',
-  'phone',
-  'url',
-  'number',
-  'decimal',
-  'date',
-  'bank_account',
-]);
-
-/**
- * A field for a column, erring towards protection: never required, and
- * shared with the assistant only when it is ordinary data. The section is
- * left to the caller.
- */
-export function defaultFieldFor(header: string, shape: ColumnShape): Omit<FieldSpec, 'sectionKey'> {
-  const kind = kindOf(header, shape);
-  const dataType = kind === 'financial' && shape.dataType === 'select' ? 'text' : shape.dataType;
-  const base = {
-    label: header.trim().slice(0, 200) || 'Imported column',
-    dataType,
-    ...(dataType === 'select' ? { options: [...shape.options] } : {}),
-    ...(dataType === 'bank_account' ? { country: shape.country ?? 'ES' } : {}),
-    requiredness: 'never' as const,
-    collectAt: 'anytime' as const,
-  };
-  const sealed = SEALABLE.has(dataType);
-  switch (kind) {
-    case 'financial':
-      return {
-        ...base,
-        ownership: ['employee'],
-        visibility: ['self', 'hr'],
-        classification: 'confidential',
-        piiKind: 'financial',
-        encrypted: sealed,
-        aiEligible: false,
-      };
-    case 'identifier':
-      return {
-        ...base,
-        ownership: ['employee'],
-        visibility: ['self', 'hr'],
-        classification: 'confidential',
-        piiKind: 'identity',
-        encrypted: sealed,
-        aiEligible: false,
-      };
-    case 'special':
-      return {
-        ...base,
-        ownership: ['employee'],
-        visibility: ['self', 'hr'],
-        classification: 'special-category',
-        piiKind: 'health',
-        encrypted: false,
-        aiEligible: false,
-      };
-    case 'contact':
-      return {
-        ...base,
-        ownership: ['employee'],
-        visibility: ['self', 'hr'],
-        classification: 'confidential',
-        piiKind: 'contact',
-        encrypted: false,
-        aiEligible: false,
-      };
-    case 'birth':
-      return {
-        ...base,
-        ownership: ['employee'],
-        visibility: ['self', 'hr'],
-        classification: 'confidential',
-        piiKind: 'identity',
-        encrypted: false,
-        aiEligible: false,
-      };
-    case 'plain':
-      return {
-        ...base,
-        ownership: ['hr'],
-        visibility: ['self', 'hr'],
-        classification: 'internal',
-        piiKind: 'none',
-        encrypted: false,
-        aiEligible: true,
-      };
-  }
 }

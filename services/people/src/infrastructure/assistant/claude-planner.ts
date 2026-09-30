@@ -2,30 +2,30 @@ import Anthropic from '@anthropic-ai/sdk';
 import { logger, type ModelTransport } from '@kithena/telemetry';
 import * as z from 'zod';
 
-import { SETTINGS_TOOLS } from '../../domain/assistant/settings-plan.js';
+import { NEW_FIELD_TOOLS } from '../../domain/import/new-fields.js';
 
 /**
- * The settings planner's model: Claude, over the Anthropic SDK, reached only
- * through the AI gateway (docs/ai-settings.md).
+ * The model that proposes fields for an import's new columns: Claude, over
+ * the Anthropic SDK, reached only through the AI gateway (docs/ai-settings.md).
  *
- * - `ANTHROPIC_API_KEY`: unset, and setting up with AI is simply not offered.
- * - `SETTINGS_ASSISTANT_MODEL`: `claude-opus-5-5` by default.
+ * - `ANTHROPIC_API_KEY`: unset, and People's own proposal stands.
+ * - `IMPORT_FIELDS_MODEL`: `claude-opus-5-5` by default.
  *
- * The model is offered one tool per kind of change and answers with calls;
- * nothing here runs one. Each call is recorded and answered "proposed, not
- * applied", and the loop goes on until the model calls `finish_plan` or stops
- * — a few turns at most. What comes back to People is the calls, as JSON,
- * which the application layer reads strictly and never trusts.
+ * It is offered three tools — propose a field, skip a column, finish — and
+ * answers with calls; nothing here runs one. Each call is answered "recorded,
+ * not applied", and the loop goes on until the model calls `finish` or stops,
+ * a few turns at most. What comes back to People is the calls, as JSON, which
+ * the application layer reads strictly and never trusts.
  *
  * **Caching.** The tools and the instruction are the same for every company
- * and every request, so the one breakpoint sits on the instruction: tools
- * then system are the cached prefix, and the settings and the request, which
- * vary, come after it in the user's turn.
+ * and every file, so the one breakpoint sits on the instruction: tools then
+ * system are the cached prefix, and the columns and sections, which vary,
+ * come after it in the user's turn.
  *
  * Forced tool choice is refused by this model, so the choice is `auto` and
  * the instruction says to use the tools. Thinking is always on; effort is set
  * explicitly (`medium`), and a refused request falls back server-side.
- * Streamed, because a whole company's settings is a long answer.
+ * Streamed, because a wide file is a long answer.
  */
 
 const DEFAULT_MODEL = 'claude-opus-5-5';
@@ -40,14 +40,14 @@ export interface ClaudePlannerConfig {
 export function claudePlannerConfigFrom(env: NodeJS.ProcessEnv): ClaudePlannerConfig | null {
   const apiKey = env['ANTHROPIC_API_KEY'];
   if (apiKey === undefined || apiKey === '') {
-    logger.info('ANTHROPIC_API_KEY unset; setting up with AI is not available');
+    logger.info('ANTHROPIC_API_KEY unset; new import columns get People’s own field proposals');
     return null;
   }
-  return { apiKey, model: env['SETTINGS_ASSISTANT_MODEL'] ?? DEFAULT_MODEL };
+  return { apiKey, model: env['IMPORT_FIELDS_MODEL'] ?? DEFAULT_MODEL };
 }
 
 /** The tools as the API takes them, from the same Zod the plan is read with. */
-export const PLANNER_TOOLS: Anthropic.Beta.BetaTool[] = SETTINGS_TOOLS.map((tool) => ({
+export const PLANNER_TOOLS: Anthropic.Beta.BetaTool[] = NEW_FIELD_TOOLS.map((tool) => ({
   name: tool.name,
   description: tool.description,
   input_schema: z.toJSONSchema(tool.input, {
@@ -58,10 +58,7 @@ export const PLANNER_TOOLS: Anthropic.Beta.BetaTool[] = SETTINGS_TOOLS.map((tool
   eager_input_streaming: true,
 }));
 
-export function claudeSettingsModel(
-  config: ClaudePlannerConfig,
-  client?: Anthropic,
-): ModelTransport {
+export function claudeFieldModel(config: ClaudePlannerConfig, client?: Anthropic): ModelTransport {
   const anthropic =
     client ?? new Anthropic({ apiKey: config.apiKey, timeout: config.timeoutMs ?? 180_000 });
   return async (prompt) => {
@@ -100,9 +97,9 @@ export function claudeSettingsModel(
           cacheRead: message.usage.cache_read_input_tokens,
           cacheWrite: message.usage.cache_creation_input_tokens,
         },
-        'settings plan turn',
+        'new fields turn',
       );
-      if (uses.length === 0 || uses.some((u) => u.name === 'finish_plan')) break;
+      if (uses.length === 0 || uses.some((u) => u.name === 'finish')) break;
       messages.push(
         { role: 'assistant', content: message.content },
         {
@@ -111,7 +108,7 @@ export function claudeSettingsModel(
             type: 'tool_result' as const,
             tool_use_id: u.id,
             content:
-              'Recorded as a proposal. Nothing is applied until the administrator reviews it. Propose anything still missing, then call finish_plan.',
+              'Recorded as a proposal. Nothing is applied until the administrator reviews it. Propose for any column still missing, then call finish.',
           })),
         },
       );

@@ -99,40 +99,6 @@ const RULES: readonly Rule[] = [
     say: () => ({ action: 'Reordered the sections' }),
   },
   {
-    path: new RegExp(`^/v1/schema/draft/sections/${ID}/archive$`),
-    area: 'fields',
-    say: (_m, _b, id) => ({
-      action: 'Removed a section',
-      subjectKey: id ?? null,
-      detail: 'Hidden from every form; the values in it are kept. In the draft until published.',
-    }),
-  },
-  {
-    path: new RegExp(`^/v1/schema/draft/attributes/${ID}/archive$`),
-    area: 'fields',
-    say: (_m, _b, id) => ({
-      action: 'Removed a field',
-      subjectKey: id ?? null,
-      detail: 'Hidden from forms, still exported, its values kept. In the draft until published.',
-    }),
-  },
-  {
-    path: /^\/v1\/schema\/draft\/packs$/,
-    area: 'fields',
-    say: (_m, b) => ({
-      action: 'Added a country pack',
-      subject: text(b['country']),
-      detail:
-        'Its identifiers and fields, where the draft lacked them. In the draft until published.',
-    }),
-  },
-  {
-    path: new RegExp(`^/v1/schema/draft/sections/([a-z][a-z0-9_]{0,63})$`),
-    area: 'fields',
-    say: (method, b) =>
-      method === 'PATCH' ? { action: 'Renamed a section', subject: text(b['label']) } : null,
-  },
-  {
     path: new RegExp(`^/v1/schema/draft/sections/${ID}/order$`),
     area: 'fields',
     say: (_m, _b, id) => ({ action: 'Reordered the fields in a section', subjectKey: id ?? null }),
@@ -180,6 +146,21 @@ const RULES: readonly Rule[] = [
         action: text(b['editing']) === null ? 'Added a field' : 'Changed a field',
         subject: text(input['label']),
         detail: fieldDetail(input),
+      };
+    },
+  },
+  {
+    // New information in an import (docs/ai-settings.md): one entry for the
+    // lot, in the review's words. Never the file.
+    path: /^\/v1\/imports\/new-fields\/apply$/,
+    area: 'fields',
+    say: (_m, b) => {
+      const kept = Array.isArray(b['proposals'])
+        ? b['proposals'].filter((p) => (p as Body | null)?.['include'] === true).length
+        : 0;
+      return {
+        action: `Added ${String(kept)} ${kept === 1 ? 'field' : 'fields'} from an import, with the AI assistant`,
+        detail: typeof b['summary'] === 'string' ? b['summary'].trim().slice(0, 500) || null : null,
       };
     },
   },

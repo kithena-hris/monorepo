@@ -10,7 +10,7 @@ import {
 } from '@kithena/contracts';
 
 import { CORE_PACK } from '../../country-packs/core.js';
-import { applyPack, COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
+import { COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
 import { seedCountryPack } from '../../country-packs/seed.js';
 import {
   aiShareable,
@@ -236,15 +236,13 @@ export async function addSection(
   deps: SchemaScreenDeps,
   asking: Asking,
   label: string,
-  /** Given when a copied setting names one; otherwise made from the label. */
-  key?: string,
 ): Promise<Result<void>> {
   return run(deps.service, asking.tenantId, (tx) =>
     asAdmin(deps, tx, asking, async () => {
       const current = await deps.schema.loadDraft(tx, asking.tenantId);
       const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
       const added = draft.addSection({
-        key: key ?? keyFrom(label),
+        key: keyFrom(label),
         label: { default: label.trim(), translations: {} },
         order: current.sections.length,
         defaultVisibility: ['self', 'hr'],
@@ -252,94 +250,6 @@ export async function addSection(
       });
       if (!added.ok) return added;
       await deps.draft.saveSection(tx, asking.tenantId, added.value);
-      return ok(undefined);
-    }),
-  );
-}
-
-/** Call a section something else: its key, and every field in it, stay. */
-export async function renameSection(
-  deps: SchemaScreenDeps,
-  asking: Asking,
-  key: string,
-  label: string,
-): Promise<Result<void>> {
-  return draftEdit(
-    deps,
-    asking,
-    (draft) => draft.renameSection(key, label),
-    (tx, s) => deps.draft.saveSection(tx, asking.tenantId, s),
-  );
-}
-
-/** Archive a section; refused while a required field lives in it. */
-export async function removeSection(
-  deps: SchemaScreenDeps,
-  asking: Asking,
-  key: string,
-): Promise<Result<void>> {
-  return draftEdit(
-    deps,
-    asking,
-    (draft) => draft.archiveSection(key, deps.clock),
-    (tx, s) => deps.draft.saveSection(tx, asking.tenantId, s),
-  );
-}
-
-/** Archive a company's own field: hidden from forms, its values kept. */
-export async function removeField(
-  deps: SchemaScreenDeps,
-  asking: Asking,
-  key: string,
-): Promise<Result<void>> {
-  return draftEdit(
-    deps,
-    asking,
-    (draft) => draft.archiveAttribute(key, deps.clock),
-    (tx, a) => deps.draft.saveAttribute(tx, asking.tenantId, a),
-  );
-}
-
-/**
- * Add a country's pack to the draft after setup: what the draft lacks of its
- * sections and fields, nothing it already holds. In force once published.
- */
-export async function addCountryPack(
-  deps: SchemaScreenDeps,
-  asking: Asking,
-  country: string,
-): Promise<Result<{ readonly sections: number; readonly fields: number }>> {
-  if (!Object.hasOwn(COUNTRY_PACKS, country)) {
-    return err(failure('VALUE_INVALID', `There is no country pack for ${country}`, ['country']));
-  }
-  return run(deps.service, asking.tenantId, (tx) =>
-    asAdmin(deps, tx, asking, async () => {
-      const current = await deps.schema.loadDraft(tx, asking.tenantId);
-      const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
-      // Through the draft's own checks, and only what it lacks (`applyPack`).
-      const added = applyPack(draft, COUNTRY_PACKS[country as PackCountry]);
-      if (!added.ok) return added;
-      for (const s of added.value.sections) await deps.draft.saveSection(tx, asking.tenantId, s);
-      for (const a of added.value.attributes)
-        await deps.draft.saveAttribute(tx, asking.tenantId, a);
-      return ok({ sections: added.value.sections.length, fields: added.value.attributes.length });
-    }),
-  );
-}
-
-/** One change to the draft, as an administrator, stored when the draft allows it. */
-function draftEdit<T>(
-  deps: SchemaScreenDeps,
-  asking: Asking,
-  change: (draft: SchemaDraft) => Result<T>,
-  save: (tx: Tx, value: T) => Promise<void>,
-): Promise<Result<void>> {
-  return run(deps.service, asking.tenantId, (tx) =>
-    asAdmin(deps, tx, asking, async () => {
-      const current = await deps.schema.loadDraft(tx, asking.tenantId);
-      const changed = change(SchemaDraft.rehydrate(current.sections, current.attributes));
-      if (!changed.ok) return changed;
-      await save(tx, changed.value);
       return ok(undefined);
     }),
   );
@@ -405,6 +315,8 @@ export interface FieldInput {
   readonly scheme?: string | null;
   /** Whether the assistant may use it; null or absent, it may where it could be (public or internal). */
   readonly aiEligible?: boolean | null;
+  /** Required of people added from now on only; existing records are not made incomplete (§6.5). */
+  readonly appliesTo?: 'all_records' | 'new_records';
 }
 
 function definitionOf(input: FieldInput, order: number): AttributeDefinitionInput {
@@ -446,7 +358,9 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
     requiredness:
       input.requiredness === 'conditional'
         ? { mode: 'conditional', when: input.requiredWhen }
-        : { mode: input.requiredness },
+        : input.requiredness === 'always' && input.appliesTo === 'new_records'
+          ? { mode: 'always', appliesTo: 'new_records' }
+          : { mode: input.requiredness },
     ownership: input.ownership,
     visibility: input.visibility,
     // Absent when there are none, as the contract keeps it (PEO-066).

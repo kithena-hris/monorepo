@@ -558,36 +558,67 @@ export async function completeImportUpload(
   });
 }
 
+/** An import's file as proposing new fields for it needs it (`application/assistant/import-fields.ts`). */
+export interface NewFieldsFile {
+  /** Columns neither the mapper nor HR placed: their headers and cells. */
+  readonly unmatched: readonly {
+    readonly index: number;
+    readonly header: string;
+    readonly cells: readonly string[];
+  }[];
+  /** Each row as the dry run reads it with the mapping so far: whom it creates or updates. */
+  readonly rows: readonly {
+    readonly outcome: string;
+    readonly personId: string | null;
+    readonly cells: readonly string[];
+  }[];
+}
+
 /**
- * The columns of an uploaded file that match no field and no system column,
- * with their cells, for proposing fields for them
- * (`application/assistant/import-fields.ts`). HR's, as every import step;
- * nothing is written. The cells stay in this process: the caller turns them
- * into shapes.
+ * The columns of an uploaded file that match no field — not by key, label or
+ * judgment, and not by HR's own choice on the mapping screen — with their
+ * cells, and the rows as the dry run classifies them with the mapping so far.
+ * HR's, as every import step; nothing is written. The cells stay in this
+ * process: the caller turns them into shapes and counts.
  */
-export async function unmatchedColumns(
+export async function newFieldsFile(
   deps: ImportDeps,
   asking: Asking,
-  uploadId: string,
-): Promise<
-  Result<readonly { readonly index: number; readonly header: string; readonly cells: readonly string[] }[]>
-> {
-  const read = await readUpload(uploadDeps(deps), inTx(deps, asking), who(asking), uploadId);
+  step: ImportStep,
+): Promise<Result<NewFieldsFile>> {
+  const read = await readUpload(uploadDeps(deps), inTx(deps, asking), who(asking), step.uploadId);
   if (!read.ok) return read;
   const { bytes } = read.value;
   return run(deps.service, asking.tenantId, async (tx) => {
     const prepared = await prepare(deps, tx, asking, bytes);
     if (!prepared.ok) return prepared;
     const { file, proposed } = prepared.value;
-    return ok(
-      proposed
-        .filter((c) => c.status === 'ignored' && c.key === null && c.source === null && c.header.trim() !== '')
+    const chosen = step.mapping ?? {};
+    const mapping = resolved(prepared.value, chosen);
+    if (!mapping.ok) return mapping;
+    const planned = await dryRun(tx, importDeps(deps), { ...asking, file, mapping: mapping.value });
+    if (!planned.ok) return planned;
+    return ok({
+      unmatched: proposed
+        .filter(
+          (c) =>
+            c.status === 'ignored' &&
+            c.key === null &&
+            c.source === null &&
+            c.header.trim() !== '' &&
+            typeof chosen[c.index] !== 'string',
+        )
         .map((c) => ({
           index: c.index,
           header: c.header,
           cells: file.rows.map((r) => r.cells[c.index] ?? ''),
         })),
-    );
+      rows: planned.value.rows.map((r) => ({
+        outcome: r.outcome,
+        personId: r.personId,
+        cells: r.cells,
+      })),
+    });
   });
 }
 
@@ -852,7 +883,7 @@ export async function exportBuilderView(
     for (const s of await segmentsFor(deps, tx, asking)) {
       if (!s.usableIn.directory) continue;
       const where = Object.fromEntries(s.filter.map((c) => [c.key, c.value]));
-      // eslint-disable-next-line no-await-in-loop -- a handful of segments, one transaction
+
       const inSegment = await deps.service.access.count(tx, { ...asking, where });
       if (inSegment.ok) {
         segments.push({ value: `segment:${s.id}`, label: s.name, count: inSegment.value.all });

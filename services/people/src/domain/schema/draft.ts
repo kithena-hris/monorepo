@@ -288,21 +288,6 @@ export class SchemaDraft {
     return ok(section);
   }
 
-  /** Call a section something else. Its key, and every field in it, stay as they are. */
-  renameSection(key: string, label: string): Result<Section> {
-    const section = this.#sections.get(key);
-    if (!section || section.archivedAt !== null) {
-      return err(failure('SECTION_UNKNOWN', `No section called ${key}`, ['sectionKey']));
-    }
-    const parsed = LocalizedString.safeParse({ ...section.label, default: label.trim() });
-    if (!parsed.success || label.trim() === '') {
-      return err(failure('SECTION_INVALID', 'A section needs a name', ['label']));
-    }
-    const renamed: Section = { ...section, label: parsed.data };
-    this.#sections.set(key, renamed);
-    return ok(renamed);
-  }
-
   /**
    * Archive a section, which is refused while anything required lives in it.
    *

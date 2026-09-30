@@ -28,7 +28,7 @@ import { LEAVING_REASONS, type EmploymentPeriodRow } from '../domain/person/pers
 import { statutoryFloors, type FloorView } from '../domain/retention/floors.js';
 import type { UpcomingErasure } from '../application/retention/sweep.js';
 import { builder, type RequestContext, type ViaRest } from './builder.js';
-import { defineSettingsAssistant } from './assistant-settings.js';
+import { defineImportFields } from './import-fields.js';
 import { defineOverview } from './overview.js';
 import { defineReports } from './reports.js';
 import { defineScreens } from './screens.js';
@@ -1341,7 +1341,7 @@ builder.mutationFields((t) => ({
 defineScreens(builder, viaRest);
 defineReports(builder, viaRest);
 defineOverview(builder, viaRest);
-defineSettingsAssistant(builder, viaRest);
+defineImportFields(builder, viaRest);
 defineTransfers(builder, viaRest);
 
 export const schema = builder.toSubGraphSchema({
