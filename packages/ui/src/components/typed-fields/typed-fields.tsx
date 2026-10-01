@@ -1,10 +1,14 @@
 'use client';
 
-import { useId, useRef, useState, type ComponentPropsWithoutRef, type JSX } from 'react';
 import { CircleX, Search } from 'lucide-react';
+import { useId, useRef, useState, type ComponentPropsWithoutRef, type JSX } from 'react';
 
+import { icons } from '../../icons';
 import { cn } from '../../lib/cn';
+import { keysOf, useShortcutKeys } from '../../lib/shortcut-keys';
 import { Input, type InputProps } from '../input/input';
+import { Kbd, KbdShortcut } from '../kbd/kbd';
+import { Spinner } from '../spinner/spinner';
 
 /**
  * The fields whose *behaviour* differs by type, not just their attributes.
@@ -34,6 +38,24 @@ export interface SearchFieldProps extends Omit<
   label?: string;
   /** Hides the leading magnifier where the surrounding UI already says "search". */
   hideIcon?: boolean;
+  /**
+   * `field` is the filled search box. `prompt` asks for a sentence rather
+   * than a keyword: a raised surface, the assistant's spark in place of the
+   * magnifier and a larger type. Same element, same keys.
+   */
+  variant?: 'field' | 'prompt';
+  /**
+   * The sentence is being worked out: a spinner where the clear button sits.
+   * The value stays editable, so a second thought does not wait for the first.
+   */
+  loading?: boolean;
+  /**
+   * The id of the app's shortcut that focuses this field (`setShortcutKeys`),
+   * drawn as a keycap while the field is empty. The app binds the key; this
+   * only shows it, and shows nothing when character keys are off or under a
+   * finger, where there is no `/` to press.
+   */
+  shortcut?: string;
 }
 
 /**
@@ -49,6 +71,10 @@ export interface SearchFieldProps extends Omit<
  * Focus returns to the input after clearing. Leaving focus on a button that
  * has just removed itself sends it to `<body>`, and the next Tab starts from
  * the top of the page.
+ *
+ * `variant="prompt"` is the same contract for a question asked in plain
+ * words: Enter asks, Escape clears (its keycap shown beside the clear button
+ * at a desk), and `loading` says the question is being worked out.
  */
 export function SearchField({
   value,
@@ -56,10 +82,55 @@ export function SearchField({
   onSearch,
   label = 'Search',
   hideIcon = false,
+  variant = 'field',
+  loading = false,
+  shortcut,
   className,
+  containerClassName,
   ...props
 }: SearchFieldProps): JSX.Element {
   const input = useRef<HTMLInputElement | null>(null);
+  const keys = keysOf(shortcut, useShortcutKeys());
+  const prompt = variant === 'prompt';
+
+  const clear = (
+    <button
+      type="button"
+      aria-label={`Clear ${label.toLowerCase()}`}
+      onClick={() => {
+        onValueChange('');
+        onSearch?.('');
+        input.current?.focus();
+      }}
+      className={cn(
+        'tap-target relative -me-1 flex size-7 items-center justify-center rounded-full text-fg-subtle',
+        'hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
+      )}
+    >
+      <CircleX aria-hidden className="size-[1.125rem]" />
+    </button>
+  );
+
+  const end = loading ? (
+    <Spinner size="sm" label="Working it out" />
+  ) : value === '' ? (
+    keys.length === 0 ? null : (
+      <KbdShortcut keys={keys} className="touch:hidden" />
+    )
+  ) : prompt ? (
+    <span className="flex items-center gap-1.5">
+      <Kbd keyName="esc" className="touch:hidden" />
+      {clear}
+    </span>
+  ) : (
+    clear
+  );
+
+  const start = prompt ? (
+    <icons.assistant aria-hidden className="text-accent-fg" />
+  ) : hideIcon ? null : (
+    <Search aria-hidden />
+  );
 
   return (
     <Input
@@ -79,26 +150,19 @@ export function SearchField({
           onSearch?.('');
         }
       }}
-      {...(hideIcon ? {} : { startAdornment: <Search aria-hidden /> })}
-      endAdornment={
-        value === '' ? null : (
-          <button
-            type="button"
-            aria-label={`Clear ${label.toLowerCase()}`}
-            onClick={() => {
-              onValueChange('');
-              onSearch?.('');
-              input.current?.focus();
-            }}
-            className={cn(
-              'tap-target relative -me-1 flex size-7 items-center justify-center rounded-full text-fg-subtle',
-              'hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
-            )}
-          >
-            <CircleX aria-hidden className="size-[1.125rem]" />
-          </button>
-        )
-      }
+      {...(start === null ? {} : { startAdornment: start })}
+      endAdornment={end}
+      containerClassName={cn(
+        prompt && [
+          // Raised rather than filled: it is the question the page asks, not
+          // one field among others.
+          'h-14 gap-3 rounded-[1.125rem] bg-surface px-4 text-md shadow-sm',
+          'hover:not-focus-within:bg-surface focus-within:shadow-md',
+          'touch:rounded-[1.125rem] touch:px-3.5',
+          '[&>span:first-child_svg]:size-5',
+        ],
+        containerClassName,
+      )}
       // The browser's own clear button is hidden in the base layer (base.css).
       className={className}
       {...props}

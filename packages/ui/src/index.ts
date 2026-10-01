@@ -37,6 +37,8 @@ export type {
 
 export {
   AssistantComposer,
+  AssistantCard,
+  AssistantLabel,
   AssistantLauncher,
   AssistantMark,
   AssistantMessage,
@@ -49,6 +51,7 @@ export {
   AssistantSuggestions,
 } from './components/assistant/assistant';
 export type {
+  AssistantCardProps,
   AssistantComposerProps,
   AssistantLauncherProps,
   AssistantMessageProps,
@@ -528,6 +531,8 @@ export {
 export type { PopoverContentProps, PopoverProps } from './components/popover/popover';
 
 export { HoverCard, HoverCardContent, HoverCardTrigger } from './components/hover-card/hover-card';
+export { IconList, IconListItem } from './components/icon-list/icon-list';
+export type { IconListItemProps, IconListProps } from './components/icon-list/icon-list';
 export type { HoverCardProps, HoverCardTriggerProps } from './components/hover-card/hover-card';
 
 export { CircularProgress, Progress } from './components/progress/progress';
@@ -546,6 +551,8 @@ export type { RatingProps } from './components/rating/rating';
 export type { RadioCardProps, RadioGroupItemProps } from './components/radio-group/radio-group';
 
 export { ScrollArea, ScrollBar } from './components/scroll-area/scroll-area';
+export { ScrollPosition } from './components/scroll-position/scroll-position';
+export type { ScrollPositionProps } from './components/scroll-position/scroll-position';
 export { VirtualList, type VirtualListProps } from './components/virtual-list/virtual-list';
 export type { ScrollAreaProps } from './components/scroll-area/scroll-area';
 
