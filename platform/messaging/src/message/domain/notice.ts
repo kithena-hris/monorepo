@@ -236,6 +236,9 @@ const COPY: {
   },
 };
 
+/** Every notice kind, read off the copy that must have one for each. */
+export const NOTICE_KINDS = Object.keys(COPY) as readonly NoticeKind[];
+
 export function renderNotice(
   notice: Notice,
   url: string,

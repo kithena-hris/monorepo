@@ -67,3 +67,24 @@ CREATE POLICY export_share_tenant_isolation ON people.export_share
 
 -- No DELETE: a request is kept as the export ledger is.
 GRANT SELECT, INSERT, UPDATE ON people.export_share TO svc_people;
+
+-- ### The kinds `messaging.delivery` records them under
+--
+-- Widened, as 20261001084600 did, when messaging's table is in this database:
+-- every notice kind messaging sends, the export's two among them. Keep it the
+-- whole list: `delivery-kinds.test.ts` in messaging reads the latest of these
+-- and compares it with the kinds the code sends.
+DO $$
+BEGIN
+  IF to_regclass('messaging.delivery') IS NOT NULL THEN
+    ALTER TABLE messaging.delivery DROP CONSTRAINT IF EXISTS delivery_kind_known;
+    ALTER TABLE messaging.delivery ADD CONSTRAINT delivery_kind_known CHECK (
+      kind IN (
+        'account_invitation', 'profile_reminder', 'webhook_disabled', 'scheduled_report',
+        'approval_requested', 'approval_decided', 'approval_expired', 'correction_requested',
+        'summary_shared', 'export_shared', 'export_share_requested'
+      )
+    );
+  END IF;
+END
+$$;
