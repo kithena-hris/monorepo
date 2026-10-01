@@ -8,6 +8,7 @@ import {
   Component,
   Suspense,
   use,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -16,8 +17,11 @@ import {
   type JSX,
   type ReactNode,
 } from 'react';
+import { preloadModule } from 'react-dom';
 import { hydrateRoot, type Root } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
+
+import { WAITING, releaseEarlyPresses } from '../lib/early-presses';
 
 /*
  * The shell's React and the shell's Reach, offered to every remote.
@@ -147,7 +151,8 @@ function serverHtml(name: string, route: RemoteRoute, props: object): Promise<st
  * it does not own, and hands the root its props through a store: an update
  * never reaches a boundary still waiting for the remote's JavaScript, which
  * React would answer by dropping the server's HTML. Until then the screen is
- * on the page, and a press on it is replayed once it hydrates.
+ * on the page, and the shell holds a press on it and replays it once it
+ * hydrates (`lib/early-presses.ts`): React itself drops it.
  */
 interface Current {
   readonly route: RemoteRoute;
@@ -174,12 +179,18 @@ type Store = ReturnType<typeof store>;
 function Hydrated({
   name,
   current,
+  container,
 }: {
   readonly name: string;
   readonly current: Store;
+  readonly container: Element;
 }): JSX.Element {
   const { route, props } = useSyncExternalStore(current.subscribe, current.get, current.get);
   const Screen = use(browserScreenOf(name, route));
+  // Mounted when the boundary commits its hydration, after the screen's own effects.
+  useEffect(() => {
+    releaseEarlyPresses(container);
+  }, [container]);
   return <Screen {...props} />;
 }
 
@@ -210,9 +221,14 @@ function Island({
       island = {
         root: hydrateRoot(
           container,
-          <RemoteBoundary area={area}>
+          <RemoteBoundary
+            area={area}
+            onFail={() => {
+              releaseEarlyPresses(container, false);
+            }}
+          >
             <Suspense fallback={null}>
-              <Hydrated name={name} current={current} />
+              <Hydrated name={name} current={current} container={container} />
             </Suspense>
           </RemoteBoundary>,
           { identifierPrefix: idPrefix(name) },
@@ -251,13 +267,17 @@ function Unavailable({ area }: { readonly area: string }): JSX.Element {
 
 /** A remote that loads and then throws is as down as one that never loaded. */
 class RemoteBoundary extends Component<
-  { readonly area: string; readonly children: ReactNode },
+  { readonly area: string; readonly children: ReactNode; readonly onFail?: () => void },
   { failed: boolean }
 > {
   override state = { failed: false };
 
   static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true };
+  }
+
+  override componentDidCatch(): void {
+    this.props.onFail?.();
   }
 
   override render(): ReactNode {
@@ -311,7 +331,10 @@ function Drawn({
   const [fromServer] = useState(hydrating);
   if (typeof window === 'undefined') {
     const html = use(serverHtml(name, route, props));
-    return <div data-remote={name} dangerouslySetInnerHTML={{ __html: html }} />;
+    // Waiting for the remote's code: a press here is held until it hydrates.
+    return (
+      <div data-remote={name} {...{ [WAITING]: '' }} dangerouslySetInnerHTML={{ __html: html }} />
+    );
   }
   if (fromServer) return <Island name={name} area={area} route={route} props={props} />;
   const Screen = use(browserScreenOf(name, route));
@@ -385,6 +408,8 @@ export function RemoteScreen({
   // Latched like `Drawn`'s, so the render after hydration does not start waiting.
   const [arrived] = useState(!hydrating);
   if (route === null) return <Unavailable area={area} />;
+  // Fetched beside the shell's own bundle rather than after it has hydrated.
+  preloadModule(route.entry);
   const screen = (
     <Suspense fallback={fallback ?? <Spinner label={`Loading ${area}`} />}>
       <Drawn name={name} area={area} route={route} props={props} />
