@@ -74,6 +74,9 @@ import {
   ChatConnect,
   ChatComplete,
   ChatNotice,
+  ApprovalCheckBody,
+  ApprovalQuestionBody,
+  ApprovalAnswerBody,
 } from './screens.js';
 import {
   ApplyInput as NewFieldsApply,
@@ -169,6 +172,9 @@ const components = {
   ChatConnect,
   ChatComplete,
   ChatNotice,
+  ApprovalCheck: ApprovalCheckBody,
+  ApprovalQuestion: ApprovalQuestionBody,
+  ApprovalAnswer: ApprovalAnswerBody,
   ImportStep: ImportStepBody,
   NewFieldsPropose,
   NewFieldsReview,
@@ -676,6 +682,42 @@ function screenPaths(): Record<string, unknown> {
         {
           path: 'key',
         },
+      ),
+    },
+    '/v1/pending-changes/{id}/not-unusual': {
+      post: screenWrite(
+        'Mark a flagged change not unusual: similar changes by the same requester are flagged less often. Decides nothing',
+        null,
+        200,
+        'Marked',
+        { path: 'id' },
+      ),
+    },
+    '/v1/pending-changes/{id}/questions': {
+      post: screenWrite(
+        'Ask the requester about a change before deciding it',
+        'ApprovalQuestion',
+        201,
+        'The question, unanswered',
+        { path: 'id' },
+      ),
+    },
+    '/v1/approval-questions/{id}/answer': {
+      post: screenWrite(
+        'The requester answers a question about their change, once',
+        'ApprovalAnswer',
+        200,
+        'The question, answered',
+        { path: 'id' },
+      ),
+    },
+    '/v1/approval-checks/{key}': {
+      put: screenWrite(
+        'Switch one of the checks that flag changes waiting for approval',
+        'ApprovalCheck',
+        200,
+        'Every check, with whether it is on',
+        { path: 'key' },
       ),
     },
     '/v1/chat/notices/{key}': {

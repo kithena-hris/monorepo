@@ -24,9 +24,21 @@ import type {
   PendingFieldView,
   RecordSection,
 } from './model.js';
-import { approvalsInbox, pendingFor, type InboxItem } from '../person/pending-changes.js';
-import { unusual, type Flag, type Money } from '../../domain/approval/unusual.js';
-import { personZone, placementOf, type TenantCalendar } from '../../domain/org/calendar.js';
+import { approvalsInbox, pendingFor } from '../person/pending-changes.js';
+import {
+  CHECKS,
+  rowSummary,
+  type CheckCode,
+  type Comparison,
+  type Reason,
+} from '../../domain/approval/unusual.js';
+import {
+  checksOf,
+  flagChange,
+  looking,
+  type CheckView,
+  type FlagStats,
+} from '../person/approval-flags.js';
 import { offersViewAs } from '../person/view-as.js';
 import {
   formValues,
@@ -596,7 +608,19 @@ export async function pendingOnRecord(
 
 /* ------------------------------------------------------------ approvals -- */
 
-/** One change in the approvals inbox (PEO-077). */
+/** A question about a change and its answer (AI7: "Ask Nora"), as the viewer may name who asked. */
+export interface ApprovalQuestion {
+  readonly id: string;
+  readonly question: string;
+  readonly askedBy: string;
+  readonly askedAt: string;
+  readonly answer: string | null;
+  readonly answeredAt: string | null;
+  /** The viewer asked for the change and nobody answered yet. */
+  readonly canAnswer: boolean;
+}
+
+/** One change in the approvals inbox (PEO-077), waiting or decided. */
 export interface ApprovalItem extends PendingFieldView {
   readonly personId: string;
   /** The person, as the viewer may name them. */
@@ -606,20 +630,57 @@ export interface ApprovalItem extends PendingFieldView {
   readonly readable: boolean;
   /** What is in force now, masked the same way; null when unreadable or empty. */
   readonly current: FormValue;
-  /** What looks unusual about it (`domain/approval/unusual.ts`): only for whoever decides it. */
-  readonly flags: readonly Flag[];
+  /**
+   * Why People's checks flag it (`domain/approval/unusual.ts`), with the
+   * numbers compared and an honest note: only for whoever decides it.
+   */
+  readonly flags: readonly Pick<Reason, 'code' | 'title' | 'detail'>[];
+  readonly comparisons: readonly Comparison[];
+  readonly flagNote: string | null;
+  /** The reasons in one line, for a row: "A 38% raise, above the band". */
+  readonly flagSummary: string | null;
+  /** Whoever may decide it may ask the requester first. */
+  readonly canAsk: boolean;
+  /** And may mark its flags not unusual. */
+  readonly canMark: boolean;
+  readonly questions: readonly ApprovalQuestion[];
+  readonly state: 'pending' | 'approved' | 'rejected';
+  /** Who decided, when and with what note: a decided change only. */
+  readonly decidedBy: string | null;
+  readonly decidedAt: string | null;
+  readonly note: string | null;
 }
 
 export interface ApprovalsView {
   /** HR sees every change waiting in the tenant; anybody else, their own. */
   readonly isHr: boolean;
   readonly items: readonly ApprovalItem[];
+  /** HR's: decided in the last 90 days, newest first. Empty for anybody else. */
+  readonly decided: readonly ApprovalItem[];
+  /** What Kithena checks (AI8), for HR; null for anybody else. */
+  readonly checks: readonly CheckView[] | null;
+  /** A People administrator switches the checks. */
+  readonly canTune: boolean;
+  /** The last 90 days, for HR; null for anybody else or where nothing is kept. */
+  readonly last90: FlagStats | null;
 }
+
+const NINETY_DAYS_MS = 90 * 86_400_000;
+const DECIDED_SHOWN = 50;
+
+const unflagged = {
+  flags: [],
+  comparisons: [],
+  flagNote: null,
+  flagSummary: null,
+} as const;
 
 /**
  * The approvals inbox (PEO-077): oldest first, each with who it is about, the
  * field, the value asked for and the value in force, who asked and when it
- * lapses. HR decides here; a requester withdraws here.
+ * lapses. HR decides here, after reading what the checks flag (AI7); a
+ * requester withdraws, or answers a question, here. HR also sees what was
+ * decided lately and what Kithena checks (AI8).
  */
 export async function approvalsView(
   deps: ScreenDeps,
@@ -627,24 +688,66 @@ export async function approvalsView(
 ): Promise<Result<ApprovalsView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const pending = deps.service.pending;
-    if (!pending) return ok({ isHr: false, items: [] });
+    if (!pending) {
+      return ok({ isHr: false, items: [], decided: [], checks: null, canTune: false, last90: null });
+    }
     const inbox = await approvalsInbox(tx, pending, asking);
     if (!inbox.ok) return inbox;
+    const isHr = inbox.value.isHr;
+    const since = new Date(Date.parse(deps.clock.instant()) - NINETY_DAYS_MS).toISOString();
+    const decided = isHr
+      ? await pending.store.decided(tx, asking.tenantId, { since, limit: DECIDED_SHOWN })
+      : [];
     const version = await deps.service.schemas.current(tx, asking.tenantId);
-    const labels = new Map(
-      (version?.document.attributes ?? []).map((d) => [d.key as string, d.label.default]),
-    );
-    const by = await actors(
-      deps,
-      tx,
-      asking,
-      inbox.value.items.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
-    );
+    const definitions = version?.document.attributes ?? [];
+    const labels = new Map(definitions.map((d) => [d.key as string, d.label.default]));
+    const questions =
+      pending.flags === undefined
+        ? []
+        : await pending.flags.store.questions(tx, asking.tenantId, [
+            ...inbox.value.items.map((c) => c.id),
+            ...decided.map((c) => c.approval.id),
+          ]);
+    const by = await actors(deps, tx, asking, [
+      ...inbox.value.items.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
+      ...decided.flatMap((c) => [
+        { kind: 'user' as const, userId: c.approval.requestedBy },
+        ...(c.approval.decidedBy === null
+          ? []
+          : [{ kind: 'user' as const, userId: c.approval.decidedBy }]),
+      ]),
+      ...questions.map((q) => ({ kind: 'user' as const, userId: q.askedBy })),
+    ]);
+    const user = (userId: string) => by({ kind: 'user', userId });
+    const asked = (changeId: string, mine: boolean): ApprovalQuestion[] =>
+      questions
+        .filter((q) => q.changeId === changeId)
+        .map((q) => ({
+          id: q.id,
+          question: q.question,
+          askedBy: user(q.askedBy),
+          askedAt: q.askedAt,
+          answer: q.answer,
+          answeredAt: q.answeredAt,
+          canAnswer: mine && q.answer === null,
+        }));
+    const look = await looking(tx, pending, asking);
+
     const items: ApprovalItem[] = [];
-    const flagging = flagger(deps, tx, asking, version?.document.attributes ?? []);
     for (const c of inbox.value.items) {
       const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
       const attributes = person.ok ? person.value.attributes : {};
+      const change =
+        c.canDecide || c.canSelfApprove ? await pending.store.find(tx, asking.tenantId, c.id) : null;
+      // Only to those who decide: a requester is never told which rule they tripped.
+      const found =
+        change === null
+          ? null
+          : await flagChange(tx, pending, look, {
+              change,
+              readable: c.readable,
+              requesterName: user(c.requestedBy),
+            });
       items.push({
         id: c.id,
         personId: c.personId,
@@ -658,90 +761,99 @@ export async function approvalsView(
         effectiveFrom: c.effectiveFrom,
         requestedAt: c.requestedAt,
         expiresAt: c.expiresAt,
-        requestedBy: by({ kind: 'user', userId: c.requestedBy }),
+        requestedBy: user(c.requestedBy),
         reason: c.reason,
         mine: c.mine,
         canDecide: c.canDecide,
         canSelfApprove: c.canSelfApprove,
         awaitingReview: c.awaitingReview,
         findings: c.findings,
-        // Only to those who decide: a requester is never told which rule they tripped.
-        flags: c.canDecide || c.canSelfApprove ? await flagging(c, attributes, labels) : [],
+        ...(found === null
+          ? unflagged
+          : {
+              flags: found.reasons.map(({ code, title, detail }) => ({ code, title, detail })),
+              comparisons: found.comparisons,
+              flagNote: found.note,
+              flagSummary: rowSummary(found.reasons),
+            }),
+        canAsk: c.canDecide && pending.flags !== undefined,
+        canMark: c.canDecide && pending.flags !== undefined && (found?.reasons.length ?? 0) > 0,
+        questions: asked(c.id, c.mine),
+        state: 'pending',
+        decidedBy: null,
+        decidedAt: null,
+        note: null,
       });
     }
-    return ok({ isHr: inbox.value.isHr, items });
-  });
-}
 
-/* ------------------------------------------- unusual changes (flags) -- */
-
-const moneyOf = (value: unknown): Money | null =>
-  value !== null &&
-  typeof value === 'object' &&
-  'amountMinor' in value &&
-  'currency' in value &&
-  !('last4' in value)
-    ? { amountMinor: String(value.amountMinor), currency: String(value.currency) }
-    : null;
-
-/**
- * The flags on one change in the inbox, from what else was asked about the
- * same person and the working day where they sit. Pay is compared only when
- * the decider may read the field and both amounts are in clear, so a flag
- * never says more about a value than the decider could see for themselves.
- */
-function flagger(
-  deps: ScreenDeps,
-  tx: Tx,
-  asking: Asking,
-  definitions: readonly AttributeDefinition[],
-) {
-  const pending = deps.service.pending;
-  const typeOf = new Map(definitions.map((d) => [d.key as string, d.dataType as string]));
-  const history = new Map<
-    string,
-    Awaited<ReturnType<NonNullable<typeof pending>['store']['forPerson']>>
-  >();
-  let calendar: TenantCalendar | undefined;
-  return async (
-    c: InboxItem,
-    attributes: Readonly<Record<string, unknown>>,
-    labels: ReadonlyMap<string, string>,
-  ): Promise<Flag[]> => {
-    if (!pending) return [];
-    calendar ??= await deps.calendars.load(tx, asking.tenantId);
-    let asked = history.get(c.personId);
-    if (asked === undefined) {
-      asked = await pending.store.forPerson(tx, asking.tenantId, c.personId);
-      history.set(c.personId, asked);
-    }
-    const record = await pending.reader.record(tx, asking.tenantId, c.personId);
-    const before = c.readable ? moneyOf(attributes[c.attributeKey]) : null;
-    const after = c.readable ? moneyOf(c.value) : null;
-    return unusual(
-      {
-        id: c.id,
+    const titleOf = new Map<string, string>(CHECKS.map((k) => [k.code, k.title]));
+    const decidedItems: ApprovalItem[] = [];
+    for (const c of decided) {
+      const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
+      const attributes = person.ok ? person.value.attributes : {};
+      const definition = definitions.find((d) => d.key === c.attributeKey);
+      const readable =
+        definition !== undefined &&
+        visibleTo(
+          definition,
+          await deps.relations.relations(tx, asking.tenantId, asking.viewer, c.personId),
+        );
+      const shown = c.sealed ? { last4: c.last4 } : c.value;
+      const codes = c.flags ?? [];
+      decidedItems.push({
+        id: c.approval.id,
+        personId: c.personId,
+        name: nameOf(attributes) ?? 'Unnamed',
+        key: c.attributeKey,
         label: labels.get(c.attributeKey) ?? c.attributeKey,
-        dataType: typeOf.get(c.attributeKey) ?? 'text',
-        requestedAt: c.requestedAt,
-        requestedBy: c.requestedBy,
-        subjectAccountId: record?.snapshot.identityAccountId ?? null,
+        kind: c.kind,
+        value: readable ? toForm(shown) : null,
+        readable,
+        current: readable ? toForm(attributes[c.attributeKey]) : null,
         effectiveFrom: c.effectiveFrom,
-        pay: before !== null && after !== null ? { before, after } : null,
-        findings: c.findings,
-      },
-      {
-        others: asked.map((o) => ({
-          id: o.approval.id,
-          dataType: typeOf.get(o.attributeKey) ?? 'text',
-          requestedAt: o.approval.requestedAt,
-          requestedBy: o.approval.requestedBy,
-          state: o.approval.state,
+        requestedAt: c.approval.requestedAt,
+        expiresAt: c.approval.expiresAt,
+        requestedBy: user(c.approval.requestedBy),
+        reason: c.approval.reason === '' ? null : c.approval.reason,
+        mine: c.approval.requestedBy === asking.viewer.accountId,
+        canDecide: false,
+        canSelfApprove: false,
+        awaitingReview: false,
+        findings: [],
+        // What flagged it when it was decided, by name: the comparison itself is not kept.
+        flags: codes.map((code) => ({
+          code: code as CheckCode,
+          title: titleOf.get(code) ?? code,
+          detail: '',
         })),
-        zone: personZone(calendar, placementOf(attributes), c.requestedAt),
-      },
-    );
-  };
+        comparisons: [],
+        flagNote: null,
+        flagSummary: rowSummary(codes.map((code) => ({ title: titleOf.get(code) ?? code }))),
+        canAsk: false,
+        canMark: false,
+        questions: asked(c.approval.id, false),
+        state: c.approval.state === 'approved' ? 'approved' : 'rejected',
+        decidedBy: c.approval.decidedBy === null ? null : user(c.approval.decidedBy),
+        decidedAt: c.approval.decidedAt,
+        note: c.approval.note,
+      });
+    }
+
+    const everyone = isHr
+      ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY)
+      : null;
+    return ok({
+      isHr,
+      items,
+      decided: decidedItems,
+      checks: isHr ? checksOf(look.enabled) : null,
+      canTune: everyone?.isAdmin === true && pending.flags !== undefined,
+      last90:
+        isHr && pending.flags !== undefined
+          ? await pending.flags.store.stats(tx, asking.tenantId, since)
+          : null,
+    });
+  });
 }
 
 export { checkSection, saveSection };

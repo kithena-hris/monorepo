@@ -101,7 +101,7 @@ describe('Approvals from the keyboard', () => {
     readable: true,
   };
 
-  it('moves with J and approves the focused change with A, through its confirmation', async () => {
+  it('moves with J, and A opens the focused change at its note, deciding nothing yet', async () => {
     const onDecide = vi.fn(done);
     render(
       <Approvals
@@ -124,9 +124,11 @@ describe('Approvals from the keyboard', () => {
     await press('j');
     expect(document.activeElement).toBe(omar);
     await press('a');
-    // Not decided yet: the same confirmation a click opens, with its note.
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/Omar Haddad/)).toBeInTheDocument();
+    // Not decided yet: Omar's change, open, with the note the decision keeps.
+    // (Narrow here, so the pane takes focus as a push does; at a desk the note does.)
+    const detail = await screen.findByRole('region', { name: /Omar Haddad/ });
+    expect(detail.contains(document.activeElement)).toBe(true);
+    expect(within(detail).getByLabelText('Note')).toBeInTheDocument();
     expect(onDecide).not.toHaveBeenCalled();
   });
 });

@@ -75,6 +75,7 @@ beforeAll(async () => {
     '20260926140000_people_visibility_rules.sql',
     '20260926180000_people_pending_change.sql',
     '20260926230000_people_pending_change_decided_as.sql',
+    '20261001170000_people_approval_flags.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
     '20260926143000_people_duplicates.sql',
@@ -357,11 +358,12 @@ describe('the booted service', () => {
       [expect.objectContaining({ id: changeId, canDecide: true })],
     );
 
+    // With a note: back-dated pay may be flagged, and approving a flag needs one.
     const decide = (account: string, key: string) =>
       fetch(`${base}/v1/pending-changes/${changeId}/decision`, {
         method: 'POST',
         headers: { ...headers(account, ['hr']), 'idempotency-key': key },
-        body: JSON.stringify({ approve: true }),
+        body: JSON.stringify({ approve: true, note: 'September’s bonus, agreed in August' }),
       });
     expect((await decide(HR_ACCOUNT, 'own')).status).toBe(403);
     const approved = await decide(SECOND_HR, 'second');

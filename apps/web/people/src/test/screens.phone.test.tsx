@@ -1,4 +1,4 @@
-import { TooltipProvider } from '@reach/ui';
+import { AssistantLauncher, TooltipProvider } from '@reach/ui';
 import { render, screen, within } from '@testing-library/react';
 import axe from 'axe-core';
 import type { ReactElement } from 'react';
@@ -1285,8 +1285,80 @@ describe('at 390×844, with a finger', () => {
   });
 });
 
-describe('approvals on a phone, with a flagged change', () => {
-  it('draws the flags on the row and the change, and every target is a finger’s', async () => {
+describe('a floating button over a pinned footer (MA7)', () => {
+  it('rises above the footer, so Approve is the thing under a finger at its centre', async () => {
+    mount(
+      <>
+        <Approvals
+          load={{
+            status: 'ready',
+            data: {
+              isHr: true,
+              items: [
+                {
+                  id: 'c1',
+                  personId: 'p1',
+                  name: 'Tom Fischer',
+                  key: 'base_salary',
+                  label: 'Base salary',
+                  kind: 'value',
+                  value: { amountMinor: '8400000', currency: 'EUR' },
+                  current: { amountMinor: '6100000', currency: 'EUR' },
+                  readable: true,
+                  effectiveFrom: '2026-10-01',
+                  requestedAt: '2026-09-22T09:40:00.000Z',
+                  expiresAt: '2026-09-29T09:40:00.000Z',
+                  requestedBy: 'Nora Becker',
+                  reason: null,
+                  mine: false,
+                  canDecide: true,
+                  canAsk: true,
+                  canMark: true,
+                  flags: [
+                    { code: 'raise', title: 'A 38% raise', detail: 'Sales median is 4%' },
+                    { code: 'band', title: 'Above the band', detail: 'Band tops out at €78k' },
+                  ],
+                  flagNote: 'This might be fine: a promotion would explain both.',
+                  flagSummary: 'A 38% raise, above the band',
+                },
+              ],
+            },
+          }}
+          onDecide={ok}
+          onWithdraw={ok}
+          onMarkNotUnusual={ok}
+          onAsk={ok}
+          change="c1"
+          onChangeOpen={() => undefined}
+        />
+        {/* Where the shell puts it under a finger: the corner above the tab bar. */}
+        <AssistantLauncher label="Ask" onOpen={() => undefined} className="fixed end-4 bottom-24 z-40" />
+      </>,
+    );
+    await settled();
+    // Every scroll position the footer is pinned at: the top of the page and the end of it.
+    let looked = 0;
+    for (const y of [0, document.documentElement.scrollHeight]) {
+      window.scrollTo(0, y);
+      // The launcher measures once a frame.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await settled();
+      const approve = screen.getByRole('button', { name: /with note$/ });
+      const box = approve.getBoundingClientRect();
+      if (box.bottom <= 0 || box.top >= window.innerHeight) continue;
+      // At its centre, as asked, and at each end too: a corner under the button is still covered.
+      const middle = box.top + box.height / 2;
+      for (const x of [box.left + 4, box.left + box.width / 2, box.right - 4]) {
+        expect(document.elementFromPoint(x, middle)?.closest('button')).toBe(approve);
+      }
+      looked += 1;
+    }
+    expect(looked).toBeGreaterThan(0);
+  });
+});
+
+describe('approvals on a phone, with a flagged change (MA7)', () => {
+  it('draws why it is flagged and the decision, and every target is a finger’s', async () => {
     await checked(
       <Approvals
         load={{
@@ -1297,35 +1369,84 @@ describe('approvals on a phone, with a flagged change', () => {
               {
                 id: 'c1',
                 personId: 'p1',
-                name: 'Lucía Ortega',
-                key: 'iban',
-                label: 'IBAN',
+                name: 'Tom Fischer',
+                key: 'base_salary',
+                label: 'Base salary',
                 kind: 'value',
-                value: { last4: '1332' },
-                current: { last4: '3000' },
+                value: { amountMinor: '8400000', currency: 'EUR' },
+                current: { amountMinor: '6100000', currency: 'EUR' },
                 readable: true,
-                effectiveFrom: '2026-09-22',
-                requestedAt: '2026-09-22T21:40:00.000Z',
-                expiresAt: '2026-09-29T21:40:00.000Z',
-                requestedBy: 'Marco Rossi',
+                effectiveFrom: '2026-10-01',
+                requestedAt: '2026-09-22T09:40:00.000Z',
+                expiresAt: '2026-09-29T09:40:00.000Z',
+                requestedBy: 'Nora Becker',
                 reason: null,
                 mine: false,
                 canDecide: true,
+                canAsk: true,
+                canMark: true,
                 flags: [
-                  {
-                    code: 'bank_by_other',
-                    reason: 'Bank details were changed by someone other than the employee.',
-                  },
+                  { code: 'raise', title: 'A 38% raise', detail: 'Sales median is 4%' },
+                  { code: 'band', title: 'Above the band', detail: 'Band tops out at €78k' },
                 ],
+                comparisons: [
+                  { label: 'This change', percent: '38', highlight: true },
+                  { label: 'Sales median', percent: '4', highlight: false },
+                ],
+                flagNote: 'This might be fine: a promotion would explain both.',
+                flagSummary: 'A 38% raise, above the band',
               },
             ],
           },
         }}
         onDecide={ok}
         onWithdraw={ok}
+        onMarkNotUnusual={ok}
+        onAsk={ok}
+        change="c1"
+        onChangeOpen={() => undefined}
       />,
     );
-    expect(screen.getByText('1 flag')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Why this is flagged' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /with note$/ })).toBeInTheDocument();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+  });
+
+  it('puts what gets flagged under the Flagged tab, switches a finger’s', async () => {
+    await checked(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: {
+            isHr: true,
+            items: [],
+            canTune: true,
+            checks: [
+              {
+                code: 'raise',
+                title: 'Raise much bigger than usual',
+                detail: 'Compared with the team’s raises this year',
+                on: true,
+              },
+              {
+                code: 'unusual_time',
+                title: 'Requested at an unusual time',
+                detail: 'Outside the requester’s working hours',
+                on: false,
+              },
+            ],
+            last90: { flagged: 11, rejected: 3, marked: 6 },
+          },
+        }}
+        onDecide={ok}
+        onWithdraw={ok}
+        onSetCheck={ok}
+        tab="flagged"
+        onTabChange={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'What Kithena checks' })).toBeInTheDocument();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   });
 });
 

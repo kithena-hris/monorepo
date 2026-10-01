@@ -608,10 +608,60 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     .objectRef<ApprovalsView['items'][number]['flags'][number]>('ApprovalFlag')
     .implement({
       description:
-        'Something unusual about a change, found by People’s rules, for whoever decides it. It never blocks.',
+        'Why People’s checks flag a change (design AI7), for whoever decides it. It never blocks.',
+      fields: (t) => ({
+        code: t.exposeString('code', { description: 'The check: raise, band, bank_after_contact, close_colleagues, payroll_closing or unusual_time.' }),
+        title: t.exposeString('title', { description: '“A 38% raise”.' }),
+        detail: t.exposeString('detail', {
+          description: 'What it compared against, in words. Empty on a decided change.',
+        }),
+      }),
+    });
+  const ApprovalComparisonRef = builder
+    .objectRef<ApprovalsView['items'][number]['comparisons'][number]>('ApprovalComparison')
+    .implement({
+      description: 'One of the numbers a flag compared against, as a whole percentage.',
+      fields: (t) => ({
+        label: t.exposeString('label'),
+        percent: t.exposeString('percent'),
+        highlight: t.exposeBoolean('highlight', { description: 'The change itself.' }),
+      }),
+    });
+  const ApprovalQuestionRef = builder
+    .objectRef<ApprovalsView['items'][number]['questions'][number]>('ApprovalQuestion')
+    .implement({
+      description: 'A question the decider asked the requester, and the answer.',
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        question: t.exposeString('question'),
+        askedBy: t.exposeString('askedBy'),
+        askedAt: t.exposeString('askedAt'),
+        answer: t.exposeString('answer', { nullable: true }),
+        answeredAt: t.exposeString('answeredAt', { nullable: true }),
+        canAnswer: t.exposeBoolean('canAnswer', {
+          description: 'The viewer asked for the change and nobody answered yet.',
+        }),
+      }),
+    });
+  const ApprovalCheckRef = builder
+    .objectRef<NonNullable<ApprovalsView['checks']>[number]>('ApprovalCheck')
+    .implement({
+      description: 'One of the checks Kithena runs on changes waiting for approval (design AI8).',
       fields: (t) => ({
         code: t.exposeString('code'),
-        reason: t.exposeString('reason'),
+        title: t.exposeString('title'),
+        detail: t.exposeString('detail'),
+        on: t.exposeBoolean('on'),
+      }),
+    });
+  const ApprovalStatsRef = builder
+    .objectRef<NonNullable<ApprovalsView['last90']>>('ApprovalFlagStats')
+    .implement({
+      description: 'Changes asked for in the last 90 days that a check flagged.',
+      fields: (t) => ({
+        flagged: t.exposeInt('flagged'),
+        rejected: t.exposeInt('rejected'),
+        marked: t.exposeInt('marked', { description: 'Marked not unusual.' }),
       }),
     });
   const ApprovalItemRef = builder
@@ -623,6 +673,22 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description: 'Only to whoever decides it; empty for anybody else.',
           resolve: (c) => list(c.flags),
         }),
+        comparisons: t.field({ type: [ApprovalComparisonRef], resolve: (c) => list(c.comparisons) }),
+        flagNote: t.exposeString('flagNote', {
+          nullable: true,
+          description: '“This might be fine: …”, with anything flagged.',
+        }),
+        flagSummary: t.exposeString('flagSummary', {
+          nullable: true,
+          description: 'The reasons in one line, for a row.',
+        }),
+        canAsk: t.exposeBoolean('canAsk'),
+        canMark: t.exposeBoolean('canMark', { description: 'May mark its flags not unusual.' }),
+        questions: t.field({ type: [ApprovalQuestionRef], resolve: (c) => list(c.questions) }),
+        state: t.exposeString('state', { description: 'pending, approved or rejected.' }),
+        decidedBy: t.exposeString('decidedBy', { nullable: true }),
+        decidedAt: t.exposeString('decidedAt', { nullable: true }),
+        note: t.exposeString('note', { nullable: true }),
         id: t.exposeID('id'),
         key: t.exposeString('key'),
         label: t.exposeString('label'),
@@ -656,6 +722,25 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       isHr: t.exposeBoolean('isHr'),
       items: t.field({ type: [ApprovalItemRef], resolve: (v) => list(v.items) }),
+      decided: t.field({
+        type: [ApprovalItemRef],
+        description: 'HR’s: decided in the last 90 days, newest first.',
+        resolve: (v) => list(v.decided),
+      }),
+      checks: t.field({
+        type: [ApprovalCheckRef],
+        nullable: true,
+        description: 'What Kithena checks, for HR.',
+        resolve: (v) => (v.checks === null ? null : list(v.checks)),
+      }),
+      canTune: t.exposeBoolean('canTune', {
+        description: 'A People administrator switches the checks.',
+      }),
+      last90: t.field({
+        type: ApprovalStatsRef,
+        nullable: true,
+        resolve: (v) => v.last90,
+      }),
     }),
   });
 
@@ -3139,6 +3224,67 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(id)}/decision`, {
           body: sent(decision),
           key: idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    markPendingChangeNotUnusual: t.field({
+      type: Outcome,
+      description:
+        'Its flags were not worth raising (design AI7): similar changes by the same requester are flagged less often. Decides nothing.',
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(args.id)}/not-unusual`, {
+          body: {},
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    askAboutPendingChange: t.field({
+      type: Outcome,
+      description: 'Whoever may decide a change asks the requester first (“Ask Nora”).',
+      args: {
+        id: t.arg.id({ required: true }),
+        question: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(args.id)}/questions`, {
+          body: { question: args.question },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    answerApprovalQuestion: t.field({
+      type: Outcome,
+      description: 'The requester answers a question about their change, once.',
+      args: {
+        id: t.arg.id({ required: true }),
+        answer: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/approval-questions/${encodeURIComponent(args.id)}/answer`, {
+          body: { answer: args.answer },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    setApprovalCheck: t.field({
+      type: Outcome,
+      description: 'A People administrator switches one of the approval checks on or off.',
+      args: {
+        code: t.arg.string({ required: true }),
+        on: t.arg.boolean({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'PUT', `/v1/approval-checks/${encodeURIComponent(args.code)}`, {
+          body: { on: args.on },
+          key: args.idempotencyKey,
         });
         return done();
       },

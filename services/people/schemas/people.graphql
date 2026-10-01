@@ -161,22 +161,64 @@ type AnalyticsTenureBand {
 }
 
 """
-Something unusual about a change, found by People’s rules, for whoever decides it. It never blocks.
+One of the checks Kithena runs on changes waiting for approval (design AI8).
+"""
+type ApprovalCheck {
+  code: String
+  detail: String
+  on: Boolean
+  title: String
+}
+
+"""One of the numbers a flag compared against, as a whole percentage."""
+type ApprovalComparison {
+  """The change itself."""
+  highlight: Boolean
+  label: String
+  percent: String
+}
+
+"""
+Why People’s checks flag a change (design AI7), for whoever decides it. It never blocks.
 """
 type ApprovalFlag {
+  """
+  The check: raise, band, bank_after_contact, close_colleagues, payroll_closing or unusual_time.
+  """
   code: String
-  reason: String
+  """What it compared against, in words. Empty on a decided change."""
+  detail: String
+  """“A 38% raise”."""
+  title: String
+}
+
+"""Changes asked for in the last 90 days that a check flagged."""
+type ApprovalFlagStats {
+  flagged: Int
+  """Marked not unusual."""
+  marked: Int
+  rejected: Int
 }
 
 type ApprovalItem {
   awaitingReview: Boolean
+  canAsk: Boolean
   canDecide: Boolean
+  """May mark its flags not unusual."""
+  canMark: Boolean
   canSelfApprove: Boolean
+  comparisons: [ApprovalComparison!]
   """What is in force now, masked the same way."""
   current: FormEntry
+  decidedAt: String
+  decidedBy: String
   effectiveFrom: String
   expiresAt: String
   findings: [IdentifierFinding!]
+  """“This might be fine: …”, with anything flagged."""
+  flagNote: String
+  """The reasons in one line, for a row."""
+  flagSummary: String
   """Only to whoever decides it; empty for anybody else."""
   flags: [ApprovalFlag!]
   id: ID
@@ -185,7 +227,9 @@ type ApprovalItem {
   label: String
   mine: Boolean
   name: String
+  note: String
   personId: ID
+  questions: [ApprovalQuestion!]
   """
   False where the viewer may not read the field: value and current are empty.
   """
@@ -193,7 +237,21 @@ type ApprovalItem {
   reason: String
   requestedAt: String
   requestedBy: String
+  """pending, approved or rejected."""
+  state: String
   value: FormEntry
+}
+
+"""A question the decider asked the requester, and the answer."""
+type ApprovalQuestion {
+  answer: String
+  answeredAt: String
+  askedAt: String
+  askedBy: String
+  """The viewer asked for the change and nobody answered yet."""
+  canAnswer: Boolean
+  id: ID
+  question: String
 }
 
 """
@@ -989,6 +1047,10 @@ type Mutation {
   Add the reviewed fields, publish them and write the defaults, in one transaction. A People administrator’s.
   """
   addImportFields(idempotencyKey: String!, input: String!): String
+  """The requester answers a question about their change, once."""
+  answerApprovalQuestion(answer: String!, id: ID!, idempotencyKey: String!): WriteOutcome
+  """Whoever may decide a change asks the requester first (“Ask Nora”)."""
+  askAboutPendingChange(id: ID!, idempotencyKey: String!, question: String!): WriteOutcome
   """
   A page of a bulk edit: one ordinary write per person, each atomic, each answered.
   """
@@ -1135,6 +1197,10 @@ type Mutation {
     personId: ID!
   ): Person
   """
+  Its flags were not worth raising (design AI7): similar changes by the same requester are flagged less often. Decides nothing.
+  """
+  markPendingChangeNotUnusual(id: ID!, idempotencyKey: String!): WriteOutcome
+  """
   Absorb a duplicate that was never hired into this person (PEO-074): a tombstone pointing here, its account moved here, the chosen values copied; HR only.
   """
   mergePerson(absorbedPersonId: ID!, idempotencyKey: String!, personId: ID!, take: [String!]): Person
@@ -1236,6 +1302,8 @@ type Mutation {
   """
   savePeopleSegment(conditions: [DirectoryConditionInput!], filter: [PeopleSegmentConditionInput!]!, idempotencyKey: String!, match: String, name: String!, shared: Boolean!): PeopleSegment
   savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): SectionSaved
+  """A People administrator switches one of the approval checks on or off."""
+  setApprovalCheck(code: String!, idempotencyKey: String!, on: Boolean!): WriteOutcome
   """Send one of People’s notices to chat apps, or stop."""
   setChatNotice(idempotencyKey: String!, key: String!, on: Boolean!): PeopleChat
   """
@@ -1469,8 +1537,15 @@ type PeopleAnswerPerson {
 Changes waiting for approval: every one for HR, the viewer’s own otherwise.
 """
 type PeopleApprovals {
+  """A People administrator switches the checks."""
+  canTune: Boolean
+  """What Kithena checks, for HR."""
+  checks: [ApprovalCheck!]
+  """HR’s: decided in the last 90 days, newest first."""
+  decided: [ApprovalItem!]
   isHr: Boolean
   items: [ApprovalItem!]
+  last90: ApprovalFlagStats
 }
 
 """The people chosen, and the fields HR may set on them in bulk."""
@@ -1712,6 +1787,10 @@ type PeopleOverview {
 }
 
 type PeopleOverviewApproval {
+  """
+  Whoever decides asked the viewer, who asked for it, a question not yet answered.
+  """
+  asked: Boolean
   avatarUrl: String
   id: ID
   label: String

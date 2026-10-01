@@ -2076,6 +2076,25 @@ to somebody"). What the design shows and the backend cannot honestly do yet:
       leavers point counts people who left, from the snapshot's flows, not
       notices given; no streaks.
 
+<!-- Flagged approvals (design AI7, AI8, MA6, MA7): its own block. -->
+- [x] **PEO-132** Flag raises and band breaches on a sealed salary. Decided
+      2026-10-01: for a decider who may read the field, the checks open the
+      value in force (`SecretStore.reveal`) and the change's own seal in
+      memory, for that request only, and say percentages and the band's
+      limits, never an amount; nothing decrypted is stored, cached or logged
+      (`http/sealed-flags.integration.test.ts`). A sealed field's history
+      keeps no amounts, so there is no team comparison for it. A decider who
+      may not read the field gets no pay flag and no hint of one.
+- [ ] **PEO-133** Tell the requester by email and in chat when HR asks about
+      their change ("Ask Nora"). Today the question reaches their bell and
+      Inbox only. Needs an `approval_question` notice kind in
+      `platform/messaging` and the chat apps, and a row in the chat notices
+      setting.
+- [ ] **PEO-134** The company's payroll calendar. The "payroll that's already
+      closing" check assumes a monthly payroll closing on the month's last
+      day; a company that closes on the 25th, or pays twice a month, is
+      flagged against the wrong date. Lives with the pay settings.
+
 ## Revisit later — the owner's list
 
 Everything left on People that needs the product owner rather than the next
