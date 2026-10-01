@@ -80,15 +80,17 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
   if (all(PHONE) && values.every((v) => (v.match(/\d/gu)?.length ?? 0) >= 7)) {
     return shape('phone-like', 'phone');
   }
+  const distinct = [...new Set(values)];
+  const repeats = distinct.length < values.length;
   const patterns = new Set(values.map(patternOf));
   const [pattern] = patterns;
-  if (patterns.size === 1 && pattern !== undefined && /digit/u.test(pattern))
+  // One pattern that never repeats is an identifier; one that repeats is a list of codes.
+  if (patterns.size === 1 && pattern !== undefined && /digit/u.test(pattern) && !repeats)
     return shape(pattern, 'text');
-  const distinct = [...new Set(values)];
   // A list repeats itself: two names that never repeat are text, not choices.
   if (
     distinct.length <= LIST_AT_MOST &&
-    distinct.length < values.length &&
+    repeats &&
     distinct.every((v) => v.length <= SHORT)
   ) {
     return shape(

@@ -23,6 +23,8 @@ describe('the shape of a column', () => {
     [['yes', 'No', 'yes'], 'yes or no', 'boolean'],
     [['12345678Z', '87654321X', '11111111H'], '8 digits + letter', 'text'],
     [['S', 'M', 'L', 'M', 'XL', 'S'], '4 distinct short values', 'select'],
+    // Codes that repeat are a list, whatever their pattern; ones that never repeat are identifiers.
+    [['CC-100', 'CC-110', 'CC-100', 'CC-120'], '3 distinct short values', 'select'],
     [['', ' '], 'empty', 'text'],
   ])('%j reads as %s', (values, shape, dataType) => {
     expect(shapeOf(values)).toMatchObject({ shape, dataType });
