@@ -123,7 +123,11 @@ import {
 import { typesafeAttributeAdvisorFromEnv } from '../infrastructure/typesafe-attribute-advisor.js';
 import { drizzleSegments } from '../infrastructure/drizzle-segments.js';
 import { drizzleReportSchedules } from '../infrastructure/drizzle-report-schedules.js';
-import { reportMailerFrom, shareMailerFrom, summaryMailerFrom } from '../infrastructure/report-mailer.js';
+import {
+  reportMailerFrom,
+  shareMailerFrom,
+  summaryMailerFrom,
+} from '../infrastructure/report-mailer.js';
 import { drizzleSharedSummaries } from '../infrastructure/drizzle-shared-summaries.js';
 import { sendDueReports, type ScheduleAdminDeps } from '../application/reports/scheduled.js';
 import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
