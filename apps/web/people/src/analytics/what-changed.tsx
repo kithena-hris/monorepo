@@ -20,6 +20,7 @@ import {
   FieldDescription,
   FieldLabel,
   Input,
+  PageHeader,
   SegmentedControl,
   SegmentedControlItem,
   Separator,
@@ -426,7 +427,11 @@ function Summary({
             <ChartCard
               title="Headcount"
               value={state.headcount.value.toLocaleString()}
-              description={`${signed(state.headcount.change)} ${state.period.inWords}`}
+              description={
+                state.headcount.change === 0
+                  ? `No change ${state.period.inWords}`
+                  : `${signed(state.headcount.change)} ${state.period.inWords}`
+              }
             >
               {state.headcount.trend.length > 1 ? (
                 <TrendChart
@@ -1088,18 +1093,23 @@ function Preview({
 
 /** A summary somebody sent the viewer, as they sent it, and the same on paper. */
 function Shared({ shared }: { readonly shared: SharedSummary | null }): JSX.Element {
+  const header = <PageHeader title="Insights" description="A summary sent to you" />;
   if (shared === null) {
     return (
-      <EmptyState
-        icon={<icons.analytics />}
-        title="This summary is not here"
-        description="It was sent to somebody else, or it is more than seven days old."
-      />
+      <Stack gap={6}>
+        {header}
+        <EmptyState
+          icon={<icons.analytics />}
+          title="This summary is not here"
+          description="It was sent to somebody else, or it is more than seven days old."
+        />
+      </Stack>
     );
   }
   const doc = shared.document;
   return (
     <Stack gap={6}>
+      {header}
       <AssistantCard
         level={2}
         title={doc.title}

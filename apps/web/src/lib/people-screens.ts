@@ -283,7 +283,13 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'WhatChanged': {
       // A summary somebody sent: theirs to open, and nothing else on the page.
       const shared = given(query.search['shared']);
-      if (shared !== null) return read('SharedSummary', { id: shared }, json('shared'));
+      if (shared !== null) {
+        const found = await read('SharedSummary', { id: shared }, json('shared'));
+        // Gone, or not theirs: the page says so, rather than an error to retry.
+        return found.status === 'error' && found.code === 'NOT_FOUND'
+          ? { status: 'ready', data: { shared: null } }
+          : found;
+      }
       const [summary, schedules] = await Promise.all([
         orBare(
           {

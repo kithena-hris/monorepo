@@ -21,31 +21,34 @@ Object.assign(globalThis, {
     disconnect(): void {}
   },
 });
-Object.assign(window, {
-  matchMedia: (query: string) => ({
-    matches: query.includes('min-width'),
-    media: query,
-    onchange: null,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-    addListener: () => undefined,
-    removeListener: () => undefined,
-    dispatchEvent: () => false,
-  }),
-});
-Object.assign(Element.prototype, {
-  scrollIntoView: () => undefined,
-  scrollTo: () => undefined,
-  getAnimations: () => [],
-  hasPointerCapture: () => false,
-  releasePointerCapture: () => undefined,
-});
+// A server-render test (`// @vitest-environment node`) has no DOM to stub.
+if (typeof window !== 'undefined') {
+  Object.assign(window, {
+    matchMedia: (query: string) => ({
+      matches: query.includes('min-width'),
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  Object.assign(Element.prototype, {
+    scrollIntoView: () => undefined,
+    scrollTo: () => undefined,
+    getAnimations: () => [],
+    hasPointerCapture: () => false,
+    releasePointerCapture: () => undefined,
+  });
 
-/*
- * axe builds its rule caches on its first call, and that first call cost more
- * than a whole later test. Paid here, once per file, where it is setup rather
- * than the first test's time.
- */
-beforeAll(async () => {
-  await axe.run(document.body, { rules: { region: { enabled: false } } });
-});
+  /*
+   * axe builds its rule caches on its first call, and that first call cost more
+   * than a whole later test. Paid here, once per file, where it is setup rather
+   * than the first test's time.
+   */
+  beforeAll(async () => {
+    await axe.run(document.body, { rules: { region: { enabled: false } } });
+  });
+}

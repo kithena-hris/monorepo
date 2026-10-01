@@ -314,7 +314,9 @@ export function summaryPdf(d: SummaryPdfDocument): Promise<Uint8Array> {
     const step = w / (chart.length - 1);
     chart.forEach((p, i) => {
       const x = MARGIN + i * step;
-      const py = y + h - ((p.value - low) / span) * (h - 10) - 5;
+      // A flat line sits mid-box rather than on its floor.
+      const py =
+        Math.max(...values) === low ? y + h / 2 : y + h - ((p.value - low) / span) * (h - 10) - 5;
       if (i === 0) doc.moveTo(x, py);
       else doc.lineTo(x, py);
     });
@@ -322,7 +324,7 @@ export function summaryPdf(d: SummaryPdfDocument): Promise<Uint8Array> {
     doc.font('body').fontSize(8).fillColor(MUTED);
     chart.forEach((p, i) => {
       const x = MARGIN + i * step;
-      doc.text(p.label, Math.max(MARGIN, x - 20), y + h + 4, {
+      doc.text(p.label, Math.min(Math.max(MARGIN, x - 20), MARGIN + w - 40), y + h + 4, {
         width: 40,
         align: i === 0 ? 'left' : i === chart.length - 1 ? 'right' : 'center',
         lineBreak: false,
