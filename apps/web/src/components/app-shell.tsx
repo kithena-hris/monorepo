@@ -188,14 +188,23 @@ const AREAS: readonly {
 ];
 
 /**
- * The shell's People data, for what is drawn inside the shell before the page
- * it belongs to has arrived: a loading skeleton knows the tabs its page will
- * have from here (`PeopleLoading`).
+ * The shell's People data and who is signed in, for what is drawn inside the
+ * shell before the page it belongs to has arrived: a loading state knows the
+ * tabs its page will have, and the account button in its header, from here
+ * (`PageLoading`). One value from the server's render on, like every context
+ * above the page (`useShortcutsFor` says why).
  */
-const ShellContext = createContext<ShellData>(EMPTY_SHELL);
+const ShellContext = createContext<{
+  readonly shell: ShellData;
+  readonly person: AppShellProps['person'] | null;
+}>({ shell: EMPTY_SHELL, person: null });
 
 export function useShellData(): ShellData {
-  return use(ShellContext);
+  return use(ShellContext).shell;
+}
+
+export function useShellPerson(): AppShellProps['person'] | null {
+  return use(ShellContext).person;
 }
 
 /** The shell's own pages, beside People's routes (`isPage`). */
@@ -446,6 +455,7 @@ export function AppShell({
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
+  const shellView = useMemo(() => ({ shell, person }), [shell, person]);
   const areas = areasFor(entitlements);
   const pathname = usePathname();
   const role = roleOf(shell.roles);
@@ -491,7 +501,7 @@ export function AppShell({
    * without a provider above it.
    */
   return (
-    <ShellContext value={shell}>
+    <ShellContext value={shellView}>
     <Shortcuts value={keys}>
     <TooltipProvider>
       <PageLayout

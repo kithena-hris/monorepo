@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
-import { SettingsIndex, type SettingsModule } from '../../../components/settings-index';
+import { SettingsIndex } from '../../../components/settings-index';
 import { accessToken } from '../../../lib/people';
 import { settingsOverview } from '../../../lib/people-screens';
 import { readPreference } from '../../../lib/preferences';
+import { settingsModules } from '../../../lib/settings-modules';
 import { prefsFrom } from '../../../lib/shortcuts';
 import { shellData } from '../../../lib/shell';
 import { currentPerson } from '../../../lib/session';
@@ -119,77 +120,25 @@ export default async function Settings(): Promise<JSX.Element> {
   const [person] = await Promise.all([currentPerson(), accessToken()]);
   if (person === null) redirect('/login');
 
-  const modules: SettingsModule[] = [];
   const shell = await shellData(person.entitlements);
+  const overview = shell.settings.length > 0 ? await settingsOverview() : null;
+  const data =
+    overview?.status === 'ready'
+      ? (overview.data as Parameters<typeof peopleNow>[0])
+      : { fields: null, organisation: null, roles: null, integrations: null };
 
-  if (shell.settings.length > 0) {
-    const overview = await settingsOverview();
-    const data =
-      overview.status === 'ready'
-        ? (overview.data as Parameters<typeof peopleNow>[0])
-        : { fields: null, organisation: null, roles: null, integrations: null };
-    const now = peopleNow(data);
-    const attention = peopleAttention(data);
-    modules.push({
-      key: 'people',
-      title: 'People',
-      description:
-        'Your employee records: what they hold, who can see and change them, and where they go.',
-      settings: shell.settings.map((place) => ({
-        path: place.path,
-        label: place.label,
-        description: place.description,
-        icon: place.icon,
-        now: now[place.path] ?? null,
-        attention: attention[place.path] ?? null,
-      })),
-    });
-  }
-
-  // The company's activity log (`/settings/activity`): the shell's, across
-  // modules, for whoever may read it — People administrators and HR.
-  if (shell.roles.admin || shell.roles.hr) {
-    modules.push({
-      key: 'activity',
-      title: 'Activity',
-      description: 'Who did what, and when, across every module your company has.',
-      settings: [
-        {
-          path: '/settings/activity',
-          label: 'Activity log',
-          description:
-            'Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins, with filters.',
-          icon: 'history',
-          now: null,
-          attention: null,
-        },
-      ],
-    });
-  }
-
-  // A person's own settings, after the company's: everybody has these.
   const shortcuts = prefsFrom(await shortcutsSaved);
   const changed = Object.keys(shortcuts.bindings).length;
-  modules.push({
-    key: 'you',
-    title: 'You',
-    description: 'How the app works for you. Only you see and change these.',
-    settings: [
-      {
-        path: '/settings/shortcuts',
-        label: 'Keyboard shortcuts',
-        description: 'The keys that take you somewhere, and whether single keys work at all.',
-        icon: 'shortcuts',
-        now: [
-          changed === 0 ? 'The defaults' : plural(changed, 'changed shortcut'),
-          shortcuts.characterKeys ? null : 'single keys off',
-        ]
-          .filter((x) => x !== null)
-          .join(' · '),
-        attention: null,
-      },
-    ],
-  });
+  const modules = settingsModules(
+    shell,
+    { now: peopleNow(data), attention: peopleAttention(data) },
+    [
+      changed === 0 ? 'The defaults' : plural(changed, 'changed shortcut'),
+      shortcuts.characterKeys ? null : 'single keys off',
+    ]
+      .filter((x) => x !== null)
+      .join(' · '),
+  );
 
   return <SettingsIndex modules={modules} />;
 }

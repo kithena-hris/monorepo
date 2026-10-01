@@ -5,22 +5,36 @@ import { usePathname } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { headerFrame, matchPath } from '../lib/remotes';
-import { useShellData } from './app-shell';
+import { PEOPLE_NOW_PATHS, settingsModules } from '../lib/settings-modules';
+import { AccountSheet, useShellData, useShellPerson } from './app-shell';
+import { HomeLoading } from './home-dashboard';
+import { Inbox } from './inbox';
+import { SettingsIndex } from './settings-index';
+
+/** Every People setting's "how it is set now", still to come. */
+const PENDING_NOW = Object.fromEntries(PEOPLE_NOW_PATHS.map((path) => [path, '']));
 
 /**
  * A page inside the shell while it is fetched: every `loading.tsx` under
  * `(app)`, so a prefetched link shows this on the frame after the click.
  *
- * In the header the page will have, read from the address it is going to,
- * because the boundary that shows it is whichever one the navigation crossed
- * first — the area's, or the section's — and each must draw the destination,
- * not itself. A People screen gets the skeleton it shows while its own code
- * loads (`people-screen.tsx`), from the same `headerFrame` the server gives
- * it: a breadcrumb, and on an umbrella page as many tabs as this viewer
- * opens. So neither the page's arrival nor the screen's moves anything.
+ * In the shape of the page it is going to, read from the address rather than
+ * from where the boundary sits, because the boundary that shows is whichever
+ * one the navigation crossed first — the area's, or the section's — and each
+ * must draw the destination, not itself.
+ *
+ * - A People screen: the skeleton the screen shows while its own code loads
+ *   (`people-screen.tsx`), with the header `headerFrame` gives it — a
+ *   breadcrumb, and on an umbrella page as many tabs as this viewer opens.
+ * - The inbox: the inbox itself, from the shell's copy of what the bell holds.
+ * - Settings: the page itself from the shell's places, each card's "set now"
+ *   still to come.
+ * - Home: the dashboard's header, tiles and cards with their figures to come.
+ * - Any other: the page skeleton, under its trail in Settings.
  */
 export function PageLoading(): JSX.Element {
   const shell = useShellData();
+  const person = useShellPerson();
   const pathname = usePathname();
   if (pathname === '/people' || (pathname.startsWith('/people/') && pathname !== '/people/menu')) {
     const frame = headerFrame(
@@ -34,6 +48,21 @@ export function PageLoading(): JSX.Element {
         label="Loading People"
         breadcrumb={frame.section !== null}
         tabs={frame.tabs?.length ?? 0}
+      />
+    );
+  }
+  if (pathname === '/inbox' && person !== null) return <Inbox shell={shell} person={person} />;
+  if (pathname === '/settings') {
+    return (
+      <SettingsIndex modules={settingsModules(shell, { now: PENDING_NOW, attention: {} }, '')} />
+    );
+  }
+  if (pathname === '/') {
+    return (
+      <HomeLoading
+        account={person === null ? null : <AccountSheet person={person} />}
+        people={shell.sections.length > 0}
+        hr={shell.roles.hr}
       />
     );
   }
