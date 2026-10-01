@@ -82,12 +82,12 @@ import {
 import { ask } from '../application/assistant/ask.js';
 import type { AssistantPort } from '../application/assistant/assistant-port.js';
 import {
-  ApplyInput as NewFieldsApply,
-  applyNewFields,
   ImportStepInput,
+  PlanInput as ImportPlanInput,
+  planImport,
   proposeNewFields,
-  reviewNewFields,
-  ReviewInput as NewFieldsReview,
+  RunInput as ImportRunInput,
+  runImport,
   type NewFieldsDeps,
 } from '../application/assistant/import-fields.js';
 import { writeSameValue } from '../application/screens/bulk-edit.js';
@@ -524,6 +524,20 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     importFile: (asking, step) => newFieldsFile(deps, asking, importStep(step)),
     writeSame: (tx, asking, ids, values, from) =>
       writeSameValue(deps, tx, asking, ids, values, from),
+    importReview: async (asking, step, version) => {
+      const review = await dryRunImport(deps, asking, importStep(step), version);
+      if (!review.ok) return review;
+      return review.value.step === 'review'
+        ? ok(review.value)
+        : err(failure('UNAVAILABLE', 'The dry run did not answer with a review'));
+    },
+    importCommit: async (asking, step) => {
+      const done = await commitImportView(deps, asking, importStep(step));
+      if (!done.ok) return done;
+      return done.value.step === 'done'
+        ? ok(done.value)
+        : err(failure('UNAVAILABLE', 'The import did not answer with its outcome'));
+    },
   };
   // Search and export in words: no model configured means no budget to spend.
   const selection: SelectionDeps = {
@@ -1180,20 +1194,24 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       ),
     },
     {
-      // The proposals as HR left them, checked, with the review in words. Nothing is written.
+      // Everything the import will do, from HR's choices, over a dry run. Nothing is written.
       method: 'POST',
-      pattern: /^\/v1\/imports\/new-fields\/review$/,
+      pattern: /^\/v1\/imports\/plan$/,
       safe: true,
-      handle: compute(NewFieldsReview, (asking, input) =>
-        reviewNewFields(newFields, asking, input),
-      ),
+      handle: compute(ImportPlanInput, (asking, input) => planImport(newFields, asking, input)),
     },
     {
-      // Add them, publish, and write the defaults: one transaction, an administrator's.
+      // Approve and run: setup if nothing is published, the fields, the defaults, the import.
       method: 'POST',
-      pattern: /^\/v1\/imports\/new-fields\/apply$/,
-      handle: write(NewFieldsApply, (asking, input) => applyNewFields(newFields, asking, input), {
+      pattern: /^\/v1\/imports\/run$/,
+      handle: write(ImportRunInput, (asking, input) => runImport(newFields, asking, input), {
         status: 201,
+        again: () =>
+          Promise.resolve(
+            refused(
+              failure('ALREADY_IMPORTED', 'This import went through on the first request with this key'),
+            ),
+          ),
       }),
     },
     {

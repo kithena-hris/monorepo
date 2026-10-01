@@ -8,10 +8,10 @@ import { define, versionOf } from '../person/in-memory.js';
 import { proposeMapping, resolveMapping } from '../import/mapping.js';
 import type { NewFieldsFile } from '../screens/operations.js';
 import {
-  applyNewFields,
   draftWithNewFields,
+  planImport,
   proposeNewFields,
-  reviewNewFields,
+  runImport,
   type NewFieldsDeps,
   type NewFieldsView,
 } from './import-fields.js';
@@ -19,7 +19,8 @@ import {
 /**
  * New information in an import, end to end below REST, with a fake model
  * deterministic from a recorded answer: proposed from headers and shapes,
- * reviewed, and added in one transaction — or not at all.
+ * planned over a dry run against the version they would make, and run on
+ * one approval — or not at all.
  */
 
 const TENANT = '00000000-0000-4000-8000-000000000001';
@@ -74,13 +75,29 @@ const section = (key: string, label: string, order: number): Section =>
     archivedAt: null,
   }) as Section;
 
-function world(options: { viewer?: typeof ADMIN; answer?: unknown; pending?: boolean } = {}) {
-  const sections = new Map<string, Section>([
-    ['personal', section('personal', 'Personal information', 0)],
-    ['employment', section('employment', 'Employment', 1)],
-  ]);
+function world(
+  options: {
+    viewer?: typeof ADMIN;
+    answer?: unknown;
+    pending?: boolean;
+    /** A company with nothing published, its legal entity in Spain. */
+    unpublished?: boolean;
+  } = {},
+) {
+  const sections = new Map<string, Section>(
+    options.unpublished === true
+      ? []
+      : [
+          ['personal', section('personal', 'Personal information', 0)],
+          ['employment', section('employment', 'Employment', 1)],
+        ],
+  );
   const workEmail = define({ key: 'work_email', sectionKey: 'employment' });
-  const attributes = new Map<string, Attribute>([['work_email', workEmail]]);
+  const attributes = new Map<string, Attribute>(
+    options.unpublished === true ? [] : [['work_email', workEmail]],
+  );
+  const reviewed: { mapping: unknown; version: { version: number; keys: string[] } }[] = [];
+  const committed: unknown[] = [];
   if (options.pending === true) {
     attributes.set('draft_only', define({ key: 'draft_only', sectionKey: 'employment' }));
   }
@@ -98,6 +115,10 @@ function world(options: { viewer?: typeof ADMIN; answer?: unknown; pending?: boo
             ok({ items: [P1, P2, P3, 'p4', 'p5'].map((id) => ({ id })), next: null }),
           ),
       },
+      org: {
+        legalEntities: () =>
+          Promise.resolve(ok([{ id: 'e1', name: 'Acme SL', country: 'ES', archived: false }])),
+      },
     },
     relations: {
       relations: () =>
@@ -110,7 +131,12 @@ function world(options: { viewer?: typeof ADMIN; answer?: unknown; pending?: boo
     schema: {
       loadDraft: () =>
         Promise.resolve({ sections: [...sections.values()], attributes: [...attributes.values()] }),
-      currentVersion: () => Promise.resolve({ version: 4, document: { attributes: [workEmail] } }),
+      currentVersion: () =>
+        Promise.resolve(
+          options.unpublished === true
+            ? null
+            : { version: 4, document: { sections: [], attributes: [workEmail] } },
+        ),
     },
     draft: {
       saveSection: (_tx: never, _t: string, s: Section) => (
@@ -131,6 +157,42 @@ function world(options: { viewer?: typeof ADMIN; answer?: unknown; pending?: boo
     artifactUrl: (v: number) => `https://people.test/v1/schema/versions/${String(v)}`,
     planBudget: new PlanBudget(20, 3_600_000),
     importFile: () => Promise.resolve(ok(FILE)),
+    importReview: (
+      _a: unknown,
+      step: { mapping: unknown },
+      version: { version: number; document: { attributes: readonly Attribute[] } },
+    ) => {
+      reviewed.push({
+        mapping: step.mapping,
+        version: { version: version.version, keys: version.document.attributes.map((a) => a.key) },
+      });
+      return Promise.resolve(
+        ok({
+          step: 'review',
+          file: { name: 'people.csv', rows: 3, sheet: null },
+          dryRun: {
+            counts: { create: 1, update: 2, unchanged: 0, blocked: 0, duplicate: 0 },
+          },
+          blockedUrl: null,
+        }),
+      );
+    },
+    importCommit: (_a: unknown, step: unknown) => {
+      committed.push(step);
+      return Promise.resolve(
+        ok({
+          step: 'done',
+          file: { name: 'people.csv', rows: 3, sheet: null },
+          created: 1,
+          updated: 2,
+          blocked: 0,
+          reportUrl: 'https://store.test/report',
+          forReview: 0,
+          held: 0,
+          appliedWithoutApproval: false,
+        }),
+      );
+    },
     writeSame: (
       _tx: never,
       _a: unknown,
@@ -158,7 +220,18 @@ function world(options: { viewer?: typeof ADMIN; answer?: unknown; pending?: boo
     correlationId: '00000000-0000-4000-8000-0000000000c1',
   };
   const step = { uploadId: '00000000-0000-4000-8000-0000000000f1', mapping: { '0': 'work_email' } };
-  return { deps, asking, step, sections, attributes, prompts, written, publishes: () => publishes };
+  return {
+    deps,
+    asking,
+    step,
+    sections,
+    attributes,
+    prompts,
+    written,
+    reviewed,
+    committed,
+    publishes: () => publishes,
+  };
 }
 
 const proposed = async (w: ReturnType<typeof world>): Promise<NewFieldsView> => {
@@ -180,11 +253,13 @@ describe('proposing fields for new columns', () => {
       ['Work country', 'work_country', 'default'],
     ]);
     expect(v.proposals.find((p) => p.key === 'iban')?.sensitive).toBe('Financial');
-    // Five people here; the file gives two of them an emergency contact.
-    expect(v.proposals[0]?.counts).toEqual({ fromFile: 3, existingWithout: 3 });
-    expect(v.proposals[1]?.counts).toEqual({ fromFile: 2, existingWithout: 3 });
-    expect(v.summary).toContain('3 people will be asked for their emergency contact.');
-    expect(v.summary).toContain('HR will fill in 3 cost centre values.');
+    // Five people here and one row that creates somebody: six once it is in.
+    // The file gives three of them an emergency contact, two a cost centre.
+    expect(v.totalPeople).toBe(6);
+    expect(v.proposals[0]?.counts).toEqual({ have: 3, missing: 3, existingWithout: 3 });
+    expect(v.proposals[1]?.counts).toEqual({ have: 2, missing: 4, existingWithout: 3 });
+    expect(v.version).toBe(5);
+    expect(v.setup).toBeNull();
   });
 
   it('sends the model the headers and shapes, never a value', async () => {
@@ -258,7 +333,10 @@ describe('proposing fields for new columns', () => {
           sent.push(prompt);
           // The second chunk's model times out.
           if (sent.length === 2) return Promise.reject(new Error('the model answered 504'));
-          return Promise.resolve({ ok: true as const, value: JSON.stringify({ proposals: [], skipped: [] }) });
+          return Promise.resolve({
+            ok: true as const,
+            value: JSON.stringify({ proposals: [], skipped: [] }),
+          });
         },
       },
     } as NewFieldsDeps;
@@ -288,40 +366,92 @@ describe('proposing fields for new columns', () => {
     expect(v.canCreate).toBe(false);
     expect(v.blocked).toMatch(/Only a People administrator/u);
     expect(w.prompts).toEqual([]);
-    const applied = await applyNewFields(w.deps, w.asking, {
-      ...w.step,
-      proposals: strip(v),
-      summary: v.summary,
-    });
-    expect(applied).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+    // Their plan imports without the new columns, and adds nothing.
+    const plan = await planImport(w.deps, w.asking, { ...w.step, proposals: strip(v) });
+    expect(plan.ok && plan.value.fields).toEqual([]);
+    expect(plan.ok && plan.value.steps.map((s) => s.kind)).toEqual(['people', 'skip']);
+    const ran = await runImport(w.deps, w.asking, { ...w.step, proposals: strip(v) });
+    expect(ran.ok).toBe(true);
     expect(w.attributes.size).toBe(1);
+    expect(w.publishes()).toBe(0);
   });
 });
 
-describe('adding them', () => {
-  it('adds the kept fields and a new section, publishes once, writes the default, and never touches an existing field', async () => {
+describe('the plan', () => {
+  it('is a dry run against the version the kept fields would make, and writes nothing', async () => {
+    const w = world();
+    const v = await proposed(w);
+    const proposals = strip(v).map((p) =>
+      p.key === 't_shirt_size' ? { ...p, include: false } : p,
+    );
+    const plan = await planImport(w.deps, w.asking, { ...w.step, proposals });
+    if (!plan.ok) throw new Error(plan.error.message);
+    expect(w.reviewed).toEqual([
+      {
+        mapping: {
+          '0': 'work_email',
+          '1': 'emergency_contact',
+          '2': 'cost_centre',
+          '4': 'iban',
+          '5': 'work_country',
+        },
+        version: {
+          version: 5,
+          keys: ['work_email', 'emergency_contact', 'iban', 'work_country', 'cost_centre'],
+        },
+      },
+    ]);
+    expect(plan.value.steps.map((s) => s.title)).toEqual([
+      'Create 4 fields in Settings › Employee fields',
+      'Create 1 person and update 2',
+      'Ask 3 people for their emergency contact',
+      'Give HR 4 cost centre values to fill in',
+      'Ask 4 people for their IBAN',
+      'Give 3 people “ES” as their work country',
+      'Leave out T-shirt size',
+    ]);
+    expect(plan.value.asked).toBe(7);
+    expect(plan.value.forHr).toBe(4);
+    expect(plan.value.blocked).toBeNull();
+    // Nothing written.
+    expect(w.attributes.size).toBe(1);
+    expect(w.publishes()).toBe(0);
+  });
+
+  it('sets up a company with nothing published, in the same plan', async () => {
+    const w = world({ unpublished: true });
+    const v = await proposed(w);
+    expect(v.setup).toEqual({ country: 'ES', countryName: 'Spain' });
+    expect(v.version).toBe(1);
+    const plan = await planImport(w.deps, w.asking, { ...w.step, proposals: strip(v) });
+    if (!plan.ok) throw new Error(plan.error.message);
+    expect(plan.value.steps[0]?.title).toBe('Set up the employee record with the Spain pack');
+    expect(plan.value.version).toBe(1);
+    // The file is read against setup's fields and the new ones, together.
+    expect(w.reviewed[0]?.version.keys).toEqual(
+      expect.arrayContaining(['given_name', 'work_email', 'emergency_contact']),
+    );
+    expect(w.sections.size).toBe(0);
+  });
+});
+
+describe('approving and running it', () => {
+  it('adds the kept fields and a new section, publishes once, writes the default, imports, and never touches an existing field', async () => {
     const w = world();
     const v = await proposed(w);
     const before = w.attributes.get('work_email');
     const proposals = strip(v).map((p) =>
       p.key === 't_shirt_size' ? { ...p, include: false } : p,
     );
-    const review = await reviewNewFields(w.deps, w.asking, { ...w.step, proposals });
-    expect(review.ok && review.value.problems).toEqual([]);
-    // Reviewing writes nothing.
-    expect(w.attributes.size).toBe(1);
-    const applied = await applyNewFields(w.deps, w.asking, {
-      ...w.step,
-      proposals,
-      summary: v.summary,
-    });
-    expect(applied).toEqual(
-      ok({
-        version: 5,
-        mapped: { '1': 'emergency_contact', '2': 'cost_centre', '4': 'iban', '5': 'work_country' },
-        defaults: 3,
-      }),
-    );
+    const ran = await runImport(w.deps, w.asking, { ...w.step, proposals });
+    if (!ran.ok) throw new Error(ran.error.message);
+    expect(ran.value).toMatchObject({ created: 1, updated: 2, version: 5, asked: 7, forHr: 4 });
+    expect(ran.value.fields.map((f) => [f.label, f.section, f.newSection])).toEqual([
+      ['Emergency contact', 'Emergency contact', true],
+      ['Cost centre', 'Employment', false],
+      ['IBAN', 'Bank and pay', true],
+      ['Work country', 'Other information', true],
+    ]);
     expect(w.publishes()).toBe(1);
     expect(w.attributes.get('work_email')).toBe(before);
     expect(w.attributes.has('t_shirt_size')).toBe(false);
@@ -338,6 +468,19 @@ describe('adding them', () => {
     expect(w.sections.get('emergency_contact')?.label.default).toBe('Emergency contact');
     // The default goes to the people the file gives no value: everybody but P1 and P2.
     expect(w.written).toEqual([{ ids: [P3, 'p4', 'p5'], values: { work_country: 'es' } }]);
+    // Then the import, with every new column going to its new field.
+    expect(w.committed).toEqual([
+      {
+        uploadId: w.step.uploadId,
+        mapping: {
+          '0': 'work_email',
+          '1': 'emergency_contact',
+          '2': 'cost_centre',
+          '4': 'iban',
+          '5': 'work_country',
+        },
+      },
+    ]);
   });
 
   it('adds only fields the import can then write: the dry run maps every kept column', async () => {
@@ -369,7 +512,7 @@ describe('adding them', () => {
     ]);
   });
 
-  it('is all or nothing: one field the draft refuses and nothing is stored or published', async () => {
+  it('is all or nothing: one field the draft refuses and nothing is stored, published or imported', async () => {
     const w = world();
     const v = await proposed(w);
     const proposals = strip(v).map((p) =>
@@ -377,29 +520,23 @@ describe('adding them', () => {
         ? { ...p, field: { ...p.field, dataType: 'select' as const, encrypted: true } }
         : p,
     );
-    const applied = await applyNewFields(w.deps, w.asking, {
-      ...w.step,
-      proposals,
-      summary: v.summary,
-    });
-    expect(applied).toMatchObject({ ok: false, error: { code: 'DEFINITION_INVALID' } });
-    expect(applied.ok ? '' : applied.error.message).toMatch(/Nothing was added/u);
+    const ran = await runImport(w.deps, w.asking, { ...w.step, proposals });
+    expect(ran).toMatchObject({ ok: false, error: { code: 'DEFINITION_INVALID' } });
+    expect(ran.ok ? '' : ran.error.message).toMatch(/Nothing was added/u);
     expect(w.attributes.size).toBe(1);
     expect(w.sections.size).toBe(2);
     expect(w.publishes()).toBe(0);
+    expect(w.committed).toEqual([]);
   });
 
   it('is refused while the draft holds other unpublished changes, so a publish carries only its own', async () => {
     const w = world({ pending: true });
     const v = await proposed(w);
     expect(v.blocked).toMatch(/1 unpublished change/u);
-    const applied = await applyNewFields(w.deps, w.asking, {
-      ...w.step,
-      proposals: strip(v),
-      summary: v.summary,
-    });
-    expect(applied).toMatchObject({ ok: false, error: { code: 'DRAFT_HAS_CHANGES' } });
+    const ran = await runImport(w.deps, w.asking, { ...w.step, proposals: strip(v) });
+    expect(ran).toMatchObject({ ok: false, error: { code: 'DRAFT_HAS_CHANGES' } });
     expect(w.publishes()).toBe(0);
+    expect(w.committed).toEqual([]);
   });
 
   it('refuses a column that is not one of the file’s new ones', async () => {
@@ -408,11 +545,7 @@ describe('adding them', () => {
     const [first] = strip(v);
     if (first === undefined) throw new Error('no proposal');
     const forged = [{ ...first, column: 0, header: 'Work email' }];
-    const applied = await applyNewFields(w.deps, w.asking, {
-      ...w.step,
-      proposals: forged,
-      summary: 'x',
-    });
-    expect(applied).toMatchObject({ ok: false, error: { code: 'VALUE_INVALID' } });
+    const ran = await runImport(w.deps, w.asking, { ...w.step, proposals: forged });
+    expect(ran).toMatchObject({ ok: false, error: { code: 'VALUE_INVALID' } });
   });
 });

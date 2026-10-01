@@ -31,6 +31,7 @@ For each field
 For people already here whom the file gives no value (forExisting)
 - ask: details only they know (contact, emergency contact, bank account).
 - hr: organisational data HR records (cost centre, department, contract).
+- new: worth having from now on, not worth chasing the people here for (locker, parking).
 - leave: nice to have, or volunteered (T-shirt size, health).
 - default: one value is right for everybody missing it; only when the shape says every row holds the same value.
 Give forExistingWhy in one short line.

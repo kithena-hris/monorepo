@@ -76,9 +76,9 @@ import {
   ChatNotice,
 } from './screens.js';
 import {
-  ApplyInput as NewFieldsApply,
   ImportStepInput as NewFieldsPropose,
-  ReviewInput as NewFieldsReview,
+  PlanInput as ImportPlan,
+  RunInput as ImportRun,
 } from '../application/assistant/import-fields.js';
 import { PlanAsk } from '../application/assistant/selection.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
@@ -165,8 +165,8 @@ const components = {
   ChatNotice,
   ImportStep: ImportStepBody,
   NewFieldsPropose,
-  NewFieldsReview,
-  NewFieldsApply,
+  ImportPlan,
+  ImportRun,
   SelectionAsk: PlanAsk,
   Segment: SegmentBody,
   PayBand: PayBandBody,
@@ -650,7 +650,7 @@ function screenPaths(): Record<string, unknown> {
       },
     },
     // New information in an import's file (docs/ai-settings.md): proposed,
-    // reviewed, then added by an administrator before the dry run.
+    // then planned and run, with the import, on an administrator's approval.
     '/v1/imports/new-fields': {
       post: screenWrite(
         'Fields proposed for the columns that match none; nothing is written',
@@ -660,21 +660,21 @@ function screenPaths(): Record<string, unknown> {
         { safe: true },
       ),
     },
-    '/v1/imports/new-fields/review': {
+    '/v1/imports/plan': {
       post: screenWrite(
-        'The proposals as HR left them, checked, with the review in words; nothing is written',
-        'NewFieldsReview',
+        'Everything the import will do, from HR’s choices, over a dry run against the version its new fields would make; nothing is written',
+        'ImportPlan',
         200,
-        'The checked proposals and the review',
+        'The plan’s steps in words, the fields, and the dry run',
         { safe: true },
       ),
     },
-    '/v1/imports/new-fields/apply': {
+    '/v1/imports/run': {
       post: screenWrite(
-        'Add the fields, publish, and write the defaults: one transaction, an administrator’s',
-        'NewFieldsApply',
+        'Approve and run: set the company up if nothing is published, add and publish the new fields, write the defaults, then import',
+        'ImportRun',
         201,
-        'The new fields’ keys',
+        'What the import did, and the fields it created',
       ),
     },
     '/v1/imports/dry-run': {

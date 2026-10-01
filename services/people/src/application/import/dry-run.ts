@@ -252,6 +252,12 @@ async function existingPeople(
   let after: string | null = null;
   do {
     const page = await deps.access.list(tx, { ...asking(input), after, limit: 500 });
+    // Nothing published yet: nobody can be read, so the plan of a company's
+    // first import matches nobody. ponytail: the commit runs after setup's
+    // publish and matches again, so a row for somebody already here (the
+    // administrator's own record) updates them; only the plan's count says
+    // "create" for it. Read records against the plan's version to count it right.
+    if (!page.ok && page.error.code === 'SCHEMA_NOT_PUBLISHED' && after === null) break;
     if (!page.ok) return page;
     for (const person of page.value.items) {
       byId.set(person.id, person);

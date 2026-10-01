@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import { randomBytes } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
@@ -68,32 +68,13 @@ beforeAll(async () => {
   const adminClient = postgres(pg.url, { max: 1 });
   clients.push(adminClient);
   const admin = drizzle(adminClient);
-  for (const file of [
-    '20260821120000_tenant_registry.sql',
-    '20260922140000_people_bootstrap.sql',
-    '20260922160000_people_registry.sql',
-    '20260926140000_people_visibility_rules.sql',
-    '20260926180000_people_pending_change.sql',
-    '20260926230000_people_pending_change_decided_as.sql',
-    '20260922170000_people_person.sql',
-    '20260924220000_people_access_end.sql',
-    '20260926143000_people_duplicates.sql',
-    '20260924220200_people_employment_period.sql',
-    '20260923110000_people_completeness.sql',
-    '20260923120000_people_webhooks.sql',
-    '20260924120100_people_webhook_alerts.sql',
-    '20260924170000_people_calendar.sql',
-    '20260924170100_people_tenant_company.sql',
-    '20260924270100_people_entitlements.sql',
-    '20260924270200_people_role_grant.sql',
-    '20260924330000_people_identifier_review.sql',
-    '20260926230100_people_identifier_review_held.sql',
-    '20260924360000_people_import_upload.sql',
-    '20260926160000_people_scim.sql',
-    '20260927161000_people_person_photo.sql',
-    '20260927170000_people_detail_request.sql',
-    '20260927180000_people_files.sql',
-  ]) {
+  // Every migration, as a deployment has them: a company's first import runs
+  // to the end here, through the ledger, numbering and activity tables.
+  for (const role of ['svc_identity', 'svc_messaging', 'svc_slack']) {
+    await adminClient.unsafe(`CREATE ROLE ${role} NOLOGIN NOBYPASSRLS`);
+  }
+  const all = new URL('../../../../migrations/', import.meta.url);
+  for (const file of (await readdir(all)).filter((f) => f.endsWith('.sql')).sort()) {
     await admin.execute(sql.raw(await migration(file)));
   }
   await admin.execute(sql`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`);
@@ -816,25 +797,17 @@ describe('a company that has never published its employee fields', () => {
     return { uploadId: target.uploadId, completed };
   };
 
-  it('sends HR to setup first, then builds the fields the file brings and imports against them', async () => {
-    // Before setup: the refusal says what to do, not only what is missing.
-    const early = await upload();
-    expect(early.completed.errors?.[0]?.extensions.code).toBe('SCHEMA_NOT_PUBLISHED');
-    expect(early.completed.errors?.[0]?.message).toMatch(/set up the employee record/i);
-    const template = await graph('{ peopleImportTemplate }');
-    expect(template.errors?.[0]?.message).toMatch(/set up the employee record/i);
-
-    // Setup: the legal entity's country pack, published as version 1.
-    const setup = await graph(
+  it('imports without a detour: the plan sets the company up, adds the file’s new field and imports, on one approval', async () => {
+    // The company as the back office makes it: one legal entity, in Spain.
+    const entity = await graph(
       `mutation ($key: String!) {
-        publishSetup(country: "ES", sections: [], idempotencyKey: $key) { version }
+        confirmSetupEntity(name: "Fresh SL", country: "ES", idempotencyKey: $key) { __typename }
       }`,
-      { key: 'fresh-setup' },
+      { key: 'fresh-entity' },
     );
-    expect(setup.errors).toBeUndefined();
-    expect(setup.data?.['publishSetup']).toEqual({ version: 1 });
+    expect(entity.errors?.[0]?.message).toBeUndefined();
 
-    // Upload: the pack's fields map; the T-shirt size matches nothing.
+    // Read against what setup would publish: the core fields map, the T-shirt size matches nothing.
     const { uploadId, completed } = await upload();
     expect(completed.errors).toBeUndefined();
     const stage = completed.data?.['completeImportUpload'] as {
@@ -845,17 +818,21 @@ describe('a company that has never published its employee fields', () => {
       status: 'ignored',
       key: null,
     });
+    // Nothing was written by reading it: still nothing published.
+    const template = await graph('{ peopleImportTemplate }');
+    expect(template.errors?.[0]?.message).toBeUndefined();
 
-    // Proposals: nothing else is waiting in the draft, so nothing blocks them.
+    // Proposals: setup comes with them, as version 1.
     const step = { uploadId, mapping: {} };
     const proposed = await graph(`mutation ($step: String!) { proposeImportFields(step: $step) }`, {
       step: JSON.stringify(step),
     });
-    expect(proposed.errors).toBeUndefined();
+    expect(proposed.errors?.[0]?.message).toBeUndefined();
     const view = JSON.parse(proposed.data?.['proposeImportFields'] as string) as {
       blocked: string | null;
       canCreate: boolean;
-      summary: string;
+      version: number;
+      setup: unknown;
       proposals: {
         column: number;
         key: string;
@@ -864,47 +841,42 @@ describe('a company that has never published its employee fields', () => {
         sensitive: unknown;
       }[];
     };
-    expect(view).toMatchObject({ blocked: null, canCreate: true });
+    expect(view).toMatchObject({ blocked: null, canCreate: true, version: 1 });
+    expect(view.setup).toEqual({ country: 'ES', countryName: 'Spain' });
     expect(view.proposals.map((p) => p.column)).toEqual([4]);
+    // The proposals as the screen sends them back: without the counts it was shown.
+    const proposals = view.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p);
 
-    // Apply: the field is added and published as version 2.
-    const applied = await graph(
-      `mutation ($input: String!, $key: String!) { addImportFields(input: $input, idempotencyKey: $key) }`,
-      {
-        // The proposals as the screen sends them back: without the counts it was shown.
-        input: JSON.stringify({
-          ...step,
-          proposals: view.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p),
-          summary: view.summary,
-        }),
-        key: 'fresh-fields',
-      },
+    // The plan: setup, the field, the two people. Nothing written.
+    const planned = await graph(`mutation ($input: String!) { planImport(input: $input) }`, {
+      input: JSON.stringify({ ...step, proposals }),
+    });
+    expect(planned.errors?.[0]?.message).toBeUndefined();
+    const plan = JSON.parse(planned.data?.['planImport'] as string) as {
+      steps: { kind: string; title: string }[];
+      review: {
+        dryRun: { counts: { create: number; blocked: number }; blocked: { problem: string }[] };
+      };
+    };
+    expect(plan.steps.map((x) => x.kind)).toEqual(['setup', 'fields', 'people']);
+    expect(plan.review.dryRun.counts).toMatchObject({ create: 2, blocked: 0 });
+
+    // Approve and run.
+    const ran = await graph(
+      `mutation ($input: String!, $key: String!) { runImport(input: $input, idempotencyKey: $key) }`,
+      { input: JSON.stringify({ ...step, proposals }), key: 'fresh-run' },
     );
-    expect(applied.errors).toBeUndefined();
-    const added = JSON.parse(applied.data?.['addImportFields'] as string) as {
+    expect(ran.errors?.[0]?.message).toBeUndefined();
+    const done = JSON.parse(ran.data?.['runImport'] as string) as {
+      created: number;
       version: number;
-      mapped: Record<string, string>;
+      fields: { label: string }[];
     };
-    expect(added.version).toBe(2);
-    const shirt = added.mapped['4'];
-    expect(shirt).toBeDefined();
+    expect(done).toMatchObject({ created: 2, version: 1 });
+    expect(done.fields.map((f) => f.label)).toEqual(['T-shirt size']);
 
-    // Map and dry run against version 2, the new column mapped to its new field.
-    const dry = await graph(
-      `mutation ($id: ID!, $mapping: [ImportColumnInput!]!) {
-        dryRunImport(uploadId: $id, mapping: $mapping) {
-          __typename ... on ImportReviewStage { dryRun { counts { create blocked } ignoredColumns } }
-        }
-      }`,
-      { id: uploadId, mapping: [{ column: 4, key: shirt }] },
-    );
-    expect(dry.errors).toBeUndefined();
-    const review = dry.data?.['dryRunImport'] as {
-      __typename: string;
-      dryRun: { counts: { create: number; blocked: number }; ignoredColumns: string[] };
-    };
-    expect(review.__typename).toBe('ImportReviewStage');
-    expect(review.dryRun.ignoredColumns).not.toContain('T-shirt size');
-    expect(review.dryRun.counts.create + review.dryRun.counts.blocked).toBe(2);
+    // Version 1 holds setup's fields and the new one; the template now names it.
+    const after = await graph('{ peopleImportTemplate }');
+    expect(String(after.data?.['peopleImportTemplate'])).toContain('T-shirt size');
   });
 });

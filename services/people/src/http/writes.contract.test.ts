@@ -32,9 +32,9 @@ const SAFE = [
   'POST /v1/imports/uploads',
   'POST /v1/imports/uploads/{id}/complete',
   'POST /v1/imports/dry-run',
-  // New information in an import: a proposal and a review, neither of which writes.
+  // An import's new fields are proposed and its plan worked out: neither writes.
   'POST /v1/imports/new-fields',
-  'POST /v1/imports/new-fields/review',
+  'POST /v1/imports/plan',
   // A photo's upload: a retried start is a fresh upload. Keeping it is keyed.
   'POST /v1/views/photos/uploads',
   // PEO-125: a check that stores nothing, and an audited read.

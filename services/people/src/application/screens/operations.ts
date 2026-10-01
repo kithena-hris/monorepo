@@ -22,7 +22,7 @@ import type { EndpointInput, WebhookService } from '../../infrastructure/webhook
 import { visibleTo } from '../../domain/access/field-access.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { importTemplate } from '../import/template.js';
-import { dryRun, NOT_SET_UP, type ClassifiedRow } from '../import/dry-run.js';
+import { dryRun, type ClassifiedRow } from '../import/dry-run.js';
 import {
   proposeMapping,
   resolveMapping,
@@ -52,7 +52,11 @@ import {
 } from '../scim/connections.js';
 import { KITHENA_USER, USER_PATHS } from '../../domain/scim/resource.js';
 import { run } from '../person/service.js';
+import type { SchemaRepository } from '../schema/schema-repository.js';
+import { publish, type PublishedVersion } from '../../domain/schema/publish.js';
+import { SchemaDraft } from '../../domain/schema/draft.js';
 import { NOBODY, tenantToday, type ScreenDeps, type Tx } from './record.js';
+import { setupDraft } from './schema.js';
 import { segmentsFor } from './segments.js';
 
 /**
@@ -280,6 +284,8 @@ export const replayDelivery = (
 /* ------------------------------------------------------------- import -- */
 
 export interface ImportDeps extends ScreenDeps {
+  /** The draft, for what setup would publish when nothing is published yet. */
+  readonly schema: SchemaRepository;
   readonly advisor: AttributeAdvisor | null;
   readonly commit: Omit<CommitDeps, 'access' | 'schemas' | 'relations' | 'clock'>;
   /** Where the file waits between the steps, and who may put it there (§14.2). */
@@ -444,6 +450,36 @@ interface Prepared {
 
 const onlyHr = () => err(failure('FORBIDDEN', 'Only HR imports people'));
 
+/**
+ * Nothing is published, and the viewer cannot set it up: the first import is
+ * a People administrator's, because approving it sets the employee record up.
+ */
+const NOT_SET_UP_HR =
+  'Nothing is set up yet. A People administrator imports the first file: approving it sets up the employee record.';
+
+/**
+ * The version a file is read against: the published one, or, for a company
+ * with nothing published, what setup would publish (`setupDraft`), held in
+ * memory until an administrator approves the import's plan. HR who is not an
+ * administrator cannot set a company up, so is told who can.
+ */
+async function baseVersion(
+  deps: ImportDeps,
+  tx: Tx,
+  asking: Asking,
+  isAdmin: boolean,
+): Promise<Result<PublishedVersion>> {
+  const published = await deps.service.schemas.current(tx, asking.tenantId);
+  if (published) return ok(published);
+  if (!isAdmin) return err(failure('SCHEMA_NOT_PUBLISHED', NOT_SET_UP_HR));
+  const setup = await setupDraft(deps, tx, asking);
+  if (!setup.ok) return setup;
+  return publish(SchemaDraft.rehydrate(setup.value.sections, setup.value.attributes), null, {
+    clock: deps.clock,
+    actor: asking.viewer.accountId,
+  });
+}
+
 async function isHr(deps: ImportDeps, tx: Tx, asking: Asking): Promise<boolean> {
   return (await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY)).isHr;
 }
@@ -453,11 +489,14 @@ async function prepare(
   tx: Tx,
   asking: Asking,
   bytes: Uint8Array,
+  /** A version not published yet: the plan's, with the import's new fields in it. */
+  over?: PublishedVersion,
 ): Promise<Result<Prepared>> {
   const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
   if (!relations.isHr) return onlyHr();
-  const version = await deps.service.schemas.current(tx, asking.tenantId);
-  if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', NOT_SET_UP));
+  const base = over === undefined ? await baseVersion(deps, tx, asking, relations.isAdmin) : ok(over);
+  if (!base.ok) return base;
+  const version = base.value;
   const file = await parseUpload(bytes);
   if (!file.ok) return file;
   const proposed = await proposeMapping({
@@ -515,9 +554,8 @@ export async function importTemplateFile(
   return run(deps.service, asking.tenantId, async (tx) => {
     const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     if (!relations.isHr) return onlyHr();
-    const version = await deps.service.schemas.current(tx, asking.tenantId);
-    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', NOT_SET_UP));
-    return ok(importTemplate(version, relations));
+    const version = await baseVersion(deps, tx, asking, relations.isAdmin);
+    return version.ok ? ok(importTemplate(version.value, relations)) : version;
   });
 }
 
@@ -596,7 +634,11 @@ export async function newFieldsFile(
     const chosen = step.mapping ?? {};
     const mapping = resolved(prepared.value, chosen);
     if (!mapping.ok) return mapping;
-    const planned = await dryRun(tx, importDeps(deps), { ...asking, file, mapping: mapping.value });
+    const planned = await dryRun(tx, importDeps(deps, prepared.value.version), {
+      ...asking,
+      file,
+      mapping: mapping.value,
+    });
     if (!planned.ok) return planned;
     return ok({
       unmatched: proposed
@@ -643,17 +685,19 @@ export async function dryRunImport(
   deps: ImportDeps,
   asking: Asking,
   step: ImportStep,
+  /** Read against a version not published yet: the import plan's, with its new fields. */
+  over?: PublishedVersion,
 ): Promise<Result<ImportStageView>> {
   const read = await readUpload(uploadDeps(deps), inTx(deps, asking), who(asking), step.uploadId);
   if (!read.ok) return read;
   const { intent, bytes } = read.value;
   const reviewed = await run(deps.service, asking.tenantId, async (tx) => {
-    const prepared = await prepare(deps, tx, asking, bytes);
+    const prepared = await prepare(deps, tx, asking, bytes, over);
     if (!prepared.ok) return prepared;
     const mapping = resolved(prepared.value, step.mapping ?? {});
     if (!mapping.ok) return mapping;
     const { file, version } = prepared.value;
-    const planned = await dryRun(tx, importDeps(deps), {
+    const planned = await dryRun(tx, importDeps(deps, version), {
       ...asking,
       file,
       mapping: mapping.value,
@@ -751,11 +795,20 @@ export async function dryRunImport(
   return ok({ ...review, blockedUrl });
 }
 
-function importDeps(deps: ImportDeps): CommitDeps {
+/**
+ * The commit's dependencies; with `version`, the dry run reads the file
+ * against it rather than the published one: what setup would publish, or the
+ * plan's version with its new fields. Only a dry run is given one, and a
+ * dry run writes nothing.
+ */
+function importDeps(deps: ImportDeps, version?: PublishedVersion): CommitDeps {
   return {
     ...deps.commit,
     access: deps.service.access,
-    schemas: deps.service.schemas,
+    schemas:
+      version === undefined
+        ? deps.service.schemas
+        : { ...deps.service.schemas, current: () => Promise.resolve(version) },
     relations: deps.relations,
     clock: deps.clock,
   };
