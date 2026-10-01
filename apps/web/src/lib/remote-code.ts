@@ -2,6 +2,7 @@ import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto
 import { z } from 'zod';
 
 import { renderRemote, warmRenderer } from './remote-render';
+import { timed } from './timing';
 
 /*
  * A remote's server build, fetched, checked and handed to the renderer
@@ -127,7 +128,7 @@ export const REMOTE_RENDER = Symbol.for('kithena.remote-render');
 ): Promise<string> => {
   const build = verified.get(url);
   if (build === undefined) return Promise.reject(new Error(`${url} was not verified`));
-  return renderRemote(build.code, build.sha, component, props, prefix);
+  return timed('remote.render', renderRemote(build.code, build.sha, component, props, prefix));
 };
 
 export interface PreparedSsr {
@@ -149,11 +150,14 @@ export async function prepareRemoteSsr(base: string): Promise<PreparedSsr | unde
     refuse({ ok: false, reason: 'PEOPLE_REMOTE_SSR_PUBLIC_KEY is not an Ed25519 key' }, url);
     return undefined;
   }
-  const [code, manifest, signature] = await Promise.all([
-    text(url),
-    text(`${base}/ssr/manifest.json`),
-    text(`${base}/ssr/manifest.json.sig`),
-  ]);
+  const [code, manifest, signature] = await timed(
+    'remote.ssr',
+    Promise.all([
+      text(url),
+      text(`${base}/ssr/manifest.json`),
+      text(`${base}/ssr/manifest.json.sig`),
+    ]),
+  );
   // Down, slow or not deployed with a server build: nothing to say.
   if (code === undefined || manifest === undefined || signature === undefined) return undefined;
   const verdict = verifyBuild(key, manifest, signature, code);

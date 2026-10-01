@@ -181,11 +181,16 @@ export function useShortcuts(): ShortcutsValue {
   return use(ShortcutsContext);
 }
 
+/** Whether this browser's modifier is ⌘: asked when it is needed, in the browser. */
+export function isApple(): boolean {
+  return /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+}
+
 /** ⌘ or Ctrl, for a sentence: the same question `Kbd` asks. */
 export function useApple(): boolean {
   return useSyncExternalStore(
     () => () => undefined,
-    () => /Mac|iPhone|iPad|iPod/.test(navigator.userAgent),
+    isApple,
     () => false,
   );
 }

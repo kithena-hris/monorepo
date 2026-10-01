@@ -15,9 +15,11 @@ import { signedIn } from '../../../../lib/signed-in';
  * for this page alone; refused or unreachable, it just says "Search people".
  */
 export default async function PeopleMenuPage(): Promise<JSX.Element> {
-  const { person, entitlements, shell } = await signedIn();
+  const [{ person, entitlements, shell }, headcount] = await Promise.all([
+    signedIn(),
+    people<number>('Headcount'),
+  ]);
   if (!entitlements.includes('module.people')) notFound();
-  const headcount = await people<number>('Headcount');
   return (
     <div className="flex flex-col gap-5">
       <PageHeader title="People" actions={<AccountSheet person={person} />} touchBarActions />

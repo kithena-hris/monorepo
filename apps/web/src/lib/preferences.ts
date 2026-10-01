@@ -5,6 +5,7 @@ import { cache } from 'react';
 import { cookies } from 'next/headers';
 
 import { currentPerson, SESSION_COOKIE } from './session';
+import { timed } from './timing';
 
 /**
  * The signed-in person's own preferences, kept by identity with their account
@@ -34,7 +35,10 @@ export const readPreference = cache(async (name: string): Promise<unknown> => {
   const url = await preferenceUrl(name);
   if (url === null) return null;
   try {
-    const response = await fetch(url, { headers: internal(), cache: 'no-store' });
+    const response = await timed(
+      `identity.preference.${name}`,
+      fetch(url, { headers: internal(), cache: 'no-store' }),
+    );
     if (!response.ok) return null;
     const body: unknown = await response.json();
     return body !== null && typeof body === 'object' ? Reflect.get(body, 'value') : null;

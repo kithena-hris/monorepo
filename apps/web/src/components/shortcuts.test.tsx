@@ -7,7 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 const push = vi.fn<(href: string) => void>();
 let pathname = '/';
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push, refresh: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push, refresh: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => pathname,
   useSearchParams: () => new URLSearchParams(),
 }));

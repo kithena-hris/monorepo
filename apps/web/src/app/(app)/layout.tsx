@@ -14,9 +14,9 @@ import { signedIn } from '../../lib/signed-in';
  * the pages under it, so moving between them swaps the content and nothing
  * else.
  *
- * Rendered with the first page of a visit and again on `router.refresh()`,
- * which is what every write already asks for, so a count in the sidebar is
- * fresh after anything that changes it.
+ * Rendered with the first page of a visit and again after every write, whose
+ * answer carries the page drawn again (`changed` in `lib/people.ts`), so a
+ * count in the sidebar is fresh after anything that changes it.
  */
 export default async function SignedInLayout({
   children,

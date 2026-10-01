@@ -51,6 +51,8 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  createContext,
+  use,
   useCallback,
   useEffect,
   useMemo,
@@ -86,7 +88,7 @@ import {
   focusPageSearch,
   shortcutHandler,
   submitFocused,
-  useApple,
+  isApple,
   useHint,
   useShortcuts,
   type ShortcutsValue,
@@ -185,6 +187,36 @@ const AREAS: readonly {
   },
 ];
 
+/**
+ * The shell's People data and who is signed in, for what is drawn inside the
+ * shell before the page it belongs to has arrived: a loading state knows the
+ * tabs its page will have, and the account button in its header, from here
+ * (`PageLoading`). One value from the server's render on, like every context
+ * above the page (`useShortcutsFor` says why).
+ */
+const ShellContext = createContext<{
+  readonly shell: ShellData;
+  readonly person: AppShellProps['person'] | null;
+}>({ shell: EMPTY_SHELL, person: null });
+
+export function useShellData(): ShellData {
+  return use(ShellContext).shell;
+}
+
+export function useShellPerson(): AppShellProps['person'] | null {
+  return use(ShellContext).person;
+}
+
+/** The shell's own pages, beside People's routes (`isPage`). */
+const HOST_PAGES = new Set([
+  '/',
+  '/inbox',
+  '/people/menu',
+  '/settings',
+  '/settings/activity',
+  '/settings/shortcuts',
+]);
+
 /** The areas this company has: home, and each module it bought. */
 function areasFor(entitlements: readonly string[]): typeof AREAS {
   return AREAS.filter((area) => area.module === undefined || entitlements.includes(area.module));
@@ -262,7 +294,6 @@ function useShortcutsFor({
   readonly viewing: boolean;
 }): ShortcutsValue {
   const router = useRouter();
-  const apple = useApple();
   const pathname = usePathname();
   const commands = useScreenCommands();
   // Shown as chosen at once; the server's answer replaces it, or a refusal restores it.
@@ -296,18 +327,24 @@ function useShortcutsFor({
 
   // What C makes here: what the screen offers, else the area's action for this page.
   const offered = commands.findLast((c) => c.id === 'create');
+  // The fallback is drawn again each render; its label and path are what it is.
   const fallback = createOn(shell.actions ?? [], route, pathname);
-  const create =
-    offered !== undefined
-      ? { label: offered.label, run: offered.run }
-      : fallback === null
-        ? null
-        : {
-            label: fallback.label,
-            run: () => {
-              router.push(fallback.path);
+  const fallbackLabel = fallback?.label;
+  const fallbackPath = fallback?.path;
+  const create = useMemo(
+    () =>
+      offered !== undefined
+        ? { label: offered.label, run: offered.run }
+        : fallbackLabel === undefined || fallbackPath === undefined
+          ? null
+          : {
+              label: fallbackLabel,
+              run: () => {
+                router.push(fallbackPath);
+              },
             },
-          };
+    [offered, fallbackLabel, fallbackPath, router],
+  );
 
   const run = useRef<(id: string, event?: KeyboardEvent) => boolean>(() => false);
   useEffect(() => {
@@ -370,26 +407,41 @@ function useShortcutsFor({
         : keys;
     };
   }, [table, destinations, prefs.characterKeys]);
-  return {
-    prefs,
-    table,
-    destinations,
-    keysFor,
-    openHelp,
-    create,
-    save: async (next) => {
-      const before = prefs;
-      setPrefs(next);
-      const result = await saveShortcuts(next, apple);
-      if (!result.ok) {
-        setPrefs(before);
-        return result.message;
-      }
-      // The layout reads them again, so every hint and the handler agree with what was kept.
-      router.refresh();
-      return null;
-    },
-  };
+  /*
+   * One value for as long as nothing in it changes.
+   *
+   * It is a context above every page, and a page streamed after the shell
+   * sits in its `loading.tsx` boundary, which hydrates after the shell does.
+   * A new value reaching that boundary before it has hydrated makes React
+   * give up on the server's HTML and draw the page again in the browser —
+   * the remote's server-rendered screen thrown away for a skeleton. So
+   * nothing here may change merely because the shell rendered again (as it
+   * does once hydrated, for the keyboard's ⌘ or Ctrl): `isApple` is asked
+   * when a save happens, not during render.
+   */
+  return useMemo(
+    () => ({
+      prefs,
+      table,
+      destinations,
+      keysFor,
+      openHelp,
+      create,
+      save: async (next: ShortcutPrefs) => {
+        const before = prefs;
+        setPrefs(next);
+        const result = await saveShortcuts(next, isApple());
+        if (!result.ok) {
+          setPrefs(before);
+          return result.message;
+        }
+        // The layout reads them again, so every hint and the handler agree with what was kept.
+        router.refresh();
+        return null;
+      },
+    }),
+    [prefs, table, destinations, keysFor, openHelp, create, router],
+  );
 }
 
 export function AppShell({
@@ -403,6 +455,7 @@ export function AppShell({
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
+  const shellView = useMemo(() => ({ shell, person }), [shell, person]);
   const areas = areasFor(entitlements);
   const pathname = usePathname();
   const role = roleOf(shell.roles);
@@ -433,7 +486,13 @@ export function AppShell({
     const k = keys.keysFor(path);
     return k === undefined ? undefined : <KbdShortcut keys={k} />;
   };
-  useInAppLinks();
+  // Hover-prefetch a plain link only where there is a page: People's routes
+  // and the host's own, never a file or a download behind a route handler.
+  const isPage = useCallback(
+    (path: string) => HOST_PAGES.has(path) || matchPath(shell.routes, path) !== undefined,
+    [shell.routes],
+  );
+  useInAppLinks(isPage);
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
    *
@@ -442,6 +501,7 @@ export function AppShell({
    * without a provider above it.
    */
   return (
+    <ShellContext value={shellView}>
     <Shortcuts value={keys}>
     <TooltipProvider>
       <PageLayout
@@ -530,10 +590,11 @@ export function AppShell({
                   ) : (
                     <NavItem
                       key={area.label}
-                      href={area.href}
                       icon={area.icon}
-                      // Not yet built. Disabled rather than absent: a link that
-                      // 404s is worse than one that says "not yet".
+                      // Not yet built. Disabled rather than absent, and not a
+                      // link at all — no `href` — as the account menu's item
+                      // and `g t` are not: a link that 404s is worse than one
+                      // that says "not yet".
                       aria-disabled
                       tabIndex={-1}
                       className="opacity-60"
@@ -585,9 +646,9 @@ export function AppShell({
           viewing={person.viewing == null ? null : person.name}
         />
         {/*
-          No boundary here, on purpose: a navigation is a transition and keeps
-          this page on screen until the next is ready, and a first load waits
-          for the page rather than flashing a stand-in for it.
+          The page's own `loading.tsx` stands in for it while it is fetched: a
+          prefetched link shows that skeleton on the frame after the click,
+          in the page's shape, rather than leaving the last page frozen.
         */}
         {children}
       </PageLayout>
@@ -595,6 +656,7 @@ export function AppShell({
       <ShortcutsHelp open={helpOpen} onOpenChange={setHelpOpen} />
     </TooltipProvider>
     </Shortcuts>
+    </ShellContext>
   );
 }
 

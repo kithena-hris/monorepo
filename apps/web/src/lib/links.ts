@@ -13,7 +13,11 @@ import { useEffect } from 'react';
 export function inAppHref(event: MouseEvent, origin: string): string | null {
   if (event.defaultPrevented || event.button !== 0) return null;
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
-  const target = event.target;
+  return inAppLink(event.target, origin);
+}
+
+/** The in-app address of the link `target` is in, or null: another origin, a new tab, a file. */
+function inAppLink(target: EventTarget | null, origin: string): string | null {
   const link = target instanceof Element ? target.closest<HTMLAnchorElement>('a[href]') : null;
   if (link === null || link.hasAttribute('download')) return null;
   if (link.target !== '' && link.target !== '_self') return null;
@@ -35,8 +39,13 @@ export function inAppHref(event: MouseEvent, origin: string): string | null {
  *
  * A path that is not a page (a file, a route handler) still works: the router
  * finds no page there and loads it the ordinary way.
+ *
+ * And each is prefetched as a `Link` would be, on hover, focus or the start
+ * of a touch, so a press on a remote's tab or row shows the next page's
+ * skeleton at once. Only where `isPage` says there is a page: prefetching a
+ * route handler would run it — a download, an export — on a hover.
  */
-export function useInAppLinks(): void {
+export function useInAppLinks(isPage: (path: string) => boolean): void {
   const router = useRouter();
   useEffect(() => {
     const follow = (event: MouseEvent): void => {
@@ -45,9 +54,22 @@ export function useInAppLinks(): void {
       event.preventDefault();
       router.push(href);
     };
+    let warmed: string | null = null;
+    const warm = (event: Event): void => {
+      const href = inAppLink(event.target, window.location.origin);
+      if (href === null || href === warmed) return;
+      warmed = href;
+      if (isPage(new URL(href, window.location.origin).pathname)) router.prefetch(href);
+    };
     document.addEventListener('click', follow);
+    for (const type of ['pointerover', 'focusin', 'touchstart'] as const) {
+      document.addEventListener(type, warm, { passive: true });
+    }
     return () => {
       document.removeEventListener('click', follow);
+      for (const type of ['pointerover', 'focusin', 'touchstart'] as const) {
+        document.removeEventListener(type, warm);
+      }
     };
-  }, [router]);
+  }, [router, isPage]);
 }

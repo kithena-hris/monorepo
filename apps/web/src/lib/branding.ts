@@ -2,6 +2,8 @@ import 'server-only';
 import { headers } from 'next/headers';
 import { cache } from 'react';
 
+import { timed } from './timing';
+
 /**
  * What this company may be shown as, on its own origin.
  *
@@ -58,15 +60,18 @@ export const currentTenant = cache(async (): Promise<TenantContext | null> => {
   if (id === null || id === '' || slug === null || slug === '') return null;
 
   try {
-    const response = await fetch(
-      `${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/tenant/${encodeURIComponent(slug)}`,
-      {
-        headers: { 'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '' },
-        // Branding changes when an operator edits it, and the next visitor
-        // should see the change. This is one request per render against a
-        // service on the same network, not a query.
-        cache: 'no-store',
-      },
+    const response = await timed(
+      'identity.tenant',
+      fetch(
+        `${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/tenant/${encodeURIComponent(slug)}`,
+        {
+          headers: { 'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '' },
+          // Branding changes when an operator edits it, and the next visitor
+          // should see the change. This is one request per render against a
+          // service on the same network, not a query.
+          cache: 'no-store',
+        },
+      ),
     );
     if (!response.ok) return { id, slug, branding: NOTHING, location: null };
 
