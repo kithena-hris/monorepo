@@ -501,7 +501,7 @@ async function planned(
   if (!next.ok) return next;
   const fields = plannedFields(g, kept, built);
   const mapping = {
-    ...(input.mapping ?? {}),
+    ...input.mapping,
     ...Object.fromEntries(fields.map((f) => [String(f.column), f.key])),
   };
   const review = await deps.importReview(asking, { uploadId: input.uploadId, mapping }, next.value);
