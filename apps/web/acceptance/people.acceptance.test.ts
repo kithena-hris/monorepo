@@ -1074,6 +1074,8 @@ describe('PEO-122: what is about to expire, to whom', () => {
       const context = await signedIn(session);
       const page = await context.newPage();
       await page.goto(`${stack.shell}/people/insights/data-quality`);
+      // Hydrated first, as elsewhere here: a press on the server's markup is lost (PEO-094).
+      await page.waitForLoadState('networkidle');
       // The innermost section holding the heading: ancestors come first.
       const section = page
         .locator('section', { has: page.getByRole('heading', { name: 'What expires next' }) })
