@@ -4,6 +4,7 @@ import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 import { useId } from 'react';
 
+import { icons } from '../../icons';
 import { cn } from '../../lib/cn';
 
 /**
@@ -107,6 +108,14 @@ export interface RadioCardProps extends RadioGroupItemProps {
    * as a shape; the radio itself stays for the keyboard and a screen reader.
    */
   icon?: ReactNode;
+  /** Beside the title: a `Badge`, such as `tone="assistant"` "Suggested". */
+  badge?: ReactNode;
+  /**
+   * What choosing this does, in a few words, under the description behind an
+   * arrow: "14 tasks", "Nobody asked today". The cost of a choice shown before
+   * it is made rather than discovered after.
+   */
+  impact?: ReactNode;
 }
 
 /**
@@ -119,6 +128,8 @@ export function RadioCard({
   children,
   description,
   icon,
+  badge,
+  impact,
   id,
   ...props
 }: RadioCardProps): JSX.Element {
@@ -153,7 +164,7 @@ export function RadioCard({
       <RadioGroupPrimitive.Item
         id={controlId}
         aria-labelledby={labelId}
-        aria-describedby={description ? descriptionId : undefined}
+        aria-describedby={description || impact ? descriptionId : undefined}
         className={cn(
           // With a glyph the dot is not drawn: the radio stays, focusable and
           // named, and the card's ring is its state.
@@ -170,19 +181,28 @@ export function RadioCard({
         <RadioGroupPrimitive.Indicator className="size-[0.4375rem] rounded-full bg-fg-on-accent data-[state=checked]:animate-scale-in touch:size-2.5" />
       </RadioGroupPrimitive.Item>
       {icon}
-      <div className="min-w-0">
-        <span
-          id={labelId}
-          className={cn(
-            'block text-base font-semibold text-fg',
-            icon === undefined ? null : 'text-sm font-medium',
-          )}
-        >
-          {children}
+      <div className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span
+            id={labelId}
+            className={cn(
+              'block text-base font-semibold text-fg',
+              icon === undefined ? null : 'text-sm font-medium',
+            )}
+          >
+            {children}
+          </span>
+          {badge}
         </span>
-        {description ? (
+        {description || impact ? (
           <span id={descriptionId} className="mt-0.5 block text-sm text-fg-muted">
             {description}
+            {impact ? (
+              <span className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-fg [&_svg]:size-3 [&_svg]:shrink-0">
+                <icons.forward aria-hidden />
+                {impact}
+              </span>
+            ) : null}
           </span>
         ) : null}
       </div>
