@@ -88,7 +88,7 @@ import {
   focusPageSearch,
   shortcutHandler,
   submitFocused,
-  useApple,
+  isApple,
   useHint,
   useShortcuts,
   type ShortcutsValue,
@@ -285,7 +285,6 @@ function useShortcutsFor({
   readonly viewing: boolean;
 }): ShortcutsValue {
   const router = useRouter();
-  const apple = useApple();
   const pathname = usePathname();
   const commands = useScreenCommands();
   // Shown as chosen at once; the server's answer replaces it, or a refusal restores it.
@@ -319,18 +318,24 @@ function useShortcutsFor({
 
   // What C makes here: what the screen offers, else the area's action for this page.
   const offered = commands.findLast((c) => c.id === 'create');
+  // The fallback is drawn again each render; its label and path are what it is.
   const fallback = createOn(shell.actions ?? [], route, pathname);
-  const create =
-    offered !== undefined
-      ? { label: offered.label, run: offered.run }
-      : fallback === null
-        ? null
-        : {
-            label: fallback.label,
-            run: () => {
-              router.push(fallback.path);
+  const fallbackLabel = fallback?.label;
+  const fallbackPath = fallback?.path;
+  const create = useMemo(
+    () =>
+      offered !== undefined
+        ? { label: offered.label, run: offered.run }
+        : fallbackLabel === undefined || fallbackPath === undefined
+          ? null
+          : {
+              label: fallbackLabel,
+              run: () => {
+                router.push(fallbackPath);
+              },
             },
-          };
+    [offered, fallbackLabel, fallbackPath, router],
+  );
 
   const run = useRef<(id: string, event?: KeyboardEvent) => boolean>(() => false);
   useEffect(() => {
@@ -393,26 +398,41 @@ function useShortcutsFor({
         : keys;
     };
   }, [table, destinations, prefs.characterKeys]);
-  return {
-    prefs,
-    table,
-    destinations,
-    keysFor,
-    openHelp,
-    create,
-    save: async (next) => {
-      const before = prefs;
-      setPrefs(next);
-      const result = await saveShortcuts(next, apple);
-      if (!result.ok) {
-        setPrefs(before);
-        return result.message;
-      }
-      // The layout reads them again, so every hint and the handler agree with what was kept.
-      router.refresh();
-      return null;
-    },
-  };
+  /*
+   * One value for as long as nothing in it changes.
+   *
+   * It is a context above every page, and a page streamed after the shell
+   * sits in its `loading.tsx` boundary, which hydrates after the shell does.
+   * A new value reaching that boundary before it has hydrated makes React
+   * give up on the server's HTML and draw the page again in the browser —
+   * the remote's server-rendered screen thrown away for a skeleton. So
+   * nothing here may change merely because the shell rendered again (as it
+   * does once hydrated, for the keyboard's ⌘ or Ctrl): `isApple` is asked
+   * when a save happens, not during render.
+   */
+  return useMemo(
+    () => ({
+      prefs,
+      table,
+      destinations,
+      keysFor,
+      openHelp,
+      create,
+      save: async (next: ShortcutPrefs) => {
+        const before = prefs;
+        setPrefs(next);
+        const result = await saveShortcuts(next, isApple());
+        if (!result.ok) {
+          setPrefs(before);
+          return result.message;
+        }
+        // The layout reads them again, so every hint and the handler agree with what was kept.
+        router.refresh();
+        return null;
+      },
+    }),
+    [prefs, table, destinations, keysFor, openHelp, create, router],
+  );
 }
 
 export function AppShell({
