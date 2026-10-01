@@ -191,20 +191,6 @@ function replay(target: Element, press: Press): void {
 }
 
 /**
- * The server's HTML moved, still waiting, from `from` into `to`, the element
- * its root hydrates (`remote-screen.tsx`): the mark and any press held, whose
- * path from the container is unchanged.
- */
-export function moveEarlyPresses(from: Element, to: Element): void {
-  if (!from.hasAttribute(WAITING)) return;
-  from.removeAttribute(WAITING);
-  to.setAttribute(WAITING, '');
-  const source = from as unknown as Record<string, unknown>;
-  (to as unknown as Record<string, unknown>)[HELD] = source[HELD];
-  source[HELD] = undefined;
-}
-
-/**
  * The remote's root has hydrated `container`: stop holding presses there, hand
  * over what was typed, and replay the press it held, if any.
  *

@@ -21,7 +21,7 @@ import { preloadModule } from 'react-dom';
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 
-import { WAITING, moveEarlyPresses, releaseEarlyPresses } from '../lib/early-presses';
+import { WAITING, releaseEarlyPresses } from '../lib/early-presses';
 
 /*
  * The shell's React and the shell's Reach, offered to every remote.
@@ -257,9 +257,15 @@ interface Stage {
 const stages = new Map<string, Stage>();
 
 /**
- * The area's stage, made the first time: hydrating what the server sent into
- * `container`, or drawing from nothing. `display: contents`, so the screen
- * lays out as if it were the host's own child.
+ * The area's stage, made the first time.
+ *
+ * Hydrating, it is the element the server's HTML is already in, left where
+ * it is: moving those nodes while somebody presses one makes the browser
+ * drop the click (the press goes down on one parent and up on another), and
+ * a press held before hydration (`lib/early-presses.ts`) is held on this
+ * element. It moves only when a later page takes it. Drawn from nothing, it is
+ * an element of its own. Either way `display: contents`, so the screen lays
+ * out as if it were the host's own child.
  */
 function stageOf(
   name: string,
@@ -276,15 +282,8 @@ function stageOf(
       kept.root.unmount();
     }, 0);
   }
-  const element = document.createElement('div');
+  const element = hydrate ? container : document.createElement('div');
   element.style.display = 'contents';
-  // The remote's container from here on, wherever it moves: a press held on
-  // the server's HTML moves with it, and one made before it hydrates is held
-  // here (`lib/early-presses.ts`).
-  element.setAttribute('data-remote', name);
-  element.append(...container.childNodes);
-  container.append(element);
-  if (hydrate) moveEarlyPresses(container, element);
   const state = store(current);
   const tree = <Staged name={name} area={area} current={state} container={element} />;
   const options = { identifierPrefix: idPrefix(name) };
@@ -327,7 +326,9 @@ function Host({
     if (container === null) return;
     const stage = stageOf(name, area, container, latest.current, hydrate);
     clearTimeout(stage.timer);
-    if (stage.element.parentNode !== container) container.append(stage.element);
+    if (stage.element !== container && stage.element.parentNode !== container) {
+      container.append(stage.element);
+    }
     stage.owner = container;
     return () => {
       if (stage.owner !== container) return;
