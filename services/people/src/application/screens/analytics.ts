@@ -304,6 +304,10 @@ async function chartsView(
     if (request.segmentId !== undefined) {
       const found = await segmentFor(deps, tx, asking, request.segmentId);
       if (!found.ok) return found;
+      // A chart has no conditions: a view saved from a search is not one it can draw.
+      if ((found.value.conditions ?? []).length > 0) {
+        return err(failure('FIELD_NOT_FILTERABLE', 'Charts can’t be narrowed by this view'));
+      }
       const charted = chartFilters(found.value.filter);
       if (!charted.ok) return charted;
       segment = { id: found.value.id, name: found.value.name };
@@ -410,7 +414,10 @@ async function chartsView(
               incomplete: states.value.states.incomplete,
               change: then === null ? null : percent - then,
               trend: completeDays.ok
-                ? completeByMonth(completeDays.value).map((p) => ({ label: p.month, value: p.percent }))
+                ? completeByMonth(completeDays.value).map((p) => ({
+                    label: p.month,
+                    value: p.percent,
+                  }))
                 : [],
             }
           : null,

@@ -104,7 +104,11 @@ describe('asking instead of guessing', () => {
     const s = sift('people leaving soon', fields, TODAY, { leaving: 'Have given notice' });
     expect(s.clarify).toBeNull();
     expect(s.reading?.conditions).toEqual([{ key: 'status', op: 'in', values: ['notice'] }]);
-    expect(s.remembered).toEqual({ topic: 'leaving', phrase: 'leaving soon', label: 'Have given notice' });
+    expect(s.remembered).toEqual({
+      topic: 'leaving',
+      phrase: 'leaving soon',
+      label: 'Have given notice',
+    });
   });
 
   it('only one reading possible is no question: it is used', () => {
@@ -169,7 +173,8 @@ describe('refusing judgements', () => {
   });
 
   it('performance, predictions, health and other special-category data are never searched', () => {
-    const kinds = (sentence: string) => sift(sentence, fields, TODAY, {}).refused.map((r) => r.kind);
+    const kinds = (sentence: string) =>
+      sift(sentence, fields, TODAY, {}).refused.map((r) => r.kind);
     expect(kinds('top performers in Madrid')).toEqual(['performance']);
     expect(kinds('who is underperforming')).toEqual(['performance']);
     expect(kinds('engineers likely to quit')).toEqual(['prediction']);

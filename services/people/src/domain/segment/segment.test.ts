@@ -74,17 +74,35 @@ describe('a segment of conditions, saved from a search', () => {
 
   it('keeps the directory’s conditions and how they combine, beside or instead of a filter', () => {
     expect(
-      checkSegment({ name: 'No bank', filter: {}, conditions: [madrid, noBank], match: 'all', shared: false }),
+      checkSegment({
+        name: 'No bank',
+        filter: {},
+        conditions: [madrid, noBank],
+        match: 'all',
+        shared: false,
+      }),
     ).toEqual({
       ok: true,
-      value: { name: 'No bank', filter: {}, conditions: [madrid, noBank], match: 'all', shared: false },
+      value: {
+        name: 'No bank',
+        filter: {},
+        conditions: [madrid, noBank],
+        match: 'all',
+        shared: false,
+      },
     });
   });
 
   it('counts conditions and filter keys together, ten at most, and checks each one’s shape', () => {
     const many = Array.from({ length: 10 }, () => madrid);
     expect(
-      checkSegment({ name: 'n', filter: { a: 'b' }, conditions: many, match: 'all', shared: false }),
+      checkSegment({
+        name: 'n',
+        filter: { a: 'b' },
+        conditions: many,
+        match: 'all',
+        shared: false,
+      }),
     ).toMatchObject({ ok: false, error: { code: 'SEGMENT_FILTER' } });
     expect(
       checkSegment({

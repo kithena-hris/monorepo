@@ -28,9 +28,9 @@ export interface Segment {
    * The directory's own conditions, saved from a search ("Save as view"):
    * authorized at use as a typed condition is. Absent on a filter alone.
    */
-  readonly conditions?: readonly SegmentCondition[];
+  readonly conditions?: readonly SegmentCondition[] | undefined;
   /** Whether all of the conditions must hold, or any. */
-  readonly match?: 'all' | 'any';
+  readonly match?: 'all' | 'any' | undefined;
 }
 
 export interface SegmentCondition {
@@ -39,7 +39,17 @@ export interface SegmentCondition {
   readonly values: readonly string[];
 }
 
-const OPS = ['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty', 'under'] as const;
+const OPS = [
+  'is',
+  'in',
+  'contains',
+  'before',
+  'after',
+  'between',
+  'empty',
+  'not_empty',
+  'under',
+] as const;
 
 export type SegmentInput = Pick<Segment, 'name' | 'filter' | 'shared' | 'conditions' | 'match'>;
 

@@ -60,7 +60,11 @@ export interface Sifted {
   readonly clarify: Clarification | null;
   /** The reading used without asking: the only one, or the one chosen before. */
   readonly reading: Reading | null;
-  readonly remembered: { readonly topic: Topic; readonly phrase: string; readonly label: string } | null;
+  readonly remembered: {
+    readonly topic: Topic;
+    readonly phrase: string;
+    readonly label: string;
+  } | null;
 }
 
 /* ------------------------------------------------------------ refusing -- */
@@ -111,7 +115,10 @@ const SKILLISH = /skill|expertise|competenc|language|certific|qualific/iu;
 
 const tidy = (s: string): string => s.replaceAll(/\s+/gu, ' ').trim();
 
-function refuse(sentence: string, fields: readonly PlannedField[]): { rest: string; refused: Refused[] } {
+function refuse(
+  sentence: string,
+  fields: readonly PlannedField[],
+): { rest: string; refused: Refused[] } {
   let rest = sentence;
   const refused: Refused[] = [];
   for (const { kind, re } of REFUSALS) {
@@ -157,7 +164,8 @@ const TOPICS: readonly { readonly topic: Topic; readonly re: RegExp }[] = [
 
 const DAYS_AHEAD = 90;
 
-const byKind = (fields: readonly PlannedField[], kind: string) => fields.filter((f) => f.kind === kind);
+const byKind = (fields: readonly PlannedField[], kind: string) =>
+  fields.filter((f) => f.kind === kind);
 
 /** The start date: by its key, else by its name. */
 const hireField = (fields: readonly PlannedField[]) =>
@@ -223,7 +231,7 @@ export function sift(
   sentence: string,
   fields: readonly PlannedField[],
   today: string,
-  remembered: Readonly<Record<string, string>>,
+  remembered: Readonly<Partial<Record<Topic, string>>>,
 ): Sifted {
   const refusal = refuse(sentence, fields);
   let rest = refusal.rest;
@@ -240,7 +248,10 @@ export function sift(
     const alone = directoryByRules(without, fields, today).conditions.length === 0;
     const readings =
       alone && own.length > 1 && topic !== 'new'
-        ? [...own, { label: 'Both', conditions: own.flatMap((r) => r.conditions), match: 'any' as const }]
+        ? [
+            ...own,
+            { label: 'Both', conditions: own.flatMap((r) => r.conditions), match: 'any' as const },
+          ]
         : own;
     const chosen = readings.find((r) => r.label === remembered[topic]);
     if (chosen !== undefined) {
@@ -275,10 +286,13 @@ const article = (word: string): string => (/^[aeiou]/iu.test(word) ? 'an' : 'a')
 export function suggestions(fields: readonly PlannedField[], today: string): string[] {
   const hire = hireField(fields);
   const choices = fields.filter((f) => f.kind === 'select' && f.ai && f.options.length > 0);
-  const place = choices.find((f) => f.key === 'location_id' || /location|office|city/iu.test(f.label));
+  const place = choices.find(
+    (f) => f.key === 'location_id' || /location|office|city/iu.test(f.label),
+  );
   const contract = choices.find((f) => /contract/iu.test(f.label));
   const group = choices.find(
-    (f) => f !== place && f !== contract && f.key !== 'legal_entity_id' && !/entity/iu.test(f.label),
+    (f) =>
+      f !== place && f !== contract && f.key !== 'legal_entity_id' && !/entity/iu.test(f.label),
   );
   const gap =
     fields.find((f) => f.kind === 'text' && /emergency|bank|phone|address/iu.test(f.label)) ??
@@ -295,9 +309,7 @@ export function suggestions(fields: readonly PlannedField[], today: string): str
     group === undefined
       ? null
       : `Everyone in ${first(group) ?? ''}${hire === undefined ? '' : ' who joined this year'}`,
-    gap === undefined
-      ? null
-      : `Everyone missing ${article(gap.label)} ${gap.label.toLowerCase()}`,
+    gap === undefined ? null : `Everyone missing ${article(gap.label)} ${gap.label.toLowerCase()}`,
   ];
   return candidates
     .filter((s): s is string => s !== null)
