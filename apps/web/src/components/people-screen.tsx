@@ -218,9 +218,6 @@ function download(
   return { ok: true };
 }
 
-/** The import, which setup returns to when it was what sent the admin there. */
-const IMPORT = '/people/import';
-
 export function PeopleScreen({
   route,
   load,
@@ -307,17 +304,8 @@ export function PeopleScreen({
           // The first administrator is the only HR member: they approve their own NIF (PEO-077).
           onSelfApprove: thenRefresh(actions.approveAlone),
           onWithdraw: thenRefresh(actions.withdrawPendingChange),
-          // Sent here from an import with nothing published: the import goes on after.
-          ...(search['then'] === IMPORT
-            ? {
-                continuing: {
-                  label: 'Continue to the import',
-                  note: 'Your import carries on once version 1 is published. Columns in your file that match none of these fields become new fields for you to review there.',
-                },
-              }
-            : {}),
           onFinish: () => {
-            go(search['then'] === IMPORT ? IMPORT : '/people/me');
+            go('/people/me');
           },
         };
       // One person by hand; then their record, to fill in the rest.
@@ -991,83 +979,81 @@ export function PeopleScreen({
       }
       case 'ImportFlow': {
         const stage = importing.stages.at(-1) ?? { step: 'upload' };
-        const next = (
-          result: actions.Staged,
-          uploadId: string,
-          mapping: Readonly<Record<number, string | null>>,
-        ): Outcome => {
-          if (!result.ok) return result;
-          setImporting((s) => ({
-            uploadId,
-            mapping,
-            stages: [...s.stages, result.stage as Stage],
-          }));
-          return { ok: true };
-        };
         const again = { ok: false, message: 'Choose the file again' } as const;
-        // Nothing published: setup comes first, for an administrator to run.
+        type Mapping = Readonly<Record<number, string | null>>;
+        // Nothing published and not an administrator: the first import is one's.
         const ready =
           load.status === 'ready' ? (load.data as { setUp?: boolean; admin?: boolean }) : {};
         return {
           load: { status: 'ready', data: stage },
-          ...(ready.setUp === false
-            ? { setup: { href: ready.admin === true ? `/people/setup?then=${IMPORT}` : null } }
-            : {}),
+          ...(ready.setUp === false ? { setup: { href: null } } : {}),
+          // The step after the mapping and the field in focus live in the address.
+          step: at('step'),
+          onStepChange: (step: string | null) => {
+            note({ step, field: null }, 'push');
+          },
+          field: at('field'),
+          onFieldChange: (field: string | null) => {
+            note({ field }, 'replace');
+          },
           onUpload: async (file: File, progress: (percent: number) => void): Promise<Outcome> => {
             const target = await actions.startImportUpload({ name: file.name, size: file.size });
             if (!target.ok) return target;
             if (!(await putFile(target, file, progress))) {
               return { ok: false, message: 'The upload did not go through; try again' };
             }
-            return next(await actions.completeImportUpload(target.uploadId), target.uploadId, {});
-          },
-          onMap: async (mapping: Readonly<Record<number, string | null>>) => {
-            const id = importing.uploadId;
-            return id === null ? again : next(await actions.dryRunImport(id, mapping), id, mapping);
-          },
-          onCommit: async (options?: { readonly applyWithoutApproval?: boolean }) => {
-            const id = importing.uploadId;
-            return id === null
-              ? again
-              : next(
-                  await actions.commitImport(
-                    id,
-                    importing.mapping,
-                    options?.applyWithoutApproval === true,
-                  ),
-                  id,
-                  importing.mapping,
-                );
-          },
-          onDownloadBlocked: () => {
-            // A signed link to the stored report: it downloads, and expires.
-            const url = stage.blockedUrl;
-            if (typeof url === 'string') window.location.assign(url);
+            const completed = await actions.completeImportUpload(target.uploadId);
+            if (!completed.ok) return completed;
+            setImporting((s) => ({
+              uploadId: target.uploadId,
+              mapping: {},
+              stages: [...s.stages, completed.stage as Stage],
+            }));
+            return { ok: true };
           },
           onBack: () => {
             setImporting((s) => ({
               ...s,
               stages: s.stages.length > 1 ? s.stages.slice(0, -1) : s.stages,
             }));
+            note({ step: null, field: null }, 'replace');
           },
-          // New information in the file: proposed, reviewed, added (docs/ai-settings.md).
-          newFields: {
-            propose: async (mapping: Readonly<Record<number, string | null>>) => {
-              const id = importing.uploadId;
-              return id === null ? again : actions.proposeImportFields(id, mapping);
-            },
-            review: async (mapping: Readonly<Record<number, string | null>>, proposals: readonly unknown[]) => {
-              const id = importing.uploadId;
-              return id === null ? again : actions.reviewImportFields(id, mapping, proposals);
-            },
-            apply: async (
-              mapping: Readonly<Record<number, string | null>>,
-              proposals: readonly unknown[],
-              summary: string,
-            ) => {
-              const id = importing.uploadId;
-              return id === null ? again : actions.addImportFields(id, mapping, proposals, summary);
-            },
+          propose: async (mapping: Mapping) => {
+            const id = importing.uploadId;
+            return id === null ? again : actions.proposeImportFields(id, mapping);
+          },
+          plan: async (mapping: Mapping, proposals: readonly unknown[]) => {
+            const id = importing.uploadId;
+            return id === null ? again : actions.planImport(id, mapping, proposals);
+          },
+          run: async (
+            mapping: Mapping,
+            proposals: readonly unknown[],
+            options: { readonly applyWithoutApproval: boolean },
+          ): Promise<Outcome> => {
+            const id = importing.uploadId;
+            if (id === null) return again;
+            const ran = await actions.runImport(
+              id,
+              mapping,
+              proposals,
+              options.applyWithoutApproval,
+            );
+            if (!ran.ok) return ran;
+            setImporting((s) => ({
+              ...s,
+              mapping,
+              stages: [...s.stages, { ...(ran.data as object), step: 'done' } as Stage],
+            }));
+            note({ step: null, field: null }, 'replace');
+            return { ok: true };
+          },
+          onDownloadBlocked: (url: string) => {
+            // A signed link to the stored report: it downloads, and expires.
+            window.location.assign(url);
+          },
+          onDone: () => {
+            go('/people/import-export');
           },
         };
       }

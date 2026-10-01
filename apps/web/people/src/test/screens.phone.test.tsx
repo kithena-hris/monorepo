@@ -12,8 +12,7 @@ import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
 import { ImportFlow } from '../import/import-flow';
-import { NewInformation, type NewFieldsView } from '../import/new-information';
-import { NEW_FIELDS } from '../import/new-information.fixture';
+import { DONE, MAPPING, NEW_FIELDS, PLAN } from '../import/import.fixture';
 import { Onboarding } from '../onboarding/onboarding';
 import { PersonHistory } from '../profile/history';
 import { Profile } from '../profile/profile';
@@ -888,86 +887,76 @@ describe('at 390×844, with a finger', () => {
     );
   });
 
-  it('the import upload', async () => {
-    await checked(
+  describe('the import', () => {
+    const flow = (data: Parameters<typeof ImportFlow>[0]['load']) => (
       <ImportFlow
-        load={{ status: 'ready', data: { step: 'upload' } }}
+        load={data}
         onUpload={ok}
-        onMap={ok}
-        onCommit={ok}
+        propose={() => Promise.resolve({ ok: true as const, data: NEW_FIELDS })}
+        plan={() => Promise.resolve({ ok: true as const, data: PLAN })}
+        run={ok}
         onDownloadBlocked={vi.fn()}
         onBack={vi.fn()}
-      />,
-    );
-  });
-
-  describe('new information in an import', () => {
-    const newInformation = (over: Partial<NewFieldsView> = {}) => (
-      <NewInformation
-        view={{ ...NEW_FIELDS, ...over }}
-        onReview={(proposals) =>
-          Promise.resolve({
-            ok: true as const,
-            data: { ...NEW_FIELDS, proposals: NEW_FIELDS.proposals.filter((p) => proposals.some((q) => q.column === p.column)), summary: 'Adds 4 fields. Values for 128 people from this file. 342 people will be asked for their emergency contact.', problems: [] },
-          })
-        }
-        onApply={ok}
-        onSkip={vi.fn()}
-        onBack={vi.fn()}
+        onDone={vi.fn()}
       />
     );
-
-    it('the proposed fields, one edited', async () => {
-      await checked(newInformation());
-      await userEvent.click(screen.getByRole('button', { name: 'Change T-shirt size' }));
+    const again = async (): Promise<void> => {
       await settled();
       expect(await violations(document.body)).toEqual([]);
       expect(underFloor(document.body)).toEqual([]);
+    };
+
+    it('the upload', async () => {
+      await checked(flow({ status: 'ready', data: { step: 'upload' } }));
     });
 
-    it('people not in the file, then the review', async () => {
-      await checked(newInformation());
-      await userEvent.click(screen.getByRole('button', { name: 'Next: people not in this file' }));
-      await settled();
-      expect(await violations(document.body)).toEqual([]);
-      expect(underFloor(document.body)).toEqual([]);
-      await userEvent.click(screen.getByRole('button', { name: 'Review' }));
-      await screen.findByText(/342 people will be asked/u);
-      await settled();
-      expect(await violations(document.body)).toEqual([]);
-      expect(underFloor(document.body)).toEqual([]);
+    it('the mapping', async () => {
+      await checked(flow({ status: 'ready', data: MAPPING }));
     });
 
-    it('for HR without an administrator', async () => {
-      await checked(
-        newInformation({ canCreate: false, blocked: 'Only a People administrator can add fields.' }),
-      );
+    it('new fields, one card at a time, with Skip and Create in thumb reach (MA8)', async () => {
+      await checked(flow({ status: 'ready', data: MAPPING }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      await screen.findByText('New fields · 1 of 3');
+      expect(
+        screen.getByRole('heading', { name: 'These columns aren’t fields yet' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Proposed fields' })).toBeInTheDocument();
+      await again();
+      await userEvent.click(screen.getByRole('button', { name: 'Create field' }));
+      await screen.findByText('New fields · 2 of 3');
+      await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+      await screen.findByText('New fields · 3 of 3');
+      // Held back: the button says what pressing it would do.
+      expect(screen.getByRole('button', { name: 'Import anyway' })).toBeInTheDocument();
+      await again();
     });
-  });
 
-  it('the import review', async () => {
-    await checked(
-      <ImportFlow
-        load={{
-          status: 'ready',
-          data: {
-            step: 'review',
-            file: { name: 'people.xlsx', rows: 3, sheet: null },
-            dryRun: {
-              counts: { create: 2, update: 0, unchanged: 0, blocked: 1, duplicate: 0 },
-              incomplete: { count: 1, byField: [{ label: 'Cost centre', count: 1 }] },
-              ignoredColumns: [],
-              blocked: [{ row: 3, person: null, problem: 'No work email', cell: 'D3 — empty' }],
-            },
-          },
-        }}
-        onUpload={ok}
-        onMap={ok}
-        onCommit={ok}
-        onDownloadBlocked={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    );
+    it('the people without a value, then the plan in a sentence and Approve (MA9)', async () => {
+      await checked(flow({ status: 'ready', data: MAPPING }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      for (const name of ['Create field', 'Create field', 'Skip']) {
+        await userEvent.click(await screen.findByRole('button', { name }));
+      }
+      expect(await screen.findByText(PLAN.short)).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: '4 people have no T-shirt size' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Approve and run' })).toBeEnabled();
+      await again();
+    });
+
+    it('the plan', async () => {
+      const noNewColumns = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
+      await checked(flow({ status: 'ready', data: noNewColumns }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+      await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
+      await again();
+    });
+
+    it('done', async () => {
+      await checked(flow({ status: 'ready', data: DONE }));
+    });
   });
 
   it('the export builder', async () => {

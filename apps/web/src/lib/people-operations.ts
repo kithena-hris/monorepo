@@ -801,19 +801,6 @@ export const OPERATIONS = {
     completeImportUpload(uploadId: $uploadId) { ...StageParts }
   }${STAGE}`,
 
-  DryRunImport: `mutation DryRunImport($uploadId: ID!, $mapping: [ImportColumnInput!]!) {
-    dryRunImport(uploadId: $uploadId, mapping: $mapping) { ...StageParts }
-  }${STAGE}`,
-
-  CommitImport: `mutation CommitImport(
-    $uploadId: ID!, $mapping: [ImportColumnInput!]!, $applySensitiveWithoutApproval: Boolean, $key: String!
-  ) {
-    commitImport(
-      uploadId: $uploadId, mapping: $mapping,
-      applySensitiveWithoutApproval: $applySensitiveWithoutApproval, idempotencyKey: $key
-    ) { ...StageParts }
-  }${STAGE}`,
-
   DecidePendingChange: `mutation DecidePendingChange(
     $id: ID!, $approve: Boolean!, $note: String, $soleApprover: Boolean, $key: String!
   ) {
@@ -906,17 +893,18 @@ export const OPERATIONS = {
     deleteReportSchedule(id: $id, idempotencyKey: $key) { id }
   }`,
 
-  // New information in an import's file (docs/ai-settings.md). Proposals cross as JSON.
+  // New information in an import's file, and the plan HR approves (docs/ai-settings.md).
+  // Proposals and plans cross as JSON.
   ProposeImportFields: `mutation ProposeImportFields($step: String!) {
     proposeImportFields(step: $step)
   }`,
 
-  ReviewImportFields: `mutation ReviewImportFields($input: String!) {
-    reviewImportFields(input: $input)
+  PlanImport: `mutation PlanImport($input: String!) {
+    planImport(input: $input)
   }`,
 
-  AddImportFields: `mutation AddImportFields($input: String!, $key: String!) {
-    addImportFields(input: $input, idempotencyKey: $key)
+  RunImport: `mutation RunImport($input: String!, $key: String!) {
+    runImport(input: $input, idempotencyKey: $key)
   }`,
 
   // Search and export in words (docs/ai-settings.md). Plans cross as JSON; neither writes.
