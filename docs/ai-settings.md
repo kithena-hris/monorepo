@@ -365,7 +365,7 @@ them, switches disabled. No row is the default: all on but the time of day.
 | `band` | the new pay is outside the band of the person's grade | the band in force on the effective date, same currency |
 | `bank_after_contact` | bank details asked for within 14 days after an address or email change | recorded history, and changes still waiting |
 | `close_colleagues` | the decider and the requester share a manager, within an hour of the request | the two records' managers, at the moment the decider looks |
-| `payroll_closing` | pay or bank details landing in this month's payroll with under 5 days left, or reaching back into a month already paid | a monthly payroll closing on the month's last day (PEO-134) |
+| `payroll_closing` | pay or bank details landing in this month's payroll with under 5 days left, or reaching back into a month already paid | a monthly payroll closing on the month's last day (PEO-147) |
 | `unusual_time` (off) | asked for outside 07:00–20:00 Monday to Friday, by someone other than the employee | the requester's own zone |
 
 Each reason has a title ("A 38% raise"), what it compared against ("Sales
@@ -380,7 +380,7 @@ both. Check the reason before you decide."
 - **Pay is compared only where the decider may read the field** — the rule
   a profile shows it to them by. A decider who may not gets no pay flag and
   no hint that one exists.
-- **Sealed pay (PEO-132)** is opened in memory for that request only: the
+- **Sealed pay (PEO-145)** is opened in memory for that request only: the
   value in force through the audited `SecretStore.reveal`, the value asked
   for from the change's own seal. The reasons say percentages and the band's
   limits ("It is over the top of the L3 band (€62k–€78k)"), never an amount.
@@ -403,7 +403,7 @@ both. Check the reason before you decide."
   was marked. Marks are the company's own. It decides nothing.
 - **Ask the requester**: a question kept with the change; the requester sees
   it on their bell and Inbox ("HR asked about your … change") and answers once,
-  beside the change. Nobody is emailed yet (PEO-133).
+  beside the change. Nobody is emailed yet (PEO-146).
 
 ## The last 90 days
 

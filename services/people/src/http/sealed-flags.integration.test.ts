@@ -22,7 +22,7 @@ import { tenantTransaction } from '../infrastructure/unit-of-work.js';
 import { wirePeople } from './server.js';
 
 /**
- * Flagged approvals on sealed pay (PEO-132), booted as `main.ts` boots People:
+ * Flagged approvals on sealed pay (PEO-145), booted as `main.ts` boots People:
  * a decider who may read the field is told "A 38% raise", one who may not is
  * told nothing, and neither amount is ever written down — not in a response,
  * a table or a log line — however the change is looked at, marked or decided.
@@ -221,7 +221,7 @@ async function inbox(account: string, roles: string[]): Promise<{ body: string; 
   return { body, item };
 }
 
-describe('flags on sealed pay (PEO-132)', () => {
+describe('flags on sealed pay (PEO-145)', () => {
   it('tells a decider who may read it the percentage, tells anybody else nothing, and writes neither amount anywhere', async () => {
     const asked = await fetch(`${base}/v1/people/${TOM}`, {
       method: 'PATCH',

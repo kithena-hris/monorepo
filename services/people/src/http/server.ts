@@ -338,7 +338,7 @@ export function peopleService(
       relations,
       roles: drizzleRoleStore(),
       reviews,
-      // Sealed pay opened in memory for a decider who may read it (PEO-132).
+      // Sealed pay opened in memory for a decider who may read it (PEO-145).
       flags: {
         store: drizzleApprovalFlagStore(),
         calendars: org,

@@ -125,7 +125,7 @@ export interface FlagDeps {
 }
 
 /**
- * Opening sealed pay for one flag computation (design AI7; PEO-132).
+ * Opening sealed pay for one flag computation (design AI7; PEO-145).
  *
  * Only for a decider who may read the field on that person (the rule a
  * profile shows it to them by), only for a money field, and only inside the
@@ -214,7 +214,7 @@ function parsedMoney(plaintext: string | null): Money | null {
 
 /**
  * Both amounts of a change to sealed pay, opened in memory for this
- * computation (PEO-132): what is in force through `SealedPay`, what is asked
+ * computation (PEO-145): what is in force through `SealedPay`, what is asked
  * for from the change's own seal. Null without the port, or when either is
  * missing. The caller has already established the decider may read the field.
  */

@@ -63,7 +63,7 @@ const department = define({
   classification: { ...confidential, classification: 'internal' },
 });
 
-// Sealed pay that only finance reads (PEO-132): a decider without it learns nothing of it.
+// Sealed pay that only finance reads (PEO-145): a decider without it learns nothing of it.
 const sealedPay = define({
   key: 'pay',
   label: { default: 'Pay' },
@@ -323,7 +323,7 @@ describe('what Kithena checks (AI8)', () => {
   });
 });
 
-describe('sealed pay (PEO-132)', () => {
+describe('sealed pay (PEO-145)', () => {
   const FINANCE_HR = viewer(SOFIA_ACCOUNT, ['hr', 'finance']);
   const PLAIN_HR = viewer(SOFIA_ACCOUNT, ['hr']);
 
