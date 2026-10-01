@@ -2000,13 +2000,14 @@ it is written down here rather than left in a PR description.
       (fuzzy names, measured precision on real merges). Found building #197.
 
 <!-- Flagged approvals (design AI7, AI8, MA6, MA7): numbers may move at integration. -->
-- [ ] **PEO-132** Flag raises and band breaches on a sealed salary. The
-      checks compare pay only where the decider may read both amounts in
-      clear (`docs/ai-settings.md`, "Flagged approvals"), so an encrypted
-      `base_salary` — what a field marked financial becomes — gets no `raise`
-      or `band` flag. Decide whether a flag may decrypt in memory for a
-      percentage and a band position only, as the nightly pay snapshot does
-      for aggregates (PRD §16.2), and record it beside that decision.
+- [x] **PEO-132** Flag raises and band breaches on a sealed salary. Decided
+      2026-10-01: for a decider who may read the field, the checks open the
+      value in force (`SecretStore.reveal`) and the change's own seal in
+      memory, for that request only, and say percentages and the band's
+      limits, never an amount; nothing decrypted is stored, cached or logged
+      (`http/sealed-flags.integration.test.ts`). A sealed field's history
+      keeps no amounts, so there is no team comparison for it. A decider who
+      may not read the field gets no pay flag and no hint of one.
 - [ ] **PEO-133** Tell the requester by email and in chat when HR asks about
       their change ("Ask Nora"). Today the question reaches their bell and
       Inbox only. Needs an `approval_question` notice kind in

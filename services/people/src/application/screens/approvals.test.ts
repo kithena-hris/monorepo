@@ -63,6 +63,19 @@ const department = define({
   classification: { ...confidential, classification: 'internal' },
 });
 
+// Sealed pay that only finance reads (PEO-132): a decider without it learns nothing of it.
+const sealedPay = define({
+  key: 'pay',
+  label: { default: 'Pay' },
+  dataType: 'money',
+  typeConfig: { kind: 'money' },
+  encrypted: true,
+  visibility: ['self', 'finance'],
+  ownership: ['finance'],
+  requiresApproval: true,
+  classification: { ...confidential, piiKind: 'financial' },
+});
+
 const viewer = (accountId: string, roles = ['hr']): Viewer => ({
   accountId,
   roles: new Set(roles),
@@ -74,7 +87,7 @@ const asking = (v: Viewer) => ({
 });
 
 function setup(at: string, facts: Parameters<typeof inMemoryApprovalFlagStore>[0] = {}) {
-  const people = inMemoryPeople([versionOf(3, [salary, department])]);
+  const people = inMemoryPeople([versionOf(3, [salary, department, sealedPay])]);
   people.seed(TOM, {
     account: TOM_ACCOUNT,
     custom: { base_salary: { amountMinor: 6_100_000, currency: 'EUR' }, department: 'sales' },
@@ -104,7 +117,15 @@ function setup(at: string, facts: Parameters<typeof inMemoryApprovalFlagStore>[0
           ]),
         ),
     },
-    flags: { store: flagStore, calendars: utcCalendars },
+    flags: {
+      store: flagStore,
+      calendars: utcCalendars,
+      // The in-memory secrets, as `SecretStore.reveal` opens the real ones.
+      sealed: {
+        current: (_tx, where) =>
+          Promise.resolve(people.secrets.get(`${where.personId}:${where.attributeKey}`) ?? null),
+      },
+    },
   };
   const deps = {
     service: {
@@ -118,7 +139,7 @@ function setup(at: string, facts: Parameters<typeof inMemoryApprovalFlagStore>[0
     calendars: utcCalendars,
     personOf: () => Promise.resolve(null),
   } as unknown as ScreenDeps;
-  return { access, deps, pending, flagStore };
+  return { access, deps, pending, flagStore, people };
 }
 
 const tx = {} as never;
@@ -299,5 +320,72 @@ describe('what Kithena checks (AI8)', () => {
     await askedForRaise(s);
     const employee = await approvalsView(s.deps, asking(viewer(TOM_ACCOUNT, [])));
     expect(employee.ok && [employee.value.checks, employee.value.last90]).toEqual([null, null]);
+  });
+});
+
+describe('sealed pay (PEO-132)', () => {
+  const FINANCE_HR = viewer(SOFIA_ACCOUNT, ['hr', 'finance']);
+  const PLAIN_HR = viewer(SOFIA_ACCOUNT, ['hr']);
+
+  async function askedForSealedRaise() {
+    const s = setup('2026-09-22T10:00:00.000Z', {
+      band: { minimumMinor: '6200000', maximumMinor: '7800000' },
+    });
+    s.people.secrets.set(`${TOM}:pay`, JSON.stringify({ amountMinor: 6_100_000, currency: 'EUR' }));
+    const written = await s.access.update(tx, {
+      ...asking(viewer(NORA_ACCOUNT, ['hr', 'finance'])),
+      personId: TOM,
+      changes: { pay: { amountMinor: 8_400_000, currency: 'EUR' } },
+      effectiveFrom: '2026-10-01',
+    });
+    if (!written.ok) throw new Error(written.error.message);
+    return s;
+  }
+
+  it('flags a decider who may read it with percentages, never an amount', async () => {
+    const s = await askedForSealedRaise();
+    const view = await approvalsView(s.deps, asking(FINANCE_HR));
+    const item = view.ok ? view.value.items.find((i) => i.key === 'pay') : undefined;
+    expect(item?.flags.map((f) => [f.code, f.title])).toEqual([['raise', 'A 38% raise']]);
+    expect(Object.keys(item?.value ?? {})).toEqual(['last4']);
+    // Nothing in the answer carries either amount.
+    expect(JSON.stringify(view)).not.toMatch(/6100000|8400000|6,100,000|8,400,000|€61|€84/u);
+  });
+
+  it('gives a decider who may not read it no pay flag, and no hint of one', async () => {
+    const s = await askedForSealedRaise();
+    const view = await approvalsView(s.deps, asking(PLAIN_HR));
+    const item = view.ok ? view.value.items.find((i) => i.key === 'pay') : undefined;
+    expect(item?.readable).toBe(false);
+    expect([item?.flags, item?.comparisons, item?.flagNote, item?.flagSummary]).toEqual([
+      [],
+      [],
+      null,
+      null,
+    ]);
+    // So approving needs no note from them either: nothing was shown to explain.
+    const decided = await decidePendingChange(tx, s.pending, {
+      ...asking(PLAIN_HR),
+      changeId: item?.id ?? '',
+      approve: false,
+    });
+    expect(decided.ok).toBe(true);
+    expect(s.flagStore.decided.size).toBe(0);
+  });
+
+  it('asks the decider who saw the flag for a note, and keeps only the check’s code', async () => {
+    const s = await askedForSealedRaise();
+    const view = await approvalsView(s.deps, asking(FINANCE_HR));
+    const id = (view.ok ? view.value.items.find((i) => i.key === 'pay')?.id : undefined) ?? '';
+    const bare = await decidePendingChange(tx, s.pending, { ...asking(FINANCE_HR), changeId: id, approve: true });
+    expect(!bare.ok && bare.error.code).toBe('NOTE_REQUIRED');
+    const noted = await decidePendingChange(tx, s.pending, {
+      ...asking(FINANCE_HR),
+      changeId: id,
+      approve: true,
+      note: 'Promotion',
+    });
+    expect(noted.ok).toBe(true);
+    expect(s.flagStore.decided.get(id)).toEqual(['raise']);
   });
 });

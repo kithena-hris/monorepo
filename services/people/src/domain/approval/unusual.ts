@@ -40,6 +40,8 @@ import { Decimal } from '../pay/pay.js';
  * see the flags — those who decide the change, never the requester — and
  * passes pay, the team's raises and the band only where the decider may read
  * pay, so a flag says nothing about a value they could not read themselves.
+ * Pay opened from a sealed field (`sealed`) is put into percentages and the
+ * band's limits only, never an amount.
  */
 
 export const PAY_CHANGE_PERCENT = 20;
@@ -132,7 +134,15 @@ export interface ChangeSeen {
   /** A calendar date. */
   readonly effectiveFrom: string;
   /** Both amounts, when the decider may read them in clear; null otherwise. */
-  readonly pay: { readonly before: Money; readonly after: Money } | null;
+  readonly pay: {
+    readonly before: Money;
+    readonly after: Money;
+    /**
+     * Opened from a sealed field for this computation only: the reasons give
+     * percentages and the band's limits, never the amount itself.
+     */
+    readonly sealed?: boolean;
+  } | null;
 }
 
 /** "Not unusual", said about one reason on one change. */
@@ -157,6 +167,8 @@ export interface Around {
     readonly currency: string;
     readonly minimumMinor: string;
     readonly maximumMinor: string;
+    /** The decider may read pay bands (HR or finance): the limits are named. Default true. */
+    readonly limitsShown?: boolean;
   } | null;
   /** When the person's address or email last changed, recorded or waiting. */
   readonly contact: readonly { readonly kind: 'address' | 'email'; readonly at: string }[];
@@ -274,13 +286,17 @@ function raise(
 function band(change: ChangeSeen, b: Around['band']): Reason | null {
   if (change.pay === null || b === null || change.pay.after.currency !== b.currency) return null;
   const after = new Decimal(change.pay.after.amountMinor);
-  const range = `${compactMoney({ amountMinor: b.minimumMinor, currency: b.currency })}–${compactMoney({ amountMinor: b.maximumMinor, currency: b.currency })}`;
-  const amount = compactMoney(change.pay.after);
+  const range =
+    b.limitsShown === false
+      ? ''
+      : ` (${compactMoney({ amountMinor: b.minimumMinor, currency: b.currency })}–${compactMoney({ amountMinor: b.maximumMinor, currency: b.currency })})`;
+  // A sealed amount is never put into words: "It is", not "€84k is".
+  const amount = change.pay.sealed === true ? 'It' : compactMoney(change.pay.after);
   if (after.gt(b.maximumMinor)) {
     return {
       code: 'band',
       title: 'Above the band',
-      detail: `${amount} is over the top of the ${b.grade} band (${range}).`,
+      detail: `${amount} is over the top of the ${b.grade} band${range}.`,
       magnitude: null,
     };
   }
@@ -288,7 +304,7 @@ function band(change: ChangeSeen, b: Around['band']): Reason | null {
     return {
       code: 'band',
       title: 'Below the band',
-      detail: `${amount} is under the bottom of the ${b.grade} band (${range}).`,
+      detail: `${amount} is under the bottom of the ${b.grade} band${range}.`,
       magnitude: null,
     };
   }
@@ -408,7 +424,8 @@ function mightBeFine(reasons: readonly Reason[]): string | null {
 
 export function unusual(change: ChangeSeen, a: Around): Flagging {
   const on = (code: CheckCode) => a.enabled.has(code);
-  const found = on('raise') ? raise(change, a.team) : null;
+  // A sealed field's history keeps no amounts, so there are no team raises to compare.
+  const found = on('raise') ? raise(change, change.pay?.sealed === true ? null : a.team) : null;
   const reasons = [
     found?.reason ?? null,
     on('band') ? band(change, a.band) : null,

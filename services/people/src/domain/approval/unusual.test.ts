@@ -155,6 +155,34 @@ describe('outside the pay band', () => {
     expect(codes(change({ pay: pay('6100000', '7000000') }), { band })).toEqual([]);
     expect(codes(change({ pay: pay('6100000', '9000000') }), { band: { ...band, currency: 'GBP' }, enabled: new Set(['band']) })).toEqual([]);
   });
+
+  it('never states a sealed amount, and the limits only to whoever may read the band', () => {
+    const sealed = change({ pay: { ...pay('6100000', '8400000'), sealed: true } });
+    const only = new Set<CheckCode>(['band']);
+    expect(unusual(sealed, around({ band, enabled: only })).reasons[0]?.detail).toBe(
+      'It is over the top of the Account executive L3 band (€62k–€78k).',
+    );
+    const hidden = { ...band, limitsShown: false };
+    expect(unusual(sealed, around({ band: hidden, enabled: only })).reasons[0]?.detail).toBe(
+      'It is over the top of the Account executive L3 band.',
+    );
+    expect(
+      unusual(change({ pay: pay('6100000', '8400000') }), around({ band: hidden, enabled: only }))
+        .reasons[0]?.detail,
+    ).toBe('€84k is over the top of the Account executive L3 band.');
+  });
+});
+
+describe('sealed pay', () => {
+  it('flags a raise by its percentage alone, with no team comparison it cannot honestly make', () => {
+    const found = unusual(
+      change({ pay: { ...pay('6100000', '8400000'), sealed: true } }),
+      around({ team: { name: 'Sales', raises: [] } }),
+    );
+    expect(found.reasons[0]).toMatchObject({ title: 'A 38% raise', detail: 'Most raises are under 20%.' });
+    expect(found.comparisons).toEqual([]);
+    expect(JSON.stringify(found)).not.toMatch(/84|61,|6100000|8400000/u);
+  });
 });
 
 describe('a bank change right after an address or email change', () => {

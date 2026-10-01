@@ -19,6 +19,7 @@ import { answerQuestion, askRequester, type Question } from '../../domain/approv
 import { stateAt } from '../../domain/approval/approval.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import { personZone, placementOf } from '../../domain/org/calendar.js';
+import { mayEditPayBands } from '../../domain/pay/pay.js';
 import type { Calendars } from '../org/org.js';
 import type { Approval } from '../../domain/approval/approval.js';
 import type { Asking, PersonReader, RelationsResolver, SchemaVersions } from './ports.js';
@@ -115,6 +116,28 @@ export interface ApprovalFlagStore {
 export interface FlagDeps {
   readonly store: ApprovalFlagStore;
   readonly calendars: Calendars;
+  /**
+   * The value in force of a sealed field, opened in memory: the same audited
+   * `SecretStore.reveal` People opens a sealed value with anywhere else.
+   * Absent, a sealed pay field gets no raise or band check.
+   */
+  readonly sealed?: SealedPay;
+}
+
+/**
+ * Opening sealed pay for one flag computation (design AI7; PEO-132).
+ *
+ * Only for a decider who may read the field on that person (the rule a
+ * profile shows it to them by), only for a money field, and only inside the
+ * request: the plaintext is parsed into an amount, compared, and dropped. It
+ * is never returned, stored, cached or logged; what leaves is percentages
+ * and the band's limits (`unusual.ts`, `sealed`).
+ */
+export interface SealedPay {
+  current(
+    tx: Tx,
+    where: { readonly tenantId: string; readonly personId: string; readonly attributeKey: string },
+  ): Promise<string | null>;
 }
 
 /**
@@ -143,6 +166,8 @@ export interface PendingChangeDeps {
   readonly store: {
     find(tx: Tx, tenantId: string, id: string): Promise<PendingChange | null>;
     forPerson(tx: Tx, tenantId: string, personId: string): Promise<readonly PendingChange[]>;
+    /** A sealed pending value's plaintext, while it waits. */
+    unseal(tx: Tx, tenantId: string, id: string): Promise<string | null>;
   };
 }
 
@@ -174,6 +199,45 @@ function optionLabel(definition: AttributeDefinition | undefined, value: string)
     : value;
 }
 
+const pairOf = (before: Money | null, after: Money | null) =>
+  before !== null && after !== null ? { before, after } : null;
+
+/** A sealed amount's plaintext as money, or null: never kept as text past this call. */
+function parsedMoney(plaintext: string | null): Money | null {
+  if (plaintext === null) return null;
+  try {
+    return moneyOf(JSON.parse(plaintext) as unknown);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Both amounts of a change to sealed pay, opened in memory for this
+ * computation (PEO-132): what is in force through `SealedPay`, what is asked
+ * for from the change's own seal. Null without the port, or when either is
+ * missing. The caller has already established the decider may read the field.
+ */
+async function openedPay(
+  tx: Tx,
+  deps: Pick<PendingChangeDeps, 'flags' | 'store'>,
+  change: PendingChange,
+): Promise<{ before: Money; after: Money; sealed: true } | null> {
+  const sealed = deps.flags?.sealed;
+  if (sealed === undefined) return null;
+  const before = parsedMoney(
+    await sealed.current(tx, {
+      tenantId: change.tenantId,
+      personId: change.personId,
+      attributeKey: change.attributeKey,
+    }),
+  );
+  const after = change.sealed
+    ? parsedMoney(await deps.store.unseal(tx, change.tenantId, change.approval.id))
+    : moneyOf(change.value);
+  return before === null || after === null ? null : { before, after, sealed: true };
+}
+
 /** What surrounds one look at the inbox: read once, used for every change in it. */
 export interface Looking {
   readonly enabled: ReadonlySet<CheckCode>;
@@ -181,6 +245,8 @@ export interface Looking {
   readonly definitions: readonly AttributeDefinition[];
   /** The decider's manager, as their own record holds it. */
   readonly managerOfDecider: string | null;
+  /** The decider may read pay bands (HR or finance): a band flag names its limits. */
+  readonly bandReadable: boolean;
 }
 
 export async function looking(
@@ -204,6 +270,7 @@ export async function looking(
           ),
     definitions: version?.document.attributes ?? [],
     managerOfDecider: text(mine?.values['manager_id']),
+    bandReadable: mayEditPayBands(asking.viewer.roles),
   };
 }
 
@@ -226,7 +293,8 @@ export async function flagChange(
   const tenantId = change.tenantId;
   const at = deps.clock.instant();
   const byKey = new Map(look.definitions.map((d) => [d.key as string, d]));
-  const dataType = byKey.get(change.attributeKey)?.dataType ?? 'text';
+  const definition = byKey.get(change.attributeKey);
+  const dataType = definition?.dataType ?? 'text';
   const subject = await deps.reader.record(tx, tenantId, change.personId);
   const values = subject?.values ?? {};
   const requesterId = await deps.reader.personOf(tx, tenantId, change.approval.requestedBy);
@@ -238,14 +306,18 @@ export async function flagChange(
       ? 'UTC'
       : personZone(calendar, placementOf(requester?.values ?? values), change.approval.requestedAt);
 
-  const before = input.readable ? moneyOf(values[change.attributeKey]) : null;
-  const after = input.readable && !change.sealed ? moneyOf(change.value) : null;
-  const pay = before !== null && after !== null ? { before, after } : null;
+  const pay = !input.readable
+    ? null
+    : change.sealed || definition?.encrypted === true
+      ? dataType === 'money'
+        ? await openedPay(tx, deps, change)
+        : null
+      : pairOf(moneyOf(values[change.attributeKey]), moneyOf(change.value));
   const store = deps.flags?.store;
 
   let team: { name: string; raises: string[] } | null = null;
   const teamValue = text(values[TEAM_KEY]);
-  if (pay !== null && store !== undefined && teamValue !== null) {
+  if (pay !== null && !('sealed' in pay) && store !== undefined && teamValue !== null) {
     const year = change.approval.requestedAt.slice(0, 4);
     const pairs = await store.teamRaises(tx, tenantId, {
       teamKey: TEAM_KEY,
@@ -275,7 +347,12 @@ export async function flagChange(
     band =
       found === null
         ? null
-        : { grade: optionLabel(byKey.get(GRADE_KEY), grade), currency: pay.after.currency, ...found };
+        : {
+            grade: optionLabel(byKey.get(GRADE_KEY), grade),
+            currency: pay.after.currency,
+            ...found,
+            limitsShown: look.bandReadable,
+          };
   }
 
   const contact: { kind: 'address' | 'email'; at: string }[] = [];

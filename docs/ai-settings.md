@@ -200,7 +200,7 @@ them, switches disabled. No row is the default: all on but the time of day.
 
 | Check | Flags | Compared against |
 | --- | --- | --- |
-| `raise` | pay moves more than 20 % **and** more than any raise in the person's team this year; a cut over 20 % | the team's other raises this calendar year, from history as its chain stands (median and largest, drawn as bars) |
+| `raise` | pay moves more than 20 % **and** more than any raise in the person's team this year (sealed pay: more than 20 %); a cut over 20 % | the team's other raises this calendar year, from history as its chain stands (median and largest, drawn as bars) |
 | `band` | the new pay is outside the band of the person's grade | the band in force on the effective date, same currency |
 | `bank_after_contact` | bank details asked for within 14 days after an address or email change | recorded history, and changes still waiting |
 | `close_colleagues` | the decider and the requester share a manager, within an hour of the request | the two records' managers, at the moment the decider looks |
@@ -216,10 +216,20 @@ both. Check the reason before you decide."
 
 - **Only whoever may decide the change** sees its flags; the requester never
   learns which rule their change tripped.
-- **Pay is compared only where the decider may read the field and both
-  amounts are in clear.** A sealed (encrypted) salary is never decrypted for a
-  flag, so `raise` and `band` do not run on it (PEO-132). The team's raises
-  and the band are read only alongside readable pay.
+- **Pay is compared only where the decider may read the field** — the rule
+  a profile shows it to them by. A decider who may not gets no pay flag and
+  no hint that one exists.
+- **Sealed pay (PEO-132)** is opened in memory for that request only: the
+  value in force through the audited `SecretStore.reveal`, the value asked
+  for from the change's own seal. The reasons say percentages and the band's
+  limits ("It is over the top of the L3 band (€62k–€78k)"), never an amount.
+  Nothing decrypted is stored, cached or logged; a decided change keeps the
+  checks' codes and "Not unusual" keeps a percentage
+  (`http/sealed-flags.integration.test.ts` reads every People table and log
+  line for either amount). A sealed field's history keeps no amounts, so
+  there is no team comparison for it: the raise is judged against 20 %.
+- The band's limits are named only to a decider who may read pay bands (HR
+  or finance).
 
 ## What the decider does
 

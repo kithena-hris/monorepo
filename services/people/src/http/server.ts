@@ -330,7 +330,12 @@ export function peopleService(
       relations,
       roles: drizzleRoleStore(),
       reviews,
-      flags: { store: drizzleApprovalFlagStore(), calendars: org },
+      // Sealed pay opened in memory for a decider who may read it (PEO-132).
+      flags: {
+        store: drizzleApprovalFlagStore(),
+        calendars: org,
+        sealed: { current: (tx, where) => secrets.reveal(tx, where) },
+      },
     },
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
