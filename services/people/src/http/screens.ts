@@ -134,6 +134,12 @@ import {
   type SchemaScreenDeps,
 } from '../application/screens/schema.js';
 import { run } from '../application/person/service.js';
+import {
+  answerAboutChange,
+  askAboutChange,
+  markNotUnusual,
+  setCheck,
+} from '../application/person/approval-flags.js';
 import { sharing } from '../infrastructure/unit-of-work.js';
 import type { IdempotencyStore } from './idempotency.js';
 import { NoBody } from './lifecycle.js';
@@ -200,6 +206,10 @@ export const ChatComplete = z.strictObject({
   state: z.string().min(1).max(2000),
 });
 export const ChatNotice = z.strictObject({ on: z.boolean() });
+/** Flagged approvals (design AI7, AI8): a check switched, a question, its answer. */
+export const ApprovalCheckBody = z.strictObject({ on: z.boolean() });
+export const ApprovalQuestionBody = z.strictObject({ question: z.string().min(1).max(500) });
+export const ApprovalAnswerBody = z.strictObject({ answer: z.string().min(1).max(500) });
 export const Sections = z.strictObject({ changed: z.record(z.string(), z.unknown()) });
 export const Entity = z.strictObject({ name: z.string().max(200), country: z.string().max(2) });
 export const SetupChoice = z.strictObject({
@@ -415,6 +425,20 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   const keys = { service: deps.service, idempotency };
   type Asking = Parameters<Route['handle']>[0];
   const done = (): Promise<RestResponse> => Promise.resolve({ status: 200, body: { ok: true } });
+  /** A flagged-approvals use case (AI7, AI8), in the request's transaction. */
+  const flagged = <T>(
+    fn: (
+      tx: Parameters<Parameters<typeof run>[2]>[0],
+      pending: NonNullable<ScreenRouteDeps['service']['pending']>,
+    ) => Promise<Result<T>>,
+    asking: Asking,
+  ): Promise<Result<T>> => {
+    const { pending } = deps.service;
+    if (!pending) {
+      return Promise.resolve(err(failure('UNAVAILABLE', 'Approvals are not configured')));
+    }
+    return run(deps.service, asking.tenantId, (tx) => fn(tx, pending));
+  };
   const bands = <T>(
     asking: Asking,
     fn: (
@@ -714,6 +738,54 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'GET',
       pattern: /^\/v1\/views\/approvals$/,
       handle: async (asking) => answer(await approvalsView(deps, asking)),
+    },
+    // Flagged approvals (design AI7, AI8): "Not unusual", a question and its
+    // answer, and an administrator's switch per check. None decides anything.
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}/not-unusual$`),
+      handle: write(NoBody, (asking, _input, id) =>
+        flagged((tx, pending) => markNotUnusual(tx, pending, { ...asking, changeId: id }), asking),
+      { resource: (_asking, id) => id },
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}/questions$`),
+      handle: write(
+        ApprovalQuestionBody,
+        (asking, input, id) =>
+          flagged(
+            (tx, pending) =>
+              askAboutChange(tx, pending, { ...asking, changeId: id, question: input.question }),
+            asking,
+          ),
+        { status: 201, resource: (_asking, _id, question) => question.id },
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/approval-questions/${UUID}/answer$`),
+      handle: write(
+        ApprovalAnswerBody,
+        (asking, input, id) =>
+          flagged(
+            (tx, pending) =>
+              answerAboutChange(tx, pending, { ...asking, questionId: id, answer: input.answer }),
+            asking,
+          ),
+        { resource: (_asking, id) => id },
+      ),
+    },
+    {
+      method: 'PUT',
+      pattern: new RegExp(`^/v1/approval-checks/${KEY}$`),
+      handle: write(
+        ApprovalCheckBody,
+        (asking, input, id) =>
+          flagged((tx, pending) => setCheck(tx, pending, { ...asking, code: id, on: input.on }), asking),
+        { resource: (_asking, id) => id },
+      ),
     },
     // Suspected duplicates, and one pair side by side when `a` and `b` name it (PEO-074).
     {

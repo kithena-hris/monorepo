@@ -278,3 +278,30 @@ describe('withdrawing a pending change (PEO-077)', () => {
     expect(own.ok && own.value.state).toBe('withdrawn');
   });
 });
+
+describe('approving something flagged (design AI7)', () => {
+  const decision = {
+    by: OTHER_HR,
+    isHr: true,
+    subjectAccountId: EMPLOYEE,
+    at: AT,
+    hr: [HR, OTHER_HR],
+  };
+
+  it('asks for a note', () => {
+    const bare = decideChange(asked(HR), { ...decision, approve: true, flagged: true, note: '  ' });
+    expect(!bare.ok && bare.error).toMatchObject({ code: 'NOTE_REQUIRED', path: ['note'] });
+    const noted = decideChange(asked(HR), {
+      ...decision,
+      approve: true,
+      flagged: true,
+      note: 'Promotion to Sales manager',
+    });
+    expect(noted.ok && noted.value.approval.note).toBe('Promotion to Sales manager');
+  });
+
+  it('asks nothing of a rejection, or of a change nothing flagged', () => {
+    expect(decideChange(asked(HR), { ...decision, approve: false, flagged: true }).ok).toBe(true);
+    expect(decideChange(asked(HR), { ...decision, approve: true, flagged: false }).ok).toBe(true);
+  });
+});

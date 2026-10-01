@@ -49,6 +49,7 @@ import { chatAct, parseChatAction } from './chat.js';
 import { chatAppsFrom } from '../infrastructure/chat-apps.js';
 import { sealExisting } from '../infrastructure/seal-existing.js';
 import { drizzleChatNotices } from '../infrastructure/drizzle-chat-notices.js';
+import { drizzleApprovalFlagStore } from '../application/person/approval-flag-store.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
@@ -320,7 +321,17 @@ export function peopleService(
     access,
     // Who holds `hr` decides whether a requester approves alone (PEO-077); a
     // doubted identifier waits on its review (PEO-125).
-    pending: { ...holding, access, schemas, reader, relations, roles: drizzleRoleStore(), reviews },
+    // And what flags a change, as the company switched its checks (design AI7, AI8).
+    pending: {
+      ...holding,
+      access,
+      schemas,
+      reader,
+      relations,
+      roles: drizzleRoleStore(),
+      reviews,
+      flags: { store: drizzleApprovalFlagStore(), calendars: org },
+    },
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),

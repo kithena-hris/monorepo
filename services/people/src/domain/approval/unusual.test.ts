@@ -1,183 +1,325 @@
 import { describe, expect, it } from 'vitest';
 
-import { unusual, type ChangeSeen, type OtherChange } from './unusual.js';
+import {
+  CHECKS,
+  DEFAULT_CHECKS,
+  rowSummary,
+  unusual,
+  type Around,
+  type ChangeSeen,
+  type CheckCode,
+  type Mark,
+} from './unusual.js';
 
-const HR = 'acct-hr';
-const ADA = 'acct-ada';
+const NORA = 'acct-nora';
+const TOM = 'acct-tom';
 // A Tuesday, 10:00 in Madrid.
 const WORKDAY = '2026-09-22T08:00:00.000Z';
+
+const eur = (amountMinor: string) => ({ amountMinor, currency: 'EUR' });
+const pay = (before: string, after: string) => ({ before: eur(before), after: eur(after) });
 
 function change(over: Partial<ChangeSeen> = {}): ChangeSeen {
   return {
     id: 'c1',
-    label: 'Base salary',
     dataType: 'money',
     requestedAt: WORKDAY,
-    requestedBy: HR,
-    subjectAccountId: ADA,
+    requestedBy: NORA,
+    subjectAccountId: TOM,
     effectiveFrom: '2026-10-01',
     pay: null,
-    findings: [],
     ...over,
   };
 }
 
-const around = (others: readonly OtherChange[] = []) => ({ others, zone: 'Europe/Madrid' });
-const codes = (c: ChangeSeen, others: readonly OtherChange[] = []) =>
-  unusual(c, around(others)).map((f) => f.code);
+function around(over: Partial<Around> = {}): Around {
+  return {
+    zone: 'Europe/Madrid',
+    at: '2026-09-22T12:00:00.000Z',
+    team: null,
+    band: null,
+    contact: [],
+    colleagues: null,
+    enabled: DEFAULT_CHECKS,
+    marks: [],
+    ...over,
+  };
+}
 
-describe('an ordinary change', () => {
-  it('raises nothing', () => {
-    expect(unusual(change(), around())).toEqual([]);
+const codes = (c: ChangeSeen, a: Partial<Around> = {}): CheckCode[] =>
+  unusual(c, around(a)).reasons.map((r) => r.code);
+
+describe('the checks', () => {
+  it('are the six the settings list, all on but the time of day', () => {
+    expect(CHECKS.map((c) => [c.code, c.on])).toEqual([
+      ['raise', true],
+      ['band', true],
+      ['bank_after_contact', true],
+      ['close_colleagues', true],
+      ['payroll_closing', true],
+      ['unusual_time', false],
+    ]);
+    expect([...DEFAULT_CHECKS]).toEqual([
+      'raise',
+      'band',
+      'bank_after_contact',
+      'close_colleagues',
+      'payroll_closing',
+    ]);
+  });
+
+  it('flag nothing about an ordinary change', () => {
+    expect(unusual(change(), around())).toEqual({ reasons: [], comparisons: [], note: null });
   });
 });
 
-describe('pay', () => {
-  const pay = (before: string, after: string, currency = 'EUR') => ({
-    before: { amountMinor: before, currency },
-    after: { amountMinor: after, currency },
+describe('a raise much bigger than usual', () => {
+  const team = { name: 'Sales', raises: ['2', '4', '4', '6', '12'] };
+
+  it('says how big, against the team’s raises this year, with the bars to compare', () => {
+    const found = unusual(change({ pay: pay('6100000', '8400000') }), around({ team }));
+    expect(found.reasons).toEqual([
+      {
+        code: 'raise',
+        title: 'A 38% raise',
+        detail: 'Sales raises this year had a median of 4%, and the largest was 12%.',
+        magnitude: '38',
+      },
+    ]);
+    expect(found.comparisons).toEqual([
+      { label: 'This change', percent: '38', highlight: true },
+      { label: 'Sales median', percent: '4', highlight: false },
+      { label: 'Largest in Sales', percent: '12', highlight: false },
+    ]);
   });
 
-  it('flags a rise over the threshold, with the percentage', () => {
-    const [flag] = unusual(change({ pay: pay('5000000', '6250000') }), around());
-    expect(flag).toEqual({
-      code: 'pay_change_large',
-      reason: 'Pay goes up 25% on what is in force.',
-    });
+  it('leaves a raise the team has already seen bigger alone', () => {
+    expect(codes(change({ pay: pay('5000000', '6500000') }), { team: { name: 'Sales', raises: ['31'] } })).toEqual([]);
   });
 
-  it('flags a cut over the threshold', () => {
-    expect(unusual(change({ pay: pay('5000000', '3000000') }), around())[0]?.reason).toBe(
-      'Pay goes down 40% on what is in force.',
+  it('leaves an ordinary raise alone, whatever the team did', () => {
+    expect(codes(change({ pay: pay('5000000', '6000000') }), { team })).toEqual([]);
+  });
+
+  it('says so plainly when there is nothing to compare with', () => {
+    const lonely = unusual(
+      change({ pay: pay('5000000', '6500000') }),
+      around({ team: { name: 'Legal', raises: [] } }),
+    );
+    expect(lonely.reasons[0]?.detail).toBe(
+      'Nobody else in Legal has had a raise this year, and most raises are under 20%.',
+    );
+    expect(lonely.comparisons).toEqual([]);
+    expect(unusual(change({ pay: pay('5000000', '6500000') }), around()).reasons[0]?.detail).toBe(
+      'Most raises are under 20%.',
     );
   });
 
-  it('leaves a change at or under the threshold alone', () => {
-    expect(codes(change({ pay: pay('5000000', '6000000') }))).toEqual([]);
-    expect(codes(change({ pay: pay('5000000', '5100000') }))).toEqual([]);
+  it('flags a large cut too', () => {
+    const [cut] = unusual(change({ pay: pay('5000000', '3000000') }), around()).reasons;
+    expect(cut?.title).toBe('A 40% pay cut');
   });
 
   it('compares nothing across currencies, or against no pay at all', () => {
     expect(
       codes(
-        change({
-          pay: {
-            before: { amountMinor: '5000000', currency: 'EUR' },
-            after: { amountMinor: '9000000', currency: 'GBP' },
-          },
-        }),
+        change({ pay: { before: eur('5000000'), after: { amountMinor: '9000000', currency: 'GBP' } } }),
       ),
     ).toEqual([]);
     expect(codes(change({ pay: pay('0', '9000000') }))).toEqual([]);
   });
 });
 
-describe('dates', () => {
-  it('flags a change taking effect long before it was asked for', () => {
-    const [flag] = unusual(change({ effectiveFrom: '2026-07-01' }), around());
-    expect(flag?.code).toBe('backdated');
-    expect(flag?.reason).toBe(
-      'Takes effect 83 days before it was asked for, so payroll corrects the months between.',
-    );
-  });
+describe('outside the pay band', () => {
+  const band = {
+    grade: 'Account executive L3',
+    currency: 'EUR',
+    minimumMinor: '6200000',
+    maximumMinor: '7800000',
+  };
 
-  it('leaves a change dated to the start of the month alone', () => {
-    expect(codes(change({ effectiveFrom: '2026-09-01' }))).toEqual([]);
-  });
-
-  it('flags a change taking effect far in the future', () => {
-    expect(codes(change({ effectiveFrom: '2027-06-01' }))).toEqual(['far_future']);
-    expect(codes(change({ effectiveFrom: '2027-01-01' }))).toEqual([]);
-  });
-});
-
-describe('identifiers', () => {
-  it('flags what the checks doubted, in their words', () => {
-    const flags = unusual(
-      change({
-        dataType: 'national_id',
-        label: 'NIF',
-        findings: [
-          { level: 'ok', message: 'Format is right' },
-          { level: 'mismatch', message: 'The check letter does not match' },
-        ],
-      }),
-      around(),
-    );
-    expect(flags).toEqual([
-      {
-        code: 'identifier_checks',
-        reason: 'NIF fails its checks: The check letter does not match.',
-      },
-    ]);
-  });
-});
-
-describe('bank details', () => {
-  const bank = (over: Partial<ChangeSeen> = {}) =>
-    change({ dataType: 'bank_account', label: 'IBAN', requestedBy: ADA, ...over });
-
-  it('flags a second change within the window, whatever the first became but withdrawn', () => {
-    const earlier: OtherChange = {
-      id: 'c0',
-      dataType: 'bank_account',
-      requestedAt: '2026-09-02T08:00:00.000Z',
-      requestedBy: ADA,
-      state: 'approved',
-    };
-    expect(codes(bank(), [earlier])).toEqual(['bank_repeat']);
-    expect(codes(bank(), [{ ...earlier, state: 'withdrawn' }])).toEqual([]);
-    expect(codes(bank(), [{ ...earlier, requestedAt: '2026-08-01T08:00:00.000Z' }])).toEqual([]);
-  });
-
-  it('flags bank details changed by someone other than the employee', () => {
-    expect(codes(bank({ requestedBy: HR }))).toEqual(['bank_by_other']);
-    // Nobody signs in as them yet: HR entering them at hire is the ordinary case.
-    expect(codes(bank({ requestedBy: HR, subjectAccountId: null }))).toEqual([]);
-  });
-});
-
-describe('several fields at once', () => {
-  const sibling = (id: string, minutes: number): OtherChange => ({
-    id,
-    dataType: 'text',
-    requestedAt: new Date(Date.parse(WORKDAY) + minutes * 60_000).toISOString(),
-    requestedBy: HR,
-    state: 'pending',
-  });
-
-  it('flags three or more sensitive fields changed together by one person', () => {
-    const flags = unusual(change(), around([sibling('c2', 1), sibling('c3', 4)]));
-    expect(flags).toEqual([
-      { code: 'many_at_once', reason: '3 sensitive fields were changed together for this person.' },
-    ]);
-  });
-
-  it('does not count changes far apart, or by someone else', () => {
-    expect(codes(change(), [sibling('c2', 1), sibling('c3', 60)])).toEqual([]);
-    expect(codes(change(), [sibling('c2', 1), { ...sibling('c3', 2), requestedBy: ADA }])).toEqual(
-      [],
-    );
-  });
-});
-
-describe('working hours', () => {
-  it('flags a change asked for at night by someone other than the employee', () => {
-    const [flag] = unusual(change({ requestedAt: '2026-09-22T21:40:00.000Z' }), around());
-    expect(flag).toEqual({
-      code: 'outside_hours',
-      reason:
-        'Asked for at 23:40 on a Tuesday, Europe/Madrid time, outside working hours, by someone other than the employee.',
+  it('says by how much, in the band’s own words', () => {
+    const [reason] = unusual(change({ pay: pay('6100000', '8400000') }), around({ band, enabled: new Set(['band']) })).reasons;
+    expect(reason).toEqual({
+      code: 'band',
+      title: 'Above the band',
+      detail: '€84k is over the top of the Account executive L3 band (€62k–€78k).',
+      magnitude: null,
     });
   });
 
-  it('flags a weekend', () => {
-    expect(codes(change({ requestedAt: '2026-09-26T09:00:00.000Z' }))).toEqual(['outside_hours']);
+  it('flags below the band, and nothing inside it or in another currency', () => {
+    expect(
+      unusual(change({ pay: pay('6100000', '5000000') }), around({ band, enabled: new Set(['band']) })).reasons[0]?.title,
+    ).toBe('Below the band');
+    expect(codes(change({ pay: pay('6100000', '7000000') }), { band })).toEqual([]);
+    expect(codes(change({ pay: pay('6100000', '9000000') }), { band: { ...band, currency: 'GBP' }, enabled: new Set(['band']) })).toEqual([]);
+  });
+});
+
+describe('a bank change right after an address or email change', () => {
+  const bank = change({ dataType: 'bank_account', effectiveFrom: '2026-10-15' });
+
+  it('names the change and how long before', () => {
+    const [reason] = unusual(
+      bank,
+      around({ contact: [{ kind: 'address', at: '2026-09-20T09:00:00.000Z' }] }),
+    ).reasons;
+    expect(reason).toEqual({
+      code: 'bank_after_contact',
+      title: '2 days after a new address',
+      detail:
+        'The address changed 2 days before the bank details. Changing both together is a common pattern in payroll fraud.',
+      magnitude: null,
+    });
   });
 
-  it('leaves the employee changing their own record at night alone', () => {
-    expect(codes(change({ requestedAt: '2026-09-22T21:40:00.000Z', requestedBy: ADA }))).toEqual(
-      [],
+  it('says the same day, and ignores a change long before or after', () => {
+    expect(
+      unusual(bank, around({ contact: [{ kind: 'email', at: '2026-09-22T07:00:00.000Z' }] })).reasons[0]
+        ?.title,
+    ).toBe('The same day as a new email');
+    expect(codes(bank, { contact: [{ kind: 'address', at: '2026-08-01T09:00:00.000Z' }] })).toEqual([]);
+    expect(codes(bank, { contact: [{ kind: 'address', at: '2026-09-23T09:00:00.000Z' }] })).toEqual([]);
+  });
+
+  it('is about bank details only', () => {
+    expect(codes(change(), { contact: [{ kind: 'address', at: '2026-09-21T09:00:00.000Z' }] })).toEqual([]);
+  });
+});
+
+describe('asked and decided by close colleagues', () => {
+  it('flags a decider who shares the requester’s manager, within the hour', () => {
+    const [reason] = unusual(
+      change(),
+      around({ colleagues: { name: 'Nora Becker' }, at: '2026-09-22T08:40:00.000Z' }),
+    ).reasons;
+    expect(reason?.code).toBe('close_colleagues');
+    expect(reason?.title).toBe('You and Nora Becker share a manager');
+  });
+
+  it('is quiet once the hour has passed', () => {
+    expect(codes(change(), { colleagues: { name: 'Nora Becker' }, at: '2026-09-22T09:30:00.000Z' })).toEqual([]);
+  });
+});
+
+describe('a payroll that is already closing', () => {
+  // A Monday, two days before September's payroll closes.
+  const late = (effectiveFrom: string, over: Partial<ChangeSeen> = {}) =>
+    change({ requestedAt: '2026-09-28T08:00:00.000Z', effectiveFrom, ...over });
+
+  it('flags pay landing in this month’s payroll with less than five days left', () => {
+    const [reason] = unusual(late('2026-09-28'), around({ at: '2026-09-28T09:00:00.000Z' })).reasons;
+    expect(reason).toEqual({
+      code: 'payroll_closing',
+      title: 'Back-dated payroll impact',
+      detail: 'It starts in 0 days, so it lands in this month’s payroll without the usual 5-day notice.',
+      magnitude: null,
+    });
+    expect(unusual(late('2026-09-29'), around()).reasons[0]?.title).toBe('Short notice for payroll');
+  });
+
+  it('flags a change reaching back into a payroll already paid', () => {
+    expect(unusual(change({ effectiveFrom: '2026-08-15' }), around()).reasons[0]?.detail).toBe(
+      'It took effect 38 days before it was asked for, so payroll corrects what it already paid.',
     );
+  });
+
+  it('leaves next month’s payroll, a payroll with time left, and fields payroll does not pay from alone', () => {
+    expect(codes(late('2026-10-01'))).toEqual([]);
+    expect(codes(change({ effectiveFrom: '2026-09-22' }))).toEqual([]);
+    expect(codes(change({ effectiveFrom: '2026-09-01' }))).toEqual([]);
+    expect(codes(late('2026-09-28', { dataType: 'text' }))).toEqual([]);
+  });
+});
+
+describe('an unusual time', () => {
+  const night = change({ requestedAt: '2026-09-22T21:40:00.000Z', effectiveFrom: '2026-12-01' });
+  const on = new Set<CheckCode>(['unusual_time']);
+
+  it('is off unless switched on', () => {
+    expect(codes(night)).toEqual([]);
+  });
+
+  it('flags a request at night, or at a weekend, by someone other than the employee', () => {
+    expect(unusual(night, around({ enabled: on })).reasons[0]).toEqual({
+      code: 'unusual_time',
+      title: 'Asked for at an unusual time',
+      detail: 'At 23:40 on a Tuesday, Europe/Madrid time, outside the requester’s working hours.',
+      magnitude: null,
+    });
+    expect(
+      codes(change({ requestedAt: '2026-09-26T09:00:00.000Z', effectiveFrom: '2026-12-01' }), { enabled: on }),
+    ).toEqual(['unusual_time']);
+    expect(codes({ ...night, requestedBy: TOM }, { enabled: on })).toEqual([]);
+  });
+});
+
+describe('switches and feedback', () => {
+  const big = change({ pay: pay('6100000', '8400000') });
+  const mark = (over: Partial<Mark> = {}): Mark => ({
+    code: 'raise',
+    requestedBy: NORA,
+    magnitude: '40',
+    at: '2026-09-01T10:00:00.000Z',
+    ...over,
+  });
+
+  it('runs only the checks switched on', () => {
+    expect(codes(big, { enabled: new Set() })).toEqual([]);
+  });
+
+  it('quietens a change no bigger than one marked not unusual, from the same requester', () => {
+    expect(codes(big, { marks: [mark()] })).toEqual([]);
+    expect(codes(big, { marks: [mark({ magnitude: '30' })] })).toEqual(['raise']);
+    expect(codes(big, { marks: [mark({ requestedBy: 'acct-other' })] })).toEqual(['raise']);
+  });
+
+  it('forgets a mark after 90 days', () => {
+    expect(codes(big, { marks: [mark({ at: '2026-06-01T10:00:00.000Z' })] })).toEqual(['raise']);
+  });
+
+  it('quietens checks without a size by requester alone', () => {
+    const bank = change({ dataType: 'bank_account', effectiveFrom: '2026-10-15' });
+    const contact = [{ kind: 'address' as const, at: '2026-09-20T09:00:00.000Z' }];
+    expect(
+      codes(bank, { contact, marks: [mark({ code: 'bank_after_contact', magnitude: null })] }),
+    ).toEqual([]);
+  });
+});
+
+describe('the honest note', () => {
+  it('says a promotion would explain the pay reasons, counting them', () => {
+    const band = { grade: 'L3', currency: 'EUR', minimumMinor: '6200000', maximumMinor: '7800000' };
+    const found = unusual(
+      change({ pay: pay('6100000', '8400000'), effectiveFrom: '2026-08-01' }),
+      around({ band, team: { name: 'Sales', raises: ['4'] } }),
+    );
+    expect(found.reasons.map((r) => r.code)).toEqual(['raise', 'band', 'payroll_closing']);
+    expect(found.note).toBe(
+      'This might be fine: a promotion would explain all three. Check the reason before you decide.',
+    );
+  });
+
+  it('says it plainly otherwise', () => {
+    const found = unusual(
+      change({ dataType: 'bank_account', effectiveFrom: '2026-10-15' }),
+      around({ contact: [{ kind: 'address', at: '2026-09-21T09:00:00.000Z' }] }),
+    );
+    expect(found.note).toBe(
+      'This might be fine: people who move often change banks too. Check the reason before you decide.',
+    );
+  });
+});
+
+describe('the row’s summary', () => {
+  it('joins the reasons in one line', () => {
+    expect(
+      rowSummary([
+        { title: 'A 38% raise' },
+        { title: 'Above the band' },
+      ]),
+    ).toBe('A 38% raise, above the band');
+    expect(rowSummary([])).toBeNull();
   });
 });

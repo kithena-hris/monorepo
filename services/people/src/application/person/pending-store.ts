@@ -42,6 +42,8 @@ type Row = {
   decided_at: Date | string | null;
   note: string | null;
   decided_as: PendingChange['decidedAs'];
+  /** Read by `decided` alone, so nothing else depends on 20261001170000. */
+  flags?: string[] | null;
 };
 
 const iso = (v: Date | string) => new Date(v).toISOString();
@@ -74,6 +76,7 @@ function fromRow(r: Row): PendingChange {
     value: r.sealed ? null : r.value,
     last4: r.last4,
     decidedAs: r.decided_as,
+    ...(r.flags === null || r.flags === undefined ? {} : { flags: r.flags }),
   };
 }
 
@@ -119,6 +122,16 @@ export function drizzlePendingChangeStore(sealer: Sealer): PendingChangeStore {
         SELECT ${COLUMNS} FROM people.pending_change
          WHERE tenant_id = ${tenantId}::uuid AND person_id = ${personId}::uuid
          ORDER BY requested_at, id`);
+      return [...rows].map(fromRow);
+    },
+
+    async decided(tx, tenantId, where) {
+      const rows = await tx.execute<Row>(sql`
+        SELECT ${COLUMNS}, flags FROM people.pending_change
+         WHERE tenant_id = ${tenantId}::uuid AND state IN ('approved', 'rejected')
+           AND decided_at >= ${where.since}::timestamptz
+         ORDER BY decided_at DESC, id
+         LIMIT ${where.limit}`);
       return [...rows].map(fromRow);
     },
 
@@ -184,6 +197,18 @@ export function inMemoryPendingChangeStore(): PendingChangeStore & {
         [...rows.values()]
           .filter((c) => c.tenantId === tenantId && c.personId === personId)
           .toSorted((a, b) => (a.approval.requestedAt < b.approval.requestedAt ? -1 : 1)),
+      ),
+    decided: (_tx, tenantId, where) =>
+      Promise.resolve(
+        [...rows.values()]
+          .filter(
+            (c) =>
+              c.tenantId === tenantId &&
+              (c.approval.state === 'approved' || c.approval.state === 'rejected') &&
+              (c.approval.decidedAt ?? '') >= where.since,
+          )
+          .toSorted((a, b) => ((a.approval.decidedAt ?? '') < (b.approval.decidedAt ?? '') ? 1 : -1))
+          .slice(0, where.limit),
       ),
     unseal: (_tx, tenantId, id) =>
       Promise.resolve(

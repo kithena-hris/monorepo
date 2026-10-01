@@ -23,6 +23,7 @@ import {
 } from '../../domain/approval/pending-change.js';
 import type { ReviewFinding } from '../../domain/person/identifier-review.js';
 import type { IdentifierReviews } from './identifier-review.js';
+import { flagChange, looking, readableBy, type FlagDeps } from './approval-flags.js';
 import { LIFECYCLE_KEYS } from './core.js';
 import type {
   Asking,
@@ -96,6 +97,8 @@ export interface PendingChange {
   readonly last4: string | null;
   /** How it was decided, when not by another HR member: null until then, and for them. */
   readonly decidedAs: Exclude<DecidedAs, 'approver'> | null;
+  /** The checks that flagged it when it was decided (`approval-flags.ts`); absent before. */
+  readonly flags?: readonly string[];
 }
 
 export interface PendingChangeStore {
@@ -113,6 +116,12 @@ export interface PendingChangeStore {
   ): Promise<readonly PendingChange[]>;
   /** Every change to one person, whatever it became, oldest first: their subject access pack. */
   forPerson(tx: Tx, tenantId: string, personId: string): Promise<readonly PendingChange[]>;
+  /** Approved or rejected since an instant, newest decision first: the Decided tab. */
+  decided(
+    tx: Tx,
+    tenantId: string,
+    where: { readonly since: string; readonly limit: number },
+  ): Promise<readonly PendingChange[]>;
   /** A sealed value's plaintext, while it is pending. */
   unseal(tx: Tx, tenantId: string, id: string): Promise<string | null>;
   /**
@@ -167,6 +176,12 @@ export interface PendingChangeDeps extends Holding {
   readonly roles?: Pick<RoleReads, 'holdings'>;
   /** A held identifier's review (PEO-125). Absent, no change waits on one. */
   readonly reviews?: IdentifierReviews;
+  /**
+   * The company's switches, marks and questions, and what the checks read
+   * (`approval-flags.ts`). Absent, the checks that need nothing but the change
+   * run with their defaults, and nobody marks or asks.
+   */
+  readonly flags?: FlagDeps;
 }
 
 /* ------------------------------------------------- the approved write -- */
@@ -378,7 +393,15 @@ export async function decidePendingChange(
     asking.viewer,
     prior.personId,
   );
+  // What the decider is shown now: approving any of it needs a note.
+  const look = await looking(tx, deps, asking);
+  const flagged = await flagChange(tx, deps, look, {
+    change: prior,
+    readable: await readableBy(tx, deps, asking, prior, look.definitions),
+    requesterName: 'the requester',
+  });
   const decided = decideChange(prior.approval, {
+    flagged: flagged.reasons.length > 0,
     by: asking.viewer.accountId,
     isHr: relations.isHr,
     subjectAccountId: person.snapshot.identityAccountId,
@@ -408,6 +431,14 @@ export async function decidePendingChange(
   };
   const decisionId = await closeDecided(tx, deps, prior, next, asking);
   if (!decisionId.ok) return decisionId;
+  if (flagged.reasons.length > 0) {
+    await deps.flags?.store.recordDecided(
+      tx,
+      prior.tenantId,
+      prior.approval.id,
+      flagged.reasons.map((r) => r.code),
+    );
+  }
   if (!approved) {
     await closeReviewOf(tx, deps, prior);
     return ok(next);
