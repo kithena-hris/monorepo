@@ -95,6 +95,7 @@ beforeAll(async () => {
     '20260924370000_people_directory_search.sql',
     '20260926120000_people_custom_filter.sql',
     '20260926130000_people_segment.sql',
+    '20261001090000_people_segment_conditions.sql',
     '20260924360000_people_import_upload.sql',
     '20260927161000_people_person_photo.sql',
     '20260927180000_people_files.sql',
@@ -207,7 +208,9 @@ const events = async (personId: string) =>
 /** Where somebody was placed, as history: the value, the day it takes effect, and whether it was recorded today. */
 const placements = async (personId: string) =>
   (
-    await superuser().unsafe<{ attribute_key: string; value: unknown; effective_from: string; today: boolean }[]>(
+    await superuser().unsafe<
+      { attribute_key: string; value: unknown; effective_from: string; today: boolean }[]
+    >(
       `SELECT attribute_key, value, effective_from::text, recorded_at::date = now()::date AS today
          FROM people.person_attribute_history
         WHERE person_id = '${personId}' AND attribute_key IN ('legal_entity_id', 'location_id')
@@ -234,8 +237,16 @@ describe('hiring somebody added without a start date, from their profile', () =>
   it('is HR’s, needs a placement where there is one to give, and hires once per key', async () => {
     expect(await counts()).toEqual([8, 1, 7]);
 
-    const notHr = await post(`/v1/people/${LENA}/hire`, { hireDate: '2020-03-02' }, 'p0', headers(OTHER_ACCOUNT));
-    expect([notHr.status, (notHr.body['error'] as { code: string }).code]).toEqual([403, 'FORBIDDEN']);
+    const notHr = await post(
+      `/v1/people/${LENA}/hire`,
+      { hireDate: '2020-03-02' },
+      'p0',
+      headers(OTHER_ACCOUNT),
+    );
+    expect([notHr.status, (notHr.body['error'] as { code: string }).code]).toEqual([
+      403,
+      'FORBIDDEN',
+    ]);
 
     const unplaced = await post(`/v1/people/${LENA}/hire`, { hireDate: '2020-03-02' }, 'p1');
     expect(unplaced.body['error']).toMatchObject({ code: 'PLACEMENT_REQUIRED' });
@@ -289,8 +300,13 @@ describe('hiring somebody added without a start date, from their profile', () =>
 });
 
 describe('bulk hire', () => {
-  type Row = { personId: string; outcome: string; refusal: { code: string; message: string } | null };
-  const outcomes = (rows: Row[]) => rows.map((r) => [r.personId, r.outcome, r.refusal?.code ?? null]);
+  type Row = {
+    personId: string;
+    outcome: string;
+    refusal: { code: string; message: string } | null;
+  };
+  const outcomes = (rows: Row[]) =>
+    rows.map((r) => [r.personId, r.outcome, r.refusal?.code ?? null]);
   const batch = {
     hires: [
       { personId: OMAR, hireDate: '2020-03-02' },

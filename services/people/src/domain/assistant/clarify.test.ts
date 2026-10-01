@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { sift, suggestions } from './clarify.js';
 import {
   directoryByRules,
+  exportByRules,
   forModel,
   isEmail,
   readDirectoryAnswer,
@@ -254,6 +255,28 @@ describe('the directory’s rules, for smart search', () => {
       { key: 'emergency_contact', op: 'empty', values: [] },
     ]);
     expect(plan.unused).toEqual([]);
+  });
+
+  it('a year in a purpose ("for Grace’s 2027 budget") is no date filter; beside its field it is', () => {
+    const at = (s: string) => directoryByRules(s, fields, TODAY).conditions;
+    expect(at('start date and job title for Grace’s 2027 budget')).toEqual([]);
+    expect(
+      exportByRules('start date and job title for Grace’s 2027 budget', {
+        today: TODAY,
+        fields: [
+          { key: 'hire_date', label: 'Start date', section: 'Employment' },
+          { key: 'job_title', label: 'Job title', section: 'Employment' },
+        ],
+        audiences: [{ value: 'everyone', label: 'Everybody' }],
+        filters: fields,
+      }).audience,
+    ).toEqual({ kind: 'everyone' });
+    expect(at('start date in 2026')).toEqual([
+      { key: 'hire_date', op: 'between', values: ['2026-01-01', '2026-12-31'] },
+    ]);
+    expect(at('contract end date before 2027')).toEqual([
+      { key: 'contract_end', op: 'before', values: ['2026-12-31'] },
+    ]);
   });
 
   it('an email address is one, and goes to whoever has it', () => {

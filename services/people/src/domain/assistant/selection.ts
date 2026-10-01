@@ -376,11 +376,17 @@ function dateField(
       if (hire !== undefined) return { field: hire, cue: k };
     }
   }
-  const named = dates.find((f) =>
-    stems(f.label)
-      .filter((s) => s !== 'date')
-      .some((s) => ts.some((t) => t.stem === s)),
-  );
+  // Otherwise the field's own name, just before the date ("start date in 2026",
+  // "contract end before 2027"), and never across a purpose: in "start date
+  // for Grace's 2027 budget" the year is the budget's, not a start date's.
+  const named = dates.find((f) => {
+    const own = new Set(stems(f.label).filter((s) => s !== 'date'));
+    for (let k = at - 1; k >= Math.max(0, at - 4); k -= 1) {
+      if (ts[k]?.word === 'for') return false;
+      if (own.has(ts[k]?.stem ?? '')) return true;
+    }
+    return false;
+  });
   return named === undefined ? null : { field: named, cue: null };
 }
 

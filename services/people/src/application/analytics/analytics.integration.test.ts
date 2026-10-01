@@ -162,20 +162,28 @@ const facts = drizzlePeopleFacts();
 
 async function snapshotOn(tenantId: string, day: string, defs = definitions) {
   return inTenant(tenantId, (scope) =>
-    takeSnapshot({ calendars: utcCalendars, facts, clock: fixedClock(`${day}T12:00:00.000Z`) }, scope, {
-      definitions: defs,
-    }),
+    takeSnapshot(
+      { calendars: utcCalendars, facts, clock: fixedClock(`${day}T12:00:00.000Z`) },
+      scope,
+      {
+        definitions: defs,
+      },
+    ),
   );
 }
 
 /** The job's second step: publish whatever special-category breakdown is due. */
 async function publishOn(tenantId: string, day: string, defs = definitions) {
   return inTenant(tenantId, (scope) =>
-    publishBreakdowns({ calendars: utcCalendars, clock: fixedClock(`${day}T12:00:00.000Z`) }, scope, {
-      definitions: defs,
-      // A tenant with no legal entity: everybody on the tenant's day.
-      run: { day, days: { byEntity: new Map(), fallback: day } },
-    }),
+    publishBreakdowns(
+      { calendars: utcCalendars, clock: fixedClock(`${day}T12:00:00.000Z`) },
+      scope,
+      {
+        definitions: defs,
+        // A tenant with no legal entity: everybody on the tenant's day.
+        run: { day, days: { byEntity: new Map(), fallback: day } },
+      },
+    ),
   );
 }
 
@@ -385,7 +393,10 @@ describe('the snapshot', () => {
   });
 
   it('is idempotent: a second run on one day replaces the first', async () => {
-    expect(await snapshotOn(ACME, D3)).toMatchObject({ ok: true, value: { day: D3, flowsFrom: D1 } });
+    expect(await snapshotOn(ACME, D3)).toMatchObject({
+      ok: true,
+      value: { day: D3, flowsFrom: D1 },
+    });
     const trend = await chart(ACME, hr, (ctx) => headcountTrend(ctx, { from: D1, to: D3 }));
     expect(trend).toEqual({
       ok: true,
@@ -523,13 +534,18 @@ describe('the snapshot', () => {
       days.value.map((d) => chart(ACME, hr, (ctx) => completeness(ctx, { asOf: d.day }))),
     );
     expect(
-      each.map((on) => on.ok && { complete: on.value.states.complete, incomplete: on.value.states.incomplete }),
+      each.map(
+        (on) =>
+          on.ok && { complete: on.value.states.complete, incomplete: on.value.states.incomplete },
+      ),
     ).toEqual(days.value.map((d) => ({ complete: d.complete, incomplete: d.incomplete })));
     // A manager's are their chain's, as every chart's.
     const chain = await chart(ACME, managerOf(MANAGER), (ctx) =>
       completenessByDay(ctx, { from: D3, to: D3 }),
     );
-    expect(chain.ok && chain.value[0] && chain.value[0].complete + chain.value[0].incomplete).toBe(2);
+    expect(chain.ok && chain.value[0] && chain.value[0].complete + chain.value[0].incomplete).toBe(
+      2,
+    );
   });
 });
 
@@ -1290,6 +1306,7 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
 
   beforeAll(async () => {
     await admin.execute(sql.raw(await migration('20260926130000_people_segment.sql')));
+    await admin.execute(sql.raw(await migration('20261001090000_people_segment_conditions.sql')));
   });
 
   it('draws tenure, span, the joiner heatmap and composition for HR, tenant-wide', async () => {
@@ -1441,6 +1458,37 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
       expect(offered.ok && offered.value.segments.map((s) => s.name)).toEqual(['Engineering']);
     });
 
+    it('keeps a view saved from a search, conditions and all, and never charts it', async () => {
+      const searched = await saveSegment(deps(`${D3}T12:00:00.000Z`), as(HR_ACCOUNT, ['hr']), {
+        name: 'Engineering, by condition',
+        filter: {},
+        conditions: [{ key: 'org_unit', op: 'in', values: [ENG] }],
+        match: 'all',
+        shared: false,
+      });
+      if (!searched.ok) throw new Error(searched.error.message);
+      expect(searched.value).toMatchObject({
+        conditions: [{ key: 'org_unit', op: 'in', values: [ENG] }],
+        match: 'all',
+        usableIn: { directory: true, analytics: false },
+      });
+      const stored = await inTenant(ACME, (scope) => drizzleSegments().all(scope.tx, ACME));
+      expect(stored.find((s) => s.id === searched.value.id)).toMatchObject({
+        filter: {},
+        conditions: [{ key: 'org_unit', op: 'in', values: [ENG] }],
+        match: 'all',
+      });
+      // A chart has no conditions: asked for one, it is refused rather than drawn unfiltered.
+      expect(await view(HR_ACCOUNT, ['hr'], searched.value.id)).toMatchObject({
+        ok: false,
+        error: { code: 'FIELD_NOT_FILTERABLE' },
+      });
+      const offered = await view(HR_ACCOUNT, ['hr']);
+      expect(offered.ok && offered.value.segments.map((s) => s.name)).not.toContain(
+        'Engineering, by condition',
+      );
+    });
+
     it('keeps segments in their own tenant', async () => {
       const seen = await inTenant(GLOBEX, (scope) => drizzleSegments().all(scope.tx, GLOBEX));
       expect(seen).toEqual([]);
@@ -1473,7 +1521,9 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
         assistant: {
           complete: (tenantId, prompt) => gateway.complete(tenantId, prompt),
           loadPolicies: () => {
-            registry.replace(ACME, [{ key: 'work_location', policy: { ...SPECIAL }, labels: ['Work location'] }]);
+            registry.replace(ACME, [
+              { key: 'work_location', policy: { ...SPECIAL }, labels: ['Work location'] },
+            ]);
             return Promise.resolve();
           },
         },
@@ -1493,7 +1543,11 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
       if (!shown.ok || !answered.ok) throw new Error('no answer');
       const ours = shown.value.whatChanged.tabs.find((t) => t.tab === 'headcount')?.sentences ?? [];
       expect(ours.length).toBeGreaterThan(0);
-      expect(answered.value).toEqual({ tab: 'headcount', sentences: [ours.join(' ')], byModel: true });
+      expect(answered.value).toEqual({
+        tab: 'headcount',
+        sentences: [ours.join(' ')],
+        byModel: true,
+      });
       const [prompt] = prompts;
       expect(prompt?.about).toBe('aggregates');
       const bare = JSON.stringify(prompt?.context).replaceAll(/\{[ng]\d+\}/gu, '');
