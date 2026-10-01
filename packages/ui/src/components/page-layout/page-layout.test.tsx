@@ -58,6 +58,32 @@ describe('<PageHeaderFrame>', () => {
   });
 });
 
+describe('<PageHeaderFrame pending>', () => {
+  it('keeps the header the element it was, and puts a skeleton where the body was', () => {
+    const page = (pending: boolean) => (
+      <PageHeaderFrame pending={pending}>
+        <div>
+          <PageHeader title="Items" />
+          <p>The body</p>
+        </div>
+      </PageHeaderFrame>
+    );
+    const { rerender } = render(page(false));
+    const title = screen.getByRole('heading', { level: 1, name: 'Items' });
+    expect(screen.queryByRole('status')).toBeNull();
+    rerender(page(true));
+    expect(screen.getByRole('heading', { level: 1, name: 'Items' })).toBe(title);
+    const skeleton = screen.getByRole('status', { name: '' });
+    expect(skeleton).toHaveProperty('textContent', 'Loading');
+    // Right after the header, in the page's own flow; the body after it is put away.
+    expect(title.closest('.\\@container')?.nextElementSibling).toBe(skeleton);
+    expect(screen.getByText('The body').previousElementSibling).toBe(skeleton);
+    rerender(page(false));
+    expect(screen.getByRole('heading', { level: 1, name: 'Items' })).toBe(title);
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+});
+
 describe('railDrag', () => {
   it('opens past 160px and snaps shut under it', () => {
     expect(railDrag(76, 100, 248)).toEqual({ width: 176, collapsed: false });

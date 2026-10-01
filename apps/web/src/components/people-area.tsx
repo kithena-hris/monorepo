@@ -167,6 +167,7 @@ export async function PeopleArea({
                 }
           }
           load={load}
+          path={path}
           params={route?.params ?? {}}
           search={search}
           today={today()}

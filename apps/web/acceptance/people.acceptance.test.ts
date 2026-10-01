@@ -1824,3 +1824,68 @@ describe('People overview: who you are here, what needs you, what is missing', (
     }
   });
 });
+
+describe('A tab changes the page under the header, not the page', () => {
+  /** Every loading skeleton put into the page from now on. */
+  const watchSkeletons = (page: Page): Promise<void> =>
+    page.evaluate(() => {
+      const w = window as unknown as { skeletons: string[] };
+      w.skeletons = [];
+      new MutationObserver(() => {
+        for (const s of document.querySelectorAll('[role=status]')) {
+          if (/Loading/.test(s.textContent)) w.skeletons.push(s.textContent);
+        }
+      }).observe(document.body, { subtree: true, childList: true });
+    });
+  const skeletons = (page: Page): Promise<string[]> =>
+    page.evaluate(() => (window as unknown as { skeletons: string[] }).skeletons);
+  const tab = (page: Page, name: string) =>
+    page
+      .getByRole('navigation', { name: 'Insights tabs' })
+      .getByRole('link', { name, exact: true });
+
+  it('keeps the header the same element, and shows a page seen before at once after the stale time', async () => {
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/insights/headcount`);
+    await page.getByRole('heading', { level: 1, name: 'Insights' }).waitFor({ timeout: 30_000 });
+    // Presses count once the remote has hydrated.
+    await page.waitForLoadState('networkidle');
+
+    // Another tab of the same screen: the header is the element it was, and
+    // nothing in the page is a skeleton at any moment.
+    await page.evaluate(() => {
+      const h1 = document.querySelector<HTMLElement>('[data-remote] h1');
+      if (h1 !== null) Object.assign(h1, { kept: true });
+    });
+    await watchSkeletons(page);
+    await tab(page, 'Turnover').click();
+    await page.waitForURL(/\/people\/insights\/turnover$/);
+    await expect.poll(() => tab(page, 'Turnover').getAttribute('aria-current')).toBe('page');
+    await page.waitForLoadState('networkidle');
+    expect(
+      await page.evaluate(
+        () => (document.querySelector('[data-remote] h1') as { kept?: true } | null)?.kept,
+      ),
+    ).toBe(true);
+    expect(await skeletons(page)).toEqual([]);
+
+    // A screen of its own behind a tab, seen once, then left for longer than
+    // the browser keeps a page (`staleTimes.dynamic`, 30 s): shown as it was,
+    // with no skeleton, while it is fetched again.
+    await tab(page, 'What changed').click();
+    await page.waitForURL(/\/people\/insights\/what-changed$/);
+    await page.waitForLoadState('networkidle');
+    await tab(page, 'Headcount').click();
+    await page.waitForURL(/\/people\/insights\/headcount$/);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(31_000);
+    await watchSkeletons(page);
+    await tab(page, 'What changed').click();
+    await page.waitForURL(/\/people\/insights\/what-changed$/);
+    await page.waitForLoadState('networkidle');
+    expect(await skeletons(page)).toEqual([]);
+    expect(await tab(page, 'What changed').getAttribute('aria-current')).toBe('page');
+    await context.close();
+  });
+});

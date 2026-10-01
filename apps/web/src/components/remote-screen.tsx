@@ -16,7 +16,7 @@ import {
   type JSX,
   type ReactNode,
 } from 'react';
-import { hydrateRoot, type Root } from 'react-dom/client';
+import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 
 /*
@@ -62,27 +62,43 @@ function pick(
 }
 
 /** In the browser: federation, from `remoteEntry.js`. */
-async function browserScreen(name: string, entry: string, component: string): Promise<Screen> {
+async function browserModule(name: string, entry: string): Promise<Record<string, unknown>> {
   const mf = runtime();
   mf.registerRemotes([{ name, entry, type: 'module' }]);
-  return pick(await mf.loadRemote<Record<string, unknown>>(name), name, component);
+  return (await mf.loadRemote<Record<string, unknown>>(name)) ?? {};
 }
 
-const loading = new Map<string, Promise<Screen>>();
+/** One load per remote build for the life of the page, and what it exported once it has. */
+const loading = new Map<string, Promise<Record<string, unknown>>>();
+const loaded = new Map<string, Record<string, unknown>>();
 
-/** One promise per remote and screen, for the life of the page. */
-function browserScreenOf(name: string, route: RemoteRoute): Promise<Screen> {
-  const key = `${route.entry} ${route.component}`;
-  let promise = loading.get(key);
+function browserModuleOf(name: string, entry: string): Promise<Record<string, unknown>> {
+  let promise = loading.get(entry);
   if (promise === undefined) {
-    promise = browserScreen(name, route.entry, route.component);
-    loading.set(key, promise);
+    promise = browserModule(name, entry).then((exports) => {
+      loaded.set(entry, exports);
+      return exports;
+    });
+    loading.set(entry, promise);
     // A failure is the boundary's to draw, and a later visit tries again.
     promise.catch(() => {
-      loading.delete(key);
+      loading.delete(entry);
     });
   }
   return promise;
+}
+
+/**
+ * The screen a route names: at once when its build has loaded, which every
+ * screen after the first finds, so moving between screens never waits or
+ * draws a frame of nothing. Before then React waits for it (`use`).
+ */
+function screenOf(name: string, route: RemoteRoute): Screen {
+  return pick(
+    loaded.get(route.entry) ?? use(browserModuleOf(name, route.entry)),
+    name,
+    route.component,
+  );
 }
 
 /*
@@ -138,16 +154,26 @@ function serverHtml(name: string, route: RemoteRoute, props: object): Promise<st
 }
 
 /*
- * In the browser: the server's HTML hydrated by a React root of the remote's
- * own.
+ * In the browser: the screen in a React root of the remote's own, kept for as
+ * long as the person stays in the area — its stage.
  *
- * The HTML came from a tree that is just the screen in a Suspense boundary, so
- * only a root with that same tree hydrates it without a mismatch — `useId`
- * counts from the root. The shell's tree holds the root's container as HTML
- * it does not own, and hands the root its props through a store: an update
- * never reaches a boundary still waiting for the remote's JavaScript, which
- * React would answer by dropping the server's HTML. Until then the screen is
- * on the page, and a press on it is replayed once it hydrates.
+ * The first page's HTML came from a tree that is just the screen in a
+ * Suspense boundary, so only a root with that same tree hydrates it without a
+ * mismatch — `useId` counts from the root. The shell's tree holds the root's
+ * container as HTML it does not own, and hands the root its props through a
+ * store: an update never reaches a boundary still waiting for the remote's
+ * JavaScript, which React would answer by dropping the server's HTML. Until
+ * then the screen is on the page, and a press on it is replayed once it
+ * hydrates.
+ *
+ * And one root for every screen after it. Each page under the shell is
+ * thrown away when the address changes (`/people/a` to `/people/b` is a new
+ * page), and a root inside the page went with it: the header, its tabs and
+ * everything the screen held were drawn again from nothing on every tab,
+ * which is what a page that reloads looks like. So the root does not live in
+ * the page. Its element moves into whichever page, or loading state, holds
+ * the area now, and is told what to show: the same screen with other props
+ * is the same screen updated, so its header stays the element it was.
  */
 interface Current {
   readonly route: RemoteRoute;
@@ -160,6 +186,7 @@ function store(initial: Current) {
   return {
     get: (): Current => current,
     set: (next: Current): void => {
+      if (next.route === current.route && next.props === current.props) return;
       current = next;
       for (const listener of listeners) listener();
     },
@@ -171,64 +198,123 @@ function store(initial: Current) {
 }
 type Store = ReturnType<typeof store>;
 
-function Hydrated({
+function Staged({
   name,
+  area,
   current,
 }: {
   readonly name: string;
+  readonly area: string;
   readonly current: Store;
 }): JSX.Element {
-  const { route, props } = useSyncExternalStore(current.subscribe, current.get, current.get);
-  const Screen = use(browserScreenOf(name, route));
+  const showing = useSyncExternalStore(current.subscribe, current.get, current.get);
+  return (
+    <RemoteBoundary area={area} showing={showing}>
+      <Suspense fallback={null}>
+        <Shown name={name} {...showing} />
+      </Suspense>
+    </RemoteBoundary>
+  );
+}
+
+function Shown({ name, route, props }: Current & { readonly name: string }): JSX.Element {
+  const Screen = screenOf(name, route);
   return <Screen {...props} />;
 }
 
-const islands = new WeakMap<Element, { root: Root; timer?: ReturnType<typeof setTimeout> }>();
+interface Stage {
+  readonly element: HTMLElement;
+  readonly root: Root;
+  readonly store: Store;
+  /** The host it is in now; none between one page leaving and the next arriving. */
+  owner: Element | null;
+  timer?: ReturnType<typeof setTimeout>;
+}
 
-function Island({
+const stages = new Map<string, Stage>();
+
+/**
+ * The area's stage, made the first time: hydrating what the server sent into
+ * `container`, or drawing from nothing. `display: contents`, so the screen
+ * lays out as if it were the host's own child.
+ */
+function stageOf(
+  name: string,
+  area: string,
+  container: HTMLElement,
+  current: Current,
+  hydrate: boolean,
+): Stage {
+  const kept = stages.get(name);
+  if (kept !== undefined && !hydrate) return kept;
+  // A second page from the server in one document has no stage to keep.
+  if (kept !== undefined) {
+    setTimeout(() => {
+      kept.root.unmount();
+    }, 0);
+  }
+  const element = document.createElement('div');
+  element.style.display = 'contents';
+  element.append(...container.childNodes);
+  container.append(element);
+  const state = store(current);
+  const tree = <Staged name={name} area={area} current={state} />;
+  const options = { identifierPrefix: idPrefix(name) };
+  let root: Root;
+  if (hydrate) {
+    root = hydrateRoot(element, tree, options);
+  } else {
+    // Asked for during the shell's commit, so it is drawn before the frame is
+    // painted, never a frame later.
+    root = createRoot(element, options);
+    root.render(tree);
+  }
+  const stage: Stage = { element, root, store: state, owner: null };
+  stages.set(name, stage);
+  return stage;
+}
+
+/** Where the area's stage is on this page. */
+function Host({
   name,
   area,
   route,
   props,
+  hydrate,
 }: {
   readonly name: string;
   readonly area: string;
   readonly route: RemoteRoute;
   readonly props: Readonly<Record<string, unknown>>;
+  /** The server sent the screen's HTML into this element, for the stage to hydrate. */
+  readonly hydrate: boolean;
 }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
-  const [current] = useState(() => store({ route, props }));
+  const latest = useRef<Current>({ route, props });
   useLayoutEffect(() => {
-    current.set({ route, props });
+    latest.current = { route, props };
   });
   useLayoutEffect(() => {
     const container = ref.current;
     if (container === null) return;
-    // Development mounts twice; one root per container, whatever React does.
-    let island = islands.get(container);
-    if (island === undefined) {
-      island = {
-        root: hydrateRoot(
-          container,
-          <RemoteBoundary area={area}>
-            <Suspense fallback={null}>
-              <Hydrated name={name} current={current} />
-            </Suspense>
-          </RemoteBoundary>,
-          { identifierPrefix: idPrefix(name) },
-        ),
-      };
-      islands.set(container, island);
-    }
-    clearTimeout(island.timer);
-    const held = island;
+    const stage = stageOf(name, area, container, latest.current, hydrate);
+    clearTimeout(stage.timer);
+    if (stage.element.parentNode !== container) container.append(stage.element);
+    stage.owner = container;
     return () => {
-      held.timer = setTimeout(() => {
-        islands.delete(container);
-        held.root.unmount();
+      if (stage.owner !== container) return;
+      stage.owner = null;
+      // Left the area, unless another host takes the stage in this same commit.
+      stage.timer = setTimeout(() => {
+        if (stage.owner !== null || stages.get(name) !== stage) return;
+        stages.delete(name);
+        stage.root.unmount();
       }, 0);
     };
-  }, [area, name, current]);
+  }, [name, area, hydrate]);
+  useLayoutEffect(() => {
+    stages.get(name)?.store.set({ route, props });
+  });
   return (
     <div
       ref={ref}
@@ -251,13 +337,24 @@ function Unavailable({ area }: { readonly area: string }): JSX.Element {
 
 /** A remote that loads and then throws is as down as one that never loaded. */
 class RemoteBoundary extends Component<
-  { readonly area: string; readonly children: ReactNode },
+  {
+    readonly area: string;
+    /** What it shows: anything else to show tries again, as a new page once did. */
+    readonly showing?: unknown;
+    readonly children: ReactNode;
+  },
   { failed: boolean }
 > {
   override state = { failed: false };
 
   static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true };
+  }
+
+  override componentDidUpdate(previous: Readonly<{ showing?: unknown }>): void {
+    if (this.state.failed && previous.showing !== this.props.showing) {
+      this.setState({ failed: false });
+    }
   }
 
   override render(): ReactNode {
@@ -313,15 +410,12 @@ function Drawn({
     const html = use(serverHtml(name, route, props));
     return <div data-remote={name} dangerouslySetInnerHTML={{ __html: html }} />;
   }
-  if (fromServer) return <Island name={name} area={area} route={route} props={props} />;
-  const Screen = use(browserScreenOf(name, route));
+  // Drawn from nothing, its code is waited for here, so the stage never draws
+  // a frame of nothing while it loads; this boundary's skeleton stands in.
+  if (!fromServer) screenOf(name, route);
   // Marked like the server's HTML, so the remote's stylesheet applies here and
   // nowhere else on the page (`apps/web/people/src/contain-utilities.ts`).
-  return (
-    <div data-remote={name}>
-      <Screen {...props} />
-    </div>
-  );
+  return <Host name={name} area={area} route={route} props={props} hydrate={fromServer} />;
 }
 
 /**
@@ -336,7 +430,7 @@ function Drawn({
  * Waited for up here, the previous screen stays until this one is ready.
  *
  * Not while hydrating: the server's HTML is already the screen, and the
- * boundary keeps it there until the code arrives (`Island`). Inside
+ * boundary keeps it there until the code arrives (`Host`). Inside
  * `RemoteBoundary`, so a remote that cannot be reached still says so.
  */
 function Loaded({
@@ -348,7 +442,7 @@ function Loaded({
   readonly route: RemoteRoute;
   readonly children: ReactNode;
 }): ReactNode {
-  use(browserScreenOf(name, route));
+  screenOf(name, route);
   return children;
 }
 
@@ -359,7 +453,7 @@ function Loaded({
  * server build and sent in the same response — streamed after the chrome, as
  * Next streams, and revealed by React's inline script before any bundle
  * loads. In the browser the remote's own root keeps that HTML in place until
- * the browser build arrives, then hydrates it (`Island`). The person sees the
+ * the browser build arrives, then hydrates it (`Host`). The person sees the
  * screen at first paint; it becomes interactive when the remote's JavaScript
  * lands.
  *

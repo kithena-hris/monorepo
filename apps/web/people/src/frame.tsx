@@ -68,6 +68,12 @@ export interface Frame {
     readonly current: boolean;
     readonly count?: number;
   }[];
+  /**
+   * What is under the header is on its way: the host keeps this screen while
+   * the tab now marked current is fetched. The header stays; the body is a
+   * skeleton until it lands.
+   */
+  readonly pending?: boolean;
   readonly actions?: readonly {
     readonly href: string;
     readonly label: string;
@@ -129,6 +135,7 @@ export function ScreenFrame({
     siblingsLabel = 'Sections',
     tabs = [],
     notice,
+    pending = false,
   } = frame;
   const tab = tabs.find((t) => t.current);
   const withIcons = siblings.map((group) => ({
@@ -139,6 +146,7 @@ export function ScreenFrame({
     <PageHeaderFrame
       // A switcher in the phone's bar names the page; the large title would repeat it.
       quietTitleOnTouch={section !== null && siblings.length > 0}
+      pending={pending}
       tabs={
         tabs.length === 0 ? undefined : (
           <TertiaryNav

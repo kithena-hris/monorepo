@@ -27,6 +27,7 @@ import {
 
 import { PINNED_BAR } from '../../lib/pinned';
 import { cn } from '../../lib/cn';
+import { Skeleton } from '../feedback/feedback';
 import { Kbd } from '../kbd/kbd';
 import { Tooltip } from '../tooltip/tooltip';
 
@@ -924,6 +925,13 @@ interface PageHeaderFrameValue {
    * the title. Make them icon buttons there, each named with `aria-label`.
    */
   readonly touchBarActions?: boolean;
+  /**
+   * What the page shows under its header is on its way: the header stays as
+   * it is, and what follows it in the page is a skeleton of the body until
+   * this is false again. For a frame that keeps a page on screen while the
+   * next one under the same header (another of its tabs) is fetched.
+   */
+  readonly pending?: boolean;
 }
 
 const PageHeaderFrameContext = createContext<PageHeaderFrameValue>({});
@@ -959,11 +967,12 @@ export function PageHeaderFrame({
   quietTitleOnTouch = false,
   tabs,
   touchBarActions = false,
+  pending = false,
   children,
 }: PageHeaderFrameProps): JSX.Element {
   return (
     <PageHeaderFrameContext
-      value={{ breadcrumb, actions, quietTitleOnTouch, tabs, touchBarActions }}
+      value={{ breadcrumb, actions, quietTitleOnTouch, tabs, touchBarActions, pending }}
     >
       {children}
     </PageHeaderFrameContext>
@@ -1049,58 +1058,72 @@ export function PageHeader({
       </>
     );
   return (
-    // A container, so the actions go full width when the header is narrow
-    // rather than when the window is: a header in a phone frame, a sheet or a
-    // side panel is narrow on any monitor.
-    <div
-      className={cn(
-        '@container flex flex-col gap-3',
-        // The bar the lifted actions sit in: the breadcrumb's, or one of their own.
-        bar && 'touch:relative',
-        bar && !trail && 'touch:pt-12',
-        className,
-      )}
-      {...props}
-    >
-      {trail}
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1
-              // The display face, heavy and tracked in: under a finger `lg` is
-              // the large title a phone opens a screen with.
+    // Always a fragment, so that a pending body coming and going never
+    // remounts the header before it.
+    <>
+      {/*
+        A container, so the actions go full width when the header is narrow
+        rather than when the window is: a header in a phone frame, a sheet or
+        a side panel is narrow on any monitor.
+      */}
+      <div
+        className={cn(
+          '@container flex flex-col gap-3',
+          // The bar the lifted actions sit in: the breadcrumb's, or one of their own.
+          bar && 'touch:relative',
+          bar && !trail && 'touch:pt-12',
+          // Pending: the page's own body after the header is put away, and the
+          // skeleton below stands in for it, in the page's own gap.
+          frame.pending === true && '[&~:not([data-pending-body])]:hidden!',
+          className,
+        )}
+        {...props}
+      >
+        {trail}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1
+                // The display face, heavy and tracked in: under a finger `lg` is
+                // the large title a phone opens a screen with.
+                className={cn(
+                  'min-w-0 font-display font-bold tracking-tight text-fg',
+                  size === 'lg' ? 'text-2xl' : 'text-lg',
+                  // Only when the frame's own trail is drawn: a page that places the
+                  // trail itself (a record beside its photo) keeps its title.
+                  frame.quietTitleOnTouch === true && breadcrumb === undefined && 'touch:sr-only',
+                )}
+              >
+                {title}
+              </h1>
+              {meta}
+            </div>
+            {description ? (
+              // A measure, not a width: past ~65 characters the eye loses the
+              // start of the next line.
+              <p className="mt-1.5 max-w-prose text-base text-pretty text-fg-muted">
+                {description}
+              </p>
+            ) : null}
+          </div>
+          {allActions ? (
+            <div
               className={cn(
-                'min-w-0 font-display font-bold tracking-tight text-fg',
-                size === 'lg' ? 'text-2xl' : 'text-lg',
-                // Only when the frame's own trail is drawn: a page that places the
-                // trail itself (a record beside its photo) keeps its title.
-                frame.quietTitleOnTouch === true && breadcrumb === undefined && 'touch:sr-only',
+                'flex shrink-0 flex-wrap items-center gap-2 @max-md:w-full @max-md:[&>*]:flex-1',
+                // Nothing left in the row under a finger: no empty row either.
+                rowEmptyOnTouch && 'touch:contents!',
               )}
             >
-              {title}
-            </h1>
-            {meta}
-          </div>
-          {description ? (
-            // A measure, not a width: past ~65 characters the eye loses the
-            // start of the next line.
-            <p className="mt-1.5 max-w-prose text-base text-pretty text-fg-muted">{description}</p>
+              {allActions}
+            </div>
           ) : null}
         </div>
-        {allActions ? (
-          <div
-            className={cn(
-              'flex shrink-0 flex-wrap items-center gap-2 @max-md:w-full @max-md:[&>*]:flex-1',
-              // Nothing left in the row under a finger: no empty row either.
-              rowEmptyOnTouch && 'touch:contents!',
-            )}
-          >
-            {allActions}
-          </div>
-        ) : null}
+        {tabs ?? frame.tabs}
       </div>
-      {tabs ?? frame.tabs}
-    </div>
+      {frame.pending === true ? (
+        <Skeleton shape="body" label="Loading" data-pending-body="" />
+      ) : null}
+    </>
   );
 }
 

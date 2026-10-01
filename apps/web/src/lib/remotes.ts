@@ -262,6 +262,8 @@ export interface RemoteRoute {
   };
   /** Every path the manifest lists, as written there. */
   readonly routes: readonly string[];
+  /** Which export renders each of those paths: whether two addresses are one screen. */
+  readonly screens: Readonly<Record<string, string>>;
 }
 
 export interface Matched {
@@ -271,6 +273,7 @@ export interface Matched {
   readonly nav: RemoteRoute['nav'];
   /** Every path the manifest lists, as written there. */
   readonly routes: readonly string[];
+  readonly screens: RemoteRoute['screens'];
 }
 
 /**
@@ -292,7 +295,8 @@ export function matchRoute(manifest: unknown, path: string): Matched | null | un
   const matched = matchPath(paths, path);
   const component = routes.find((route) => route.path === matched?.path)?.component;
   if (matched === undefined || component === undefined) return undefined;
-  return { component, ...matched, nav: { sections, actions, settings }, routes: paths };
+  const screens = Object.fromEntries(routes.map((route) => [route.path, route.component]));
+  return { component, ...matched, nav: { sections, actions, settings }, routes: paths, screens };
 }
 
 /**

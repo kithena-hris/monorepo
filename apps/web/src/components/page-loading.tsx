@@ -10,6 +10,7 @@ import { PEOPLE_NOW_PATHS, settingsModules } from '../lib/settings-modules';
 import { AccountSheet, useShellData, useShellPerson } from './app-shell';
 import { HomeLoading } from './home-dashboard';
 import { Inbox } from './inbox';
+import { PeopleLoading } from './people-screen';
 import { SettingsIndex } from './settings-index';
 
 /** Every People setting's "how it is set now", still to come. */
@@ -24,7 +25,10 @@ const PENDING_NOW = Object.fromEntries(PEOPLE_NOW_PATHS.map((path) => [path, '']
  * one the navigation crossed first — the area's, or the section's — and each
  * must draw the destination, not itself.
  *
- * - A People screen: the skeleton the screen shows while its own code loads
+ * - A People screen: what is already known of it — another tab or view of
+ *   the page on screen, or the page as last seen — drawn in place, so what
+ *   it shares with the page on screen stays put (`PeopleLoading`). Failing
+ *   that, the skeleton the screen shows while its own code loads
  *   (`people-screen.tsx`), with the header `headerFrame` gives it — a
  *   breadcrumb, and on an umbrella page as many tabs as this viewer opens.
  * - The inbox: the inbox itself, from the shell's copy of what the bell holds.
@@ -45,13 +49,21 @@ export function PageLoading(): JSX.Element {
       '/people',
     );
     return (
-      <Skeleton
-        shape="page"
-        label="Loading People"
-        breadcrumb={frame.section !== null}
-        tabs={frame.tabs?.length ?? 0}
+      <PeopleLoading
+        skeleton={
+          <Skeleton
+            shape="page"
+            label="Loading People"
+            breadcrumb={frame.section !== null}
+            tabs={frame.tabs?.length ?? 0}
+          />
+        }
       />
     );
+  }
+  // People's settings: the same, under their trail in Settings.
+  if (pathname.startsWith('/settings/people/')) {
+    return <PeopleLoading skeleton={<Skeleton shape="page" label="Loading" breadcrumb />} />;
   }
   if (pathname === '/inbox' && person !== null) {
     // The view in the address; the flagged rows are People's, still on their way.
