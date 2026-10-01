@@ -14,6 +14,8 @@ import type { ExportJobDeps } from '../application/export/job.js';
 import { drizzleFullValuesStore } from '../application/export/full-values-store.js';
 import type { FullValuesRequest } from '../application/export/full-values.js';
 import { drizzleExportLedger, inMemoryExportLedger } from '../application/export/ledger.js';
+import type { ShareRequest } from '../application/export/share.js';
+import { drizzleShareStore } from '../application/export/share-store.js';
 import { localObjectStore, sealedObjectStore } from '../application/export/object-store.js';
 import { requestExport } from '../application/export/queue.js';
 import { noTransaction } from '../application/person/in-memory.js';
@@ -168,11 +170,121 @@ describe('the ledger', () => {
     });
     expect(await inTenant(ACME, ({ tx }) => ledger.complete(tx, run))).toBe(true);
     expect(await inTenant(ACME, ({ tx }) => ledger.complete(tx, run))).toBe(false);
-    expect(await inTenant(ACME, ({ tx }) => ledger.find(tx, ACME, exportId))).toEqual({
+    expect(await inTenant(ACME, ({ tx }) => ledger.find(tx, ACME, exportId))).toMatchObject({
       status: 'completed',
       ...run,
+      sharedWith: null,
+      openedAt: null,
+      asOf: null,
+      audience: null,
     });
     expect(await inTenant(GLOBEX, ({ tx }) => ledger.find(tx, ACME, exportId))).toBeNull();
+  });
+
+  it('keeps where a sent file went, its date and audience, and its first open only', async () => {
+    const inTenant = tenantTransaction(asService);
+    const ledger = drizzleExportLedger();
+    const exportId = '00000000-0000-4000-9000-000000000002';
+    const run = {
+      tenantId: ACME,
+      exportId,
+      requestedBy: HR.accountId,
+      rowCount: 148,
+      fileNames: ['people-2026-10-01.xlsx'],
+      expiresAt: '2026-10-08T12:00:00.000Z',
+      format: 'xlsx' as const,
+      reason: 'Budget planning for 2027',
+      attributeKeys: ['base_salary'],
+      sharedWith: '00000000-0000-4000-8000-0000000000fe',
+      asOf: '2026-06-30',
+      audience: 'Everybody whose team is Engineering',
+    };
+    expect(await inTenant(ACME, ({ tx }) => ledger.complete(tx, run))).toBe(true);
+    await inTenant(ACME, ({ tx }) => ledger.opened(tx, ACME, exportId, '2026-10-01T14:40:00.000Z'));
+    await inTenant(ACME, ({ tx }) => ledger.opened(tx, ACME, exportId, '2026-10-02T09:00:00.000Z'));
+    const found = await inTenant(ACME, ({ tx }) => ledger.find(tx, ACME, exportId));
+    expect(found).toMatchObject({ ...run, openedAt: '2026-10-01T14:40:00.000Z' });
+    expect(found?.status === 'completed' && typeof found.completedAt).toBe('string');
+  });
+});
+
+describe('the requests to send an export', () => {
+  const pending: ShareRequest = {
+    tenantId: ACME,
+    approval: {
+      id: '00000000-0000-4000-9000-0000000000e1',
+      requestedBy: HR.accountId,
+      requestedAt: '2026-10-01T12:00:00.000Z',
+      reason: 'Budget planning for 2027',
+      expiresAt: '2026-10-08T12:00:00.000Z',
+      state: 'pending',
+      decidedBy: null,
+      decidedAt: null,
+      note: null,
+    },
+    recipient: '00000000-0000-4000-8000-0000000000fe',
+    choice: {
+      format: 'xlsx',
+      fields: ['given_name', 'base_salary'],
+      asOf: '2026-06-30',
+      conditions: [{ key: 'team', op: 'in', values: ['eng'] }],
+      match: 'all',
+      reason: 'Budget planning for 2027',
+    },
+    gap: { fields: [{ key: 'base_salary', people: 148 }], unlisted: 0 },
+    exportId: null,
+  };
+
+  it('round-trips a request, decides and sends it once, and hides it from another tenant', async () => {
+    const inTenant = tenantTransaction(asService);
+    const store = drizzleShareStore();
+    await inTenant(ACME, ({ tx }) => store.insert(tx, pending));
+    expect(await inTenant(ACME, ({ tx }) => store.find(tx, ACME, pending.approval.id))).toEqual(
+      pending,
+    );
+    expect(
+      await inTenant(GLOBEX, ({ tx }) => store.find(tx, ACME, pending.approval.id)),
+    ).toBeNull();
+    const approved: ShareRequest = {
+      ...pending,
+      approval: {
+        ...pending.approval,
+        state: 'approved',
+        decidedBy: '00000000-0000-4000-8000-0000000000fd',
+        decidedAt: '2026-10-01T14:31:00.000Z',
+      },
+    };
+    expect(await inTenant(ACME, ({ tx }) => store.update(tx, pending, approved))).toBe(true);
+    expect(await inTenant(ACME, ({ tx }) => store.update(tx, pending, approved))).toBe(false);
+    const sent = { ...approved, exportId: '00000000-0000-4000-9000-0000000000e2' };
+    expect(await inTenant(ACME, ({ tx }) => store.update(tx, approved, sent))).toBe(true);
+    expect(
+      await inTenant(ACME, ({ tx }) =>
+        store.byExport(tx, ACME, '00000000-0000-4000-9000-0000000000e2'),
+      ),
+    ).toEqual(sent);
+  });
+
+  it('refuses, in the database too, a request decided by its requester or its recipient', async () => {
+    const inTenant = tenantTransaction(asService);
+    const store = drizzleShareStore();
+    const base = {
+      ...pending,
+      approval: { ...pending.approval, id: '00000000-0000-4000-9000-0000000000e3' },
+    };
+    await inTenant(ACME, ({ tx }) => store.insert(tx, base));
+    for (const by of [base.approval.requestedBy, base.recipient]) {
+      const self = {
+        ...base,
+        approval: {
+          ...base.approval,
+          state: 'approved' as const,
+          decidedBy: by,
+          decidedAt: '2026-10-01T13:00:00.000Z',
+        },
+      };
+      await expect(inTenant(ACME, ({ tx }) => store.update(tx, base, self))).rejects.toThrow();
+    }
   });
 });
 
@@ -300,7 +412,8 @@ describe('the queue', () => {
     });
     let puts = 0;
     let ids = 0;
-    const deps: ExportJobDeps = { calendars: utcCalendars,
+    const deps: ExportJobDeps = {
+      calendars: utcCalendars,
       access: personAccess(people.deps),
       schemas: people.deps.schemas,
       relations: people.deps.relations,

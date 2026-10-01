@@ -24,6 +24,10 @@ const badge = cva(
         // than as a status somebody set — and never as colour alone.
         attention:
           'bg-warning-subtle text-warning-fg outline-1 -outline-offset-1 outline-warning-border outline-dashed',
+        // Written or found by the assistant rather than by a person: the
+        // accent wash and the assistant's spark, so what a machine proposed
+        // never passes for something somebody entered.
+        assistant: '',
       },
       /**
        * `soft` is the wash, for a status among other content. `solid` is the
@@ -51,6 +55,7 @@ const badge = cva(
       { variant: 'soft', tone: 'warning', class: 'bg-warning-subtle text-warning-fg' },
       { variant: 'soft', tone: 'danger', class: 'bg-danger-subtle text-danger-fg' },
       { variant: 'soft', tone: 'info', class: 'bg-info-subtle text-info-fg' },
+      { variant: 'soft', tone: 'assistant', class: 'bg-accent-subtle text-accent-fg' },
       // Solid fills pair each colour with a text colour that holds 4.5:1 in both
       // themes. Warning and info have no dark-enough fill for white text, so
       // they use their text colour as the fill and the surface as the text —
@@ -61,6 +66,7 @@ const badge = cva(
       { variant: 'solid', tone: 'warning', class: 'bg-warning-fg text-surface' },
       { variant: 'solid', tone: 'danger', class: 'bg-danger-solid text-fg-on-solid' },
       { variant: 'solid', tone: 'info', class: 'bg-info-fg text-surface' },
+      { variant: 'solid', tone: 'assistant', class: 'bg-accent-solid text-fg-on-accent' },
     ],
     defaultVariants: { tone: 'neutral', variant: 'soft', size: 'md' },
   },
@@ -76,6 +82,7 @@ const dotTone = {
   info: 'bg-info',
   sensitive: 'bg-current',
   attention: 'bg-warning',
+  assistant: 'bg-accent',
 } as const;
 
 export interface BadgeProps extends ComponentPropsWithoutRef<'span'>, VariantProps<typeof badge> {
@@ -103,6 +110,8 @@ export interface BadgeProps extends ComponentPropsWithoutRef<'span'>, VariantPro
  * value whose change waits for somebody else — and brings its own glyph.
  * `tone="attention"` marks what is missing and wanted — a field nobody has
  * filled in — and brings its own glyph too: `<Badge tone="attention">Missing</Badge>`.
+ * `tone="assistant"` marks what the assistant wrote, found or suggests — "AI",
+ * "Suggested", "Written 08:00" — with the assistant's spark.
  */
 export function Badge({
   className,
@@ -128,6 +137,7 @@ export function Badge({
       ) : null}
       {tone === 'sensitive' ? <icons.sensitive aria-hidden="true" /> : null}
       {tone === 'attention' ? <icons.missing aria-hidden="true" /> : null}
+      {tone === 'assistant' ? <icons.assistant aria-hidden="true" /> : null}
       {children}
       {onRemove ? (
         <button

@@ -1,9 +1,10 @@
 'use client';
 
 import { Skeleton } from '@reach/ui';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import type { JSX } from 'react';
 
+import { inboxView } from '../lib/inbox';
 import { headerFrame, matchPath } from '../lib/remotes';
 import { PEOPLE_NOW_PATHS, settingsModules } from '../lib/settings-modules';
 import { AccountSheet, useShellData, useShellPerson } from './app-shell';
@@ -36,6 +37,7 @@ export function PageLoading(): JSX.Element {
   const shell = useShellData();
   const person = useShellPerson();
   const pathname = usePathname();
+  const search = useSearchParams();
   if (pathname === '/people' || (pathname.startsWith('/people/') && pathname !== '/people/menu')) {
     const frame = headerFrame(
       { sections: shell.sections, actions: shell.actions ?? [] },
@@ -51,7 +53,17 @@ export function PageLoading(): JSX.Element {
       />
     );
   }
-  if (pathname === '/inbox' && person !== null) return <Inbox shell={shell} person={person} />;
+  if (pathname === '/inbox' && person !== null) {
+    // The view in the address; the flagged rows are People's, still on their way.
+    return (
+      <Inbox
+        shell={shell}
+        person={person}
+        view={inboxView(search.get('view') ?? undefined)}
+        flagged={undefined}
+      />
+    );
+  }
   if (pathname === '/settings') {
     return (
       <SettingsIndex modules={settingsModules(shell, { now: PENDING_NOW, attention: {} }, '')} />

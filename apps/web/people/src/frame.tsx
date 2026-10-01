@@ -13,6 +13,7 @@ import {
   PageHeaderFrame,
   Stack,
   TertiaryNav,
+  TooltipProvider,
   icons,
   type IconName,
 } from '@reach/ui';
@@ -317,8 +318,15 @@ export function framed<P extends object>(
 ): ComponentType<P & { readonly frame?: Frame }> {
   function Framed({ frame, ...props }: P & { readonly frame?: Frame }): JSX.Element {
     const screen = <Screen {...(props as P)} />;
-    if (frame === undefined) return screen;
-    return <ScreenFrame frame={frame}>{screen}</ScreenFrame>;
+    // The screen's own tooltip provider. In the browser the shell's surrounds
+    // it; on the server the shell renders the screen alone
+    // (`lib/remote-renderer.ts`), and a chart's tooltip without one threw,
+    // so Insights fell back to the browser (React #419).
+    return (
+      <TooltipProvider>
+        {frame === undefined ? screen : <ScreenFrame frame={frame}>{screen}</ScreenFrame>}
+      </TooltipProvider>
+    );
   }
   Framed.displayName = `Framed(${Screen.displayName ?? Screen.name})`;
   return Framed;

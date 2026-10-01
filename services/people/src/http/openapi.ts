@@ -74,13 +74,22 @@ import {
   ChatConnect,
   ChatComplete,
   ChatNotice,
+  ApprovalCheckBody,
+  ApprovalQuestionBody,
+  ApprovalAnswerBody,
 } from './screens.js';
 import {
-  ApplyInput as NewFieldsApply,
   ImportStepInput as NewFieldsPropose,
-  ReviewInput as NewFieldsReview,
+  PlanInput as ImportPlan,
+  RunInput as ImportRun,
 } from '../application/assistant/import-fields.js';
-import { PlanAsk } from '../application/assistant/selection.js';
+import { DirectoryAsk, DirectoryRemind, PlanAsk } from '../application/assistant/selection.js';
+import { ShareAsk, ShareDecisionAsk, SharePreviewAsk } from '../application/export/share.js';
+import {
+  FollowUpAsk as WhatChangedAsk,
+  ShareAsk as SummaryShare,
+  SummaryAsk,
+} from '../application/screens/what-changed.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 /**
@@ -163,11 +172,23 @@ const components = {
   ChatConnect,
   ChatComplete,
   ChatNotice,
+  ApprovalCheck: ApprovalCheckBody,
+  ApprovalQuestion: ApprovalQuestionBody,
+  ApprovalAnswer: ApprovalAnswerBody,
   ImportStep: ImportStepBody,
   NewFieldsPropose,
-  NewFieldsReview,
-  NewFieldsApply,
+  ImportPlan,
+  ImportRun,
   SelectionAsk: PlanAsk,
+  DirectoryAsk,
+  DirectoryRemind,
+  // An export sent to somebody else (design AI13).
+  SharePreview: SharePreviewAsk,
+  ShareExport: ShareAsk,
+  ShareDecision: ShareDecisionAsk,
+  WhatChangedAsk,
+  SummaryAsk,
+  SummaryShare,
   Segment: SegmentBody,
   PayBand: PayBandBody,
   ReportSchedule: ScheduleBody,
@@ -549,10 +570,19 @@ function screenPaths(): Record<string, unknown> {
     '/v1/views/directory/plan': {
       post: screenWrite(
         'What somebody typed in the directory, as its own conditions and order: a name alone is a name search; the model sees the sentence and field names only',
-        'SelectionAsk',
+        'DirectoryAsk',
         200,
-        '{ search, conditions, match, sort, unused, by, note }',
+        '{ search, conditions, match, sort, unused, by, note, person, ask, refused, remembered }',
         { safe: true },
+      ),
+    },
+    // Smart search's "Remind all" (docs/ai-settings.md).
+    '/v1/views/directory/remind': {
+      post: screenWrite(
+        'Ask everybody the conditions find for the details the conditions find empty, as the profile asks one person; at most 500 a press',
+        'DirectoryRemind',
+        200,
+        '{ asked, emailed, skipped, more }',
       ),
     },
     '/v1/views/export/plan': {
@@ -563,6 +593,49 @@ function screenPaths(): Record<string, unknown> {
         '{ who, conditions, match, audience, count, fields, asOf, format, photos, reason, by, note, notes }',
         { safe: true },
       ),
+    },
+    // An export sent to somebody else (design AI13, AI14, MA10).
+    '/v1/exports/share/preview': {
+      post: screenWrite(
+        'Whom an export would go to (picked, or read from the sentence by People), what they could not read themselves, and who would approve it; nothing is built',
+        'SharePreview',
+        200,
+        '{ recipient, candidates, people, sensitive, gap, approvers, tooLarge, emailed, canSchedule }',
+        { safe: true },
+      ),
+    },
+    '/v1/exports/share': {
+      post: screenWrite(
+        'Send an export: now, when the recipient could read all of it themselves; otherwise as a request a People administrator approves',
+        'ShareExport',
+        200,
+        '{ status: sent, exportId } or the request waiting',
+      ),
+    },
+    '/v1/exports/share/{id}': {
+      get: {
+        summary:
+          'A request to send an export, for its requester, its recipient or a People administrator',
+        parameters: [id],
+        responses: { 200: { description: 'The request' }, ...failure },
+      },
+    },
+    '/v1/exports/share/{id}/decision': {
+      post: screenWrite(
+        'Approve or reject sending an export: a People administrator who is neither asking nor receiving. Approved, the file is built and sent',
+        'ShareDecision',
+        200,
+        'The request after',
+        { path: 'id' },
+      ),
+    },
+    '/v1/exports/{id}/record': {
+      get: {
+        summary:
+          'A finished export for its requester or recipient: where it went, what it holds and its About; the recipient’s first look is recorded',
+        parameters: [id],
+        responses: { 200: { description: 'The export' }, ...failure },
+      },
     },
     '/v1/schema/draft/attributes/{key}/assistant': {
       post: screenWrite(
@@ -611,6 +684,42 @@ function screenPaths(): Record<string, unknown> {
         },
       ),
     },
+    '/v1/pending-changes/{id}/not-unusual': {
+      post: screenWrite(
+        'Mark a flagged change not unusual: similar changes by the same requester are flagged less often. Decides nothing',
+        null,
+        200,
+        'Marked',
+        { path: 'id' },
+      ),
+    },
+    '/v1/pending-changes/{id}/questions': {
+      post: screenWrite(
+        'Ask the requester about a change before deciding it',
+        'ApprovalQuestion',
+        201,
+        'The question, unanswered',
+        { path: 'id' },
+      ),
+    },
+    '/v1/approval-questions/{id}/answer': {
+      post: screenWrite(
+        'The requester answers a question about their change, once',
+        'ApprovalAnswer',
+        200,
+        'The question, answered',
+        { path: 'id' },
+      ),
+    },
+    '/v1/approval-checks/{key}': {
+      put: screenWrite(
+        'Switch one of the checks that flag changes waiting for approval',
+        'ApprovalCheck',
+        200,
+        'Every check, with whether it is on',
+        { path: 'key' },
+      ),
+    },
     '/v1/chat/notices/{key}': {
       put: screenWrite(
         'Send one of People’s notices to chat apps, or stop',
@@ -632,25 +741,87 @@ function screenPaths(): Record<string, unknown> {
     '/v1/views/photos/remove': {
       post: screenWrite('Take a photo down: the person’s own, or HR’s', 'PhotoOf', 200, 'Removed'),
     },
-    // Insights' "what changed", reworded by the assistant where there is one.
+    // What changed (design AI5, AI6, MA4, MA5): its own block.
     '/v1/views/analytics/what-changed': {
       get: {
         summary:
-          "One Insights tab's summary: the figures are People's, the words the assistant's when byModel; it is shown placeholders, never a figure",
+          "A period's changes as points, each with its figure and the records behind it, in People's words; nothing goes to a model",
         parameters: [
-          {
-            name: 'tab',
-            in: 'query',
-            required: true,
-            schema: { type: 'string', enum: ['headcount', 'turnover', 'data-quality', 'pay'] },
-          },
+          { name: 'period', in: 'query', required: false, schema: { type: 'string', enum: ['week', 'month', 'quarter', 'custom'] } },
+          { name: 'from', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
           { name: 'segment', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
         ],
-        responses: { 200: { description: '{ tab, sentences, byModel }' }, ...failure },
+        responses: {
+          200: { description: '{ period, title, writtenAt, points, phrasable, headcount, leavers, recipients, canSend }' },
+          ...failure,
+        },
+      },
+    },
+    '/v1/views/analytics/what-changed/worded': {
+      get: {
+        summary:
+          "The same points worded by the assistant where there is one; it is shown placeholders, never a figure or a name",
+        parameters: [
+          { name: 'period', in: 'query', required: false, schema: { type: 'string', enum: ['week', 'month', 'quarter', 'custom'] } },
+          { name: 'from', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
+          { name: 'segment', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: { 200: { description: '{ points, byModel }' }, ...failure },
+      },
+    },
+    '/v1/views/analytics/what-changed/ask': {
+      post: screenWrite(
+        'A follow-up question answered from the points and nothing else; the model sees the question and placeholders',
+        'WhatChangedAsk',
+        200,
+        '{ kind, sentences, keys, byModel }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/analytics/what-changed/summary': {
+      post: screenWrite(
+        'The summary as it would go to somebody, rewritten for what they may see, with why anything was left out; nothing is written',
+        'SummaryAsk',
+        200,
+        '{ recipient, notes, document }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/analytics/what-changed/summary/pdf': {
+      post: screenWrite(
+        'The summary as edited, on paper (application/pdf); nothing is written',
+        'SummaryAsk',
+        200,
+        'A PDF',
+        { safe: true },
+      ),
+    },
+    '/v1/insights/summaries': {
+      post: screenWrite(
+        'Send the summary to one person: stored for them to open signed in for seven days, and an email with a link. HR only',
+        'SummaryShare',
+        200,
+        '{ id, emailed }',
+      ),
+    },
+    '/v1/insights/summaries/{id}': {
+      get: {
+        summary: 'A summary sent to you, or by you, while it lasts',
+        parameters: [id],
+        responses: { 200: { description: 'The summary as it was sent' }, ...failure },
+      },
+    },
+    '/v1/insights/summaries/{id}/pdf': {
+      get: {
+        summary: 'A summary sent to you, on paper (application/pdf)',
+        parameters: [id],
+        responses: { 200: { description: 'A PDF' }, ...failure },
       },
     },
     // New information in an import's file (docs/ai-settings.md): proposed,
-    // reviewed, then added by an administrator before the dry run.
+    // then planned and run, with the import, on an administrator's approval.
     '/v1/imports/new-fields': {
       post: screenWrite(
         'Fields proposed for the columns that match none; nothing is written',
@@ -660,21 +831,21 @@ function screenPaths(): Record<string, unknown> {
         { safe: true },
       ),
     },
-    '/v1/imports/new-fields/review': {
+    '/v1/imports/plan': {
       post: screenWrite(
-        'The proposals as HR left them, checked, with the review in words; nothing is written',
-        'NewFieldsReview',
+        'Everything the import will do, from HR’s choices, over a dry run against the version its new fields would make; nothing is written',
+        'ImportPlan',
         200,
-        'The checked proposals and the review',
+        'The plan’s steps in words, the fields, and the dry run',
         { safe: true },
       ),
     },
-    '/v1/imports/new-fields/apply': {
+    '/v1/imports/run': {
       post: screenWrite(
-        'Add the fields, publish, and write the defaults: one transaction, an administrator’s',
-        'NewFieldsApply',
+        'Approve and run: set the company up if nothing is published, add and publish the new fields, write the defaults, then import',
+        'ImportRun',
         201,
-        'The new fields’ keys',
+        'What the import did, and the fields it created',
       ),
     },
     '/v1/imports/dry-run': {

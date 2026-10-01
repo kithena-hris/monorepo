@@ -241,8 +241,17 @@ async function admissible(
   if ('segmentId' in value.audience) {
     const id = value.audience.segmentId;
     const all = await deps.segments.all(tx, asking.tenantId);
-    if (!all.some((s) => s.id === id && seenBy(s, asking.viewer.accountId))) {
+    const segment = all.find((s) => s.id === id && seenBy(s, asking.viewer.accountId));
+    if (segment === undefined) {
       return err(failure('NOT_FOUND', 'There is no such segment', ['segmentId']));
+    }
+    // A schedule sends a filter; a view saved from a search holds conditions (PEO-132).
+    if ((segment.conditions ?? []).length > 0) {
+      return err(
+        failure('SEGMENT_NOT_SCHEDULABLE', 'A view saved from a search can’t be scheduled yet', [
+          'segmentId',
+        ]),
+      );
     }
   }
   const known = new Set(
@@ -411,6 +420,9 @@ async function runOne(
         (s) => s.id === id && seenBy(s, schedule.ownerAccountId),
       );
       if (segment === undefined) return err(failure('segment_gone', 'The segment is gone'));
+      if ((segment.conditions ?? []).length > 0) {
+        return err(failure('segment_not_schedulable', 'The segment holds conditions'));
+      }
       where = segment.filter;
       label = segment.name;
       segmentId = id;

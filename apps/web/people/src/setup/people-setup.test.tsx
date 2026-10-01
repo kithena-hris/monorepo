@@ -87,11 +87,9 @@ const profile: NonNullable<SetupState['profile']> = {
 function Harness({
   onPublish,
   onSaveProfile,
-  continuing,
 }: {
   readonly onPublish: (pack: { country: string; sections: readonly string[] }) => Promise<Outcome>;
   readonly onSaveProfile: (key: string, changed: Values) => Promise<Outcome>;
-  readonly continuing?: { readonly label: string; readonly note: string };
 }) {
   const [state, setState] = useState<SetupState>(fresh);
   const load: Loadable<SetupState> = { status: 'ready', data: state };
@@ -119,31 +117,11 @@ function Harness({
         return outcome;
       }}
       onFinish={vi.fn()}
-      {...(continuing === undefined ? {} : { continuing })}
     />
   );
 }
 
 describe('PeopleSetup', () => {
-  it('says what the admin came for goes on after setup, and goes on to it', async () => {
-    const user = fast();
-    const ok = () => Promise.resolve({ ok: true as const });
-    render(
-      <Harness
-        onPublish={ok}
-        onSaveProfile={ok}
-        continuing={{ label: 'Continue to the import', note: 'Your import carries on after this.' }}
-      />,
-    );
-    expect(screen.getByText('Your import carries on after this.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(await screen.findByRole('button', { name: 'Continue' }));
-    await user.click(screen.getByRole('button', { name: 'Publish version 1' }));
-    expect(
-      await screen.findByRole('button', { name: 'Continue to the import' }),
-    ).toBeInTheDocument();
-  });
-
   it('takes a fresh tenant to a published version 1 and a complete first profile', async () => {
     const user = fast();
     const onPublish = vi.fn(() => Promise.resolve({ ok: true as const }));

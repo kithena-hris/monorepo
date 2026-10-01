@@ -130,6 +130,7 @@ beforeAll(async () => {
     '20260926140000_people_visibility_rules.sql',
     '20260926180000_people_pending_change.sql',
     '20260926230000_people_pending_change_decided_as.sql',
+    '20261001170000_people_approval_flags.sql',
     '20260922170000_people_person.sql',
     '20260924220000_people_access_end.sql',
     '20260926143000_people_duplicates.sql',

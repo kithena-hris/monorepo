@@ -79,8 +79,11 @@ export function SegmentSelect({
  */
 export function SaveSegment({
   onSave,
+  label = 'Save view',
 }: {
   readonly onSave: (segment: { name: string; shared: boolean }) => Promise<Outcome>;
+  /** The button's words: "Save as view" beside a question's results. */
+  readonly label?: string;
 }): JSX.Element {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -104,7 +107,7 @@ export function SaveSegment({
     >
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" startIcon={<icons.add aria-hidden />}>
-          Save view
+          {label}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-85">

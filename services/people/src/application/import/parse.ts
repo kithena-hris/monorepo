@@ -32,6 +32,12 @@ export const MAX_UNCOMPRESSED = 256 * 1024 * 1024;
 /** The column the export writes first, and what marks row 2 as the key row (§15.3). */
 export const PERSON_ID_COLUMN = '__person_id';
 
+/**
+ * The sheet an export opens with, saying what the file holds (design AI14).
+ * Passed over when no sheet is named, so an exported file re-imports as it is.
+ */
+export const ABOUT_SHEET = 'About';
+
 export type Encoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 
 export interface ParsedRow {
@@ -286,7 +292,7 @@ async function readWorkbook(bytes: Uint8Array, options: ParseOptions): Promise<R
   const sheets = workbook.worksheets.map((w) => w.name);
   const worksheet =
     options.sheet === undefined
-      ? workbook.worksheets[0]
+      ? (workbook.worksheets.find((w) => w.name !== ABOUT_SHEET) ?? workbook.worksheets[0])
       : workbook.worksheets.find((w) => w.name === options.sheet);
   if (!worksheet) {
     return err(

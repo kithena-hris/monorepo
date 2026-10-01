@@ -1,0 +1,1 @@
+{"version":1,"body":"query SharedSummary($id: ID!) {\n    peopleSharedSummary(id: $id)\n  }"}

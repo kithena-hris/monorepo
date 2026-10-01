@@ -3,7 +3,7 @@
 import { Skeleton } from '@reach/ui';
 import type { Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState, useTransition, type JSX } from 'react';
+import { useEffect, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
@@ -17,6 +17,29 @@ import {
   type HistoryMode,
 } from '../lib/url-state';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
+import {
+  exportAddressOf,
+  scheduleAudienceOf,
+  shareChoiceOf,
+  type ExportFormat,
+  type ShareChoice,
+} from '../lib/export-address';
+
+/** What the export page's load holds, as far as the shell reads it. */
+type ExportPageData = {
+  readonly who: readonly { readonly value: string; readonly label: string }[];
+  readonly sections: readonly { readonly fields: readonly { readonly key: string }[] }[];
+};
+
+/** The remote's export choice, as its callbacks hand it over. */
+type ExportBuilderChoice = {
+  readonly who: string;
+  readonly fields: readonly string[];
+  readonly asOf: string;
+  readonly format: ExportFormat;
+  readonly photos?: boolean;
+  readonly reason?: string;
+};
 
 /**
  * A People screen's props, from what the server fetched and the actions that
@@ -210,16 +233,15 @@ type Stage = Record<string, unknown> & { step: string; blockedUrl?: string | nul
  * it is ready, as the screen says.
  */
 function download(
-  made: { ok: true; links: readonly { url: string }[] } | { ok: false; message: string },
+  made:
+    { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string },
 ): Outcome {
   if (!made.ok) return made;
-  const first = made.links[0];
+  // The file itself, not the About that travels beside a CSV (design AI14).
+  const first = made.links.find((l) => !l.name.startsWith('about-')) ?? made.links[0];
   if (first !== undefined) window.location.assign(first.url);
   return { ok: true };
 }
-
-/** The import, which setup returns to when it was what sent the admin there. */
-const IMPORT = '/people/import';
 
 export function PeopleScreen({
   route,
@@ -256,8 +278,15 @@ export function PeopleScreen({
    */
   const live = useSearchParams();
   const at = (key: string): string | null => live.get(key);
+  // A navigation on its way: noting where the reader is (`noteInAddress`) would
+  // rewrite the old address under it, and Next would drop the navigation.
+  const navigating = useRef(false);
+  useEffect(() => {
+    navigating.current = false;
+  }, [live]);
   const navigate = (patch: Readonly<Record<string, string | null>>, mode: HistoryMode = 'push') => {
     const to = withQuery(window.location.pathname, window.location.search, patch) as Route;
+    navigating.current = true;
     if (mode === 'push') router.push(to, { scroll: false });
     else router.replace(to, { scroll: false });
   };
@@ -298,17 +327,8 @@ export function PeopleScreen({
           // The first administrator is the only HR member: they approve their own NIF (PEO-077).
           onSelfApprove: actions.approveAlone,
           onWithdraw: actions.withdrawPendingChange,
-          // Sent here from an import with nothing published: the import goes on after.
-          ...(search['then'] === IMPORT
-            ? {
-                continuing: {
-                  label: 'Continue to the import',
-                  note: 'Your import carries on once version 1 is published. Columns in your file that match none of these fields become new fields for you to review there.',
-                },
-              }
-            : {}),
           onFinish: () => {
-            go(search['then'] === IMPORT ? IMPORT : '/people/me');
+            go('/people/me');
           },
         };
       // One person by hand; then their record, to fill in the rest.
@@ -430,7 +450,8 @@ export function PeopleScreen({
         // first page, and a page is a history entry, so Back returns to the
         // one before (PEO-117).
         const query = (patch: Readonly<Record<string, string | null>>, mode?: HistoryMode) => {
-          navigate({ after: null, ...patch }, mode);
+          // A new query starts at the top: the row the reader was on belongs to the old one.
+          navigate({ after: null, row: null, ...patch }, mode);
         };
         const view = leaf === 'cards' ? 'cards' : 'list';
         const data =
@@ -472,6 +493,7 @@ export function PeopleScreen({
               incomplete: view.incomplete ? 'true' : null,
               segment: view.segmentId,
               filter: null,
+              ask: null,
             });
           },
           view,
@@ -499,8 +521,14 @@ export function PeopleScreen({
                 onLoadMore: (after: string) => actions.directoryPage(search, after),
                 next,
               }),
+          // A view saved from a search keeps its conditions too (smart search's "Save as view").
           onSaveSegment: (segment: { name: string; shared: boolean }) =>
-            actions.saveSegment({ ...segment, filter: filters }),
+            actions.saveSegment({
+              ...segment,
+              filter: filters,
+              conditions: conditionsOf(at('conditions') ?? undefined) ?? [],
+              match: at('match') === 'any' ? 'any' : 'all',
+            }),
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
@@ -525,11 +553,18 @@ export function PeopleScreen({
                 },
               }
             : {}),
-          // What was typed, on Enter, read as the directory's own filters and
-          // order (docs/ai-settings.md): the plan goes into the address, as a
-          // chip or the Filters sheet would put it, and People answers it.
-          onAsk: async (sentence: string) => {
-            const planned = await actions.planDirectory(sentence);
+          // Smart search (docs/ai-settings.md): what was typed, on Enter. The
+          // one person a name or an email finds is opened; otherwise the plan
+          // goes into the address, as a chip or the Filters sheet would put
+          // it, with the question beside it (`?ask=`), and People answers it.
+          asked: at('ask'),
+          onAsk: async (sentence: string, remembered: Readonly<Record<string, string>>) => {
+            const nothing = { note: null, unused: [], filters: 0, search: null };
+            if (sentence === '') {
+              query({ ask: null, q: null, conditions: null, match: null, sort: null });
+              return { ok: true, by: 'search', ...nothing };
+            }
+            const planned = await actions.planDirectory(sentence, remembered);
             if (!planned.ok) return planned;
             const plan = planned.data as {
               search: string | null;
@@ -539,22 +574,51 @@ export function PeopleScreen({
               unused: readonly string[];
               by: 'search' | 'assistant' | 'rules';
               note: string | null;
+              person: { id: string; name: string } | null;
+              ask: {
+                topic: string | null;
+                phrase: string;
+                readings: readonly {
+                  label: string;
+                  conditions: readonly { key: string; op: string; values: readonly string[] }[];
+                  match: 'all' | 'any';
+                  count: number | null;
+                }[];
+              } | null;
+              refused: readonly {
+                text: string;
+                why: string;
+                instead: {
+                  label: string;
+                  subject: string;
+                  condition: { key: string; op: string; values: readonly string[] };
+                  count: number | null;
+                } | null;
+              }[];
+              remembered: { topic: string; phrase: string; label: string } | null;
             };
+            if (plan.person !== null) {
+              go(`/people/${plan.person.id}`);
+              return { ok: true, by: 'person', ...nothing };
+            }
             const filters = plan.conditions.length + (plan.sort === null ? 0 : 1);
-            query(
-              plan.by === 'search' || filters === 0
-                ? { q: plan.search ?? sentence }
-                : {
-                    q: plan.search,
-                    conditions: conditionsKey(plan.conditions),
-                    match: plan.match === 'any' ? 'any' : null,
-                    sort: plan.sort,
-                    filter: null,
-                    segment: null,
-                    incomplete: null,
-                    group: null,
-                  },
-            );
+            const asking = plan.ask !== null || plan.refused.length > 0;
+            if (plan.by === 'search' || (filters === 0 && !asking)) {
+              query({ q: plan.search ?? sentence, ask: null });
+              return { ok: true, by: 'search', ...nothing };
+            }
+            query({
+              ask: sentence,
+              q: plan.search,
+              conditions: conditionsKey(plan.conditions),
+              match: plan.match === 'any' ? 'any' : null,
+              // A question's results stream in by name unless it asked for an order.
+              sort: plan.sort ?? (plan.conditions.length > 0 ? 'name:asc' : null),
+              filter: null,
+              segment: null,
+              incomplete: null,
+              group: null,
+            });
             return {
               ok: true,
               by: plan.by,
@@ -562,7 +626,24 @@ export function PeopleScreen({
               unused: plan.unused,
               filters,
               search: plan.search,
+              ask: plan.ask,
+              refused: plan.refused,
+              remembered: plan.remembered,
             };
+          },
+          // "Remind all": everybody the conditions in force find, asked for what they find empty.
+          onRemind: async (
+            conditions: readonly { key: string; op: string; values: readonly string[] }[],
+            match: 'all' | 'any',
+          ) => {
+            const done = await actions.remindDirectory(conditions, match, at('q'));
+            return done.ok ? { ok: true, asked: done.asked, more: done.more } : done;
+          },
+          // Where the reader is: noted in the address, so Back returns to the same row.
+          place: Number.parseInt(at('row') ?? '', 10) || null,
+          onPlaceChange: (row: number | null) => {
+            if (navigating.current) return;
+            note({ row: row === null ? null : String(row) }, 'replace');
           },
           ...(can.import === true
             ? {
@@ -800,10 +881,20 @@ export function PeopleScreen({
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
-          tab: oneOf(at('tab'), ['mine', 'asked'], null),
+          tab: oneOf(at('tab'), ['mine', 'flagged', 'asked', 'decided'], null),
           onTabChange: (tab: string) => {
-            note({ tab }, 'push');
+            note({ tab, change: null }, 'push');
           },
+          // The change open beside the list: a link to one opens it (Inbox, MA6).
+          change: at('change'),
+          onChangeOpen: (change: string | null) => {
+            note({ change }, 'push');
+          },
+          // Flagged approvals (design AI7, AI8).
+          onMarkNotUnusual: actions.markNotUnusual,
+          onAsk: actions.askAboutChange,
+          onAnswer: actions.answerApprovalQuestion,
+          onSetCheck: actions.setApprovalCheck,
         };
       case 'Duplicates': {
         const list = '/people/data-health/duplicates';
@@ -881,46 +972,89 @@ export function PeopleScreen({
           },
         };
       case 'ExportBuilder': {
-        // Where the builder starts, from the address: an export described in
-        // words, or the directory's Export button with its conditions.
-        const format = oneOf(search['format'], ['xlsx', 'csv', 'pdf'], null);
-        const asOf = search['asOf'];
-        const exportAudience =
-          load.status === 'ready'
-            ? (load.data as { who?: readonly { value: string; label: string }[] }).who?.find(
-                (w) => w.value === 'conditions',
-              )?.label
-            : undefined;
-        const initial = {
-          ...(search['who'] === undefined ? {} : { who: search['who'] }),
-          ...(search['fields'] === undefined
-            ? {}
-            : { fields: search['fields'].split(',').filter((k) => k !== '') }),
-          ...(asOf !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? { asOf } : {}),
-          ...(format === null ? {} : { format }),
-          ...(search['photos'] === 'true' ? { photos: true } : {}),
-          ...(search['reason'] === undefined ? {} : { reason: search['reason'].slice(0, 500) }),
-        };
+        // Everything the page shows is in its address (design AI13): the
+        // sentence, what it was read as, whom it goes to and how.
+        const address = exportAddressOf(search);
+        const data = load.status === 'ready' ? (load.data as ExportPageData) : null;
+        const offered = data?.sections.flatMap((s) => s.fields.map((f) => f.key)) ?? [];
+        const audience = data?.who.find((w) => w.value === (address.who ?? 'everyone'))?.label;
+        // The directory's conditions, as the address carries them; People authorizes them.
+        const narrowed = (who: string) =>
+          who === 'conditions'
+            ? {
+                conditions: conditionsOf(search['conditions']) ?? [],
+                match: search['match'] === 'any' ? ('any' as const) : ('all' as const),
+                ...(audience === undefined ? {} : { filter: audience }),
+              }
+            : {};
+        const shareChoice = (choice: ExportBuilderChoice): ShareChoice => ({
+          ...shareChoiceOf(search, offered, audience),
+          format: choice.format,
+          fields: choice.fields,
+          asOf: choice.asOf,
+          ...(choice.reason === undefined ? {} : { reason: choice.reason }),
+        });
         return {
           load: loadable,
-          initial,
-          onExport: async (choice: Parameters<typeof actions.requestExport>[0]) =>
-            download(
-              await actions.requestExport({
-                ...choice,
-                // The directory's conditions, as the address carries them; People authorizes them.
-                ...(choice.who === 'conditions'
-                  ? {
-                      conditions: conditionsOf(search['conditions']) ?? [],
-                      match: search['match'] === 'any' ? ('any' as const) : ('all' as const),
-                      // Named on the file's provenance sheet as the builder names it.
-                      ...(exportAudience === undefined ? {} : { filter: exportAudience }),
-                    }
-                  : {}),
-              }),
-            ),
+          address,
+          onAddress: (patch: Readonly<Record<string, string | null>>, mode?: HistoryMode) => {
+            navigate(patch, mode ?? 'push');
+          },
+          onExport: async (choice: ExportBuilderChoice) => {
+            const made = await actions.requestExport({ ...choice, ...narrowed(choice.who) });
+            if (!made.ok) return made;
+            // The finished export, with its files and its About; the choices stay in the address.
+            navigate({ export: made.id, share: null });
+            return { ok: true };
+          },
+          onShare: async (choice: ExportBuilderChoice, recipient: string) => {
+            const sent = await actions.shareExport(shareChoice(choice), recipient);
+            if (!sent.ok) return sent;
+            const done = sent.data as
+              { status: 'sent'; exportId: string } | { status: 'waiting'; requestId: string };
+            navigate(
+              done.status === 'sent'
+                ? { export: done.exportId, share: null }
+                : { share: done.requestId, export: null },
+            );
+            return { ok: true };
+          },
+          onDecide: async (id: string, approve: boolean, note: string) => {
+            const decided = await actions.decideExportShare(
+              id,
+              approve,
+              note.trim() === '' ? null : note,
+            );
+            if (decided.ok) refresh();
+            return decided.ok ? { ok: true } : decided;
+          },
+          onSchedule: async (choice: ExportBuilderChoice, recipient: string) => {
+            const picked = shareChoice(choice);
+            const audienceOf = scheduleAudienceOf(picked);
+            if (audienceOf === null) {
+              return {
+                ok: false,
+                message:
+                  'A schedule takes a saved view or simple filters. Save this group as a view in the Directory first.',
+              };
+            }
+            return actions.createReportSchedule({
+              name: (choice.reason ?? 'Monthly export').slice(0, 80),
+              ...audienceOf,
+              kind: 'export',
+              format: choice.format === 'pdf' ? 'pdf' : 'xlsx',
+              fields: [...choice.fields],
+              reason: choice.reason ?? null,
+              every: 'month',
+              weekday: 1,
+              day: 1,
+              hour: 7,
+              legalEntityId: null,
+              recipients: [recipient],
+            });
+          },
           // Described in words (docs/ai-settings.md): the choices go into the
-          // address, and the builder starts again from them for a person to check.
+          // address, and the page starts again from them for a person to check.
           onDescribe: async (sentence: string) => {
             const planned = await actions.planExport(sentence);
             if (!planned.ok) return planned;
@@ -942,6 +1076,8 @@ export function PeopleScreen({
                 '/people/export',
                 {},
                 {
+                  q: sentence,
+                  read: plan.by,
                   who: plan.who === 'everyone' ? null : plan.who,
                   conditions: plan.conditions.length === 0 ? null : JSON.stringify(plan.conditions),
                   match: plan.match === 'any' ? 'any' : null,
@@ -959,86 +1095,81 @@ export function PeopleScreen({
       }
       case 'ImportFlow': {
         const stage = importing.stages.at(-1) ?? { step: 'upload' };
-        const next = (
-          result: actions.Staged,
-          uploadId: string,
-          mapping: Readonly<Record<number, string | null>>,
-        ): Outcome => {
-          if (!result.ok) return result;
-          setImporting((s) => ({
-            uploadId,
-            mapping,
-            stages: [...s.stages, result.stage as Stage],
-          }));
-          return { ok: true };
-        };
         const again = { ok: false, message: 'Choose the file again' } as const;
-        // Nothing published: setup comes first, for an administrator to run.
+        type Mapping = Readonly<Record<number, string | null>>;
+        // Nothing published and not an administrator: the first import is one's.
         const ready =
           load.status === 'ready' ? (load.data as { setUp?: boolean; admin?: boolean }) : {};
         return {
           load: { status: 'ready', data: stage },
-          ...(ready.setUp === false
-            ? { setup: { href: ready.admin === true ? `/people/setup?then=${IMPORT}` : null } }
-            : {}),
+          ...(ready.setUp === false ? { setup: { href: null } } : {}),
+          // The step after the mapping and the field in focus live in the address.
+          step: at('step'),
+          onStepChange: (step: string | null) => {
+            note({ step, field: null }, 'push');
+          },
+          field: at('field'),
+          onFieldChange: (field: string | null) => {
+            note({ field }, 'replace');
+          },
           onUpload: async (file: File, progress: (percent: number) => void): Promise<Outcome> => {
             const target = await actions.startImportUpload({ name: file.name, size: file.size });
             if (!target.ok) return target;
             if (!(await putFile(target, file, progress))) {
               return { ok: false, message: 'The upload did not go through; try again' };
             }
-            return next(await actions.completeImportUpload(target.uploadId), target.uploadId, {});
-          },
-          onMap: async (mapping: Readonly<Record<number, string | null>>) => {
-            const id = importing.uploadId;
-            return id === null ? again : next(await actions.dryRunImport(id, mapping), id, mapping);
-          },
-          onCommit: async (options?: { readonly applyWithoutApproval?: boolean }) => {
-            const id = importing.uploadId;
-            return id === null
-              ? again
-              : next(
-                  await actions.commitImport(
-                    id,
-                    importing.mapping,
-                    options?.applyWithoutApproval === true,
-                  ),
-                  id,
-                  importing.mapping,
-                );
-          },
-          onDownloadBlocked: () => {
-            // A signed link to the stored report: it downloads, and expires.
-            const url = stage.blockedUrl;
-            if (typeof url === 'string') window.location.assign(url);
+            const completed = await actions.completeImportUpload(target.uploadId);
+            if (!completed.ok) return completed;
+            setImporting((s) => ({
+              uploadId: target.uploadId,
+              mapping: {},
+              stages: [...s.stages, completed.stage as Stage],
+            }));
+            return { ok: true };
           },
           onBack: () => {
             setImporting((s) => ({
               ...s,
               stages: s.stages.length > 1 ? s.stages.slice(0, -1) : s.stages,
             }));
+            note({ step: null, field: null }, 'replace');
           },
-          // New information in the file: proposed, reviewed, added (docs/ai-settings.md).
-          newFields: {
-            propose: async (mapping: Readonly<Record<number, string | null>>) => {
-              const id = importing.uploadId;
-              return id === null ? again : actions.proposeImportFields(id, mapping);
-            },
-            review: async (
-              mapping: Readonly<Record<number, string | null>>,
-              proposals: readonly unknown[],
-            ) => {
-              const id = importing.uploadId;
-              return id === null ? again : actions.reviewImportFields(id, mapping, proposals);
-            },
-            apply: async (
-              mapping: Readonly<Record<number, string | null>>,
-              proposals: readonly unknown[],
-              summary: string,
-            ) => {
-              const id = importing.uploadId;
-              return id === null ? again : actions.addImportFields(id, mapping, proposals, summary);
-            },
+          propose: async (mapping: Mapping) => {
+            const id = importing.uploadId;
+            return id === null ? again : actions.proposeImportFields(id, mapping);
+          },
+          plan: async (mapping: Mapping, proposals: readonly unknown[]) => {
+            const id = importing.uploadId;
+            return id === null ? again : actions.planImport(id, mapping, proposals);
+          },
+          run: async (
+            mapping: Mapping,
+            proposals: readonly unknown[],
+            options: { readonly applyWithoutApproval: boolean },
+          ): Promise<Outcome> => {
+            const id = importing.uploadId;
+            if (id === null) return again;
+            const ran = await actions.runImport(
+              id,
+              mapping,
+              proposals,
+              options.applyWithoutApproval,
+            );
+            if (!ran.ok) return ran;
+            setImporting((s) => ({
+              ...s,
+              mapping,
+              stages: [...s.stages, { ...(ran.data as object), step: 'done' }],
+            }));
+            note({ step: null, field: null }, 'replace');
+            return { ok: true };
+          },
+          onDownloadBlocked: (url: string) => {
+            // A signed link to the stored report: it downloads, and expires.
+            window.location.assign(url);
+          },
+          onDone: () => {
+            go('/people/import-export');
           },
         };
       }
@@ -1050,8 +1181,6 @@ export function PeopleScreen({
           onSegmentChange: (segment: string | null) => {
             navigate({ segment });
           },
-          // "What changed", in the assistant's words where People says it may.
-          onWhatChanged: (tab: string) => actions.whatChanged(tab, at('segment')),
           // The Schedules button: the schedules page's own actions.
           schedules: {
             onCreate: actions.createReportSchedule,
@@ -1061,6 +1190,104 @@ export function PeopleScreen({
             onDelete: actions.deleteReportSchedule,
           },
         };
+      // What changed (design AI5, AI6, MA4, MA5): its own block.
+      case 'WhatChanged': {
+        const asked = (): actions.PeriodAsk => {
+          const pick = (k: string) => at(k) ?? undefined;
+          return Object.fromEntries(
+            ['period', 'from', 'to', 'segment'].flatMap((k) => {
+              const v = pick(k);
+              return v === undefined ? [] : [[k, v]];
+            }),
+          );
+        };
+        const share = at('share');
+        return {
+          load: loadable,
+          segmentId: at('segment'),
+          onSegmentChange: (segment: string | null) => {
+            navigate({ segment });
+          },
+          onPeriodChange: (p: { kind: string; from?: string; to?: string }) => {
+            navigate({
+              period: p.kind === 'month' ? null : p.kind,
+              from: p.kind === 'custom' ? (p.from ?? null) : null,
+              to: p.kind === 'custom' ? (p.to ?? null) : null,
+              ask: null,
+            });
+          },
+          question: at('ask'),
+          onQuestionChange: (question: string | null) => {
+            note({ ask: question }, 'push');
+          },
+          onAsk: (question: string) => actions.askWhatChanged(asked(), question),
+          onWorded: () => actions.wordedWhatChanged(asked()),
+          exporting:
+            share === 'pdf' || share === 'email'
+              ? {
+                  format: share,
+                  recipient: at('for'),
+                  tone: at('tone') === 'detailed' ? 'detailed' : 'short',
+                  charts: at('charts') !== 'off',
+                  madeLine: at('made') !== 'off',
+                }
+              : null,
+          onExportingChange: (
+            next: {
+              format: string;
+              recipient: string | null;
+              tone: string;
+              charts: boolean;
+              madeLine: boolean;
+            } | null,
+          ) => {
+            note(
+              next === null
+                ? { share: null, for: null, tone: null, charts: null, made: null }
+                : {
+                    share: next.format,
+                    for: next.recipient,
+                    tone: next.tone === 'detailed' ? 'detailed' : null,
+                    charts: next.charts ? null : 'off',
+                    made: next.madeLine ? null : 'off',
+                  },
+              share === null || next === null ? 'push' : 'replace',
+            );
+          },
+          onDraft: (input: Readonly<Record<string, unknown>>) =>
+            actions.draftSummary({ ...asked(), ...input }),
+          onSend: (input: Readonly<Record<string, unknown>>) =>
+            actions.shareSummary({ ...asked(), ...input }),
+          // The PDF, saved as the browser saves any download (`/people/downloads/summary`).
+          onDownload: async (input: Readonly<Record<string, unknown>>) => {
+            const form = new FormData();
+            form.set('input', JSON.stringify({ ...asked(), ...input }));
+            const response = await fetch('/people/downloads/summary', {
+              method: 'POST',
+              body: form,
+            }).catch(() => null);
+            if (response?.ok !== true) {
+              const why = (await response?.text().catch(() => '')) ?? '';
+              return { ok: false, message: why === '' ? 'The PDF could not be made' : why };
+            }
+            const url = URL.createObjectURL(await response.blob());
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `what-changed-${today}.pdf`;
+            link.click();
+            URL.revokeObjectURL(url);
+            return { ok: true };
+          },
+          // The Schedules button: the schedules page's own actions.
+          schedules: {
+            onCreate: actions.createReportSchedule,
+            onUpdate: actions.updateReportSchedule,
+            onPause: actions.pauseReportSchedule,
+            onResume: actions.resumeReportSchedule,
+            onDelete: actions.deleteReportSchedule,
+          },
+        };
+      }
       case 'ImportExport':
         return {
           load: loadable,

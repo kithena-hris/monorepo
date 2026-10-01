@@ -1,4 +1,4 @@
-import { TooltipProvider } from '@reach/ui';
+import { AssistantLauncher, TooltipProvider } from '@reach/ui';
 import { render, screen, within } from '@testing-library/react';
 import axe from 'axe-core';
 import type { ReactElement } from 'react';
@@ -12,8 +12,7 @@ import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
 import { ImportFlow } from '../import/import-flow';
-import { NewInformation, type NewFieldsView } from '../import/new-information';
-import { NEW_FIELDS } from '../import/new-information.fixture';
+import { DONE, MAPPING, NEW_FIELDS, PLAN } from '../import/import.fixture';
 import { Onboarding } from '../onboarding/onboarding';
 import { PersonHistory } from '../profile/history';
 import { Profile } from '../profile/profile';
@@ -31,6 +30,8 @@ import { ImportExport } from '../import/import-export';
 import { Duplicates } from '../review/duplicates';
 import { PublishDialog } from '../settings/publish';
 import { PeopleSetup } from '../setup/people-setup';
+import { WhatChanged } from '../analytics/what-changed';
+import { FOR_NORA, SEPTEMBER } from '../analytics/what-changed.fixture';
 
 /**
  * Every screen at 390×844 with a coarse pointer and the real stylesheet
@@ -81,8 +82,21 @@ function mount(ui: ReactElement) {
   return render(ui, { wrapper: TooltipProvider });
 }
 
-/** At rest: a box mid-way through a scale-in reports the scaled size. */
+/**
+ * At rest: a box mid-way through a scale-in reports the scaled size, and one
+ * mid-way through a fade reports blended colours. Two frames first, so a
+ * surface that opens on mount (a sheet, a dialog) has started its animation
+ * before they are collected: on a slow runner it had not, and axe measured a
+ * button through a sheet still fading in.
+ */
 async function settled(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resolve();
+      });
+    });
+  });
   await Promise.all(
     document
       .getAnimations()
@@ -534,6 +548,130 @@ describe('at 390×844, with a finger', () => {
     expect(within(views[0] as HTMLElement).getByRole('radio', { name: 'List' })).toBeChecked();
   });
 
+  /* Smart search on the People tab (MA1–MA3). */
+  const crowd = {
+    total: 388,
+    active: 388,
+    notStarted: null,
+    incomplete: null,
+    columns: [{ key: 'job_title', label: 'Job title' }],
+    fields: [
+      {
+        key: 'department',
+        label: 'Team',
+        kind: 'select',
+        options: [{ value: 'eng', label: 'Engineering' }],
+      },
+      { key: 'bank_account', label: 'Bank account', kind: 'text', options: [] },
+    ],
+    query: {
+      conditions: [
+        { key: 'department', op: 'in', values: ['eng'] },
+        { key: 'bank_account', op: 'empty', values: [] },
+      ],
+      match: 'all',
+      sort: null,
+    },
+    remind: ['bank_account'],
+    filterable: [],
+    people: Array.from({ length: 30 }, (_, i) => ({
+      id: `p${String(i)}`,
+      name: `Person ${String(i + 1)}`,
+      email: null,
+      avatarUrl: null,
+      values: { job_title: 'Engineer' },
+      missing: null,
+    })),
+  };
+  const smart = {
+    search: '',
+    onSearchChange: vi.fn(),
+    filters: {},
+    onFiltersChange: vi.fn(),
+    onOpen: vi.fn(),
+    onConditionsChange: vi.fn(),
+  };
+
+  it('smart search: the question, its chips scrolling sideways, and Remind all in thumb reach (MA1)', async () => {
+    await checked(
+      <Directory
+        {...smart}
+        load={{ status: 'ready', data: crowd }}
+        asked="engineers missing bank details"
+        onAsk={vi.fn()}
+        onRemind={() => Promise.resolve({ ok: true as const, asked: 388, more: false })}
+      />,
+    );
+    const row = screen.getByRole('group', { name: 'Understood as' });
+    // One line that scrolls, never a wrap.
+    expect(getComputedStyle(row).flexWrap).toBe('nowrap');
+    expect(getComputedStyle(row).overflowX).toBe('auto');
+    const remind = screen.getByRole('button', { name: 'Remind all' });
+    expect(remind).toBeVisible();
+    expect(remind.closest('div')).toHaveTextContent('388 people');
+  });
+
+  it('smart search: results scrolling forever, with where you are and the way back (MA2)', async () => {
+    mount(
+      <Directory
+        {...smart}
+        load={{ status: 'ready', data: crowd }}
+        asked="engineers missing bank details"
+        onAsk={vi.fn()}
+        onLoadMore={() => new Promise(() => undefined)}
+        next="cursor-1"
+      />,
+    );
+    window.scrollTo({ top: 1200 });
+    const back = await screen.findByRole('button', { name: 'Back to top' });
+    expect(screen.getByText(/^\d+ of 388$/u)).toBeVisible();
+    await settled();
+    expect(underFloor(document.body)).toEqual([]);
+    expect(await violations(document.body)).toEqual([]);
+    await userEvent.click(back);
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Back to top' })).toBeNull();
+    });
+    window.scrollTo({ top: 0 });
+  });
+
+  it('smart search: when it is unclear, one reading a row, a thumb wide (MA3)', async () => {
+    const onAsk = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'rules' as const,
+        note: null,
+        unused: [],
+        filters: 0,
+        search: null,
+        ask: {
+          topic: 'leaving',
+          phrase: 'leaving soon',
+          readings: [
+            { label: 'Have given notice', conditions: [], match: 'all' as const, count: 3 },
+            { label: 'Both', conditions: [], match: 'any' as const, count: 8 },
+          ],
+        },
+      }),
+    );
+    mount(<Directory {...smart} load={{ status: 'ready', data: crowd }} onAsk={onAsk} />);
+    await userEvent.fill(
+      screen.getByRole('searchbox', { name: 'Search people' }),
+      'people leaving soon',
+    );
+    await userEvent.keyboard('{Enter}');
+    const card = await screen.findByRole('group', { name: 'What does “leaving soon” mean?' });
+    expect(
+      within(card).getByRole('heading', { name: 'What does “leaving soon” mean?' }),
+    ).toBeVisible();
+    for (const choice of within(card).getAllByRole('button')) {
+      expect(choice.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+    }
+    await settled();
+    expect(underFloor(document.body)).toEqual([]);
+    expect(await violations(document.body)).toEqual([]);
+  });
+
   it('the completeness grid, as one card per person', async () => {
     await checked(
       <CompletenessGrid
@@ -888,86 +1026,76 @@ describe('at 390×844, with a finger', () => {
     );
   });
 
-  it('the import upload', async () => {
-    await checked(
+  describe('the import', () => {
+    const flow = (data: Parameters<typeof ImportFlow>[0]['load']) => (
       <ImportFlow
-        load={{ status: 'ready', data: { step: 'upload' } }}
+        load={data}
         onUpload={ok}
-        onMap={ok}
-        onCommit={ok}
+        propose={() => Promise.resolve({ ok: true as const, data: NEW_FIELDS })}
+        plan={() => Promise.resolve({ ok: true as const, data: PLAN })}
+        run={ok}
         onDownloadBlocked={vi.fn()}
         onBack={vi.fn()}
-      />,
-    );
-  });
-
-  describe('new information in an import', () => {
-    const newInformation = (over: Partial<NewFieldsView> = {}) => (
-      <NewInformation
-        view={{ ...NEW_FIELDS, ...over }}
-        onReview={(proposals) =>
-          Promise.resolve({
-            ok: true as const,
-            data: { ...NEW_FIELDS, proposals: NEW_FIELDS.proposals.filter((p) => proposals.some((q) => q.column === p.column)), summary: 'Adds 4 fields. Values for 128 people from this file. 342 people will be asked for their emergency contact.', problems: [] },
-          })
-        }
-        onApply={ok}
-        onSkip={vi.fn()}
-        onBack={vi.fn()}
+        onDone={vi.fn()}
       />
     );
-
-    it('the proposed fields, one edited', async () => {
-      await checked(newInformation());
-      await userEvent.click(screen.getByRole('button', { name: 'Change T-shirt size' }));
+    const again = async (): Promise<void> => {
       await settled();
       expect(await violations(document.body)).toEqual([]);
       expect(underFloor(document.body)).toEqual([]);
+    };
+
+    it('the upload', async () => {
+      await checked(flow({ status: 'ready', data: { step: 'upload' } }));
     });
 
-    it('people not in the file, then the review', async () => {
-      await checked(newInformation());
-      await userEvent.click(screen.getByRole('button', { name: 'Next: people not in this file' }));
-      await settled();
-      expect(await violations(document.body)).toEqual([]);
-      expect(underFloor(document.body)).toEqual([]);
-      await userEvent.click(screen.getByRole('button', { name: 'Review' }));
-      await screen.findByText(/342 people will be asked/u);
-      await settled();
-      expect(await violations(document.body)).toEqual([]);
-      expect(underFloor(document.body)).toEqual([]);
+    it('the mapping', async () => {
+      await checked(flow({ status: 'ready', data: MAPPING }));
     });
 
-    it('for HR without an administrator', async () => {
-      await checked(
-        newInformation({ canCreate: false, blocked: 'Only a People administrator can add fields.' }),
-      );
+    it('new fields, one card at a time, with Skip and Create in thumb reach (MA8)', async () => {
+      await checked(flow({ status: 'ready', data: MAPPING }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      await screen.findByText('New fields · 1 of 3');
+      expect(
+        screen.getByRole('heading', { name: 'These columns aren’t fields yet' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Proposed fields' })).toBeInTheDocument();
+      await again();
+      await userEvent.click(screen.getByRole('button', { name: 'Create field' }));
+      await screen.findByText('New fields · 2 of 3');
+      await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+      await screen.findByText('New fields · 3 of 3');
+      // Held back: the button says what pressing it would do.
+      expect(screen.getByRole('button', { name: 'Import anyway' })).toBeInTheDocument();
+      await again();
     });
-  });
 
-  it('the import review', async () => {
-    await checked(
-      <ImportFlow
-        load={{
-          status: 'ready',
-          data: {
-            step: 'review',
-            file: { name: 'people.xlsx', rows: 3, sheet: null },
-            dryRun: {
-              counts: { create: 2, update: 0, unchanged: 0, blocked: 1, duplicate: 0 },
-              incomplete: { count: 1, byField: [{ label: 'Cost centre', count: 1 }] },
-              ignoredColumns: [],
-              blocked: [{ row: 3, person: null, problem: 'No work email', cell: 'D3 — empty' }],
-            },
-          },
-        }}
-        onUpload={ok}
-        onMap={ok}
-        onCommit={ok}
-        onDownloadBlocked={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    );
+    it('the people without a value, then the plan in a sentence and Approve (MA9)', async () => {
+      await checked(flow({ status: 'ready', data: MAPPING }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      for (const name of ['Create field', 'Create field', 'Skip']) {
+        await userEvent.click(await screen.findByRole('button', { name }));
+      }
+      expect(await screen.findByText(PLAN.short)).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: '4 people have no T-shirt size' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Approve and run' })).toBeEnabled();
+      await again();
+    });
+
+    it('the plan', async () => {
+      const noNewColumns = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
+      await checked(flow({ status: 'ready', data: noNewColumns }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+      await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
+      await again();
+    });
+
+    it('done', async () => {
+      await checked(flow({ status: 'ready', data: DONE }));
+    });
   });
 
   it('the export builder', async () => {
@@ -987,6 +1115,110 @@ describe('at 390×844, with a finger', () => {
         onDescribe={() =>
           Promise.resolve({ ok: true as const, by: 'rules' as const, note: null, notes: [] })
         }
+      />,
+    );
+  });
+
+  it('an export from one sentence, waiting for approval (MA10)', async () => {
+    await checked(
+      <ExportBuilder
+        load={{
+          status: 'ready',
+          data: {
+            today: '2026-10-01',
+            who: [
+              { value: 'everyone', label: 'Everybody you can see', count: 412 },
+              { value: 'conditions', label: 'Everybody whose team is Engineering', count: 148 },
+            ],
+            sections: [
+              {
+                key: 'pay',
+                label: 'Pay',
+                fields: [
+                  { key: 'given_name', label: 'Given name' },
+                  { key: 'base_salary', label: 'Base salary' },
+                  { key: 'bonus', label: 'Bonus' },
+                ],
+              },
+            ],
+            preview: {
+              recipient: { accountId: 'a-sofia', name: 'Sofia Lindqvist' },
+              candidates: [{ accountId: 'a-sofia', name: 'Sofia Lindqvist' }],
+              people: 148,
+              sensitive: ['base_salary'],
+              gap: {
+                fields: [{ key: 'base_salary', label: 'Base salary', people: 148 }],
+                unlisted: 0,
+              },
+              approvers: [{ accountId: 'a-nora', name: 'Nora Becker' }],
+              tooLarge: false,
+              emailed: true,
+              canSchedule: true,
+              self: 'a-ada',
+            },
+          },
+        }}
+        address={{
+          q: 'Madrid engineering salaries as of 30 June for Finance',
+          read: 'rules',
+          who: 'conditions',
+          fields: ['given_name', 'base_salary'],
+          asOf: '2026-06-30',
+          reason: '2027 budget',
+        }}
+        onExport={ok}
+        onShare={ok}
+        onSchedule={ok}
+        onDescribe={() =>
+          Promise.resolve({ ok: true as const, by: 'rules' as const, note: null, notes: [] })
+        }
+      />,
+    );
+  });
+
+  it('the file explains itself, on a phone (AI14)', async () => {
+    await checked(
+      <ExportBuilder
+        load={{
+          status: 'ready',
+          data: {
+            today: '2026-10-01',
+            who: [{ value: 'everyone', label: 'Everybody you can see', count: 412 }],
+            sections: [],
+            record: {
+              id: '0199a3f0-7c1e-7d2a-9b1e-4f6a8c2d1e00',
+              code: 'EXP-0199A3F0',
+              status: 'completed',
+              mine: false,
+              requestedBy: { accountId: 'a-ada', name: 'Ada Lovelace' },
+              sentTo: { accountId: 'a-sofia', name: 'Sofia Lindqvist' },
+              openedAt: '2026-10-01T14:40:00.000Z',
+              approvedBy: {
+                accountId: 'a-nora',
+                name: 'Nora Becker',
+                at: '2026-10-01T14:31:00.000Z',
+              },
+              reason: 'Budget planning for 2027',
+              rowCount: 148,
+              fields: ['Name', 'Base salary'],
+              sensitive: 1,
+              asOf: '2026-06-30',
+              format: 'xlsx',
+              expiresAt: '2026-10-08T14:31:00.000Z',
+              about: {
+                title: 'Everybody whose team is Engineering, 30 June 2026',
+                paragraphs: [
+                  '148 people, with their name and base salary as they were at the end of 30 June 2026.',
+                ],
+                footnote: 'Confidential · link expires 8 October 2026 · export ID EXP-0199A3F0',
+              },
+              keptUntil: null,
+              links: [{ name: 'people-2026-10-01.xlsx', url: 'https://files.test/x' }],
+              now: '2026-10-01T15:00:00.000Z',
+            },
+          },
+        }}
+        onExport={ok}
       />,
     );
   });
@@ -1032,20 +1264,10 @@ describe('at 390×844, with a finger', () => {
               { label: 'Invited', value: 128 },
               { label: 'Complete', value: 61 },
             ],
-            whatChanged: {
-              phrasable: false,
-              tabs: [
-                {
-                  tab: 'data-quality',
-                  sentences: ['Records 79% complete; 88 incomplete.', '1 work permit expires in October.'],
-                },
-              ],
-            },
           },
         }}
       />,
     );
-    expect(screen.getByText('What changed')).toBeInTheDocument();
     // No chart forces the page sideways; a time axis scrolls inside its own box.
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
     // The expiry lanes are the taller, finger-sized ones a coarse pointer gets (PEO-122).
@@ -1054,8 +1276,80 @@ describe('at 390×844, with a finger', () => {
   });
 });
 
-describe('approvals on a phone, with a flagged change', () => {
-  it('draws the flags on the row and the change, and every target is a finger’s', async () => {
+describe('a floating button over a pinned footer (MA7)', () => {
+  it('rises above the footer, so Approve is the thing under a finger at its centre', async () => {
+    mount(
+      <>
+        <Approvals
+          load={{
+            status: 'ready',
+            data: {
+              isHr: true,
+              items: [
+                {
+                  id: 'c1',
+                  personId: 'p1',
+                  name: 'Tom Fischer',
+                  key: 'base_salary',
+                  label: 'Base salary',
+                  kind: 'value',
+                  value: { amountMinor: '8400000', currency: 'EUR' },
+                  current: { amountMinor: '6100000', currency: 'EUR' },
+                  readable: true,
+                  effectiveFrom: '2026-10-01',
+                  requestedAt: '2026-09-22T09:40:00.000Z',
+                  expiresAt: '2026-09-29T09:40:00.000Z',
+                  requestedBy: 'Nora Becker',
+                  reason: null,
+                  mine: false,
+                  canDecide: true,
+                  canAsk: true,
+                  canMark: true,
+                  flags: [
+                    { code: 'raise', title: 'A 38% raise', detail: 'Sales median is 4%' },
+                    { code: 'band', title: 'Above the band', detail: 'Band tops out at €78k' },
+                  ],
+                  flagNote: 'This might be fine: a promotion would explain both.',
+                  flagSummary: 'A 38% raise, above the band',
+                },
+              ],
+            },
+          }}
+          onDecide={ok}
+          onWithdraw={ok}
+          onMarkNotUnusual={ok}
+          onAsk={ok}
+          change="c1"
+          onChangeOpen={() => undefined}
+        />
+        {/* Where the shell puts it under a finger: the corner above the tab bar. */}
+        <AssistantLauncher label="Ask" onOpen={() => undefined} className="fixed end-4 bottom-24 z-40" />
+      </>,
+    );
+    await settled();
+    // Every scroll position the footer is pinned at: the top of the page and the end of it.
+    let looked = 0;
+    for (const y of [0, document.documentElement.scrollHeight]) {
+      window.scrollTo(0, y);
+      // The launcher measures once a frame.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await settled();
+      const approve = screen.getByRole('button', { name: /with note$/ });
+      const box = approve.getBoundingClientRect();
+      if (box.bottom <= 0 || box.top >= window.innerHeight) continue;
+      // At its centre, as asked, and at each end too: a corner under the button is still covered.
+      const middle = box.top + box.height / 2;
+      for (const x of [box.left + 4, box.left + box.width / 2, box.right - 4]) {
+        expect(document.elementFromPoint(x, middle)?.closest('button')).toBe(approve);
+      }
+      looked += 1;
+    }
+    expect(looked).toBeGreaterThan(0);
+  });
+});
+
+describe('approvals on a phone, with a flagged change (MA7)', () => {
+  it('draws why it is flagged and the decision, and every target is a finger’s', async () => {
     await checked(
       <Approvals
         load={{
@@ -1066,35 +1360,84 @@ describe('approvals on a phone, with a flagged change', () => {
               {
                 id: 'c1',
                 personId: 'p1',
-                name: 'Lucía Ortega',
-                key: 'iban',
-                label: 'IBAN',
+                name: 'Tom Fischer',
+                key: 'base_salary',
+                label: 'Base salary',
                 kind: 'value',
-                value: { last4: '1332' },
-                current: { last4: '3000' },
+                value: { amountMinor: '8400000', currency: 'EUR' },
+                current: { amountMinor: '6100000', currency: 'EUR' },
                 readable: true,
-                effectiveFrom: '2026-09-22',
-                requestedAt: '2026-09-22T21:40:00.000Z',
-                expiresAt: '2026-09-29T21:40:00.000Z',
-                requestedBy: 'Marco Rossi',
+                effectiveFrom: '2026-10-01',
+                requestedAt: '2026-09-22T09:40:00.000Z',
+                expiresAt: '2026-09-29T09:40:00.000Z',
+                requestedBy: 'Nora Becker',
                 reason: null,
                 mine: false,
                 canDecide: true,
+                canAsk: true,
+                canMark: true,
                 flags: [
-                  {
-                    code: 'bank_by_other',
-                    reason: 'Bank details were changed by someone other than the employee.',
-                  },
+                  { code: 'raise', title: 'A 38% raise', detail: 'Sales median is 4%' },
+                  { code: 'band', title: 'Above the band', detail: 'Band tops out at €78k' },
                 ],
+                comparisons: [
+                  { label: 'This change', percent: '38', highlight: true },
+                  { label: 'Sales median', percent: '4', highlight: false },
+                ],
+                flagNote: 'This might be fine: a promotion would explain both.',
+                flagSummary: 'A 38% raise, above the band',
               },
             ],
           },
         }}
         onDecide={ok}
         onWithdraw={ok}
+        onMarkNotUnusual={ok}
+        onAsk={ok}
+        change="c1"
+        onChangeOpen={() => undefined}
       />,
     );
-    expect(screen.getByText('1 flag')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Why this is flagged' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /with note$/ })).toBeInTheDocument();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+  });
+
+  it('puts what gets flagged under the Flagged tab, switches a finger’s', async () => {
+    await checked(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: {
+            isHr: true,
+            items: [],
+            canTune: true,
+            checks: [
+              {
+                code: 'raise',
+                title: 'Raise much bigger than usual',
+                detail: 'Compared with the team’s raises this year',
+                on: true,
+              },
+              {
+                code: 'unusual_time',
+                title: 'Requested at an unusual time',
+                detail: 'Outside the requester’s working hours',
+                on: false,
+              },
+            ],
+            last90: { flagged: 11, rejected: 3, marked: 6 },
+          },
+        }}
+        onDecide={ok}
+        onWithdraw={ok}
+        onSetCheck={ok}
+        tab="flagged"
+        onTabChange={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'What Kithena checks' })).toBeInTheDocument();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   });
 });
 
@@ -1170,5 +1513,60 @@ describe('onboarding on a phone, keyboard up', () => {
     await screen.findByRole('form', { name: 'Bank details' });
     expect(screen.getByText(/1 of 2 sections done/)).toBeVisible();
     await page.viewport(390, 844);
+  });
+});
+
+describe('what changed on a phone (MA4, MA5)', () => {
+  const four = {
+    ...SEPTEMBER,
+    title: 'September in four points',
+    points: [
+      ...SEPTEMBER.points,
+      {
+        key: 'span',
+        figure: '2',
+        text: '2 managers now have more than 8 direct reports.',
+        parts: [{ text: '2 managers now have more than 8 direct reports.', strong: false }],
+        sources: [{ kind: 'org-chart' as const, label: 'Org chart' }],
+        audience: null,
+      },
+    ],
+  };
+
+  it('holds the first three points and Share summary, every target a finger’s', async () => {
+    await checked(
+      <WhatChanged load={{ status: 'ready', data: four }} onExportingChange={vi.fn()} onAsk={vi.fn()} />,
+    );
+    expect(screen.getByRole('heading', { name: 'September in four points' })).toBeVisible();
+    expect(screen.getByText(/Headcount grew from/)).toBeVisible();
+    expect(screen.getByText(/2 managers now have more than 8/)).not.toBeVisible();
+    // The design's phone card: no period control, follow-up or charts beside it.
+    expect(screen.getByRole('radio', { name: 'This quarter', hidden: true })).not.toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Ask a follow-up', hidden: true })).not.toBeVisible();
+    expect(screen.getByRole('button', { name: 'Share summary' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Show 1 more' }));
+    expect(screen.getByText(/2 managers now have more than 8/)).toBeVisible();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+  });
+
+  it('shares as a sheet from the bottom, rewritten for its recipient', async () => {
+    await checked(
+      <WhatChanged
+        load={{ status: 'ready', data: SEPTEMBER }}
+        exporting={{ format: 'email', recipient: 'nora', tone: 'short', charts: true, madeLine: true }}
+        onExportingChange={vi.fn()}
+        onDraft={() => Promise.resolve({ ok: true as const, data: FOR_NORA })}
+        onSend={vi.fn()}
+      />,
+    );
+    const dialog = screen.getByRole('dialog', { name: /Share the September summary/ });
+    expect(await within(dialog).findByText('Rewritten for Nora')).toBeVisible();
+    expect(within(dialog).getByText('Message')).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Send to Nora' })).toBeVisible();
+    expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
+    expect(Number.parseFloat(getComputedStyle(dialog).bottom)).toBeLessThanOrEqual(8);
+    await settled();
+    expect(underFloor(dialog)).toEqual([]);
+    expect(await violations(document.body)).toEqual([]);
   });
 });

@@ -82,12 +82,12 @@ import {
 import { ask } from '../application/assistant/ask.js';
 import type { AssistantPort } from '../application/assistant/assistant-port.js';
 import {
-  ApplyInput as NewFieldsApply,
-  applyNewFields,
   ImportStepInput,
+  PlanInput as ImportPlanInput,
+  planImport,
   proposeNewFields,
-  reviewNewFields,
-  ReviewInput as NewFieldsReview,
+  RunInput as ImportRunInput,
+  runImport,
   type NewFieldsDeps,
 } from '../application/assistant/import-fields.js';
 import { writeSameValue } from '../application/screens/bulk-edit.js';
@@ -99,6 +99,12 @@ import {
   planExport,
   type SelectionDeps,
 } from '../application/assistant/selection.js';
+// Smart search (docs/ai-settings.md): its own block, beside search and export in words.
+import {
+  DirectoryAsk,
+  DirectoryRemind,
+  remindDirectory,
+} from '../application/assistant/selection.js';
 import {
   completeFileUpload,
   fileView,
@@ -106,7 +112,25 @@ import {
   type FileDeps,
 } from '../application/screens/files.js';
 import type { PayBandView } from '../application/analytics/pay.js';
-import { whatChanged, type Phraser } from '../application/screens/what-changed.js';
+import {
+  announceSummary,
+  FollowUpAsk,
+  followUp,
+  PeriodAsk,
+  ShareAsk,
+  sharedSummary,
+  sharedSummaryFile,
+  storeSummary,
+  SummaryAsk,
+  summaryDraft,
+  summaryFile,
+  whatChangedView,
+  wordedPoints,
+  type Phraser,
+  type SummaryDeps,
+  type SummaryFile,
+  type SummaryShares,
+} from '../application/screens/what-changed.js';
 import {
   createSchedule,
   deleteSchedule,
@@ -134,6 +158,12 @@ import {
   type SchemaScreenDeps,
 } from '../application/screens/schema.js';
 import { run } from '../application/person/service.js';
+import {
+  answerAboutChange,
+  askAboutChange,
+  markNotUnusual,
+  setCheck,
+} from '../application/person/approval-flags.js';
 import { sharing } from '../infrastructure/unit-of-work.js';
 import type { IdempotencyStore } from './idempotency.js';
 import { NoBody } from './lifecycle.js';
@@ -182,6 +212,8 @@ export type ScreenRouteDeps = SchemaScreenDeps &
     readonly newFields?: { readonly planner?: AssistantPort; readonly budget: PlanBudget };
     /** Insights' "what changed", reworded by the assistant; absent, People's own words. */
     readonly insightsPhraser?: Phraser;
+    /** Sending an Insights summary to somebody. Absent, it is not offered. */
+    readonly insightsShares?: SummaryShares;
     /**
      * Search and export in words: the model behind the AI gateway with a
      * short timeout (absent, People's own rules), and each one's hourly
@@ -200,6 +232,10 @@ export const ChatComplete = z.strictObject({
   state: z.string().min(1).max(2000),
 });
 export const ChatNotice = z.strictObject({ on: z.boolean() });
+/** Flagged approvals (design AI7, AI8): a check switched, a question, its answer. */
+export const ApprovalCheckBody = z.strictObject({ on: z.boolean() });
+export const ApprovalQuestionBody = z.strictObject({ question: z.string().min(1).max(500) });
+export const ApprovalAnswerBody = z.strictObject({ answer: z.string().min(1).max(500) });
 export const Sections = z.strictObject({ changed: z.record(z.string(), z.unknown()) });
 export const Entity = z.strictObject({ name: z.string().max(200), country: z.string().max(2) });
 export const SetupChoice = z.strictObject({
@@ -341,6 +377,28 @@ export const PayBandBody = z.strictObject({
 export const SegmentBody = z.strictObject({
   name: z.string().max(80),
   filter: z.record(z.string().max(64), z.string().max(200)),
+  /** The directory's conditions, for a view saved from a search ("Save as view"). */
+  conditions: z
+    .array(
+      z.strictObject({
+        key: z.string().max(64),
+        op: z.enum([
+          'is',
+          'in',
+          'contains',
+          'before',
+          'after',
+          'between',
+          'empty',
+          'not_empty',
+          'under',
+        ]),
+        values: z.array(z.string().max(200)).max(50),
+      }),
+    )
+    .max(10)
+    .optional(),
+  match: z.enum(['all', 'any']).optional(),
   shared: z.boolean(),
 });
 
@@ -391,6 +449,31 @@ const csvFile = (result: Result<Uint8Array>, name: string): RestResponse =>
       }
     : refused(result.error);
 
+const pdfFile = (result: Result<SummaryFile>): RestResponse =>
+  result.ok
+    ? {
+        status: 200,
+        body: result.value.bytes,
+        headers: {
+          'content-type': 'application/pdf',
+          'content-disposition': `attachment; filename="${result.value.filename}"`,
+          'cache-control': 'private, no-store',
+        },
+      }
+    : refused(result.error);
+
+/** The period and segment in a what-changed address. */
+const periodAsk = (query: URLSearchParams): Result<PeriodAsk> =>
+  parse(
+    PeriodAsk,
+    Object.fromEntries(
+      ['period', 'from', 'to', 'segment'].flatMap((k) => {
+        const v = query.get(k);
+        return v === null || v === '' ? [] : [[k, v]];
+      }),
+    ),
+  );
+
 function body<T>(schema: z.ZodType<T>, raw: string): Result<T> {
   const value = json(raw);
   return value.ok ? parse(schema, value.value) : value;
@@ -415,6 +498,20 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   const keys = { service: deps.service, idempotency };
   type Asking = Parameters<Route['handle']>[0];
   const done = (): Promise<RestResponse> => Promise.resolve({ status: 200, body: { ok: true } });
+  /** A flagged-approvals use case (AI7, AI8), in the request's transaction. */
+  const flagged = <T>(
+    fn: (
+      tx: Parameters<Parameters<typeof run>[2]>[0],
+      pending: NonNullable<ScreenRouteDeps['service']['pending']>,
+    ) => Promise<Result<T>>,
+    asking: Asking,
+  ): Promise<Result<T>> => {
+    const { pending } = deps.service;
+    if (!pending) {
+      return Promise.resolve(err(failure('UNAVAILABLE', 'Approvals are not configured')));
+    }
+    return run(deps.service, asking.tenantId, (tx) => fn(tx, pending));
+  };
   const bands = <T>(
     asking: Asking,
     fn: (
@@ -495,6 +592,13 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       return answer(await act(asking, input.value));
     };
 
+  /** What changed: the screens' deps, with the model and the sending where they are configured. */
+  const summaries: SummaryDeps = {
+    ...deps,
+    ...(deps.insightsPhraser === undefined ? {} : { phraser: deps.insightsPhraser }),
+    ...(deps.insightsShares === undefined ? {} : { shares: deps.insightsShares }),
+  };
+
   const version = async (asking: Asking): Promise<RestResponse> => {
     const current = await run(deps.service, asking.tenantId, async (tx) =>
       ok(await deps.service.schemas.current(tx, asking.tenantId)),
@@ -524,13 +628,25 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     importFile: (asking, step) => newFieldsFile(deps, asking, importStep(step)),
     writeSame: (tx, asking, ids, values, from) =>
       writeSameValue(deps, tx, asking, ids, values, from),
+    importReview: async (asking, step, version) => {
+      const review = await dryRunImport(deps, asking, importStep(step), version);
+      if (!review.ok) return review;
+      return review.value.step === 'review'
+        ? ok(review.value)
+        : err(failure('UNAVAILABLE', 'The dry run did not answer with a review'));
+    },
+    importCommit: async (asking, step) => {
+      const done = await commitImportView(deps, asking, importStep(step));
+      if (!done.ok) return done;
+      return done.value.step === 'done'
+        ? ok(done.value)
+        : err(failure('UNAVAILABLE', 'The import did not answer with its outcome'));
+    },
   };
   // Search and export in words: no model configured means no budget to spend.
   const selection: SelectionDeps = {
     ...deps,
-    ...(deps.selection?.planner === undefined
-      ? {}
-      : { selectionPlanner: deps.selection.planner }),
+    ...(deps.selection?.planner === undefined ? {} : { selectionPlanner: deps.selection.planner }),
     searchBudget: deps.selection?.search ?? new PlanBudget(0, 3_600_000),
     exportBudget: deps.selection?.export ?? new PlanBudget(0, 3_600_000),
   };
@@ -714,6 +830,54 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'GET',
       pattern: /^\/v1\/views\/approvals$/,
       handle: async (asking) => answer(await approvalsView(deps, asking)),
+    },
+    // Flagged approvals (design AI7, AI8): "Not unusual", a question and its
+    // answer, and an administrator's switch per check. None decides anything.
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}/not-unusual$`),
+      handle: write(NoBody, (asking, _input, id) =>
+        flagged((tx, pending) => markNotUnusual(tx, pending, { ...asking, changeId: id }), asking),
+      { resource: (_asking, id) => id },
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/pending-changes/${UUID}/questions$`),
+      handle: write(
+        ApprovalQuestionBody,
+        (asking, input, id) =>
+          flagged(
+            (tx, pending) =>
+              askAboutChange(tx, pending, { ...asking, changeId: id, question: input.question }),
+            asking,
+          ),
+        { status: 201, resource: (_asking, _id, question) => question.id },
+      ),
+    },
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/approval-questions/${UUID}/answer$`),
+      handle: write(
+        ApprovalAnswerBody,
+        (asking, input, id) =>
+          flagged(
+            (tx, pending) =>
+              answerAboutChange(tx, pending, { ...asking, questionId: id, answer: input.answer }),
+            asking,
+          ),
+        { resource: (_asking, id) => id },
+      ),
+    },
+    {
+      method: 'PUT',
+      pattern: new RegExp(`^/v1/approval-checks/${KEY}$`),
+      handle: write(
+        ApprovalCheckBody,
+        (asking, input, id) =>
+          flagged((tx, pending) => setCheck(tx, pending, { ...asking, code: id, on: input.on }), asking),
+        { resource: (_asking, id) => id },
+      ),
     },
     // Suspected duplicates, and one pair side by side when `a` and `b` name it (PEO-074).
     {
@@ -1180,20 +1344,24 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       ),
     },
     {
-      // The proposals as HR left them, checked, with the review in words. Nothing is written.
+      // Everything the import will do, from HR's choices, over a dry run. Nothing is written.
       method: 'POST',
-      pattern: /^\/v1\/imports\/new-fields\/review$/,
+      pattern: /^\/v1\/imports\/plan$/,
       safe: true,
-      handle: compute(NewFieldsReview, (asking, input) =>
-        reviewNewFields(newFields, asking, input),
-      ),
+      handle: compute(ImportPlanInput, (asking, input) => planImport(newFields, asking, input)),
     },
     {
-      // Add them, publish, and write the defaults: one transaction, an administrator's.
+      // Approve and run: setup if nothing is published, the fields, the defaults, the import.
       method: 'POST',
-      pattern: /^\/v1\/imports\/new-fields\/apply$/,
-      handle: write(NewFieldsApply, (asking, input) => applyNewFields(newFields, asking, input), {
+      pattern: /^\/v1\/imports\/run$/,
+      handle: write(ImportRunInput, (asking, input) => runImport(newFields, asking, input), {
         status: 201,
+        again: () =>
+          Promise.resolve(
+            refused(
+              failure('ALREADY_IMPORTED', 'This import went through on the first request with this key'),
+            ),
+          ),
       }),
     },
     {
@@ -1263,7 +1431,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           match: query.get('match') ?? undefined,
         });
         if (!refine.success) {
-          return refused(failure('BAD_REQUEST', 'conditions or match is malformed', ['conditions']));
+          return refused(
+            failure('BAD_REQUEST', 'conditions or match is malformed', ['conditions']),
+          );
         }
         const { conditions = [], match = 'all' } = refine.data;
         return answer(
@@ -1280,7 +1450,13 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: /^\/v1\/views\/directory\/plan$/,
       safe: true,
-      handle: compute(PlanAsk, (asking, input) => planDirectory(selection, asking, input)),
+      handle: compute(DirectoryAsk, (asking, input) => planDirectory(selection, asking, input)),
+    },
+    // Smart search's "Remind all": everybody a search found missing a detail is asked for it.
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/directory\/remind$/,
+      handle: write(DirectoryRemind, (asking, input) => remindDirectory(selection, asking, input)),
     },
     {
       method: 'POST',
@@ -1297,36 +1473,73 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
         }
         return answer(
-          await analyticsView(deps, asking, {
-            ...(segment === undefined ? {} : { segmentId: segment }),
-            phrasable: deps.insightsPhraser !== undefined,
-          }),
+          await analyticsView(deps, asking, segment === undefined ? {} : { segmentId: segment }),
         );
       },
     },
-    // One tab's "what changed", reworded by the assistant where there is one.
+    /* what changed (design AI5, AI6, MA4, MA5): its own block */
     {
       method: 'GET',
       pattern: /^\/v1\/views\/analytics\/what-changed$/,
       handle: async (asking, _r, _p, query) => {
-        const tab = query.get('tab') ?? 'headcount';
-        const segment = query.get('segment') ?? undefined;
-        if (!(INSIGHTS_TABS as readonly string[]).includes(tab)) {
-          return refused(
-            failure('BAD_REQUEST', `tab is one of ${INSIGHTS_TABS.join(', ')}`, ['tab']),
-          );
-        }
-        if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
-          return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
-        }
-        return answer(
-          await whatChanged(
-            deps.insightsPhraser === undefined ? deps : { ...deps, phraser: deps.insightsPhraser },
-            asking,
-            { tab: tab as InsightsTab, ...(segment === undefined ? {} : { segmentId: segment }) },
-          ),
-        );
+        const ask = periodAsk(query);
+        return answer(ask.ok ? await whatChangedView(summaries, asking, ask.value) : ask);
       },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/analytics\/what-changed\/worded$/,
+      handle: async (asking, _r, _p, query) => {
+        const ask = periodAsk(query);
+        return answer(ask.ok ? await wordedPoints(summaries, asking, ask.value) : ask);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/analytics\/what-changed\/ask$/,
+      safe: true,
+      handle: compute(FollowUpAsk, (asking, input) => followUp(summaries, asking, input)),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/analytics\/what-changed\/summary$/,
+      safe: true,
+      handle: compute(SummaryAsk, (asking, input) => summaryDraft(summaries, asking, input)),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/analytics\/what-changed\/summary\/pdf$/,
+      safe: true,
+      handle: async (asking, request) => {
+        const input = body(SummaryAsk, request.body);
+        return pdfFile(input.ok ? await summaryFile(summaries, asking, input.value) : input);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/insights\/summaries$/,
+      handle: async (asking, request, params, query) => {
+        const stored = await write(ShareAsk, (a, input) => storeSummary(summaries, a, input), {
+          resource: (_a, _id, value) => value.id,
+          again: (_a, id) => Promise.resolve(answer(ok({ id }))),
+        })(asking, request, params, query);
+        if (stored.status !== 200) return stored;
+        // After the commit: the email says a summary waits, and one does.
+        const { id } = stored.body as { id: string };
+        return { ...stored, body: { id, emailed: await announceSummary(summaries, asking, id) } };
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/insights/summaries/${UUID}$`),
+      handle: async (asking, _r, params) =>
+        answer(await sharedSummary(summaries, asking, params['id'] ?? '')),
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/insights/summaries/${UUID}/pdf$`),
+      handle: async (asking, _r, params) =>
+        pdfFile(await sharedSummaryFile(summaries, asking, params['id'] ?? '')),
     },
     // One Insights tab's numbers as CSV (V7, "Export"): the view above, as rows.
     {

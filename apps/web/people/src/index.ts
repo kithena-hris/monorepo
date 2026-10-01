@@ -35,6 +35,7 @@ import { ImportFlow as ImportFlowScreen } from './import/import-flow';
 import { ExportBuilder as ExportBuilderScreen } from './export/export-builder';
 import { ImportExport as ImportExportScreen } from './import/import-export';
 import { Analytics as AnalyticsScreen } from './analytics/analytics';
+import { WhatChanged as WhatChangedScreen } from './analytics/what-changed';
 import { ReportSchedules as ReportSchedulesScreen } from './reports/report-schedules';
 import { ReportRuns as ReportRunsScreen } from './reports/report-runs';
 
@@ -64,5 +65,6 @@ export const ImportFlow = framed(ImportFlowScreen);
 export const ExportBuilder = framed(ExportBuilderScreen);
 export const ImportExport = framed(ImportExportScreen);
 export const Analytics = framed(AnalyticsScreen);
+export const WhatChanged = framed(WhatChangedScreen);
 export const ReportSchedules = framed(ReportSchedulesScreen);
 export const ReportRuns = framed(ReportRunsScreen);

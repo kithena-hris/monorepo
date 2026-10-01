@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SaveSegment(\n    $name: String!, $filter: [PeopleSegmentConditionInput!]!, $conditions: [DirectoryConditionInput!],\n    $match: String, $shared: Boolean!, $key: String!\n  ) {\n    savePeopleSegment(\n      name: $name, filter: $filter, conditions: $conditions, match: $match, shared: $shared,\n      idempotencyKey: $key\n    ) { id }\n  }"}

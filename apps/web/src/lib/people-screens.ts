@@ -4,6 +4,7 @@ import { currentTenant } from './branding';
 import { people, type PeopleAnswer } from './people';
 import type { OperationName } from './people-operations';
 import { VIEWS } from './people-views';
+import { exportAddressOf, shareChoiceOf } from './export-address';
 import { conditionsOf, directoryQuery } from './url-state';
 
 /**
@@ -67,6 +68,22 @@ const notSetUp = (load: ScreenLoad): boolean =>
 
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
 const today = (): string => new Date().toISOString().slice(0, 10);
+
+/**
+ * An answer that crosses as JSON text, read back (or, read as nothing, an
+ * object nothing on the screen will draw); under `key` when one is given.
+ */
+const json =
+  (key?: string) =>
+  (data: never): unknown => {
+    let value: unknown = null;
+    try {
+      value = JSON.parse(data) as unknown;
+    } catch {
+      value = null;
+    }
+    return key === undefined ? value : { [key]: value };
+  };
 
 /** A query-string value, or null for one that was not given. */
 const given = (value: string | undefined): string | null =>
@@ -233,18 +250,8 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         },
         (asked) => read('ExportBuilder', asked),
       );
-      // A scheduled report's email links here with its export (PEO-069).
-      const id = given(query.search['export']);
-      if (builder.status !== 'ready' || id === null) return builder;
-      const ready = await people<object>('ScheduledExport', { id });
-      return {
-        status: 'ready',
-        data: {
-          ...(builder.data as object),
-          // Somebody else's, or gone: said as such, never as an error page.
-          ready: ready.ok ? ready.data : { status: 'missing', links: [], expiresAt: null },
-        },
-      };
+      if (builder.status !== 'ready') return builder;
+      return { status: 'ready', data: await exportExtras(builder.data, query.search) };
     }
     case 'Analytics': {
       // Every tab reads the same answer; the schedules behind its button come
@@ -260,6 +267,37 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         status: 'ready',
         data: {
           ...(analytics.data as object),
+          schedules: schedules.status === 'ready' ? schedules.data : null,
+        },
+      };
+    }
+    case 'WhatChanged': {
+      // A summary somebody sent: theirs to open, and nothing else on the page.
+      const shared = given(query.search['shared']);
+      if (shared !== null) {
+        const found = await read('SharedSummary', { id: shared }, json('shared'));
+        // Gone, or not theirs: the page says so, rather than an error to retry.
+        return found.status === 'error' && found.code === 'NOT_FOUND'
+          ? { status: 'ready', data: { shared: null } }
+          : found;
+      }
+      const [summary, schedules] = await Promise.all([
+        orBare(
+          {
+            period: given(query.search['period']),
+            from: dateOf(query.search['from']),
+            to: dateOf(query.search['to']),
+            segment: given(query.search['segment']),
+          },
+          (asked) => read('WhatChanged', asked, json()),
+        ),
+        read('ReportSchedules'),
+      ]);
+      if (summary.status !== 'ready') return summary;
+      return {
+        ...summary,
+        data: {
+          ...(summary.data as object),
           schedules: schedules.status === 'ready' ? schedules.data : null,
         },
       };
@@ -291,6 +329,58 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
 }
 
 export { today };
+
+/** JSON text from People, read back; null for an answer that is not JSON. */
+const jsonOf = (answer: PeopleAnswer<string>): unknown => {
+  if (!answer.ok) return null;
+  try {
+    return JSON.parse(answer.data) as unknown;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * The export page beside the builder (design AI13, AI14): whom the export in
+ * the address would go to and what they could not read, the finished export
+ * a link opened it with (a sent file's email, a scheduled report's, the
+ * history), and a request to send one waiting for approval. Somebody else's
+ * or gone is said as such, never as an error page.
+ */
+async function exportExtras(
+  data: unknown,
+  search: Readonly<Record<string, string>>,
+): Promise<Record<string, unknown>> {
+  const builder = data as {
+    who: readonly { value: string; label: string }[];
+    sections: readonly { fields: readonly { key: string }[] }[];
+  };
+  const offered = builder.sections.flatMap((s) => s.fields.map((f) => f.key));
+  const address = exportAddressOf(search);
+  const audience = builder.who.find((w) => w.value === (address.who ?? 'everyone'))?.label;
+  const choice = shareChoiceOf(search, offered, audience);
+  const exportId = given(search['export']);
+  const shareId = given(search['share']);
+  const [preview, record, share] = await Promise.all([
+    offered.length === 0
+      ? null
+      : people<string>('ExportSharePreview', {
+          input: JSON.stringify({
+            choice,
+            ...(address.to === null ? {} : { recipient: address.to }),
+            ...(address.q === null ? {} : { sentence: address.q }),
+          }),
+        }),
+    exportId === null ? null : people<string>('ExportRecord', { id: exportId }),
+    shareId === null ? null : people<string>('ExportShare', { id: shareId }),
+  ]);
+  return {
+    ...(data as object),
+    preview: preview === null ? null : jsonOf(preview),
+    ...(record === null ? {} : { record: jsonOf(record) ?? { status: 'missing' } }),
+    ...(share === null ? {} : { share: jsonOf(share) ?? { state: 'missing' } }),
+  };
+}
 
 /** How many directory pages the org chart reads: 40 of 50, two thousand people. */
 const CHART_PAGES = 40;

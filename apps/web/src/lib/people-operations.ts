@@ -130,18 +130,29 @@ export const OPERATIONS = {
     }
   }${RECORD_FIELD}${ENTRY}`,
 
-  /** Changes waiting for approval (PEO-077): every one for HR, the viewer's own otherwise. */
+  /**
+   * Changes waiting for approval (PEO-077): every one for HR, the viewer's own
+   * otherwise. For HR, also why each is flagged, what was decided lately and
+   * what Kithena checks (design AI7, AI8).
+   */
   Approvals: `query Approvals {
     peopleApprovals {
-      isHr
-      items {
-        id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
-        reason mine canDecide canSelfApprove awaitingReview findings { level code message }
-        flags { code reason }
-        value { ...EntryParts }
-        current { ...EntryParts }
-      }
+      isHr canTune
+      items { ...ApprovalParts }
+      decided { ...ApprovalParts }
+      checks { code title detail on }
+      last90 { flagged rejected marked }
     }
+  }
+  fragment ApprovalParts on ApprovalItem {
+    id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
+    reason mine canDecide canSelfApprove awaitingReview findings { level code message }
+    flags { code title detail }
+    comparisons { label percent highlight }
+    flagNote flagSummary canAsk canMark state decidedBy decidedAt note
+    questions { id question askedBy askedAt answer answeredAt canAnswer }
+    value { ...EntryParts }
+    current { ...EntryParts }
   }${ENTRY}`,
 
   IdentifierReviews: `query IdentifierReviews {
@@ -234,7 +245,7 @@ export const OPERATIONS = {
         reports { id name title avatarUrl }
         reportsTotal reportsFilter
       }
-      approvals { isHr total items { id personId name avatarUrl label requestedAt requestedBy } }
+      approvals { isHr total items { id personId name avatarUrl label requestedAt requestedBy asked } }
       missing { key label sectionKey section ownedBy }
       team { waiting toFill }
       setup { photo fields { key sectionKey label description dataType required } }
@@ -301,6 +312,7 @@ export const OPERATIONS = {
       people { id name email avatarUrl values { key value } people { key id name avatarUrl } missing }
       next
       can { import export bulkEdit }
+      suggestions remind
     }
   }`,
 
@@ -451,7 +463,6 @@ export const OPERATIONS = {
         tenure { ...PayGroup }
         compa { ...PayGroup }
       }
-      whatChanged { phrasable tabs { tab sentences } }
     }
   }
   fragment PayGroup on AnalyticsPayGroup {
@@ -459,9 +470,33 @@ export const OPERATIONS = {
     band { minimumMinor midpointMinor maximumMinor }
   }`,
 
-  /** One Insights tab's "what changed", worded by the assistant where there is one. */
-  WhatChanged: `query WhatChanged($tab: String!, $segment: ID) {
-    peopleWhatChanged(tab: $tab, segment: $segment) { tab sentences byModel }
+  /*
+   * What changed (design AI5, AI6, MA4, MA5): its own block. Each crosses as
+   * JSON text, its shape People's Zod schema (`application/screens/what-changed.ts`).
+   */
+  WhatChanged: `query WhatChanged($period: String, $from: String, $to: String, $segment: ID) {
+    peopleWhatChanged(period: $period, from: $from, to: $to, segment: $segment)
+  }`,
+  WhatChangedWorded: `query WhatChangedWorded($period: String, $from: String, $to: String, $segment: ID) {
+    peopleWhatChangedWorded(period: $period, from: $from, to: $to, segment: $segment)
+  }`,
+  WhatChangedAsk: `query WhatChangedAsk($input: String!) {
+    peopleWhatChangedAsk(input: $input)
+  }`,
+  SummaryDraft: `query SummaryDraft($input: String!) {
+    peopleSummaryDraft(input: $input)
+  }`,
+  SummaryPdf: `query SummaryPdf($input: String!) {
+    peopleSummaryPdf(input: $input)
+  }`,
+  SharedSummary: `query SharedSummary($id: ID!) {
+    peopleSharedSummary(id: $id)
+  }`,
+  SharedSummaryPdf: `query SharedSummaryPdf($id: ID!) {
+    peopleSharedSummaryPdf(id: $id)
+  }`,
+  ShareSummary: `mutation ShareSummary($input: String!, $key: String!) {
+    peopleShareSummary(input: $input, idempotencyKey: $key)
   }`,
 
   PublishPreview: `query PublishPreview($requiredFrom: String!) {
@@ -801,19 +836,6 @@ export const OPERATIONS = {
     completeImportUpload(uploadId: $uploadId) { ...StageParts }
   }${STAGE}`,
 
-  DryRunImport: `mutation DryRunImport($uploadId: ID!, $mapping: [ImportColumnInput!]!) {
-    dryRunImport(uploadId: $uploadId, mapping: $mapping) { ...StageParts }
-  }${STAGE}`,
-
-  CommitImport: `mutation CommitImport(
-    $uploadId: ID!, $mapping: [ImportColumnInput!]!, $applySensitiveWithoutApproval: Boolean, $key: String!
-  ) {
-    commitImport(
-      uploadId: $uploadId, mapping: $mapping,
-      applySensitiveWithoutApproval: $applySensitiveWithoutApproval, idempotencyKey: $key
-    ) { ...StageParts }
-  }${STAGE}`,
-
   DecidePendingChange: `mutation DecidePendingChange(
     $id: ID!, $approve: Boolean!, $note: String, $soleApprover: Boolean, $key: String!
   ) {
@@ -824,6 +846,23 @@ export const OPERATIONS = {
 
   WithdrawPendingChange: `mutation WithdrawPendingChange($id: ID!, $key: String!) {
     withdrawPendingChange(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  /* Flagged approvals (design AI7, AI8). */
+  MarkPendingChangeNotUnusual: `mutation MarkPendingChangeNotUnusual($id: ID!, $key: String!) {
+    markPendingChangeNotUnusual(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  AskAboutPendingChange: `mutation AskAboutPendingChange($id: ID!, $question: String!, $key: String!) {
+    askAboutPendingChange(id: $id, question: $question, idempotencyKey: $key) { ok }
+  }`,
+
+  AnswerApprovalQuestion: `mutation AnswerApprovalQuestion($id: ID!, $answer: String!, $key: String!) {
+    answerApprovalQuestion(id: $id, answer: $answer, idempotencyKey: $key) { ok }
+  }`,
+
+  SetApprovalCheck: `mutation SetApprovalCheck($code: String!, $on: Boolean!, $key: String!) {
+    setApprovalCheck(code: $code, on: $on, idempotencyKey: $key) { ok }
   }`,
 
   RequestExport: `mutation RequestExport(
@@ -841,9 +880,13 @@ export const OPERATIONS = {
   }`,
 
   SaveSegment: `mutation SaveSegment(
-    $name: String!, $filter: [PeopleSegmentConditionInput!]!, $shared: Boolean!, $key: String!
+    $name: String!, $filter: [PeopleSegmentConditionInput!]!, $conditions: [DirectoryConditionInput!],
+    $match: String, $shared: Boolean!, $key: String!
   ) {
-    savePeopleSegment(name: $name, filter: $filter, shared: $shared, idempotencyKey: $key) { id }
+    savePeopleSegment(
+      name: $name, filter: $filter, conditions: $conditions, match: $match, shared: $shared,
+      idempotencyKey: $key
+    ) { id }
   }`,
 
   /* Scheduled reports (PEO-069): HR's list, a schedule's history, and the five writes. */
@@ -906,26 +949,56 @@ export const OPERATIONS = {
     deleteReportSchedule(id: $id, idempotencyKey: $key) { id }
   }`,
 
-  // New information in an import's file (docs/ai-settings.md). Proposals cross as JSON.
+  // New information in an import's file, and the plan HR approves (docs/ai-settings.md).
+  // Proposals and plans cross as JSON.
   ProposeImportFields: `mutation ProposeImportFields($step: String!) {
     proposeImportFields(step: $step)
   }`,
 
-  ReviewImportFields: `mutation ReviewImportFields($input: String!) {
-    reviewImportFields(input: $input)
+  PlanImport: `mutation PlanImport($input: String!) {
+    planImport(input: $input)
   }`,
 
-  AddImportFields: `mutation AddImportFields($input: String!, $key: String!) {
-    addImportFields(input: $input, idempotencyKey: $key)
+  RunImport: `mutation RunImport($input: String!, $key: String!) {
+    runImport(input: $input, idempotencyKey: $key)
   }`,
 
   // Search and export in words (docs/ai-settings.md). Plans cross as JSON; neither writes.
-  DirectoryPlan: `query DirectoryPlan($sentence: String!) {
-    peopleDirectoryPlan(sentence: $sentence)
+  DirectoryPlan: `query DirectoryPlan($sentence: String!, $remembered: String) {
+    peopleDirectoryPlan(sentence: $sentence, remembered: $remembered)
+  }`,
+
+  // Smart search's "Remind all" (docs/ai-settings.md): JSON in and out, as the plan.
+  RemindDirectory: `mutation RemindDirectory(
+    $conditions: String!, $match: String, $search: String, $key: String!
+  ) {
+    peopleRemindDirectory(conditions: $conditions, match: $match, search: $search, idempotencyKey: $key)
   }`,
 
   ExportPlan: `query ExportPlan($sentence: String!) {
     peopleExportPlan(sentence: $sentence)
+  }`,
+
+  // An export sent to somebody else (design AI13, AI14, MA10). Inputs and
+  // answers cross as JSON, as the plan's do.
+  ExportSharePreview: `query ExportSharePreview($input: String!) {
+    peopleExportSharePreview(input: $input)
+  }`,
+
+  ExportShare: `query ExportShare($id: ID!) {
+    peopleExportShare(id: $id)
+  }`,
+
+  ExportRecord: `query ExportRecord($id: ID!) {
+    peopleExportRecord(id: $id)
+  }`,
+
+  ShareExport: `mutation ShareExport($input: String!, $key: String!) {
+    shareExport(input: $input, idempotencyKey: $key)
+  }`,
+
+  DecideExportShare: `mutation DecideExportShare($id: ID!, $approve: Boolean!, $note: String, $key: String!) {
+    decideExportShare(id: $id, approve: $approve, note: $note, idempotencyKey: $key)
   }`,
 } as const;
 

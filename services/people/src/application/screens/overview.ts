@@ -84,6 +84,8 @@ export interface OverviewView {
       readonly label: string;
       readonly requestedAt: string;
       readonly requestedBy: string;
+      /** Whoever decides asked the viewer, who asked for it, something not yet answered (AI7). */
+      readonly asked: boolean;
     }[];
   } | null;
   /** Their own missing details, each with its section and who fills it in. */
@@ -343,6 +345,18 @@ async function approvalsPart(
     asking.tenantId,
     first.map((c) => c.personId),
   );
+  const open = new Set(
+    (pending.flags === undefined
+      ? []
+      : await pending.flags.store.questions(
+          tx,
+          asking.tenantId,
+          first.filter((c) => c.mine).map((c) => c.id),
+        )
+    )
+      .filter((q) => q.answer === null)
+      .map((q) => q.changeId),
+  );
   const items: NonNullable<OverviewView['approvals']>['items'][number][] = [];
   for (const c of first) {
     const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
@@ -354,6 +368,7 @@ async function approvalsPart(
       label: labels.get(c.attributeKey) ?? c.attributeKey,
       requestedAt: c.requestedAt,
       requestedBy: by({ kind: 'user', userId: c.requestedBy }),
+      asked: open.has(c.id),
     });
   }
   return { isHr: inbox.value.isHr, total: all.length, items };

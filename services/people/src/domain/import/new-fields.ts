@@ -38,6 +38,8 @@ export const ForExisting = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('ask') }),
   z.object({ kind: z.literal('hr') }),
   z.object({ kind: z.literal('leave') }),
+  /** Required of people added from now on; nobody here now is asked. */
+  z.object({ kind: z.literal('new') }),
   z.object({ kind: z.literal('default'), value: z.string().trim().min(1).max(200) }),
 ]);
 export type ForExisting = z.infer<typeof ForExisting>;
@@ -84,6 +86,8 @@ export const ColumnProposal = z.strictObject({
   why: z.string().max(300),
   forExisting: ForExisting,
   forExistingWhy: z.string().max(300),
+  /** How sure People's rules are of the type: the values decided it, or only the header. */
+  confidence: z.enum(['high', 'medium']),
 });
 export type ColumnProposal = z.infer<typeof ColumnProposal>;
 
@@ -96,7 +100,7 @@ export const ProposeField = z.strictObject({
   sectionKey: z.string().max(64).optional(),
   newSection: Label.optional(),
   why: z.string().trim().min(1).max(200),
-  forExisting: z.enum(['ask', 'hr', 'leave', 'default']),
+  forExisting: z.enum(['ask', 'hr', 'leave', 'new', 'default']),
   forExistingWhy: z.string().trim().min(1).max(200),
 });
 export const SkipColumn = z.strictObject({
@@ -185,6 +189,8 @@ export function localProposal(
       case 'special':
         return {
           ...base,
+          // Volunteered, never required: optional, the employee's and HR's alone.
+          required: false,
           ...own('employee'),
           classification: 'special-category',
           piiKind: 'health',
@@ -226,7 +232,7 @@ export function localProposal(
     financial:
       'Bank and pay details are financial: sealed, seen by the employee and HR, never by the assistant.',
     identifier: 'An identifier names one person: sealed, and never shown to the assistant.',
-    special: 'Health data is special category: only the employee and HR see it.',
+    special: HELD_BACK,
     contact: 'Contact details are personal: the employee keeps them up to date, HR can see them.',
     birth: 'A date of birth identifies somebody: confidential, the employee’s own.',
     business: 'Organisational data HR keeps; managers can see it for their team.',
@@ -237,8 +243,9 @@ export function localProposal(
     column: seen.column,
     header: seen.header,
     shape: seen.local.shape,
-    // "Given name" is `given_name`, whatever its label says: never a second one.
-    include: twin === undefined,
+    // "Given name" is `given_name`, whatever its label says: never a second
+    // one. Special-category data is held back until HR chooses to keep it.
+    include: twin === undefined && kind !== 'special',
     field,
     placement: placementFor(kind, seen.header, sections),
     why:
@@ -246,8 +253,16 @@ export function localProposal(
         ? why
         : `Looks like the existing field “${twin.label}”: choose it for this column on the mapping screen instead.`,
     ...recommendFor(kind, seen),
+    // The values chose the type, or the header said what it is; plain free
+    // text is the header's guess.
+    confidence:
+      kind === 'plain' && (dataType === 'text' || dataType === 'long_text') ? 'medium' : 'high',
   };
 }
+
+/** Why a column that can reveal health, religion and the like is not imported unless HR says so. */
+export const HELD_BACK =
+  'This can reveal health or religion, which GDPR treats as special-category data. I suggest not importing it. If you need it, it should be optional, private to HR and asked with consent.';
 
 /**
  * Two names for one thing, spelled a little differently: "Cost center" and
@@ -391,6 +406,9 @@ export function withModel(
         continue;
       }
       const p = proposed.data;
+      // Held back as special category stays held back: only HR puts it back.
+      if (was.field.classification === 'special-category') continue;
+      const special = p.field.classification === 'special-category';
       const column = seen.find((s) => s.column === p.column);
       const placement: Placement =
         p.sectionKey !== undefined && sections.some((s) => s.key === p.sectionKey)
@@ -404,6 +422,7 @@ export function withModel(
           : { kind: p.forExisting };
       byColumn.set(p.column, {
         ...was,
+        ...(special ? { include: false } : {}),
         field: {
           ...p.field,
           ...(p.field.dataType === 'select' || p.field.dataType === 'multi_select'
@@ -411,8 +430,8 @@ export function withModel(
             : {}),
         },
         placement,
-        why: p.why,
-        forExisting,
+        why: special ? HELD_BACK : p.why,
+        forExisting: special ? { kind: 'leave' } : forExisting,
         forExistingWhy: p.forExistingWhy,
       });
     }
@@ -455,7 +474,9 @@ export function asDefinition(p: ColumnProposal): {
   const requiredness =
     asked || p.forExisting.kind === 'hr'
       ? ({ mode: 'always', appliesTo: 'all_records' } as const)
-      : p.field.required
+      : p.forExisting.kind === 'new'
+        ? ({ mode: 'always', appliesTo: 'new_records' } as const)
+        : p.field.required
         ? ({
             mode: 'always',
             appliesTo: p.forExisting.kind === 'leave' ? 'new_records' : 'all_records',
@@ -487,69 +508,12 @@ export function sensitivity(
 /* ------------------------------------------------------------- counts -- */
 
 export interface ColumnCounts {
-  /** Rows of the file with a value for it: people created or updated with one. */
-  readonly fromFile: number;
-  /** People already here the file gives no value. */
+  /** People who will have a value once the file is imported: the rows that carry one. */
+  readonly have: number;
+  /** Everybody else, after the import: people here now the file gives none, and rows without one. */
+  readonly missing: number;
+  /** People already here the file gives no value: who a default is written for. */
   readonly existingWithout: number;
-}
-
-const plural = (n: number, one: string, many: string): string =>
-  `${String(n)} ${n === 1 ? one : many}`;
-/** "Emergency contact" reads "emergency contact" mid-sentence; "IBAN" stays "IBAN". */
-const lowerFirst = (s: string): string =>
-  /^\p{Lu}\p{Ll}/u.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s;
-
-/**
- * The review in one paragraph, in words: "Adds 3 fields: 2 to Personal
- * information, 1 to a new Equipment section. Values for 128 people from this
- * file. 342 people will be asked for their emergency contact."
- */
-export function summaryOf(
-  proposals: readonly ColumnProposal[],
-  counts: ReadonlyMap<number, ColumnCounts>,
-  peopleWithValues: number,
-  sections: readonly { readonly key: string; readonly label: string }[],
-): string {
-  const kept = proposals.filter((p) => p.include);
-  if (kept.length === 0) return 'Adds no fields: the file imports without these columns.';
-  const where = new Map<string, number>();
-  for (const p of kept) {
-    const name =
-      'sectionKey' in p.placement
-        ? (sections.find((s) => s.key === (p.placement as { sectionKey: string }).sectionKey)
-            ?.label ?? p.placement.sectionKey)
-        : `a new ${p.placement.newSection} section`;
-    where.set(name, (where.get(name) ?? 0) + 1);
-  }
-  const parts = [...where].map(([name, n]) => `${String(n)} to ${name}`);
-  const sentences = [
-    `Adds ${plural(kept.length, 'field', 'fields')}: ${parts.join(', ')}.`,
-    `Values for ${plural(peopleWithValues, 'person', 'people')} from this file.`,
-  ];
-  for (const p of kept) {
-    const n = counts.get(p.column)?.existingWithout ?? 0;
-    if (n === 0) continue;
-    const label = lowerFirst(p.field.label);
-    switch (p.forExisting.kind) {
-      case 'ask':
-        sentences.push(`${plural(n, 'person', 'people')} will be asked for their ${label}.`);
-        break;
-      case 'hr':
-        sentences.push(`HR will fill in ${String(n)} ${label} ${n === 1 ? 'value' : 'values'}.`);
-        break;
-      case 'default':
-        sentences.push(
-          `${plural(n, 'person', 'people')} get “${p.forExisting.value}” as their ${label}.`,
-        );
-        break;
-      case 'leave':
-        sentences.push(
-          `${label.charAt(0).toUpperCase()}${label.slice(1)} stays empty for ${plural(n, 'person', 'people')}.`,
-        );
-        break;
-    }
-  }
-  return sentences.join(' ');
 }
 
 /** The published fields a proposal must not collide with, by key. */

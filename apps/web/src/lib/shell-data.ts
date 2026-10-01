@@ -77,6 +77,8 @@ export interface Overview {
       readonly label: string;
       readonly requestedAt: string;
       readonly requestedBy: string;
+      /** HR asked them about it: answered beside the change (AI7). Absent from an older People. */
+      readonly asked?: boolean;
     }[];
   } | null;
   readonly missing: readonly {
@@ -109,15 +111,22 @@ export function noticesOf(overview: Overview): ShellNotice[] {
   const approvals = (overview.approvals?.items ?? []).map((a): ShellNotice => ({
     id: `approval:${a.id}`,
     title:
-      overview.approvals?.isHr === true
-        ? `Approve a ${a.label.toLowerCase()} change`
-        : `${a.label} is waiting for approval`,
+      a.asked === true
+        ? `HR asked about your ${a.label.toLowerCase()} change`
+        : overview.approvals?.isHr === true
+          ? `Approve a ${a.label.toLowerCase()} change`
+          : `${a.label} is waiting for approval`,
     detail:
-      overview.approvals?.isHr === true
-        ? `${a.name} · asked by ${a.requestedBy}`
-        : `Asked ${a.requestedBy === a.name ? 'by you' : `by ${a.requestedBy}`}`,
+      a.asked === true
+        ? `${a.name} · answer it to move it on`
+        : overview.approvals?.isHr === true
+          ? `${a.name} · asked by ${a.requestedBy}`
+          : `Asked ${a.requestedBy === a.name ? 'by you' : `by ${a.requestedBy}`}`,
     at: a.requestedAt,
-    href: '/people/approvals',
+    href:
+      a.asked === true
+        ? `/people/approvals?tab=asked&change=${encodeURIComponent(a.id)}`
+        : '/people/approvals',
     person: a.name,
     kind: 'approval',
   }));

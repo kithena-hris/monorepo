@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AskAboutPendingChange($id: ID!, $question: String!, $key: String!) {\n    askAboutPendingChange(id: $id, question: $question, idempotencyKey: $key) { ok }\n  }"}

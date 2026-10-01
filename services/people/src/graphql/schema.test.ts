@@ -168,14 +168,14 @@ describe('every mutation (PEO-113)', () => {
     // Connecting a chat app only computes where to send the administrator.
     // Viewing as somebody writes nothing here: identity makes the session and
     // records it, and a retry is a second, separately recorded view.
-    // Fields for an import's new columns are proposed and reviewed; adding them is keyed.
+    // An import's new fields are proposed and its plan worked out; running it is keyed.
     expect(unkeyed.toSorted()).toEqual([
       'completeImportUpload',
       'connectChatApp',
       'dryRunImport',
+      'planImport',
       'proposeImportFields',
       'revealIdentifier',
-      'reviewImportFields',
       'startFileUpload',
       'startImportUpload',
       'startPhotoUpload',

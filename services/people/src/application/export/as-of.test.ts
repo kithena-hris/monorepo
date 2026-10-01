@@ -81,7 +81,7 @@ describe('an asOf export', () => {
     const june = await workbook([march, september], { asOf: '2026-06-01' });
     expect(missingRows(june)).toEqual([]);
 
-    const about = june.getWorksheet('About this export');
+    const about = june.getWorksheet('About');
     const judged = about?.getRow(8).values as unknown[];
     expect(judged.slice(1)).toEqual(['Missing information judged against schema version', 3]);
   });

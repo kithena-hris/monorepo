@@ -513,19 +513,20 @@ describe('PEO-055: an import with broken rows, fixed from the downloaded CSV', (
     await upload(page, 'people.csv', broken);
 
     // Every column maps itself: its header is the field's key.
-    const review = page.getByRole('button', { name: 'Review before importing' });
+    const review = page.getByRole('button', { name: 'Next: review the plan' });
     await review.waitFor({ timeout: 30_000 });
     expect(await review.isEnabled()).toBe(true);
     await review.click();
 
+    await page.getByRole('button', { name: 'See rows' }).click({ timeout: 30_000 });
     await page.getByRole('heading', { name: 'Blocked rows' }).waitFor({ timeout: 30_000 });
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: /Download all 2 as CSV/ }).click();
     const file = await (await download).path();
     const report = await readFile(file, 'utf8');
 
-    await page.getByRole('button', { name: 'Import 2 rows' }).click();
-    await page.getByText(/people\.csv is imported/).waitFor({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('heading', { name: /^Imported 2 people/ }).waitFor({ timeout: 30_000 });
     const afterFirst = await stack.sql`SELECT 1 FROM people.person WHERE tenant_id = ${TENANT}`;
     expect(afterFirst).toHaveLength(4);
 
@@ -546,16 +547,14 @@ describe('PEO-055: an import with broken rows, fixed from the downloaded CSV', (
 
     await page.goto(`${stack.shell}/people/import`);
     await upload(page, 'people-blocked.csv', fixed);
-    await page
-      .getByRole('button', { name: 'Review before importing' })
-      .waitFor({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Next: review the plan' }).waitFor({ timeout: 30_000 });
     // No column needs a decision: the report's own columns are recognised and left out.
-    expect(await page.getByRole('button', { name: 'Review before importing' }).isEnabled()).toBe(
+    expect(await page.getByRole('button', { name: 'Next: review the plan' }).isEnabled()).toBe(
       true,
     );
-    await page.getByRole('button', { name: 'Review before importing' }).click();
-    await page.getByRole('button', { name: 'Import 2 rows' }).click();
-    await page.getByText(/people-blocked\.csv is imported/).waitFor({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Next: review the plan' }).click();
+    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('heading', { name: /^Imported 2 people/ }).waitFor({ timeout: 30_000 });
 
     const everyone = await stack.sql<{ work_email: string }[]>`
       SELECT work_email FROM people.person WHERE tenant_id = ${TENANT}`;
@@ -1075,6 +1074,8 @@ describe('PEO-122: what is about to expire, to whom', () => {
       const context = await signedIn(session);
       const page = await context.newPage();
       await page.goto(`${stack.shell}/people/insights/data-quality`);
+      // Hydrated first, as elsewhere here: a press on the server's markup is lost (PEO-094).
+      await page.waitForLoadState('networkidle');
       // The innermost section holding the heading: ancestors come first.
       const section = page
         .locator('section', { has: page.getByRole('heading', { name: 'What expires next' }) })
@@ -1196,8 +1197,8 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // Now it can be approved, and the approval writes it — without a second review.
     await approvals.reload();
     await approvals.waitForLoadState('networkidle');
+    // Approve decides in the row (design AI7); only a flagged change asks for a note first.
     await inbox.getByRole('button', { name: /^Approve the change to .*NIF \/ NIE$/ }).click();
-    await approvals.getByRole('dialog').getByRole('button', { name: 'Approve', exact: true }).click();
     await eventually(
       'the NIF',
       () => stack.sql`SELECT 1 FROM people.person_secret
@@ -1347,7 +1348,7 @@ describe('An import larger than a Vercel function takes, straight to storage (§
     expect(Buffer.byteLength(csv)).toBeGreaterThan(4.5 * 1024 * 1024);
     await upload(page, 'big.csv', csv);
 
-    const review = page.getByRole('button', { name: 'Review before importing' });
+    const review = page.getByRole('button', { name: 'Next: review the plan' });
     await review.waitFor({ timeout: 120_000 });
     // What storage holds is the file, whole: People read it back and pinned
     // the SHA-256 of exactly these bytes.
@@ -1358,6 +1359,7 @@ describe('An import larger than a Vercel function takes, straight to storage (§
       checksum: createHash('sha256').update(csv).digest('hex'),
     });
     await review.click();
+    await page.getByRole('button', { name: 'See rows' }).click({ timeout: 120_000 });
     await page.getByRole('heading', { name: 'Blocked rows' }).waitFor({ timeout: 120_000 });
     // The review lists the first twenty; the file has all of them.
     expect(await page.getByRole('table', { name: 'Blocked rows' }).getByRole('row').count()).toBeLessThanOrEqual(21);
@@ -1367,8 +1369,8 @@ describe('An import larger than a Vercel function takes, straight to storage (§
     expect(Buffer.byteLength(report)).toBeGreaterThan(4.5 * 1024 * 1024);
     expect(report.trim().split(/\r?\n/)).toHaveLength(5_001);
 
-    await page.getByRole('button', { name: 'Import 1 rows' }).click();
-    await page.getByText(/big\.csv is imported/).waitFor({ timeout: 120_000 });
+    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('heading', { name: /^Imported 1 person/ }).waitFor({ timeout: 120_000 });
     const grace = await stack.sql`
       SELECT 1 FROM people.person WHERE tenant_id = ${TENANT} AND work_email = 'grace@acme.example'`;
     expect(grace).toHaveLength(1);

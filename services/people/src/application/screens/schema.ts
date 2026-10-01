@@ -9,9 +9,7 @@ import {
   type VisibilityRule,
 } from '@kithena/contracts';
 
-import { CORE_PACK } from '../../country-packs/core.js';
-import { COUNTRY_PACKS, type PackCountry } from '../../country-packs/packs.js';
-import { seedCountryPack } from '../../country-packs/seed.js';
+import { COUNTRY_PACKS } from '../../country-packs/packs.js';
 import {
   aiShareable,
   encryptable,
@@ -33,6 +31,7 @@ import { run } from '../person/service.js';
 import type { PublishSchema } from '../schema/publish-schema.js';
 import type { DraftWriter, SchemaRepository } from '../schema/schema-repository.js';
 import type { RecordSection, FormValues, PendingFieldView } from './model.js';
+import { countryName, seedSetup } from './setup-draft.js';
 import { pendingOnRecord } from './people.js';
 import {
   formValues,
@@ -620,14 +619,15 @@ export async function previewPublish(
               .map((a) => a.key as string),
           );
           const { diff, impact } = preview.value;
-          const changes = (['added', 'tightened', 'loosened', 'changed', 'archived'] as const).flatMap(
-            (kind) =>
-              diff[kind].map((key) => ({
-                kind,
-                key,
-                summary: `${key} ${WORDS[kind]}`,
-                specialCategory: special.has(key),
-              })),
+          const changes = (
+            ['added', 'tightened', 'loosened', 'changed', 'archived'] as const
+          ).flatMap((kind) =>
+            diff[kind].map((key) => ({
+              kind,
+              key,
+              summary: `${key} ${WORDS[kind]}`,
+              specialCategory: special.has(key),
+            })),
           );
           throw new Rollback(
             ok({
@@ -757,9 +757,6 @@ export interface SetupView {
   } | null;
 }
 
-const countryName = (code: string): string =>
-  new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code;
-
 /**
  * The wizard's state (§8.2 steps 6 and 7). The legal entity is the tenant's
  * first, which the back office's company wizard creates (PEO-099); a tenant
@@ -820,7 +817,9 @@ export async function setupView(
           };
         }),
       }));
-      const entities = deps.service.org ? await deps.service.org.legalEntities(tx, asking) : ok([]);
+      const entities = deps.service.org
+        ? await deps.service.org.legalEntities(tx, asking)
+        : ok([]);
       const entity = entities.ok ? entities.value.find((e) => !e.archived) : undefined;
       return ok({
         ...(entity === undefined
@@ -901,28 +900,8 @@ export async function publishSetup(
       const current = await deps.schema.currentVersion(tx, asking.tenantId);
       if (current !== null) return ok({ version: current.version });
 
-      const core = await seedCountryPack(tx, asking.tenantId, CORE_PACK);
-      if (!core.ok) return core;
-      const pack = Object.hasOwn(COUNTRY_PACKS, choice.country)
-        ? COUNTRY_PACKS[choice.country as PackCountry]
-        : null;
-      if (pack !== null) {
-        // A section the law requires is on whatever the form sent.
-        const on = new Set(choice.sections);
-        const kept = pack.sections.filter(
-          (s) =>
-            on.has(s.key) ||
-            pack.attributes.some(
-              (a) => a.sectionKey === s.key && a.requiredness.mode === 'conditional',
-            ),
-        );
-        const keys = new Set(kept.map((s) => s.key));
-        const seeded = await seedCountryPack(tx, asking.tenantId, {
-          sections: kept,
-          attributes: pack.attributes.filter((a) => keys.has(a.sectionKey)),
-        });
-        if (!seeded.ok) return seeded;
-      }
+      const seeded = await seedSetup(tx, asking.tenantId, choice.country, choice.sections);
+      if (!seeded.ok) return seeded;
       const published = await deps.publisher.publish(tx, request(deps, asking, 1));
       return published.ok ? ok({ version: published.value.version.version }) : published;
     }),

@@ -23,7 +23,9 @@ import { decide, withdraw, type Approval } from './approval.js';
  * sole HR member able to decide.
  *
  * A doubted national identifier is reviewed before it is approved (PEO-125):
- * while its review is open, nobody approves it.
+ * while its review is open, nobody approves it. And a change People's checks
+ * flag (`unusual.ts`) is approved only with a note saying why it is fine: a
+ * flag never blocks, it only asks for the reason in writing.
  *
  * Pure; the caller brings the clock, says whether the decider holds `hr`, and
  * who holds it in the tenant.
@@ -65,6 +67,8 @@ export function decideChange(
     readonly soleApprover?: boolean;
     /** Its identifier review is not accepted yet (PEO-125). */
     readonly awaitingReview?: boolean;
+    /** People's checks flag it (`unusual.ts`): approving it then needs a note. */
+    readonly flagged?: boolean;
   },
 ): Result<Decided> {
   if (!decision.isHr) {
@@ -97,6 +101,13 @@ export function decideChange(
   if (decision.approve && decision.awaitingReview === true) {
     return err(
       failure('AWAITING_REVIEW', 'HR reviews this identifier before the change can be approved'),
+    );
+  }
+  if (decision.approve && decision.flagged === true && (decision.note?.trim() ?? '') === '') {
+    return err(
+      failure('NOTE_REQUIRED', 'Say why it is fine; a note is needed to approve something flagged', [
+        'note',
+      ]),
     );
   }
   const decided = decide(approval, { ...decision, ownAllowed: alone });

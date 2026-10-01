@@ -15,6 +15,7 @@ import { run } from '../person/service.js';
 import { LEAVERS, type Condition } from '../person/ports.js';
 import { isCoreKey } from '../person/core.js';
 import { segmentFor, segmentsFor } from './segments.js';
+import { suggestions as suggestionsFor } from '../../domain/assistant/clarify.js';
 import type {
   FormValue,
   FormValues,
@@ -23,9 +24,21 @@ import type {
   PendingFieldView,
   RecordSection,
 } from './model.js';
-import { approvalsInbox, pendingFor, type InboxItem } from '../person/pending-changes.js';
-import { unusual, type Flag, type Money } from '../../domain/approval/unusual.js';
-import { personZone, placementOf, type TenantCalendar } from '../../domain/org/calendar.js';
+import { approvalsInbox, pendingFor } from '../person/pending-changes.js';
+import {
+  CHECKS,
+  rowSummary,
+  type CheckCode,
+  type Comparison,
+  type Reason,
+} from '../../domain/approval/unusual.js';
+import {
+  checksOf,
+  flagChange,
+  looking,
+  type CheckView,
+  type FlagStats,
+} from '../person/approval-flags.js';
 import { offersViewAs } from '../person/view-as.js';
 import {
   formValues,
@@ -370,7 +383,12 @@ async function reportingLineOf(
       peers = others.slice(0, MOST_PEERS).map(line);
     }
   }
-  const avatars = await avatarsOf(deps, tx, asking.tenantId, [...up, ...peers].map((p) => p.id));
+  const avatars = await avatarsOf(
+    deps,
+    tx,
+    asking.tenantId,
+    [...up, ...peers].map((p) => p.id),
+  );
   const withAvatar = (p: Omit<LinePerson, 'avatarUrl'>): LinePerson => ({
     ...p,
     avatarUrl: avatars.get(p.id) ?? null,
@@ -590,7 +608,19 @@ export async function pendingOnRecord(
 
 /* ------------------------------------------------------------ approvals -- */
 
-/** One change in the approvals inbox (PEO-077). */
+/** A question about a change and its answer (AI7: "Ask Nora"), as the viewer may name who asked. */
+export interface ApprovalQuestion {
+  readonly id: string;
+  readonly question: string;
+  readonly askedBy: string;
+  readonly askedAt: string;
+  readonly answer: string | null;
+  readonly answeredAt: string | null;
+  /** The viewer asked for the change and nobody answered yet. */
+  readonly canAnswer: boolean;
+}
+
+/** One change in the approvals inbox (PEO-077), waiting or decided. */
 export interface ApprovalItem extends PendingFieldView {
   readonly personId: string;
   /** The person, as the viewer may name them. */
@@ -600,20 +630,57 @@ export interface ApprovalItem extends PendingFieldView {
   readonly readable: boolean;
   /** What is in force now, masked the same way; null when unreadable or empty. */
   readonly current: FormValue;
-  /** What looks unusual about it (`domain/approval/unusual.ts`): only for whoever decides it. */
-  readonly flags: readonly Flag[];
+  /**
+   * Why People's checks flag it (`domain/approval/unusual.ts`), with the
+   * numbers compared and an honest note: only for whoever decides it.
+   */
+  readonly flags: readonly Pick<Reason, 'code' | 'title' | 'detail'>[];
+  readonly comparisons: readonly Comparison[];
+  readonly flagNote: string | null;
+  /** The reasons in one line, for a row: "A 38% raise, above the band". */
+  readonly flagSummary: string | null;
+  /** Whoever may decide it may ask the requester first. */
+  readonly canAsk: boolean;
+  /** And may mark its flags not unusual. */
+  readonly canMark: boolean;
+  readonly questions: readonly ApprovalQuestion[];
+  readonly state: 'pending' | 'approved' | 'rejected';
+  /** Who decided, when and with what note: a decided change only. */
+  readonly decidedBy: string | null;
+  readonly decidedAt: string | null;
+  readonly note: string | null;
 }
 
 export interface ApprovalsView {
   /** HR sees every change waiting in the tenant; anybody else, their own. */
   readonly isHr: boolean;
   readonly items: readonly ApprovalItem[];
+  /** HR's: decided in the last 90 days, newest first. Empty for anybody else. */
+  readonly decided: readonly ApprovalItem[];
+  /** What Kithena checks (AI8), for HR; null for anybody else. */
+  readonly checks: readonly CheckView[] | null;
+  /** A People administrator switches the checks. */
+  readonly canTune: boolean;
+  /** The last 90 days, for HR; null for anybody else or where nothing is kept. */
+  readonly last90: FlagStats | null;
 }
+
+const NINETY_DAYS_MS = 90 * 86_400_000;
+const DECIDED_SHOWN = 50;
+
+const unflagged = {
+  flags: [],
+  comparisons: [],
+  flagNote: null,
+  flagSummary: null,
+} as const;
 
 /**
  * The approvals inbox (PEO-077): oldest first, each with who it is about, the
  * field, the value asked for and the value in force, who asked and when it
- * lapses. HR decides here; a requester withdraws here.
+ * lapses. HR decides here, after reading what the checks flag (AI7); a
+ * requester withdraws, or answers a question, here. HR also sees what was
+ * decided lately and what Kithena checks (AI8).
  */
 export async function approvalsView(
   deps: ScreenDeps,
@@ -621,24 +688,66 @@ export async function approvalsView(
 ): Promise<Result<ApprovalsView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const pending = deps.service.pending;
-    if (!pending) return ok({ isHr: false, items: [] });
+    if (!pending) {
+      return ok({ isHr: false, items: [], decided: [], checks: null, canTune: false, last90: null });
+    }
     const inbox = await approvalsInbox(tx, pending, asking);
     if (!inbox.ok) return inbox;
+    const isHr = inbox.value.isHr;
+    const since = new Date(Date.parse(deps.clock.instant()) - NINETY_DAYS_MS).toISOString();
+    const decided = isHr
+      ? await pending.store.decided(tx, asking.tenantId, { since, limit: DECIDED_SHOWN })
+      : [];
     const version = await deps.service.schemas.current(tx, asking.tenantId);
-    const labels = new Map(
-      (version?.document.attributes ?? []).map((d) => [d.key as string, d.label.default]),
-    );
-    const by = await actors(
-      deps,
-      tx,
-      asking,
-      inbox.value.items.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
-    );
+    const definitions = version?.document.attributes ?? [];
+    const labels = new Map(definitions.map((d) => [d.key as string, d.label.default]));
+    const questions =
+      pending.flags === undefined
+        ? []
+        : await pending.flags.store.questions(tx, asking.tenantId, [
+            ...inbox.value.items.map((c) => c.id),
+            ...decided.map((c) => c.approval.id),
+          ]);
+    const by = await actors(deps, tx, asking, [
+      ...inbox.value.items.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
+      ...decided.flatMap((c) => [
+        { kind: 'user' as const, userId: c.approval.requestedBy },
+        ...(c.approval.decidedBy === null
+          ? []
+          : [{ kind: 'user' as const, userId: c.approval.decidedBy }]),
+      ]),
+      ...questions.map((q) => ({ kind: 'user' as const, userId: q.askedBy })),
+    ]);
+    const user = (userId: string) => by({ kind: 'user', userId });
+    const asked = (changeId: string, mine: boolean): ApprovalQuestion[] =>
+      questions
+        .filter((q) => q.changeId === changeId)
+        .map((q) => ({
+          id: q.id,
+          question: q.question,
+          askedBy: user(q.askedBy),
+          askedAt: q.askedAt,
+          answer: q.answer,
+          answeredAt: q.answeredAt,
+          canAnswer: mine && q.answer === null,
+        }));
+    const look = await looking(tx, pending, asking);
+
     const items: ApprovalItem[] = [];
-    const flagging = flagger(deps, tx, asking, version?.document.attributes ?? []);
     for (const c of inbox.value.items) {
       const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
       const attributes = person.ok ? person.value.attributes : {};
+      const change =
+        c.canDecide || c.canSelfApprove ? await pending.store.find(tx, asking.tenantId, c.id) : null;
+      // Only to those who decide: a requester is never told which rule they tripped.
+      const found =
+        change === null
+          ? null
+          : await flagChange(tx, pending, look, {
+              change,
+              readable: c.readable,
+              requesterName: user(c.requestedBy),
+            });
       items.push({
         id: c.id,
         personId: c.personId,
@@ -652,87 +761,99 @@ export async function approvalsView(
         effectiveFrom: c.effectiveFrom,
         requestedAt: c.requestedAt,
         expiresAt: c.expiresAt,
-        requestedBy: by({ kind: 'user', userId: c.requestedBy }),
+        requestedBy: user(c.requestedBy),
         reason: c.reason,
         mine: c.mine,
         canDecide: c.canDecide,
         canSelfApprove: c.canSelfApprove,
         awaitingReview: c.awaitingReview,
         findings: c.findings,
-        // Only to those who decide: a requester is never told which rule they tripped.
-        flags: c.canDecide || c.canSelfApprove ? await flagging(c, attributes, labels) : [],
+        ...(found === null
+          ? unflagged
+          : {
+              flags: found.reasons.map(({ code, title, detail }) => ({ code, title, detail })),
+              comparisons: found.comparisons,
+              flagNote: found.note,
+              flagSummary: rowSummary(found.reasons),
+            }),
+        canAsk: c.canDecide && pending.flags !== undefined,
+        canMark: c.canDecide && pending.flags !== undefined && (found?.reasons.length ?? 0) > 0,
+        questions: asked(c.id, c.mine),
+        state: 'pending',
+        decidedBy: null,
+        decidedAt: null,
+        note: null,
       });
     }
-    return ok({ isHr: inbox.value.isHr, items });
-  });
-}
 
-/* ------------------------------------------- unusual changes (flags) -- */
-
-const moneyOf = (value: unknown): Money | null =>
-  value !== null &&
-  typeof value === 'object' &&
-  'amountMinor' in value &&
-  'currency' in value &&
-  !('last4' in value)
-    ? { amountMinor: String(value.amountMinor), currency: String(value.currency) }
-    : null;
-
-/**
- * The flags on one change in the inbox, from what else was asked about the
- * same person and the working day where they sit. Pay is compared only when
- * the decider may read the field and both amounts are in clear, so a flag
- * never says more about a value than the decider could see for themselves.
- */
-function flagger(
-  deps: ScreenDeps,
-  tx: Tx,
-  asking: Asking,
-  definitions: readonly AttributeDefinition[],
-) {
-  const pending = deps.service.pending;
-  const typeOf = new Map(definitions.map((d) => [d.key as string, d.dataType as string]));
-  const history = new Map<string, Awaited<ReturnType<NonNullable<typeof pending>['store']['forPerson']>>>();
-  let calendar: TenantCalendar | undefined;
-  return async (
-    c: InboxItem,
-    attributes: Readonly<Record<string, unknown>>,
-    labels: ReadonlyMap<string, string>,
-  ): Promise<Flag[]> => {
-    if (!pending) return [];
-    calendar ??= await deps.calendars.load(tx, asking.tenantId);
-    let asked = history.get(c.personId);
-    if (asked === undefined) {
-      asked = await pending.store.forPerson(tx, asking.tenantId, c.personId);
-      history.set(c.personId, asked);
-    }
-    const record = await pending.reader.record(tx, asking.tenantId, c.personId);
-    const before = c.readable ? moneyOf(attributes[c.attributeKey]) : null;
-    const after = c.readable ? moneyOf(c.value) : null;
-    return unusual(
-      {
-        id: c.id,
+    const titleOf = new Map<string, string>(CHECKS.map((k) => [k.code, k.title]));
+    const decidedItems: ApprovalItem[] = [];
+    for (const c of decided) {
+      const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
+      const attributes = person.ok ? person.value.attributes : {};
+      const definition = definitions.find((d) => d.key === c.attributeKey);
+      const readable =
+        definition !== undefined &&
+        visibleTo(
+          definition,
+          await deps.relations.relations(tx, asking.tenantId, asking.viewer, c.personId),
+        );
+      const shown = c.sealed ? { last4: c.last4 } : c.value;
+      const codes = c.flags ?? [];
+      decidedItems.push({
+        id: c.approval.id,
+        personId: c.personId,
+        name: nameOf(attributes) ?? 'Unnamed',
+        key: c.attributeKey,
         label: labels.get(c.attributeKey) ?? c.attributeKey,
-        dataType: typeOf.get(c.attributeKey) ?? 'text',
-        requestedAt: c.requestedAt,
-        requestedBy: c.requestedBy,
-        subjectAccountId: record?.snapshot.identityAccountId ?? null,
+        kind: c.kind,
+        value: readable ? toForm(shown) : null,
+        readable,
+        current: readable ? toForm(attributes[c.attributeKey]) : null,
         effectiveFrom: c.effectiveFrom,
-        pay: before !== null && after !== null ? { before, after } : null,
-        findings: c.findings,
-      },
-      {
-        others: asked.map((o) => ({
-          id: o.approval.id,
-          dataType: typeOf.get(o.attributeKey) ?? 'text',
-          requestedAt: o.approval.requestedAt,
-          requestedBy: o.approval.requestedBy,
-          state: o.approval.state,
+        requestedAt: c.approval.requestedAt,
+        expiresAt: c.approval.expiresAt,
+        requestedBy: user(c.approval.requestedBy),
+        reason: c.approval.reason === '' ? null : c.approval.reason,
+        mine: c.approval.requestedBy === asking.viewer.accountId,
+        canDecide: false,
+        canSelfApprove: false,
+        awaitingReview: false,
+        findings: [],
+        // What flagged it when it was decided, by name: the comparison itself is not kept.
+        flags: codes.map((code) => ({
+          code: code as CheckCode,
+          title: titleOf.get(code) ?? code,
+          detail: '',
         })),
-        zone: personZone(calendar, placementOf(attributes), c.requestedAt),
-      },
-    );
-  };
+        comparisons: [],
+        flagNote: null,
+        flagSummary: rowSummary(codes.map((code) => ({ title: titleOf.get(code) ?? code }))),
+        canAsk: false,
+        canMark: false,
+        questions: asked(c.approval.id, false),
+        state: c.approval.state === 'approved' ? 'approved' : 'rejected',
+        decidedBy: c.approval.decidedBy === null ? null : user(c.approval.decidedBy),
+        decidedAt: c.approval.decidedAt,
+        note: c.approval.note,
+      });
+    }
+
+    const everyone = isHr
+      ? await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY)
+      : null;
+    return ok({
+      isHr,
+      items,
+      decided: decidedItems,
+      checks: isHr ? checksOf(look.enabled) : null,
+      canTune: everyone?.isAdmin === true && pending.flags !== undefined,
+      last90:
+        isHr && pending.flags !== undefined
+          ? await pending.flags.store.stats(tx, asking.tenantId, since)
+          : null,
+    });
+  });
 }
 
 export { checkSection, saveSection };
@@ -936,7 +1057,8 @@ export async function actors(
 ): Promise<(actor: Actor) => string> {
   const names = new Map<string, string>();
   for (const actor of all) {
-    if (actor.kind !== 'user' || actor.onBehalfOf !== undefined || names.has(actor.userId)) continue;
+    if (actor.kind !== 'user' || actor.onBehalfOf !== undefined || names.has(actor.userId))
+      continue;
     if (actor.userId === asking.viewer.accountId) {
       names.set(actor.userId, 'You');
       continue;
@@ -1275,6 +1397,16 @@ export interface DirectoryView {
   /** The saved segment applied (PEO-068), and those this viewer could apply here. */
   readonly segment: { readonly id: string; readonly name: string } | null;
   readonly segments: readonly { readonly id: string; readonly name: string }[];
+  /**
+   * Smart search's "Try asking": questions built from this company's own
+   * fields, each one People's rules read in full (`domain/assistant/clarify.ts`).
+   */
+  readonly suggestions: readonly string[];
+  /**
+   * The details the conditions find empty that this viewer may ask everybody
+   * found for ("Remind all"); null when there are none, or they may not.
+   */
+  readonly remind: readonly string[] | null;
 }
 
 /** Shown as columns: in the directory, and readable on everybody. */
@@ -1403,9 +1535,24 @@ export async function directoryView(
       query.sort !== undefined && query.after?.startsWith('@') === true
         ? Number.parseInt(query.after.slice(1), 10) || 0
         : 0;
+    // A view saved from a search holds conditions too: all of them, and
+    // all of any typed beside it. "Any of" either side cannot be one query.
+    const own = query.conditions ?? [];
+    const ownMatch = query.match ?? ('all' as const);
+    const saved = segment?.value.conditions ?? [];
+    const savedMatch = segment?.value.match ?? 'all';
+    if (saved.length > 0 && own.length > 0 && (savedMatch === 'any' || ownMatch === 'any')) {
+      return err(
+        failure(
+          'BAD_REQUEST',
+          'A view that matches any of its conditions can’t be narrowed further; clear the view first',
+          ['conditions'],
+        ),
+      );
+    }
     const refine = {
-      conditions: query.conditions ?? [],
-      match: query.match ?? ('all' as const),
+      conditions: [...saved, ...own],
+      match: own.length === 0 ? savedMatch : saved.length === 0 ? ownMatch : ('all' as const),
       ...(query.sort === undefined ? {} : { sort: query.sort, offset }),
     };
     const narrowed = {
@@ -1500,6 +1647,47 @@ export async function directoryView(
         ? { ...values, status: STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status }
         : values;
 
+    // Everything a condition may name, for the Filters sheet, smart search's
+    // suggestions, and the details a search may ask people for.
+    const fields = [
+      ...columns.flatMap((c) => {
+        const kind = fieldKind(c.typeConfig.kind);
+        if (kind === null) return [];
+        const options =
+          c.typeConfig.kind === 'select'
+            ? c.typeConfig.options
+                .filter((o) => o.retiredAt === null)
+                .map((o) => ({ value: o.value, label: o.label.default }))
+            : c.typeConfig.kind === 'location_ref'
+              ? [...org.locations.values()]
+                  .filter((l) => l.archived !== true)
+                  .map((l) => ({ value: l.id, label: l.name }))
+              : c.typeConfig.kind === 'legal_entity_ref'
+                ? [...org.entities.values()]
+                    .filter((e) => e.archived !== true)
+                    .map((e) => ({ value: e.id, label: e.name }))
+                : [];
+        return [{ key: c.key, label: c.label.default, kind, options }];
+      }),
+      ...(everyone.isHr
+        ? [
+            {
+              key: 'status',
+              label: 'Status',
+              kind: 'status' as const,
+              options: STATUS_OPTIONS,
+            },
+          ]
+        : []),
+    ];
+    const aiEligible = new Map(
+      definitions.map((d) => [d.key as string, d.classification.aiEligible]),
+    );
+    const empties = [...new Set(own.filter((c) => c.op === 'empty').map((c) => c.key))];
+    const askableKeys = new Set(
+      definitions.filter((d) => askable(d, everyone)).map((d) => d.key as string),
+    );
+
     return ok({
       total: counted.value.all,
       active: counted.value.active,
@@ -1512,44 +1700,12 @@ export async function directoryView(
           shown: shownDefault.has(c.key),
           sortable: true,
         })),
-        ...(everyone.isHr
-          ? [{ key: 'status', label: 'Status', shown: true, sortable: true }]
-          : []),
+        ...(everyone.isHr ? [{ key: 'status', label: 'Status', shown: true, sortable: true }] : []),
       ],
-      fields: [
-        ...columns.flatMap((c) => {
-          const kind = fieldKind(c.typeConfig.kind);
-          if (kind === null) return [];
-          const options =
-            c.typeConfig.kind === 'select'
-              ? c.typeConfig.options
-                  .filter((o) => o.retiredAt === null)
-                  .map((o) => ({ value: o.value, label: o.label.default }))
-              : c.typeConfig.kind === 'location_ref'
-                ? [...org.locations.values()]
-                    .filter((l) => l.archived !== true)
-                    .map((l) => ({ value: l.id, label: l.name }))
-                : c.typeConfig.kind === 'legal_entity_ref'
-                  ? [...org.entities.values()]
-                      .filter((e) => e.archived !== true)
-                      .map((e) => ({ value: e.id, label: e.name }))
-                  : [];
-          return [{ key: c.key, label: c.label.default, kind, options }];
-        }),
-        ...(everyone.isHr
-          ? [
-              {
-                key: 'status',
-                label: 'Status',
-                kind: 'status' as const,
-                options: STATUS_OPTIONS,
-              },
-            ]
-          : []),
-      ],
+      fields,
       query: {
-        conditions: refine.conditions,
-        match: refine.match,
+        conditions: own,
+        match: ownMatch,
         sort: query.sort ?? null,
       },
       filterable: [
@@ -1580,26 +1736,29 @@ export async function directoryView(
           name: nameOf(p.attributes) ?? (typeof email === 'string' ? email : 'Unnamed'),
           email: typeof email === 'string' ? email : null,
           avatarUrl: avatars.get(p.id) ?? null,
-          values: withStatus(p.status, Object.fromEntries(
-            columns.flatMap((c) => {
-              const value = p.attributes[c.key];
-              if (value === undefined || value === null) return [];
-              const kind = c.typeConfig.kind;
-              const shown =
-                kind === 'person_ref'
-                  ? typeof value === 'string'
-                    ? names.get(value)
-                    : undefined
-                  : kind === 'location_ref' || kind === 'legal_entity_ref'
+          values: withStatus(
+            p.status,
+            Object.fromEntries(
+              columns.flatMap((c) => {
+                const value = p.attributes[c.key];
+                if (value === undefined || value === null) return [];
+                const kind = c.typeConfig.kind;
+                const shown =
+                  kind === 'person_ref'
                     ? typeof value === 'string'
-                      ? placeName.get(value)
+                      ? names.get(value)
                       : undefined
-                    : kind === 'select' && typeof value === 'string'
-                      ? (optionLabel(c, value) ?? value)
-                      : toForm(value);
-              return typeof shown === 'string' ? [[c.key, shown]] : [];
-            }),
-          )),
+                    : kind === 'location_ref' || kind === 'legal_entity_ref'
+                      ? typeof value === 'string'
+                        ? placeName.get(value)
+                        : undefined
+                      : kind === 'select' && typeof value === 'string'
+                        ? (optionLabel(c, value) ?? value)
+                        : toForm(value);
+                return typeof shown === 'string' ? [[c.key, shown]] : [];
+              }),
+            ),
+          ),
           people: personColumns.flatMap((c) => {
             const id = p.attributes[c.key];
             const name = typeof id === 'string' ? names.get(id) : undefined;
@@ -1617,6 +1776,17 @@ export async function directoryView(
       segments: (await segmentsFor(deps, tx, asking))
         .filter((s) => s.usableIn.directory)
         .map((s) => ({ id: s.id, name: s.name })),
+      suggestions: suggestionsFor(
+        fields.map((f) => ({
+          ...f,
+          ai: f.key === 'status' || aiEligible.get(f.key) === true,
+        })),
+        deps.clock.instant().slice(0, 10),
+      ),
+      remind:
+        everyone.isHr && empties.length > 0 && empties.every((k) => askableKeys.has(k))
+          ? empties
+          : null,
     });
   });
 }
@@ -1801,9 +1971,7 @@ export async function completenessView(
 export async function remindWaiting(
   deps: ScreenDeps,
   asking: Asking,
-): Promise<
-  Result<{ readonly sent: number; readonly failed: number; readonly skipped: number }>
-> {
+): Promise<Result<{ readonly sent: number; readonly failed: number; readonly skipped: number }>> {
   const sweep = deps.remindNow;
   if (sweep === undefined) {
     return err(failure('UNAVAILABLE', 'Reminders are not sent from here'));

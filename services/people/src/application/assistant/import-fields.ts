@@ -9,7 +9,6 @@ import {
   ColumnProposal,
   localProposal,
   sensitivity,
-  summaryOf,
   takenKeys,
   withKeys,
   withModel,
@@ -17,39 +16,43 @@ import {
   type ColumnSeen,
   type PlanBudget,
 } from '../../domain/import/new-fields.js';
+import { planOf, type PlanStep } from '../../domain/import/plan.js';
 import { keyFrom, SchemaDraft, type Attribute, type Section } from '../../domain/schema/draft.js';
+import { publish, type PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking } from '../person/ports.js';
 import { run } from '../person/service.js';
 import { userActor } from '../person/ports.js';
-import type { NewFieldsFile } from '../screens/operations.js';
+import type { ImportStageView, NewFieldsFile } from '../screens/operations.js';
 import { fieldChange, type FieldInput, type SchemaScreenDeps } from '../screens/schema.js';
+import { seedSetup, setupDraft } from '../screens/setup-draft.js';
 import type { AssistantPort } from './assistant-port.js';
 
 /**
- * New information in an imported file (docs/ai-settings.md): the columns
- * that match no field, proposed as fields, reviewed by HR, and added — with
- * what happens for the people already here — in one administrator's OK.
+ * The import, from its new columns to the approved plan (docs/ai-settings.md;
+ * design AI9 to AI12).
  *
- * Existing fields and sections are never touched: a column the mapper or HR
- * placed is not here, and applying only adds. The model is shown each
- * column's header and the shape of its values, never a value, and the names
- * of the company's sections and fields; People's own rules propose when there
- * is no model, when the company's budget is spent, and for anything the model
- * left out. Choices and a default's value come from the file, here, and are
- * shown on the review only.
+ * Columns that match no field are proposed as fields (the model from headers
+ * and value shapes, People's own rules without it); HR decides what happens
+ * for the people without a value; then one plan says everything the import
+ * will do, from a dry run against the version those fields would make, and
+ * nothing is written until a People administrator approves it. Approving
+ * creates the fields, publishes them, writes any defaults and imports, in
+ * that order.
  *
- * Applying is one transaction: the sections and fields go into the draft, the
- * draft is published, and the values for people already here are written.
- * Anything refused refuses the lot, so a cancelled or failed apply leaves
- * the settings as they were. It is refused while the draft holds other
- * unpublished changes, because publishing would publish those too.
+ * **A company with nothing published imports too.** The file is read against
+ * what setup would publish (its legal entity's country pack, every section
+ * on), and approving the plan sets the company up and publishes the pack and
+ * the new fields as version 1 together. HR without administrator rights
+ * cannot set a company up or add fields: they see the proposal read-only and
+ * import without those columns, once something is published.
  *
- * Creating fields is a People administrator's (administrators hold HR's
- * rights too). HR without it sees the whole proposal and is told an
- * administrator has to add the fields; the import goes on without them.
+ * Existing fields and sections are never touched.
  */
 
 type Tx = PostgresJsDatabase;
+
+type ImportReview = Extract<ImportStageView, { step: 'review' }>;
+type ImportDone = Extract<ImportStageView, { step: 'done' }>;
 
 export interface NewFieldsDeps extends SchemaScreenDeps {
   /** The model, behind the AI gateway; absent, People's own proposal. */
@@ -65,6 +68,17 @@ export interface NewFieldsDeps extends SchemaScreenDeps {
     values: Readonly<Record<string, unknown>>,
     effectiveFrom: string,
   ) => Promise<Result<number>>;
+  /** The dry run against a version not published yet (`dryRunImport`). Writes nothing. */
+  readonly importReview: (
+    asking: Asking,
+    step: ImportStepInput,
+    version: PublishedVersion,
+  ) => Promise<Result<ImportReview>>;
+  /** The import itself, once its fields are published (`commitImportView`). */
+  readonly importCommit: (
+    asking: Asking,
+    step: ImportStepInput & { readonly applySensitiveWithoutApproval?: boolean },
+  ) => Promise<Result<ImportDone>>;
 }
 
 export const ImportStepInput = z.strictObject({
@@ -86,9 +100,14 @@ export interface NewFieldsView {
   readonly sections: readonly { readonly key: string; readonly label: string }[];
   /** People already here, whom the file may or may not reach. */
   readonly existingPeople: number;
+  /** Everybody once the file is in: people here now, and the rows that create someone. */
+  readonly totalPeople: number;
   /** Whether a model proposed, or People's own rules did. */
   readonly byModel: boolean;
-  readonly summary: string;
+  /** The version the fields publish as when the plan is approved. */
+  readonly version: number;
+  /** Nothing is published: approving sets the company up with this country's pack. */
+  readonly setup: { readonly country: string | null; readonly countryName: string | null } | null;
 }
 
 const NOBODY = '00000000-0000-0000-0000-000000000000';
@@ -98,31 +117,39 @@ const CHUNK = 12;
 const ONLY_ADMIN =
   'Only a People administrator can add fields. Ask one to run this import, or import without these columns.';
 
-/** The file's columns, their counts and the settings around them. */
+/** The file's columns, their counts and the settings around them. Nothing is written. */
 async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput) {
   const file = await deps.importFile(asking, step);
   if (!file.ok) return file;
   const read = await run(deps.service, asking.tenantId, async (tx) => {
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR imports people'));
-    const [draft, published, people] = await Promise.all([
+    const [stored, published, people] = await Promise.all([
       deps.schema.loadDraft(tx, asking.tenantId),
       deps.schema.currentVersion(tx, asking.tenantId),
       deps.service.access.count(tx, asking),
     ]);
+    // Nothing published: the file was read against what setup would publish.
+    const setup = published === null ? await setupDraft(deps, tx, asking) : null;
+    if (setup !== null && !setup.ok) return setup;
     return ok({
       isAdmin: everyone.isAdmin,
-      draft,
+      stored,
+      planning: setup === null ? stored : setup.value,
       published,
+      setup:
+        setup === null
+          ? null
+          : { country: setup.value.country, countryName: setup.value.countryName },
       existing: people.ok ? people.value.all : 0,
     });
   });
   if (!read.ok) return read;
-  const { draft, published } = read.value;
-  const liveSections = draft.sections
+  const { planning, published, stored, existing } = read.value;
+  const sections = planning.sections
     .filter((s) => s.archivedAt === null)
-    .toSorted((a, b) => a.order - b.order);
-  const sections = liveSections.map((s) => ({ key: s.key, label: s.label.default }));
+    .toSorted((a, b) => a.order - b.order)
+    .map((s) => ({ key: s.key, label: s.label.default }));
   const seen: ColumnSeen[] = file.value.unmatched.map((c) => {
     const values = c.cells.map((v) => v.trim()).filter((v) => v !== '');
     const distinct = [...new Set(values)];
@@ -136,6 +163,7 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
   const reached = file.value.rows.filter(
     (r) => r.outcome === 'create' || r.outcome === 'update' || r.outcome === 'unchanged',
   );
+  const total = existing + reached.filter((r) => r.outcome === 'create').length;
   const counts = new Map<number, ColumnCounts>(
     seen.map((s) => {
       const withValue = reached.filter((r) => (r.cells[s.column] ?? '').trim() !== '');
@@ -145,26 +173,28 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
       return [
         s.column,
         {
-          fromFile: withValue.length,
-          existingWithout: Math.max(0, read.value.existing - existingWith),
+          have: withValue.length,
+          missing: Math.max(0, total - withValue.length),
+          existingWithout: Math.max(0, existing - existingWith),
         },
       ];
     }),
   );
-  const peopleWithValues = reached.filter((r) =>
-    seen.some((s) => (r.cells[s.column] ?? '').trim() !== ''),
-  ).length;
-  const pending = pendingIn(
-    draft.attributes,
-    published?.document.attributes.map((a) => a.key) ?? null,
-  );
+  const pending =
+    published === null
+      ? 0
+      : pendingIn(
+          stored.attributes,
+          published.document.attributes.map((a) => a.key),
+        );
   return ok({
     ...read.value,
     file: file.value,
     sections,
     seen,
     counts,
-    peopleWithValues,
+    total,
+    version: (published?.version ?? 0) + 1,
     blocked: !read.value.isAdmin
       ? ONLY_ADMIN
       : pending > 0
@@ -172,11 +202,11 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
         : null,
   });
 }
+type Gathered = Extract<Awaited<ReturnType<typeof gather>>, { ok: true }>['value'];
 
 /** Draft fields not in the published version: what a publish would carry besides this import's. */
-function pendingIn(attributes: readonly Attribute[], published: readonly string[] | null): number {
+function pendingIn(attributes: readonly Attribute[], published: readonly string[]): number {
   const live = attributes.filter((a) => a.deprecatedAt === null);
-  if (published === null) return live.length;
   const known = new Set(published);
   return (
     live.filter((a) => !known.has(a.key)).length +
@@ -184,23 +214,21 @@ function pendingIn(attributes: readonly Attribute[], published: readonly string[
   );
 }
 
-function view(
-  g: Extract<Awaited<ReturnType<typeof gather>>, { ok: true }>['value'],
-  proposals: readonly ColumnProposal[],
-  byModel: boolean,
-): NewFieldsView {
+function view(g: Gathered, proposals: readonly ColumnProposal[], byModel: boolean): NewFieldsView {
   return {
     canCreate: g.isAdmin,
     blocked: g.blocked,
     proposals: proposals.map((p) => ({
       ...p,
-      counts: g.counts.get(p.column) ?? { fromFile: 0, existingWithout: 0 },
+      counts: g.counts.get(p.column) ?? { have: 0, missing: 0, existingWithout: 0 },
       sensitive: sensitivity(p.field),
     })),
     sections: g.sections,
     existingPeople: g.existing,
+    totalPeople: g.total,
     byModel,
-    summary: summaryOf(proposals, g.counts, g.peopleWithValues, g.sections),
+    version: g.version,
+    setup: g.setup,
   };
 }
 
@@ -214,8 +242,8 @@ export async function proposeNewFields(
   const gathered = await gather(deps, asking, step);
   if (!gathered.ok) return gathered;
   const g = gathered.value;
-  const taken = takenKeys(g.draft.attributes);
-  const existing = g.draft.attributes
+  const taken = takenKeys(g.planning.attributes);
+  const existing = g.planning.attributes
     .filter((a) => a.deprecatedAt === null)
     .map((a) => ({ key: a.key, label: a.label.default }));
   const local = g.seen.map((s) => localProposal(s, g.sections, existing));
@@ -236,7 +264,7 @@ export async function proposeNewFields(
   // the whole well inside the shell's two-minute write.
   const sections = g.sections.map((s) => ({
     ...s,
-    fields: g.draft.attributes
+    fields: g.planning.attributes
       .filter((a) => a.sectionKey === s.key && a.deprecatedAt === null)
       .map((a) => a.label.default),
   }));
@@ -263,35 +291,45 @@ export async function proposeNewFields(
   return ok(view(g, withKeys(merged.proposals, taken), true));
 }
 
-/* ------------------------------------------------------------- review -- */
+/* --------------------------------------------------------------- plan -- */
 
-export const ReviewInput = ImportStepInput.extend({
-  proposals: z.array(ColumnProposal).max(200),
+export const PlanInput = ImportStepInput.extend({
+  proposals: z.array(ColumnProposal).max(200).default([]),
 });
-export type ReviewInput = z.infer<typeof ReviewInput>;
+export type PlanInput = z.input<typeof PlanInput>;
 
-/**
- * The proposals as HR left them, checked against the draft exactly as
- * applying will, with the review in words. Nothing is written.
- */
-export async function reviewNewFields(
-  deps: NewFieldsDeps,
-  asking: Asking,
-  input: ReviewInput,
-): Promise<
-  Result<
-    NewFieldsView & {
-      readonly problems: readonly { readonly column: number; readonly message: string }[];
-    }
-  >
-> {
-  const gathered = await gather(deps, asking, input);
-  if (!gathered.ok) return gathered;
-  const g = gathered.value;
-  const kept = keptOf(input.proposals, g.seen);
-  if (!kept.ok) return kept;
-  const built = draftWithNewFields(g.draft, kept.value);
-  return ok({ ...view(g, input.proposals, false), problems: built.problems });
+/** A field the plan creates, as the plan and the done screen name it. */
+export interface PlannedField {
+  readonly key: string;
+  readonly column: number;
+  readonly label: string;
+  readonly dataType: string;
+  readonly section: string;
+  readonly newSection: boolean;
+  readonly forExisting: ColumnProposal['forExisting'];
+  readonly missing: number;
+}
+
+export interface ImportPlanView {
+  /** Everything that will happen, in order (design AI11). */
+  readonly steps: readonly PlanStep[];
+  /** The same in one sentence (design MA9), and the activity log's words. */
+  readonly short: string;
+  readonly fields: readonly PlannedField[];
+  /** The version the fields publish as; the current one when there are none. */
+  readonly version: number;
+  readonly setup: NewFieldsView['setup'];
+  /** Why it cannot be approved as it stands; null when it can. */
+  readonly blocked: string | null;
+  /** Fields the settings would refuse, by column. */
+  readonly problems: readonly { readonly column: number; readonly message: string }[];
+  /** The dry run against the plan's version: counts, blocked rows, sensitive values. */
+  readonly review: ImportReview;
+  /** The mapping the import runs with: the file's, and each new column to its new field. */
+  readonly mapping: Readonly<Record<string, string | null>>;
+  /** People asked for a value, and values HR fills in, once it has run. */
+  readonly asked: number;
+  readonly forHr: number;
 }
 
 /** Only the file's own unmatched columns, and each once. */
@@ -393,90 +431,240 @@ export function draftWithNewFields(
   return { sections, attributes: added, problems };
 }
 
-/* -------------------------------------------------------------- apply -- */
-
-export const ApplyInput = ReviewInput.extend({
-  /** The review's words, for the activity log: the plan, never the file. */
-  summary: z.string().trim().min(1).max(1000),
-});
-export type ApplyInput = z.infer<typeof ApplyInput>;
-
-export interface NewFieldsApplied {
-  readonly version: number;
-  /** Column index → the new field's key: the mapping to continue the import with. */
-  readonly mapped: Readonly<Record<string, string>>;
-  readonly defaults: number;
+/** Each kept proposal as the plan names it. */
+function plannedFields(
+  g: Gathered,
+  kept: readonly ColumnProposal[],
+  built: ReturnType<typeof draftWithNewFields>,
+): PlannedField[] {
+  const sectionLabel = new Map([
+    ...g.sections.map((s) => [s.key, s.label] as const),
+    ...built.sections.map((s) => [s.key, s.label.default] as const),
+  ]);
+  const fresh = new Set(built.sections.map((s) => s.key));
+  return kept.flatMap((p) => {
+    const a = built.attributes.find((x) => x.key === p.key);
+    if (a === undefined) return [];
+    return [
+      {
+        key: p.key,
+        column: p.column,
+        label: p.field.label,
+        dataType: p.field.dataType,
+        section: sectionLabel.get(a.sectionKey) ?? a.sectionKey,
+        newSection: fresh.has(a.sectionKey),
+        forExisting: p.forExisting,
+        missing: g.counts.get(p.column)?.missing ?? 0,
+      },
+    ];
+  });
 }
 
 /**
- * Add the kept fields, publish, and write the defaults, in one transaction.
- * Refused whole, before anything is stored, if the draft refuses any field.
+ * The plan: the version the kept fields would make (with setup's pack for a
+ * company with nothing published), the dry run against it, and everything
+ * that will happen, in words. Nothing is written.
  */
-export async function applyNewFields(
+async function planned(
   deps: NewFieldsDeps,
   asking: Asking,
-  input: ApplyInput,
-): Promise<Result<NewFieldsApplied>> {
+  input: z.output<typeof PlanInput>,
+): Promise<
+  Result<{
+    g: Gathered;
+    kept: ColumnProposal[];
+    built: ReturnType<typeof draftWithNewFields>;
+    view: ImportPlanView;
+  }>
+> {
   const gathered = await gather(deps, asking, input);
   if (!gathered.ok) return gathered;
   const g = gathered.value;
-  if (g.blocked !== null) {
-    return err(failure(g.isAdmin ? 'DRAFT_HAS_CHANGES' : 'FORBIDDEN', g.blocked));
+  const chosen = keptOf(input.proposals, g.seen);
+  if (!chosen.ok) return chosen;
+  // HR without administrator rights adds no fields: those columns are left out.
+  const kept = g.isAdmin ? chosen.value : [];
+  const built = draftWithNewFields(g.planning, kept);
+  const needsVersion = g.published === null || kept.length > 0;
+  const next = needsVersion
+    ? publish(
+        SchemaDraft.rehydrate(
+          [...g.planning.sections, ...built.sections],
+          [...g.planning.attributes, ...built.attributes],
+        ),
+        g.published,
+        { clock: deps.clock, actor: asking.viewer.accountId },
+      )
+    : g.published === null
+      ? err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'))
+      : ok(g.published);
+  if (!next.ok) return next;
+  const fields = plannedFields(g, kept, built);
+  const mapping = {
+    ...input.mapping,
+    ...Object.fromEntries(fields.map((f) => [String(f.column), f.key])),
+  };
+  const review = await deps.importReview(asking, { uploadId: input.uploadId, mapping }, next.value);
+  if (!review.ok) return review;
+  const keptColumns = new Set(fields.map((f) => f.column));
+  const leftOut = g.seen.filter((s) => !keptColumns.has(s.column)).map((s) => s.header);
+  const plan = planOf({
+    setup: g.setup === null ? null : { countryName: g.setup.countryName },
+    version: next.value.version,
+    fields,
+    rows: review.value.dryRun.counts,
+    leftOut,
+  });
+  const sum = (kind: string) =>
+    fields.filter((f) => f.forExisting.kind === kind).reduce((n, f) => n + f.missing, 0);
+  return ok({
+    g,
+    kept,
+    built,
+    view: {
+      steps: plan.steps,
+      short: plan.short,
+      fields,
+      version: next.value.version,
+      setup: g.setup,
+      blocked: kept.length > 0 || g.published === null ? (g.isAdmin ? g.blocked : null) : null,
+      problems: built.problems,
+      review: review.value,
+      mapping,
+      asked: sum('ask'),
+      forHr: sum('hr'),
+    },
+  });
+}
+
+/** Everything the import will do, from HR's choices. Nothing is written. */
+export async function planImport(
+  deps: NewFieldsDeps,
+  asking: Asking,
+  input: z.output<typeof PlanInput>,
+): Promise<Result<ImportPlanView>> {
+  const got = await planned(deps, asking, input);
+  return got.ok ? ok(got.value.view) : got;
+}
+
+/* ---------------------------------------------------------------- run -- */
+
+export const RunInput = PlanInput.extend({
+  /** HR's "apply sensitive values without approval" (PEO-077). */
+  applySensitiveWithoutApproval: z.boolean().optional(),
+});
+export type RunInput = z.input<typeof RunInput>;
+
+export type ImportRunView = ImportDone & {
+  /** The fields this import created, published as `version`. */
+  readonly fields: readonly PlannedField[];
+  readonly version: number;
+  readonly asked: number;
+  readonly forHr: number;
+  /** When it finished, and how long it took, from the approval. */
+  readonly finishedAt: string;
+  readonly tookMs: number;
+};
+
+/**
+ * Approve and run: set the company up if nothing is published, create the
+ * kept fields, publish, write the defaults (one transaction, refused whole if
+ * anything is refused), then import with every new column mapped to its new
+ * field. The plan is worked out again here, never taken from the client.
+ */
+export async function runImport(
+  deps: NewFieldsDeps,
+  asking: Asking,
+  input: z.output<typeof RunInput>,
+): Promise<Result<ImportRunView>> {
+  const started = Date.parse(deps.clock.instant());
+  const got = await planned(deps, asking, input);
+  if (!got.ok) return got;
+  const { g, kept, view: plan } = got.value;
+  if (plan.blocked !== null) {
+    return err(failure(g.isAdmin ? 'DRAFT_HAS_CHANGES' : 'FORBIDDEN', plan.blocked));
   }
-  const kept = keptOf(input.proposals, g.seen);
-  if (!kept.ok) return kept;
-  if (kept.value.length === 0)
-    return err(failure('VALUE_INVALID', 'Choose at least one column to add', ['proposals']));
-  const built = draftWithNewFields(g.draft, kept.value);
-  const [problem] = built.problems;
+  const [problem] = plan.problems;
   if (problem !== undefined) {
-    const header = kept.value.find((p) => p.column === problem.column)?.header ?? 'A column';
+    const header = kept.find((p) => p.column === problem.column)?.header ?? 'A column';
     return err(
       failure('DEFINITION_INVALID', `${header}: ${problem.message}. Nothing was added.`, [
         'proposals',
       ]),
     );
   }
-  const today = deps.clock.instant().slice(0, 10);
-  return run(deps.service, asking.tenantId, async (tx) => {
-    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-    if (!everyone.isAdmin) return err(failure('FORBIDDEN', ONLY_ADMIN));
-    for (const s of built.sections) await deps.draft.saveSection(tx, asking.tenantId, s);
-    for (const a of built.attributes) await deps.draft.saveAttribute(tx, asking.tenantId, a);
-    const version = ((await deps.schema.currentVersion(tx, asking.tenantId))?.version ?? 0) + 1;
-    const published = await deps.publisher.publish(tx, {
-      tenantId: asking.tenantId,
-      actor: userActor(asking.viewer),
-      publishedBy: asking.viewer.accountId,
-      correlationId: asking.correlationId,
-      artifactUrl: deps.artifactUrl(version),
+  if (g.published === null || kept.length > 0) {
+    const today = deps.clock.instant().slice(0, 10);
+    const added = await run(deps.service, asking.tenantId, async (tx) => {
+      const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+      if (!everyone.isAdmin) return err(failure('FORBIDDEN', ONLY_ADMIN));
+      if (g.published === null) {
+        // Setup's own seeding, then this import's fields on top: one publish.
+        const seeded = await seedSetup(tx, asking.tenantId, g.setup?.country ?? null, 'all');
+        if (!seeded.ok) return seeded;
+      }
+      const draft = await deps.schema.loadDraft(tx, asking.tenantId);
+      const built = draftWithNewFields(draft, kept);
+      const [refused] = built.problems;
+      if (refused !== undefined) return err(failure('DEFINITION_INVALID', refused.message));
+      for (const s of built.sections) await deps.draft.saveSection(tx, asking.tenantId, s);
+      for (const a of built.attributes) await deps.draft.saveAttribute(tx, asking.tenantId, a);
+      const version = ((await deps.schema.currentVersion(tx, asking.tenantId))?.version ?? 0) + 1;
+      const published = await deps.publisher.publish(tx, {
+        tenantId: asking.tenantId,
+        actor: userActor(asking.viewer),
+        publishedBy: asking.viewer.accountId,
+        correlationId: asking.correlationId,
+        artifactUrl: deps.artifactUrl(version),
+      });
+      if (!published.ok) return published;
+      // People already here whom the file gives no value, for each default.
+      for (const p of kept) {
+        if (p.forExisting.kind !== 'default') continue;
+        const given = new Set(
+          g.file.rows
+            .filter((r) => r.personId !== null && (r.cells[p.column] ?? '').trim() !== '')
+            .map((r) => r.personId as string),
+        );
+        const everybody = await everyoneIn(deps, tx, asking);
+        if (!everybody.ok) return everybody;
+        const missing = everybody.value.filter((id) => !given.has(id));
+        const value =
+          p.field.dataType === 'select' || p.field.dataType === 'multi_select'
+            ? keyFrom(p.forExisting.value)
+            : p.forExisting.value;
+        const wrote = await deps.writeSame(tx, asking, missing, { [p.key]: value }, today);
+        if (!wrote.ok) return wrote;
+      }
+      return ok(published.value.version.version);
     });
-    if (!published.ok) return published;
-    // People already here whom the file gives no value, for each default.
-    let defaults = 0;
-    for (const p of kept.value) {
-      if (p.forExisting.kind !== 'default') continue;
-      const given = new Set(
-        g.file.rows
-          .filter((r) => r.personId !== null && (r.cells[p.column] ?? '').trim() !== '')
-          .map((r) => r.personId as string),
-      );
-      const everybody = await everyoneIn(deps, tx, asking);
-      if (!everybody.ok) return everybody;
-      const missing = everybody.value.filter((id) => !given.has(id));
-      const value =
-        p.field.dataType === 'select' || p.field.dataType === 'multi_select'
-          ? keyFrom(p.forExisting.value)
-          : p.forExisting.value;
-      const wrote = await deps.writeSame(tx, asking, missing, { [p.key]: value }, today);
-      if (!wrote.ok) return wrote;
-      defaults += wrote.value;
-    }
-    return ok({
-      version: published.value.version.version,
-      mapped: Object.fromEntries(kept.value.map((p) => [String(p.column), p.key])),
-      defaults,
+    if (!added.ok) return added;
+  }
+  const done = await deps.importCommit(asking, {
+    uploadId: input.uploadId,
+    mapping: plan.mapping,
+    ...(input.applySensitiveWithoutApproval === true
+      ? { applySensitiveWithoutApproval: true }
+      : {}),
+  });
+  if (!done.ok) {
+    if (kept.length === 0 && g.published !== null) return done;
+    // The fields are in; the import is not. Saying so is the honest answer,
+    // and running it again finds the columns mapped to the new fields.
+    return err({
+      ...done.error,
+      message: `The fields are published as version ${String(plan.version)}, but the import did not go through: ${done.error.message} Run it again: the new columns now go to the new fields.`,
     });
+  }
+  const finishedAt = deps.clock.instant();
+  return ok({
+    ...done.value,
+    fields: plan.fields,
+    version: plan.version,
+    asked: plan.asked,
+    forHr: plan.forHr,
+    finishedAt,
+    tookMs: Math.max(0, Date.parse(finishedAt) - started),
   });
 }
 

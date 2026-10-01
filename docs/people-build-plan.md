@@ -1999,6 +1999,139 @@ it is written down here rather than left in a PR description.
       / Possible. Revisit if duplicate detection gains a calibrated model
       (fuzzy names, measured precision on real merges). Found building #197.
 
+<!-- Smart search (AI1–AI4, MA1–MA3): its own block. -->
+- [ ] **PEO-132** Charts and schedules from a view saved from a search.
+      "Save as view" stores the directory's conditions on the segment
+      (`people.segment.conditions`); the directory and the export apply
+      them, but analytics' filters (`chartFilters`) and scheduled reports
+      (`where`) take key = value only, so such a view is not offered on
+      Insights and a schedule refuses it (`SEGMENT_NOT_SCHEDULABLE`). Teach
+      both the conditions (analytics' cohort floor applies to each), then
+      drop the refusals. Found building smart search.
+- [ ] **PEO-133** Remember a clarification across devices. "Pick one and
+      I'll remember it" keeps the reading chosen per topic in the browser's
+      local storage and sends it with the next question (`remembered`), so
+      another device asks again. A per-account preference in People (a
+      small table, RLS, erased with the account) would make it follow the
+      person. Found building smart search.
+- [ ] **PEO-134** Remind all for managers. The directory offers "Remind all"
+      to HR only (`DirectoryView.remind`, decided over everybody); a manager
+      may ask their own reports for a detail one at a time on a profile.
+      Offer it to a manager when every person found is theirs, checked per
+      person as `requestDetailsOfMany` already does. Found building smart
+      search.
+
+Smart export (design AI13, AI14, MA10), built from one sentence, sent to
+somebody, explained by its own About (`docs/ai-settings.md`, "An export sent
+to somebody"). What the design shows and the backend cannot honestly do yet:
+
+- [ ] **PEO-135** Time-limited, scoped access grants (design AI13's "I've
+      asked Nora to approve Engineering for 30 days"). Today an approval
+      covers one file, built once and kept a week; nothing grants a person a
+      field on a department for a period, and roles are tenant-wide. Needs a
+      grant with a scope and an expiry in OpenFGA (conditional tuples), a
+      place in Settings › Access to see and revoke them, and the export's
+      approval offering one. Found building the smart export.
+- [ ] **PEO-136** Split an export by a field (design AI13's "Split by team"
+      chip): a sheet per value in Excel, a file per value in CSV, that the
+      importer still reads back. Not offered until built.
+- [ ] **PEO-137** Requests to send an export in the Approvals inbox, and the
+      requester told the decision by email (an `export_share_decided`
+      notice). Today the approvers are emailed a link to the request
+      (`/people/export?share=…`), decide it there, and the requester sees the
+      outcome on the same page.
+- [ ] **PEO-138** Sending an export of more than 2,000 people. Today it is
+      refused ("download this one instead") because a sent file is built
+      while the request waits; the queue (`export/queue.ts`) needs to carry
+      the recipient and email them when the job completes.
+- [ ] **PEO-139** "Make this a monthly schedule" for any audience a sentence
+      describes. A scheduled report takes a saved view or one value per field
+      (PEO-069), so dates, "contains" and "any of" conditions are refused with
+      "save this group as a view first"; a schedule holding the directory's
+      own conditions lifts that.
+
+<!-- What changed (AI rework, lane I): its own block. -->
+- [ ] **PEO-140** Slides as a format for an Insights summary (design AI6, MA5
+      offer PDF, Slides and Email/Message). Nothing in the stack writes a slide
+      deck, so Slides is not offered; PDF downloads (pdfkit) and Email/Message
+      sends a link. Needs a .pptx writer as a People dependency, said why.
+      Found building What changed.
+- [ ] **PEO-141** A leading icon on a `TertiaryNav` tab (design AI5 draws the
+      assistant's spark on "What changed"). Reach's tab item has a label, a
+      short label, a badge and a count, no icon; the frame draws the tab
+      without one until Reach has it.
+- [ ] **PEO-142** Horizontal stacked bars in Reach (design AI5's "Leavers by
+      team, 3 months"). `StackedBarChart` stacks vertically; the chart is drawn
+      that way until Reach has an orientation.
+- [ ] **PEO-143** Payroll's month-on-month change as a What changed point
+      (design AI5's "Monthly payroll went up 2.4%… No pay bands changed").
+      The pay snapshot holds quartiles per grade, never a total, so the pay
+      point today is grades whose median sits outside their band. Needs a
+      cohort-safe payroll total (and band changes) in the pay snapshot.
+- [ ] **PEO-144** Named managers and notice in What changed (design AI5's "Marco
+      Ruiz (11) and Tom Fischer (9)", "3 people gave notice… third month in a
+      row"). Today the span point counts managers over 8 reports from the
+      snapshot's span measure (no names: naming needs a per-person read
+      authorised as the viewer and, when shared, as the recipient), and the
+      leavers point counts people who left, from the snapshot's flows, not
+      notices given; no streaks.
+
+<!-- Flagged approvals (design AI7, AI8, MA6, MA7): its own block. -->
+- [x] **PEO-145** Flag raises and band breaches on a sealed salary. Decided
+      2026-10-01: for a decider who may read the field, the checks open the
+      value in force (`SecretStore.reveal`) and the change's own seal in
+      memory, for that request only, and say percentages and the band's
+      limits, never an amount; nothing decrypted is stored, cached or logged
+      (`http/sealed-flags.integration.test.ts`). A sealed field's history
+      keeps no amounts, so there is no team comparison for it. A decider who
+      may not read the field gets no pay flag and no hint of one.
+- [ ] **PEO-146** Tell the requester by email and in chat when HR asks about
+      their change ("Ask Nora"). Today the question reaches their bell and
+      Inbox only. Needs an `approval_question` notice kind in
+      `platform/messaging` and the chat apps, and a row in the chat notices
+      setting.
+- [ ] **PEO-147** The company's payroll calendar. The "payroll that's already
+      closing" check assumes a monthly payroll closing on the month's last
+      day; a company that closes on the 25th, or pays twice a month, is
+      flagged against the wrong date. Lives with the pay settings.
+
+<!-- Smart import (design AI9 to AI12, MA8, MA9): its own block. -->
+- [ ] **PEO-148** Ask people for an optional value (design AI10 "Ask the 14
+      people to fill it in: optional for them, so nobody shows as
+      incomplete", beside "Make it required for everyone"; MA9 likewise).
+      Today asking means the reminders, and they only chase required gaps,
+      so "Ask" makes the field theirs and required: the people asked show as
+      incomplete until they answer, and the screen says so. The import
+      offers Ask, HR fills it in, Only new joiners and Leave it empty (and
+      one value for everyone when every row holds it) instead of the
+      design's four. Needs a per-person request that is not a gap: the
+      detail requests (`people.detail_request`, `requestDetails`) are the
+      nearest thing, keyed per person and field, emailed at most daily.
+- [ ] **PEO-149** "Tell Sofia and Nora when it's done" on the import's
+      Approve (design AI11). Nothing sends a notice to chosen colleagues
+      today; the import's outcome is in Import & export's history. Needs a
+      recipient picker scoped to who may see the import, and a message
+      through `platform/messaging` that names counts, never values.
+- [ ] **PEO-150** The import's links to what it made (design AI11 "Open
+      draft", "See rows"; AI12 "Open the 298 in Directory"). Built: See rows
+      (the blocked rows and their file) and Edit for each new field (the
+      registry filtered to it). Not built: a Directory filter for the people
+      one import created (its correlation id is on their events, as PEO-128
+      needs too), shown as "Open the Directory" until then; and "Open draft",
+      because the new fields are held in memory until the plan is approved
+      rather than written to the draft (a draft left by an abandoned import
+      would block every other publish). AI11's "Priya Shah gets them, as she
+      owns Equipment" needs section owners, which People does not model.
+      AI11's "Undo: for 24 hours, fields too" and AI12's "Undo import" wait
+      for PEO-128 and are not shown.
+- [ ] **PEO-151** A company's first import plans against nobody. With
+      nothing published People cannot read any record, so the plan's dry
+      run matches nobody (`dry-run.ts` `existingPeople`): a row for somebody
+      already here, typically the administrator's own provisional record,
+      counts as "create" in the plan and updates them when the import runs
+      (the commit runs after setup's publish and matches again). Read
+      records against the plan's version to count them right.
+
 ## Revisit later — the owner's list
 
 Everything left on People that needs the product owner rather than the next

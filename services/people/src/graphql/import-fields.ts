@@ -28,27 +28,32 @@ export function defineImportFields(builder: PeopleBuilder, viaRest: ViaRest): vo
           }),
         ),
     }),
-    reviewImportFields: t.string({
+    planImport: t.string({
       description:
-        'The proposals as HR left them, checked, with the review in words (JSON). Nothing is written.',
-      args: { input: t.arg.string({ required: true }) },
+        'Everything the import will do, from HR’s choices: its new fields, the people it creates and updates, who is asked and what HR fills in, over a dry run against the version those fields would make (JSON). Nothing is written.',
+      args: {
+        input: t.arg.string({
+          required: true,
+          description: 'JSON: uploadId, the mapping, and the proposals as HR left them',
+        }),
+      },
       resolve: (_root, args, ctx) =>
         json(
-          viaRest(ctx, 'POST', '/v1/imports/new-fields/review', {
+          viaRest(ctx, 'POST', '/v1/imports/plan', {
             body: JSON.parse(args.input) as unknown,
           }),
         ),
     }),
-    addImportFields: t.string({
+    runImport: t.string({
       description:
-        'Add the reviewed fields, publish them and write the defaults, in one transaction. A People administrator’s.',
+        'Approve the plan and run it: set the company up if nothing is published, add and publish the new fields, write the defaults, then import (JSON). A People administrator’s when it adds fields.',
       args: {
         input: t.arg.string({ required: true }),
         idempotencyKey: t.arg.string({ required: true }),
       },
       resolve: (_root, args, ctx) =>
         json(
-          viaRest(ctx, 'POST', '/v1/imports/new-fields/apply', {
+          viaRest(ctx, 'POST', '/v1/imports/run', {
             body: JSON.parse(args.input) as unknown,
             key: args.idempotencyKey,
           }),

@@ -1,5 +1,6 @@
 'use server';
 
+import type { ShareChoice } from '../../../lib/export-address';
 import { people, type PeopleAnswer } from '../../../lib/people';
 import { VIEWS } from '../../../lib/people-views';
 import { loadScreen } from '../../../lib/people-screens';
@@ -392,8 +393,7 @@ export async function publishDraft(requiredFrom: string): Promise<Outcome> {
 
 type Mapping = Readonly<Record<number, string | null>>;
 type Parsed =
-  | { readonly ok: true; readonly data: unknown }
-  | { readonly ok: false; readonly message: string };
+  { readonly ok: true; readonly data: unknown } | { readonly ok: false; readonly message: string };
 
 /** An answer that crosses as JSON text (docs/ai-settings.md), read back into its object. */
 async function parsed(answer: Promise<PeopleAnswer<string>>): Promise<Parsed> {
@@ -413,35 +413,43 @@ const stepOf = (uploadId: string, mapping: Mapping) => ({
 
 /** Fields proposed for the columns that match none. Nothing is written. */
 export async function proposeImportFields(uploadId: string, mapping: Mapping): Promise<Parsed> {
-  return parsed(people<string>('ProposeImportFields', { step: JSON.stringify(stepOf(uploadId, mapping)) }));
+  return parsed(
+    people<string>('ProposeImportFields', { step: JSON.stringify(stepOf(uploadId, mapping)) }),
+  );
 }
 
-/** The proposals as HR left them, checked, with the review in words. Nothing is written. */
-export async function reviewImportFields(
+/** Everything the import will do, from HR's choices, over a dry run. Nothing is written. */
+export async function planImport(
   uploadId: string,
   mapping: Mapping,
   proposals: readonly unknown[],
 ): Promise<Parsed> {
   return parsed(
-    people<string>('ReviewImportFields', {
+    people<string>('PlanImport', {
       input: JSON.stringify({ ...stepOf(uploadId, mapping), proposals }),
     }),
   );
 }
 
-/** Add the fields, publish, write the defaults: one transaction, an administrator's. */
-export async function addImportFields(
+/**
+ * Approve the plan and run it: setup if nothing is published, the new fields,
+ * their defaults, then the import. What it did comes back.
+ */
+export async function runImport(
   uploadId: string,
   mapping: Mapping,
   proposals: readonly unknown[],
-  summary: string,
-): Promise<Outcome> {
-  const added = await parsed(
-    people<string>('AddImportFields', {
-      input: JSON.stringify({ ...stepOf(uploadId, mapping), proposals, summary }),
+  applySensitiveWithoutApproval: boolean,
+): Promise<Parsed> {
+  return parsed(
+    people<string>('RunImport', {
+      input: JSON.stringify({
+        ...stepOf(uploadId, mapping),
+        proposals,
+        ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
+      }),
     }),
   );
-  return added.ok ? { ok: true } : added;
 }
 
 /* -------------------------------------------------------- integrations -- */
@@ -556,14 +564,39 @@ export async function decidePendingChange(
   );
 }
 
-/** The requester approves their own held change when no other HR member can, having confirmed it (PEO-077). */
-export async function approveAlone(id: string): Promise<Outcome> {
-  return decidePendingChange(id, true, null, true);
+/**
+ * The requester approves their own held change when no other HR member can,
+ * having confirmed it (PEO-077); with a note when it is flagged (AI7).
+ */
+export async function approveAlone(id: string, note: string | null = null): Promise<Outcome> {
+  return decidePendingChange(id, true, note, true);
 }
 
 /** The requester takes their change back while it waits. */
 export async function withdrawPendingChange(id: string): Promise<Outcome> {
   return outcome(people('WithdrawPendingChange', { id }));
+}
+
+/* ------------------------------------ flagged approvals (AI7, AI8) -- */
+
+/** Its flags were not worth raising: the checks learn from it. Decides nothing. */
+export async function markNotUnusual(id: string): Promise<Outcome> {
+  return outcome(people('MarkPendingChangeNotUnusual', { id }));
+}
+
+/** Whoever decides asks the requester first. */
+export async function askAboutChange(id: string, question: string): Promise<Outcome> {
+  return outcome(people('AskAboutPendingChange', { id, question }));
+}
+
+/** The requester answers, once. */
+export async function answerApprovalQuestion(id: string, answer: string): Promise<Outcome> {
+  return outcome(people('AnswerApprovalQuestion', { id, answer }));
+}
+
+/** A People administrator switches one of the checks. */
+export async function setApprovalCheck(code: string, on: boolean): Promise<Outcome> {
+  return outcome(people('SetApprovalCheck', { code, on }));
 }
 
 export async function decideFullValues(
@@ -855,48 +888,25 @@ const staged = async (answer: Promise<PeopleAnswer<Record<string, unknown>>>): P
   return a.ok ? { ok: true, stage: VIEWS.ImportStage(a.data) } : { ok: false, message: a.message };
 };
 
-const columns = (mapping: Readonly<Record<number, string | null>>) =>
-  Object.entries(mapping).map(([column, key]) => ({ column: Number(column), key }));
-
 /** The file is in storage: People checks it, and proposes the mapping. */
 export async function completeImportUpload(uploadId: string): Promise<Staged> {
   return staged(people('CompleteImportUpload', { uploadId }));
 }
 
-export async function dryRunImport(
-  uploadId: string,
-  mapping: Readonly<Record<number, string | null>>,
-): Promise<Staged> {
-  return staged(people('DryRunImport', { uploadId, mapping: columns(mapping) }));
-}
-
-export async function commitImport(
-  uploadId: string,
-  mapping: Readonly<Record<number, string | null>>,
-  applySensitiveWithoutApproval = false,
-): Promise<Staged> {
-  return staged(
-    people('CommitImport', {
-      uploadId,
-      mapping: columns(mapping),
-      ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
-    }),
-  );
-}
-
 /* -------------------------------------------------------------- export -- */
 
 type Exported =
-  { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string };
+  | { ok: true; id: string; links: readonly { name: string; url: string }[] }
+  | { ok: false; message: string };
 
 // The links are signed and expire (PEO-089); they carry their own authority.
 async function exported(variables: Record<string, unknown>): Promise<Exported> {
-  const answer = await people<{ links: { name: string; url: string }[] }>(
+  const answer = await people<{ id: string; links: { name: string; url: string }[] }>(
     'RequestExport',
     variables,
   );
   return answer.ok
-    ? { ok: true, links: answer.data.links }
+    ? { ok: true, id: answer.data.id, links: answer.data.links }
     : { ok: false, message: answer.message };
 }
 
@@ -945,12 +955,21 @@ export async function saveSegment(segment: {
   name: string;
   shared: boolean;
   filter: Readonly<Record<string, string>>;
+  /** A view saved from a search: the directory's own conditions (smart search). */
+  conditions?: readonly { key: string; op: string; values: readonly string[] }[];
+  match?: 'all' | 'any';
 }): Promise<Outcome> {
+  const conditions = segment.conditions ?? [];
   return outcome(
     people('SaveSegment', {
       name: segment.name,
       shared: segment.shared,
       filter: Object.entries(segment.filter).map(([key, value]) => ({ key, value })),
+      conditions:
+        conditions.length === 0
+          ? null
+          : conditions.map((c) => ({ key: c.key, op: c.op, values: [...c.values] })),
+      match: conditions.length === 0 ? null : (segment.match ?? 'all'),
     }),
   );
 }
@@ -1013,19 +1032,43 @@ export async function deleteReportSchedule(id: string): Promise<Outcome> {
 
 /* ------------------------------------------------------- what changed -- */
 
+/** The period and segment in the address, as People reads them; absent is the default. */
+export interface PeriodAsk {
+  readonly period?: string;
+  readonly from?: string;
+  readonly to?: string;
+  readonly segment?: string;
+}
+
 /**
- * One Insights tab's "what changed", worded by the assistant where there is
- * one; null when People could not be asked, and the screen keeps its own words.
+ * The points worded by the assistant where there is one; null when People
+ * could not be asked, and the screen keeps People's own words.
  */
-export async function whatChanged(
-  tab: string,
-  segment: string | null,
-): Promise<{ readonly sentences: readonly string[]; readonly byModel: boolean } | null> {
-  const answer = await people<{ sentences: readonly string[]; byModel: boolean }>('WhatChanged', {
-    tab,
-    segment,
-  });
-  return answer.ok ? { sentences: answer.data.sentences, byModel: answer.data.byModel } : null;
+export async function wordedWhatChanged(ask: PeriodAsk): Promise<unknown> {
+  const answer = await parsed(
+    people<string>('WhatChangedWorded', {
+      period: ask.period ?? null,
+      from: ask.from ?? null,
+      to: ask.to ?? null,
+      segment: ask.segment ?? null,
+    }),
+  );
+  return answer.ok ? answer.data : null;
+}
+
+/** A follow-up question, answered from the points and nothing else. */
+export async function askWhatChanged(ask: PeriodAsk, question: string): Promise<Parsed> {
+  return parsed(people<string>('WhatChangedAsk', { input: JSON.stringify({ ...ask, question }) }));
+}
+
+/** The summary as it would go to somebody, rewritten for what they may see. Writes nothing. */
+export async function draftSummary(input: Readonly<Record<string, unknown>>): Promise<Parsed> {
+  return parsed(people<string>('SummaryDraft', { input: JSON.stringify(input) }));
+}
+
+/** Send the summary as previewed and edited: stored for its recipient, and an email with a link. */
+export async function shareSummary(input: Readonly<Record<string, unknown>>): Promise<Parsed> {
+  return parsed(people<string>('ShareSummary', { input: JSON.stringify(input) }));
 }
 
 /**
@@ -1044,12 +1087,70 @@ export async function directoryPage(
 
 /* ------------------------------------------ search and export in words -- */
 
-/** What was typed in the directory, as its own filters and order (docs/ai-settings.md). A read. */
-export async function planDirectory(sentence: string): Promise<Parsed> {
-  return parsed(people<string>('DirectoryPlan', { sentence }));
+/**
+ * What was typed in the directory, as its own filters and order, with the
+ * readings this person chose before (docs/ai-settings.md, smart search). A read.
+ */
+export async function planDirectory(
+  sentence: string,
+  remembered: Readonly<Record<string, string>> = {},
+): Promise<Parsed> {
+  return parsed(
+    people<string>('DirectoryPlan', {
+      sentence,
+      remembered: Object.keys(remembered).length === 0 ? null : JSON.stringify(remembered),
+    }),
+  );
+}
+
+/** Smart search's "Remind all": everybody the conditions find is asked for what they find empty. */
+export async function remindDirectory(
+  conditions: readonly { key: string; op: string; values: readonly string[] }[],
+  match: 'all' | 'any',
+  search: string | null,
+): Promise<
+  | {
+      readonly ok: true;
+      readonly asked: number;
+      readonly emailed: number;
+      readonly skipped: number;
+      readonly more: boolean;
+    }
+  | { readonly ok: false; readonly message: string }
+> {
+  const answer = await parsed(
+    people<string>('RemindDirectory', {
+      conditions: JSON.stringify(conditions),
+      match,
+      search,
+    }),
+  );
+  if (!answer.ok) return answer;
+  const sent = answer.data as { asked: number; emailed: number; skipped: number; more: boolean };
+  return { ok: true, ...sent };
 }
 
 /** An export described in words, as the builder's choices and a drafted reason. Nothing is exported. */
 export async function planExport(sentence: string): Promise<Parsed> {
   return parsed(people<string>('ExportPlan', { sentence }));
+}
+
+/* ------------------------------------------- an export sent to somebody -- */
+
+/**
+ * Send an export (design AI13): at once when the recipient could read all of
+ * it themselves, otherwise as a request a People administrator approves.
+ * Answers `{ status: 'sent', exportId }` or the request waiting.
+ */
+export async function shareExport(choice: ShareChoice, recipient: string): Promise<Parsed> {
+  return parsed(people<string>('ShareExport', { input: JSON.stringify({ choice, recipient }) }));
+}
+
+/** Approve or reject sending one; approved, People builds and sends it. */
+export async function decideExportShare(
+  id: string,
+  approve: boolean,
+  note: string | null,
+): Promise<Parsed> {
+  return parsed(people<string>('DecideExportShare', { id, approve, note }));
 }

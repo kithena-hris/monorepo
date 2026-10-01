@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   useId,
+  useRef,
   type ComponentPropsWithoutRef,
   type SyntheticEvent,
   type JSX,
@@ -20,8 +21,11 @@ import {
 
 import { cn } from '../../lib/cn';
 import { keysOf, useShortcutKeys } from '../../lib/shortcut-keys';
+import { useClearOfPinned } from '../../lib/pinned';
+import { icons } from '../../icons';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
+import { Card } from '../card/card';
 import { KbdShortcut } from '../kbd/kbd';
 import { Spinner } from '../spinner/spinner';
 import { Tooltip, TooltipProvider } from '../tooltip/tooltip';
@@ -71,6 +75,88 @@ export function AssistantMark({
     >
       <Sparkles />
     </span>
+  );
+}
+
+/**
+ * A short heading the assistant speaks in, its spark before it, in the accent:
+ * "Understood as" before the chips a sentence became. Inline, so it can lead a
+ * `ChipRow` (as its `label`) or a line of text.
+ */
+export function AssistantLabel({
+  className,
+  children,
+  ...props
+}: ComponentPropsWithoutRef<'span'>): JSX.Element {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap text-accent-fg',
+        '[&_svg]:size-3.5 [&_svg]:shrink-0',
+        className,
+      )}
+      {...props}
+    >
+      <icons.assistant aria-hidden />
+      {children}
+    </span>
+  );
+}
+
+export interface AssistantCardProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
+  /** What the card holds, in a sentence: "Here's what I'd create". */
+  title: ReactNode;
+  /** The heading's level in the page outline. */
+  level?: 2 | 3 | 4;
+  /** At the end of the title row: a `Badge tone="assistant"`, or one button. */
+  action?: ReactNode;
+  /**
+   * One line under the content on where it came from or what it will not do:
+   * "Every number links to the records behind it."
+   */
+  note?: ReactNode;
+}
+
+/**
+ * Whatever the assistant wrote, built or flagged, in one recognisable place:
+ * the card's `assistant` edge, the assistant's mark, a title, the content and
+ * an optional note on where it came from.
+ *
+ * The card shows work; it never finishes it. Anything with a consequence sits
+ * inside as its own button, pressed by a person.
+ */
+export function AssistantCard({
+  title,
+  level = 3,
+  action,
+  note,
+  className,
+  children,
+  ...props
+}: AssistantCardProps): JSX.Element {
+  const Heading = `h${String(level)}` as 'h2' | 'h3' | 'h4';
+  return (
+    <Card
+      variant="assistant"
+      padded
+      className={cn('flex min-w-0 flex-col gap-3.5', className)}
+      {...props}
+    >
+      <div className="flex items-center gap-2.5">
+        <AssistantMark />
+        <Heading className="min-w-0 flex-1 text-base leading-snug font-semibold text-fg">
+          {title}
+        </Heading>
+        {action}
+      </div>
+      {children}
+      {note ? (
+        <p className="flex items-start gap-1.5 text-xs text-fg-subtle [&_svg]:mt-px [&_svg]:size-3.5 [&_svg]:shrink-0">
+          <icons.info aria-hidden />
+          <span>{note}</span>
+        </p>
+      ) : null}
+    </Card>
   );
 }
 
@@ -443,7 +529,11 @@ export interface AssistantLauncherProps extends ComponentPropsWithoutRef<'div'> 
   shortcut?: string;
 }
 
-/** The floating button that opens the panel, with an optional greeting. */
+/**
+ * The floating button that opens the panel, with an optional greeting. It
+ * rises above any pinned bar under it (`PINNED_BAR`), so it never covers a
+ * Save or an Approve.
+ */
 export function AssistantLauncher({
   onOpen,
   nudge,
@@ -451,9 +541,12 @@ export function AssistantLauncher({
   label = 'Open assistant',
   shortcut,
   className,
+  style,
   ...props
 }: AssistantLauncherProps): JSX.Element {
   const keys = keysOf(shortcut, useShortcutKeys());
+  const root = useRef<HTMLDivElement>(null);
+  const lift = useClearOfPinned(root);
   const launcher = (
     <button
       type="button"
@@ -470,7 +563,16 @@ export function AssistantLauncher({
     </button>
   );
   return (
-    <div className={cn('flex flex-col items-end gap-2.5', className)} {...props}>
+    <div
+      ref={root}
+      className={cn(
+        'flex flex-col items-end gap-2.5',
+        'transition-transform duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
+        className,
+      )}
+      style={lift === 0 ? style : { ...style, transform: `translateY(${String(-lift)}px)` }}
+      {...props}
+    >
       {nudge ? (
         <div className="flex max-w-60 items-start gap-2.5 rounded-lg rounded-ee-xs bg-surface-raised py-3 ps-3.5 pe-2.5 text-sm text-fg shadow-lg">
           <p className="flex-1">{nudge}</p>

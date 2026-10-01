@@ -1,5 +1,4 @@
 import type { AnalyticsView } from '../application/screens/analytics.js';
-import type { WhatChanged } from '../application/screens/what-changed.js';
 import type { SegmentView } from '../application/screens/segments.js';
 import type {
   DeliveriesView,
@@ -609,10 +608,60 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     .objectRef<ApprovalsView['items'][number]['flags'][number]>('ApprovalFlag')
     .implement({
       description:
-        'Something unusual about a change, found by People’s rules, for whoever decides it. It never blocks.',
+        'Why People’s checks flag a change (design AI7), for whoever decides it. It never blocks.',
+      fields: (t) => ({
+        code: t.exposeString('code', { description: 'The check: raise, band, bank_after_contact, close_colleagues, payroll_closing or unusual_time.' }),
+        title: t.exposeString('title', { description: '“A 38% raise”.' }),
+        detail: t.exposeString('detail', {
+          description: 'What it compared against, in words. Empty on a decided change.',
+        }),
+      }),
+    });
+  const ApprovalComparisonRef = builder
+    .objectRef<ApprovalsView['items'][number]['comparisons'][number]>('ApprovalComparison')
+    .implement({
+      description: 'One of the numbers a flag compared against, as a whole percentage.',
+      fields: (t) => ({
+        label: t.exposeString('label'),
+        percent: t.exposeString('percent'),
+        highlight: t.exposeBoolean('highlight', { description: 'The change itself.' }),
+      }),
+    });
+  const ApprovalQuestionRef = builder
+    .objectRef<ApprovalsView['items'][number]['questions'][number]>('ApprovalQuestion')
+    .implement({
+      description: 'A question the decider asked the requester, and the answer.',
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        question: t.exposeString('question'),
+        askedBy: t.exposeString('askedBy'),
+        askedAt: t.exposeString('askedAt'),
+        answer: t.exposeString('answer', { nullable: true }),
+        answeredAt: t.exposeString('answeredAt', { nullable: true }),
+        canAnswer: t.exposeBoolean('canAnswer', {
+          description: 'The viewer asked for the change and nobody answered yet.',
+        }),
+      }),
+    });
+  const ApprovalCheckRef = builder
+    .objectRef<NonNullable<ApprovalsView['checks']>[number]>('ApprovalCheck')
+    .implement({
+      description: 'One of the checks Kithena runs on changes waiting for approval (design AI8).',
       fields: (t) => ({
         code: t.exposeString('code'),
-        reason: t.exposeString('reason'),
+        title: t.exposeString('title'),
+        detail: t.exposeString('detail'),
+        on: t.exposeBoolean('on'),
+      }),
+    });
+  const ApprovalStatsRef = builder
+    .objectRef<NonNullable<ApprovalsView['last90']>>('ApprovalFlagStats')
+    .implement({
+      description: 'Changes asked for in the last 90 days that a check flagged.',
+      fields: (t) => ({
+        flagged: t.exposeInt('flagged'),
+        rejected: t.exposeInt('rejected'),
+        marked: t.exposeInt('marked', { description: 'Marked not unusual.' }),
       }),
     });
   const ApprovalItemRef = builder
@@ -624,6 +673,22 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description: 'Only to whoever decides it; empty for anybody else.',
           resolve: (c) => list(c.flags),
         }),
+        comparisons: t.field({ type: [ApprovalComparisonRef], resolve: (c) => list(c.comparisons) }),
+        flagNote: t.exposeString('flagNote', {
+          nullable: true,
+          description: '“This might be fine: …”, with anything flagged.',
+        }),
+        flagSummary: t.exposeString('flagSummary', {
+          nullable: true,
+          description: 'The reasons in one line, for a row.',
+        }),
+        canAsk: t.exposeBoolean('canAsk'),
+        canMark: t.exposeBoolean('canMark', { description: 'May mark its flags not unusual.' }),
+        questions: t.field({ type: [ApprovalQuestionRef], resolve: (c) => list(c.questions) }),
+        state: t.exposeString('state', { description: 'pending, approved or rejected.' }),
+        decidedBy: t.exposeString('decidedBy', { nullable: true }),
+        decidedAt: t.exposeString('decidedAt', { nullable: true }),
+        note: t.exposeString('note', { nullable: true }),
         id: t.exposeID('id'),
         key: t.exposeString('key'),
         label: t.exposeString('label'),
@@ -657,6 +722,25 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       isHr: t.exposeBoolean('isHr'),
       items: t.field({ type: [ApprovalItemRef], resolve: (v) => list(v.items) }),
+      decided: t.field({
+        type: [ApprovalItemRef],
+        description: 'HR’s: decided in the last 90 days, newest first.',
+        resolve: (v) => list(v.decided),
+      }),
+      checks: t.field({
+        type: [ApprovalCheckRef],
+        nullable: true,
+        description: 'What Kithena checks, for HR.',
+        resolve: (v) => (v.checks === null ? null : list(v.checks)),
+      }),
+      canTune: t.exposeBoolean('canTune', {
+        description: 'A People administrator switches the checks.',
+      }),
+      last90: t.field({
+        type: ApprovalStatsRef,
+        nullable: true,
+        resolve: (v) => v.last90,
+      }),
     }),
   });
 
@@ -829,6 +913,18 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       people: t.field({ type: [DirectoryPerson], resolve: (v) => list(v.people) }),
       next: t.exposeString('next', { nullable: true }),
       can: t.field({ type: DirectoryCan, resolve: (v) => v.can }),
+      // Smart search (docs/ai-settings.md).
+      suggestions: t.stringList({
+        description:
+          '"Try asking": questions from this company’s own fields, each read in full by People’s rules.',
+        resolve: (v) => [...v.suggestions],
+      }),
+      remind: t.stringList({
+        nullable: true,
+        description:
+          'The details the conditions find empty that this viewer may ask everybody found for; null for none.',
+        resolve: (v) => (v.remind === null ? null : [...v.remind]),
+      }),
     }),
   });
 
@@ -1033,7 +1129,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description: 'Stored sealed: only the last four characters are ever shown.',
         }),
         encryptable: t.exposeBoolean('encryptable', {
-          description: 'It may be switched to encrypted: a sealable type, not a column People sorts by.',
+          description:
+            'It may be switched to encrypted: a sealable type, not a column People sorts by.',
         }),
         pending: t.exposeString('pending', {
           nullable: true,
@@ -1425,32 +1522,6 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       compa: t.field({ type: [PayGroup], resolve: (p) => list(p.compa) }),
     }),
   });
-  const TabSummary = builder
-    .objectRef<A['whatChanged']['tabs'][number]>('AnalyticsTabSummary')
-    .implement({
-      description: 'One tab’s “what changed”, in People’s own words, from its figures.',
-      fields: (t) => ({
-        tab: t.exposeString('tab'),
-        sentences: t.stringList({ resolve: (s) => list(s.sentences) }),
-      }),
-    });
-  const WhatChangedRef = builder.objectRef<A['whatChanged']>('AnalyticsWhatChanged').implement({
-    fields: (t) => ({
-      phrasable: t.exposeBoolean('phrasable', {
-        description: 'The assistant may reword it: ask `peopleWhatChanged` for its words.',
-      }),
-      tabs: t.field({ type: [TabSummary], resolve: (w) => list(w.tabs) }),
-    }),
-  });
-  const Phrased = builder.objectRef<WhatChanged>('AnalyticsPhrased').implement({
-    description:
-      'One tab’s “what changed”: the figures are always People’s; the words are the assistant’s when `byModel`.',
-    fields: (t) => ({
-      tab: t.exposeString('tab'),
-      sentences: t.stringList({ resolve: (s) => list(s.sentences) }),
-      byModel: t.exposeBoolean('byModel'),
-    }),
-  });
   const Analytics = builder.objectRef<A>('PeopleAnalytics').implement({
     description:
       'A null figure is one the viewer may not see, or one the cohort minimum suppresses (§11).',
@@ -1507,7 +1578,6 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: "Finance's only; never under a segment",
         resolve: (v) => v.pay,
       }),
-      whatChanged: t.field({ type: WhatChangedRef, resolve: (v) => v.whatChanged }),
     }),
   });
 
@@ -2012,20 +2082,6 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
             : '/v1/views/analytics',
         ),
     }),
-    peopleWhatChanged: t.field({
-      type: Phrased,
-      description:
-        'One Insights tab’s “what changed”, reworded by the assistant where there is one. It is shown placeholders, never a figure.',
-      args: { tab: t.arg.string({ required: true }), segment: t.arg.id() },
-      resolve: (_root, args, ctx) =>
-        viaRest<WhatChanged>(
-          ctx,
-          'GET',
-          `/v1/views/analytics/what-changed?tab=${encodeURIComponent(args.tab)}${
-            args.segment ? `&segment=${encodeURIComponent(args.segment)}` : ''
-          }`,
-        ),
-    }),
     peopleSegments: t.field({
       type: [Segment],
       description: 'The saved segments you see and could use somewhere (PEO-068).',
@@ -2144,7 +2200,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: 'Whether a change waits for HR approval; null keeps the default.',
       }),
       encrypted: t.boolean({
-        description: 'Store it sealed: once on, never off. Existing values are sealed when it is published.',
+        description:
+          'Store it sealed: once on, never off. Existing values are sealed when it is published.',
       }),
     }),
   });
@@ -2515,7 +2572,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         sent: t.exposeInt('sent'),
         failed: t.exposeInt('failed'),
         skipped: t.exposeInt('skipped', {
-          description: 'Waiting, and not due: reminded this week, outside their hours, or no email.',
+          description:
+            'Waiting, and not due: reminded this week, outside their hours, or no email.',
         }),
       }),
     });
@@ -3094,6 +3152,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       args: {
         name: t.arg.string({ required: true }),
         filter: t.arg({ type: [SegmentConditionInput], required: true }),
+        // A view saved from a search: the directory's own conditions (smart search).
+        conditions: t.arg({ type: [DirectoryConditionInput] }),
+        match: t.arg.string(),
         shared: t.arg.boolean({ required: true }),
         idempotencyKey: t.arg.string({ required: true }),
       },
@@ -3102,6 +3163,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           body: {
             name: args.name,
             filter: Object.fromEntries(args.filter.map((c) => [c.key, c.value])),
+            ...(args.conditions == null || args.conditions.length === 0
+              ? {}
+              : {
+                  conditions: args.conditions.map((c) => ({
+                    key: c.key,
+                    op: c.op,
+                    values: c.values,
+                  })),
+                  match: args.match === 'any' ? 'any' : 'all',
+                }),
             shared: args.shared,
           },
           key: args.idempotencyKey,
@@ -3153,6 +3224,67 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(id)}/decision`, {
           body: sent(decision),
           key: idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    markPendingChangeNotUnusual: t.field({
+      type: Outcome,
+      description:
+        'Its flags were not worth raising (design AI7): similar changes by the same requester are flagged less often. Decides nothing.',
+      args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(args.id)}/not-unusual`, {
+          body: {},
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    askAboutPendingChange: t.field({
+      type: Outcome,
+      description: 'Whoever may decide a change asks the requester first (“Ask Nora”).',
+      args: {
+        id: t.arg.id({ required: true }),
+        question: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(args.id)}/questions`, {
+          body: { question: args.question },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    answerApprovalQuestion: t.field({
+      type: Outcome,
+      description: 'The requester answers a question about their change, once.',
+      args: {
+        id: t.arg.id({ required: true }),
+        answer: t.arg.string({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'POST', `/v1/approval-questions/${encodeURIComponent(args.id)}/answer`, {
+          body: { answer: args.answer },
+          key: args.idempotencyKey,
+        });
+        return done();
+      },
+    }),
+    setApprovalCheck: t.field({
+      type: Outcome,
+      description: 'A People administrator switches one of the approval checks on or off.',
+      args: {
+        code: t.arg.string({ required: true }),
+        on: t.arg.boolean({ required: true }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) => {
+        await viaRest(ctx, 'PUT', `/v1/approval-checks/${encodeURIComponent(args.code)}`, {
+          body: { on: args.on },
+          key: args.idempotencyKey,
         });
         return done();
       },

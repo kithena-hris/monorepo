@@ -192,7 +192,7 @@ describe('where each go-to shortcut goes', () => {
   it('opens each People section at the first page under it this viewer opens', () => {
     expect(at('go.directory')).toBe('/people/directory/list');
     expect(at('go.data-health')).toBe('/people/data-health/completeness');
-    expect(at('go.insights')).toBe('/people/insights/headcount');
+    expect(at('go.insights')).toBe('/people/insights/what-changed');
     const finance = { ...hr, sections: placesFor(PEOPLE_NAV, FINANCE).sections, activity: false };
     expect(at('go.data-health', finance)).toBe('/people/data-health/access-requests');
     expect(at('go.insights', finance)).toBeNull();
@@ -234,7 +234,7 @@ describe('[ and ]', () => {
       adjacentPage(sections, '/people/data-health/id-checks', at('/people/data-health/id-checks'), 1),
     ).toBe('/people/data-health/duplicates');
     expect(
-      adjacentPage(sections, '/people/insights/headcount', at('/people/insights/headcount'), -1),
+      adjacentPage(sections, '/people/insights/what-changed', at('/people/insights/what-changed'), -1),
     ).toBeNull();
     expect(adjacentPage(sections, '/people/approvals', at('/people/approvals'), 1)).toBeNull();
   });

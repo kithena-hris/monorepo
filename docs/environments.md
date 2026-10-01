@@ -1206,6 +1206,7 @@ are prefixes, not globs, so each key starts with how long it lives:
 | exports | `exports/<tenant>/<export id>/<file>` | an export | after its link's 24 h (hourly sweep) | prefix `exports/`: 2 days |
 | exports | `dry-runs/<tenant>/<upload id>/blocked-rows.csv` | a dry run | after 24 h | prefix `dry-runs/`: 2 days |
 | exports | `imports/<tenant>/<checksum>/blocked-rows.csv` | a commit | after 7 days, or at once on an erasure | prefix `imports/`: 8 days |
+| exports | `shared/<tenant>/<export id>/<file>` | an export sent to somebody | after its 7 days (hourly sweep) | prefix `shared/`: 8 days |
 | backups | `<env>/<date>/{people.dump,postgres.sql.gz,topics.txt.gz}` | `backup.sh` | never (the role cannot delete) | whole bucket: 30 days |
 
 The sweep's own rule is `lifetimeOf` in

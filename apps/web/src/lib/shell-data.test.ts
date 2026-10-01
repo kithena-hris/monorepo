@@ -69,3 +69,30 @@ describe('telling somebody they were viewed as', () => {
     ]);
   });
 });
+
+describe('a question about one’s own change (AI7)', () => {
+  it('becomes a notice that opens the change to answer it', () => {
+    const [notice] = noticesOf({
+      ...overview({ hr: false, admin: false, finance: false }, 1),
+      approvals: {
+        isHr: false,
+        total: 1,
+        items: [
+          {
+            id: 'c1',
+            name: 'Tom Fischer',
+            label: 'Base salary',
+            requestedAt: '2026-09-28T09:00:00.000Z',
+            requestedBy: 'You',
+            asked: true,
+          },
+        ],
+      },
+    });
+    expect(notice).toMatchObject({
+      title: 'HR asked about your base salary change',
+      detail: 'Tom Fischer · answer it to move it on',
+      href: '/people/approvals?tab=asked&change=c1',
+    });
+  });
+});

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DecideExportShare($id: ID!, $approve: Boolean!, $note: String, $key: String!) {\n    decideExportShare(id: $id, approve: $approve, note: $note, idempotencyKey: $key)\n  }"}

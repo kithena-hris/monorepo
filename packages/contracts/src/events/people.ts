@@ -1071,6 +1071,51 @@ export const FullValuesDownloaded = defineEvent(
 );
 
 /**
+ * An export sent to somebody else (design AI13). Sent at once when the
+ * recipient could read everything in it themselves; otherwise a request
+ * waits for a People administrator who is neither asking nor receiving, and
+ * the file is built only once it is approved. Field keys, accounts and the
+ * stated reason — never a value, never a link.
+ */
+export const ExportShareRequested = defineEvent(
+  'people.export.share_requested',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    recipientAccountId: z.uuid().register(policy, asInternal()),
+    /** The fields the recipient could not read themselves. */
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+    reason: z.string().max(500).register(policy, asFreeText()),
+    expiresAt: Instant,
+  }),
+);
+
+export const ExportShareDecided = defineEvent(
+  'people.export.share_decided',
+  1,
+  z.object({
+    requestId: z.uuid().register(policy, asPublic()),
+    decision: z.enum(['approved', 'rejected']).register(policy, asPublic()),
+    recipientAccountId: z.uuid().register(policy, asInternal()),
+    attributeKeys: z.array(AttributeKey).register(policy, asInternal()),
+    note: z.string().max(500).nullable().register(policy, asFreeText()),
+  }),
+);
+
+/** The file went to its recipient: `people.export.completed` names what is in it. */
+export const ExportShared = defineEvent(
+  'people.export.shared',
+  1,
+  z.object({
+    exportId: z.uuid().register(policy, asPublic()),
+    recipientAccountId: z.uuid().register(policy, asInternal()),
+    /** The approved request it was sent under; null when none was needed. */
+    requestId: z.uuid().nullable().register(policy, asPublic()),
+    linkExpiresAt: Instant,
+  }),
+);
+
+/**
  * A change held for approval (PEO-077): a value, or a correction carrying
  * `supersedes`, to a field that requires approval, recorded and **not
  * applied**. HR decides within seven days or it expires; the requester may
@@ -1314,6 +1359,9 @@ export const peopleEvents = [
   FullValuesExpired,
   FullValuesIssued,
   FullValuesDownloaded,
+  ExportShareRequested,
+  ExportShareDecided,
+  ExportShared,
   PersonChangeRequested,
   PersonChangeDecided,
   PersonChangeWithdrawn,

@@ -49,6 +49,7 @@ import { chatAct, parseChatAction } from './chat.js';
 import { chatAppsFrom } from '../infrastructure/chat-apps.js';
 import { sealExisting } from '../infrastructure/seal-existing.js';
 import { drizzleChatNotices } from '../infrastructure/drizzle-chat-notices.js';
+import { drizzleApprovalFlagStore } from '../application/person/approval-flag-store.js';
 import { drizzleEmployeeNumbers, drizzleOrgStore } from '../infrastructure/drizzle-org-store.js';
 import { drizzleCompletenessStore } from '../infrastructure/drizzle-completeness-store.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
@@ -123,9 +124,17 @@ import {
 import { typesafeAttributeAdvisorFromEnv } from '../infrastructure/typesafe-attribute-advisor.js';
 import { drizzleSegments } from '../infrastructure/drizzle-segments.js';
 import { drizzleReportSchedules } from '../infrastructure/drizzle-report-schedules.js';
-import { reportMailerFrom } from '../infrastructure/report-mailer.js';
+import {
+  reportMailerFrom,
+  shareMailerFrom,
+  summaryMailerFrom,
+} from '../infrastructure/report-mailer.js';
+import { drizzleSharedSummaries } from '../infrastructure/drizzle-shared-summaries.js';
 import { sendDueReports, type ScheduleAdminDeps } from '../application/reports/scheduled.js';
 import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
+import { shareRoutes } from './export-share.js';
+import type { ShareDeps } from '../application/export/share.js';
+import { drizzleShareStore } from '../application/export/share-store.js';
 import { callerWithEntitlements, viewingRequest, withTenantRoles } from './caller.js';
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
 import { drizzleIdempotency } from './idempotency.js';
@@ -320,7 +329,22 @@ export function peopleService(
     access,
     // Who holds `hr` decides whether a requester approves alone (PEO-077); a
     // doubted identifier waits on its review (PEO-125).
-    pending: { ...holding, access, schemas, reader, relations, roles: drizzleRoleStore(), reviews },
+    // And what flags a change, as the company switched its checks (design AI7, AI8).
+    pending: {
+      ...holding,
+      access,
+      schemas,
+      reader,
+      relations,
+      roles: drizzleRoleStore(),
+      reviews,
+      // Sealed pay opened in memory for a decider who may read it (PEO-145).
+      flags: {
+        store: drizzleApprovalFlagStore(),
+        calendars: org,
+        sealed: { current: (tx, where) => secrets.reveal(tx, where) },
+      },
+    },
     schemas,
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
@@ -638,6 +662,26 @@ function insightsPhraserFrom(env: NodeJS.ProcessEnv): Pick<ScreenRouteDeps, 'ins
 }
 
 /**
+ * Sending an Insights summary (design AI6, MA5): stored for the recipient,
+ * announced by messaging as a link to the tenant app. Without a mailer or a
+ * safe tenant app base, Send is not offered; the summary still downloads.
+ */
+function insightsSharesFrom(env: NodeJS.ProcessEnv): Pick<ScreenRouteDeps, 'insightsShares'> {
+  const base = tenantAppBase(env);
+  const mailer = base === null ? undefined : summaryMailerFrom(env);
+  return {
+    insightsShares: {
+      store: drizzleSharedSummaries(),
+      ...(mailer === undefined ? {} : { mailer }),
+      company:
+        base === null ? () => Promise.resolve(null) : tenantCompanies(base, drizzleOrgStore()),
+      accounts: scheduleAdmin().accounts,
+      newId: uuidv7,
+    },
+  };
+}
+
+/**
  * Search and export in words (docs/ai-settings.md): the assistant's own model
  * (`ASSISTANT_*`), behind the AI gateway, with eight seconds to answer because
  * somebody is waiting at the search box. Budgets per company per hour; with no
@@ -698,6 +742,7 @@ function screenDeps(
     ...assistantFrom(process.env),
     newFields: newFieldsFrom(process.env),
     ...insightsPhraserFrom(process.env),
+    ...insightsSharesFrom(process.env),
     selection: selectionFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars, service),
@@ -747,6 +792,25 @@ function deploymentEntitlements(): readonly string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * Sending an export to somebody (design AI13): the export pipeline, the
+ * requests waiting for approval, who signs in, and the email beside it where
+ * messaging and a safe tenant app base are configured.
+ */
+function shareDeps(exports: ExportJobDeps): ShareDeps {
+  const base = tenantAppBase(process.env);
+  const mailer = shareMailerFrom(process.env);
+  return {
+    ...exports,
+    shares: drizzleShareStore(),
+    accounts: drizzleRoleStore(),
+    segments: drizzleSegments(),
+    ...(base === null || mailer === undefined
+      ? {}
+      : { mailer, company: tenantCompanies(base, drizzleOrgStore()) }),
+  };
 }
 
 /** Scheduled reports as HR's screens manage them (PEO-069). */
@@ -884,7 +948,11 @@ export function wirePeople(server: Server): void {
     exports,
     fullValues: exports.fullValues,
     segments: drizzleSegments(),
-    screens: screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
+    screens: [
+      ...screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
+      // An export sent to somebody else (design AI13, AI14, MA10).
+      ...shareRoutes({ service, idempotency, share: shareDeps(exports.deps) }),
+    ],
     activity: {
       store: drizzleActivity(),
       newId: uuidv7,

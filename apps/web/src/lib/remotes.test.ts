@@ -277,7 +277,7 @@ describe('firstUnder', () => {
     expect(firstUnder(sections(FINANCE), '/people/data-health')).toBe(
       '/people/data-health/access-requests',
     );
-    expect(firstUnder(sections(HR), '/people/insights/')).toBe('/people/insights/headcount');
+    expect(firstUnder(sections(HR), '/people/insights/')).toBe('/people/insights/what-changed');
     expect(firstUnder(sections(EMPLOYEE), '/people/directory')).toBe('/people/directory/list');
   });
 

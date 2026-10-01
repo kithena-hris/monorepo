@@ -1,4 +1,6 @@
-import { render, screen, within } from '@testing-library/react';
+import { TooltipProvider } from '@reach/ui';
+import { render as mount, screen, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
@@ -35,6 +37,8 @@ const item: ApprovalItem = {
 };
 
 const done = () => Promise.resolve({ ok: true as const });
+// The comparison bars carry tooltips, as the host provides them.
+const render = (ui: ReactElement) => mount(ui, { wrapper: TooltipProvider });
 
 describe('the approvals inbox (PEO-077)', () => {
   it('shows the value in force beside the one asked for, both masked, and marks the field', async () => {
@@ -48,8 +52,6 @@ describe('the approvals inbox (PEO-077)', () => {
     expect(await axeViolations(container)).toEqual([]);
     // Her change, open beside the list.
     const row = screen.getByRole('region', { name: /Lucía Ortega/ });
-    expect(within(row).getByText('Needs approval')).toBeInTheDocument();
-    expect(within(row).getByText('Pending approval')).toBeInTheDocument();
     expect(within(row).getByText('•••• 3000')).toBeInTheDocument();
     expect(within(row).getByText('•••• 1332')).toBeInTheDocument();
   });
@@ -75,9 +77,8 @@ describe('the approvals inbox (PEO-077)', () => {
     expect(screen.queryByRole('button', { name: /Approve the change to Me's/ })).toBeNull();
     expect(screen.getByText(/Another HR member must approve your change/)).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: /Waiting for me/ }));
-    await user.click(screen.getByRole('button', { name: /Approve the change to Lucía Ortega's/ }));
     await user.type(screen.getByLabelText('Note'), 'Checked against the form');
-    await user.click(screen.getByRole('button', { name: 'Approve' }));
+    await user.click(screen.getByRole('button', { name: /Approve the change to Lucía Ortega's/ }));
     expect(onDecide).toHaveBeenCalledWith('c1', true, 'Checked against the form');
   });
 
@@ -118,7 +119,7 @@ describe('the approvals inbox (PEO-077)', () => {
     expect(await axeViolations(document.body)).toEqual([]);
     expect(onSelfApprove).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('button', { name: 'Approve it myself' }));
-    expect(onSelfApprove).toHaveBeenCalledWith('c1');
+    expect(onSelfApprove).toHaveBeenCalledWith('c1', null);
     expect(onDecide).not.toHaveBeenCalled();
   });
 
@@ -367,40 +368,268 @@ describe('the approvals tab, in the address', () => {
   });
 });
 
-describe('unusual changes, flagged for whoever decides', () => {
-  const flagged: ApprovalItem = {
+describe('a flagged approval (design AI7)', () => {
+  const tom: ApprovalItem = {
     ...item,
+    id: 't1',
+    personId: 'p9',
+    name: 'Tom Fischer',
+    key: 'base_salary',
+    label: 'Base salary',
+    value: { amountMinor: '8400000', currency: 'EUR' },
+    current: { amountMinor: '6100000', currency: 'EUR' },
+    effectiveFrom: '2026-10-01',
+    requestedBy: 'Nora Becker',
     flags: [
-      { code: 'bank_repeat', reason: 'Bank details were changed more than once within 30 days.' },
-      { code: 'outside_hours', reason: 'Asked for at 23:40 on a Sunday, Europe/Madrid time.' },
+      {
+        code: 'raise',
+        title: 'A 38% raise',
+        detail: 'Sales raises this year had a median of 4%, and the largest was 12%.',
+      },
+      {
+        code: 'band',
+        title: 'Above the band',
+        detail: '€84k is over the top of the Account executive L3 band (€62k–€78k).',
+      },
     ],
+    comparisons: [
+      { label: 'This change', percent: '38', highlight: true },
+      { label: 'Sales median', percent: '4', highlight: false },
+      { label: 'Largest in Sales', percent: '12', highlight: false },
+    ],
+    flagNote:
+      'This might be fine: a promotion would explain both. Check the reason before you decide.',
+    flagSummary: 'A 38% raise, above the band',
+    canAsk: true,
+    canMark: true,
   };
+  const data = { isHr: true, items: [tom, { ...item, id: 'c2', name: 'Rui Dias' }] };
 
-  it('counts the flags on the row and gives each reason on the change, deciding as before', async () => {
+  it('explains itself with the numbers it compared against, and an honest note', async () => {
+    const { container } = render(
+      <Approvals load={{ status: 'ready', data }} onDecide={vi.fn(done)} onWithdraw={vi.fn(done)} />,
+    );
+    expect(await axeViolations(container)).toEqual([]);
+    const list = screen.getByRole('list', { name: 'Changes waiting for a decision' });
+    // The row says why before it is opened, and what changes.
+    expect(within(list).getByText('A 38% raise, above the band')).toBeInTheDocument();
+    expect(within(list).getByText('Base salary €61k → €84k · from 1 Oct')).toBeInTheDocument();
+    expect(within(list).getAllByText('Unusual')).toHaveLength(1);
+    const detail = screen.getByRole('region', { name: /Tom Fischer/ });
+    expect(within(detail).getByRole('heading', { name: 'Why this is flagged' })).toBeInTheDocument();
+    expect(within(detail).getByText('A 38% raise')).toBeInTheDocument();
+    expect(
+      within(detail).getByText('Sales raises this year had a median of 4%, and the largest was 12%.'),
+    ).toBeInTheDocument();
+    expect(within(detail).getByText(/a promotion would explain both/)).toBeInTheDocument();
+    expect(
+      within(detail).getByText('Flags never approve or reject anything. They only ask you to look twice.'),
+    ).toBeInTheDocument();
+    expect(within(detail).getByText('Required when you approve something flagged.')).toBeInTheDocument();
+  });
+
+  it('asks for a note before approving it', async () => {
     const onDecide = vi.fn(done);
+    render(<Approvals load={{ status: 'ready', data }} onDecide={onDecide} onWithdraw={vi.fn(done)} />);
+    const user = fast();
+    const approve = screen.getByRole('button', { name: /with note$/ });
+    expect(approve).toHaveTextContent('Approve with note');
+    await user.click(approve);
+    expect(onDecide).not.toHaveBeenCalled();
+    expect(screen.getByText('Add a note to approve something flagged.')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Note'), 'Promotion to Sales manager');
+    await user.click(approve);
+    expect(onDecide).toHaveBeenCalledWith('t1', true, 'Promotion to Sales manager');
+  });
+
+  it('rejects without one, marks it not unusual, and asks the requester', async () => {
+    const onDecide = vi.fn(done);
+    const onMarkNotUnusual = vi.fn(done);
+    const onAsk = vi.fn(done);
+    render(
+      <Approvals
+        load={{ status: 'ready', data }}
+        onDecide={onDecide}
+        onWithdraw={vi.fn(done)}
+        onMarkNotUnusual={onMarkNotUnusual}
+        onAsk={onAsk}
+      />,
+    );
+    const user = fast();
+    await user.click(screen.getByRole('button', { name: 'Not unusual' }));
+    expect(onMarkNotUnusual).toHaveBeenCalledWith('t1');
+    await user.click(screen.getByRole('button', { name: 'Ask Nora' }));
+    const dialog = screen.getByRole('dialog', { name: 'Ask Nora about this change' });
+    expect(await axeViolations(document.body)).toEqual([]);
+    await user.type(within(dialog).getByLabelText('Question'), 'Is this the promotion?');
+    await user.click(within(dialog).getByRole('button', { name: 'Send question' }));
+    expect(onAsk).toHaveBeenCalledWith('t1', 'Is this the promotion?');
+    await user.click(screen.getByRole('button', { name: /Reject the change to Tom Fischer's/ }));
+    expect(onDecide).toHaveBeenCalledWith('t1', false, null);
+  });
+
+  it('lists the flagged changes, and what gets flagged, on the Flagged tab (AI8)', async () => {
+    const onSetCheck = vi.fn(done);
+    const onTabChange = vi.fn();
     const { container } = render(
       <Approvals
         load={{
           status: 'ready',
-          data: { isHr: true, items: [flagged, { ...item, id: 'c2', name: 'Rui Dias' }] },
+          data: {
+            ...data,
+            canTune: true,
+            checks: [
+              {
+                code: 'raise',
+                title: 'Raise much bigger than usual',
+                detail: 'Compared with the team’s raises this year',
+                on: true,
+              },
+              {
+                code: 'unusual_time',
+                title: 'Requested at an unusual time',
+                detail: 'Outside the requester’s working hours',
+                on: false,
+              },
+            ],
+            last90: { flagged: 11, rejected: 3, marked: 6 },
+          },
         }}
-        onDecide={onDecide}
+        onDecide={vi.fn(done)}
         onWithdraw={vi.fn(done)}
+        tab="flagged"
+        onTabChange={onTabChange}
+        onSetCheck={onSetCheck}
       />,
     );
     expect(await axeViolations(container)).toEqual([]);
+    expect(screen.getByRole('tab', { name: /Flagged/ })).toHaveTextContent('1');
     const list = screen.getByRole('list', { name: 'Changes waiting for a decision' });
-    expect(within(list).getAllByText('2 flags')).toHaveLength(1);
-    const detail = screen.getByRole('region', { name: /Lucía Ortega/ });
-    const note = within(detail).getByRole('alert');
-    expect(within(note).getByText('Worth a second look')).toBeInTheDocument();
-    expect(
-      within(note).getByText('Bank details were changed more than once within 30 days.'),
-    ).toBeInTheDocument();
-    // A flag informs; it never blocks.
+    expect(within(list).queryByText('Rui Dias')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'What Kithena checks' })).toBeInTheDocument();
+    expect(screen.getByText('11')).toBeInTheDocument();
+    expect(screen.getByText('Marked not unusual')).toBeInTheDocument();
+    expect(screen.getByText('What it never does')).toBeInTheDocument();
+    await fast().click(screen.getByRole('switch', { name: 'Requested at an unusual time' }));
+    expect(onSetCheck).toHaveBeenCalledWith('unusual_time', true);
+  });
+
+  it('shows HR the checks without the switches, unless they are an administrator', () => {
+    render(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: {
+            ...data,
+            canTune: false,
+            checks: [{ code: 'raise', title: 'Raise much bigger than usual', detail: 'x', on: true }],
+            last90: { flagged: 0, rejected: 0, marked: 0 },
+          },
+        }}
+        onDecide={vi.fn(done)}
+        onWithdraw={vi.fn(done)}
+        tab="flagged"
+        onTabChange={vi.fn()}
+        onSetCheck={vi.fn(done)}
+      />,
+    );
+    expect(screen.getByRole('switch', { name: 'Raise much bigger than usual' })).toBeDisabled();
+    expect(screen.getByText('A People administrator switches these.')).toBeInTheDocument();
+  });
+
+  it('opens the change a link named, and hands a chosen one to the host', async () => {
+    const onChangeOpen = vi.fn();
+    render(
+      <Approvals
+        load={{ status: 'ready', data }}
+        onDecide={vi.fn(done)}
+        onWithdraw={vi.fn(done)}
+        change="c2"
+        onChangeOpen={onChangeOpen}
+      />,
+    );
+    expect(screen.getByRole('region', { name: /Rui Dias/ })).toBeInTheDocument();
+    await fast().click(screen.getByRole('button', { name: /^Tom Fischer/ }));
+    expect(onChangeOpen).toHaveBeenCalledWith('t1');
+  });
+});
+
+describe('a question about a change', () => {
+  it('is answered by the requester, once, beside their change', async () => {
+    const onAnswer = vi.fn(done);
+    const { container } = render(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: {
+            isHr: false,
+            items: [
+              {
+                ...item,
+                mine: true,
+                canDecide: false,
+                questions: [
+                  {
+                    id: 'q1',
+                    question: 'Is this the promotion?',
+                    askedBy: 'Sofia Lindqvist',
+                    askedAt: '2026-09-22T10:00:00.000Z',
+                    answer: null,
+                    answeredAt: null,
+                    canAnswer: true,
+                  },
+                ],
+              },
+            ],
+          },
+        }}
+        onDecide={vi.fn(done)}
+        onWithdraw={vi.fn(done)}
+        onAnswer={onAnswer}
+      />,
+    );
+    expect(await axeViolations(container)).toEqual([]);
+    expect(screen.getByText(/Sofia Lindqvist asked: “Is this the promotion\?”/)).toBeInTheDocument();
     const user = fast();
-    await user.click(screen.getByRole('button', { name: /Approve the change to Lucía Ortega's/ }));
-    await user.click(screen.getByRole('button', { name: 'Approve' }));
-    expect(onDecide).toHaveBeenCalledWith('c1', true, null);
+    await user.type(screen.getByLabelText('Your answer'), 'Yes, from 1 October');
+    await user.click(screen.getByRole('button', { name: 'Send answer' }));
+    expect(onAnswer).toHaveBeenCalledWith('q1', 'Yes, from 1 October');
+  });
+});
+
+describe('the Decided tab', () => {
+  it('shows what was decided, by whom, with the note and what flagged it', () => {
+    render(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: {
+            isHr: true,
+            items: [],
+            decided: [
+              {
+                ...item,
+                canDecide: false,
+                state: 'approved',
+                decidedBy: 'Sofia Lindqvist',
+                decidedAt: '2026-09-23T09:00:00.000Z',
+                note: 'Promotion to Sales manager',
+                flags: [{ code: 'raise', title: 'Raise much bigger than usual', detail: '' }],
+                flagSummary: 'Raise much bigger than usual',
+              },
+            ],
+          },
+        }}
+        onDecide={vi.fn(done)}
+        onWithdraw={vi.fn(done)}
+        tab="decided"
+        onTabChange={vi.fn()}
+      />,
+    );
+    const detail = screen.getByRole('region', { name: /Lucía Ortega/ });
+    expect(within(detail).getByText(/approved by Sofia Lindqvist/)).toBeInTheDocument();
+    expect(within(detail).getByText('Note: “Promotion to Sales manager”')).toBeInTheDocument();
+    expect(within(detail).getByText(/Flagged when decided: Raise much bigger than usual/)).toBeInTheDocument();
+    expect(within(detail).queryByRole('button', { name: /Approve/ })).toBeNull();
   });
 });

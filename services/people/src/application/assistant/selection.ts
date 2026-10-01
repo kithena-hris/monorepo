@@ -1,7 +1,8 @@
-import { ok, type Result } from '@kithena/domain-kit';
+import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { Prompt } from '@kithena/telemetry';
 import * as z from 'zod';
 
+import { sift, type Topic } from '../../domain/assistant/clarify.js';
 import type { IntentCondition } from '../../domain/assistant/intent.js';
 import type { PlanBudget } from '../../domain/import/new-fields.js';
 import {
@@ -14,17 +15,19 @@ import {
   exportByRules,
   exportContext,
   forModel,
+  isEmail,
   isPlainSearch,
   readDirectoryAnswer,
   readExportAnswer,
   type ExportCatalogue,
   type ExportPlan,
 } from '../../domain/assistant/selection.js';
-import type { Asking } from '../person/person-access.js';
+import type { Asking, PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import type { Condition } from '../person/ports.js';
 import { exportBuilderView, type ExportBuilderView } from '../screens/operations.js';
-import type { ScreenDeps } from '../screens/record.js';
+import { requestDetailsOfMany } from '../screens/requests.js';
+import { nameOf, type ScreenDeps } from '../screens/record.js';
 import { describe, filterFields } from './ask.js';
 import type { AssistantPort } from './assistant-port.js';
 
@@ -56,6 +59,14 @@ export interface SelectionDeps extends ScreenDeps {
 export const PlanAsk = z.strictObject({ sentence: z.string().trim().min(1).max(300) });
 export type PlanAsk = z.infer<typeof PlanAsk>;
 
+/** The directory's sentence, with the readings this person chose before (topic → label). */
+export const DirectoryAsk = PlanAsk.extend({
+  remembered: z
+    .partialRecord(z.enum(['leaving', 'new', 'starting']), z.string().max(80))
+    .optional(),
+});
+export type DirectoryAsk = z.infer<typeof DirectoryAsk>;
+
 /** Who read the sentence: a name search, the assistant, or People's own rules. */
 export type ReadBy = 'search' | 'assistant' | 'rules';
 
@@ -70,6 +81,39 @@ export interface DirectoryPlanView {
   readonly by: ReadBy;
   /** Why the assistant did not read it, when it did not; null otherwise. */
   readonly note: string | null;
+  /** The one person a name or an email found: the screen goes straight to them. */
+  readonly person: { readonly id: string; readonly name: string } | null;
+  /**
+   * A phrase read more than one way, asked rather than guessed: each reading
+   * as the whole selection it would be, and how many people it finds.
+   */
+  readonly ask: {
+    readonly topic: Topic | null;
+    readonly phrase: string;
+    readonly readings: readonly {
+      readonly label: string;
+      readonly conditions: readonly IntentCondition[];
+      readonly match: 'all' | 'any';
+      readonly count: number | null;
+    }[];
+  } | null;
+  /** Judgements left out, why, and a field that records something close. */
+  readonly refused: readonly {
+    readonly text: string;
+    readonly why: string;
+    readonly instead: {
+      readonly label: string;
+      readonly subject: string;
+      readonly condition: IntentCondition;
+      readonly count: number | null;
+    } | null;
+  }[];
+  /** A reading taken because this person chose it before. */
+  readonly remembered: {
+    readonly topic: Topic;
+    readonly phrase: string;
+    readonly label: string;
+  } | null;
 }
 
 export interface ExportPlanView {
@@ -133,22 +177,54 @@ const UNREADABLE = `The assistant’s answer couldn’t be used, ${WITHOUT}`;
 const sortOf = (sort: { key: string; direction: 'asc' | 'desc' } | null): string | null =>
   sort === null ? null : `${sort.key}:${sort.direction}`;
 
+/** How many people a selection finds, as this person may list them; null when they may not. */
+async function counted(
+  deps: SelectionDeps,
+  asking: Asking,
+  conditions: readonly IntentCondition[],
+  match: 'all' | 'any',
+): Promise<number | null> {
+  const n = await run(deps.service, asking.tenantId, (tx) =>
+    deps.service.access.count(tx, { ...asking, refine: { conditions, match } }),
+  );
+  return n.ok ? n.value.all : null;
+}
+
+/** Two selections as one: all of both, or the second alone when the first is empty. */
+const joined = (
+  base: readonly IntentCondition[],
+  more: readonly IntentCondition[],
+  match: 'all' | 'any',
+): { conditions: readonly IntentCondition[]; match: 'all' | 'any' } =>
+  base.length === 0
+    ? { conditions: more, match }
+    : { conditions: [...base, ...more], match: 'all' };
+
 /**
- * The directory's filters from a sentence. A name alone is a name search,
- * with no model; anything else is read by the assistant where it can, and
- * by People's rules where it cannot.
+ * The directory's filters from a sentence (smart search, docs/ai-settings.md).
+ *
+ * A name or an email that finds one person is that person, with no model.
+ * Otherwise judgements are taken out and a phrase with several readings is
+ * asked about (`domain/assistant/clarify.ts`) before anything reads the
+ * rest; then the assistant reads it where it can, and People's rules where
+ * it cannot. Every count is as this person may list people.
  */
 export async function planDirectory(
   deps: SelectionDeps,
   asking: Asking,
-  input: PlanAsk,
+  input: DirectoryAsk,
 ): Promise<Result<DirectoryPlanView>> {
   const sentence = input.sentence.trim();
   const fields = await run(deps.service, asking.tenantId, async (tx) =>
     ok(await filterFields(deps, tx, asking)),
   );
   if (!fields.ok) return fields;
-  if (isPlainSearch(sentence, fields.value)) {
+  if (isEmail(sentence) || isPlainSearch(sentence, fields.value)) {
+    // One match is that person; none or several, the names to choose from.
+    const found = await run(deps.service, asking.tenantId, (tx) =>
+      deps.service.access.list(tx, { ...asking, search: sentence, limit: 2 }),
+    );
+    const one = found.ok && found.value.items.length === 1 ? found.value.items[0] : undefined;
     return ok({
       search: sentence,
       conditions: [],
@@ -157,27 +233,154 @@ export async function planDirectory(
       unused: [],
       by: 'search',
       note: null,
+      person: one === undefined ? null : { id: one.id, name: nameOf(one.attributes) ?? sentence },
+      ask: null,
+      refused: [],
+      remembered: null,
     });
   }
   const today = deps.clock.instant().slice(0, 10);
-  const rules = directoryByRules(sentence, fields.value, today);
+  const sifted = sift(sentence, fields.value, today, input.remembered ?? {});
+  const rest = sifted.rest;
+  const rules = directoryByRules(rest, fields.value, today);
   const shown = forModel(fields.value);
-  const consulted = await consult(deps, asking, deps.searchBudget, {
-    instruction: DIRECTORY_INSTRUCTION,
-    context: directoryContext(sentence, shown, today),
-    about: 'configuration',
-  });
-  const heard = 'answer' in consulted ? readDirectoryAnswer(consulted.answer, shown) : null;
+  // Already asking, or nothing left to read: the model is not asked to guess.
+  const consulted: Consulted | null =
+    sifted.clarify !== null || rest === ''
+      ? null
+      : await consult(deps, asking, deps.searchBudget, {
+          instruction: DIRECTORY_INSTRUCTION,
+          context: directoryContext(rest, shown, today),
+          about: 'configuration',
+        });
+  const heard =
+    consulted !== null && 'answer' in consulted
+      ? readDirectoryAnswer(consulted.answer, shown)
+      : null;
   const plan = heard ?? rules;
+  const chosen = sifted.reading;
+  const selection =
+    chosen === null
+      ? { conditions: plan.conditions, match: plan.match }
+      : joined(plan.conditions, chosen.conditions, chosen.match);
+
+  const asked = sifted.clarify ?? plan.ask;
+  const readings: NonNullable<DirectoryPlanView['ask']>['readings'][number][] = [];
+  for (const r of asked?.readings ?? []) {
+    const whole = joined(selection.conditions, r.conditions, r.match);
+    readings.push({
+      label: r.label,
+      ...whole,
+      count: await counted(deps, asking, whole.conditions, whole.match),
+    });
+  }
+  const refused: DirectoryPlanView['refused'][number][] = [];
+  for (const r of sifted.refused) {
+    refused.push({
+      text: r.text,
+      why: r.why,
+      instead:
+        r.instead === null
+          ? null
+          : {
+              label: r.instead.label,
+              subject: r.instead.subject,
+              condition: r.instead.condition,
+              count: await counted(deps, asking, [r.instead.condition], 'all'),
+            },
+    });
+  }
   return ok({
     search: plan.search,
-    conditions: plan.conditions,
-    match: plan.match,
+    conditions: selection.conditions,
+    match: selection.match,
     sort: sortOf(plan.sort),
     unused: plan.unused,
     by: heard === null ? 'rules' : 'assistant',
-    note: heard !== null ? null : 'note' in consulted ? consulted.note : UNREADABLE,
+    note:
+      heard !== null || consulted === null
+        ? null
+        : 'note' in consulted
+          ? consulted.note
+          : UNREADABLE,
+    person: null,
+    ask:
+      asked === null
+        ? null
+        : { topic: sifted.clarify?.topic ?? null, phrase: asked.phrase, readings },
+    refused,
+    remembered: sifted.remembered,
   });
+}
+
+export const DirectoryRemind = z.strictObject({
+  conditions: z
+    .array(
+      z.strictObject({
+        key: z.string().max(64),
+        op: z.enum(['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty']),
+        values: z.array(z.string().max(200)).max(50),
+      }),
+    )
+    .min(1)
+    .max(20),
+  match: z.enum(['all', 'any']).default('all'),
+  search: z.string().trim().max(120).optional(),
+});
+export type DirectoryRemind = z.infer<typeof DirectoryRemind>;
+
+/** At most this many people are asked by one press; the rest are said, and asked by pressing again. */
+export const REMIND_AT_MOST = 500;
+
+/**
+ * "Remind all": everybody a search found missing a detail they fill in
+ * themselves is asked for it, as the profile's "Ask them for it" asks one
+ * person. The details are the conditions' "is empty" ones; the people are
+ * those the directory lists for this person, with the same authorization,
+ * and each request is checked as that one would be.
+ */
+export async function remindDirectory(
+  deps: SelectionDeps,
+  asking: Asking,
+  input: DirectoryRemind,
+): Promise<
+  Result<{
+    readonly asked: number;
+    readonly emailed: number;
+    readonly skipped: number;
+    readonly more: boolean;
+  }>
+> {
+  const keys = [...new Set(input.conditions.filter((c) => c.op === 'empty').map((c) => c.key))];
+  if (keys.length === 0) {
+    return err(
+      failure('FIELD_NOT_REQUESTABLE', 'Nothing here is missing to ask for', ['conditions']),
+    );
+  }
+  const ids: string[] = [];
+  let after: string | null = null;
+  do {
+    const from: string | null = after;
+    const page: Result<{ items: readonly PersonView[]; next: string | null }> = await run(
+      deps.service,
+      asking.tenantId,
+      (tx) =>
+        deps.service.access.list(tx, {
+          ...asking,
+          after: from,
+          limit: 100,
+          refine: { conditions: input.conditions, match: input.match },
+          ...(input.search === undefined || input.search === '' ? {} : { search: input.search }),
+        }),
+    );
+    if (!page.ok) return page;
+    ids.push(...page.value.items.map((p) => p.id));
+    after = page.value.next;
+  } while (after !== null && ids.length < REMIND_AT_MOST);
+  const asked = await requestDetailsOfMany(deps, asking, ids.slice(0, REMIND_AT_MOST), keys);
+  return asked.ok
+    ? ok({ ...asked.value, more: after !== null || ids.length > REMIND_AT_MOST })
+    : asked;
 }
 
 /**

@@ -356,7 +356,17 @@ export const CreateExportBody = z.strictObject({
     .array(
       z.strictObject({
         key: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/),
-        op: z.enum(['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty', 'under']),
+        op: z.enum([
+          'is',
+          'in',
+          'contains',
+          'before',
+          'after',
+          'between',
+          'empty',
+          'not_empty',
+          'under',
+        ]),
         values: z.array(z.string().max(200)).max(50),
       }),
     )
@@ -1177,7 +1187,15 @@ export function restRoutes(deps: RestDeps): Route[] {
               if (segment === undefined) {
                 return err(failure('NOT_FOUND', 'There is no such segment', ['segmentId']));
               }
-              request = { ...asked, where: segment.filter, filter: v.filter ?? segment.name };
+              request = {
+                ...asked,
+                where: segment.filter,
+                // A view saved from a search: its conditions, as the directory runs them.
+                ...(segment.conditions === undefined || segment.conditions.length === 0
+                  ? {}
+                  : { refine: { conditions: segment.conditions, match: segment.match ?? 'all' } }),
+                filter: v.filter ?? segment.name,
+              };
             }
             const requested = await requestExport(tx, exports.deps, request);
             if (!requested.ok) return requested;
@@ -1762,11 +1780,9 @@ export function restRoutes(deps: RestDeps): Route[] {
       method: 'GET',
       pattern: /^\/v1\/roles$/,
       handle: async (asking) =>
-        respond(
-          await inRoles(asking, (roles, tx) => roles.list(tx, asking)),
-          200,
-          (listed) => ({ items: listed.holders }),
-        ),
+        respond(await inRoles(asking, (roles, tx) => roles.list(tx, asking)), 200, (listed) => ({
+          items: listed.holders,
+        })),
     },
     ...(['grants', 'revocations'] as const).map((path) => ({
       method: 'POST',
@@ -1853,7 +1869,14 @@ export function restHandler(
       before === undefined || answer.status >= 300
         ? null
         : await compared(deps, asking.value.tenantId, request, url.pathname);
-    await logged(deps, asking.value, request, url.pathname, answer, changes(before ?? null, after ?? null));
+    await logged(
+      deps,
+      asking.value,
+      request,
+      url.pathname,
+      answer,
+      changes(before ?? null, after ?? null),
+    );
     return answer;
   };
 }
@@ -1878,7 +1901,9 @@ async function compared(
   const target = activityTarget(request.method, path, request.body);
   if (reads === undefined || target === null) return undefined;
   try {
-    const read = await run(deps.service, tenantId, async (tx) => ok(await factsOf(target, reads(tx, tenantId))));
+    const read = await run(deps.service, tenantId, async (tx) =>
+      ok(await factsOf(target, reads(tx, tenantId))),
+    );
     return read.ok ? read.value : null;
   } catch {
     return null;
