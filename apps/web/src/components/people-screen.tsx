@@ -17,6 +17,29 @@ import {
   type HistoryMode,
 } from '../lib/url-state';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
+import {
+  exportAddressOf,
+  scheduleAudienceOf,
+  shareChoiceOf,
+  type ExportFormat,
+  type ShareChoice,
+} from '../lib/export-address';
+
+/** What the export page's load holds, as far as the shell reads it. */
+type ExportPageData = {
+  readonly who: readonly { readonly value: string; readonly label: string }[];
+  readonly sections: readonly { readonly fields: readonly { readonly key: string }[] }[];
+};
+
+/** The remote's export choice, as its callbacks hand it over. */
+type ExportBuilderChoice = {
+  readonly who: string;
+  readonly fields: readonly string[];
+  readonly asOf: string;
+  readonly format: ExportFormat;
+  readonly photos?: boolean;
+  readonly reason?: string;
+};
 
 /**
  * A People screen's props, from what the server fetched and the actions that
@@ -210,10 +233,12 @@ type Stage = Record<string, unknown> & { step: string; blockedUrl?: string | nul
  * it is ready, as the screen says.
  */
 function download(
-  made: { ok: true; links: readonly { url: string }[] } | { ok: false; message: string },
+  made:
+    { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string },
 ): Outcome {
   if (!made.ok) return made;
-  const first = made.links[0];
+  // The file itself, not the About that travels beside a CSV (design AI14).
+  const first = made.links.find((l) => !l.name.startsWith('about-')) ?? made.links[0];
   if (first !== undefined) window.location.assign(first.url);
   return { ok: true };
 }
@@ -913,46 +938,89 @@ export function PeopleScreen({
           },
         };
       case 'ExportBuilder': {
-        // Where the builder starts, from the address: an export described in
-        // words, or the directory's Export button with its conditions.
-        const format = oneOf(search['format'], ['xlsx', 'csv', 'pdf'], null);
-        const asOf = search['asOf'];
-        const exportAudience =
-          load.status === 'ready'
-            ? (load.data as { who?: readonly { value: string; label: string }[] }).who?.find(
-                (w) => w.value === 'conditions',
-              )?.label
-            : undefined;
-        const initial = {
-          ...(search['who'] === undefined ? {} : { who: search['who'] }),
-          ...(search['fields'] === undefined
-            ? {}
-            : { fields: search['fields'].split(',').filter((k) => k !== '') }),
-          ...(asOf !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? { asOf } : {}),
-          ...(format === null ? {} : { format }),
-          ...(search['photos'] === 'true' ? { photos: true } : {}),
-          ...(search['reason'] === undefined ? {} : { reason: search['reason'].slice(0, 500) }),
-        };
+        // Everything the page shows is in its address (design AI13): the
+        // sentence, what it was read as, whom it goes to and how.
+        const address = exportAddressOf(search);
+        const data = load.status === 'ready' ? (load.data as ExportPageData) : null;
+        const offered = data?.sections.flatMap((s) => s.fields.map((f) => f.key)) ?? [];
+        const audience = data?.who.find((w) => w.value === (address.who ?? 'everyone'))?.label;
+        // The directory's conditions, as the address carries them; People authorizes them.
+        const narrowed = (who: string) =>
+          who === 'conditions'
+            ? {
+                conditions: conditionsOf(search['conditions']) ?? [],
+                match: search['match'] === 'any' ? ('any' as const) : ('all' as const),
+                ...(audience === undefined ? {} : { filter: audience }),
+              }
+            : {};
+        const shareChoice = (choice: ExportBuilderChoice): ShareChoice => ({
+          ...shareChoiceOf(search, offered, audience),
+          format: choice.format,
+          fields: choice.fields,
+          asOf: choice.asOf,
+          ...(choice.reason === undefined ? {} : { reason: choice.reason }),
+        });
         return {
           load: loadable,
-          initial,
-          onExport: async (choice: Parameters<typeof actions.requestExport>[0]) =>
-            download(
-              await actions.requestExport({
-                ...choice,
-                // The directory's conditions, as the address carries them; People authorizes them.
-                ...(choice.who === 'conditions'
-                  ? {
-                      conditions: conditionsOf(search['conditions']) ?? [],
-                      match: search['match'] === 'any' ? ('any' as const) : ('all' as const),
-                      // Named on the file's provenance sheet as the builder names it.
-                      ...(exportAudience === undefined ? {} : { filter: exportAudience }),
-                    }
-                  : {}),
-              }),
-            ),
+          address,
+          onAddress: (patch: Readonly<Record<string, string | null>>, mode?: HistoryMode) => {
+            navigate(patch, mode ?? 'push');
+          },
+          onExport: async (choice: ExportBuilderChoice) => {
+            const made = await actions.requestExport({ ...choice, ...narrowed(choice.who) });
+            if (!made.ok) return made;
+            // The finished export, with its files and its About; the choices stay in the address.
+            navigate({ export: made.id, share: null });
+            return { ok: true };
+          },
+          onShare: async (choice: ExportBuilderChoice, recipient: string) => {
+            const sent = await actions.shareExport(shareChoice(choice), recipient);
+            if (!sent.ok) return sent;
+            const done = sent.data as
+              { status: 'sent'; exportId: string } | { status: 'waiting'; requestId: string };
+            navigate(
+              done.status === 'sent'
+                ? { export: done.exportId, share: null }
+                : { share: done.requestId, export: null },
+            );
+            return { ok: true };
+          },
+          onDecide: async (id: string, approve: boolean, note: string) => {
+            const decided = await actions.decideExportShare(
+              id,
+              approve,
+              note.trim() === '' ? null : note,
+            );
+            if (decided.ok) refresh();
+            return decided.ok ? { ok: true } : decided;
+          },
+          onSchedule: async (choice: ExportBuilderChoice, recipient: string) => {
+            const picked = shareChoice(choice);
+            const audienceOf = scheduleAudienceOf(picked);
+            if (audienceOf === null) {
+              return {
+                ok: false,
+                message:
+                  'A schedule takes a saved view or simple filters. Save this group as a view in the Directory first.',
+              };
+            }
+            return actions.createReportSchedule({
+              name: (choice.reason ?? 'Monthly export').slice(0, 80),
+              ...audienceOf,
+              kind: 'export',
+              format: choice.format === 'pdf' ? 'pdf' : 'xlsx',
+              fields: [...choice.fields],
+              reason: choice.reason ?? null,
+              every: 'month',
+              weekday: 1,
+              day: 1,
+              hour: 7,
+              legalEntityId: null,
+              recipients: [recipient],
+            });
+          },
           // Described in words (docs/ai-settings.md): the choices go into the
-          // address, and the builder starts again from them for a person to check.
+          // address, and the page starts again from them for a person to check.
           onDescribe: async (sentence: string) => {
             const planned = await actions.planExport(sentence);
             if (!planned.ok) return planned;
@@ -974,6 +1042,8 @@ export function PeopleScreen({
                 '/people/export',
                 {},
                 {
+                  q: sentence,
+                  read: plan.by,
                   who: plan.who === 'everyone' ? null : plan.who,
                   conditions: plan.conditions.length === 0 ? null : JSON.stringify(plan.conditions),
                   match: plan.match === 'any' ? 'any' : null,

@@ -1,5 +1,6 @@
 'use server';
 
+import type { ShareChoice } from '../../../lib/export-address';
 import { people, type PeopleAnswer } from '../../../lib/people';
 import { VIEWS } from '../../../lib/people-views';
 import { loadScreen } from '../../../lib/people-screens';
@@ -887,16 +888,17 @@ export async function commitImport(
 /* -------------------------------------------------------------- export -- */
 
 type Exported =
-  { ok: true; links: readonly { name: string; url: string }[] } | { ok: false; message: string };
+  | { ok: true; id: string; links: readonly { name: string; url: string }[] }
+  | { ok: false; message: string };
 
 // The links are signed and expire (PEO-089); they carry their own authority.
 async function exported(variables: Record<string, unknown>): Promise<Exported> {
-  const answer = await people<{ links: { name: string; url: string }[] }>(
+  const answer = await people<{ id: string; links: { name: string; url: string }[] }>(
     'RequestExport',
     variables,
   );
   return answer.ok
-    ? { ok: true, links: answer.data.links }
+    ? { ok: true, id: answer.data.id, links: answer.data.links }
     : { ok: false, message: answer.message };
 }
 
@@ -1052,4 +1054,24 @@ export async function planDirectory(sentence: string): Promise<Parsed> {
 /** An export described in words, as the builder's choices and a drafted reason. Nothing is exported. */
 export async function planExport(sentence: string): Promise<Parsed> {
   return parsed(people<string>('ExportPlan', { sentence }));
+}
+
+/* ------------------------------------------- an export sent to somebody -- */
+
+/**
+ * Send an export (design AI13): at once when the recipient could read all of
+ * it themselves, otherwise as a request a People administrator approves.
+ * Answers `{ status: 'sent', exportId }` or the request waiting.
+ */
+export async function shareExport(choice: ShareChoice, recipient: string): Promise<Parsed> {
+  return parsed(people<string>('ShareExport', { input: JSON.stringify({ choice, recipient }) }));
+}
+
+/** Approve or reject sending one; approved, People builds and sends it. */
+export async function decideExportShare(
+  id: string,
+  approve: boolean,
+  note: string | null,
+): Promise<Parsed> {
+  return parsed(people<string>('DecideExportShare', { id, approve, note }));
 }

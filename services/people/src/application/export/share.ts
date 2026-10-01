@@ -300,8 +300,9 @@ export interface SharePreview {
   readonly tooLarge: boolean;
   /** Whether the recipient and approvers are emailed here. */
   readonly emailed: boolean;
-  /** Whether the asker may turn it into a scheduled report. */
+  /** Whether the asker may turn it into a scheduled report, and their own account for one. */
   readonly canSchedule: boolean;
+  readonly self: string;
 }
 
 export async function previewShare(
@@ -375,6 +376,7 @@ export async function previewShare(
     tooLarge: mine.value.size > QUEUE_THRESHOLD,
     emailed: deps.mailer !== undefined && deps.company !== undefined,
     canSchedule: mayManage(asking.viewer.roles),
+    self: asking.viewer.accountId,
   });
 }
 
@@ -763,6 +765,8 @@ export interface ExportRecordView {
   readonly keptUntil: string | null;
   /** The file's links, for the requester or recipient while it lasts; signed for minutes. */
   readonly links: readonly { readonly name: string; readonly url: string }[];
+  /** The time the view was made, for "at 14:31" against "15 Sep". */
+  readonly now: string;
 }
 
 /** How long a link handed to the page is good for: long enough to click, not to forward. */
@@ -786,7 +790,7 @@ export async function exportRecord(
   }
   const accounts = await accountsOf(tx, deps, asking.tenantId);
   if (entry.status === 'queued') {
-    return ok(emptyRecord(exportId, me, person(accounts, entry.requestedBy)));
+    return ok(emptyRecord(exportId, me, person(accounts, entry.requestedBy), deps.clock.instant()));
   }
   const now = deps.clock.instant();
   const expired = Date.parse(now) >= Date.parse(entry.expiresAt);
@@ -856,10 +860,11 @@ export async function exportRecord(
             ? entry.expiresAt
             : new Date(Date.parse(now) + SHARED_LINK_MS).toISOString(),
         ),
+    now,
   });
 }
 
-function emptyRecord(id: string, me: string, by: Person): ExportRecordView {
+function emptyRecord(id: string, me: string, by: Person, now: string): ExportRecordView {
   return {
     id,
     code: exportCode(id),
@@ -879,5 +884,6 @@ function emptyRecord(id: string, me: string, by: Person): ExportRecordView {
     about: null,
     keptUntil: null,
     links: [],
+    now,
   };
 }
