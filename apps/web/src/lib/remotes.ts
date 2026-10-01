@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { timed } from './timing';
+
 /**
  * Which remote screen answers a path, read from the remote at request time.
  *
@@ -332,10 +334,10 @@ export async function peopleRoute(path: string): Promise<RemoteRoute | null | un
   const base = (process.env['PEOPLE_REMOTE_URL'] ?? 'http://localhost:3002').replace(/\/$/, '');
   let manifest: unknown;
   try {
-    const response = await fetch(`${base}/routes.json`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(2000),
-    });
+    const response = await timed(
+      'remote.routes',
+      fetch(`${base}/routes.json`, { cache: 'no-store', signal: AbortSignal.timeout(2000) }),
+    );
     if (!response.ok) return null;
     manifest = await response.json();
   } catch {

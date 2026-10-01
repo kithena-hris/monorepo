@@ -10,6 +10,7 @@ import {
   List,
   ListItem,
   PageHeader,
+  Skeleton,
   Stat,
   icons,
 } from '@reach/ui';
@@ -204,6 +205,116 @@ export function HomeDashboard({
             </Card>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A skeleton standing for text inside a line of it: sat on the baseline and
+ * shorter than the line, so the line is as tall as it will be with the text.
+ */
+const INLINE = 'inline-block h-[0.7em] align-baseline';
+
+/** A list row while it is fetched: an avatar and two lines, as tall as a `ListItem`. */
+function RowLoading(): JSX.Element {
+  return (
+    <div className="flex h-14 items-center gap-3 px-2 touch:h-16">
+      <Skeleton className="size-10 shrink-0 rounded-full" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <Skeleton className="h-3.5 w-36 max-w-full" />
+        <Skeleton className="h-3 w-56 max-w-full" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The dashboard while it is fetched (`PageLoading`): the same header, grid,
+ * tiles and cards, with what is still to come drawn as skeleton. HR has the
+ * four tiles; anybody else their approvals and their profile. A company
+ * without People has the one card, which says nothing is due.
+ */
+export function HomeLoading({
+  account,
+  people,
+  hr,
+}: {
+  readonly account: ReactNode;
+  readonly people: boolean;
+  readonly hr: boolean;
+}): JSX.Element {
+  // A tile's line under its figure, where it does not depend on the figure.
+  const tiles: readonly (readonly [string, string | null])[] = hr
+    ? [
+        ['Approvals', 'waiting for you'],
+        ['Incomplete records', null],
+        ['Starting soon', 'hired, not started yet'],
+        ['Your profile', null],
+      ]
+    : [
+        ['Approvals', 'of yours, waiting'],
+        ['Your profile', null],
+      ];
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        className="@3xl/page:pe-64"
+        title={
+          <>
+            <span className="sr-only">Loading</span>
+            <Skeleton className={`${INLINE} w-40`} />
+          </>
+        }
+        meta={
+          <span className="flex flex-wrap items-center gap-x-1.5 text-base font-normal text-fg-muted">
+            {/* The local time's own line (`LocalTime`): a line of small text. */}
+            <span className="text-sm">
+              <Skeleton className={`${INLINE} w-60 max-w-full`} />
+            </span>
+          </span>
+        }
+        actions={account ? <span className="flex @3xl/page:hidden">{account}</span> : undefined}
+      />
+      {!people ? (
+        <Card>
+          <CardContent className="pt-5">
+            <EmptyState
+              icon={<icons.inbox />}
+              title="Nothing needs you yet"
+              description="Requests, documents and approvals appear here as each module is switched on."
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <div aria-hidden="true" className="contents">
+          <div className="grid grid-cols-2 gap-3 @5xl/page:grid-cols-4 @5xl/page:gap-3.5">
+            {tiles.map(([label, line]) => (
+              <Stat
+                key={label}
+                label={label}
+                value={<Skeleton className={`${INLINE} w-10`} />}
+                description={line ?? <Skeleton className={`${INLINE} w-28 max-w-full`} />}
+                className="h-full"
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            {['Needs you', 'Starting soon'].map((title) => (
+              <Card key={title}>
+                <CardHeader>
+                  <CardTitle level={2}>{title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="-mx-2">
+                    <RowLoading />
+                    <RowLoading />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

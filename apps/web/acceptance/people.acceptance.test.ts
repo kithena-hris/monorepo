@@ -247,6 +247,8 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     await page.goto(`${stack.shell}/people/setup`);
     const identification = page.getByRole('form', { name: 'Identification & right to work' });
     await identification.waitFor({ timeout: 30_000 });
+    // The form is the server's; typing and a press count once the remote has hydrated it.
+    await page.waitForLoadState('networkidle');
     expect(await page.getByRole('textbox', { name: /Legal first name/ }).inputValue()).toBe(
       'Priya',
     );
@@ -299,10 +301,41 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     expect(audit?.envelope.payload).toMatchObject({ decision: 'approved', decidedAs: 'sole_hr' });
     expect(audit?.envelope.actor).toEqual({ kind: 'user', userId: ADMIN.account });
     await page.reload();
+    // As above: React drops a press on markup it has not hydrated yet.
+    await page.waitForLoadState('networkidle');
     await page.getByText('Complete', { exact: true }).waitFor({ timeout: 20_000 });
     await page.getByRole('button', { name: 'Finish' }).click();
     await page.waitForURL(/\/people\/me$/);
     await page.getByRole('heading', { name: 'Priya Shah' }).waitFor({ timeout: 30_000 });
+    await context.close();
+  });
+});
+
+describe('A People screen reached from a shell page, on a phone', () => {
+  it('keeps Reach’s phone layout, as when the screen is loaded in full', async () => {
+    const context = await signedIn(ADMIN.session, {
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/inbox`);
+    await page.waitForLoadState('networkidle');
+    // The tab bar's People, then a section: navigations in the page, no load.
+    await page.getByRole('link', { name: 'People', exact: true }).first().click();
+    await page.waitForURL(/\/people\/menu$/);
+    await page.getByRole('link', { name: /^Directory/ }).first().click();
+    await page.waitForURL(/\/people\/directory/);
+    // The header's back link is Reach's: `font-medium`, and `touch:font-normal`
+    // under a finger. The remote compiled `font-medium` too; its copy must
+    // not win over the phone's rule, whichever stylesheet arrived last.
+    const back = page.locator('[data-remote] a.tap-target').first();
+    await back.waitFor({ timeout: 30_000 });
+    const weight = (): Promise<string> => back.evaluate((e) => getComputedStyle(e).fontWeight);
+    expect(await weight()).toBe('400');
+    await page.reload();
+    await back.waitFor({ timeout: 30_000 });
+    expect(await weight()).toBe('400');
     await context.close();
   });
 });

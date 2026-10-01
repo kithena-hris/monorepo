@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { currentTenant } from './branding';
+import { accessToken } from './people';
 import { readPreference } from './preferences';
 import { currentPerson, displayName } from './session';
 import { shellData, type ShellData } from './shell';
@@ -39,17 +40,21 @@ export async function signedIn(): Promise<{
   /** Their keyboard shortcuts, as they last saved them; the defaults otherwise. */
   readonly shortcuts: ShortcutPrefs;
 }> {
-  const person = await currentPerson();
+  // Started with the session check rather than after it: none of them waits
+  // on who is signed in, and each is thrown away if nobody is.
+  const tenant = currentTenant();
+  const shortcuts = readPreference('shortcuts');
+  const [person] = await Promise.all([currentPerson(), accessToken()]);
   // A view as somebody that is over — its thirty minutes, or ended elsewhere —
   // goes back to the administrator's own session, not to the employee's.
   if (person === null) {
     redirect((await cookies()).has(RETURN_COOKIE) ? '/auth/view-as/end' : '/login');
   }
-  const [tenant, shell, collapsed, shortcuts] = await Promise.all([
-    currentTenant(),
+  const [company, shell, collapsed, saved] = await Promise.all([
+    tenant,
     shellData(person.entitlements),
     sidebarCollapsed(),
-    readPreference('shortcuts'),
+    shortcuts,
   ]);
   return {
     person: {
@@ -61,10 +66,10 @@ export async function signedIn(): Promise<{
       viewing: person.viewing === null ? null : { by: person.viewing.adminName },
     },
     entitlements: person.entitlements,
-    company: tenant?.branding.displayName ?? tenant?.slug ?? 'your company',
-    logoUrl: tenant?.branding.logoUrl ?? null,
+    company: company?.branding.displayName ?? company?.slug ?? 'your company',
+    logoUrl: company?.branding.logoUrl ?? null,
     shell,
     sidebarCollapsed: collapsed,
-    shortcuts: prefsFrom(shortcuts),
+    shortcuts: prefsFrom(saved),
   };
 }

@@ -446,19 +446,9 @@ interface DirectoryRow {
   readonly missing: number | null;
 }
 
-/**
- * The overview, and for HR the figures beside it (W2): headcount and complete
- * records from analytics, how many identifiers, duplicates and access
- * requests wait, and who is starting. Each read is People's own, as the
- * person signed in; one People refuses is left out of the figures rather
- * than failing the page.
- */
-async function overview(): Promise<ScreenLoad> {
-  const base = await read('Overview');
-  if (base.status !== 'ready') return base;
-  const data = base.data as { roles?: { hr?: boolean } };
-  if (data.roles?.hr !== true) return base;
-  const [analytics, ids, dupes, access, starting] = await Promise.all([
+/** The reads beside HR's overview, all at once. */
+function hrFigures() {
+  return Promise.all([
     people<{
       headcount: {
         value: number;
@@ -477,6 +467,26 @@ async function overview(): Promise<ScreenLoad> {
       sort: 'hire_date:asc',
     }),
   ]);
+}
+
+/**
+ * The overview, and for HR the figures beside it (W2): headcount and complete
+ * records from analytics, how many identifiers, duplicates and access
+ * requests wait, and who is starting. Each read is People's own, as the
+ * person signed in; one People refuses is left out of the figures rather
+ * than failing the page.
+ */
+async function overview(): Promise<ScreenLoad> {
+  // HR's figures are asked as soon as the roles say HR (the shell asks for
+  // them too, and one answer serves both), not after the slower overview.
+  const early = people<{ hr?: boolean }>('Home').then((home) =>
+    home.ok && home.data.hr === true ? hrFigures() : null,
+  );
+  const base = await read('Overview');
+  if (base.status !== 'ready') return base;
+  const data = base.data as { roles?: { hr?: boolean } };
+  if (data.roles?.hr !== true) return base;
+  const [analytics, ids, dupes, access, starting] = (await early) ?? (await hrFigures());
   const a = analytics.ok ? analytics.data : null;
   const joiners =
     a?.joiners == null

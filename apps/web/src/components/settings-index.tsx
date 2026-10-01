@@ -7,6 +7,7 @@ import {
   PageHeader,
   SearchField,
   SettingsCard,
+  Skeleton,
   TertiaryNav,
   icons,
   type IconName,
@@ -34,7 +35,7 @@ export interface SettingsModule {
     readonly label: string;
     readonly description?: string | undefined;
     readonly icon?: string | undefined;
-    /** How it is set now, in a few words. */
+    /** How it is set now, in a few words; empty while still to come. */
     readonly now: string | null;
     /** A state that wants attention: the card's badge, and the chip over the cards. */
     readonly attention: { readonly badge: string; readonly chip: string } | null;
@@ -150,7 +151,14 @@ export function SettingsIndex({
                         icon={<Icon name={s.icon} />}
                         title={s.label}
                         description={s.description}
-                        meta={s.now ?? undefined}
+                        meta={
+                          // Still to come, while the page is fetched (`PageLoading`).
+                          s.now === '' ? (
+                            <Skeleton className="inline-block h-3.5 w-44 max-w-full align-middle" />
+                          ) : (
+                            (s.now ?? undefined)
+                          )
+                        }
                         badge={
                           s.attention === null ? undefined : (
                             <Badge size="sm" tone="warning">

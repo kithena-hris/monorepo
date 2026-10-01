@@ -234,7 +234,10 @@ export function TableHead({
         // way, the colour says which column, before the arrow is even found.
         sortDirection && 'text-fg',
         numeric && 'text-right',
-        sticky && 'sticky left-0 z-20 bg-surface',
+        // Opaque, and over the pinned header's glass (`TableHeader`), which is
+        // more specific: the cells scrolling sideways pass under this one, and
+        // through glass they read as part of it.
+        sticky && 'sticky left-0 z-20 bg-surface!',
         resizer !== undefined && !sticky && 'relative',
         resizer !== undefined && 'overflow-visible',
         className,

@@ -1,10 +1,13 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
+import { refresh } from 'next/cache';
 import { cookies, headers } from 'next/headers';
 import { cache } from 'react';
 
 import { CLIENT_NAME, OPERATIONS, type OperationName } from './people-operations';
+import { currentPerson } from './session';
 import { SESSION_COOKIE } from './session-cookie';
+import { timed } from './timing';
 
 /**
  * People, through the Cosmo Router, as the person signed in (PEO-113).
@@ -45,18 +48,33 @@ const unreachable = {
 /** Statuses only a gateway in front of the router gives: the router never answers them. */
 const GATEWAY_DOWN = new Set([502, 503, 504, 521, 522, 523, 530]);
 
-/** One token per request: React's `cache` is scoped to the render or the action. */
-const accessToken = cache(async (): Promise<string | null> => {
-  const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
-  // Written by `proxy.ts`, which deletes any inbound copy before it writes its own.
-  const tenantId = (await headers()).get('x-tenant-id');
-  if (sessionId === undefined || sessionId === '' || tenantId === null || tenantId === '') {
-    return null;
-  }
+/**
+ * Tokens already minted, by session, until a little before they expire.
+ *
+ * A token is five minutes long and every page asked for a new one: a round
+ * trip to identity before the first read could start, and one per photo on a
+ * page of faces. Keyed by a hash of the session and the tenant, so one
+ * session's token is never another's, and never outliving what identity said.
+ *
+ * Only ever handed out beside a session identity has just confirmed in the
+ * same request (`accessToken`): a signed-out or revoked session gets nothing
+ * from here, on this instance or any other, the moment identity says so.
+ */
+const minted = new Map<string, { readonly token: string; readonly until: number }>();
+/** Early enough that a token is never sent in its last seconds. */
+const MARGIN_MS = 30_000;
+
+const keyOf = (sessionId: string, tenantId: string): string =>
+  createHash('sha256').update(`${tenantId}\n${sessionId}`).digest('hex');
+
+async function mint(key: string, sessionId: string, tenantId: string): Promise<string | null> {
+  const held = minted.get(key);
+  if (held !== undefined && held.until > Date.now()) return held.token;
+  minted.delete(key);
   try {
-    const response = await fetch(
-      `${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session/token`,
-      {
+    const response = await timed(
+      'identity.token',
+      fetch(`${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session/token`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -65,15 +83,77 @@ const accessToken = cache(async (): Promise<string | null> => {
         body: JSON.stringify({ sessionId, tenantId }),
         cache: 'no-store',
         signal: AbortSignal.timeout(5_000),
-      },
+      }),
     );
     if (!response.ok) return null;
-    const body = (await response.json()) as { accessToken?: unknown };
-    return typeof body.accessToken === 'string' ? body.accessToken : null;
+    const body = (await response.json()) as { accessToken?: unknown; expiresAt?: unknown };
+    if (typeof body.accessToken !== 'string') return null;
+    const until =
+      (typeof body.expiresAt === 'string' ? Date.parse(body.expiresAt) : NaN) - MARGIN_MS;
+    if (until > Date.now()) {
+      // Expired ones go when the map is next written, so it holds live sessions only.
+      for (const [k, v] of minted) if (v.until <= Date.now()) minted.delete(k);
+      minted.set(key, { token: body.accessToken, until });
+    }
+    return body.accessToken;
   } catch {
     return null;
   }
+}
+
+/**
+ * The router's token for this request's session, or null when there is no
+ * live session: once per request, since React's `cache` is scoped to the
+ * render or the action.
+ *
+ * Asked beside identity's own check of the session (`currentPerson`), never
+ * after it, so a token that was already minted costs nothing and one that was
+ * not costs the same round trip as the check. Exported so a page can start it
+ * with its first reads rather than after them.
+ */
+export const accessToken = cache(async (): Promise<string | null> => {
+  const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
+  // Written by `proxy.ts`, which deletes any inbound copy before it writes its own.
+  const tenantId = (await headers()).get('x-tenant-id');
+  if (sessionId === undefined || sessionId === '' || tenantId === null || tenantId === '') {
+    return null;
+  }
+  const key = keyOf(sessionId, tenantId);
+  const [person, token] = await Promise.all([currentPerson(), mint(key, sessionId, tenantId)]);
+  if (person === null) {
+    minted.delete(key);
+    return null;
+  }
+  return token;
 });
+
+/**
+ * One answer per read per request: the shell's counts and the screen under
+ * them ask People some of the same questions (the overview, what waits for
+ * HR), and asking twice cost a round trip each. Writes are never shared.
+ */
+const read = cache((name: OperationName, variables: string): Promise<PeopleAnswer<unknown>> =>
+  send(name, JSON.parse(variables) as Record<string, unknown>),
+);
+
+/**
+ * A write went through, so what the browser holds may be out of date: the
+ * action's own answer carries the page drawn again, and every page the
+ * client router kept (`staleTimes` in `next.config.mjs`) is dropped, so Back
+ * and a second visit ask again. In one place because every write passes
+ * here; a screen that forgets to refresh cannot leave another page stale.
+ *
+ * Not a file kept for a field: nothing shows it until the form's Save, which
+ * is a write of its own. Only a server action can refresh; a route handler's
+ * write (a chat app's sign-in coming back) ends in a full page load anyway.
+ */
+function changed(): void {
+  try {
+    refresh();
+  } catch {
+    // Not a server action.
+  }
+}
 
 const hashes = new Map<OperationName, string>();
 const hashOf = (name: OperationName): string => {
@@ -93,6 +173,16 @@ export async function people<T>(
   name: OperationName,
   variables: Record<string, unknown> = {},
 ): Promise<PeopleAnswer<T>> {
+  const answer = OPERATIONS[name].trimStart().startsWith('mutation')
+    ? send(name, variables)
+    : read(name, JSON.stringify(variables));
+  return answer as Promise<PeopleAnswer<T>>;
+}
+
+async function send(
+  name: OperationName,
+  variables: Record<string, unknown>,
+): Promise<PeopleAnswer<unknown>> {
   const token = await accessToken();
   if (token === null) return signedOut;
   const router = (process.env['ROUTER_URL'] ?? 'http://localhost:4000').replace(/\/$/, '');
@@ -106,18 +196,25 @@ export async function people<T>(
     extensions: { persistedQuery: { version: 1, sha256Hash: hashOf(name) } },
   };
   try {
-    const response = await fetch(`${router}/graphql`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${token}`,
-        'graphql-client-name': CLIENT_NAME,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(operation),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(writes ? 120_000 : 10_000),
-    });
-    if (response.status === 401) return signedOut;
+    const response = await timed(
+      `router.${name}`,
+      fetch(`${router}/graphql`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'graphql-client-name': CLIENT_NAME,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(operation),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(writes ? 120_000 : 10_000),
+      }),
+    );
+    if (response.status === 401) {
+      // Refused, whatever identity said when it was minted: not asked again.
+      for (const [k, v] of minted) if (v.token === token) minted.delete(k);
+      return signedOut;
+    }
     if (GATEWAY_DOWN.has(response.status)) return unreachable;
     const answer = (await response.json().catch(() => null)) as {
       data?: Record<string, unknown> | null;
@@ -132,8 +229,9 @@ export async function people<T>(
         message: error?.message ?? 'People did not answer',
       };
     }
+    if (keyed && name !== 'CompleteFileUpload') changed();
     // Every operation asks for one root field.
-    return { ok: true, data: Object.values(answer.data)[0] as T };
+    return { ok: true, data: Object.values(answer.data)[0] };
   } catch (cause) {
     return cause instanceof Error && cause.name === 'TimeoutError'
       ? { ok: false, code: 'UNAVAILABLE', message: 'People could not be reached' }

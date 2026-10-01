@@ -3,6 +3,7 @@ import { cookies, headers } from 'next/headers';
 import { cache } from 'react';
 
 import { SESSION_COOKIE } from './session-cookie';
+import { timed } from './timing';
 
 /**
  * Who is signed in at this company, if anybody.
@@ -56,17 +57,20 @@ export const currentPerson = cache(async (): Promise<SignedIn | null> => {
   if (tenantId === null || tenantId === '') return null;
 
   try {
-    const response = await fetch(`${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '',
-      },
-      // The tenant travels with the request. Identity refuses a session that
-      // belongs to a different one rather than trusting what the cookie says.
-      body: JSON.stringify({ sessionId, tenantId }),
-      cache: 'no-store',
-    });
+    const response = await timed(
+      'identity.session',
+      fetch(`${process.env['INTERNAL_API_URL'] ?? ''}/api/internal/session`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-token': process.env['INTERNAL_API_TOKEN'] ?? '',
+        },
+        // The tenant travels with the request. Identity refuses a session that
+        // belongs to a different one rather than trusting what the cookie says.
+        body: JSON.stringify({ sessionId, tenantId }),
+        cache: 'no-store',
+      }),
+    );
     if (!response.ok) return null;
 
     const body: unknown = await response.json();

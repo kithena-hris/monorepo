@@ -47,9 +47,9 @@ type ExportBuilderChoice = {
  *
  * The one place the shell knows each screen's prop names. It adds nothing to
  * the data: the `Loadable` is the server's answer as it arrived, and every
- * callback is a server action or a navigation. After a write that changes
- * what the page shows, `router.refresh()` asks the server for the page again,
- * so the next render is People's answer and never the browser's guess.
+ * callback is a server action or a navigation. A write that goes through
+ * answers with the page drawn again (`changed` in `lib/people.ts`), so the
+ * next render is People's answer and never the browser's guess.
  */
 
 type Outcome = { readonly ok: true } | { readonly ok: false; readonly message: string };
@@ -300,15 +300,6 @@ export function PeopleScreen({
     if (known !== null) go(viewHref(known, window.location.search));
   };
 
-  /** A write, then the page again from the server when it went through. */
-  const thenRefresh =
-    <A extends unknown[], R extends Outcome>(act: (...args: A) => Promise<R>) =>
-    async (...args: A): Promise<R> => {
-      const result = await act(...args);
-      if (result.ok) refresh();
-      return result;
-    };
-
   // The import's steps: which upload People holds the file under (§14.2),
   // the mapping chosen, and the stages so far, for Back.
   const [importing, setImporting] = useState<{
@@ -331,11 +322,11 @@ export function PeopleScreen({
         return {
           load: loadable,
           onConfirmEntity: actions.confirmEntity,
-          onPublish: thenRefresh(actions.publishSetup),
-          onSaveProfile: thenRefresh(actions.saveOwnSection),
+          onPublish: actions.publishSetup,
+          onSaveProfile: actions.saveOwnSection,
           // The first administrator is the only HR member: they approve their own NIF (PEO-077).
-          onSelfApprove: thenRefresh(actions.approveAlone),
-          onWithdraw: thenRefresh(actions.withdrawPendingChange),
+          onSelfApprove: actions.approveAlone,
+          onWithdraw: actions.withdrawPendingChange,
           onFinish: () => {
             go('/people/me');
           },
@@ -360,7 +351,7 @@ export function PeopleScreen({
         return {
           load: loadable,
           onUploadFile: (key: string, file: File) => uploadFile(null, key, file),
-          onSave: thenRefresh(actions.saveOwnSection),
+          onSave: actions.saveOwnSection,
           onCheck: (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
             actions.checkIdentifiers(null, sectionKey, changed),
         };
@@ -376,41 +367,35 @@ export function PeopleScreen({
             note({ tab: tab === 'overview' ? null : tab }, 'push');
           },
           // Offered to everybody; the screen shows it only where People says they may.
-          onPhoto: thenRefresh((file: File) => uploadPhoto(id ?? null, file)),
+          onPhoto: (file: File) => uploadPhoto(id ?? null, file),
           // A file for an image or document field; the form's Save keeps it.
           onUploadFile: (key: string, file: File) => uploadFile(id ?? null, key, file),
           onCheck: (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
             actions.checkIdentifiers(id ?? null, sectionKey, changed),
-          onSave: thenRefresh(
+          onSave:
             id === undefined
               ? actions.saveOwnSection
               : (sectionKey: string, changed: Readonly<Record<string, unknown>>) =>
                   actions.savePersonSection(id, sectionKey, changed),
-          ),
           // Only another person's record: nobody moves their own employment.
           ...(id === undefined
             ? {}
             : {
-                onMove: thenRefresh((move: actions.LifecycleMove) =>
-                  actions.moveLifecycle(id, move),
-                ),
-                onPlace: thenRefresh((placement: Parameters<typeof actions.placePerson>[1]) =>
+                onMove: (move: actions.LifecycleMove) => actions.moveLifecycle(id, move),
+                onPlace: (placement: Parameters<typeof actions.placePerson>[1]) =>
                   actions.placePerson(id, placement),
-                ),
                 // One value from a date (W11): People's effective-dated write for one person.
-                onChangeDated: thenRefresh(
-                  async (change: {
-                    values: Readonly<Record<string, unknown>>;
-                    effectiveFrom: string;
-                  }) => {
-                    const done = await actions.commitBulkEdit({
-                      personIds: [id],
-                      values: change.values,
-                      effectiveFrom: change.effectiveFrom,
-                    });
-                    return done.ok ? { ok: true as const } : done;
-                  },
-                ),
+                onChangeDated: async (change: {
+                  values: Readonly<Record<string, unknown>>;
+                  effectiveFrom: string;
+                }) => {
+                  const done = await actions.commitBulkEdit({
+                    personIds: [id],
+                    values: change.values,
+                    effectiveFrom: change.effectiveFrom,
+                  });
+                  return done.ok ? { ok: true as const } : done;
+                },
                 // The employee record as a PDF (PEO-061), as this viewer reads it.
                 onDownloadRecord: async (reason: string) =>
                   download(await actions.exportRecord(id, reason)),
@@ -422,16 +407,14 @@ export function PeopleScreen({
                   return started;
                 },
                 // Ask them for empty details; People says which fields may be asked for.
-                onRequest: thenRefresh((keys: readonly string[]) =>
-                  actions.requestDetails(id, keys),
-                ),
+                onRequest: (keys: readonly string[]) => actions.requestDetails(id, keys),
               }),
           searchPeople: actions.searchPeople,
           onHistory: () => {
             go(id === undefined ? '/people/me/history' : `/people/${id}/history`);
           },
-          onWithdraw: thenRefresh(actions.withdrawPendingChange),
-          onSelfApprove: thenRefresh(actions.approveAlone),
+          onWithdraw: actions.withdrawPendingChange,
+          onSelfApprove: actions.approveAlone,
           onApprovals: () => {
             go('/people/approvals');
           },
@@ -539,14 +522,13 @@ export function PeopleScreen({
                 next,
               }),
           // A view saved from a search keeps its conditions too (smart search's "Save as view").
-          onSaveSegment: thenRefresh((segment: { name: string; shared: boolean }) =>
+          onSaveSegment: (segment: { name: string; shared: boolean }) =>
             actions.saveSegment({
               ...segment,
               filter: filters,
               conditions: conditionsOf(at('conditions') ?? undefined) ?? [],
               match: at('match') === 'any' ? 'any' : 'all',
             }),
-          ),
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
@@ -701,14 +683,13 @@ export function PeopleScreen({
             : null;
         return {
           load: loadable,
-          onSave: thenRefresh(actions.saveGrid),
+          onSave: actions.saveGrid,
           onCheck: actions.checkGrid,
           searchPeople: actions.searchPeople,
           // Everybody due, through the weekly sweep; one person, through asking them.
-          onRemindAll: thenRefresh(actions.remindWaiting),
-          onRemind: thenRefresh((personId: string, keys: readonly string[]) =>
+          onRemindAll: actions.remindWaiting,
+          onRemind: (personId: string, keys: readonly string[]) =>
             actions.requestDetails(personId, keys),
-          ),
           ...(next === null
             ? {}
             : {
@@ -749,14 +730,14 @@ export function PeopleScreen({
           load: loadable,
           today,
           advise: actions.advise,
-          onReorderSections: thenRefresh(actions.reorderSections),
-          onReorderFields: thenRefresh(actions.reorderFields),
-          onAddSection: thenRefresh(actions.addSection),
-          onSaveField: thenRefresh(actions.saveField),
+          onReorderSections: actions.reorderSections,
+          onReorderFields: actions.reorderFields,
+          onAddSection: actions.addSection,
+          onSaveField: actions.saveField,
           preview: actions.previewPublish,
-          onPublish: thenRefresh(actions.publishDraft),
-          onSignup: thenRefresh(actions.setFieldSignup),
-          onAssistant: thenRefresh(actions.setFieldAssistant),
+          onPublish: actions.publishDraft,
+          onSignup: actions.setFieldSignup,
+          onAssistant: actions.setFieldAssistant,
           search: at('q') ?? '',
           onSearchChange: (text: string) => {
             note({ q: typed(text) }, 'replace');
@@ -775,15 +756,11 @@ export function PeopleScreen({
         return {
           load: loadable,
           onCreate: async (input: Parameters<typeof actions.createEndpoint>[0]) => {
-            const made = await actions.createEndpoint(input);
-            if (made.ok) refresh();
-            return made;
+            return actions.createEndpoint(input);
           },
-          onUpdate: thenRefresh(actions.updateEndpoint),
+          onUpdate: actions.updateEndpoint,
           onRotate: async (id: string) => {
-            const rotated = await actions.rotateEndpoint(id);
-            if (rotated.ok) refresh();
-            return rotated;
+            return actions.rotateEndpoint(id);
           },
           onOpenLog: (id: string) => {
             go(`/settings/people/integrations/${id}`);
@@ -794,21 +771,17 @@ export function PeopleScreen({
           },
           scim: {
             onConnect: async (system: string) => {
-              const made = await actions.createScimConnection(system);
-              if (made.ok) refresh();
-              return made;
+              return actions.createScimConnection(system);
             },
             onRotateToken: async (id: string) => {
-              const rotated = await actions.rotateScimToken(id);
-              if (rotated.ok) refresh();
-              return rotated;
+              return actions.rotateScimToken(id);
             },
-            onDisconnect: thenRefresh(actions.revokeScimConnection),
-            onSetMapping: thenRefresh(actions.setScimMapping),
+            onDisconnect: actions.revokeScimConnection,
+            onSetMapping: actions.setScimMapping,
           },
           chat: {
             onConnect: (app: string) => actions.connectChatApp(app, window.location.origin),
-            onDisconnect: thenRefresh(actions.disconnectChatApp),
+            onDisconnect: actions.disconnectChatApp,
             onNotice: actions.setChatNotice,
             fieldsHref: '/settings/people/fields',
             returned:
@@ -825,28 +798,26 @@ export function PeopleScreen({
       case 'ReportSchedules':
         return {
           load: loadable,
-          onCreate: thenRefresh(actions.createReportSchedule),
-          onUpdate: thenRefresh(actions.updateReportSchedule),
-          onPause: thenRefresh(actions.pauseReportSchedule),
-          onResume: thenRefresh(actions.resumeReportSchedule),
-          onDelete: thenRefresh(actions.deleteReportSchedule),
+          onCreate: actions.createReportSchedule,
+          onUpdate: actions.updateReportSchedule,
+          onPause: actions.pauseReportSchedule,
+          onResume: actions.resumeReportSchedule,
+          onDelete: actions.deleteReportSchedule,
         };
       case 'ReportRuns':
         return { load: loadable };
       case 'ReminderSettings':
         return {
           load: loadable,
-          onCohortMinimum: thenRefresh((cohortMinimum: number) =>
-            actions.updateSettings({ cohortMinimum }),
-          ),
+          onCohortMinimum: (cohortMinimum: number) => actions.updateSettings({ cohortMinimum }),
         };
       case 'CountryPacks':
         return { load: loadable };
       case 'RoleSettings':
         return {
           load: loadable,
-          onGrant: thenRefresh(actions.grantRole),
-          onRevoke: thenRefresh(actions.revokeRole),
+          onGrant: actions.grantRole,
+          onRevoke: actions.revokeRole,
           search: at('q') ?? '',
           onSearchChange: (text: string) => {
             note({ q: typed(text) }, 'replace');
@@ -856,7 +827,7 @@ export function PeopleScreen({
         return {
           load: loadable,
           // What signing up still asks: their photo, and files kept to their fields.
-          onPhoto: thenRefresh((file: File) => uploadPhoto(null, file)),
+          onPhoto: (file: File) => uploadPhoto(null, file),
           onSetupFile: async (
             field: { readonly key: string; readonly sectionKey: string },
             file: File,
@@ -867,7 +838,6 @@ export function PeopleScreen({
               [field.key]: up.file.id,
             });
             if (!saved.ok) return { ok: false as const, message: saved.message };
-            refresh();
             return up;
           },
         };
@@ -893,21 +863,21 @@ export function PeopleScreen({
       case 'FullValues':
         return {
           load: loadable,
-          onRequest: thenRefresh(actions.requestFullValues),
-          onDecide: thenRefresh(actions.decideFullValues),
+          onRequest: actions.requestFullValues,
+          onDecide: actions.decideFullValues,
         };
       case 'IdentifierReviews':
         return {
           load: loadable,
-          onDecide: thenRefresh(actions.reviewIdentifier),
+          onDecide: actions.reviewIdentifier,
           onReveal: actions.revealIdentifier,
         };
       case 'Approvals':
         return {
           load: loadable,
-          onDecide: thenRefresh(actions.decidePendingChange),
-          onWithdraw: thenRefresh(actions.withdrawPendingChange),
-          onSelfApprove: thenRefresh(actions.approveAlone),
+          onDecide: actions.decidePendingChange,
+          onWithdraw: actions.withdrawPendingChange,
+          onSelfApprove: actions.approveAlone,
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
@@ -921,10 +891,10 @@ export function PeopleScreen({
             note({ change }, 'push');
           },
           // Flagged approvals (design AI7, AI8).
-          onMarkNotUnusual: thenRefresh(actions.markNotUnusual),
-          onAsk: thenRefresh(actions.askAboutChange),
-          onAnswer: thenRefresh(actions.answerApprovalQuestion),
-          onSetCheck: thenRefresh(actions.setApprovalCheck),
+          onMarkNotUnusual: actions.markNotUnusual,
+          onAsk: actions.askAboutChange,
+          onAnswer: actions.answerApprovalQuestion,
+          onSetCheck: actions.setApprovalCheck,
         };
       case 'Duplicates': {
         const list = '/people/data-health/duplicates';
@@ -945,10 +915,8 @@ export function PeopleScreen({
           // From the list, the list again; from a comparison, back to the list.
           onDismiss: async (a: string, b: string) => {
             const dismissed = await actions.dismissDuplicate([a, b]);
-            if (dismissed.ok) {
-              if (search['a'] === undefined) refresh();
-              else go(list);
-            }
+            // From the list the write's own answer is the list again.
+            if (dismissed.ok && search['a'] !== undefined) go(list);
             return dismissed;
           },
           // Afterwards the restored record, as People now holds it.
@@ -967,7 +935,7 @@ export function PeopleScreen({
         const here = `/settings/people/integrations/${params['id'] ?? ''}`;
         return {
           load: loadable,
-          onReplay: thenRefresh(actions.replayDelivery),
+          onReplay: actions.replayDelivery,
           onBack: () => {
             go('/settings/people/integrations');
           },
@@ -990,14 +958,14 @@ export function PeopleScreen({
       case 'Organisation':
         return {
           load: loadable,
-          onUpdateSettings: thenRefresh(actions.updateSettings),
-          onCreateEntity: thenRefresh(actions.createEntity),
-          onUpdateEntity: thenRefresh(actions.updateEntity),
-          onCreateLocation: thenRefresh(actions.createLocation),
-          onUpdateLocation: thenRefresh(actions.updateLocation),
-          onChangeZone: thenRefresh(actions.changeZone),
-          onSetNumbering: thenRefresh(actions.setNumbering),
-          onSetPayBand: thenRefresh(actions.setPayBand),
+          onUpdateSettings: actions.updateSettings,
+          onCreateEntity: actions.createEntity,
+          onUpdateEntity: actions.updateEntity,
+          onCreateLocation: actions.createLocation,
+          onUpdateLocation: actions.updateLocation,
+          onChangeZone: actions.changeZone,
+          onSetNumbering: actions.setNumbering,
+          onSetPayBand: actions.setPayBand,
           tab: at('tab'),
           onTabChange: (tab: string) => {
             note({ tab: tab === 'entities' ? null : tab }, 'push');
@@ -1215,11 +1183,11 @@ export function PeopleScreen({
           },
           // The Schedules button: the schedules page's own actions.
           schedules: {
-            onCreate: thenRefresh(actions.createReportSchedule),
-            onUpdate: thenRefresh(actions.updateReportSchedule),
-            onPause: thenRefresh(actions.pauseReportSchedule),
-            onResume: thenRefresh(actions.resumeReportSchedule),
-            onDelete: thenRefresh(actions.deleteReportSchedule),
+            onCreate: actions.createReportSchedule,
+            onUpdate: actions.updateReportSchedule,
+            onPause: actions.pauseReportSchedule,
+            onResume: actions.resumeReportSchedule,
+            onDelete: actions.deleteReportSchedule,
           },
         };
       // What changed (design AI5, AI6, MA4, MA5): its own block.
@@ -1312,11 +1280,11 @@ export function PeopleScreen({
           },
           // The Schedules button: the schedules page's own actions.
           schedules: {
-            onCreate: thenRefresh(actions.createReportSchedule),
-            onUpdate: thenRefresh(actions.updateReportSchedule),
-            onPause: thenRefresh(actions.pauseReportSchedule),
-            onResume: thenRefresh(actions.resumeReportSchedule),
-            onDelete: thenRefresh(actions.deleteReportSchedule),
+            onCreate: actions.createReportSchedule,
+            onUpdate: actions.updateReportSchedule,
+            onPause: actions.pauseReportSchedule,
+            onResume: actions.resumeReportSchedule,
+            onDelete: actions.deleteReportSchedule,
           },
         };
       }
