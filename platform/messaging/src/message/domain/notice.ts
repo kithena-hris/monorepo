@@ -64,7 +64,13 @@ export type Notice =
    * there is one, and a link to the export page, signed in.
    */
   | { readonly kind: 'export_shared' }
-  | { readonly kind: 'export_share_requested' };
+  | { readonly kind: 'export_share_requested' }
+  /*
+   * An Insights summary somebody in HR sent (People's "what changed"). Never
+   * who sent it, a figure or a sentence of it: the summary is read signed in,
+   * on the page the button opens, and only by its recipient.
+   */
+  | { readonly kind: 'summary_shared' };
 
 export const REPORT_CADENCES = ['daily', 'weekly', 'monthly'] as const;
 export type ReportCadence = (typeof REPORT_CADENCES)[number];
@@ -199,6 +205,13 @@ const COPY: {
     lede: `Somebody at ${company} wants to send an export from People to a colleague who could not see all of it themselves. Nothing is sent unless a People administrator approves it within seven days.`,
     action: 'Review the export',
     footer: `Sent by Kithena on behalf of ${company} because you are a People administrator.`,
+  }),
+  summary_shared: (_notice, company) => ({
+    subject: `${company}: a People summary was shared with you`,
+    heading: 'A People summary for you',
+    lede: `Somebody at ${company} sent you a summary of what changed in People, written for what you are allowed to see. It is shown only once you are signed in, and it opens for seven days.`,
+    action: 'Open the summary',
+    footer: `Sent by Kithena on behalf of ${company}, because somebody in HR shared a People summary with you.`,
   }),
   scheduled_report: ({ cadence, format }, company) => {
     if (!REPORT_CADENCES.includes(cadence) || !REPORT_FORMATS.includes(format)) return null;

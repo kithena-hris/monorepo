@@ -71,7 +71,6 @@ const view: AnalyticsView = {
   ],
   pay: null,
   funnel: null,
-  whatChanged: { phrasable: false, tabs: [] },
 };
 
 const HEADER = ['chart', 'group', 'series', 'value'];

@@ -240,6 +240,7 @@ labels and kinds, with options only for configuration it may use. Checked in
 `application/assistant/selection.test.ts` and, against a fake model, in the
 browser (the logged request held "senior people in Engineering" for "senior
 people in Engineering who are good at Go", and no record's value).
+
 # An export sent to somebody
 
 The export page (design AI13, AI14, MA10) is the plan above, then where the
@@ -293,3 +294,53 @@ and `GET /v1/exports/{id}/record`.
   the Approvals inbox and the decision emailed (PEO-137), sending more than
   2,000 people (PEO-138), and a schedule from any described audience
   (PEO-139).
+
+<!-- What changed (AI rework, lane I): its own block. -->
+# What changed
+
+The first tab of Insights (`/people/insights/what-changed`, design AI5, AI6,
+MA4, MA5). A period's changes as a handful of points, each with its figure,
+its sentence and the records it came from; a follow-up question; and the
+summary exported or sent, rewritten for whoever receives it. The domain is
+`domain/insights/what-changed.ts`; the use cases `application/screens/what-changed.ts`.
+It replaces the one-line "what changed" note that used to open every tab.
+
+- **The period** is in the address: `?period=week|month|quarter|custom`
+  (month when absent), `from` and `to` for a custom one. "This month" is the
+  month holding yesterday, the last night with a snapshot, so on the 1st it is
+  last month, whole; it is compared with the month before (a custom range with
+  as many days before it).
+- **The points** come from the charts' own queries, as the viewer, under the
+  segment in the address: headcount at either end and who joined, who left
+  (against the period before), missing details at either end and the biggest
+  gap, managers over 8 direct reports, and grades whose median sits outside
+  their band (finance's). A team is named only when it holds at least the
+  cohort minimum at the period's end and most of the change. Every filled-in
+  figure and name is drawn bold; each point's sources link to the Directory
+  filtered to them, or to the tab or page that holds them.
+- **What the model sees**: each point's sentence with every figure and name a
+  placeholder (`{n1}`, `{g1}`), and for a follow-up the viewer's question,
+  through the gateway's `aggregates` mode, which refuses any number. Its answer
+  is one strict JSON object; a key it was not given, a placeholder invented,
+  moved or dropped, a digit or a number word People's own words did not use,
+  and the answer is dropped and People's words stand. The assistant words the
+  points (`/worded`, asked after the page is drawn) and answers follow-ups;
+  it never computes anything. Budget `INSIGHTS_PHRASES_PER_HOUR` (60), 8 s.
+- **The rules**: People's own sentences are the page with no model at all. A
+  follow-up is answered by the points it is about (by topic, or a team it
+  names); a "why" is told the figures are all there is; a question about
+  performance, health or other special-category data is refused and never
+  sent to a model.
+- **For somebody else** (HR's, as scheduled reports are): the same figures
+  are read again *as the recipient*; a point is kept only where theirs has the
+  same numbers, in their words, never naming a team or section the sender
+  could not; every point left out says why ("Pay is left out, because Nora
+  can't see pay in aggregate"). Short is the first three points; Detailed all.
+  Every sentence can be edited in the preview; the edits apply only to points
+  the recipient gets.
+- **Download** is a PDF (pdfkit, `application/export/pdf.ts`). **Send** stores
+  the document as approved (`people.shared_summary`, seven days, RLS) and
+  messaging emails the recipient a link (`summary_shared`, docs/messaging.md),
+  never the summary; it opens for the recipient and the sender only, signed
+  in, at `?shared=<id>`, with the same PDF. Without a messaging mailer and a
+  tenant app base, Send is not offered. Slides is not offered (PEO-132).

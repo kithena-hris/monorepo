@@ -859,6 +859,47 @@ export async function joinerHeatmap(
 }
 
 /**
+ * Who joined and who left, by department and month, over (from, to] — what
+ * "what changed" says about teams (`domain/insights/what-changed.ts`). Grid
+ * only, as the heatmap: a day nobody snapshotted adds nothing.
+ */
+export async function flowsByDepartment(
+  ctx: ChartContext,
+  range: { readonly from: string; readonly to: string; readonly filters?: Filters },
+): Promise<
+  Result<{
+    readonly cells: readonly {
+      month: string;
+      department: string | null;
+      joiners: number;
+      leavers: number;
+    }[];
+  }>
+> {
+  const authorized = authorizeRange(ctx, ['department'], range.filters);
+  if (!authorized.ok) return authorized;
+  const scope = scopeOf(ctx.viewer, ctx.tenantId);
+  const cells = await rows<{
+    month: string;
+    department: string | null;
+    joiners: number;
+    leavers: number;
+  }>(
+    ctx.tx,
+    sql`SELECT to_char(day, 'YYYY-MM') AS month, department,
+               sum(joiners)::int AS joiners, sum(leavers)::int AS leavers
+          FROM people.headcount_snapshot
+         WHERE tenant_id = ${ctx.tenantId}::uuid AND scope_id = ${scope}::uuid
+           AND day > ${range.from}::date AND day <= ${range.to}::date
+           AND ${filterSql(range.filters)}
+         GROUP BY 1, 2
+        HAVING sum(joiners) > 0 OR sum(leavers) > 0
+         ORDER BY 1, 2`,
+  );
+  return ok({ cells });
+}
+
+/**
  * What does the workforce look like in aggregate? One self-identification
  * question, answered from its latest publication, tenant-wide, to HR, withheld
  * whole below the cohort minimum (§6.7) and rounded to the nearest 5.

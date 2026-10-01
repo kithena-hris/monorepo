@@ -34,6 +34,7 @@ import { defineReports } from './reports.js';
 import { defineScreens } from './screens.js';
 import { defineSelectionPlans } from './selection.js';
 import { defineExportShare } from './export-share.js';
+import { defineWhatChanged } from './what-changed.js';
 import { defineTransfers } from './transfers.js';
 import type { PayBandView } from '../application/analytics/pay.js';
 
@@ -1349,6 +1350,7 @@ defineTransfers(builder, viaRest);
 defineSelectionPlans(builder, viaRest);
 // An export sent to somebody else (design AI13, AI14, MA10).
 defineExportShare(builder, viaRest);
+defineWhatChanged(builder, viaRest);
 
 export const schema = builder.toSubGraphSchema({
   linkUrl: 'https://specs.apollo.dev/federation/v2.6',

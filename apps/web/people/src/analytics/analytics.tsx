@@ -15,7 +15,6 @@ import {
   RangeChart,
   ScrollArea,
   ScrollBar,
-  Skeleton,
   Sparkline,
   Stack,
   Stat,
@@ -37,7 +36,7 @@ import {
   type IsoDate,
   type TimelineRow,
 } from '@reach/ui';
-import { useEffect, useId, useState, type JSX, type ReactNode } from 'react';
+import { useId, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import type { ReportSchedulesState } from '../reports/report-schedules';
@@ -134,21 +133,6 @@ export interface AnalyticsState {
   readonly segments?: readonly SegmentRef[];
   /** The report schedules, read beside the analytics; null where People refuses them. */
   readonly schedules?: ReportSchedulesState | null;
-  /**
-   * "What changed" at the top of each tab, in People's words, from the
-   * figures below. `phrasable`: the assistant may reword it (`onWhatChanged`).
-   */
-  readonly whatChanged?: {
-    readonly phrasable: boolean;
-    readonly tabs: readonly { readonly tab: string; readonly sentences: readonly string[] }[];
-  };
-}
-
-/** One tab's "what changed" as the assistant reworded it, or People's words when it could not. */
-export interface WhatChangedAnswer {
-  readonly sentences: readonly string[];
-  /** The words are the assistant's; the figures are always People's. */
-  readonly byModel: boolean;
 }
 
 export interface SelfIdChart {
@@ -204,8 +188,6 @@ export interface AnalyticsProps {
   /** Applied by the shell, server-side: `?segment=<id>`. */
   readonly segmentId?: string | null;
   readonly onSegmentChange?: (segmentId: string | null) => void;
-  /** Ask for this tab's summary in the assistant's words; null when it could not be had. */
-  readonly onWhatChanged?: (tab: InsightsTab) => Promise<WhatChangedAnswer | null>;
 }
 
 const percent = (n: number): string => `${n.toFixed(1)}%`;
@@ -274,7 +256,6 @@ export function Analytics({
   segmentId = null,
   onSegmentChange,
   schedules,
-  onWhatChanged,
 }: AnalyticsProps): JSX.Element {
   return (
     <Loaded load={load} what="the analytics">
@@ -285,10 +266,92 @@ export function Analytics({
           segmentId={segmentId}
           onSegmentChange={onSegmentChange}
           schedules={schedules}
-          onWhatChanged={onWhatChanged}
         />
       )}
     </Loaded>
+  );
+}
+
+/**
+ * Insights' header, on every tab: the title, what the figures are, the
+ * segment, the schedules behind their button, and the tab's own export.
+ */
+export function InsightsHeader({
+  description,
+  segments,
+  segmentId,
+  onSegmentChange,
+  reports,
+  schedules,
+  exportAction,
+}: {
+  readonly description: string;
+  readonly segments: readonly SegmentRef[];
+  readonly segmentId: string | null;
+  readonly onSegmentChange: ((segmentId: string | null) => void) | undefined;
+  /** The schedules HR may manage; null for anybody else. */
+  readonly reports: ReportSchedulesState | null;
+  readonly schedules: ScheduleActions | undefined;
+  readonly exportAction: ReactNode;
+}): JSX.Element {
+  return (
+    <PageHeader
+      title="Insights"
+      // A phone's bar holds the clock (MV6), as the design draws it.
+      touchBarActions
+      description={description}
+      actions={
+        <>
+          {onSegmentChange === undefined ? null : (
+            <SegmentSelect segments={segments} value={segmentId} onChange={onSegmentChange} />
+          )}
+          {reports === null || schedules === undefined ? null : (
+            <>
+              <span className="touch:hidden">
+                <Schedules state={reports} actions={schedules} />
+              </span>
+              {/* A phone's bar keeps the clock; the page is a tap away. */}
+              <Button asChild variant="ghost" className="hidden touch:inline-flex">
+                <a href="/people/reports" aria-label="Scheduled reports">
+                  <icons.scheduled aria-hidden />
+                </a>
+              </Button>
+            </>
+          )}
+          {exportAction}
+        </>
+      }
+    />
+  );
+}
+
+/** Under a finger, the schedules sit at the foot of the page too (MV6). */
+export function SchedulesRow({
+  reports,
+}: {
+  readonly reports: ReportSchedulesState | null;
+}): JSX.Element | null {
+  if (reports === null) return null;
+  const running = reports.schedules.filter((s) => !s.paused).length;
+  return (
+    <List aria-label="Report schedules" className="hidden touch:block">
+      <ListItem
+        asChild
+        chevron
+        leading={
+          <Avatar
+            size="lg"
+            shape="rounded"
+            tone="neutral"
+            name="Scheduled reports"
+            fallback={<icons.scheduled aria-hidden />}
+          />
+        }
+        description={`${String(running)} active`}
+      >
+        <a href="/people/reports">Scheduled reports</a>
+      </ListItem>
+    </List>
   );
 }
 
@@ -298,14 +361,12 @@ function Workforce({
   segmentId,
   onSegmentChange,
   schedules,
-  onWhatChanged,
 }: {
   readonly state: AnalyticsState;
   readonly tab: InsightsTab;
   readonly segmentId: string | null;
   readonly onSegmentChange: AnalyticsProps['onSegmentChange'];
   readonly schedules: AnalyticsProps['schedules'];
-  readonly onWhatChanged: AnalyticsProps['onWhatChanged'];
 }): JSX.Element {
   const { headcount, attrition, complete, movement } = state;
   // The schedules HR may manage, and the actions to manage them with.
@@ -313,7 +374,6 @@ function Workforce({
     schedules !== undefined && state.schedules != null && state.schedules.canManage
       ? state.schedules
       : null;
-  const running = reports?.schedules.filter((s) => !s.paused).length ?? 0;
   const joined =
     state.joiners == null ? null : state.joiners.cells.reduce((n, c) => n + c.value, 0);
 
@@ -613,49 +673,29 @@ function Workforce({
 
   return (
     <Stack gap={6}>
-      <PageHeader
-        title="Insights"
-        // A phone's bar holds the clock (MV6), as the design draws it.
-        touchBarActions
+      <InsightsHeader
         description={`${state.asOf}${state.segment ? ` · ${state.segment.name}` : ''} · ${state.sourceNote}${
           state.minimum === undefined
             ? ''
             : ` Groups under ${String(state.minimum)} people are hidden.`
         }`}
-        actions={
-          <>
-            {onSegmentChange === undefined ? null : (
-              <SegmentSelect
-                segments={state.segments ?? []}
-                value={segmentId}
-                onChange={onSegmentChange}
-              />
-            )}
-            {reports === null || schedules === undefined ? null : (
-              <>
-                <span className="touch:hidden">
-                  <Schedules state={reports} actions={schedules} />
-                </span>
-                {/* A phone's bar keeps the clock; the page is a tap away. */}
-                <Button asChild variant="ghost" className="hidden touch:inline-flex">
-                  <a href="/people/reports" aria-label="Scheduled reports">
-                    <icons.scheduled aria-hidden />
-                  </a>
-                </Button>
-              </>
-            )}
-            {/* This tab's numbers as a file, at a desk (V7). */}
-            <Button
-              asChild
-              variant="secondary"
-              startIcon={<icons.download aria-hidden />}
-              className="touch:hidden"
-            >
-              <a href={exportUrl(tab, state.segment?.id ?? null)} download>
-                Export
-              </a>
-            </Button>
-          </>
+        segments={state.segments ?? []}
+        segmentId={segmentId}
+        onSegmentChange={onSegmentChange}
+        reports={reports}
+        schedules={schedules}
+        exportAction={
+          // This tab's numbers as a file, at a desk (V7).
+          <Button
+            asChild
+            variant="secondary"
+            startIcon={<icons.download aria-hidden />}
+            className="touch:hidden"
+          >
+            <a href={exportUrl(tab, state.segment?.id ?? null)} download>
+              Export
+            </a>
+          </Button>
         }
       />
       {state.segment ? (
@@ -671,7 +711,6 @@ function Workforce({
         </Alert>
       ) : null}
 
-      <WhatChanged state={state} tab={tab} onWhatChanged={onWhatChanged} />
       {figures.length === 0 ? null : (
         <AutoGrid minItemWidth="11rem" gap={3}>
           {figures}
@@ -689,95 +728,8 @@ function Workforce({
         <div className={grid}>{sections}</div>
       )}
 
-      {reports === null ? null : (
-        // Under a finger, the schedules sit at the foot of the page too (MV6).
-        <List aria-label="Report schedules" className="hidden touch:block">
-          <ListItem
-            asChild
-            chevron
-            leading={
-              <Avatar
-                size="lg"
-                shape="rounded"
-                tone="neutral"
-                name="Scheduled reports"
-                fallback={<icons.scheduled aria-hidden />}
-              />
-            }
-            description={`${String(running)} active`}
-          >
-            <a href="/people/reports">Scheduled reports</a>
-          </ListItem>
-        </List>
-      )}
+      <SchedulesRow reports={reports} />
     </Stack>
-  );
-}
-
-/**
- * "What changed" on this tab: a few sentences from its own figures. People
- * writes them; where the assistant may reword them, the words are asked for
- * once per tab and segment, with the note's shape held by a skeleton until
- * they come, and People's own words stand if they do not. The numbers are
- * People's either way: the assistant is shown placeholders, never a figure.
- */
-function WhatChanged({
-  state,
-  tab,
-  onWhatChanged,
-}: {
-  readonly state: AnalyticsState;
-  readonly tab: InsightsTab;
-  readonly onWhatChanged: AnalyticsProps['onWhatChanged'];
-}): JSX.Element | null {
-  const ours = state.whatChanged?.tabs.find((t) => t.tab === tab)?.sentences ?? [];
-  const phrasable =
-    state.whatChanged?.phrasable === true && onWhatChanged !== undefined && ours.length > 0;
-  // What was asked, so an answer for another tab or segment is never shown here.
-  const asked = `${tab}|${state.segment?.id ?? ''}|${ours.join(' ')}`;
-  const [answer, setAnswer] = useState<(WhatChangedAnswer & { readonly asked: string }) | null>(
-    null,
-  );
-  useEffect(() => {
-    if (!phrasable) return undefined;
-    let live = true;
-    void onWhatChanged(tab)
-      .catch(() => null)
-      .then((a) => {
-        if (live) setAnswer({ asked, sentences: a?.sentences ?? ours, byModel: a?.byModel ?? false });
-      });
-    return () => {
-      live = false;
-    };
-    // `asked` stands for the tab, the segment and the figures together.
-  }, [asked, phrasable]);
-
-  if (ours.length === 0) return null;
-  const shown = answer?.asked === asked ? answer : null;
-  const byModel = shown?.byModel === true;
-  return (
-    <Alert
-      tone="neutral"
-      title="What changed"
-      icon={byModel ? <icons.assistant aria-hidden /> : <icons.analytics aria-hidden />}
-    >
-      {phrasable && shown === null ? (
-        <span className="flex flex-col gap-2 pt-1" aria-busy="true">
-          <span className="sr-only">Summarising this tab</span>
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-2/3" />
-        </span>
-      ) : (
-        <>
-          <p>{(shown?.sentences ?? ours).join(' ')}</p>
-          {byModel ? (
-            <p className="mt-1 text-sm text-fg-muted">
-              Worded by the assistant from the figures below, which are People’s.
-            </p>
-          ) : null}
-        </>
-      )}
-    </Alert>
   );
 }
 

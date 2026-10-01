@@ -1025,19 +1025,43 @@ export async function deleteReportSchedule(id: string): Promise<Outcome> {
 
 /* ------------------------------------------------------- what changed -- */
 
+/** The period and segment in the address, as People reads them; absent is the default. */
+export interface PeriodAsk {
+  readonly period?: string;
+  readonly from?: string;
+  readonly to?: string;
+  readonly segment?: string;
+}
+
 /**
- * One Insights tab's "what changed", worded by the assistant where there is
- * one; null when People could not be asked, and the screen keeps its own words.
+ * The points worded by the assistant where there is one; null when People
+ * could not be asked, and the screen keeps People's own words.
  */
-export async function whatChanged(
-  tab: string,
-  segment: string | null,
-): Promise<{ readonly sentences: readonly string[]; readonly byModel: boolean } | null> {
-  const answer = await people<{ sentences: readonly string[]; byModel: boolean }>('WhatChanged', {
-    tab,
-    segment,
-  });
-  return answer.ok ? { sentences: answer.data.sentences, byModel: answer.data.byModel } : null;
+export async function wordedWhatChanged(ask: PeriodAsk): Promise<unknown> {
+  const answer = await parsed(
+    people<string>('WhatChangedWorded', {
+      period: ask.period ?? null,
+      from: ask.from ?? null,
+      to: ask.to ?? null,
+      segment: ask.segment ?? null,
+    }),
+  );
+  return answer.ok ? answer.data : null;
+}
+
+/** A follow-up question, answered from the points and nothing else. */
+export async function askWhatChanged(ask: PeriodAsk, question: string): Promise<Parsed> {
+  return parsed(people<string>('WhatChangedAsk', { input: JSON.stringify({ ...ask, question }) }));
+}
+
+/** The summary as it would go to somebody, rewritten for what they may see. Writes nothing. */
+export async function draftSummary(input: Readonly<Record<string, unknown>>): Promise<Parsed> {
+  return parsed(people<string>('SummaryDraft', { input: JSON.stringify(input) }));
+}
+
+/** Send the summary as previewed and edited: stored for its recipient, and an email with a link. */
+export async function shareSummary(input: Readonly<Record<string, unknown>>): Promise<Parsed> {
+  return parsed(people<string>('ShareSummary', { input: JSON.stringify(input) }));
 }
 
 /**

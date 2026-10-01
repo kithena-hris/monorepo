@@ -160,6 +160,21 @@ describe('renderNotice: scheduled_report', () => {
   });
 });
 
+describe('renderNotice: summary_shared', () => {
+  const SHARED =
+    'https://acme.app.kithena.com/people/insights/what-changed?shared=0190a0b2-0000-7000-8000-000000000002';
+
+  it('says a summary waits, links to it, and carries nothing of it', () => {
+    const result = renderNotice({ kind: 'summary_shared' }, SHARED, ACME);
+    if (!result.ok) throw new Error('expected a message');
+    expect(result.value.subject).toBe('Acme Corp: a People summary was shared with you');
+    expect(result.value.text).toContain('Open the summary');
+    expect(result.value.text).toContain('seven days');
+    expect(result.value.text).not.toMatch(/\d+ (people|joiners|leavers)/u);
+    expect(result.value.html).toContain(`href="${SHARED}"`);
+  });
+});
+
 describe('the company', () => {
   it('is named in the subject and both bodies, and escaped in the HTML', () => {
     const result = renderNotice({ kind: 'profile_reminder', missing: 2 }, PROFILE, 'Smith & <Co>');

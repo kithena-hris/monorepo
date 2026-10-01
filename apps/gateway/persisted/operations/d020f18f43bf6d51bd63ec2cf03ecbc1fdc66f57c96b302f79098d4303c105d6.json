@@ -1,0 +1,1 @@
+{"version":1,"body":"query WhatChanged($period: String, $from: String, $to: String, $segment: ID) {\n    peopleWhatChanged(period: $period, from: $from, to: $to, segment: $segment)\n  }"}

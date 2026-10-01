@@ -1,0 +1,1 @@
+{"version":1,"body":"query ExportSharePreview($input: String!) {\n    peopleExportSharePreview(input: $input)\n  }"}

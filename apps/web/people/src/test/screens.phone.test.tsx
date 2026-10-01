@@ -31,6 +31,8 @@ import { ImportExport } from '../import/import-export';
 import { Duplicates } from '../review/duplicates';
 import { PublishDialog } from '../settings/publish';
 import { PeopleSetup } from '../setup/people-setup';
+import { WhatChanged } from '../analytics/what-changed';
+import { FOR_NORA, SEPTEMBER } from '../analytics/what-changed.fixture';
 
 /**
  * Every screen at 390×844 with a coarse pointer and the real stylesheet
@@ -1271,23 +1273,10 @@ describe('at 390×844, with a finger', () => {
               { label: 'Invited', value: 128 },
               { label: 'Complete', value: 61 },
             ],
-            whatChanged: {
-              phrasable: false,
-              tabs: [
-                {
-                  tab: 'data-quality',
-                  sentences: [
-                    'Records 79% complete; 88 incomplete.',
-                    '1 work permit expires in October.',
-                  ],
-                },
-              ],
-            },
           },
         }}
       />,
     );
-    expect(screen.getByText('What changed')).toBeInTheDocument();
     // No chart forces the page sideways; a time axis scrolls inside its own box.
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
     // The expiry lanes are the taller, finger-sized ones a coarse pointer gets (PEO-122).
@@ -1412,5 +1401,60 @@ describe('onboarding on a phone, keyboard up', () => {
     await screen.findByRole('form', { name: 'Bank details' });
     expect(screen.getByText(/1 of 2 sections done/)).toBeVisible();
     await page.viewport(390, 844);
+  });
+});
+
+describe('what changed on a phone (MA4, MA5)', () => {
+  const four = {
+    ...SEPTEMBER,
+    title: 'September in four points',
+    points: [
+      ...SEPTEMBER.points,
+      {
+        key: 'span',
+        figure: '2',
+        text: '2 managers now have more than 8 direct reports.',
+        parts: [{ text: '2 managers now have more than 8 direct reports.', strong: false }],
+        sources: [{ kind: 'org-chart' as const, label: 'Org chart' }],
+        audience: null,
+      },
+    ],
+  };
+
+  it('holds the first three points and Share summary, every target a finger’s', async () => {
+    await checked(
+      <WhatChanged load={{ status: 'ready', data: four }} onExportingChange={vi.fn()} onAsk={vi.fn()} />,
+    );
+    expect(screen.getByRole('heading', { name: 'September in four points' })).toBeVisible();
+    expect(screen.getByText(/Headcount grew from/)).toBeVisible();
+    expect(screen.getByText(/2 managers now have more than 8/)).not.toBeVisible();
+    // The design's phone card: no period control, follow-up or charts beside it.
+    expect(screen.getByRole('radio', { name: 'This quarter', hidden: true })).not.toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Ask a follow-up', hidden: true })).not.toBeVisible();
+    expect(screen.getByRole('button', { name: 'Share summary' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Show 1 more' }));
+    expect(screen.getByText(/2 managers now have more than 8/)).toBeVisible();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+  });
+
+  it('shares as a sheet from the bottom, rewritten for its recipient', async () => {
+    await checked(
+      <WhatChanged
+        load={{ status: 'ready', data: SEPTEMBER }}
+        exporting={{ format: 'email', recipient: 'nora', tone: 'short', charts: true, madeLine: true }}
+        onExportingChange={vi.fn()}
+        onDraft={() => Promise.resolve({ ok: true as const, data: FOR_NORA })}
+        onSend={vi.fn()}
+      />,
+    );
+    const dialog = screen.getByRole('dialog', { name: /Share the September summary/ });
+    expect(await within(dialog).findByText('Rewritten for Nora')).toBeVisible();
+    expect(within(dialog).getByText('Message')).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Send to Nora' })).toBeVisible();
+    expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
+    expect(Number.parseFloat(getComputedStyle(dialog).bottom)).toBeLessThanOrEqual(8);
+    await settled();
+    expect(underFloor(dialog)).toEqual([]);
+    expect(await violations(document.body)).toEqual([]);
   });
 });

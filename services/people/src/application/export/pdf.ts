@@ -101,16 +101,20 @@ function heading(doc: PDFKit.PDFDocument, f: Furniture, reserve = 0): number {
   return y + 10;
 }
 
-/** Generated at and by, the withheld count, and "Page 3 of 7" on every page. */
-async function finish(doc: PDFKit.PDFDocument, f: Furniture): Promise<Uint8Array> {
+/**
+ * Generated at and by, the withheld count (or `note` in its place), and
+ * "Page 3 of 7" on every page.
+ */
+async function finish(doc: PDFKit.PDFDocument, f: Furniture, note?: string): Promise<Uint8Array> {
   const chunks: Buffer[] = [];
   doc.on('data', (c: Buffer) => chunks.push(c));
   const ended = new Promise<void>((resolve) => doc.on('end', resolve));
   const { start, count } = doc.bufferedPageRange();
   const withheld =
-    f.withheld === 0
+    note ??
+    (f.withheld === 0
       ? 'No fields withheld'
-      : `${String(f.withheld)} ${f.withheld === 1 ? 'field' : 'fields'} withheld from the requester`;
+      : `${String(f.withheld)} ${f.withheld === 1 ? 'field' : 'fields'} withheld from the requester`);
   for (let i = start; i < start + count; i++) {
     doc.switchToPage(i);
     // Below the bottom margin: without this pdfkit would start a new page.
@@ -241,4 +245,100 @@ export function rosterPdf(d: RosterDocument): Promise<Uint8Array> {
       .stroke(RULE);
   }
   return finish(doc, d);
+}
+
+/** An Insights summary as sent (design AI6): its points, a chart, how it was made. */
+export interface SummaryPdfDocument {
+  readonly company: string | null;
+  readonly title: string;
+  readonly preparedBy: string;
+  readonly preparedOn: string;
+  readonly points: readonly { readonly figure: string; readonly text: string }[];
+  readonly chart: readonly { readonly label: string; readonly value: number }[] | null;
+  readonly madeLine: string | null;
+  readonly generatedAt: string;
+}
+
+/**
+ * A summary on paper, as the preview draws it: the company over the title,
+ * who prepared it, each point with its figure, headcount by month as a line,
+ * and the line on how it was made. Aggregates only, so nothing is withheld.
+ */
+export function summaryPdf(d: SummaryPdfDocument): Promise<Uint8Array> {
+  const doc = open('portrait');
+  const w = width(doc);
+  let y = MARGIN;
+  doc
+    .font('bold')
+    .fontSize(8)
+    .fillColor(MUTED)
+    .text(`${d.company === null ? '' : `${d.company.toUpperCase()} · `}PEOPLE REPORT`, MARGIN, y, {
+      width: w,
+      characterSpacing: 0.8,
+    });
+  y = doc.y + 6;
+  doc.font('bold').fontSize(20).fillColor(INK).text(d.title, MARGIN, y, { width: w });
+  y = doc.y + 2;
+  doc
+    .font('body')
+    .fontSize(9)
+    .fillColor(MUTED)
+    .text(`Prepared by ${d.preparedBy} · ${d.preparedOn}`, MARGIN, y, { width: w });
+  y = doc.y + 14;
+
+  const figureW = 56;
+  for (const point of d.points) {
+    doc.font('body').fontSize(11);
+    const h = Math.max(16, doc.heightOfString(point.text, { width: w - figureW }));
+    if (y + h > bottom(doc)) {
+      doc.addPage();
+      y = MARGIN;
+    }
+    doc.font('bold').fillColor(INK).text(point.figure, MARGIN, y, { width: figureW - 8 });
+    doc.font('body').text(point.text, MARGIN + figureW, y, { width: w - figureW });
+    y += h + 10;
+  }
+
+  const chart = d.chart;
+  if (chart !== null && chart.length > 1) {
+    const h = 90;
+    if (y + h + 30 > bottom(doc)) {
+      doc.addPage();
+      y = MARGIN;
+    }
+    doc.font('bold').fontSize(9).fillColor(MUTED).text('Headcount by month', MARGIN, y);
+    y = doc.y + 6;
+    const values = chart.map((p) => p.value);
+    const low = Math.min(...values);
+    const span = Math.max(Math.max(...values) - low, 1);
+    const step = w / (chart.length - 1);
+    chart.forEach((p, i) => {
+      const x = MARGIN + i * step;
+      // A flat line sits mid-box rather than on its floor.
+      const py =
+        Math.max(...values) === low ? y + h / 2 : y + h - ((p.value - low) / span) * (h - 10) - 5;
+      if (i === 0) doc.moveTo(x, py);
+      else doc.lineTo(x, py);
+    });
+    doc.lineWidth(1.5).stroke('#5b50e8');
+    doc.font('body').fontSize(8).fillColor(MUTED);
+    chart.forEach((p, i) => {
+      const x = MARGIN + i * step;
+      doc.text(p.label, Math.min(Math.max(MARGIN, x - 20), MARGIN + w - 40), y + h + 4, {
+        width: 40,
+        align: i === 0 ? 'left' : i === chart.length - 1 ? 'right' : 'center',
+        lineBreak: false,
+      });
+    });
+    y += h + 20;
+  }
+
+  if (d.madeLine !== null) {
+    doc.font('body').fontSize(9).fillColor(MUTED).text(d.madeLine, MARGIN, y, { width: w });
+  }
+  return finish(
+    doc,
+    { title: d.title, lines: [], generatedAt: d.generatedAt, generatedBy: d.preparedBy, withheld: 0 },
+    'Aggregates only; groups under the cohort minimum are never described',
+  );
 }

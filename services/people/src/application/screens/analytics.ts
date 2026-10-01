@@ -21,13 +21,13 @@ import {
   type Filters,
 } from '../analytics/queries.js';
 import { cohortMinimum } from '../analytics/access.js';
-import { factsFor, filled } from '../../domain/insights/what-changed.js';
 import { payCharts, type PayCell } from '../analytics/pay.js';
 import { selfIdFields } from '../analytics/snapshot.js';
 import { fromMinor } from '../import/cells.js';
 import { relationsToMany, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import { NOBODY, tenantToday, type ScreenDeps } from './record.js';
+import type { ViewerRelations } from '../../domain/access/field-access.js';
+import { NOBODY, tenantToday, type ScreenDeps, type Tx } from './record.js';
 import { chartViewerOf, segmentFor, segmentsFor, type SegmentView } from './segments.js';
 
 /**
@@ -159,15 +159,6 @@ export interface AnalyticsView {
   /** Pay in aggregate, finance's only, never under a segment (PEO-078). */
   readonly pay: PayView | null;
   readonly funnel: null;
-  /**
-   * "What changed" at the top of each tab, in People's own words, from the
-   * figures above and nothing else (`domain/insights/what-changed.ts`).
-   * `phrasable` when the assistant may reword them (`what-changed.ts`).
-   */
-  readonly whatChanged: {
-    readonly phrasable: boolean;
-    readonly tabs: readonly { readonly tab: InsightsTab; readonly sentences: readonly string[] }[];
-  };
 }
 
 /**
@@ -202,7 +193,7 @@ export interface PayView {
   readonly compa: readonly PayGroupView[];
 }
 
-const minusMonths = (day: string, n: number): string => {
+export const minusMonths = (day: string, n: number): string => {
   const d = new Date(`${day}T00:00:00Z`);
   d.setUTCMonth(d.getUTCMonth() - n);
   return d.toISOString().slice(0, 10);
@@ -263,218 +254,244 @@ export function stacked(
 export async function analyticsView(
   deps: ScreenDeps,
   asking: Asking,
-  request: { readonly segmentId?: string; readonly phrasable?: boolean } = {},
+  request: { readonly segmentId?: string } = {},
 ): Promise<Result<AnalyticsView>> {
-  const charts = await chartsView(deps, asking, request);
-  if (!charts.ok) return charts;
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const scoped = await chartScope(deps, tx, asking, request.segmentId);
+    if (!scoped.ok) return scoped;
+    return chartsView(deps, tx, asking, scoped.value);
+  });
+}
+
+/** What every chart of one viewer is drawn under: who they are, the schema, the segment. */
+export interface ChartScope {
+  readonly ctx: ChartContext;
+  readonly today: string;
+  readonly filters: Filters | undefined;
+  readonly segment: AnalyticsView['segment'];
+  readonly definitions: readonly AttributeDefinition[];
+  /** Section keys to their labels. */
+  readonly sections: ReadonlyMap<string, string>;
+  readonly everyone: ViewerRelations;
+}
+
+/**
+ * The viewer's charts' context, or why they have none: anybody but HR and
+ * managers is refused, as is a segment they may not use.
+ */
+export async function chartScope(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  segmentId?: string,
+): Promise<Result<ChartScope>> {
+  const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+  const viewer = await chartViewerOf(deps, tx, asking, everyone);
+  if (viewer === null) return err(failure('FORBIDDEN', 'Analytics is for HR and managers'));
+  const version = await deps.service.schemas.current(tx, asking.tenantId);
+  if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
+  const definitions = version.document.attributes;
+  // The tenant's own minimum, never below the floor (`cohortMinimum`).
+  const settings = await deps.service.org?.settings(tx, asking);
+  const ctx: ChartContext = {
+    tx,
+    tenantId: asking.tenantId,
+    viewer,
+    definitions,
+    ...(settings?.ok === true ? { cohortMinimum: settings.value.cohortMinimum } : {}),
+  };
+  const today = await tenantToday(deps, tx, asking.tenantId);
+  let segment: AnalyticsView['segment'] = null;
+  let filters: Filters | undefined;
+  if (segmentId !== undefined) {
+    const found = await segmentFor(deps, tx, asking, segmentId);
+    if (!found.ok) return found;
+    // A chart has no conditions: a view saved from a search is not one it can draw.
+    if ((found.value.conditions ?? []).length > 0) {
+      return err(failure('FIELD_NOT_FILTERABLE', 'Charts can’t be narrowed by this view'));
+    }
+    const charted = chartFilters(found.value.filter);
+    if (!charted.ok) return charted;
+    segment = { id: found.value.id, name: found.value.name };
+    filters = charted.value;
+  }
   return ok({
-    ...charts.value,
-    whatChanged: {
-      phrasable: request.phrasable === true,
-      tabs: INSIGHTS_TABS.map((tab) => ({ tab, sentences: filled(factsFor(charts.value, tab)) })),
-    },
+    ctx,
+    today,
+    filters,
+    segment,
+    definitions,
+    sections: new Map(version.document.sections.map((s) => [s.key as string, s.label.default])),
+    everyone,
   });
 }
 
 async function chartsView(
   deps: ScreenDeps,
+  tx: Tx,
   asking: Asking,
-  request: { readonly segmentId?: string },
-): Promise<Result<Omit<AnalyticsView, 'whatChanged'>>> {
-  return run(deps.service, asking.tenantId, async (tx) => {
-    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-    const viewer = await chartViewerOf(deps, tx, asking, everyone);
-    if (viewer === null) return err(failure('FORBIDDEN', 'Analytics is for HR and managers'));
-    const version = await deps.service.schemas.current(tx, asking.tenantId);
-    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
-    const definitions = version.document.attributes;
-    // The tenant's own minimum, never below the floor (`cohortMinimum`).
-    const settings = await deps.service.org?.settings(tx, asking);
-    const ctx: ChartContext = {
-      tx,
-      tenantId: asking.tenantId,
-      viewer,
-      definitions,
-      ...(settings?.ok === true ? { cohortMinimum: settings.value.cohortMinimum } : {}),
-    };
-    const today = await tenantToday(deps, tx, asking.tenantId);
+  scope: ChartScope,
+): Promise<Result<AnalyticsView>> {
+  const { ctx, today, filters, segment, definitions, everyone } = scope;
+  const viewer = ctx.viewer;
+  const range = (from: string) => ({ from, to: today, ...(filters ? { filters } : {}) });
 
-    let segment: AnalyticsView['segment'] = null;
-    let filters: Filters | undefined;
-    if (request.segmentId !== undefined) {
-      const found = await segmentFor(deps, tx, asking, request.segmentId);
-      if (!found.ok) return found;
-      // A chart has no conditions: a view saved from a search is not one it can draw.
-      if ((found.value.conditions ?? []).length > 0) {
-        return err(failure('FIELD_NOT_FILTERABLE', 'Charts can’t be narrowed by this view'));
-      }
-      const charted = chartFilters(found.value.filter);
-      if (!charted.ok) return charted;
-      segment = { id: found.value.id, name: found.value.name };
-      filters = charted.value;
+  const trend = await headcountTrend(ctx, range(minusMonths(today, 12)));
+  // The one chart every viewer gets: a segment they may not use stops here.
+  if (!trend.ok) return trend;
+  const starting =
+    viewer.kind === 'hr' && filters === undefined
+      ? await deps.service.access.count(tx, {
+          ...asking,
+          refine: { conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }] },
+        })
+      : null;
+  const points = trend.value.points;
+  const last = points.at(-1);
+  const before = points.at(-2);
+
+  const attrition = await attritionTrend(ctx, range(minusMonths(today, 12)));
+  const latest = attrition.ok ? attrition.value.points.at(-1) : undefined;
+  const states = await completeness(ctx, { asOf: today, ...(filters ? { filters } : {}) });
+  const completeDays = await completenessByDay(ctx, range(minusMonths(today, 12)));
+  const monthAgo = completeDays.ok
+    ? completeDays.value.find((d) => d.day === minusMonths(today, 1))
+    : undefined;
+  const then = monthAgo === undefined ? null : percentComplete(monthAgo);
+  const moved = await movementWaterfall(ctx, range(minusMonths(today, 1)));
+
+  const expiring =
+    filters === undefined
+      ? await expiryTimeline(ctx, {
+          calendar: await deps.calendars.load(tx, asking.tenantId),
+          at: deps.clock.instant(),
+          everyone,
+          relations: (personIds) =>
+            relationsToMany(deps.relations, tx, asking.tenantId, asking.viewer, personIds),
+        })
+      : null;
+  const expiries =
+    expiring?.ok === true && expiring.value.kinds.length > 0
+      ? { today: expiring.value.today, items: expiring.value.items }
+      : null;
+
+  const bands = await tenure(ctx, { asOf: today, ...(filters ? { filters } : {}) });
+  const spans = filters === undefined ? await spanOfControl(ctx, { asOf: today }) : null;
+  const joined = await joinerHeatmap(ctx, range(minusMonths(today, 12)));
+  const made = await composition(ctx, {
+    asOf: today,
+    by: ['department', 'employment_type'],
+    ...(filters ? { filters } : {}),
+  });
+  const department = labeller(definitions, 'org_unit');
+  const employment = labeller(definitions, 'employment_type');
+
+  const percent = states.ok ? percentComplete(states.value.states) : null;
+  const bySection = new Map<string, number>();
+  if (states.ok && states.value.byField !== null) {
+    for (const f of states.value.byField) {
+      bySection.set(f.sectionKey, (bySection.get(f.sectionKey) ?? 0) + f.missing);
     }
-    const range = (from: string) => ({ from, to: today, ...(filters ? { filters } : {}) });
+  }
+  const sectionLabel = scope.sections;
+  const source = states.ok ? states.value.source : 'snapshot';
 
-    const trend = await headcountTrend(ctx, range(minusMonths(today, 12)));
-    // The one chart every viewer gets: a segment they may not use stops here.
-    if (!trend.ok) return trend;
-    const starting =
-      viewer.kind === 'hr' && filters === undefined
-        ? await deps.service.access.count(tx, {
-            ...asking,
-            refine: { conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }] },
-          })
-        : null;
-    const points = trend.value.points;
-    const last = points.at(-1);
-    const before = points.at(-2);
-
-    const attrition = await attritionTrend(ctx, range(minusMonths(today, 12)));
-    const latest = attrition.ok ? attrition.value.points.at(-1) : undefined;
-    const states = await completeness(ctx, { asOf: today, ...(filters ? { filters } : {}) });
-    const completeDays = await completenessByDay(ctx, range(minusMonths(today, 12)));
-    const monthAgo = completeDays.ok
-      ? completeDays.value.find((d) => d.day === minusMonths(today, 1))
-      : undefined;
-    const then = monthAgo === undefined ? null : percentComplete(monthAgo);
-    const moved = await movementWaterfall(ctx, range(minusMonths(today, 1)));
-
-    const expiring =
-      filters === undefined
-        ? await expiryTimeline(ctx, {
-            calendar: await deps.calendars.load(tx, asking.tenantId),
-            at: deps.clock.instant(),
-            everyone,
-            relations: (personIds) =>
-              relationsToMany(deps.relations, tx, asking.tenantId, asking.viewer, personIds),
-          })
-        : null;
-    const expiries =
-      expiring?.ok === true && expiring.value.kinds.length > 0
-        ? { today: expiring.value.today, items: expiring.value.items }
-        : null;
-
-    const bands = await tenure(ctx, { asOf: today, ...(filters ? { filters } : {}) });
-    const spans = filters === undefined ? await spanOfControl(ctx, { asOf: today }) : null;
-    const joined = await joinerHeatmap(ctx, range(minusMonths(today, 12)));
-    const made = await composition(ctx, {
-      asOf: today,
-      by: ['department', 'employment_type'],
-      ...(filters ? { filters } : {}),
-    });
-    const department = labeller(definitions, 'org_unit');
-    const employment = labeller(definitions, 'employment_type');
-
-    const percent = states.ok ? percentComplete(states.value.states) : null;
-    const bySection = new Map<string, number>();
-    if (states.ok && states.value.byField !== null) {
-      for (const f of states.value.byField) {
-        bySection.set(f.sectionKey, (bySection.get(f.sectionKey) ?? 0) + f.missing);
-      }
-    }
-    const sectionLabel = new Map(
-      version.document.sections.map((s) => [s.key as string, s.label.default]),
-    );
-    const source = states.ok ? states.value.source : 'snapshot';
-
-    return ok({
-      asOf: today,
-      source,
-      sourceNote:
-        source === 'snapshot'
-          ? 'From the daily snapshot.'
-          : 'Computed from history for this date, which is slower.',
-      segment,
-      segments: (await segmentsFor(deps, tx, asking))
-        .filter((s) => s.usableIn.analytics)
-        .map((s) => ({ id: s.id, name: s.name })),
-      headcount: {
-        value: last?.headcount ?? 0,
-        change:
-          last !== undefined && before !== undefined ? last.headcount - before.headcount : null,
-        trend: points.map((p) => ({ label: p.month, value: p.headcount })),
-      },
-      startingSoon: starting?.ok === true ? starting.value.all : null,
-      attrition:
-        !attrition.ok || latest === undefined || latest.rate === null
-          ? null
-          : {
-              percent: Math.round(latest.rate * 1000) / 10,
-              leavers: latest.leavers,
-              formula: attrition.value.formula,
-              trend: attrition.value.points.flatMap((p) =>
-                p.rate === null ? [] : [{ label: p.month, value: Math.round(p.rate * 1000) / 10 }],
-              ),
-            },
-      minimum: cohortMinimum(ctx.cohortMinimum),
-      complete:
-        states.ok && percent !== null
-          ? {
-              percent,
-              incomplete: states.value.states.incomplete,
-              change: then === null ? null : percent - then,
-              trend: completeDays.ok
-                ? completeByMonth(completeDays.value).map((p) => ({
-                    label: p.month,
-                    value: p.percent,
-                  }))
-                : [],
-            }
-          : null,
-      // The items drawn, so the tile and the chart cannot disagree by a hidden one.
-      expiringIn90Days: expiries === null ? null : expiries.items.length,
-      movement: moved.ok
+  return ok({
+    asOf: today,
+    source,
+    sourceNote:
+      source === 'snapshot'
+        ? 'From the daily snapshot.'
+        : 'Computed from history for this date, which is slower.',
+    segment,
+    segments: (await segmentsFor(deps, tx, asking))
+      .filter((s) => s.usableIn.analytics)
+      .map((s) => ({ id: s.id, name: s.name })),
+    headcount: {
+      value: last?.headcount ?? 0,
+      change: last !== undefined && before !== undefined ? last.headcount - before.headcount : null,
+      trend: points.map((p) => ({ label: p.month, value: p.headcount })),
+    },
+    startingSoon: starting?.ok === true ? starting.value.all : null,
+    attrition:
+      !attrition.ok || latest === undefined || latest.rate === null
+        ? null
+        : {
+            percent: Math.round(latest.rate * 1000) / 10,
+            leavers: latest.leavers,
+            formula: attrition.value.formula,
+            trend: attrition.value.points.flatMap((p) =>
+              p.rate === null ? [] : [{ label: p.month, value: Math.round(p.rate * 1000) / 10 }],
+            ),
+          },
+    minimum: cohortMinimum(ctx.cohortMinimum),
+    complete:
+      states.ok && percent !== null
         ? {
-            period: `${minusMonths(today, 1)} to ${today}`,
-            opening: moved.value.opening,
-            joiners: moved.value.joiners,
-            moves: moved.value.internalMoves,
-            leavers: moved.value.leavers,
-            closing: moved.value.closing,
+            percent,
+            incomplete: states.value.states.incomplete,
+            change: then === null ? null : percent - then,
+            trend: completeDays.ok
+              ? completeByMonth(completeDays.value).map((p) => ({
+                  label: p.month,
+                  value: p.percent,
+                }))
+              : [],
           }
         : null,
-      completenessBySection:
-        bySection.size === 0
-          ? null
-          : [...bySection].map(([key, value]) => ({ label: sectionLabel.get(key) ?? key, value })),
-      expiries,
-      tenure: bands.ok
-        ? bands.value.bands.map((b) => ({
-            label: TENURE_LABELS[b.band as keyof typeof TENURE_LABELS],
-            headcount: b.headcount,
-            leavers: b.leavers,
+    // The items drawn, so the tile and the chart cannot disagree by a hidden one.
+    expiringIn90Days: expiries === null ? null : expiries.items.length,
+    movement: moved.ok
+      ? {
+          period: `${minusMonths(today, 1)} to ${today}`,
+          opening: moved.value.opening,
+          joiners: moved.value.joiners,
+          moves: moved.value.internalMoves,
+          leavers: moved.value.leavers,
+          closing: moved.value.closing,
+        }
+      : null,
+    completenessBySection:
+      bySection.size === 0
+        ? null
+        : [...bySection].map(([key, value]) => ({ label: sectionLabel.get(key) ?? key, value })),
+    expiries,
+    tenure: bands.ok
+      ? bands.value.bands.map((b) => ({
+          label: TENURE_LABELS[b.band as keyof typeof TENURE_LABELS],
+          headcount: b.headcount,
+          leavers: b.leavers,
+        }))
+      : null,
+    span:
+      spans?.ok === true
+        ? spans.value.spans.map((s) => ({
+            label: `${String(s.reports)} ${s.reports === 1 ? 'report' : 'reports'}`,
+            value: s.managers,
           }))
         : null,
-      span:
-        spans?.ok === true
-          ? spans.value.spans.map((s) => ({
-              label: `${String(s.reports)} ${s.reports === 1 ? 'report' : 'reports'}`,
-              value: s.managers,
-            }))
-          : null,
-      joiners: joined.ok
-        ? {
-            months: [...new Set(joined.value.cells.map((c) => c.month))].toSorted(),
-            departments: [...new Set(joined.value.cells.map((c) => department(c.department)))],
-            cells: joined.value.cells.map((c) => ({
-              row: department(c.department),
-              column: c.month,
-              value: c.joiners,
-            })),
-          }
+    joiners: joined.ok
+      ? {
+          months: [...new Set(joined.value.cells.map((c) => c.month))].toSorted(),
+          departments: [...new Set(joined.value.cells.map((c) => department(c.department)))],
+          cells: joined.value.cells.map((c) => ({
+            row: department(c.department),
+            column: c.month,
+            value: c.joiners,
+          })),
+        }
+      : null,
+    composition:
+      made.ok && made.value.status === 'ok'
+        ? stacked(made.value.cells, department, employment)
         : null,
-      composition:
-        made.ok && made.value.status === 'ok'
-          ? stacked(made.value.cells, department, employment)
-          : null,
-      selfId: filters === undefined ? await selfIdCharts(ctx) : null,
-      // Finance's, and never under a segment: a segment's pay beside the
-      // tenant's is the pay of everybody outside it.
-      pay: filters === undefined ? await payView(ctx, asking, definitions) : null,
-      // ponytail: the onboarding funnel is drawn by the screen but has no
-      // query shaped for it yet; absent, not empty.
-      funnel: null,
-    });
+    selfId: filters === undefined ? await selfIdCharts(ctx) : null,
+    // Finance's, and never under a segment: a segment's pay beside the
+    // tenant's is the pay of everybody outside it.
+    pay: filters === undefined ? await payView(ctx, asking, definitions) : null,
+    // ponytail: the onboarding funnel is drawn by the screen but has no
+    // query shaped for it yet; absent, not empty.
+    funnel: null,
   });
 }
 
@@ -513,7 +530,7 @@ async function selfIdCharts(ctx: ChartContext): Promise<SelfIdChart[] | null> {
  * anybody else, so the section is absent rather than empty. Grades are
  * labelled by their field's options, tenure bands by the tenure chart's.
  */
-async function payView(
+export async function payView(
   ctx: ChartContext,
   asking: Asking,
   definitions: readonly AttributeDefinition[],

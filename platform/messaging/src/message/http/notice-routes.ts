@@ -31,6 +31,7 @@ const NoticeRequest = z.object({
     z.object({ kind: z.literal('correction_requested') }),
     z.object({ kind: z.literal('export_shared') }),
     z.object({ kind: z.literal('export_share_requested') }),
+    z.object({ kind: z.literal('summary_shared') }),
     z.object({
       kind: z.literal('scheduled_report'),
       cadence: z.enum(REPORT_CADENCES),

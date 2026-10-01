@@ -57,6 +57,10 @@ const SAFE = [
   'POST /v1/chat/apps/{key}/connect',
   // Whom an export would go to and what they could not read: nothing is built.
   'POST /v1/exports/share/preview',
+  // What changed: a follow-up answered, and the summary previewed and printed; nothing is kept.
+  'POST /v1/views/analytics/what-changed/ask',
+  'POST /v1/views/analytics/what-changed/summary',
+  'POST /v1/views/analytics/what-changed/summary/pdf',
 ];
 
 const callerFrom: CallerFrom = () =>

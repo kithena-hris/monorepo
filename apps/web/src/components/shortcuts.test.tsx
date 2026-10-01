@@ -157,7 +157,7 @@ describe('the shortcuts, in the shell', () => {
       'go.approvals': '/people/approvals',
       'go.data-health': '/people/data-health/completeness',
       'go.import-export': '/people/import-export',
-      'go.insights': '/people/insights/headcount',
+      'go.insights': '/people/insights/what-changed',
       'go.inbox': '/inbox',
       'go.me': '/people/me',
       'go.settings': '/settings',

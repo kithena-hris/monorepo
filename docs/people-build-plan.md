@@ -2020,6 +2020,7 @@ it is written down here rather than left in a PR description.
       Offer it to a manager when every person found is theirs, checked per
       person as `requestDetailsOfMany` already does. Found building smart
       search.
+
 Smart export (design AI13, AI14, MA10), built from one sentence, sent to
 somebody, explained by its own About (`docs/ai-settings.md`, "An export sent
 to somebody"). What the design shows and the backend cannot honestly do yet:
@@ -2048,6 +2049,32 @@ to somebody"). What the design shows and the backend cannot honestly do yet:
       (PEO-069), so dates, "contains" and "any of" conditions are refused with
       "save this group as a view first"; a schedule holding the directory's
       own conditions lifts that.
+
+<!-- What changed (AI rework, lane I): its own block. -->
+- [ ] **PEO-132** Slides as a format for an Insights summary (design AI6, MA5
+      offer PDF, Slides and Email/Message). Nothing in the stack writes a slide
+      deck, so Slides is not offered; PDF downloads (pdfkit) and Email/Message
+      sends a link. Needs a .pptx writer as a People dependency, said why.
+      Found building What changed.
+- [ ] **PEO-133** A leading icon on a `TertiaryNav` tab (design AI5 draws the
+      assistant's spark on "What changed"). Reach's tab item has a label, a
+      short label, a badge and a count, no icon; the frame draws the tab
+      without one until Reach has it.
+- [ ] **PEO-134** Horizontal stacked bars in Reach (design AI5's "Leavers by
+      team, 3 months"). `StackedBarChart` stacks vertically; the chart is drawn
+      that way until Reach has an orientation.
+- [ ] **PEO-135** Payroll's month-on-month change as a What changed point
+      (design AI5's "Monthly payroll went up 2.4%… No pay bands changed").
+      The pay snapshot holds quartiles per grade, never a total, so the pay
+      point today is grades whose median sits outside their band. Needs a
+      cohort-safe payroll total (and band changes) in the pay snapshot.
+- [ ] **PEO-136** Named managers and notice in What changed (design AI5's "Marco
+      Ruiz (11) and Tom Fischer (9)", "3 people gave notice… third month in a
+      row"). Today the span point counts managers over 8 reports from the
+      snapshot's span measure (no names: naming needs a per-person read
+      authorised as the viewer and, when shared, as the recipient), and the
+      leavers point counts people who left, from the snapshot's flows, not
+      notices given; no streaks.
 
 ## Revisit later — the owner's list
 
