@@ -290,6 +290,9 @@ describe('Export from one sentence (AI13)', () => {
       />,
     );
     expect(screen.getByText(/On the 1st of every month, Sofia gets this export/u)).toBeTruthy();
+    // Built as Sofia each month: nothing waits for Nora, the field is left out of hers.
+    expect(screen.getByText(/so that is left out of Sofia’s/u)).toBeTruthy();
+    expect(screen.queryByText(/waits for Nora Becker/u)).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Make this a monthly schedule' }));
     expect(onSchedule).toHaveBeenCalledWith(expect.objectContaining({ format: 'xlsx' }), SOFIA);
   });

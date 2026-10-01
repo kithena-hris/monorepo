@@ -281,6 +281,9 @@ function Builder({
 }): JSX.Element {
   const choice = choiceOf(state, address);
   const preview = state.preview ?? null;
+  // Whom the sentence named, People read on this load: sending is then the default.
+  const mode =
+    address.send ?? (address.to == null && preview?.recipient == null ? 'download' : 'send');
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] @5xl/page:items-start">
       <Stack gap={3}>
@@ -292,6 +295,7 @@ function Builder({
           choice={choice}
           address={address}
           preview={preview}
+          mode={mode}
           onAddress={onAddress}
         />
         {address.hand === true ? (
@@ -302,10 +306,7 @@ function Builder({
         className="@5xl/page:sticky @5xl/page:top-6"
         choice={choice}
         preview={preview}
-        // Whom the sentence named, People read on this load: sending is then the default.
-        mode={
-          address.send ?? (address.to == null && preview?.recipient == null ? 'download' : 'send')
-        }
+        mode={mode}
         recipient={address.to ?? preview?.recipient?.accountId ?? null}
         onAddress={onAddress}
         onExport={onExport}
@@ -373,12 +374,14 @@ function Built({
   choice,
   address,
   preview,
+  mode,
   onAddress,
 }: {
   readonly state: ExportState;
   readonly choice: ExportChoice;
   readonly address: ExportAddress;
   readonly preview: SendPreview | null;
+  readonly mode: 'download' | 'send' | 'schedule';
   readonly onAddress: (patch: AddressPatch, mode?: 'push' | 'replace') => void;
 }): JSX.Element {
   const audience = state.who.find((w) => w.value === choice.who);
@@ -442,7 +445,7 @@ function Built({
           onAddress({ reason: reason.trim() === '' ? null : reason.trim() }, 'replace');
         }}
       />
-      <Gap preview={preview} />
+      {mode === 'download' ? null : <Gap preview={preview} scheduled={mode === 'schedule'} />}
       <Suggestions
         state={state}
         choice={choice}
@@ -549,7 +552,14 @@ function Reason({
  * fields they could not see, on how many people, and who would approve
  * sending it anyway.
  */
-function Gap({ preview }: { readonly preview: SendPreview | null }): JSX.Element | null {
+function Gap({
+  preview,
+  scheduled,
+}: {
+  readonly preview: SendPreview | null;
+  /** A schedule is built as its recipient each time: nothing waits, the fields are left out. */
+  readonly scheduled: boolean;
+}): JSX.Element | null {
   const gap = preview?.gap ?? null;
   const recipient = preview?.recipient ?? null;
   if (gap === null || recipient === null) return null;
@@ -569,9 +579,11 @@ function Gap({ preview }: { readonly preview: SendPreview | null }): JSX.Element
       {gap.unlisted > 0 && top !== undefined
         ? ` ${String(gap.unlisted)} of them ${them} can’t see at all.`
         : ''}{' '}
-      {approvers.length === 0
-        ? `Nobody else here can approve sending it: that takes a People administrator who is neither you nor ${them}.`
-        : `So it waits for ${listed(approvers)} to approve sending this one file.`}
+      {scheduled
+        ? `A schedule is built as ${them} can see it each month, so that is left out of ${them}’s.`
+        : approvers.length === 0
+          ? `Nobody else here can approve sending it: that takes a People administrator who is neither you nor ${them}.`
+          : `So it waits for ${listed(approvers)} to approve sending this one file.`}
     </Alert>
   );
 }
