@@ -24,6 +24,17 @@ const card = cva('rounded-lg bg-surface text-fg touch:rounded-[1.375rem]', {
       sunken: 'bg-surface-sunken',
       /** Lifted off the canvas. Reserve for content that floats over context. */
       elevated: 'bg-surface-raised shadow-lg',
+      /**
+       * Content the assistant wrote or built: a 1.5px edge that fades from
+       * the accent, so a reader can tell at a glance what a machine proposed
+       * from what a person entered. The edge is a gradient painted behind a
+       * transparent border, which forced colours turn into a plain line.
+       * `AssistantCard` puts the assistant's mark and a title on it.
+       */
+      assistant: [
+        'border-[1.5px] border-transparent',
+        '[background:linear-gradient(var(--color-surface),var(--color-surface))_padding-box,linear-gradient(135deg,var(--color-accent),color-mix(in_oklch,var(--color-accent)_20%,transparent))_border-box]',
+      ],
     },
     padded: { true: 'p-5 touch:p-4', false: '' },
     /**
