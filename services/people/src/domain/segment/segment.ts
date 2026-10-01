@@ -5,7 +5,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
  * tenant, usable in the directory, the export builder and analytics.
  *
  * **A filter, never a result.** It holds attribute keys and the values they
- * must equal, and not one person id. Whoever uses it gets the people *they*
+ * must equal, or the directory's conditions on them, and not one person id. Whoever uses it gets the people *they*
  * may list that match it, and a key they may not filter or chart by is
  * refused when they use it — so a segment HR saved over an HR-only field
  * cannot show a manager anybody, and a shared segment is never a way around
@@ -24,9 +24,24 @@ export interface Segment {
   readonly ownerAccountId: string;
   /** Seen by everybody in the tenant, rather than its owner alone. */
   readonly shared: boolean;
+  /**
+   * The directory's own conditions, saved from a search ("Save as view"):
+   * authorized at use as a typed condition is. Absent on a filter alone.
+   */
+  readonly conditions?: readonly SegmentCondition[];
+  /** Whether all of the conditions must hold, or any. */
+  readonly match?: 'all' | 'any';
 }
 
-export type SegmentInput = Pick<Segment, 'name' | 'filter' | 'shared'>;
+export interface SegmentCondition {
+  readonly key: string;
+  readonly op: (typeof OPS)[number];
+  readonly values: readonly string[];
+}
+
+const OPS = ['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty', 'under'] as const;
+
+export type SegmentInput = Pick<Segment, 'name' | 'filter' | 'shared' | 'conditions' | 'match'>;
 
 const KEY = /^[a-z][a-z0-9_]{0,63}$/;
 export const MAX_CONDITIONS = 10;
@@ -37,7 +52,9 @@ export function checkSegment(input: SegmentInput): Result<SegmentInput> {
     return err(failure('SEGMENT_NAME', 'A segment needs a name of up to 80 characters', ['name']));
   }
   const entries = Object.entries(input.filter).map(([k, v]) => [k, v.trim()] as const);
-  if (entries.length === 0 || entries.length > MAX_CONDITIONS) {
+  const conditions = input.conditions ?? [];
+  const count = entries.length + conditions.length;
+  if (count === 0 || count > MAX_CONDITIONS) {
     return err(
       failure('SEGMENT_FILTER', `A segment filters by 1 to ${String(MAX_CONDITIONS)} fields`, [
         'filter',
@@ -50,7 +67,31 @@ export function checkSegment(input: SegmentInput): Result<SegmentInput> {
       return err(failure('SEGMENT_FILTER', `${key} is not a condition a segment can hold`, [key]));
     }
   }
-  return ok({ name, filter: Object.fromEntries(entries), shared: input.shared });
+  for (const c of conditions) {
+    // Its shape only: whether this person may use it is the directory's, at use.
+    if (
+      !KEY.test(c.key) ||
+      !(OPS as readonly string[]).includes(c.op) ||
+      c.values.length > 50 ||
+      c.values.some((v) => v.length > 200)
+    ) {
+      return err(
+        failure('SEGMENT_FILTER', `${c.key} is not a condition a segment can hold`, [c.key]),
+      );
+    }
+  }
+  const filter = Object.fromEntries(entries);
+  return ok(
+    conditions.length === 0
+      ? { name, filter, shared: input.shared }
+      : {
+          name,
+          filter,
+          conditions: conditions.map((c) => ({ key: c.key, op: c.op, values: [...c.values] })),
+          match: input.match ?? 'all',
+          shared: input.shared,
+        },
+  );
 }
 
 /** Its owner sees it; once shared, so does everybody in the tenant. */

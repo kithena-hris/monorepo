@@ -37,6 +37,15 @@ export interface DirectoryPlan {
   readonly sort: { readonly key: string; readonly direction: 'asc' | 'desc' } | null;
   /** Words neither reader made anything of, as typed: said, never guessed. */
   readonly unused: readonly string[];
+  /** A phrase the model read more than one way, asked rather than guessed (`clarify.ts`). */
+  readonly ask: {
+    readonly phrase: string;
+    readonly readings: readonly {
+      readonly label: string;
+      readonly conditions: readonly IntentCondition[];
+      readonly match: 'all' | 'any';
+    }[];
+  } | null;
 }
 
 export type Audience =
@@ -183,6 +192,13 @@ function nextDay(date: string, step: 1 | -1): string {
   return iso(y, m, d);
 }
 
+/** A calendar date so many days later, or earlier for a negative count. */
+export function shiftDays(date: string, days: number): string {
+  let at = date;
+  for (let k = 0; k < Math.abs(days); k += 1) at = nextDay(at, days < 0 ? -1 : 1);
+  return at;
+}
+
 /** "1 October 2026": a calendar date as people say it. */
 export function spokenDate(date: string): string {
   const [y = '', m = '1', d = '1'] = date.split('-');
@@ -234,6 +250,19 @@ function dateAt(ts: readonly Token[], i: number, today: string): Span | null {
       y -= 1;
     }
     return { from: iso(y, mo, 1), to: iso(y, mo, daysIn(y, mo)), end: i + 2 };
+  }
+  // "the next 30 days", "the last 2 weeks": from today, or up to it.
+  const unit = ts[i + 2]?.word ?? '';
+  if (
+    ['next', 'last', 'past', 'coming'].includes(w) &&
+    next !== undefined &&
+    /^\d{1,3}$/.test(next) &&
+    /^(days?|weeks?)$/.test(unit)
+  ) {
+    const days = Number(next) * (unit.startsWith('week') ? 7 : 1);
+    return w === 'next' || w === 'coming'
+      ? { from: today, to: shiftDays(today, days), end: i + 3 }
+      : { from: shiftDays(today, -days), to: today, end: i + 3 };
   }
   if (w === 'today') return { from: today, to: today, end: i + 1 };
   if (YEAR.test(w)) {
@@ -546,7 +575,7 @@ export function directoryByRules(
   const used = new Set<number>();
   const sort = sortFrom(ts, used, fields);
   const conditions = conditionsFrom(ts, used, fields, today);
-  return { search: null, conditions, match: 'all', sort, unused: unusedOf(ts, used) };
+  return { search: null, conditions, match: 'all', sort, unused: unusedOf(ts, used), ask: null };
 }
 
 const CUES = new Set([
@@ -569,6 +598,10 @@ const CUES = new Set([
   'earliest',
   'between',
 ]);
+
+/** One email address, which goes straight to whoever has it. */
+export const isEmail = (sentence: string): boolean =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(sentence.trim());
 
 /**
  * A query that is only a name: a few words, no number, none of the words a
@@ -662,8 +695,23 @@ const conditionsChecked = (
   return checked.some((c) => c === null) ? null : (checked as IntentCondition[]);
 };
 
+const AskAnswer = z.strictObject({
+  phrase: z.string().trim().min(1).max(60),
+  options: z
+    .array(
+      z.strictObject({
+        label: z.string().trim().min(1).max(60),
+        conditions: z.array(ConditionAnswer).min(1).max(10),
+        match: z.enum(['all', 'any']).default('all'),
+      }),
+    )
+    .min(2)
+    .max(4),
+});
+
 const DirectoryAnswer = z.strictObject({
   conditions: z.array(ConditionAnswer).max(20).default([]),
+  ask: AskAnswer.nullable().default(null),
   match: z.enum(['all', 'any']).default('all'),
   sort: z
     .strictObject({ key: z.string().max(64), direction: z.enum(['asc', 'desc']) })
@@ -695,8 +743,27 @@ export function readDirectoryAnswer(
     sort = a.sort;
   }
   const search = a.search !== null && a.search !== '' && NAME.test(a.search) ? a.search : null;
-  if (conditions.length === 0 && sort === null && search === null) return null;
-  return { search, conditions, match: a.match, sort, unused: [] };
+  let ask: DirectoryPlan['ask'] = null;
+  if (a.ask !== null) {
+    // Words the screen shows as they are: plain, and nothing shaped like somebody's value.
+    if (plainReason(a.ask.phrase) === null && a.ask.phrase.length >= 3) return null;
+    const readings = a.ask.options.map((o) => ({
+      label: plainReason(o.label),
+      conditions: conditionsChecked(o.conditions, shown),
+      match: o.match,
+    }));
+    if (readings.some((r) => r.label === null || r.conditions === null)) return null;
+    ask = {
+      phrase: a.ask.phrase,
+      readings: readings.map((r) => ({
+        label: r.label ?? '',
+        conditions: r.conditions ?? [],
+        match: r.match,
+      })),
+    };
+  }
+  if (conditions.length === 0 && sort === null && search === null && ask === null) return null;
+  return { search, conditions, match: a.match, sort, unused: [], ask };
 }
 
 export const DIRECTORY_INSTRUCTION = `You turn what somebody typed into the search box of a company's employee directory into the directory's own filters. Answer with ONE JSON object and nothing else, in exactly this shape:
@@ -708,6 +775,8 @@ You are given what was typed ("sentence"), today's date, and the fields this per
 - A job, a role or a title ("engineers", "managers") is a text field such as the job title, with contains and the word in its singular form.
 - "missing X" or "without X" is X empty; "with X" is X not_empty.
 - "search" is only for a person's name that was typed; otherwise null.
+- When a part could mean two or more different things the fields can express, do not pick one: leave it out of "conditions" and add "ask":{"phrase":"<those words as typed>","options":[{"label":"<a few plain words>","conditions":[...],"match":"all"}]} with 2 to 4 options. Otherwise omit "ask".
+- Never judge people: how good they are at something, how well they work, what they might do, their health, beliefs or other sensitive traits are not fields. Leave such words out.
 - sort only when an order was asked for ("newest" is the start date, desc).
 - Use only the keys given. Never invent a field, an option or a value. When you cannot tell, leave it out.`;
 
