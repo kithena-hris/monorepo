@@ -1,52 +1,59 @@
 # New information in an import
 
 When a spreadsheet being imported has columns that match no employee field,
-People proposes a field for each, asks what should happen for the people
-already here that the file gives no value, and adds the lot in one
-administrator's OK. The assistant does the proposing; HR reviews; nothing is
-written before the OK.
+People proposes a field for each, asks what should happen for the people who
+will have no value, and says in one plan everything the import will do. A
+People administrator approves the plan once; nothing is written before.
 
-## The flow
+## The flow (design AI9 to AI12; MA8, MA9 on a phone)
 
-0. **Nothing published yet**: setup comes first, because the legal entity
-   and its country pack decide which fields the law requires. The import page
-   says so in place of the uploader and links an administrator to setup
-   (`/people/setup?then=/people/import`), whose last step goes back to the
-   import; HR without administrator rights is told an administrator sets it
-   up. Setup publishes everything in the draft, so the import that follows
-   finds no other unpublished changes, and the file's other columns arrive
-   here as new fields (version 2).
-1. **Upload and map**, as before. Columns map to existing fields by key, by
-   label, or by the column-mapping judgment. Existing fields and sections are
-   never changed by anything below.
-2. **New information in this file** appears only when columns match nothing
-   (and HR did not map them by hand). One card per column: the proposed name
-   and section (existing or new), the type and format, choices read from the
-   file, who fills it in and who can see it, how sensitive it is, whether it
-   is encrypted, whether the assistant may use it, and whether new people
-   must have it, each with a one-line reason. Any of it can be changed, or the
-   column left out ("Don't import this column").
-3. **People not in this file**: for each new field, how many people already
-   here get no value from the file, and what happens for them, with one
-   option recommended and why:
-   - *Ask them to fill it in*: the field becomes theirs and required, so it
-     shows on their profile as missing and the weekly completeness reminder
-     asks for it (the existing machinery; nothing new sends email).
-   - *HR will fill it in*: HR's and required, so it is on HR's completeness
-     list and bulk-edit grid.
-   - *Leave it empty*: optional; if marked required, required of people
-     added from now on only (`appliesTo: new_records`).
-   - *Use one value for everyone missing it*: written now, for each of them,
-     through the bulk-edit write path. Recommended only when every row of the
-     file holds the same value.
-4. **Review**: one paragraph, for example "Adds 4 fields: 1 to a new
-   Emergency contact section, 1 to Employment… Values for 128 people from
-   this file. 342 people will be asked for their emergency contact. HR will
-   fill in 60 cost centre values." Sensitive fields are named. The primary
-   action is **Add fields and continue**; it creates the fields and any new
-   sections, publishes, writes the defaults, then the import goes on to the
-   dry run with those columns mapped to the new fields, and then the commit.
-   "Import without these columns" goes on without them at any point.
+The import has five steps: **Upload → Map columns → New fields → Review plan
+→ Import**. The step, and the field in focus on the people-without-a-value
+screen, are in the address (`?step=`, `?field=`).
+
+0. **Nothing published yet is not a detour.** A company the back office has
+   just made (one legal entity, nothing published) imports straight away: its
+   file is read against what setup would publish, held in memory
+   (`setupDraft` in `application/screens/schema.ts`: the core fields and every
+   section of the entity's country pack), and the plan's first step says
+   "Set up the employee record with the United States pack". Approving it
+   seeds setup and publishes the pack and the file's new fields together as
+   version 1. HR who is not an administrator is told an administrator imports
+   the first file. The setup wizard still exists for a company that wants to
+   choose its sections first.
+1. **Upload and map.** Columns map by key, by label, by the usual names other
+   systems export (`domain/import/aliases.ts`: "First Name", "Email",
+   "Employee ID", "Hire Date"…), then by the column-mapping judgment.
+   Existing fields and sections are never changed by anything below.
+2. **New fields** appears only when columns match nothing. One card per
+   column: its proposed name, type, section, who sees it, how sensitive it is,
+   how sure the rules are of the type, the choices or the shape of the values,
+   how many rows have a value, a switch, and Edit for all of it. Accept all.
+   A column that can reveal health, religion or the like (special category:
+   allergies, diet, religion…) is **held back** with its reason and "Import
+   anyway"; a model cannot put it back. When no assistant answered, the card
+   says the proposal is People's own rules.
+3. **People without a value**: for each kept field, how many people will
+   have none once the file is in, and what happens for them, one suggested
+   with its reason and each with what it does:
+   - *Ask them*: theirs to fill in and required, so they show as incomplete
+     and the weekly reminder asks (an optional ask is PEO-140);
+   - *HR fills it in*: HR's and required, on Data health's list;
+   - *Only new joiners*: required of people added from now on;
+   - *Leave it empty*: optional, nobody asked;
+   - *One value for everyone* (only when every row holds the same value).
+4. **Review plan** (`POST /v1/imports/plan`, writes nothing): a dry run
+   against the version the kept fields would make, and every consequence in
+   words (`domain/import/plan.ts`): setup, the fields and where they go, the
+   people created and updated (with the blocked rows a click away), who is
+   asked, what HR fills in, what is left out. On a phone, the plan is one
+   sentence under the choices.
+5. **Approve and run** (`POST /v1/imports/run`): the plan is worked out again
+   on the server, then setup's seeding if nothing is published, the fields and
+   any new sections into the draft, one publish, the defaults, all in one
+   transaction refused whole if the settings refuse a field; then the import
+   commits with every new column mapped to its new field. The done screen
+   says what it did and lists the new fields, each a link to edit.
 
 ## Where it runs, and what the model sees
 
@@ -86,10 +93,15 @@ written before the OK.
 
 ## Safety and permissions
 
-- **Nothing is written before the OK.** Proposing and reviewing read only.
-- **Applying is one transaction**: sections and fields are checked against
-  the draft first (the field editor's own rules, `fieldChange`), then stored,
-  published and the defaults written; anything refused refuses the lot.
+- **Nothing is written before the OK.** Proposing and planning read only;
+  the new fields are held in memory, not written to the draft, so an
+  abandoned import leaves nothing behind to block the next publish.
+- **Applying is one transaction**: setup's seeding when nothing is
+  published, then sections and fields checked against the draft (the field
+  editor's own rules, `fieldChange`), stored, published and the defaults
+  written; anything refused refuses the lot. The import commits after it;
+  if that fails, the fields stay published and the error says so, and
+  running it again maps the columns to them.
 - It is refused while the draft holds other unpublished changes, because
   publishing would publish those too.
 - **Creating fields is a People administrator's** (administrators hold HR's
@@ -103,7 +115,8 @@ written before the OK.
   long as its intent. Nothing lets HR bypass the rule: the application layer
   refuses anybody who is not an administrator.
 - **Audit**: one settings-log entry, "Added N fields from an import, with the
-  AI assistant", with the review's words as its detail, never the file. The
+  AI assistant", naming the fields, never the file; an import that adds no
+  field is in Import & export's history only. The
   publish, the defaults (as profile updates) and completeness are recorded as
   they always are.
 - Every new field carries a classification policy; `classificationSource` is
