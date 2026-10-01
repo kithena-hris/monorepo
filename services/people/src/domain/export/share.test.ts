@@ -228,6 +228,21 @@ describe('the About sheet', () => {
     expect(about.footnote).toBe('Confidential · export ID EXP-0199A3F0');
   });
 
+  it('names whose view “you” was, for whoever reads the file later', () => {
+    expect(aboutSheet({ ...base, audience: 'Everyone you can see' }).title).toBe(
+      'Everyone Ada Lovelace can see, 30 June 2026',
+    );
+  });
+
+  it('says plainly when nobody, or no field, is in it', () => {
+    expect(aboutSheet({ ...base, count: 0, fields: [] }).paragraphs[0]).toBe(
+      'Nobody, as of the end of 30 June 2026: nobody matched who it is for.',
+    );
+    expect(aboutSheet({ ...base, fields: [] }).paragraphs[0]).toBe(
+      '148 people, with no field that could be read on them, as of the end of 30 June 2026.',
+    );
+  });
+
   it('says a masked value shows its last characters only', () => {
     const about = aboutSheet({
       ...base,

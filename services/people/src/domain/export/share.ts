@@ -197,8 +197,14 @@ export const exportCode = (exportId: string): string =>
 export function aboutSheet(input: AboutInput): About {
   const date = spokenDate(input.asOf);
   const one = input.count === 1;
+  const held =
+    input.count === 0
+      ? `Nobody, as of the end of ${date}: nobody matched who it is for.`
+      : input.fields.length === 0
+        ? `${String(input.count)} ${one ? 'person' : 'people'}, with no field that could be read on them, as of the end of ${date}.`
+        : `${String(input.count)} ${one ? 'person' : 'people'}, with their ${listed(input.fields.map((f) => inSentence(f.label)))} as ${one ? 'it was' : 'they were'} at the end of ${date}.`;
   const paragraphs = [
-    `${String(input.count)} ${one ? 'person' : 'people'}, with their ${listed(input.fields.map((f) => inSentence(f.label)))} as ${one ? 'it was' : 'they were'} at the end of ${date}.`,
+    held,
     `Made${input.madeBy === null ? '' : ` by ${input.madeBy}`} on ${spokenDate(input.madeOn)}${
       input.recipient === null ? '' : ` for ${input.recipient}`
     }.${input.reason === null || input.reason === '' ? '' : ` Why: ${input.reason.replace(/\.$/u, '')}.`}`,
@@ -214,8 +220,12 @@ export function aboutSheet(input: AboutInput): About {
       `${listed(masked)} ${masked.length === 1 ? 'shows only its' : 'show only their'} last four characters, as ${masked.length === 1 ? 'it does' : 'they do'} in People.`,
     );
   }
+  // "Everyone you can see" is the requester's word for themselves; a file is
+  // read by others, so it names them.
+  const audience =
+    input.madeBy === null ? input.audience : input.audience.replace(/\byou\b/u, input.madeBy);
   return {
-    title: `${input.audience}, ${date}`,
+    title: `${audience}, ${date}`,
     paragraphs,
     footnote: [
       'Confidential',

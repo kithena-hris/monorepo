@@ -183,6 +183,14 @@ describe('sending', () => {
     ]);
     expect(events.map((e) => e.eventName)).toEqual(['people.export.share_requested']);
     expect(ledger.rows.size).toBe(0);
+    const seen = await shareView(tx, deps, asking(HR), requestId);
+    expect(seen.ok && seen.value).toMatchObject({
+      state: 'pending',
+      mine: true,
+      canDecide: false,
+      approvers: [{ accountId: NORA, name: 'Nora Becker' }],
+      gap: { fields: [{ key: 'given_name' }, { key: 'job_title' }, { key: 'base_salary' }] },
+    });
   });
 
   it('is refused with nobody to approve it', async () => {

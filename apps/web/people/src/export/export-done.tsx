@@ -73,6 +73,7 @@ export interface ShareRequest {
   readonly exportId: string | null;
   readonly mine: boolean;
   readonly canDecide: boolean;
+  readonly approvers: readonly Person[];
 }
 
 /** The reader's zone once in their browser; UTC for the server's render and the first. */
@@ -311,7 +312,9 @@ export function ShareWaiting({
     share.state === 'pending'
       ? share.canDecide
         ? `${share.requestedBy.name ?? 'A colleague'} wants to send an export to ${share.recipient.name ?? them}`
-        : `Waiting for approval to send it to ${share.recipient.name ?? them}`
+        : share.approvers.length === 0
+          ? `Waiting for approval to send it to ${share.recipient.name ?? them}`
+          : `Waiting for ${listed(share.approvers.map((a) => firstName(a.name)))} to approve sending it to ${share.recipient.name ?? them}`
       : share.state === 'approved'
         ? `Sent to ${share.recipient.name ?? them}`
         : share.state === 'rejected'
@@ -369,7 +372,14 @@ export function ShareWaiting({
           <KeyValues
             layout="split"
             items={[
-              { label: 'Who', value: share.audience ?? 'Everybody they can see' },
+              {
+                label: 'Who',
+                // "you" is the requester's word for themselves; said to anybody else, it is them.
+                value: (share.audience ?? 'Everybody you can see').replace(
+                  /\byou\b/u,
+                  share.mine ? 'you' : firstName(share.requestedBy.name),
+                ),
+              },
               { label: 'Fields', value: listed(share.fields) },
               {
                 label: 'As of',

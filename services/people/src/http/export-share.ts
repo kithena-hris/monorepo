@@ -55,6 +55,7 @@ export function shareRoutes(deps: {
     const company = await deps.service.inTenant(tenantId, ({ tx }) => companyOf(tx, tenantId));
     if (company === null) return;
     for (const m of mail) {
+      // eslint-disable-next-line no-await-in-loop -- one email at a time is messaging's pace
       await mailer.send(tenantId, company, m).catch((cause: unknown) => {
         logger.error({ err: cause, tenantId, notice: m.notice }, 'export email not sent');
       });
@@ -134,14 +135,16 @@ export function shareRoutes(deps: {
       handle: keyed(
         ShareAsk,
         (d, tx, asking, input) => shareExport(tx, d, asking, input),
-        (value) =>
-          value.status === 'sent' ? `export:${value.exportId}` : `share:${value.requestId}`,
+        // The key's resource is a uuid: the export sent, or the request waiting.
+        (value) => (value.status === 'sent' ? value.exportId : value.requestId),
         async (asking, resourceId) => {
           // A retry answers with what the first request made, as it is now.
-          const [kind, id = ''] = resourceId.split(':');
-          return kind === 'export'
-            ? { status: 200, body: { status: 'sent', exportId: id } }
-            : readShare(asking, id);
+          const waiting = await readShare(asking, resourceId);
+          return waiting.status === 404
+            ? { status: 200, body: { status: 'sent', exportId: resourceId } }
+            : waiting.status < 300
+              ? { status: 200, body: { status: 'waiting', requestId: resourceId, approvers: [] } }
+              : waiting;
         },
       ),
     },

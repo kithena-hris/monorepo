@@ -183,3 +183,57 @@ The directory's list and cards load the next page as the reader nears the end
 (the table's `onEndReached`; a sentinel for cards and the phone's list), with a
 row or a card in its final shape while it loads, "50 more loaded" said in a
 live region, and the address keeping the filters, never the scroll position.
+
+# An export sent to somebody
+
+The export page (design AI13, AI14, MA10) is the plan above, then where the
+file goes: **Download** it, **Send** it to a colleague, or **Schedule** it
+monthly. The use cases are `application/export/share.ts`, the rules
+`domain/export/share.ts`, behind `POST /v1/exports/share/preview` (writes
+nothing), `POST /v1/exports/share`, `GET` and `POST …/share/{id}/decision`,
+and `GET /v1/exports/{id}/record`.
+
+- **Whom it is for is People's to read, never the model's.** A full name in
+  the sentence, a first name after "for" or "to", or a role after them
+  ("for Finance") held, as granted, by one person only, matched against the
+  accounts that sign in here; two who fit is nobody, and the person picks.
+  The model's prompt is the plan's, unchanged — the sentence, the date, field
+  names, audiences and filters — and never the account, name or address of
+  anybody it could go to.
+- **Same permissions, both ways.** The file is built as the person asking.
+  Before it exists, it is read again as the recipient would read it: each
+  field they could not see on somebody in it, and anybody they could not list
+  ("Base salary needs Grace's access"). Nothing more: it goes now, kept a week
+  under `shared/`, and the recipient is emailed a link to the export page.
+  More: it waits for a People administrator who is neither asking nor
+  receiving (the domain and a table constraint both say so), who sees what it
+  holds and what the recipient could not read, and approves or rejects that
+  one file. Approved, it is built then, as the requester reads it then, and
+  sent. Nobody's standing access changes.
+- **The link opens only for them.** The email names nobody, no field and no
+  reason (`docs/messaging.md`); its button is the export page, signed in,
+  which answers only the requester and the recipient, records the
+  recipient's first look as when it was opened, and signs the file's own
+  link for fifteen minutes at a time. A forwarded email opens nothing.
+- **Every file explains itself.** An About comes first in every export —
+  a workbook's first sheet, a text file beside a CSV, lines under a roster's
+  title: what it holds, as of when, made by whom for whom, and why, with its
+  export id. The importer passes over the About sheet, so an export still
+  re-imports as it is. The finished export's page shows the same About, and
+  what was recorded: the reason, how many people, how many fields and how
+  many sensitive, who approved it, and how long the record is kept (no period
+  is decided yet, PEO-129).
+- **Suggestions are People's rules**: one more field beside a sensitive one,
+  names left out (the employee number kept), the other file format. Each is a
+  change in the address, shown before anything runs.
+- **Every choice is in the address**: the sentence, who read it, who, the
+  fields, the date, the format, the reason, the recipient, the mode and the
+  builder by hand.
+- **Events**: `people.export.share_requested`, `people.export.share_decided`
+  and `people.export.shared`, with accounts, field keys and the reason —
+  never a value or a link — beside `people.export.completed`.
+- **Not yet** (tickets): a grant for a period and a department rather than
+  one file (PEO-132), splitting a file by a field (PEO-133), these requests in
+  the Approvals inbox and the decision emailed (PEO-134), sending more than
+  2,000 people (PEO-135), and a schedule from any described audience
+  (PEO-136).

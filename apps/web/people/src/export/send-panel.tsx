@@ -21,7 +21,6 @@ import {
   FORMAT_LABEL,
   Rule,
   firstName,
-  listed,
   spokenDate,
   type AddressPatch,
   type ExportChoice,
@@ -177,9 +176,7 @@ export function SendPanel({
                   fullWidth
                   startIcon={<icons.send aria-hidden />}
                   disabled={
-                    !reasoned ||
-                    preview.tooLarge ||
-                    (gap !== null && approvers.length === 0)
+                    !reasoned || preview.tooLarge || (gap !== null && approvers.length === 0)
                   }
                   loading={busy === 'send'}
                   loadingLabel="Sending"
@@ -209,7 +206,12 @@ export function SendPanel({
                       );
                     }}
                   >
-                    Download now (without {listed(gap.fields.map((f) => f.label.toLowerCase()))})
+                    {/* Short enough for one line: the alert above names each field. */}
+                    Download now (without{' '}
+                    {gap.fields.length === 1
+                      ? (gap.fields[0]?.label.toLowerCase() ?? 'it')
+                      : `${String(gap.fields.length)} fields`}
+                    )
                   </Button>
                 )}
               </>

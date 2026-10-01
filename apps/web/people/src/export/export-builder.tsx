@@ -250,8 +250,7 @@ export function choiceOf(state: ExportState, address: ExportAddress): ExportChoi
   const offered = state.sections.flatMap((s) => s.fields.map((f) => f.key));
   const asked = offered.filter((k) => address.fields?.includes(k) === true);
   const who = state.who.find((w) => w.value === address.who)?.value ?? state.who[0]?.value ?? '';
-  const asOf =
-    address.asOf != null && address.asOf <= state.today ? address.asOf : state.today;
+  const asOf = address.asOf != null && address.asOf <= state.today ? address.asOf : state.today;
   const format = address.format ?? 'xlsx';
   return {
     who,
@@ -435,7 +434,6 @@ function Built({
             value: `${String(labels.length)}${sensitive === 0 ? '' : ` · ${String(sensitive)} sensitive`}`,
           },
           { label: 'As of', value: spokenDate(choice.asOf) },
-          { label: 'Reason', value: choice.reason ?? 'Not given yet' },
         ]}
       />
       <Reason

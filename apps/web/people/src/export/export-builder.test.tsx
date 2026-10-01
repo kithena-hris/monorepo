@@ -464,6 +464,7 @@ describe('A request to send, waiting (AI13 → AI14)', () => {
     exportId: null,
     mine: false,
     canDecide: true,
+    approvers: [{ accountId: NORA, name: 'Nora Becker' }],
   };
 
   it('shows an administrator what it holds and what the recipient could not read, and decides it', async () => {
@@ -500,7 +501,9 @@ describe('A request to send, waiting (AI13 → AI14)', () => {
       />,
     );
     expect(
-      screen.getByRole('heading', { name: 'Waiting for approval to send it to Sofia Lindqvist' }),
+      screen.getByRole('heading', {
+        name: 'Waiting for Nora to approve sending it to Sofia Lindqvist',
+      }),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Approve and send' })).toBeNull();
   });

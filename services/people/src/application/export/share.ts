@@ -208,6 +208,7 @@ async function readableBy(
   const readable = new Map<string, Set<string>>();
   let after: string | null = null;
   do {
+    // eslint-disable-next-line no-await-in-loop -- a page needs the cursor the last one ended on
     const page: Awaited<ReturnType<typeof deps.access.list>> = await deps.access.list(tx, {
       ...request,
       viewer,
@@ -216,6 +217,7 @@ async function readableBy(
       ...(request.asOf ? { asOf: request.asOf } : {}),
     });
     if (!page.ok) return viewer === request.viewer ? page : ok(new Map());
+    // eslint-disable-next-line no-await-in-loop -- one page's relations, in the page's transaction
     const related = await relationsToMany(
       deps.relations,
       tx,
@@ -697,6 +699,8 @@ export interface ShareView {
   readonly exportId: string | null;
   readonly mine: boolean;
   readonly canDecide: boolean;
+  /** Who may decide it, while it waits. */
+  readonly approvers: readonly Person[];
 }
 
 export async function shareView(
@@ -740,6 +744,12 @@ export async function shareView(
     exportId: share.exportId,
     mine: a.requestedBy === me,
     canDecide: state === 'pending' && admin && a.requestedBy !== me && share.recipient !== me,
+    approvers:
+      state === 'pending'
+        ? approversFor(accounts.holdings, a.requestedBy, share.recipient).map((id) =>
+            person(accounts, id),
+          )
+        : [],
   });
 }
 
