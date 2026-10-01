@@ -242,6 +242,20 @@ describe('the directory’s rules, for smart search', () => {
     ]);
   });
 
+  it('“still haven’t added” a field is that field empty, as “missing” is', () => {
+    const plan = directoryByRules(
+      'engineers who joined this year and still haven’t added an emergency contact',
+      fields,
+      TODAY,
+    );
+    expect(plan.conditions).toEqual([
+      { key: 'job_title', op: 'contains', values: ['engineer'] },
+      { key: 'hire_date', op: 'between', values: ['2026-01-01', '2026-12-31'] },
+      { key: 'emergency_contact', op: 'empty', values: [] },
+    ]);
+    expect(plan.unused).toEqual([]);
+  });
+
   it('an email address is one, and goes to whoever has it', () => {
     expect(isEmail('ada@acme.example')).toBe(true);
     expect(isEmail(' Ada.Lovelace@acme.example ')).toBe(true);

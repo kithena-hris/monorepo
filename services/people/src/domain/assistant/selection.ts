@@ -120,7 +120,7 @@ const STOP = new Set(
     'a an the and or of in at on to for from by with all any some every show me find list get give ' +
     'who whom whose that which are is was were be been being do does our my their them they his her ' +
     'people person persons employee employees staff everyone everybody anyone colleague colleagues ' +
-    'work works working based currently now please member members whole entire'
+    'work works working based currently now please member members whole entire still yet'
   ).split(' '),
 );
 
@@ -133,6 +133,19 @@ const BEFORE = new Set(['before', 'until', 'prior', 'earlier']);
 const AFTER = new Set(['after', 'since', 'from']);
 const EMPTY = new Set(['missing', 'without', 'lacking', 'no']);
 const PRESENT = new Set(['with', 'have', 'has', 'having']);
+/** "haven't added", "hasn't given": as "missing" when a verb of filling in follows. */
+const NOT_YET = new Set(["haven't", "hasn't", 'havent', 'hasnt', 'not', 'never']);
+const FILLED = new Set([
+  'added',
+  'provided',
+  'given',
+  'filled',
+  'entered',
+  'set',
+  'shared',
+  'uploaded',
+  'got',
+]);
 const ARTICLES = new Set(['a', 'an', 'the', 'any', 'their', 'his', 'her', 'its', 'no']);
 
 /* -------------------------------------------------------------- dates -- */
@@ -387,9 +400,10 @@ function conditionsFrom(
   // "missing an emergency contact", "with no manager", "with a work phone"
   for (let i = 0; i < ts.length; i += 1) {
     const w = ts[i]?.word ?? '';
-    if (used.has(i) || (!EMPTY.has(w) && !PRESENT.has(w))) continue;
-    let j = i + 1;
-    let empty = EMPTY.has(w);
+    const notYet = NOT_YET.has(w) && FILLED.has(ts[i + 1]?.word ?? '');
+    if (used.has(i) || (!EMPTY.has(w) && !PRESENT.has(w) && !notYet)) continue;
+    let j = notYet ? i + (ts[i + 2]?.word === 'in' ? 3 : 2) : i + 1;
+    let empty = EMPTY.has(w) || notYet;
     while (j < ts.length && ARTICLES.has(ts[j]?.word ?? '')) {
       if (ts[j]?.word === 'no') empty = true;
       j += 1;

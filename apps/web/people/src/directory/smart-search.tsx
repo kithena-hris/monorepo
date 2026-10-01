@@ -318,7 +318,9 @@ export function Understood({
                 </Button>
               ),
             })}
-        className="touch:-mx-4 touch:px-4"
+        // `touch:flex-nowrap` again here: this remote's stylesheet carries its own
+        // `flex-wrap` and loads after the shell's, so ChipRow's own would lose.
+        className="touch:-mx-4 touch:flex-nowrap touch:px-4"
       >
         {chips.map((c) => (
           <Chip

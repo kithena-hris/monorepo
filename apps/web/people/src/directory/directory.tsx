@@ -753,13 +753,16 @@ function usePlace({
   const restore = useRef<number | null>(place !== null && place > 1 ? place - 1 : null);
   const tell = useRef(onPlaceChange);
   tell.current = onPlaceChange;
+  // The rows are a new list on every render: read the latest when measuring, rather than
+  // subscribing again (which would cancel the settle timer each time the counter moves).
+  const latest = useRef(rows);
+  latest.current = rows;
   const box = (): HTMLElement | null =>
     pageScrolls ? null : (wrapper.current?.querySelector<HTMLElement>('[role="region"]') ?? null);
 
   useEffect(() => {
     const root = wrapper.current;
     if (root === null) return undefined;
-    const index = new Map(rows.map((p, i) => [p.id, i]));
     let frame = 0;
     let settle: ReturnType<typeof setTimeout> | undefined;
     const measure = (): void => {
@@ -775,6 +778,7 @@ function usePlace({
       });
       const id = (el: HTMLElement | undefined) =>
         el?.dataset['rowId'] ?? el?.dataset['personId'] ?? '';
+      const index = new Map(latest.current.map((p, i) => [p.id, i]));
       const top = index.get(id(seen[0])) ?? 0;
       const last = index.get(id(seen.at(-1))) ?? top;
       setAt((was) => (was.top === top && was.last === last ? was : { top, last }));
@@ -794,7 +798,7 @@ function usePlace({
       cancelAnimationFrame(frame);
       clearTimeout(settle);
     };
-  }, [rows, pageScrolls]);
+  }, [pageScrolls]);
 
   // Back to a place: as many pages as it takes, then the row.
   useEffect(() => {
@@ -1457,7 +1461,7 @@ function Body({
               {failed}
             </p>
           )}
-          {fromQuestion ? (
+          {fromQuestion && understood.length + unusedParts.length > 0 ? (
             <Understood
               chips={understood}
               unused={unusedParts}
@@ -1715,7 +1719,7 @@ function Body({
             onBackToTop={placed.toTop}
             className={
               coarse || view === 'cards'
-                ? 'fixed end-4 bottom-26 z-20'
+                ? 'fixed end-4 bottom-40 z-20'
                 : 'absolute end-4.5 top-15 z-10'
             }
           >

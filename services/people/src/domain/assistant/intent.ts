@@ -44,24 +44,23 @@ type Said = { readonly say?: string };
 
 export type Intent = Said &
   (
-  | {
-      readonly kind: 'people';
-      readonly conditions: readonly IntentCondition[];
-      readonly match: 'all' | 'any';
-      readonly limit: number;
-    }
-  | {
-      readonly kind: 'count';
-      readonly conditions: readonly IntentCondition[];
-      readonly match: 'all' | 'any';
-      readonly groupBy: string | null;
-    }
-  | { readonly kind: 'person'; readonly name: string }
-  | { readonly kind: 'reports'; readonly name: string }
-  | { readonly kind: 'approvals' }
-  | { readonly kind: 'unclear'; readonly reply: string }
+    | {
+        readonly kind: 'people';
+        readonly conditions: readonly IntentCondition[];
+        readonly match: 'all' | 'any';
+        readonly limit: number;
+      }
+    | {
+        readonly kind: 'count';
+        readonly conditions: readonly IntentCondition[];
+        readonly match: 'all' | 'any';
+        readonly groupBy: string | null;
+      }
+    | { readonly kind: 'person'; readonly name: string }
+    | { readonly kind: 'reports'; readonly name: string }
+    | { readonly kind: 'approvals' }
+    | { readonly kind: 'unclear'; readonly reply: string }
   );
-
 
 const Condition = z.object({
   key: z.string().max(64),

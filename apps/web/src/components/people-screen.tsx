@@ -3,7 +3,7 @@
 import { Skeleton } from '@reach/ui';
 import type { Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState, useTransition, type JSX } from 'react';
+import { useEffect, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
@@ -256,8 +256,15 @@ export function PeopleScreen({
    */
   const live = useSearchParams();
   const at = (key: string): string | null => live.get(key);
+  // A navigation on its way: noting where the reader is (`noteInAddress`) would
+  // rewrite the old address under it, and Next would drop the navigation.
+  const navigating = useRef(false);
+  useEffect(() => {
+    navigating.current = false;
+  }, [live]);
   const navigate = (patch: Readonly<Record<string, string | null>>, mode: HistoryMode = 'push') => {
     const to = withQuery(window.location.pathname, window.location.search, patch) as Route;
+    navigating.current = true;
     if (mode === 'push') router.push(to, { scroll: false });
     else router.replace(to, { scroll: false });
   };
@@ -640,6 +647,7 @@ export function PeopleScreen({
           // Where the reader is: noted in the address, so Back returns to the same row.
           place: Number.parseInt(at('row') ?? '', 10) || null,
           onPlaceChange: (row: number | null) => {
+            if (navigating.current) return;
             note({ row: row === null ? null : String(row) }, 'replace');
           },
           ...(can.import === true
