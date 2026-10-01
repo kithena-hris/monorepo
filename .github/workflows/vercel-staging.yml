@@ -636,14 +636,18 @@ jobs:
         run: pnpm --filter @kithena/web-people sign
 
       # The committed `vercel.json` travels with the files for its headers, less
-      # the keys that would have Vercel build or skip them.
+      # the keys that would have Vercel build or skip them. `dist/ssr` is
+      # verified first, as the shell will verify it, so a key from the wrong
+      # pair or a `dist` written after signing never reaches the domain.
       - name: deploy the people remote
         id: remote
         if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING != '' && needs.plan.outputs.people-remote == 'true'
         env:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING }}
+          PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING }}
         run: |
           set -o pipefail
+          node apps/web/people/scripts/verify-ssr.mjs
           jq 'del(.ignoreCommand, .installCommand, .buildCommand, .outputDirectory)' \
             apps/web/people/vercel.json > apps/web/people/dist/vercel.json
           url="$(npx --yes "vercel@${VERCEL_CLI_VERSION}" deploy apps/web/people/dist --prod \
@@ -667,7 +671,8 @@ jobs:
             echo "::error::PEOPLE_REMOTE_URL_STAGING and PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING must be set with the remote's project"
             exit 1
           fi
-          node apps/web/people/scripts/smoke-deploy.mjs "$REMOTE" https://acme.staging.app.kithena.com
+          node apps/web/people/scripts/smoke-deploy.mjs "$REMOTE" https://acme.staging.app.kithena.com \
+            apps/web/people/dist/ssr/manifest.json
 
       - name: warn about what was not deployed
         if: vars.ROUTER_URL_STAGING == '' || vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING == ''
