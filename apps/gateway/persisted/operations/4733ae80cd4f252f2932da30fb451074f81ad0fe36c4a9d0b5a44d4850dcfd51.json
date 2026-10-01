@@ -1,0 +1,1 @@
+{"version":1,"body":"query SummaryPdf($input: String!) {\n    peopleSummaryPdf(input: $input)\n  }"}

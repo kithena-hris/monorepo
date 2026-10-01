@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ShareSummary($input: String!, $key: String!) {\n    peopleShareSummary(input: $input, idempotencyKey: $key)\n  }"}

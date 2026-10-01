@@ -127,15 +127,6 @@ type AnalyticsPayGroup {
   status: String
 }
 
-"""
-One tab’s “what changed”: the figures are always People’s; the words are the assistant’s when `byModel`.
-"""
-type AnalyticsPhrased {
-  byModel: Boolean
-  sentences: [String!]
-  tab: String
-}
-
 type AnalyticsPoint {
   label: String
   value: Float
@@ -162,23 +153,11 @@ type AnalyticsSeries {
   values: [Int!]
 }
 
-"""One tab’s “what changed”, in People’s own words, from its figures."""
-type AnalyticsTabSummary {
-  sentences: [String!]
-  tab: String
-}
-
 type AnalyticsTenureBand {
   headcount: Int
   label: String
   """Left in the 12 months before, by tenure at leaving"""
   leavers: Int
-}
-
-type AnalyticsWhatChanged {
-  """The assistant may reword it: ask `peopleWhatChanged` for its words."""
-  phrasable: Boolean
-  tabs: [AnalyticsTabSummary!]
 }
 
 """
@@ -1157,6 +1136,10 @@ type Mutation {
   mergePerson(absorbedPersonId: ID!, idempotencyKey: String!, personId: ID!, take: [String!]): Person
   pauseReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
   """
+  Send the summary, as previewed and edited, to one person: stored for them to open signed in, and an email with a link. HR’s.
+  """
+  peopleShareSummary(idempotencyKey: String!, input: String!): String
+  """
   Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only.
   """
   placePerson(costCentre: String, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID, locationId: ID, orgUnitId: ID, personId: ID!): Person
@@ -1438,7 +1421,6 @@ type PeopleAnalytics {
   """Hired, not started yet; HR’s only, never under a segment."""
   startingSoon: Int
   tenure: [AnalyticsTenureBand!]
-  whatChanged: AnalyticsWhatChanged
 }
 
 """
@@ -2249,6 +2231,16 @@ type Query {
   peopleSegments: [PeopleSegment!]
   peopleSettings: PeopleSettings
   peopleSetup: PeopleSetup
+  """A summary sent to you, or by you, while it lasts (JSON)."""
+  peopleSharedSummary(id: ID!): String
+  """A summary sent to you, on paper: a PDF, base64."""
+  peopleSharedSummaryPdf(id: ID!): String
+  """
+  The summary as it would go to somebody, rewritten for what they may see, with why anything was left out (JSON). Writes nothing.
+  """
+  peopleSummaryDraft(input: String!): String
+  """The summary as edited, on paper: a PDF, base64. Writes nothing."""
+  peopleSummaryPdf(input: String!): String
   """
   Imports and exports, newest first, 50 at a time; HR and People administrators.
   """
@@ -2258,9 +2250,20 @@ type Query {
   """
   peopleWebhookDeliveries(after: ID, endpointId: ID!): WebhookDeliveries
   """
-  One Insights tab’s “what changed”, reworded by the assistant where there is one. It is shown placeholders, never a figure.
+  A period’s changes as points, each with its figure and the records behind it, in People’s words (JSON). Nothing goes to a model.
   """
-  peopleWhatChanged(segment: ID, tab: String!): AnalyticsPhrased
+  peopleWhatChanged(from: String, period: String, segment: ID, to: String): String
+  """
+  A follow-up question answered from the points and nothing else (JSON). The model sees the question and placeholders.
+  """
+  peopleWhatChangedAsk(
+    """JSON: the period and the question"""
+    input: String!
+  ): String
+  """
+  The same points worded by the assistant where there is one (JSON, `byModel`). It is shown placeholders, never a figure or a name.
+  """
+  peopleWhatChangedWorded(from: String, period: String, segment: ID, to: String): String
   person(asOf: String, id: ID!): Person
 }
 

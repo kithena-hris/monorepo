@@ -1,1 +1,0 @@
-{"version":1,"body":"query WhatChanged($tab: String!, $segment: ID) {\n    peopleWhatChanged(tab: $tab, segment: $segment) { tab sentences byModel }\n  }"}
