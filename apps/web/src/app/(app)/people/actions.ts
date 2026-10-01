@@ -418,32 +418,38 @@ export async function proposeImportFields(uploadId: string, mapping: Mapping): P
   );
 }
 
-/** The proposals as HR left them, checked, with the review in words. Nothing is written. */
-export async function reviewImportFields(
+/** Everything the import will do, from HR's choices, over a dry run. Nothing is written. */
+export async function planImport(
   uploadId: string,
   mapping: Mapping,
   proposals: readonly unknown[],
 ): Promise<Parsed> {
   return parsed(
-    people<string>('ReviewImportFields', {
+    people<string>('PlanImport', {
       input: JSON.stringify({ ...stepOf(uploadId, mapping), proposals }),
     }),
   );
 }
 
-/** Add the fields, publish, write the defaults: one transaction, an administrator's. */
-export async function addImportFields(
+/**
+ * Approve the plan and run it: setup if nothing is published, the new fields,
+ * their defaults, then the import. What it did comes back.
+ */
+export async function runImport(
   uploadId: string,
   mapping: Mapping,
   proposals: readonly unknown[],
-  summary: string,
-): Promise<Outcome> {
-  const added = await parsed(
-    people<string>('AddImportFields', {
-      input: JSON.stringify({ ...stepOf(uploadId, mapping), proposals, summary }),
+  applySensitiveWithoutApproval: boolean,
+): Promise<Parsed> {
+  return parsed(
+    people<string>('RunImport', {
+      input: JSON.stringify({
+        ...stepOf(uploadId, mapping),
+        proposals,
+        ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
+      }),
     }),
   );
-  return added.ok ? { ok: true } : added;
 }
 
 /* -------------------------------------------------------- integrations -- */
@@ -882,33 +888,9 @@ const staged = async (answer: Promise<PeopleAnswer<Record<string, unknown>>>): P
   return a.ok ? { ok: true, stage: VIEWS.ImportStage(a.data) } : { ok: false, message: a.message };
 };
 
-const columns = (mapping: Readonly<Record<number, string | null>>) =>
-  Object.entries(mapping).map(([column, key]) => ({ column: Number(column), key }));
-
 /** The file is in storage: People checks it, and proposes the mapping. */
 export async function completeImportUpload(uploadId: string): Promise<Staged> {
   return staged(people('CompleteImportUpload', { uploadId }));
-}
-
-export async function dryRunImport(
-  uploadId: string,
-  mapping: Readonly<Record<number, string | null>>,
-): Promise<Staged> {
-  return staged(people('DryRunImport', { uploadId, mapping: columns(mapping) }));
-}
-
-export async function commitImport(
-  uploadId: string,
-  mapping: Readonly<Record<number, string | null>>,
-  applySensitiveWithoutApproval = false,
-): Promise<Staged> {
-  return staged(
-    people('CommitImport', {
-      uploadId,
-      mapping: columns(mapping),
-      ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
-    }),
-  );
 }
 
 /* -------------------------------------------------------------- export -- */

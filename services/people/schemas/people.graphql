@@ -1043,10 +1043,6 @@ input MoneyInput {
 
 type Mutation {
   addDraftSection(idempotencyKey: String!, label: String!): WriteOutcome
-  """
-  Add the reviewed fields, publish them and write the defaults, in one transaction. A People administrator’s.
-  """
-  addImportFields(idempotencyKey: String!, input: String!): String
   """The requester answers a question about their change, once."""
   answerApprovalQuestion(answer: String!, id: ID!, idempotencyKey: String!): WriteOutcome
   """Whoever may decide a change asks the requester first (“Ask Nora”)."""
@@ -1224,6 +1220,13 @@ type Mutation {
   """
   placePerson(costCentre: String, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID, locationId: ID, orgUnitId: ID, personId: ID!): Person
   """
+  Everything the import will do, from HR’s choices: its new fields, the people it creates and updates, who is asked and what HR fills in, over a dry run against the version those fields would make (JSON). Nothing is written.
+  """
+  planImport(
+    """JSON: uploadId, the mapping, and the proposals as HR left them"""
+    input: String!
+  ): String
+  """
   Fields proposed for the columns of an uploaded import that match none, and what happens for people already here (JSON). The model sees headers and value shapes only. Nothing is written.
   """
   proposeImportFields(
@@ -1284,15 +1287,15 @@ type Mutation {
   HR decides a doubted identifier (PEO-125): accept is final; send_back asks the employee to correct it.
   """
   reviewIdentifier(attributeKey: String!, decision: IdentifierReviewDecision!, idempotencyKey: String!, note: String, personId: ID!): IdentifierDecision
-  """
-  The proposals as HR left them, checked, with the review in words (JSON). Nothing is written.
-  """
-  reviewImportFields(input: String!): String
   """people_admin only; never the last people_admin."""
   revokeRole(accountId: ID!, idempotencyKey: String!, reason: String!, role: TenantRole!): RoleHolder
   revokeScimConnection(id: ID!, idempotencyKey: String!): WriteOutcome
   rotateScimToken(id: ID!, idempotencyKey: String!): ScimConnectionToken
   rotateWebhookSecret(id: ID!, idempotencyKey: String!): WebhookEndpointSecret
+  """
+  Approve the plan and run it: set the company up if nothing is published, add and publish the new fields, write the defaults, then import (JSON). A People administrator’s when it adds fields.
+  """
+  runImport(idempotencyKey: String!, input: String!): String
   saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): GridSaved
   """Add or change a field in the draft; the draft decides whether it may."""
   saveDraftField(editing: String, idempotencyKey: String!, input: DraftFieldInput!): WriteOutcome

@@ -2,6 +2,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition, AttributeDefinitionInput } from '@kithena/contracts';
 
 import { canWrite, type ViewerRelations } from '../../domain/access/field-access.js';
+import { aliasOf } from '../../domain/import/aliases.js';
 import type { Attribute, SchemaDraft } from '../../domain/schema/draft.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import { PERSON_ID_COLUMN, type ParsedFile } from './parse.js';
@@ -98,7 +99,8 @@ export interface ColumnMapping {
   readonly status: ColumnStatus;
   /** The attribute or system key, when there is one — including a refused or suggested one. */
   readonly key: string | null;
-  readonly source: 'key' | 'label' | 'suggested' | 'manual' | 'system' | null;
+  /** `alias`: a name other systems give the field ("First Name"), by rule (`aliasOf`). */
+  readonly source: 'key' | 'label' | 'alias' | 'suggested' | 'manual' | 'system' | null;
   readonly confidence: number | null;
   readonly reason: string | null;
 }
@@ -160,6 +162,13 @@ export async function proposeMapping(input: ProposeInput): Promise<readonly Colu
     if (system) return { ...base, status: 'mapped', key: system, source: 'system' };
     const byLabel = live.find((d) => labelsOf(d).includes(wanted));
     if (byLabel) return { ...base, status: 'mapped', key: byLabel.key, source: 'label' };
+    const alias = aliasOf(header);
+    if (alias !== null && isSystem(alias)) {
+      return { ...base, status: SYSTEM_COLUMNS[alias], key: alias, source: 'system' };
+    }
+    if (alias !== null && byKey.has(alias)) {
+      return { ...base, status: 'mapped', key: alias, source: 'alias' };
+    }
     return null;
   });
 

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Image } from 'lucide-react';
-import type { JSX } from 'react';
+import { useState, type JSX } from 'react';
 
+import { Button } from '../button/button';
 import { Card } from '../card/card';
 import { Carousel } from './carousel';
 
@@ -102,3 +103,52 @@ export const WithControls: Story = {
     </Carousel>
   ),
 };
+
+/**
+ * Driven from outside: one card at a time with the next step under it, as a
+ * phone walks through a short list of decisions. Swiping moves it too, and
+ * the counter follows either way.
+ */
+function Driven(): JSX.Element {
+  const steps = ['Payday', 'Reviews open', 'Holiday'];
+  const [at, setAt] = useState(0);
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-fg-muted">
+        {at + 1} of {steps.length}
+      </p>
+      <Carousel
+        label="Decisions"
+        controls="dots"
+        itemClassName="w-full"
+        index={at}
+        onIndexChange={setAt}
+      >
+        {steps.map((title, i) => (
+          <Slide key={title} tone={(i + 2) as 2 | 3 | 4} title={title} note="Swipe, or press Next" />
+        ))}
+      </Carousel>
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          disabled={at === 0}
+          onClick={() => {
+            setAt((i) => Math.max(0, i - 1));
+          }}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="primary"
+          disabled={at === steps.length - 1}
+          onClick={() => {
+            setAt((i) => Math.min(steps.length - 1, i + 1));
+          }}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export const DrivenFromOutside: Story = { render: () => <Driven /> };

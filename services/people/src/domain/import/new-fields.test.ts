@@ -6,7 +6,6 @@ import {
   localProposal,
   nearly,
   PlanBudget,
-  summaryOf,
   withKeys,
   withModel,
   type ColumnSeen,
@@ -39,6 +38,7 @@ const FILE = {
   shirt: seen(5, 'T-shirt size', ['S', 'M', 'S', 'L']),
   iban: seen(6, 'IBAN', ['ES91 2100 0418 4502 0005 1332', 'ES79 2100 0813 6101 2345 6789']),
   country: seen(7, 'Work country', ['ES', 'ES', 'ES']),
+  diet: seen(8, 'Dietary requirements', ['Vegetarian', '', 'Halal', 'Vegetarian']),
 };
 
 describe('with no model: People’s own proposal', () => {
@@ -115,6 +115,25 @@ describe('with no model: People’s own proposal', () => {
     expect(nearly('Region', 'Religion')).toBe(false);
   });
 
+  it('a column that can reveal health or religion is held back, explained, and never chased', () => {
+    expect(localProposal(FILE.diet, SECTIONS)).toMatchObject({
+      include: false,
+      field: { classification: 'special-category', aiEligible: false, required: false },
+      forExisting: { kind: 'leave' },
+    });
+    expect(localProposal(FILE.diet, SECTIONS).why).toMatch(
+      /special-category data\. I suggest not importing it/u,
+    );
+  });
+
+  it('is surer when the values or the header decide the field than of plain free text', () => {
+    expect(localProposal(FILE.cost, SECTIONS).confidence).toBe('high');
+    expect(localProposal(FILE.shirt, SECTIONS).confidence).toBe('high');
+    expect(localProposal(FILE.emergency, SECTIONS).confidence).toBe('high');
+    const serial = seen(10, 'Laptop serial', ['C02XK1Y2JG5H', 'FVFZ81Q2P3', 'C02AB']);
+    expect(localProposal(serial, SECTIONS).confidence).toBe('medium');
+  });
+
   it('every proposal says why, in one line', () => {
     for (const s of Object.values(FILE)) {
       const p = localProposal(s, SECTIONS);
@@ -176,6 +195,48 @@ describe('with a model', () => {
     expect(unreadable).toBe(2);
   });
 
+  it('cannot put back a column held back as special category, and holds back one it calls that', () => {
+    const field = {
+      label: 'X',
+      dataType: 'text',
+      required: false,
+      ownership: ['employee'],
+      visibility: ['self', 'hr', 'manager'],
+      classification: 'internal',
+      piiKind: 'none',
+      encrypted: false,
+      aiEligible: true,
+    };
+    const { proposals } = withModel(
+      local,
+      [
+        {
+          proposals: [
+            { column: 8, field, newSection: 'Food', why: 'Catering.', forExisting: 'ask', forExistingWhy: 'Ask.' },
+            {
+              column: 5,
+              field: { ...field, classification: 'special-category', piiKind: 'health', aiEligible: false },
+              newSection: 'Health',
+              why: 'Sizes can say something about health.',
+              forExisting: 'leave',
+              forExistingWhy: 'Never chased.',
+            },
+          ],
+        },
+      ],
+      SECTIONS,
+      Object.values(FILE),
+    );
+    expect(proposals.find((p) => p.column === 8)).toMatchObject({
+      include: false,
+      field: { classification: 'special-category' },
+    });
+    expect(proposals.find((p) => p.column === 5)).toMatchObject({
+      include: false,
+      field: { classification: 'special-category' },
+    });
+  });
+
   it('gives each field a key its label makes, never one already taken', () => {
     const keyed = withKeys(local.slice(0, 2), new Set(['emergency_contact']));
     expect(keyed.map((p) => p.key)).toEqual(['emergency_contact_2', 'cost_centre']);
@@ -209,6 +270,13 @@ describe('what applying means for people already here', () => {
     expect(asDefinition(cost).requiredness).toEqual({ mode: 'always', appliesTo: 'all_records' });
   });
 
+  it('only new joiners: required of people added from now on', () => {
+    expect(asDefinition({ ...shirt, forExisting: { kind: 'new' } }).requiredness).toEqual({
+      mode: 'always',
+      appliesTo: 'new_records',
+    });
+  });
+
   it('left empty: optional, or required of new people only', () => {
     expect(asDefinition(shirt).requiredness).toEqual({ mode: 'never' });
     expect(
@@ -217,41 +285,6 @@ describe('what applying means for people already here', () => {
       mode: 'always',
       appliesTo: 'new_records',
     });
-  });
-});
-
-describe('the review in words, with the counts', () => {
-  it('says what is added where, how many from the file, and what happens for everybody else', () => {
-    const proposals = withKeys(
-      [FILE.emergency, FILE.cost, FILE.shirt, FILE.iban].map((s) => localProposal(s, SECTIONS)),
-      new Set(),
-    );
-    const counts = new Map([
-      [3, { fromFile: 128, existingWithout: 342 }],
-      [4, { fromFile: 128, existingWithout: 60 }],
-      [5, { fromFile: 128, existingWithout: 342 }],
-      [6, { fromFile: 100, existingWithout: 0 }],
-    ]);
-    expect(summaryOf(proposals, counts, 128, SECTIONS)).toBe(
-      'Adds 4 fields: 1 to a new Emergency contact section, 1 to Employment, 1 to a new Other information section, 1 to a new Bank and pay section. ' +
-        'Values for 128 people from this file. 342 people will be asked for their emergency contact. ' +
-        'HR will fill in 60 cost centre values. T-shirt size stays empty for 342 people.',
-    );
-    expect(summaryOf(proposals.slice(3), counts, 100, SECTIONS)).toBe(
-      'Adds 1 field: 1 to a new Bank and pay section. Values for 100 people from this file.',
-    );
-    expect(
-      summaryOf(
-        proposals.slice(3),
-        new Map([[6, { fromFile: 1, existingWithout: 5 }]]),
-        1,
-        SECTIONS,
-      ),
-    ).toMatch(/5 people will be asked for their IBAN\.$/u);
-  });
-
-  it('says so when nothing is added', () => {
-    expect(summaryOf([], new Map(), 0, SECTIONS)).toMatch(/^Adds no fields/u);
   });
 });
 

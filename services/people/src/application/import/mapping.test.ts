@@ -96,6 +96,23 @@ describe('the cheap rules, with no advisor at all', () => {
     });
     expect(mapping.map((m) => m.status)).toEqual(['mapped', 'ignored', 'ignored', 'ignored']);
   });
+
+  it('knows the usual names other systems export, when the company has the field', async () => {
+    const givenName = define({ key: 'given_name', label: { default: 'Legal first name' } });
+    const mapping = await proposeMapping({
+      file: { headers: ['First Name', 'Email', 'Start date', 'Surname'], keys: null },
+      version: versionOf(1, [givenName, workEmail]),
+      relations: relations(),
+      advisor: null,
+    });
+    expect(mapping.map((m) => [m.status, m.key, m.source])).toEqual([
+      ['mapped', 'given_name', 'alias'],
+      ['mapped', 'work_email', 'alias'],
+      ['mapped', 'hire_date', 'system'],
+      // No family name in this company: not invented.
+      ['ignored', null, null],
+    ]);
+  });
 });
 
 describe('the judgment', () => {
