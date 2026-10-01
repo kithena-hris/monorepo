@@ -182,4 +182,61 @@ and `POST /v1/views/export/plan` (both write nothing).
 The directory's list and cards load the next page as the reader nears the end
 (the table's `onEndReached`; a sentinel for cards and the phone's list), with a
 row or a card in its final shape while it loads, "50 more loaded" said in a
-live region, and the address keeping the filters, never the scroll position.
+live region, and the address keeping the filters and the row the reader is on
+(`?row=`, below).
+
+## Smart search (AI1–AI4, MA1–MA3)
+
+The Directory's search is one prompt bar for names and for questions
+(`apps/web/people/src/directory/smart-search.tsx`, Reach's `SearchField
+variant="prompt"`). Typing searches nothing; Enter does.
+
+- **A name or an email that finds one person opens them**, with no model
+  (`isEmail`, `isPlainSearch`, then the list as the viewer may read it,
+  two at most). Several, and the names are listed (`?q=`).
+- **Focused and empty, it offers "Try asking"**: up to four questions built
+  from the company's own fields and options (`suggestions` in
+  `domain/assistant/clarify.ts`, on the Directory view), each one People's
+  rules read in full, so a suggestion never meets "not understood"; options
+  only of fields the assistant may use. Below them, "Recent": the searches
+  made in this browser (local storage, five).
+- **The question becomes "Understood as"**: the directory's own conditions,
+  in the address (`?ask=` holds the question, `?conditions=` what it became),
+  each a removable chip, the parts not used dashed, "Edit as filters" opening
+  the same Filters sheet. Same filters as the manual ones, so permissions
+  apply exactly as before. A question's results are ordered by name unless it
+  asked for an order. Who read it is said when it was not the assistant.
+- **It asks instead of guessing** (`sift`, `clarify.ts`): "leaving soon",
+  "new joiners" and "starting soon" each have readings this company's fields
+  can run (given notice, a date field named like an end within 90 days; the
+  last 30 or 90 days or this year; not started yet, or a start in 30 days),
+  offered with how many people each finds, "Both" only when nothing else was
+  asked (all of one and any of the other is not one query). One reading is no
+  question. The model may ask too (`ask` in its answer, read as strictly as
+  its conditions). A pick applies the reading and is remembered in this
+  browser by topic, sent with the next question (`remembered`).
+- **It refuses judgements**: how good somebody is at something, how well they
+  work, what they will do, health and other special-category data. The part
+  is taken out of the sentence before the rules or a model read it, shown
+  dashed, and explained; where a text field records something close (Skills
+  for "good at Go") it is offered with its count, never applied.
+- **Remind all N** (HR, when the conditions find a detail empty that people
+  fill in themselves): everybody found is asked for it through the profile's
+  own request path (`requestDetailsOfMany`, one transaction, emails after,
+  at most 500 a press). **Save as view** saves the conditions as a segment
+  (`people.segment.conditions`, expand-only); the directory and the export
+  apply them, a chart or a schedule refuses such a view (PEO-132).
+  **Export** carries the conditions as before.
+- **Where you are**: results stream in 50 at a time with a counter ("150 of
+  388") and Back to top (Reach's `ScrollPosition`) once the reader has
+  scrolled; the first row in view is noted in the address as the scroll
+  settles (`?row=`, rewriting the entry, never while a navigation is on its
+  way), so Back or a reload loads as many pages as it takes and returns to
+  that row.
+
+What the model sees here is what it saw before, less anything refused: the
+sentence without the refused parts, today's date, and the field keys,
+labels and kinds, with options only for configuration it may use. Checked in
+`application/assistant/selection.test.ts` and, against a fake model, in the
+browser (the logged request held "senior people in Engineering" for "senior
+people in Engineering who are good at Go", and no record's value).
