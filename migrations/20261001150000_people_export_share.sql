@@ -48,6 +48,10 @@ CREATE TABLE people.export_share (
   ),
   CONSTRAINT export_share_not_to_self CHECK (recipient <> requested_by),
   CONSTRAINT export_share_decided_whole CHECK ((decided_by IS NULL) = (decided_at IS NULL)),
+  -- Nobody approves what they asked for, or what they would receive.
+  CONSTRAINT export_share_second_person CHECK (
+    decided_by IS NULL OR (decided_by <> requested_by AND decided_by <> recipient)
+  ),
   CONSTRAINT export_share_sent_once_approved CHECK (export_id IS NULL OR state = 'approved')
 );
 
