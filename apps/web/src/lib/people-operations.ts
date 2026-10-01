@@ -130,18 +130,29 @@ export const OPERATIONS = {
     }
   }${RECORD_FIELD}${ENTRY}`,
 
-  /** Changes waiting for approval (PEO-077): every one for HR, the viewer's own otherwise. */
+  /**
+   * Changes waiting for approval (PEO-077): every one for HR, the viewer's own
+   * otherwise. For HR, also why each is flagged, what was decided lately and
+   * what Kithena checks (design AI7, AI8).
+   */
   Approvals: `query Approvals {
     peopleApprovals {
-      isHr
-      items {
-        id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
-        reason mine canDecide canSelfApprove awaitingReview findings { level code message }
-        flags { code reason }
-        value { ...EntryParts }
-        current { ...EntryParts }
-      }
+      isHr canTune
+      items { ...ApprovalParts }
+      decided { ...ApprovalParts }
+      checks { code title detail on }
+      last90 { flagged rejected marked }
     }
+  }
+  fragment ApprovalParts on ApprovalItem {
+    id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
+    reason mine canDecide canSelfApprove awaitingReview findings { level code message }
+    flags { code title detail }
+    comparisons { label percent highlight }
+    flagNote flagSummary canAsk canMark state decidedBy decidedAt note
+    questions { id question askedBy askedAt answer answeredAt canAnswer }
+    value { ...EntryParts }
+    current { ...EntryParts }
   }${ENTRY}`,
 
   IdentifierReviews: `query IdentifierReviews {
@@ -824,6 +835,23 @@ export const OPERATIONS = {
 
   WithdrawPendingChange: `mutation WithdrawPendingChange($id: ID!, $key: String!) {
     withdrawPendingChange(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  /* Flagged approvals (design AI7, AI8). */
+  MarkPendingChangeNotUnusual: `mutation MarkPendingChangeNotUnusual($id: ID!, $key: String!) {
+    markPendingChangeNotUnusual(id: $id, idempotencyKey: $key) { ok }
+  }`,
+
+  AskAboutPendingChange: `mutation AskAboutPendingChange($id: ID!, $question: String!, $key: String!) {
+    askAboutPendingChange(id: $id, question: $question, idempotencyKey: $key) { ok }
+  }`,
+
+  AnswerApprovalQuestion: `mutation AnswerApprovalQuestion($id: ID!, $answer: String!, $key: String!) {
+    answerApprovalQuestion(id: $id, answer: $answer, idempotencyKey: $key) { ok }
+  }`,
+
+  SetApprovalCheck: `mutation SetApprovalCheck($code: String!, $on: Boolean!, $key: String!) {
+    setApprovalCheck(code: $code, on: $on, idempotencyKey: $key) { ok }
   }`,
 
   RequestExport: `mutation RequestExport(

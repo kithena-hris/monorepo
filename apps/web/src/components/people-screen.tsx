@@ -830,10 +830,20 @@ export function PeopleScreen({
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
-          tab: oneOf(at('tab'), ['mine', 'asked'], null),
+          tab: oneOf(at('tab'), ['mine', 'flagged', 'asked', 'decided'], null),
           onTabChange: (tab: string) => {
-            note({ tab }, 'push');
+            note({ tab, change: null }, 'push');
           },
+          // The change open beside the list: a link to one opens it (Inbox, MA6).
+          change: at('change'),
+          onChangeOpen: (change: string | null) => {
+            note({ change }, 'push');
+          },
+          // Flagged approvals (design AI7, AI8).
+          onMarkNotUnusual: thenRefresh(actions.markNotUnusual),
+          onAsk: thenRefresh(actions.askAboutChange),
+          onAnswer: thenRefresh(actions.answerApprovalQuestion),
+          onSetCheck: thenRefresh(actions.setApprovalCheck),
         };
       case 'Duplicates': {
         const list = '/people/data-health/duplicates';

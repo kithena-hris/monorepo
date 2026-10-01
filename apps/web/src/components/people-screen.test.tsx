@@ -19,6 +19,10 @@ vi.mock('../app/(app)/people/actions', () => ({
   decidePendingChange: vi.fn(),
   withdrawPendingChange: vi.fn(),
   approveAlone: vi.fn(),
+  markNotUnusual: vi.fn(),
+  askAboutChange: vi.fn(),
+  answerApprovalQuestion: vi.fn(),
+  setApprovalCheck: vi.fn(),
   saveSegment: vi.fn(),
   directoryPage: vi.fn(),
 }));
@@ -74,6 +78,15 @@ describe('a screen that narrows what it already has', () => {
     expect(here()).toBe('/people/approvals?tab=asked');
     expect(window.history.length).toBe(before + 1);
     expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('keeps the flagged tab and the open change in the address (MA6, MA7)', () => {
+    const props = open('/people/approvals?tab=flagged&change=c1', 'Approvals');
+    expect([props['tab'], props['change']]).toEqual(['flagged', 'c1']);
+    call(props, 'onChangeOpen', 'c2');
+    expect(here()).toBe('/people/approvals?tab=flagged&change=c2');
+    call(props, 'onTabChange', 'decided');
+    expect(here()).toBe('/people/approvals?tab=decided');
   });
 
   it('rewrites the entry while a search is typed, and leaves an empty one out', () => {

@@ -1054,8 +1054,8 @@ describe('at 390×844, with a finger', () => {
   });
 });
 
-describe('approvals on a phone, with a flagged change', () => {
-  it('draws the flags on the row and the change, and every target is a finger’s', async () => {
+describe('approvals on a phone, with a flagged change (MA7)', () => {
+  it('draws why it is flagged and the decision, and every target is a finger’s', async () => {
     await checked(
       <Approvals
         load={{
@@ -1066,35 +1066,84 @@ describe('approvals on a phone, with a flagged change', () => {
               {
                 id: 'c1',
                 personId: 'p1',
-                name: 'Lucía Ortega',
-                key: 'iban',
-                label: 'IBAN',
+                name: 'Tom Fischer',
+                key: 'base_salary',
+                label: 'Base salary',
                 kind: 'value',
-                value: { last4: '1332' },
-                current: { last4: '3000' },
+                value: { amountMinor: '8400000', currency: 'EUR' },
+                current: { amountMinor: '6100000', currency: 'EUR' },
                 readable: true,
-                effectiveFrom: '2026-09-22',
-                requestedAt: '2026-09-22T21:40:00.000Z',
-                expiresAt: '2026-09-29T21:40:00.000Z',
-                requestedBy: 'Marco Rossi',
+                effectiveFrom: '2026-10-01',
+                requestedAt: '2026-09-22T09:40:00.000Z',
+                expiresAt: '2026-09-29T09:40:00.000Z',
+                requestedBy: 'Nora Becker',
                 reason: null,
                 mine: false,
                 canDecide: true,
+                canAsk: true,
+                canMark: true,
                 flags: [
-                  {
-                    code: 'bank_by_other',
-                    reason: 'Bank details were changed by someone other than the employee.',
-                  },
+                  { code: 'raise', title: 'A 38% raise', detail: 'Sales median is 4%' },
+                  { code: 'band', title: 'Above the band', detail: 'Band tops out at €78k' },
                 ],
+                comparisons: [
+                  { label: 'This change', percent: '38', highlight: true },
+                  { label: 'Sales median', percent: '4', highlight: false },
+                ],
+                flagNote: 'This might be fine: a promotion would explain both.',
+                flagSummary: 'A 38% raise, above the band',
               },
             ],
           },
         }}
         onDecide={ok}
         onWithdraw={ok}
+        onMarkNotUnusual={ok}
+        onAsk={ok}
+        change="c1"
+        onChangeOpen={() => undefined}
       />,
     );
-    expect(screen.getByText('1 flag')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Why this is flagged' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /with note$/ })).toBeInTheDocument();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+  });
+
+  it('puts what gets flagged under the Flagged tab, switches a finger’s', async () => {
+    await checked(
+      <Approvals
+        load={{
+          status: 'ready',
+          data: {
+            isHr: true,
+            items: [],
+            canTune: true,
+            checks: [
+              {
+                code: 'raise',
+                title: 'Raise much bigger than usual',
+                detail: 'Compared with the team’s raises this year',
+                on: true,
+              },
+              {
+                code: 'unusual_time',
+                title: 'Requested at an unusual time',
+                detail: 'Outside the requester’s working hours',
+                on: false,
+              },
+            ],
+            last90: { flagged: 11, rejected: 3, marked: 6 },
+          },
+        }}
+        onDecide={ok}
+        onWithdraw={ok}
+        onSetCheck={ok}
+        tab="flagged"
+        onTabChange={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'What Kithena checks' })).toBeInTheDocument();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   });
 });
 

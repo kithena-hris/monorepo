@@ -82,9 +82,15 @@ export const VIEWS = {
     ...record(v),
     pending: (v.pending ?? []).map(pending),
   }),
-  Approvals: (v: Json & { items: (Json & { value: Entry; current: Entry })[] }) => ({
+  Approvals: (
+    v: Json & {
+      items: (Json & { value: Entry; current: Entry })[];
+      decided?: (Json & { value: Entry; current: Entry })[];
+    },
+  ) => ({
     ...v,
     items: v.items.map((i) => ({ ...pending(i), current: formValue(i.current) })),
+    decided: (v.decided ?? []).map((i) => ({ ...pending(i), current: formValue(i.current) })),
   }),
   // Each change's value too, from its entry: a sealed one stays `{ last4: null }`.
   PersonHistory: (v: WithRecord & Json & { changes: (Json & { value: Entry })[] }) => ({

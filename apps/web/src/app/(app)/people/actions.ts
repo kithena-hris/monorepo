@@ -556,14 +556,39 @@ export async function decidePendingChange(
   );
 }
 
-/** The requester approves their own held change when no other HR member can, having confirmed it (PEO-077). */
-export async function approveAlone(id: string): Promise<Outcome> {
-  return decidePendingChange(id, true, null, true);
+/**
+ * The requester approves their own held change when no other HR member can,
+ * having confirmed it (PEO-077); with a note when it is flagged (AI7).
+ */
+export async function approveAlone(id: string, note: string | null = null): Promise<Outcome> {
+  return decidePendingChange(id, true, note, true);
 }
 
 /** The requester takes their change back while it waits. */
 export async function withdrawPendingChange(id: string): Promise<Outcome> {
   return outcome(people('WithdrawPendingChange', { id }));
+}
+
+/* ------------------------------------ flagged approvals (AI7, AI8) -- */
+
+/** Its flags were not worth raising: the checks learn from it. Decides nothing. */
+export async function markNotUnusual(id: string): Promise<Outcome> {
+  return outcome(people('MarkPendingChangeNotUnusual', { id }));
+}
+
+/** Whoever decides asks the requester first. */
+export async function askAboutChange(id: string, question: string): Promise<Outcome> {
+  return outcome(people('AskAboutPendingChange', { id, question }));
+}
+
+/** The requester answers, once. */
+export async function answerApprovalQuestion(id: string, answer: string): Promise<Outcome> {
+  return outcome(people('AnswerApprovalQuestion', { id, answer }));
+}
+
+/** A People administrator switches one of the checks. */
+export async function setApprovalCheck(code: string, on: boolean): Promise<Outcome> {
+  return outcome(people('SetApprovalCheck', { code, on }));
 }
 
 export async function decideFullValues(
