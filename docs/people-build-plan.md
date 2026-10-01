@@ -2020,6 +2020,34 @@ it is written down here rather than left in a PR description.
       Offer it to a manager when every person found is theirs, checked per
       person as `requestDetailsOfMany` already does. Found building smart
       search.
+Smart export (design AI13, AI14, MA10), built from one sentence, sent to
+somebody, explained by its own About (`docs/ai-settings.md`, "An export sent
+to somebody"). What the design shows and the backend cannot honestly do yet:
+
+- [ ] **PEO-132** Time-limited, scoped access grants (design AI13's "I've
+      asked Nora to approve Engineering for 30 days"). Today an approval
+      covers one file, built once and kept a week; nothing grants a person a
+      field on a department for a period, and roles are tenant-wide. Needs a
+      grant with a scope and an expiry in OpenFGA (conditional tuples), a
+      place in Settings › Access to see and revoke them, and the export's
+      approval offering one. Found building the smart export.
+- [ ] **PEO-133** Split an export by a field (design AI13's "Split by team"
+      chip): a sheet per value in Excel, a file per value in CSV, that the
+      importer still reads back. Not offered until built.
+- [ ] **PEO-134** Requests to send an export in the Approvals inbox, and the
+      requester told the decision by email (an `export_share_decided`
+      notice). Today the approvers are emailed a link to the request
+      (`/people/export?share=…`), decide it there, and the requester sees the
+      outcome on the same page.
+- [ ] **PEO-135** Sending an export of more than 2,000 people. Today it is
+      refused ("download this one instead") because a sent file is built
+      while the request waits; the queue (`export/queue.ts`) needs to carry
+      the recipient and email them when the job completes.
+- [ ] **PEO-136** "Make this a monthly schedule" for any audience a sentence
+      describes. A scheduled report takes a saved view or one value per field
+      (PEO-069), so dates, "contains" and "any of" conditions are refused with
+      "save this group as a view first"; a schedule holding the directory's
+      own conditions lifts that.
 
 ## Revisit later — the owner's list
 

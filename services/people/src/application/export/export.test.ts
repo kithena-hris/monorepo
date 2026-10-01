@@ -117,11 +117,11 @@ describe('the XLSX register', () => {
     expect(JSON.stringify(rowValues(people, 3))).not.toContain('never exported');
     expect(people.getColumn(1).hidden).toBe(true);
     expect(wb.worksheets.map((w) => w.name)).toEqual([
+      'About',
       'People',
       'Lists',
       'Languages',
       'Missing information',
-      'About this export',
     ]);
   });
 
@@ -223,9 +223,7 @@ describe('the XLSX register', () => {
 
   it('says what it is on an About sheet', async () => {
     const { files } = await exported(HR, { filter: 'Everyone in Madrid' });
-    const about = (await open(files[0]?.bytes ?? new Uint8Array())).getWorksheet(
-      'About this export',
-    );
+    const about = (await open(files[0]?.bytes ?? new Uint8Array())).getWorksheet('About');
     const lines = Object.fromEntries(
       [1, 2, 3, 4, 5, 6, 7].map((n) =>
         about ? (rowValues(about, n) as [string, unknown]) : ['', null],

@@ -1126,6 +1126,110 @@ describe('at 390×844, with a finger', () => {
     );
   });
 
+  it('an export from one sentence, waiting for approval (MA10)', async () => {
+    await checked(
+      <ExportBuilder
+        load={{
+          status: 'ready',
+          data: {
+            today: '2026-10-01',
+            who: [
+              { value: 'everyone', label: 'Everybody you can see', count: 412 },
+              { value: 'conditions', label: 'Everybody whose team is Engineering', count: 148 },
+            ],
+            sections: [
+              {
+                key: 'pay',
+                label: 'Pay',
+                fields: [
+                  { key: 'given_name', label: 'Given name' },
+                  { key: 'base_salary', label: 'Base salary' },
+                  { key: 'bonus', label: 'Bonus' },
+                ],
+              },
+            ],
+            preview: {
+              recipient: { accountId: 'a-sofia', name: 'Sofia Lindqvist' },
+              candidates: [{ accountId: 'a-sofia', name: 'Sofia Lindqvist' }],
+              people: 148,
+              sensitive: ['base_salary'],
+              gap: {
+                fields: [{ key: 'base_salary', label: 'Base salary', people: 148 }],
+                unlisted: 0,
+              },
+              approvers: [{ accountId: 'a-nora', name: 'Nora Becker' }],
+              tooLarge: false,
+              emailed: true,
+              canSchedule: true,
+              self: 'a-ada',
+            },
+          },
+        }}
+        address={{
+          q: 'Madrid engineering salaries as of 30 June for Finance',
+          read: 'rules',
+          who: 'conditions',
+          fields: ['given_name', 'base_salary'],
+          asOf: '2026-06-30',
+          reason: '2027 budget',
+        }}
+        onExport={ok}
+        onShare={ok}
+        onSchedule={ok}
+        onDescribe={() =>
+          Promise.resolve({ ok: true as const, by: 'rules' as const, note: null, notes: [] })
+        }
+      />,
+    );
+  });
+
+  it('the file explains itself, on a phone (AI14)', async () => {
+    await checked(
+      <ExportBuilder
+        load={{
+          status: 'ready',
+          data: {
+            today: '2026-10-01',
+            who: [{ value: 'everyone', label: 'Everybody you can see', count: 412 }],
+            sections: [],
+            record: {
+              id: '0199a3f0-7c1e-7d2a-9b1e-4f6a8c2d1e00',
+              code: 'EXP-0199A3F0',
+              status: 'completed',
+              mine: false,
+              requestedBy: { accountId: 'a-ada', name: 'Ada Lovelace' },
+              sentTo: { accountId: 'a-sofia', name: 'Sofia Lindqvist' },
+              openedAt: '2026-10-01T14:40:00.000Z',
+              approvedBy: {
+                accountId: 'a-nora',
+                name: 'Nora Becker',
+                at: '2026-10-01T14:31:00.000Z',
+              },
+              reason: 'Budget planning for 2027',
+              rowCount: 148,
+              fields: ['Name', 'Base salary'],
+              sensitive: 1,
+              asOf: '2026-06-30',
+              format: 'xlsx',
+              expiresAt: '2026-10-08T14:31:00.000Z',
+              about: {
+                title: 'Everybody whose team is Engineering, 30 June 2026',
+                paragraphs: [
+                  '148 people, with their name and base salary as they were at the end of 30 June 2026.',
+                ],
+                footnote: 'Confidential · link expires 8 October 2026 · export ID EXP-0199A3F0',
+              },
+              keptUntil: null,
+              links: [{ name: 'people-2026-10-01.xlsx', url: 'https://files.test/x' }],
+              now: '2026-10-01T15:00:00.000Z',
+            },
+          },
+        }}
+        onExport={ok}
+      />,
+    );
+  });
+
   it('insights, a tab with every chart’s numbers one tap away', async () => {
     await checked(
       <Analytics

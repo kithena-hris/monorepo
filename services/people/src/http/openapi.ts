@@ -81,6 +81,7 @@ import {
   ReviewInput as NewFieldsReview,
 } from '../application/assistant/import-fields.js';
 import { DirectoryAsk, DirectoryRemind, PlanAsk } from '../application/assistant/selection.js';
+import { ShareAsk, ShareDecisionAsk, SharePreviewAsk } from '../application/export/share.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 /**
@@ -170,6 +171,10 @@ const components = {
   SelectionAsk: PlanAsk,
   DirectoryAsk,
   DirectoryRemind,
+  // An export sent to somebody else (design AI13).
+  SharePreview: SharePreviewAsk,
+  ShareExport: ShareAsk,
+  ShareDecision: ShareDecisionAsk,
   Segment: SegmentBody,
   PayBand: PayBandBody,
   ReportSchedule: ScheduleBody,
@@ -574,6 +579,49 @@ function screenPaths(): Record<string, unknown> {
         '{ who, conditions, match, audience, count, fields, asOf, format, photos, reason, by, note, notes }',
         { safe: true },
       ),
+    },
+    // An export sent to somebody else (design AI13, AI14, MA10).
+    '/v1/exports/share/preview': {
+      post: screenWrite(
+        'Whom an export would go to (picked, or read from the sentence by People), what they could not read themselves, and who would approve it; nothing is built',
+        'SharePreview',
+        200,
+        '{ recipient, candidates, people, sensitive, gap, approvers, tooLarge, emailed, canSchedule }',
+        { safe: true },
+      ),
+    },
+    '/v1/exports/share': {
+      post: screenWrite(
+        'Send an export: now, when the recipient could read all of it themselves; otherwise as a request a People administrator approves',
+        'ShareExport',
+        200,
+        '{ status: sent, exportId } or the request waiting',
+      ),
+    },
+    '/v1/exports/share/{id}': {
+      get: {
+        summary:
+          'A request to send an export, for its requester, its recipient or a People administrator',
+        parameters: [id],
+        responses: { 200: { description: 'The request' }, ...failure },
+      },
+    },
+    '/v1/exports/share/{id}/decision': {
+      post: screenWrite(
+        'Approve or reject sending an export: a People administrator who is neither asking nor receiving. Approved, the file is built and sent',
+        'ShareDecision',
+        200,
+        'The request after',
+        { path: 'id' },
+      ),
+    },
+    '/v1/exports/{id}/record': {
+      get: {
+        summary:
+          'A finished export for its requester or recipient: where it went, what it holds and its About; the recipient’s first look is recorded',
+        parameters: [id],
+        responses: { 200: { description: 'The export' }, ...failure },
+      },
     },
     '/v1/schema/draft/attributes/{key}/assistant': {
       post: screenWrite(

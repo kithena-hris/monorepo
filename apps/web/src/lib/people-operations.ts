@@ -939,6 +939,28 @@ export const OPERATIONS = {
   ExportPlan: `query ExportPlan($sentence: String!) {
     peopleExportPlan(sentence: $sentence)
   }`,
+
+  // An export sent to somebody else (design AI13, AI14, MA10). Inputs and
+  // answers cross as JSON, as the plan's do.
+  ExportSharePreview: `query ExportSharePreview($input: String!) {
+    peopleExportSharePreview(input: $input)
+  }`,
+
+  ExportShare: `query ExportShare($id: ID!) {
+    peopleExportShare(id: $id)
+  }`,
+
+  ExportRecord: `query ExportRecord($id: ID!) {
+    peopleExportRecord(id: $id)
+  }`,
+
+  ShareExport: `mutation ShareExport($input: String!, $key: String!) {
+    shareExport(input: $input, idempotencyKey: $key)
+  }`,
+
+  DecideExportShare: `mutation DecideExportShare($id: ID!, $approve: Boolean!, $note: String, $key: String!) {
+    decideExportShare(id: $id, approve: $approve, note: $note, idempotencyKey: $key)
+  }`,
 } as const;
 
 export type OperationName = keyof typeof OPERATIONS;

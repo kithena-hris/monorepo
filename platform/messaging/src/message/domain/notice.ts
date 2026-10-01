@@ -55,7 +55,16 @@ export type Notice =
       readonly kind: 'scheduled_report';
       readonly cadence: ReportCadence;
       readonly format: ReportFormat;
-    };
+    }
+  /*
+   * A People export sent to somebody (design AI13): to its recipient, and,
+   * when it holds more than they could read, first to the administrators who
+   * approve it. Never who sent it, who is in it, which fields or why — a
+   * forwarded "Ada sent you Madrid's salaries" is the disclosure — only that
+   * there is one, and a link to the export page, signed in.
+   */
+  | { readonly kind: 'export_shared' }
+  | { readonly kind: 'export_share_requested' };
 
 export const REPORT_CADENCES = ['daily', 'weekly', 'monthly'] as const;
 export type ReportCadence = (typeof REPORT_CADENCES)[number];
@@ -177,6 +186,20 @@ const COPY: {
       footer: `Sent by Kithena because this address is the alert contact for a webhook endpoint in ${company}'s People.`,
     };
   },
+  export_shared: (_notice, company) => ({
+    subject: `${company}: a People export was sent to you`,
+    heading: 'A People export was sent to you',
+    lede: `Somebody at ${company} sent you an export from People. It opens only for you, once you are signed in, and only for seven days; after that it is deleted.`,
+    action: 'Open the export',
+    footer: `Sent by Kithena on behalf of ${company} because an export was sent to you. Forwarding this email gives nobody else the file.`,
+  }),
+  export_share_requested: (_notice, company) => ({
+    subject: `${company}: an export is waiting for your approval`,
+    heading: 'An export needs your approval',
+    lede: `Somebody at ${company} wants to send an export from People to a colleague who could not see all of it themselves. Nothing is sent unless a People administrator approves it within seven days.`,
+    action: 'Review the export',
+    footer: `Sent by Kithena on behalf of ${company} because you are a People administrator.`,
+  }),
   scheduled_report: ({ cadence, format }, company) => {
     if (!REPORT_CADENCES.includes(cadence) || !REPORT_FORMATS.includes(format)) return null;
     const footer = `Sent by Kithena on behalf of ${company}, because you are a recipient of a scheduled People report. Whoever manages People at ${company} can stop it.`;

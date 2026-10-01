@@ -12,6 +12,8 @@ import {
 import type { ObjectStore } from './object-store.js';
 import { userActor } from '../person/ports.js';
 import { writable } from '../../domain/access/view-as.js';
+import type { Asking } from '../person/person-access.js';
+import { nameOf } from '../screens/record.js';
 
 /**
  * An export, run to the end: built, stored, linked, audited, announced
@@ -43,7 +45,7 @@ import { writable } from '../../domain/access/view-as.js';
  */
 
 export { LINK_LIFETIME_MS } from './object-store.js';
-import { LINK_LIFETIME_MS } from './object-store.js';
+import { LINK_LIFETIME_MS, SHARED_LIFETIME_MS } from './object-store.js';
 
 /** How the requester hears the file is ready. A link and when it dies; never the file. */
 export interface ExportNotifier {
@@ -75,6 +77,8 @@ export interface ExportLedger {
   /** False when this export was already complete: the caller then does nothing more. */
   complete(tx: PostgresJsDatabase, run: CompletedExport): Promise<boolean>;
   find(tx: PostgresJsDatabase, tenantId: string, exportId: string): Promise<LedgerEntry | null>;
+  /** The recipient's first open of a file sent to them; later opens change nothing. */
+  opened(tx: PostgresJsDatabase, tenantId: string, exportId: string, at: string): Promise<void>;
 }
 
 export interface CompletedExport {
@@ -91,11 +95,24 @@ export interface CompletedExport {
   readonly format: ExportFormat | null;
   readonly reason: string | null;
   readonly attributeKeys: readonly string[] | null;
+  /**
+   * The account the file was sent to (design AI13): its files live under
+   * `shared/` for a week, and only it and the requester are answered.
+   */
+  readonly sharedWith?: string | null;
+  /** The file's date and its audience in the builder's words, as its About says them. */
+  readonly asOf?: string | null;
+  readonly audience?: string | null;
 }
 
 export type LedgerEntry =
   | { readonly status: 'queued'; readonly exportId: string; readonly requestedBy: string }
-  | ({ readonly status: 'completed' } & CompletedExport);
+  | ({
+      readonly status: 'completed';
+      readonly openedAt?: string | null;
+      /** When it was built; absent from a ledger that does not keep it. */
+      readonly completedAt?: string;
+    } & CompletedExport);
 
 export interface ExportJobDeps extends ExportDeps {
   readonly store: ObjectStore;
@@ -115,6 +132,8 @@ export interface ExportJobRequest extends ExportRequest {
    * report (PEO-069) is built as its recipient, and nobody asked for it.
    */
   readonly actor?: Actor;
+  /** Built for somebody else to receive (design AI13): kept a week, opened only by them. */
+  readonly sharedWith?: string;
 }
 
 export interface ExportJobResult {
@@ -161,20 +180,40 @@ export async function checkReason(
   return ok(reason);
 }
 
-const keyFor = (tenantId: string, exportId: string, name: string) =>
-  `exports/${tenantId}/${exportId}/${name}`;
+/** Where a file lives: `shared/` for one sent to somebody, kept its week (`lifetimeOf`). */
+const keyFor = (run: Pick<CompletedExport, 'tenantId' | 'exportId' | 'sharedWith'>, name: string) =>
+  `${run.sharedWith == null ? 'exports' : 'shared'}/${run.tenantId}/${run.exportId}/${name}`;
 
-/** The links of a completed export, signed again: nothing stores a link. */
+/**
+ * The links of a completed export, signed again: nothing stores a link.
+ * `until` signs them for less than the file lives: a file sent to somebody
+ * is opened signed in, and its links are good for minutes, not its week.
+ */
 export async function linksOf(
   store: ObjectStore,
   run: CompletedExport,
+  until: string = run.expiresAt,
 ): Promise<{ name: string; url: string }[]> {
+  const expires = Date.parse(until) < Date.parse(run.expiresAt) ? until : run.expiresAt;
   return Promise.all(
     run.fileNames.map(async (name) => ({
       name,
-      url: await store.sign(keyFor(run.tenantId, run.exportId, name), run.expiresAt),
+      url: await store.sign(keyFor(run, name), expires),
     })),
   );
+}
+
+/** Somebody's name as the asker may read it, from their account; null when People holds none. */
+export async function accountName(
+  tx: PostgresJsDatabase,
+  deps: Pick<ExportDeps, 'records' | 'access'>,
+  asking: Asking,
+  accountId: string,
+): Promise<string | null> {
+  const personId = await deps.records.reader.personOf(tx, asking.tenantId, accountId);
+  if (personId === null) return null;
+  const read = await deps.access.read(tx, { ...asking, personId });
+  return read.ok ? nameOf(read.value.attributes) : null;
 }
 
 export async function runExportJob(
@@ -199,21 +238,41 @@ export async function runExportJob(
     if (prior?.status === 'completed') return done(prior);
   }
 
-  const built = await buildExport(tx, deps, request);
+  const exportId = request.exportId ?? deps.newId();
+  const now = deps.clock.instant();
+  const shared = request.sharedWith ?? null;
+  const expiresAt = new Date(
+    Date.parse(now) + (shared === null ? LINK_LIFETIME_MS : SHARED_LIFETIME_MS),
+  ).toISOString();
+  // A scheduled report was asked for by nobody: it is made for its recipient.
+  const scheduled = request.actor?.kind === 'system';
+  const reasonGiven = request.reason?.trim() ?? '';
+  const built = await buildExport(tx, deps, {
+    ...request,
+    about: {
+      exportId,
+      expiresOn: expiresAt.slice(0, 10),
+      madeBy: scheduled ? null : await accountName(tx, deps, request, request.viewer.accountId),
+      recipient:
+        shared !== null
+          ? await accountName(tx, deps, request, shared)
+          : scheduled
+            ? await accountName(tx, deps, request, request.viewer.accountId)
+            : null,
+      reason: reasonGiven === '' ? null : reasonGiven,
+    },
+  });
   if (!built.ok) return built;
 
   const checked = await checkReason(tx, deps, request, built.value.attributeKeys);
   if (!checked.ok) return checked;
   const reason = checked.value;
 
-  const exportId = request.exportId ?? deps.newId();
-  const now = deps.clock.instant();
-  const expiresAt = new Date(Date.parse(now) + LINK_LIFETIME_MS).toISOString();
-
+  const located = { tenantId: request.tenantId, exportId, sharedWith: shared };
   // Stored before the ledger row, so a crash between the two leaves a file
   // the sweep deletes and a job that is retried, never a row naming nothing.
   for (const file of built.value.files) {
-    await deps.store.put(keyFor(request.tenantId, exportId, file.name), file.bytes, file.mediaType);
+    await deps.store.put(keyFor(located, file.name), file.bytes, file.mediaType);
   }
   const run: CompletedExport = {
     tenantId: request.tenantId,
@@ -225,6 +284,9 @@ export async function runExportJob(
     format: request.format,
     reason: reason === '' ? null : reason,
     attributeKeys: built.value.attributeKeys,
+    sharedWith: shared,
+    asOf: built.value.asOf,
+    audience: built.value.audience,
   };
   if (!(await deps.ledger.complete(tx, run))) {
     const prior = await deps.ledger.find(tx, request.tenantId, exportId);
