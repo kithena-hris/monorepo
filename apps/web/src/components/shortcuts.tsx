@@ -188,7 +188,11 @@ export function isApple(): boolean {
 
 /** ⌘ or Ctrl, for a sentence: the same question `Kbd` asks. */
 export function useApple(): boolean {
-  return useSyncExternalStore(() => () => undefined, isApple, () => false);
+  return useSyncExternalStore(
+    () => () => undefined,
+    isApple,
+    () => false,
+  );
 }
 
 /**
