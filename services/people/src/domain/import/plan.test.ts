@@ -13,9 +13,27 @@ const ACME: PlanInput = {
   setup: null,
   version: 8,
   fields: [
-    { label: 'Cost centre', section: 'Employment', newSection: false, forExisting: { kind: 'hr' }, missing: 0 },
-    { label: 'T-shirt size', section: 'Equipment', newSection: true, forExisting: { kind: 'ask' }, missing: 14 },
-    { label: 'Laptop serial', section: 'Equipment', newSection: true, forExisting: { kind: 'hr' }, missing: 32 },
+    {
+      label: 'Cost centre',
+      section: 'Employment',
+      newSection: false,
+      forExisting: { kind: 'hr' },
+      missing: 0,
+    },
+    {
+      label: 'T-shirt size',
+      section: 'Equipment',
+      newSection: true,
+      forExisting: { kind: 'ask' },
+      missing: 14,
+    },
+    {
+      label: 'Laptop serial',
+      section: 'Equipment',
+      newSection: true,
+      forExisting: { kind: 'hr' },
+      missing: 32,
+    },
   ],
   rows: ROWS,
   leftOut: ['Dietary requirements'],
@@ -62,7 +80,9 @@ describe('the plan', () => {
       'Create 1 field in Settings › Employee fields',
       'Create 20 people',
     ]);
-    expect(steps[1]?.detail).toBe('Cost centre in Employment. Published with the pack as version 1.');
+    expect(steps[1]?.detail).toBe(
+      'Cost centre in Employment. Published with the pack as version 1.',
+    );
     expect(steps[2]?.detail).toBe('Every row of the file imports.');
     expect(short).toBe('Set up the United States pack, create 1 field, and import 20 people.');
   });
@@ -76,9 +96,27 @@ describe('the plan', () => {
     const { steps } = planOf({
       ...ACME,
       fields: [
-        { label: 'Locker', section: 'Equipment', newSection: true, forExisting: { kind: 'new' }, missing: 5 },
-        { label: 'Work country', section: 'Employment', newSection: false, forExisting: { kind: 'default', value: 'ES' }, missing: 3 },
-        { label: 'Parking spot', section: 'Equipment', newSection: true, forExisting: { kind: 'leave' }, missing: 2 },
+        {
+          label: 'Locker',
+          section: 'Equipment',
+          newSection: true,
+          forExisting: { kind: 'new' },
+          missing: 5,
+        },
+        {
+          label: 'Work country',
+          section: 'Employment',
+          newSection: false,
+          forExisting: { kind: 'default', value: 'ES' },
+          missing: 3,
+        },
+        {
+          label: 'Parking spot',
+          section: 'Equipment',
+          newSection: true,
+          forExisting: { kind: 'leave' },
+          missing: 2,
+        },
       ],
       leftOut: ['Notes', 'Allergies'],
     });

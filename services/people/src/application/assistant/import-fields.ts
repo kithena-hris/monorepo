@@ -23,13 +23,8 @@ import type { Asking } from '../person/ports.js';
 import { run } from '../person/service.js';
 import { userActor } from '../person/ports.js';
 import type { ImportStageView, NewFieldsFile } from '../screens/operations.js';
-import {
-  fieldChange,
-  seedSetup,
-  setupDraft,
-  type FieldInput,
-  type SchemaScreenDeps,
-} from '../screens/schema.js';
+import { fieldChange, type FieldInput, type SchemaScreenDeps } from '../screens/schema.js';
+import { seedSetup, setupDraft } from '../screens/setup-draft.js';
 import type { AssistantPort } from './assistant-port.js';
 
 /**
@@ -143,7 +138,9 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
       planning: setup === null ? stored : setup.value,
       published,
       setup:
-        setup === null ? null : { country: setup.value.country, countryName: setup.value.countryName },
+        setup === null
+          ? null
+          : { country: setup.value.country, countryName: setup.value.countryName },
       existing: people.ok ? people.value.all : 0,
     });
   });
@@ -473,7 +470,12 @@ async function planned(
   asking: Asking,
   input: z.output<typeof PlanInput>,
 ): Promise<
-  Result<{ g: Gathered; kept: ColumnProposal[]; built: ReturnType<typeof draftWithNewFields>; view: ImportPlanView }>
+  Result<{
+    g: Gathered;
+    kept: ColumnProposal[];
+    built: ReturnType<typeof draftWithNewFields>;
+    view: ImportPlanView;
+  }>
 > {
   const gathered = await gather(deps, asking, input);
   if (!gathered.ok) return gathered;
@@ -641,7 +643,9 @@ export async function runImport(
   const done = await deps.importCommit(asking, {
     uploadId: input.uploadId,
     mapping: plan.mapping,
-    ...(input.applySensitiveWithoutApproval === true ? { applySensitiveWithoutApproval: true } : {}),
+    ...(input.applySensitiveWithoutApproval === true
+      ? { applySensitiveWithoutApproval: true }
+      : {}),
   });
   if (!done.ok) {
     if (kept.length === 0 && g.published !== null) return done;

@@ -861,9 +861,6 @@ const staged = async (answer: Promise<PeopleAnswer<Record<string, unknown>>>): P
   return a.ok ? { ok: true, stage: VIEWS.ImportStage(a.data) } : { ok: false, message: a.message };
 };
 
-const columns = (mapping: Readonly<Record<number, string | null>>) =>
-  Object.entries(mapping).map(([column, key]) => ({ column: Number(column), key }));
-
 /** The file is in storage: People checks it, and proposes the mapping. */
 export async function completeImportUpload(uploadId: string): Promise<Staged> {
   return staged(people('CompleteImportUpload', { uploadId }));

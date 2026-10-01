@@ -146,7 +146,6 @@ export function Carousel({
       behavior: reducedMotion ? 'auto' : 'smooth',
     });
     // `index` follows from the scroll; asking again for the same slide is a no-op.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {

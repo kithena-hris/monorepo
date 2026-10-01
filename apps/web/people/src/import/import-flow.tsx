@@ -166,8 +166,8 @@ export function ImportFlow(props: ImportFlowProps): JSX.Element {
               ) : (
                 <Alert tone="info" title="An administrator imports the first file">
                   Nothing is set up yet. A People administrator imports the first file: approving
-                  its plan sets up the employee record, with the fields the law requires and the
-                  new ones your file brings. Then HR imports here.
+                  its plan sets up the employee record, with the fields the law requires and the new
+                  ones your file brings. Then HR imports here.
                 </Alert>
               )
             ) : (
@@ -361,7 +361,6 @@ function AfterUpload({
   useEffect(() => {
     if (phonePlanDue) void toPlan(proposals, null);
     // Due again only when a choice cleared the plan.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phonePlanDue]);
 
   const columns: DataColumn<ProposedColumn>[] = [
@@ -371,7 +370,9 @@ function AfterUpload({
       header: 'Goes to',
       cell: (c) =>
         c.status === 'refused' ? (
-          <span className="text-sm text-fg-muted">{c.reason ?? 'You may not write this field.'}</span>
+          <span className="text-sm text-fg-muted">
+            {c.reason ?? 'You may not write this field.'}
+          </span>
         ) : (
           <Select
             value={chosen(c) ?? IGNORE}
@@ -386,14 +387,18 @@ function AfterUpload({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={IGNORE}>
-                {c.status === 'ignored' && c.source === null ? 'A new field, or ignored' : 'Ignored'}
+                {c.status === 'ignored' && c.source === null
+                  ? 'A new field, or ignored'
+                  : 'Ignored'}
               </SelectItem>
               {c.key !== null && !labelOf.has(c.key) && c.source === 'system' ? (
                 <SelectItem value={c.key}>{c.key.replaceAll('_', ' ')}</SelectItem>
               ) : null}
               {stage.fields.map((f) => (
                 <SelectItem key={f.key} value={f.key}>
-                  {f.sensitive === true ? `${f.label} (sensitive: changes wait for approval)` : f.label}
+                  {f.sensitive === true
+                    ? `${f.label} (sensitive: changes wait for approval)`
+                    : f.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -668,15 +673,21 @@ function PhonePlan({
   return (
     <div className="flex flex-col gap-3">
       {deciding.map((p) => (
-        <section key={p.column} aria-labelledby={`without-${p.key}`} className="flex flex-col gap-3">
+        <section
+          key={p.column}
+          aria-labelledby={`without-${p.key}`}
+          className="flex flex-col gap-3"
+        >
           <h2 id={`without-${p.key}`} className="font-display text-xl font-bold">
-            {missingOf(p).toLocaleString('en-GB')} {missingOf(p) === 1 ? 'person has' : 'people have'}{' '}
-            no {p.field.label}
+            {missingOf(p).toLocaleString('en-GB')}{' '}
+            {missingOf(p) === 1 ? 'person has' : 'people have'} no {p.field.label}
           </h2>
           <ExistingChoices
             proposal={p}
             missing={missingOf(p)}
-            recommended={view.proposals.find((x) => x.column === p.column)?.forExisting.kind ?? null}
+            recommended={
+              view.proposals.find((x) => x.column === p.column)?.forExisting.kind ?? null
+            }
             readOnly={!view.canCreate}
             compact
             onChange={(forExisting) => {
@@ -698,7 +709,9 @@ function PhonePlan({
         ) : (
           <>
             <p className="text-base">{plan.short}</p>
-            {plan.blocked === null ? null : <p className="text-sm text-warning-fg">{plan.blocked}</p>}
+            {plan.blocked === null ? null : (
+              <p className="text-sm text-warning-fg">{plan.blocked}</p>
+            )}
           </>
         )}
       </AssistantCard>

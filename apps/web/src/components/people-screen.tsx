@@ -1043,7 +1043,7 @@ export function PeopleScreen({
             setImporting((s) => ({
               ...s,
               mapping,
-              stages: [...s.stages, { ...(ran.data as object), step: 'done' } as Stage],
+              stages: [...s.stages, { ...(ran.data as object), step: 'done' }],
             }));
             note({ step: null, field: null }, 'replace');
             return { ok: true };

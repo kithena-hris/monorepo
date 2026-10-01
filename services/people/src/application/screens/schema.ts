@@ -9,14 +9,7 @@ import {
   type VisibilityRule,
 } from '@kithena/contracts';
 
-import { CORE_PACK } from '../../country-packs/core.js';
-import {
-  applyPack,
-  COUNTRY_PACKS,
-  type CountryPack,
-  type PackCountry,
-} from '../../country-packs/packs.js';
-import { seedCountryPack } from '../../country-packs/seed.js';
+import { COUNTRY_PACKS } from '../../country-packs/packs.js';
 import {
   aiShareable,
   encryptable,
@@ -38,6 +31,7 @@ import { run } from '../person/service.js';
 import type { PublishSchema } from '../schema/publish-schema.js';
 import type { DraftWriter, SchemaRepository } from '../schema/schema-repository.js';
 import type { RecordSection, FormValues, PendingFieldView } from './model.js';
+import { countryName, seedSetup } from './setup-draft.js';
 import { pendingOnRecord } from './people.js';
 import {
   formValues,
@@ -625,14 +619,15 @@ export async function previewPublish(
               .map((a) => a.key as string),
           );
           const { diff, impact } = preview.value;
-          const changes = (['added', 'tightened', 'loosened', 'changed', 'archived'] as const).flatMap(
-            (kind) =>
-              diff[kind].map((key) => ({
-                kind,
-                key,
-                summary: `${key} ${WORDS[kind]}`,
-                specialCategory: special.has(key),
-              })),
+          const changes = (
+            ['added', 'tightened', 'loosened', 'changed', 'archived'] as const
+          ).flatMap((kind) =>
+            diff[kind].map((key) => ({
+              kind,
+              key,
+              summary: `${key} ${WORDS[kind]}`,
+              specialCategory: special.has(key),
+            })),
           );
           throw new Rollback(
             ok({
@@ -762,9 +757,6 @@ export interface SetupView {
   } | null;
 }
 
-const countryName = (code: string): string =>
-  new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code;
-
 /**
  * The wizard's state (§8.2 steps 6 and 7). The legal entity is the tenant's
  * first, which the back office's company wizard creates (PEO-099); a tenant
@@ -825,7 +817,9 @@ export async function setupView(
           };
         }),
       }));
-      const entities = deps.service.org ? await deps.service.org.legalEntities(tx, asking) : ok([]);
+      const entities = deps.service.org
+        ? await deps.service.org.legalEntities(tx, asking)
+        : ok([]);
       const entity = entities.ok ? entities.value.find((e) => !e.archived) : undefined;
       return ok({
         ...(entity === undefined
@@ -912,88 +906,6 @@ export async function publishSetup(
       return published.ok ? ok({ version: published.value.version.version }) : published;
     }),
   );
-}
-
-/** A country's pack, with the sections chosen and every one the law requires; all of them for `'all'`. */
-function packFor(
-  country: string | null,
-  sections: readonly string[] | 'all',
-): Pick<CountryPack, 'sections' | 'attributes'> | null {
-  if (country === null || !Object.hasOwn(COUNTRY_PACKS, country)) return null;
-  const pack = COUNTRY_PACKS[country as PackCountry];
-  if (sections === 'all') return pack;
-  const on = new Set(sections);
-  const kept = pack.sections.filter(
-    (s) =>
-      on.has(s.key) ||
-      pack.attributes.some((a) => a.sectionKey === s.key && a.requiredness.mode === 'conditional'),
-  );
-  const keys = new Set(kept.map((s) => s.key));
-  return { sections: kept, attributes: pack.attributes.filter((a) => keys.has(a.sectionKey)) };
-}
-
-/**
- * Setup's seeding, in the caller's transaction and without its publish: the
- * core fields and the country's pack, written into the draft. The wizard
- * publishes right after; an import that sets a company up publishes it with
- * its own new fields.
- */
-export async function seedSetup(
-  tx: Tx,
-  tenantId: string,
-  country: string | null,
-  sections: readonly string[] | 'all',
-): Promise<Result<void>> {
-  const core = await seedCountryPack(tx, tenantId, CORE_PACK);
-  if (!core.ok) return core;
-  const pack = packFor(country, sections);
-  if (pack !== null) {
-    const seeded = await seedCountryPack(tx, tenantId, pack);
-    if (!seeded.ok) return seeded;
-  }
-  return ok(undefined);
-}
-
-/**
- * What setup would publish for a company with nothing published, before
- * anything is stored: its draft with the core fields and every section of
- * its legal entity's country pack, as the wizard's defaults have them. An
- * import reads a file against this, so a new company imports without a
- * detour, and setup is part of the plan HR approves.
- */
-export async function setupDraft(
-  deps: Pick<SchemaScreenDeps, 'schema' | 'service'>,
-  tx: Tx,
-  asking: Asking,
-): Promise<
-  Result<{
-    readonly sections: readonly Section[];
-    readonly attributes: readonly Attribute[];
-    readonly country: string | null;
-    /** The pack's country in words; null when there is no pack for it. */
-    readonly countryName: string | null;
-  }>
-> {
-  const stored = await deps.schema.loadDraft(tx, asking.tenantId);
-  const draft = SchemaDraft.rehydrate(stored.sections, stored.attributes);
-  const entities = deps.service.org ? await deps.service.org.legalEntities(tx, asking) : ok([]);
-  const entity = entities.ok ? entities.value.find((e) => !e.archived) : undefined;
-  const country = entity?.country ?? null;
-  const sections = [...stored.sections];
-  const attributes = [...stored.attributes];
-  const pack = packFor(country, 'all');
-  for (const p of pack === null ? [CORE_PACK] : [CORE_PACK, pack]) {
-    const applied = applyPack(draft, p);
-    if (!applied.ok) return applied;
-    sections.push(...applied.value.sections);
-    attributes.push(...applied.value.attributes);
-  }
-  return ok({
-    sections,
-    attributes,
-    country,
-    countryName: pack === null || country === null ? null : countryName(country),
-  });
 }
 
 export type { Section };

@@ -146,7 +146,12 @@ const TYPES: readonly DataType[] = [
 ];
 const FILLERS: readonly WriterRole[] = ['employee', 'hr', 'manager', 'finance'];
 const SEERS: readonly ViewerScope[] = ['self', 'manager', 'hr', 'finance', 'directory'];
-const CLASSES: readonly Classification[] = ['public', 'internal', 'confidential', 'special-category'];
+const CLASSES: readonly Classification[] = [
+  'public',
+  'internal',
+  'confidential',
+  'special-category',
+];
 const CLASS_WORD: Record<Classification, string> = {
   public: 'Ordinary',
   internal: 'Ordinary',
@@ -376,7 +381,9 @@ function FieldEditor({
           value={placementValue}
           onValueChange={(v) => {
             onChange({
-              placement: v.startsWith('s:') ? { sectionKey: v.slice(2) } : { newSection: v.slice(2) },
+              placement: v.startsWith('s:')
+                ? { sectionKey: v.slice(2) }
+                : { newSection: v.slice(2) },
             });
           }}
         >
@@ -500,7 +507,9 @@ function FieldEditor({
             <Switch
               checked={f.encrypted}
               disabled={
-                !SEALABLE.has(f.dataType) || f.piiKind === 'financial' || f.dataType === 'bank_account'
+                !SEALABLE.has(f.dataType) ||
+                f.piiKind === 'financial' ||
+                f.dataType === 'bank_account'
               }
               onCheckedChange={(on) => {
                 set({ encrypted: on });
@@ -552,7 +561,9 @@ export interface NewFieldsStepProps {
 }
 
 const newSectionsOf = (proposals: readonly ColumnProposal[]): string[] => [
-  ...new Set(proposals.flatMap((p) => ('newSection' in p.placement ? [p.placement.newSection] : []))),
+  ...new Set(
+    proposals.flatMap((p) => ('newSection' in p.placement ? [p.placement.newSection] : [])),
+  ),
 ];
 
 /** "4 columns aren't fields yet. Here's what I'd create." */
@@ -614,11 +625,14 @@ export function NewFieldsStep({
     // MA8: one proposed field per card, swiped through; Skip and Create below.
     return (
       <div className="flex flex-col gap-3">
-        <AssistantCard level={2}
+        <AssistantCard
+          level={2}
           title={n === 1 ? 'This column isn’t a field yet' : 'These columns aren’t fields yet'}
           {...(assistantNote === null ? {} : { note: assistantNote })}
         >
-          <p className="text-sm text-fg-muted">Swipe through. I’ve designed each one from the data.</p>
+          <p className="text-sm text-fg-muted">
+            Swipe through. I’ve designed each one from the data.
+          </p>
         </AssistantCard>
         {alerts}
         <Carousel
@@ -637,7 +651,8 @@ export function NewFieldsStep({
   return (
     <div className="grid items-start gap-4 @4xl/page:grid-cols-[minmax(0,1fr)_21.25rem]">
       <div className="flex min-w-0 flex-col gap-3">
-        <AssistantCard level={2}
+        <AssistantCard
+          level={2}
           title={
             n === 1
               ? '1 column isn’t a field yet. Here’s what I’d create.'
@@ -660,8 +675,8 @@ export function NewFieldsStep({
           {...(assistantNote === null ? {} : { note: assistantNote })}
         >
           <p className="text-sm text-fg-muted">
-            I read every value in each column to choose the type, the options and who should see
-            it. Switch off any you don’t want, or edit them.
+            I read every value in each column to choose the type, the options and who should see it.
+            Switch off any you don’t want, or edit them.
           </p>
         </AssistantCard>
         {alerts}
@@ -711,12 +726,14 @@ const CHOICE: Record<
   ask: {
     label: (n) => `Ask the ${n} to fill it in`,
     short: 'Ask them',
-    means: 'It’s theirs to fill in, and the weekly reminder asks for it. Until they do, they show as incomplete.',
+    means:
+      'It’s theirs to fill in, and the weekly reminder asks for it. Until they do, they show as incomplete.',
   },
   hr: {
     label: (_n, count) => `HR fills in the ${count}`,
     short: 'HR fills it in',
-    means: 'They go to the Data health grid, for HR. It’s required, so they show as incomplete until then.',
+    means:
+      'They go to the Data health grid, for HR. It’s required, so they show as incomplete until then.',
   },
   new: {
     label: () => 'Only ask people who join from now on',
@@ -786,8 +803,7 @@ export function ExistingChoices({
   readonly onChange: (forExisting: ForExisting) => void;
 }): JSX.Element {
   const single = p.forExisting.kind === 'default' ? p.forExisting.value : null;
-  const recommendedDefault =
-    recommended === 'default' ? (single ?? undefined) : undefined;
+  const recommendedDefault = recommended === 'default' ? (single ?? undefined) : undefined;
   const kinds: ForExisting['kind'][] = [
     'ask',
     'hr',
@@ -818,7 +834,13 @@ export function ExistingChoices({
           description={compact ? undefined : CHOICE[kind].means}
           impact={impactOf(kind, missing)}
           {...(kind === recommended
-            ? { badge: <Badge tone="assistant" size="sm">Suggested</Badge> }
+            ? {
+                badge: (
+                  <Badge tone="assistant" size="sm">
+                    Suggested
+                  </Badge>
+                ),
+              }
             : {})}
         >
           {compact ? CHOICE[kind].short : CHOICE[kind].label(n, missing.toLocaleString('en-GB'))}
@@ -889,7 +911,8 @@ export function ExistingStep({
   return (
     <div className="grid items-start gap-4 @4xl/page:grid-cols-2">
       <div className="flex min-w-0 flex-col gap-3">
-        <AssistantCard level={2}
+        <AssistantCard
+          level={2}
           title={
             most
               ? 'Most people already have a value from the file'
@@ -950,9 +973,7 @@ export function ExistingStep({
                 </FieldControl>
               </Field>
             ) : null}
-            <p className="text-sm text-fg-muted">
-              Why this suggestion: {current.forExistingWhy}
-            </p>
+            <p className="text-sm text-fg-muted">Why this suggestion: {current.forExistingWhy}</p>
           </div>
         </PageSection>
       )}

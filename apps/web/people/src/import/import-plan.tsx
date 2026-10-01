@@ -208,12 +208,20 @@ export function PlanStep({
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
-    { id: 'cell', header: 'Cell', cell: (r) => <span className="font-mono text-xs">{r.cell}</span> },
+    {
+      id: 'cell',
+      header: 'Cell',
+      cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
+    },
     { id: 'problem', header: 'Why it’s blocked', cell: (r) => r.problem },
   ];
   const findingColumns: DataColumn<CellFinding>[] = [
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
-    { id: 'cell', header: 'Cell', cell: (r) => <span className="font-mono text-xs">{r.cell}</span> },
+    {
+      id: 'cell',
+      header: 'Cell',
+      cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
+    },
     { id: 'label', header: 'Field', cell: (r) => r.label },
     { id: 'message', header: 'What the checks found', cell: (r) => r.message },
   ];
@@ -221,7 +229,8 @@ export function PlanStep({
   return (
     <div className="grid items-start gap-4 @4xl/page:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col gap-4">
-        <AssistantCard level={2}
+        <AssistantCard
+          level={2}
           title="Here’s everything that will happen"
           note="Written from your choices. Nothing has happened yet."
         >
@@ -353,7 +362,9 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
   const fields = done.fields ?? [];
   const imported = done.created + done.updated;
   const took =
-    done.tookMs === undefined ? null : `took ${String(Math.max(1, Math.round(done.tookMs / 1000)))} s`;
+    done.tookMs === undefined
+      ? null
+      : `took ${String(Math.max(1, Math.round(done.tookMs / 1000)))} s`;
   return (
     <div className="grid items-start gap-4 @4xl/page:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
       <Card padded className="flex min-w-0 flex-col gap-4">
@@ -403,7 +414,11 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         ) : null}
         {(done.forReview ?? 0) > 0 ? (
           <Alert tone="info">
-            {plural(done.forReview ?? 0, 'national identifier our checks doubt went', 'national identifiers our checks doubt went')}{' '}
+            {plural(
+              done.forReview ?? 0,
+              'national identifier our checks doubt went',
+              'national identifiers our checks doubt went',
+            )}{' '}
             to HR’s review.
           </Alert>
         ) : null}

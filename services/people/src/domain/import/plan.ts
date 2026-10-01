@@ -89,9 +89,7 @@ function peopleStep(rows: PlanInput['rows']): PlanStep {
           : 'Nobody is created or updated';
   const blocked = rows.blocked + rows.duplicate;
   const parts = [
-    rows.unchanged > 0
-      ? `${plural(rows.unchanged, 'row is', 'rows are')} unchanged.`
-      : null,
+    rows.unchanged > 0 ? `${plural(rows.unchanged, 'row is', 'rows are')} unchanged.` : null,
     blocked > 0
       ? `${plural(blocked, 'blocked row is', 'blocked rows are')} left out, in a file you can fix and import again.`
       : null,

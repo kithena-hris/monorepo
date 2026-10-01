@@ -74,7 +74,7 @@ beforeAll(async () => {
     await adminClient.unsafe(`CREATE ROLE ${role} NOLOGIN NOBYPASSRLS`);
   }
   const all = new URL('../../../../migrations/', import.meta.url);
-  for (const file of (await readdir(all)).filter((f) => f.endsWith('.sql')).sort()) {
+  for (const file of (await readdir(all)).filter((f) => f.endsWith('.sql')).toSorted()) {
     await admin.execute(sql.raw(await migration(file)));
   }
   await admin.execute(sql`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`);

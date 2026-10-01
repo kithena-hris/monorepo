@@ -56,7 +56,7 @@ import type { SchemaRepository } from '../schema/schema-repository.js';
 import { publish, type PublishedVersion } from '../../domain/schema/publish.js';
 import { SchemaDraft } from '../../domain/schema/draft.js';
 import { NOBODY, tenantToday, type ScreenDeps, type Tx } from './record.js';
-import { setupDraft } from './schema.js';
+import { setupDraft } from './setup-draft.js';
 import { segmentsFor } from './segments.js';
 
 /**
@@ -494,7 +494,8 @@ async function prepare(
 ): Promise<Result<Prepared>> {
   const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
   if (!relations.isHr) return onlyHr();
-  const base = over === undefined ? await baseVersion(deps, tx, asking, relations.isAdmin) : ok(over);
+  const base =
+    over === undefined ? await baseVersion(deps, tx, asking, relations.isAdmin) : ok(over);
   if (!base.ok) return base;
   const version = base.value;
   const file = await parseUpload(bytes);

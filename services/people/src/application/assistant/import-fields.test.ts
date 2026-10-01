@@ -352,7 +352,8 @@ describe('proposing fields for new columns', () => {
       ...w.deps,
       fieldPlanner: {
         loadPolicies: () => Promise.resolve(),
-        complete: () => Promise.resolve({ ok: true as const, value: 'Sure! Here are some fields…' }),
+        complete: () =>
+          Promise.resolve({ ok: true as const, value: 'Sure! Here are some fields…' }),
       },
     } as NewFieldsDeps;
     const got = await proposeNewFields(deps, w.asking, w.step);
