@@ -590,7 +590,7 @@ function AfterUpload({
       {coarse && step === 'fields' && view !== null ? (
         // MA8: Skip and Create in thumb reach, one card at a time; above the tab
         // bar and the assistant's button (`touch:bottom-24`, 3.5rem tall).
-        <div className="sticky bottom-40 z-10 grid grid-cols-2 gap-2">
+        <div className="sticky bottom-40 z-10 grid grid-cols-2 gap-2 bg-canvas py-2">
           {(() => {
             const p = proposals[card];
             const advance = (): void => {
@@ -630,7 +630,7 @@ function AfterUpload({
       ) : null}
 
       {coarse && step === 'existing' ? (
-        <div className="sticky bottom-40 z-10">
+        <div className="sticky bottom-40 z-10 bg-canvas py-2">
           <Button
             variant="primary"
             className="w-full"
@@ -643,6 +643,10 @@ function AfterUpload({
             Approve and run
           </Button>
         </div>
+      ) : null}
+      {coarse && (step === 'fields' || step === 'existing') ? (
+        // Room under the bar, so it rests below the last card rather than over it.
+        <div aria-hidden className="h-24" />
       ) : null}
     </Stack>
   );
