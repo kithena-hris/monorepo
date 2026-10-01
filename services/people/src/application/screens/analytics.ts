@@ -193,7 +193,7 @@ export interface PayView {
   readonly compa: readonly PayGroupView[];
 }
 
-const minusMonths = (day: string, n: number): string => {
+export const minusMonths = (day: string, n: number): string => {
   const d = new Date(`${day}T00:00:00Z`);
   d.setUTCMonth(d.getUTCMonth() - n);
   return d.toISOString().slice(0, 10);
@@ -526,7 +526,7 @@ async function selfIdCharts(ctx: ChartContext): Promise<SelfIdChart[] | null> {
  * anybody else, so the section is absent rather than empty. Grades are
  * labelled by their field's options, tenure bands by the tenure chart's.
  */
-async function payView(
+export async function payView(
   ctx: ChartContext,
   asking: Asking,
   definitions: readonly AttributeDefinition[],

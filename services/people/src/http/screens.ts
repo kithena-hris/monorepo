@@ -106,7 +106,25 @@ import {
   type FileDeps,
 } from '../application/screens/files.js';
 import type { PayBandView } from '../application/analytics/pay.js';
-import { whatChanged, type Phraser } from '../application/screens/what-changed.js';
+import {
+  announceSummary,
+  FollowUpAsk,
+  followUp,
+  PeriodAsk,
+  ShareAsk,
+  sharedSummary,
+  sharedSummaryFile,
+  storeSummary,
+  SummaryAsk,
+  summaryDraft,
+  summaryFile,
+  whatChangedView,
+  wordedPoints,
+  type Phraser,
+  type SummaryDeps,
+  type SummaryFile,
+  type SummaryShares,
+} from '../application/screens/what-changed.js';
 import {
   createSchedule,
   deleteSchedule,
@@ -182,6 +200,8 @@ export type ScreenRouteDeps = SchemaScreenDeps &
     readonly newFields?: { readonly planner?: AssistantPort; readonly budget: PlanBudget };
     /** Insights' "what changed", reworded by the assistant; absent, People's own words. */
     readonly insightsPhraser?: Phraser;
+    /** Sending an Insights summary to somebody. Absent, it is not offered. */
+    readonly insightsShares?: SummaryShares;
     /**
      * Search and export in words: the model behind the AI gateway with a
      * short timeout (absent, People's own rules), and each one's hourly
@@ -391,6 +411,31 @@ const csvFile = (result: Result<Uint8Array>, name: string): RestResponse =>
       }
     : refused(result.error);
 
+const pdfFile = (result: Result<SummaryFile>): RestResponse =>
+  result.ok
+    ? {
+        status: 200,
+        body: result.value.bytes,
+        headers: {
+          'content-type': 'application/pdf',
+          'content-disposition': `attachment; filename="${result.value.filename}"`,
+          'cache-control': 'private, no-store',
+        },
+      }
+    : refused(result.error);
+
+/** The period and segment in a what-changed address. */
+const periodAsk = (query: URLSearchParams): Result<PeriodAsk> =>
+  parse(
+    PeriodAsk,
+    Object.fromEntries(
+      ['period', 'from', 'to', 'segment'].flatMap((k) => {
+        const v = query.get(k);
+        return v === null || v === '' ? [] : [[k, v]];
+      }),
+    ),
+  );
+
 function body<T>(schema: z.ZodType<T>, raw: string): Result<T> {
   const value = json(raw);
   return value.ok ? parse(schema, value.value) : value;
@@ -494,6 +539,13 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       if (!input.ok) return refused(input.error);
       return answer(await act(asking, input.value));
     };
+
+  /** What changed: the screens' deps, with the model and the sending where they are configured. */
+  const summaries: SummaryDeps = {
+    ...deps,
+    ...(deps.insightsPhraser === undefined ? {} : { phraser: deps.insightsPhraser }),
+    ...(deps.insightsShares === undefined ? {} : { shares: deps.insightsShares }),
+  };
 
   const version = async (asking: Asking): Promise<RestResponse> => {
     const current = await run(deps.service, asking.tenantId, async (tx) =>
@@ -1297,36 +1349,73 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
         }
         return answer(
-          await analyticsView(deps, asking, {
-            ...(segment === undefined ? {} : { segmentId: segment }),
-            phrasable: deps.insightsPhraser !== undefined,
-          }),
+          await analyticsView(deps, asking, segment === undefined ? {} : { segmentId: segment }),
         );
       },
     },
-    // One tab's "what changed", reworded by the assistant where there is one.
+    /* what changed (design AI5, AI6, MA4, MA5): its own block */
     {
       method: 'GET',
       pattern: /^\/v1\/views\/analytics\/what-changed$/,
       handle: async (asking, _r, _p, query) => {
-        const tab = query.get('tab') ?? 'headcount';
-        const segment = query.get('segment') ?? undefined;
-        if (!(INSIGHTS_TABS as readonly string[]).includes(tab)) {
-          return refused(
-            failure('BAD_REQUEST', `tab is one of ${INSIGHTS_TABS.join(', ')}`, ['tab']),
-          );
-        }
-        if (segment !== undefined && !new RegExp(`^${UUID}$`).test(segment)) {
-          return refused(failure('BAD_REQUEST', 'segment is a segment id', ['segment']));
-        }
-        return answer(
-          await whatChanged(
-            deps.insightsPhraser === undefined ? deps : { ...deps, phraser: deps.insightsPhraser },
-            asking,
-            { tab: tab as InsightsTab, ...(segment === undefined ? {} : { segmentId: segment }) },
-          ),
-        );
+        const ask = periodAsk(query);
+        return answer(ask.ok ? await whatChangedView(summaries, asking, ask.value) : ask);
       },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/analytics\/what-changed\/worded$/,
+      handle: async (asking, _r, _p, query) => {
+        const ask = periodAsk(query);
+        return answer(ask.ok ? await wordedPoints(summaries, asking, ask.value) : ask);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/analytics\/what-changed\/ask$/,
+      safe: true,
+      handle: compute(FollowUpAsk, (asking, input) => followUp(summaries, asking, input)),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/analytics\/what-changed\/summary$/,
+      safe: true,
+      handle: compute(SummaryAsk, (asking, input) => summaryDraft(summaries, asking, input)),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/analytics\/what-changed\/summary\/pdf$/,
+      safe: true,
+      handle: async (asking, request) => {
+        const input = body(SummaryAsk, request.body);
+        return pdfFile(input.ok ? await summaryFile(summaries, asking, input.value) : input);
+      },
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/insights\/summaries$/,
+      handle: async (asking, request, params, query) => {
+        const stored = await write(ShareAsk, (a, input) => storeSummary(summaries, a, input), {
+          resource: (_a, _id, value) => value.id,
+          again: (_a, id) => Promise.resolve(answer(ok({ id }))),
+        })(asking, request, params, query);
+        if (stored.status !== 200) return stored;
+        // After the commit: the email says a summary waits, and one does.
+        const { id } = stored.body as { id: string };
+        return { ...stored, body: { id, emailed: await announceSummary(summaries, asking, id) } };
+      },
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/insights/summaries/${UUID}$`),
+      handle: async (asking, _r, params) =>
+        answer(await sharedSummary(summaries, asking, params['id'] ?? '')),
+    },
+    {
+      method: 'GET',
+      pattern: new RegExp(`^/v1/insights/summaries/${UUID}/pdf$`),
+      handle: async (asking, _r, params) =>
+        pdfFile(await sharedSummaryFile(summaries, asking, params['id'] ?? '')),
     },
     // One Insights tab's numbers as CSV (V7, "Export"): the view above, as rows.
     {

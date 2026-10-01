@@ -123,7 +123,8 @@ import {
 import { typesafeAttributeAdvisorFromEnv } from '../infrastructure/typesafe-attribute-advisor.js';
 import { drizzleSegments } from '../infrastructure/drizzle-segments.js';
 import { drizzleReportSchedules } from '../infrastructure/drizzle-report-schedules.js';
-import { reportMailerFrom } from '../infrastructure/report-mailer.js';
+import { reportMailerFrom, summaryMailerFrom } from '../infrastructure/report-mailer.js';
+import { drizzleSharedSummaries } from '../infrastructure/drizzle-shared-summaries.js';
 import { sendDueReports, type ScheduleAdminDeps } from '../application/reports/scheduled.js';
 import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
 import { callerWithEntitlements, viewingRequest, withTenantRoles } from './caller.js';
@@ -638,6 +639,26 @@ function insightsPhraserFrom(env: NodeJS.ProcessEnv): Pick<ScreenRouteDeps, 'ins
 }
 
 /**
+ * Sending an Insights summary (design AI6, MA5): stored for the recipient,
+ * announced by messaging as a link to the tenant app. Without a mailer or a
+ * safe tenant app base, Send is not offered; the summary still downloads.
+ */
+function insightsSharesFrom(env: NodeJS.ProcessEnv): Pick<ScreenRouteDeps, 'insightsShares'> {
+  const base = tenantAppBase(env);
+  const mailer = base === null ? undefined : summaryMailerFrom(env);
+  return {
+    insightsShares: {
+      store: drizzleSharedSummaries(),
+      ...(mailer === undefined ? {} : { mailer }),
+      company:
+        base === null ? () => Promise.resolve(null) : tenantCompanies(base, drizzleOrgStore()),
+      accounts: scheduleAdmin().accounts,
+      newId: uuidv7,
+    },
+  };
+}
+
+/**
  * Search and export in words (docs/ai-settings.md): the assistant's own model
  * (`ASSISTANT_*`), behind the AI gateway, with eight seconds to answer because
  * somebody is waiting at the search box. Budgets per company per hour; with no
@@ -698,6 +719,7 @@ function screenDeps(
     ...assistantFrom(process.env),
     newFields: newFieldsFrom(process.env),
     ...insightsPhraserFrom(process.env),
+    ...insightsSharesFrom(process.env),
     selection: selectionFrom(process.env),
     photoAtSignup: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).photoAtSignup,
     requests: detailRequests(calendars, service),

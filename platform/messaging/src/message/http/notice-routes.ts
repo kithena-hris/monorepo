@@ -29,6 +29,7 @@ const NoticeRequest = z.object({
     z.object({ kind: z.literal('approval_decided'), decision: z.enum(['approved', 'rejected']) }),
     z.object({ kind: z.literal('approval_expired') }),
     z.object({ kind: z.literal('correction_requested') }),
+    z.object({ kind: z.literal('summary_shared') }),
     z.object({
       kind: z.literal('scheduled_report'),
       cadence: z.enum(REPORT_CADENCES),

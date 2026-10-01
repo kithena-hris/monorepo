@@ -33,6 +33,7 @@ import { defineOverview } from './overview.js';
 import { defineReports } from './reports.js';
 import { defineScreens } from './screens.js';
 import { defineSelectionPlans } from './selection.js';
+import { defineWhatChanged } from './what-changed.js';
 import { defineTransfers } from './transfers.js';
 import type { PayBandView } from '../application/analytics/pay.js';
 
@@ -1346,6 +1347,7 @@ defineImportFields(builder, viaRest);
 defineTransfers(builder, viaRest);
 // Search and export in words.
 defineSelectionPlans(builder, viaRest);
+defineWhatChanged(builder, viaRest);
 
 export const schema = builder.toSubGraphSchema({
   linkUrl: 'https://specs.apollo.dev/federation/v2.6',

@@ -42,8 +42,24 @@ import { drizzleSegments } from '../../infrastructure/drizzle-segments.js';
 import { analyticsView } from '../screens/analytics.js';
 import type { ScreenDeps } from '../screens/record.js';
 import { saveSegment } from '../screens/segments.js';
-import type { InsightsTab } from '../screens/analytics.js';
-import { whatChanged, type Phraser } from '../screens/what-changed.js';
+import {
+  announceSummary,
+  followUp,
+  sharedSummary,
+  sharedSummaryFile,
+  storeSummary,
+  summaryDraft,
+  whatChangedView,
+  wordedPoints,
+  type Phraser,
+  type ShareAsk,
+  type SummaryAsk,
+  type SummaryShares,
+} from '../screens/what-changed.js';
+import {
+  drizzleSharedSummaries,
+  inMemorySharedSummaries,
+} from '../../infrastructure/drizzle-shared-summaries.js';
 import { PlanBudget } from '../../domain/import/new-fields.js';
 import { aiGateway, createPolicyRegistry, type Prompt } from '@kithena/telemetry';
 
@@ -1452,12 +1468,44 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
   });
 
   /**
-   * "What changed" (docs: the AI features brief, feature 2) with a fake model
-   * behind the real AI gateway: the figures are the view's, the model is
-   * shown placeholders only, and any doubt leaves People's own words.
+   * "What changed" (design AI5, AI6) with a fake model behind the real AI
+   * gateway: the figures are the charts', the model is shown placeholders and
+   * the viewer's question only, any doubt leaves People's own words, and a
+   * summary for somebody else keeps only what they would get themselves.
    */
-  describe('what changed, reworded by a fake model', () => {
+  describe('what changed, with a fake model and a recipient', () => {
     const OUTSIDER_ACCOUNT = '00000000-0000-4000-8000-0000000000d9';
+    // Today is the day after the last snapshot; the period is the two days before it.
+    const AT = '2026-03-04T12:00:00.000Z';
+    const PERIOD = { period: 'custom', from: D2, to: D3 } as const;
+    const mail: { email: string; url: string; dedupeKey: string }[] = [];
+    const shares: SummaryShares = {
+      store: inMemorySharedSummaries(),
+      mailer: {
+        send: (_tenant, _company, m) => {
+          mail.push(m);
+          return Promise.resolve();
+        },
+      },
+      company: () => Promise.resolve({ name: 'Acme', origin: 'https://acme.app.example.com' }),
+      accounts: {
+        candidates: () =>
+          Promise.resolve([
+            { accountId: HR_ACCOUNT, personId: BOSS, name: 'Ada Lovelace', workEmail: 'ada@acme.test' },
+            { accountId: BOSS_ACCOUNT, personId: BOSS, name: 'Nora Becker', workEmail: 'nora@acme.test' },
+            { accountId: OUTSIDER_ACCOUNT, personId: MANAGER, name: 'Sam Okoro', workEmail: null },
+          ]),
+        holdings: () =>
+          Promise.resolve(
+            new Map([
+              [HR_ACCOUNT, new Set(['hr'])],
+              [BOSS_ACCOUNT, new Set<string>()],
+            ]),
+          ),
+      } as never,
+      newId: () => '00000000-0000-4000-8000-0000000005aa',
+    };
+
     function phrasing(answer: (prompt: Prompt) => string, budget = new PlanBudget(10, 3_600_000)) {
       const prompts: Prompt[] = [];
       const registry = createPolicyRegistry({ staticRedaction: [], unknownTenantRedaction: [] });
@@ -1473,60 +1521,176 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
         assistant: {
           complete: (tenantId, prompt) => gateway.complete(tenantId, prompt),
           loadPolicies: () => {
-            registry.replace(ACME, [{ key: 'work_location', policy: { ...SPECIAL }, labels: ['Work location'] }]);
+            registry.replace(ACME, [
+              { key: 'work_location', policy: { ...SPECIAL }, labels: ['Work location'] },
+            ]);
             return Promise.resolve();
           },
         },
       };
-      const ask = (tab: InsightsTab, account = HR_ACCOUNT, roles = ['hr']) =>
-        whatChanged({ ...deps(`${D3}T12:00:00.000Z`), phraser }, as(account, roles), { tab });
-      return { prompts, ask };
+      const d = { ...deps(AT), phraser, shares };
+      return { prompts, d };
     }
-    // Deterministic from the prompt: every fact, run together as one sentence.
+    // Deterministic from the prompt: every point's sentence, as it was.
     const echo = (prompt: Prompt) =>
-      JSON.stringify({ sentences: [(prompt.context['facts'] as string[]).join(' ')] });
+      JSON.stringify({ points: prompt.context['points'] });
 
-    it('fills the model’s sentences with the view’s own figures, having shown it none', async () => {
-      const { prompts, ask } = phrasing(echo);
-      const shown = await view(HR_ACCOUNT, ['hr']);
-      const answered = await ask('headcount');
-      if (!shown.ok || !answered.ok) throw new Error('no answer');
-      const ours = shown.value.whatChanged.tabs.find((t) => t.tab === 'headcount')?.sentences ?? [];
-      expect(ours.length).toBeGreaterThan(0);
-      expect(answered.value).toEqual({ tab: 'headcount', sentences: [ours.join(' ')], byModel: true });
+    it('says the charts’ own figures, and words them with a model shown none of them', async () => {
+      const { prompts, d } = phrasing(echo);
+      const shown = await whatChangedView(d, as(HR_ACCOUNT, ['hr']), PERIOD);
+      if (!shown.ok) throw new Error(shown.error.message);
+      const charts = await analyticsView(deps(`${D3}T12:00:00.000Z`), as(HR_ACCOUNT, ['hr']));
+      if (!charts.ok) throw new Error(charts.error.message);
+      expect(shown.value.headcount?.value).toBe(charts.value.headcount.value);
+      expect(shown.value.points.length).toBeGreaterThan(0);
+      expect(shown.value.period.compared).toBe('2 Mar to 3 Mar 2026 compared with the 2 days before');
+
+      const worded = await wordedPoints(d, as(HR_ACCOUNT, ['hr']), PERIOD);
+      if (!worded.ok) throw new Error(worded.error.message);
+      expect(worded.value.byModel).toBe(true);
+      expect(worded.value.points.map((p) => p.text)).toEqual(shown.value.points.map((p) => p.text));
       const [prompt] = prompts;
       expect(prompt?.about).toBe('aggregates');
       const bare = JSON.stringify(prompt?.context).replaceAll(/\{[ng]\d+\}/gu, '');
       expect(bare).not.toMatch(/\d/u);
-      expect(bare).not.toContain(String(shown.value.headcount.value));
     });
 
     it('keeps People’s words when the model writes a number, times out, or the budget is spent', async () => {
-      const shown = await view(HR_ACCOUNT, ['hr']);
-      if (!shown.ok) throw new Error(shown.error.message);
-      const ours = {
-        tab: 'turnover',
-        sentences: shown.value.whatChanged.tabs.find((t) => t.tab === 'turnover')?.sentences,
-        byModel: false,
-      };
-      const numbered = phrasing(() => JSON.stringify({ sentences: ['Attrition is 5%.'] }));
-      expect(await numbered.ask('turnover')).toEqual({ ok: true, value: ours });
+      const ours = await wordedPoints(deps(AT), as(HR_ACCOUNT, ['hr']), PERIOD);
+      if (!ours.ok) throw new Error(ours.error.message);
+      expect(ours.value.byModel).toBe(false);
+      const numbered = phrasing(() =>
+        JSON.stringify({ points: [{ key: 'headcount', sentence: 'Headcount is 5.' }] }),
+      );
+      expect(await wordedPoints(numbered.d, as(HR_ACCOUNT, ['hr']), PERIOD)).toEqual(ours);
       const silent = phrasing(() => {
         throw new Error('The operation was aborted due to timeout');
       });
-      expect(await silent.ask('turnover')).toEqual({ ok: true, value: ours });
+      expect(await wordedPoints(silent.d, as(HR_ACCOUNT, ['hr']), PERIOD)).toEqual(ours);
       const spent = phrasing(echo, new PlanBudget(0, 3_600_000));
-      expect(await spent.ask('turnover')).toEqual({ ok: true, value: ours });
+      expect(await wordedPoints(spent.d, as(HR_ACCOUNT, ['hr']), PERIOD)).toEqual(ours);
       expect(spent.prompts).toEqual([]);
     });
 
-    it('answers only those who may see Insights', async () => {
-      const { ask, prompts } = phrasing(echo);
-      expect(await ask('headcount', OUTSIDER_ACCOUNT, [])).toMatchObject({
+    it('answers a follow-up from the points, and never puts a refused question to the model', async () => {
+      const { prompts, d } = phrasing((prompt) =>
+        JSON.stringify({
+          answerable: true,
+          sentences: [(prompt.context['points'] as { sentence: string }[])[0]?.sentence ?? ''],
+          keys: ['headcount'],
+        }),
+      );
+      const answered = await followUp(d, as(HR_ACCOUNT, ['hr']), {
+        ...PERIOD,
+        question: 'how did headcount move?',
+      });
+      if (!answered.ok) throw new Error(answered.error.message);
+      expect(answered.value).toMatchObject({ kind: 'answer', byModel: true, keys: ['headcount'] });
+      expect(JSON.stringify(prompts[0]?.context)).toContain('how did headcount move?');
+      const refused = await followUp(d, as(HR_ACCOUNT, ['hr']), {
+        ...PERIOD,
+        question: 'who performs worst?',
+      });
+      expect(refused.ok && refused.value.kind).toBe('refused');
+      expect(prompts).toHaveLength(1);
+    });
+
+    it('rewrites the summary for a manager: what they see differently is left out, and said', async () => {
+      const { d } = phrasing(echo);
+      const draft = await summaryDraft(d, as(HR_ACCOUNT, ['hr']), {
+        ...PERIOD,
+        recipient: BOSS_ACCOUNT,
+        tone: 'detailed',
+        charts: false,
+        madeLine: true,
+        edits: [],
+      });
+      if (!draft.ok) throw new Error(draft.error.message);
+      expect(draft.value.recipient).toEqual({ accountId: BOSS_ACCOUNT, name: 'Nora Becker' });
+      expect(draft.value.document.points.map((p) => p.key)).not.toContain('headcount');
+      expect(draft.value.notes).toContain(
+        'Headcount is left out, because Nora Becker sees a different set of people.',
+      );
+      expect(draft.value.document.madeLine).toMatch(/^Written by Kithena from \d+ records\. Checked by Ada Lovelace\.$/u);
+    });
+
+    it('lets only HR prepare one for somebody else, and only Insights’ viewers at all', async () => {
+      const { d } = phrasing(echo);
+      const ask: SummaryAsk = { ...PERIOD, tone: 'short', charts: true, madeLine: true, edits: [] };
+      expect(
+        await summaryDraft(d, as(BOSS_ACCOUNT), { ...ask, recipient: HR_ACCOUNT }),
+      ).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+      expect(await whatChangedView(d, as(OUTSIDER_ACCOUNT), PERIOD)).toMatchObject({
         ok: false,
         error: { code: 'FORBIDDEN' },
       });
-      expect(prompts).toEqual([]);
+    });
+
+    it('sends a link, never the summary, and opens it for its recipient alone', async () => {
+      const { d } = phrasing(echo);
+      const share: ShareAsk = {
+        ...PERIOD,
+        recipient: BOSS_ACCOUNT,
+        tone: 'detailed',
+        charts: true,
+        madeLine: false,
+        format: 'pdf',
+        edits: [{ key: 'completeness', text: 'Records are filling in.' }],
+      };
+      const stored = await storeSummary(d, as(HR_ACCOUNT, ['hr']), share);
+      if (!stored.ok) throw new Error(stored.error.message);
+      expect(await announceSummary(d, as(HR_ACCOUNT, ['hr']), stored.value.id)).toBe(true);
+      expect(mail).toEqual([
+        {
+          email: 'nora@acme.test',
+          url: `https://acme.app.example.com/people/insights/what-changed?shared=${stored.value.id}`,
+          dedupeKey: `summary/${stored.value.id}`,
+        },
+      ]);
+      const opened = await sharedSummary(d, as(BOSS_ACCOUNT), stored.value.id);
+      if (!opened.ok) throw new Error(opened.error.message);
+      const completeness = opened.value.document.points.find((p) => p.key === 'completeness');
+      if (completeness !== undefined) expect(completeness.text).toBe('Records are filling in.');
+      expect(await sharedSummary(d, as(OUTSIDER_ACCOUNT), stored.value.id)).toMatchObject({
+        ok: false,
+        error: { code: 'NOT_FOUND' },
+      });
+      const paper = await sharedSummaryFile(d, as(BOSS_ACCOUNT), stored.value.id);
+      expect(paper.ok && Buffer.from(paper.value.bytes).subarray(0, 5).toString()).toBe('%PDF-');
+    });
+
+    it('keeps a sent summary in its own tenant, behind RLS', async () => {
+      await admin.execute(sql.raw(await migration('20261001084600_people_shared_summary.sql')));
+      const store = drizzleSharedSummaries();
+      const doc = {
+        company: 'Acme',
+        title: 'What changed',
+        preparedBy: 'Ada',
+        preparedOn: '4 Mar 2026',
+        points: [],
+        chart: null,
+        madeLine: null,
+      };
+      await inTenant(ACME, ({ tx }) =>
+        store.insert(tx, ACME, {
+          id: '00000000-0000-4000-8000-0000000005ab',
+          senderAccountId: HR_ACCOUNT,
+          recipientAccountId: BOSS_ACCOUNT,
+          format: 'email',
+          document: doc,
+          createdAt: AT,
+          expiresAt: '2026-03-11T12:00:00.000Z',
+        }),
+      );
+      const mine = await inTenant(ACME, ({ tx }) =>
+        store.get(tx, ACME, '00000000-0000-4000-8000-0000000005ab'),
+      );
+      expect(mine?.document).toEqual(doc);
+      expect(mine?.expiresAt).toBe('2026-03-11T12:00:00.000Z');
+      const theirs = await inTenant(GLOBEX, ({ tx }) =>
+        store.get(tx, GLOBEX, '00000000-0000-4000-8000-0000000005ab'),
+      );
+      expect(theirs).toBeNull();
     });
   });
 });

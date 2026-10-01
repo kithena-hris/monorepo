@@ -254,6 +254,9 @@ export interface Figures {
 
 export type PointKey = 'headcount' | 'leavers' | 'completeness' | 'span' | 'pay';
 
+/** More direct reports than this is a wide span (the design's "more than 8 reports"). */
+export const SPAN_LIMIT = 8;
+
 /** Where a point's records are. People names the place; the screen knows its address. */
 export type Source =
   | {
@@ -631,7 +634,8 @@ const NEVER =
 
 const TOPICS: Readonly<Record<PointKey, RegExp>> = {
   headcount: /\b(headcount|grow\w*|grew|growth|hir\w*|join\w*|start\w*|bigger|smaller)\b/iu,
-  leavers: /\b(leav\w*|left|quit\w*|resign\w*|notice|turnover|attrition|losing|lose|lost|churn\w*)\b/iu,
+  leavers:
+    /\b(leav\w*|left|quit\w*|resign\w*|notice|turnover|attrition|losing|lose|lost|churn\w*)\b/iu,
   completeness: /\b(missing|complete\w*|incomplete|data|details?|gaps?|bank)\b/iu,
   span: /\b(managers?|reports?|span|org\w*)\b/iu,
   pay: /\b(pay|paid|salar\w*|bands?|grades?|compensation|payroll)\b/iu,
@@ -785,7 +789,9 @@ export function forRecipient(
       theirs.measure.length !== ours.measure.length ||
       theirs.measure.some((n, i) => n !== ours.measure[i])
     ) {
-      notes.push(`${DIFFERENT[ours.key]} left out, because ${name} sees a different set of people.`);
+      notes.push(
+        `${DIFFERENT[ours.key]} left out, because ${name} sees a different set of people.`,
+      );
     } else {
       kept.push(theirs);
       if (teams(theirs) < teams(ours)) fewerTeams = true;

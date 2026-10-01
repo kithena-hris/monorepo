@@ -81,6 +81,11 @@ import {
   ReviewInput as NewFieldsReview,
 } from '../application/assistant/import-fields.js';
 import { PlanAsk } from '../application/assistant/selection.js';
+import {
+  FollowUpAsk as WhatChangedAsk,
+  ShareAsk as SummaryShare,
+  SummaryAsk,
+} from '../application/screens/what-changed.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 /**
@@ -168,6 +173,9 @@ const components = {
   NewFieldsReview,
   NewFieldsApply,
   SelectionAsk: PlanAsk,
+  WhatChangedAsk,
+  SummaryAsk,
+  SummaryShare,
   Segment: SegmentBody,
   PayBand: PayBandBody,
   ReportSchedule: ScheduleBody,
@@ -632,21 +640,83 @@ function screenPaths(): Record<string, unknown> {
     '/v1/views/photos/remove': {
       post: screenWrite('Take a photo down: the person’s own, or HR’s', 'PhotoOf', 200, 'Removed'),
     },
-    // Insights' "what changed", reworded by the assistant where there is one.
+    // What changed (design AI5, AI6, MA4, MA5): its own block.
     '/v1/views/analytics/what-changed': {
       get: {
         summary:
-          "One Insights tab's summary: the figures are People's, the words the assistant's when byModel; it is shown placeholders, never a figure",
+          "A period's changes as points, each with its figure and the records behind it, in People's words; nothing goes to a model",
         parameters: [
-          {
-            name: 'tab',
-            in: 'query',
-            required: true,
-            schema: { type: 'string', enum: ['headcount', 'turnover', 'data-quality', 'pay'] },
-          },
+          { name: 'period', in: 'query', required: false, schema: { type: 'string', enum: ['week', 'month', 'quarter', 'custom'] } },
+          { name: 'from', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
           { name: 'segment', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
         ],
-        responses: { 200: { description: '{ tab, sentences, byModel }' }, ...failure },
+        responses: {
+          200: { description: '{ period, title, writtenAt, points, phrasable, headcount, leavers, recipients, canSend }' },
+          ...failure,
+        },
+      },
+    },
+    '/v1/views/analytics/what-changed/worded': {
+      get: {
+        summary:
+          "The same points worded by the assistant where there is one; it is shown placeholders, never a figure or a name",
+        parameters: [
+          { name: 'period', in: 'query', required: false, schema: { type: 'string', enum: ['week', 'month', 'quarter', 'custom'] } },
+          { name: 'from', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
+          { name: 'segment', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: { 200: { description: '{ points, byModel }' }, ...failure },
+      },
+    },
+    '/v1/views/analytics/what-changed/ask': {
+      post: screenWrite(
+        'A follow-up question answered from the points and nothing else; the model sees the question and placeholders',
+        'WhatChangedAsk',
+        200,
+        '{ kind, sentences, keys, byModel }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/analytics/what-changed/summary': {
+      post: screenWrite(
+        'The summary as it would go to somebody, rewritten for what they may see, with why anything was left out; nothing is written',
+        'SummaryAsk',
+        200,
+        '{ recipient, notes, document }',
+        { safe: true },
+      ),
+    },
+    '/v1/views/analytics/what-changed/summary/pdf': {
+      post: screenWrite(
+        'The summary as edited, on paper (application/pdf); nothing is written',
+        'SummaryAsk',
+        200,
+        'A PDF',
+        { safe: true },
+      ),
+    },
+    '/v1/insights/summaries': {
+      post: screenWrite(
+        'Send the summary to one person: stored for them to open signed in for seven days, and an email with a link. HR only',
+        'SummaryShare',
+        200,
+        '{ id, emailed }',
+      ),
+    },
+    '/v1/insights/summaries/{id}': {
+      get: {
+        summary: 'A summary sent to you, or by you, while it lasts',
+        parameters: [id],
+        responses: { 200: { description: 'The summary as it was sent' }, ...failure },
+      },
+    },
+    '/v1/insights/summaries/{id}/pdf': {
+      get: {
+        summary: 'A summary sent to you, on paper (application/pdf)',
+        parameters: [id],
+        responses: { 200: { description: 'A PDF' }, ...failure },
       },
     },
     // New information in an import's file (docs/ai-settings.md): proposed,

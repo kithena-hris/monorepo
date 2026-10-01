@@ -55,7 +55,13 @@ export type Notice =
       readonly kind: 'scheduled_report';
       readonly cadence: ReportCadence;
       readonly format: ReportFormat;
-    };
+    }
+  /*
+   * An Insights summary somebody in HR sent (People's "what changed"). Never
+   * who sent it, a figure or a sentence of it: the summary is read signed in,
+   * on the page the button opens, and only by its recipient.
+   */
+  | { readonly kind: 'summary_shared' };
 
 export const REPORT_CADENCES = ['daily', 'weekly', 'monthly'] as const;
 export type ReportCadence = (typeof REPORT_CADENCES)[number];
@@ -177,6 +183,13 @@ const COPY: {
       footer: `Sent by Kithena because this address is the alert contact for a webhook endpoint in ${company}'s People.`,
     };
   },
+  summary_shared: (_notice, company) => ({
+    subject: `${company}: a People summary was shared with you`,
+    heading: 'A People summary for you',
+    lede: `Somebody at ${company} sent you a summary of what changed in People, written for what you are allowed to see. It is shown only once you are signed in, and it opens for seven days.`,
+    action: 'Open the summary',
+    footer: `Sent by Kithena on behalf of ${company}, because somebody in HR shared a People summary with you.`,
+  }),
   scheduled_report: ({ cadence, format }, company) => {
     if (!REPORT_CADENCES.includes(cadence) || !REPORT_FORMATS.includes(format)) return null;
     const footer = `Sent by Kithena on behalf of ${company}, because you are a recipient of a scheduled People report. Whoever manages People at ${company} can stop it.`;

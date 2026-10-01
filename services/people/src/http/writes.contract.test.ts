@@ -54,6 +54,10 @@ const SAFE = [
   'POST /v1/views/files/uploads',
   // Where to send an administrator to connect a chat app: nothing is kept.
   'POST /v1/chat/apps/{key}/connect',
+  // What changed: a follow-up answered, and the summary previewed and printed; nothing is kept.
+  'POST /v1/views/analytics/what-changed/ask',
+  'POST /v1/views/analytics/what-changed/summary',
+  'POST /v1/views/analytics/what-changed/summary/pdf',
 ];
 
 const callerFrom: CallerFrom = () =>
