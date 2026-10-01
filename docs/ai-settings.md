@@ -343,4 +343,4 @@ It replaces the one-line "what changed" note that used to open every tab.
   messaging emails the recipient a link (`summary_shared`, docs/messaging.md),
   never the summary; it opens for the recipient and the sender only, signed
   in, at `?shared=<id>`, with the same PDF. Without a messaging mailer and a
-  tenant app base, Send is not offered. Slides is not offered (PEO-132).
+  tenant app base, Send is not offered. Slides is not offered (PEO-140).
