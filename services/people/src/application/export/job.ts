@@ -107,7 +107,12 @@ export interface CompletedExport {
 
 export type LedgerEntry =
   | { readonly status: 'queued'; readonly exportId: string; readonly requestedBy: string }
-  | ({ readonly status: 'completed'; readonly openedAt?: string | null } & CompletedExport);
+  | ({
+      readonly status: 'completed';
+      readonly openedAt?: string | null;
+      /** When it was built; absent from a ledger that does not keep it. */
+      readonly completedAt?: string;
+    } & CompletedExport);
 
 export interface ExportJobDeps extends ExportDeps {
   readonly store: ObjectStore;

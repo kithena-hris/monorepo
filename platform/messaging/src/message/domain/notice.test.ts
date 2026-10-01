@@ -66,6 +66,28 @@ describe('renderNotice: the approval of a change (PEO-077)', () => {
   });
 });
 
+describe('renderNotice: an export sent to somebody (design AI13)', () => {
+  const PAGE =
+    'https://acme.app.kithena.com/people/export?export=0199a3f0-7c1e-7d2a-9b1e-4f6a8c2d1e00';
+
+  it('tells the recipient there is one, for them only, for seven days', () => {
+    const sent = renderNotice({ kind: 'export_shared' }, PAGE, ACME);
+    if (!sent.ok) throw new Error('expected a message');
+    expect(sent.value.subject).toBe('Acme Corp: a People export was sent to you');
+    expect(sent.value.text).toContain('opens only for you');
+    expect(sent.value.text).toContain('seven days');
+    expect(sent.value.text).toContain(PAGE);
+  });
+
+  it('asks an administrator to approve one, naming nobody and no field', () => {
+    const asked = renderNotice({ kind: 'export_share_requested' }, PAGE, ACME);
+    expect(asked.ok && asked.value.subject).toBe(
+      'Acme Corp: an export is waiting for your approval',
+    );
+    expect(asked.ok && asked.value.text).toContain('Nothing is sent unless');
+  });
+});
+
 describe('renderNotice: profile_reminder', () => {
   it('counts what is missing and links to the profile, in both bodies', () => {
     const result = renderNotice({ kind: 'profile_reminder', missing: 3 }, PROFILE, ACME);

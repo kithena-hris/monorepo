@@ -123,9 +123,12 @@ import {
 import { typesafeAttributeAdvisorFromEnv } from '../infrastructure/typesafe-attribute-advisor.js';
 import { drizzleSegments } from '../infrastructure/drizzle-segments.js';
 import { drizzleReportSchedules } from '../infrastructure/drizzle-report-schedules.js';
-import { reportMailerFrom } from '../infrastructure/report-mailer.js';
+import { reportMailerFrom, shareMailerFrom } from '../infrastructure/report-mailer.js';
 import { sendDueReports, type ScheduleAdminDeps } from '../application/reports/scheduled.js';
 import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
+import { shareRoutes } from './export-share.js';
+import type { ShareDeps } from '../application/export/share.js';
+import { drizzleShareStore } from '../application/export/share-store.js';
 import { callerWithEntitlements, viewingRequest, withTenantRoles } from './caller.js';
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
 import { drizzleIdempotency } from './idempotency.js';
@@ -749,6 +752,25 @@ function deploymentEntitlements(): readonly string[] {
   }
 }
 
+/**
+ * Sending an export to somebody (design AI13): the export pipeline, the
+ * requests waiting for approval, who signs in, and the email beside it where
+ * messaging and a safe tenant app base are configured.
+ */
+function shareDeps(exports: ExportJobDeps): ShareDeps {
+  const base = tenantAppBase(process.env);
+  const mailer = shareMailerFrom(process.env);
+  return {
+    ...exports,
+    shares: drizzleShareStore(),
+    accounts: drizzleRoleStore(),
+    segments: drizzleSegments(),
+    ...(base === null || mailer === undefined
+      ? {}
+      : { mailer, company: tenantCompanies(base, drizzleOrgStore()) }),
+  };
+}
+
 /** Scheduled reports as HR's screens manage them (PEO-069). */
 function scheduleAdmin(): ScheduleAdminDeps {
   return {
@@ -884,7 +906,11 @@ export function wirePeople(server: Server): void {
     exports,
     fullValues: exports.fullValues,
     segments: drizzleSegments(),
-    screens: screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
+    screens: [
+      ...screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
+      // An export sent to somebody else (design AI13, AI14, MA10).
+      ...shareRoutes({ service, idempotency, share: shareDeps(exports.deps) }),
+    ],
     activity: {
       store: drizzleActivity(),
       newId: uuidv7,

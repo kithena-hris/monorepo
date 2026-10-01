@@ -61,11 +61,12 @@ export function drizzleExportLedger(): ExportLedger {
         attribute_keys: string[] | null;
         shared_with: string | null;
         opened_at: string | Date | null;
+        completed_at: string | Date | null;
         as_of: string | null;
         audience: string | null;
       }>(sql`
         SELECT requested_by, row_count, file_names, expires_at, format, reason, attribute_keys,
-               shared_with, opened_at, as_of::text AS as_of, audience
+               shared_with, opened_at, completed_at, as_of::text AS as_of, audience
           FROM people.export
          WHERE tenant_id = ${tenantId}::uuid AND id = ${exportId}::uuid`);
       const row = [...rows][0];
@@ -86,6 +87,9 @@ export function drizzleExportLedger(): ExportLedger {
         attributeKeys: row.attribute_keys,
         sharedWith: row.shared_with,
         openedAt: row.opened_at === null ? null : new Date(row.opened_at).toISOString(),
+        ...(row.completed_at === null
+          ? {}
+          : { completedAt: new Date(row.completed_at).toISOString() }),
         asOf: row.as_of,
         audience: row.audience,
       };

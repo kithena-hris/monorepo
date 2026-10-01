@@ -4,6 +4,7 @@ import { ok } from '@kithena/domain-kit';
 import type { PeopleService } from '../application/person/service.js';
 import type { ScreenRouteDeps } from './screens.js';
 import { screenRoutes } from './screens.js';
+import { shareRoutes } from './export-share.js';
 import type { CallerFrom } from './caller.js';
 import { inMemoryIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
@@ -54,6 +55,8 @@ const SAFE = [
   'POST /v1/views/files/uploads',
   // Where to send an administrator to connect a chat app: nothing is kept.
   'POST /v1/chat/apps/{key}/connect',
+  // Whom an export would go to and what they could not read: nothing is built.
+  'POST /v1/exports/share/preview',
 ];
 
 const callerFrom: CallerFrom = () =>
@@ -80,7 +83,10 @@ function everyWrite(deps: Partial<RestDeps> = {}) {
     service: {} as PeopleService,
     callerFrom,
     idempotency,
-    screens: screenRoutes({} as ScreenRouteDeps, idempotency),
+    screens: [
+      ...screenRoutes({} as ScreenRouteDeps, idempotency),
+      ...shareRoutes({ service: {} as PeopleService, idempotency, share: undefined }),
+    ],
     ...deps,
   };
   return restRoutes(all)
@@ -122,7 +128,14 @@ describe('every state-changing route', () => {
         service: {} as PeopleService,
         callerFrom,
         idempotency: inMemoryIdempotency(),
-        screens: screenRoutes({} as ScreenRouteDeps, inMemoryIdempotency()),
+        screens: [
+          ...screenRoutes({} as ScreenRouteDeps, inMemoryIdempotency()),
+          ...shareRoutes({
+            service: {} as PeopleService,
+            idempotency: inMemoryIdempotency(),
+            share: undefined,
+          }),
+        ],
       });
       const answer = await rest({
         method,

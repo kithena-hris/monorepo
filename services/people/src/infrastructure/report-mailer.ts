@@ -1,5 +1,6 @@
 import { logger } from '@kithena/telemetry';
 
+import type { ShareMailer } from '../application/export/share.js';
 import type { ReportMailer } from '../application/reports/scheduled.js';
 
 /**
@@ -46,4 +47,40 @@ export function reportMailerFrom(env: NodeJS.ProcessEnv): ReportMailer | undefin
     return undefined;
   }
   return httpReportMailer({ baseUrl, token });
+}
+
+/**
+ * An export sent to somebody, and a request to approve one (design AI13):
+ * the same endpoint and secret, a notice of its own kind. The address, the
+ * company's name and a link to the tenant app cross the wire; never who sent
+ * it, who is in it, or a field.
+ */
+export function shareMailerFrom(env: NodeJS.ProcessEnv): ShareMailer | undefined {
+  const baseUrl = env['MESSAGING_URL'];
+  const token = env['MESSAGING_PEOPLE_TOKEN'];
+  if (!baseUrl || !token) {
+    logger.info('MESSAGING_URL or MESSAGING_PEOPLE_TOKEN unset; sent exports are not emailed');
+    return undefined;
+  }
+  const endpoint = new URL('/api/internal/messaging/notice', baseUrl).toString();
+  return {
+    async send(tenantId, company, mail) {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-internal-token': token },
+        body: JSON.stringify({
+          tenantId,
+          email: mail.email,
+          url: mail.url,
+          companyName: company.name,
+          dedupeKey: mail.dedupeKey,
+          notice: { kind: mail.notice },
+        }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) {
+        throw new Error(`messaging refused the export email: ${String(response.status)}`);
+      }
+    },
+  };
 }

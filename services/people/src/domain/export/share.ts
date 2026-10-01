@@ -27,11 +27,7 @@ export interface Candidate {
   readonly roles: ReadonlySet<string>;
 }
 
-const fold = (s: string): string =>
-  s
-    .normalize('NFD')
-    .replaceAll(/\p{M}/gu, '')
-    .toLowerCase();
+const fold = (s: string): string => s.normalize('NFD').replaceAll(/\p{M}/gu, '').toLowerCase();
 
 /** Words, folded, with a possessive's ending taken off ("Finance’s" is "finance"). */
 const words = (s: string): string[] =>
@@ -47,8 +43,7 @@ const ROLE_WORDS: Readonly<Record<string, string>> = {
 };
 
 const runAt = (ws: readonly string[], phrase: readonly string[]): boolean =>
-  phrase.length > 0 &&
-  ws.some((_, i) => phrase.every((p, j) => ws[i + j] === p));
+  phrase.length > 0 && ws.some((_, i) => phrase.every((p, j) => ws[i + j] === p));
 
 const one = (found: readonly string[]): string | null => {
   const distinct = [...new Set(found)];
@@ -95,7 +90,11 @@ export interface Gap {
 }
 
 /** What the requester's file holds that the recipient could not read themselves; null for nothing. */
-export function gapBetween(asker: Readable, recipient: Readable, order: readonly string[]): Gap | null {
+export function gapBetween(
+  asker: Readable,
+  recipient: Readable,
+  order: readonly string[],
+): Gap | null {
   const counts = new Map<string, number>();
   let unlisted = 0;
   for (const [person, keys] of asker) {

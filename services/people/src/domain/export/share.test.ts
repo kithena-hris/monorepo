@@ -138,7 +138,12 @@ describe('deciding a request to send', () => {
   });
 
   it('is never the requester’s', () => {
-    const decided = decideShare(share, { accountId: ADA, roles: new Set(['people_admin']) }, true, at);
+    const decided = decideShare(
+      share,
+      { accountId: ADA, roles: new Set(['people_admin']) },
+      true,
+      at,
+    );
     expect(decided.ok ? null : decided.error.code).toBe('FORBIDDEN');
   });
 
@@ -201,7 +206,9 @@ describe('the About sheet', () => {
     expect(about.paragraphs).toContain(
       'Amounts are as recorded for each person, in their own currency, and are not converted.',
     );
-    expect(about.footnote).toBe('Confidential · link expires 8 October 2026 · export ID EXP-0199A3F0');
+    expect(about.footnote).toBe(
+      'Confidential · link expires 8 October 2026 · export ID EXP-0199A3F0',
+    );
   });
 
   it('says one person, no recipient, no reason and no expiry plainly', () => {

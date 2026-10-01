@@ -205,6 +205,18 @@ links to `<slug>.app…/people/analytics`. Both are on the company's own origin,
 so no second link rule was needed, and both survive the backend being asleep:
 the tenant app wakes it, where a link straight to the file would not.
 
+### `export_shared` and `export_share_requested` (design AI13)
+
+`{ "kind": "export_shared" }` goes to the recipient of an export somebody sent
+them, keyed on the export and the recipient; `{ "kind":
+"export_share_requested" }` goes to each People administrator who may approve
+sending one that holds more than its recipient could read, keyed on the
+request and the administrator. Neither says who sent it, who is in it, which
+fields or why: a forwarded "Ada sent you Madrid's salaries" is the disclosure.
+Both link to `<slug>.app…/people/export?export=<id>` or `?share=<id>`, where
+only the recipient and the requester (or an administrator, for a request)
+sign in to see it; the file's own link is signed there for minutes.
+
 ---
 
 ## What it refuses to hold
