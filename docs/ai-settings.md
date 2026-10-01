@@ -37,7 +37,7 @@ screen, are in the address (`?step=`, `?field=`).
    have none once the file is in, and what happens for them, one suggested
    with its reason and each with what it does:
    - *Ask them*: theirs to fill in and required, so they show as incomplete
-     and the weekly reminder asks (an optional ask is PEO-140);
+     and the weekly reminder asks (an optional ask is PEO-148);
    - *HR fills it in*: HR's and required, on Data health's list;
    - *Only new joiners*: required of people added from now on;
    - *Leave it empty*: optional, nobody asked;

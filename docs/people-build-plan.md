@@ -2094,9 +2094,9 @@ to somebody"). What the design shows and the backend cannot honestly do yet:
       closing" check assumes a monthly payroll closing on the month's last
       day; a company that closes on the 25th, or pays twice a month, is
       flagged against the wrong date. Lives with the pay settings.
-<!-- Smart import (lane M, design AI9 to AI12, MA8, MA9). Numbered from 140 to
-     stay clear of the other AI lanes' tickets. -->
-- [ ] **PEO-140** Ask people for an optional value (design AI10 "Ask the 14
+
+<!-- Smart import (design AI9 to AI12, MA8, MA9): its own block. -->
+- [ ] **PEO-148** Ask people for an optional value (design AI10 "Ask the 14
       people to fill it in: optional for them, so nobody shows as
       incomplete", beside "Make it required for everyone"; MA9 likewise).
       Today asking means the reminders, and they only chase required gaps,
@@ -2107,12 +2107,12 @@ to somebody"). What the design shows and the backend cannot honestly do yet:
       design's four. Needs a per-person request that is not a gap: the
       detail requests (`people.detail_request`, `requestDetails`) are the
       nearest thing, keyed per person and field, emailed at most daily.
-- [ ] **PEO-141** "Tell Sofia and Nora when it's done" on the import's
+- [ ] **PEO-149** "Tell Sofia and Nora when it's done" on the import's
       Approve (design AI11). Nothing sends a notice to chosen colleagues
       today; the import's outcome is in Import & export's history. Needs a
       recipient picker scoped to who may see the import, and a message
       through `platform/messaging` that names counts, never values.
-- [ ] **PEO-142** The import's links to what it made (design AI11 "Open
+- [ ] **PEO-150** The import's links to what it made (design AI11 "Open
       draft", "See rows"; AI12 "Open the 298 in Directory"). Built: See rows
       (the blocked rows and their file) and Edit for each new field (the
       registry filtered to it). Not built: a Directory filter for the people
@@ -2124,7 +2124,7 @@ to somebody"). What the design shows and the backend cannot honestly do yet:
       owns Equipment" needs section owners, which People does not model.
       AI11's "Undo: for 24 hours, fields too" and AI12's "Undo import" wait
       for PEO-128 and are not shown.
-- [ ] **PEO-143** A company's first import plans against nobody. With
+- [ ] **PEO-151** A company's first import plans against nobody. With
       nothing published People cannot read any record, so the plan's dry
       run matches nobody (`dry-run.ts` `existingPeople`): a row for somebody
       already here, typically the administrator's own provisional record,
