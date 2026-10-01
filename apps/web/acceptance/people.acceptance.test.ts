@@ -208,8 +208,6 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       })
       .toBe(true);
     expect(await page.getByRole('textbox', { name: /Registered name/ }).inputValue()).toBe('Acme');
-    // The heading is the server's; a press counts once the remote has hydrated it.
-    await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // The Spanish pack, accepted as it is.
@@ -247,8 +245,6 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     await page.goto(`${stack.shell}/people/setup`);
     const identification = page.getByRole('form', { name: 'Identification & right to work' });
     await identification.waitFor({ timeout: 30_000 });
-    // The form is the server's; typing and a press count once the remote has hydrated it.
-    await page.waitForLoadState('networkidle');
     expect(await page.getByRole('textbox', { name: /Legal first name/ }).inputValue()).toBe(
       'Priya',
     );
@@ -301,8 +297,6 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     expect(audit?.envelope.payload).toMatchObject({ decision: 'approved', decidedAs: 'sole_hr' });
     expect(audit?.envelope.actor).toEqual({ kind: 'user', userId: ADMIN.account });
     await page.reload();
-    // As above: React drops a press on markup it has not hydrated yet.
-    await page.waitForLoadState('networkidle');
     await page.getByText('Complete', { exact: true }).waitFor({ timeout: 20_000 });
     await page.getByRole('button', { name: 'Finish' }).click();
     await page.waitForURL(/\/people\/me$/);
@@ -345,10 +339,12 @@ describe('PEO-094: the remote, rendered on the server', () => {
     // The remote's JavaScript never arrives: whatever is on the page, the
     // server drew. React's own inline script reveals the streamed screen; no
     // bundle of the remote's is involved.
+    // Held, not refused: a remote that fails to load is said to be unavailable.
     const bare = await signedIn(ADMIN.session);
-    await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, (route) => route.abort());
+    await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, () => undefined);
     const page = await bare.newPage();
-    const response = await page.goto(`${stack.shell}/people/me`);
+    // Not `load`, which the preloaded remote entry would hold back for ever.
+    const response = await page.goto(`${stack.shell}/people/me`, { waitUntil: 'domcontentloaded' });
     const sent = (await response?.text()) ?? '';
     expect(sent).toContain('Personal information');
     // Drawn by the renderer process, from the signed build (PEO-115).
@@ -370,9 +366,6 @@ describe('PEO-094: the remote, rendered on the server', () => {
     });
     live.on('pageerror', (error) => problems.push(error.message));
     await live.goto(`${stack.shell}/people/me`);
-    // Pressed once the remote has hydrated: a press on the server's markup
-    // before then does nothing, and on a loaded runner that lost the race.
-    await live.waitForLoadState('networkidle');
     await live.getByRole('button', { name: 'Edit Personal information' }).click();
     const personal = live.getByRole('form', { name: 'Personal information' });
     await personal.getByRole('textbox', { name: /Preferred name/ }).fill('Pri');
@@ -421,6 +414,94 @@ describe('PEO-094: the remote, rendered on the server', () => {
   });
 });
 
+/** Whether the screen is still the server's HTML, waiting for the remote's code. */
+const waiting = (page: Page): Promise<boolean> =>
+  page.evaluate(() => document.querySelector('[data-remote][data-hydrating]') !== null);
+
+describe('A press on a People screen before its code has loaded', () => {
+  /** A page whose remote code arrives 2 s late: the screen is the server's HTML until then. */
+  async function late(session: string): Promise<{ page: Page; close: () => Promise<void> }> {
+    const context = await signedIn(session);
+    await context.route(/\/remoteEntry\.js$/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      await route.continue();
+    });
+    return { page: await context.newPage(), close: () => context.close() };
+  }
+
+  it('saves a section once, with what was typed before it', async () => {
+    const saves = async (): Promise<number> => {
+      const [row] = await stack.sql<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM people.outbox
+         WHERE event_name = 'people.person.profile_updated' AND aggregate_id = ${ADMIN.person}`;
+      return row?.n ?? 0;
+    };
+    const before = await saves();
+    const { page, close } = await late(ADMIN.session);
+    // Not waiting for `load`, which the preloaded remote entry holds back.
+    await page.goto(`${stack.shell}/people/me?field=preferred_name`, { waitUntil: 'commit' });
+    const personal = page.getByRole('form', { name: 'Personal information' });
+    const save = personal.getByRole('button', { name: 'Save' });
+    await save.waitFor({ timeout: 30_000 });
+    expect(await waiting(page)).toBe(true);
+    await personal.getByRole('textbox', { name: /Preferred name/ }).fill('Pria');
+    await save.click();
+    // Held, and seen to be, until the screen can answer it.
+    expect(await save.getAttribute('data-early-press')).toBe('');
+    await eventually(
+      'the preferred name',
+      () => stack.sql<{ preferred_name: string | null }[]>`
+        SELECT preferred_name FROM people.person WHERE id = ${ADMIN.person}`,
+      ([p]) => p?.preferred_name === 'Pria',
+    );
+    await page.waitForLoadState('networkidle');
+    expect(await saves()).toBe(before + 1);
+    // Answered, so no longer shown as waiting (and the form has closed).
+    expect(await page.locator('[data-early-press]').count()).toBe(0);
+    await close();
+  });
+
+  // React itself replays the focus a press gives a record's tab, which
+  // selects it; the press held here must not select it a second time.
+  it('changes a record’s tab once', async () => {
+    const { page, close } = await late(ADMIN.session);
+    await page.goto(`${stack.shell}/people/${EMPLOYEE.person}`, { waitUntil: 'commit' });
+    const tab = page.getByRole('tablist', { name: 'Parts of the record' }).getByRole('tab').nth(1);
+    await tab.waitFor({ timeout: 30_000 });
+    expect(await waiting(page)).toBe(true);
+    const entries = await page.evaluate(() => history.length);
+    await tab.click();
+    await expect.poll(() => tab.getAttribute('aria-selected'), { timeout: 30_000 }).toBe('true');
+    expect(new URL(page.url()).searchParams.get('tab')).not.toBeNull();
+    await page.waitForLoadState('networkidle');
+    expect(await page.evaluate(() => history.length)).toBe(entries + 1);
+    await close();
+  });
+
+  // Without the hold, a link pressed this early was a full page load.
+  it('follows a tab’s link once, in the page', async () => {
+    const { page, close } = await late(ADMIN.session);
+    await page.goto(`${stack.shell}/people/data-health/completeness`, { waitUntil: 'commit' });
+    const tab = page
+      .getByRole('navigation', { name: 'Data health tabs' })
+      .getByRole('link', { name: /^ID checks/ });
+    await tab.waitFor({ timeout: 30_000 });
+    expect(await waiting(page)).toBe(true);
+    const entries = await page.evaluate(() => {
+      (window as unknown as { stayed?: boolean }).stayed = true;
+      return history.length;
+    });
+    await tab.click();
+    await page.waitForURL(/\/people\/data-health\/id-checks$/, { timeout: 30_000 });
+    await expect.poll(() => tab.getAttribute('aria-current'), { timeout: 30_000 }).toBe('page');
+    await page.waitForLoadState('networkidle');
+    const stayed = await page.evaluate(() => (window as unknown as { stayed?: boolean }).stayed);
+    expect(stayed).toBe(true);
+    expect(await page.evaluate(() => history.length)).toBe(entries + 1);
+    await close();
+  });
+});
+
 describe('Field-level absence, end to end', () => {
   it('leaves a field the viewer may not read out of the HTML and out of the screen', async () => {
     const context = await signedIn(EMPLOYEE.session);
@@ -434,10 +515,10 @@ describe('Field-level absence, end to end', () => {
     expect(html).not.toContain('NIF / NIE');
     expect(html).not.toContain('678Z');
 
-    // "Pri Shah": the preferred name the test before set.
+    // "Pria Shah": the preferred name a test before set.
     await expect
       .poll(() => page.evaluate(() => document.body.innerText), { timeout: 30_000 })
-      .toContain('Pri Shah');
+      .toContain('Pria Shah');
     expect(await page.getByText('NIF / NIE').count()).toBe(0);
     expect(await page.getByText('Identification & right to work').count()).toBe(0);
     await context.close();
@@ -453,7 +534,7 @@ describe('PEO-117: the directory searches and filters in People', () => {
 
     // Adam reads every name, so he may search them: Priya, and nobody else.
     await page.goto(`${stack.shell}/people/directory/list?q=shah`);
-    await expect.poll(text, { timeout: 30_000 }).toContain('Pri Shah');
+    await expect.poll(text, { timeout: 30_000 }).toContain('Pria Shah');
     expect(await page.getByText(EMPLOYEE.email).count()).toBe(0);
 
     // Her NIF is hers and HR's: who matched a filter on it would tell him the rest.
@@ -487,9 +568,6 @@ function cells(line: string): string[] {
 }
 
 async function upload(page: Page, name: string, text: string): Promise<void> {
-  // The screen is server-rendered and becomes interactive when the remote's
-  // JavaScript has loaded; a file chosen before that is not seen (PEO-094).
-  await page.waitForLoadState('networkidle');
   await page.locator('input[type=file]').setInputFiles({
     name,
     mimeType: 'text/csv',
@@ -1074,8 +1152,6 @@ describe('PEO-122: what is about to expire, to whom', () => {
       const context = await signedIn(session);
       const page = await context.newPage();
       await page.goto(`${stack.shell}/people/insights/data-quality`);
-      // Hydrated first, as elsewhere here: a press on the server's markup is lost (PEO-094).
-      await page.waitForLoadState('networkidle');
       // The innermost section holding the heading: ancestors come first.
       const section = page
         .locator('section', { has: page.getByRole('heading', { name: 'What expires next' }) })

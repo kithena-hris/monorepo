@@ -8,6 +8,7 @@ import {
   Component,
   Suspense,
   use,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -16,8 +17,11 @@ import {
   type JSX,
   type ReactNode,
 } from 'react';
+import { preloadModule } from 'react-dom';
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
+
+import { WAITING, moveEarlyPresses, releaseEarlyPresses } from '../lib/early-presses';
 
 /*
  * The shell's React and the shell's Reach, offered to every remote.
@@ -163,8 +167,8 @@ function serverHtml(name: string, route: RemoteRoute, props: object): Promise<st
  * container as HTML it does not own, and hands the root its props through a
  * store: an update never reaches a boundary still waiting for the remote's
  * JavaScript, which React would answer by dropping the server's HTML. Until
- * then the screen is on the page, and a press on it is replayed once it
- * hydrates.
+ * then the screen is on the page, and the shell holds a press on it and
+ * replays it once it hydrates (`lib/early-presses.ts`): React itself drops it.
  *
  * And one root for every screen after it. Each page under the shell is
  * thrown away when the address changes (`/people/a` to `/people/b` is a new
@@ -202,23 +206,42 @@ function Staged({
   name,
   area,
   current,
+  container,
 }: {
   readonly name: string;
   readonly area: string;
   readonly current: Store;
+  readonly container: Element;
 }): JSX.Element {
   const showing = useSyncExternalStore(current.subscribe, current.get, current.get);
   return (
-    <RemoteBoundary area={area} showing={showing}>
+    <RemoteBoundary
+      area={area}
+      showing={showing}
+      onFail={() => {
+        releaseEarlyPresses(container, false);
+      }}
+    >
       <Suspense fallback={null}>
-        <Shown name={name} {...showing} />
+        <Shown name={name} container={container} {...showing} />
       </Suspense>
     </RemoteBoundary>
   );
 }
 
-function Shown({ name, route, props }: Current & { readonly name: string }): JSX.Element {
+function Shown({
+  name,
+  container,
+  route,
+  props,
+}: Current & { readonly name: string; readonly container: Element }): JSX.Element {
   const Screen = screenOf(name, route);
+  // Mounted when the boundary commits its hydration, after the screen's own
+  // effects: a press held while the server's HTML waited is answered now.
+  // Once only; later screens and moves find nothing waiting.
+  useEffect(() => {
+    releaseEarlyPresses(container);
+  }, [container]);
   return <Screen {...props} />;
 }
 
@@ -255,10 +278,15 @@ function stageOf(
   }
   const element = document.createElement('div');
   element.style.display = 'contents';
+  // The remote's container from here on, wherever it moves: a press held on
+  // the server's HTML moves with it, and one made before it hydrates is held
+  // here (`lib/early-presses.ts`).
+  element.setAttribute('data-remote', name);
   element.append(...container.childNodes);
   container.append(element);
+  if (hydrate) moveEarlyPresses(container, element);
   const state = store(current);
-  const tree = <Staged name={name} area={area} current={state} />;
+  const tree = <Staged name={name} area={area} current={state} container={element} />;
   const options = { identifierPrefix: idPrefix(name) };
   let root: Root;
   if (hydrate) {
@@ -341,6 +369,7 @@ class RemoteBoundary extends Component<
     readonly area: string;
     /** What it shows: anything else to show tries again, as a new page once did. */
     readonly showing?: unknown;
+    readonly onFail?: () => void;
     readonly children: ReactNode;
   },
   { failed: boolean }
@@ -355,6 +384,10 @@ class RemoteBoundary extends Component<
     if (this.state.failed && previous.showing !== this.props.showing) {
       this.setState({ failed: false });
     }
+  }
+
+  override componentDidCatch(): void {
+    this.props.onFail?.();
   }
 
   override render(): ReactNode {
@@ -408,7 +441,10 @@ function Drawn({
   const [fromServer] = useState(hydrating);
   if (typeof window === 'undefined') {
     const html = use(serverHtml(name, route, props));
-    return <div data-remote={name} dangerouslySetInnerHTML={{ __html: html }} />;
+    // Waiting for the remote's code: a press here is held until it hydrates.
+    return (
+      <div data-remote={name} {...{ [WAITING]: '' }} dangerouslySetInnerHTML={{ __html: html }} />
+    );
   }
   // Drawn from nothing, its code is waited for here, so the stage never draws
   // a frame of nothing while it loads; this boundary's skeleton stands in.
@@ -479,6 +515,8 @@ export function RemoteScreen({
   // Latched like `Drawn`'s, so the render after hydration does not start waiting.
   const [arrived] = useState(!hydrating);
   if (route === null) return <Unavailable area={area} />;
+  // Fetched beside the shell's own bundle rather than after it has hydrated.
+  preloadModule(route.entry);
   const screen = (
     <Suspense fallback={fallback ?? <Spinner label={`Loading ${area}`} />}>
       <Drawn name={name} area={area} route={route} props={props} />

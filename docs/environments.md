@@ -583,8 +583,12 @@ the router has); a SCIM request carries no forwarded list to fall back on.
   Vercel as static files with the committed `vercel.json` headers. Vercel
   never builds it and never holds the key. Smoke
   (`apps/web/people/scripts/smoke-deploy.mjs`): the files are served
-  `no-cache`, `nosniff` and with CORS for a tenant origin, and the manifest
-  verifies under the public key the shell is about to be given.
+  `no-cache`, `nosniff` and with CORS for a tenant origin, the manifest
+  verifies under the public key the shell is about to be given, and it is the
+  manifest this job signed. The domain serves old and new files side by side
+  for a while after the alias moves, so the smoke reads every file again until
+  one consistent round passes, for up to three minutes. Before upload,
+  `scripts/verify-ssr.mjs` runs the same check over `dist/ssr`.
   `assets/*` deliberately carries **no** `Cache-Control` of its own:
   `vercel.json` headers apply to every response, errors included, and a
   one-year `immutable` on a transient 503 kept that failure in a browser for a

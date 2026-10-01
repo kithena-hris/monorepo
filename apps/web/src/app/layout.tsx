@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import type { JSX, ReactNode } from 'react';
 
 import { currentTenant } from '../lib/branding';
+import { EARLY_PRESSES_SCRIPT } from '../lib/early-presses';
 import { THEME_KEY } from '../lib/theme';
 
 import './globals.css';
@@ -71,6 +72,8 @@ export default async function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Before any markup: a press on a remote's screen before it hydrates is held, not lost. */}
+        <script dangerouslySetInnerHTML={{ __html: EARLY_PRESSES_SCRIPT }} />
       </head>
       <body>
         {/*
