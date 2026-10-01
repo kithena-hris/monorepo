@@ -16,3 +16,10 @@
    class look styled in the shell's build and missing in the remote's deploy,
    which is exactly the failure that should show up in development instead. */
 @source not '../../people';
+
+/* A press on a remote's screen held until it hydrates (`lib/early-presses.ts`):
+   dimmed where it is, never moved. */
+[data-early-press] {
+  cursor: progress;
+  opacity: 0.6;
+}
