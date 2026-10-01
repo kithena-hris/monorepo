@@ -82,8 +82,21 @@ function mount(ui: ReactElement) {
   return render(ui, { wrapper: TooltipProvider });
 }
 
-/** At rest: a box mid-way through a scale-in reports the scaled size. */
+/**
+ * At rest: a box mid-way through a scale-in reports the scaled size, and one
+ * mid-way through a fade reports blended colours. Two frames first, so a
+ * surface that opens on mount (a sheet, a dialog) has started its animation
+ * before they are collected: on a slow runner it had not, and axe measured a
+ * button through a sheet still fading in.
+ */
 async function settled(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        resolve();
+      });
+    });
+  });
   await Promise.all(
     document
       .getAnimations()
