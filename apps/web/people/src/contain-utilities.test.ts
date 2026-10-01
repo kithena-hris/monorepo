@@ -107,8 +107,9 @@ describe('containUtilities', () => {
       { AtRule: AtRule as never },
     );
     // The sublayer took the two plain ones in order; it went into utilities.
-    expect(appended[0]).toEqual([a, b]);
-    expect((appended[1]?.[0] as AtRule).props).toEqual({ name: 'layer', params: 'remote' });
     expect(appended).toHaveLength(2);
+    expect(appended[0]).toEqual([a, b]);
+    const [sublayer] = appended[1] ?? [];
+    expect((sublayer as AtRule).props).toEqual({ name: 'layer', params: 'remote' });
   });
 });
