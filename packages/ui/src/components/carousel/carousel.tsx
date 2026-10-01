@@ -72,6 +72,14 @@ export interface CarouselProps extends Omit<ComponentPropsWithoutRef<'section'>,
   controls?: 'arrows' | 'dots' | 'none';
   /** Width of each slide. The default leaves the next one peeking. */
   itemClassName?: string;
+  /**
+   * The slide to show, for a carousel driven from outside: a "Skip" button
+   * under one card at a time moves it on. Swiping still works, and reports
+   * through `onIndexChange`.
+   */
+  index?: number;
+  /** The slide now nearest the start, after a swipe, a key or a button. */
+  onIndexChange?: (index: number) => void;
   children: ReactNode;
 }
 
@@ -80,6 +88,8 @@ export function Carousel({
   title,
   controls = 'arrows',
   itemClassName = 'w-56 touch:w-[78%]',
+  index: wanted,
+  onIndexChange,
   className,
   children,
   ...props
@@ -100,9 +110,13 @@ export function Carousel({
   const measure = useCallback((): void => {
     const track = trackRef.current;
     if (!track) return;
-    setIndex(nearestSlide(offsets(), Math.abs(track.scrollLeft)));
+    const nearest = nearestSlide(offsets(), Math.abs(track.scrollLeft));
+    setIndex((was) => {
+      if (was !== nearest) onIndexChange?.(nearest);
+      return nearest;
+    });
     setEdges(scrollEdges(track.scrollLeft, track.scrollWidth, track.clientWidth));
-  }, [offsets]);
+  }, [offsets, onIndexChange]);
 
   useEffect(() => {
     measure();
@@ -122,6 +136,18 @@ export function Carousel({
       behavior: reducedMotion ? 'auto' : 'smooth',
     });
   };
+
+  // Driven from outside: scroll to the slide asked for, once per change.
+  useEffect(() => {
+    if (wanted === undefined || wanted === index) return;
+    const clamped = Math.min(Math.max(wanted, 0), slides.length - 1);
+    trackRef.current?.scrollTo({
+      left: offsets()[clamped] ?? 0,
+      behavior: reducedMotion ? 'auto' : 'smooth',
+    });
+    // `index` follows from the scroll; asking again for the same slide is a no-op.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
