@@ -829,6 +829,18 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       people: t.field({ type: [DirectoryPerson], resolve: (v) => list(v.people) }),
       next: t.exposeString('next', { nullable: true }),
       can: t.field({ type: DirectoryCan, resolve: (v) => v.can }),
+      // Smart search (docs/ai-settings.md).
+      suggestions: t.stringList({
+        description:
+          '"Try asking": questions from this company’s own fields, each read in full by People’s rules.',
+        resolve: (v) => [...v.suggestions],
+      }),
+      remind: t.stringList({
+        nullable: true,
+        description:
+          'The details the conditions find empty that this viewer may ask everybody found for; null for none.',
+        resolve: (v) => (v.remind === null ? null : [...v.remind]),
+      }),
     }),
   });
 
@@ -1033,7 +1045,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description: 'Stored sealed: only the last four characters are ever shown.',
         }),
         encryptable: t.exposeBoolean('encryptable', {
-          description: 'It may be switched to encrypted: a sealable type, not a column People sorts by.',
+          description:
+            'It may be switched to encrypted: a sealable type, not a column People sorts by.',
         }),
         pending: t.exposeString('pending', {
           nullable: true,
@@ -2144,7 +2157,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: 'Whether a change waits for HR approval; null keeps the default.',
       }),
       encrypted: t.boolean({
-        description: 'Store it sealed: once on, never off. Existing values are sealed when it is published.',
+        description:
+          'Store it sealed: once on, never off. Existing values are sealed when it is published.',
       }),
     }),
   });
@@ -2515,7 +2529,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         sent: t.exposeInt('sent'),
         failed: t.exposeInt('failed'),
         skipped: t.exposeInt('skipped', {
-          description: 'Waiting, and not due: reminded this week, outside their hours, or no email.',
+          description:
+            'Waiting, and not due: reminded this week, outside their hours, or no email.',
         }),
       }),
     });
@@ -3094,6 +3109,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       args: {
         name: t.arg.string({ required: true }),
         filter: t.arg({ type: [SegmentConditionInput], required: true }),
+        // A view saved from a search: the directory's own conditions (smart search).
+        conditions: t.arg({ type: [DirectoryConditionInput] }),
+        match: t.arg.string(),
         shared: t.arg.boolean({ required: true }),
         idempotencyKey: t.arg.string({ required: true }),
       },
@@ -3102,6 +3120,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           body: {
             name: args.name,
             filter: Object.fromEntries(args.filter.map((c) => [c.key, c.value])),
+            ...(args.conditions == null || args.conditions.length === 0
+              ? {}
+              : {
+                  conditions: args.conditions.map((c) => ({
+                    key: c.key,
+                    op: c.op,
+                    values: c.values,
+                  })),
+                  match: args.match === 'any' ? 'any' : 'all',
+                }),
             shared: args.shared,
           },
           key: args.idempotencyKey,

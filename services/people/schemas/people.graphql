@@ -1157,6 +1157,16 @@ type Mutation {
   mergePerson(absorbedPersonId: ID!, idempotencyKey: String!, personId: ID!, take: [String!]): Person
   pauseReportSchedule(id: ID!, idempotencyKey: String!): ReportScheduleSaved
   """
+  Ask everybody these conditions find for the details the conditions find empty, as the profile asks one person (JSON: asked, emailed, skipped, more).
+  """
+  peopleRemindDirectory(
+    """The directory’s conditions, as JSON."""
+    conditions: String!
+    idempotencyKey: String!
+    match: String
+    search: String
+  ): String
+  """
   Place a person at a legal entity, work location, org unit or cost centre from a date; a new entity is a transfer; HR only.
   """
   placePerson(costCentre: String, effectiveFrom: String, idempotencyKey: String!, legalEntityId: ID, locationId: ID, orgUnitId: ID, personId: ID!): Person
@@ -1237,7 +1247,7 @@ type Mutation {
   """
   Save a named filter, for yourself or shared within the tenant (PEO-068).
   """
-  savePeopleSegment(filter: [PeopleSegmentConditionInput!]!, idempotencyKey: String!, name: String!, shared: Boolean!): PeopleSegment
+  savePeopleSegment(conditions: [DirectoryConditionInput!], filter: [PeopleSegmentConditionInput!]!, idempotencyKey: String!, match: String, name: String!, shared: Boolean!): PeopleSegment
   savePersonSection(changed: [FormValueInput!]!, idempotencyKey: String!, personId: ID!): SectionSaved
   """Send one of People’s notices to chat apps, or stop."""
   setChatNotice(idempotencyKey: String!, key: String!, on: Boolean!): PeopleChat
@@ -1547,9 +1557,17 @@ type PeopleDirectory {
   notStarted: Int
   people: [DirectoryPerson!]
   query: DirectoryQuery
+  """
+  The details the conditions find empty that this viewer may ask everybody found for; null for none.
+  """
+  remind: [String!]
   segment: PeopleSegmentRef
   """The saved segments this viewer could apply here."""
   segments: [PeopleSegmentRef!]
+  """
+  "Try asking": questions from this company’s own fields, each read in full by People’s rules.
+  """
+  suggestions: [String!]
   total: Int
 }
 
@@ -2181,7 +2199,13 @@ type Query {
   """
   What somebody typed in the directory, as its own filters and order (JSON). A name alone is a name search. The model, where there is one, sees the sentence and field names only.
   """
-  peopleDirectoryPlan(sentence: String!): String
+  peopleDirectoryPlan(
+    """
+    The readings this person chose before, as JSON: {"leaving":"Have given notice"}. Absent: none.
+    """
+    remembered: String
+    sentence: String!
+  ): String
   """
   Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.
   """

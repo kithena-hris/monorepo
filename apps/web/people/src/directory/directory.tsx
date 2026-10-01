@@ -16,6 +16,7 @@ import {
   PageHeader,
   PersonCard,
   QuickLook,
+  ScrollPosition,
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
@@ -53,6 +54,20 @@ import { Loaded, type Loadable, type Outcome } from '../load';
 import { longDate } from '../record/display';
 import { MissingMark } from '../record/missing';
 import { SaveSegment, type SegmentRef } from '../segments';
+import {
+  AskBar,
+  Clarify,
+  Refused,
+  Understood,
+  cacheAnswer,
+  cachedAnswer,
+  rememberReading,
+  rememberedReadings,
+  useRecent,
+  type AskedReading,
+  type AskedRefusal,
+  type UnderstoodChip,
+} from './smart-search';
 
 /** A column, generated from the published schema: only what this viewer may read. */
 export interface DirectoryColumn {
@@ -130,6 +145,10 @@ export interface DirectoryState {
   readonly people: readonly DirectoryPerson[];
   /** The saved segments this viewer could apply here (PEO-068). */
   readonly segments?: readonly SegmentRef[];
+  /** Smart search's "Try asking": questions from the company's own fields. */
+  readonly suggestions?: readonly string[];
+  /** The details the conditions find empty that this viewer may ask people for; null for none. */
+  readonly remind?: readonly string[] | null;
 }
 
 export interface DirectoryProps {
@@ -196,19 +215,38 @@ export interface DirectoryProps {
   readonly incomplete?: boolean;
   readonly onIncompleteChange?: (incomplete: boolean) => void;
   /**
-   * What was typed, on Enter, read as the directory's own filters and order
-   * (docs/ai-settings.md); the host puts them in the address. A name alone
-   * stays a name search. Absent: the field searches names only.
+   * Smart search (docs/ai-settings.md): what was typed, on Enter, with the
+   * readings this viewer chose before. The host goes to the one person a
+   * name or an email finds, or puts the filters it became in the address.
+   * An empty sentence clears the question and its filters. Absent: the
+   * field searches names only, as they are typed.
    */
-  readonly onAsk?: (sentence: string) => Promise<DirectoryAsked>;
+  readonly onAsk?: (
+    sentence: string,
+    remembered: Readonly<Record<string, string>>,
+  ) => Promise<DirectoryAsked>;
+  /** The question the filters in force came from, `?ask=`; null for none. */
+  readonly asked?: string | null;
+  /** "Remind all": everybody the conditions find is asked for what they find empty. */
+  readonly onRemind?: (
+    conditions: readonly DirectoryCondition[],
+    match: 'all' | 'any',
+  ) => Promise<
+    | { readonly ok: true; readonly asked: number; readonly more: boolean }
+    | { readonly ok: false; readonly message: string }
+  >;
+  /** The row the reader had scrolled to, `?row=` (1 is the first); null for the top. */
+  readonly place?: number | null;
+  /** Where the reader is now, noted in the address so Back returns to the same row. */
+  readonly onPlaceChange?: (row: number | null) => void;
 }
 
 /** What People made of a sentence typed in the search, once the host has applied it. */
 export type DirectoryAsked =
   | {
       readonly ok: true;
-      /** A name search, the assistant, or People's own rules. */
-      readonly by: 'search' | 'assistant' | 'rules';
+      /** A name search, the one person it found, the assistant, or People's own rules. */
+      readonly by: 'search' | 'person' | 'assistant' | 'rules';
       /** Why the assistant did not read it, when it did not. */
       readonly note: string | null;
       /** Words nothing was made of. */
@@ -217,52 +255,22 @@ export type DirectoryAsked =
       readonly filters: number;
       /** A name it held, searched beside the filters; null for none. */
       readonly search: string | null;
+      /** A phrase read more than one way, asked rather than guessed. */
+      readonly ask?: {
+        readonly topic: string | null;
+        readonly phrase: string;
+        readonly readings: readonly AskedReading[];
+      } | null;
+      /** Judgements left out, and why. */
+      readonly refused?: readonly AskedRefusal[];
+      /** A reading taken because this viewer chose it before. */
+      readonly remembered?: {
+        readonly topic: string;
+        readonly phrase: string;
+        readonly label: string;
+      } | null;
     }
   | { readonly ok: false; readonly message: string };
-
-/** What People made of a sentence, said beside the chips it became. */
-function Understood({
-  asked,
-  order,
-}: {
-  readonly asked: { readonly sentence: string; readonly answer: DirectoryAsked | null };
-  /** The order in force, in words, which no chip shows. */
-  readonly order: string | null;
-}): JSX.Element | null {
-  const { sentence, answer } = asked;
-  const quoted = `“${sentence}”`;
-  if (answer === null) {
-    return (
-      <p role="status" className="flex items-center gap-2 text-sm text-fg-muted">
-        <Spinner size="sm" label="Reading" />
-        <span aria-hidden>Reading {quoted}…</span>
-      </p>
-    );
-  }
-  if (!answer.ok) {
-    return (
-      <p role="status" className="text-sm text-danger-fg">
-        {quoted} could not be read: {answer.message}
-      </p>
-    );
-  }
-  if (answer.by === 'search') return null;
-  const read =
-    answer.filters === 0
-      ? 'matched none of the filters, so names were searched for it.'
-      : answer.by === 'assistant'
-        ? 'was read by the assistant as the filters above.'
-        : 'was read as the filters above.';
-  return (
-    <p role="status" className="text-sm text-fg-muted">
-      {quoted} {read}
-      {answer.filters === 0 || order === null ? null : ` ${order}.`}
-      {answer.note === null ? null : ` ${answer.note}`}
-      {answer.unused.length === 0 ? null : ` Not understood: ${answer.unused.join(', ')}.`}
-      {answer.filters === 0 ? null : ' Change or remove any of them.'}
-    </p>
-  );
-}
 
 const ANY = '__any';
 const PERSON = 'person';
@@ -638,6 +646,193 @@ function Views({
   );
 }
 
+/** The page People sends at a time, as the footer says it. */
+const DIRECTORY_PAGE = 50;
+
+type Answered = Extract<DirectoryAsked, { ok: true }>;
+
+const peopleCount = (n: number): string =>
+  `${n.toLocaleString('en-GB')} ${n === 1 ? 'person' : 'people'}`;
+
+/** "ordered by start date, latest first": an order in words. */
+function orderWords(sort: DirectorySort, fields: readonly DirectoryField[]): string {
+  if (sort.key === 'name') return `sorted by name${sort.direction === 'desc' ? ', Z to A' : ''}`;
+  const field = fields.find((f) => f.key === sort.key);
+  const label = (field?.label ?? sort.key).toLowerCase();
+  const way =
+    field?.kind === 'date'
+      ? sort.direction === 'desc'
+        ? 'latest first'
+        : 'earliest first'
+      : sort.direction === 'desc'
+        ? 'Z to A'
+        : 'A to Z';
+  return `ordered by ${label}, ${way}`;
+}
+
+/** A whole year, a whole month, or the range as written. */
+function spanWords(from: string, to: string): string {
+  if (/^\d{4}-01-01$/u.test(from) && to === `${from.slice(0, 4)}-12-31`) return from.slice(0, 4);
+  const [y = '', m = ''] = from.split('-');
+  const last = new Date(Date.UTC(Number(y), Number(m), 0)).getUTCDate();
+  if (from.endsWith('-01') && to === `${y}-${m}-${String(last)}`) {
+    return new Date(`${from}T00:00:00Z`).toLocaleDateString('en-GB', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  }
+  if (from === '') return `on or before ${longDate(to)}`;
+  if (to === '') return `on or after ${longDate(from)}`;
+  return `${longDate(from)} to ${longDate(to)}`;
+}
+
+/**
+ * A condition as one chip: its field, muted, then what it holds ("Team
+ * Engineering", "Missing Bank account", "Start 2026").
+ */
+export function chipOf(
+  fields: readonly DirectoryField[],
+  condition: DirectoryCondition,
+): { field: string; text: string } {
+  const field = fields.find((f) => f.key === condition.key);
+  const label = field?.label ?? condition.key;
+  const shown = (v: string) =>
+    field?.options.find((o) => o.value === v)?.label ??
+    (field?.kind === 'date' && /^\d{4}-\d{2}-\d{2}$/u.test(v) ? longDate(v) : v);
+  const [first = '', second = ''] = condition.values;
+  switch (condition.op) {
+    case 'empty':
+      return { field: 'Missing', text: label };
+    case 'not_empty':
+      return { field: 'Has', text: label };
+    case 'between':
+      return { field: label, text: spanWords(first, second) };
+    case 'before':
+      return { field: label, text: `before ${shown(first)}` };
+    case 'after':
+      return { field: label, text: `after ${shown(first)}` };
+    case 'contains':
+      return { field: label, text: `mentions “${first}”` };
+    default:
+      return { field: label, text: condition.values.map(shown).join(' or ') };
+  }
+}
+
+/** How tall a row is before it is measured: the table's `estimateRowHeight`. */
+const ROW_HEIGHT = 57;
+
+/**
+ * Where the reader is in a list that keeps loading, and the way back
+ * (AI3, MA2): the first row in view goes into the address as it settles, so
+ * Back (or a reload) loads as many pages as it takes and returns to it; the
+ * last row in view is the counter's "150 of 388". The table scrolls in a box
+ * of its own (the region it names); cards and the phone's list scroll the
+ * page.
+ */
+function usePlace({
+  wrapper,
+  rows,
+  window: pageScrolls,
+  place,
+  onPlaceChange,
+  loadMore,
+  loading,
+  done,
+}: {
+  readonly wrapper: { readonly current: HTMLDivElement | null };
+  readonly rows: readonly DirectoryPerson[];
+  readonly window: boolean;
+  readonly place: number | null;
+  readonly onPlaceChange: ((row: number | null) => void) | undefined;
+  readonly loadMore: (() => void) | undefined;
+  readonly loading: boolean;
+  readonly done: boolean;
+}): { readonly top: number; readonly last: number; readonly toTop: () => void } {
+  const [at, setAt] = useState({ top: 0, last: 0 });
+  const restore = useRef<number | null>(place !== null && place > 1 ? place - 1 : null);
+  const tell = useRef(onPlaceChange);
+  tell.current = onPlaceChange;
+  const box = (): HTMLElement | null =>
+    pageScrolls ? null : (wrapper.current?.querySelector<HTMLElement>('[role="region"]') ?? null);
+
+  useEffect(() => {
+    const root = wrapper.current;
+    if (root === null) return undefined;
+    const index = new Map(rows.map((p, i) => [p.id, i]));
+    let frame = 0;
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    const measure = (): void => {
+      frame = 0;
+      const scroller = box();
+      const edge = scroller?.getBoundingClientRect() ?? { top: 0, bottom: window.innerHeight };
+      const head = scroller?.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+      const seen = [
+        ...root.querySelectorAll<HTMLElement>('[data-row-id], [data-person-id]'),
+      ].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.bottom > edge.top + head + 1 && r.top < edge.bottom;
+      });
+      const id = (el: HTMLElement | undefined) =>
+        el?.dataset['rowId'] ?? el?.dataset['personId'] ?? '';
+      const top = index.get(id(seen[0])) ?? 0;
+      const last = index.get(id(seen.at(-1))) ?? top;
+      setAt((was) => (was.top === top && was.last === last ? was : { top, last }));
+      clearTimeout(settle);
+      // Noted once the scroll settles, rewriting this entry: a scroll is not a step Back undoes.
+      settle = setTimeout(() => {
+        if (restore.current === null) tell.current?.(top > 0 ? top + 1 : null);
+      }, 250);
+    };
+    const onScroll = (): void => {
+      if (frame === 0) frame = requestAnimationFrame(measure);
+    };
+    // Capture: the page may scroll in the shell's own container rather than the window.
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener('scroll', onScroll, { capture: true });
+      cancelAnimationFrame(frame);
+      clearTimeout(settle);
+    };
+  }, [rows, pageScrolls]);
+
+  // Back to a place: as many pages as it takes, then the row.
+  useEffect(() => {
+    const want = restore.current;
+    if (want === null) return;
+    if (rows.length <= want && !done) {
+      if (!loading) loadMore?.();
+      return;
+    }
+    restore.current = null;
+    const to = Math.min(want, rows.length - 1);
+    const id = rows[to]?.id ?? '';
+    const find = () =>
+      wrapper.current?.querySelector<HTMLElement>(
+        `[data-row-id="${CSS.escape(id)}"], [data-person-id="${CSS.escape(id)}"]`,
+      );
+    const scroller = box();
+    // A virtualized table mounts the row only once it is near: get there first.
+    if (scroller !== null) scroller.scrollTop = to * ROW_HEIGHT;
+    requestAnimationFrame(() => {
+      find()?.scrollIntoView({ block: 'start' });
+    });
+  }, [rows.length, loading, done]);
+
+  const toTop = (): void => {
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const scroller = box();
+    if (scroller === null) {
+      wrapper.current?.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'auto' });
+    } else {
+      scroller.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+    }
+    setAt({ top: 0, last: 0 });
+    tell.current?.(null);
+  };
+  return { top: at.top, last: at.last, toTop };
+}
+
 function Body({
   state,
   search,
@@ -662,9 +857,15 @@ function Body({
   onGroupChange,
   incomplete = false,
   onAsk,
+  asked = null,
+  onRemind,
+  place = null,
+  onPlaceChange,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const coarse = useCoarsePointer();
-  const [typed, type, hold] = useTyped(search, onSearchChange);
+  const smart = onAsk !== undefined;
+  // Without smart search the field searches names as they are typed; with it, Enter asks.
+  const [typed, type] = useTyped(search, smart ? undefined : onSearchChange);
   const [peek, setPeek] = useState<string | null>(null);
   const columnsChosen = useColumns(state.columns);
   const widths = useWidths();
@@ -674,21 +875,72 @@ function Body({
     loaded.loading,
     loaded.loadMore,
   );
-  // A sentence read as filters: what was typed, and what People made of it.
-  const [asked, setAsked] = useState<{
-    readonly sentence: string;
-    readonly answer: DirectoryAsked | null;
-  } | null>(null);
+  const wrapper = useRef<HTMLDivElement | null>(null);
+  const placed = usePlace({
+    wrapper,
+    rows: loaded.rows,
+    window: coarse || view === 'cards',
+    place,
+    onPlaceChange,
+    loadMore: loaded.loadMore,
+    loading: loaded.loading,
+    done: loaded.done,
+  });
+
+  // Smart search: the question in the box, and what People made of it.
+  const [recent, addRecent] = useRecent();
+  const [question, setQuestion] = useState(asked ?? search);
+  useEffect(() => {
+    setQuestion(asked ?? search);
+  }, [asked, search]);
+  const [answer, setAnswer] = useState<{ sentence: string; answer: Answered } | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [reminding, setReminding] = useState(false);
+  const [reminded, setReminded] = useState<string | null>(null);
+  useEffect(() => {
+    // Back to a question asked before: what it was understood as, without asking again.
+    setAnswer((a) => {
+      if (asked === null) return null;
+      if (a?.sentence === asked) return a;
+      // Written by this screen, for this tab: an answer it drew before.
+      const cached = cachedAnswer(asked) as Answered | null;
+      return cached === null ? null : { sentence: asked, answer: cached };
+    });
+  }, [asked]);
+  /** What the question was understood as, changed and kept for Back. */
+  const revise = (change: (a: Answered) => Answered): void => {
+    if (answer === null) return;
+    const next = change(answer.answer);
+    cacheAnswer(answer.sentence, next);
+    setAnswer({ sentence: answer.sentence, answer: next });
+  };
   const askIt = (sentence: string): void => {
+    if (onAsk === undefined) return;
     const text = sentence.trim();
-    if (onAsk === undefined || text === '') return;
-    // The name search typing was about to send is not sent: this is read instead.
-    hold();
-    setAsked({ sentence: text, answer: null });
-    void onAsk(text).then((answer) => {
-      setAsked((a) => (a?.sentence === text ? { sentence: text, answer } : a));
-      // It became filters: the field holds only a name it named, and the sentence is quoted.
-      if (answer.ok && answer.filters > 0) hold(answer.search ?? '');
+    setFailed(null);
+    setReminded(null);
+    if (text === '') {
+      // Cleared: the question and the filters it became go together.
+      setAnswer(null);
+      if (asked !== null || search !== '') void onAsk('', {});
+      return;
+    }
+    setReading(true);
+    void onAsk(text, rememberedReadings()).then((got) => {
+      setReading(false);
+      if (!got.ok) {
+        setFailed(`“${text}” could not be read: ${got.message}`);
+        return;
+      }
+      addRecent(text);
+      if (got.by === 'person' || got.by === 'search') {
+        setAnswer(null);
+        return;
+      }
+      cacheAnswer(text, got);
+      setAnswer({ sentence: text, answer: got });
     });
   };
   const fields = state.fields ?? [];
@@ -711,6 +963,7 @@ function Body({
   // happens. No buttons of its own: Import is in the header and adding one
   // person is People's manifest action beside every screen.
   const narrowed =
+    asked !== null ||
     search.trim() !== '' ||
     Object.keys(filters).length > 0 ||
     conditions.length > 0 ||
@@ -903,9 +1156,8 @@ function Body({
     <EmptyState
       title="Nobody matches"
       description={
-        // Several words searched as a name: say they can be read as a description.
-        onAsk !== undefined && search.trim().includes(' ')
-          ? 'No name matches that. Press Enter to find people it describes instead, or change the search.'
+        asked !== null
+          ? 'Nobody matches what the question was understood as. Remove a chip, or ask it differently.'
           : 'Remove a filter or change the search to see more people.'
       }
     />
@@ -946,6 +1198,7 @@ function Body({
           >
             <a
               href={`/people/${p.id}`}
+              data-person-id={p.id}
               onClick={(event) => {
                 event.preventDefault();
                 onOpen(p.id);
@@ -973,7 +1226,7 @@ function Body({
     ) : (
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-3.5">
         {rows.map((p) => (
-          <li key={p.id} className="min-w-0">
+          <li key={p.id} data-person-id={p.id} className="min-w-0">
             <PersonCard
               name={p.name}
               description={lineOf(p)}
@@ -1097,6 +1350,87 @@ function Body({
     />
   );
 
+  // Smart search's row: the conditions in force as the chips a question
+  // became, the order when it is not by name, and the parts not used.
+  const fromQuestion = smart && asked !== null;
+  const understood: UnderstoodChip[] = [
+    ...conditions.map((c, i) => ({
+      key: `c${String(i)}`,
+      ...chipOf(fields, c),
+      onRemove: () => {
+        onConditionsChange?.(
+          conditions.filter((_, j) => j !== i),
+          match,
+        );
+      },
+    })),
+    ...(sort === null || sort.key === 'name' || onSortChange === undefined
+      ? []
+      : [
+          {
+            key: 'sort',
+            field: 'Order',
+            text: orderWords(sort, fields).replace(/^ordered by /u, ''),
+            onRemove: () => {
+              onSortChange(null);
+            },
+          },
+        ]),
+  ];
+  const said = answer?.answer;
+  const unusedParts = [
+    ...(said?.refused ?? []).map((r) => ({
+      key: `r:${r.text}`,
+      text: r.text,
+      onRemove: () => {
+        revise((a) => ({ ...a, refused: (a.refused ?? []).filter((x) => x.text !== r.text) }));
+      },
+    })),
+    ...(said?.unused ?? []).map((u) => ({
+      key: `u:${u}`,
+      text: u,
+      onRemove: () => {
+        revise((a) => ({ ...a, unused: a.unused.filter((x) => x !== u) }));
+      },
+    })),
+  ];
+  const remembered =
+    said?.remembered == null
+      ? null
+      : `“${said.remembered.phrase}” read as you chose before: ${said.remembered.label}.`;
+  const sayNote = [remembered, said?.note ?? null].filter((x) => x !== null).join(' ') || null;
+  const remindKeys = state.remind ?? null;
+  const canRemind = onRemind !== undefined && remindKeys !== null && state.total > 0;
+  const remindAll = (): void => {
+    if (onRemind === undefined || remindKeys === null) return;
+    setReminding(true);
+    setReminded(null);
+    void onRemind(conditions, match).then((done) => {
+      setReminding(false);
+      const what = remindKeys
+        .map((k) => (fields.find((f) => f.key === k)?.label ?? k).toLowerCase())
+        .join(' and ');
+      setReminded(
+        done.ok
+          ? `Asked ${peopleCount(done.asked)} for their ${what}.${done.more ? ' That is the first 500; remind again for the rest.' : ''}`
+          : done.message,
+      );
+    });
+  };
+  const remindButton = canRemind ? (
+    <Button
+      size={coarse ? 'xs' : 'sm'}
+      startIcon={<icons.notifications aria-hidden />}
+      loading={reminding}
+      loadingLabel="Reminding"
+      onClick={remindAll}
+    >
+      {coarse ? 'Remind all' : `Remind all ${state.total.toLocaleString('en-GB')}`}
+    </Button>
+  ) : null;
+  const saveable =
+    onSaveSegment !== undefined && (Object.keys(filters).length > 0 || conditions.length > 0);
+
   return (
     <Stack gap={4}>
       <Views
@@ -1106,67 +1440,148 @@ function Body({
         incomplete={incomplete}
         {...(onView === undefined ? {} : { onView })}
         {...(onSaveSegment === undefined ? {} : { onSaveSegment })}
-        canSave={Object.keys(filters).length > 0}
+        canSave={saveable && !fromQuestion}
       />
-      <Toolbar
-        search={
-          <SearchField
-            label="Search people"
-            placeholder={
-              onAsk === undefined
-                ? 'Search by name, email or employee number'
-                : 'Search by name, or describe who (Enter)'
-            }
-            size="sm"
-            value={typed}
-            onValueChange={type}
-            // Enter reads what was typed as filters; a name stays a name search.
-            {...(onAsk === undefined ? {} : { onSearch: askIt, enterKeyHint: 'search' as const })}
-            // The toolbar's search slot sets the width: a fixed one overran the chips beside it.
-            containerClassName="w-full"
+      {smart ? (
+        <div className="flex max-w-215 min-w-0 flex-col gap-3">
+          <AskBar
+            value={question}
+            onValueChange={setQuestion}
+            onAsk={askIt}
+            loading={reading}
+            suggestions={state.suggestions ?? []}
+            recent={recent}
           />
-        }
+          {failed === null ? null : (
+            <p role="status" className="text-sm text-danger-fg">
+              {failed}
+            </p>
+          )}
+          {fromQuestion ? (
+            <Understood
+              chips={understood}
+              unused={unusedParts}
+              {...(onConditionsChange === undefined || fields.length === 0
+                ? {}
+                : {
+                    onEdit: () => {
+                      setFiltersOpen(true);
+                    },
+                  })}
+              note={sayNote}
+            />
+          ) : null}
+          {said?.ask == null || said.ask.readings.length === 0 ? null : (
+            <Clarify
+              phrase={said.ask.phrase}
+              readings={said.ask.readings}
+              coarse={coarse}
+              onPick={(r) => {
+                const topic = said.ask?.topic;
+                if (topic != null) rememberReading(topic, r.label);
+                revise((a) => ({ ...a, ask: null }));
+                onConditionsChange?.(r.conditions, r.match);
+              }}
+            />
+          )}
+          {(said?.refused ?? []).length === 0 ? null : (
+            <Refused
+              refused={said?.refused ?? []}
+              onUse={(r) => {
+                if (r.instead === null) return;
+                revise((a) => ({
+                  ...a,
+                  refused: (a.refused ?? []).filter((x) => x.text !== r.text),
+                }));
+                onConditionsChange?.([...conditions, r.instead.condition], 'all');
+              }}
+              onRemove={(r) => {
+                revise((a) => ({
+                  ...a,
+                  refused: (a.refused ?? []).filter((x) => x.text !== r.text),
+                }));
+                setQuestion((q) => q.replace(r.text, '').replaceAll(/\s+/gu, ' ').trim());
+              }}
+            />
+          )}
+        </div>
+      ) : null}
+      {coarse && fromQuestion ? (
+        // Under a finger: how many, and the one thing to do about them, in thumb reach.
+        <div className="flex items-center gap-3">
+          <p className="text-base font-bold text-fg">{peopleCount(state.total)}</p>
+          {remindButton === null ? null : <span className="ms-auto">{remindButton}</span>}
+        </div>
+      ) : null}
+      <Toolbar
+        {...(smart
+          ? {}
+          : {
+              search: (
+                <SearchField
+                  label="Search people"
+                  placeholder="Search by name, email or employee number"
+                  size="sm"
+                  value={typed}
+                  onValueChange={type}
+                  // The toolbar's search slot sets the width: a fixed one overran the chips beside it.
+                  containerClassName="w-full"
+                />
+              ),
+            })}
         filters={
-          <ChipRow role="group" aria-label="Filters in force">
-            {match === 'any' && conditions.length > 1 ? (
-              <span className="text-xs text-fg-muted">Any of:</span>
-            ) : null}
-            {chips.map((chip) => (
-              <Chip
-                key={chip.key}
-                {...(chip.field === '' ? {} : { field: chip.field })}
-                onRemove={chip.remove}
-                removeLabel={`Remove ${chip.field === '' ? '' : `${chip.field} `}${chip.text}`}
-              >
-                {chip.text}
-              </Chip>
-            ))}
-            {onConditionsChange === undefined || fields.length === 0 ? null : (
-              <Filters
-                key="filters"
-                fields={fields}
-                conditions={conditions}
-                match={match}
-                onApply={onConditionsChange}
-              />
-            )}
-            {chips.length === 0 ? null : (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  if (conditions.length > 0) onConditionsChange?.([], 'all');
-                  if (Object.keys(filters).length > 0) onFiltersChange({});
-                }}
-              >
-                Clear all
-              </Button>
-            )}
-          </ChipRow>
+          fromQuestion ? (
+            coarse ? undefined : (
+              <p className="flex items-baseline gap-2.5 text-sm text-fg-muted">
+                <span className="text-base font-bold text-fg">{peopleCount(state.total)}</span>
+                Updated as you edit the chips
+              </p>
+            )
+          ) : (
+            <ChipRow role="group" aria-label="Filters in force">
+              {match === 'any' && conditions.length > 1 ? (
+                <span className="text-xs text-fg-muted">Any of:</span>
+              ) : null}
+              {chips.map((chip) => (
+                <Chip
+                  key={chip.key}
+                  {...(chip.field === '' ? {} : { field: chip.field })}
+                  onRemove={chip.remove}
+                  removeLabel={`Remove ${chip.field === '' ? '' : `${chip.field} `}${chip.text}`}
+                >
+                  {chip.text}
+                </Chip>
+              ))}
+              {onConditionsChange === undefined || fields.length === 0 ? null : (
+                <FiltersTrigger
+                  count={conditions.length}
+                  onOpen={() => {
+                    setFiltersOpen(true);
+                  }}
+                />
+              )}
+              {chips.length === 0 ? null : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    if (conditions.length > 0) onConditionsChange?.([], 'all');
+                    if (Object.keys(filters).length > 0) onFiltersChange({});
+                  }}
+                >
+                  Clear all
+                </Button>
+              )}
+            </ChipRow>
+          )
         }
         actions={
           coarse ? undefined : (
             <span className="flex flex-wrap items-center gap-2">
+              {fromQuestion ? remindButton : null}
+              {fromQuestion && saveable ? (
+                <SaveSegment onSave={onSaveSegment} label="Save as view" />
+              ) : null}
               {onGroupChange === undefined || groupable.length === 0 || view !== 'list' ? null : (
                 <Select
                   value={grouping?.key ?? ANY}
@@ -1199,7 +1614,12 @@ function Body({
                 }}
               />
               {onExport === undefined ? null : (
-                <Button size="sm" startIcon={<icons.download aria-hidden />} onClick={onExport}>
+                <Button
+                  size="sm"
+                  variant={fromQuestion ? 'ghost' : 'secondary'}
+                  startIcon={<icons.download aria-hidden />}
+                  onClick={onExport}
+                >
                   Export
                 </Button>
               )}
@@ -1207,99 +1627,123 @@ function Body({
           )
         }
       />
-      {asked === null ? null : (
-        <Understood
-          asked={asked}
-          order={
-            sort === null
-              ? null
-              : `Ordered by ${sort.key === 'name' ? 'name' : (fields.find((f) => f.key === sort.key)?.label ?? sort.key).toLowerCase()}, ${
-                  kindOf.get(sort.key) === 'date'
-                    ? sort.direction === 'desc'
-                      ? 'latest first'
-                      : 'earliest first'
-                    : sort.direction === 'desc'
-                      ? 'Z to A'
-                      : 'A to Z'
-                }`
-          }
+      {onConditionsChange === undefined || fields.length === 0 ? null : (
+        <Filters
+          open={filtersOpen}
+          onOpenChange={setFiltersOpen}
+          fields={fields}
+          conditions={conditions}
+          match={match}
+          onApply={onConditionsChange}
         />
       )}
-      {peeked !== null && view === 'list' && !coarse ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4">
-          {table}
-          <QuickLook
-            className="sticky top-4"
-            media={
-              <Avatar
-                name={peeked.name}
-                src={peeked.avatarUrl ?? undefined}
-                size="2xl"
-                {...(peeked.values['status'] === 'Active'
-                  ? { status: 'success' as const, statusLabel: 'Active' }
-                  : {})}
-              />
-            }
-            title={peeked.name}
-            description={lineOf(peeked)}
-            href={`/people/${peeked.id}`}
-            onOpen={() => {
-              onOpen(peeked.id);
-            }}
-            onClose={() => {
-              setPeek(null);
-              document.getElementById(`person-${peeked.id}`)?.focus();
-            }}
-            onPrevious={() => {
-              move(-1);
-            }}
-            onNext={() => {
-              move(1);
-            }}
-            actions={
-              <>
-                {peeked.email === null ? null : (
-                  <Button asChild size="sm" startIcon={<icons.email aria-hidden />}>
-                    <a href={`mailto:${peeked.email}`}>Email</a>
+      {reminded === null ? null : (
+        <p role="status" className="text-sm text-fg-muted">
+          {reminded}
+        </p>
+      )}
+      <div ref={wrapper} className="relative">
+        {peeked !== null && view === 'list' && !coarse ? (
+          <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4">
+            {table}
+            <QuickLook
+              className="sticky top-4"
+              media={
+                <Avatar
+                  name={peeked.name}
+                  src={peeked.avatarUrl ?? undefined}
+                  size="2xl"
+                  {...(peeked.values['status'] === 'Active'
+                    ? { status: 'success' as const, statusLabel: 'Active' }
+                    : {})}
+                />
+              }
+              title={peeked.name}
+              description={lineOf(peeked)}
+              href={`/people/${peeked.id}`}
+              onOpen={() => {
+                onOpen(peeked.id);
+              }}
+              onClose={() => {
+                setPeek(null);
+                document.getElementById(`person-${peeked.id}`)?.focus();
+              }}
+              onPrevious={() => {
+                move(-1);
+              }}
+              onNext={() => {
+                move(1);
+              }}
+              actions={
+                <>
+                  {peeked.email === null ? null : (
+                    <Button asChild size="sm" startIcon={<icons.email aria-hidden />}>
+                      <a href={`mailto:${peeked.email}`}>Email</a>
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => {
+                      onOpen(peeked.id);
+                    }}
+                  >
+                    Profile
                   </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => {
-                    onOpen(peeked.id);
-                  }}
-                >
-                  Profile
-                </Button>
-              </>
+                </>
+              }
+            >
+              <KeyValues
+                items={shownColumns
+                  .slice(0, 5)
+                  .map((c) => ({ id: c.key, label: c.label, value: cell(peeked, c) }))}
+              />
+              {peeked.missing === null || peeked.missing === 0 ? null : (
+                <p className="flex items-center gap-2 text-sm text-fg-muted">
+                  <MissingMark count={peeked.missing} />
+                  required {peeked.missing === 1 ? 'detail' : 'details'} to fill in
+                </p>
+              )}
+            </QuickLook>
+          </div>
+        ) : (
+          table
+        )}
+        {placed.top === 0 || onLoadMore === undefined ? null : (
+          // Where the reader is in a list that keeps loading, and the way back.
+          <ScrollPosition
+            onBackToTop={placed.toTop}
+            className={
+              coarse || view === 'cards'
+                ? 'fixed end-4 bottom-26 z-20'
+                : 'absolute end-4.5 top-15 z-10'
             }
           >
-            <KeyValues
-              items={shownColumns
-                .slice(0, 5)
-                .map((c) => ({ id: c.key, label: c.label, value: cell(peeked, c) }))}
-            />
-            {peeked.missing === null || peeked.missing === 0 ? null : (
-              <p className="flex items-center gap-2 text-sm text-fg-muted">
-                <MissingMark count={peeked.missing} />
-                required {peeked.missing === 1 ? 'detail' : 'details'} to fill in
-              </p>
-            )}
-          </QuickLook>
-        </div>
-      ) : (
-        table
-      )}
+            {`${(placed.last + 1).toLocaleString('en-GB')} of ${state.total.toLocaleString('en-GB')}`}
+          </ScrollPosition>
+        )}
+      </div>
       {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
         <div ref={endOfPage} aria-hidden className="h-px" />
       ) : null}
       {onLoadMore === undefined ? null : (
         // Said as each page lands, to a screen reader too: "50 more loaded".
-        <p role="status" className="text-xs text-fg-muted">
-          {loaded.loading
-            ? 'Loading more people…'
-            : `${loaded.added === null ? '' : `${String(loaded.added)} more loaded. `}Showing ${String(rows.length)} of ${String(state.total)}`}
+        <p role="status" className="flex items-center justify-center gap-2.5 text-sm text-fg-muted">
+          {loaded.loading ? (
+            <>
+              <span aria-hidden className="inline-flex">
+                <Spinner size="sm" />
+              </span>
+              Loading the next {DIRECTORY_PAGE}
+            </>
+          ) : (
+            <>
+              {loaded.added === null ? null : (
+                <span className="sr-only">{loaded.added} more loaded. </span>
+              )}
+              {`Results stream in ${String(DIRECTORY_PAGE)} at a time${sort === null ? '' : `, ${orderWords(sort, fields)}`}.`}
+            </>
+          )}
         </p>
       )}
       {onLoadMore !== undefined ||
@@ -1352,12 +1796,35 @@ function useColumns(columns: readonly DirectoryColumn[]) {
  * side panel so the table keeps the page. Nothing applies until Apply, so a
  * half-written condition never sends 50,000 people back to be counted.
  */
+/** The chip that opens the filters: "Add filter", or how many are in force. */
+function FiltersTrigger({
+  count,
+  onOpen,
+}: {
+  readonly count: number;
+  readonly onOpen: () => void;
+}): JSX.Element {
+  return (
+    <Chip
+      variant={count === 0 ? 'dashed' : 'filled'}
+      startIcon={<icons.add aria-hidden />}
+      onClick={onOpen}
+    >
+      {count === 0 ? 'Add filter' : `Filters (${String(count)})`}
+    </Chip>
+  );
+}
+
 function Filters({
+  open,
+  onOpenChange,
   fields,
   conditions,
   match,
   onApply,
 }: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
   readonly fields: readonly DirectoryField[];
   readonly conditions: readonly DirectoryCondition[];
   readonly match: 'all' | 'any';
@@ -1373,38 +1840,35 @@ function Filters({
       values: c.values,
     })),
   });
-  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<FilterGroup>(fromState);
   const complete = draft.conditions.filter((c) => isConditionComplete(builderFields, c));
+  // Each opening starts from what is in force; with nothing yet, one empty row.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      const current = fromState();
+      setDraft(
+        current.conditions.length > 0
+          ? current
+          : {
+              match,
+              conditions: [
+                {
+                  id: 'first',
+                  field: builderFields[0]?.id ?? '',
+                  operator: builderFields[0]?.operators[0]?.id ?? '',
+                  values: [],
+                },
+              ],
+            },
+      );
+    }
+  }
+  const setOpen = onOpenChange;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <Chip
-        variant={conditions.length === 0 ? 'dashed' : 'filled'}
-        startIcon={<icons.add aria-hidden />}
-        onClick={() => {
-          const current = fromState();
-          // Opened with nothing yet: one empty row to start from.
-          setDraft(
-            current.conditions.length > 0
-              ? current
-              : {
-                  match,
-                  conditions: [
-                    {
-                      id: 'first',
-                      field: builderFields[0]?.id ?? '',
-                      operator: builderFields[0]?.operators[0]?.id ?? '',
-                      values: [],
-                    },
-                  ],
-                },
-          );
-          setOpen(true);
-        }}
-      >
-        {conditions.length === 0 ? 'Add filter' : `Filters (${String(conditions.length)})`}
-      </Chip>
       <SheetContent side="right" size="lg">
         <SheetHeader>
           <SheetTitle>Filter people</SheetTitle>

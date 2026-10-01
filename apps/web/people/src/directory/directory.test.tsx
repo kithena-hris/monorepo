@@ -56,6 +56,24 @@ function props(over: Partial<DirectoryProps> = {}): DirectoryProps {
   };
 }
 
+/** A question's results: Sales, as the host put it in the address. */
+const asked: DirectoryState = {
+  ...state,
+  fields: [
+    {
+      key: 'department',
+      label: 'Department',
+      kind: 'select',
+      options: [{ value: 'sales', label: 'Sales' }],
+    },
+  ],
+  query: {
+    conditions: [{ key: 'department', op: 'in', values: ['sales'] }],
+    match: 'all',
+    sort: null,
+  },
+};
+
 describe('summaryOf', () => {
   it('counts everybody, then the statuses HR is shown, never a misleading zero active', () => {
     // Two added by hand and not hired: people, none active, both not started.
@@ -344,7 +362,9 @@ describe('Directory', () => {
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
     expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
     // Said as it lands, to a screen reader too.
-    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Showing 3 of 420');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '1 more loaded. Results stream in 50 at a time.',
+    );
     // No pager beside an infinite table.
     expect(screen.queryByRole('navigation', { name: 'Pages of people' })).toBeNull();
     expect(onLoadMore).toHaveBeenCalledOnce();
@@ -386,7 +406,7 @@ describe('Directory', () => {
     await vi.waitFor(() => {
       expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Loading more people…');
+    expect(screen.getByRole('status')).toHaveTextContent('Loading the next 50');
     expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(4);
     expect(screen.queryByRole('button', { name: /more people/i })).toBeNull();
     arrive({
@@ -403,7 +423,9 @@ describe('Directory', () => {
       next: null,
     });
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Showing 3 of 420');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '1 more loaded. Results stream in 50 at a time.',
+    );
     expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(0);
     expect(await axeViolations(container)).toEqual([]);
     vi.unstubAllGlobals();
@@ -442,7 +464,7 @@ describe('Directory', () => {
   });
 });
 
-describe('the directory’s search, in the address', () => {
+describe('the directory’s search, in the address (smart search: AI1–AI4)', () => {
   it('shows each key at once and asks the shell once typing rests', async () => {
     const user = fast();
     const onSearchChange = vi.fn();
@@ -457,7 +479,7 @@ describe('the directory’s search, in the address', () => {
     expect(onSearchChange).toHaveBeenCalledTimes(1);
   });
 
-  it('Enter reads what was typed as filters: the name search typing was about to send is not sent', async () => {
+  it('Enter asks: typing alone never searches, and the question becomes the chips in force', async () => {
     const user = fast();
     const onSearchChange = vi.fn();
     const onAsk = vi.fn(() =>
@@ -466,24 +488,276 @@ describe('the directory’s search, in the address', () => {
         by: 'rules' as const,
         note: 'The assistant isn’t set up here, so People read it without the assistant.',
         unused: ['managers'],
-        filters: 2,
+        filters: 1,
         search: null,
       }),
     );
-    const { container } = render(<Directory {...props({ onSearchChange, onAsk })} />);
+    const { container, rerender } = render(<Directory {...props({ onSearchChange, onAsk })} />);
     const box = screen.getByRole('searchbox', { name: 'Search people' });
     await user.type(box, 'managers in Sales{Enter}');
-    expect(onAsk).toHaveBeenCalledWith('managers in Sales');
-    expect(
-      await screen.findByText(/“managers in Sales” was read as the filters above/u),
-    ).toHaveTextContent(
-      /isn’t set up here.*Not understood: managers\. Change or remove any of them\./u,
-    );
-    // What typing would have sent after it rests never goes, and the field is the search again.
+    expect(onAsk).toHaveBeenCalledWith('managers in Sales', {});
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(onSearchChange).not.toHaveBeenCalled();
-    expect(box).toHaveValue('');
+    // The host put the plan in the address: the screen draws what People answered.
+    rerender(
+      <Directory
+        {...props({
+          onSearchChange,
+          onAsk,
+          asked: 'managers in Sales',
+          onConditionsChange: vi.fn(),
+          load: { status: 'ready', data: asked },
+        })}
+      />,
+    );
+    const row = await screen.findByRole('group', { name: 'Understood as' });
+    expect(
+      within(row).getByRole('button', { name: 'Remove Department Sales' }),
+    ).toBeInTheDocument();
+    expect(within(row).getByText('“managers”')).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Edit as filters' })).toBeInTheDocument();
+    expect(screen.getByText(/isn’t set up here/u)).toBeInTheDocument();
+    expect(box).toHaveValue('managers in Sales');
+    expect(screen.getByText('Updated as you edit the chips')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('offers questions from the company’s own fields and recent searches; picking one asks it', async () => {
+    const user = fast();
+    window.localStorage.setItem('people.directory.recent', JSON.stringify(['Lena Moreau']));
+    const onAsk = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'search' as const,
+        note: null,
+        unused: [],
+        filters: 0,
+        search: null,
+      }),
+    );
+    render(
+      <Directory
+        {...props({
+          onAsk,
+          load: {
+            status: 'ready',
+            data: { ...state, suggestions: ['Who joins in the next 30 days?'] },
+          },
+        })}
+      />,
+    );
+    const box = screen.getByRole('searchbox', { name: 'Search people' });
+    expect(box).toHaveAttribute(
+      'placeholder',
+      'Ask in plain English, like “who joins in the next 30 days”',
+    );
+    await user.click(box);
+    const offered = await screen.findByRole('dialog', { name: 'Suggestions' });
+    expect(within(offered).getByRole('heading', { name: 'Try asking' })).toBeInTheDocument();
+    expect(within(offered).getByRole('heading', { name: 'Recent' })).toBeInTheDocument();
+    await user.click(
+      within(offered).getByRole('button', { name: 'Who joins in the next 30 days?' }),
+    );
+    expect(onAsk).toHaveBeenCalledWith('Who joins in the next 30 days?', {});
+    window.localStorage.clear();
+  });
+
+  it('asks instead of guessing, applies the reading picked, and remembers it for next time', async () => {
+    const user = fast();
+    const onConditionsChange = vi.fn();
+    const notice = { key: 'status', op: 'in', values: ['notice'] };
+    const onAsk = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'rules' as const,
+        note: null,
+        unused: [],
+        filters: 0,
+        search: null,
+        ask: {
+          topic: 'leaving',
+          phrase: 'leaving soon',
+          readings: [
+            { label: 'Have given notice', conditions: [notice], match: 'all' as const, count: 3 },
+            {
+              label: 'Contract end date in the next 90 days',
+              conditions: [
+                { key: 'contract_end', op: 'between', values: ['2026-10-01', '2026-12-30'] },
+              ],
+              match: 'all' as const,
+              count: 5,
+            },
+          ],
+        },
+        refused: [],
+        remembered: null,
+      }),
+    );
+    const { container } = render(
+      <Directory {...props({ onAsk, onConditionsChange, asked: null })} />,
+    );
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search people' }),
+      'people leaving soon{Enter}',
+    );
+    const card = await screen.findByRole('group', { name: 'What does “leaving soon” mean?' });
+    expect(
+      within(card).getByRole('heading', { name: 'What does “leaving soon” mean here?' }),
+    ).toBeInTheDocument();
+    expect(within(card).getByText(/Pick one and I’ll remember it/u)).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(within(card).getByRole('button', { name: 'Have given notice · 3' }));
+    expect(onConditionsChange).toHaveBeenCalledWith([notice], 'all');
+    expect(screen.queryByRole('group', { name: 'What does “leaving soon” mean?' })).toBeNull();
+    await user.type(screen.getByRole('searchbox', { name: 'Search people' }), '{Enter}');
+    expect(onAsk).toHaveBeenLastCalledWith('people leaving soon', { leaving: 'Have given notice' });
+    window.localStorage.clear();
+  });
+
+  it('says plainly what it won’t search, offers a field instead, and never applies it unasked', async () => {
+    const user = fast();
+    const onConditionsChange = vi.fn();
+    const skills = { key: 'skills', op: 'contains', values: ['Go'] };
+    const onAsk = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'rules' as const,
+        note: null,
+        unused: [],
+        filters: 1,
+        search: null,
+        refused: [
+          {
+            text: 'who are good at Go',
+            why: 'Kithena doesn’t rate people’s skills.',
+            instead: { label: 'Skills', subject: 'Go', condition: skills, count: 4 },
+          },
+        ],
+      }),
+    );
+    const { container } = render(
+      <Directory
+        {...props({ onAsk, onConditionsChange, load: { status: 'ready', data: asked } })}
+      />,
+    );
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search people' }),
+      'Sales who are good at Go{Enter}',
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'One part I couldn’t use' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /doesn’t rate people’s skills\. I can search the Skills field for “Go” instead, which 4 people have listed\./u,
+      ),
+    ).toBeInTheDocument();
+    expect(onConditionsChange).not.toHaveBeenCalled();
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Use the Skills field' }));
+    expect(onConditionsChange).toHaveBeenCalledWith(
+      [...(asked.query?.conditions ?? []), skills],
+      'all',
+    );
+    expect(screen.queryByRole('heading', { name: 'One part I couldn’t use' })).toBeNull();
+  });
+
+  it('Remind all, Save as view and Export, from a question’s results', async () => {
+    const user = fast();
+    const onRemind = vi.fn(() => Promise.resolve({ ok: true as const, asked: 7, more: false }));
+    render(
+      <Directory
+        {...props({
+          onAsk: vi.fn(),
+          asked: 'engineers missing bank details',
+          onRemind,
+          onExport: vi.fn(),
+          onSaveSegment: vi.fn(() => Promise.resolve({ ok: true as const })),
+          onConditionsChange: vi.fn(),
+          load: {
+            status: 'ready',
+            data: {
+              ...asked,
+              total: 7,
+              remind: ['bank_account'],
+              fields: [
+                ...(asked.fields ?? []),
+                { key: 'bank_account', label: 'Bank account', kind: 'text', options: [] },
+              ],
+              query: {
+                conditions: [{ key: 'bank_account', op: 'empty', values: [] }],
+                match: 'all',
+                sort: null,
+              },
+            },
+          },
+        })}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Save as view' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Understood as' })).getByText('Bank account'),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Remind all 7' }));
+    expect(onRemind).toHaveBeenCalledWith(
+      [{ key: 'bank_account', op: 'empty', values: [] }],
+      'all',
+    );
+    expect(await screen.findByText('Asked 7 people for their bank account.')).toBeInTheDocument();
+  });
+
+  it('clearing the question clears what it became', async () => {
+    const user = fast();
+    const onAsk = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'search' as const,
+        note: null,
+        unused: [],
+        filters: 0,
+        search: null,
+      }),
+    );
+    render(
+      <Directory
+        {...props({ onAsk, asked: 'managers in Sales', load: { status: 'ready', data: asked } })}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Clear search people' }));
+    expect(onAsk).toHaveBeenCalledWith('', {});
+  });
+
+  it('returns to the row the address names: as many pages as it takes', async () => {
+    const onLoadMore = vi.fn(() =>
+      Promise.resolve({
+        people: [
+          {
+            id: 'k',
+            name: 'Katherine Johnson',
+            email: null,
+            avatarUrl: null,
+            values: {},
+            missing: 0,
+          },
+        ],
+        next: null,
+      }),
+    );
+    // Nothing nears the end on its own here: only the place asks for the page.
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observe(): void {}
+        disconnect(): void {}
+      },
+    );
+    render(<Directory {...props({ view: 'cards', onLoadMore, next: 'cursor-1', place: 3 })} />);
+    await vi.waitFor(() => {
+      expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
+    });
+    expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 
   it('without a way to ask, Enter is only a name search', async () => {
