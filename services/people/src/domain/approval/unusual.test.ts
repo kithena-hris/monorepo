@@ -88,8 +88,8 @@ describe('a raise much bigger than usual', () => {
     ]);
     expect(found.comparisons).toEqual([
       { label: 'This change', percent: '38', highlight: true },
-      { label: 'Sales median', percent: '4', highlight: false },
-      { label: 'Largest in Sales', percent: '12', highlight: false },
+      { label: 'Median', percent: '4', highlight: false },
+      { label: 'Largest', percent: '12', highlight: false },
     ]);
   });
 

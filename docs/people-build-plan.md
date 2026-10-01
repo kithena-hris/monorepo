@@ -1999,6 +1999,24 @@ it is written down here rather than left in a PR description.
       / Possible. Revisit if duplicate detection gains a calibrated model
       (fuzzy names, measured precision on real merges). Found building #197.
 
+<!-- Flagged approvals (design AI7, AI8, MA6, MA7): numbers may move at integration. -->
+- [ ] **PEO-132** Flag raises and band breaches on a sealed salary. The
+      checks compare pay only where the decider may read both amounts in
+      clear (`docs/ai-settings.md`, "Flagged approvals"), so an encrypted
+      `base_salary` — what a field marked financial becomes — gets no `raise`
+      or `band` flag. Decide whether a flag may decrypt in memory for a
+      percentage and a band position only, as the nightly pay snapshot does
+      for aggregates (PRD §16.2), and record it beside that decision.
+- [ ] **PEO-133** Tell the requester by email and in chat when HR asks about
+      their change ("Ask Nora"). Today the question reaches their bell and
+      Inbox only. Needs an `approval_question` notice kind in
+      `platform/messaging` and the chat apps, and a row in the chat notices
+      setting.
+- [ ] **PEO-134** The company's payroll calendar. The "payroll that's already
+      closing" check assumes a monthly payroll closing on the month's last
+      day; a company that closes on the 25th, or pays twice a month, is
+      flagged against the wrong date. Lives with the pay settings.
+
 ## Revisit later — the owner's list
 
 Everything left on People that needs the product owner rather than the next

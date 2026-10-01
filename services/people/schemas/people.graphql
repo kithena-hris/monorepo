@@ -1775,6 +1775,10 @@ type PeopleOverview {
 }
 
 type PeopleOverviewApproval {
+  """
+  Whoever decides asked the viewer, who asked for it, a question not yet answered.
+  """
+  asked: Boolean
   avatarUrl: String
   id: ID
   label: String

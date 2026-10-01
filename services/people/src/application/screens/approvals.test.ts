@@ -162,8 +162,8 @@ describe('a flagged approval (AI7)', () => {
     );
     expect(item.comparisons.map((c) => [c.label, c.percent])).toEqual([
       ['This change', '38'],
-      ['Sales median', '4'],
-      ['Largest in Sales', '12'],
+      ['Median', '4'],
+      ['Largest', '12'],
     ]);
     expect(item.flagNote).toBe(
       'This might be fine: a promotion would explain it. Check the reason before you decide.',

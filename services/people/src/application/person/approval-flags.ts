@@ -20,8 +20,8 @@ import { stateAt } from '../../domain/approval/approval.js';
 import { visibleTo } from '../../domain/access/field-access.js';
 import { personZone, placementOf } from '../../domain/org/calendar.js';
 import type { Calendars } from '../org/org.js';
-import type { PendingChange, PendingChangeDeps } from './pending-changes.js';
-import type { Asking } from './ports.js';
+import type { Approval } from '../../domain/approval/approval.js';
+import type { Asking, PersonReader, RelationsResolver, SchemaVersions } from './ports.js';
 
 /**
  * The checks that flag a change waiting for approval, as the company set them
@@ -115,6 +115,35 @@ export interface ApprovalFlagStore {
 export interface FlagDeps {
   readonly store: ApprovalFlagStore;
   readonly calendars: Calendars;
+}
+
+/**
+ * A change held for approval, as far as the checks read one: the shape of
+ * `PendingChange`, said here so this file and `pending-changes.ts`, which
+ * calls it at decision time, do not import each other.
+ */
+export interface PendingChange {
+  readonly tenantId: string;
+  readonly personId: string;
+  readonly attributeKey: string;
+  readonly approval: Approval;
+  readonly effectiveFrom: string;
+  readonly sealed: boolean;
+  readonly value: unknown;
+}
+
+/** What the checks and their use cases need of `PendingChangeDeps`, which satisfies it. */
+export interface PendingChangeDeps {
+  readonly clock: { instant(): string };
+  readonly newId: () => string;
+  readonly flags?: FlagDeps;
+  readonly reader: PersonReader;
+  readonly schemas: SchemaVersions;
+  readonly relations: RelationsResolver;
+  readonly store: {
+    find(tx: Tx, tenantId: string, id: string): Promise<PendingChange | null>;
+    forPerson(tx: Tx, tenantId: string, personId: string): Promise<readonly PendingChange[]>;
+  };
 }
 
 /** The checks switched on in a company. */

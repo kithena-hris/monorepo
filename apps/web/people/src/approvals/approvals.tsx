@@ -213,8 +213,12 @@ const shortDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
 /** "Salary €61k → €84k · from 1 Oct", or the field and the date where no amount shows. */
 function summaryOf(item: ApprovalItem): string {
   const from = `from ${shortDate.format(Date.parse(`${item.effectiveFrom}T00:00:00Z`))}`;
-  const before = item.readable ? compact(item.current) : null;
   const after = item.readable ? compact(item.value) : null;
+  // A decided change keeps what was asked for, not what was in force before it.
+  if (item.state === 'approved' || item.state === 'rejected') {
+    return after === null ? `${item.label} · ${from}` : `${item.label} ${after} · ${from}`;
+  }
+  const before = item.readable ? compact(item.current) : null;
   return before !== null && after !== null
     ? `${item.label} ${before} → ${after} · ${from}`
     : `${item.label} · ${from}`;
@@ -334,8 +338,8 @@ function Inbox({
           {...(item.flagSummary
             ? {
                 supporting: (
-                  <span className="inline-flex items-center gap-1.5 font-medium text-warning-fg [&_svg]:size-3">
-                    <icons.flagged aria-hidden />
+                  <span className="font-medium text-warning-fg">
+                    <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
                     {item.flagSummary}
                   </span>
                 ),
@@ -584,7 +588,13 @@ function Detail({
           ) : null}
         </div>
       </div>
-      {item.readable ? (
+      {item.readable && decided ? (
+        // What was asked for; what was in force before it is not kept with the decision.
+        <p className="text-sm">
+          {item.label}: <DisplayValue field={field} value={item.value} />, from{' '}
+          {longDate(item.effectiveFrom)}
+        </p>
+      ) : item.readable ? (
         <ChangeDiff
           items={[
             {
@@ -652,10 +662,12 @@ function Detail({
       )}
 
       {decided ? null : (
-        <div className="flex flex-wrap items-center gap-2 touch:sticky touch:bottom-24 touch:grid touch:grid-cols-2">
+        // One row at a desk, Not unusual apart; under a finger, a pinned two-column footer (MA7).
+        <div className="flex flex-wrap items-center justify-end gap-2 touch:sticky touch:bottom-24 touch:z-10 touch:grid touch:grid-cols-2 touch:bg-surface touch:py-2">
           {item.canMark === true && onMarkNotUnusual !== undefined ? (
             <Button
               variant="ghost"
+              className="me-auto touch:me-0"
               startIcon={<icons.reject aria-hidden />}
               loading={busy === 'mark'}
               loadingLabel="Saving"
@@ -672,11 +684,10 @@ function Detail({
             </Button>
           ) : null}
           {item.awaitingReview === true ? (
-            <span className="text-sm text-fg-muted">
+            <span className="me-auto text-sm text-fg-muted touch:col-span-2">
               Review this ID under Identifier reviews first.
             </span>
           ) : null}
-          <span className="ms-auto flex flex-wrap items-center gap-2 touch:contents">
             {item.canAsk === true && onAsk !== undefined ? (
               <Button
                 startIcon={<icons.message aria-hidden />}
@@ -733,14 +744,15 @@ function Detail({
                 Withdraw
               </Button>
             ) : null}
-          </span>
           {!item.canDecide && !item.mine ? (
-            <span className="text-sm text-fg-muted">
+            <span className="text-sm text-fg-muted touch:col-span-2">
               This change is about you, so someone else decides.
             </span>
           ) : null}
           {!item.canDecide && item.mine && isHr && item.canSelfApprove !== true ? (
-            <span className="text-sm text-fg-muted">Another HR member must approve your change.</span>
+            <span className="text-sm text-fg-muted touch:col-span-2">
+              Another HR member must approve your change.
+            </span>
           ) : null}
         </div>
       )}

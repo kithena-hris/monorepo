@@ -265,8 +265,8 @@ function raise(
     ),
     comparisons: [
       { label: 'This change', percent: size, highlight: true },
-      { label: `${team.name} median`, percent: mid, highlight: false },
-      { label: `Largest in ${team.name}`, percent: largest.toString(), highlight: false },
+      { label: 'Median', percent: mid, highlight: false },
+      { label: 'Largest', percent: largest.toString(), highlight: false },
     ],
   };
 }

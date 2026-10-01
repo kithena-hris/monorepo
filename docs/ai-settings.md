@@ -183,3 +183,65 @@ The directory's list and cards load the next page as the reader nears the end
 (the table's `onEndReached`; a sentinel for cards and the phone's list), with a
 row or a card in its final shape while it loads, "50 more loaded" said in a
 live region, and the address keeping the filters, never the scroll position.
+
+# Flagged approvals
+
+A change waiting on Approvals that looks unusual is flagged for whoever
+decides it (design AI7, AI8, MA6, MA7). **Rules only, no model**: the reasons
+are already plain words, and nothing here sends anybody's value anywhere. The
+rules are `domain/approval/unusual.ts`; what they read and what the decider
+does with a flag are `application/person/approval-flags.ts`.
+
+## The checks
+
+Six, each switched on or off by a People administrator on Approvals ›
+Flagged ("What Kithena checks"; `PUT /v1/approval-checks/{code}`); HR sees
+them, switches disabled. No row is the default: all on but the time of day.
+
+| Check | Flags | Compared against |
+| --- | --- | --- |
+| `raise` | pay moves more than 20 % **and** more than any raise in the person's team this year; a cut over 20 % | the team's other raises this calendar year, from history as its chain stands (median and largest, drawn as bars) |
+| `band` | the new pay is outside the band of the person's grade | the band in force on the effective date, same currency |
+| `bank_after_contact` | bank details asked for within 14 days after an address or email change | recorded history, and changes still waiting |
+| `close_colleagues` | the decider and the requester share a manager, within an hour of the request | the two records' managers, at the moment the decider looks |
+| `payroll_closing` | pay or bank details landing in this month's payroll with under 5 days left, or reaching back into a month already paid | a monthly payroll closing on the month's last day (PEO-134) |
+| `unusual_time` (off) | asked for outside 07:00–20:00 Monday to Friday, by someone other than the employee | the requester's own zone |
+
+Each reason has a title ("A 38% raise"), what it compared against ("Sales
+raises this year had a median of 4%, and the largest was 12%"), and the card
+ends with an honest note: "This might be fine: a promotion would explain
+both. Check the reason before you decide."
+
+## Who sees what
+
+- **Only whoever may decide the change** sees its flags; the requester never
+  learns which rule their change tripped.
+- **Pay is compared only where the decider may read the field and both
+  amounts are in clear.** A sealed (encrypted) salary is never decrypted for a
+  flag, so `raise` and `band` do not run on it (PEO-132). The team's raises
+  and the band are read only alongside readable pay.
+
+## What the decider does
+
+- **Approve with note**: approving a flagged change needs a note (a domain
+  rule, `NOTE_REQUIRED`, checked again on the server at decision time).
+  Rejecting needs none. The checks that flagged it are kept with the decision
+  (`pending_change.flags`) for the Decided tab and the last 90 days.
+- **Not unusual**: marks each reason on the change. For 90 days the same check
+  stays quiet for the same requester — for a raise, only up to the size that
+  was marked. Marks are the company's own. It decides nothing.
+- **Ask the requester**: a question kept with the change; the requester sees
+  it on their bell and Inbox ("HR asked about your … change") and answers once,
+  beside the change. Nobody is emailed yet (PEO-133).
+
+## The last 90 days
+
+Changes asked for in the last 90 days that a check flagged (decided with
+flags, or marked), how many of those were rejected, and how many were marked
+not unusual. A flagged change withdrawn or left to expire is not counted.
+
+## On a phone
+
+The Inbox has To do, Flagged and Updates (`/inbox?view=`). A flagged row
+carries its reason and opens the change on Approvals
+(`?tab=flagged&change=`), where Reject and Approve sit in a pinned footer.

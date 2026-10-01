@@ -99,6 +99,9 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
         label: t.exposeString('label'),
         requestedAt: t.exposeString('requestedAt'),
         requestedBy: t.exposeString('requestedBy'),
+        asked: t.exposeBoolean('asked', {
+          description: 'Whoever decides asked the viewer, who asked for it, a question not yet answered.',
+        }),
       }),
     });
   const ApprovalsRef = builder.objectRef<Approvals>('PeopleOverviewApprovals').implement({

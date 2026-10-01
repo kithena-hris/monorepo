@@ -73,8 +73,8 @@ export default async function Inbox({
                 leading={<Avatar name={f.name} size="xl" />}
                 description={f.change}
                 supporting={
-                  <span className="inline-flex items-center gap-1.5 font-medium text-warning-fg [&_svg]:size-3">
-                    <icons.flagged aria-hidden />
+                  <span className="font-medium text-warning-fg">
+                    <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
                     {f.why}
                   </span>
                 }
