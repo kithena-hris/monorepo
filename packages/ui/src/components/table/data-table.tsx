@@ -56,6 +56,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowUpDown, ChevronRight, GripVertical, X } from 'lucide-react';
 
 import { bulkBarClass } from '../../lib/bulk-bar';
+import { PINNED_BAR } from '../../lib/pinned';
 import { cn } from '../../lib/cn';
 import {
   actionPressed,
@@ -1359,6 +1360,7 @@ export function DataTable<T extends TableRow>({
       <div
         role="group"
         aria-label={`${String(picked.size)} selected`}
+        {...PINNED_BAR}
         className={cn('sticky bottom-4 z-20', bulkBarClass, 'motion-safe:animate-pop-in')}
       >
         <span aria-live="polite" className="text-sm font-semibold tabular-nums">

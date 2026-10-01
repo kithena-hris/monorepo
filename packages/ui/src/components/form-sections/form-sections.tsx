@@ -3,6 +3,7 @@
 import { useId } from 'react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
+import { PINNED_BAR } from '../../lib/pinned';
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
 
@@ -107,6 +108,7 @@ export function FormSaveBar({
 
   return (
     <div
+      {...PINNED_BAR}
       className={cn(
         'sticky bottom-4 z-10 flex items-center gap-2 rounded-full bg-invert py-2 ps-4.5 pe-2 text-fg-on-invert shadow-lg',
         // The focus ring takes the fill's own ink: an accent ring vanishes on it.

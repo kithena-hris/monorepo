@@ -1,4 +1,4 @@
-import { TooltipProvider } from '@reach/ui';
+import { AssistantLauncher, TooltipProvider } from '@reach/ui';
 import { render, screen, within } from '@testing-library/react';
 import axe from 'axe-core';
 import type { ReactElement } from 'react';
@@ -1051,6 +1051,78 @@ describe('at 390×844, with a finger', () => {
     // The expiry lanes are the taller, finger-sized ones a coarse pointer gets (PEO-122).
     const lane = screen.getAllByTitle('Sana Khan')[0]?.parentElement;
     expect(lane?.getBoundingClientRect().height).toBeGreaterThanOrEqual(56);
+  });
+});
+
+describe('a floating button over a pinned footer (MA7)', () => {
+  it('rises above the footer, so Approve is the thing under a finger at its centre', async () => {
+    mount(
+      <>
+        <Approvals
+          load={{
+            status: 'ready',
+            data: {
+              isHr: true,
+              items: [
+                {
+                  id: 'c1',
+                  personId: 'p1',
+                  name: 'Tom Fischer',
+                  key: 'base_salary',
+                  label: 'Base salary',
+                  kind: 'value',
+                  value: { amountMinor: '8400000', currency: 'EUR' },
+                  current: { amountMinor: '6100000', currency: 'EUR' },
+                  readable: true,
+                  effectiveFrom: '2026-10-01',
+                  requestedAt: '2026-09-22T09:40:00.000Z',
+                  expiresAt: '2026-09-29T09:40:00.000Z',
+                  requestedBy: 'Nora Becker',
+                  reason: null,
+                  mine: false,
+                  canDecide: true,
+                  canAsk: true,
+                  canMark: true,
+                  flags: [
+                    { code: 'raise', title: 'A 38% raise', detail: 'Sales median is 4%' },
+                    { code: 'band', title: 'Above the band', detail: 'Band tops out at €78k' },
+                  ],
+                  flagNote: 'This might be fine: a promotion would explain both.',
+                  flagSummary: 'A 38% raise, above the band',
+                },
+              ],
+            },
+          }}
+          onDecide={ok}
+          onWithdraw={ok}
+          onMarkNotUnusual={ok}
+          onAsk={ok}
+          change="c1"
+          onChangeOpen={() => undefined}
+        />
+        {/* Where the shell puts it under a finger: the corner above the tab bar. */}
+        <AssistantLauncher label="Ask" onOpen={() => undefined} className="fixed end-4 bottom-24 z-40" />
+      </>,
+    );
+    await settled();
+    // Every scroll position the footer is pinned at: the top of the page and the end of it.
+    let looked = 0;
+    for (const y of [0, document.documentElement.scrollHeight]) {
+      window.scrollTo(0, y);
+      // The launcher measures once a frame.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await settled();
+      const approve = screen.getByRole('button', { name: /with note$/ });
+      const box = approve.getBoundingClientRect();
+      if (box.bottom <= 0 || box.top >= window.innerHeight) continue;
+      // At its centre, as asked, and at each end too: a corner under the button is still covered.
+      const middle = box.top + box.height / 2;
+      for (const x of [box.left + 4, box.left + box.width / 2, box.right - 4]) {
+        expect(document.elementFromPoint(x, middle)?.closest('button')).toBe(approve);
+      }
+      looked += 1;
+    }
+    expect(looked).toBeGreaterThan(0);
   });
 });
 

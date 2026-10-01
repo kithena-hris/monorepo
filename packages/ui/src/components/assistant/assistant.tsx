@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   useId,
+  useRef,
   type ComponentPropsWithoutRef,
   type SyntheticEvent,
   type JSX,
@@ -20,6 +21,7 @@ import {
 
 import { cn } from '../../lib/cn';
 import { keysOf, useShortcutKeys } from '../../lib/shortcut-keys';
+import { useClearOfPinned } from '../../lib/pinned';
 import { icons } from '../../icons';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
@@ -527,7 +529,11 @@ export interface AssistantLauncherProps extends ComponentPropsWithoutRef<'div'> 
   shortcut?: string;
 }
 
-/** The floating button that opens the panel, with an optional greeting. */
+/**
+ * The floating button that opens the panel, with an optional greeting. It
+ * rises above any pinned bar under it (`PINNED_BAR`), so it never covers a
+ * Save or an Approve.
+ */
 export function AssistantLauncher({
   onOpen,
   nudge,
@@ -535,9 +541,12 @@ export function AssistantLauncher({
   label = 'Open assistant',
   shortcut,
   className,
+  style,
   ...props
 }: AssistantLauncherProps): JSX.Element {
   const keys = keysOf(shortcut, useShortcutKeys());
+  const root = useRef<HTMLDivElement>(null);
+  const lift = useClearOfPinned(root);
   const launcher = (
     <button
       type="button"
@@ -554,7 +563,16 @@ export function AssistantLauncher({
     </button>
   );
   return (
-    <div className={cn('flex flex-col items-end gap-2.5', className)} {...props}>
+    <div
+      ref={root}
+      className={cn(
+        'flex flex-col items-end gap-2.5',
+        'transition-transform duration-(--animate-duration-normal) ease-standard motion-reduce:transition-none',
+        className,
+      )}
+      style={lift === 0 ? style : { ...style, transform: `translateY(${String(-lift)}px)` }}
+      {...props}
+    >
       {nudge ? (
         <div className="flex max-w-60 items-start gap-2.5 rounded-lg rounded-ee-xs bg-surface-raised py-3 ps-3.5 pe-2.5 text-sm text-fg shadow-lg">
           <p className="flex-1">{nudge}</p>

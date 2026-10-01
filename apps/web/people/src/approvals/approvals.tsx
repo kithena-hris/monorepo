@@ -27,6 +27,7 @@ import {
   ListItem,
   PageHeader,
   PageSection,
+  PINNED_BAR,
   Stack,
   Stat,
   Switch,
@@ -663,7 +664,10 @@ function Detail({
 
       {decided ? null : (
         // One row at a desk, Not unusual apart; under a finger, a pinned two-column footer (MA7).
-        <div className="flex flex-wrap items-center justify-end gap-2 touch:sticky touch:bottom-24 touch:z-10 touch:grid touch:grid-cols-2 touch:bg-surface touch:py-2">
+        <div
+          {...PINNED_BAR}
+          className="flex flex-wrap items-center justify-end gap-2 touch:sticky touch:bottom-24 touch:z-10 touch:grid touch:grid-cols-2 touch:bg-surface touch:py-2"
+        >
           {item.canMark === true && onMarkNotUnusual !== undefined ? (
             <Button
               variant="ghost"

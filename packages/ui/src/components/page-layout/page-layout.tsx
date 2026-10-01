@@ -25,6 +25,7 @@ import {
   type RefObject,
 } from 'react';
 
+import { PINNED_BAR } from '../../lib/pinned';
 import { cn } from '../../lib/cn';
 import { Kbd } from '../kbd/kbd';
 import { Tooltip } from '../tooltip/tooltip';
@@ -676,6 +677,7 @@ export function PageLayout({
 
         {bottomBar ? (
           <div
+            {...PINNED_BAR}
             data-material={bottomBarVariant === 'floating' ? 'chrome' : undefined}
             className={cn(
               'sticky bottom-0 z-30 row-start-5 col-span-full',

@@ -254,4 +254,5 @@ not unusual. A flagged change withdrawn or left to expire is not counted.
 
 The Inbox has To do, Flagged and Updates (`/inbox?view=`). A flagged row
 carries its reason and opens the change on Approvals
-(`?tab=flagged&change=`), where Reject and Approve sit in a pinned footer.
+(`?tab=flagged&change=`), where Reject and Approve sit in a pinned footer; the
+assistant's floating button rises above any pinned bar (`PINNED_BAR`).
