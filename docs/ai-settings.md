@@ -289,7 +289,7 @@ and `GET /v1/exports/{id}/record`.
   and `people.export.shared`, with accounts, field keys and the reason —
   never a value or a link — beside `people.export.completed`.
 - **Not yet** (tickets): a grant for a period and a department rather than
-  one file (PEO-132), splitting a file by a field (PEO-133), these requests in
-  the Approvals inbox and the decision emailed (PEO-134), sending more than
-  2,000 people (PEO-135), and a schedule from any described audience
-  (PEO-136).
+  one file (PEO-135), splitting a file by a field (PEO-136), these requests in
+  the Approvals inbox and the decision emailed (PEO-137), sending more than
+  2,000 people (PEO-138), and a schedule from any described audience
+  (PEO-139).
