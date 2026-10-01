@@ -69,7 +69,13 @@ export function Table({
       tabIndex={0}
       role="region"
       aria-label={props['aria-label'] ?? 'Table'}
-      data-scroll-lock
+      // Contained sideways only, and not `data-scroll-lock`, which contains
+      // both axes. This box is `overflow: auto` in both, so it is a scroll
+      // container even at its content's full height, and Chromium honours a
+      // `contain` there: a wheel or a swipe over the table stopped dead
+      // instead of scrolling the page, and a table taller than the screen
+      // could not be scrolled past from on top of it. A table given a
+      // bounded height scrolls itself and hands the page the rest.
       className={cn(
         'w-full overflow-auto overscroll-x-contain',
         // A raised surface, not a ruled box: the rows are separated by hairlines

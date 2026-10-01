@@ -10,8 +10,9 @@ import { defineConfig } from 'vitest/config';
  * `just test` runs. `phone` renders them again in Chromium at 390×844 with a
  * coarse pointer and the real stylesheet, and measures what jsdom cannot: tap
  * targets against the 44px floor, and whether "Save" is still reachable with
- * the keyboard up. That is what `just test-stories` runs, beside Reach's own
- * stories.
+ * the keyboard up. `desk` renders the `*.browser.test` files again at desk
+ * sizes with a mouse. Both are what `just test-stories` runs, beside Reach's
+ * own stories.
  *
  * Not Storybook: Reach's Storybook is the design system's public
  * documentation and must not learn this product exists. These do the same two
@@ -28,7 +29,7 @@ export default defineConfig({
           environment: 'jsdom',
           setupFiles: ['./vitest.setup.ts'],
           include: ['src/**/*.test.{ts,tsx}'],
-          exclude: ['src/**/*.phone.test.{ts,tsx}'],
+          exclude: ['src/**/*.{phone,browser}.test.{ts,tsx}'],
           /*
            * Longer than vitest's 5s default because of the first test in each
            * file, not the tests. That one pays a fresh worker's one-off costs:
@@ -49,7 +50,7 @@ export default defineConfig({
         plugins: [tailwindcss()],
         test: {
           name: 'phone',
-          include: ['src/**/*.phone.test.{ts,tsx}'],
+          include: ['src/**/*.{phone,browser}.test.{ts,tsx}'],
           setupFiles: ['./src/test/phone-setup.ts'],
           browser: {
             enabled: true,
@@ -62,6 +63,26 @@ export default defineConfig({
             viewport: { width: 390, height: 844 },
             // One IPv4 address for the port check, the bind and the URL the
             // browser loads; see apps/storybook/vitest.config.ts.
+            api: { host: '127.0.0.1' },
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
+      {
+        extends: true,
+        cacheDir: 'node_modules/.vite/desk',
+        plugins: [tailwindcss()],
+        test: {
+          // The same real stylesheet with a mouse: what a phone's finger
+          // cannot say about a desk, such as a table that swallows the wheel.
+          name: 'desk',
+          include: ['src/**/*.browser.test.{ts,tsx}'],
+          setupFiles: ['./src/test/phone-setup.ts'],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright(),
+            viewport: { width: 1280, height: 800 },
             api: { host: '127.0.0.1' },
             instances: [{ browser: 'chromium' }],
           },

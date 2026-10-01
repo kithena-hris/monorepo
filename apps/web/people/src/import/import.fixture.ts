@@ -37,6 +37,54 @@ export const MAPPING: Extract<ImportStage, { step: 'map' }> = {
   ],
 };
 
+/**
+ * A file exported from here and imported back: 23 columns, so a mapping
+ * taller than any screen. Its last column is the export's own bookkeeping.
+ */
+const EXPORTED = [
+  'Person id',
+  'Legal first name',
+  'Legal family name',
+  'Preferred name',
+  'Emergency contact',
+  'Date of birth',
+  'Marital status',
+  'Spouse or partner',
+  'Children',
+  'Hometown',
+  'Work email',
+  'Employee number',
+  'Manager',
+  'Legal entity',
+  'Work location',
+  'Job title',
+  'Department',
+  'Work phone',
+  'Start date',
+  'Working hours',
+  'Social Security number',
+];
+const keyOf = (label: string): string => label.toLowerCase().replaceAll(' ', '_');
+
+export const EXPORT_MAPPING: Extract<ImportStage, { step: 'map' }> = {
+  step: 'map',
+  file: { name: 'people-export.csv', rows: 31, sheet: null },
+  fields: EXPORTED.map((label) => ({ key: keyOf(label), label })),
+  columns: [
+    ...EXPORTED.map((header, index) =>
+      column({ index, header, key: keyOf(header), source: 'key' }),
+    ),
+    column({ index: 21, header: 'Cab service needed', status: 'ignored', source: null }),
+    column({
+      index: 22,
+      header: '__missing_required',
+      key: '__missing_required',
+      status: 'ignored',
+      source: 'system',
+    }),
+  ],
+};
+
 const proposal = (
   over: Partial<ColumnProposal> & Pick<ColumnProposal, 'column' | 'header' | 'key'>,
 ): ColumnProposal => ({
