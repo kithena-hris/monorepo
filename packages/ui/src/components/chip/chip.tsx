@@ -3,7 +3,14 @@
 import * as ToggleGroupPrimitive from '@radix-ui/react-toggle-group';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Check, X } from 'lucide-react';
-import { Children, useState, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
+import {
+  Children,
+  useId,
+  useState,
+  type ComponentPropsWithoutRef,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -227,23 +234,40 @@ export interface ChipRowProps extends ComponentPropsWithoutRef<'div'> {
    * none for a wrap.
    */
   max?: number;
+  /**
+   * Leads the row and names it: "Applied filters", or an `AssistantLabel`
+   * reading "Understood as". The row becomes a group with this as its name.
+   */
+  label?: ReactNode;
+  /** Ends the row, never folded: one link-style button, "Edit as filters". */
+  action?: ReactNode;
 }
 
 /**
  * A row of chips that are not one shared value: the applied filters above a
- * table, the skills on a profile. For chips that are one value, a set of
- * filters or a choice, use `ChipGroup`, which has the same `scroll`.
+ * table, the skills on a profile, the parts a typed sentence was read as. For
+ * chips that are one value, a set of filters or a choice, use `ChipGroup`,
+ * which has the same `scroll`.
  *
  * The folded chips are `display: none`, not merely clipped, so they leave the
  * tab order and the accessibility tree along with the screen, and "+N more"
  * says how many and is `aria-expanded`.
  */
-export function ChipRow({ max, className, children, ...props }: ChipRowProps): JSX.Element {
+export function ChipRow({
+  max,
+  label,
+  action,
+  className,
+  children,
+  ...props
+}: ChipRowProps): JSX.Element {
   const [expanded, setExpanded] = useState(false);
+  const labelId = useId();
   const items = Children.toArray(children);
   const folds = max !== undefined && items.length > max;
   return (
     <div
+      {...(label === undefined ? {} : { role: 'group', 'aria-labelledby': labelId })}
       className={cn(
         'flex flex-wrap items-center gap-2',
         'touch:flex-nowrap touch:overflow-x-auto touch:overscroll-x-contain touch:[scrollbar-width:none] touch:py-1',
@@ -251,6 +275,14 @@ export function ChipRow({ max, className, children, ...props }: ChipRowProps): J
       )}
       {...props}
     >
+      {label === undefined ? null : (
+        <span
+          id={labelId}
+          className="flex shrink-0 items-center text-xs font-semibold whitespace-nowrap text-fg-muted"
+        >
+          {label}
+        </span>
+      )}
       {items.map((item, index) =>
         folds && !expanded && index >= max ? (
           <span key={index} className="hidden touch:contents">
@@ -271,6 +303,7 @@ export function ChipRow({ max, className, children, ...props }: ChipRowProps): J
           {expanded ? 'Show fewer' : `+${String(items.length - max)} more`}
         </Chip>
       ) : null}
+      {action === undefined ? null : <span className="shrink-0 whitespace-nowrap">{action}</span>}
     </div>
   );
 }

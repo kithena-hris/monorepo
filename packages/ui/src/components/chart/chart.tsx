@@ -1474,13 +1474,20 @@ export interface HorizontalBarChartProps extends ChartInteractionProps {
   /** Caps the rows and adds a "+N more" line. */
   limit?: number;
   format?: (value: number) => string;
+  /**
+   * A bar's own colour, where it is the meaning: the one value being judged
+   * in `warning` against its comparisons in `neutral`. Its label still has to
+   * say which it is; colour alone tells one reader in twelve nothing.
+   */
+  toneOf?: (point: ChartPoint) => ChartTone;
   onSelect?: (point: ChartPoint, index: number) => void;
   selectedIndex?: number;
   className?: string;
 }
 
 /**
- * A ranking.
+ * A ranking, or a comparison: `sorted={false}` and `toneOf` set one value
+ * against the figures it is judged by.
  *
  * Horizontal, not vertical, and the reason is typography rather than taste: a
  * vertical bar chart puts its category labels under 60px-wide bars, where
@@ -1500,6 +1507,7 @@ export function HorizontalBarChart({
   sorted = true,
   limit,
   format = (v) => String(v),
+  toneOf,
   onSelect,
   selectedIndex,
   zoomable = false,
@@ -1581,7 +1589,7 @@ export function HorizontalBarChart({
                     'absolute inset-y-0 start-0 origin-left rounded-xs',
                     'transition-[width,opacity] duration-(--animate-duration-slow) ease-standard',
                     'motion-safe:animate-grow-x',
-                    bgTone[tone],
+                    bgTone[toneOf?.(point) ?? tone],
                     selectedIndex !== undefined && !selected && 'opacity-40',
                   )}
                   style={{
