@@ -68,6 +68,22 @@ const notSetUp = (load: ScreenLoad): boolean =>
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
 const today = (): string => new Date().toISOString().slice(0, 10);
 
+/**
+ * An answer that crosses as JSON text, read back (or, read as nothing, an
+ * object nothing on the screen will draw); under `key` when one is given.
+ */
+const json =
+  (key?: string) =>
+  (data: never): unknown => {
+    let value: unknown = null;
+    try {
+      value = JSON.parse(data) as unknown;
+    } catch {
+      value = null;
+    }
+    return key === undefined ? value : { [key]: value };
+  };
+
 /** A query-string value, or null for one that was not given. */
 const given = (value: string | undefined): string | null =>
   value === undefined || value === '' ? null : value;
@@ -260,6 +276,31 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         status: 'ready',
         data: {
           ...(analytics.data as object),
+          schedules: schedules.status === 'ready' ? schedules.data : null,
+        },
+      };
+    }
+    case 'WhatChanged': {
+      // A summary somebody sent: theirs to open, and nothing else on the page.
+      const shared = given(query.search['shared']);
+      if (shared !== null) return read('SharedSummary', { id: shared }, json('shared'));
+      const [summary, schedules] = await Promise.all([
+        orBare(
+          {
+            period: given(query.search['period']),
+            from: dateOf(query.search['from']),
+            to: dateOf(query.search['to']),
+            segment: given(query.search['segment']),
+          },
+          (asked) => read('WhatChanged', asked, json()),
+        ),
+        read('ReportSchedules'),
+      ]);
+      if (summary.status !== 'ready') return summary;
+      return {
+        ...summary,
+        data: {
+          ...(summary.data as object),
           schedules: schedules.status === 'ready' ? schedules.data : null,
         },
       };

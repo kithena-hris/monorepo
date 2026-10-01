@@ -451,7 +451,6 @@ export const OPERATIONS = {
         tenure { ...PayGroup }
         compa { ...PayGroup }
       }
-      whatChanged { phrasable tabs { tab sentences } }
     }
   }
   fragment PayGroup on AnalyticsPayGroup {
@@ -459,9 +458,33 @@ export const OPERATIONS = {
     band { minimumMinor midpointMinor maximumMinor }
   }`,
 
-  /** One Insights tab's "what changed", worded by the assistant where there is one. */
-  WhatChanged: `query WhatChanged($tab: String!, $segment: ID) {
-    peopleWhatChanged(tab: $tab, segment: $segment) { tab sentences byModel }
+  /*
+   * What changed (design AI5, AI6, MA4, MA5): its own block. Each crosses as
+   * JSON text, its shape People's Zod schema (`application/screens/what-changed.ts`).
+   */
+  WhatChanged: `query WhatChanged($period: String, $from: String, $to: String, $segment: ID) {
+    peopleWhatChanged(period: $period, from: $from, to: $to, segment: $segment)
+  }`,
+  WhatChangedWorded: `query WhatChangedWorded($period: String, $from: String, $to: String, $segment: ID) {
+    peopleWhatChangedWorded(period: $period, from: $from, to: $to, segment: $segment)
+  }`,
+  WhatChangedAsk: `query WhatChangedAsk($input: String!) {
+    peopleWhatChangedAsk(input: $input)
+  }`,
+  SummaryDraft: `query SummaryDraft($input: String!) {
+    peopleSummaryDraft(input: $input)
+  }`,
+  SummaryPdf: `query SummaryPdf($input: String!) {
+    peopleSummaryPdf(input: $input)
+  }`,
+  SharedSummary: `query SharedSummary($id: ID!) {
+    peopleSharedSummary(id: $id)
+  }`,
+  SharedSummaryPdf: `query SharedSummaryPdf($id: ID!) {
+    peopleSharedSummaryPdf(id: $id)
+  }`,
+  ShareSummary: `mutation ShareSummary($input: String!, $key: String!) {
+    peopleShareSummary(input: $input, idempotencyKey: $key)
   }`,
 
   PublishPreview: `query PublishPreview($requiredFrom: String!) {

@@ -37,6 +37,10 @@
       "component": "ImportExport"
     },
     {
+      "path": "/people/insights/what-changed",
+      "component": "WhatChanged"
+    },
+    {
       "path": "/people/insights/headcount",
       "component": "Analytics"
     },
@@ -225,7 +229,7 @@
       "owns": ["/people/import", "/people/export"]
     },
     {
-      "path": "/people/insights/headcount",
+      "path": "/people/insights/what-changed",
       "label": "Insights",
       "group": "People",
       "for": ["hr"],
@@ -234,6 +238,10 @@
       "summary": "Analytics and reports",
       "owns": ["/people/reports", "/people/reports/:id"],
       "tabs": [
+        {
+          "path": "/people/insights/what-changed",
+          "label": "What changed"
+        },
         {
           "path": "/people/insights/headcount",
           "label": "Headcount"

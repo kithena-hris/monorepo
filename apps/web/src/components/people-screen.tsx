@@ -1079,8 +1079,6 @@ export function PeopleScreen({
           onSegmentChange: (segment: string | null) => {
             navigate({ segment });
           },
-          // "What changed", in the assistant's words where People says it may.
-          onWhatChanged: (tab: string) => actions.whatChanged(tab, at('segment')),
           // The Schedules button: the schedules page's own actions.
           schedules: {
             onCreate: thenRefresh(actions.createReportSchedule),
@@ -1090,6 +1088,104 @@ export function PeopleScreen({
             onDelete: thenRefresh(actions.deleteReportSchedule),
           },
         };
+      // What changed (design AI5, AI6, MA4, MA5): its own block.
+      case 'WhatChanged': {
+        const asked = (): actions.PeriodAsk => {
+          const pick = (k: string) => at(k) ?? undefined;
+          return Object.fromEntries(
+            ['period', 'from', 'to', 'segment'].flatMap((k) => {
+              const v = pick(k);
+              return v === undefined ? [] : [[k, v]];
+            }),
+          );
+        };
+        const share = at('share');
+        return {
+          load: loadable,
+          segmentId: at('segment'),
+          onSegmentChange: (segment: string | null) => {
+            navigate({ segment });
+          },
+          onPeriodChange: (p: { kind: string; from?: string; to?: string }) => {
+            navigate({
+              period: p.kind === 'month' ? null : p.kind,
+              from: p.kind === 'custom' ? (p.from ?? null) : null,
+              to: p.kind === 'custom' ? (p.to ?? null) : null,
+              ask: null,
+            });
+          },
+          question: at('ask'),
+          onQuestionChange: (question: string | null) => {
+            note({ ask: question }, 'push');
+          },
+          onAsk: (question: string) => actions.askWhatChanged(asked(), question),
+          onWorded: () => actions.wordedWhatChanged(asked()),
+          exporting:
+            share === 'pdf' || share === 'email'
+              ? {
+                  format: share,
+                  recipient: at('for'),
+                  tone: at('tone') === 'detailed' ? 'detailed' : 'short',
+                  charts: at('charts') !== 'off',
+                  madeLine: at('made') !== 'off',
+                }
+              : null,
+          onExportingChange: (
+            next: {
+              format: string;
+              recipient: string | null;
+              tone: string;
+              charts: boolean;
+              madeLine: boolean;
+            } | null,
+          ) => {
+            note(
+              next === null
+                ? { share: null, for: null, tone: null, charts: null, made: null }
+                : {
+                    share: next.format,
+                    for: next.recipient,
+                    tone: next.tone === 'detailed' ? 'detailed' : null,
+                    charts: next.charts ? null : 'off',
+                    made: next.madeLine ? null : 'off',
+                  },
+              share === null || next === null ? 'push' : 'replace',
+            );
+          },
+          onDraft: (input: Readonly<Record<string, unknown>>) =>
+            actions.draftSummary({ ...asked(), ...input }),
+          onSend: (input: Readonly<Record<string, unknown>>) =>
+            actions.shareSummary({ ...asked(), ...input }),
+          // The PDF, saved as the browser saves any download (`/people/downloads/summary`).
+          onDownload: async (input: Readonly<Record<string, unknown>>) => {
+            const form = new FormData();
+            form.set('input', JSON.stringify({ ...asked(), ...input }));
+            const response = await fetch('/people/downloads/summary', {
+              method: 'POST',
+              body: form,
+            }).catch(() => null);
+            if (response?.ok !== true) {
+              const why = (await response?.text().catch(() => '')) ?? '';
+              return { ok: false, message: why === '' ? 'The PDF could not be made' : why };
+            }
+            const url = URL.createObjectURL(await response.blob());
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `what-changed-${today}.pdf`;
+            link.click();
+            URL.revokeObjectURL(url);
+            return { ok: true };
+          },
+          // The Schedules button: the schedules page's own actions.
+          schedules: {
+            onCreate: thenRefresh(actions.createReportSchedule),
+            onUpdate: thenRefresh(actions.updateReportSchedule),
+            onPause: thenRefresh(actions.pauseReportSchedule),
+            onResume: thenRefresh(actions.resumeReportSchedule),
+            onDelete: thenRefresh(actions.deleteReportSchedule),
+          },
+        };
+      }
       case 'ImportExport':
         return {
           load: loadable,
