@@ -479,7 +479,7 @@ async function summaryOf(
 }
 
 /** One call to the model, or null: no model, no budget, a refusal, no answer in time, not JSON. */
-async function ask(
+async function askModel(
   deps: SummaryDeps,
   asking: Asking,
   instruction: string,
@@ -516,7 +516,7 @@ export async function wordedPoints(
   const { summary, period } = asked.value;
   const ours = { points: filled(summary), byModel: false };
   if (summary.points.length === 0) return ok(ours);
-  const answer = await ask(deps, asking, PHRASE_INSTRUCTION, phraseContext(summary, period));
+  const answer = await askModel(deps, asking, PHRASE_INSTRUCTION, phraseContext(summary, period));
   const phrased = answer === null ? null : phrasedFrom(summary, answer);
   return ok(phrased === null ? ours : { points: filled(phrased), byModel: true });
 }
@@ -535,7 +535,12 @@ export async function followUp(
   if (rules.kind === 'refused' || summary.points.length === 0) {
     return ok({ ...rules, byModel: false });
   }
-  const answer = await ask(deps, asking, ASK_INSTRUCTION, askContext(summary, request.question));
+  const answer = await askModel(
+    deps,
+    asking,
+    ASK_INSTRUCTION,
+    askContext(summary, request.question),
+  );
   const read = answer === null ? null : answeredFrom(summary, request.question, answer);
   return ok(read === null ? { ...rules, byModel: false } : { ...read, byModel: true });
 }

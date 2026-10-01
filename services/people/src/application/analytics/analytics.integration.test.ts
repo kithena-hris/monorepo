@@ -1502,7 +1502,7 @@ describe('the analytics screen: the remaining charts, segments and self-ID (PEO-
               [BOSS_ACCOUNT, new Set<string>()],
             ]),
           ),
-      } as never,
+      },
       newId: () => '00000000-0000-4000-8000-0000000005aa',
     };
 

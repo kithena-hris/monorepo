@@ -7,20 +7,19 @@ import type { PeopleBuilder, ViaRest } from './builder.js';
  * a second, hand-written source. Inputs are checked by REST on the way in.
  * A PDF crosses as base64.
  */
-export function defineWhatChanged(builder: PeopleBuilder, viaRest: ViaRest): void {
-  const json = async (promise: Promise<unknown>): Promise<string> => JSON.stringify(await promise);
-  const period = (args: Readonly<Record<string, string | null | undefined>>): string => {
-    const query = new URLSearchParams();
-    for (const [k, v] of Object.entries(args))
-      if (typeof v === 'string' && v !== '') query.set(k, v);
-    const qs = query.toString();
-    return qs === '' ? '' : `?${qs}`;
-  };
-  const pdf = async (promise: Promise<unknown>): Promise<string> => {
-    const body = await promise;
-    return Buffer.from(body as Uint8Array).toString('base64');
-  };
+const json = async (promise: Promise<unknown>): Promise<string> => JSON.stringify(await promise);
+const period = (args: Readonly<Record<string, string | null | undefined>>): string => {
+  const query = new URLSearchParams();
+  for (const [k, v] of Object.entries(args)) if (typeof v === 'string' && v !== '') query.set(k, v);
+  const qs = query.toString();
+  return qs === '' ? '' : `?${qs}`;
+};
+const pdf = async (promise: Promise<unknown>): Promise<string> => {
+  const body = await promise;
+  return Buffer.from(body as Uint8Array).toString('base64');
+};
 
+export function defineWhatChanged(builder: PeopleBuilder, viaRest: ViaRest): void {
   builder.queryFields((t) => ({
     peopleWhatChanged: t.string({
       description:
