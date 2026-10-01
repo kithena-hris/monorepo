@@ -1163,8 +1163,8 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // Now it can be approved, and the approval writes it — without a second review.
     await approvals.reload();
     await approvals.waitForLoadState('networkidle');
+    // Approve decides in the row (design AI7); only a flagged change asks for a note first.
     await inbox.getByRole('button', { name: /^Approve the change to .*NIF \/ NIE$/ }).click();
-    await approvals.getByRole('dialog').getByRole('button', { name: 'Approve', exact: true }).click();
     await eventually(
       'the NIF',
       () => stack.sql`SELECT 1 FROM people.person_secret
