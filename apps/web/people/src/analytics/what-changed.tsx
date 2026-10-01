@@ -928,9 +928,11 @@ function ExportDialog({
                     )
                   }
                 >
-                  {current.notes.length === 0
-                    ? 'Only what you can see yourself.'
-                    : current.notes.join(' ')}
+                  {current.notes.length > 0
+                    ? current.notes.join(' ')
+                    : recipient === null
+                      ? 'Only what you can see yourself.'
+                      : `${recipient.name} can see all of it, so nothing was changed.`}
                 </Alert>
               )}
               <Field orientation="horizontal" className="justify-start touch:hidden">
