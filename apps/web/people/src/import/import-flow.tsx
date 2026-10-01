@@ -583,8 +583,9 @@ function AfterUpload({
       ) : null}
 
       {coarse && step === 'fields' && view !== null ? (
-        // MA8: Skip and Create in thumb reach, one card at a time.
-        <div className="sticky bottom-24 z-10 grid grid-cols-2 gap-2">
+        // MA8: Skip and Create in thumb reach, one card at a time; above the tab
+        // bar and the assistant's button (`touch:bottom-24`, 3.5rem tall).
+        <div className="sticky bottom-40 z-10 grid grid-cols-2 gap-2">
           {(() => {
             const p = proposals[card];
             const advance = (): void => {
@@ -624,7 +625,7 @@ function AfterUpload({
       ) : null}
 
       {coarse && step === 'existing' ? (
-        <div className="sticky bottom-24 z-10">
+        <div className="sticky bottom-40 z-10">
           <Button
             variant="primary"
             className="w-full"
