@@ -32,17 +32,19 @@ export function drizzleExportLedger(): ExportLedger {
       const rows = await tx.execute<{ id: string }>(sql`
         INSERT INTO people.export
                (tenant_id, id, requested_by, row_count, file_names, expires_at, completed_at,
-                format, reason, attribute_keys)
+                format, reason, attribute_keys, shared_with, as_of, audience)
         VALUES (${run.tenantId}::uuid, ${run.exportId}::uuid, ${run.requestedBy}::uuid,
                 ${run.rowCount}, ${texts(run.fileNames)},
                 ${run.expiresAt}::timestamptz, now(),
                 ${run.format}, ${run.reason},
-                ${run.attributeKeys === null ? null : texts(run.attributeKeys)})
+                ${run.attributeKeys === null ? null : texts(run.attributeKeys)},
+                ${run.sharedWith ?? null}::uuid, ${run.asOf ?? null}::date, ${run.audience ?? null})
         ON CONFLICT (tenant_id, id) DO UPDATE
            SET row_count = EXCLUDED.row_count, file_names = EXCLUDED.file_names,
                expires_at = EXCLUDED.expires_at, completed_at = EXCLUDED.completed_at,
                format = EXCLUDED.format, reason = EXCLUDED.reason,
-               attribute_keys = EXCLUDED.attribute_keys
+               attribute_keys = EXCLUDED.attribute_keys, shared_with = EXCLUDED.shared_with,
+               as_of = EXCLUDED.as_of, audience = EXCLUDED.audience
          WHERE people.export.completed_at IS NULL
         RETURNING id`);
       return [...rows].length > 0;
@@ -57,8 +59,13 @@ export function drizzleExportLedger(): ExportLedger {
         format: string | null;
         reason: string | null;
         attribute_keys: string[] | null;
+        shared_with: string | null;
+        opened_at: string | Date | null;
+        as_of: string | null;
+        audience: string | null;
       }>(sql`
-        SELECT requested_by, row_count, file_names, expires_at, format, reason, attribute_keys
+        SELECT requested_by, row_count, file_names, expires_at, format, reason, attribute_keys,
+               shared_with, opened_at, as_of::text AS as_of, audience
           FROM people.export
          WHERE tenant_id = ${tenantId}::uuid AND id = ${exportId}::uuid`);
       const row = [...rows][0];
@@ -77,7 +84,17 @@ export function drizzleExportLedger(): ExportLedger {
         format: formatOf(row.format),
         reason: row.reason,
         attributeKeys: row.attribute_keys,
+        sharedWith: row.shared_with,
+        openedAt: row.opened_at === null ? null : new Date(row.opened_at).toISOString(),
+        asOf: row.as_of,
+        audience: row.audience,
       };
+    },
+
+    async opened(tx, tenantId, exportId, at) {
+      await tx.execute(sql`
+        UPDATE people.export SET opened_at = ${at}::timestamptz
+         WHERE tenant_id = ${tenantId}::uuid AND id = ${exportId}::uuid AND opened_at IS NULL`);
     },
   };
 }
@@ -101,9 +118,16 @@ export function inMemoryExportLedger(): ExportLedger & { readonly rows: Map<stri
       if (rows.get(id(run.tenantId, run.exportId))?.status === 'completed') {
         return Promise.resolve(false);
       }
-      rows.set(id(run.tenantId, run.exportId), { status: 'completed', ...run });
+      rows.set(id(run.tenantId, run.exportId), { status: 'completed', openedAt: null, ...run });
       return Promise.resolve(true);
     },
     find: (_tx, tenantId, exportId) => Promise.resolve(rows.get(id(tenantId, exportId)) ?? null),
+    opened(_tx, tenantId, exportId, at) {
+      const row = rows.get(id(tenantId, exportId));
+      if (row?.status === 'completed' && (row.openedAt ?? null) === null) {
+        rows.set(id(tenantId, exportId), { ...row, openedAt: at });
+      }
+      return Promise.resolve();
+    },
   };
 }

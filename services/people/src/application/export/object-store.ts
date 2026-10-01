@@ -79,14 +79,24 @@ export const REPORT_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * An import's report, by its key (`reportKey` in `import/commit.ts`). Every
- * key starts with its lifetime — `exports/`, `dry-runs/` or `imports/` — so
+ * key starts with its lifetime — `exports/`, `dry-runs/`, `shared/` or `imports/` — so
  * the bucket's lifecycle rules, which filter by prefix, can match it too.
  */
 export const isImportReport = (key: string): boolean => key.startsWith('imports/');
 
-/** How long an object lives: a report its week, an export file its link's day. */
+/**
+ * How long a file sent to somebody else is kept (design AI13): a week, the
+ * time its recipient has to open it, signed in. Under `shared/`.
+ */
+export const SHARED_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** How long an object lives: a report or a sent file its week, an export file its link's day. */
 export const lifetimeOf = (key: string): number =>
-  isImportReport(key) ? REPORT_LIFETIME_MS : LINK_LIFETIME_MS;
+  isImportReport(key)
+    ? REPORT_LIFETIME_MS
+    : key.startsWith('shared/')
+      ? SHARED_LIFETIME_MS
+      : LINK_LIFETIME_MS;
 
 /** The object key a link names, or null when it is not a URL. */
 export function keyOf(link: string): string | null {

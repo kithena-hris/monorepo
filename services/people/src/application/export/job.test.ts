@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { fixedClock, type Clock, type PendingEvent } from '@kithena/domain-kit';
 
-import { noTransaction as tx } from '../person/in-memory.js';
+import { noTransaction as tx, TENANT } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
 import { asking, FINANCE, financeTenant, HR } from './fixture.js';
 import { runExportJob, type ExportJobDeps, type ExportNotifier } from './job.js';
@@ -137,7 +137,7 @@ describe('the delivered file', () => {
     // A link, not an attachment: nothing in the notification is the file.
     expect(JSON.stringify(sent)).not.toContain('Grace');
 
-    const url = done.value.links[0]?.url ?? '';
+    const url = done.value.links.find((l) => l.name.endsWith('.csv'))?.url ?? '';
     const key = decodeURIComponent(new URL(url).pathname.split('/').at(-1) ?? '');
     expect(new TextDecoder().decode(objects.raw(key))).not.toContain('Grace');
 
@@ -158,5 +158,57 @@ describe('the delivered file', () => {
     url.searchParams.set('expires', '2099-01-01T00:00:00.000Z');
     const opened = await objects.open(url.toString());
     expect(!opened.ok && opened.error.code).toBe('LINK_INVALID');
+  });
+});
+
+describe('the About inside every file', () => {
+  it('comes first in a CSV export, saying who, as of when and why', async () => {
+    const { deps, objects } = setup();
+    const done = await runExportJob(tx, deps, {
+      ...asking(HR),
+      format: 'csv',
+      reason: 'Quarterly audit',
+      filter: 'Everyone in Madrid',
+    });
+    if (!done.ok) throw new Error(done.error.message);
+    expect(done.value.links[0]?.name).toBe('about-2026-09-22.txt');
+    const opened = await objects.open(done.value.links[0]?.url ?? '');
+    const text = opened.ok ? new TextDecoder().decode(opened.value.bytes) : '';
+    expect(text).toContain('Everyone in Madrid, 22 September 2026');
+    expect(text).toContain('3 people, with their');
+    expect(text).toContain('Why: Quarterly audit.');
+    expect(text).toContain('link expires 23 September 2026');
+    expect(text).not.toContain('Grace');
+  });
+});
+
+describe('a file sent to somebody else', () => {
+  it('is kept a week under shared/, and the ledger says for whom, as of when and who', async () => {
+    const { deps } = setup();
+    const done = await runExportJob(tx, deps, {
+      ...asking(HR),
+      format: 'xlsx',
+      reason: 'Budget planning for 2027',
+      sharedWith: FINANCE.accountId,
+    });
+    if (!done.ok) throw new Error(done.error.message);
+    expect(done.value.expiresAt).toBe('2026-09-29T09:00:00.000Z');
+    const key = decodeURIComponent(
+      new URL(done.value.links[0]?.url ?? '').pathname.split('/').at(-1) ?? '',
+    );
+    expect(key.startsWith('shared/')).toBe(true);
+    const entry = await deps.ledger.find(tx, TENANT, done.value.exportId);
+    expect(entry).toMatchObject({
+      status: 'completed',
+      sharedWith: FINANCE.accountId,
+      asOf: '2026-09-22',
+      audience: 'Everyone you can see',
+      openedAt: null,
+    });
+    await deps.ledger.opened(tx, TENANT, done.value.exportId, '2026-09-22T10:00:00.000Z');
+    await deps.ledger.opened(tx, TENANT, done.value.exportId, '2026-09-23T10:00:00.000Z');
+    expect(await deps.ledger.find(tx, TENANT, done.value.exportId)).toMatchObject({
+      openedAt: '2026-09-22T10:00:00.000Z',
+    });
   });
 });

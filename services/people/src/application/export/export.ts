@@ -8,7 +8,8 @@ import type { PublishedVersion } from '../../domain/schema/publish.js';
 import { exponentOf, fromMinor, MASK } from '../import/cells.js';
 import { writeCsv } from '../import/csv.js';
 import { judge, NOTHING_JUDGED, versionInForce, type Judgement, type RecordDeps } from './as-of.js';
-import { PERSON_ID_COLUMN } from '../import/parse.js';
+import { ABOUT_SHEET, PERSON_ID_COLUMN } from '../import/parse.js';
+import { aboutSheet, type About } from '../../domain/export/share.js';
 import type { Calendars } from '../org/org.js';
 import type { TenantCalendar } from '../../domain/org/calendar.js';
 import {
@@ -82,6 +83,23 @@ export interface ExportRequest extends Asking {
    * the person's photo.
    */
   readonly includePhotos?: boolean;
+  /**
+   * What the file's About sheet says beyond what the export itself knows
+   * (design AI14): its id, when its link dies, who made it and for whom.
+   * Absent, a file has no About — only a caller that keeps no ledger row.
+   */
+  readonly about?: AboutContext;
+}
+
+export interface AboutContext {
+  readonly exportId: string;
+  /** The last day its link opens. */
+  readonly expiresOn: string | null;
+  /** The requester's name; null for a scheduled report, which nobody asked for. */
+  readonly madeBy: string | null;
+  /** Whom it is for, by name, when that is somebody else. */
+  readonly recipient: string | null;
+  readonly reason: string | null;
 }
 
 export interface ExportFile {
@@ -96,6 +114,9 @@ export interface BuiltExport {
   readonly attributeKeys: readonly string[];
   readonly rowCount: number;
   readonly schemaVersion: number;
+  /** The day the values are as of, in the tenant's calendar, and who is in it in words. */
+  readonly asOf: string;
+  readonly audience: string;
 }
 
 export interface ExportDeps {
@@ -256,6 +277,25 @@ export async function buildExport(
   }
   const flat = columns.filter((d) => d.cardinality !== 'repeating');
   const repeating = columns.filter((d) => d.cardinality === 'repeating');
+  const about =
+    request.about === undefined
+      ? null
+      : aboutSheet({
+          audience: described(request),
+          count: rows.length,
+          fields: columns.map((d) => ({
+            label: d.label.default,
+            money: d.dataType === 'money',
+            masked: d.encrypted && !(reveal?.keys.has(d.key) ?? false),
+          })),
+          asOf: day,
+          madeOn: stamp,
+          exportId: request.about.exportId,
+          expiresOn: request.about.expiresOn,
+          madeBy: request.about.madeBy,
+          recipient: request.about.recipient,
+          reason: request.about.reason,
+        });
 
   const files =
     request.format === 'pdf'
@@ -268,10 +308,11 @@ export async function buildExport(
             day,
             stamp,
             calendar,
+            about,
           }),
         ]
       : request.format === 'csv'
-        ? csvFiles(flat, repeating, rows, stamp)
+        ? csvFiles(flat, repeating, rows, stamp, about)
         : [
             {
               name: `people-${stamp}.xlsx`,
@@ -286,6 +327,7 @@ export async function buildExport(
                 deps.clock,
                 columns,
                 stamp,
+                about,
               ),
             },
           ];
@@ -300,6 +342,8 @@ export async function buildExport(
     attributeKeys: columns.map((d) => d.key),
     rowCount: rows.length,
     schemaVersion: version.version,
+    asOf: day,
+    audience: described(request),
   });
 }
 
@@ -413,6 +457,7 @@ function csvFiles(
   repeating: readonly AttributeDefinition[],
   rows: readonly Row[],
   stamp: string,
+  about: About | null,
 ): ExportFile[] {
   const main = [
     ['Person id', ...flat.map(label), MISSING_COLUMN],
@@ -426,6 +471,14 @@ function csvFiles(
   const files: ExportFile[] = [
     { name: `people-${stamp}.csv`, mediaType: 'text/csv', bytes: writeCsv(main) },
   ];
+  // A CSV holds one table, so its About travels beside it, first in the list.
+  if (about !== null) {
+    files.unshift({
+      name: `about-${stamp}.txt`,
+      mediaType: 'text/plain; charset=utf-8',
+      bytes: new TextEncoder().encode(aboutText(about)),
+    });
+  }
   for (const d of repeating) {
     files.push({
       name: `people-${stamp}-${d.key}.csv`,
@@ -439,6 +492,10 @@ function csvFiles(
 function label(d: AttributeDefinition): string {
   return d.deprecatedAt === null ? d.label.default : `${d.label.default} (archived)`;
 }
+
+/** The About sheet as plain text: the title, its paragraphs, the footnote. */
+const aboutText = (about: About): string =>
+  [about.title, '', ...about.paragraphs.flatMap((p) => [p, '']), about.footnote, ''].join('\n');
 
 /** One row per entry, keyed back to its person. */
 function repeatingRows(d: AttributeDefinition, rows: readonly Row[]): unknown[][] {
@@ -468,8 +525,22 @@ async function workbook(
   clock: Clock,
   columns: readonly AttributeDefinition[],
   today: string,
+  about: About | null,
 ): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
+  // First, so the file says what it is before anybody reads a row of it. The
+  // importer passes over it (`ABOUT_SHEET`), so the file still re-imports.
+  const aboutTab = wb.addWorksheet(ABOUT_SHEET);
+  aboutTab.getColumn(1).width = 34;
+  aboutTab.getColumn(2).width = 90;
+  if (about !== null) {
+    aboutTab.addRow([about.title]).font = { bold: true, size: 14 };
+    aboutTab.addRow([]);
+    for (const p of about.paragraphs) aboutTab.addRow([p]);
+    aboutTab.addRow([]);
+    aboutTab.addRow([about.footnote]).font = { italic: true };
+    aboutTab.addRow([]);
+  }
   const people = wb.addWorksheet('People', { views: [{ state: 'frozen', ySplit: 2 }] });
   const lists = wb.addWorksheet('Lists', { state: 'veryHidden' });
 
@@ -540,7 +611,7 @@ async function workbook(
   const missing = wb.addWorksheet('Missing information');
   for (const values of missingSheet) missing.addRow(values);
 
-  const about = wb.addWorksheet('About this export');
+  // The provenance a re-import or an auditor reads, under the words.
   for (const line of [
     ['Schema version', version.version],
     ['As of', request.asOf ?? today],
@@ -554,7 +625,7 @@ async function workbook(
       judgedBy?.version ?? 'none published then',
     ],
   ]) {
-    about.addRow(line);
+    aboutTab.addRow(line);
   }
 
   return new Uint8Array(await wb.xlsx.writeBuffer());
@@ -640,6 +711,7 @@ interface PdfInput {
   readonly day: string;
   readonly stamp: string;
   readonly calendar: Pick<TenantCalendar, 'entities' | 'locations'>;
+  readonly about: About | null;
 }
 
 /**
@@ -738,6 +810,7 @@ async function pdfFile(
       lines: [
         `Filter: ${described(request)}`,
         `As of ${input.day} · ${String(count)} ${count === 1 ? 'person' : 'people'}`,
+        ...(input.about === null ? [] : [...input.about.paragraphs, input.about.footnote]),
       ],
       withheld: input.rows.reduce((n, r) => n + withheld(input.universe, shown, r.relations), 0),
       headers: input.columns.map(label),

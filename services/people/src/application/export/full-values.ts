@@ -22,7 +22,7 @@ import type { Asking } from '../person/person-access.js';
 import { userActor } from '../person/ports.js';
 import { nameOf } from '../screens/record.js';
 import { buildExport, exportableColumns, type Reveal } from './export.js';
-import type { ExportJobDeps } from './job.js';
+import { accountName, type ExportJobDeps } from './job.js';
 
 /**
  * Full values for finance, through somebody else's hands (PEO-088; PRD §15.2).
@@ -333,6 +333,9 @@ async function issue(
     viewer: { accountId: prior.approval.requestedBy, roles: new Set(['finance']) },
     correlationId,
   };
+  const now = deps.clock.instant();
+  const exportId = deps.newId();
+  const grant: Grant = { issuedAt: now, expiresAt: plus(now, DOWNLOAD_LIFETIME_MS), usedAt: null };
   const built = await buildExport(
     tx,
     deps,
@@ -343,6 +346,13 @@ async function issue(
       ...(prior.asOf ? { asOf: prior.asOf } : {}),
       ...(prior.personIds ? { personIds: prior.personIds } : {}),
       ...(prior.filter ? { filter: prior.filter } : {}),
+      about: {
+        exportId,
+        expiresOn: grant.expiresAt.slice(0, 10),
+        madeBy: await accountName(tx, deps, asRequester, prior.approval.requestedBy),
+        recipient: null,
+        reason: prior.approval.reason === '' ? null : prior.approval.reason,
+      },
     },
     { keys: new Set(prior.attributeKeys), value: deps.reveal },
   );
@@ -350,9 +360,6 @@ async function issue(
   const file = built.value.files[0];
   if (!file) throw new Error('an XLSX export produced no file');
 
-  const now = deps.clock.instant();
-  const exportId = deps.newId();
-  const grant: Grant = { issuedAt: now, expiresAt: plus(now, DOWNLOAD_LIFETIME_MS), usedAt: null };
   const next: FullValuesRequest = { ...prior, exportId, fileName: file.name, grant };
   const key = fullValuesKey(prior.tenantId, prior.approval.id, file.name);
 

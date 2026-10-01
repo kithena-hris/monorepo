@@ -14,7 +14,7 @@
 #                    Public Access, SSE-S3 by default, BucketOwnerEnforced,
 #                    unversioned, TLS only, and lifecycle rules matching
 #                    People's key layout (uploads: a day; exports/ and
-#                    dry-runs/: 2 days, imports/: 8; backups: 30). The uploads
+#                    dry-runs/: 2 days, imports/ and shared/: 8; backups: 30). The uploads
 #                    bucket takes a browser PUT from the tenant app (CORS).
 #   instance role    kithena-vm, the instance profile: Get/Put/Delete/List on
 #                    uploads and exports, Get/Put/List on backups (no delete:
@@ -217,13 +217,14 @@ rule() {
 }
 # Lifecycle filters are prefixes, not globs, so every People key starts with
 # its lifetime: exports/<tenant>/… and dry-runs/<tenant>/… (a day's link, kept
-# 2), imports/<tenant>/… (a week's report, kept 8). People's own sweep deletes
+# 2), imports/<tenant>/… and shared/<tenant>/… (a week's report or sent file,
+# kept 8). People's own sweep deletes
 # on time; these rules are the backstop for a sweep that never ran.
 bucket "$UPLOADS" "[$(rule uploads-1-day '' 1)]"
 # The browser PUTs here with People's presigned URL: only PUT, only the tenant
 # app's origins, only the headers the URL signs, nothing exposed.
 act s3api put-bucket-cors --bucket "$UPLOADS" --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[$CORS_ORIGINS],\"AllowedMethods\":[\"PUT\"],\"AllowedHeaders\":[\"content-type\",\"if-none-match\",\"x-amz-server-side-encryption\"],\"MaxAgeSeconds\":3600}]}"
-bucket "$EXPORTS" "[$(rule exports-2-days exports/ 2),$(rule dry-runs-2-days dry-runs/ 2),$(rule imports-8-days imports/ 8)]"
+bucket "$EXPORTS" "[$(rule exports-2-days exports/ 2),$(rule dry-runs-2-days dry-runs/ 2),$(rule imports-8-days imports/ 8),$(rule shared-8-days shared/ 8)]"
 bucket "$BACKUPS" "[$(rule backups-30-days '' 30)]"
 
 say "instance role kithena-vm"
