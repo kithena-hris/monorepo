@@ -44,6 +44,9 @@ describe('the kind of data in a column', () => {
     ['IBAN', 'financial'],
     ['NIF', 'identifier'],
     ['Allergies', 'special'],
+    // A diet can say a religion or a condition: special category, never ordinary.
+    ['Dietary requirements', 'special'],
+    ['Religion', 'special'],
     ['Emergency contact', 'contact'],
     ['Date of birth', 'birth'],
     ['Cost centre', 'business'],

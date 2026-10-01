@@ -170,7 +170,7 @@ describe('the blocked-row report', () => {
     expect(report.value.headers).toEqual([...HEADERS, '__source_row', '__reason']);
     expect(report.value.rows).toHaveLength(14 + 5);
     expect(report.value.rows[0]?.cells.at(-1)).toMatch(
-      /Work email: a new person needs work_email/u,
+      /Work email: a new person needs a work email/u,
     );
 
     // Fix the blocked rows in "Excel": an email where missing, a real hire date.

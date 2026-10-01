@@ -118,7 +118,10 @@ const KINDS: readonly [RegExp, Kind][] = [
     /\bnif\b|\bnie\b|\bdni\b|ssn|social security|\bnino\b|national insurance|passport|\bpan\b|\btin\b|tax id|national id/u,
     'identifier',
   ],
-  [/health|medical|allerg|disab|religio|ethnic|union|sexual|pregnan|diagnos|blood/u, 'special'],
+  [
+    /health|medical|allerg|disab|religio|faith|diet|ethnic|union|sexual|pregnan|diagnos|blood/u,
+    'special',
+  ],
   [/emergency|next of kin|\bkin\b|phone|mobile|e-?mail|address/u, 'contact'],
   [/birth|\bdob\b/u, 'birth'],
   [

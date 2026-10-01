@@ -593,7 +593,9 @@ function rowClassifier(
         const present = key === 'hire_date' ? hireDate !== null : values[key] !== undefined;
         if (present) continue;
         const column = columnOf(key)?.header ?? key;
-        problems.push({ column, key, kind: 'missing', reason: `a new person needs ${key}` });
+        // In the words on the screen: "a work email", never `work_email`.
+        const named = (byKey.get(key)?.label.default ?? key.replaceAll('_', ' ')).toLowerCase();
+        problems.push({ column, key, kind: 'missing', reason: `a new person needs ${/^[aeiou]/u.test(named) ? 'an' : 'a'} ${named}` });
       }
       if (problems.length > 0) {
         return { ...base, outcome: 'blocked', personId: null, changes: {}, problems, missing: [] };
