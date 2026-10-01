@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RemindDirectory(\n    $conditions: String!, $match: String, $search: String, $key: String!\n  ) {\n    peopleRemindDirectory(conditions: $conditions, match: $match, search: $search, idempotencyKey: $key)\n  }"}

@@ -3,7 +3,7 @@
 import { Skeleton } from '@reach/ui';
 import type { Route } from 'next';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useState, useTransition, type JSX } from 'react';
+import { useEffect, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
@@ -256,8 +256,15 @@ export function PeopleScreen({
    */
   const live = useSearchParams();
   const at = (key: string): string | null => live.get(key);
+  // A navigation on its way: noting where the reader is (`noteInAddress`) would
+  // rewrite the old address under it, and Next would drop the navigation.
+  const navigating = useRef(false);
+  useEffect(() => {
+    navigating.current = false;
+  }, [live]);
   const navigate = (patch: Readonly<Record<string, string | null>>, mode: HistoryMode = 'push') => {
     const to = withQuery(window.location.pathname, window.location.search, patch) as Route;
+    navigating.current = true;
     if (mode === 'push') router.push(to, { scroll: false });
     else router.replace(to, { scroll: false });
   };
@@ -447,7 +454,8 @@ export function PeopleScreen({
         // first page, and a page is a history entry, so Back returns to the
         // one before (PEO-117).
         const query = (patch: Readonly<Record<string, string | null>>, mode?: HistoryMode) => {
-          navigate({ after: null, ...patch }, mode);
+          // A new query starts at the top: the row the reader was on belongs to the old one.
+          navigate({ after: null, row: null, ...patch }, mode);
         };
         const view = leaf === 'cards' ? 'cards' : 'list';
         const data =
@@ -489,6 +497,7 @@ export function PeopleScreen({
               incomplete: view.incomplete ? 'true' : null,
               segment: view.segmentId,
               filter: null,
+              ask: null,
             });
           },
           view,
@@ -516,8 +525,14 @@ export function PeopleScreen({
                 onLoadMore: (after: string) => actions.directoryPage(search, after),
                 next,
               }),
+          // A view saved from a search keeps its conditions too (smart search's "Save as view").
           onSaveSegment: thenRefresh((segment: { name: string; shared: boolean }) =>
-            actions.saveSegment({ ...segment, filter: filters }),
+            actions.saveSegment({
+              ...segment,
+              filter: filters,
+              conditions: conditionsOf(at('conditions') ?? undefined) ?? [],
+              match: at('match') === 'any' ? 'any' : 'all',
+            }),
           ),
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
@@ -543,11 +558,18 @@ export function PeopleScreen({
                 },
               }
             : {}),
-          // What was typed, on Enter, read as the directory's own filters and
-          // order (docs/ai-settings.md): the plan goes into the address, as a
-          // chip or the Filters sheet would put it, and People answers it.
-          onAsk: async (sentence: string) => {
-            const planned = await actions.planDirectory(sentence);
+          // Smart search (docs/ai-settings.md): what was typed, on Enter. The
+          // one person a name or an email finds is opened; otherwise the plan
+          // goes into the address, as a chip or the Filters sheet would put
+          // it, with the question beside it (`?ask=`), and People answers it.
+          asked: at('ask'),
+          onAsk: async (sentence: string, remembered: Readonly<Record<string, string>>) => {
+            const nothing = { note: null, unused: [], filters: 0, search: null };
+            if (sentence === '') {
+              query({ ask: null, q: null, conditions: null, match: null, sort: null });
+              return { ok: true, by: 'search', ...nothing };
+            }
+            const planned = await actions.planDirectory(sentence, remembered);
             if (!planned.ok) return planned;
             const plan = planned.data as {
               search: string | null;
@@ -557,22 +579,51 @@ export function PeopleScreen({
               unused: readonly string[];
               by: 'search' | 'assistant' | 'rules';
               note: string | null;
+              person: { id: string; name: string } | null;
+              ask: {
+                topic: string | null;
+                phrase: string;
+                readings: readonly {
+                  label: string;
+                  conditions: readonly { key: string; op: string; values: readonly string[] }[];
+                  match: 'all' | 'any';
+                  count: number | null;
+                }[];
+              } | null;
+              refused: readonly {
+                text: string;
+                why: string;
+                instead: {
+                  label: string;
+                  subject: string;
+                  condition: { key: string; op: string; values: readonly string[] };
+                  count: number | null;
+                } | null;
+              }[];
+              remembered: { topic: string; phrase: string; label: string } | null;
             };
+            if (plan.person !== null) {
+              go(`/people/${plan.person.id}`);
+              return { ok: true, by: 'person', ...nothing };
+            }
             const filters = plan.conditions.length + (plan.sort === null ? 0 : 1);
-            query(
-              plan.by === 'search' || filters === 0
-                ? { q: plan.search ?? sentence }
-                : {
-                    q: plan.search,
-                    conditions: conditionsKey(plan.conditions),
-                    match: plan.match === 'any' ? 'any' : null,
-                    sort: plan.sort,
-                    filter: null,
-                    segment: null,
-                    incomplete: null,
-                    group: null,
-                  },
-            );
+            const asking = plan.ask !== null || plan.refused.length > 0;
+            if (plan.by === 'search' || (filters === 0 && !asking)) {
+              query({ q: plan.search ?? sentence, ask: null });
+              return { ok: true, by: 'search', ...nothing };
+            }
+            query({
+              ask: sentence,
+              q: plan.search,
+              conditions: conditionsKey(plan.conditions),
+              match: plan.match === 'any' ? 'any' : null,
+              // A question's results stream in by name unless it asked for an order.
+              sort: plan.sort ?? (plan.conditions.length > 0 ? 'name:asc' : null),
+              filter: null,
+              segment: null,
+              incomplete: null,
+              group: null,
+            });
             return {
               ok: true,
               by: plan.by,
@@ -580,7 +631,24 @@ export function PeopleScreen({
               unused: plan.unused,
               filters,
               search: plan.search,
+              ask: plan.ask,
+              refused: plan.refused,
+              remembered: plan.remembered,
             };
+          },
+          // "Remind all": everybody the conditions in force find, asked for what they find empty.
+          onRemind: async (
+            conditions: readonly { key: string; op: string; values: readonly string[] }[],
+            match: 'all' | 'any',
+          ) => {
+            const done = await actions.remindDirectory(conditions, match, at('q'));
+            return done.ok ? { ok: true, asked: done.asked, more: done.more } : done;
+          },
+          // Where the reader is: noted in the address, so Back returns to the same row.
+          place: Number.parseInt(at('row') ?? '', 10) || null,
+          onPlaceChange: (row: number | null) => {
+            if (navigating.current) return;
+            note({ row: row === null ? null : String(row) }, 'replace');
           },
           ...(can.import === true
             ? {
@@ -1056,7 +1124,10 @@ export function PeopleScreen({
               const id = importing.uploadId;
               return id === null ? again : actions.proposeImportFields(id, mapping);
             },
-            review: async (mapping: Readonly<Record<number, string | null>>, proposals: readonly unknown[]) => {
+            review: async (
+              mapping: Readonly<Record<number, string | null>>,
+              proposals: readonly unknown[],
+            ) => {
               const id = importing.uploadId;
               return id === null ? again : actions.reviewImportFields(id, mapping, proposals);
             },

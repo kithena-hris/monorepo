@@ -534,6 +534,130 @@ describe('at 390×844, with a finger', () => {
     expect(within(views[0] as HTMLElement).getByRole('radio', { name: 'List' })).toBeChecked();
   });
 
+  /* Smart search on the People tab (MA1–MA3). */
+  const crowd = {
+    total: 388,
+    active: 388,
+    notStarted: null,
+    incomplete: null,
+    columns: [{ key: 'job_title', label: 'Job title' }],
+    fields: [
+      {
+        key: 'department',
+        label: 'Team',
+        kind: 'select',
+        options: [{ value: 'eng', label: 'Engineering' }],
+      },
+      { key: 'bank_account', label: 'Bank account', kind: 'text', options: [] },
+    ],
+    query: {
+      conditions: [
+        { key: 'department', op: 'in', values: ['eng'] },
+        { key: 'bank_account', op: 'empty', values: [] },
+      ],
+      match: 'all',
+      sort: null,
+    },
+    remind: ['bank_account'],
+    filterable: [],
+    people: Array.from({ length: 30 }, (_, i) => ({
+      id: `p${String(i)}`,
+      name: `Person ${String(i + 1)}`,
+      email: null,
+      avatarUrl: null,
+      values: { job_title: 'Engineer' },
+      missing: null,
+    })),
+  };
+  const smart = {
+    search: '',
+    onSearchChange: vi.fn(),
+    filters: {},
+    onFiltersChange: vi.fn(),
+    onOpen: vi.fn(),
+    onConditionsChange: vi.fn(),
+  };
+
+  it('smart search: the question, its chips scrolling sideways, and Remind all in thumb reach (MA1)', async () => {
+    await checked(
+      <Directory
+        {...smart}
+        load={{ status: 'ready', data: crowd }}
+        asked="engineers missing bank details"
+        onAsk={vi.fn()}
+        onRemind={() => Promise.resolve({ ok: true as const, asked: 388, more: false })}
+      />,
+    );
+    const row = screen.getByRole('group', { name: 'Understood as' });
+    // One line that scrolls, never a wrap.
+    expect(getComputedStyle(row).flexWrap).toBe('nowrap');
+    expect(getComputedStyle(row).overflowX).toBe('auto');
+    const remind = screen.getByRole('button', { name: 'Remind all' });
+    expect(remind).toBeVisible();
+    expect(remind.closest('div')).toHaveTextContent('388 people');
+  });
+
+  it('smart search: results scrolling forever, with where you are and the way back (MA2)', async () => {
+    mount(
+      <Directory
+        {...smart}
+        load={{ status: 'ready', data: crowd }}
+        asked="engineers missing bank details"
+        onAsk={vi.fn()}
+        onLoadMore={() => new Promise(() => undefined)}
+        next="cursor-1"
+      />,
+    );
+    window.scrollTo({ top: 1200 });
+    const back = await screen.findByRole('button', { name: 'Back to top' });
+    expect(screen.getByText(/^\d+ of 388$/u)).toBeVisible();
+    await settled();
+    expect(underFloor(document.body)).toEqual([]);
+    expect(await violations(document.body)).toEqual([]);
+    await userEvent.click(back);
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Back to top' })).toBeNull();
+    });
+    window.scrollTo({ top: 0 });
+  });
+
+  it('smart search: when it is unclear, one reading a row, a thumb wide (MA3)', async () => {
+    const onAsk = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'rules' as const,
+        note: null,
+        unused: [],
+        filters: 0,
+        search: null,
+        ask: {
+          topic: 'leaving',
+          phrase: 'leaving soon',
+          readings: [
+            { label: 'Have given notice', conditions: [], match: 'all' as const, count: 3 },
+            { label: 'Both', conditions: [], match: 'any' as const, count: 8 },
+          ],
+        },
+      }),
+    );
+    mount(<Directory {...smart} load={{ status: 'ready', data: crowd }} onAsk={onAsk} />);
+    await userEvent.fill(
+      screen.getByRole('searchbox', { name: 'Search people' }),
+      'people leaving soon',
+    );
+    await userEvent.keyboard('{Enter}');
+    const card = await screen.findByRole('group', { name: 'What does “leaving soon” mean?' });
+    expect(
+      within(card).getByRole('heading', { name: 'What does “leaving soon” mean?' }),
+    ).toBeVisible();
+    for (const choice of within(card).getAllByRole('button')) {
+      expect(choice.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+    }
+    await settled();
+    expect(underFloor(document.body)).toEqual([]);
+    expect(await violations(document.body)).toEqual([]);
+  });
+
   it('the completeness grid, as one card per person', async () => {
     await checked(
       <CompletenessGrid
@@ -908,7 +1032,15 @@ describe('at 390×844, with a finger', () => {
         onReview={(proposals) =>
           Promise.resolve({
             ok: true as const,
-            data: { ...NEW_FIELDS, proposals: NEW_FIELDS.proposals.filter((p) => proposals.some((q) => q.column === p.column)), summary: 'Adds 4 fields. Values for 128 people from this file. 342 people will be asked for their emergency contact.', problems: [] },
+            data: {
+              ...NEW_FIELDS,
+              proposals: NEW_FIELDS.proposals.filter((p) =>
+                proposals.some((q) => q.column === p.column),
+              ),
+              summary:
+                'Adds 4 fields. Values for 128 people from this file. 342 people will be asked for their emergency contact.',
+              problems: [],
+            },
           })
         }
         onApply={ok}
@@ -940,7 +1072,10 @@ describe('at 390×844, with a finger', () => {
 
     it('for HR without an administrator', async () => {
       await checked(
-        newInformation({ canCreate: false, blocked: 'Only a People administrator can add fields.' }),
+        newInformation({
+          canCreate: false,
+          blocked: 'Only a People administrator can add fields.',
+        }),
       );
     });
   });
@@ -1037,7 +1172,10 @@ describe('at 390×844, with a finger', () => {
               tabs: [
                 {
                   tab: 'data-quality',
-                  sentences: ['Records 79% complete; 88 incomplete.', '1 work permit expires in October.'],
+                  sentences: [
+                    'Records 79% complete; 88 incomplete.',
+                    '1 work permit expires in October.',
+                  ],
                 },
               ],
             },

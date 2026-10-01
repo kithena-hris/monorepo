@@ -301,6 +301,7 @@ export const OPERATIONS = {
       people { id name email avatarUrl values { key value } people { key id name avatarUrl } missing }
       next
       can { import export bulkEdit }
+      suggestions remind
     }
   }`,
 
@@ -841,9 +842,13 @@ export const OPERATIONS = {
   }`,
 
   SaveSegment: `mutation SaveSegment(
-    $name: String!, $filter: [PeopleSegmentConditionInput!]!, $shared: Boolean!, $key: String!
+    $name: String!, $filter: [PeopleSegmentConditionInput!]!, $conditions: [DirectoryConditionInput!],
+    $match: String, $shared: Boolean!, $key: String!
   ) {
-    savePeopleSegment(name: $name, filter: $filter, shared: $shared, idempotencyKey: $key) { id }
+    savePeopleSegment(
+      name: $name, filter: $filter, conditions: $conditions, match: $match, shared: $shared,
+      idempotencyKey: $key
+    ) { id }
   }`,
 
   /* Scheduled reports (PEO-069): HR's list, a schedule's history, and the five writes. */
@@ -920,8 +925,15 @@ export const OPERATIONS = {
   }`,
 
   // Search and export in words (docs/ai-settings.md). Plans cross as JSON; neither writes.
-  DirectoryPlan: `query DirectoryPlan($sentence: String!) {
-    peopleDirectoryPlan(sentence: $sentence)
+  DirectoryPlan: `query DirectoryPlan($sentence: String!, $remembered: String) {
+    peopleDirectoryPlan(sentence: $sentence, remembered: $remembered)
+  }`,
+
+  // Smart search's "Remind all" (docs/ai-settings.md): JSON in and out, as the plan.
+  RemindDirectory: `mutation RemindDirectory(
+    $conditions: String!, $match: String, $search: String, $key: String!
+  ) {
+    peopleRemindDirectory(conditions: $conditions, match: $match, search: $search, idempotencyKey: $key)
   }`,
 
   ExportPlan: `query ExportPlan($sentence: String!) {

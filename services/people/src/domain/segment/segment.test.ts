@@ -68,6 +68,69 @@ describe('checkSegment', () => {
   });
 });
 
+describe('a segment of conditions, saved from a search', () => {
+  const madrid = { key: 'location_id', op: 'in' as const, values: ['mad'] };
+  const noBank = { key: 'bank_account', op: 'empty' as const, values: [] };
+
+  it('keeps the directory’s conditions and how they combine, beside or instead of a filter', () => {
+    expect(
+      checkSegment({
+        name: 'No bank',
+        filter: {},
+        conditions: [madrid, noBank],
+        match: 'all',
+        shared: false,
+      }),
+    ).toEqual({
+      ok: true,
+      value: {
+        name: 'No bank',
+        filter: {},
+        conditions: [madrid, noBank],
+        match: 'all',
+        shared: false,
+      },
+    });
+  });
+
+  it('counts conditions and filter keys together, ten at most, and checks each one’s shape', () => {
+    const many = Array.from({ length: 10 }, () => madrid);
+    expect(
+      checkSegment({
+        name: 'n',
+        filter: { a: 'b' },
+        conditions: many,
+        match: 'all',
+        shared: false,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'SEGMENT_FILTER' } });
+    expect(
+      checkSegment({
+        name: 'n',
+        filter: {},
+        conditions: [{ key: 'Not A Key', op: 'in', values: ['x'] }],
+        match: 'all',
+        shared: false,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'SEGMENT_FILTER' } });
+    expect(
+      checkSegment({
+        name: 'n',
+        filter: {},
+        conditions: [{ key: 'a', op: 'in', values: ['x'.repeat(201)] }],
+        match: 'all',
+        shared: false,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'SEGMENT_FILTER' } });
+  });
+
+  it('nothing at all is still everybody, and not a segment', () => {
+    expect(
+      checkSegment({ name: 'n', filter: {}, conditions: [], match: 'all', shared: false }),
+    ).toMatchObject({ ok: false, error: { code: 'SEGMENT_FILTER' } });
+  });
+});
+
 describe('who sees a segment', () => {
   it('is its owner, and everybody in the tenant once it is shared', () => {
     expect(seenBy(saved(), PRIYA)).toBe(true);

@@ -883,8 +883,9 @@ export async function exportBuilderView(
     for (const s of await segmentsFor(deps, tx, asking)) {
       if (!s.usableIn.directory) continue;
       const where = Object.fromEntries(s.filter.map((c) => [c.key, c.value]));
-
-      const inSegment = await deps.service.access.count(tx, { ...asking, where });
+      const refine =
+        s.conditions.length === 0 ? {} : { refine: { conditions: s.conditions, match: s.match } };
+      const inSegment = await deps.service.access.count(tx, { ...asking, where, ...refine });
       if (inSegment.ok) {
         segments.push({ value: `segment:${s.id}`, label: s.name, count: inSegment.value.all });
       }

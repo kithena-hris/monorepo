@@ -392,8 +392,7 @@ export async function publishDraft(requiredFrom: string): Promise<Outcome> {
 
 type Mapping = Readonly<Record<number, string | null>>;
 type Parsed =
-  | { readonly ok: true; readonly data: unknown }
-  | { readonly ok: false; readonly message: string };
+  { readonly ok: true; readonly data: unknown } | { readonly ok: false; readonly message: string };
 
 /** An answer that crosses as JSON text (docs/ai-settings.md), read back into its object. */
 async function parsed(answer: Promise<PeopleAnswer<string>>): Promise<Parsed> {
@@ -413,7 +412,9 @@ const stepOf = (uploadId: string, mapping: Mapping) => ({
 
 /** Fields proposed for the columns that match none. Nothing is written. */
 export async function proposeImportFields(uploadId: string, mapping: Mapping): Promise<Parsed> {
-  return parsed(people<string>('ProposeImportFields', { step: JSON.stringify(stepOf(uploadId, mapping)) }));
+  return parsed(
+    people<string>('ProposeImportFields', { step: JSON.stringify(stepOf(uploadId, mapping)) }),
+  );
 }
 
 /** The proposals as HR left them, checked, with the review in words. Nothing is written. */
@@ -945,12 +946,21 @@ export async function saveSegment(segment: {
   name: string;
   shared: boolean;
   filter: Readonly<Record<string, string>>;
+  /** A view saved from a search: the directory's own conditions (smart search). */
+  conditions?: readonly { key: string; op: string; values: readonly string[] }[];
+  match?: 'all' | 'any';
 }): Promise<Outcome> {
+  const conditions = segment.conditions ?? [];
   return outcome(
     people('SaveSegment', {
       name: segment.name,
       shared: segment.shared,
       filter: Object.entries(segment.filter).map(([key, value]) => ({ key, value })),
+      conditions:
+        conditions.length === 0
+          ? null
+          : conditions.map((c) => ({ key: c.key, op: c.op, values: [...c.values] })),
+      match: conditions.length === 0 ? null : (segment.match ?? 'all'),
     }),
   );
 }
@@ -1044,9 +1054,47 @@ export async function directoryPage(
 
 /* ------------------------------------------ search and export in words -- */
 
-/** What was typed in the directory, as its own filters and order (docs/ai-settings.md). A read. */
-export async function planDirectory(sentence: string): Promise<Parsed> {
-  return parsed(people<string>('DirectoryPlan', { sentence }));
+/**
+ * What was typed in the directory, as its own filters and order, with the
+ * readings this person chose before (docs/ai-settings.md, smart search). A read.
+ */
+export async function planDirectory(
+  sentence: string,
+  remembered: Readonly<Record<string, string>> = {},
+): Promise<Parsed> {
+  return parsed(
+    people<string>('DirectoryPlan', {
+      sentence,
+      remembered: Object.keys(remembered).length === 0 ? null : JSON.stringify(remembered),
+    }),
+  );
+}
+
+/** Smart search's "Remind all": everybody the conditions find is asked for what they find empty. */
+export async function remindDirectory(
+  conditions: readonly { key: string; op: string; values: readonly string[] }[],
+  match: 'all' | 'any',
+  search: string | null,
+): Promise<
+  | {
+      readonly ok: true;
+      readonly asked: number;
+      readonly emailed: number;
+      readonly skipped: number;
+      readonly more: boolean;
+    }
+  | { readonly ok: false; readonly message: string }
+> {
+  const answer = await parsed(
+    people<string>('RemindDirectory', {
+      conditions: JSON.stringify(conditions),
+      match,
+      search,
+    }),
+  );
+  if (!answer.ok) return answer;
+  const sent = answer.data as { asked: number; emailed: number; skipped: number; more: boolean };
+  return { ok: true, ...sent };
 }
 
 /** An export described in words, as the builder's choices and a drafted reason. Nothing is exported. */

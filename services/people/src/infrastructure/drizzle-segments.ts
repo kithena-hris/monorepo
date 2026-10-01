@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
-import type { Segment } from '../domain/segment/segment.js';
+import type { Segment, SegmentCondition } from '../domain/segment/segment.js';
 
 /** `people.segment` (PEO-068): named filters, never a list of people. */
 export interface SegmentStore {
@@ -16,6 +16,8 @@ type Row = {
   id: string;
   name: string;
   filter: Record<string, string>;
+  conditions: readonly SegmentCondition[] | null;
+  match: 'all' | 'any' | null;
   owner_account_id: string;
   shared: boolean;
 };
@@ -24,20 +26,26 @@ export function drizzleSegments(): SegmentStore {
   return {
     async all(tx, tenantId) {
       const found = await tx.execute<Row>(sql`
-        SELECT id::text, name, filter, owner_account_id::text, shared
+        SELECT id::text, name, filter, conditions, match, owner_account_id::text, shared
           FROM people.segment WHERE tenant_id = ${tenantId}::uuid`);
       return [...found].map((r) => ({
         id: r.id,
         name: r.name,
         filter: r.filter,
+        ...(r.conditions === null || r.conditions.length === 0
+          ? {}
+          : { conditions: r.conditions, match: r.match ?? 'all' }),
         ownerAccountId: r.owner_account_id,
         shared: r.shared,
       }));
     },
     async insert(tx, tenantId, s) {
       const made = await tx.execute(sql`
-        INSERT INTO people.segment (tenant_id, id, name, filter, owner_account_id, shared)
+        INSERT INTO people.segment
+          (tenant_id, id, name, filter, conditions, match, owner_account_id, shared)
         VALUES (${tenantId}::uuid, ${s.id}::uuid, ${s.name}, ${JSON.stringify(s.filter)}::jsonb,
+                ${s.conditions === undefined ? null : JSON.stringify(s.conditions)}::jsonb,
+                ${s.conditions === undefined ? null : (s.match ?? 'all')},
                 ${s.ownerAccountId}::uuid, ${s.shared})
         ON CONFLICT (tenant_id, owner_account_id, lower(name)) DO NOTHING
         RETURNING id`);

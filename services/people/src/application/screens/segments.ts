@@ -6,12 +6,13 @@ import {
   mayDelete,
   seenBy,
   type Segment,
+  type SegmentCondition,
   type SegmentInput,
 } from '../../domain/segment/segment.js';
 import type { ViewerRelations } from '../../domain/access/field-access.js';
 import { authorizeFields, type ChartViewer } from '../analytics/access.js';
 import { chartFilters } from '../analytics/queries.js';
-import { filterable, type Asking } from '../person/person-access.js';
+import { filterable, refinable, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { NOBODY, personOfViewer, type ScreenDeps, type Tx } from './record.js';
 
@@ -37,6 +38,9 @@ export interface SegmentView {
   readonly id: string;
   readonly name: string;
   readonly filter: readonly { readonly key: string; readonly value: string }[];
+  /** The directory's conditions, for a view saved from a search; empty for a filter alone. */
+  readonly conditions: readonly SegmentCondition[];
+  readonly match: 'all' | 'any';
   readonly shared: boolean;
   /** Saved by the viewer, who alone may delete it. */
   readonly mine: boolean;
@@ -56,14 +60,27 @@ export async function chartViewerOf(
   return own.ok ? { kind: 'manager', personId: own.value } : null;
 }
 
-/** Where a filter could be used by this viewer, decided as each place decides it. */
+/**
+ * Where a filter could be used by this viewer, decided as each place decides
+ * it. Conditions are the directory's (and the export's, which takes them);
+ * a chart has no conditions, so a view with any is not one.
+ */
 export function usableIn(
   filter: Readonly<Record<string, string>>,
   definitions: readonly AttributeDefinition[],
   everyone: ViewerRelations,
   viewer: ChartViewer | null,
+  conditions: readonly SegmentCondition[] = [],
 ): SegmentView['usableIn'] {
   const keys = Object.keys(filter);
+  if (conditions.length > 0) {
+    return {
+      directory:
+        filterable(definitions, keys, everyone).ok &&
+        refinable(definitions, { conditions }, everyone).ok,
+      analytics: false,
+    };
+  }
   const charted = viewer === null ? null : chartFilters(filter);
   const readable =
     viewer !== null && charted?.ok === true ? authorizeFields(definitions, viewer, keys) : null;
@@ -98,9 +115,17 @@ function viewOf(segment: Segment, asking: Asking, can: Context): SegmentView {
     id: segment.id,
     name: segment.name,
     filter: Object.entries(segment.filter).map(([key, value]) => ({ key, value })),
+    conditions: segment.conditions ?? [],
+    match: segment.match ?? 'all',
     shared: segment.shared,
     mine: segment.ownerAccountId === asking.viewer.accountId,
-    usableIn: usableIn(segment.filter, can.definitions, can.everyone, can.viewer),
+    usableIn: usableIn(
+      segment.filter,
+      can.definitions,
+      can.everyone,
+      can.viewer,
+      segment.conditions ?? [],
+    ),
   };
 }
 
@@ -166,7 +191,10 @@ export async function saveSegment(
     };
     const view = viewOf(segment, asking, can.value);
     if (!view.usableIn.directory && !view.usableIn.analytics) {
-      const keys = Object.keys(segment.filter);
+      const keys = [
+        ...Object.keys(segment.filter),
+        ...(segment.conditions ?? []).map((c) => c.key),
+      ];
       return err(
         failure('FIELD_NOT_FILTERABLE', `You cannot filter people by ${keys.join(', ')}`, keys),
       );

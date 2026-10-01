@@ -80,7 +80,7 @@ import {
   ImportStepInput as NewFieldsPropose,
   ReviewInput as NewFieldsReview,
 } from '../application/assistant/import-fields.js';
-import { PlanAsk } from '../application/assistant/selection.js';
+import { DirectoryAsk, DirectoryRemind, PlanAsk } from '../application/assistant/selection.js';
 import { RoleChangeBody, RoleHolderBody } from './roles.js';
 
 /**
@@ -168,6 +168,8 @@ const components = {
   NewFieldsReview,
   NewFieldsApply,
   SelectionAsk: PlanAsk,
+  DirectoryAsk,
+  DirectoryRemind,
   Segment: SegmentBody,
   PayBand: PayBandBody,
   ReportSchedule: ScheduleBody,
@@ -549,10 +551,19 @@ function screenPaths(): Record<string, unknown> {
     '/v1/views/directory/plan': {
       post: screenWrite(
         'What somebody typed in the directory, as its own conditions and order: a name alone is a name search; the model sees the sentence and field names only',
-        'SelectionAsk',
+        'DirectoryAsk',
         200,
-        '{ search, conditions, match, sort, unused, by, note }',
+        '{ search, conditions, match, sort, unused, by, note, person, ask, refused, remembered }',
         { safe: true },
+      ),
+    },
+    // Smart search's "Remind all" (docs/ai-settings.md).
+    '/v1/views/directory/remind': {
+      post: screenWrite(
+        'Ask everybody the conditions find for the details the conditions find empty, as the profile asks one person; at most 500 a press',
+        'DirectoryRemind',
+        200,
+        '{ asked, emailed, skipped, more }',
       ),
     },
     '/v1/views/export/plan': {
@@ -644,7 +655,12 @@ function screenPaths(): Record<string, unknown> {
             required: true,
             schema: { type: 'string', enum: ['headcount', 'turnover', 'data-quality', 'pay'] },
           },
-          { name: 'segment', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+          {
+            name: 'segment',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'uuid' },
+          },
         ],
         responses: { 200: { description: '{ tab, sentences, byModel }' }, ...failure },
       },

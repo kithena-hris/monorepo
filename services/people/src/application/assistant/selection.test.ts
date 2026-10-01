@@ -6,7 +6,13 @@ import { utcCalendars } from '../org/org.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
 import type { PeopleService } from '../person/service.js';
-import { exportViewWith, planDirectory, planExport, type SelectionDeps } from './selection.js';
+import {
+  exportViewWith,
+  planDirectory,
+  planExport,
+  remindDirectory,
+  type SelectionDeps,
+} from './selection.js';
 
 /**
  * Search and export in words, end to end with a fake model behind the real
@@ -59,6 +65,8 @@ const attributes = [
     key: 'emergency_contact',
     label: { default: 'Emergency contact' },
     visibility: ['self', 'hr'],
+    // The employee fills it in, so they may be asked for it.
+    ownership: ['employee', 'hr'],
     classification: {
       classification: 'confidential',
       piiKind: 'contact',
@@ -177,6 +185,10 @@ describe('searching the directory in words', () => {
       unused: [],
       by: 'assistant',
       note: null,
+      person: null,
+      ask: null,
+      refused: [],
+      remembered: null,
     });
     const [prompt] = w.sent;
     expect(prompt?.about).toBe('configuration');
@@ -312,5 +324,107 @@ describe('an export described in words', () => {
       match: 'all',
     });
     expect(refused.ok).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------- smart search -- */
+
+describe('smart search', () => {
+  it('a name that finds one person is that person; one that finds several is a name search', async () => {
+    const w = world({});
+    const one = await planDirectory(w.deps, w.asking, { sentence: 'Dwight' });
+    expect(one.ok && one.value.person).toEqual({ id: DWIGHT, name: 'Dwight Schrute' });
+    const several = await planDirectory(w.deps, w.asking, { sentence: 'e' });
+    expect(several.ok && several.value).toMatchObject({ person: null, search: 'e', by: 'search' });
+    expect(w.send).not.toHaveBeenCalled();
+  });
+
+  it('a judgement is left out and said, and never reaches the model', async () => {
+    const w = world({ answer: () => '{"conditions":[]}' });
+    const plan = await planDirectory(w.deps, w.asking, {
+      sentence: 'engineers in Madrid who are good at Go',
+    });
+    expect(plan.ok && plan.value.refused).toEqual([
+      { text: 'who are good at Go', why: 'Kithena doesn’t rate people’s skills.', instead: null },
+    ]);
+    expect(plan.ok && plan.value.conditions).toEqual([
+      { key: 'office', op: 'in', values: ['mad'] },
+      { key: 'job_title', op: 'contains', values: ['engineer'] },
+    ]);
+    const [prompt] = w.sent;
+    expect(prompt?.context['sentence']).toBe('engineers in Madrid');
+    expect(JSON.stringify(prompt)).not.toMatch(/good at|\bGo\b/u);
+
+    const nothingLeft = world({});
+    await planDirectory(nothingLeft.deps, nothingLeft.asking, { sentence: 'top performers' });
+    expect(nothingLeft.send).not.toHaveBeenCalled();
+  });
+
+  it('asks instead of guessing, with each reading counted as the viewer may list people; no model', async () => {
+    const w = world({});
+    const plan = await planDirectory(w.deps, w.asking, { sentence: 'new joiners in Sales' });
+    expect(w.send).not.toHaveBeenCalled();
+    expect(plan.ok && plan.value.conditions).toEqual([
+      { key: 'department', op: 'in', values: ['sales'] },
+    ]);
+    expect(plan.ok && plan.value.ask).toMatchObject({
+      topic: 'new',
+      phrase: 'new joiners',
+      // Counted by the list (in memory, conditions are Postgres's to apply: everybody here).
+      readings: [
+        { label: 'Joined in the last 30 days', count: 2 },
+        { label: 'Joined in the last 90 days', count: 2 },
+        { label: 'Joined this year', count: 2 },
+      ],
+    });
+    // Each reading is the whole selection it would be.
+    expect(plan.ok && plan.value.ask?.readings[0]?.conditions[0]).toEqual({
+      key: 'department',
+      op: 'in',
+      values: ['sales'],
+    });
+  });
+
+  it('a reading chosen before is taken, and said', async () => {
+    const w = world({});
+    const plan = await planDirectory(w.deps, w.asking, {
+      sentence: 'new joiners',
+      remembered: { new: 'Joined this year' },
+    });
+    expect(plan.ok && plan.value).toMatchObject({
+      ask: null,
+      remembered: { topic: 'new', label: 'Joined this year' },
+      conditions: [{ key: 'start_on', op: 'between' }],
+      note: null,
+    });
+  });
+
+  it('Remind all asks everybody found for the empty details, as the profile asks one person', async () => {
+    const asked: { personId: string; keys: readonly string[] }[] = [];
+    const w = world({});
+    const deps: SelectionDeps = {
+      ...w.deps,
+      requests: {
+        store: {
+          record: (_tx, r) => {
+            asked.push({ personId: r.personId, keys: r.keys });
+            return Promise.resolve(r.keys);
+          },
+          of: () => Promise.resolve([]),
+        },
+      },
+    };
+    const done = await remindDirectory(deps, w.asking, {
+      conditions: [{ key: 'emergency_contact', op: 'empty', values: [] }],
+      match: 'all',
+    });
+    // Whoever the list found (in memory, conditions are Postgres's to apply: both).
+    expect(done).toEqual({ ok: true, value: { asked: 2, emailed: 0, skipped: 0, more: false } });
+    expect(asked.map((a) => a.keys)).toEqual([['emergency_contact'], ['emergency_contact']]);
+    const nothing = await remindDirectory(deps, w.asking, {
+      conditions: [{ key: 'department', op: 'in', values: ['sales'] }],
+      match: 'all',
+    });
+    expect(nothing.ok).toBe(false);
   });
 });

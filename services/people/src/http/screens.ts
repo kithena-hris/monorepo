@@ -99,6 +99,12 @@ import {
   planExport,
   type SelectionDeps,
 } from '../application/assistant/selection.js';
+// Smart search (docs/ai-settings.md): its own block, beside search and export in words.
+import {
+  DirectoryAsk,
+  DirectoryRemind,
+  remindDirectory,
+} from '../application/assistant/selection.js';
 import {
   completeFileUpload,
   fileView,
@@ -341,6 +347,28 @@ export const PayBandBody = z.strictObject({
 export const SegmentBody = z.strictObject({
   name: z.string().max(80),
   filter: z.record(z.string().max(64), z.string().max(200)),
+  /** The directory's conditions, for a view saved from a search ("Save as view"). */
+  conditions: z
+    .array(
+      z.strictObject({
+        key: z.string().max(64),
+        op: z.enum([
+          'is',
+          'in',
+          'contains',
+          'before',
+          'after',
+          'between',
+          'empty',
+          'not_empty',
+          'under',
+        ]),
+        values: z.array(z.string().max(200)).max(50),
+      }),
+    )
+    .max(10)
+    .optional(),
+  match: z.enum(['all', 'any']).optional(),
   shared: z.boolean(),
 });
 
@@ -528,9 +556,7 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   // Search and export in words: no model configured means no budget to spend.
   const selection: SelectionDeps = {
     ...deps,
-    ...(deps.selection?.planner === undefined
-      ? {}
-      : { selectionPlanner: deps.selection.planner }),
+    ...(deps.selection?.planner === undefined ? {} : { selectionPlanner: deps.selection.planner }),
     searchBudget: deps.selection?.search ?? new PlanBudget(0, 3_600_000),
     exportBudget: deps.selection?.export ?? new PlanBudget(0, 3_600_000),
   };
@@ -1263,7 +1289,9 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           match: query.get('match') ?? undefined,
         });
         if (!refine.success) {
-          return refused(failure('BAD_REQUEST', 'conditions or match is malformed', ['conditions']));
+          return refused(
+            failure('BAD_REQUEST', 'conditions or match is malformed', ['conditions']),
+          );
         }
         const { conditions = [], match = 'all' } = refine.data;
         return answer(
@@ -1280,7 +1308,13 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'POST',
       pattern: /^\/v1\/views\/directory\/plan$/,
       safe: true,
-      handle: compute(PlanAsk, (asking, input) => planDirectory(selection, asking, input)),
+      handle: compute(DirectoryAsk, (asking, input) => planDirectory(selection, asking, input)),
+    },
+    // Smart search's "Remind all": everybody a search found missing a detail is asked for it.
+    {
+      method: 'POST',
+      pattern: /^\/v1\/views\/directory\/remind$/,
+      handle: write(DirectoryRemind, (asking, input) => remindDirectory(selection, asking, input)),
     },
     {
       method: 'POST',

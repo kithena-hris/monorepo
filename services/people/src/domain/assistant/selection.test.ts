@@ -209,6 +209,7 @@ describe('reading the model’s answer for the directory, strictly', () => {
       match: 'all',
       sort: null,
       unused: [],
+      ask: null,
     });
   });
 

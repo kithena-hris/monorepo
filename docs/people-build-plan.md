@@ -1999,6 +1999,28 @@ it is written down here rather than left in a PR description.
       / Possible. Revisit if duplicate detection gains a calibrated model
       (fuzzy names, measured precision on real merges). Found building #197.
 
+<!-- Smart search (AI1–AI4, MA1–MA3): its own block. -->
+- [ ] **PEO-132** Charts and schedules from a view saved from a search.
+      "Save as view" stores the directory's conditions on the segment
+      (`people.segment.conditions`); the directory and the export apply
+      them, but analytics' filters (`chartFilters`) and scheduled reports
+      (`where`) take key = value only, so such a view is not offered on
+      Insights and a schedule refuses it (`SEGMENT_NOT_SCHEDULABLE`). Teach
+      both the conditions (analytics' cohort floor applies to each), then
+      drop the refusals. Found building smart search.
+- [ ] **PEO-133** Remember a clarification across devices. "Pick one and
+      I'll remember it" keeps the reading chosen per topic in the browser's
+      local storage and sends it with the next question (`remembered`), so
+      another device asks again. A per-account preference in People (a
+      small table, RLS, erased with the account) would make it follow the
+      person. Found building smart search.
+- [ ] **PEO-134** Remind all for managers. The directory offers "Remind all"
+      to HR only (`DirectoryView.remind`, decided over everybody); a manager
+      may ask their own reports for a detail one at a time on a profile.
+      Offer it to a manager when every person found is theirs, checked per
+      person as `requestDetailsOfMany` already does. Found building smart
+      search.
+
 ## Revisit later — the owner's list
 
 Everything left on People that needs the product owner rather than the next

@@ -15,6 +15,7 @@ import { run } from '../person/service.js';
 import { LEAVERS, type Condition } from '../person/ports.js';
 import { isCoreKey } from '../person/core.js';
 import { segmentFor, segmentsFor } from './segments.js';
+import { suggestions as suggestionsFor } from '../../domain/assistant/clarify.js';
 import type {
   FormValue,
   FormValues,
@@ -370,7 +371,12 @@ async function reportingLineOf(
       peers = others.slice(0, MOST_PEERS).map(line);
     }
   }
-  const avatars = await avatarsOf(deps, tx, asking.tenantId, [...up, ...peers].map((p) => p.id));
+  const avatars = await avatarsOf(
+    deps,
+    tx,
+    asking.tenantId,
+    [...up, ...peers].map((p) => p.id),
+  );
   const withAvatar = (p: Omit<LinePerson, 'avatarUrl'>): LinePerson => ({
     ...p,
     avatarUrl: avatars.get(p.id) ?? null,
@@ -692,7 +698,10 @@ function flagger(
 ) {
   const pending = deps.service.pending;
   const typeOf = new Map(definitions.map((d) => [d.key as string, d.dataType as string]));
-  const history = new Map<string, Awaited<ReturnType<NonNullable<typeof pending>['store']['forPerson']>>>();
+  const history = new Map<
+    string,
+    Awaited<ReturnType<NonNullable<typeof pending>['store']['forPerson']>>
+  >();
   let calendar: TenantCalendar | undefined;
   return async (
     c: InboxItem,
@@ -936,7 +945,8 @@ export async function actors(
 ): Promise<(actor: Actor) => string> {
   const names = new Map<string, string>();
   for (const actor of all) {
-    if (actor.kind !== 'user' || actor.onBehalfOf !== undefined || names.has(actor.userId)) continue;
+    if (actor.kind !== 'user' || actor.onBehalfOf !== undefined || names.has(actor.userId))
+      continue;
     if (actor.userId === asking.viewer.accountId) {
       names.set(actor.userId, 'You');
       continue;
@@ -1275,6 +1285,16 @@ export interface DirectoryView {
   /** The saved segment applied (PEO-068), and those this viewer could apply here. */
   readonly segment: { readonly id: string; readonly name: string } | null;
   readonly segments: readonly { readonly id: string; readonly name: string }[];
+  /**
+   * Smart search's "Try asking": questions built from this company's own
+   * fields, each one People's rules read in full (`domain/assistant/clarify.ts`).
+   */
+  readonly suggestions: readonly string[];
+  /**
+   * The details the conditions find empty that this viewer may ask everybody
+   * found for ("Remind all"); null when there are none, or they may not.
+   */
+  readonly remind: readonly string[] | null;
 }
 
 /** Shown as columns: in the directory, and readable on everybody. */
@@ -1403,9 +1423,24 @@ export async function directoryView(
       query.sort !== undefined && query.after?.startsWith('@') === true
         ? Number.parseInt(query.after.slice(1), 10) || 0
         : 0;
+    // A view saved from a search holds conditions too: all of them, and
+    // all of any typed beside it. "Any of" either side cannot be one query.
+    const own = query.conditions ?? [];
+    const ownMatch = query.match ?? ('all' as const);
+    const saved = segment?.value.conditions ?? [];
+    const savedMatch = segment?.value.match ?? 'all';
+    if (saved.length > 0 && own.length > 0 && (savedMatch === 'any' || ownMatch === 'any')) {
+      return err(
+        failure(
+          'BAD_REQUEST',
+          'A view that matches any of its conditions can’t be narrowed further; clear the view first',
+          ['conditions'],
+        ),
+      );
+    }
     const refine = {
-      conditions: query.conditions ?? [],
-      match: query.match ?? ('all' as const),
+      conditions: [...saved, ...own],
+      match: own.length === 0 ? savedMatch : saved.length === 0 ? ownMatch : ('all' as const),
       ...(query.sort === undefined ? {} : { sort: query.sort, offset }),
     };
     const narrowed = {
@@ -1500,6 +1535,47 @@ export async function directoryView(
         ? { ...values, status: STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status }
         : values;
 
+    // Everything a condition may name, for the Filters sheet, smart search's
+    // suggestions, and the details a search may ask people for.
+    const fields = [
+      ...columns.flatMap((c) => {
+        const kind = fieldKind(c.typeConfig.kind);
+        if (kind === null) return [];
+        const options =
+          c.typeConfig.kind === 'select'
+            ? c.typeConfig.options
+                .filter((o) => o.retiredAt === null)
+                .map((o) => ({ value: o.value, label: o.label.default }))
+            : c.typeConfig.kind === 'location_ref'
+              ? [...org.locations.values()]
+                  .filter((l) => l.archived !== true)
+                  .map((l) => ({ value: l.id, label: l.name }))
+              : c.typeConfig.kind === 'legal_entity_ref'
+                ? [...org.entities.values()]
+                    .filter((e) => e.archived !== true)
+                    .map((e) => ({ value: e.id, label: e.name }))
+                : [];
+        return [{ key: c.key, label: c.label.default, kind, options }];
+      }),
+      ...(everyone.isHr
+        ? [
+            {
+              key: 'status',
+              label: 'Status',
+              kind: 'status' as const,
+              options: STATUS_OPTIONS,
+            },
+          ]
+        : []),
+    ];
+    const aiEligible = new Map(
+      definitions.map((d) => [d.key as string, d.classification.aiEligible]),
+    );
+    const empties = [...new Set(own.filter((c) => c.op === 'empty').map((c) => c.key))];
+    const askableKeys = new Set(
+      definitions.filter((d) => askable(d, everyone)).map((d) => d.key as string),
+    );
+
     return ok({
       total: counted.value.all,
       active: counted.value.active,
@@ -1512,44 +1588,12 @@ export async function directoryView(
           shown: shownDefault.has(c.key),
           sortable: true,
         })),
-        ...(everyone.isHr
-          ? [{ key: 'status', label: 'Status', shown: true, sortable: true }]
-          : []),
+        ...(everyone.isHr ? [{ key: 'status', label: 'Status', shown: true, sortable: true }] : []),
       ],
-      fields: [
-        ...columns.flatMap((c) => {
-          const kind = fieldKind(c.typeConfig.kind);
-          if (kind === null) return [];
-          const options =
-            c.typeConfig.kind === 'select'
-              ? c.typeConfig.options
-                  .filter((o) => o.retiredAt === null)
-                  .map((o) => ({ value: o.value, label: o.label.default }))
-              : c.typeConfig.kind === 'location_ref'
-                ? [...org.locations.values()]
-                    .filter((l) => l.archived !== true)
-                    .map((l) => ({ value: l.id, label: l.name }))
-                : c.typeConfig.kind === 'legal_entity_ref'
-                  ? [...org.entities.values()]
-                      .filter((e) => e.archived !== true)
-                      .map((e) => ({ value: e.id, label: e.name }))
-                  : [];
-          return [{ key: c.key, label: c.label.default, kind, options }];
-        }),
-        ...(everyone.isHr
-          ? [
-              {
-                key: 'status',
-                label: 'Status',
-                kind: 'status' as const,
-                options: STATUS_OPTIONS,
-              },
-            ]
-          : []),
-      ],
+      fields,
       query: {
-        conditions: refine.conditions,
-        match: refine.match,
+        conditions: own,
+        match: ownMatch,
         sort: query.sort ?? null,
       },
       filterable: [
@@ -1580,26 +1624,29 @@ export async function directoryView(
           name: nameOf(p.attributes) ?? (typeof email === 'string' ? email : 'Unnamed'),
           email: typeof email === 'string' ? email : null,
           avatarUrl: avatars.get(p.id) ?? null,
-          values: withStatus(p.status, Object.fromEntries(
-            columns.flatMap((c) => {
-              const value = p.attributes[c.key];
-              if (value === undefined || value === null) return [];
-              const kind = c.typeConfig.kind;
-              const shown =
-                kind === 'person_ref'
-                  ? typeof value === 'string'
-                    ? names.get(value)
-                    : undefined
-                  : kind === 'location_ref' || kind === 'legal_entity_ref'
+          values: withStatus(
+            p.status,
+            Object.fromEntries(
+              columns.flatMap((c) => {
+                const value = p.attributes[c.key];
+                if (value === undefined || value === null) return [];
+                const kind = c.typeConfig.kind;
+                const shown =
+                  kind === 'person_ref'
                     ? typeof value === 'string'
-                      ? placeName.get(value)
+                      ? names.get(value)
                       : undefined
-                    : kind === 'select' && typeof value === 'string'
-                      ? (optionLabel(c, value) ?? value)
-                      : toForm(value);
-              return typeof shown === 'string' ? [[c.key, shown]] : [];
-            }),
-          )),
+                    : kind === 'location_ref' || kind === 'legal_entity_ref'
+                      ? typeof value === 'string'
+                        ? placeName.get(value)
+                        : undefined
+                      : kind === 'select' && typeof value === 'string'
+                        ? (optionLabel(c, value) ?? value)
+                        : toForm(value);
+                return typeof shown === 'string' ? [[c.key, shown]] : [];
+              }),
+            ),
+          ),
           people: personColumns.flatMap((c) => {
             const id = p.attributes[c.key];
             const name = typeof id === 'string' ? names.get(id) : undefined;
@@ -1617,6 +1664,17 @@ export async function directoryView(
       segments: (await segmentsFor(deps, tx, asking))
         .filter((s) => s.usableIn.directory)
         .map((s) => ({ id: s.id, name: s.name })),
+      suggestions: suggestionsFor(
+        fields.map((f) => ({
+          ...f,
+          ai: f.key === 'status' || aiEligible.get(f.key) === true,
+        })),
+        deps.clock.instant().slice(0, 10),
+      ),
+      remind:
+        everyone.isHr && empties.length > 0 && empties.every((k) => askableKeys.has(k))
+          ? empties
+          : null,
     });
   });
 }
@@ -1801,9 +1859,7 @@ export async function completenessView(
 export async function remindWaiting(
   deps: ScreenDeps,
   asking: Asking,
-): Promise<
-  Result<{ readonly sent: number; readonly failed: number; readonly skipped: number }>
-> {
+): Promise<Result<{ readonly sent: number; readonly failed: number; readonly skipped: number }>> {
   const sweep = deps.remindNow;
   if (sweep === undefined) {
     return err(failure('UNAVAILABLE', 'Reminders are not sent from here'));
