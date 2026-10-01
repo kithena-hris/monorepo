@@ -247,6 +247,8 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     await page.goto(`${stack.shell}/people/setup`);
     const identification = page.getByRole('form', { name: 'Identification & right to work' });
     await identification.waitFor({ timeout: 30_000 });
+    // The form is the server's; typing and a press count once the remote has hydrated it.
+    await page.waitForLoadState('networkidle');
     expect(await page.getByRole('textbox', { name: /Legal first name/ }).inputValue()).toBe(
       'Priya',
     );
@@ -299,6 +301,8 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     expect(audit?.envelope.payload).toMatchObject({ decision: 'approved', decidedAs: 'sole_hr' });
     expect(audit?.envelope.actor).toEqual({ kind: 'user', userId: ADMIN.account });
     await page.reload();
+    // As above: React drops a press on markup it has not hydrated yet.
+    await page.waitForLoadState('networkidle');
     await page.getByText('Complete', { exact: true }).waitFor({ timeout: 20_000 });
     await page.getByRole('button', { name: 'Finish' }).click();
     await page.waitForURL(/\/people\/me$/);
