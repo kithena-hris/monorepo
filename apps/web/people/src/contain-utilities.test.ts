@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { REMOTE_SCOPE, containUtilities } from './contain-utilities';
+import { REMOTE_SCOPE, containUtilities, isPlainUtility } from './contain-utilities';
 
 type Fake = { type: string; name?: string; params?: string; parent?: Fake; selectors: string[] };
 
@@ -54,5 +54,61 @@ describe('containUtilities', () => {
     expect(base.selectors).toEqual(['*']);
     expect(nested.selectors).toEqual(['&:hover']);
     expect(outer.selectors).toEqual([`${REMOTE_SCOPE} .a`]);
+  });
+
+  it('tells a plain utility from a variant, so only the plain ones step down a layer', () => {
+    const decl = { type: 'decl' };
+    const media = { type: 'atrule', name: 'media' };
+    const plain = (selector: string, nodes: readonly { type: string }[] = [decl]): boolean =>
+      isPlainUtility({ type: 'rule', selector, selectors: [selector], nodes });
+    expect(plain('.text-sm')).toBe(true);
+    expect(plain(`${REMOTE_SCOPE} .min-h-9\\.5`)).toBe(true);
+    expect(plain('.w-1\\/2')).toBe(true);
+    // A variant nests its condition, or adds to the selector.
+    expect(plain('.touch\\:text-md', [media])).toBe(false);
+    expect(plain('.\\[\\&_svg\\]\\:size-5 svg')).toBe(false);
+    expect(plain('.hover\\:underline:hover')).toBe(false);
+    expect(plain(':where(.space-y-2>:not(:last-child))')).toBe(false);
+  });
+
+  it('moves the plain utilities into a sublayer of utilities, in order, and leaves the rest', () => {
+    const appended: unknown[][] = [];
+    class AtRule {
+      readonly type = 'atrule';
+      readonly nodes: unknown[] = [];
+      readonly props: { name: string; params: string };
+      constructor(props: { name: string; params: string }) {
+        this.props = props;
+      }
+      append(...nodes: unknown[]): void {
+        appended.push(nodes);
+        this.nodes.push(...nodes);
+      }
+    }
+    const decl = { type: 'decl' };
+    const a = { type: 'rule', selector: '.text-sm', selectors: ['.text-sm'], nodes: [decl] };
+    const v = {
+      type: 'rule',
+      selector: '.touch\\:x',
+      selectors: ['.touch\\:x'],
+      nodes: [{ type: 'atrule' }],
+    };
+    const b = { type: 'rule', selector: '.flex', selectors: ['.flex'], nodes: [decl] };
+    const utilities = {
+      type: 'atrule',
+      name: 'layer',
+      params: 'utilities',
+      nodes: [a, v, b],
+      append: (...nodes: unknown[]) => appended.push(nodes),
+    };
+    const theme = { type: 'atrule', name: 'layer', params: 'theme', nodes: [a], append: () => 0 };
+    containUtilities().OnceExit(
+      { type: 'root', nodes: [theme, utilities], append: () => 0 },
+      { AtRule: AtRule as never },
+    );
+    // The sublayer took the two plain ones in order; it went into utilities.
+    expect(appended[0]).toEqual([a, b]);
+    expect((appended[1]?.[0] as AtRule).props).toEqual({ name: 'layer', params: 'remote' });
+    expect(appended).toHaveLength(2);
   });
 });

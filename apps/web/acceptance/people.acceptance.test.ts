@@ -311,6 +311,35 @@ describe('PEO-049: the setup wizard, on a phone', () => {
   });
 });
 
+describe('A People screen reached from a shell page, on a phone', () => {
+  it('keeps Reach’s phone layout, as when the screen is loaded in full', async () => {
+    const context = await signedIn(ADMIN.session, {
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/inbox`);
+    await page.waitForLoadState('networkidle');
+    // The tab bar's People, then a section: navigations in the page, no load.
+    await page.getByRole('link', { name: 'People', exact: true }).first().click();
+    await page.waitForURL(/\/people\/menu$/);
+    await page.getByRole('link', { name: /^Directory/ }).first().click();
+    await page.waitForURL(/\/people\/directory/);
+    // The header's back link is Reach's: `font-medium`, and `touch:font-normal`
+    // under a finger. The remote compiled `font-medium` too; its copy must
+    // not win over the phone's rule, whichever stylesheet arrived last.
+    const back = page.locator('[data-remote] a.tap-target').first();
+    await back.waitFor({ timeout: 30_000 });
+    const weight = (): Promise<string> => back.evaluate((e) => getComputedStyle(e).fontWeight);
+    expect(await weight()).toBe('400');
+    await page.reload();
+    await back.waitFor({ timeout: 30_000 });
+    expect(await weight()).toBe('400');
+    await context.close();
+  });
+});
+
 describe('PEO-094: the remote, rendered on the server', () => {
   it('sends the screen in the HTML, and hydrates it without a mismatch', async () => {
     // The remote's JavaScript never arrives: whatever is on the page, the
