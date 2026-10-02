@@ -193,13 +193,14 @@ export interface SkeletonProps extends ComponentPropsWithoutRef<'div'> {
    * it loads, in `PageHeader`'s measurements: the trail, the title and its
    * line, the tab row when there is one, and the body. A page that swaps a
    * spinner for its header moves everything under it; this one moves nothing.
+   * `body`, the page's body alone, for a page whose header is already drawn.
    */
-  shape?: 'block' | 'page';
+  shape?: 'block' | 'page' | 'body';
   /** `page`: a breadcrumb above the title. */
   breadcrumb?: boolean;
   /** `page`: how many tabs the header has; none, no tab row. */
   tabs?: number;
-  /** `page`: what a screen reader hears while it waits. */
+  /** `page` and `body`: what a screen reader hears while it waits. */
   label?: string;
 }
 
@@ -222,6 +223,20 @@ export function Skeleton({
     return <div aria-hidden="true" className={cn(shimmer, className)} {...props} />;
   }
   const bar = (size: string): JSX.Element => <span className={cn('block', shimmer, size)} />;
+  const body = (
+    <div aria-hidden="true" className="flex flex-col gap-3">
+      {bar('h-10 w-full rounded-md')}
+      {bar('h-64 w-full rounded-lg')}
+    </div>
+  );
+  if (shape === 'body') {
+    return (
+      <div role="status" className={className} {...props}>
+        <span className="sr-only">{label}</span>
+        {body}
+      </div>
+    );
+  }
   return (
     <div role="status" className={cn('flex flex-col gap-6', className)} {...props}>
       <span className="sr-only">{label}</span>
@@ -246,10 +261,7 @@ export function Skeleton({
           </div>
         ) : null}
       </div>
-      <div aria-hidden="true" className="flex flex-col gap-3">
-        {bar('h-10 w-full rounded-md')}
-        {bar('h-64 w-full rounded-lg')}
-      </div>
+      {body}
     </div>
   );
 }

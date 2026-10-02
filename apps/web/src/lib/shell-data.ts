@@ -42,6 +42,8 @@ export interface ShellData {
   readonly actions?: readonly Place[];
   /** Every People route, as its manifest writes them: which one the address is (`matchPath`). */
   readonly routes: readonly string[];
+  /** Which of the remote's exports draws each route: two addresses with one are one screen. */
+  readonly screens?: Readonly<Record<string, string>>;
   /** By a section's path: only what needs somebody to act, never a total. */
   readonly counts: Readonly<Record<string, number>>;
   /** By a tab's path, each tab's own count: what the tab row shows. */
