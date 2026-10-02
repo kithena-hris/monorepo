@@ -88,9 +88,12 @@ export function Waking({
 
   useEffect(() => {
     if (wasWaking.current && !waking) setReady(true);
-    if (waking && began === null) {
+    // First seen waking, or asleep again after it was ready: the clock starts over.
+    if (waking && (began === null || !wasWaking.current)) {
       setBegan(Date.now());
       setNow(Date.now());
+      setAttempt(0);
+      setReady(false);
     }
     wasWaking.current = waking;
   }, [waking, began]);
