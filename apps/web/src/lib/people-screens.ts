@@ -156,23 +156,25 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     }
     case 'ImportExport': {
       // Importing stays HR's, as it was. The history is HR's and People
-      // administrators': one People refuses this viewer is left out, not an error.
+      // administrators', and the one part of the page that is not the same
+      // every time: asked for now, but streamed (a promise, `useStreamed`),
+      // so the header, both cards and their buttons never wait on it. One
+      // People refuses this viewer is left out, not an error.
       const before = given(query.search['before']);
-      const [roles, history, template] = await Promise.all([
-        read('Home'),
-        orBare({ before }, (asked) => read('TransferHistory', asked)),
-        read('ImportTemplate'),
-      ]);
+      const history = orBare({ before }, (asked) => read('TransferHistory', asked)).then(
+        (answer) =>
+          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
+      );
+      // `Home` is the shell's own read of the roles (`shellData`), shared.
+      const [roles, template] = await Promise.all([read('Home'), read('ImportTemplate')]);
       if (roles.status !== 'ready') return roles;
+      const { hr = false, admin = false } = roles.data as { hr?: boolean; admin?: boolean };
       return {
         status: 'ready',
         data: {
-          canImport: (roles.data as { hr?: boolean }).hr === true,
+          canImport: hr,
           setUp: !notSetUp(template),
-          history:
-            history.status === 'ready'
-              ? { ...(history.data as object), paged: before !== null }
-              : null,
+          history: hr || admin ? history : null,
           now: new Date().toISOString(),
         },
       };

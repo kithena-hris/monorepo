@@ -69,20 +69,25 @@ describe('filterHistory', () => {
 
 describe('the wording of an entry', () => {
   it('says what an import did, and warns when rows were blocked', () => {
-    expect(resultOf(entry({ id: 'a', imported: { created: 300, updated: 69, blocked: 0 } }))).toEqual(
-      { text: '369 created or updated', tone: 'success' },
+    expect(
+      resultOf(entry({ id: 'a', imported: { created: 300, updated: 69, blocked: 0 } })),
+    ).toEqual({ text: '369 created or updated', tone: 'success' });
+    expect(resultOf(entry({ id: 'b', imported: { created: 12, updated: 0, blocked: 2 } }))).toEqual(
+      {
+        text: '12 created · 2 blocked',
+        tone: 'warning',
+      },
     );
-    expect(resultOf(entry({ id: 'b', imported: { created: 12, updated: 0, blocked: 2 } }))).toEqual({
-      text: '12 created · 2 blocked',
-      tone: 'warning',
-    });
   });
 
   it('says how many people an export held, in what, and when one is still being prepared', () => {
-    expect(resultOf(items[1] as TransferEntry)).toEqual({ text: '412 people · CSV', tone: 'neutral' });
-    expect(
-      resultOf(entry({ id: 'q', kind: 'export', imported: null, exported: null })).text,
-    ).toBe('Being prepared');
+    expect(resultOf(items[1] as TransferEntry)).toEqual({
+      text: '412 people · CSV',
+      tone: 'neutral',
+    });
+    expect(resultOf(entry({ id: 'q', kind: 'export', imported: null, exported: null })).text).toBe(
+      'Being prepared',
+    );
   });
 
   it('says when as the design does: today, a weekday this week, a date before', () => {
@@ -111,9 +116,7 @@ describe('ImportExport', () => {
 
   it('offers import only to whoever could import before, and no history to whoever may not read it', () => {
     render(
-      <ImportExport
-        load={{ status: 'ready', data: state({ canImport: false, history: null }) }}
-      />,
+      <ImportExport load={{ status: 'ready', data: state({ canImport: false, history: null }) }} />,
     );
     expect(screen.queryByRole('link', { name: 'Start import' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Template' })).toBeNull();
@@ -125,6 +128,25 @@ describe('ImportExport', () => {
     render(<ImportExport load={{ status: 'ready', data: state({ setUp: false }) }} />);
     expect(screen.getByRole('link', { name: 'Start import' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Template' })).toBeNull();
+  });
+
+  it('draws the header, both cards and their buttons while the history is on its way', async () => {
+    const { container } = render(
+      <ImportExport load={{ status: 'ready', data: state({ history: 'loading' }) }} />,
+    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Import & export' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Start import' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Template' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'New export' })).toBeInTheDocument();
+    // The history's own header too; only its rows wait, in the shape they arrive in.
+    const history = screen.getByRole('region', { name: 'History' });
+    expect(history).toHaveAttribute('aria-busy', 'true');
+    expect(
+      within(history).getByRole('searchbox', { name: 'Search the history' }),
+    ).toBeInTheDocument();
+    expect(within(history).queryByText('Nothing imported or exported yet')).toBeNull();
+    expect(within(history).queryByRole('navigation', { name: 'Older history' })).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('says so when nothing has been imported or exported yet', () => {
@@ -147,10 +169,9 @@ describe('ImportExport', () => {
     expect(within(table).getAllByRole('row')).toHaveLength(4);
     expect(within(table).getByText('12 created or updated')).toBeVisible();
     expect(within(table).getByText('412 people · CSV')).toBeVisible();
-    expect(within(table).getByRole('link', { name: 'Download Payroll reconciliation' })).toHaveAttribute(
-      'href',
-      '/people/export?export=e1',
-    );
+    expect(
+      within(table).getByRole('link', { name: 'Download Payroll reconciliation' }),
+    ).toHaveAttribute('href', '/people/export?export=e1');
     expect(within(table).getByRole('link', { name: 'Report of new-joiners.csv' })).toHaveAttribute(
       'href',
       'https://files.test/report?sig=s',
