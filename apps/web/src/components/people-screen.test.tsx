@@ -117,6 +117,21 @@ describe('a screen that narrows what it already has', () => {
     expect(window.history.length).toBe(before);
   });
 
+  it('keeps the import’s step and field in the address, each step a new entry', () => {
+    const props = open('/people/import', 'ImportFlow');
+    expect(props['step']).toBeNull();
+    expect((props['load'] as { data: { step: string } }).data.step).toBe('upload');
+    const before = window.history.length;
+    call(props, 'onStepChange', 'existing');
+    expect(here()).toBe('/people/import?step=existing');
+    call(props, 'onFieldChange', 't_shirt_size');
+    expect(here()).toBe('/people/import?step=existing&field=t_shirt_size');
+    call(props, 'onStepChange', 'review');
+    expect(here()).toBe('/people/import?step=review');
+    expect(window.history.length).toBe(before + 2);
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
   it('leaves a default out of the address', () => {
     const props = open('/people/directory/org-chart?layout=horizontal&focus=p1', 'OrgChart');
     expect(props['layout']).toBe('horizontal');

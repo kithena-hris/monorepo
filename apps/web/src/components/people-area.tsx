@@ -112,7 +112,18 @@ export async function PeopleArea({
   const segment = search['segment'];
   const frame =
     area === 'people'
-      ? here?.startsWith('/people/insights/') === true &&
+      ? here === '/people/import' && header.section !== null
+        ? // A step inside Import & export: People › Import & export › Import.
+          {
+            ...header,
+            trail: [
+              { href: '/people', label: 'People' },
+              { href: '/people/import-export', label: header.section },
+            ],
+            section: 'Import',
+            siblings: [],
+          }
+        : here?.startsWith('/people/insights/') === true &&
         segment !== undefined &&
         segment !== '' &&
         header.tabs !== undefined

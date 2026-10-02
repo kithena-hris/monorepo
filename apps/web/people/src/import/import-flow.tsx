@@ -72,8 +72,8 @@ export type ImportStage =
     }
   | ImportDoneView;
 
-/** The steps after the mapping that live in the address (`?step=`). */
-export type FlowStep = 'map' | 'fields' | 'existing' | 'plan';
+/** The steps after the upload that live in the address (`?step=`). */
+export type FlowStep = 'map' | 'fields' | 'existing' | 'review';
 
 /** PRD §14.5: 100 MB per file. The server holds it to that; this saves the wait. */
 export const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
@@ -242,8 +242,8 @@ function confidence(column: ProposedColumn): JSX.Element | string {
         Refused
       </Badge>
     );
-  if (column.source === 'key' || column.source === 'label' || column.source === 'system')
-    return 'Exact';
+  if (column.source === 'system') return column.reason === null ? 'Exact' : '—';
+  if (column.source === 'key' || column.source === 'label') return 'Exact';
   if (column.source === 'alias') return 'Usual name';
   if (column.source === 'manual') return 'You chose';
   if (column.confidence === null) return '—';
@@ -282,13 +282,13 @@ function AfterUpload({
   const step: FlowStep =
     (asked === 'fields' || asked === 'existing') && view !== null
       ? asked
-      : asked === 'plan' && plan !== null
-        ? 'plan'
+      : asked === 'review' && plan !== null
+        ? 'review'
         : 'map';
   const goTo = (to: FlowStep): void => {
     setRefused(null);
     if (props.onStepChange === undefined) setOwnStep(to);
-    else props.onStepChange(to === 'map' ? null : to);
+    else props.onStepChange(to);
   };
 
   const labelOf = new Map(stage.fields.map((f) => [f.key, f.label]));
@@ -316,7 +316,7 @@ function AfterUpload({
     setRefused(message);
   };
 
-  const toPlan = (list: readonly ColumnProposal[], then: FlowStep | null = 'plan') =>
+  const toPlan = (list: readonly ColumnProposal[], then: FlowStep | null = 'review') =>
     attempt(async () => {
       const answer = await props.plan(mapping, list);
       if (!answer.ok) return answer.message;
@@ -341,7 +341,7 @@ function AfterUpload({
         const answer = await props.plan(mapping, []);
         if (!answer.ok) return answer.message;
         setPlan(answer.data);
-        goTo('plan');
+        goTo('review');
         return null;
       }
       goTo('fields');
@@ -370,7 +370,9 @@ function AfterUpload({
       id: 'target',
       header: 'Goes to',
       cell: (c) =>
-        c.status === 'refused' ? (
+        // Refused, or an id or employee number: Kithena creates those, so
+        // the column is shown and can't be picked.
+        c.status === 'refused' || (c.source === 'system' && c.reason !== null) ? (
           <span className="text-sm text-fg-muted">
             {c.reason ?? 'You may not write this field.'}
           </span>
@@ -487,9 +489,9 @@ function AfterUpload({
         </Button>
       </>
     ),
-    plan: back(view === null ? 'map' : kept.length === 0 ? 'fields' : 'existing'),
+    review: back(view === null ? 'map' : kept.length === 0 ? 'fields' : 'existing'),
   };
-  const current = step === 'map' ? 1 : step === 'plan' ? 3 : 2;
+  const current = step === 'map' ? 1 : step === 'review' ? 3 : 2;
 
   return (
     <Stack gap={5}>
@@ -573,7 +575,7 @@ function AfterUpload({
         />
       ) : null}
 
-      {step === 'plan' && plan !== null ? (
+      {step === 'review' && plan !== null ? (
         <PlanStep
           plan={plan}
           applyWithoutApproval={applyWithoutApproval}

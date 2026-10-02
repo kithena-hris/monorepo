@@ -315,11 +315,42 @@ describe('ImportFlow', () => {
     expect(onDone).toHaveBeenCalledOnce();
   });
 
+  it('shows an id or employee number column as Kithena’s to create, with no picker', async () => {
+    const withIds = {
+      ...MAPPING,
+      columns: [
+        column({
+          index: 90,
+          header: 'Person id',
+          key: '__person_id',
+          status: 'ignored',
+          source: 'system',
+          reason: 'Kithena creates this',
+        }),
+        column({
+          index: 91,
+          header: 'Employee ID',
+          key: 'employee_number',
+          status: 'ignored',
+          source: 'system',
+          reason: 'Kithena creates this',
+        }),
+        ...MAPPING.columns,
+      ],
+    };
+    const { container } = render(<ImportFlow {...props(ready(withIds))} />);
+    const table = screen.getByRole('table', { name: 'Columns' });
+    expect(within(table).getAllByText('Kithena creates this')).toHaveLength(2);
+    expect(screen.queryByRole('combobox', { name: 'Person id goes to' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Employee ID goes to' })).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('keeps its step in the address, and opens the mapping when it no longer holds that step', async () => {
     const user = fast();
     const onStepChange = vi.fn();
     const { rerender } = render(
-      <ImportFlow {...props(ready(MAPPING), { step: 'plan', onStepChange })} />,
+      <ImportFlow {...props(ready(MAPPING), { step: 'review', onStepChange })} />,
     );
     // A reload: nothing proposed or planned here yet, so the mapping.
     expect(screen.getByRole('table', { name: 'Columns' })).toBeInTheDocument();

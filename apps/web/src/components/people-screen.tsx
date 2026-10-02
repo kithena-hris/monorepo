@@ -1317,7 +1317,10 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         };
       }
       case 'ImportFlow': {
-        const stage = importing.stages.at(-1) ?? { step: 'upload' };
+        const held = importing.stages.at(-1) ?? { step: 'upload' };
+        // An address without a step is the upload: browser Back from the
+        // mapping returns there, and Forward finds the mapping still held.
+        const stage = held.step === 'map' && at('step') === null ? { step: 'upload' } : held;
         const again = { ok: false, message: 'Choose the file again' } as const;
         type Mapping = Readonly<Record<number, string | null>>;
         // Nothing published and not an administrator: the first import is one's.
@@ -1348,6 +1351,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               mapping: {},
               stages: [...s.stages, completed.stage as Stage],
             }));
+            note({ step: 'map', field: null }, 'push');
             return { ok: true };
           },
           onBack: () => {
@@ -1384,7 +1388,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               mapping,
               stages: [...s.stages, { ...(ran.data as object), step: 'done' }],
             }));
-            note({ step: null, field: null }, 'replace');
+            // Done replaces the plan: Back never offers a run that has happened.
+            note({ step: 'done', field: null }, 'replace');
             return { ok: true };
           },
           onDownloadBlocked: (url: string) => {
