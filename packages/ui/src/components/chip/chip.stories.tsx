@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Mail, Plus, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type JSX } from 'react';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
@@ -13,6 +13,8 @@ const meta = {
   component: Chip,
   parameters: {
     layout: 'centered',
+    // Axe over every chip story, hover and focus included (`.storybook/vitest.setup.ts`).
+    a11y: { test: 'error' },
     docs: {
       description: {
         component: [
@@ -315,4 +317,167 @@ export const ChipBadgeOrButton: Story = {
       </div>
     </div>
   ),
+};
+
+/**
+ * Copies every `:hover` and `:focus-visible` rule in the page's stylesheets as
+ * a `[data-hover]` / `[data-focus]` rule, so a story can hold a chip in that
+ * state and axe checks its contrast there: no pointer reaches a test, and a
+ * synthetic `mouseenter` never matches `:hover`. A copy stays inside its
+ * `@media (hover: hover)`, so under a finger, where nothing hovers, nothing is
+ * forced either.
+ */
+function forcePseudoStates(): void {
+  // The pseudo-class, not the same letters escaped in a class name (`.hover\:bg-x`).
+  const forced: readonly (readonly [RegExp, string])[] = [
+    [/(?<!\\):hover\b/g, '[data-hover]'],
+    [/(?<!\\):focus-visible\b/g, '[data-focus]'],
+  ];
+  const walk = (holder: CSSStyleSheet | CSSGroupingRule | CSSStyleRule): void => {
+    const rules = holder.cssRules;
+    for (let i = rules.length - 1; i >= 0; i -= 1) {
+      const rule = rules[i];
+      if (rule === undefined) continue;
+      if ('cssRules' in rule) walk(rule as CSSGroupingRule | CSSStyleRule);
+      if (!(rule instanceof CSSStyleRule)) continue;
+      const selector = forced.reduce((s, [from, to]) => s.replace(from, to), rule.selectorText);
+      if (selector === rule.selectorText) continue;
+      holder.insertRule(selector + rule.cssText.slice(rule.selectorText.length), i + 1);
+    }
+  };
+  for (const sheet of document.styleSheets) {
+    if (seenSheets.has(sheet)) continue;
+    seenSheets.add(sheet);
+    try {
+      walk(sheet);
+    } catch {
+      // Another origin's stylesheet: not readable, and nothing of this system's.
+    }
+  }
+}
+
+/** Sheets already copied; a sheet Vite replaces is a new one, and copied again. */
+const seenSheets = new WeakSet<CSSStyleSheet>();
+
+type Forced = Readonly<Record<`data-${string}`, string>>;
+
+/** One chip at rest, hovered, focused, and hovered while focused. */
+function States({ chip }: { readonly chip: (state: Forced) => JSX.Element }): JSX.Element {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {chip({})}
+      {chip({ 'data-hover': '' })}
+      {chip({ 'data-focus': '' })}
+      {chip({ 'data-hover': '', 'data-focus': '' })}
+    </div>
+  );
+}
+
+function EveryChip(): JSX.Element {
+  return (
+    <div className="flex flex-col gap-3 bg-canvas p-4 text-fg">
+      <States chip={(s) => <Chip {...s}>Filled</Chip>} />
+      <States
+        chip={(s) => (
+          <Chip selected {...s}>
+            Selected
+          </Chip>
+        )}
+      />
+      <States
+        chip={(s) => (
+          <Chip field="Team" {...s}>
+            Engineering
+          </Chip>
+        )}
+      />
+      <States
+        chip={(s) => (
+          <Chip field="Team" selected {...s}>
+            Engineering
+          </Chip>
+        )}
+      />
+      <States
+        chip={(s) => (
+          <Chip variant="dashed" startIcon={<Plus aria-hidden="true" />} {...s}>
+            Add filter
+          </Chip>
+        )}
+      />
+      <States
+        chip={(s) => (
+          <Chip invalid {...s}>
+            sam@
+          </Chip>
+        )}
+      />
+      <States
+        chip={(s) => (
+          <Chip field="Team" selected onRemove={() => undefined} {...s}>
+            Engineering
+          </Chip>
+        )}
+      />
+      <States
+        chip={(s) => (
+          <Chip variant="dashed" onRemove={() => undefined} {...s}>
+            “in Berlin”
+          </Chip>
+        )}
+      />
+      <ChipGroup type="multiple" defaultValue={['on', 'on-hover', 'on-focus']} aria-label="Filters">
+        <ChipGroupItem value="off">Off</ChipGroupItem>
+        <ChipGroupItem value="off-hover" data-hover="">
+          Off
+        </ChipGroupItem>
+        <ChipGroupItem value="on">On</ChipGroupItem>
+        <ChipGroupItem value="on-hover" data-hover="">
+          On
+        </ChipGroupItem>
+        <ChipGroupItem value="on-focus" data-hover="" data-focus="">
+          On
+        </ChipGroupItem>
+      </ChipGroup>
+      {(
+        [
+          ['at rest', {}],
+          ['hovered', { 'data-hover': '' }],
+          ['hovered and focused', { 'data-hover': '', 'data-focus': '' }],
+        ] as const
+      ).map(([name, state]) => (
+        <ChipGroup key={name} type="single" value="on" aria-label={`Views, chosen ${name}`}>
+          <ChipGroupItem value="off" variant="view">
+            Everyone <span className="font-medium tabular-nums">48</span>
+          </ChipGroupItem>
+          <ChipGroupItem value="off-hover" variant="view" data-hover="">
+            Starting soon
+          </ChipGroupItem>
+          <ChipGroupItem value="on" variant="view" {...state}>
+            Incomplete <span className="font-medium tabular-nums">3</span>
+          </ChipGroupItem>
+        </ChipGroup>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Every chip, at rest, hovered, focused and both, selected and not, in light
+ * and in dark: each held in its state, so axe checks the contrast of every one.
+ */
+export const HoverAndFocus: Story = {
+  name: 'Hover and focus, every variant',
+  parameters: { layout: 'padded' },
+  render: function HoverAndFocusStory() {
+    forcePseudoStates();
+    return (
+      <div className="grid gap-4">
+        <EveryChip />
+        <div className="dark">
+          <EveryChip />
+        </div>
+      </div>
+    );
+  },
 };

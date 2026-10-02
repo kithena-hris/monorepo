@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createHash, randomUUID } from 'node:crypto';
+import { appendFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
@@ -27,7 +28,6 @@ import { ADMIN, EMPLOYEE, ROOT, TENANT, startStack, type Stack } from './stack';
  *
  * `stack.ts` has what is real: all of it.
  */
-
 
 let stack: Stack;
 let browser: Browser;
@@ -83,7 +83,9 @@ async function eventually<T>(
 /** The People item in the shell's sidebar, which People's sections hang off. */
 const peopleItem = (page: Page) =>
   // Exact: the collapsed rail's People flyout ends with a "Settings › People" link.
-  page.getByRole('navigation', { name: 'Areas' }).getByRole('link', { name: 'People', exact: true });
+  page
+    .getByRole('navigation', { name: 'Areas' })
+    .getByRole('link', { name: 'People', exact: true });
 
 /**
  * People's own navigation in an expanded sidebar: its sections, listed inline
@@ -279,7 +281,9 @@ describe('PEO-049: the setup wizard, on a phone', () => {
       .getByRole('button', { name: 'Approve the change to NIF / NIE yourself' })
       .click();
     const alone = page.getByRole('dialog');
-    await alone.getByText(/No other HR member can approve this change/).waitFor({ timeout: 30_000 });
+    await alone
+      .getByText(/No other HR member can approve this change/)
+      .waitFor({ timeout: 30_000 });
     await alone.getByText(/audit log will show you approved your own change/).waitFor();
     await alone.getByRole('button', { name: 'Approve it myself' }).click();
     await eventually(
@@ -318,7 +322,10 @@ describe('A People screen reached from a shell page, on a phone', () => {
     // The tab bar's People, then a section: navigations in the page, no load.
     await page.getByRole('link', { name: 'People', exact: true }).first().click();
     await page.waitForURL(/\/people\/menu$/);
-    await page.getByRole('link', { name: /^Directory/ }).first().click();
+    await page
+      .getByRole('link', { name: /^Directory/ })
+      .first()
+      .click();
     await page.waitForURL(/\/people\/directory/);
     // The header's back link is Reach's: `font-medium`, and `touch:font-normal`
     // under a finger. The remote compiled `font-medium` too; its copy must
@@ -529,8 +536,7 @@ describe('PEO-117: the directory searches and filters in People', () => {
   it('finds a person by name server-side, and refuses a filter the viewer cannot run', async () => {
     const context = await signedIn(EMPLOYEE.session);
     const page = await context.newPage();
-    const text = () =>
-      page.evaluate(() => document.body.innerText.replaceAll('\n', ' | '));
+    const text = () => page.evaluate(() => document.body.innerText.replaceAll('\n', ' | '));
 
     // Adam reads every name, so he may search them: Priya, and nobody else.
     await page.goto(`${stack.shell}/people/directory/list?q=shah`);
@@ -735,8 +741,9 @@ describe('PEO-120: HR terminates somebody, ending their access now, then rehires
       SELECT id FROM people.person WHERE work_email = 'ada@acme.example'`;
     if (ada === undefined) throw new Error('Ada was not imported');
     const status = async () =>
-      (await stack.sql<{ status: string }[]>`SELECT status FROM people.person WHERE id = ${ada.id}`)[0]
-        ?.status;
+      (
+        await stack.sql<{ status: string }[]>`SELECT status FROM people.person WHERE id = ${ada.id}`
+      )[0]?.status;
     expect(await status()).toBe('active');
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
@@ -809,7 +816,11 @@ describe('Hiring somebody added without a start date', () => {
     await hire.getByRole('combobox', { name: /Legal entity/ }).click();
     await page.getByRole('option').first().click();
     await hire.getByRole('button', { name: 'Hire' }).click();
-    await eventually('the hire', () => statusOf('edith@acme.example'), (s) => s === 'active');
+    await eventually(
+      'the hire',
+      () => statusOf('edith@acme.example'),
+      (s) => s === 'active',
+    );
     await context.close();
   });
 
@@ -981,9 +992,7 @@ describe('PEO-121: the webhook delivery log', () => {
     await page.goto(`${stack.shell}/settings/people/integrations`);
     await page.waitForLoadState('networkidle');
     await page.getByRole('tab', { name: 'Webhooks' }).click();
-    await page
-      .getByRole('button', { name: `Delivery log for ${hookUrl}` })
-      .click();
+    await page.getByRole('button', { name: `Delivery log for ${hookUrl}` }).click();
     await page.waitForURL(new RegExp(`/settings/people/integrations/${endpointId}$`));
     await page.waitForLoadState('networkidle');
     const table = page.getByRole('table', { name: 'Deliveries' });
@@ -1148,7 +1157,12 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
       .waitFor({ timeout: 30_000 });
     const describedBy = (await nif.getAttribute('aria-describedby')) ?? '';
     const description = await own
-      .locator(describedBy.split(' ').map((id) => `[id="${id}"]`).join(', '))
+      .locator(
+        describedBy
+          .split(' ')
+          .map((id) => `[id="${id}"]`)
+          .join(', '),
+      )
       .allTextContents();
     expect(description.join(' ')).toMatch(/control letter does not compute/);
     const before = await stack.sql`
@@ -1160,9 +1174,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // review opens now, against the held value.
     await form.getByRole('button', { name: 'Save anyway' }).click();
     // The form closes; the section says where the value went.
-    await own
-      .getByText(/NIF \/ NIE is not changed until HR approves/)
-      .waitFor({ timeout: 30_000 });
+    await own.getByText(/NIF \/ NIE is not changed until HR approves/).waitFor({ timeout: 30_000 });
     const [heldNif] = await eventually(
       'the held NIF',
       () => stack.sql<{ id: string; state: string }[]>`
@@ -1192,7 +1204,10 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // The inbox is a list beside the selected change; its detail is the page's.
     const inbox = approvals.getByRole('main');
     await inbox.getByText('Awaiting identifier review').first().waitFor({ timeout: 30_000 });
-    await inbox.getByText(/control letter does not compute/).first().waitFor();
+    await inbox
+      .getByText(/control letter does not compute/)
+      .first()
+      .waitFor();
     expect(
       await inbox.getByRole('button', { name: /^Approve the change to .*NIF \/ NIE$/ }).count(),
     ).toBe(0);
@@ -1202,11 +1217,17 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     await reviews.goto(`${stack.shell}/people`);
     await (await sections(reviews)).getByRole('link', { name: 'Data health' }).click();
     await reviews.waitForURL(/\/people\/data-health\/completeness$/);
-    await reviews.getByRole('main').getByRole('link', { name: /^ID checks/ }).click();
+    await reviews
+      .getByRole('main')
+      .getByRole('link', { name: /^ID checks/ })
+      .click();
     await reviews.waitForURL(/\/people\/data-health\/id-checks$/);
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('main');
-    await table.getByText(/control letter does not compute/).first().waitFor({ timeout: 30_000 });
+    await table
+      .getByText(/control letter does not compute/)
+      .first()
+      .waitFor({ timeout: 30_000 });
     expect(await table.getByText('12345678A').count()).toBe(0);
     await table.getByRole('button', { name: /^Show .* NIF \/ NIE in full$/ }).click();
     await table.getByText('12345678A').waitFor({ timeout: 30_000 });
@@ -1290,7 +1311,9 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     await table.getByText('Waiting for approval').waitFor({ timeout: 30_000 });
     await table.getByRole('button', { name: /^Send .* NIF \/ NIE back$/ }).click();
     const dialog = reviews.getByRole('dialog');
-    await dialog.getByRole('textbox', { name: /What is wrong/ }).fill('The letter on your card is X');
+    await dialog
+      .getByRole('textbox', { name: /What is wrong/ })
+      .fill('The letter on your card is X');
     await dialog.getByRole('button', { name: 'Send back' }).click();
     const [declined] = await eventually(
       'the declined change',
@@ -1391,7 +1414,9 @@ describe('An import larger than a Vercel function takes, straight to storage (§
     await page.getByRole('button', { name: 'See rows' }).click({ timeout: 120_000 });
     await page.getByRole('heading', { name: 'Skipped rows' }).waitFor({ timeout: 120_000 });
     // The review lists the first twenty; the file has all of them.
-    expect(await page.getByRole('table', { name: 'Skipped rows' }).getByRole('row').count()).toBeLessThanOrEqual(21);
+    expect(
+      await page.getByRole('table', { name: 'Skipped rows' }).getByRole('row').count(),
+    ).toBeLessThanOrEqual(21);
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: /Download all 5000 as CSV/ }).click();
     const report = await readFile(await (await download).path(), 'utf8');
@@ -1437,7 +1462,11 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await stack.sql`INSERT INTO people.role_grant (tenant_id, account_id, role)
                     VALUES (${GLOBEX.tenant}, ${GLOBEX.account}, 'people_admin'), (${GLOBEX.tenant}, ${GLOBEX.account}, 'hr')`;
     await stack.writeTuples([
-      { user: `user:${GLOBEX.account}`, relation: 'people_admin', object: `tenant:${GLOBEX.tenant}` },
+      {
+        user: `user:${GLOBEX.account}`,
+        relation: 'people_admin',
+        object: `tenant:${GLOBEX.tenant}`,
+      },
       { user: `user:${GLOBEX.account}`, relation: 'hr', object: `tenant:${GLOBEX.tenant}` },
     ]);
     const shell = stack.shell.replace('//acme.', '//globex.');
@@ -1459,7 +1488,9 @@ describe('People inside the shell: its sections, and always a way to add somebod
     // on a directory that cannot load.
     await page.goto(`${shell}/people/directory/list`);
     await page.waitForURL(/\/people\/setup$/);
-    await page.getByRole('heading', { name: 'Confirm the legal entity' }).waitFor({ timeout: 30_000 });
+    await page
+      .getByRole('heading', { name: 'Confirm the legal entity' })
+      .waitFor({ timeout: 30_000 });
     await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByText(/Spain: \d+ sections?, \d+ fields/).waitFor();
@@ -1477,7 +1508,9 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.waitForLoadState('networkidle');
     expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
     const nav = await sections(page);
-    expect(await nav.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
+    expect(await nav.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
     // The People item is a place to go, not a menu to open.
     expect(await peopleItem(page).getAttribute('aria-expanded')).toBeNull();
     const flyout = page.getByRole('navigation', { name: 'People sections' });
@@ -1494,9 +1527,9 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await peopleItem(page).hover();
     await flyout.waitFor();
     expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('true');
-    expect(
-      await flyout.getByRole('link', { name: /^Overview/ }).getAttribute('aria-current'),
-    ).toBe('page');
+    expect(await flyout.getByRole('link', { name: /^Overview/ }).getAttribute('aria-current')).toBe(
+      'page',
+    );
     await page.keyboard.press('Escape');
     await flyout.waitFor({ state: 'detached' });
     await page.mouse.move(900, 600);
@@ -1548,7 +1581,9 @@ describe('People inside the shell: its sections, and always a way to add somebod
         return /Org chart/.test(at.previousElementSibling?.textContent ?? '');
       }),
     ).toBe(true);
-    expect(await page.getByRole('main').getByRole('button', { name: 'Add person' }).count()).toBe(0);
+    expect(await page.getByRole('main').getByRole('button', { name: 'Add person' }).count()).toBe(
+      0,
+    );
     await add.click();
     await page.waitForURL(/\/people\/new$/);
     expect(await kept()).toBe(true);
@@ -1571,7 +1606,11 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.waitForURL(/\/people\/[0-9a-f-]{36}$/, { timeout: 30_000 });
     await page.waitForLoadState('networkidle');
     expect(
-      await (await sections(page)).getByRole('link', { name: 'Directory' }).getAttribute('aria-current'),
+      await (
+        await sections(page)
+      )
+        .getByRole('link', { name: 'Directory' })
+        .getAttribute('aria-current'),
     ).toBe('page');
     const [lena] = await stack.sql<{ status: string; hire_date: string | null }[]>`
       SELECT status, hire_date::text FROM people.person
@@ -1579,7 +1618,10 @@ describe('People inside the shell: its sections, and always a way to add somebod
     expect(lena).toEqual({ status: 'active', hire_date: new Date().toISOString().slice(0, 10) });
     await (await sections(page)).getByRole('link', { name: 'Directory' }).click();
     await page.waitForURL(/\/people\/directory\/list$/);
-    await page.getByRole('grid', { name: 'People' }).getByText('Lena Moreau').waitFor({ timeout: 30_000 });
+    await page
+      .getByRole('grid', { name: 'People' })
+      .getByText('Lena Moreau')
+      .waitFor({ timeout: 30_000 });
     // Counts that say what the list holds: everybody, then who is active.
     await page.getByText(/^\d+ (people|person) · \d+ active/).waitFor();
     expect(await kept()).toBe(true);
@@ -1587,7 +1629,9 @@ describe('People inside the shell: its sections, and always a way to add somebod
     // Every section is reachable from the keyboard and stays inside the shell:
     // focus on People, Tab on into its sections to the one wanted, Enter — a
     // client-side move, the sidebar still there, never another origin.
-    const hrefs = await (await sections(page))
+    const hrefs = await (
+      await sections(page)
+    )
       .getByRole('link')
       .evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
     expect(hrefs).toContain('/people/import-export');
@@ -1642,7 +1686,10 @@ describe('People overview: who you are here, what needs you, what is missing', (
   it('shows HR the change waiting; the employee themselves, their gap, and their photo', async () => {
     // Published, as the wizard would; then a detail each employee gives, one
     // whose change HR approves, and a title.
-    await stack.writeAsPeople(ADMIN.account, '/v1/views/setup/publish', { country: 'ES', sections: [] });
+    await stack.writeAsPeople(ADMIN.account, '/v1/views/setup/publish', {
+      country: 'ES',
+      sections: [],
+    });
     const field = (key: string, label: string, over: Record<string, unknown>) =>
       stack.writeAsPeople(ADMIN.account, '/v1/schema/draft/attributes', {
         input: {
@@ -1667,7 +1714,11 @@ describe('People overview: who you are here, what needs you, what is missing', (
         editing: null,
       });
     await field('emergency_contact', 'Emergency contact', { requiredness: 'always' });
-    await field('desk', 'Desk', { requiresApproval: true, piiKind: 'none', classification: 'internal' });
+    await field('desk', 'Desk', {
+      requiresApproval: true,
+      piiKind: 'none',
+      classification: 'internal',
+    });
     await field('job_title', 'Job title', {
       sectionKey: 'employment',
       ownership: ['hr'],
@@ -1705,7 +1756,9 @@ describe('People overview: who you are here, what needs you, what is missing', (
     ] as const) {
       const [row] = await person(id);
       if (row?.given_name === null) {
-        expect((await patch(id, { given_name: given, family_name: family })).status).toBeLessThan(300);
+        expect((await patch(id, { given_name: given, family_name: family })).status).toBeLessThan(
+          300,
+        );
       }
     }
     const [adam] = await person(EMPLOYEE.person);
@@ -1779,7 +1832,10 @@ describe('People overview: who you are here, what needs you, what is missing', (
     const input = page.getByRole('textbox', { name: /Emergency contact/ });
     await input.waitFor({ timeout: 30_000 });
     await expect.poll(() => input.evaluate((el) => el === document.activeElement)).toBe(true);
-    await page.getByText(/^(\d+ missing|Missing)$/).first().waitFor();
+    await page
+      .getByText(/^(\d+ missing|Missing)$/)
+      .first()
+      .waitFor();
     await shot(page, 'profile-missing-editing-desktop-light');
 
     // His photo: picked on his profile, shrunk, straight to storage, kept by People.
@@ -1846,7 +1902,10 @@ describe('People overview: who you are here, what needs you, what is missing', (
       const c = await signedIn(EMPLOYEE.session, { ...options, colorScheme: scheme });
       const p = await c.newPage();
       await p.goto(`${stack.shell}/people/me`);
-      await p.getByText(/^(\d+ missing|Missing)$/).first().waitFor({ timeout: 30_000 });
+      await p
+        .getByText(/^(\d+ missing|Missing)$/)
+        .first()
+        .waitFor({ timeout: 30_000 });
       await p.waitForLoadState('networkidle');
       await shot(p, name);
       await c.close();
@@ -1915,6 +1974,154 @@ describe('A tab changes the page under the header, not the page', () => {
     await page.waitForLoadState('networkidle');
     expect(await skeletons(page)).toEqual([]);
     expect(await tab(page, 'What changed').getAttribute('aria-current')).toBe('page');
+    await context.close();
+  });
+});
+
+/**
+ * Import & export's landing page: what is the same every time is in the
+ * server's HTML and paints at once; only the history may follow it. With
+ * `ACCEPTANCE_ROUTER_LATENCY_MS` (and `ACCEPTANCE_SLOW_OPERATION`) and
+ * `LANDING_OUT`, a run also writes down how long each part took.
+ */
+const cookie = () => `__Host-ksession=${ADMIN.session}`;
+
+/** Timings, to `LANDING_OUT` when a run asks for them. */
+const report = (what: string, numbers: Record<string, number | undefined>): void => {
+  const out = process.env['LANDING_OUT'];
+  if (out !== undefined) appendFileSync(out, `${what} ${JSON.stringify(numbers)}\n`);
+};
+
+/** When each piece of the streamed HTML arrived, from the request's start. */
+async function stream(
+  path: string,
+): Promise<{ ttfb: number; cards: number; history: number; total: number }> {
+  const start = performance.now();
+  const response = await fetch(`${stack.shell}${path}`, { headers: { cookie: cookie() } });
+  if (response.body === null) throw new Error('no body');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let html = '';
+  let ttfb = -1;
+  let cards = -1;
+  let history = -1;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const at = performance.now() - start;
+    if (ttfb < 0) ttfb = at;
+    html += decoder.decode(value, { stream: true });
+    if (cards < 0 && html.includes('Export people')) cards = at;
+    if (history < 0 && html.includes('aria-label="Imports and exports"')) history = at;
+    if (history < 0 && html.includes('Nothing imported or exported yet')) history = at;
+  }
+  return { ttfb, cards, history, total: performance.now() - start };
+}
+
+describe('Import & export, as the server sends it', () => {
+  it('sends the header, both cards and their buttons in the HTML', async () => {
+    // Warm: the first request compiles nothing in a production build, but
+    // the renderer and the token are made once.
+    await stream('/people/import-export');
+    const runs: Awaited<ReturnType<typeof stream>>[] = [];
+    for (let i = 0; i < 5; i += 1) runs.push(await stream('/people/import-export'));
+    const median = (k: keyof (typeof runs)[number]) =>
+      runs.map((r) => r[k]).sort((a, b) => a - b)[2];
+    report('server', {
+      ttfb: median('ttfb'),
+      cards: median('cards'),
+      history: median('history'),
+      total: median('total'),
+    });
+    expect(median('cards')).toBeGreaterThan(0);
+
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    await context.addCookies([
+      {
+        name: '__Host-ksession',
+        value: ADMIN.session,
+        domain: new URL(stack.shell).hostname,
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ]);
+    // When the cards, the history's rows and a hydrated screen first appear,
+    // from `landing.t0`: the navigation's start, or a click.
+    await context.addInitScript(() => {
+      const w = window as unknown as { landing: Record<string, number> };
+      w.landing = { t0: 0 };
+      new MutationObserver(() => {
+        const l = w.landing;
+        const at = performance.now() - (l['t0'] ?? 0);
+        // No body yet while the document is still arriving.
+        const text = (document.body as HTMLElement | null)?.textContent ?? '';
+        if (l['cards'] === undefined && text.includes('New export')) l['cards'] = at;
+        if (
+          l['history'] === undefined &&
+          (text.includes('Nothing imported or exported yet') ||
+            document.querySelector('table[aria-label="Imports and exports"] td') !== null)
+        ) {
+          l['history'] = at;
+        }
+        if (
+          l['interactive'] === undefined &&
+          text.includes('New export') &&
+          document.querySelector('[data-remote]:not([data-hydrating])') !== null
+        ) {
+          l['interactive'] = at;
+        }
+      }).observe(document, { subtree: true, childList: true, attributes: true });
+    });
+    const landed = (page: Page) =>
+      page.waitForFunction(
+        () => {
+          const l = (window as unknown as { landing: Record<string, number> }).landing;
+          return l['history'] !== undefined && l['interactive'] !== undefined;
+        },
+        undefined,
+        { timeout: 30_000 },
+      );
+    const timings = (page: Page) =>
+      page.evaluate(() => ({
+        ...(window as unknown as { landing: Record<string, number> }).landing,
+        fcp: performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? -1,
+      }));
+    const mid = (runs: Record<string, number>[], k: string) =>
+      runs.map((r) => r[k] ?? -1).sort((a, b) => a - b)[2];
+    const keys = ['fcp', 'cards', 'interactive', 'history'];
+
+    const page = await context.newPage();
+    const loads: Record<string, number>[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      await page.goto(`${stack.shell}/people/import-export`);
+      await landed(page);
+      loads.push(await timings(page));
+    }
+    report('load', Object.fromEntries(keys.map((k) => [k, mid(loads, k)])));
+
+    // Arriving from another People page, in the page: a first visit, so
+    // nothing this tab holds can stand in for it.
+    const moves: Record<string, number>[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const from = await context.newPage();
+      await from.goto(`${stack.shell}/people/directory/list`);
+      await from.waitForLoadState('networkidle');
+      await from.evaluate(() => {
+        (window as unknown as { landing: Record<string, number> }).landing = {
+          t0: performance.now(),
+        };
+      });
+      await from
+        .getByRole('navigation', { name: 'Areas' })
+        .getByRole('link', { name: 'Import & export' })
+        .click();
+      await landed(from);
+      moves.push(await timings(from));
+      await from.close();
+    }
+    report('navigation', Object.fromEntries(keys.slice(1).map((k) => [k, mid(moves, k)])));
     await context.close();
   });
 });

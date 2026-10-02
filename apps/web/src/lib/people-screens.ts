@@ -111,6 +111,34 @@ async function orBare<V extends Record<string, unknown>>(
   return bare.status === 'ready' ? { ...bare, notice: first.message } : first;
 }
 
+const NOT_YET = Symbol('not yet');
+
+/**
+ * A load's streamed parts that have already arrived, put in place, so the
+ * page is sent with them; only one still on its way is left to stream. Called
+ * once the page has everything else it waits for, so a part as quick as that
+ * is in the HTML, and a slower one never holds the page.
+ */
+export async function withArrived(load: ScreenLoad): Promise<ScreenLoad> {
+  if (
+    load.status !== 'ready' ||
+    typeof load.data !== 'object' ||
+    load.data === null ||
+    !Object.values(load.data).some((part) => part instanceof Promise)
+  ) {
+    return load;
+  }
+  const parts = await Promise.all(
+    Object.entries(load.data).map(async ([key, part]: [string, unknown]) => {
+      if (!(part instanceof Promise)) return [key, part] as const;
+      // Settled already, it wins the race: its reaction was queued first.
+      const now: unknown = await Promise.race([part, Promise.resolve(NOT_YET)]);
+      return [key, now === NOT_YET ? part : now] as const;
+    }),
+  );
+  return { ...load, data: Object.fromEntries(parts) };
+}
+
 export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   switch (component) {
     case 'Directory':
@@ -156,24 +184,26 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     }
     case 'ImportExport': {
       // Importing stays HR's, as it was. The history is HR's and People
-      // administrators': one People refuses this viewer is left out, not an error.
+      // administrators', and the one part of the page that is not the same
+      // every time: asked for now, but streamed (a promise, `useStreamed`),
+      // so the header, both cards and their buttons never wait on it. One
+      // People refuses this viewer is left out, not an error.
       const before = given(query.search['before']);
-      const [roles, history, template] = await Promise.all([
-        read('Home'),
-        orBare({ before }, (asked) => read('TransferHistory', asked)),
-        read('ImportTemplate'),
-      ]);
+      const history = orBare({ before }, (asked) => read('TransferHistory', asked)).then(
+        (answer) =>
+          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
+      );
+      // `Home` is the shell's own read of the roles (`shellData`), shared.
+      const [roles, template] = await Promise.all([read('Home'), read('ImportTemplate')]);
       if (roles.status !== 'ready') return roles;
+      const { hr = false, admin = false } = roles.data as { hr?: boolean; admin?: boolean };
       return {
         status: 'ready',
         data: {
-          canImport: (roles.data as { hr?: boolean }).hr === true,
-          admin: (roles.data as { admin?: boolean }).admin === true,
+          canImport: hr,
+          admin,
           setUp: !notSetUp(template),
-          history:
-            history.status === 'ready'
-              ? { ...(history.data as object), paged: before !== null }
-              : null,
+          history: hr || admin ? history : null,
           now: new Date().toISOString(),
         },
       };

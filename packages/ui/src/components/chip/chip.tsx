@@ -56,7 +56,7 @@ const chip = cva(
          */
         view: [
           'h-8 px-3.5 font-semibold bg-surface-sunken text-fg touch:h-9',
-          'data-[state=on]:bg-invert data-[state=on]:text-fg-on-invert data-[state=on]:hover:bg-invert',
+          'data-[state=on]:bg-invert data-[state=on]:text-fg-on-invert',
         ],
       },
       invalid: {
@@ -66,11 +66,24 @@ const chip = cva(
       interactive: {
         true: [
           'tap-target cursor-pointer active:scale-[0.97] motion-reduce:active:scale-100',
-          'hover:bg-surface-hover data-[selected]:hover:bg-accent-subtle-hover data-[state=on]:hover:bg-accent-subtle-hover',
+          'hover:bg-surface-hover',
         ],
         false: '',
       },
     },
+    // A chosen chip's hover is its variant's own, so its text keeps a fill it
+    // was chosen against. One tint for every chosen chip once put a chosen
+    // view's inverted text on the accent wash: white on a pale tint in light,
+    // near-black on a dark one in dark, both under 1.6:1.
+    compoundVariants: [
+      {
+        variant: 'filled',
+        interactive: true,
+        class:
+          'data-[selected]:hover:bg-accent-subtle-hover data-[state=on]:hover:bg-accent-subtle-hover',
+      },
+      { variant: 'view', interactive: true, class: 'data-[state=on]:hover:bg-invert' },
+    ],
     defaultVariants: { variant: 'filled', invalid: false, interactive: true },
   },
 );
