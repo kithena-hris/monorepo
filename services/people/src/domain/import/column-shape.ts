@@ -1,4 +1,5 @@
 import type { AttributeDataType } from '@kithena/contracts';
+import { isTimeZone } from '@kithena/domain-kit';
 
 /**
  * An imported column that matches no field: what its values look like, and a
@@ -19,6 +20,8 @@ export interface ColumnShape {
   readonly options: readonly string[];
   /** An IBAN's country, when every one agrees. */
   readonly country: string | null;
+  /** The most decimal places a number in it has: how many a decimal keeps. */
+  readonly decimals?: number;
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u;
@@ -29,6 +32,7 @@ const PHONE = /^\+?[\d\s().-]+$/u;
 const YES_NO = new Set(['yes', 'no', 'true', 'false', 'y', 'n', 'sí', 'si']);
 /** Few enough to be a list, and short enough to be choices rather than text. */
 const LIST_AT_MOST = 12;
+const CURRENCIES: ReadonlySet<string> = new Set(Intl.supportedValuesOf('currency'));
 const SHORT = 30;
 
 /** "12345678Z" is "8 digits + letter": each run of a kind, counted. */
@@ -70,16 +74,26 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
   if (all(YMD)) return shape('dates, yyyy-mm-dd', 'date');
   if (all(DMY)) return shape('dates, dd/mm/yyyy', 'date');
   if (values.every((v) => YES_NO.has(v.toLowerCase()))) return shape('yes or no', 'boolean');
-  if (all(/^-?\d+$/u) && values.every((v) => v.replace('-', '').length <= 6)) {
+  // A leading zero is a code (a zip, an account), never a count.
+  const zeroLed = values.some((v) => /^-?0\d/u.test(v));
+  if (all(/^-?\d+$/u) && !zeroLed && values.every((v) => v.replace('-', '').length <= 6)) {
     return shape('whole numbers', 'number');
   }
-  if (all(/^-?\d+[.,]\d+$/u)) {
+  // "2", "2.5" and "2.25" in one column are numbers with two decimals.
+  if (all(/^-?\d+([.,]\d+)?$/u) && !zeroLed && values.some((v) => /[.,]/u.test(v))) {
     const decimals = Math.max(...values.map((v) => v.split(/[.,]/u)[1]?.length ?? 0));
-    return shape(`numbers with ${String(decimals)} decimals`, 'decimal');
+    return shape(`numbers with ${String(decimals)} decimals`, 'decimal', { decimals });
   }
-  if (all(PHONE) && values.every((v) => (v.match(/\d/gu)?.length ?? 0) >= 7)) {
+  // A phone is written with a "+" or spaces, brackets or dashes: a bare run
+  // of digits is an account or a code.
+  if (
+    all(PHONE) &&
+    values.every((v) => (v.match(/\d/gu)?.length ?? 0) >= 7 && /[+\s().-]/u.test(v))
+  ) {
     return shape('phone-like', 'phone');
   }
+  if (values.every((v) => CURRENCIES.has(v.toUpperCase()))) return shape('currency codes', 'currency');
+  if (values.every((v) => v.includes('/') && isTimeZone(v))) return shape('time zones', 'time_zone');
   const distinct = [...new Set(values)];
   // A list is mostly repeats: a quarter of the values, at least, are ones seen
   // before. Children's or partners' names repeat now and then, never that much.
@@ -112,31 +126,79 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
 
 /** What kind of data a column holds, read from its header and shape: it decides the defaults. */
 export type Kind =
-  'financial' | 'identifier' | 'special' | 'contact' | 'birth' | 'business' | 'plain';
+  | 'financial'
+  | 'identifier'
+  | 'pay'
+  | 'special'
+  | 'contact'
+  | 'birth'
+  | 'business'
+  | 'plain';
 
+/** First match wins: "Tax ID" names a person before "tax" says pay. */
 const KINDS: readonly [RegExp, Kind][] = [
   [
-    /iban|bank|account number|sort code|swift|bic|salary|wage|pay\b|bonus|tax|irpf|pension/u,
-    'financial',
-  ],
-  [
-    /\bnif\b|\bnie\b|\bdni\b|ssn|social security|\bnino\b|national insurance|passport|\bpan\b|\btin\b|tax id|national id/u,
+    /\bnif\b|\bnie\b|\bdni\b|ssn|social security|\bnino\b|national insurance|passport|\bpan\b|\btin\b|\bsin\b|tax id|steuer|national id|driv\w* licen[cs]e|work permit|work authori[sz]ation|right to work|\bvisa\b|immigration/u,
     'identifier',
   ],
+  [/iban|bank|account number|sort code|routing|ifsc|swift|\bbic\b/u, 'financial'],
   [
-    /health|medical|allerg|disab|religio|faith|diet|ethnic|union|sexual|pregnan|diagnos|blood/u,
+    /salary|wage|\bpay\b|bonus|commission|equity|stock|\braise\b|hourly rate|compensation|tax|irpf|pension|retirement|flsa/u,
+    'pay',
+  ],
+  [
+    /health|medical|allerg|disab|religio|faith|diet|ethnic|\brace\b|union|sexual|pregnan|diagnos|blood|veteran/u,
     'special',
   ],
-  [/emergency|next of kin|\bkin\b|phone|mobile|e-?mail|address/u, 'contact'],
   [/birth|\bdob\b/u, 'birth'],
+  // Before contact: a work location's address is the company's, not the person's.
   [
-    /cost cent|department|division|team|grade|level|job|position|contract|office|site|project|budget/u,
+    /cost cent|department|division|team|grade|level|job|position|contract|office|site|project|budget|work location/u,
     'business',
   ],
+  [/emergency|next of kin|\bkin\b|phone|mobile|e-?mail|address|\bhome\b/u, 'contact'],
 ];
 
 export function kindOf(header: string, shape: ColumnShape): Kind {
   const words = header.toLowerCase();
   if (shape.dataType === 'bank_account') return 'financial';
   return KINDS.find(([re]) => re.test(words))?.[1] ?? 'plain';
+}
+
+/**
+ * The type a header and its values agree on. The values decide first; the
+ * header corrects what values alone cannot tell: "Bonus target %" is a
+ * percentage, a postal code keeps its digits as text, a salary is an amount
+ * (money when the file gives each row's currency, else a decimal), notes are
+ * long text.
+ */
+export function typeFor(
+  header: string,
+  shape: ColumnShape,
+  file: { readonly hasCurrency: boolean } = { hasCurrency: false },
+): ColumnShape {
+  const words = header.toLowerCase();
+  const numeric =
+    shape.dataType === 'number' || shape.dataType === 'decimal' || shape.shape === 'empty';
+  const as = (dataType: AttributeDataType, extra: Partial<ColumnShape> = {}): ColumnShape => ({
+    ...shape,
+    dataType,
+    options: dataType === 'select' ? shape.options : [],
+    ...extra,
+  });
+  if (/%|percent/u.test(words) && numeric) return as('percentage', { decimals: shape.decimals ?? 2 });
+  if (/salary|wage|hourly rate|\bamount\b|compensation/u.test(words) && numeric) {
+    return file.hasCurrency ? as('money') : as('decimal', { decimals: 2 });
+  }
+  if (
+    /postal|\bzip\b|post ?code|\bcode\b|serial|badge|account|routing|number$|\bno\.?$|\bid$/u.test(
+      words,
+    ) &&
+    (shape.dataType === 'number' || shape.dataType === 'decimal' || shape.dataType === 'phone')
+  ) {
+    return as('text');
+  }
+  if (/notes?$|comments?$|remarks?$|description$/u.test(words)) return as('long_text');
+  if (/address/u.test(words) && shape.dataType === 'select') return as('text');
+  return shape;
 }

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { shapeOf } from './column-shape.js';
+import { shapeOf, typeFor } from './column-shape.js';
 import {
   asDefinition,
+  fitted,
   localProposal,
   nearly,
   PlanBudget,
@@ -115,15 +116,82 @@ describe('with no model: People’s own proposal', () => {
     expect(nearly('Region', 'Religion')).toBe(false);
   });
 
-  it('a column that can reveal health or religion is held back, explained, and never chased', () => {
+  it('a column that can reveal health or religion is imported, HR’s alone, approved, and never chased', () => {
+    // A list cannot be sealed: special category, unsealed, changes approved.
     expect(localProposal(FILE.diet, SECTIONS)).toMatchObject({
-      include: false,
-      field: { classification: 'special-category', aiEligible: false, required: false },
+      include: true,
+      field: {
+        classification: 'special-category',
+        encrypted: false,
+        requiresApproval: true,
+        ownership: ['hr'],
+        visibility: ['hr'],
+        aiEligible: false,
+        required: false,
+      },
       forExisting: { kind: 'leave' },
     });
-    expect(localProposal(FILE.diet, SECTIONS).why).toMatch(
-      /special-category data\. I suggest not importing it/u,
-    );
+    expect(localProposal(FILE.diet, SECTIONS).why).toMatch(/not encrypted, because it’s a list/u);
+    // Free text can be: sealed.
+    const note = seen(9, 'Medical notes', ['Asthma', 'None', 'Knee surgery 2019']);
+    expect(localProposal(note, SECTIONS)).toMatchObject({
+      include: true,
+      field: { classification: 'special-category', encrypted: true, visibility: ['hr'] },
+    });
+  });
+
+  it('pay is confidential, HR’s and finance’s, approved; a percentage is a percentage, an amount money', () => {
+    const bonus = seen(10, 'Bonus Target %', ['15', '20', '60', '15']);
+    expect(localProposal({ ...bonus, local: typeFor(bonus.header, bonus.local) }, SECTIONS).field).toMatchObject({
+      dataType: 'percentage',
+      classification: 'confidential',
+      piiKind: 'none',
+      encrypted: false,
+      requiresApproval: true,
+      ownership: ['hr'],
+      visibility: ['hr', 'finance'],
+    });
+    const raise = seen(11, 'Last Raise %', ['2.0', '9.4', '3.15']);
+    expect(localProposal({ ...raise, local: typeFor(raise.header, raise.local) }, SECTIONS).field)
+      .toMatchObject({ dataType: 'percentage', decimals: 2, encrypted: false });
+    const salary = seen(12, 'Annual Base Salary', ['463600.00', '98000.50']);
+    expect(
+      localProposal(
+        { ...salary, local: typeFor(salary.header, salary.local, { hasCurrency: true }) },
+        SECTIONS,
+      ).field,
+    ).toMatchObject({ dataType: 'money', classification: 'confidential', visibility: ['hr', 'finance'] });
+  });
+
+  it('a list of pay or identity data is never proposed sealed', () => {
+    for (const [header, cells] of [
+      ['Tax Filing Status', ['Single', 'Head of household', 'Single']],
+      ['Currency', ['USD', 'INR', 'USD']],
+      ['Driver License Class', ['C', 'CDL-A', 'C', 'C']],
+      ['Work Authorization', ['Citizen', 'Work permit', 'Citizen']],
+      ['Commission Plan', ['Standard', 'Standard', 'Gold']],
+    ] as const) {
+      const p = localProposal(seen(13, header, cells), SECTIONS);
+      expect(p.field.encrypted, header).toBe(false);
+      expect(p.field.piiKind, header).not.toBe('financial');
+      expect(p.include, header).toBe(true);
+    }
+  });
+
+  it('personal identifiers are sealed text: never a phone, a number or a list', () => {
+    for (const [header, cells] of [
+      ['Passport Number', ['M9109171', 'L7149883', 'X1234567']],
+      ['National ID (SSN/NI/SIN/PAN)', ['992-83-8749', 'TN 12 34 56 A', 'ABCDE1234F']],
+      ['Bank Account Number', ['027217940', '462136141', '011518355']],
+      ['Routing / Sort / IFSC Code', ['011518355', '20-00-00', 'HDFC0001234']],
+      ['Tax ID / Steuer-ID', ['12345678901', '98765432109']],
+      ['Driver License Number', ['C185-3212-1617', 'B330-7014-5027']],
+      ['IBAN', ['DE18200551922393904808', 'GB29NWBK60161331926819']],
+    ] as const) {
+      const s = seen(14, header, cells);
+      const p = localProposal({ ...s, local: typeFor(header, s.local) }, SECTIONS);
+      expect(p.field, header).toMatchObject({ dataType: 'text', encrypted: true, aiEligible: false });
+    }
   });
 
   it('is surer when the values or the header decide the field than of plain free text', () => {
@@ -195,7 +263,94 @@ describe('with a model', () => {
     expect(unreadable).toBe(2);
   });
 
-  it('cannot put back a column held back as special category, and holds back one it calls that', () => {
+  it('is fitted to what the settings take: no sealed list, no identifier without its scheme, no list for a number', () => {
+    const raise = seen(11, 'Last Raise %', ['2.0', '9.4', '3.15']);
+    const columns = [
+      seen(9, 'Currency', ['USD', 'INR', 'USD']),
+      seen(10, 'National ID', ['992-83-8749', 'TN 12 34 56 A']),
+      { ...raise, local: typeFor(raise.header, raise.local) },
+    ];
+    const mine = columns.map((s) => localProposal(s, SECTIONS));
+    const model = (column: number, field: Record<string, unknown>) => ({
+      column,
+      field: {
+        label: 'X',
+        required: false,
+        ownership: ['hr'],
+        visibility: ['hr'],
+        classification: 'confidential',
+        aiEligible: false,
+        ...field,
+      },
+      newSection: 'Bank and pay',
+      why: 'Pay.',
+      forExisting: 'hr',
+      forExistingWhy: 'HR.',
+    });
+    const { proposals, unreadable } = withModel(
+      mine,
+      [
+        {
+          proposals: [
+            // As the production model answered: a list of pay data, sealed.
+            model(9, { label: 'Currency', dataType: 'select', piiKind: 'financial', encrypted: true }),
+            // An identifier with no country's scheme: the draft needs one.
+            model(10, { label: 'National ID', dataType: 'national_id', piiKind: 'identity', encrypted: true }),
+            // A percentage the model took for choices.
+            model(11, { label: 'Last raise', dataType: 'select', piiKind: 'financial', encrypted: true }),
+          ],
+        },
+      ],
+      SECTIONS,
+      columns,
+    );
+    expect(unreadable).toBe(0);
+    const at = (c: number) => proposals.find((p) => p.column === c);
+    expect(at(9)?.field).toMatchObject({
+      dataType: 'currency',
+      encrypted: false,
+      piiKind: 'none',
+      requiresApproval: true,
+    });
+    expect(at(9)?.why).toMatch(/not encrypted/u);
+    expect(at(10)?.field).toMatchObject({ dataType: 'text', encrypted: true });
+    expect(at(11)?.field).toMatchObject({ dataType: 'percentage', decimals: 2, encrypted: false });
+  });
+
+  it('fits any field: a sealed choice is unsealed and approved; financial data that cannot be sealed is not called financial', () => {
+    const base = {
+      label: '',
+      dataType: 'select' as const,
+      options: ['A'],
+      required: true,
+      ownership: ['hr' as const],
+      visibility: ['hr' as const],
+      classification: 'internal' as const,
+      piiKind: 'financial' as const,
+      encrypted: true,
+      aiEligible: true,
+    };
+    expect(fitted(base, 'Pay Type')).toEqual({
+      field: {
+        ...base,
+        label: 'Pay Type',
+        encrypted: false,
+        piiKind: 'none',
+        classification: 'confidential',
+        requiresApproval: true,
+        aiEligible: false,
+      },
+      note: 'Stored as confidential, with changes approved, not encrypted, because it’s a list.',
+    });
+    // A choice with no choices is text; a sealed text stays sealed.
+    expect(fitted({ ...base, options: [] }, 'Pay Type').field).toMatchObject({
+      dataType: 'text',
+      encrypted: true,
+      piiKind: 'financial',
+    });
+  });
+
+  it('cannot lower special category, and keeps HR-only and sealed what it calls that', () => {
     const field = {
       label: 'X',
       dataType: 'text',
@@ -228,12 +383,20 @@ describe('with a model', () => {
       Object.values(FILE),
     );
     expect(proposals.find((p) => p.column === 8)).toMatchObject({
-      include: false,
-      field: { classification: 'special-category' },
+      include: true,
+      field: { classification: 'special-category', visibility: ['hr'], aiEligible: false },
     });
+    // Text, as the model said: special category, sealed, HR's alone, changes approved.
     expect(proposals.find((p) => p.column === 5)).toMatchObject({
-      include: false,
-      field: { classification: 'special-category' },
+      include: true,
+      field: {
+        dataType: 'text',
+        classification: 'special-category',
+        visibility: ['hr'],
+        encrypted: true,
+        requiresApproval: true,
+      },
+      forExisting: { kind: 'leave' },
     });
   });
 
