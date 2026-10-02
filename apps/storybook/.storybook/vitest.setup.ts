@@ -1,5 +1,6 @@
 import * as a11yAnnotations from '@storybook/addon-a11y/preview';
 import { setProjectAnnotations } from '@storybook/react-vite';
+import axe from 'axe-core';
 import { beforeAll } from 'vitest';
 
 import preview from './preview.js';
@@ -25,6 +26,5 @@ beforeAll(project.beforeAll);
  * the hook timeout rather than a story. The a11y addon imports the same module.
  */
 beforeAll(async () => {
-  const { default: axe } = await import('axe-core');
   await axe.run(document.body);
 });
