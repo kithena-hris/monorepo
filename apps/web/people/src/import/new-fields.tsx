@@ -706,7 +706,7 @@ export function NewFieldsStep({
           title={view.setup === null ? 'These become a draft in Settings' : 'These come with setup'}
         >
           {view.setup === null
-            ? `They’re added to Employee fields as a draft of version ${String(view.version)}. Nothing is published until you approve the plan.`
+            ? `They’re added to Employee fields as draft version ${String(view.version)}. Nothing is published until you approve the plan.`
             : `They’re published with ${view.setup.countryName === null ? 'the fields every company has' : `the ${view.setup.countryName} pack`} as version 1. Nothing is published until you approve the plan.`}
         </Alert>
       </div>
@@ -721,36 +721,43 @@ const CHOICE: Record<
   {
     /** `n` is "14 people"; `count` is "14". */
     readonly label: (n: string, count: string) => string;
+    readonly means: (count: string) => string;
+    /** On a phone (MA9): a word or two, and what it does in a line. */
     readonly short: string;
-    readonly means: string;
+    readonly shortMeans: string;
   }
 > = {
+  // An ask is required: they show as incomplete until they answer (an optional ask is PEO-148).
   ask: {
     label: (n) => `Ask the ${n} to fill it in`,
+    means: () =>
+      'It shows on their profile as missing, and the weekly reminder asks for it. Until they answer, they show as incomplete.',
     short: 'Ask them',
-    means:
-      'It’s theirs to fill in, and the weekly reminder asks for it. Until they do, they show as incomplete.',
-  },
-  hr: {
-    label: (_n, count) => `HR fills in the ${count}`,
-    short: 'HR fills it in',
-    means:
-      'They go to the Data health grid, for HR. It’s required, so they show as incomplete until then.',
+    shortMeans: 'They show as incomplete',
   },
   new: {
     label: () => 'Only ask people who join from now on',
+    means: (count) => `The ${count} stay empty. New joiners are asked in onboarding.`,
     short: 'Only new joiners',
-    means: 'Nobody here now is asked. New joiners are asked for it.',
+    shortMeans: 'Nobody asked today',
+  },
+  hr: {
+    label: (_n, count) => `HR fills in the ${count}`,
+    means: () => 'They go to the Data health grid, for HR.',
+    short: 'HR fills it in',
+    shortMeans: 'In Data health, for HR',
   },
   leave: {
     label: () => 'Leave it empty',
+    means: () => 'It’s optional, and nobody is asked.',
     short: 'Leave it empty',
-    means: 'It’s optional, and nobody is asked.',
+    shortMeans: 'Nobody is asked',
   },
   default: {
     label: (_n, count) => `Give the ${count} the file’s value`,
+    means: () => 'Every row of the file holds the same value, so it’s written for them too.',
     short: 'The file’s value',
-    means: 'Every row of the file holds the same value, so it’s written for them too.',
+    shortMeans: 'Written for them',
   },
 };
 
@@ -806,10 +813,11 @@ export function ExistingChoices({
 }): JSX.Element {
   const single = p.forExisting.kind === 'default' ? p.forExisting.value : null;
   const recommendedDefault = recommended === 'default' ? (single ?? undefined) : undefined;
+  // The design's order: ask, only new joiners, HR; then what the backend adds.
   const kinds: ForExisting['kind'][] = [
     'ask',
-    'hr',
     'new',
+    'hr',
     'leave',
     ...(recommended === 'default' || single !== null ? (['default'] as const) : []),
   ];
@@ -833,7 +841,9 @@ export function ExistingChoices({
         <RadioCard
           key={kind}
           value={kind}
-          description={compact ? undefined : CHOICE[kind].means}
+          description={
+            compact ? CHOICE[kind].shortMeans : CHOICE[kind].means(missing.toLocaleString('en-GB'))
+          }
           impact={impactOf(kind, missing)}
           {...(kind === recommended
             ? {
@@ -953,6 +963,12 @@ export function ExistingStep({
       id: 'plan',
       header: 'What happens',
       cell: (p) => <span className="font-medium">{planWord(p, missingOf(p))}</span>,
+    },
+    {
+      // Each row opens its choices beside the table (design AI10's chevron).
+      id: 'open',
+      header: <span className="sr-only">Choose</span>,
+      cell: () => <icons.next aria-hidden className="size-4 text-fg-subtle" />,
     },
   ];
   return (
