@@ -125,7 +125,12 @@ export const NEW_FIELDS: NewFieldsView = {
   proposals: [
     {
       ...proposal({ column: 2, header: 'T-shirt size', key: 't_shirt_size' }),
-      counts: { have: 17, missing: 4, existingWithout: 1 },
+      counts: {
+        have: 17,
+        missing: 4,
+        existingWithout: 1,
+        without: ['Kevin Malone', 'Oscar Martinez', 'Angela Martin'],
+      },
       sensitive: null,
     },
     {
@@ -149,7 +154,12 @@ export const NEW_FIELDS: NewFieldsView = {
         encrypted: false,
         aiEligible: true,
       },
-      counts: { have: 17, missing: 4, existingWithout: 1 },
+      counts: {
+        have: 17,
+        missing: 4,
+        existingWithout: 1,
+        without: ['Kevin Malone', 'Oscar Martinez', 'Angela Martin'],
+      },
       sensitive: null,
     },
     {
@@ -173,7 +183,7 @@ export const NEW_FIELDS: NewFieldsView = {
         encrypted: false,
         aiEligible: false,
       },
-      counts: { have: 6, missing: 15, existingWithout: 1 },
+      counts: { have: 6, missing: 15, existingWithout: 1, without: ['Kevin Malone'] },
       sensitive: 'Special category (GDPR Article 9)',
     },
   ],
@@ -182,6 +192,7 @@ export const NEW_FIELDS: NewFieldsView = {
 /** A manager from another system's file, found nowhere here. */
 const LEFT_EMPTY: LeftEmptyRow = {
   row: 14,
+  name: 'Pam Beesly',
   cell: 'M14 — “Gabe Lewis”',
   label: 'Manager',
   reason: 'nobody in this company or this file is called “Gabe Lewis”',
@@ -264,7 +275,13 @@ export const PLAN: ImportPlanView = {
     dryRun: {
       counts: { create: 19, update: 0, unchanged: 0, blocked: 1, duplicate: 0 },
       blocked: [
-        { row: 7, person: null, problem: 'a new person needs a work email', cell: 'D7 — empty' },
+        {
+          row: 7,
+          name: 'Toby Flenderson',
+          person: null,
+          problem: 'a new person needs a work email',
+          cell: 'D7 — empty',
+        },
       ],
       leftEmpty: [LEFT_EMPTY],
       leftEmptyCount: 1,

@@ -61,6 +61,8 @@ export interface PlannedField {
 
 export interface BlockedRow {
   readonly row: number;
+  /** Who the row is, as the file names them; the work email when it has no name. */
+  readonly name?: string | null;
   readonly person: string | null;
   readonly problem: string;
   /** "D18 — empty", "F47 — “31/02/2025”". */
@@ -70,6 +72,8 @@ export interface BlockedRow {
 /** A manager or work location the file names that is nowhere here: the row imports without it. */
 export interface LeftEmptyRow {
   readonly row: number;
+  /** Who the row is, as the file names them; the work email when it has no name. */
+  readonly name?: string | null;
   /** "M14 — “01a0…”". */
   readonly cell: string;
   readonly label: string;
@@ -78,6 +82,7 @@ export interface LeftEmptyRow {
 
 export interface CellFinding {
   readonly row: number;
+  readonly name?: string | null;
   readonly cell: string;
   readonly label: string;
   readonly level: string;
@@ -196,7 +201,12 @@ export function PlanSteps({
   );
 }
 
+/** Who a listed row is: first, so under a finger it is the card's title. */
+const whoOf = (r: { readonly row: number; readonly name?: string | null }): string =>
+  r.name ?? `Row ${String(r.row)}`;
+
 const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
+  { id: 'name', header: 'Name', cell: whoOf },
   { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
   { id: 'cell', header: 'Cell', cell: (r) => <span className="font-mono text-xs">{r.cell}</span> },
   { id: 'label', header: 'Field', cell: (r) => r.label },
@@ -268,6 +278,7 @@ export function PlanStep({
         : null);
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
+    { id: 'name', header: 'Name', cell: whoOf },
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
@@ -277,6 +288,7 @@ export function PlanStep({
     { id: 'problem', header: 'Why it’s skipped', cell: (r) => r.problem },
   ];
   const findingColumns: DataColumn<CellFinding>[] = [
+    { id: 'name', header: 'Name', cell: whoOf },
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
@@ -332,7 +344,10 @@ export function PlanStep({
           </div>
         ) : null}
         {leftEmpty.length > 0 ? (
-          <LeftEmpty rows={leftEmpty} count={plan.review.dryRun.leftEmptyCount ?? leftEmpty.length} />
+          <LeftEmpty
+            rows={leftEmpty}
+            count={plan.review.dryRun.leftEmptyCount ?? leftEmpty.length}
+          />
         ) : null}
         {findings.length > 0 ? (
           <div className="flex flex-col gap-3">

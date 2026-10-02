@@ -91,6 +91,8 @@ export interface ColumnCounts {
   /** Everybody else, after the import. */
   readonly missing: number;
   readonly existingWithout: number;
+  /** The file's own rows without a value, by name: the first twenty. */
+  readonly without?: readonly string[];
 }
 
 export interface NewFieldsView {
@@ -850,6 +852,39 @@ export function ExistingChoices({
   );
 }
 
+/** Who has no value for a field, by name: the file's rows first, then how many already here. */
+export function WithoutValue({
+  label,
+  names,
+  missing,
+}: {
+  readonly label: string;
+  readonly names: readonly string[];
+  readonly missing: number;
+}): JSX.Element | null {
+  if (missing === 0) return null;
+  const more = missing - names.length;
+  return (
+    <div className="flex flex-col gap-2">
+      {names.length === 0 ? null : (
+        <DataTable
+          label={`People without ${label}`}
+          rows={names.map((name, i) => ({ id: `${String(i)} ${name}`, name }))}
+          columns={[{ id: 'name', header: 'Name', cell: (r) => r.name }]}
+          rowId={(r) => r.id}
+          dense
+        />
+      )}
+      {more > 0 ? (
+        <p className="text-sm text-fg-muted">
+          {names.length === 0 ? '' : 'And '}
+          {plural(more, 'person', 'people')} already here, whom the file doesn’t reach.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export interface ExistingStepProps {
   readonly view: NewFieldsView;
   /** The proposals HR kept. */
@@ -873,6 +908,8 @@ export function ExistingStep({
     view.proposals.find((x) => x.column === p.column)?.counts.missing ?? 0;
   const haveOf = (p: ColumnProposal): number =>
     view.proposals.find((x) => x.column === p.column)?.counts.have ?? 0;
+  const withoutOf = (p: ColumnProposal): readonly string[] =>
+    view.proposals.find((x) => x.column === p.column)?.counts.without ?? [];
   const current =
     kept.find((p) => p.key === selected) ?? kept.find((p) => missingOf(p) > 0) ?? kept[0];
   const recommended = (p: ColumnProposal): ForExisting['kind'] | null =>
@@ -974,6 +1011,11 @@ export function ExistingStep({
               </Field>
             ) : null}
             <p className="text-sm text-fg-muted">Why this suggestion: {current.forExistingWhy}</p>
+            <WithoutValue
+              label={current.field.label}
+              names={withoutOf(current)}
+              missing={missingOf(current)}
+            />
           </div>
         </PageSection>
       )}

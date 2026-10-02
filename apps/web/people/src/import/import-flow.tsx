@@ -27,6 +27,7 @@ import { DoneStep, PlanStep, type ImportDoneView, type ImportPlanView } from './
 import {
   ExistingChoices,
   ExistingStep,
+  WithoutValue,
   NewFieldsStep,
   isSpecial,
   proposalsOf,
@@ -727,6 +728,11 @@ function PhonePlan({
             onChange={(forExisting) => {
               onChange(p.column, { forExisting });
             }}
+          />
+          <WithoutValue
+            label={p.field.label}
+            names={view.proposals.find((x) => x.column === p.column)?.counts.without ?? []}
+            missing={missingOf(p)}
           />
         </section>
       ))}

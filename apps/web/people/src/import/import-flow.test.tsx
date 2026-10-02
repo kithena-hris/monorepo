@@ -205,6 +205,17 @@ describe('ImportFlow', () => {
     expect(
       screen.getByText('Why this suggestion: Nice to have: nobody is chased for it.'),
     ).toBeInTheDocument();
+    // Who has no value, by name, then who the file doesn't reach.
+    const without = screen.getByRole('table', { name: 'People without T-shirt size' });
+    expect(
+      within(without)
+        .getAllByRole('columnheader')
+        .map((h) => h.textContent),
+    ).toEqual(['Name']);
+    expect(without).toHaveTextContent('Kevin Malone');
+    expect(
+      screen.getByText('And 1 person already here, whom the file doesn’t reach.'),
+    ).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
 
     await user.click(
@@ -238,12 +249,17 @@ describe('ImportFlow', () => {
     expect(await axeViolations(container)).toEqual([]);
 
     // A manager the file names that is nowhere here: listed, never blocking.
-    expect(screen.getByRole('table', { name: 'Left empty for HR' })).toHaveTextContent(
-      'nobody in this company or this file is called “Gabe Lewis”',
-    );
+    const left = screen.getByRole('table', { name: 'Left empty for HR' });
+    expect(left).toHaveTextContent('nobody in this company or this file is called “Gabe Lewis”');
+    // Whose cell it is comes first: the name, then the row and the cell.
+    expect(within(left).getAllByRole('columnheader')[0]).toHaveTextContent('Name');
+    expect(within(left).getAllByRole('row')[1]).toHaveTextContent(/^Pam Beesly14M14/);
 
     await user.click(screen.getByRole('button', { name: 'See rows' }));
     expect(screen.getByText('D7 — empty')).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Skipped rows' })).toHaveTextContent(
+      'Toby Flenderson',
+    );
     await user.click(screen.getByRole('button', { name: 'Download all 1 as CSV' }));
     expect(onDownloadBlocked).toHaveBeenCalledWith('https://store.test/blocked.csv');
 
@@ -310,7 +326,7 @@ describe('ImportFlow', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/took 4 s/)).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Left empty for HR' })).toHaveTextContent(
-      'M14 — “Gabe Lewis”',
+      'Pam Beesly14M14 — “Gabe Lewis”',
     );
     expect(screen.getByRole('link', { name: 'Edit Laptop serial' })).toHaveAttribute(
       'href',

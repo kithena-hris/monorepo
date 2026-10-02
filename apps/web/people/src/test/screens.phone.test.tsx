@@ -1102,6 +1102,9 @@ describe('at 390×844, with a finger', () => {
       expect(
         screen.getByRole('heading', { name: '4 people have no T-shirt size' }),
       ).toBeInTheDocument();
+      // Who, by name: each a card whose title is the name.
+      const who = screen.getByRole('table', { name: 'People without T-shirt size' });
+      expect(within(who).getAllByRole('row').at(1)).toHaveTextContent('Kevin Malone');
       expect(screen.getByRole('button', { name: 'Approve and run' })).toBeEnabled();
       await again();
     });
@@ -1111,6 +1114,12 @@ describe('at 390×844, with a finger', () => {
       await checked(flow({ status: 'ready', data: noNewColumns }));
       await userEvent.click(screen.getByRole('button', { name: 'Next: review the plan' }));
       await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
+      // A cell left empty is a card titled by whose it is.
+      const left = screen.getByRole('table', { name: 'Left empty for HR' });
+      const [title] = within(within(left).getAllByRole('row')[1] as HTMLElement).getAllByRole(
+        'cell',
+      );
+      expect(title).toHaveTextContent('Pam Beesly');
       await again();
     });
 
@@ -1344,7 +1353,11 @@ describe('a floating button over a pinned footer (MA7)', () => {
           onChangeOpen={() => undefined}
         />
         {/* Where the shell puts it under a finger: the corner above the tab bar. */}
-        <AssistantLauncher label="Ask" onOpen={() => undefined} className="fixed end-4 bottom-24 z-40" />
+        <AssistantLauncher
+          label="Ask"
+          onOpen={() => undefined}
+          className="fixed end-4 bottom-24 z-40"
+        />
       </>,
     );
     await settled();
@@ -1556,14 +1569,20 @@ describe('what changed on a phone (MA4, MA5)', () => {
 
   it('holds the first three points and Share summary, every target a finger’s', async () => {
     await checked(
-      <WhatChanged load={{ status: 'ready', data: four }} onExportingChange={vi.fn()} onAsk={vi.fn()} />,
+      <WhatChanged
+        load={{ status: 'ready', data: four }}
+        onExportingChange={vi.fn()}
+        onAsk={vi.fn()}
+      />,
     );
     expect(screen.getByRole('heading', { name: 'September in four points' })).toBeVisible();
     expect(screen.getByText(/Headcount grew from/)).toBeVisible();
     expect(screen.getByText(/2 managers now have more than 8/)).not.toBeVisible();
     // The design's phone card: no period control, follow-up or charts beside it.
     expect(screen.getByRole('radio', { name: 'This quarter', hidden: true })).not.toBeVisible();
-    expect(screen.getByRole('textbox', { name: 'Ask a follow-up', hidden: true })).not.toBeVisible();
+    expect(
+      screen.getByRole('textbox', { name: 'Ask a follow-up', hidden: true }),
+    ).not.toBeVisible();
     expect(screen.getByRole('button', { name: 'Share summary' })).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Show 1 more' }));
     expect(screen.getByText(/2 managers now have more than 8/)).toBeVisible();
@@ -1574,7 +1593,13 @@ describe('what changed on a phone (MA4, MA5)', () => {
     await checked(
       <WhatChanged
         load={{ status: 'ready', data: SEPTEMBER }}
-        exporting={{ format: 'email', recipient: 'nora', tone: 'short', charts: true, madeLine: true }}
+        exporting={{
+          format: 'email',
+          recipient: 'nora',
+          tone: 'short',
+          charts: true,
+          madeLine: true,
+        }}
         onExportingChange={vi.fn()}
         onDraft={() => Promise.resolve({ ok: true as const, data: FOR_NORA })}
         onSend={vi.fn()}
