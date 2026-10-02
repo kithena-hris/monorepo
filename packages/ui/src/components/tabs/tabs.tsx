@@ -4,6 +4,7 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ComponentPropsWithoutRef,
@@ -201,8 +202,26 @@ export function TabsTrigger({
   className,
   ...props
 }: ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>): JSX.Element {
+  /*
+   * Tabs are often a view switch over content drawn outside them — a page
+   * header's tabs above a table — with no `TabsContent` at all. Radix still
+   * points `aria-controls` at a panel id, and a reference to an element that
+   * does not exist is invalid ARIA (axe: aria-valid-attr-value). So it is kept
+   * only while the panel is there. The id is derived from the trigger's own,
+   * which Radix builds the same way, rather than read back from the attribute
+   * this removes.
+   */
+  const ref = useRef<HTMLButtonElement | null>(null);
+  const [orphan, setOrphan] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setOrphan(el.ownerDocument.getElementById(el.id.replace('-trigger-', '-content-')) === null);
+  });
   return (
     <TabsPrimitive.Trigger
+      ref={ref}
+      {...(orphan ? { 'aria-controls': undefined } : {})}
       className={cn(
         // 14px at a desk, 15px under a finger: between the scale's steps.
         'relative inline-flex items-center justify-center gap-2 text-[0.875rem] font-semibold touch:text-[0.9375rem]',

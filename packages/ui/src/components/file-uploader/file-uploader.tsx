@@ -382,6 +382,10 @@ export function FileUploader({
 
       {variant === 'dropzone' ? (
         <div
+          // Dimmed when it takes nothing more, and says so: an inactive control
+          // is exempt from the contrast minimum, and axe, like assistive tech,
+          // knows it is inactive only from `aria-disabled`.
+          aria-disabled={disabled || full || undefined}
           onDragOver={(event) => {
             event.preventDefault();
             if (!disabled && !full) setDragging(true);

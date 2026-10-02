@@ -87,17 +87,20 @@ function Screen({
   startScrolled?: boolean;
 }): JSX.Element {
   return (
-    <div
+    // A `section`, not a `div role="region"`: the bar's `<header>` is a banner
+    // landmark only outside sectioning content, and a banner may not sit
+    // inside another landmark (axe: landmark-banner-is-top-level). In an app
+    // the bar sits at the top of the page, which is what this stands in for.
+    <section
       tabIndex={0}
       aria-label="Screen"
-      role="region"
       ref={(el) => {
         if (el && startScrolled) el.scrollTop = 120;
       }}
       className={`${height} overflow-y-auto rounded-lg border border-border bg-canvas touch:rounded-xl`}
     >
       {children}
-    </div>
+    </section>
   );
 }
 

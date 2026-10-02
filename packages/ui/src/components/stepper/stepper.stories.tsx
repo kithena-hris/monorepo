@@ -5,7 +5,7 @@ import { fn } from 'storybook/test';
 
 import { Button } from '../button/button';
 import { Card, CardContent } from '../card/card';
-import { Field, FieldLabel } from '../field/field';
+import { Field, FieldControl, FieldLabel } from '../field/field';
 import { Input } from '../input/input';
 import { Stepper, type StepperStep } from './stepper';
 
@@ -173,11 +173,15 @@ export const Wizard: Story = {
           <div className="flex flex-wrap gap-2.5">
             <Field className="min-w-35 flex-1">
               <FieldLabel>From</FieldLabel>
-              <Input defaultValue="14 Oct" endAdornment={<CalendarDays />} />
+              <FieldControl>
+                <Input defaultValue="14 Oct" endAdornment={<CalendarDays />} />
+              </FieldControl>
             </Field>
             <Field className="min-w-35 flex-1">
               <FieldLabel>To</FieldLabel>
-              <Input defaultValue="18 Oct" endAdornment={<CalendarDays />} />
+              <FieldControl>
+                <Input defaultValue="18 Oct" endAdornment={<CalendarDays />} />
+              </FieldControl>
             </Field>
           </div>
           <div className="flex justify-between">

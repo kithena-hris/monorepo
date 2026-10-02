@@ -1254,7 +1254,9 @@ function KanbanColumn<T extends { id: string }>({
           // top padding the first card in a column had its ring sheared off.
           '-m-1 flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-1',
           'scroll-smooth',
-          column.locked && 'opacity-70',
+          // A locked column is not dimmed: its cards are still people to read,
+          // and at 70% their secondary text fell below the contrast minimum.
+          // The lock in the header and "Locked" in the empty slot say it.
         )}
       >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
@@ -1390,7 +1392,11 @@ function KanbanCard<T extends { id: string }>({
     <article
       ref={setNodeRef}
       style={style}
-      {...(cardActivator ? { ...attributes, ...listeners } : {})}
+      // Pointer listeners only. dnd-kit's attributes would make the card a
+      // `role="button"`, which an `<article>` may not be and which cannot hold
+      // the card's own controls (axe: aria-allowed-role, nested-interactive).
+      // The keyboard has its own activator below.
+      {...(cardActivator ? listeners : {})}
       className={cn(
         'group relative rounded-md bg-surface shadow-sm',
         // Only shadow and opacity transition here. `transform` is dnd-kit's,

@@ -530,6 +530,10 @@ export function ImageUploader({
           )}
           {full || busy ? null : (
             <li
+              // Dimmed when disabled, and says so: an inactive control is exempt from the
+              // contrast minimum, and axe (like assistive tech) can only know it is
+              // inactive from `aria-disabled`.
+              aria-disabled={disabled || undefined}
               onDragOver={(event) => {
                 event.preventDefault();
                 if (!disabled) setDragging(true);
@@ -573,6 +577,7 @@ export function ImageUploader({
             </div>
           ) : (
             <div
+              aria-disabled={disabled || full || undefined}
               onDragOver={(event) => {
                 event.preventDefault();
                 if (!disabled && !full) setDragging(true);

@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from '../dialog/dialog';
 import { EmptyState } from '../feedback/feedback';
-import { Field, FieldLabel } from '../field/field';
+import { Field, FieldControl, FieldLabel } from '../field/field';
 import { Input } from '../input/input';
 import { RadioGroup, RadioGroupItem } from '../radio-group/radio-group';
 import {
@@ -288,11 +288,15 @@ export const RangesAndDates: Story = {
           <div className="flex items-end gap-2 touch:flex-col touch:items-stretch">
             <Field className="flex-1">
               <FieldLabel>From</FieldLabel>
-              <Input type="date" defaultValue="2024-01-01" />
+              <FieldControl>
+                <Input type="date" defaultValue="2024-01-01" />
+              </FieldControl>
             </Field>
             <Field className="flex-1">
               <FieldLabel>To</FieldLabel>
-              <Input type="date" defaultValue="2026-09-30" />
+              <FieldControl>
+                <Input type="date" defaultValue="2026-09-30" />
+              </FieldControl>
             </Field>
           </div>
         </fieldset>

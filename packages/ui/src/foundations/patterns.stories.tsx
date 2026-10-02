@@ -348,7 +348,7 @@ export const PeopleDirectory: Story = {
             <Card>
               <CardHeader>
                 <div>
-                  <CardTitle>Directory</CardTitle>
+                  <CardTitle level={2}>Directory</CardTitle>
                   <CardDescription>Effective as of 9 August 2026.</CardDescription>
                 </div>
                 <div className="w-full @2xl:w-64">
@@ -1285,7 +1285,7 @@ export const AnalyticsDashboard: Story = {
               <Card>
                 <CardHeader>
                   <div>
-                    <CardTitle>Headcount and leavers</CardTitle>
+                    <CardTitle level={2}>Headcount and leavers</CardTitle>
                     <CardDescription>February to August 2026.</CardDescription>
                   </div>
                 </CardHeader>
@@ -1303,7 +1303,7 @@ export const AnalyticsDashboard: Story = {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>By status</CardTitle>
+                  <CardTitle level={2}>By status</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <DonutChart
@@ -1324,7 +1324,7 @@ export const AnalyticsDashboard: Story = {
             <Card>
               <CardHeader>
                 <div>
-                  <CardTitle>Headcount by team</CardTitle>
+                  <CardTitle level={2}>Headcount by team</CardTitle>
                   <CardDescription>Select a bar to see who is in it.</CardDescription>
                 </div>
                 {drill ? (

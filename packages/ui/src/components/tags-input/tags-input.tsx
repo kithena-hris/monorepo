@@ -211,6 +211,9 @@ export function TagsInput({
         // only forwards focus to the input, which is the actual control.
         role="group"
         aria-label={label}
+        // Inactive as well as dimmed, which exempts the dimmed tags from the
+        // contrast minimum.
+        aria-disabled={disabled || undefined}
         onClick={() => {
           inputRef.current?.focus();
         }}

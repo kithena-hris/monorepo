@@ -399,6 +399,9 @@ export function ListItem({
   ...props
 }: ListItemProps): JSX.Element {
   const children = asChild ? resolveChild(given) : given;
+  // A dimmed row says it is inactive. Assistive tech hears it, and axe exempts
+  // an inactive row from the contrast minimum the dimming takes it under.
+  const liProps = disabled ? { 'aria-disabled': true as const, ...props } : props;
   const interactive = asChild && isValidElement(children);
   const swipe = useSwipe(swipeActions ?? [], fullSwipe);
   const row = cn(
@@ -482,7 +485,7 @@ export function ListItem({
     return (
       <li
         className={cn('group/swipe relative overflow-hidden', className)}
-        {...props}
+        {...liProps}
         onKeyDown={(event) => {
           if (event.key === 'Escape') swipe.close();
           props.onKeyDown?.(event);
@@ -543,19 +546,25 @@ export function ListItem({
 
   if (body) {
     return acts ? (
-      <li className={cn('flex items-center pe-2', selected && 'bg-accent-subtle', className)} {...props}>
+      <li
+        className={cn('flex items-center pe-2', selected && 'bg-accent-subtle', className)}
+        {...liProps}
+      >
         {body}
-        <RowMenu name={typeof child?.props.children === 'string' ? child.props.children : 'this row'} actions={acts} />
+        <RowMenu
+          name={typeof child?.props.children === 'string' ? child.props.children : 'this row'}
+          actions={acts}
+        />
       </li>
     ) : (
-      <li className={className} {...props}>
+      <li className={className} {...liProps}>
         {body}
       </li>
     );
   }
 
   return (
-    <li className={cn(row, className)} {...props}>
+    <li className={cn(row, className)} {...liProps}>
       {content(children)}
     </li>
   );

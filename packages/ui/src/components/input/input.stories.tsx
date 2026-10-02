@@ -192,8 +192,12 @@ export const MultiLine: Story = {
     <div className="grid gap-3">
       <Textarea placeholder="Fixed height, scrolls" />
       <Textarea autoResize placeholder="Grows with content" />
-      <Textarea defaultValue="Read-only note" readOnly />
-      <Textarea defaultValue="Rejected: dates overlap an existing request" aria-invalid />
+      <Textarea aria-label="Note" defaultValue="Read-only note" readOnly />
+      <Textarea
+        aria-label="Reason"
+        defaultValue="Rejected: dates overlap an existing request"
+        aria-invalid
+      />
     </div>
   ),
 };
