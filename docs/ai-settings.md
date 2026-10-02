@@ -10,10 +10,14 @@ People administrator approves the plan once; nothing is written before.
 The import has five steps: **Upload → Map columns → New fields → Review plan
 → Import**, full pages at `/people/import` under People › Import & export ›
 Import. The step, and the field in focus on the people-without-a-value
-screen, are in the address: `?step=map|fields|existing|review|done` and
+screen, are in the address: `?step=map|places|fields|existing|review|done` and
 `?field=`; no step is the upload. Each step is a new history entry, except
 done, which replaces the plan so Back never offers a run that happened. An id
 or employee number column shows "Kithena creates this" and has no picker.
+Wherever a row or a cell is listed (left empty for HR, skipped, identifiers to
+check, the people without a value), its person's name comes first, from the
+file's name columns or else its work email; on a phone the name is the card's
+title.
 
 0. **Nothing published yet is not a detour.** A company the back office has
    just made (one legal entity, nothing published) imports straight away: its
@@ -29,6 +33,20 @@ or employee number column shows "Kithena creates this" and has no picker.
    systems export (`domain/import/aliases.ts`: "First Name", "Email",
    "Employee ID", "Hire Date"…), then by the column-mapping judgment.
    Existing fields and sections are never changed by anything below.
+1. **Work locations in this file** (`?step=places`, still under Map columns
+   in the stepper) appears when a column maps to Work location. The dry run
+   lists each value the file holds (`domain/import/workplaces.ts`) with its
+   people by name and a proposal: the work location here it already is; a
+   close name ("Scranton Branch" → Scranton) as a suggestion; else a new one
+   by the file's name, in the first legal entity's country and zone; and,
+   for another system's id, empty. A People administrator maps each, adds it
+   (name, country, time zone, and legal entity where there are several, as
+   Settings › Organisation asks) or leaves it empty, its people then listed
+   for HR. The choices go with the plan ("Add 2 work locations: Scranton and
+   Stamford; map “NYC HQ” to New York") and the run, which adds through
+   Organisation's own `createLocation` before the rows go in. HR without
+   administrator rights sees the suggestions read-only, and the server reads
+   only an administrator's choices.
 2. **New fields** appears only when columns match nothing. One card per
    column: its proposed name, type, section, who sees it, how sensitive it is,
    how sure the rules are of the type, the choices or the shape of the values,
