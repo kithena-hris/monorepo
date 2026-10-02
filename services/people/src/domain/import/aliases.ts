@@ -103,7 +103,13 @@ const CHOICES: Readonly<Record<string, { ours: readonly Named[]; known: readonly
       {
         value: 'contractor',
         label: 'Contractor',
-        names: ['contract worker', 'independent contractor', 'freelance', 'freelancer', 'consultant'],
+        names: [
+          'contract worker',
+          'independent contractor',
+          'freelance',
+          'freelancer',
+          'consultant',
+        ],
       },
       { value: 'intern', label: 'Intern', names: ['internship', 'trainee', 'working student'] },
       { value: 'apprentice', label: 'Apprentice', names: ['apprenticeship'] },
@@ -122,7 +128,11 @@ const CHOICES: Readonly<Record<string, { ours: readonly Named[]; known: readonly
         names: ['on site', 'office', 'in office', 'office based', 'in person', 'on premises'],
       },
       { value: 'hybrid', label: 'Hybrid', names: [] },
-      { value: 'remote', label: 'Remote', names: ['fully remote', 'home based', 'work from home', 'wfh'] },
+      {
+        value: 'remote',
+        label: 'Remote',
+        names: ['fully remote', 'home based', 'work from home', 'wfh'],
+      },
     ],
     known: [],
   },

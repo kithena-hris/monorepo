@@ -54,6 +54,7 @@ const FILE: NewFieldsFile = {
   identifiers: false,
   // The work email mapped to its field; the five others are new.
   columns: { total: 6, existing: 1, kithena: 0 },
+  choices: [],
   unmatched: ['Emergency contact', 'Cost centre', 'T-shirt size', 'IBAN', 'Work country'].map(
     (header, i) => ({
       index: i + 1,
@@ -85,6 +86,9 @@ function world(
     pending?: boolean;
     /** A company with nothing published, its legal entity in Spain. */
     unpublished?: boolean;
+    /** Published fields beside the work email. */
+    fields?: readonly Attribute[];
+    file?: NewFieldsFile;
   } = {},
 ) {
   const sections = new Map<string, Section>(
@@ -97,7 +101,9 @@ function world(
   );
   const workEmail = define({ key: 'work_email', sectionKey: 'employment' });
   const attributes = new Map<string, Attribute>(
-    options.unpublished === true ? [] : [['work_email', workEmail]],
+    options.unpublished === true
+      ? []
+      : [['work_email', workEmail], ...(options.fields ?? []).map((a) => [a.key, a] as const)],
   );
   const reviewed: { mapping: unknown; version: { version: number; keys: string[] } }[] = [];
   const committed: unknown[] = [];
@@ -149,7 +155,10 @@ function world(
         Promise.resolve(
           options.unpublished === true
             ? null
-            : { version: 4, document: { sections: [], attributes: [workEmail] } },
+            : {
+                version: 4,
+                document: { sections: [], attributes: [workEmail, ...(options.fields ?? [])] },
+              },
         ),
     },
     draft: {
@@ -170,7 +179,7 @@ function world(
     },
     artifactUrl: (v: number) => `https://people.test/v1/schema/versions/${String(v)}`,
     planBudget: new PlanBudget(20, 3_600_000),
-    importFile: () => Promise.resolve(ok(FILE)),
+    importFile: () => Promise.resolve(ok(options.file ?? FILE)),
     importReview: (
       _a: unknown,
       step: { mapping: unknown },
@@ -363,6 +372,7 @@ describe('proposing fields for new columns', () => {
     const wide: NewFieldsFile = {
       identifiers: false,
       columns: { total: 31, existing: 1, kithena: 0 },
+      choices: [],
       unmatched: Array.from({ length: 30 }, (_, i) => ({
         index: i + 1,
         header: `Extra ${String(i + 1)}`,
@@ -644,5 +654,88 @@ describe('approving and running it', () => {
     const forged = [{ ...first, column: 0, header: 'Work email' }];
     const ran = await runImport(w.deps, w.asking, { ...w.step, proposals: forged });
     expect(ran).toMatchObject({ ok: false, error: { code: 'VALUE_INVALID' } });
+  });
+});
+
+describe('a column that is one of People’s own choice fields', () => {
+  // The work email, then a column for employment type or work model.
+  const fileWith = (header: string, cells: string[], mapped: boolean): NewFieldsFile => ({
+    identifiers: false,
+    columns: { total: 2, existing: mapped ? 2 : 1, kithena: 0 },
+    choices: mapped ? [{ index: 1, header, key: 'employment_type', cells }] : [],
+    unmatched: mapped ? [] : [{ index: 1, header, cells }],
+    rows: cells.map((c, i) => ({
+      outcome: 'create',
+      personId: null,
+      name: `P${String(i)}`,
+      cells: [`p${String(i)}@acme.es`, c],
+    })),
+  });
+  const options = (a: Attribute | undefined) =>
+    a?.typeConfig.kind === 'select' ? a.typeConfig.options.map((o) => o.value) : null;
+
+  it('adds the file’s values the company’s field lacks, under any spelling once, and maps nothing twice', async () => {
+    const field = define({
+      key: 'employment_type',
+      sectionKey: 'employment',
+      label: { default: 'Employment type', translations: {} },
+      dataType: 'select',
+      typeConfig: {
+        kind: 'select',
+        options: [
+          { value: 'permanent', label: { default: 'Permanent', translations: {} } },
+          { value: 'contractor', label: { default: 'Contractor', translations: {} } },
+        ],
+      },
+    });
+    const w = world({
+      fields: [field],
+      file: fileWith(
+        'Employment Type',
+        ['Permanent', 'Intern', 'FT', 'full time', 'Freelancer'],
+        true,
+      ),
+    });
+    const v = await proposed(w);
+    expect(v.proposals).toEqual([]);
+    const planned = await planImport(w.deps, w.asking, { ...w.step, proposals: [] });
+    if (!planned.ok) throw new Error(planned.error.message);
+    expect(planned.value.steps[0]?.title).toBe(
+      'Employment Type → Employment type; added Intern and Full-time',
+    );
+    const ran = await runImport(w.deps, w.asking, { ...w.step, proposals: [] });
+    if (!ran.ok) throw new Error(ran.error.message);
+    expect(options(w.attributes.get('employment_type'))).toEqual([
+      'permanent',
+      'contractor',
+      'intern',
+      'full_time',
+    ]);
+    expect(w.publishes()).toBe(1);
+    expect(ran.value.columns).toEqual({ existing: 2, created: 0, kithena: 0, leftOut: 0 });
+  });
+
+  it('brings People’s own field in for a column that matched none, never a second field', async () => {
+    const w = world({ file: fileWith('Work Arrangement', ['Office', 'WFH', 'Hybrid'], false) });
+    const v = await proposed(w);
+    expect(v.proposals).toEqual([]);
+    expect(v.choices.map((c) => [c.header, c.key, c.added])).toEqual([
+      ['Work Arrangement', 'work_model', []],
+    ]);
+    const ran = await runImport(w.deps, w.asking, { ...w.step, proposals: [] });
+    if (!ran.ok) throw new Error(ran.error.message);
+    expect(options(w.attributes.get('work_model'))).toEqual(['onsite', 'hybrid', 'remote']);
+    expect(w.attributes.get('work_model')).toMatchObject({
+      sectionKey: 'employment',
+      origin: 'core',
+    });
+    expect(w.committed).toMatchObject([{ mapping: { '0': 'work_email', '1': 'work_model' } }]);
+    expect(ran.value.columns).toEqual({ existing: 2, created: 0, kithena: 0, leftOut: 0 });
+  });
+
+  it('leaves the field as it is for HR without an administrator', async () => {
+    const w = world({ viewer: HR, file: fileWith('Work Arrangement', ['Office'], false) });
+    const v = await proposed(w);
+    expect(v.choices).toEqual([]);
   });
 });

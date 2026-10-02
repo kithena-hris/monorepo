@@ -2,6 +2,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
 import { checkNationalId } from '../../country-packs/national-id.js';
+import { choiceOf } from '../../domain/import/aliases.js';
 import { valueSchemaFor } from '../person/values.js';
 
 /**
@@ -132,7 +133,10 @@ function scalar(definition: AttributeDefinition, cell: string, ctx: CellContext)
           (o.value as string).toLocaleLowerCase('en') === wanted ||
           o.label.default.toLocaleLowerCase('en') === wanted,
       );
-      return option ? option.value : cell;
+      if (option) return option.value;
+      // People's own choice fields under another system's word: "Fixed-term", "WFH".
+      const meant = choiceOf(definition.key, cell)?.value;
+      return config.options.some((o) => o.value === meant) ? meant : cell;
     }
     case 'phone':
       return cell.replaceAll(/[\s().-]/gu, '');
