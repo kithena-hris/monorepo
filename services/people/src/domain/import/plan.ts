@@ -212,7 +212,7 @@ export function planOf(input: PlanInput): {
               ...mapped,
             ].join('; '),
             detail:
-              'Nothing here has those names yet. Each joins the legal entity and time zone chosen in the import; change either in Settings › Organisation.',
+              'Nothing here has those names yet. Each is added in Settings › Organisation with the legal entity, country and time zone chosen in the import, or else the first row’s entity and its zone; change any of them there.',
           }
         : {
             kind: 'places',
