@@ -1081,6 +1081,11 @@ describe('at 390×844, with a finger', () => {
       await checked(flow({ status: 'ready', data: MAPPING }));
       await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
       await screen.findByText('New fields · 1 of 3');
+      // The import's own bar, as drawn: back to Import, the step as the title,
+      // and no large title or stepper under it.
+      const bar = screen.getByRole('navigation', { name: 'Back' });
+      expect(within(bar).getByRole('button', { name: 'Import' })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Importing people' })).toBeNull();
       expect(
         screen.getByRole('heading', { name: 'These columns aren’t fields yet' }),
       ).toBeInTheDocument();

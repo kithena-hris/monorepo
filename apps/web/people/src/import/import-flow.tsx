@@ -1,4 +1,5 @@
 import {
+  AppBarBack,
   Alert,
   AssistantCard,
   Badge,
@@ -176,18 +177,41 @@ const NO_FILE: Extract<ImportStage, { step: 'map' }> = {
 function Header({
   current,
   actions,
+  phoneBar,
 }: {
   readonly current: number;
   readonly actions?: ReactNode;
+  /**
+   * Under a finger, on the new fields and the plan (MA8, MA9): the phone's
+   * bar is the import's own, back to its last step and that step's name as
+   * the title, with no large title or stepper under it.
+   */
+  readonly phoneBar?: { readonly title: string; readonly onBack: () => void } | null;
 }): JSX.Element {
+  const bar = phoneBar ?? null;
   return (
     <>
       <PageHeader
-        title="Import"
-        description="Nothing is written until you approve the plan."
+        title={bar === null ? 'Import' : <span className="sr-only">Import</span>}
+        {...(bar === null
+          ? { description: 'Nothing is written until you approve the plan.' }
+          : {
+              breadcrumb: (
+                <nav
+                  aria-label="Back"
+                  className="-mt-1 grid min-h-12 grid-cols-[6rem_minmax(0,1fr)_6rem] items-center gap-2"
+                >
+                  <AppBarBack className="justify-self-start" onClick={bar.onBack}>
+                    Import
+                  </AppBarBack>
+                  <span className="truncate text-center text-md font-semibold">{bar.title}</span>
+                  <span />
+                </nav>
+              ),
+            })}
         {...(actions === null || actions === undefined ? {} : { actions })}
       />
-      <div className="max-w-245">
+      <div className={bar === null ? 'max-w-245' : 'hidden'}>
         <Stepper label="Importing people" steps={STEPS} current={current} />
       </div>
     </>
@@ -615,14 +639,27 @@ function Steps({
 
   return (
     <Stack gap={5}>
-      <Header current={current} actions={coarse && step !== 'map' ? null : actions[step]} />
-      {coarse && (step === 'fields' || step === 'existing') ? (
-        <p className="-mt-2 text-sm text-fg-muted">
-          {step === 'fields'
-            ? `New fields · ${String(Math.min(card + 1, proposals.length))} of ${String(proposals.length)}`
-            : 'Review plan'}
-        </p>
-      ) : null}
+      <Header
+        current={current}
+        actions={coarse && step !== 'map' ? null : actions[step]}
+        phoneBar={
+          coarse && step === 'fields'
+            ? {
+                title: `New fields · ${String(Math.min(card + 1, proposals.length))} of ${String(proposals.length)}`,
+                onBack: () => {
+                  goTo(beforeFields);
+                },
+              }
+            : coarse && step === 'existing'
+              ? {
+                  title: 'Review plan',
+                  onBack: () => {
+                    goTo('fields');
+                  },
+                }
+              : null
+        }
+      />
 
       {step === 'map' ? (
         <Stack gap={4}>
