@@ -42,9 +42,10 @@ import { DATA_TYPE_LABEL, SCOPE_LABEL, WRITER_LABEL } from '../settings/words';
  * Nothing here decides. People proposes (with the assistant, from the
  * columns' headers and the shape of their values, never a value), HR switches
  * each on or off and edits it, and the plan that follows says what approving
- * will do. A column that can reveal health or religion is held back and
- * explained; HR may still import it. HR without administrator rights sees the
- * whole proposal and is told an administrator adds fields.
+ * will do. Every column is imported: a column that can reveal health or
+ * religion comes sealed where its type allows, HR's alone and changed only
+ * with approval, and its card says so. HR without administrator rights sees
+ * the whole proposal and is told an administrator adds fields.
  */
 
 export type ForExisting =
@@ -67,6 +68,10 @@ export interface NewField {
   readonly piiKind: PiiKind;
   readonly encrypted: boolean;
   readonly aiEligible: boolean;
+  /** Whether a change waits for HR's approval; absent, the classification decides. */
+  readonly requiresApproval?: boolean;
+  /** Decimal places of a decimal or a percentage. */
+  readonly decimals?: number;
 }
 
 export interface ColumnProposal {
@@ -127,9 +132,26 @@ export type Answer<T> =
 export const proposalsOf = (view: NewFieldsView): ColumnProposal[] =>
   view.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p);
 
-/** Special category: held back unless HR says otherwise. */
-export const isSpecial = (p: Pick<ColumnProposal, 'field'>): boolean =>
-  p.field.classification === 'special-category';
+/**
+ * What a field's handling is, in a word each: how sensitive, sealed, approved.
+ * Shown on every card so nothing needs a click to be seen.
+ */
+export function handlingOf(f: NewField): readonly {
+  readonly label: string;
+  readonly tone: 'danger' | 'warning' | 'sensitive' | 'neutral';
+}[] {
+  return [
+    f.classification === 'special-category'
+      ? { label: 'Special category', tone: 'danger' as const }
+      : f.classification === 'confidential'
+        ? { label: 'Confidential', tone: 'warning' as const }
+        : { label: 'Ordinary', tone: 'neutral' as const },
+    ...(f.encrypted ? [{ label: 'Sealed', tone: 'sensitive' as const }] : []),
+    ...(f.requiresApproval === true
+      ? [{ label: 'Approval required', tone: 'neutral' as const }]
+      : []),
+  ];
+}
 
 const plural = (n: number, one: string, many: string): string =>
   `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
@@ -198,15 +220,13 @@ export interface ProposedFieldCardProps {
   readonly newSections: readonly string[];
   readonly readOnly: boolean;
   readonly selected?: boolean;
-  /** Under a finger the screen's own Skip and Create act for it (MA8): no "Import anyway" here. */
-  readonly footless?: boolean;
   readonly onChange: (patch: Partial<ColumnProposal>) => void;
 }
 
 /**
  * One proposed field (the design's "Proposed field"): the column it comes
  * from, its name, a switch to keep it, then its type, section, who sees it and
- * how sensitive it is; or, held back, why. Edit opens the whole of it.
+ * how sensitive it is and why. Edit opens the whole of it.
  */
 export function ProposedFieldCard({
   proposal: p,
@@ -217,24 +237,18 @@ export function ProposedFieldCard({
   newSections,
   readOnly,
   selected = false,
-  footless = false,
   onChange,
 }: ProposedFieldCardProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const id = useId();
   const f = p.field;
-  const heldBack = isSpecial(p) && !p.include;
   const ringed = selected || editing;
   return (
     <Card
       padded
       aria-labelledby={`${id}-title`}
       className={
-        ringed
-          ? 'flex min-w-0 flex-col gap-3 ring-2 ring-accent'
-          : heldBack
-            ? 'flex min-w-0 flex-col gap-3 ring-[1.5px] ring-danger'
-            : 'flex min-w-0 flex-col gap-3'
+        ringed ? 'flex min-w-0 flex-col gap-3 ring-2 ring-accent' : 'flex min-w-0 flex-col gap-3'
       }
     >
       <div className="flex items-center gap-2.5">
@@ -243,13 +257,7 @@ export function ProposedFieldCard({
         <h3 id={`${id}-title`} className="min-w-0 flex-1 text-base font-bold">
           {f.label}
         </h3>
-        {isSpecial(p) ? (
-          <Badge tone="danger" size="sm">
-            <icons.sensitive aria-hidden />
-            Sensitive
-          </Badge>
-        ) : null}
-        {heldBack || readOnly ? null : (
+        {readOnly ? null : (
           <Switch
             aria-label={`Create ${f.label}`}
             checked={p.include}
@@ -259,45 +267,47 @@ export function ProposedFieldCard({
           />
         )}
       </div>
-      {heldBack ? (
-        <p className="text-sm text-fg-muted">{p.why}</p>
-      ) : (
-        <dl className="grid grid-cols-4 gap-2.5 touch:grid-cols-2">
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <dt className="text-2xs font-medium text-fg-subtle">Type</dt>
-            <dd className="flex items-center gap-1 text-sm font-medium [&_svg]:size-3.5">
-              <TypeIcon dataType={f.dataType} />
-              {DATA_TYPE_LABEL[f.dataType]}
-            </dd>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <dt className="text-2xs font-medium text-fg-subtle">Section</dt>
-            <dd className="text-sm font-medium">{sectionName(p, sections)}</dd>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <dt className="text-2xs font-medium text-fg-subtle">Who sees it</dt>
-            <dd>
-              <AccessStrip audiences={AUDIENCES} value={accessOf(f.visibility, f.ownership)} />
-            </dd>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <dt className="text-2xs font-medium text-fg-subtle">Sensitivity</dt>
-            <dd className="text-sm font-medium">{sensitive ?? CLASS_WORD[f.classification]}</dd>
-          </div>
-        </dl>
-      )}
+      <dl className="grid grid-cols-4 gap-2.5 touch:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <dt className="text-2xs font-medium text-fg-subtle">Type</dt>
+          <dd className="flex items-center gap-1 text-sm font-medium [&_svg]:size-3.5">
+            <TypeIcon dataType={f.dataType} />
+            {DATA_TYPE_LABEL[f.dataType]}
+          </dd>
+        </div>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <dt className="text-2xs font-medium text-fg-subtle">Section</dt>
+          <dd className="text-sm font-medium">{sectionName(p, sections)}</dd>
+        </div>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <dt className="text-2xs font-medium text-fg-subtle">Who sees it</dt>
+          <dd>
+            <AccessStrip audiences={AUDIENCES} value={accessOf(f.visibility, f.ownership)} />
+          </dd>
+        </div>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <dt className="text-2xs font-medium text-fg-subtle">Sensitivity</dt>
+          <dd className="flex flex-wrap gap-1">
+            {handlingOf(f).map((h) => (
+              <Badge key={h.label} tone={h.tone} size="sm">
+                {h.label}
+              </Badge>
+            ))}
+          </dd>
+        </div>
+      </dl>
+      <p className="text-sm text-fg-muted">
+        {sensitive === null ? '' : `${sensitive}. `}
+        {p.why}
+      </p>
       <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-        {heldBack ? null : (
-          <>
-            <span className="inline-flex items-center gap-1 [&_svg]:size-3 [&_svg]:text-accent-fg">
-              <icons.assistant aria-hidden />
-              {p.confidence === 'high' ? 'High' : 'Medium'} confidence
-            </span>
-            <span aria-hidden>·</span>
-            <span>{optionsLine(p)}</span>
-            <span aria-hidden>·</span>
-          </>
-        )}
+        <span className="inline-flex items-center gap-1 [&_svg]:size-3 [&_svg]:text-accent-fg">
+          <icons.assistant aria-hidden />
+          {p.confidence === 'high' ? 'High' : 'Medium'} confidence
+        </span>
+        <span aria-hidden>·</span>
+        <span>{optionsLine(p)}</span>
+        <span aria-hidden>·</span>
         <span>
           {counts === undefined
             ? `${plural(rows, 'row', 'rows')} in the file`
@@ -305,33 +315,21 @@ export function ProposedFieldCard({
         </span>
         {readOnly ? null : (
           <span className="ms-auto">
-            {heldBack && footless ? null : heldBack ? (
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => {
-                  onChange({ include: true });
-                }}
-              >
-                Import anyway
-              </Button>
-            ) : (
-              <Button
-                size="xs"
-                variant="ghost"
-                aria-expanded={editing}
-                aria-controls={`${id}-edit`}
-                onClick={() => {
-                  setEditing((e) => !e);
-                }}
-              >
-                {editing ? 'Done' : 'Edit'}
-              </Button>
-            )}
+            <Button
+              size="xs"
+              variant="ghost"
+              aria-expanded={editing}
+              aria-controls={`${id}-edit`}
+              onClick={() => {
+                setEditing((e) => !e);
+              }}
+            >
+              {editing ? 'Done' : 'Edit'}
+            </Button>
           </span>
         )}
       </div>
-      {editing && !readOnly && !heldBack ? (
+      {editing && !readOnly ? (
         <FieldEditor
           id={`${id}-edit`}
           proposal={p}
@@ -534,6 +532,17 @@ function FieldEditor({
           </FieldControl>
         </Field>
         <Field orientation="horizontal" className="items-center justify-between gap-4">
+          <FieldLabel>Changes need a second HR approval</FieldLabel>
+          <FieldControl>
+            <Switch
+              checked={f.requiresApproval === true}
+              onCheckedChange={(on) => {
+                set({ requiresApproval: on });
+              }}
+            />
+          </FieldControl>
+        </Field>
+        <Field orientation="horizontal" className="items-center justify-between gap-4">
           <FieldLabel>Required for new people</FieldLabel>
           <FieldControl>
             <Switch
@@ -579,7 +588,6 @@ export function NewFieldsStep({
   onIndexChange,
 }: NewFieldsStepProps): JSX.Element {
   const readOnly = !view.canCreate;
-  const acceptable = proposals.filter((p) => !isSpecial(p));
   const kept = proposals.filter((p) => p.include);
   const newSections = newSectionsOf(proposals);
   const n = proposals.length;
@@ -596,7 +604,6 @@ export function NewFieldsStep({
         newSections={newSections}
         readOnly={readOnly}
         selected={selected}
-        footless={coarse}
         onChange={(patch) => {
           onChange(p.column, patch);
         }}
@@ -661,16 +668,16 @@ export function NewFieldsStep({
               : `${String(n)} columns aren’t fields yet. Here’s what I’d create.`
           }
           action={
-            readOnly || acceptable.length === 0 ? undefined : (
+            readOnly || proposals.length === 0 ? undefined : (
               <Button
                 size="sm"
                 variant="primary"
                 startIcon={<icons.confirm aria-hidden />}
                 onClick={() => {
-                  for (const p of acceptable) onChange(p.column, { include: true });
+                  for (const p of proposals) onChange(p.column, { include: true });
                 }}
               >
-                Accept all {acceptable.length}
+                Accept all {proposals.length}
               </Button>
             )
           }

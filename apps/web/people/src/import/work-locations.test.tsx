@@ -104,10 +104,7 @@ describe('the work locations in the file', () => {
     };
     expect(plan).toHaveBeenLastCalledWith(expect.any(Object), expect.any(Array), places);
     await user.click(screen.getByRole('button', { name: 'Approve and run' }));
-    expect(run).toHaveBeenCalledWith(expect.any(Object), expect.any(Array), {
-      applyWithoutApproval: false,
-      places,
-    });
+    expect(run).toHaveBeenCalledWith(expect.any(Object), expect.any(Array), { places });
   });
 
   it('shows HR without an administrator the suggestions, read-only, and sends none', async () => {
@@ -140,6 +137,66 @@ describe('the work locations in the file', () => {
     rerender(<ImportFlow {...props({ step: 'fields', onStepChange })} />);
     await user.click(await screen.findByRole('button', { name: 'Back' }));
     expect(onStepChange).toHaveBeenLastCalledWith('places');
+  });
+
+  it('shows what to check beside the prefilled country and zone, ready to change', async () => {
+    const user = fast();
+    const onChange = vi.fn();
+    const workplaces = (PLAN_WITH_OFFICE.review.dryRun.workplaces ?? []).map((w) =>
+      w.key === 'stamford'
+        ? {
+            ...w,
+            note: 'Stamford is in United States but the file’s time zone is Asia/Kolkata: check the time zone.',
+          }
+        : w,
+    );
+    const { container } = render(
+      <WorkLocationsStep
+        workplaces={workplaces}
+        here={PLACES_HERE}
+        choices={{}}
+        onChange={onChange}
+        readOnly={false}
+        coarse={false}
+      />,
+    );
+    // The note and the fields it is about, on the card itself: no click to reach them.
+    expect(screen.getByRole('alert')).toHaveTextContent('the file’s time zone is Asia/Kolkata');
+    expect(screen.getByRole('combobox', { name: /Country/ })).toHaveTextContent('United States');
+    expect(screen.getByRole('button', { name: /Time zone/ })).toHaveTextContent('America/New_York');
+    // Only the noted value says so.
+    expect(screen.getAllByText('Check where it is')).toHaveLength(1);
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: /Time zone/ }));
+    await user.type(screen.getByPlaceholderText('Search time zones'), 'London');
+    await user.click(await screen.findByRole('option', { name: 'Europe/London' }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      'stamford',
+      expect.objectContaining({ kind: 'add', name: 'Stamford', timeZone: 'Europe/London' }),
+    );
+  });
+
+  it('keeps the file’s zone selectable when this browser names it otherwise', async () => {
+    const user = fast();
+    const workplaces = (PLAN_WITH_OFFICE.review.dryRun.workplaces ?? []).map((w) =>
+      w.key === 'stamford' && w.proposed.kind === 'add'
+        ? { ...w, proposed: { ...w.proposed, timeZone: 'Asia/Kolkata' } }
+        : w,
+    );
+    render(
+      <WorkLocationsStep
+        workplaces={workplaces}
+        here={PLACES_HERE}
+        choices={{}}
+        onChange={vi.fn()}
+        readOnly={false}
+        coarse={false}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /Time zone/ })).toHaveTextContent('Asia/Kolkata');
+    await user.click(screen.getByRole('button', { name: /Time zone/ }));
+    await user.type(screen.getByPlaceholderText('Search time zones'), 'Kolkata');
+    expect(await screen.findByRole('option', { name: 'Asia/Kolkata' })).toBeInTheDocument();
   });
 
   it('offers no new work location while there is no legal entity to add it to', () => {

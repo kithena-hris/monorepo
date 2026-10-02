@@ -15,16 +15,16 @@ export const NEW_FIELDS_INSTRUCTION = `An HR team is importing a spreadsheet of 
 Answer with one JSON object and nothing else, in exactly this shape:
 {"proposals":[{"column":3,"field":{"label":"Emergency contact","dataType":"text","required":false,"ownership":["employee","hr"],"visibility":["self","hr"],"classification":"confidential","piiKind":"contact","encrypted":false,"aiEligible":false},"newSection":"Emergency contact","why":"Personal contact details the employee keeps up to date.","forExisting":"ask","forExistingWhy":"Only they know it."}],"skipped":[{"column":7,"why":"Repeats the existing work email."}],"summary":"One sentence, naming no person and no value."}
 - Every listed column appears once, in proposals or in skipped. Use "sectionKey" (an existing section's key) instead of "newSection" when an existing section fits.
-- field may also carry "options" (choices, for select only), "country" (two letters, for bank_account) and "description" (help text). No other keys anywhere.
-- dataType is one of: text, long_text, number, decimal, percentage, date, boolean, select, email, phone, url, country, bank_account.
+- field may also carry "options" (choices, for select only), "country" (two letters, for bank_account), "description" (help text), "decimals" (for decimal or percentage) and "requiresApproval" (true when a change should wait for a second HR member). No other keys anywhere.
+- dataType is one of: text, long_text, number, decimal, percentage, money, date, boolean, select, email, phone, url, country, currency, time_zone, bank_account.
 
 You see each column's header and the shape of its values ("dates, dd/mm/yyyy", "4 distinct short values"), never a value. Work from those alone.
 
 For each field
 - label: what HR would call it. Put it in an existing section that fits (sectionKey), or name a new section (newSection); columns that belong together share a new section.
-- dataType from the shape: dates are date, "N distinct short values" is select, IBAN-like is bank_account (with its country), email-like is email, phone-like is phone.
+- dataType from the shape: dates are date, numbers are number or decimal (a header with % is percentage), "N distinct short values" is select, IBAN-like is bank_account (with its country), email-like is email, phone-like is phone. An identifier (passport, national ID, tax ID, licence number, account or routing number) is text.
 - Who fills it in (ownership: employee, manager, hr, finance) and who sees it (visibility: self, manager, manager_chain, hr, finance, admin, directory). Employees fill in their own details and see them (self). Managers see what they need for their team, never pay or bank details or health.
-- Protection, never less than the data needs: health and other GDPR Article 9 data is special-category; bank details, pay and tax are confidential with piiKind financial and encrypted; identifiers are confidential with piiKind identity and encrypted; contact details are confidential with piiKind contact. aiEligible only for public or internal data.
+- Protection, never less than the data needs: health and other GDPR Article 9 data is special-category, seen by hr only, with requiresApproval; bank details are confidential with piiKind financial and encrypted; identifiers are confidential with piiKind identity and encrypted; pay (salary, rate, bonus, commission, equity, raises, tax status) is confidential with piiKind none, seen by hr and finance, with requiresApproval; contact details are confidential with piiKind contact. Only text, long_text, email, phone, url, number, decimal, money, date and bank_account can be encrypted: a select, a boolean or a percentage is never encrypted. aiEligible only for public or internal data.
 - required: whether new people must have it.
 - why: one short line HR can read.
 

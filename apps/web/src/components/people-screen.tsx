@@ -1379,10 +1379,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           run: async (
             mapping: Mapping,
             proposals: readonly unknown[],
-            options: {
-              readonly applyWithoutApproval: boolean;
-              readonly places?: Readonly<Record<string, unknown>>;
-            },
+            options: { readonly places?: Readonly<Record<string, unknown>> },
           ): Promise<Outcome> => {
             const id = importing.uploadId;
             if (id === null) return again;
@@ -1390,7 +1387,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               id,
               mapping,
               proposals,
-              options.applyWithoutApproval,
+              // The administrator approving the plan is the approval: nothing waits.
+              true,
               options.places,
             );
             if (!ran.ok) return ran;

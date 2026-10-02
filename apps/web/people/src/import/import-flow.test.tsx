@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
@@ -155,7 +155,7 @@ describe('ImportFlow', () => {
     ).toBeInTheDocument();
   });
 
-  it('proposes a field for each new column, holds back special-category data, and says what it read (AI9)', async () => {
+  it('proposes a field for each new column, imports special-category data restricted, and says what it read (AI9)', async () => {
     const user = fast();
     const { container } = render(<ImportFlow {...props(ready(MAPPING))} />);
     await toNewFields(user);
@@ -165,22 +165,24 @@ describe('ImportFlow', () => {
     expect(screen.getByText('Medium confidence')).toBeInTheDocument();
     expect(screen.getByText('XS, S, M, L, XL')).toBeInTheDocument();
     expect(screen.getAllByText('17 of 20 rows have a value')).toHaveLength(2);
-    const held = screen
+    // Imported, on by default: its handling is on the card, with why. Nothing to click.
+    const diet = screen
       .getByRole('heading', { name: 'Dietary requirements' })
-      .closest('section, div[aria-labelledby], [aria-labelledby]');
-    expect(held).not.toBeNull();
-    expect(
-      screen.getByText(/special-category data\. I suggest not importing it/),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Import anyway' })).toBeInTheDocument();
-    expect(screen.getByText('1 (Dietary requirements)')).toBeInTheDocument();
+      .closest('[aria-labelledby]') as HTMLElement;
+    expect(within(diet).getByRole('switch', { name: 'Create Dietary requirements' })).toBeChecked();
+    expect(within(diet).getByText('Special category')).toBeInTheDocument();
+    expect(within(diet).getByText('Approval required')).toBeInTheDocument();
+    expect(within(diet).getByText(/not encrypted, because it’s a list/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Import anyway' })).toBeNull();
+    expect(screen.queryByText(/I suggest not importing it/)).toBeNull();
+    expect(screen.getByText('None')).toBeInTheDocument();
     expect(screen.getByText('These come with setup')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
 
     // Switched off, it is not imported; Accept all puts the ordinary ones back.
     await user.click(screen.getByRole('switch', { name: 'Create T-shirt size' }));
-    expect(screen.getByText('2 (T-shirt size, Dietary requirements)')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Accept all 2' }));
+    expect(screen.getByText('1 (T-shirt size)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Accept all 3' }));
     expect(screen.getByRole('switch', { name: 'Create T-shirt size' })).toBeChecked();
 
     // Edit opens the whole field.
@@ -232,7 +234,7 @@ describe('ImportFlow', () => {
       { key: string; include: boolean; forExisting: unknown }[],
     ];
     expect(proposals.find((p) => p.key === 't_shirt_size')?.forExisting).toEqual({ kind: 'ask' });
-    expect(proposals.find((p) => p.key === 'dietary_requirements')?.include).toBe(false);
+    expect(proposals.find((p) => p.key === 'dietary_requirements')?.include).toBe(true);
   });
 
   it('says everything that will happen, and runs it on one approval (AI11)', async () => {
@@ -273,11 +275,11 @@ describe('ImportFlow', () => {
     expect(run).toHaveBeenCalledWith(
       { 0: 'given_name', 1: 'work_email', 2: null, 3: null, 4: null },
       expect.arrayContaining([expect.objectContaining({ key: 't_shirt_size', include: true })]),
-      { applyWithoutApproval: false },
+      {},
     );
   });
 
-  it('says why a run was refused, and lets HR apply sensitive values now (PEO-077)', async () => {
+  it('says why a run was refused, and asks nobody to tick sensitive values through (PEO-077)', async () => {
     const user = fast();
     const run = vi.fn(() =>
       Promise.resolve({ ok: false as const, message: 'Another import is running' }),
@@ -296,11 +298,9 @@ describe('ImportFlow', () => {
     const noNewColumns: ImportStage = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
     render(<ImportFlow {...props(ready(noNewColumns), { run, plan })} />);
     await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
-    await user.click(await screen.findByLabelText('Apply sensitive values without approval'));
-    await user.click(screen.getByRole('button', { name: 'Approve and run' }));
-    expect(run).toHaveBeenCalledWith({ 0: 'given_name', 1: 'work_email' }, [], {
-      applyWithoutApproval: true,
-    });
+    await user.click(await screen.findByRole('button', { name: 'Approve and run' }));
+    expect(screen.queryByLabelText('Apply sensitive values without approval')).toBeNull();
+    expect(run).toHaveBeenCalledWith({ 0: 'given_name', 1: 'work_email' }, [], {});
     expect(await screen.findByText('Another import is running')).toBeInTheDocument();
   });
 
@@ -318,10 +318,41 @@ describe('ImportFlow', () => {
       />,
     );
     await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
-    expect(
-      await screen.findByText('The employee fields have 1 unpublished change.'),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Approve and run' })).toBeDisabled();
+    const why = await screen.findByText('The employee fields have 1 unpublished change.');
+    expect(why.closest('[role="alert"]')).not.toBeNull();
+    const approve = screen.getByRole('button', { name: 'Approve and run' });
+    expect(approve).toBeDisabled();
+    // Off means the reason is right there, and the button is described by it.
+    expect(approve).toHaveAccessibleDescription(/The employee fields have 1 unpublished change\./);
+  });
+
+  it('names a field the settings refuse, and leaves it out in one click, planning again', async () => {
+    const user = fast();
+    const refusing = {
+      ...PLAN,
+      problems: [{ column: 2, header: 'T-shirt size', message: 'a choice needs options' }],
+    };
+    const plan = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true as const, data: refusing })
+      .mockResolvedValue({ ok: true as const, data: PLAN });
+    const { container } = render(<ImportFlow {...props(ready(MAPPING), { plan })} />);
+    await toNewFields(user);
+    await user.click(screen.getByRole('button', { name: 'Next: what about existing people?' }));
+    await user.click(await screen.findByRole('button', { name: 'Next: review the plan' }));
+    const approve = await screen.findByRole('button', { name: 'Approve and run' });
+    expect(approve).toBeDisabled();
+    expect(approve).toHaveAccessibleDescription(/T-shirt size: a choice needs options/);
+    expect(await axeViolations(container)).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Leave T-shirt size out' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Approve and run' })).toBeEnabled();
+    });
+    const [, proposals] = plan.mock.calls.at(-1) as unknown as [
+      unknown,
+      { key: string; include: boolean }[],
+    ];
+    expect(proposals.find((p) => p.key === 't_shirt_size')?.include).toBe(false);
   });
 
   it('says what it did and which fields it created, with the way to each (AI12)', async () => {
@@ -331,6 +362,10 @@ describe('ImportFlow', () => {
       screen.getByRole('heading', { name: 'Imported 19 people and created 2 fields' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/took 4 s/)).toBeInTheDocument();
+    // Every column accounted for.
+    expect(
+      screen.getByText('2 columns → existing fields, 1 new field, 0 left out'),
+    ).toBeInTheDocument();
     // The four tiles, and the way to the people it created (design AI12).
     const tiles = screen.getByRole('group', { name: 'What the import did' });
     expect(tiles).toHaveTextContent('Created19Updated0Asked0For HR4');

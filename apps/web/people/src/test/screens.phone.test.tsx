@@ -1095,8 +1095,9 @@ describe('at 390×844, with a finger', () => {
       await screen.findByText('New fields · 2 of 3');
       await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
       await screen.findByText('New fields · 3 of 3');
-      // Held back: the button says what pressing it would do.
-      expect(screen.getByRole('button', { name: 'Import anyway' })).toBeInTheDocument();
+      // Special category is imported like the rest: no "Import anyway".
+      expect(screen.getByRole('button', { name: 'Create field' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Import anyway' })).toBeNull();
       await again();
     });
 

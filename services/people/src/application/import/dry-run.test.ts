@@ -138,7 +138,12 @@ describe('the three outcomes, one at a time', () => {
     expect(result.value.rows.map((r: ClassifiedRow) => r.outcome)).toEqual(['create', 'create']);
     expect(result.value.rows[1]?.changes).not.toHaveProperty('date_of_birth');
     expect(result.value.leftEmpty).toEqual([
-      expect.objectContaining({ row: 3, column: 'Date of birth', key: 'date_of_birth', value: '2090-01-01' }),
+      expect.objectContaining({
+        row: 3,
+        column: 'Date of birth',
+        key: 'date_of_birth',
+        value: '2090-01-01',
+      }),
     ]);
   });
 
@@ -347,7 +352,10 @@ describe('work locations chosen in the import', () => {
     ['Dani', 'Gil', 'dani@acme.test', '2026-03-01', 'lisbon'],
   ];
 
-  async function plan(places?: Parameters<typeof dryRun>[2]['places']) {
+  async function plan(
+    places?: Parameters<typeof dryRun>[2]['places'],
+    file_: { headers: string[]; rows: string[][] } = { headers, rows },
+  ) {
     const store = priyasTenant();
     store.versions.push(
       versionOf(2, [
@@ -359,7 +367,7 @@ describe('work locations chosen in the import', () => {
         }),
       ]),
     );
-    const file = await parseUpload(csv(headers, rows));
+    const file = await parseUpload(csv(file_.headers, file_.rows));
     const version = store.versions.at(-1);
     if (!file.ok || !version) throw new Error('no file');
     const proposed = await proposeMapping({
@@ -413,6 +421,50 @@ describe('work locations chosen in the import', () => {
     ]);
     expect(dry.here.locations).toEqual([{ id: MADRID, name: 'Madrid HQ' }]);
     expect(dry.here.entities.map((e) => e.country)).toEqual(['ES']);
+  });
+
+  it('fills a new one in from the workplace’s own columns, never from a home', async () => {
+    const dry = await plan(undefined, {
+      headers: [...headers, 'Time Zone', 'Work Location Address', 'Home Country', 'Home City'],
+      rows: [
+        [
+          'Ana',
+          'Ruiz',
+          'ana@acme.test',
+          '2026-03-01',
+          'Stamford',
+          'America/New_York',
+          '1 Main St, Stamford, CT 06901',
+          'Spain',
+          'Madrid',
+        ],
+        ['Bea', 'Sol', 'bea@acme.test', '2026-03-01', 'Pune Hub', '', '', 'Spain', 'Madrid'],
+      ],
+    });
+    expect(dry.workplaces.map((w) => [w.value, w.proposed, w.note])).toEqual([
+      [
+        'Stamford',
+        {
+          kind: 'add',
+          name: 'Stamford',
+          country: 'US',
+          timeZone: 'America/New_York',
+          legalEntityId: ES,
+        },
+        null,
+      ],
+      [
+        'Pune Hub',
+        {
+          kind: 'add',
+          name: 'Pune Hub',
+          country: 'IN',
+          timeZone: 'Asia/Kolkata',
+          legalEntityId: ES,
+        },
+        null,
+      ],
+    ]);
   });
 
   it('maps, adds and leaves empty as HR chose, and names who is left empty', async () => {

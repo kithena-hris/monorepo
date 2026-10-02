@@ -8,7 +8,7 @@ import {
   type AttributeDefinition,
 } from '@kithena/contracts';
 
-import { keyFrom } from '../schema/draft.js';
+import { encryptable, keyFrom } from '../schema/draft.js';
 import { kindOf, type ColumnShape } from './column-shape.js';
 
 /**
@@ -60,10 +60,12 @@ export const NewField = z.strictObject({
   visibility: z.array(ViewerScope).max(7).describe('Who sees it'),
   classification: ClassificationSchema,
   piiKind: PiiKindSchema,
-  encrypted: z.boolean().describe('Stored sealed: bank details, identifiers, pay'),
+  encrypted: z.boolean().describe('Stored sealed: bank details and identifiers; never a choice'),
   aiEligible: z
     .boolean()
     .describe('Whether the assistant may use its name and choices; never for confidential data'),
+  requiresApproval: z.boolean().optional().describe('A change waits for a second HR member'),
+  decimals: z.int().min(0).max(6).optional().describe('Decimal places, for decimal or percentage'),
 });
 export type NewField = z.infer<typeof NewField>;
 
@@ -129,17 +131,64 @@ export interface ColumnSeen {
   readonly single: string | null;
 }
 
-const SEALABLE = new Set([
-  'text',
-  'long_text',
-  'email',
-  'phone',
-  'url',
-  'number',
-  'decimal',
-  'date',
-  'bank_account',
-]);
+/** Types a model may change: what the values left open. */
+const LOOSE: ReadonlySet<string> = new Set(['text', 'long_text', 'select']);
+
+const RANK = { public: 0, internal: 1, confidential: 2, 'special-category': 3 } as const;
+
+/** What a type is called in a sentence about why it cannot be sealed. */
+const UNSEALED_AS: Partial<Record<string, string>> = {
+  select: 'a list',
+  multi_select: 'a list',
+  boolean: 'a yes or no',
+  percentage: 'a percentage',
+};
+
+/**
+ * A field as the draft will take it, and a plain note when something had to
+ * change: every proposal, People's or a model's or HR's edit, goes through
+ * here before anybody sees it, so none is refused when it is applied.
+ *
+ * - A choice, a yes or no, a percentage, a reference is never stored sealed.
+ *   Sensitive data of that type is kept unsealed, at least confidential, and
+ *   a change to it waits for approval. Financial data must be sealed, so a
+ *   value that cannot be is no longer called financial.
+ * - Financial data and bank accounts are sealed where the type allows.
+ * - A national identifier needs its country's scheme and a bank account its
+ *   country; without them, sealed text.
+ * - A choice with no choices is text.
+ * - Anything confidential or sealed is never the assistant's.
+ */
+export function fitted(field: NewField, header: string): { field: NewField; note: string | null } {
+  let f: NewField = { ...field, label: field.label.trim() || header.trim().slice(0, 120) || 'Imported column' };
+  let note: string | null = null;
+  const choice = f.dataType === 'select' || f.dataType === 'multi_select';
+  if (choice && (f.options ?? []).length === 0) {
+    const { options: _o, ...rest } = f;
+    f = { ...rest, dataType: 'text' };
+  }
+  if (f.dataType === 'national_id' || (f.dataType === 'bank_account' && !f.country)) {
+    const { country: _c, ...rest } = f;
+    f = { ...rest, dataType: 'text', encrypted: true };
+  }
+  const wantsSeal = f.encrypted || f.piiKind === 'financial';
+  if (wantsSeal && !encryptable({ dataType: f.dataType, effectiveDated: false })) {
+    f = {
+      ...f,
+      encrypted: false,
+      piiKind: f.piiKind === 'financial' ? 'none' : f.piiKind,
+      classification: RANK[f.classification] < RANK.confidential ? 'confidential' : f.classification,
+      requiresApproval: true,
+    };
+    const as = f.classification === 'special-category' ? 'special-category data' : 'confidential';
+    note = `Stored as ${as}, with changes approved, not encrypted, because it’s ${UNSEALED_AS[f.dataType] ?? 'this type'}.`;
+  } else if (wantsSeal) {
+    f = { ...f, encrypted: true };
+  }
+  if (f.encrypted || RANK[f.classification] >= RANK.confidential) f = { ...f, aiEligible: false };
+  if (f.classification === 'special-category') f = { ...f, required: false };
+  return { field: f, note };
+}
 
 /** People's own proposal for a column, with the one-line reasons. */
 export function localProposal(
@@ -149,14 +198,15 @@ export function localProposal(
   existing: readonly { readonly key: string; readonly label: string }[] = [],
 ): Omit<ColumnProposal, 'key'> {
   const kind = kindOf(seen.header, seen.local);
-  const dataType =
-    kind === 'financial' && seen.local.dataType === 'select' ? 'text' : seen.local.dataType;
-  const sealed = SEALABLE.has(dataType);
+  const dataType = seen.local.dataType;
   const base = {
     label: seen.header.trim().slice(0, 120) || 'Imported column',
     dataType,
     ...(dataType === 'select' ? { options: [...seen.local.options] } : {}),
-    ...(dataType === 'bank_account' ? { country: seen.local.country ?? 'ES' } : {}),
+    ...(dataType === 'bank_account' && seen.local.country !== null
+      ? { country: seen.local.country }
+      : {}),
+    ...(seen.local.decimals === undefined ? {} : { decimals: seen.local.decimals }),
     description: null,
     required: false,
   };
@@ -166,7 +216,7 @@ export function localProposal(
       NewField,
       'ownership' | 'visibility'
     >;
-  const field: NewField = (() => {
+  const proposed: NewField = (() => {
     switch (kind) {
       case 'financial':
         return {
@@ -174,7 +224,7 @@ export function localProposal(
           ...own('employee'),
           classification: 'confidential',
           piiKind: 'financial',
-          encrypted: sealed,
+          encrypted: true,
           aiEligible: false,
         };
       case 'identifier':
@@ -183,19 +233,32 @@ export function localProposal(
           ...own('employee'),
           classification: 'confidential',
           piiKind: 'identity',
-          encrypted: sealed,
+          encrypted: true,
           aiEligible: false,
         };
-      case 'special':
+      case 'pay':
         return {
           ...base,
-          // Volunteered, never required: optional, the employee's and HR's alone.
-          required: false,
-          ...own('employee'),
-          classification: 'special-category',
-          piiKind: 'health',
+          ownership: ['hr'],
+          visibility: ['hr', 'finance'],
+          classification: 'confidential',
+          piiKind: 'none',
           encrypted: false,
           aiEligible: false,
+          requiresApproval: true,
+        };
+      case 'special':
+        // Imported, at the company's choice as data controller: sealed where
+        // the type allows, HR's alone, never required, changes approved.
+        return {
+          ...base,
+          ...own('hr'),
+          visibility: ['hr'],
+          classification: 'special-category',
+          piiKind: 'health',
+          encrypted: true,
+          aiEligible: false,
+          requiresApproval: true,
         };
       case 'contact':
       case 'birth':
@@ -228,11 +291,12 @@ export function localProposal(
         };
     }
   })();
+  const { field, note } = fitted(proposed, seen.header);
   const why = {
-    financial:
-      'Bank and pay details are financial: sealed, seen by the employee and HR, never by the assistant.',
+    financial: 'Bank details are financial: sealed, seen by the employee and HR, never by the assistant.',
     identifier: 'An identifier names one person: sealed, and never shown to the assistant.',
-    special: HELD_BACK,
+    pay: 'Pay is confidential: HR and finance see it, a change is approved, the assistant never does.',
+    special: SPECIAL,
     contact: 'Contact details are personal: the employee keeps them up to date, HR can see them.',
     birth: 'A date of birth identifies somebody: confidential, the employee’s own.',
     business: 'Organisational data HR keeps; managers can see it for their team.',
@@ -243,14 +307,15 @@ export function localProposal(
     column: seen.column,
     header: seen.header,
     shape: seen.local.shape,
-    // "Given name" is `given_name`, whatever its label says: never a second
-    // one. Special-category data is held back until HR chooses to keep it.
-    include: twin === undefined && kind !== 'special',
+    // "Given name" is `given_name`, whatever its label says: never a second one.
+    include: twin === undefined,
     field,
     placement: placementFor(kind, seen.header, sections),
     why:
       twin === undefined
-        ? why
+        ? note === null
+          ? why
+          : `${note} ${why}`
         : `Looks like the existing field “${twin.label}”: choose it for this column on the mapping screen instead.`,
     ...recommendFor(kind, seen),
     // The values chose the type, or the header said what it is; plain free
@@ -260,9 +325,9 @@ export function localProposal(
   };
 }
 
-/** Why a column that can reveal health, religion and the like is not imported unless HR says so. */
-export const HELD_BACK =
-  'This can reveal health or religion, which GDPR treats as special-category data. I suggest not importing it. If you need it, it should be optional, private to HR and asked with consent.';
+/** Why a column that can reveal health, religion and the like is kept the way it is. */
+export const SPECIAL =
+  'This can reveal health, religion or the like, which GDPR treats as special-category data: imported at your choice as data controller, sealed where it can be, seen by HR alone, never by the assistant.';
 
 /**
  * Two names for one thing, spelled a little differently: "Cost center" and
@@ -309,6 +374,7 @@ function placementFor(
 ): Placement {
   const fits: Record<string, { re: RegExp; otherwise: string }> = {
     financial: { re: /bank|pay|compens|financ|salar|tax/u, otherwise: 'Bank and pay' },
+    pay: { re: /compens|pay|salar/u, otherwise: 'Compensation' },
     identifier: { re: /ident|right to work/u, otherwise: 'Identification' },
     special: { re: /health|safety/u, otherwise: 'Health and safety' },
     contact: {
@@ -335,6 +401,12 @@ function recommendFor(
 ): Pick<ColumnProposal, 'forExisting' | 'forExistingWhy'> {
   const personal =
     kind === 'financial' || kind === 'identifier' || kind === 'contact' || kind === 'birth';
+  if (kind === 'pay') {
+    return {
+      forExisting: { kind: 'hr' },
+      forExistingWhy: 'HR and payroll hold it: it goes to HR’s completeness list.',
+    };
+  }
   if (personal) {
     return {
       forExisting: { kind: 'ask' },
@@ -344,7 +416,7 @@ function recommendFor(
   if (kind === 'special') {
     return {
       forExisting: { kind: 'leave' },
-      forExistingWhy: 'Health information is volunteered, never chased.',
+      forExistingWhy: 'Volunteered, never chased.',
     };
   }
   if (seen.single !== null) {
@@ -406,33 +478,75 @@ export function withModel(
         continue;
       }
       const p = proposed.data;
-      // Held back as special category stays held back: only HR puts it back.
+      // Special category stays as People's rules keep it: the model cannot lower it.
       if (was.field.classification === 'special-category') continue;
       const special = p.field.classification === 'special-category';
       const column = seen.find((s) => s.column === p.column);
       const placement: Placement =
         p.sectionKey !== undefined && sections.some((s) => s.key === p.sectionKey)
           ? { sectionKey: p.sectionKey }
-          : { newSection: p.newSection ?? was.header };
+          : p.newSection === undefined
+            ? was.placement
+            : { newSection: p.newSection };
       const forExisting: ForExisting =
         p.forExisting === 'default'
           ? column?.single == null
             ? { kind: 'leave' }
             : { kind: 'default', value: column.single }
           : { kind: p.forExisting };
+      // The values decided a date, a number, an amount, a code: the model saw
+      // only their shape, so it names the field and People keeps the type.
+      const typed = !LOOSE.has(was.field.dataType);
+      const { options: _o, country: _c, decimals: _d, ...named } = p.field;
+      const asked: NewField = typed
+        ? {
+            ...named,
+            dataType: was.field.dataType,
+            ...(was.field.options === undefined ? {} : { options: was.field.options }),
+            ...(was.field.country === undefined ? {} : { country: was.field.country }),
+            ...(was.field.decimals === undefined ? {} : { decimals: was.field.decimals }),
+          }
+        : {
+            ...p.field,
+            ...(p.field.dataType === 'select' || p.field.dataType === 'multi_select'
+              ? { options: [...(column?.local.options ?? [])] }
+              : {}),
+          };
+      // Never less protection than People's rules give it.
+      const guarded: NewField = special
+        ? {
+            ...asked,
+            ownership: ['hr'],
+            visibility: ['hr'],
+            classification: 'special-category',
+            piiKind: 'health',
+            encrypted: true,
+            aiEligible: false,
+            requiresApproval: true,
+          }
+        : RANK[asked.classification] < RANK[was.field.classification]
+          ? {
+              ...asked,
+              ownership: was.field.ownership,
+              visibility: was.field.visibility,
+              classification: was.field.classification,
+              piiKind: was.field.piiKind,
+              encrypted: was.field.encrypted,
+              aiEligible: was.field.aiEligible,
+              ...(was.field.requiresApproval === undefined
+                ? {}
+                : { requiresApproval: was.field.requiresApproval }),
+            }
+          : asked;
+      const { field, note } = fitted(guarded, was.header);
+      const why = special ? SPECIAL : p.why;
       byColumn.set(p.column, {
         ...was,
-        ...(special ? { include: false } : {}),
-        field: {
-          ...p.field,
-          ...(p.field.dataType === 'select' || p.field.dataType === 'multi_select'
-            ? { options: [...(column?.local.options ?? [])] }
-            : {}),
-        },
+        field,
         placement,
-        why: special ? HELD_BACK : p.why,
+        why: note === null ? why : `${note} ${why}`,
         forExisting: special ? { kind: 'leave' } : forExisting,
-        forExistingWhy: p.forExistingWhy,
+        forExistingWhy: special ? 'Volunteered, never chased.' : p.forExistingWhy,
       });
     }
   }
