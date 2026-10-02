@@ -1,0 +1,63 @@
+name: vm ssh
+description: AWS credentials, the Session Manager plugin and `ssh vm`, for the deploy and the rollback.
+
+# Two jobs reach the VM: the deploy, and the rollback that may follow it. Both
+# need the same three things, so they are here once.
+#
+# SSH as `deploy` with the environment's key, through a Session Manager tunnel
+# to the instance: the VM listens on no public port. The role
+# (`kithena-deploy-wake`, from GitHub's OIDC token) may start the VM and open
+# that tunnel, and nothing else.
+
+inputs:
+  role-arn:
+    required: true
+  region:
+    required: true
+  instance:
+    required: true
+  ssh-key:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: aws credentials for the VM
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: ${{ inputs.role-arn }}
+        aws-region: ${{ inputs.region }}
+
+    # Pinned and checksummed, not `latest`: the one binary here that handles
+    # the tunnel. Bump the version and the digest together
+    # (https://s3.amazonaws.com/session-manager-downloads/plugin/latest/VERSION).
+    - name: session manager plugin
+      shell: bash
+      env:
+        VERSION: 1.2.835.0
+        SHA256: 7c6dcad12518571cc7959a713e6a8ae1bdf6ed66fd9bee37dc189e39ca58ae03
+      run: |
+        curl -fsSL -o "$RUNNER_TEMP/session-manager-plugin.deb" \
+          "https://s3.amazonaws.com/session-manager-downloads/plugin/$VERSION/ubuntu_64bit/session-manager-plugin.deb"
+        echo "$SHA256  $RUNNER_TEMP/session-manager-plugin.deb" | sha256sum -c -
+        sudo dpkg -i "$RUNNER_TEMP/session-manager-plugin.deb"
+        session-manager-plugin --version
+
+    - name: ssh config
+      shell: bash
+      env:
+        INSTANCE: ${{ inputs.instance }}
+        VM_DEPLOY_SSH_KEY: ${{ inputs.ssh-key }}
+      run: |
+        install -d -m 700 ~/.ssh
+        install -m 600 /dev/null ~/.ssh/vm_deploy
+        printf '%s\n' "$VM_DEPLOY_SSH_KEY" > ~/.ssh/vm_deploy
+        cat > ~/.ssh/config <<EOF
+        Host vm
+          HostName $INSTANCE
+          User deploy
+          IdentityFile ~/.ssh/vm_deploy
+          IdentitiesOnly yes
+          StrictHostKeyChecking accept-new
+          ProxyCommand aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p
+        EOF
