@@ -16,3 +16,15 @@ import preview from './preview.js';
 const project = setProjectAnnotations([a11yAnnotations, preview]);
 
 beforeAll(project.beforeAll);
+
+/*
+ * axe builds its rule caches on its first run, and each story file runs in a
+ * fresh frame, so the first story of every file paid for that: 4 to 6 s here,
+ * nearer 15 on a CI runner, which is the test timeout. Paid once per file in
+ * setup instead, as the People app's own setup does, where it counts against
+ * the hook timeout rather than a story. The a11y addon imports the same module.
+ */
+beforeAll(async () => {
+  const { default: axe } = await import('axe-core');
+  await axe.run(document.body);
+});

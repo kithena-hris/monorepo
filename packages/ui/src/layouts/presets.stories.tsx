@@ -657,7 +657,14 @@ export const Canvas: Story = {
         <div className="shrink-0 p-4 pb-2">
           <PageHeader size="md" title="Hiring pipeline" description="8 candidates in flight." />
         </div>
-        <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-4 pb-4">
+        {/* The board scrolls sideways, so it takes focus: the arrow keys can
+            only scroll what has it, and its cards are text, not controls. */}
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Pipeline"
+          className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-4 pb-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus"
+        >
           {columns.map((column) => (
             <section
               key={column}
