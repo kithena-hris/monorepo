@@ -21,8 +21,6 @@ import {
   FieldLabel,
   filterCommands,
   KbdShortcut,
-  KithenaLogo,
-  KithenaMark,
   Nav,
   NavItem,
   NavList,
@@ -520,35 +518,38 @@ export function AppShell({
         bottomBarClassName="@min-[40rem]/page:hidden"
         contentClassName="relative px-4 pt-3 pb-28 @min-[40rem]/page:px-10 @min-[40rem]/page:pt-8 @min-[40rem]/page:pb-12"
         /*
-          The company's mark where theirs exists, ours where it does not.
+          The company's own, never ours: its logo where it has uploaded one,
+          its initials where it has not.
 
-          Not both. This is the top-left of an employee's own workplace tool and
-          the question it answers is "whose account am I in" — a person signing
-          in to Acme should see Acme.
+          This is the top-left of an employee's own workplace tool and the
+          question it answers is "whose account am I in" — a person signing in
+          to Acme should see Acme. One link home, named for the company; the
+          mark is decoration beside a name that says whose it is, and in the
+          rail, where the name is hidden, the link's label still does.
         */
         sidebarHeader={
-          logoUrl === null ? (
-            <>
-              <KithenaLogo
-                data-rail-label=""
-                className="text-fg h-6 w-auto shrink-0 group-data-[collapsed]/sidebar:hidden"
-              />
-              <KithenaMark
-                title="Kithena"
-                className="text-fg hidden size-7 group-data-[collapsed]/sidebar:block"
-              />
-            </>
-          ) : (
-            <div className="flex min-w-0 items-center gap-2.5">
-              <Avatar size="md" shape="rounded" fit="contain" src={logoUrl} name={companyName} />
-              <span
-                data-rail-label=""
-                className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
-              >
-                {companyName}
-              </span>
-            </div>
-          )
+          <Link
+            href="/"
+            aria-label={`${companyName}, home`}
+            className="flex min-w-0 items-center gap-2.5"
+          >
+            <Avatar
+              size="md"
+              shape="rounded"
+              // A designed mark is never cropped; initials take the company's
+              // own tone rather than a grey square.
+              fit={logoUrl === null ? 'cover' : 'contain'}
+              src={logoUrl ?? undefined}
+              name={companyName}
+              aria-hidden
+            />
+            <span
+              data-rail-label=""
+              className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
+            >
+              {companyName}
+            </span>
+          </Link>
         }
         sidebar={
           <div className="flex h-full min-h-0 w-62 flex-col gap-1 px-3.5 pt-2 pb-4 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2">
