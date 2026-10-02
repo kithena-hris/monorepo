@@ -179,6 +179,29 @@ describe('the work locations in the file', () => {
     );
   });
 
+  it('keeps the file’s zone selectable when this browser names it otherwise', async () => {
+    const user = fast();
+    const workplaces = (PLAN_WITH_OFFICE.review.dryRun.workplaces ?? []).map((w) =>
+      w.key === 'stamford' && w.proposed.kind === 'add'
+        ? { ...w, proposed: { ...w.proposed, timeZone: 'Asia/Kolkata' } }
+        : w,
+    );
+    render(
+      <WorkLocationsStep
+        workplaces={workplaces}
+        here={PLACES_HERE}
+        choices={{}}
+        onChange={vi.fn()}
+        readOnly={false}
+        coarse={false}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /Time zone/ })).toHaveTextContent('Asia/Kolkata');
+    await user.click(screen.getByRole('button', { name: /Time zone/ }));
+    await user.type(screen.getByPlaceholderText('Search time zones'), 'Kolkata');
+    expect(await screen.findByRole('option', { name: 'Asia/Kolkata' })).toBeInTheDocument();
+  });
+
   it('offers no new work location while there is no legal entity to add it to', () => {
     render(
       <WorkLocationsStep

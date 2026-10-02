@@ -437,7 +437,12 @@ function NewLocationFields({
             label="Time zone"
             placeholder="Choose a time zone"
             searchPlaceholder="Search time zones"
-            options={ZONES}
+            options={
+              // The file's zone, even where this browser lists it by another name (Asia/Calcutta).
+              choice.timeZone === '' || ZONES.some((z) => z.value === choice.timeZone)
+                ? ZONES
+                : [{ value: choice.timeZone, label: choice.timeZone }, ...ZONES]
+            }
             value={choice.timeZone === '' ? null : choice.timeZone}
             disabled={readOnly}
             onChange={(next) => {
