@@ -127,6 +127,44 @@ describe('a screen that narrows what it already has', () => {
   });
 });
 
+describe('a part of the page the server streams', () => {
+  const draw = (data: Record<string, unknown>) => (
+    <PeopleScreen
+      route={{ entry: 'x', component: 'ImportExport' }}
+      load={{ status: 'ready', data }}
+      path="/people/import-export"
+      params={{}}
+      search={{}}
+      today="2026-09-29"
+    />
+  );
+  const history = () => (shown['load'] as { data: { canImport: boolean; history: unknown } }).data;
+
+  it('is drawn as loading, the rest at once, then as it arrives; seen again, at once', async () => {
+    let arrive: (value: unknown) => void = () => undefined;
+    const coming = new Promise((resolve) => {
+      arrive = resolve;
+    });
+    const data = { canImport: true, history: coming };
+    render(draw(data));
+    expect(history()).toEqual({ canImport: true, history: 'loading' });
+    arrive({ items: [], next: null, paged: false });
+    await vi.waitFor(() => {
+      expect(history().history).toEqual({ items: [], next: null, paged: false });
+    });
+    cleanup();
+    render(draw(data));
+    expect(history().history).toEqual({ items: [], next: null, paged: false });
+  });
+
+  it('is left out when it fails, rather than loading for ever', async () => {
+    render(draw({ history: Promise.reject(new Error('gone')) }));
+    await vi.waitFor(() => {
+      expect(history().history).toBeNull();
+    });
+  });
+});
+
 describe('the directory, which People answers from the address', () => {
   it('hands the screen what the address asks for', () => {
     const props = open(

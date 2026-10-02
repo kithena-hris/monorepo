@@ -10,6 +10,7 @@ import {
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
+  Skeleton,
   Stack,
   Table,
   TableBody,
@@ -58,16 +59,21 @@ export interface ImportExportState {
   readonly canImport: boolean;
   /** False while nothing is published: the import sends setup first. Absent is set up. */
   readonly setUp?: boolean;
-  /** Newest first, a page at a time. `null`: not this viewer's to read. */
-  readonly history: {
-    readonly items: readonly TransferEntry[];
-    /** The cursor for older entries; null on the last page. */
-    readonly next: string | null;
-    /** An older page, so "Newest" leads back. */
-    readonly paged: boolean;
-  } | null;
+  /**
+   * Newest first, a page at a time. `null`: not this viewer's to read.
+   * `'loading'`: on its way, while the rest of the page is already drawn.
+   */
+  readonly history: TransferHistory | 'loading' | null;
   /** When the page was read, so "Today" means the same on the server and in the browser. */
   readonly now: string;
+}
+
+export interface TransferHistory {
+  readonly items: readonly TransferEntry[];
+  /** The cursor for older entries; null on the last page. */
+  readonly next: string | null;
+  /** An older page, so "Newest" leads back. */
+  readonly paged: boolean;
 }
 
 export interface ImportExportProps {
@@ -317,6 +323,65 @@ function Action({
   );
 }
 
+/** The history's rows while they arrive, in the shape they arrive in. */
+function HistoryLoading(): JSX.Element {
+  const rows = [0, 1, 2];
+  return (
+    <>
+      <Table aria-label="Imports and exports, loading" containerClassName="touch:hidden">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-30">Type</TableHead>
+            <TableHead>File or reason</TableHead>
+            <TableHead>By</TableHead>
+            <TableHead className="w-30">When</TableHead>
+            <TableHead>Result</TableHead>
+            <TableHead className="w-15">
+              <span className="sr-only">Open</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row}>
+              <TableCell>
+                <Skeleton className="h-5 w-18 rounded-full" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-44" />
+              </TableCell>
+              <TableCell>
+                <span className="flex items-center gap-2">
+                  <Skeleton className="size-6 rounded-full" />
+                  <Skeleton className="h-4 w-24" />
+                </span>
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-20" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-28" />
+              </TableCell>
+              <TableCell />
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <List aria-label="Imports and exports, loading" className="hidden touch:block">
+        {rows.map((row) => (
+          <ListItem
+            key={row}
+            leading={<Skeleton className="size-10 rounded-[28%]" />}
+            description={<Skeleton className="mt-1.5 h-3 w-32" />}
+          >
+            <Skeleton className="h-4 w-44" />
+          </ListItem>
+        ))}
+      </List>
+    </>
+  );
+}
+
 const KIND = {
   import: { label: 'Import', tone: 'info', icon: <icons.upload aria-hidden /> },
   export: { label: 'Export', tone: 'accent', icon: <icons.download aria-hidden /> },
@@ -328,7 +393,7 @@ function History({
   now,
   ...held
 }: Omit<ImportExportProps, 'load'> & {
-  readonly history: NonNullable<ImportExportState['history']>;
+  readonly history: TransferHistory | 'loading';
   readonly now: string;
 }): JSX.Element {
   const [kind, setKind] = useHeld<HistoryKind>(held.kind, held.onKindChange, 'all');
@@ -343,10 +408,11 @@ function History({
     const qs = q.toString();
     return qs === '' ? HERE : `${HERE}?${qs}`;
   };
-  const shown = filterHistory(history.items, kind, search);
+  const loading = history === 'loading';
+  const shown = loading ? [] : filterHistory(history.items, kind, search);
   const when = (e: TransferEntry) => whenOf(e.at, now, zone);
   return (
-    <section aria-labelledby="history" className="flex flex-col gap-3">
+    <section aria-labelledby="history" aria-busy={loading} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <h2 id="history" className="text-md font-semibold">
           History
@@ -377,9 +443,13 @@ function History({
           <a href="/settings/activity?area=imports_exports">See all activity</a>
         </Button>
       </div>
-      {shown.length === 0 ? (
+      {loading ? (
+        <HistoryLoading />
+      ) : shown.length === 0 ? (
         <EmptyState
-          title={history.items.length === 0 ? 'Nothing imported or exported yet' : 'Nothing matches'}
+          title={
+            history.items.length === 0 ? 'Nothing imported or exported yet' : 'Nothing matches'
+          }
         />
       ) : (
         <>
@@ -474,7 +544,7 @@ function History({
           </List>
         </>
       )}
-      {history.next === null && !history.paged ? null : (
+      {loading || (history.next === null && !history.paged) ? null : (
         <nav aria-label="Older history" className="flex gap-2">
           {history.paged ? (
             <Button asChild>

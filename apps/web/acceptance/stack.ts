@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as httpsServer, type Server as HttpsServer } from 'node:https';
-import { createServer as netServer } from 'node:net';
+import { connect, createServer as netServer, type Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -153,6 +153,41 @@ function freePort(): Promise<number> {
   });
 }
 
+/**
+ * `target` again, `ms` further away each way: what the shell meets in
+ * production, where People is a network hop from the function asking. For a
+ * timing run (`ACCEPTANCE_ROUTER_LATENCY_MS`); nothing else uses it.
+ */
+async function distant(target: string, ms: number): Promise<string> {
+  const { hostname, port } = new URL(target);
+  // `ACCEPTANCE_SLOW_OPERATION=TransferHistory:400`: that operation takes
+  // longer still, as one doing more work in People would.
+  const [slowName = '', slowMs = '0'] = (process.env['ACCEPTANCE_SLOW_OPERATION'] ?? '').split(':');
+  const later = (to: Socket) => (chunk: Buffer) => setTimeout(() => to.write(chunk), ms);
+  const asked = (to: Socket) => (chunk: Buffer) =>
+    setTimeout(
+      () => to.write(chunk),
+      slowName !== '' && chunk.includes(`"operationName":"${slowName}"`) ? ms + Number(slowMs) : ms,
+    );
+  const server = netServer((client) => {
+    const upstream = connect(Number(port), hostname);
+    client.on('data', asked(upstream));
+    upstream.on('data', later(client));
+    for (const [a, b] of [
+      [client, upstream],
+      [upstream, client],
+    ] as const) {
+      a.on('end', () => setTimeout(() => b.end(), ms));
+      a.on('error', () => b.destroy());
+    }
+  });
+  server.unref();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('no port');
+  return `http://127.0.0.1:${String(address.port)}${new URL(target).pathname.replace(/\/$/, '')}`;
+}
+
 async function until(what: string, ms: number, check: () => Promise<boolean>): Promise<void> {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
@@ -273,7 +308,11 @@ export async function startStack(): Promise<Stack> {
   let receiver: Awaited<ReturnType<typeof startReceiver>> | undefined;
   const receiverDir = await mkdtemp(join(tmpdir(), 'kithena-receiver-'));
   // The bucket an import is uploaded to, straight from the browser (§14.2).
-  const [pg, fga, storage] = await Promise.all([startPostgres(), startOpenFga(), startObjectStore()]);
+  const [pg, fga, storage] = await Promise.all([
+    startPostgres(),
+    startOpenFga(),
+    startObjectStore(),
+  ]);
   const sql = postgres(pg.url, { max: 2, onnotice: () => {} });
 
   const stop = async (): Promise<void> => {
@@ -581,7 +620,10 @@ export async function startStack(): Promise<Stack> {
     const env = {
       INTERNAL_API_URL: identityUrl,
       INTERNAL_API_TOKEN: SHELL_TOKEN,
-      ROUTER_URL: router.url,
+      ROUTER_URL:
+        process.env['ACCEPTANCE_ROUTER_LATENCY_MS'] === undefined
+          ? router.url
+          : await distant(router.url, Number(process.env['ACCEPTANCE_ROUTER_LATENCY_MS'])),
       TENANT_HOST_SUFFIX: 'app.localhost',
       PEOPLE_REMOTE_URL: remote,
       PEOPLE_REMOTE_SSR_PUBLIC_KEY: signing.publicKey
