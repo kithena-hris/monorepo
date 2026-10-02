@@ -16,6 +16,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { noteInAddress } from '../lib/url-state';
+import { Waking } from './waking';
 
 /**
  * Settings (S1): every module's settings as cards that say how each is set
@@ -49,8 +50,11 @@ function Icon({ name }: { readonly name: string | undefined }): JSX.Element {
 
 export function SettingsIndex({
   modules,
+  waking = false,
 }: {
   readonly modules: readonly SettingsModule[];
+  /** People is asleep or still waking: the settings wait for it (`components/waking.tsx`). */
+  readonly waking?: boolean;
 }): JSX.Element {
   // The search is in the address (`?q=`), once typing rests: a link to
   // "the settings about Slack" opens with them found.
@@ -94,88 +98,90 @@ export function SettingsIndex({
         title="Settings"
         description="How your company’s workspace works. Open a setting to see it in full and change it."
       />
-      {modules.length === 0 || module === undefined ? (
-        <EmptyState
-          icon={<icons.settings />}
-          title="Nothing here for you to change"
-          description="Settings are for your company’s administrators and HR. Ask one of them if something needs changing."
-        />
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-2.5 @3xl/page:pe-64">
-            <SearchField
-              size="sm"
-              label="Find a setting"
-              placeholder="Find a setting, like “numbering” or “Slack”"
-              value={query}
-              onValueChange={setQuery}
-              containerClassName="w-full max-w-[26rem]"
-            />
-            {attention.map((a) => (
-              <Chip
-                key={a.path}
-                startIcon={<icons.warning aria-hidden />}
-                onClick={() => {
-                  window.location.assign(a.path);
-                }}
-              >
-                {a.attention?.chip}
-              </Chip>
-            ))}
-          </div>
-          <div className="grid gap-8 @3xl/page:grid-cols-[13.75rem_minmax(0,1fr)]">
-            <TertiaryNav
-              label="Settings areas"
-              variant="fill"
-              current="page"
-              items={modules.map((m) => ({ id: m.key, label: m.title, href: `#${m.key}` }))}
-              {...(module.key === '' ? {} : { activeId: module.key })}
-              onSelect={setActive}
-              touchLayout="pills"
-            />
-            <section id={module.key} aria-labelledby={`${module.key}-title`} className="min-w-0">
-              <h2 id={`${module.key}-title`} className="font-display text-xl font-bold text-fg">
-                {module.title}
-              </h2>
-              <p className="mt-1.5 mb-4.5 max-w-prose text-sm text-fg-muted">
-                {module.description}
-              </p>
-              {shown.length === 0 ? (
-                <p className="text-sm text-fg-muted">No setting matches “{query}”.</p>
-              ) : (
-                <ul className="grid gap-3.5 @5xl/page:grid-cols-2">
-                  {shown.map((s) => (
-                    <li key={s.path} className="min-w-0">
-                      <SettingsCard
-                        href={s.path}
-                        icon={<Icon name={s.icon} />}
-                        title={s.label}
-                        description={s.description}
-                        meta={
-                          // Still to come, while the page is fetched (`PageLoading`).
-                          s.now === '' ? (
-                            <Skeleton className="inline-block h-3.5 w-44 max-w-full align-middle" />
-                          ) : (
-                            (s.now ?? undefined)
-                          )
-                        }
-                        badge={
-                          s.attention === null ? undefined : (
-                            <Badge size="sm" tone="warning">
-                              {s.attention.badge}
-                            </Badge>
-                          )
-                        }
-                        className="h-full"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
-        </>
-      )}
+      <Waking area="People" waking={waking}>
+        {waking ? null : modules.length === 0 || module === undefined ? (
+          <EmptyState
+            icon={<icons.settings />}
+            title="Nothing here for you to change"
+            description="Settings are for your company’s administrators and HR. Ask one of them if something needs changing."
+          />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2.5 @3xl/page:pe-64">
+              <SearchField
+                size="sm"
+                label="Find a setting"
+                placeholder="Find a setting, like “numbering” or “Slack”"
+                value={query}
+                onValueChange={setQuery}
+                containerClassName="w-full max-w-[26rem]"
+              />
+              {attention.map((a) => (
+                <Chip
+                  key={a.path}
+                  startIcon={<icons.warning aria-hidden />}
+                  onClick={() => {
+                    window.location.assign(a.path);
+                  }}
+                >
+                  {a.attention?.chip}
+                </Chip>
+              ))}
+            </div>
+            <div className="grid gap-8 @3xl/page:grid-cols-[13.75rem_minmax(0,1fr)]">
+              <TertiaryNav
+                label="Settings areas"
+                variant="fill"
+                current="page"
+                items={modules.map((m) => ({ id: m.key, label: m.title, href: `#${m.key}` }))}
+                {...(module.key === '' ? {} : { activeId: module.key })}
+                onSelect={setActive}
+                touchLayout="pills"
+              />
+              <section id={module.key} aria-labelledby={`${module.key}-title`} className="min-w-0">
+                <h2 id={`${module.key}-title`} className="font-display text-xl font-bold text-fg">
+                  {module.title}
+                </h2>
+                <p className="mt-1.5 mb-4.5 max-w-prose text-sm text-fg-muted">
+                  {module.description}
+                </p>
+                {shown.length === 0 ? (
+                  <p className="text-sm text-fg-muted">No setting matches “{query}”.</p>
+                ) : (
+                  <ul className="grid gap-3.5 @5xl/page:grid-cols-2">
+                    {shown.map((s) => (
+                      <li key={s.path} className="min-w-0">
+                        <SettingsCard
+                          href={s.path}
+                          icon={<Icon name={s.icon} />}
+                          title={s.label}
+                          description={s.description}
+                          meta={
+                            // Still to come, while the page is fetched (`PageLoading`).
+                            s.now === '' ? (
+                              <Skeleton className="inline-block h-3.5 w-44 max-w-full align-middle" />
+                            ) : (
+                              (s.now ?? undefined)
+                            )
+                          }
+                          badge={
+                            s.attention === null ? undefined : (
+                              <Badge size="sm" tone="warning">
+                                {s.attention.badge}
+                              </Badge>
+                            )
+                          }
+                          className="h-full"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
+          </>
+        )}
+      </Waking>
     </div>
   );
 }
