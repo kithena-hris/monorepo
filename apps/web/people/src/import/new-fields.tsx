@@ -777,6 +777,23 @@ function impactOf(kind: ForExisting['kind'], n: number): string {
   }
 }
 
+/** The same on a phone (MA9): a count and a word, beside the one-line meaning. */
+function shortImpactOf(kind: ForExisting['kind'], n: number): string {
+  if (n === 0) return 'Nothing to do';
+  const count = n.toLocaleString('en-GB');
+  switch (kind) {
+    case 'ask':
+      return `${count} incomplete`;
+    case 'hr':
+      return `${count} for HR`;
+    case 'new':
+    case 'leave':
+      return 'Nothing to do today';
+    case 'default':
+      return `${count} written`;
+  }
+}
+
 /** What happens for a field's people without a value, as a short word: the table's last column. */
 export function planWord(p: ColumnProposal, missing: number): string {
   if (missing === 0) return 'Nothing to do';
@@ -844,7 +861,7 @@ export function ExistingChoices({
           description={
             compact ? CHOICE[kind].shortMeans : CHOICE[kind].means(missing.toLocaleString('en-GB'))
           }
-          impact={impactOf(kind, missing)}
+          impact={compact ? shortImpactOf(kind, missing) : impactOf(kind, missing)}
           {...(kind === recommended
             ? {
                 badge: (
