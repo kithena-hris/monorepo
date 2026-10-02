@@ -102,6 +102,15 @@ export function Carousel({
   // The slide last reported, read outside a state updater: telling the parent
   // from inside one would set its state while this one renders.
   const reported = useRef(0);
+  // Where a scroll asked for from outside is going. Until it lands, the slides
+  // it passes are not reported: the parent already moved on, and hearing of a
+  // slide it left would send it back there (a press on the next card would
+  // then act on the one before).
+  const heading = useRef<number | null>(null);
+  // A finger, a wheel or a key takes over from a scroll asked for.
+  const takeOver = (): void => {
+    heading.current = null;
+  };
   const [edges, setEdges] = useState({ atStart: true, atEnd: false });
 
   const offsets = useCallback((): number[] => {
@@ -114,12 +123,21 @@ export function Carousel({
     const track = trackRef.current;
     if (!track) return;
     const nearest = nearestSlide(offsets(), Math.abs(track.scrollLeft));
+    const edges = scrollEdges(track.scrollLeft, track.scrollWidth, track.clientWidth);
+    setEdges(edges);
+    const going = heading.current;
+    if (going !== null) {
+      // Landed, or as far as the track goes towards it.
+      const landed =
+        nearest === going || (going > nearest && edges.atEnd) || (going < nearest && edges.atStart);
+      if (!landed) return;
+      heading.current = null;
+    }
     setIndex(nearest);
     if (reported.current !== nearest) {
       reported.current = nearest;
       onIndexChange?.(nearest);
     }
-    setEdges(scrollEdges(track.scrollLeft, track.scrollWidth, track.clientWidth));
   }, [offsets, onIndexChange]);
 
   useEffect(() => {
@@ -145,6 +163,9 @@ export function Carousel({
   useEffect(() => {
     if (wanted === undefined || wanted === index) return;
     const clamped = Math.min(Math.max(wanted, 0), slides.length - 1);
+    // The parent asked for it, so it already knows: arriving is not news.
+    heading.current = clamped;
+    reported.current = clamped;
     trackRef.current?.scrollTo({
       left: offsets()[clamped] ?? 0,
       behavior: reducedMotion ? 'auto' : 'smooth',
@@ -209,7 +230,12 @@ export function Carousel({
         // keys then move a slide at a time.
         tabIndex={0}
         onScroll={measure}
-        onKeyDown={onKeyDown}
+        onPointerDown={takeOver}
+        onWheel={takeOver}
+        onKeyDown={(event) => {
+          takeOver();
+          onKeyDown(event);
+        }}
         className={cn(
           'flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain rounded-lg',
           '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
