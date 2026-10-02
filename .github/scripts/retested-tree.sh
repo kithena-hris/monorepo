@@ -60,6 +60,6 @@ proven="$(printf '%s' "$ran" | tr ',' ' ')"
 {
   echo "Tree \`$tree\` already passed in PR #$pr, run $url."
   echo
-  echo "Skipped here: verify, standalone${proven:+, $proven}. Anything the pull request narrowed runs in full."
+  echo "Skipped here: verify, standalone${ran:+, ${ran//,/, }}. Every gate the pull request narrowed runs in full."
 } >> "$summary"
 { echo "matched=true"; echo "proven=$proven"; } >> "$out"
