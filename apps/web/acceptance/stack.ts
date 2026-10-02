@@ -52,7 +52,7 @@ export interface Stack {
   /** The shell's environment as it was started, for a test to read. */
   readonly shellEnv: Readonly<Record<string, string>>;
   /** The router, as the shell reaches it, put to sleep and woken: the VM asleep, then up. */
-  readonly router: { asleep(): void; awake(): void };
+  readonly router: { readonly asleep: () => void; readonly awake: () => void };
   /** People's own address: for a test to show it refuses anybody but the router. */
   readonly peopleUrl: string;
   readonly shellToken: string;
