@@ -185,7 +185,7 @@ describe('currentPlace', () => {
     expect(at('/people/directory/list')).toBe('Directory');
     expect(at('/people/directory/org-chart')).toBe('Directory');
     expect(at('/people/:id/history')).toBe('Directory');
-    expect(at('/people/export')).toBe('Import & export');
+    expect(at('/people/import')).toBe('Import & export');
   });
 
   it('is nothing for a route no place claims', () => {

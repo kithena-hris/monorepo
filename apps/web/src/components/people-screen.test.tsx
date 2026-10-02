@@ -25,7 +25,6 @@ vi.mock('../app/(app)/people/actions', () => ({
   setApprovalCheck: vi.fn(),
   saveSegment: vi.fn(),
   directoryPage: vi.fn(),
-  completeImportUpload: vi.fn(() => new Promise(() => undefined)),
 }));
 // The shell around the page: its data is what the page is remembered under.
 const shell = vi.hoisted(() => ({
@@ -256,23 +255,5 @@ describe('what a loading state shows of a page before it arrives', () => {
     // A write draws the shell again: everything seen before it is stale.
     shell.current = { ...shell.current };
     expect(heldFor('/people/insights/headcount', {}, now())).toBeNull();
-  });
-});
-
-describe('the import, a modal the address keeps', () => {
-  it('is closed until the address opens it, then opens at the upload', () => {
-    expect(open('/people/import-export', 'ImportExport')['importFlow']).toBeNull();
-    cleanup();
-    const props = open('/people/import-export?import=new', 'ImportExport');
-    expect(props['importFlow']).toMatchObject({
-      load: { status: 'ready', data: { step: 'upload' } },
-    });
-  });
-
-  it('reads an upload back on a reload, and closes by leaving the address', () => {
-    const props = open('/people/import-export?import=u1&step=review', 'ImportExport');
-    expect(props['importFlow']).toMatchObject({ load: { status: 'loading' } });
-    call(props, 'onImportClose');
-    expect(here()).toBe('/people/import-export');
   });
 });
