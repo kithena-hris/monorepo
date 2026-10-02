@@ -10,10 +10,11 @@ import type {
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import { personZone, placementOf, type TenantCalendar } from '../../domain/org/calendar.js';
 import {
-  formatNumber,
-  sequenceOf,
-  type NumberingScheme,
-} from '../../domain/org/numbering.js';
+  personRefOf,
+  placeOf,
+  type FileRow,
+  type Known,
+} from '../../domain/import/identifiers.js';
 import { assessCompleteness } from '../../domain/person/completeness.js';
 import type { EmployeeNumbers } from '../org/numbering.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
@@ -69,14 +70,35 @@ export interface CellProblem {
   readonly reason: string;
 }
 
+/**
+ * A reference the import leaves empty, and why: a manager, legal entity or
+ * work location the file names that is not in this company or this file.
+ * Never blocking: the row imports without it, and HR is shown the list.
+ */
+export interface LeftEmpty {
+  readonly row: number;
+  readonly column: string;
+  readonly key: string;
+  readonly value: string;
+  readonly reason: string;
+}
+
+/** A person reference to another row of the file, written once every row is in. */
+export interface RowLink {
+  readonly key: string;
+  readonly row: number;
+  readonly column: string;
+  readonly value: string;
+}
+
 export interface ClassifiedRow {
   readonly row: number;
   readonly cells: readonly string[];
   readonly outcome: RowOutcome;
   /** The existing person for update, unchanged and duplicate rows. */
   readonly personId: string | null;
-  readonly matchedOn:
-    'person_id' | 'work_email' | 'employee_number' | 'name_and_birth_date' | 'earlier_row' | null;
+  /** Rows match people already here by work email only: identifiers are Kithena's. */
+  readonly matchedOn: 'work_email' | 'name_and_birth_date' | 'earlier_row' | null;
   /** Typed values to write, by attribute key. Only what differs, for an update. */
   readonly changes: Readonly<Record<string, unknown>>;
   readonly hireDate: string | null;
@@ -92,6 +114,10 @@ export interface ClassifiedRow {
   readonly problems: readonly CellProblem[];
   /** Required keys still missing once this row is written. */
   readonly missing: readonly string[];
+  /** People this row points at who are other rows of the file: linked in a second pass. */
+  readonly links: readonly RowLink[];
+  /** References left empty, each named. */
+  readonly leftEmpty: readonly LeftEmpty[];
 }
 
 /**
@@ -177,6 +203,14 @@ export interface DryRun {
   readonly corrections: number;
   /** Whether dated facts took a file column or the defaults (§14.5). */
   readonly effectiveFrom: 'column' | 'defaults';
+  /** References the rows that will import leave empty, each named. */
+  readonly leftEmpty: readonly LeftEmpty[];
+  /**
+   * Work locations the file names that this company does not have yet, with
+   * the legal entity the first row naming each sits in. An administrator's
+   * run adds them before the import, which then finds them by name.
+   */
+  readonly newLocations: readonly { readonly name: string; readonly legalEntityId: string }[];
   readonly rows: readonly ClassifiedRow[];
   readonly schemaVersion: number;
 }
@@ -188,7 +222,7 @@ export interface DryRunDeps {
   readonly clock: Clock;
   /** Whose day each row's person is on (PRD §6.8). */
   readonly calendars: Calendars;
-  /** Each entity's numbering, which an explicit employee number is held to (PEO-101). */
+  /** Each entity's numbering (PEO-101): new people are numbered when they are hired. */
   readonly numbering?: EmployeeNumbers;
 }
 
@@ -222,9 +256,14 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 interface Existing {
   readonly byId: ReadonlyMap<string, PersonView>;
   readonly byEmail: ReadonlyMap<string, PersonView>;
-  readonly byNumber: ReadonlyMap<string, PersonView>;
   readonly byNameAndBirth: ReadonlyMap<string, PersonView>;
 }
+
+const fullName = (v: Readonly<Record<string, unknown>>): string | null => {
+  const given = v['given_name'];
+  const family = v['family_name'];
+  return typeof given === 'string' && typeof family === 'string' ? `${given} ${family}` : null;
+};
 
 const nameAndBirth = (v: Readonly<Record<string, unknown>>): string | null => {
   const given = lower(v['given_name']);
@@ -247,7 +286,6 @@ async function existingPeople(
 ): Promise<Result<Existing>> {
   const byId = new Map<string, PersonView>();
   const byEmail = new Map<string, PersonView>();
-  const byNumber = new Map<string, PersonView>();
   const byNameAndBirth = new Map<string, PersonView>();
   let after: string | null = null;
   do {
@@ -263,14 +301,12 @@ async function existingPeople(
       byId.set(person.id, person);
       const email = lower(person.attributes['work_email']);
       if (email) byEmail.set(email, person);
-      const number = lower(person.attributes['employee_number']);
-      if (number) byNumber.set(number, person);
       const nb = nameAndBirth(person.attributes);
       if (nb) byNameAndBirth.set(nb, person);
     }
     after = page.value.next;
   } while (after !== null);
-  return ok({ byId, byEmail, byNumber, byNameAndBirth });
+  return ok({ byId, byEmail, byNameAndBirth });
 }
 
 /**
@@ -330,9 +366,6 @@ export async function dryRun(
   if (!existing.ok) return existing;
 
   const calendar = await deps.calendars.load(tx, input.tenantId);
-  const schemes = new Map(
-    ((await deps.numbering?.list(tx, input.tenantId)) ?? []).map((n) => [n.legalEntityId, n]),
-  );
   const sheets = input.file.repeating.map((sheet) => {
     const d = version.document.attributes.find((a) => a.key === sheet.key);
     const imported =
@@ -345,6 +378,7 @@ export async function dryRun(
   });
   const items = itemsByPerson(sheets.filter((s) => s.imported).map((s) => s.source));
   const blockedItems: BlockedItem[] = [];
+  const newLocations = new Map<string, { name: string; legalEntityId: string }>();
   const classify = rowClassifier(
     version,
     input,
@@ -352,27 +386,26 @@ export async function dryRun(
     relations,
     deps.clock,
     calendar,
-    schemes,
     { items, blocked: blockedItems },
+    newLocations,
   );
   const rows = input.file.rows.map(classify);
-  // What no importable row claimed: an unknown id, or a person whose row is
-  // blocked, a duplicate, or not on the People sheet at all.
+  // What no importable row claimed: an item whose row is blocked, a
+  // duplicate, or not on the People sheet at all. An id is only a name for a
+  // row of this file, so an id from another system never blocks anything else.
   for (const [personId, lists] of items.unclaimed()) {
     const known = existing.value.byId.has(personId);
     const reason =
       personId === ''
         ? 'no person id'
-        : known
-          ? 'this person has no row that will import on the People sheet'
-          : 'no person with this id';
+        : 'no row on the People sheet that will import has this person id';
     for (const [key, list] of lists) {
       for (const r of list.rows) {
         blockedItems.push({
           ...itemAt(list.sheet, r),
           key,
-          personId: personId === '' ? null : personId,
-          kind: known ? 'invalid' : 'unknown_person',
+          personId: known ? personId : null,
+          kind: 'invalid',
           reason,
         });
       }
@@ -416,8 +449,42 @@ export async function dryRun(
     effectiveFrom: input.mapping.some((m) => m.status === 'mapped' && m.key === 'effective_from')
       ? 'column'
       : 'defaults',
+    leftEmpty: rows
+      .filter((r) => r.outcome === 'create' || r.outcome === 'update' || r.outcome === 'unchanged')
+      .flatMap((r) => r.leftEmpty),
+    newLocations: [...newLocations.values()],
     rows,
     schemaVersion: version.version,
+  });
+}
+
+/** Kinds of value that point at something in the company rather than holding a value. */
+const REFERENCES: ReadonlySet<string> = new Set(['person_ref', 'legal_entity_ref', 'location_ref']);
+
+/**
+ * Each row as a reference to a person can name it: its id where it came from
+ * (the person id column, else the employee number), its work email, its name.
+ */
+function fileRowsOf(input: DryRunInput): FileRow[] {
+  const at = (key: string, mappedOnly: boolean) =>
+    input.mapping.find((m) => m.key === key && (!mappedOnly || m.status === 'mapped'))?.index;
+  const idAt = at(PERSON_ID_COLUMN, false) ?? at('employee_number', false);
+  const emailAt = at('work_email', true);
+  const givenAt = at('given_name', true);
+  const familyAt = at('family_name', true);
+  const text = (r: ParsedRow, i: number | undefined) => {
+    const v = i === undefined ? '' : (r.cells[i] ?? '').trim();
+    return v === '' ? null : v;
+  };
+  return input.file.rows.map((r) => {
+    const given = text(r, givenAt);
+    const family = text(r, familyAt);
+    return {
+      row: r.row,
+      fileId: text(r, idAt),
+      email: text(r, emailAt),
+      name: given !== null && family !== null ? `${given} ${family}` : null,
+    };
   });
 }
 
@@ -428,8 +495,8 @@ function rowClassifier(
   relations: ViewerRelations,
   clock: Clock,
   calendar: TenantCalendar,
-  schemes: ReadonlyMap<string, NumberingScheme>,
   repeating: { readonly items: ItemsByPerson; readonly blocked: BlockedItem[] },
+  newLocations: Map<string, { name: string; legalEntityId: string }>,
 ) {
   const at = clock.instant();
   const definitions = version.document.attributes;
@@ -442,6 +509,24 @@ function rowClassifier(
   const order = input.dateOrder ?? 'iso';
   const seen = new Map<string, number>();
 
+  // References are resolved against this company and this file, never copied.
+  const fileRows = fileRowsOf(input);
+  const fileIdOf = new Map(fileRows.map((r) => [r.row, r.fileId]));
+  const known: Known[] = [...existing.byId.values()].map((p) => ({
+    id: p.id,
+    email: lower(p.attributes['work_email']),
+    name: fullName(p.attributes),
+  }));
+  // A row of the file that is somebody already here: a reference to it is to them.
+  const hereByRow = new Map(
+    fileRows.flatMap((r) => {
+      const p = existing.byEmail.get(lower(r.email) ?? '');
+      return p ? [[r.row, p.id] as const] : [];
+    }),
+  );
+  const entities = [...calendar.entities.values()];
+  const locations = [...calendar.locations.values()];
+
   return (parsed: ParsedRow): ClassifiedRow => {
     const cell = (m: ColumnMapping) => parsed.cells[m.index] ?? '';
     const coerceRow = (today: string) => {
@@ -452,8 +537,10 @@ function rowClassifier(
         const definition = byKey.get(key);
         // System columns are read below, the hire date among them even when
         // it is a published field: it is hired or corrected, never written
-        // as a profile value.
-        if (!definition || key === 'hire_date') continue;
+        // as a profile value. References are resolved below, never copied.
+        if (!definition || key === 'hire_date' || REFERENCES.has(definition.typeConfig.kind)) {
+          continue;
+        }
         const raw = cell(m);
         // A sealed value exports masked; the mask is "unchanged", not a value.
         if (definition.encrypted && isMasked(raw)) continue;
@@ -468,26 +555,87 @@ function rowClassifier(
     /*
      * A date's "past" or "future" is judged on the person's own day (PRD
      * §6.8), and which person — and so which calendar — is only known once
-     * the row's entity, location and identifiers are read. So: read on the
+     * the row's entity, location and work email are read. So: read on the
      * tenant's day, work out whose day it really is, and read again on that
-     * day if it differs. The placement cells are ids and zones, which no day
+     * day if it differs. The placement cells are references, which no day
      * changes.
      */
     const tenantDay = localDate(at, calendar.defaultZone);
     const first = coerceRow(tenantDay);
-    const idCell = columnOf(PERSON_ID_COLUMN);
-    const matched =
-      (idCell ? existing.byId.get(cell(idCell)) : undefined) ??
-      existing.byEmail.get(lower(first.coerced['work_email']) ?? '') ??
-      existing.byNumber.get(lower(first.coerced['employee_number']) ?? '');
+    // Who this row is about: somebody here with its work email, or nobody yet.
+    // Identifiers are Kithena's: a person id or employee number never matches.
+    const person: PersonView | undefined = existing.byEmail.get(
+      lower(first.coerced['work_email']) ?? '',
+    );
+    const matchedOn: ClassifiedRow['matchedOn'] = person ? 'work_email' : null;
+
+    // Its references: to somebody or something here, to another row, or left empty.
+    const refs: Record<string, unknown> = {};
+    const links: RowLink[] = [];
+    const leftEmpty: LeftEmpty[] = [];
+    const resolve = (kinds: readonly string[]) => {
+      for (const m of mapped) {
+        const key = m.key as string;
+        const kind = byKey.get(key)?.typeConfig.kind;
+        const raw = cell(m).trim();
+        if (kind === undefined || !kinds.includes(kind) || raw === '') continue;
+        const empty = (reason: string) =>
+          leftEmpty.push({ row: parsed.row, column: m.header, key, value: raw, reason });
+        if (kind === 'person_ref') {
+          const ref = personRefOf(raw, { rows: fileRows, people: known, self: parsed.row });
+          const here = ref.kind === 'row' ? hereByRow.get(ref.row) : undefined;
+          if (ref.kind === 'person') refs[key] = ref.id;
+          else if (here !== undefined) refs[key] = here;
+          else if (ref.kind === 'row') {
+            links.push({ key, row: ref.row, column: m.header, value: raw });
+          } else empty(ref.reason);
+        } else if (kind === 'legal_entity_ref') {
+          const ref = placeOf(raw, entities);
+          if (ref.kind === 'id') refs[key] = ref.id;
+          // A company with one legal entity has one answer (PEO-123), whatever the file says.
+          else if (onlyEntity !== null) refs[key] = onlyEntity;
+          else {
+            empty(ref.kind === 'new' ? `no legal entity here is called “${ref.name}”` : ref.reason);
+          }
+        } else {
+          const ref = placeOf(raw, locations);
+          if (ref.kind === 'id') {
+            refs[key] = ref.id;
+            continue;
+          }
+          if (ref.kind === 'none') {
+            empty(ref.reason);
+            continue;
+          }
+          const entity =
+            refs['legal_entity_id'] ?? person?.attributes['legal_entity_id'] ?? onlyEntity;
+          if (typeof entity !== 'string') {
+            empty(
+              `no work location here is called “${ref.name}”, and the row has no legal entity to add it to`,
+            );
+            continue;
+          }
+          // An administrator's run adds it before the import, which then finds it by name.
+          const wanted = ref.name.toLocaleLowerCase('en');
+          // Not yet a value: the plan says it is added, or, for HR, that it is not.
+          if (!newLocations.has(wanted)) {
+            newLocations.set(wanted, { name: ref.name, legalEntityId: entity });
+          }
+        }
+      }
+    };
+    resolve(['person_ref', 'legal_entity_ref']);
+    resolve(['location_ref']);
+
     const zone = personZone(
       calendar,
-      placementOf({ ...matched?.attributes, ...first.coerced }),
+      placementOf({ ...person?.attributes, ...first.coerced, ...refs }),
       at,
     );
     const personDay = localDate(at, zone);
-    const { found: problems, coerced: values } =
-      personDay === tenantDay ? first : coerceRow(personDay);
+    const read = personDay === tenantDay ? first : coerceRow(personDay);
+    const problems = read.found;
+    const values: Record<string, unknown> = { ...read.coerced, ...refs };
 
     const dateColumn = (key: 'hire_date' | 'effective_from'): string | null => {
       const m = columnOf(key);
@@ -504,42 +652,20 @@ function rowClassifier(
       }
       return day;
     };
-    const hireDate = dateColumn('hire_date');
+    let hireDate = dateColumn('hire_date');
     const effectiveFrom = dateColumn('effective_from');
-
-    // Who this row is about: the export's id, then work email, then employee number.
-    const idColumn = columnOf(PERSON_ID_COLUMN);
-    const id = idColumn ? cell(idColumn) : '';
-    let person: PersonView | undefined;
-    let matchedOn: ClassifiedRow['matchedOn'] = null;
-    if (id !== '') {
-      person = existing.byId.get(id);
-      matchedOn = 'person_id';
-      if (!person) {
-        problems.push({
-          column: idColumn?.header ?? PERSON_ID_COLUMN,
-          key: PERSON_ID_COLUMN,
-          kind: 'unknown_person',
-          reason: 'no person with this id',
-        });
-      }
-    } else if ((person = existing.byEmail.get(lower(values['work_email']) ?? '')))
-      matchedOn = 'work_email';
-    else if ((person = existing.byNumber.get(lower(values['employee_number']) ?? '')))
-      matchedOn = 'employee_number';
-
-    // The same format the write will hold an employee number to (PEO-101);
-    // uniqueness is the write's claim, which the report then names.
-    const number = values['employee_number'];
-    const entity = values['legal_entity_id'] ?? person?.attributes['legal_entity_id'];
-    const scheme = typeof entity === 'string' ? schemes.get(entity) : undefined;
-    if (scheme && typeof number === 'string' && sequenceOf(scheme, number) === null) {
-      problems.push({
-        column: columnOf('employee_number')?.header ?? 'employee_number',
-        key: 'employee_number',
-        kind: 'invalid',
-        reason: `this legal entity's numbers look like ${formatNumber(scheme, 1)}`,
+    // A hire needs a work email (§8.2): without one the person is created
+    // provisional, and the start date waits with HR.
+    if (!person && values['work_email'] === undefined && hireDate !== null) {
+      const m = columnOf('hire_date');
+      leftEmpty.push({
+        row: parsed.row,
+        column: m?.header ?? 'hire_date',
+        key: 'hire_date',
+        value: hireDate,
+        reason: 'not hired yet: a hire needs a work email, so HR sets both',
       });
+      hireDate = null;
     }
 
     const hires = person?.status === 'provisional' && hireDate !== null;
@@ -572,17 +698,21 @@ function rowClassifier(
       hireDateCorrection,
       effectiveFrom,
       matchedOn,
+      links,
+      leftEmpty,
     };
 
-    if (problems.length > 0) {
-      return {
-        ...base,
-        outcome: 'blocked',
-        personId: person?.id ?? null,
-        changes: {},
-        problems,
-        missing: [],
-      };
+    // Nothing blocks a row: a cell that cannot be read is left empty, and
+    // listed for HR with why. The rest of the row imports.
+    for (const p of problems) {
+      const m = mapped.find((x) => x.header === p.column);
+      leftEmpty.push({
+        row: parsed.row,
+        column: p.column,
+        key: p.key,
+        value: m ? cell(m).trim() : '',
+        reason: p.reason,
+      });
     }
 
     if (!person) {
@@ -595,21 +725,36 @@ function rowClassifier(
       ) {
         values['legal_entity_id'] = onlyEntity;
       }
-      for (const key of coreRequired) {
-        const present = key === 'hire_date' ? hireDate !== null : values[key] !== undefined;
-        if (present) continue;
-        const column = columnOf(key)?.header ?? key;
-        // In the words on the screen: "a work email", never `work_email`.
-        const named = (byKey.get(key)?.label.default ?? key.replaceAll('_', ' ')).toLowerCase();
-        problems.push({ column, key, kind: 'missing', reason: `a new person needs ${/^[aeiou]/u.test(named) ? 'an' : 'a'} ${named}` });
+      // Skipped only when the row cannot be anybody: no name and no work email.
+      const has = (key: string) => values[key] !== undefined;
+      if (!has('given_name') && !has('family_name') && !has('work_email')) {
+        const nobody: CellProblem = {
+          column: columnOf('work_email')?.header ?? 'work_email',
+          key: 'work_email',
+          kind: 'missing',
+          reason: 'no name and no work email: nobody to create',
+        };
+        return { ...base, outcome: 'blocked', personId: null, changes: {}, problems: [nobody], missing: [] };
       }
-      if (problems.length > 0) {
-        return { ...base, outcome: 'blocked', personId: null, changes: {}, problems, missing: [] };
+      // Anybody else is created; without a start date they stay provisional until HR hires them.
+      if (
+        coreRequired.includes('hire_date') &&
+        hireDate === null &&
+        !leftEmpty.some((l) => l.key === 'hire_date')
+      ) {
+        const m = columnOf('hire_date');
+        leftEmpty.push({
+          row: parsed.row,
+          column: m?.header ?? 'hire_date',
+          key: 'hire_date',
+          value: m ? cell(m).trim() : '',
+          reason: 'no start date: added as provisional until HR sets one',
+        });
       }
     }
 
     // The same person twice in one file, or somebody who looks like an existing person.
-    const identity = person?.id ?? lower(values['work_email']) ?? lower(values['employee_number']);
+    const identity = person?.id ?? lower(values['work_email']);
     const earlier = identity ? seen.get(identity) : undefined;
     if (identity) seen.set(identity, earlier ?? parsed.row);
     if (earlier !== undefined) {
@@ -638,14 +783,21 @@ function rowClassifier(
       }
     }
 
-    // The repeating sheets' lists for this person: each whole, or not at all.
-    if (person) {
-      for (const [key, list] of repeating.items.claim(person.id)) {
+    // The repeating sheets' lists for this row, keyed by its id in the file
+    // (only a name for the row: another Kithena's id finds its own row's
+    // lists, for a new person as for one already here). Each whole, or not at all.
+    const claimedBy = fileIdOf.get(parsed.row) ?? person?.id;
+    if (claimedBy !== undefined) {
+      for (const [key, list] of repeating.items.claim(claimedBy)) {
         const definition = byKey.get(key);
         if (!definition) continue;
-        const read = readList(definition, list, { today: personDay, dateOrder: order });
-        if (read.ok) values[key] = read.value;
-        else repeating.blocked.push(...read.error.map((b) => ({ ...b, personId: person.id })));
+        const listed = readList(definition, list, { today: personDay, dateOrder: order });
+        if (listed.ok) values[key] = listed.value;
+        else {
+          repeating.blocked.push(
+            ...listed.error.map((b) => ({ ...b, personId: person?.id ?? null })),
+          );
+        }
       }
     }
 

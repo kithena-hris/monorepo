@@ -94,7 +94,32 @@ describe('the cheap rules, with no advisor at all', () => {
       relations: relations(),
       advisor: null,
     });
-    expect(mapping.map((m) => m.status)).toEqual(['mapped', 'ignored', 'ignored', 'ignored']);
+    // The person id is Kithena's to create: shown, named, and never imported.
+    expect(mapping.map((m) => m.status)).toEqual(['ignored', 'ignored', 'ignored', 'ignored']);
+    expect(mapping[0]).toMatchObject({
+      key: '__person_id',
+      source: 'system',
+      reason: 'Kithena creates this',
+    });
+  });
+
+  it('never imports an employee number, under any name, and refuses a choice to map one', async () => {
+    const number = define({ key: 'employee_number', label: { default: 'Employee number' } });
+    const v = versionOf(1, [number, workEmail]);
+    const mapping = await proposeMapping({
+      file: { headers: ['Employee ID', 'Email', 'Staff number'], keys: null },
+      version: v,
+      relations: relations(),
+      advisor: null,
+    });
+    expect(mapping.map((m) => [m.status, m.key, m.reason])).toEqual([
+      ['ignored', 'employee_number', 'Kithena creates this'],
+      ['mapped', 'work_email', null],
+      ['ignored', 'employee_number', 'Kithena creates this'],
+    ]);
+    // A hand-edited request cannot route a column to it.
+    const chosen = resolveMapping(mapping, { 1: { kind: 'map', key: 'employee_number' } }, v, relations());
+    expect(chosen.ok && chosen.value[1]).toMatchObject({ status: 'ignored', reason: 'Kithena creates this' });
   });
 
   it('knows the usual names other systems export, when the company has the field', async () => {

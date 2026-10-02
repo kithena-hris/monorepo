@@ -4,7 +4,7 @@ import { outboxTable, publish } from '@kithena/db-kit';
 import { err, type DomainFailure } from '@kithena/domain-kit';
 
 import type { UploadIntent } from '../../domain/import/upload.js';
-import type { ImportLedger, ReportIndex, RowScope } from './commit.js';
+import { rowRefusal, type ImportLedger, type ReportIndex, type RowScope } from './commit.js';
 import type { UploadIntents } from './upload.js';
 
 /**
@@ -210,6 +210,12 @@ export function drizzleUploadIntents(): UploadIntents {
  * A savepoint per row. Drizzle runs a nested `transaction` as one, and
  * throwing out of it is how it is told to roll back to it; the refusal comes
  * back out as the `Result` it was.
+ *
+ * A row the database itself refuses — a constraint the checks before it did
+ * not foresee — rolls back to its savepoint the same way and is reported as
+ * that row's reason, naming the column. It never takes the rest of the file,
+ * or the request, down with it. Anything else (the connection, a deadlock)
+ * still throws: it is not about the row.
  */
 export const drizzleRowScope: RowScope = async (tx, fn) => {
   try {
@@ -220,6 +226,8 @@ export const drizzleRowScope: RowScope = async (tx, fn) => {
     });
   } catch (cause) {
     if (cause instanceof RowRefused) return err(cause.failure);
+    const refused = rowRefusal(cause);
+    if (refused !== null) return err(refused);
     throw cause;
   }
 };

@@ -31,6 +31,7 @@ const MARCO_ACCOUNT = '00000000-0000-4000-8000-0000000000b2';
 const HR_ACCOUNT = '00000000-0000-4000-8000-0000000000b3';
 
 let stopPg: (() => Promise<void>) | undefined;
+let pgUrl = '';
 let stopObjects: (() => Promise<void>) | undefined;
 const clients: ReturnType<typeof postgres>[] = [];
 let server: Server;
@@ -53,6 +54,7 @@ const migration = (file: string): Promise<string> =>
 beforeAll(async () => {
   const [pg, objects] = await Promise.all([startPostgres(), startObjectStore()]);
   stopPg = pg.stop;
+  pgUrl = pg.url;
   stopObjects = objects.stop;
   // The bucket an import is uploaded to, straight from the browser (§14.2).
   await new S3Client({
@@ -863,21 +865,290 @@ describe('a company that has never published its employee fields', () => {
     expect(plan.review.dryRun.counts).toMatchObject({ create: 2, blocked: 0 });
 
     // Approve and run.
-    const ran = await graph(
-      `mutation ($input: String!, $key: String!) { runImport(input: $input, idempotencyKey: $key) }`,
-      { input: JSON.stringify({ ...step, proposals }), key: 'fresh-run' },
+    const done = await runToEnd<{ created: number; version: number; fields: { label: string }[] }>(
+      graph,
+      { ...step, proposals },
+      'fresh-run',
     );
-    expect(ran.errors?.[0]?.message).toBeUndefined();
-    const done = JSON.parse(ran.data?.['runImport'] as string) as {
-      created: number;
-      version: number;
-      fields: { label: string }[];
-    };
     expect(done).toMatchObject({ created: 2, version: 1 });
     expect(done.fields.map((f) => f.label)).toEqual(['T-shirt size']);
 
     // Version 1 holds setup's fields and the new one; the template now names it.
     const after = await graph('{ peopleImportTemplate }');
     expect(String(after.data?.['peopleImportTemplate'])).toContain('T-shirt size');
+  });
+});
+
+interface Answered {
+  data?: Record<string, unknown>;
+  errors?: { message: string; extensions: { code: string } }[];
+}
+
+/** Approve and run: the import's outcome, or the test fails on its error. */
+async function runToEnd<T>(
+  graph: (query: string, variables?: Record<string, unknown>) => Promise<Answered>,
+  input: unknown,
+  key: string,
+): Promise<T> {
+  const ran = await graph(
+    `mutation ($input: String!, $key: String!) { runImport(input: $input, idempotencyKey: $key) }`,
+    { input: JSON.stringify(input), key },
+  );
+  expect(ran.errors?.[0]?.message).toBeUndefined();
+  return JSON.parse(ran.data?.['runImport'] as string) as T;
+}
+
+describe('a dev export from another Kithena, into a company the back office just made', () => {
+  // The user's file, as their own Kithena exported it: its person ids, its
+  // managers as those ids, its legal entity and work locations as ids of a
+  // company that is not this one. One row, a provisional record there, has
+  // no start date.
+  const DEV = readFile(new URL('./dev-export.fixture.csv', import.meta.url));
+  const LOCATIONS: Record<string, string> = {
+    '01a0e1d1-f26f-7000-be34-a7236a53ad47': 'Corporate, New York',
+    '01a0e1d1-f2cf-7000-b695-91d31c4467ed': 'Scranton Branch',
+    '01a0e1d1-f2de-7000-9faf-893e9d24b64a': 'Nashua Branch',
+    '01a0e1d1-f2ec-7000-bc85-bd7e038b7395': 'Utica Branch',
+  };
+
+  const company = (tenant: string, owner: string) => {
+    const graph = async (query: string, variables: Record<string, unknown> = {}) =>
+      (await (
+        await fetch(`${base}/graphql`, {
+          method: 'POST',
+          headers: headers(owner, ['people_admin', 'hr'], tenant),
+          body: JSON.stringify({ query, variables }),
+        })
+      ).json()) as Answered;
+    const upload = async (file: Uint8Array<ArrayBuffer>) => {
+      const started = await graph(
+        `mutation ($name: String!, $size: Int!) {
+          startImportUpload(name: $name, size: $size) { uploadId url method headers { name value } }
+        }`,
+        { name: 'people-2026-10-01.csv', size: file.byteLength },
+      );
+      const target = started.data?.['startImportUpload'] as {
+        uploadId: string;
+        url: string;
+        method: string;
+        headers: { name: string; value: string }[];
+      };
+      await fetch(target.url, {
+        method: target.method,
+        headers: Object.fromEntries(
+          target.headers.filter((h) => h.name !== 'content-length').map((h) => [h.name, h.value]),
+        ),
+        body: file,
+      });
+      const completed = await graph(
+        `mutation ($id: ID!) { completeImportUpload(uploadId: $id) {
+          __typename ... on ImportMapStage { columns { index header status key reason } }
+        } }`,
+        { id: target.uploadId },
+      );
+      expect(completed.errors?.[0]?.message).toBeUndefined();
+      const stage = completed.data?.['completeImportUpload'] as {
+        columns: {
+          index: number;
+          header: string;
+          status: string;
+          key: string | null;
+          reason: string | null;
+        }[];
+      };
+      return { uploadId: target.uploadId, columns: stage.columns };
+    };
+    return { graph, upload };
+  };
+
+  /** As the back office leaves a company: one legal entity, in the US, nothing published. */
+  const fresh = async (tenant: string, owner: string) => {
+    const c = company(tenant, owner);
+    const entity = await c.graph(
+      `mutation ($key: String!) {
+        confirmSetupEntity(name: "Dunder Mifflin Paper Company", country: "US", idempotencyKey: $key) {
+          __typename
+        }
+      }`,
+      { key: `${tenant}-entity` },
+    );
+    expect(entity.errors?.[0]?.message).toBeUndefined();
+    return c;
+  };
+
+  /** Upload, keep every proposed field, plan, and run it to the end. */
+  const importAll = async (
+    c: ReturnType<typeof company>,
+    file: Uint8Array<ArrayBuffer>,
+    key: string,
+  ) => {
+    const { uploadId, columns } = await c.upload(file);
+    // As the screen sends it: every column, its key when mapped, else null.
+    const mapping = Object.fromEntries(
+      columns.map((x) => [x.index, x.status === 'mapped' ? x.key : null]),
+    );
+    const step = { uploadId, mapping };
+    const proposed = await c.graph(
+      `mutation ($step: String!) { proposeImportFields(step: $step) }`,
+      { step: JSON.stringify(step) },
+    );
+    expect(proposed.errors?.[0]?.message).toBeUndefined();
+    const view = JSON.parse(proposed.data?.['proposeImportFields'] as string) as {
+      proposals: { counts: unknown; sensitive: unknown }[];
+    };
+    const proposals = view.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p);
+    const planned = await c.graph(`mutation ($input: String!) { planImport(input: $input) }`, {
+      input: JSON.stringify({ ...step, proposals }),
+    });
+    expect(planned.errors?.[0]?.message).toBeUndefined();
+    const plan = JSON.parse(planned.data?.['planImport'] as string) as {
+      blocked: string | null;
+      steps: { kind: string; title: string }[];
+      review: {
+        dryRun: {
+          counts: Record<string, number>;
+          blocked: { row: number; problem: string }[];
+          leftEmpty: { cell: string; label: string; reason: string }[];
+          leftEmptyCount: number;
+        };
+      };
+    };
+    expect(plan.blocked).toBeNull();
+    const done = await runToEnd<{
+      created: number;
+      updated: number;
+      blocked: number;
+      leftEmptyCount: number;
+    }>(c.graph, { ...step, proposals }, key);
+    return { columns, plan, done };
+  };
+
+  /** Read as the database's owner, past row-level security: what was really written. */
+  const written = async <T,>(tenant: string, query: string): Promise<T[]> => {
+    const client = postgres(pgUrl, { max: 1 });
+    try {
+      return (await client.unsafe(query, [tenant])) as unknown as T[];
+    } finally {
+      await client.end();
+    }
+  };
+  interface Written {
+    id: string;
+    email: string;
+    num: string | null;
+    manager: string | null;
+    location: string | null;
+    location_id: string | null;
+    entity: string | null;
+  }
+  // Dated facts as recorded, whenever they take effect: one row starts next month.
+  const latest = (key: string) => `(SELECT h.value #>> '{}' FROM people.person_attribute_history h
+      WHERE h.tenant_id = p.tenant_id AND h.person_id = p.id AND h.attribute_key = '${key}'
+      ORDER BY h.effective_from DESC, h.recorded_at DESC LIMIT 1)`;
+  const PEOPLE = `SELECT p.id::text AS id, p.work_email AS email, p.employee_number AS num,
+        (SELECT m.work_email FROM people.person m
+          WHERE m.tenant_id = p.tenant_id AND m.id::text = ${latest('manager_id')}) AS manager,
+        (SELECT l.name FROM people.location l
+          WHERE l.tenant_id = p.tenant_id AND l.id::text = ${latest('location_id')}) AS location,
+        ${latest('location_id')} AS location_id,
+        ${latest('legal_entity_id')} AS entity
+      FROM people.person p
+     WHERE p.tenant_id = $1::uuid`;
+
+  it('creates everybody, links each manager within the file, numbers them, and writes no id from elsewhere', async () => {
+    const TENANT = '00000000-0000-4000-8000-0000000000d0';
+    const c = await fresh(TENANT, '00000000-0000-4000-8000-0000000000d9');
+    const file = new Uint8Array(await DEV);
+    const { columns, plan, done } = await importAll(c, file, 'dev-export-run');
+
+    // The ids are Kithena's to create: shown, named, never imported.
+    for (const header of ['Person id', 'Employee number']) {
+      expect(columns.find((x) => x.header === header)).toMatchObject({
+        status: 'ignored',
+        reason: 'Kithena creates this',
+      });
+    }
+
+    // The plan says so in one line, and nothing blocks a row: Gabe, with no
+    // start date, comes in provisional, his start date listed for HR.
+    expect(plan.steps.map((x) => x.title)).toContain(
+      'Employee IDs in the file are ignored; Kithena gives each new person one',
+    );
+    expect(plan.review.dryRun.counts).toMatchObject({ create: 31, blocked: 0, duplicate: 0 });
+    expect(plan.review.dryRun.blocked).toEqual([]);
+    // Their work locations are ids with no name to find or add, and Gabe's
+    // start date: left empty, each listed (the first twenty shown).
+    expect(plan.review.dryRun.leftEmptyCount).toBe(31);
+    expect(done).toMatchObject({ created: 31, updated: 0, blocked: 0, leftEmptyCount: 31 });
+
+    const people = await written<Written>(TENANT, PEOPLE);
+    expect(people).toHaveLength(31);
+    // Nothing of the other company's: no id of theirs as a person, an entity or a place.
+    const theirs = new Set(
+      new TextDecoder()
+        .decode(file)
+        .split(/[\n,]/u)
+        .filter((cell) => /^[0-9a-f]{8}-[0-9a-f]{4}-/u.test(cell)),
+    );
+    for (const p of people) {
+      expect(theirs.has(p.id)).toBe(false);
+      expect(p.location_id).toBeNull();
+      expect(p.entity).not.toBeNull();
+      expect(theirs.has(p.entity ?? '')).toBe(false);
+    }
+    // Every person hired is numbered by the entity's scheme, once each; Gabe
+    // is numbered when HR hires him.
+    const numbers = people.map((p) => p.num).filter((n) => n !== null);
+    expect(numbers.every((n) => /^US-\d{5}$/u.test(n))).toBe(true);
+    expect(new Set(numbers).size).toBe(30);
+
+    // Each manager is the person their row became, whatever the file's order.
+    const managerOf = Object.fromEntries(people.map((p) => [p.email, p.manager]));
+    expect(managerOf['jan.levinson@dunder-mifflin.example']).toBe(
+      'david.wallace@dunder-mifflin.example',
+    );
+    expect(managerOf['david.wallace@dunder-mifflin.example']).toBeNull();
+    // Every one of the 29 rows that names a manager is linked.
+    expect(people.filter((p) => p.manager !== null)).toHaveLength(29);
+
+    // Each column lands in its own field: a child's name is the name, as written.
+    const [jan] = await written<{ children: string | null; partner: string | null }>(
+      TENANT,
+      `SELECT custom->>'children' AS children, custom->>'partner' AS partner FROM people.person
+        WHERE tenant_id = $1::uuid AND work_email = 'jan.levinson@dunder-mifflin.example'`,
+    );
+    expect(jan).toEqual({ children: 'Astrid', partner: null });
+  });
+
+  it('adds the work locations an export now names, and every person is placed in one', async () => {
+    const TENANT = '00000000-0000-4000-8000-0000000000e0';
+    const c = await fresh(TENANT, '00000000-0000-4000-8000-0000000000e9');
+    // The same file as an export writes it now: a legal entity and a work location by name.
+    let text = new TextDecoder().decode(new Uint8Array(await DEV));
+    for (const [id, name] of Object.entries(LOCATIONS)) text = text.replaceAll(id, `"${name}"`);
+    text = text.replaceAll('01a0e1d1-ef70-70ad-8cf7-9550c67358d3', 'Dunder Mifflin');
+    const { plan, done } = await importAll(c, new TextEncoder().encode(text), 'named-run');
+
+    expect(plan.steps.find((x) => x.kind === 'places')?.title).toBe(
+      'Add 4 work locations: Corporate, New York, Scranton Branch, Nashua Branch and Utica Branch',
+    );
+    // Only Gabe's start date is left for HR.
+    expect(done).toMatchObject({ created: 31, leftEmptyCount: 1 });
+    const added = await written<{ name: string }>(
+      TENANT,
+      `SELECT name FROM people.location WHERE tenant_id = $1::uuid ORDER BY name`,
+    );
+    expect(added.map((l) => l.name)).toEqual([
+      'Corporate, New York',
+      'Nashua Branch',
+      'Scranton Branch',
+      'Utica Branch',
+    ]);
+    const people = await written<Written>(TENANT, PEOPLE);
+    const at = Object.fromEntries(people.map((p) => [p.email, p.location]));
+    expect(at['jan.levinson@dunder-mifflin.example']).toBe('Corporate, New York');
+    expect(at['michael.scott@dunder-mifflin.example']).toBe('Scranton Branch');
+    // Every row that names one: all but Bob's, which names none.
+    expect(people.filter((p) => p.location !== null)).toHaveLength(30);
   });
 });

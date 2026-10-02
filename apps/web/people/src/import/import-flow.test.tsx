@@ -226,6 +226,11 @@ describe('ImportFlow', () => {
     ).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
 
+    // A manager the file names that is nowhere here: listed, never blocking.
+    expect(screen.getByRole('table', { name: 'Left empty for HR' })).toHaveTextContent(
+      'nobody in this company or this file is called “Gabe Lewis”',
+    );
+
     await user.click(screen.getByRole('button', { name: 'See rows' }));
     expect(screen.getByText('D7 — empty')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Download all 1 as CSV' }));
@@ -293,6 +298,9 @@ describe('ImportFlow', () => {
       screen.getByRole('heading', { name: 'Imported 19 people and created 2 fields' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/took 4 s/)).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Left empty for HR' })).toHaveTextContent(
+      'M14 — “Gabe Lewis”',
+    );
     expect(screen.getByRole('link', { name: 'Edit Laptop serial' })).toHaveAttribute(
       'href',
       '/settings/people/fields?q=Laptop%20serial',

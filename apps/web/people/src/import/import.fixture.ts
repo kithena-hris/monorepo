@@ -1,5 +1,5 @@
 import type { ImportStage, ProposedColumn } from './import-flow';
-import type { ImportDoneView, ImportPlanView } from './import-plan';
+import type { ImportDoneView, ImportPlanView, LeftEmptyRow } from './import-plan';
 import type { ColumnProposal, NewFieldsView } from './new-fields';
 
 /**
@@ -179,6 +179,14 @@ export const NEW_FIELDS: NewFieldsView = {
   ],
 };
 
+/** A manager from another system's file, found nowhere here. */
+const LEFT_EMPTY: LeftEmptyRow = {
+  row: 14,
+  cell: 'M14 — “Gabe Lewis”',
+  label: 'Manager',
+  reason: 'nobody in this company or this file is called “Gabe Lewis”',
+};
+
 export const PLAN: ImportPlanView = {
   steps: [
     {
@@ -196,7 +204,19 @@ export const PLAN: ImportPlanView = {
     {
       kind: 'people',
       title: 'Create 19 people',
-      detail: '1 blocked row is left out, in a file you can fix and import again.',
+      detail: '1 row has no name and no work email, so it’s skipped: nobody to create.',
+    },
+    {
+      kind: 'ids',
+      title: 'Employee IDs in the file are ignored; Kithena gives each new person one',
+      detail:
+        'Rows match people already here by work email; a row that matches nobody is a new person.',
+    },
+    {
+      kind: 'refs',
+      title: 'Leave 1 reference empty for HR',
+      detail:
+        'Manager on those rows points at nobody in this company or this file. The rows import without it; each is listed below.',
     },
     {
       kind: 'hr',
@@ -246,12 +266,16 @@ export const PLAN: ImportPlanView = {
       blocked: [
         { row: 7, person: null, problem: 'a new person needs a work email', cell: 'D7 — empty' },
       ],
+      leftEmpty: [LEFT_EMPTY],
+      leftEmptyCount: 1,
     },
     blockedUrl: 'https://store.test/blocked.csv',
   },
 };
 
 export const DONE: ImportDoneView = {
+  leftEmpty: [LEFT_EMPTY],
+  leftEmptyCount: 1,
   step: 'done',
   file: FILE,
   created: 19,

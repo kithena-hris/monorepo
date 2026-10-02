@@ -93,7 +93,7 @@ const FORMAT: Readonly<Record<string, string>> = { csv: 'CSV', xlsx: 'Excel', pd
 export const titleOf = (e: TransferEntry): string =>
   e.title ?? (e.kind === 'import' ? 'An imported file' : 'An export');
 
-/** What came of it, in words, and how loudly: blocked rows are a warning. */
+/** What came of it, in words, and how loudly: skipped rows are a warning. */
 export function resultOf(e: TransferEntry): {
   readonly text: string;
   readonly tone: 'success' | 'warning' | 'neutral';
@@ -106,7 +106,7 @@ export function resultOf(e: TransferEntry): {
     const parts = [
       created > 0 ? `${String(created)} created` : null,
       updated > 0 ? `${String(updated)} updated` : null,
-      `${String(blocked)} blocked`,
+      `${String(blocked)} skipped`,
     ].filter((p) => p !== null);
     return { text: parts.join(' · '), tone: 'warning' };
   }

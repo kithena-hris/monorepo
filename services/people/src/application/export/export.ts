@@ -312,7 +312,7 @@ export async function buildExport(
           }),
         ]
       : request.format === 'csv'
-        ? csvFiles(flat, repeating, rows, stamp, about)
+        ? csvFiles(flat, repeating, withPlaceNames(rows, flat, calendar), stamp, about)
         : [
             {
               name: `people-${stamp}.xlsx`,
@@ -320,7 +320,7 @@ export async function buildExport(
               bytes: await workbook(
                 flat,
                 repeating,
-                rows,
+                withPlaceNames(rows, flat, calendar),
                 version,
                 judgedBy,
                 request,
@@ -384,6 +384,43 @@ async function photoArchive(
   return entries.length === 0
     ? null
     : { name: `photos-${stamp}.zip`, mediaType: 'application/zip', bytes: storedZip(entries) };
+}
+
+/**
+ * A legal entity or work location as its name, in a file: what a person
+ * reads, and what another company's import can find or add by name. An id
+ * means nothing outside this company. The importer reads a name or an id of
+ * its own back to the same place, so the file still round-trips. A person
+ * reference stays an id: the file's own person id column resolves it.
+ */
+function withPlaceNames(
+  rows: readonly Row[],
+  columns: readonly AttributeDefinition[],
+  calendar: Pick<TenantCalendar, 'entities' | 'locations'>,
+): Row[] {
+  const places = columns.filter(
+    (d) => d.typeConfig.kind === 'legal_entity_ref' || d.typeConfig.kind === 'location_ref',
+  );
+  const nameOf = (id: unknown) =>
+    typeof id === 'string'
+      ? (calendar.entities.get(id)?.name ?? calendar.locations.get(id)?.name ?? id)
+      : id;
+  return rows.map((r) =>
+    places.every((d) => r.person.attributes[d.key] === undefined)
+      ? r
+      : {
+          ...r,
+          person: {
+            ...r.person,
+            attributes: {
+              ...r.person.attributes,
+              ...Object.fromEntries(
+                places.map((d) => [d.key, nameOf(r.person.attributes[d.key])]),
+              ),
+            },
+          },
+        },
+  );
 }
 
 /* ----------------------------------------------------------------- cells -- */

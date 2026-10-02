@@ -58,13 +58,16 @@ describe('Priya’s 412 rows (PRD §14.4)', () => {
 
     expect(dry.rowsRead).toBe(412);
     expect(dry.counts).toEqual({
-      create: 368,
+      // §14.4's 14 blocked rows import now: nothing blocks a row that is somebody.
+      create: 382,
       update: 21,
       unchanged: 4,
-      blocked: 14,
+      blocked: 0,
       duplicate: 5,
     });
-    expect(dry.blockedBy).toEqual({ 'missing work_email': 11, 'invalid hire_date': 3 });
+    expect(dry.blockedBy).toEqual({});
+    // 3 unreadable hire dates, and 11 that wait for a work email: each named for HR.
+    expect(dry.leftEmpty.filter((l) => l.key === 'hire_date')).toHaveLength(14);
     expect(dry.incomplete).toEqual({ count: 88, byKey: { cost_centre: 61, home_address: 27 } });
     expect(
       dry.rows
@@ -91,12 +94,14 @@ describe('the three outcomes, one at a time', () => {
     Country: 'GB',
   };
 
-  it('missing core identity blocks the row, naming the column', async () => {
-    const { result } = await run(csv(HEADERS, [row({ ...good, 'Family name': '' })]));
-    const only = result.ok ? result.value.rows[0] : undefined;
-    expect(only?.outcome).toBe('blocked');
-    expect(only?.problems).toEqual([
-      expect.objectContaining({ kind: 'missing', key: 'family_name', column: 'Family name' }),
+  it('a missing family name still imports: only a row with no name and no email is skipped', async () => {
+    const nobody = row({ 'Hire date': '2026-03-01', 'Cost centre': 'CC-2' });
+    const { result } = await run(csv(HEADERS, [row({ ...good, 'Family name': '' }), nobody]));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.rows.map((r: ClassifiedRow) => r.outcome)).toEqual(['create', 'blocked']);
+    expect(result.value.rows[1]?.problems).toEqual([
+      expect.objectContaining({ reason: 'no name and no work email: nobody to create' }),
     ]);
   });
 
@@ -120,7 +125,7 @@ describe('the three outcomes, one at a time', () => {
     expect(result.ok && result.value.incomplete.count).toBe(0);
   });
 
-  it('an invalid value blocks the row and names the cell', async () => {
+  it('an invalid value is left empty for HR, naming the cell; the row imports', async () => {
     const { result } = await run(
       csv(HEADERS, [
         row(good),
@@ -129,16 +134,14 @@ describe('the three outcomes, one at a time', () => {
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.rows.map((r: ClassifiedRow) => r.outcome)).toEqual(['create', 'blocked']);
-    expect(result.value.rows[1]).toMatchObject({
-      row: 3,
-      problems: [
-        expect.objectContaining({ kind: 'invalid', column: 'Date of birth', key: 'date_of_birth' }),
-      ],
-    });
+    expect(result.value.rows.map((r: ClassifiedRow) => r.outcome)).toEqual(['create', 'create']);
+    expect(result.value.rows[1]?.changes).not.toHaveProperty('date_of_birth');
+    expect(result.value.leftEmpty).toEqual([
+      expect.objectContaining({ row: 3, column: 'Date of birth', key: 'date_of_birth', value: '2090-01-01' }),
+    ]);
   });
 
-  it('never drops an existing person’s new hire date: with no hire date field to correct, the row blocks', async () => {
+  it('never drops an existing person’s new hire date silently: with no field to correct, it is listed for HR', async () => {
     // Priya's tenant publishes no hire_date, so there is nothing to correct
     // through and no overwrite to fall back on (§8.5, PEO-090).
     const { result } = await run(
@@ -152,15 +155,19 @@ describe('the three outcomes, one at a time', () => {
       ]),
     );
     const only = result.ok ? result.value.rows[0] : undefined;
-    expect(only?.outcome).toBe('blocked');
-    expect(only?.problems).toEqual([
-      expect.objectContaining({ kind: 'invalid', key: 'hire_date', column: 'Hire date' }),
+    expect(only?.outcome).not.toBe('blocked');
+    expect(only?.hireDateCorrection).toBeNull();
+    expect(only?.leftEmpty).toEqual([
+      expect.objectContaining({ key: 'hire_date', column: 'Hire date', value: '2025-06-01' }),
     ]);
   });
 
-  it('refuses an ambiguous date unless told the file’s order', async () => {
+  it('leaves an ambiguous date empty unless told the file’s order: provisional until HR sets it', async () => {
     const { result } = await run(csv(HEADERS, [row({ ...good, 'Hire date': '03/04/2026' })]));
-    expect(result.ok && result.value.rows[0]?.outcome).toBe('blocked');
+    const only = result.ok ? result.value.rows[0] : undefined;
+    expect(only?.outcome).toBe('create');
+    expect(only?.hireDate).toBeNull();
+    expect(only?.leftEmpty.map((l) => l.key)).toEqual(['hire_date']);
   });
 });
 
@@ -225,12 +232,10 @@ describe('a legal entity the schema asks for (PEO-123)', () => {
     expect(only?.changes).toMatchObject({ legal_entity_id: ES });
   });
 
-  it('still blocks the row when there is more than one to choose from', async () => {
+  it('imports without one when there is more than one to choose from, for HR to set', async () => {
     const only = await withEntities([ES, PT]);
-    expect(only?.outcome).toBe('blocked');
-    expect(only?.problems).toEqual([
-      expect.objectContaining({ kind: 'missing', key: 'legal_entity_id' }),
-    ]);
+    expect(only?.outcome).toBe('create');
+    expect(only?.changes).not.toHaveProperty('legal_entity_id');
   });
 });
 

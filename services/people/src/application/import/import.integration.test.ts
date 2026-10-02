@@ -193,7 +193,7 @@ const count = async (query: ReturnType<typeof sql>) =>
   Number([...(await admin.execute<{ n: string }>(query))][0]?.n);
 
 describe('an import over Postgres', () => {
-  // The first ten new hires, and one row with no work email.
+  // The first ten new hires, and one row with no work email: it imports, provisional.
   const bytes = csv(HEADERS, [...priyasRows().slice(61, 71), priyasRows()[389 + 4] ?? []]);
 
   it('writes each row in its own savepoint: the one refused leaves nothing behind', async () => {
@@ -201,9 +201,11 @@ describe('an import over Postgres', () => {
     const result = await upload(bytes, 'new-joiners-sep.csv');
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.status !== 'imported') return;
-    expect(result.value.counts).toMatchObject({ created: 9, blocked: 2 });
-    // Nine people, and no provisional orphan from the row whose claim failed.
-    expect(await count(sql`SELECT count(*) AS n FROM people.person`)).toBe(people + 9);
+    // The row with no work email comes in provisional; the one whose email
+    // somebody holds is refused by the database's claim, and only that row.
+    expect(result.value.counts).toMatchObject({ created: 10, blocked: 1 });
+    // Ten people, and no provisional orphan from the row whose claim failed.
+    expect(await count(sql`SELECT count(*) AS n FROM people.person`)).toBe(people + 10);
     expect(new TextDecoder().decode(result.value.report)).toContain('work_email is already in use');
     // The name it was uploaded under, for the shared history; never a value in it.
     const named = await admin.execute<{ name: string | null }>(
@@ -331,17 +333,18 @@ describe('an import over Postgres', () => {
 
 describe('two imports claiming the same attributes in opposite orders (PEO-106)', () => {
   // Their own tenant, with a second unique attribute: one import claims
-  // work_email then employee_number, the other employee_number then
+  // work_email then badge_number, the other badge_number then
   // work_email, each holding its first claim while the other takes its own.
   const CONTENDED = '00000000-0000-4000-8000-00000000000c';
   const P1 = '00000000-0000-4000-8000-0000000000e1';
   const P2 = '00000000-0000-4000-8000-0000000000e2';
-  const headers = ['Given name', 'Family name', 'Work email', 'Hire date', 'Employee number'];
+  const headers = ['Given name', 'Family name', 'Work email', 'Hire date', 'Badge number'];
   const withNumber = [
     ...attributes,
     define({
-      key: 'employee_number',
-      label: { default: 'Employee number' },
+      // Not the employee number: Kithena creates that, and an import never writes it.
+      key: 'badge_number',
+      label: { default: 'Badge number' },
       uniqueScope: 'tenant',
     }),
   ];
@@ -564,7 +567,7 @@ describe('two imports claiming the same attributes in opposite orders (PEO-106)'
       ),
       numbers: await count(sql`
         SELECT count(*) AS n FROM people.person_attribute_history
-         WHERE tenant_id = ${CONTENDED}::uuid AND attribute_key = 'employee_number'`),
+         WHERE tenant_id = ${CONTENDED}::uuid AND attribute_key = 'badge_number'`),
       imports: await count(
         sql`SELECT count(*) AS n FROM people.import WHERE tenant_id = ${CONTENDED}::uuid`,
       ),

@@ -780,7 +780,7 @@ describe('at 390×844, with a finger', () => {
     const history = within(screen.getByRole('list', { name: 'Imports and exports' }));
     expect(history.getByRole('link', { name: /new-joiners\.csv/ })).toBeVisible();
     // The row's line is the result, then when.
-    expect(history.getByText('12 created · 2 blocked · 15 Sep')).toBeVisible();
+    expect(history.getByText('12 created · 2 skipped · 15 Sep')).toBeVisible();
   });
 
   it('bulk edit, its preview as one card per person (PEO-071)', async () => {

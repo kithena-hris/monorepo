@@ -35,7 +35,18 @@ import type { ForExisting } from './new-fields';
  */
 
 export type PlanStepKind =
-  'setup' | 'fields' | 'people' | 'ask' | 'hr' | 'new' | 'default' | 'leave' | 'skip';
+  | 'setup'
+  | 'places'
+  | 'fields'
+  | 'people'
+  | 'ids'
+  | 'refs'
+  | 'ask'
+  | 'hr'
+  | 'new'
+  | 'default'
+  | 'leave'
+  | 'skip';
 
 export interface PlannedField {
   readonly key: string;
@@ -54,6 +65,15 @@ export interface BlockedRow {
   readonly problem: string;
   /** "D18 — empty", "F47 — “31/02/2025”". */
   readonly cell: string;
+}
+
+/** A manager or work location the file names that is nowhere here: the row imports without it. */
+export interface LeftEmptyRow {
+  readonly row: number;
+  /** "M14 — “01a0…”". */
+  readonly cell: string;
+  readonly label: string;
+  readonly reason: string;
 }
 
 export interface CellFinding {
@@ -77,6 +97,9 @@ export interface PlanReview {
     readonly blocked?: readonly BlockedRow[];
     readonly findings?: readonly CellFinding[];
     readonly sensitive?: { readonly fields: readonly string[]; readonly values: number };
+    /** The first twenty, and how many in all. */
+    readonly leftEmpty?: readonly LeftEmptyRow[];
+    readonly leftEmptyCount?: number;
   };
   readonly blockedUrl?: string | null;
 }
@@ -108,6 +131,8 @@ export interface ImportDoneView {
   readonly forReview?: number;
   readonly held?: number;
   readonly appliedWithoutApproval?: boolean;
+  readonly leftEmpty?: readonly LeftEmptyRow[];
+  readonly leftEmptyCount?: number;
   readonly fields?: readonly PlannedField[];
   readonly version?: number;
   readonly asked?: number;
@@ -124,8 +149,11 @@ const STEP_LOOK: Record<
   { readonly icon: ReactNode; readonly tone: 'accent' | 'success' | 'info' | 'warning' | 'neutral' }
 > = {
   setup: { icon: <icons.settings />, tone: 'accent' },
+  places: { icon: <icons.location />, tone: 'accent' },
   fields: { icon: <icons.add />, tone: 'accent' },
   people: { icon: <icons.people />, tone: 'success' },
+  ids: { icon: <icons.identifier />, tone: 'neutral' },
+  refs: { icon: <icons.link />, tone: 'warning' },
   ask: { icon: <icons.notifications />, tone: 'info' },
   hr: { icon: <icons.table />, tone: 'warning' },
   new: { icon: <icons.hire />, tone: 'info' },
@@ -168,6 +196,38 @@ export function PlanSteps({
   );
 }
 
+const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
+  { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
+  { id: 'cell', header: 'Cell', cell: (r) => <span className="font-mono text-xs">{r.cell}</span> },
+  { id: 'label', header: 'Field', cell: (r) => r.label },
+  { id: 'reason', header: 'Why it’s left empty', cell: (r) => r.reason },
+];
+
+/** References left empty for HR, each where it is and why. */
+function LeftEmpty({
+  rows,
+  count,
+}: {
+  readonly rows: readonly LeftEmptyRow[];
+  readonly count: number;
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-3">
+      <h2 className="text-md font-semibold">Left empty for HR</h2>
+      <p className="text-sm text-fg-muted">
+        {count > rows.length ? `The first ${String(rows.length)} of ${String(count)}. ` : ''}
+        These rows import without the value. Set each on the person’s profile.
+      </p>
+      <DataTable
+        label="Left empty for HR"
+        rows={rows}
+        columns={LEFT_EMPTY_COLUMNS}
+        rowId={(r) => `${String(r.row)}/${r.cell}`}
+      />
+    </div>
+  );
+}
+
 export interface PlanStepProps {
   readonly plan: ImportPlanView;
   /** HR may write values that need approval without it (PEO-077). */
@@ -195,6 +255,7 @@ export function PlanStep({
   const { counts } = plan.review.dryRun;
   const blocked = plan.review.dryRun.blocked ?? [];
   const findings = plan.review.dryRun.findings ?? [];
+  const leftEmpty = plan.review.dryRun.leftEmpty ?? [];
   const sensitive = plan.review.dryRun.sensitive ?? { fields: [], values: 0 };
   const importing = counts.create + counts.update;
   const blockedUrl = plan.review.blockedUrl ?? null;
@@ -203,7 +264,7 @@ export function PlanStep({
     (plan.problems.length > 0
       ? plan.problems.map((p) => p.message).join(' ')
       : importing === 0 && plan.fields.length === 0 && plan.setup === null
-        ? 'No row of the file would import. Fix the blocked rows and upload it again.'
+        ? 'No row of the file has a name or a work email, so there is nobody to import.'
         : null);
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
@@ -213,7 +274,7 @@ export function PlanStep({
       header: 'Cell',
       cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
     },
-    { id: 'problem', header: 'Why it’s blocked', cell: (r) => r.problem },
+    { id: 'problem', header: 'Why it’s skipped', cell: (r) => r.problem },
   ];
   const findingColumns: DataColumn<CellFinding>[] = [
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
@@ -245,7 +306,7 @@ export function PlanStep({
         {seeingRows && blocked.length > 0 ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-md font-semibold">Blocked rows</h2>
+              <h2 className="text-md font-semibold">Skipped rows</h2>
               {blockedUrl === null ? null : (
                 <Button
                   size="sm"
@@ -259,15 +320,19 @@ export function PlanStep({
               )}
             </div>
             <p className="text-sm text-fg-muted">
-              Fix the cells in the file and upload it again. It maps itself the way this one did.
+              Each has no name and no work email, or is somebody already in the file. Nothing else
+              is skipped.
             </p>
             <DataTable
-              label="Blocked rows"
+              label="Skipped rows"
               rows={blocked}
               columns={blockedColumns}
               rowId={(r) => `${String(r.row)}/${r.cell}`}
             />
           </div>
+        ) : null}
+        {leftEmpty.length > 0 ? (
+          <LeftEmpty rows={leftEmpty} count={plan.review.dryRun.leftEmptyCount ?? leftEmpty.length} />
         ) : null}
         {findings.length > 0 ? (
           <div className="flex flex-col gap-3">
@@ -400,7 +465,7 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         {done.blocked > 0 ? (
           <Alert
             tone="info"
-            title={`${plural(done.blocked, 'row was', 'rows were')} left out`}
+            title={`${plural(done.blocked, 'row was', 'rows were')} skipped`}
             action={
               done.reportUrl === undefined ? undefined : (
                 <Button asChild size="sm">
@@ -409,7 +474,7 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
               )
             }
           >
-            They’re in the blocked-row file, ready to fix and import again.
+            Each had no name and no work email, or repeated somebody. The file says which.
           </Alert>
         ) : null}
         {(done.forReview ?? 0) > 0 ? (
@@ -421,6 +486,9 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
             )}{' '}
             to HR’s review.
           </Alert>
+        ) : null}
+        {(done.leftEmptyCount ?? 0) > 0 ? (
+          <LeftEmpty rows={done.leftEmpty ?? []} count={done.leftEmptyCount ?? 0} />
         ) : null}
         {(done.held ?? 0) > 0 ? (
           <Alert tone="info">

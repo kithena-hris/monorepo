@@ -104,6 +104,7 @@ describe('the XLSX register', () => {
       'Given name',
       'Family name',
       'Date of birth',
+      'Work email',
       'Employee number',
       'Job title',
       'Base salary',
@@ -453,7 +454,8 @@ describe('round-tripping (§15.3)', () => {
       plan.blockedItems.map((b) => [b.sheet, b.cell, b.personId, b.kind]),
     ).toEqual([
       ['Languages', `D${String(adaItem)}`, ADA, 'invalid'],
-      ['Languages', 'D9', '00000000-0000-4000-8000-00000000dead', 'unknown_person'],
+      // An id no row of the file has: only a name for a row, so nobody's, and named.
+      ['Languages', 'D9', null, 'invalid'],
     ]);
     expect(store.history.slice(history).map((h) => [h.personId, h.attributeKey])).toEqual([
       [ADA, 'cost_centre'],
@@ -461,6 +463,6 @@ describe('round-tripping (§15.3)', () => {
     const report = new TextDecoder().decode(result.report);
     expect(report).toContain(`Languages!${String(adaItem)}`);
     expect(report).toContain('Languages!9');
-    expect(report).toContain('no person with this id');
+    expect(report).toContain('no row on the People sheet that will import has this person id');
   });
 });

@@ -3,6 +3,7 @@ import type { AttributeDefinition, AttributeDefinitionInput } from '@kithena/con
 
 import { canWrite, type ViewerRelations } from '../../domain/access/field-access.js';
 import { aliasOf } from '../../domain/import/aliases.js';
+import { KITHENA_CREATES, kithenaCreates } from '../../domain/import/identifiers.js';
 import type { Attribute, SchemaDraft } from '../../domain/schema/draft.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import { PERSON_ID_COLUMN, type ParsedFile } from './parse.js';
@@ -186,6 +187,9 @@ export async function proposeMapping(input: ProposeInput): Promise<readonly Colu
   return proposed.map((p, index): ColumnMapping => {
     const header = input.file.headers[index] ?? '';
     let mapping: ColumnMapping = p ?? fromJudgment(index, header, judgments.get(header), byKey);
+    // A person id or an employee number is Kithena's to create: the column is
+    // shown, named for what it is, and never imported (`identifiers.ts`).
+    if (kithenaCreates(mapping.key)) return createdHere(mapping);
 
     const key = mapping.key;
     if (mapping.status === 'mapped' && key !== null) {
@@ -201,6 +205,15 @@ export async function proposeMapping(input: ProposeInput): Promise<readonly Colu
     return authorise(mapping, byKey, input.relations);
   });
 }
+
+/** A column holding an identifier Kithena creates: shown, never imported. */
+const createdHere = (mapping: ColumnMapping): ColumnMapping => ({
+  ...mapping,
+  status: 'ignored',
+  source: 'system',
+  confidence: null,
+  reason: KITHENA_CREATES,
+});
 
 function fromJudgment(
   index: number,
@@ -279,6 +292,10 @@ export function resolveMapping(
   const resolved = proposed.map((m): ColumnMapping => {
     const choice = choices[m.index];
     if (!choice) return m;
+    // Kithena creates identifiers, whatever a request asks: the column stays ignored.
+    if (kithenaCreates(m.key) || (choice.kind === 'map' && kithenaCreates(choice.key))) {
+      return createdHere({ ...m, key: kithenaCreates(m.key) ? m.key : null });
+    }
     if (choice.kind === 'ignore')
       return { ...m, status: 'ignored', reason: 'ignored by the importer' };
     const known = isSystem(choice.key) || byKey.has(choice.key);

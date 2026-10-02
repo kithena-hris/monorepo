@@ -129,6 +129,10 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
       deps.schema.currentVersion(tx, asking.tenantId),
       deps.service.access.count(tx, asking),
     ]);
+    // Where new people are numbered (PEO-101), and each entity's country and zone.
+    const org = deps.service.org;
+    const entities = org ? await org.legalEntities(tx, asking) : ok([]);
+    const schemes = org ? await org.numberings(tx, asking) : ok([]);
     // Nothing published: the file was read against what setup would publish.
     const setup = published === null ? await setupDraft(deps, tx, asking) : null;
     if (setup !== null && !setup.ok) return setup;
@@ -142,6 +146,8 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
           ? null
           : { country: setup.value.country, countryName: setup.value.countryName },
       existing: people.ok ? people.value.all : 0,
+      entities: entities.ok ? entities.value : [],
+      numbered: new Set((schemes.ok ? schemes.value : []).map((n) => n.legalEntityId)),
     });
   });
   if (!read.ok) return read;
@@ -475,6 +481,9 @@ async function planned(
     kept: ColumnProposal[];
     built: ReturnType<typeof draftWithNewFields>;
     view: ImportPlanView;
+    /** Work locations this run adds, and entities it starts numbering: an administrator's run only. */
+    places: readonly { readonly name: string; readonly legalEntityId: string }[];
+    numbering: readonly string[];
   }>
 > {
   const gathered = await gather(deps, asking, input);
@@ -508,12 +517,25 @@ async function planned(
   if (!review.ok) return review;
   const keptColumns = new Set(fields.map((f) => f.column));
   const leftOut = g.seen.filter((s) => !keptColumns.has(s.column)).map((s) => s.header);
+  const dry = review.value.dryRun;
+  // An administrator's run adds the work locations the file names and starts
+  // numbering where new people land without a scheme: Kithena numbers them.
+  const canSet = g.isAdmin && deps.service.org !== undefined;
   const plan = planOf({
     setup: g.setup === null ? null : { countryName: g.setup.countryName },
     version: next.value.version,
     fields,
-    rows: review.value.dryRun.counts,
+    rows: dry.counts,
     leftOut,
+    identifiers: {
+      inFile: g.file.identifiers,
+      numbered: canSet || dry.createdIn.every((e) => g.numbered.has(e)),
+    },
+    newLocations: { names: dry.newLocations.map((l) => l.name), added: canSet },
+    leftEmpty: {
+      count: dry.leftEmptyCount,
+      labels: [...new Set(dry.leftEmpty.map((l) => l.label))],
+    },
   });
   const sum = (kind: string) =>
     fields.filter((f) => f.forExisting.kind === kind).reduce((n, f) => n + f.missing, 0);
@@ -534,6 +556,8 @@ async function planned(
       asked: sum('ask'),
       forHr: sum('hr'),
     },
+    places: canSet ? dry.newLocations : [],
+    numbering: canSet ? dry.createdIn.filter((e) => !g.numbered.has(e)) : [],
   });
 }
 
@@ -580,7 +604,7 @@ export async function runImport(
   const started = Date.parse(deps.clock.instant());
   const got = await planned(deps, asking, input);
   if (!got.ok) return got;
-  const { g, kept, view: plan } = got.value;
+  const { g, kept, view: plan, places, numbering } = got.value;
   if (plan.blocked !== null) {
     return err(failure(g.isAdmin ? 'DRAFT_HAS_CHANGES' : 'FORBIDDEN', plan.blocked));
   }
@@ -593,11 +617,15 @@ export async function runImport(
       ]),
     );
   }
-  if (g.published === null || kept.length > 0) {
+  const publishing = g.published === null || kept.length > 0;
+  if (publishing || places.length > 0 || numbering.length > 0) {
     const today = deps.clock.instant().slice(0, 10);
     const added = await run(deps.service, asking.tenantId, async (tx) => {
       const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
       if (!everyone.isAdmin) return err(failure('FORBIDDEN', ONLY_ADMIN));
+      const settled = await settle(deps, tx, asking, g, places, numbering);
+      if (!settled.ok) return settled;
+      if (!publishing) return ok(null);
       if (g.published === null) {
         // Setup's own seeding, then this import's fields on top: one publish.
         const seeded = await seedSetup(tx, asking.tenantId, g.setup?.country ?? null, 'all');
@@ -648,7 +676,7 @@ export async function runImport(
       : {}),
   });
   if (!done.ok) {
-    if (kept.length === 0 && g.published !== null) return done;
+    if (!publishing) return done;
     // The fields are in; the import is not. Saying so is the honest answer,
     // and running it again finds the columns mapped to the new fields.
     return err({
@@ -666,6 +694,63 @@ export async function runImport(
     finishedAt,
     tookMs: Math.max(0, Date.parse(finishedAt) - started),
   });
+}
+
+/**
+ * What the company needs before the rows go in, in the run's transaction:
+ * the work locations the file names that are not here yet, each in the
+ * legal entity of the first row naming it on that entity's zone, and
+ * numbering for each entity new people join without a scheme — the entity's
+ * country as the prefix, five digits, from 1 (`US-00001`). Both through the
+ * settings' own use cases, so they are checked, evented and audited as if an
+ * administrator had made them there.
+ */
+async function settle(
+  deps: NewFieldsDeps,
+  tx: Tx,
+  asking: Asking,
+  g: Gathered,
+  places: readonly { readonly name: string; readonly legalEntityId: string }[],
+  numbering: readonly string[],
+): Promise<Result<null>> {
+  const org = deps.service.org;
+  if (org === undefined) return ok(null);
+  const entityOf = new Map(g.entities.map((e) => [e.id, e]));
+  for (const place of places) {
+    const entity = entityOf.get(place.legalEntityId);
+    if (entity === undefined) continue;
+    const created = await org.createLocation(tx, {
+      ...asking,
+      legalEntityId: entity.id,
+      name: place.name,
+      country: entity.country,
+      timeZone: entity.timeZone,
+    });
+    if (!created.ok) {
+      return err({
+        ...created.error,
+        message: `The work location “${place.name}” could not be added: ${created.error.message}. Nothing was imported.`,
+      });
+    }
+  }
+  for (const id of numbering) {
+    const entity = entityOf.get(id);
+    if (entity === undefined) continue;
+    const started = await org.setNumbering(tx, {
+      ...asking,
+      legalEntityId: id,
+      prefix: `${entity.country}-`,
+      digits: 5,
+      start: 1,
+    });
+    if (!started.ok) {
+      return err({
+        ...started.error,
+        message: `Employee numbering could not be started for ${entity.name}: ${started.error.message}. Nothing was imported.`,
+      });
+    }
+  }
+  return ok(null);
 }
 
 /** Every person HR may list, page by page. */

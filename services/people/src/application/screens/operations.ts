@@ -20,9 +20,10 @@ import {
 import type { ListedDelivery, ListedEndpoint } from '../../infrastructure/webhooks/list.js';
 import type { EndpointInput, WebhookService } from '../../infrastructure/webhooks/webhooks.js';
 import { visibleTo } from '../../domain/access/field-access.js';
+import { kithenaCreates } from '../../domain/import/identifiers.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { importTemplate } from '../import/template.js';
-import { dryRun, type ClassifiedRow } from '../import/dry-run.js';
+import { dryRun, type ClassifiedRow, type LeftEmpty } from '../import/dry-run.js';
 import {
   proposeMapping,
   resolveMapping,
@@ -360,6 +361,17 @@ export type ImportStageView =
           readonly fields: readonly string[];
           readonly values: number;
         };
+        /**
+         * References the rows leave empty — a manager, legal entity or work
+         * location not in this company or this file — the first twenty, and
+         * how many in all. The rows import without them; HR fills them in.
+         */
+        readonly leftEmpty: readonly LeftEmptyView[];
+        readonly leftEmptyCount: number;
+        /** Work locations the file names that are not here yet, and the entity each would join. */
+        readonly newLocations: readonly { readonly name: string; readonly legalEntityId: string }[];
+        /** The legal entities the new people join: numbered when they are hired. */
+        readonly createdIn: readonly string[];
       };
       /**
        * The blocked rows as a file that imports once fixed: a signed link
@@ -382,7 +394,19 @@ export type ImportStageView =
       readonly held: number;
       /** HR chose to apply values that need approval without it. */
       readonly appliedWithoutApproval: boolean;
+      /** References left empty, the first twenty, and how many in all: HR's to fill in. */
+      readonly leftEmpty: readonly LeftEmptyView[];
+      readonly leftEmptyCount: number;
     };
+
+/** A reference the import leaves empty, where it is and why. Never blocking. */
+export interface LeftEmptyView {
+  readonly row: number;
+  /** `M14 — “01a0…”`, as the blocked rows name a cell. */
+  readonly cell: string;
+  readonly label: string;
+  readonly reason: string;
+}
 
 /** A step after the upload: which upload, and the mapping once there is one. */
 export interface ImportStep {
@@ -589,8 +613,11 @@ export async function completeImportUpload(
         ...Object.keys(SYSTEM_COLUMNS)
           .filter((k) => !k.startsWith('_'))
           .map((key) => ({ key, label: key.replaceAll('_', ' '), sensitive: false })),
+        // An employee number is Kithena's to create, so nothing maps to it.
         ...version.document.attributes
-          .filter((d) => d.deprecatedAt === null && visibleTo(d, everyone))
+          .filter(
+            (d) => d.deprecatedAt === null && visibleTo(d, everyone) && !kithenaCreates(d.key),
+          )
           .map((d) => ({ key: d.key, label: d.label.default, sensitive: requiresApproval(d) })),
       ],
     });
@@ -605,6 +632,8 @@ export interface NewFieldsFile {
     readonly header: string;
     readonly cells: readonly string[];
   }[];
+  /** The file holds a person id or employee number column: Kithena's to create, so ignored. */
+  readonly identifiers: boolean;
   /** Each row as the dry run reads it with the mapping so far: whom it creates or updates. */
   readonly rows: readonly {
     readonly outcome: string;
@@ -642,6 +671,7 @@ export async function newFieldsFile(
     });
     if (!planned.ok) return planned;
     return ok({
+      identifiers: proposed.some((c) => kithenaCreates(c.key)),
       unmatched: proposed
         .filter(
           (c) =>
@@ -679,6 +709,21 @@ const SHOWN = 20;
 
 function blockedOf(rows: readonly ClassifiedRow[]) {
   return rows.filter((r) => r.outcome === 'blocked' || r.outcome === 'duplicate');
+}
+
+/** A reference left empty, named as a blocked row's cell is. */
+function leftEmptyView(
+  l: LeftEmpty,
+  indexOf: ReadonlyMap<string, number>,
+  byKey: ReadonlyMap<string, { readonly label: { readonly default: string } }>,
+): LeftEmptyView {
+  const at = indexOf.get(l.column) ?? -1;
+  return {
+    row: l.row,
+    cell: at < 0 ? `row ${String(l.row)}` : `${column(at)}${String(l.row)} — “${l.value}”`,
+    label: byKey.get(l.key)?.label.default ?? l.column,
+    reason: l.reason,
+  };
 }
 
 /** The dry run: five counts, the incomplete warning and the blocked rows (§14.4). */
@@ -764,6 +809,17 @@ export async function dryRunImport(
           };
         }),
         sensitive: sensitiveOf(plan.rows, byKey),
+        leftEmpty: plan.leftEmpty.slice(0, SHOWN).map((l) => leftEmptyView(l, indexOf, byKey)),
+        leftEmptyCount: plan.leftEmpty.length,
+        newLocations: plan.newLocations,
+        createdIn: [
+          ...new Set(
+            plan.rows.flatMap((r) => {
+              const entity = r.changes['legal_entity_id'];
+              return r.outcome === 'create' && typeof entity === 'string' ? [entity] : [];
+            }),
+          ),
+        ],
       },
       report:
         blocked.length + plan.blockedItems.length === 0
@@ -862,7 +918,14 @@ export async function commitImportView(
         : { ...failure('ALREADY_IMPORTED', 'This exact file has already been imported'), link },
     );
   }
-  const { counts, reportUrl, findings } = committed.value;
+  const { counts, reportUrl, findings, leftEmpty } = committed.value;
+  const version = await run(deps.service, asking.tenantId, async (tx) =>
+    ok(await deps.service.schemas.current(tx, asking.tenantId)),
+  );
+  const byKey = new Map(
+    (version.ok ? (version.value?.document.attributes ?? []) : []).map((d) => [d.key as string, d]),
+  );
+  const indexOf = new Map(planned.value.file.headers.map((h, i) => [h, i]));
   return ok({
     step: 'done' as const,
     file: fileView(intent.name, planned.value.file),
@@ -873,6 +936,8 @@ export async function commitImportView(
     forReview: new Set(findings.map((f) => `${String(f.row)}/${f.key}`)).size,
     held: bypass ? 0 : committed.value.held,
     appliedWithoutApproval: bypass,
+    leftEmpty: leftEmpty.slice(0, SHOWN).map((l) => leftEmptyView(l, indexOf, byKey)),
+    leftEmptyCount: leftEmpty.length,
   });
 }
 
