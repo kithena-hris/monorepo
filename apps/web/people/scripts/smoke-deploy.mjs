@@ -13,7 +13,9 @@ import { verifySigned } from './verify-ssr.mjs';
  *
  * - `remoteEntry.js`, `routes.json` and the signed manifest are served, with
  *   the `vercel.json` headers the shell relies on: `no-cache` so a deploy is
- *   seen at once, `nosniff`, and CORS for a tenant origin.
+ *   seen at once, `nosniff`, and CORS for a tenant origin. The browser no
+ *   longer relies on that CORS: it loads the remote through the shell, from
+ *   `/_people/*` on the company's own host (`apps/web/src/proxy.ts`).
  * - The manifest verifies under the pinned public key and names the
  *   `people.cjs` actually served. A signing secret and a pinned key from two
  *   different pairs would otherwise ship green, and the shell would silently

@@ -605,8 +605,22 @@ the router has); a SCIM request carries no forwarded list to fall back on.
   year (2026-09-29: People screens stuck loading for one person until the
   cached files were replaced). Vercel's default revalidates with the ETag, a
   304, which is cheap and can never pin a failure.
+- **The browser never loads the remote from its own domain.** It loads it
+  from `/_people/*` on the company's own host, which the shell's `proxy.ts`
+  forwards to `PEOPLE_REMOTE_URL` with no cookie. The remote's `Cache-Control`,
+  `ETag`, 304 and `nosniff` pass through unchanged. Served cross-origin, every
+  company shared one browser cache entry per file, because they are all one
+  site. That entry kept the first company's `Access-Control-Allow-Origin`, and
+  Vercel's 304 carries none, so a second company's `import()` of
+  `remoteEntry.js` was refused: "People is unavailable" for a brand-new
+  company (2026-10-02, Meridian Freight). Same-origin, nothing is checked.
+  The remote's own CORS allowlist stays as it is. Only the server reads the
+  remote's domain directly: `routes.json`, and `ssr/*`, which it verifies
+  against the signature.
 - **The shell** gets `PEOPLE_REMOTE_URL`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY` and
   `ROUTER_URL` as `--env` on its deploy, each only when set.
+  `PEOPLE_REMOTE_URL` is read at run time, by the server and by `proxy.ts`
+  alike.
 
 People and the router are skipped with a warning while `ROUTER_URL_<ENV>` is
 unset, and the remote while its project variable is, so the workflows run green
