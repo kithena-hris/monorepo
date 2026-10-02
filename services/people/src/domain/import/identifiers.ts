@@ -36,6 +36,24 @@ export const looksLikeId = (cell: string): boolean => UUID.test(cell.trim());
 export const normalName = (s: string): string =>
   s.normalize('NFKC').trim().replaceAll(/\s+/gu, ' ').toLocaleLowerCase('en');
 
+/**
+ * What HR calls a row of the file wherever it is listed: the name on it, else
+ * the preferred name, else its work email. Never its row number alone.
+ */
+export function rowName(cells: {
+  readonly given?: string | null;
+  readonly family?: string | null;
+  readonly preferred?: string | null;
+  readonly email?: string | null;
+}): string | null {
+  const text = (v: string | null | undefined) => {
+    const t = (v ?? '').trim().replaceAll(/\s+/gu, ' ');
+    return t === '' ? null : t;
+  };
+  const name = [text(cells.given), text(cells.family)].filter((v) => v !== null).join(' ');
+  return name !== '' ? name : (text(cells.preferred) ?? text(cells.email));
+}
+
 /** One row of the file, as a reference to a person can name it. */
 export interface FileRow {
   readonly row: number;

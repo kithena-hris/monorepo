@@ -23,7 +23,7 @@ import { visibleTo } from '../../domain/access/field-access.js';
 import { kithenaCreates } from '../../domain/import/identifiers.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { importTemplate } from '../import/template.js';
-import { dryRun, type ClassifiedRow, type LeftEmpty } from '../import/dry-run.js';
+import { dryRun, rowNamesOf, type ClassifiedRow, type LeftEmpty } from '../import/dry-run.js';
 import {
   proposeMapping,
   resolveMapping,
@@ -337,6 +337,8 @@ export type ImportStageView =
         }[];
         readonly blocked: readonly {
           readonly row: number;
+          /** Who the row is, as the file names them; the work email when it has no name. */
+          readonly name: string | null;
           readonly person: string | null;
           readonly problem: string;
           /** `C14 — “x”` on the people sheet, `Languages!D7 — “x”` on another. */
@@ -348,6 +350,7 @@ export type ImportStageView =
          */
         readonly findings: readonly {
           readonly row: number;
+          readonly name: string | null;
           readonly cell: string;
           readonly label: string;
           readonly level: 'attention' | 'mismatch';
@@ -402,6 +405,8 @@ export type ImportStageView =
 /** A reference the import leaves empty, where it is and why. Never blocking. */
 export interface LeftEmptyView {
   readonly row: number;
+  /** Who the row is, as the file names them; the work email when it has no name. */
+  readonly name: string | null;
   /** `M14 — “01a0…”`, as the blocked rows name a cell. */
   readonly cell: string;
   readonly label: string;
@@ -638,6 +643,8 @@ export interface NewFieldsFile {
   readonly rows: readonly {
     readonly outcome: string;
     readonly personId: string | null;
+    /** Who the row is, as the file names them. */
+    readonly name: string | null;
     readonly cells: readonly string[];
   }[];
 }
@@ -670,6 +677,7 @@ export async function newFieldsFile(
       mapping: mapping.value,
     });
     if (!planned.ok) return planned;
+    const names = rowNamesOf(file, mapping.value);
     return ok({
       identifiers: proposed.some((c) => kithenaCreates(c.key)),
       unmatched: proposed
@@ -689,6 +697,7 @@ export async function newFieldsFile(
       rows: planned.value.rows.map((r) => ({
         outcome: r.outcome,
         personId: r.personId,
+        name: names.get(r.row) ?? null,
         cells: r.cells,
       })),
     });
@@ -716,10 +725,12 @@ function leftEmptyView(
   l: LeftEmpty,
   indexOf: ReadonlyMap<string, number>,
   byKey: ReadonlyMap<string, { readonly label: { readonly default: string } }>,
+  names: ReadonlyMap<number, string>,
 ): LeftEmptyView {
   const at = indexOf.get(l.column) ?? -1;
   return {
     row: l.row,
+    name: names.get(l.row) ?? null,
     cell: at < 0 ? `row ${String(l.row)}` : `${column(at)}${String(l.row)} — “${l.value}”`,
     label: byKey.get(l.key)?.label.default ?? l.column,
     reason: l.reason,
@@ -752,6 +763,7 @@ export async function dryRunImport(
     const plan = planned.value;
     const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
     const indexOf = new Map(file.headers.map((h, i) => [h, i]));
+    const names = rowNamesOf(file, mapping.value);
     const blocked = blockedOf(plan.rows);
     return ok({
       step: 'review' as const,
@@ -781,6 +793,7 @@ export async function dryRunImport(
             const value = at < 0 ? '' : (r.cells[at] ?? '');
             return {
               row: r.row,
+              name: names.get(r.row) ?? null,
               person: null,
               problem:
                 problem?.reason ??
@@ -793,6 +806,7 @@ export async function dryRunImport(
           }),
           ...plan.blockedItems.slice(0, SHOWN).map((item) => ({
             row: item.row,
+            name: null,
             person: item.personId,
             problem: item.reason,
             cell: `${item.sheet}!${item.cell} — ${item.value === '' ? 'empty' : `“${item.value}”`}`,
@@ -802,6 +816,7 @@ export async function dryRunImport(
           const at = indexOf.get(f.column) ?? -1;
           return {
             row: f.row,
+            name: names.get(f.row) ?? null,
             cell: at < 0 ? `row ${String(f.row)}` : `${column(at)}${String(f.row)}`,
             label: byKey.get(f.key)?.label.default ?? f.key,
             level: f.level,
@@ -809,7 +824,9 @@ export async function dryRunImport(
           };
         }),
         sensitive: sensitiveOf(plan.rows, byKey),
-        leftEmpty: plan.leftEmpty.slice(0, SHOWN).map((l) => leftEmptyView(l, indexOf, byKey)),
+        leftEmpty: plan.leftEmpty
+          .slice(0, SHOWN)
+          .map((l) => leftEmptyView(l, indexOf, byKey, names)),
         leftEmptyCount: plan.leftEmpty.length,
         newLocations: plan.newLocations,
         createdIn: [
@@ -926,6 +943,7 @@ export async function commitImportView(
     (version.ok ? (version.value?.document.attributes ?? []) : []).map((d) => [d.key as string, d]),
   );
   const indexOf = new Map(planned.value.file.headers.map((h, i) => [h, i]));
+  const names = rowNamesOf(planned.value.file, planned.value.mapping);
   return ok({
     step: 'done' as const,
     file: fileView(intent.name, planned.value.file),
@@ -936,7 +954,7 @@ export async function commitImportView(
     forReview: new Set(findings.map((f) => `${String(f.row)}/${f.key}`)).size,
     held: bypass ? 0 : committed.value.held,
     appliedWithoutApproval: bypass,
-    leftEmpty: leftEmpty.slice(0, SHOWN).map((l) => leftEmptyView(l, indexOf, byKey)),
+    leftEmpty: leftEmpty.slice(0, SHOWN).map((l) => leftEmptyView(l, indexOf, byKey, names)),
     leftEmptyCount: leftEmpty.length,
   });
 }

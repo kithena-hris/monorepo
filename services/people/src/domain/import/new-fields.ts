@@ -514,6 +514,8 @@ export interface ColumnCounts {
   readonly missing: number;
   /** People already here the file gives no value: who a default is written for. */
   readonly existingWithout: number;
+  /** The file's own rows that reach someone without a value, by name: the first twenty. */
+  readonly without: readonly string[];
 }
 
 /** The published fields a proposal must not collide with, by key. */

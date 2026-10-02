@@ -182,6 +182,10 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
           have: withValue.length,
           missing: Math.max(0, total - withValue.length),
           existingWithout: Math.max(0, existing - existingWith),
+          without: reached
+            .filter((r) => (r.cells[s.column] ?? '').trim() === '' && r.name !== null)
+            .slice(0, 20)
+            .map((r) => r.name as string),
         },
       ];
     }),
@@ -226,7 +230,7 @@ function view(g: Gathered, proposals: readonly ColumnProposal[], byModel: boolea
     blocked: g.blocked,
     proposals: proposals.map((p) => ({
       ...p,
-      counts: g.counts.get(p.column) ?? { have: 0, missing: 0, existingWithout: 0 },
+      counts: g.counts.get(p.column) ?? { have: 0, missing: 0, existingWithout: 0, without: [] },
       sensitive: sensitivity(p.field),
     })),
     sections: g.sections,

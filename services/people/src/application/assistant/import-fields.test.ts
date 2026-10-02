@@ -60,9 +60,9 @@ const FILE: NewFieldsFile = {
     }),
   ),
   rows: [
-    { outcome: 'update', personId: P1, cells: ROWS[0] ?? [] },
-    { outcome: 'update', personId: P2, cells: ROWS[1] ?? [] },
-    { outcome: 'create', personId: null, cells: ROWS[2] ?? [] },
+    { outcome: 'update', personId: P1, name: 'Ada Lovelace', cells: ROWS[0] ?? [] },
+    { outcome: 'update', personId: P2, name: 'Marco Rossi', cells: ROWS[1] ?? [] },
+    { outcome: 'create', personId: null, name: 'Ines Blanco', cells: ROWS[2] ?? [] },
   ],
 };
 
@@ -272,8 +272,19 @@ describe('proposing fields for new columns', () => {
     // Five people here and one row that creates somebody: six once it is in.
     // The file gives three of them an emergency contact, two a cost centre.
     expect(v.totalPeople).toBe(6);
-    expect(v.proposals[0]?.counts).toEqual({ have: 3, missing: 3, existingWithout: 3 });
-    expect(v.proposals[1]?.counts).toEqual({ have: 2, missing: 4, existingWithout: 3 });
+    expect(v.proposals[0]?.counts).toEqual({
+      have: 3,
+      missing: 3,
+      existingWithout: 3,
+      without: [],
+    });
+    // The file's own rows without a value, by name: HR sees who, not a row number.
+    expect(v.proposals[1]?.counts).toEqual({
+      have: 2,
+      missing: 4,
+      existingWithout: 3,
+      without: ['Ines Blanco'],
+    });
     expect(v.version).toBe(5);
     expect(v.setup).toBeNull();
   });

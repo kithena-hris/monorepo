@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { noTransaction as tx } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
-import { cellFindings, dryRun, type ClassifiedRow } from './dry-run.js';
+import { cellFindings, dryRun, rowNamesOf, type ClassifiedRow } from './dry-run.js';
 import { asking, attributes, csv, HEADERS, HR, priyasRows, priyasTenant } from './fixture.js';
 import { define, versionOf } from '../person/in-memory.js';
 import { UTC_CALENDAR } from '../../domain/org/calendar.js';
@@ -311,5 +311,25 @@ describe('doubted national identifiers in a file (PEO-125; PRD §14.5)', () => {
       }),
     ]);
     expect(JSON.stringify(found)).not.toContain('12345678A');
+  });
+});
+
+describe('each row named for HR', () => {
+  it('by the name on it, else its work email, so a listed cell says whose it is', async () => {
+    const bytes = csv(
+      ['given_name', 'family_name', 'work_email', 'hire_date'],
+      [
+        ['Pam', 'Beesly', 'pam@acme.example', '2025-01-06'],
+        ['', '', 'ines@acme.example', 'not a date'],
+        ['', '', '', ''],
+      ],
+    );
+    const { result, mapping } = await run(bytes);
+    const file = await parseUpload(bytes);
+    if (!result.ok || !file.ok) throw new Error('no dry run');
+    const names = rowNamesOf(file.value, mapping);
+    expect([...names.values()]).toEqual(['Pam Beesly', 'ines@acme.example']);
+    const [ines] = result.value.leftEmpty.filter((l) => l.key === 'hire_date');
+    expect(ines !== undefined && names.get(ines.row)).toBe('ines@acme.example');
   });
 });

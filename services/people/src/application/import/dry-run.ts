@@ -14,6 +14,7 @@ import {
   placeOf,
   type FileRow,
   type Known,
+  rowName,
 } from '../../domain/import/identifiers.js';
 import { assessCompleteness } from '../../domain/person/completeness.js';
 import type { EmployeeNumbers } from '../org/numbering.js';
@@ -456,6 +457,34 @@ export async function dryRun(
     rows,
     schemaVersion: version.version,
   });
+}
+
+/** Each row's person, as HR knows them, by row number: the name on it, else its work email. */
+export function rowNamesOf(
+  file: ParsedFile,
+  mapping: readonly ColumnMapping[],
+): ReadonlyMap<number, string> {
+  const at = (key: string) =>
+    mapping.find((m) => m.status === 'mapped' && m.key === key)?.index ?? -1;
+  const [given, family, preferred, email] = [
+    'given_name',
+    'family_name',
+    'preferred_name',
+    'work_email',
+  ].map(at);
+  return new Map(
+    file.rows.flatMap((r) => {
+      const cell = (i: number | undefined) =>
+        i === undefined || i < 0 ? null : (r.cells[i] ?? null);
+      const name = rowName({
+        given: cell(given),
+        family: cell(family),
+        preferred: cell(preferred),
+        email: cell(email),
+      });
+      return name === null ? [] : [[r.row, name] as const];
+    }),
+  );
 }
 
 /** Kinds of value that point at something in the company rather than holding a value. */
