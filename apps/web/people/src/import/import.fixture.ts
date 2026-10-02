@@ -1,6 +1,7 @@
 import type { ImportStage, ProposedColumn } from './import-flow';
 import type { ImportDoneView, ImportPlanView, LeftEmptyRow } from './import-plan';
 import type { ColumnProposal, NewFieldsView } from './new-fields';
+import type { PlacesHere, WorkplaceValue } from './work-locations';
 
 /**
  * A company's file with columns it has no field for, as People proposes,
@@ -125,7 +126,12 @@ export const NEW_FIELDS: NewFieldsView = {
   proposals: [
     {
       ...proposal({ column: 2, header: 'T-shirt size', key: 't_shirt_size' }),
-      counts: { have: 17, missing: 4, existingWithout: 1 },
+      counts: {
+        have: 17,
+        missing: 4,
+        existingWithout: 1,
+        without: ['Kevin Malone', 'Oscar Martinez', 'Angela Martin'],
+      },
       sensitive: null,
     },
     {
@@ -149,7 +155,12 @@ export const NEW_FIELDS: NewFieldsView = {
         encrypted: false,
         aiEligible: true,
       },
-      counts: { have: 17, missing: 4, existingWithout: 1 },
+      counts: {
+        have: 17,
+        missing: 4,
+        existingWithout: 1,
+        without: ['Kevin Malone', 'Oscar Martinez', 'Angela Martin'],
+      },
       sensitive: null,
     },
     {
@@ -173,7 +184,7 @@ export const NEW_FIELDS: NewFieldsView = {
         encrypted: false,
         aiEligible: false,
       },
-      counts: { have: 6, missing: 15, existingWithout: 1 },
+      counts: { have: 6, missing: 15, existingWithout: 1, without: ['Kevin Malone'] },
       sensitive: 'Special category (GDPR Article 9)',
     },
   ],
@@ -182,6 +193,7 @@ export const NEW_FIELDS: NewFieldsView = {
 /** A manager from another system's file, found nowhere here. */
 const LEFT_EMPTY: LeftEmptyRow = {
   row: 14,
+  name: 'Pam Beesly',
   cell: 'M14 — “Gabe Lewis”',
   label: 'Manager',
   reason: 'nobody in this company or this file is called “Gabe Lewis”',
@@ -216,7 +228,7 @@ export const PLAN: ImportPlanView = {
       kind: 'refs',
       title: 'Leave 1 reference empty for HR',
       detail:
-        'Manager on those rows points at nobody in this company or this file. The rows import without it; each is listed below.',
+        'Manager on those rows points at nobody in this company or this file. The rows import without it; each is listed under See rows.',
     },
     {
       kind: 'hr',
@@ -264,7 +276,13 @@ export const PLAN: ImportPlanView = {
     dryRun: {
       counts: { create: 19, update: 0, unchanged: 0, blocked: 1, duplicate: 0 },
       blocked: [
-        { row: 7, person: null, problem: 'a new person needs a work email', cell: 'D7 — empty' },
+        {
+          row: 7,
+          name: 'Toby Flenderson',
+          person: null,
+          problem: 'a new person needs a work email',
+          cell: 'D7 — empty',
+        },
       ],
       leftEmpty: [LEFT_EMPTY],
       leftEmptyCount: 1,
@@ -291,4 +309,80 @@ export const DONE: ImportDoneView = {
   forHr: 4,
   finishedAt: '2026-10-01T12:02:00.000Z',
   tookMs: 4100,
+};
+
+/** The same file with an Office column: the work locations step comes after the mapping. */
+export const MAPPING_WITH_OFFICE: Extract<ImportStage, { step: 'map' }> = {
+  ...MAPPING,
+  fields: [...MAPPING.fields, { key: 'location_id', label: 'Work location' }],
+  columns: [
+    ...MAPPING.columns,
+    column({ index: 5, header: 'Office', key: 'location_id', source: 'label' }),
+  ],
+};
+
+/** A work location id from the system the file came from: nobody's here. */
+export const FROM_ELSEWHERE = '01a0e1d1-f26f-7000-be34-a7236a53ad47';
+
+/** Its three values: close to one here, new, and another system's id. */
+export const WORKPLACES: readonly WorkplaceValue[] = [
+  {
+    key: 'scranton branch',
+    value: 'Scranton Branch',
+    rows: 12,
+    people: ['Pam Beesly', 'Jim Halpert'],
+    found: null,
+    suggestion: { id: 'l-scr', name: 'Scranton' },
+    looksLikeId: false,
+    proposed: { kind: 'map', locationId: 'l-scr' },
+  },
+  {
+    key: 'stamford',
+    value: 'Stamford',
+    rows: 5,
+    people: ['Andy Bernard', 'Karen Filippelli'],
+    found: null,
+    suggestion: null,
+    looksLikeId: false,
+    proposed: {
+      kind: 'add',
+      name: 'Stamford',
+      country: 'US',
+      timeZone: 'America/New_York',
+      legalEntityId: 'e-us',
+    },
+  },
+  {
+    key: FROM_ELSEWHERE,
+    value: FROM_ELSEWHERE,
+    rows: 2,
+    people: ['Toby Flenderson', 'Holly Flax'],
+    found: null,
+    suggestion: null,
+    looksLikeId: true,
+    proposed: { kind: 'leave' },
+  },
+];
+
+export const PLACES_HERE: PlacesHere = {
+  locations: [
+    { id: 'l-ny', name: 'New York' },
+    { id: 'l-scr', name: 'Scranton' },
+  ],
+  entities: [
+    { id: 'e-us', name: 'Dunder Mifflin Inc.', country: 'US', timeZone: 'America/New_York' },
+  ],
+  countries: [
+    { code: 'US', name: 'United States' },
+    { code: 'CA', name: 'Canada' },
+  ],
+};
+
+/** A plan whose dry run read the Office column. */
+export const PLAN_WITH_OFFICE: ImportPlanView = {
+  ...PLAN,
+  review: {
+    ...PLAN.review,
+    dryRun: { ...PLAN.review.dryRun, workplaces: WORKPLACES, here: PLACES_HERE },
+  },
 };

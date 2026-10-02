@@ -1,5 +1,6 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import {
+  COUNTRIES,
   PersonAttributeCorrected,
   PersonCompensationChanged,
   PersonHired,
@@ -23,7 +24,15 @@ import { visibleTo } from '../../domain/access/field-access.js';
 import { kithenaCreates } from '../../domain/import/identifiers.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { importTemplate } from '../import/template.js';
-import { dryRun, type ClassifiedRow, type LeftEmpty } from '../import/dry-run.js';
+import {
+  dryRun,
+  rowNamesOf,
+  type ClassifiedRow,
+  type DryRun,
+  type LeftEmpty,
+  type NewLocation,
+} from '../import/dry-run.js';
+import type { PlaceChoice } from '../../domain/import/workplaces.js';
 import {
   proposeMapping,
   resolveMapping,
@@ -337,6 +346,8 @@ export type ImportStageView =
         }[];
         readonly blocked: readonly {
           readonly row: number;
+          /** Who the row is, as the file names them; the work email when it has no name. */
+          readonly name: string | null;
           readonly person: string | null;
           readonly problem: string;
           /** `C14 — “x”` on the people sheet, `Languages!D7 — “x”` on another. */
@@ -348,6 +359,7 @@ export type ImportStageView =
          */
         readonly findings: readonly {
           readonly row: number;
+          readonly name: string | null;
           readonly cell: string;
           readonly label: string;
           readonly level: 'attention' | 'mismatch';
@@ -369,7 +381,14 @@ export type ImportStageView =
         readonly leftEmpty: readonly LeftEmptyView[];
         readonly leftEmptyCount: number;
         /** Work locations the file names that are not here yet, and the entity each would join. */
-        readonly newLocations: readonly { readonly name: string; readonly legalEntityId: string }[];
+        readonly newLocations: readonly NewLocation[];
+        /** Each work location value of the file, its people, and what is proposed for it. */
+        readonly workplaces: DryRun['workplaces'];
+        /** The work locations and legal entities here, to map a value to or add one in. */
+        readonly here: DryRun['here'] & {
+          /** The countries a new work location may be in. */
+          readonly countries: readonly { readonly code: string; readonly name: string }[];
+        };
         /** The legal entities the new people join: numbered when they are hired. */
         readonly createdIn: readonly string[];
       };
@@ -402,6 +421,8 @@ export type ImportStageView =
 /** A reference the import leaves empty, where it is and why. Never blocking. */
 export interface LeftEmptyView {
   readonly row: number;
+  /** Who the row is, as the file names them; the work email when it has no name. */
+  readonly name: string | null;
   /** `M14 — “01a0…”`, as the blocked rows name a cell. */
   readonly cell: string;
   readonly label: string;
@@ -415,6 +436,8 @@ export interface ImportStep {
   readonly mapping?: Readonly<Record<number, string | null>>;
   /** On commit: HR's "apply sensitive values without approval" (PEO-077). */
   readonly applySensitiveWithoutApproval?: boolean;
+  /** HR's choice for each work location value, by `placeKey` (the import's own step). */
+  readonly places?: Readonly<Record<string, PlaceChoice>>;
 }
 
 /** Where the browser puts the file, and how (§14.2). */
@@ -638,6 +661,8 @@ export interface NewFieldsFile {
   readonly rows: readonly {
     readonly outcome: string;
     readonly personId: string | null;
+    /** Who the row is, as the file names them. */
+    readonly name: string | null;
     readonly cells: readonly string[];
   }[];
 }
@@ -670,6 +695,7 @@ export async function newFieldsFile(
       mapping: mapping.value,
     });
     if (!planned.ok) return planned;
+    const names = rowNamesOf(file, mapping.value);
     return ok({
       identifiers: proposed.some((c) => kithenaCreates(c.key)),
       unmatched: proposed
@@ -689,6 +715,7 @@ export async function newFieldsFile(
       rows: planned.value.rows.map((r) => ({
         outcome: r.outcome,
         personId: r.personId,
+        name: names.get(r.row) ?? null,
         cells: r.cells,
       })),
     });
@@ -716,10 +743,12 @@ function leftEmptyView(
   l: LeftEmpty,
   indexOf: ReadonlyMap<string, number>,
   byKey: ReadonlyMap<string, { readonly label: { readonly default: string } }>,
+  names: ReadonlyMap<number, string>,
 ): LeftEmptyView {
   const at = indexOf.get(l.column) ?? -1;
   return {
     row: l.row,
+    name: names.get(l.row) ?? null,
     cell: at < 0 ? `row ${String(l.row)}` : `${column(at)}${String(l.row)} — “${l.value}”`,
     label: byKey.get(l.key)?.label.default ?? l.column,
     reason: l.reason,
@@ -747,11 +776,13 @@ export async function dryRunImport(
       ...asking,
       file,
       mapping: mapping.value,
+      ...(step.places === undefined ? {} : { places: step.places }),
     });
     if (!planned.ok) return planned;
     const plan = planned.value;
     const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
     const indexOf = new Map(file.headers.map((h, i) => [h, i]));
+    const names = rowNamesOf(file, mapping.value);
     const blocked = blockedOf(plan.rows);
     return ok({
       step: 'review' as const,
@@ -781,6 +812,7 @@ export async function dryRunImport(
             const value = at < 0 ? '' : (r.cells[at] ?? '');
             return {
               row: r.row,
+              name: names.get(r.row) ?? null,
               person: null,
               problem:
                 problem?.reason ??
@@ -793,6 +825,7 @@ export async function dryRunImport(
           }),
           ...plan.blockedItems.slice(0, SHOWN).map((item) => ({
             row: item.row,
+            name: null,
             person: item.personId,
             problem: item.reason,
             cell: `${item.sheet}!${item.cell} — ${item.value === '' ? 'empty' : `“${item.value}”`}`,
@@ -802,6 +835,7 @@ export async function dryRunImport(
           const at = indexOf.get(f.column) ?? -1;
           return {
             row: f.row,
+            name: names.get(f.row) ?? null,
             cell: at < 0 ? `row ${String(f.row)}` : `${column(at)}${String(f.row)}`,
             label: byKey.get(f.key)?.label.default ?? f.key,
             level: f.level,
@@ -809,9 +843,19 @@ export async function dryRunImport(
           };
         }),
         sensitive: sensitiveOf(plan.rows, byKey),
-        leftEmpty: plan.leftEmpty.slice(0, SHOWN).map((l) => leftEmptyView(l, indexOf, byKey)),
+        leftEmpty: plan.leftEmpty
+          .slice(0, SHOWN)
+          .map((l) => leftEmptyView(l, indexOf, byKey, names)),
         leftEmptyCount: plan.leftEmpty.length,
         newLocations: plan.newLocations,
+        workplaces: plan.workplaces,
+        here: {
+          ...plan.here,
+          countries:
+            plan.workplaces.length === 0
+              ? []
+              : COUNTRIES.map((c) => ({ code: c.code, name: c.name })),
+        },
         createdIn: [
           ...new Set(
             plan.rows.flatMap((r) => {
@@ -899,6 +943,7 @@ export async function commitImportView(
     mapping: planned.value.mapping,
     fileName: intent.name,
     ...(bypass ? { applySensitiveWithoutApproval: true } : {}),
+    ...(step.places === undefined ? {} : { places: step.places }),
   });
   if (!committed.ok) return committed;
   // Imported, or found imported already: either way the upload has done its
@@ -926,6 +971,7 @@ export async function commitImportView(
     (version.ok ? (version.value?.document.attributes ?? []) : []).map((d) => [d.key as string, d]),
   );
   const indexOf = new Map(planned.value.file.headers.map((h, i) => [h, i]));
+  const names = rowNamesOf(planned.value.file, planned.value.mapping);
   return ok({
     step: 'done' as const,
     file: fileView(intent.name, planned.value.file),
@@ -936,7 +982,7 @@ export async function commitImportView(
     forReview: new Set(findings.map((f) => `${String(f.row)}/${f.key}`)).size,
     held: bypass ? 0 : committed.value.held,
     appliedWithoutApproval: bypass,
-    leftEmpty: leftEmpty.slice(0, SHOWN).map((l) => leftEmptyView(l, indexOf, byKey)),
+    leftEmpty: leftEmpty.slice(0, SHOWN).map((l) => leftEmptyView(l, indexOf, byKey, names)),
     leftEmptyCount: leftEmpty.length,
   });
 }

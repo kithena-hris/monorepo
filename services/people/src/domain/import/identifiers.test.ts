@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { kithenaCreates, personRefOf, placeOf, PERSON_ID_COLUMN } from './identifiers.js';
+import { kithenaCreates, personRefOf, placeOf, rowName, PERSON_ID_COLUMN } from './identifiers.js';
 
 /**
  * Identifiers are Kithena's (the user, in production: "Employee id should not
@@ -91,5 +91,22 @@ describe('a reference to a place', () => {
       reason: 'not in this company: an id from another system',
     });
     expect(placeOf('Utica Branch', places)).toEqual({ kind: 'none', reason: '“Utica Branch” is archived' });
+  });
+});
+
+/**
+ * Every listed row or cell is named by the person on it (the user: "Pam
+ * Beesly — Location isn't a workplace yet", not "Row 7, F7").
+ */
+describe('what HR calls a row of the file', () => {
+  it.each([
+    [{ given: 'Pam', family: 'Beesly' }, 'Pam Beesly'],
+    [{ given: '  Pam ', family: null, preferred: null }, 'Pam'],
+    [{ given: null, family: 'Beesly' }, 'Beesly'],
+    [{ preferred: 'Pammy', email: 'pam@dm.example' }, 'Pammy'],
+    [{ given: '', family: ' ', email: ' pam@dm.example ' }, 'pam@dm.example'],
+    [{}, null],
+  ])('%o is %s', (cells, name) => {
+    expect(rowName(cells)).toBe(name);
   });
 });

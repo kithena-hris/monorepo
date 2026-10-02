@@ -562,13 +562,16 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
   it('imports every row and lists what it left empty for HR, without mapping anything by hand', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    // Import opens over Import & export, and the address keeps it.
+    // From Import & export, a page of its own, under its trail: not a modal.
     await page.goto(`${stack.shell}/people/import-export`);
     await page.waitForLoadState('networkidle');
-    await page.getByRole('link', { name: 'Start import' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Import people' });
-    await dialog.waitFor({ timeout: 30_000 });
-    await page.waitForURL(/\?import=new/u);
+    await page.getByRole('link', { name: 'Start import' }).first().click();
+    await page.waitForURL(/\/people\/import$/);
+    expect(await page.getByRole('dialog').count()).toBe(0);
+    const trail = page.getByRole('navigation', { name: 'Breadcrumb' });
+    await trail.getByRole('link', { name: 'Import & export' }).waitFor();
+    expect(await trail.getByText('Import', { exact: true }).count()).toBe(1);
+    await page.getByRole('navigation', { name: 'Importing people' }).waitFor();
 
     const broken = [
       'given_name,family_name,work_email,hire_date',
@@ -579,21 +582,26 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
     ].join('\n');
     await upload(page, 'people.csv', broken);
 
-    // One review, straight after the upload: every column maps itself (its
-    // header is the field's key), and a reload opens it again.
-    await page.waitForURL(/step=review/u, { timeout: 30_000 });
-    await page.reload();
+    // Every column maps itself: its header is the field's key.
+    const review = page.getByRole('button', { name: 'Next: review the plan' });
+    await review.waitFor({ timeout: 30_000 });
+    // Each step is its own address.
+    expect(new URL(page.url()).search).toBe('?step=map');
+    expect(await review.isEnabled()).toBe(true);
+    await review.click();
+    await page.waitForURL(/\?step=review$/);
+
+    // Nothing is blocked: Ines waits for a work email, Tom for a real start date,
+    // each named, under the plan's "See rows".
+    await page.getByRole('button', { name: 'See rows' }).click({ timeout: 30_000 });
     const left = page.getByRole('table', { name: 'Left empty for HR' });
     await left.waitFor({ timeout: 30_000 });
-    // Nothing is blocked: Ines waits for a work email, Tom for a real start date.
     expect(await left.getByRole('row').count()).toBe(3);
-    expect(await page.getByRole('button', { name: 'See rows' }).count()).toBe(0);
+    expect(await page.getByRole('table', { name: 'Skipped rows' }).count()).toBe(0);
 
-    await page.getByRole('button', { name: 'Import 4 people' }).click();
+    await page.getByRole('button', { name: 'Approve and run' }).click();
     await page.getByRole('heading', { name: /^Imported 4 people/ }).waitFor({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Done' }).click();
-    await dialog.waitFor({ state: 'detached', timeout: 30_000 });
-    expect(new URL(page.url()).search).toBe('');
+    expect(new URL(page.url()).search).toBe('?step=done');
 
     const everyone = await stack.sql<{ work_email: string | null; status: string }[]>`
       SELECT work_email, status FROM people.person WHERE tenant_id = ${TENANT}`;
@@ -604,6 +612,46 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
       'marco@acme.example active',
       'priya@acme.example provisional',
       'tom@acme.example provisional',
+    ]);
+    await context.close();
+  });
+});
+
+describe('Work locations set up inside the import', () => {
+  it('adds the one a file names, by the name HR gives it, and places its people there', async () => {
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/import`);
+    await upload(
+      page,
+      'offices.csv',
+      [
+        'given_name,family_name,work_email,hire_date,location_id',
+        'Andy,Bernard,andy@acme.example,2025-05-05,Stamford',
+        'Karen,Filippelli,karen@acme.example,2025-05-05,stamford',
+      ].join('\n'),
+    );
+    await page.getByRole('button', { name: 'Next: work locations' }).click({ timeout: 30_000 });
+    await page.waitForURL(/\?step=places$/);
+    const stamford = page.getByRole('radiogroup', { name: 'What happens to “Stamford”' });
+    expect(
+      await stamford.getByRole('radio', { name: /Add it as a new work location/ }).isChecked(),
+    ).toBe(true);
+    // Both people, by name, whatever the file's spelling.
+    expect(await page.getByText('2 people in the file: Andy Bernard, Karen Filippelli').count()).toBe(1);
+    await page.getByRole('textbox', { name: /^Name/ }).fill('Stamford Branch');
+    await page.getByRole('button', { name: 'Next: review the plan' }).click();
+    await page.getByText('Add 1 work location: Stamford Branch').waitFor({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('heading', { name: /^Imported 2 people/ }).waitFor({ timeout: 30_000 });
+
+    const placed = await stack.sql<{ work_email: string; name: string }[]>`
+      SELECT p.work_email, l.name FROM people.person p JOIN people.location l ON l.id = p.location_id
+       WHERE p.tenant_id = ${TENANT} AND p.work_email IN ('andy@acme.example', 'karen@acme.example')
+       ORDER BY p.work_email`;
+    expect(placed).toEqual([
+      { work_email: 'andy@acme.example', name: 'Stamford Branch' },
+      { work_email: 'karen@acme.example', name: 'Stamford Branch' },
     ]);
     await context.close();
   });
@@ -1389,7 +1437,7 @@ describe('An import larger than a Vercel function takes, straight to storage (§
         else if (request.method() === 'PUT') puts.push(request.url());
       });
     });
-    await page.goto(`${stack.shell}/people/import-export?import=new`);
+    await page.goto(`${stack.shell}/people/import`);
 
     // One good row and five thousand wide ones that are nobody (no name, no
     // email), so they are skipped: past 4.5 MB, and a skipped-row report past it too.
@@ -1402,7 +1450,8 @@ describe('An import larger than a Vercel function takes, straight to storage (§
     expect(Buffer.byteLength(csv)).toBeGreaterThan(4.5 * 1024 * 1024);
     await upload(page, 'big.csv', csv);
 
-    await page.waitForURL(/step=review/u, { timeout: 120_000 });
+    const review = page.getByRole('button', { name: 'Next: review the plan' });
+    await review.waitFor({ timeout: 120_000 });
     // What storage holds is the file, whole: People read it back and pinned
     // the SHA-256 of exactly these bytes.
     const [held] = await stack.sql<{ size: string; checksum: string }[]>`
@@ -1411,6 +1460,7 @@ describe('An import larger than a Vercel function takes, straight to storage (§
       size: String(Buffer.byteLength(csv)),
       checksum: createHash('sha256').update(csv).digest('hex'),
     });
+    await review.click();
     await page.getByRole('button', { name: 'See rows' }).click({ timeout: 120_000 });
     await page.getByRole('heading', { name: 'Skipped rows' }).waitFor({ timeout: 120_000 });
     // The review lists the first twenty; the file has all of them.
@@ -1423,7 +1473,7 @@ describe('An import larger than a Vercel function takes, straight to storage (§
     expect(Buffer.byteLength(report)).toBeGreaterThan(4.5 * 1024 * 1024);
     expect(report.trim().split(/\r?\n/)).toHaveLength(5_001);
 
-    await page.getByRole('button', { name: 'Import 1 person' }).click();
+    await page.getByRole('button', { name: 'Approve and run' }).click();
     await page.getByRole('heading', { name: /^Imported 1 person/ }).waitFor({ timeout: 120_000 });
     const grace = await stack.sql`
       SELECT 1 FROM people.person WHERE tenant_id = ${TENANT} AND work_email = 'grace@acme.example'`;

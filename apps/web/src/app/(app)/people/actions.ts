@@ -423,10 +423,15 @@ export async function planImport(
   uploadId: string,
   mapping: Mapping,
   proposals: readonly unknown[],
+  places?: Readonly<Record<string, unknown>>,
 ): Promise<Parsed> {
   return parsed(
     people<string>('PlanImport', {
-      input: JSON.stringify({ ...stepOf(uploadId, mapping), proposals }),
+      input: JSON.stringify({
+        ...stepOf(uploadId, mapping),
+        proposals,
+        ...(places === undefined ? {} : { places }),
+      }),
     }),
   );
 }
@@ -440,6 +445,7 @@ export async function runImport(
   mapping: Mapping,
   proposals: readonly unknown[],
   applySensitiveWithoutApproval: boolean,
+  places?: Readonly<Record<string, unknown>>,
 ): Promise<Parsed> {
   return parsed(
     people<string>('RunImport', {
@@ -447,6 +453,7 @@ export async function runImport(
         ...stepOf(uploadId, mapping),
         proposals,
         ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
+        ...(places === undefined ? {} : { places }),
       }),
     }),
   );

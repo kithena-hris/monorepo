@@ -12,7 +12,8 @@ import {
   FieldLabel,
   IconList,
   IconListItem,
-  ImportSummary,
+  Stat,
+  KeyValues,
   List,
   ListItem,
   PageSection,
@@ -24,13 +25,14 @@ import { useState, type JSX, type ReactNode } from 'react';
 import { TypeIcon } from '../settings/access';
 import type { DataType } from '../settings/model';
 import type { ForExisting } from './new-fields';
+import type { PlacesHere, WorkplaceValue } from './work-locations';
 
 /**
- * The import review's plan (design AI11) in plain words, and the done screen
- * (AI12): what it did and the fields it made.
+ * The import's last two steps (design AI11, AI12; MA9 on a phone): the plan,
+ * in plain words, approved once; then what it did and the fields it made.
  *
  * Written by People from HR's choices and a dry run against the version the
- * new fields would make. Nothing has happened until Import.
+ * new fields would make. Nothing has happened until "Approve and run".
  */
 
 export type PlanStepKind =
@@ -60,6 +62,8 @@ export interface PlannedField {
 
 export interface BlockedRow {
   readonly row: number;
+  /** Who the row is, as the file names them; the work email when it has no name. */
+  readonly name?: string | null;
   readonly person: string | null;
   readonly problem: string;
   /** "D18 — empty", "F47 — “31/02/2025”". */
@@ -69,6 +73,8 @@ export interface BlockedRow {
 /** A manager or work location the file names that is nowhere here: the row imports without it. */
 export interface LeftEmptyRow {
   readonly row: number;
+  /** Who the row is, as the file names them; the work email when it has no name. */
+  readonly name?: string | null;
   /** "M14 — “01a0…”". */
   readonly cell: string;
   readonly label: string;
@@ -77,6 +83,7 @@ export interface LeftEmptyRow {
 
 export interface CellFinding {
   readonly row: number;
+  readonly name?: string | null;
   readonly cell: string;
   readonly label: string;
   readonly level: string;
@@ -99,6 +106,9 @@ export interface PlanReview {
     /** The first twenty, and how many in all. */
     readonly leftEmpty?: readonly LeftEmptyRow[];
     readonly leftEmptyCount?: number;
+    /** Each work location value of the file, and what may be chosen for it. */
+    readonly workplaces?: readonly WorkplaceValue[];
+    readonly here?: PlacesHere;
   };
   readonly blockedUrl?: string | null;
 }
@@ -171,7 +181,11 @@ export function PlanSteps({
   readonly onSeeRows?: () => void;
   readonly seeingRows?: boolean;
 }): JSX.Element {
-  const blocked = plan.review.dryRun.counts.blocked + plan.review.dryRun.counts.duplicate;
+  // What "See rows" opens: the skipped rows, and the cells left empty for HR.
+  const blocked =
+    plan.review.dryRun.counts.blocked +
+    plan.review.dryRun.counts.duplicate +
+    (plan.review.dryRun.leftEmptyCount ?? 0);
   return (
     <IconList divided>
       {plan.steps.map((s) => (
@@ -195,7 +209,12 @@ export function PlanSteps({
   );
 }
 
+/** Who a listed row is: first, so under a finger it is the card's title. */
+const whoOf = (r: { readonly row: number; readonly name?: string | null }): string =>
+  r.name ?? `Row ${String(r.row)}`;
+
 const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
+  { id: 'name', header: 'Name', cell: whoOf },
   { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
   { id: 'cell', header: 'Cell', cell: (r) => <span className="font-mono text-xs">{r.cell}</span> },
   { id: 'label', header: 'Field', cell: (r) => r.label },
@@ -227,38 +246,47 @@ function LeftEmpty({
   );
 }
 
-/** Why the plan cannot run yet, in words; null when it can. */
-export function cannotRun(plan: ImportPlanView): string | null {
-  const { counts } = plan.review.dryRun;
-  return (
-    plan.blocked ??
-    (plan.problems.length > 0
-      ? plan.problems.map((p) => p.message).join(' ')
-      : counts.create + counts.update === 0 && plan.fields.length === 0 && plan.setup === null
-        ? 'No row of the file has a name or a work email, so there is nobody to import.'
-        : null)
-  );
+export interface PlanStepProps {
+  readonly plan: ImportPlanView;
+  /** HR may write values that need approval without it (PEO-077). */
+  readonly applyWithoutApproval: boolean;
+  readonly onApplyWithoutApprovalChange: (on: boolean) => void;
+  readonly busy: boolean;
+  readonly refused: string | null;
+  readonly onApprove: () => void;
+  readonly onChange: () => void;
+  readonly onDownloadBlocked: (url: string) => void;
 }
 
-/**
- * "Here’s everything that will happen" (design AI11), and the rows behind it:
- * what is skipped, what is left empty for HR, what the checks doubt.
- */
-export function PlanDetails({
+/** "Here's everything that will happen" (design AI11). */
+export function PlanStep({
   plan,
+  applyWithoutApproval,
+  onApplyWithoutApprovalChange,
+  busy,
+  refused,
+  onApprove,
+  onChange,
   onDownloadBlocked,
-}: {
-  readonly plan: ImportPlanView;
-  readonly onDownloadBlocked: (url: string) => void;
-}): JSX.Element {
+}: PlanStepProps): JSX.Element {
   const [seeingRows, setSeeingRows] = useState(false);
   const { counts } = plan.review.dryRun;
   const blocked = plan.review.dryRun.blocked ?? [];
   const findings = plan.review.dryRun.findings ?? [];
   const leftEmpty = plan.review.dryRun.leftEmpty ?? [];
+  const sensitive = plan.review.dryRun.sensitive ?? { fields: [], values: 0 };
+  const importing = counts.create + counts.update;
   const blockedUrl = plan.review.blockedUrl ?? null;
+  const cannot =
+    plan.blocked ??
+    (plan.problems.length > 0
+      ? plan.problems.map((p) => p.message).join(' ')
+      : importing === 0 && plan.fields.length === 0 && plan.setup === null
+        ? 'No row of the file has a name or a work email, so there is nobody to import.'
+        : null);
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
+    { id: 'name', header: 'Name', cell: whoOf },
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
@@ -268,6 +296,7 @@ export function PlanDetails({
     { id: 'problem', header: 'Why it’s skipped', cell: (r) => r.problem },
   ];
   const findingColumns: DataColumn<CellFinding>[] = [
+    { id: 'name', header: 'Name', cell: whoOf },
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
@@ -279,102 +308,135 @@ export function PlanDetails({
   ];
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <AssistantCard
-        level={2}
-        title="Here’s everything that will happen"
-        note="Written from your choices. Nothing has happened yet."
-      >
-        <PlanSteps
-          plan={plan}
-          seeingRows={seeingRows}
-          onSeeRows={() => {
-            setSeeingRows((s) => !s);
-          }}
-        />
-      </AssistantCard>
-      {seeingRows && blocked.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-md font-semibold">Skipped rows</h2>
-            {blockedUrl === null ? null : (
-              <Button
-                size="sm"
-                startIcon={<icons.download aria-hidden />}
-                onClick={() => {
-                  onDownloadBlocked(blockedUrl);
-                }}
-              >
-                Download all {counts.blocked + counts.duplicate} as CSV
-              </Button>
-            )}
+    <div className="grid items-start gap-4 @4xl/page:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="flex min-w-0 flex-col gap-4">
+        <AssistantCard
+          level={2}
+          title="Here’s everything that will happen"
+          note="Written from your choices. Nothing has happened yet."
+        >
+          <PlanSteps
+            plan={plan}
+            seeingRows={seeingRows}
+            onSeeRows={() => {
+              setSeeingRows((s) => !s);
+            }}
+          />
+        </AssistantCard>
+        {seeingRows && blocked.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-md font-semibold">Skipped rows</h2>
+              {blockedUrl === null ? null : (
+                <Button
+                  size="sm"
+                  startIcon={<icons.download aria-hidden />}
+                  onClick={() => {
+                    onDownloadBlocked(blockedUrl);
+                  }}
+                >
+                  Download all {counts.blocked + counts.duplicate} as CSV
+                </Button>
+              )}
+            </div>
+            <p className="text-sm text-fg-muted">
+              Each has no name and no work email, or is somebody already in the file. Nothing else
+              is skipped.
+            </p>
+            <DataTable
+              label="Skipped rows"
+              rows={blocked}
+              columns={blockedColumns}
+              rowId={(r) => `${String(r.row)}/${r.cell}`}
+            />
           </div>
-          <p className="text-sm text-fg-muted">
-            Each has no name and no work email, or is somebody already in the file. Nothing else is
-            skipped.
-          </p>
-          <DataTable
-            label="Skipped rows"
-            rows={blocked}
-            columns={blockedColumns}
-            rowId={(r) => `${String(r.row)}/${r.cell}`}
+        ) : null}
+        {seeingRows && leftEmpty.length > 0 ? (
+          <LeftEmpty
+            rows={leftEmpty}
+            count={plan.review.dryRun.leftEmptyCount ?? leftEmpty.length}
           />
-        </div>
-      ) : null}
-      {leftEmpty.length > 0 ? (
-        <LeftEmpty rows={leftEmpty} count={plan.review.dryRun.leftEmptyCount ?? leftEmpty.length} />
-      ) : null}
-      {findings.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          <Alert
-            tone="warning"
-            title={`Our checks suggest ${plural(findings.length, 'identifier', 'identifiers')} may be wrong`}
-          >
-            These rows will import, and HR will review each value. If a value is wrong, fix it in
-            the file first.
-          </Alert>
-          <DataTable
-            label="Identifiers to check"
-            rows={findings}
-            columns={findingColumns}
-            rowId={(r) => `${r.cell}/${r.message}`}
-          />
-        </div>
-      ) : null}
+        ) : null}
+        {findings.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <Alert
+              tone="warning"
+              title={`Our checks suggest ${plural(findings.length, 'identifier', 'identifiers')} may be wrong`}
+            >
+              These rows will import, and HR will review each value. If a value is wrong, fix it in
+              the file first.
+            </Alert>
+            <DataTable
+              label="Identifiers to check"
+              rows={findings}
+              columns={findingColumns}
+              rowId={(r) => `${r.cell}/${r.message}`}
+            />
+          </div>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-3.5">
+        <PageSection surface title="Approve">
+          <div className="flex flex-col gap-3">
+            <KeyValues
+              items={[
+                { label: 'File', value: plan.review.file.name },
+                { label: 'Rows', value: plan.review.file.rows.toLocaleString('en-GB') },
+                { label: 'New fields', value: plan.fields.length },
+                { label: 'People asked', value: plan.asked.toLocaleString('en-GB') },
+              ]}
+            />
+            {sensitive.values > 0 ? (
+              <Field orientation="horizontal">
+                <FieldLabel>Apply sensitive values without approval</FieldLabel>
+                <FieldControl>
+                  <Checkbox
+                    checked={applyWithoutApproval}
+                    onCheckedChange={(checked) => {
+                      onApplyWithoutApprovalChange(checked === true);
+                    }}
+                  />
+                </FieldControl>
+                <FieldDescription>
+                  {plural(sensitive.values, 'value', 'values')} of {sensitive.fields.join(', ')}{' '}
+                  {applyWithoutApproval
+                    ? 'are applied now. Each change records that you chose to.'
+                    : 'wait for a second HR member, who has seven days to approve each.'}
+                </FieldDescription>
+              </Field>
+            ) : null}
+            {cannot === null ? null : (
+              <Alert tone="warning" title="Not yet">
+                {cannot}
+              </Alert>
+            )}
+            {refused === null ? null : (
+              <Alert tone="danger" title="That did not go through">
+                {refused}
+              </Alert>
+            )}
+            <Button
+              variant="primary"
+              className="w-full"
+              startIcon={<icons.confirm aria-hidden />}
+              disabled={cannot !== null}
+              loading={busy}
+              loadingLabel="Running the import"
+              onClick={onApprove}
+            >
+              Approve and run
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={onChange}>
+              Change something
+            </Button>
+          </div>
+        </PageSection>
+        <p className="inline-flex items-center gap-1.5 text-xs text-fg-subtle [&_svg]:size-3.5">
+          <icons.permission aria-hidden />
+          Approved by you, run by Kithena, logged in Activity
+        </p>
+      </div>
     </div>
-  );
-}
-
-/** HR may write values that need approval without it (PEO-077). */
-export function SensitiveChoice({
-  plan,
-  checked,
-  onCheckedChange,
-}: {
-  readonly plan: ImportPlanView;
-  readonly checked: boolean;
-  readonly onCheckedChange: (on: boolean) => void;
-}): JSX.Element | null {
-  const sensitive = plan.review.dryRun.sensitive ?? { fields: [], values: 0 };
-  if (sensitive.values === 0) return null;
-  return (
-    <Field orientation="horizontal">
-      <FieldLabel>Apply sensitive values without approval</FieldLabel>
-      <FieldControl>
-        <Checkbox
-          checked={checked}
-          onCheckedChange={(on) => {
-            onCheckedChange(on === true);
-          }}
-        />
-      </FieldControl>
-      <FieldDescription>
-        {plural(sensitive.values, 'value', 'values')} of {sensitive.fields.join(', ')}{' '}
-        {checked
-          ? 'are applied now. Each change records that you chose to.'
-          : 'wait for a second HR member, who has seven days to approve each.'}
-      </FieldDescription>
-    </Field>
   );
 }
 
@@ -414,15 +476,22 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
             )}
           </div>
         </div>
-        <ImportSummary
-          label="What the import did"
-          tiles={[
-            { id: 'created', label: 'Created', count: done.created, tone: 'success' },
-            { id: 'updated', label: 'Updated', count: done.updated, tone: 'info' },
-            { id: 'asked', label: 'Asked', count: done.asked ?? 0, tone: 'neutral' },
-            { id: 'hr', label: 'For HR', count: done.forHr ?? 0, tone: 'neutral' },
-          ]}
-        />
+        <div
+          role="group"
+          aria-label="What the import did"
+          className="grid grid-cols-4 gap-2.5 touch:grid-cols-2"
+        >
+          {(
+            [
+              ['Created', done.created],
+              ['Updated', done.updated],
+              ['Asked', done.asked ?? 0],
+              ['For HR', done.forHr ?? 0],
+            ] as const
+          ).map(([label, n]) => (
+            <Stat key={label} inset label={label} value={n.toLocaleString('en-GB')} />
+          ))}
+        </div>
         {done.blocked > 0 ? (
           <Alert
             tone="info"
@@ -464,8 +533,12 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <span className="ms-auto">
-            <Button asChild endIcon={<icons.forward aria-hidden />}>
-              <a href="/people/directory/list">Open the Directory</a>
+            <Button asChild variant="secondary" endIcon={<icons.forward aria-hidden />}>
+              <a href="/people/directory/list">
+                {done.created > 0
+                  ? `Open the ${done.created.toLocaleString('en-GB')} in Directory`
+                  : 'Open the Directory'}
+              </a>
             </Button>
           </span>
         </div>

@@ -184,7 +184,7 @@ describe('a file from another system, or another Kithena', () => {
     expect(steps[1]?.title).toBe('Add 2 work locations: Corporate, New York and Scranton Branch');
     expect(steps[4]?.title).toBe('Leave 2 values empty for HR');
     expect(steps[4]?.detail).toBe(
-      'Manager on those rows can’t be read, or points at nobody here. The rows import without it, and nothing is blocked; each is listed below.',
+      'Manager on those rows can’t be read, or points at nobody here. The rows import without it, and nothing is blocked; each is listed under See rows.',
     );
   });
 
@@ -194,6 +194,21 @@ describe('a file from another system, or another Kithena', () => {
       newLocations: { names: ['Scranton Branch'], added: false },
     }).steps.find((s) => s.kind === 'places');
     expect(places?.title).toBe('Leave work location empty where the file names Scranton Branch');
+  });
+
+  it('says which values HR mapped to work locations here, beside the ones it adds', () => {
+    const mapped = { value: 'NYC HQ', to: 'New York' };
+    const both = planOf({
+      ...DEV_EXPORT,
+      newLocations: { names: ['Scranton', 'Stamford'], added: true, mapped: [mapped] },
+    }).steps.find((s) => s.kind === 'places');
+    expect(both?.title).toBe('Add 2 work locations: Scranton and Stamford; map “NYC HQ” to New York');
+    const only = planOf({
+      ...DEV_EXPORT,
+      newLocations: { names: [], added: true, mapped: [mapped] },
+    });
+    expect(only.steps.find((s) => s.kind === 'places')?.title).toBe('Map “NYC HQ” to New York');
+    expect(only.short).toContain('map 1 work location value');
   });
 
   it('says nothing about identifiers when the file holds none', () => {

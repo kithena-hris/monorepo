@@ -102,7 +102,7 @@ describe('ImportExport', () => {
     const { container } = render(<ImportExport load={{ status: 'ready', data: state() }} />);
     expect(screen.getByRole('link', { name: 'Start import' })).toHaveAttribute(
       'href',
-      '/people/import-export?import=new',
+      '/people/import',
     );
     const template = screen.getByRole('link', { name: 'Template' });
     expect(template).toHaveAttribute('href', '/people/downloads/import-template');

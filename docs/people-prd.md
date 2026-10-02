@@ -1725,7 +1725,7 @@ remote's `routes.json`, fetched and wired by the shell:
 | `/people/{id}`                  | someone else's profile; HR's lifecycle moves (PEO-120) |
 | `/people/directory`             | directory                  |
 | `/people/completeness`          | completeness grid          |
-| `?import=` on Import & export or the directory | import, a modal |
+| `/people/import`                | import                     |
 | `/people/export`                | export builder             |
 | `/people/analytics`             | analytics                  |
 

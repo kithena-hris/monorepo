@@ -14,7 +14,15 @@ import {
   placeOf,
   type FileRow,
   type Known,
+  rowName,
 } from '../../domain/import/identifiers.js';
+import {
+  placeChoiceRef,
+  placeKey,
+  workplacesIn,
+  type PlaceChoice,
+  type WorkplaceValue,
+} from '../../domain/import/workplaces.js';
 import { assessCompleteness } from '../../domain/person/completeness.js';
 import type { EmployeeNumbers } from '../org/numbering.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
@@ -210,7 +218,19 @@ export interface DryRun {
    * the legal entity the first row naming each sits in. An administrator's
    * run adds them before the import, which then finds them by name.
    */
-  readonly newLocations: readonly { readonly name: string; readonly legalEntityId: string }[];
+  readonly newLocations: readonly NewLocation[];
+  /** Each distinct work location value of the file, its people, and what is proposed for it. */
+  readonly workplaces: readonly WorkplaceValue[];
+  /** What a value may be mapped to or added in: the live work locations and legal entities here. */
+  readonly here: {
+    readonly locations: readonly { readonly id: string; readonly name: string }[];
+    readonly entities: readonly {
+      readonly id: string;
+      readonly name: string;
+      readonly country: string;
+      readonly timeZone: string;
+    }[];
+  };
   readonly rows: readonly ClassifiedRow[];
   readonly schemaVersion: number;
 }
@@ -240,6 +260,20 @@ export interface DryRunInput {
    * event records the keys it applied this way.
    */
   readonly applySensitiveWithoutApproval?: boolean;
+  /**
+   * HR's choice for each work location value the file names, by `placeKey`:
+   * map it to one here, add it, or leave it empty. A value without one is
+   * found by id or name, or added by an administrator's run.
+   */
+  readonly places?: Readonly<Record<string, PlaceChoice>>;
+}
+
+/** A work location the run adds before the rows go in, as chosen in the import. */
+export interface NewLocation {
+  readonly name: string;
+  readonly legalEntityId: string;
+  readonly country?: string;
+  readonly timeZone?: string;
 }
 
 const isSystemColumn = (key: string) => Object.hasOwn(SYSTEM_COLUMNS, key);
@@ -378,7 +412,7 @@ export async function dryRun(
   });
   const items = itemsByPerson(sheets.filter((s) => s.imported).map((s) => s.source));
   const blockedItems: BlockedItem[] = [];
-  const newLocations = new Map<string, { name: string; legalEntityId: string }>();
+  const newLocations = new Map<string, NewLocation>();
   const classify = rowClassifier(
     version,
     input,
@@ -453,9 +487,85 @@ export async function dryRun(
       .filter((r) => r.outcome === 'create' || r.outcome === 'update' || r.outcome === 'unchanged')
       .flatMap((r) => r.leftEmpty),
     newLocations: [...newLocations.values()],
+    ...workplacesOf(input, rows, calendar),
     rows,
     schemaVersion: version.version,
   });
+}
+
+/** Each row's person, as HR knows them, by row number: the name on it, else its work email. */
+export function rowNamesOf(
+  file: ParsedFile,
+  mapping: readonly ColumnMapping[],
+): ReadonlyMap<number, string> {
+  const at = (key: string) =>
+    mapping.find((m) => m.status === 'mapped' && m.key === key)?.index ?? -1;
+  const [given, family, preferred, email] = [
+    'given_name',
+    'family_name',
+    'preferred_name',
+    'work_email',
+  ].map(at);
+  return new Map(
+    file.rows.flatMap((r) => {
+      const cell = (i: number | undefined) =>
+        i === undefined || i < 0 ? null : (r.cells[i] ?? null);
+      const name = rowName({
+        given: cell(given),
+        family: cell(family),
+        preferred: cell(preferred),
+        email: cell(email),
+      });
+      return name === null ? [] : [[r.row, name] as const];
+    }),
+  );
+}
+
+/**
+ * The file's work location values, each with the people of the rows that
+ * import naming it, and what may be chosen for it here. A company with one
+ * legal entity proposes new ones in it; with several, in the first, and HR
+ * picks.
+ */
+function workplacesOf(
+  input: DryRunInput,
+  rows: readonly ClassifiedRow[],
+  calendar: TenantCalendar,
+): Pick<DryRun, 'workplaces' | 'here'> {
+  const entities = [...calendar.entities.values()].filter((e) => e.archived !== true);
+  const locations = [...calendar.locations.values()];
+  const here = {
+    locations: locations
+      .filter((l) => l.archived !== true)
+      .map((l) => ({ id: l.id, name: l.name })),
+    entities: entities.map((e) => ({
+      id: e.id,
+      name: e.name,
+      country: e.country,
+      timeZone: e.timeZone,
+    })),
+  };
+  const column = input.mapping.find((m) => m.status === 'mapped' && m.key === 'location_id');
+  if (column === undefined) return { workplaces: [], here };
+  const names = rowNamesOf(input.file, input.mapping);
+  const importing = rows.filter(
+    (r) => r.outcome === 'create' || r.outcome === 'update' || r.outcome === 'unchanged',
+  );
+  const [first] = entities;
+  return {
+    workplaces: workplacesIn(
+      importing.map((r) => ({
+        value: r.cells[column.index] ?? '',
+        row: r.row,
+        name: names.get(r.row) ?? null,
+      })),
+      locations,
+      first === undefined
+        ? null
+        : { country: first.country, timeZone: first.timeZone, legalEntityId: first.id },
+    ),
+    here,
+  };
 }
 
 /** Kinds of value that point at something in the company rather than holding a value. */
@@ -496,7 +606,7 @@ function rowClassifier(
   clock: Clock,
   calendar: TenantCalendar,
   repeating: { readonly items: ItemsByPerson; readonly blocked: BlockedItem[] },
-  newLocations: Map<string, { name: string; legalEntityId: string }>,
+  newLocations: Map<string, NewLocation>,
 ) {
   const at = clock.instant();
   const definitions = version.document.attributes;
@@ -598,6 +708,25 @@ function rowClassifier(
             empty(ref.kind === 'new' ? `no legal entity here is called “${ref.name}”` : ref.reason);
           }
         } else {
+          const entityHere =
+            refs['legal_entity_id'] ?? person?.attributes['legal_entity_id'] ?? onlyEntity;
+          // HR's choice for this value, made in the import, comes first.
+          const choice = input.places?.[placeKey(raw)];
+          if (choice !== undefined) {
+            const chosen = placeChoiceRef(choice, locations);
+            if (chosen.kind === 'id') refs[key] = chosen.id;
+            else if (chosen.kind === 'none') empty(chosen.reason);
+            else {
+              const { kind: _kind, legalEntityId, ...add } = chosen;
+              const entity = legalEntityId ?? entityHere;
+              if (typeof entity !== 'string') {
+                empty(`“${add.name}” has no legal entity to be added to`);
+              } else if (!newLocations.has(placeKey(add.name))) {
+                newLocations.set(placeKey(add.name), { ...add, legalEntityId: entity });
+              }
+            }
+            continue;
+          }
           const ref = placeOf(raw, locations);
           if (ref.kind === 'id') {
             refs[key] = ref.id;
@@ -607,8 +736,7 @@ function rowClassifier(
             empty(ref.reason);
             continue;
           }
-          const entity =
-            refs['legal_entity_id'] ?? person?.attributes['legal_entity_id'] ?? onlyEntity;
+          const entity = entityHere;
           if (typeof entity !== 'string') {
             empty(
               `no work location here is called “${ref.name}”, and the row has no legal entity to add it to`,

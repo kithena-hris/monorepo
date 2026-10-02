@@ -25,7 +25,6 @@ vi.mock('../app/(app)/people/actions', () => ({
   setApprovalCheck: vi.fn(),
   saveSegment: vi.fn(),
   directoryPage: vi.fn(),
-  completeImportUpload: vi.fn(() => new Promise(() => undefined)),
 }));
 // The shell around the page: its data is what the page is remembered under.
 const shell = vi.hoisted(() => ({
@@ -116,6 +115,21 @@ describe('a screen that narrows what it already has', () => {
     call(props, 'onSearchChange', '  ');
     expect(here()).toBe('/people/import-export?kind=export');
     expect(window.history.length).toBe(before);
+  });
+
+  it('keeps the import’s step and field in the address, each step a new entry', () => {
+    const props = open('/people/import', 'ImportFlow');
+    expect(props['step']).toBeNull();
+    expect((props['load'] as { data: { step: string } }).data.step).toBe('upload');
+    const before = window.history.length;
+    call(props, 'onStepChange', 'existing');
+    expect(here()).toBe('/people/import?step=existing');
+    call(props, 'onFieldChange', 't_shirt_size');
+    expect(here()).toBe('/people/import?step=existing&field=t_shirt_size');
+    call(props, 'onStepChange', 'review');
+    expect(here()).toBe('/people/import?step=review');
+    expect(window.history.length).toBe(before + 2);
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('leaves a default out of the address', () => {
@@ -256,23 +270,5 @@ describe('what a loading state shows of a page before it arrives', () => {
     // A write draws the shell again: everything seen before it is stale.
     shell.current = { ...shell.current };
     expect(heldFor('/people/insights/headcount', {}, now())).toBeNull();
-  });
-});
-
-describe('the import, a modal the address keeps', () => {
-  it('is closed until the address opens it, then opens at the upload', () => {
-    expect(open('/people/import-export', 'ImportExport')['importFlow']).toBeNull();
-    cleanup();
-    const props = open('/people/import-export?import=new', 'ImportExport');
-    expect(props['importFlow']).toMatchObject({
-      load: { status: 'ready', data: { step: 'upload' } },
-    });
-  });
-
-  it('reads an upload back on a reload, and closes by leaving the address', () => {
-    const props = open('/people/import-export?import=u1&step=review', 'ImportExport');
-    expect(props['importFlow']).toMatchObject({ load: { status: 'loading' } });
-    call(props, 'onImportClose');
-    expect(here()).toBe('/people/import-export');
   });
 });

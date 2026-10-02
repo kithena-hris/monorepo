@@ -60,9 +60,9 @@ const FILE: NewFieldsFile = {
     }),
   ),
   rows: [
-    { outcome: 'update', personId: P1, cells: ROWS[0] ?? [] },
-    { outcome: 'update', personId: P2, cells: ROWS[1] ?? [] },
-    { outcome: 'create', personId: null, cells: ROWS[2] ?? [] },
+    { outcome: 'update', personId: P1, name: 'Ada Lovelace', cells: ROWS[0] ?? [] },
+    { outcome: 'update', personId: P2, name: 'Marco Rossi', cells: ROWS[1] ?? [] },
+    { outcome: 'create', personId: null, name: 'Ines Blanco', cells: ROWS[2] ?? [] },
   ],
 };
 
@@ -187,6 +187,22 @@ function world(
             leftEmpty: [],
             leftEmptyCount: 0,
             newLocations: [],
+            workplaces: [
+              {
+                key: 'nyc hq',
+                value: 'NYC HQ',
+                rows: 2,
+                people: ['Luis López', 'Mia Chen'],
+                found: null,
+                suggestion: null,
+                looksLikeId: false,
+                proposed: { kind: 'leave' },
+              },
+            ],
+            here: {
+              locations: [{ id: 'l-ny', name: 'New York' }],
+              entities: [{ id: 'e1', name: 'Acme SL', country: 'ES', timeZone: 'Europe/Madrid' }],
+            },
             createdIn: [],
           },
           blockedUrl: null,
@@ -272,8 +288,19 @@ describe('proposing fields for new columns', () => {
     // Five people here and one row that creates somebody: six once it is in.
     // The file gives three of them an emergency contact, two a cost centre.
     expect(v.totalPeople).toBe(6);
-    expect(v.proposals[0]?.counts).toEqual({ have: 3, missing: 3, existingWithout: 3 });
-    expect(v.proposals[1]?.counts).toEqual({ have: 2, missing: 4, existingWithout: 3 });
+    expect(v.proposals[0]?.counts).toEqual({
+      have: 3,
+      missing: 3,
+      existingWithout: 3,
+      without: [],
+    });
+    // The file's own rows without a value, by name: HR sees who, not a row number.
+    expect(v.proposals[1]?.counts).toEqual({
+      have: 2,
+      missing: 4,
+      existingWithout: 3,
+      without: ['Ines Blanco'],
+    });
     expect(v.version).toBe(5);
     expect(v.setup).toBeNull();
   });
@@ -396,6 +423,27 @@ describe('proposing fields for new columns', () => {
 });
 
 describe('the plan', () => {
+  it('says which work location values HR mapped, and runs with the same choices', async () => {
+    const w = world();
+    const v = await proposed(w);
+    const places = { 'nyc hq': { kind: 'map' as const, locationId: 'l-ny' } };
+    const input = { ...w.step, proposals: strip(v), places };
+    const plan = await planImport(w.deps, w.asking, input);
+    if (!plan.ok) throw new Error(plan.error.message);
+    expect(plan.value.steps.map((s) => s.title)).toContain('Map “NYC HQ” to New York');
+    const ran = await runImport(w.deps, w.asking, input);
+    if (!ran.ok) throw new Error(ran.error.message);
+    expect(w.committed.at(-1)).toMatchObject({ places });
+  });
+
+  it('reads HR’s work location choices as they are: only an administrator sets them', async () => {
+    const w = world({ viewer: HR, answer: { proposals: [] } });
+    const places = { 'nyc hq': { kind: 'map' as const, locationId: 'l-ny' } };
+    const plan = await planImport(w.deps, w.asking, { ...w.step, proposals: [], places });
+    if (!plan.ok) throw new Error(plan.error.message);
+    expect(plan.value.steps.map((s) => s.title)).not.toContain('Map “NYC HQ” to New York');
+  });
+
   it('is a dry run against the version the kept fields would make, and writes nothing', async () => {
     const w = world();
     const v = await proposed(w);

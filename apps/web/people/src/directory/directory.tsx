@@ -51,7 +51,6 @@ import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
-import { ImportModal, type ImportFlowProps } from '../import/import-flow';
 import { longDate } from '../record/display';
 import { MissingMark } from '../record/missing';
 import { SaveSegment, type SegmentRef } from '../segments';
@@ -197,9 +196,6 @@ export interface DirectoryProps {
    */
   readonly onExport?: () => void;
   readonly onImport?: () => void;
-  /** The import, open over the directory while the address says so (`?import=`). */
-  readonly importFlow?: ImportFlowProps | null;
-  readonly onImportClose?: () => void;
   /** HR's: edit the people chosen on this page together (PEO-071). Rows are selectable only with it. */
   readonly onBulkEdit?: (personIds: readonly string[]) => void;
   /**
@@ -461,9 +457,6 @@ export function Directory(props: DirectoryProps): JSX.Element {
 
   return (
     <Stack gap={5}>
-      {props.onImportClose === undefined ? null : (
-        <ImportModal flow={props.importFlow ?? null} onClose={props.onImportClose} />
-      )}
       <PageHeader
         title="Directory"
         description={summary}

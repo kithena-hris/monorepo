@@ -288,3 +288,15 @@ export const InANarrowColumn: Story = {
     </div>
   ),
 };
+
+/** Counts inside a card: on its sunken fill, without a shadow of their own. */
+export const Inset: Story = {
+  render: () => (
+    <div className="grid max-w-xl grid-cols-4 gap-2.5 rounded-xl bg-surface p-5 shadow-sm">
+      <Stat inset label="Created" value="298" />
+      <Stat inset label="Updated" value="71" />
+      <Stat inset label="Asked" value="14" />
+      <Stat inset label="For HR" value="32" />
+    </div>
+  ),
+};

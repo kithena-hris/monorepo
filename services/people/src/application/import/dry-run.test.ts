@@ -1,8 +1,9 @@
+import type { CalendarDate } from '@kithena/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { noTransaction as tx } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
-import { cellFindings, dryRun, type ClassifiedRow } from './dry-run.js';
+import { cellFindings, dryRun, rowNamesOf, type ClassifiedRow } from './dry-run.js';
 import { asking, attributes, csv, HEADERS, HR, priyasRows, priyasTenant } from './fixture.js';
 import { define, versionOf } from '../person/in-memory.js';
 import { UTC_CALENDAR } from '../../domain/org/calendar.js';
@@ -311,5 +312,125 @@ describe('doubted national identifiers in a file (PEO-125; PRD §14.5)', () => {
       }),
     ]);
     expect(JSON.stringify(found)).not.toContain('12345678A');
+  });
+});
+
+describe('each row named for HR', () => {
+  it('by the name on it, else its work email, so a listed cell says whose it is', async () => {
+    const bytes = csv(
+      ['given_name', 'family_name', 'work_email', 'hire_date'],
+      [
+        ['Pam', 'Beesly', 'pam@acme.example', '2025-01-06'],
+        ['', '', 'ines@acme.example', 'not a date'],
+        ['', '', '', ''],
+      ],
+    );
+    const { result, mapping } = await run(bytes);
+    const file = await parseUpload(bytes);
+    if (!result.ok || !file.ok) throw new Error('no dry run');
+    const names = rowNamesOf(file.value, mapping);
+    expect([...names.values()]).toEqual(['Pam Beesly', 'ines@acme.example']);
+    const [ines] = result.value.leftEmpty.filter((l) => l.key === 'hire_date');
+    expect(ines !== undefined && names.get(ines.row)).toBe('ines@acme.example');
+  });
+});
+
+describe('work locations chosen in the import', () => {
+  const ES = '00000000-0000-4000-8000-0000000000e1';
+  const MADRID = '00000000-0000-4000-8000-0000000000f1';
+  const OTHER_ID = '01a0e1d1-f26f-7000-be34-a7236a53ad47';
+  const headers = ['Given name', 'Family name', 'Work email', 'Hire date', 'location_id'];
+  const rows = [
+    ['Ana', 'Ruiz', 'ana@acme.test', '2026-03-01', 'Madrid'],
+    ['Bea', 'Sol', 'bea@acme.test', '2026-03-01', 'Lisbon'],
+    ['Carl', 'Mora', 'carl@acme.test', '2026-03-01', OTHER_ID],
+    ['Dani', 'Gil', 'dani@acme.test', '2026-03-01', 'lisbon'],
+  ];
+
+  async function plan(places?: Parameters<typeof dryRun>[2]['places']) {
+    const store = priyasTenant();
+    store.versions.push(
+      versionOf(2, [
+        ...attributes,
+        define({
+          key: 'location_id',
+          dataType: 'location_ref',
+          typeConfig: { kind: 'location_ref' },
+        }),
+      ]),
+    );
+    const file = await parseUpload(csv(headers, rows));
+    const version = store.versions.at(-1);
+    if (!file.ok || !version) throw new Error('no file');
+    const proposed = await proposeMapping({
+      file: file.value,
+      version,
+      relations: HR_RELATIONS,
+      advisor: null,
+    });
+    const mapping = resolveMapping(proposed, {}, version, HR_RELATIONS);
+    if (!mapping.ok) throw new Error(mapping.error.message);
+    const result = await dryRun(
+      tx,
+      {
+        calendars: fixedCalendars({
+          ...UTC_CALENDAR,
+          entities: new Map([
+            [ES, { id: ES, name: 'Acme ES', country: 'ES', timeZone: 'Europe/Madrid' }],
+          ]),
+          locations: new Map([
+            [
+              MADRID,
+              {
+                id: MADRID,
+                legalEntityId: ES,
+                name: 'Madrid HQ',
+                country: 'ES',
+                zones: [{ effectiveFrom: '2020-01-01' as CalendarDate, timeZone: 'Europe/Madrid' }],
+              },
+            ],
+          ]),
+        }),
+        access: personAccess(store.deps),
+        schemas: store.deps.schemas,
+        relations: store.deps.relations,
+        clock: store.deps.clock,
+      },
+      { ...asking, file: file.value, mapping: mapping.value, ...(places ? { places } : {}) },
+    );
+    if (!result.ok) throw new Error(result.error.message);
+    return result.value;
+  }
+
+  it('lists each value with its people, and proposes what to do with it', async () => {
+    const dry = await plan();
+    expect(
+      dry.workplaces.map((w) => [w.value, w.rows, w.people, w.proposed.kind, w.suggestion?.name]),
+    ).toEqual([
+      ['Madrid', 1, ['Ana Ruiz'], 'map', 'Madrid HQ'],
+      ['Lisbon', 2, ['Bea Sol', 'Dani Gil'], 'add', undefined],
+      [OTHER_ID, 1, ['Carl Mora'], 'leave', undefined],
+    ]);
+    expect(dry.here.locations).toEqual([{ id: MADRID, name: 'Madrid HQ' }]);
+    expect(dry.here.entities.map((e) => e.country)).toEqual(['ES']);
+  });
+
+  it('maps, adds and leaves empty as HR chose, and names who is left empty', async () => {
+    const dry = await plan({
+      madrid: { kind: 'map', locationId: MADRID },
+      lisbon: { kind: 'add', name: 'Lisboa', country: 'PT', timeZone: 'Europe/Lisbon' },
+      [OTHER_ID]: { kind: 'leave' },
+    });
+    const [ana, , carl] = dry.rows;
+    expect(ana?.changes).toMatchObject({ location_id: MADRID });
+    expect(dry.newLocations).toEqual([
+      { name: 'Lisboa', legalEntityId: ES, country: 'PT', timeZone: 'Europe/Lisbon' },
+    ]);
+    expect(carl?.leftEmpty).toEqual([
+      expect.objectContaining({
+        key: 'location_id',
+        reason: 'left empty, as chosen in the import',
+      }),
+    ]);
   });
 });

@@ -17,11 +17,13 @@ import {
   type PlanBudget,
 } from '../../domain/import/new-fields.js';
 import { planOf, type PlanStep } from '../../domain/import/plan.js';
+import type { PlaceChoice } from '../../domain/import/workplaces.js';
 import { keyFrom, SchemaDraft, type Attribute, type Section } from '../../domain/schema/draft.js';
 import { publish, type PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking } from '../person/ports.js';
 import { run } from '../person/service.js';
 import { userActor } from '../person/ports.js';
+import type { NewLocation } from '../import/dry-run.js';
 import type { ImportStageView, NewFieldsFile } from '../screens/operations.js';
 import { fieldChange, type FieldInput, type SchemaScreenDeps } from '../screens/schema.js';
 import { seedSetup, setupDraft } from '../screens/setup-draft.js';
@@ -81,9 +83,39 @@ export interface NewFieldsDeps extends SchemaScreenDeps {
   ) => Promise<Result<ImportDone>>;
 }
 
+/** HR's choice for one work location value of the file, made in the import. */
+export const PlaceChoices = z.record(
+  z.string().max(300),
+  z.discriminatedUnion('kind', [
+    z.strictObject({ kind: z.literal('map'), locationId: z.string().min(1).max(64) }),
+    z.strictObject({
+      kind: z.literal('add'),
+      name: z.string().trim().min(1).max(200),
+      country: z.string().length(2),
+      timeZone: z.string().min(1).max(64),
+      legalEntityId: z.string().min(1).max(64).optional(),
+    }),
+    z.strictObject({ kind: z.literal('leave') }),
+  ]),
+);
+
+/** The choices as the domain reads them: an absent entity is the row's own. */
+export const placeChoices = (
+  input: z.output<typeof PlaceChoices>,
+): Readonly<Record<string, PlaceChoice>> =>
+  Object.fromEntries(
+    Object.entries(input).map(([key, c]): [string, PlaceChoice] => {
+      if (c.kind !== 'add') return [key, c];
+      const { legalEntityId, ...add } = c;
+      return [key, legalEntityId === undefined ? add : { ...add, legalEntityId }];
+    }),
+  );
+
 export const ImportStepInput = z.strictObject({
   uploadId: z.uuid(),
   mapping: z.record(z.string(), z.string().nullable()).optional(),
+  /** Each work location value of the file: mapped, added, or left empty. */
+  places: PlaceChoices.optional(),
 });
 export type ImportStepInput = z.infer<typeof ImportStepInput>;
 
@@ -182,6 +214,10 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
           have: withValue.length,
           missing: Math.max(0, total - withValue.length),
           existingWithout: Math.max(0, existing - existingWith),
+          without: reached
+            .filter((r) => (r.cells[s.column] ?? '').trim() === '' && r.name !== null)
+            .slice(0, 20)
+            .map((r) => r.name as string),
         },
       ];
     }),
@@ -226,7 +262,7 @@ function view(g: Gathered, proposals: readonly ColumnProposal[], byModel: boolea
     blocked: g.blocked,
     proposals: proposals.map((p) => ({
       ...p,
-      counts: g.counts.get(p.column) ?? { have: 0, missing: 0, existingWithout: 0 },
+      counts: g.counts.get(p.column) ?? { have: 0, missing: 0, existingWithout: 0, without: [] },
       sensitive: sensitivity(p.field),
     })),
     sections: g.sections,
@@ -482,7 +518,7 @@ async function planned(
     built: ReturnType<typeof draftWithNewFields>;
     view: ImportPlanView;
     /** Work locations this run adds, and entities it starts numbering: an administrator's run only. */
-    places: readonly { readonly name: string; readonly legalEntityId: string }[];
+    places: readonly NewLocation[];
     numbering: readonly string[];
   }>
 > {
@@ -513,7 +549,14 @@ async function planned(
     ...input.mapping,
     ...Object.fromEntries(fields.map((f) => [String(f.column), f.key])),
   };
-  const review = await deps.importReview(asking, { uploadId: input.uploadId, mapping }, next.value);
+  // Work locations are set up by an administrator: HR's run reads them as they are.
+  const placesChosen = g.isAdmin ? input.places : undefined;
+  const places = placesChosen === undefined ? {} : { places: placesChosen };
+  const review = await deps.importReview(
+    asking,
+    { uploadId: input.uploadId, mapping, ...places },
+    next.value,
+  );
   if (!review.ok) return review;
   const keptColumns = new Set(fields.map((f) => f.column));
   const leftOut = g.seen.filter((s) => !keptColumns.has(s.column)).map((s) => s.header);
@@ -531,7 +574,17 @@ async function planned(
       inFile: g.file.identifiers,
       numbered: canSet || dry.createdIn.every((e) => g.numbered.has(e)),
     },
-    newLocations: { names: dry.newLocations.map((l) => l.name), added: canSet },
+    newLocations: {
+      names: dry.newLocations.map((l) => l.name),
+      added: canSet,
+      // What HR mapped in the import, where it is not already the same place.
+      mapped: dry.workplaces.flatMap((w) => {
+        const choice = placesChosen?.[w.key];
+        if (choice?.kind !== 'map' || w.found?.id === choice.locationId) return [];
+        const to = dry.here.locations.find((l) => l.id === choice.locationId);
+        return to === undefined ? [] : [{ value: w.value, to: to.name }];
+      }),
+    },
     leftEmpty: {
       count: dry.leftEmptyCount,
       labels: [...new Set(dry.leftEmpty.map((l) => l.label))],
@@ -671,6 +724,7 @@ export async function runImport(
   const done = await deps.importCommit(asking, {
     uploadId: input.uploadId,
     mapping: plan.mapping,
+    ...(g.isAdmin && input.places !== undefined ? { places: input.places } : {}),
     ...(input.applySensitiveWithoutApproval === true
       ? { applySensitiveWithoutApproval: true }
       : {}),
@@ -710,7 +764,7 @@ async function settle(
   tx: Tx,
   asking: Asking,
   g: Gathered,
-  places: readonly { readonly name: string; readonly legalEntityId: string }[],
+  places: readonly NewLocation[],
   numbering: readonly string[],
 ): Promise<Result<null>> {
   const org = deps.service.org;
@@ -723,8 +777,8 @@ async function settle(
       ...asking,
       legalEntityId: entity.id,
       name: place.name,
-      country: entity.country,
-      timeZone: entity.timeZone,
+      country: place.country ?? entity.country,
+      timeZone: place.timeZone ?? entity.timeZone,
     });
     if (!created.ok) {
       return err({

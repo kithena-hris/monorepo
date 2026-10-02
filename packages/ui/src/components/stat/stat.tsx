@@ -37,6 +37,12 @@ export interface StatProps extends ComponentPropsWithoutRef<'div'> {
   /** One line of context under everything else. */
   description?: ReactNode;
   icon?: ReactNode;
+  /**
+   * A tile inside a card, a row of counts under a headline: it sits on the
+   * card's sunken fill with no shadow of its own, so it reads as part of the
+   * card rather than a second card on top of it.
+   */
+  inset?: boolean;
 }
 
 const sentimentClass = {
@@ -63,6 +69,7 @@ export function Stat({
   chart,
   description,
   icon,
+  inset = false,
   ...props
 }: StatProps): JSX.Element {
   const DirectionIcon = directionIcon[direction];
@@ -70,7 +77,8 @@ export function Stat({
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col gap-1.5 rounded-lg bg-surface p-5 shadow-sm touch:p-4',
+        'flex min-w-0 flex-col gap-1.5 rounded-lg',
+        inset ? 'bg-surface-sunken p-3.5' : 'bg-surface p-5 shadow-sm touch:p-4',
         // Container query, not a breakpoint: this tile is dropped into a
         // 4-across grid, a 2-across tablet grid and a 320px sidebar, and only
         // the tile knows which one it landed in.

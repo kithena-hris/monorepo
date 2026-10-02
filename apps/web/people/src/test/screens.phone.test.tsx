@@ -11,8 +11,15 @@ import { BulkEdit } from '../bulk/bulk-edit';
 import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
-import { ImportModal, type ImportFlowProps } from '../import/import-flow';
-import { DONE, MAPPING, NEW_FIELDS, PLAN } from '../import/import.fixture';
+import { ImportFlow } from '../import/import-flow';
+import {
+  DONE,
+  MAPPING,
+  MAPPING_WITH_OFFICE,
+  NEW_FIELDS,
+  PLAN,
+  PLAN_WITH_OFFICE,
+} from '../import/import.fixture';
 import { Onboarding } from '../onboarding/onboarding';
 import { PersonHistory } from '../profile/history';
 import { Profile } from '../profile/profile';
@@ -1043,42 +1050,120 @@ describe('at 390×844, with a finger', () => {
     );
   });
 
-  describe('the import, in a full-screen modal', () => {
-    const flow = (data: ImportFlowProps['load']) => (
-      <ImportModal
-        flow={{
-          load: data,
-          onUpload: ok,
-          propose: () => Promise.resolve({ ok: true as const, data: NEW_FIELDS }),
-          plan: () => Promise.resolve({ ok: true as const, data: PLAN }),
-          run: ok,
-          onDownloadBlocked: vi.fn(),
-          onBack: vi.fn(),
-          onDone: vi.fn(),
-        }}
-        onClose={vi.fn()}
+  describe('the import', () => {
+    const flow = (data: Parameters<typeof ImportFlow>[0]['load']) => (
+      <ImportFlow
+        load={data}
+        onUpload={ok}
+        propose={() => Promise.resolve({ ok: true as const, data: NEW_FIELDS })}
+        plan={() => Promise.resolve({ ok: true as const, data: PLAN })}
+        run={ok}
+        onDownloadBlocked={vi.fn()}
+        onBack={vi.fn()}
+        onDone={vi.fn()}
       />
     );
+    const again = async (): Promise<void> => {
+      await settled();
+      expect(await violations(document.body)).toEqual([]);
+      expect(underFloor(document.body)).toEqual([]);
+    };
 
     it('the upload', async () => {
       await checked(flow({ status: 'ready', data: { step: 'upload' } }));
     });
 
-    it('one review: the plan, the columns, the new fields and their people without a value, and Import in thumb reach', async () => {
-      // Checked once the review has worked out the plan, not while it does:
-      // a check that straddles the answer measures Import between disabled
-      // and enabled, its colours mid-transition.
-      mount(flow({ status: 'ready', data: MAPPING }));
-      await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
-      expect(screen.getByRole('table', { name: 'Columns' })).toBeInTheDocument();
-      expect(screen.getByRole('switch', { name: 'Create T-shirt size' })).toBeChecked();
+    it('the mapping', async () => {
+      await checked(flow({ status: 'ready', data: MAPPING }));
+    });
+
+    it('new fields, one card at a time, with Skip and Create in thumb reach (MA8)', async () => {
+      await checked(flow({ status: 'ready', data: MAPPING }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      await screen.findByText('New fields · 1 of 3');
+      // The import's own bar, as drawn: back to Import, the step as the title,
+      // and no large title or stepper under it.
+      const bar = screen.getByRole('navigation', { name: 'Back' });
+      expect(within(bar).getByRole('button', { name: 'Import' })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Importing people' })).toBeNull();
       expect(
-        screen.getByRole('combobox', { name: 'What happens for the people without T-shirt size' }),
+        screen.getByRole('heading', { name: 'These columns aren’t fields yet' }),
       ).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Import 19 people' })).toBeEnabled();
-      await settled();
-      expect(await violations(document.body)).toEqual([]);
-      expect(underFloor(document.body)).toEqual([]);
+      expect(screen.getByRole('region', { name: 'Proposed fields' })).toBeInTheDocument();
+      await again();
+      await userEvent.click(screen.getByRole('button', { name: 'Create field' }));
+      await screen.findByText('New fields · 2 of 3');
+      await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+      await screen.findByText('New fields · 3 of 3');
+      // Held back: the button says what pressing it would do.
+      expect(screen.getByRole('button', { name: 'Import anyway' })).toBeInTheDocument();
+      await again();
+    });
+
+    it('the people without a value, then the plan in a sentence and Approve (MA9)', async () => {
+      await checked(flow({ status: 'ready', data: MAPPING }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      // One card at a time: the same two buttons serve every card, so each
+      // press waits for its card, or it lands on the one before and the plan
+      // never comes.
+      for (const [i, name] of ['Create field', 'Create field', 'Skip'].entries()) {
+        await screen.findByText(`New fields · ${String(i + 1)} of 3`);
+        await userEvent.click(screen.getByRole('button', { name }));
+      }
+      expect(await screen.findByText(PLAN.short)).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: '4 people have no T-shirt size' }),
+      ).toBeInTheDocument();
+      // Who, by name: each a card whose title is the name.
+      const who = screen.getByRole('table', { name: 'People without T-shirt size' });
+      expect(within(who).getAllByRole('row').at(1)).toHaveTextContent('Kevin Malone');
+      expect(screen.getByRole('button', { name: 'Approve and run' })).toBeEnabled();
+      await again();
+    });
+
+    it('the plan', async () => {
+      const noNewColumns = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
+      await checked(flow({ status: 'ready', data: noNewColumns }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+      await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
+      // A cell left empty is a card titled by whose it is, under "See rows".
+      await userEvent.click(screen.getByRole('button', { name: 'See rows' }));
+      const left = screen.getByRole('table', { name: 'Left empty for HR' });
+      const [title] = within(within(left).getAllByRole('row')[1] as HTMLElement).getAllByRole(
+        'cell',
+      );
+      expect(title).toHaveTextContent('Pam Beesly');
+      await again();
+    });
+
+    it('the work locations in the file, each a card, Next in thumb reach', async () => {
+      mount(
+        <ImportFlow
+          load={{ status: 'ready', data: MAPPING_WITH_OFFICE }}
+          onUpload={ok}
+          propose={() => Promise.resolve({ ok: true as const, data: NEW_FIELDS })}
+          plan={() => Promise.resolve({ ok: true as const, data: PLAN_WITH_OFFICE })}
+          run={ok}
+          onDownloadBlocked={vi.fn()}
+          onBack={vi.fn()}
+          admin
+        />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Next: work locations' }));
+      await screen.findByRole('heading', {
+        name: '3 work locations in this file. Here’s how each maps.',
+      });
+      // Pinned above the tab bar, as MA8's Skip and Create are.
+      const next = screen.getByRole('button', { name: 'Next: new fields' });
+      expect(next.closest('[data-pinned-bar]') ?? next.parentElement).toHaveClass('sticky');
+      // Another system's long id wraps above where it goes: nothing runs off the card.
+      for (const title of screen.getAllByRole('heading', { level: 3 })) {
+        expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
+      }
+      // Whoever a value leaves empty is a card titled by their name.
+      const left = screen.getByRole('table', { name: /^Left without a work location/ });
+      expect(within(left).getAllByRole('row').at(1)).toHaveTextContent('Toby Flenderson');
+      await again();
     });
 
     it('done', async () => {
@@ -1311,7 +1396,11 @@ describe('a floating button over a pinned footer (MA7)', () => {
           onChangeOpen={() => undefined}
         />
         {/* Where the shell puts it under a finger: the corner above the tab bar. */}
-        <AssistantLauncher label="Ask" onOpen={() => undefined} className="fixed end-4 bottom-24 z-40" />
+        <AssistantLauncher
+          label="Ask"
+          onOpen={() => undefined}
+          className="fixed end-4 bottom-24 z-40"
+        />
       </>,
     );
     await settled();
@@ -1523,14 +1612,20 @@ describe('what changed on a phone (MA4, MA5)', () => {
 
   it('holds the first three points and Share summary, every target a finger’s', async () => {
     await checked(
-      <WhatChanged load={{ status: 'ready', data: four }} onExportingChange={vi.fn()} onAsk={vi.fn()} />,
+      <WhatChanged
+        load={{ status: 'ready', data: four }}
+        onExportingChange={vi.fn()}
+        onAsk={vi.fn()}
+      />,
     );
     expect(screen.getByRole('heading', { name: 'September in four points' })).toBeVisible();
     expect(screen.getByText(/Headcount grew from/)).toBeVisible();
     expect(screen.getByText(/2 managers now have more than 8/)).not.toBeVisible();
     // The design's phone card: no period control, follow-up or charts beside it.
     expect(screen.getByRole('radio', { name: 'This quarter', hidden: true })).not.toBeVisible();
-    expect(screen.getByRole('textbox', { name: 'Ask a follow-up', hidden: true })).not.toBeVisible();
+    expect(
+      screen.getByRole('textbox', { name: 'Ask a follow-up', hidden: true }),
+    ).not.toBeVisible();
     expect(screen.getByRole('button', { name: 'Share summary' })).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Show 1 more' }));
     expect(screen.getByText(/2 managers now have more than 8/)).toBeVisible();
@@ -1541,7 +1636,13 @@ describe('what changed on a phone (MA4, MA5)', () => {
     await checked(
       <WhatChanged
         load={{ status: 'ready', data: SEPTEMBER }}
-        exporting={{ format: 'email', recipient: 'nora', tone: 'short', charts: true, madeLine: true }}
+        exporting={{
+          format: 'email',
+          recipient: 'nora',
+          tone: 'short',
+          charts: true,
+          madeLine: true,
+        }}
         onExportingChange={vi.fn()}
         onDraft={() => Promise.resolve({ ok: true as const, data: FOR_NORA })}
         onSend={vi.fn()}
