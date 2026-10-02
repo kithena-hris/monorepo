@@ -1048,7 +1048,10 @@ describe('at 390×844, with a finger', () => {
     });
 
     it('one review: the plan, the columns, the new fields and their people without a value, and Import in thumb reach', async () => {
-      await checked(flow({ status: 'ready', data: MAPPING }));
+      // Checked once the review has worked out the plan, not while it does:
+      // a check that straddles the answer measures Import between disabled
+      // and enabled, its colours mid-transition.
+      mount(flow({ status: 'ready', data: MAPPING }));
       await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
       expect(screen.getByRole('table', { name: 'Columns' })).toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'Create T-shirt size' })).toBeChecked();

@@ -6,10 +6,15 @@ import { cdp } from 'vitest/browser';
  * own input pipeline, so scroll chaining and `overscroll-behavior` decide
  * where the scroll goes — `window.scrollTo` would skip exactly that.
  */
-export async function scrollOver(over: Element, distance: number): Promise<void> {
+export async function scrollOver(
+  over: Element,
+  distance: number,
+  /** How far in from `over`'s left edge the hand starts; by default 40px, or the middle. */
+  inset?: number,
+): Promise<void> {
   const box = over.getBoundingClientRect();
   // A point on the part of `over` that is on screen.
-  const x = Math.round(box.left + Math.min(box.width / 2, 40));
+  const x = Math.round(box.left + (inset ?? Math.min(box.width / 2, 40)));
   const y = Math.round((Math.max(box.top, 0) + Math.min(box.bottom, window.innerHeight)) / 2);
   const session = cdp();
   if (matchMedia('(pointer: coarse)').matches) {
@@ -51,11 +56,15 @@ export function onScreen(el: Element): boolean {
 }
 
 /** Scrolls from on top of `over` until `target` is on screen, or gives up. */
-export async function scrollUntilOnScreen(over: Element, target: Element): Promise<boolean> {
+export async function scrollUntilOnScreen(
+  over: Element,
+  target: Element,
+  inset?: number,
+): Promise<boolean> {
   for (let i = 0; i < 40 && !onScreen(target); i += 1) {
     // One gesture after another, as a hand makes them: never in parallel.
     // oxlint-disable-next-line no-await-in-loop
-    await scrollOver(over, 300);
+    await scrollOver(over, 300, inset);
   }
   return onScreen(target);
 }

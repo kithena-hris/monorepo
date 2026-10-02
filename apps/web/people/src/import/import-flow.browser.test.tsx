@@ -65,8 +65,14 @@ describe(`mapping a 23-column file ${coarse ? 'with a finger' : 'with a mouse'}`
         .filter((a) => a.effect?.getTiming().iterations !== Infinity)
         .map((a) => a.finished),
     );
-    // From wherever the hand is on the modal: over the plan, then the table.
-    expect(await scrollUntilOnScreen(screen.getByRole('dialog'), row)).toBe(true);
+    // From the modal's gutter, where a thumb rests between controls: started
+    // on a picker's trigger, a slow runner read the swipe as a tap and opened it.
+    const reached = await scrollUntilOnScreen(screen.getByRole('dialog'), row, 6);
+    const body = screen.getByRole('dialog').querySelector('.overflow-y-auto');
+    expect(
+      reached,
+      `stuck at scrollTop ${String(body?.scrollTop)} of ${String(body?.scrollHeight)}; a list open: ${String(screen.queryByRole('listbox') !== null)}`,
+    ).toBe(true);
     expect(onScreen(last)).toBe(true);
     // Nothing pushes the page sideways to get there.
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
