@@ -65,9 +65,8 @@ describe(`mapping a 23-column file ${coarse ? 'with a finger' : 'with a mouse'}`
         .filter((a) => a.effect?.getTiming().iterations !== Infinity)
         .map((a) => a.finished),
     );
-    // From the modal's gutter, where a thumb rests between controls: started
-    // on a picker's trigger, a slow runner read the swipe as a tap and opened it.
-    const reached = await scrollUntilOnScreen(screen.getByRole('dialog'), row, 6);
+    // From on top of the modal, where a thumb is.
+    const reached = await scrollUntilOnScreen(screen.getByRole('dialog'), row);
     const body = screen.getByRole('dialog').querySelector('.overflow-y-auto');
     expect(
       reached,

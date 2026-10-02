@@ -57,8 +57,17 @@ export default defineConfig({
             headless: true,
             // A phone: its width, its height, and a finger for a pointer, so
             // `(pointer: coarse)` matches and Reach re-points its control sizes.
+            // The page the runner draws the test in is the phone's size too:
+            // at Playwright's default 1280×720 it scaled the 844-tall frame
+            // down to fit, so a touch sent through CDP landed 17% off where
+            // the test aimed it, and on Linux never scrolled what it was over.
             provider: playwright({
-              contextOptions: { isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
+              contextOptions: {
+                isMobile: true,
+                hasTouch: true,
+                deviceScaleFactor: 3,
+                viewport: { width: 390, height: 844 },
+              },
             }),
             viewport: { width: 390, height: 844 },
             // One IPv4 address for the port check, the bind and the URL the
@@ -81,7 +90,8 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
+            // Big enough for the largest desk the tests use, so the frame is never scaled.
+            provider: playwright({ contextOptions: { viewport: { width: 1440, height: 900 } } }),
             viewport: { width: 1280, height: 800 },
             api: { host: '127.0.0.1' },
             instances: [{ browser: 'chromium' }],
