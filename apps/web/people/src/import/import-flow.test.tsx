@@ -331,6 +331,13 @@ describe('ImportFlow', () => {
       screen.getByRole('heading', { name: 'Imported 19 people and created 2 fields' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/took 4 s/)).toBeInTheDocument();
+    // The four tiles, and the way to the people it created (design AI12).
+    const tiles = screen.getByRole('group', { name: 'What the import did' });
+    expect(tiles).toHaveTextContent('Created19Updated0Asked0For HR4');
+    expect(screen.getByRole('link', { name: 'Open the 19 in Directory' })).toHaveAttribute(
+      'href',
+      '/people/directory/list',
+    );
     expect(screen.getByRole('table', { name: 'Left empty for HR' })).toHaveTextContent(
       'Pam Beesly14M14 — “Gabe Lewis”',
     );

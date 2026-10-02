@@ -12,7 +12,7 @@ import {
   FieldLabel,
   IconList,
   IconListItem,
-  ImportSummary,
+  Stat,
   KeyValues,
   List,
   ListItem,
@@ -476,15 +476,22 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
             )}
           </div>
         </div>
-        <ImportSummary
-          label="What the import did"
-          tiles={[
-            { id: 'created', label: 'Created', count: done.created, tone: 'success' },
-            { id: 'updated', label: 'Updated', count: done.updated, tone: 'info' },
-            { id: 'asked', label: 'Asked', count: done.asked ?? 0, tone: 'neutral' },
-            { id: 'hr', label: 'For HR', count: done.forHr ?? 0, tone: 'neutral' },
-          ]}
-        />
+        <div
+          role="group"
+          aria-label="What the import did"
+          className="grid grid-cols-4 gap-2.5 touch:grid-cols-2"
+        >
+          {(
+            [
+              ['Created', done.created],
+              ['Updated', done.updated],
+              ['Asked', done.asked ?? 0],
+              ['For HR', done.forHr ?? 0],
+            ] as const
+          ).map(([label, n]) => (
+            <Stat key={label} inset label={label} value={n.toLocaleString('en-GB')} />
+          ))}
+        </div>
         {done.blocked > 0 ? (
           <Alert
             tone="info"
@@ -526,8 +533,12 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <span className="ms-auto">
-            <Button asChild endIcon={<icons.forward aria-hidden />}>
-              <a href="/people/directory/list">Open the Directory</a>
+            <Button asChild variant="secondary" endIcon={<icons.forward aria-hidden />}>
+              <a href="/people/directory/list">
+                {done.created > 0
+                  ? `Open the ${done.created.toLocaleString('en-GB')} in Directory`
+                  : 'Open the Directory'}
+              </a>
             </Button>
           </span>
         </div>
