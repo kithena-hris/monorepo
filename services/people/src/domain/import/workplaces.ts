@@ -1,4 +1,8 @@
+import { countryRules } from '@kithena/contracts';
+import { isTimeZone } from '@kithena/domain-kit';
+
 import { looksLikeId, normalName } from './identifiers.js';
+import { countryOfZone, placeIn, zoneOfCountry } from './place-hints.js';
 
 /**
  * The work locations a file names, decided inside the import (the user: "Set
@@ -43,6 +47,31 @@ export interface WorkplaceValue {
   /** An id from another system: nothing to add it by. */
   readonly looksLikeId: boolean;
   readonly proposed: PlaceChoice;
+  /**
+   * Why the country or zone proposed for a new one wants a look: the file
+   * disagrees with itself, or says nothing of where it is. Null otherwise.
+   */
+  readonly note: string | null;
+}
+
+/** One row naming a work location, and what the row says of that workplace (never of a home). */
+export interface WorkplaceCell {
+  readonly value: string;
+  readonly row: number;
+  readonly name: string | null;
+  /** The file's time zone column. */
+  readonly timeZone?: string | null;
+  /** The workplace's address, city or postcode columns, as one text. */
+  readonly address?: string | null;
+  /** The file's legal entity, as it names it. */
+  readonly entity?: string | null;
+}
+
+export interface EntityHere {
+  readonly id: string;
+  readonly name: string;
+  readonly country: string;
+  readonly timeZone: string;
 }
 
 export const placeKey = (value: string): string => normalName(value);
@@ -98,28 +127,98 @@ function foundHere(value: string, places: readonly PlaceHere[]): PlaceHere | nul
   return named.length === 1 ? (named[0] ?? null) : null;
 }
 
+/** The value most rows give, first seen first on a tie; null when none gives one. */
+function commonest(values: readonly (string | null | undefined)[]): string | null {
+  const counts = new Map<string, number>();
+  for (const v of values) {
+    const t = v?.trim() ?? '';
+    if (t !== '') counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  for (const [v, n] of counts) if (best === null || n > (counts.get(best) ?? 0)) best = v;
+  return best;
+}
+
+const countryName = (code: string): string => countryRules(code)?.name ?? code;
+
+/**
+ * Where a new one is and whose it is: the country and zone the file gives
+ * (its time zone, else its address, else a city in its name), the legal
+ * entity it names here, else the one entity in that country, else the
+ * first. When the place's own words and the file's zone disagree, the
+ * place's words win and the note says so; when nothing says where it is,
+ * the entity's country and zone, and the note says that.
+ */
+function newPlace(
+  value: string,
+  rows: readonly WorkplaceCell[],
+  entities: readonly EntityHere[],
+): { readonly add: Extract<PlaceChoice, { kind: 'add' }>; readonly note: string | null } | null {
+  const [first] = entities;
+  if (first === undefined) return null;
+  const fileZone = commonest(rows.map((r) => r.timeZone));
+  const zone = fileZone !== null && isTimeZone(fileZone) ? fileZone : null;
+  const address = commonest(rows.map((r) => r.address));
+  const own = [...(address === null ? [] : [placeIn(address)]), placeIn(value)].find(
+    (p) => p.country !== null,
+  );
+  const zoneCountry = zone === null ? null : countryOfZone(zone);
+  const disagree = own !== undefined && zoneCountry !== null && own.country !== zoneCountry;
+  const named = commonest(rows.map((r) => r.entity));
+  const byName =
+    named === null ? undefined : entities.find((e) => normalName(e.name) === normalName(named));
+  const country = disagree ? own.country : (zoneCountry ?? own?.country ?? byName?.country ?? null);
+  const inCountry = entities.filter((e) => e.country === country);
+  const entity = byName ?? (inCountry.length === 1 ? inCountry[0] : undefined) ?? first;
+  if (country === null) {
+    return {
+      add: {
+        kind: 'add',
+        name: value,
+        country: entity.country,
+        timeZone: zone ?? entity.timeZone,
+        legalEntityId: entity.id,
+      },
+      note: `Nothing in the file says where “${value}” is, so ${entity.name}’s country and time zone are suggested: check them.`,
+    };
+  }
+  const timeZone = disagree
+    ? (own.timeZone ?? zoneOfCountry(country))
+    : (zone ?? own?.timeZone ?? zoneOfCountry(country));
+  const where = own?.city ?? `“${value}”`;
+  return {
+    add: {
+      kind: 'add',
+      name: value,
+      country,
+      timeZone: timeZone ?? (entity.country === country ? entity.timeZone : ''),
+      legalEntityId: entity.id,
+    },
+    note: disagree
+      ? `${where} is in ${countryName(country)} but the file’s time zone is ${String(zone)}: check the time zone.`
+      : null,
+  };
+}
+
 /**
  * Each distinct value of the column, with its rows, its people and what is
  * proposed: the one it already is; else a close name; else a new one by the
- * file's name, prefilled from `defaults` (the legal entity's country and
- * zone); else, for another system's id or with nowhere to add one, empty.
+ * file's name, its country, zone and legal entity read from the file
+ * (`newPlace`); else, for another system's id or with no legal entity to
+ * add one to, empty.
  */
 export function workplacesIn(
-  cells: readonly { readonly value: string; readonly row: number; readonly name: string | null }[],
+  cells: readonly WorkplaceCell[],
   places: readonly PlaceHere[],
-  defaults: {
-    readonly country: string;
-    readonly timeZone: string;
-    readonly legalEntityId: string;
-  } | null,
+  entities: readonly EntityHere[],
 ): WorkplaceValue[] {
-  const byKey = new Map<string, { value: string; rows: number; people: string[] }>();
+  const byKey = new Map<string, { value: string; people: string[]; rows: WorkplaceCell[] }>();
   for (const c of cells) {
     const value = c.value.trim().replaceAll(/\s+/gu, ' ');
     if (value === '') continue;
     const key = placeKey(value);
-    const held = byKey.get(key) ?? { value, rows: 0, people: [] };
-    held.rows += 1;
+    const held = byKey.get(key) ?? { value, people: [], rows: [] };
+    held.rows.push(c);
     if (c.name !== null && held.people.length < SHOWN) held.people.push(c.name);
     byKey.set(key, held);
   }
@@ -127,23 +226,23 @@ export function workplacesIn(
     const found = foundHere(value, places);
     const id = looksLikeId(value);
     const close = found === null && !id ? closestPlace(value, places) : null;
+    const fresh = found === null && close === null && !id ? newPlace(value, rows, entities) : null;
     const proposed: PlaceChoice =
       found !== null
         ? { kind: 'map', locationId: found.id }
         : close !== null
           ? { kind: 'map', locationId: close.id }
-          : id || defaults === null
-            ? { kind: 'leave' }
-            : { kind: 'add', name: value, ...defaults };
+          : (fresh?.add ?? { kind: 'leave' });
     return {
       key,
       value,
-      rows,
+      rows: rows.length,
       people,
       found: found === null ? null : { id: found.id, name: found.name },
       suggestion: close === null ? null : { id: close.id, name: close.name },
       looksLikeId: id,
       proposed,
+      note: fresh?.note ?? null,
     };
   });
 }
