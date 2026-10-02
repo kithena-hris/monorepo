@@ -53,7 +53,10 @@ export interface WorkplaceValue {
   readonly suggestion: { readonly id: string; readonly name: string } | null;
   /** An id from another system: there is no name to add it by. */
   readonly looksLikeId: boolean;
+  /** Prefilled from the file, ready to approve. */
   readonly proposed: PlaceChoice;
+  /** What to check in the prefilled country and zone: the file disagrees with itself, or says nothing. */
+  readonly note?: string | null;
 }
 
 export interface PlacesHere {
@@ -327,6 +330,11 @@ function WorkLocationCard({
             </SelectContent>
           </Select>
         </Field>
+      ) : null}
+      {choice.kind === 'add' && w.note ? (
+        <Alert tone="warning" title="Check where it is">
+          {w.note}
+        </Alert>
       ) : null}
       {choice.kind === 'add' ? (
         <NewLocationFields choice={choice} here={here} readOnly={readOnly} onChange={onChange} />
