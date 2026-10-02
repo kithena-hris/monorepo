@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
 import { ImportFlow, type ImportFlowProps } from './import-flow';
-import { MAPPING_WITH_OFFICE, NEW_FIELDS, PLAN_WITH_OFFICE } from './import.fixture';
+import { MAPPING_WITH_OFFICE, NEW_FIELDS, PLACES_HERE, PLAN_WITH_OFFICE } from './import.fixture';
+import { WorkLocationsStep } from './work-locations';
 
 /**
  * The file's work locations, set up inside the import right after Map
@@ -139,5 +140,25 @@ describe('the work locations in the file', () => {
     rerender(<ImportFlow {...props({ step: 'fields', onStepChange })} />);
     await user.click(await screen.findByRole('button', { name: 'Back' }));
     expect(onStepChange).toHaveBeenLastCalledWith('places');
+  });
+
+  it('offers no new work location while there is no legal entity to add it to', () => {
+    render(
+      <WorkLocationsStep
+        workplaces={PLAN_WITH_OFFICE.review.dryRun.workplaces ?? []}
+        here={{ ...PLACES_HERE, entities: [] }}
+        choices={{}}
+        onChange={vi.fn()}
+        readOnly={false}
+        coarse={false}
+      />,
+    );
+    const stamford = screen.getByRole('radiogroup', { name: 'What happens to “Stamford”' });
+    expect(
+      within(stamford).getByRole('radio', { name: /Add it as a new work location/ }),
+    ).toBeDisabled();
+    expect(
+      within(stamford).getByText('There is no legal entity to add it to yet'),
+    ).toBeInTheDocument();
   });
 });

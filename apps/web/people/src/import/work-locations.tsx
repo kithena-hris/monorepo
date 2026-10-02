@@ -289,7 +289,12 @@ function WorkLocationCard({
         </RadioCard>
         <RadioCard
           value="add"
-          impact="Added in Settings › Organisation by the run"
+          disabled={here.entities.length === 0}
+          impact={
+            here.entities.length === 0
+              ? 'There is no legal entity to add it to yet'
+              : 'Added in Settings › Organisation by the run'
+          }
           {...suggested('add')}
         >
           Add it as a new work location
