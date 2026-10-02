@@ -1,9 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import type { JSX } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
-import { ImportFlow, type ImportFlowProps, type ImportStage } from './import-flow';
+import { ImportModal, type ImportFlowProps, type ImportStage } from './import-flow';
 import { DONE, MAPPING, NEW_FIELDS, PLAN, column } from './import.fixture';
 
 function props(
@@ -25,31 +26,32 @@ function props(
 
 const ready = (data: ImportStage) => ({ status: 'ready' as const, data });
 
-/** From the mapping to the new fields, as HR would. */
-async function toNewFields(user: ReturnType<typeof fast>) {
-  await user.click(screen.getByRole('button', { name: 'Next: new fields' }));
-  return screen.findByRole('heading', {
-    name: '3 columns aren’t fields yet. Here’s what I’d create.',
-  });
+/** The import as the page opens it: a modal, over whatever was there. */
+function Open(flow: ImportFlowProps): JSX.Element {
+  return <ImportModal flow={flow} onClose={vi.fn()} />;
+}
+
+/** The review, once it has worked out what will happen. */
+async function reviewed(): Promise<void> {
+  await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
 }
 
 describe('ImportFlow', () => {
   it('with nothing published, tells HR who is not an administrator who imports first, with no upload', async () => {
-    const { container } = render(
-      <ImportFlow {...props(ready({ step: 'upload' }), { setup: { href: null } })} />,
-    );
-    expect(screen.getByText('An administrator imports the first file')).toBeInTheDocument();
-    expect(screen.getByText(/approving its plan sets up the employee record/)).toBeInTheDocument();
-    expect(container.querySelector('input[type="file"]')).toBeNull();
-    expect(await axeViolations(container)).toEqual([]);
+    render(<Open {...props(ready({ step: 'upload' }), { setup: { href: null } })} />);
+    const dialog = screen.getByRole('dialog', { name: 'Import people' });
+    expect(within(dialog).getByText('An administrator imports the first file')).toBeInTheDocument();
+    expect(within(dialog).getByText(/importing it sets up the employee record/)).toBeInTheDocument();
+    expect(dialog.querySelector('input[type="file"]')).toBeNull();
+    expect(await axeViolations(document.body)).toEqual([]);
   });
 
-  it('shows the five steps, and says nothing is written until the plan is approved', () => {
-    render(<ImportFlow {...props(ready({ step: 'upload' }))} />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Import' })).toBeInTheDocument();
-    expect(screen.getByText('Nothing is written until you approve the plan.')).toBeInTheDocument();
-    for (const label of ['Upload', 'Map columns', 'New fields', 'Review plan', 'Import'])
-      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+  it('opens as a modal, and says nothing is written until you import', () => {
+    render(<Open {...props(ready({ step: 'upload' }))} />);
+    expect(screen.getByRole('dialog', { name: 'Import people' })).toBeInTheDocument();
+    expect(
+      screen.getByText('CSV or Excel. Nothing is written until you import.'),
+    ).toBeInTheDocument();
   });
 
   it('uploads through a FileUploader, with the upload’s own progress', async () => {
@@ -61,8 +63,8 @@ describe('ImportFlow', () => {
         finish = resolve;
       });
     });
-    const { container } = render(
-      <ImportFlow {...props(ready({ step: 'upload' }), { onUpload })} />,
+    const { baseElement: container } = render(
+      <Open {...props(ready({ step: 'upload' }), { onUpload })} />,
     );
     const input = container.querySelector('input[type="file"]');
     if (!(input instanceof HTMLInputElement)) throw new Error('no file input');
@@ -82,8 +84,8 @@ describe('ImportFlow', () => {
       .fn<ImportFlowProps['onUpload']>()
       .mockResolvedValueOnce({ ok: false, message: 'The file did not arrive; upload it again' })
       .mockResolvedValueOnce({ ok: true });
-    const { container } = render(
-      <ImportFlow {...props(ready({ step: 'upload' }), { onUpload })} />,
+    const { baseElement: container } = render(
+      <Open {...props(ready({ step: 'upload' }), { onUpload })} />,
     );
     const input = container.querySelector('input[type="file"]');
     if (!(input instanceof HTMLInputElement)) throw new Error('no file input');
@@ -97,8 +99,8 @@ describe('ImportFlow', () => {
   it('refuses a file over 100 MB before uploading a byte of it', async () => {
     const user = fast();
     const onUpload = vi.fn(() => Promise.resolve({ ok: true as const }));
-    const { container } = render(
-      <ImportFlow {...props(ready({ step: 'upload' }), { onUpload })} />,
+    const { baseElement: container } = render(
+      <Open {...props(ready({ step: 'upload' }), { onUpload })} />,
     );
     const input = container.querySelector('input[type="file"]');
     if (!(input instanceof HTMLInputElement)) throw new Error('no file input');
@@ -108,7 +110,49 @@ describe('ImportFlow', () => {
     expect(onUpload).not.toHaveBeenCalled();
   });
 
-  it('maps the usual names by rule, and waits for a decision on a doubtful column', async () => {
+  it('reviews everything on one screen: the plan, the columns and the new fields (AI9, AI11)', async () => {
+    const user = fast();
+    const plan = vi.fn(() => Promise.resolve({ ok: true as const, data: PLAN }));
+    render(<Open {...props(ready(MAPPING), { plan })} />);
+    await reviewed();
+    for (const s of PLAN.steps) expect(screen.getByText(s.title)).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Columns' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: '3 columns aren’t fields yet. Here’s what I’d create.' }),
+    ).toBeInTheDocument();
+    // People's own rules proposed: it says so.
+    expect(screen.getByText(/assistant didn’t answer this time/)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Create T-shirt size' })).toBeChecked();
+    expect(
+      screen.getByText(/special-category data\. I suggest not importing it/),
+    ).toBeInTheDocument();
+    // A manager the file names that is nowhere here: listed, never blocking.
+    expect(screen.getByRole('table', { name: 'Left empty for HR' })).toHaveTextContent(
+      'nobody in this company or this file is called “Gabe Lewis”',
+    );
+    expect(await axeViolations(document.body)).toEqual([]);
+
+    // The people without a value, chosen where the field is: the plan follows.
+    await user.click(
+      screen.getByRole('combobox', { name: 'What happens for the people without T-shirt size' }),
+    );
+    await user.click(await screen.findByRole('option', { name: 'Ask them' }));
+    await waitFor(() => {
+      expect(plan).toHaveBeenCalledTimes(2);
+    });
+    const [, proposals] = plan.mock.calls[1] as unknown as [
+      unknown,
+      { key: string; include: boolean; forExisting: unknown }[],
+    ];
+    expect(proposals.find((p) => p.key === 't_shirt_size')?.forExisting).toEqual({ kind: 'ask' });
+    expect(proposals.find((p) => p.key === 'dietary_requirements')?.include).toBe(false);
+
+    // Edit opens the whole field.
+    await user.click(screen.getAllByRole('button', { name: 'Edit' })[0] as HTMLElement);
+    expect(screen.getByLabelText('Name')).toHaveValue('T-shirt size');
+  });
+
+  it('works the plan out again when a column changes, and waits for a doubtful one', async () => {
     const user = fast();
     const doubtful: ImportStage = {
       ...MAPPING,
@@ -125,126 +169,23 @@ describe('ImportFlow', () => {
       ],
     };
     const plan = vi.fn(() => Promise.resolve({ ok: true as const, data: PLAN }));
-    const { container } = render(<ImportFlow {...props(ready(doubtful), { plan })} />);
+    render(<Open {...props(ready(doubtful), { plan })} />);
+    await reviewed();
     expect(screen.getAllByText('Usual name')).toHaveLength(2);
     expect(screen.getByText('0.71, check this')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next: review the plan' })).toBeDisabled();
-    expect(await axeViolations(container)).toEqual([]);
+    expect(screen.getByRole('button', { name: /^Import/ })).toBeDisabled();
     await user.click(screen.getByRole('combobox', { name: 'CC goes to' }));
     await user.click(await screen.findByRole('option', { name: 'Cost centre' }));
-    // Every column placed: straight to the plan, with no new fields.
-    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
-    expect(plan).toHaveBeenCalledWith({ 0: 'given_name', 1: 'work_email', 2: 'cost_centre' }, []);
-    expect(
-      await screen.findByRole('heading', { name: 'Here’s everything that will happen' }),
-    ).toBeInTheDocument();
-  });
-
-  it('proposes a field for each new column, holds back special-category data, and says what it read (AI9)', async () => {
-    const user = fast();
-    const { container } = render(<ImportFlow {...props(ready(MAPPING))} />);
-    await toNewFields(user);
-    // People's own rules proposed: it says so.
-    expect(screen.getByText(/assistant didn’t answer this time/)).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Create T-shirt size' })).toBeChecked();
-    expect(screen.getByText('Medium confidence')).toBeInTheDocument();
-    expect(screen.getByText('XS, S, M, L, XL')).toBeInTheDocument();
-    expect(screen.getAllByText('17 of 20 rows have a value')).toHaveLength(2);
-    const held = screen
-      .getByRole('heading', { name: 'Dietary requirements' })
-      .closest('section, div[aria-labelledby], [aria-labelledby]');
-    expect(held).not.toBeNull();
-    expect(
-      screen.getByText(/special-category data\. I suggest not importing it/),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Import anyway' })).toBeInTheDocument();
-    expect(screen.getByText('1 (Dietary requirements)')).toBeInTheDocument();
-    expect(screen.getByText('These come with setup')).toBeInTheDocument();
-    expect(await axeViolations(container)).toEqual([]);
-
-    // Switched off, it is not imported; Accept all puts the ordinary ones back.
-    await user.click(screen.getByRole('switch', { name: 'Create T-shirt size' }));
-    expect(screen.getByText('2 (T-shirt size, Dietary requirements)')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Accept all 2' }));
-    expect(screen.getByRole('switch', { name: 'Create T-shirt size' })).toBeChecked();
-
-    // Edit opens the whole field.
-    await user.click(screen.getAllByRole('button', { name: 'Edit' })[0] as HTMLElement);
-    expect(screen.getByLabelText('Name')).toHaveValue('T-shirt size');
-    expect(await axeViolations(container)).toEqual([]);
-  });
-
-  it('asks what happens for the people without a value, suggesting one with its reason (AI10)', async () => {
-    const user = fast();
-    const plan = vi.fn(() => Promise.resolve({ ok: true as const, data: PLAN }));
-    const { container } = render(<ImportFlow {...props(ready(MAPPING), { plan })} />);
-    await toNewFields(user);
-    await user.click(screen.getByRole('button', { name: 'Next: what about existing people?' }));
-    expect(
-      await screen.findByRole('heading', {
-        name: 'Most people already have a value from the file',
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText('4 missing')).toHaveLength(2);
-    const choices = screen.getByRole('radiogroup', {
-      name: 'What happens for the people without T-shirt size',
+    await waitFor(() => {
+      expect(plan).toHaveBeenLastCalledWith(
+        { 0: 'given_name', 1: 'work_email', 2: 'cost_centre' },
+        [],
+      );
     });
-    expect(within(choices).getByRole('radio', { name: /Leave it empty/ })).toBeChecked();
-    expect(within(choices).getByText('Suggested')).toBeInTheDocument();
-    expect(
-      screen.getByText('Why this suggestion: Nice to have: nobody is chased for it.'),
-    ).toBeInTheDocument();
-    expect(await axeViolations(container)).toEqual([]);
-
-    await user.click(
-      within(choices).getByRole('radio', { name: /Ask the 4 people to fill it in/ }),
-    );
-    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
-    await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
-    const [, proposals] = plan.mock.calls[0] as unknown as [
-      unknown,
-      { key: string; include: boolean; forExisting: unknown }[],
-    ];
-    expect(proposals.find((p) => p.key === 't_shirt_size')?.forExisting).toEqual({ kind: 'ask' });
-    expect(proposals.find((p) => p.key === 'dietary_requirements')?.include).toBe(false);
+    expect(await screen.findByRole('button', { name: 'Import 19 people' })).toBeEnabled();
   });
 
-  it('says everything that will happen, and runs it on one approval (AI11)', async () => {
-    const user = fast();
-    const run = vi.fn(() => Promise.resolve({ ok: true as const }));
-    const onDownloadBlocked = vi.fn();
-    const { container } = render(
-      <ImportFlow {...props(ready(MAPPING), { run, onDownloadBlocked })} />,
-    );
-    await toNewFields(user);
-    await user.click(screen.getByRole('button', { name: 'Next: what about existing people?' }));
-    await user.click(await screen.findByRole('button', { name: 'Next: review the plan' }));
-    await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
-    for (const s of PLAN.steps) expect(screen.getByText(s.title)).toBeInTheDocument();
-    expect(
-      screen.getByText('Written from your choices. Nothing has happened yet.'),
-    ).toBeInTheDocument();
-    expect(await axeViolations(container)).toEqual([]);
-
-    // A manager the file names that is nowhere here: listed, never blocking.
-    expect(screen.getByRole('table', { name: 'Left empty for HR' })).toHaveTextContent(
-      'nobody in this company or this file is called “Gabe Lewis”',
-    );
-
-    await user.click(screen.getByRole('button', { name: 'See rows' }));
-    expect(screen.getByText('D7 — empty')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Download all 1 as CSV' }));
-    expect(onDownloadBlocked).toHaveBeenCalledWith('https://store.test/blocked.csv');
-
-    await user.click(screen.getByRole('button', { name: 'Approve and run' }));
-    expect(run).toHaveBeenCalledWith(
-      { 0: 'given_name', 1: 'work_email', 2: null, 3: null, 4: null },
-      expect.arrayContaining([expect.objectContaining({ key: 't_shirt_size', include: true })]),
-      { applyWithoutApproval: false },
-    );
-  });
-
-  it('says why a run was refused, and lets HR apply sensitive values now (PEO-077)', async () => {
+  it('imports on one press, says why a run was refused, and lets HR apply sensitive values now (PEO-077)', async () => {
     const user = fast();
     const run = vi.fn(() =>
       Promise.resolve({ ok: false as const, message: 'Another import is running' }),
@@ -261,18 +202,16 @@ describe('ImportFlow', () => {
     };
     const plan = vi.fn(() => Promise.resolve({ ok: true as const, data: sensitive }));
     const noNewColumns: ImportStage = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
-    render(<ImportFlow {...props(ready(noNewColumns), { run, plan })} />);
-    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+    render(<Open {...props(ready(noNewColumns), { run, plan })} />);
     await user.click(await screen.findByLabelText('Apply sensitive values without approval'));
-    await user.click(screen.getByRole('button', { name: 'Approve and run' }));
+    await user.click(screen.getByRole('button', { name: 'Import 19 people' }));
     expect(run).toHaveBeenCalledWith({ 0: 'given_name', 1: 'work_email' }, [], {
       applyWithoutApproval: true,
     });
     expect(await screen.findByText('Another import is running')).toBeInTheDocument();
   });
 
-  it('cannot be approved while the plan says why not', async () => {
-    const user = fast();
+  it('cannot import while the plan says why not', async () => {
     const plan = vi.fn(() =>
       Promise.resolve({
         ok: true as const,
@@ -280,20 +219,25 @@ describe('ImportFlow', () => {
       }),
     );
     render(
-      <ImportFlow
-        {...props(ready({ ...MAPPING, columns: MAPPING.columns.slice(0, 2) }), { plan })}
-      />,
+      <Open {...props(ready({ ...MAPPING, columns: MAPPING.columns.slice(0, 2) }), { plan })} />,
     );
-    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
     expect(
       await screen.findByText('The employee fields have 1 unpublished change.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Approve and run' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Import 19 people' })).toBeDisabled();
+  });
+
+  it('goes back to choose another file', async () => {
+    const onBack = vi.fn();
+    render(<Open {...props(ready(MAPPING), { onBack })} />);
+    await reviewed();
+    await fast().click(screen.getByRole('button', { name: 'Choose another file' }));
+    expect(onBack).toHaveBeenCalledOnce();
   });
 
   it('says what it did and which fields it created, with the way to each (AI12)', async () => {
     const onDone = vi.fn();
-    const { container } = render(<ImportFlow {...props(ready(DONE), { onDone })} />);
+    const { baseElement: container } = render(<Open {...props(ready(DONE), { onDone })} />);
     expect(
       screen.getByRole('heading', { name: 'Imported 19 people and created 2 fields' }),
     ).toBeInTheDocument();
@@ -315,29 +259,11 @@ describe('ImportFlow', () => {
     expect(onDone).toHaveBeenCalledOnce();
   });
 
-  it('keeps its step in the address, and opens the mapping when it no longer holds that step', async () => {
-    const user = fast();
-    const onStepChange = vi.fn();
-    const { rerender } = render(
-      <ImportFlow {...props(ready(MAPPING), { step: 'plan', onStepChange })} />,
-    );
-    // A reload: nothing proposed or planned here yet, so the mapping.
-    expect(screen.getByRole('table', { name: 'Columns' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Next: new fields' }));
-    expect(onStepChange).toHaveBeenCalledWith('fields');
-    rerender(<ImportFlow {...props(ready(MAPPING), { step: 'fields', onStepChange })} />);
-    expect(
-      await screen.findByRole('heading', {
-        name: '3 columns aren’t fields yet. Here’s what I’d create.',
-      }),
-    ).toBeInTheDocument();
-  });
-
   it('has loading and error states', async () => {
-    const { container, rerender } = render(<ImportFlow {...props({ status: 'loading' })} />);
+    const { rerender } = render(<Open {...props({ status: 'loading' })} />);
     expect(screen.getByText('Loading the import')).toBeInTheDocument();
-    rerender(<ImportFlow {...props({ status: 'error', message: 'Down' })} />);
+    rerender(<Open {...props({ status: 'error', message: 'Down' })} />);
     expect(screen.getByText('Down')).toBeInTheDocument();
-    expect(await axeViolations(container)).toEqual([]);
+    expect(await axeViolations(document.body)).toEqual([]);
   });
 });

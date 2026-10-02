@@ -101,10 +101,6 @@
       "component": "Organisation"
     },
     {
-      "path": "/people/import",
-      "component": "ImportFlow"
-    },
-    {
       "path": "/people/export",
       "component": "ExportBuilder"
     },
@@ -226,7 +222,7 @@
       "icon": "transfer",
       "description": "Move people data in and out, with one history",
       "summary": "Move data in and out",
-      "owns": ["/people/import", "/people/export"]
+      "owns": ["/people/export"]
     },
     {
       "path": "/people/insights/what-changed",

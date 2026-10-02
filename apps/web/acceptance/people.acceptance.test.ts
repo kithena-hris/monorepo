@@ -556,7 +556,13 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
   it('imports every row and lists what it left empty for HR, without mapping anything by hand', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/import`);
+    // Import opens over Import & export, and the address keeps it.
+    await page.goto(`${stack.shell}/people/import-export`);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('link', { name: 'Start import' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Import people' });
+    await dialog.waitFor({ timeout: 30_000 });
+    await page.waitForURL(/\?import=new/u);
 
     const broken = [
       'given_name,family_name,work_email,hire_date',
@@ -567,20 +573,21 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
     ].join('\n');
     await upload(page, 'people.csv', broken);
 
-    // Every column maps itself: its header is the field's key.
-    const review = page.getByRole('button', { name: 'Next: review the plan' });
-    await review.waitFor({ timeout: 30_000 });
-    expect(await review.isEnabled()).toBe(true);
-    await review.click();
-
-    // Nothing is blocked: Ines waits for a work email, Tom for a real start date.
+    // One review, straight after the upload: every column maps itself (its
+    // header is the field's key), and a reload opens it again.
+    await page.waitForURL(/step=review/u, { timeout: 30_000 });
+    await page.reload();
     const left = page.getByRole('table', { name: 'Left empty for HR' });
     await left.waitFor({ timeout: 30_000 });
+    // Nothing is blocked: Ines waits for a work email, Tom for a real start date.
     expect(await left.getByRole('row').count()).toBe(3);
     expect(await page.getByRole('button', { name: 'See rows' }).count()).toBe(0);
 
-    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('button', { name: 'Import 4 people' }).click();
     await page.getByRole('heading', { name: /^Imported 4 people/ }).waitFor({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Done' }).click();
+    await dialog.waitFor({ state: 'detached', timeout: 30_000 });
+    expect(new URL(page.url()).search).toBe('');
 
     const everyone = await stack.sql<{ work_email: string | null; status: string }[]>`
       SELECT work_email, status FROM people.person WHERE tenant_id = ${TENANT}`;
@@ -1359,7 +1366,7 @@ describe('An import larger than a Vercel function takes, straight to storage (§
         else if (request.method() === 'PUT') puts.push(request.url());
       });
     });
-    await page.goto(`${stack.shell}/people/import`);
+    await page.goto(`${stack.shell}/people/import-export?import=new`);
 
     // One good row and five thousand wide ones that are nobody (no name, no
     // email), so they are skipped: past 4.5 MB, and a skipped-row report past it too.
@@ -1372,8 +1379,7 @@ describe('An import larger than a Vercel function takes, straight to storage (§
     expect(Buffer.byteLength(csv)).toBeGreaterThan(4.5 * 1024 * 1024);
     await upload(page, 'big.csv', csv);
 
-    const review = page.getByRole('button', { name: 'Next: review the plan' });
-    await review.waitFor({ timeout: 120_000 });
+    await page.waitForURL(/step=review/u, { timeout: 120_000 });
     // What storage holds is the file, whole: People read it back and pinned
     // the SHA-256 of exactly these bytes.
     const [held] = await stack.sql<{ size: string; checksum: string }[]>`
@@ -1382,7 +1388,6 @@ describe('An import larger than a Vercel function takes, straight to storage (§
       size: String(Buffer.byteLength(csv)),
       checksum: createHash('sha256').update(csv).digest('hex'),
     });
-    await review.click();
     await page.getByRole('button', { name: 'See rows' }).click({ timeout: 120_000 });
     await page.getByRole('heading', { name: 'Skipped rows' }).waitFor({ timeout: 120_000 });
     // The review lists the first twenty; the file has all of them.
@@ -1393,7 +1398,7 @@ describe('An import larger than a Vercel function takes, straight to storage (§
     expect(Buffer.byteLength(report)).toBeGreaterThan(4.5 * 1024 * 1024);
     expect(report.trim().split(/\r?\n/)).toHaveLength(5_001);
 
-    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('button', { name: 'Import 1 person' }).click();
     await page.getByRole('heading', { name: /^Imported 1 person/ }).waitFor({ timeout: 120_000 });
     const grace = await stack.sql`
       SELECT 1 FROM people.person WHERE tenant_id = ${TENANT} AND work_email = 'grace@acme.example'`;

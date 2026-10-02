@@ -168,23 +168,13 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         status: 'ready',
         data: {
           canImport: (roles.data as { hr?: boolean }).hr === true,
+          admin: (roles.data as { admin?: boolean }).admin === true,
           setUp: !notSetUp(template),
           history:
             history.status === 'ready'
               ? { ...(history.data as object), paged: before !== null }
               : null,
           now: new Date().toISOString(),
-        },
-      };
-    }
-    case 'ImportFlow': {
-      // Whether there is anything to import against yet, and who could set it up.
-      const [roles, template] = await Promise.all([read('Home'), read('ImportTemplate')]);
-      return {
-        status: 'ready',
-        data: {
-          setUp: !notSetUp(template),
-          admin: roles.status === 'ready' && (roles.data as { admin?: boolean }).admin === true,
         },
       };
     }

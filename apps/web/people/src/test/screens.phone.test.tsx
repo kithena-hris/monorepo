@@ -11,7 +11,7 @@ import { BulkEdit } from '../bulk/bulk-edit';
 import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
-import { ImportFlow } from '../import/import-flow';
+import { ImportModal, type ImportFlowProps } from '../import/import-flow';
 import { DONE, MAPPING, NEW_FIELDS, PLAN } from '../import/import.fixture';
 import { Onboarding } from '../onboarding/onboarding';
 import { PersonHistory } from '../profile/history';
@@ -1026,75 +1026,39 @@ describe('at 390×844, with a finger', () => {
     );
   });
 
-  describe('the import', () => {
-    const flow = (data: Parameters<typeof ImportFlow>[0]['load']) => (
-      <ImportFlow
-        load={data}
-        onUpload={ok}
-        propose={() => Promise.resolve({ ok: true as const, data: NEW_FIELDS })}
-        plan={() => Promise.resolve({ ok: true as const, data: PLAN })}
-        run={ok}
-        onDownloadBlocked={vi.fn()}
-        onBack={vi.fn()}
-        onDone={vi.fn()}
+  describe('the import, in a full-screen modal', () => {
+    const flow = (data: ImportFlowProps['load']) => (
+      <ImportModal
+        flow={{
+          load: data,
+          onUpload: ok,
+          propose: () => Promise.resolve({ ok: true as const, data: NEW_FIELDS }),
+          plan: () => Promise.resolve({ ok: true as const, data: PLAN }),
+          run: ok,
+          onDownloadBlocked: vi.fn(),
+          onBack: vi.fn(),
+          onDone: vi.fn(),
+        }}
+        onClose={vi.fn()}
       />
     );
-    const again = async (): Promise<void> => {
-      await settled();
-      expect(await violations(document.body)).toEqual([]);
-      expect(underFloor(document.body)).toEqual([]);
-    };
 
     it('the upload', async () => {
       await checked(flow({ status: 'ready', data: { step: 'upload' } }));
     });
 
-    it('the mapping', async () => {
+    it('one review: the plan, the columns, the new fields and their people without a value, and Import in thumb reach', async () => {
       await checked(flow({ status: 'ready', data: MAPPING }));
-    });
-
-    it('new fields, one card at a time, with Skip and Create in thumb reach (MA8)', async () => {
-      await checked(flow({ status: 'ready', data: MAPPING }));
-      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
-      await screen.findByText('New fields · 1 of 3');
-      expect(
-        screen.getByRole('heading', { name: 'These columns aren’t fields yet' }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole('region', { name: 'Proposed fields' })).toBeInTheDocument();
-      await again();
-      await userEvent.click(screen.getByRole('button', { name: 'Create field' }));
-      await screen.findByText('New fields · 2 of 3');
-      await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
-      await screen.findByText('New fields · 3 of 3');
-      // Held back: the button says what pressing it would do.
-      expect(screen.getByRole('button', { name: 'Import anyway' })).toBeInTheDocument();
-      await again();
-    });
-
-    it('the people without a value, then the plan in a sentence and Approve (MA9)', async () => {
-      await checked(flow({ status: 'ready', data: MAPPING }));
-      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
-      // One card at a time: the same two buttons serve every card, so each
-      // press waits for its card, or it lands on the one before and the plan
-      // never comes.
-      for (const [i, name] of ['Create field', 'Create field', 'Skip'].entries()) {
-        await screen.findByText(`New fields · ${String(i + 1)} of 3`);
-        await userEvent.click(screen.getByRole('button', { name }));
-      }
-      expect(await screen.findByText(PLAN.short)).toBeInTheDocument();
-      expect(
-        screen.getByRole('heading', { name: '4 people have no T-shirt size' }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Approve and run' })).toBeEnabled();
-      await again();
-    });
-
-    it('the plan', async () => {
-      const noNewColumns = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
-      await checked(flow({ status: 'ready', data: noNewColumns }));
-      await userEvent.click(screen.getByRole('button', { name: 'Next: review the plan' }));
       await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
-      await again();
+      expect(screen.getByRole('table', { name: 'Columns' })).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Create T-shirt size' })).toBeChecked();
+      expect(
+        screen.getByRole('combobox', { name: 'What happens for the people without T-shirt size' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Import 19 people' })).toBeEnabled();
+      await settled();
+      expect(await violations(document.body)).toEqual([]);
+      expect(underFloor(document.body)).toEqual([]);
     });
 
     it('done', async () => {

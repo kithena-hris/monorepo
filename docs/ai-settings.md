@@ -3,57 +3,69 @@
 When a spreadsheet being imported has columns that match no employee field,
 People proposes a field for each, asks what should happen for the people who
 will have no value, and says in one plan everything the import will do. A
-People administrator approves the plan once; nothing is written before.
+People administrator imports once; nothing is written before.
 
-## The flow (design AI9 to AI12; MA8, MA9 on a phone)
+## The flow (design AI9 to AI12)
 
-The import has five steps: **Upload → Map columns → New fields → Review plan
-→ Import**. The step, and the field in focus on the people-without-a-value
-screen, are in the address (`?step=`, `?field=`).
+The import is a modal over the page it was opened from (Import & export, or
+the Directory's Import): a full-screen page on a phone, a tall column at a
+desk (Reach's `ModalPage`). It has three steps: **Upload → Review → Done**.
+The address keeps it (`?import=new`, then `?import=<upload>&step=review`,
+then `step=done`), so Back steps back or closes it, and a reload opens it
+again: People still holds the upload and reads it back.
 
 0. **Nothing published yet is not a detour.** A company the back office has
    just made (one legal entity, nothing published) imports straight away: its
    file is read against what setup would publish, held in memory
    (`setupDraft` in `application/screens/schema.ts`: the core fields and every
    section of the entity's country pack), and the plan's first step says
-   "Set up the employee record with the United States pack". Approving it
+   "Set up the employee record with the United States pack". Importing it
    seeds setup and publishes the pack and the file's new fields together as
    version 1. HR who is not an administrator is told an administrator imports
    the first file. The setup wizard still exists for a company that wants to
    choose its sections first.
-1. **Upload and map.** Columns map by key, by label, by the usual names other
+1. **Upload.** Columns map by key, by label, by the usual names other
    systems export (`domain/import/aliases.ts`: "First Name", "Email",
-   "Employee ID", "Hire Date"…), then by the column-mapping judgment.
-   Existing fields and sections are never changed by anything below.
-2. **New fields** appears only when columns match nothing. One card per
-   column: its proposed name, type, section, who sees it, how sensitive it is,
-   how sure the rules are of the type, the choices or the shape of the values,
-   how many rows have a value, a switch, and Edit for all of it. Accept all.
-   A column that can reveal health, religion or the like (special category:
-   allergies, diet, religion…) is **held back** with its reason and "Import
-   anyway"; a model cannot put it back. When no assistant answered, the card
-   says the proposal is People's own rules.
-3. **People without a value**: for each kept field, how many people will
-   have none once the file is in, and what happens for them, one suggested
-   with its reason and each with what it does:
-   - *Ask them*: theirs to fill in and required, so they show as incomplete
-     and the weekly reminder asks (an optional ask is PEO-148);
-   - *HR fills it in*: HR's and required, on Data health's list;
-   - *Only new joiners*: required of people added from now on;
-   - *Leave it empty*: optional, nobody asked;
-   - *One value for everyone* (only when every row holds the same value).
-4. **Review plan** (`POST /v1/imports/plan`, writes nothing): a dry run
-   against the version the kept fields would make, and every consequence in
-   words (`domain/import/plan.ts`): setup, the fields and where they go, the
-   people created and updated (with the blocked rows a click away), who is
-   asked, what HR fills in, what is left out. On a phone, the plan is one
-   sentence under the choices.
-5. **Approve and run** (`POST /v1/imports/run`): the plan is worked out again
-   on the server, then setup's seeding if nothing is published, the fields and
-   any new sections into the draft, one publish, the defaults, all in one
-   transaction refused whole if the settings refuse a field; then the import
-   commits with every new column mapped to its new field. The done screen
-   says what it did and lists the new fields, each a link to edit.
+   "Hire Date"…), then by the column-mapping judgment. A person id or an
+   employee number column is never imported: it shows "Kithena creates
+   this" (`domain/import/identifiers.ts`). Existing fields and sections are
+   never changed by anything below.
+2. **Review**, one screen, worked out again from a dry run
+   (`POST /v1/imports/plan`, writes nothing) after every change:
+   - **What will happen**, first, in the assistant's card: every consequence
+     in words (`domain/import/plan.ts`): setup, the work locations added, the
+     fields and where they go, the people created and updated, that employee
+     ids in the file are ignored, who is asked, what HR fills in, what is left
+     out. Under it, what is left empty for HR (a manager or work location
+     nowhere here, a cell that can't be read, a start date waiting for a work
+     email) and, a click away, the rows skipped because they cannot be anybody.
+   - **Columns**: each column and the field it goes to, changed in place.
+   - **New fields**, when columns match nothing, in the assistant's card
+     ("3 columns aren’t fields yet. Here’s what I’d create."): one card per
+     column with its proposed name, type, section, who sees it, how sensitive
+     it is, how sure the rules are of the type, the choices or the shape of
+     the values, how many rows have a value, a switch, and Edit for all of it.
+     Accept all. A column that can reveal health, religion or the like
+     (special category: allergies, diet, religion…) is **held back** with its
+     reason and "Import anyway"; a model cannot put it back. When no assistant
+     answered, the card says the proposal is People's own rules.
+   - **People without a value**, under each kept field: how many will have
+     none once the file is in, and what happens for them, one suggested:
+     - *Ask them*: theirs to fill in and required, so they show as incomplete
+       and the weekly reminder asks (an optional ask is PEO-148);
+     - *HR fills it in*: HR's and required, on Data health's list;
+     - *Only new joiners*: required of people added from now on;
+     - *Leave it empty*: optional, nobody asked;
+     - *The file's value* (only when every row holds the same value).
+3. **Import** (`POST /v1/imports/run`): the plan is worked out again on the
+   server, then setup's seeding if nothing is published, the work locations
+   the file names, numbering for new people, the fields and any new sections
+   into the draft, one publish, the defaults, all in one transaction refused
+   whole if the settings refuse a field; then the import commits with every
+   new column mapped to its new field, and links each manager once everybody
+   is in. Nothing blocks a row: a row the database itself refuses is that
+   row's reason, naming the column. The done screen says what it did and
+   lists the new fields, each a link to edit.
 
 ## Where it runs, and what the model sees
 

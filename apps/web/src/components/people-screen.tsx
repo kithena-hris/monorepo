@@ -469,13 +469,39 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
     if (known !== null) go(viewHref(known, window.location.search));
   };
 
-  // The import's steps: which upload People holds the file under (§14.2),
-  // the mapping chosen, and the stages so far, for Back.
+  /*
+   * The import, a modal over the page it was opened from. The address holds
+   * it (`?import=new`, then `?import=<upload>&step=review`, then `step=done`),
+   * so Back steps back or closes it, and a reload opens it again: People
+   * still holds the upload (§14.2) and reads it back. Here: the upload, its
+   * review and, once run, what it did.
+   */
   const [importing, setImporting] = useState<{
     uploadId: string | null;
-    mapping: Readonly<Record<number, string | null>>;
-    stages: Stage[];
-  }>({ uploadId: null, mapping: {}, stages: [{ step: 'upload' }] });
+    review: Stage | null;
+    done: Stage | null;
+  }>({ uploadId: null, review: null, done: null });
+  const importAt = at('import');
+  const reopening = importAt !== null && importAt !== 'new' && importAt !== importing.uploadId;
+  useEffect(() => {
+    if (!reopening) return undefined;
+    let live = true;
+    void actions.completeImportUpload(importAt).then((read) => {
+      if (!live) return;
+      if (read.ok) setImporting({ uploadId: importAt, review: read.stage as Stage, done: null });
+      // Gone (imported, or kept no longer): choose a file again.
+      else note({ import: 'new', step: null }, 'replace');
+    });
+    return () => {
+      live = false;
+    };
+  }, [reopening, importAt]);
+  const closeImport = (): void => {
+    note({ import: null, step: null }, 'replace');
+  };
+  const openImport = (): void => {
+    note({ import: 'new', step: null }, 'push');
+  };
 
   const loadable =
     load.status === 'ready'
@@ -483,6 +509,69 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       : load.status === 'error'
         ? { status: 'error' as const, message: load.message, retry: refresh }
         : null;
+
+  /** The import's props, while the address says it is open. */
+  const importFlow = (ready: {
+    readonly setUp?: boolean;
+    readonly admin?: boolean;
+  }): Record<string, unknown> | null => {
+    if (importAt === null) return null;
+    const stage: Stage | null =
+      importAt === 'new'
+        ? { step: 'upload' }
+        : importAt !== importing.uploadId
+          ? null
+          : at('step') === 'done' && importing.done !== null
+            ? importing.done
+            : importing.review;
+    const again = { ok: false, message: 'Choose the file again' } as const;
+    type Mapping = Readonly<Record<number, string | null>>;
+    const id = importing.uploadId;
+    return {
+      load: stage === null ? { status: 'loading' } : { status: 'ready', data: stage },
+      // Nothing published and not an administrator: the first import is one's.
+      ...(ready.setUp === false && ready.admin !== true ? { setup: { href: null } } : {}),
+      onUpload: async (file: File, progress: (percent: number) => void): Promise<Outcome> => {
+        const target = await actions.startImportUpload({ name: file.name, size: file.size });
+        if (!target.ok) return target;
+        if (!(await putFile(target, file, progress))) {
+          return { ok: false, message: 'The upload did not go through; try again' };
+        }
+        const completed = await actions.completeImportUpload(target.uploadId);
+        if (!completed.ok) return completed;
+        setImporting({ uploadId: target.uploadId, review: completed.stage as Stage, done: null });
+        note({ import: target.uploadId, step: 'review' }, 'push');
+        return { ok: true };
+      },
+      onBack: () => {
+        note({ import: 'new', step: null }, 'push');
+      },
+      propose: async (mapping: Mapping) =>
+        id === null ? again : actions.proposeImportFields(id, mapping),
+      plan: async (mapping: Mapping, proposals: readonly unknown[]) =>
+        id === null ? again : actions.planImport(id, mapping, proposals),
+      run: async (
+        mapping: Mapping,
+        proposals: readonly unknown[],
+        options: { readonly applyWithoutApproval: boolean },
+      ): Promise<Outcome> => {
+        if (id === null) return again;
+        const ran = await actions.runImport(id, mapping, proposals, options.applyWithoutApproval);
+        if (!ran.ok) return ran;
+        setImporting((s) => ({ ...s, done: { ...(ran.data as object), step: 'done' } }));
+        note({ step: 'done' }, 'replace');
+        return { ok: true };
+      },
+      onDownloadBlocked: (url: string) => {
+        // A signed link to the stored report: it downloads, and expires.
+        window.location.assign(url);
+      },
+      onDone: () => {
+        closeImport();
+        refresh();
+      },
+    };
+  };
 
   const component = route?.component ?? '';
   const props = ((): Record<string, unknown> => {
@@ -513,7 +602,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             go('/people/directory/list');
           },
           onImport: () => {
-            go('/people/import');
+            go('/people/import-export?import=new');
           },
         };
       case 'Onboarding':
@@ -815,11 +904,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             note({ row: row === null ? null : String(row) }, 'replace');
           },
           ...(can.import === true
-            ? {
-                onImport: () => {
-                  go('/people/import');
-                },
-              }
+            ? { onImport: openImport, importFlow: importFlow({}), onImportClose: closeImport }
             : {}),
           ...(can.bulkEdit === true
             ? {
@@ -1262,86 +1347,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           },
         };
       }
-      case 'ImportFlow': {
-        const stage = importing.stages.at(-1) ?? { step: 'upload' };
-        const again = { ok: false, message: 'Choose the file again' } as const;
-        type Mapping = Readonly<Record<number, string | null>>;
-        // Nothing published and not an administrator: the first import is one's.
-        const ready =
-          load.status === 'ready' ? (load.data as { setUp?: boolean; admin?: boolean }) : {};
-        return {
-          load: { status: 'ready', data: stage },
-          ...(ready.setUp === false ? { setup: { href: null } } : {}),
-          // The step after the mapping and the field in focus live in the address.
-          step: at('step'),
-          onStepChange: (step: string | null) => {
-            note({ step, field: null }, 'push');
-          },
-          field: at('field'),
-          onFieldChange: (field: string | null) => {
-            note({ field }, 'replace');
-          },
-          onUpload: async (file: File, progress: (percent: number) => void): Promise<Outcome> => {
-            const target = await actions.startImportUpload({ name: file.name, size: file.size });
-            if (!target.ok) return target;
-            if (!(await putFile(target, file, progress))) {
-              return { ok: false, message: 'The upload did not go through; try again' };
-            }
-            const completed = await actions.completeImportUpload(target.uploadId);
-            if (!completed.ok) return completed;
-            setImporting((s) => ({
-              uploadId: target.uploadId,
-              mapping: {},
-              stages: [...s.stages, completed.stage as Stage],
-            }));
-            return { ok: true };
-          },
-          onBack: () => {
-            setImporting((s) => ({
-              ...s,
-              stages: s.stages.length > 1 ? s.stages.slice(0, -1) : s.stages,
-            }));
-            note({ step: null, field: null }, 'replace');
-          },
-          propose: async (mapping: Mapping) => {
-            const id = importing.uploadId;
-            return id === null ? again : actions.proposeImportFields(id, mapping);
-          },
-          plan: async (mapping: Mapping, proposals: readonly unknown[]) => {
-            const id = importing.uploadId;
-            return id === null ? again : actions.planImport(id, mapping, proposals);
-          },
-          run: async (
-            mapping: Mapping,
-            proposals: readonly unknown[],
-            options: { readonly applyWithoutApproval: boolean },
-          ): Promise<Outcome> => {
-            const id = importing.uploadId;
-            if (id === null) return again;
-            const ran = await actions.runImport(
-              id,
-              mapping,
-              proposals,
-              options.applyWithoutApproval,
-            );
-            if (!ran.ok) return ran;
-            setImporting((s) => ({
-              ...s,
-              mapping,
-              stages: [...s.stages, { ...(ran.data as object), step: 'done' }],
-            }));
-            note({ step: null, field: null }, 'replace');
-            return { ok: true };
-          },
-          onDownloadBlocked: (url: string) => {
-            // A signed link to the stored report: it downloads, and expires.
-            window.location.assign(url);
-          },
-          onDone: () => {
-            go('/people/import-export');
-          },
-        };
-      }
       case 'Analytics':
         return {
           load: loadable,
@@ -1460,6 +1465,10 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       case 'ImportExport':
         return {
           load: loadable,
+          importFlow: importFlow(
+            load.status === 'ready' ? (load.data as { setUp?: boolean; admin?: boolean }) : {},
+          ),
+          onImportClose: closeImport,
           kind: oneOf(at('kind'), ['import', 'export'], null),
           onKindChange: (kind: string) => {
             note({ kind: kind === 'all' ? null : kind }, 'push');

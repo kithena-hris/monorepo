@@ -4,16 +4,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
 import { onScreen, scrollOver, scrollUntilOnScreen } from '../test/scroll';
-import { ImportFlow } from './import-flow';
+import { ImportModal } from './import-flow';
 import { EXPORT_MAPPING } from './import.fixture';
 
 /**
- * A file exported from here, mapped back: 23 columns, so the mapping is
+ * A file exported from here, mapped back in the import’s modal: 23 columns, so the mapping is
  * taller than the screen. Run twice, by the `phone` project (390 wide, a
  * finger) and the `desk` project (a mouse, at 1280 and at 1440).
  *
  * The scroll starts on top of the table, where a person's pointer is, and
- * goes through Chromium's own input, so the page has to actually move: a
+ * goes through Chromium’s own input, so the modal’s body has to actually move: a
  * table that swallowed the wheel left the last columns out of reach while
  * every DOM query still found them.
  */
@@ -36,14 +36,17 @@ describe(`mapping a 23-column file ${coarse ? 'with a finger' : 'with a mouse'}`
     await page.viewport(size.width, size.height);
     render(
       <TooltipProvider>
-        <ImportFlow
-          load={{ status: 'ready', data: EXPORT_MAPPING }}
-          onUpload={ok}
-          propose={() => new Promise(() => undefined)}
-          plan={() => new Promise(() => undefined)}
-          run={ok}
-          onDownloadBlocked={vi.fn()}
-          onBack={vi.fn()}
+        <ImportModal
+          flow={{
+            load: { status: 'ready', data: EXPORT_MAPPING },
+            onUpload: ok,
+            propose: () => new Promise(() => undefined),
+            plan: () => new Promise(() => undefined),
+            run: ok,
+            onDownloadBlocked: vi.fn(),
+            onBack: vi.fn(),
+          }}
+          onClose={vi.fn()}
         />
       </TooltipProvider>,
     );
@@ -54,7 +57,16 @@ describe(`mapping a 23-column file ${coarse ? 'with a finger' : 'with a mouse'}`
 
     // The file's last column, its row in the mapping whole on screen.
     const row = within(table).getByRole('row', { name: /__missing_required/ });
-    expect(await scrollUntilOnScreen(table, row)).toBe(true);
+    // The modal in place first: it slides up from the bottom as it opens.
+    // (The skeleton's shimmer never ends, so only what does.)
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+        .map((a) => a.finished),
+    );
+    // From wherever the hand is on the modal: over the plan, then the table.
+    expect(await scrollUntilOnScreen(screen.getByRole('dialog'), row)).toBe(true);
     expect(onScreen(last)).toBe(true);
     // Nothing pushes the page sideways to get there.
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
