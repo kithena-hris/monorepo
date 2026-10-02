@@ -1074,8 +1074,12 @@ describe('at 390×844, with a finger', () => {
     it('the people without a value, then the plan in a sentence and Approve (MA9)', async () => {
       await checked(flow({ status: 'ready', data: MAPPING }));
       await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
-      for (const name of ['Create field', 'Create field', 'Skip']) {
-        await userEvent.click(await screen.findByRole('button', { name }));
+      // One card at a time: the same two buttons serve every card, so each
+      // press waits for its card, or it lands on the one before and the plan
+      // never comes.
+      for (const [i, name] of ['Create field', 'Create field', 'Skip'].entries()) {
+        await screen.findByText(`New fields · ${String(i + 1)} of 3`);
+        await userEvent.click(screen.getByRole('button', { name }));
       }
       expect(await screen.findByText(PLAN.short)).toBeInTheDocument();
       expect(

@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
-import { onScreen, scrollUntilOnScreen } from '../test/scroll';
+import { onScreen, scrollOver, scrollUntilOnScreen } from '../test/scroll';
 import { ImportFlow } from './import-flow';
 import { EXPORT_MAPPING } from './import.fixture';
 
@@ -63,6 +63,14 @@ describe(`mapping a 23-column file ${coarse ? 'with a finger' : 'with a mouse'}`
     const list = await screen.findByRole('listbox');
     // Portalled: on screen whole, clipped by no scroll container on the way.
     expect(onScreen(list)).toBe(true);
+    // And the list scrolls itself, from on top of it, by wheel or by finger.
+    const box = [list, ...list.querySelectorAll('*')].find(
+      (el) => el.scrollHeight > el.clientHeight + 1 && getComputedStyle(el).overflowY !== 'visible',
+    );
+    expect(box).toBeDefined();
+    await Promise.all(list.getAnimations({ subtree: true }).map((a) => a.finished));
+    await scrollOver(list, 200);
+    expect(box?.scrollTop).toBeGreaterThan(0);
     await userEvent.click(within(list).getByRole('option', { name: 'Hometown' }));
     await expect.poll(() => screen.queryByRole('listbox')).toBeNull();
     expect(last).toHaveTextContent('Hometown');
