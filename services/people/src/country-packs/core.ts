@@ -108,7 +108,7 @@ export const CORE_PACK: {
       order: 2,
       dataType: 'text',
       typeConfig: { kind: 'text' },
-      ownership: ['employee'],
+      ownership: ['employee', 'hr'],
       visibility: [...everyone],
       collectAt: 'onboarding',
       classification: identity,
