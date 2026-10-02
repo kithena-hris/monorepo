@@ -1204,8 +1204,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       return p;
     };
 
-    // Every column: a field here, a new field, an id Kithena creates, or the
-    // one the employee alone writes (Preferred name, by the core schema).
+    // Every column: a field here, a new field, or an id Kithena creates.
     const proposedFor = new Set(proposals.map((p) => p.column));
     const where = (x: (typeof columns)[number]) =>
       x.status === 'mapped'
@@ -1219,7 +1218,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       columns
         .filter((x) => !['existing', 'kithena', 'new'].includes(where(x)))
         .map((x) => [x.header, where(x)]),
-    ).toEqual([['Preferred Name', 'refused: preferred_name is not yours to write']]);
+    ).toEqual([]);
     // Nothing held back: special category is imported too.
     expect(proposals.filter((p) => !p.include).map((p) => p.header)).toEqual([]);
     // Nothing the settings would refuse: no sealed list, nothing fixed after the fact.
@@ -1401,7 +1400,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     }>(c.graph, { ...step, proposals }, 'meridian-run');
     expect(done).toMatchObject({ created: 100, blocked: 0, held: 0 });
     // 7 to fields here, 95 new, 2 ids; Preferred name is the employee's to write.
-    expect(done.columns).toEqual({ existing: 7, created: 95, kithena: 2, leftOut: 1 });
+    expect(done.columns).toEqual({ existing: 8, created: 95, kithena: 2, leftOut: 0 });
 
     // What was written: a salary as money in the row's currency, an identifier sealed.
     const client = postgres(pgUrl, { max: 1 });
