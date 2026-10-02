@@ -13,8 +13,6 @@ const meta = {
   component: Chip,
   parameters: {
     layout: 'centered',
-    // Axe over every chip story, hover and focus included (`.storybook/vitest.setup.ts`).
-    a11y: { test: 'error' },
     docs: {
       description: {
         component: [

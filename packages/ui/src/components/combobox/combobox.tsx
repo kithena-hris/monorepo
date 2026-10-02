@@ -87,6 +87,17 @@ export interface ComboboxProps {
   'aria-invalid'?: boolean;
 }
 
+/**
+ * Where the clear button sits: the trigger's end padding (`fieldShell`), then
+ * the chevron (1.125rem) and the gap before it (0.25rem), which leaves it over
+ * the spacer the trigger keeps for it.
+ */
+const clearEnd = {
+  sm: 'end-[2.125rem]',
+  md: 'end-[2.125rem] touch:end-[2.375rem]',
+  lg: 'end-[2.25rem] touch:end-[2.375rem]',
+} as const;
+
 export function Combobox({
   options,
   value,
@@ -227,6 +238,13 @@ export function Combobox({
     });
   };
 
+  /*
+   * The clear button sits beside the trigger, over its end, rather than inside
+   * it: a control nested in a button is flattened into the button's name by a
+   * screen reader and cannot be reached on its own (axe: nested-interactive).
+   */
+  const canClear = clearable && selected.length > 0 && !disabled;
+
   const chipList =
     multiple && chips ? (
       <>
@@ -283,57 +301,54 @@ export function Combobox({
         else setQuery('');
       }}
     >
-      <PopoverTrigger
-        ref={triggerRef}
-        id={id}
-        disabled={disabled}
-        aria-label={label}
-        aria-describedby={describedBy}
-        // Under a thumb the label of a 56px trigger floats inside it, as it
-        // does on an `Input`.
-        data-float={size === 'sm' ? undefined : ''}
-        data-invalid={invalid || undefined}
-        className={cn(
-          fieldShell({ size }),
-          size !== 'sm' && floatShell,
-          'cursor-pointer justify-between text-start focus-visible:outline-none',
-          'data-[state=open]:bg-surface data-[state=open]:ring-2 data-[state=open]:ring-accent data-[state=open]:ring-inset',
-          className,
-        )}
-      >
-        <span className={cn('flex min-w-0 flex-1 items-center self-stretch', floatValue)}>
-          <span className={cn('truncate', selected.length === 0 && 'text-fg-subtle')}>
-            {triggerLabel}
-          </span>
-        </span>
-        <span className="flex shrink-0 items-center gap-1">
-          {clearable && selected.length > 0 ? (
-            <span
-              // A nested <button> is invalid HTML inside a trigger button, so
-              // the clear affordance is a span with an explicit role. It still
-              // has to be reachable, hence tabIndex and the key handler.
-              role="button"
-              tabIndex={0}
-              aria-label={`Clear ${label}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onChange(multiple ? [] : null);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onChange(multiple ? [] : null);
-                }
-              }}
-              className="tap-target relative grid size-6 place-items-center rounded-full text-fg-subtle hover:bg-surface-active hover:text-fg"
-            >
-              <X className="size-4" aria-hidden />
+      <div className={cn('relative', className)}>
+        <PopoverTrigger
+          ref={triggerRef}
+          id={id}
+          disabled={disabled}
+          aria-label={label}
+          aria-describedby={describedBy}
+          // Under a thumb the label of a 56px trigger floats inside it, as it
+          // does on an `Input`.
+          data-float={size === 'sm' ? undefined : ''}
+          data-invalid={invalid || undefined}
+          className={cn(
+            fieldShell({ size }),
+            size !== 'sm' && floatShell,
+            'cursor-pointer justify-between text-start focus-visible:outline-none',
+            'data-[state=open]:bg-surface data-[state=open]:ring-2 data-[state=open]:ring-accent data-[state=open]:ring-inset',
+          )}
+        >
+          <span className={cn('flex min-w-0 flex-1 items-center self-stretch', floatValue)}>
+            <span className={cn('truncate', selected.length === 0 && 'text-fg-subtle')}>
+              {triggerLabel}
             </span>
-          ) : null}
-          <ChevronsUpDown className="size-[1.125rem] text-fg-muted" aria-hidden />
-        </span>
-      </PopoverTrigger>
+          </span>
+          <span className="flex shrink-0 items-center gap-1">
+            {/* Room for the clear button, which sits over this spot from outside. */}
+            {canClear ? <span aria-hidden className="size-6" /> : null}
+            <ChevronsUpDown className="size-[1.125rem] text-fg-muted" aria-hidden />
+          </span>
+        </PopoverTrigger>
+        {canClear ? (
+          <button
+            type="button"
+            aria-label={`Clear ${label}`}
+            onClick={() => {
+              onChange(multiple ? [] : null);
+              triggerRef.current?.focus();
+            }}
+            className={cn(
+              'tap-target absolute top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-full',
+              'text-fg-subtle hover:bg-surface-active hover:text-fg',
+              'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
+              clearEnd[size],
+            )}
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        ) : null}
+      </div>
 
       <PopoverContent
         matchTriggerWidth

@@ -128,6 +128,23 @@ describe('at 390×844, with a finger', () => {
     expect(window.innerWidth).toBe(390);
   });
 
+  // The checks below are only as real as axe is: a page that breaks it must
+  // come back with violations, contrast included, or every pass is vacuous.
+  it('fails white on white and an unnamed button', async () => {
+    mount(
+      // Near-white: at exactly 1:1 axe calls the text deliberately hidden.
+      <div style={{ background: '#fff', color: '#eee' }}>
+        <p>White on white.</p>
+        <button type="button">
+          <svg aria-hidden="true" width="16" height="16" />
+        </button>
+      </div>,
+    );
+    await settled();
+    const ids = (await violations(document.body)).map((v) => v.split(':')[0]);
+    expect(ids).toEqual(expect.arrayContaining(['color-contrast', 'button-name']));
+  });
+
   it('the field registry', async () => {
     await checked(
       <FieldRegistry

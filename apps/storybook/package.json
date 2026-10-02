@@ -30,6 +30,7 @@
     "@vitest/browser": "^4.1.11",
     "@vitest/browser-playwright": "^4.1.11",
     "@vitest/coverage-v8": "^4.1.11",
+    "axe-core": "^4.13.0",
     "http-server": "^14.1.1",
     "playwright": "^1.63.0",
     "storybook": "^10.6.0",

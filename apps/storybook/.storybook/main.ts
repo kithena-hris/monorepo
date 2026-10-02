@@ -27,6 +27,9 @@ const config: StorybookConfig = {
     '../../../packages/ui/src/**/!(kithena).stories.@(ts|tsx)',
     // Each story above as a folder of two, Web and Mobile. See `story-views.ts`.
     '../generated/views/**/*.stories.ts',
+    // A deliberately broken story proving axe fails the suite. Tests only:
+    // Vitest sets `VITEST`, a build and `storybook dev` do not.
+    ...(process.env['VITEST'] ? ['./a11y-gate.stories.tsx'] : []),
     /*
      * Everything except Kithena's mark.
      *

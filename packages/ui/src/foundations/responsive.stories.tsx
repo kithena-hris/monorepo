@@ -381,7 +381,7 @@ export const AppShell: Story = {
           </div>
         }
         sidebar={
-          <Nav label="Main" className="w-56 p-2">
+          <Nav label="Areas" className="w-56 p-2">
             <NavList>
               {shellNav.map((item) => (
                 <NavItem key={item.id} href="#" icon={<item.icon />} current={item.id === 'people'}>

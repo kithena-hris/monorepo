@@ -39,9 +39,19 @@ export function ScrollArea({
       className={cn('relative overflow-hidden', className)}
       {...props}
     >
+      {/*
+       * Focusable, so a keyboard can scroll it: a region of plain text has
+       * nothing else to land on, and arrow keys only scroll what has focus
+       * (axe: scrollable-region-focusable).
+       */}
       <ScrollAreaPrimitive.Viewport
         data-scroll-lock
-        className={cn('size-full overscroll-contain rounded-[inherit]', viewportClassName)}
+        tabIndex={0}
+        className={cn(
+          'size-full overscroll-contain rounded-[inherit]',
+          'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+          viewportClassName,
+        )}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

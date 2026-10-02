@@ -229,7 +229,7 @@ const tone = { Active: 'success', 'On leave': 'warning' } as const;
  */
 function AppNav({ current = 'people' }: { current?: string }): JSX.Element {
   return (
-    <Nav label="Main" className="w-56 p-2">
+    <Nav label="Areas" className="w-56 p-2">
       <NavList>
         {nav.map((item) => (
           <NavItem
@@ -326,9 +326,9 @@ function AppBar({ title = 'People' }: { title?: string }): JSX.Element {
   );
 }
 
-function DirectoryTable(): JSX.Element {
+function DirectoryTable({ label = 'People' }: { label?: string }): JSX.Element {
   return (
-    <Table aria-label="People">
+    <Table aria-label={label}>
       <TableHeader>
         <TableRow>
           <TableHead sticky>Employee</TableHead>
@@ -581,7 +581,8 @@ export const WithToolbar: Story = {
         />
         <Stack gap={4}>
           {Array.from({ length: 6 }, (_, i) => (
-            <DirectoryTable key={i} />
+            // Six copies to make the page scroll, each a landmark of its own name.
+            <DirectoryTable key={i} label={`People, part ${String(i + 1)}`} />
           ))}
         </Stack>
       </Stack>
@@ -656,14 +657,21 @@ export const Canvas: Story = {
         <div className="shrink-0 p-4 pb-2">
           <PageHeader size="md" title="Hiring pipeline" description="8 candidates in flight." />
         </div>
-        <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-4 pb-4">
+        {/* The board scrolls sideways, so it takes focus: the arrow keys can
+            only scroll what has it, and its cards are text, not controls. */}
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Pipeline"
+          className="flex min-h-0 flex-1 gap-3 overflow-x-auto px-4 pb-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus"
+        >
           {columns.map((column) => (
             <section
               key={column}
               aria-label={column}
               className="flex w-64 shrink-0 flex-col rounded-lg bg-surface-sunken p-3"
             >
-              <h3 className="text-sm font-semibold text-fg">{column}</h3>
+              <h2 className="text-sm font-semibold text-fg">{column}</h2>
               <div className="mt-2 flex-1 space-y-2 overflow-y-auto">
                 {Array.from({ length: 3 }, (_, i) => (
                   <div

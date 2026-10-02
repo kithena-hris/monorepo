@@ -160,6 +160,9 @@ export function NumberField({
         data-float={float ? '' : undefined}
         data-invalid={invalid || undefined}
         data-disabled={disabled || undefined}
+        // The unit beside the input dims with it; this is what says the dimmed
+        // text belongs to an inactive control (exempt from the contrast minimum).
+        aria-disabled={disabled || undefined}
         className={cn(
           fieldShell({ size }),
           'items-stretch gap-0',

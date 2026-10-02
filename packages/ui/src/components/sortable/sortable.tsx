@@ -285,15 +285,33 @@ function SortableRow({
         ROW[appearance],
         appearance === 'cards' && 'bg-surface shadow-sm',
         'transition-[background-color,box-shadow,opacity] duration-(--animate-duration-fast)',
-        locked && appearance === 'cards' && 'opacity-70',
+        // A locked row is not dimmed: it is still content to read, and at 70%
+        // its secondary text fell below the contrast minimum. The lock in
+        // place of its grip says it cannot move.
         // The row's old place becomes the gap it will drop back into: a
         // dashed accent slot, the same one a table row or a card leaves.
         isDragging &&
           'bg-accent-subtle shadow-none outline-[1.5px] outline-accent -outline-offset-[1.5px] outline-dashed [&>*]:invisible',
         activator === 'row' && !locked && 'cursor-grab touch-none active:cursor-grabbing',
       )}
-      {...(activator === 'row' && !locked ? { ...attributes, ...listeners } : {})}
+      // Pointer listeners only: dnd-kit's attributes would make the `<li>` a
+      // `role="button"`, which a list item may not be, and which cannot hold
+      // the move buttons (axe: aria-allowed-role, list, nested-interactive).
+      // The keyboard gets its own activator below, as a Kanban card does.
+      {...(activator === 'row' && !locked ? listeners : {})}
     >
+      {activator === 'row' && !locked ? (
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label={`Reorder ${name}`}
+          className="sr-only focus-visible:not-sr-only focus-visible:grid focus-visible:size-6 focus-visible:shrink-0 focus-visible:place-items-center focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus"
+        >
+          <GripVertical aria-hidden className="size-4" />
+        </button>
+      ) : null}
       {activator === 'handle' ? (
         <button
           type="button"

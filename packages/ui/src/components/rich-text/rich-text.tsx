@@ -466,6 +466,17 @@ function RichTextToolbar({
   }, 0);
   const hasLink = names.includes('link');
   const total = buttons.length + (hasLink ? 2 : 0);
+  /*
+   * The one tab stop has to be a button that can take focus. Undo comes first
+   * and is disabled until there is something to undo, and a disabled button
+   * cannot be tabbed to, so pointing the stop at it left the whole toolbar
+   * unreachable from the keyboard. The first enabled item stands in for it.
+   */
+  const enabledAt = (index: number): boolean =>
+    index >= buttons.length || (buttons[index]?.enabled?.(editor) ?? true);
+  const tabStop = enabledAt(focusIndex)
+    ? focusIndex
+    : (Array.from({ length: total }, (_, index) => index).find(enabledAt) ?? focusIndex);
 
   /**
    * Roving tabindex: the toolbar is one tab stop and the arrow keys move
@@ -523,7 +534,7 @@ function RichTextToolbar({
               aria-label={button.label}
               aria-pressed={button.active ? active : undefined}
               disabled={button.enabled ? !button.enabled(editor) : false}
-              tabIndex={index === focusIndex ? 0 : -1}
+              tabIndex={index === tabStop ? 0 : -1}
               onFocus={() => {
                 setFocusIndex(index);
               }}
@@ -553,7 +564,7 @@ function RichTextToolbar({
         <LinkControls
           editor={editor}
           startIndex={buttons.length}
-          focusIndex={focusIndex}
+          focusIndex={tabStop}
           onFocusIndex={setFocusIndex}
         />
       ) : null}

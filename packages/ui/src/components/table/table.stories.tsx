@@ -1026,17 +1026,18 @@ export const VirtualizationOff: Story = {
           'Browser find, print, and "select all text" only see mounted rows. Where that matters more than the render cost, set `virtualize={false}` and accept the DOM size.',
       },
     },
-    // Not snapshotted. This story exists to show the cost of turning
-    // virtualization off — 603 rows, 8,551 nodes, six seconds to render — and
-    // that cost is exactly what makes it a bad visual-regression subject: it is
-    // the slowest story in the suite to capture, and a diff across six hundred
-    // near-identical rows carries no signal a diff of the first six would not.
-    // The virtualized stories cover how the table looks; this one covers what
-    // it costs. axe and the contrast sweep still measure it.
+    // Not snapshotted: a diff across a hundred and twenty near-identical rows
+    // carries no signal a diff of the first six would not. The virtualized
+    // stories cover how the table looks. axe and the contrast sweep still
+    // measure it.
     chromatic: { disableSnapshot: true },
   },
   render: function UnvirtualizedTable() {
-    const manyRows: Row[] = Array.from({ length: 600 }, (_, index) => ({
+    // Just past the hundred rows where `virtualize` turns itself on, which is
+    // all the story has to show. It held 600: axe over 8,500 nodes took 6 s
+    // here and more than CI's 15 s test timeout on a shared runner, and held
+    // up the next story in the file while it ran.
+    const manyRows: Row[] = Array.from({ length: 120 }, (_, index) => ({
       id: `EMP-${String(500_000 + index)}`,
       name: `Employee ${String(index + 1)}`,
       role: ['Engineer', 'Designer', 'Analyst', 'Manager'][index % 4] ?? 'Engineer',
@@ -1048,7 +1049,7 @@ export const VirtualizationOff: Story = {
     return (
       <DataTable<Row>
         label="Everyone, fully rendered"
-        caption="600 rows, all of them in the document."
+        caption="120 rows, all of them in the document."
         rows={manyRows}
         columns={dataColumns}
         rowId={(row) => row.id}
