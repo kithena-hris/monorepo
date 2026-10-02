@@ -144,42 +144,22 @@ const IGNORE = '__ignore';
  */
 export function ImportFlow(props: ImportFlowProps): JSX.Element {
   const coarse = useCoarsePointer();
+  // One element for every stage, so the header and the stepper stay mounted
+  // from the upload to the end: only what is under them changes.
   return (
     <Loaded load={props.load} what="the import">
-      {(stage) =>
-        stage.step === 'map' ? (
-          <AfterUpload {...props} stage={stage} coarse={coarse} />
-        ) : (
-          <Stack gap={5}>
-            <Header
-              current={stage.step === 'upload' ? 0 : 4}
-              actions={
-                stage.step === 'done' && props.onDone !== undefined ? (
-                  <Button variant="primary" onClick={props.onDone}>
-                    Done
-                  </Button>
-                ) : null
-              }
-            />
-            {stage.step === 'upload' ? (
-              props.setup === undefined ? (
-                <Upload onUpload={props.onUpload} />
-              ) : (
-                <Alert tone="info" title="An administrator imports the first file">
-                  Nothing is set up yet. A People administrator imports the first file: approving
-                  its plan sets up the employee record, with the fields the law requires and the new
-                  ones your file brings. Then HR imports here.
-                </Alert>
-              )
-            ) : (
-              <DoneStep done={stage} />
-            )}
-          </Stack>
-        )
-      }
+      {(stage) => <Steps {...props} stage={stage} coarse={coarse} />}
     </Loaded>
   );
 }
+
+/** Before a file is read: nothing to map yet. */
+const NO_FILE: Extract<ImportStage, { step: 'map' }> = {
+  step: 'map',
+  file: { name: '', rows: 0, sheet: null },
+  columns: [],
+  fields: [],
+};
 
 function Header({
   current,
@@ -256,15 +236,16 @@ function confidence(column: ProposedColumn): JSX.Element | string {
   );
 }
 
-/** Everything after the upload: map, new fields, people without a value, the plan. */
-function AfterUpload({
-  stage,
+/** Every step: upload, map, new fields, people without a value, the plan, done. */
+function Steps({
+  stage: given,
   coarse,
   ...props
 }: ImportFlowProps & {
-  readonly stage: Extract<ImportStage, { step: 'map' }>;
+  readonly stage: ImportStage;
   readonly coarse: boolean;
 }): JSX.Element {
+  const stage = given.step === 'map' ? given : NO_FILE;
   // Only what the admin changed; the proposal stands for everything else.
   const [choices, setChoices] = useState<Mapping>({});
   const [view, setView] = useState<NewFieldsView | null>(null);
@@ -274,6 +255,17 @@ function AfterUpload({
   const [refused, setRefused] = useState<string | null>(null);
   const [applyWithoutApproval, setApplyWithoutApproval] = useState(false);
   const [card, setCard] = useState(0);
+  // Another file read: nothing chosen for the last one carries over.
+  const [file, setFile] = useState(stage);
+  if (given.step === 'map' && file !== stage) {
+    setFile(stage);
+    setChoices({});
+    setView(null);
+    setProposals([]);
+    setPlan(null);
+    setRefused(null);
+    setCard(0);
+  }
   // Without a shell to keep it in the address (a test), the step is kept here.
   const [ownStep, setOwnStep] = useState<FlowStep>('map');
 
@@ -358,7 +350,13 @@ function AfterUpload({
 
   // On a phone the people without a value and the plan are one screen (MA9):
   // the plan is worked out as the screen opens and again after each choice.
-  const phonePlanDue = coarse && step === 'existing' && plan === null && !busy && refused === null;
+  const phonePlanDue =
+    coarse &&
+    given.step === 'map' &&
+    step === 'existing' &&
+    plan === null &&
+    !busy &&
+    refused === null;
   useEffect(() => {
     if (phonePlanDue) void toPlan(proposals, null);
     // Due again only when a choice cleared the plan.
@@ -491,6 +489,36 @@ function AfterUpload({
     ),
     review: back(view === null ? 'map' : kept.length === 0 ? 'fields' : 'existing'),
   };
+  if (given.step !== 'map') {
+    return (
+      <Stack gap={5}>
+        <Header
+          current={given.step === 'upload' ? 0 : 4}
+          actions={
+            given.step === 'done' && props.onDone !== undefined ? (
+              <Button variant="primary" onClick={props.onDone}>
+                Done
+              </Button>
+            ) : null
+          }
+        />
+        {given.step === 'upload' ? (
+          props.setup === undefined ? (
+            <Upload onUpload={props.onUpload} />
+          ) : (
+            <Alert tone="info" title="An administrator imports the first file">
+              Nothing is set up yet. A People administrator imports the first file: approving its
+              plan sets up the employee record, with the fields the law requires and the new ones
+              your file brings. Then HR imports here.
+            </Alert>
+          )
+        ) : (
+          <DoneStep done={given} />
+        )}
+      </Stack>
+    );
+  }
+
   const current = step === 'map' ? 1 : step === 'review' ? 3 : 2;
 
   return (

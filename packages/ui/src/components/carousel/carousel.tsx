@@ -99,6 +99,9 @@ export function Carousel({
   const trackId = useId();
   const reducedMotion = usePrefersReducedMotion();
   const [index, setIndex] = useState(0);
+  // The slide last reported, read outside a state updater: telling the parent
+  // from inside one would set its state while this one renders.
+  const reported = useRef(0);
   const [edges, setEdges] = useState({ atStart: true, atEnd: false });
 
   const offsets = useCallback((): number[] => {
@@ -111,10 +114,11 @@ export function Carousel({
     const track = trackRef.current;
     if (!track) return;
     const nearest = nearestSlide(offsets(), Math.abs(track.scrollLeft));
-    setIndex((was) => {
-      if (was !== nearest) onIndexChange?.(nearest);
-      return nearest;
-    });
+    setIndex(nearest);
+    if (reported.current !== nearest) {
+      reported.current = nearest;
+      onIndexChange?.(nearest);
+    }
     setEdges(scrollEdges(track.scrollLeft, track.scrollWidth, track.clientWidth));
   }, [offsets, onIndexChange]);
 

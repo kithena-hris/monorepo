@@ -52,6 +52,17 @@ describe('ImportFlow', () => {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
   });
 
+  it('keeps the header and the stepper mounted from the upload to the end', () => {
+    const { rerender } = render(<ImportFlow {...props(ready({ step: 'upload' }))} />);
+    const heading = screen.getByRole('heading', { level: 1, name: 'Import' });
+    const stepper = screen.getByRole('navigation', { name: 'Importing people' });
+    rerender(<ImportFlow {...props(ready(MAPPING))} />);
+    expect(screen.getByRole('table', { name: 'Columns' })).toBeInTheDocument();
+    rerender(<ImportFlow {...props(ready(DONE))} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Import' })).toBe(heading);
+    expect(screen.getByRole('navigation', { name: 'Importing people' })).toBe(stepper);
+  });
+
   it('uploads through a FileUploader, with the upload’s own progress', async () => {
     const user = fast();
     let finish: (outcome: { ok: true }) => void = () => undefined;
