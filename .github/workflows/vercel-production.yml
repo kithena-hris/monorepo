@@ -11,9 +11,27 @@ name: vercel-production
 # Only what changed ships. The Hobby plan allows 100 deployments a day, and
 # eight projects a merge spent that before the day was out. `plan` diffs this
 # commit against `deployed/production/<target>`, the tag each target's last
-# successful deploy left, and every step below is gated on its target; `mark`
+# successful deploy left, and every job below is gated on its target; `mark`
 # moves the tags once a run succeeds. docs/environments.md, "What a deploy
 # ships".
+#
+# One job per target, in parallel wherever the order does not matter, and
+# chained by `needs:` where it does: schema, then service, then client.
+#
+#   plan ─┬─ images (one runner per changed image) ───────────────┐
+#         ├─ migrate ── identity ── messaging ─┬─ auth            │
+#         │                                    ├─ back-office     │
+#         │                                    └─ vm ◀────────────┘
+#         ├─ people remote: build and sign ──── people remote ◀── vm
+#         │                                       └─ web
+#         ├─ docs
+#         └─ storybook
+#   every job ── rollback (only when one failed) / mark (only when none did)
+#
+# A job whose target did not change is skipped, and a skipped job does not hold
+# up the ones after it (`!failure()`); a failed one does, and the rollback then
+# undoes everything this run deployed. Before 2026-10-02 all of this was one
+# job, 6.5 minutes for a web change and 14 with the VM.
 on:
   workflow_run:
     workflows: [ci]
@@ -44,8 +62,8 @@ permissions:
   pull-requests: write
 
 env:
-  # The team the two projects live under. Not a secret — it names an account,
-  # it does not authorise anything. The token that does is a repository secret.
+  # The team the projects live under. Not a secret — it names an account, it
+  # does not authorise anything. The token that does is a repository secret.
   VERCEL_ORG_ID: team_uActP8CY3wkqOpyG5WDKXkTj
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   # Pinned. This runs with a production token; "@latest" hands whatever
@@ -64,7 +82,8 @@ concurrency:
 jobs:
   # Which targets this commit changes since each last shipped here
   # (`tools/scripts/src/affected-targets.ts`). One output per target, plus `vm`
-  # (People, the router or a migration: the VM is touched) and `any`.
+  # (People, the router or a migration: the VM is touched), `any`, and
+  # `images`, the VM images to build as a JSON list for the matrix below.
   plan:
     name: what changed
     if: >
@@ -88,7 +107,16 @@ jobs:
       migrations: ${{ steps.plan.outputs.migrations }}
       vm: ${{ steps.plan.outputs.vm }}
       any: ${{ steps.plan.outputs.any }}
+      images: ${{ steps.images.outputs.images }}
     steps:
+      # A missing token should say so in one line, rather than surfacing as a
+      # CLI usage error forty lines into the output of the first deploy job.
+      - name: check the token
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::missing production secret: VERCEL_TOKEN"
+            exit 1
+          fi
       # Full history: the diff reaches back to each target's last deploy.
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -115,24 +143,57 @@ jobs:
           args=(--env production --head "$DEPLOY_SHA" --force "$FORCE")
           [ "$ONLY" = true ] && args+=(--only)
           pnpm exec tsx tools/scripts/src/affected-targets.ts "${args[@]}"
+      - name: images to build
+        id: images
+        env:
+          PEOPLE: ${{ steps.plan.outputs.people }}
+          ROUTER: ${{ steps.plan.outputs.router }}
+          SLACK: ${{ steps.plan.outputs.slack }}
+          AUDIT: ${{ steps.plan.outputs.audit }}
+        run: |
+          list=()
+          for name in people router slack audit; do
+            var="${name^^}"
+            [ "${!var}" = true ] && list+=("\"$name\"")
+          done
+          echo "images=[$(IFS=,; echo "${list[*]}")]" | tee -a "$GITHUB_OUTPUT"
+      - name: warn about what will not be deployed
+        env:
+          ROUTER: ${{ vars.ROUTER_URL_PRODUCTION }}
+          REMOTE: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION }}
+          MESSAGING: ${{ vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION }}
+          MESSAGING_CHANGED: ${{ steps.plan.outputs.messaging }}
+        run: |
+          [ -z "$ROUTER" ] && echo "::warning::ROUTER_URL_PRODUCTION is unset: People and the router are not deployed"
+          [ -z "$REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION is unset: the People remote is not deployed"
+          if [ "$MESSAGING_CHANGED" = true ] && [ -z "$MESSAGING" ]; then
+            echo "::warning::VERCEL_PROJECT_ID_MESSAGING_PRODUCTION is unset, so the messaging service is not deployed. Invitations will not be emailed; enrolment links are still returned to the back-office."
+          fi
+          true
 
-  # People's and the router's images, built natively for the VM's platform
-  # (`VM_PLATFORM`, `docs/environments.md` "Hosting") and proven before they
-  # are pushed:
-  # the router image must pass a persisted operation, refuse an unknown hash
-  # and refuse a request without a token (`apps/gateway/scripts/smoke.ts`), and
-  # People's must boot and answer `/health`. Nothing is pushed otherwise.
+  # People's, the router's, Slack's and audit's images, one runner each,
+  # built natively for the VM's platform (`VM_PLATFORM`, `docs/environments.md`
+  # "Hosting") and proven before they are pushed: the router image must pass a
+  # persisted operation, refuse an unknown hash and refuse a request without a
+  # token (`apps/gateway/scripts/smoke.ts`), and the others must boot and
+  # answer `/health`. Nothing is pushed otherwise.
   #
   # The supergraph routes to `http://people:4001`, People's name on the VM's
   # Compose network in every environment, so one router image per commit
   # serves either. Skipped while `ROUTER_URL_PRODUCTION` is unset, and each
   # image only when its target changed.
+  #
+  # No layer cache. The only layer that survives a commit is People's
+  # `pnpm fetch` of the whole workspace, and the repository's 10 GB Actions
+  # cache is already full of pnpm stores; a gigabyte of Docker layers there
+  # would evict the stores every CI job restores from. Parallel runners are
+  # where the time was: four builds in series took 3.7-5 minutes.
   images:
-    name: VM images
+    name: image (${{ matrix.image }})
     needs: plan
     if: >
       vars.ROUTER_URL_PRODUCTION != '' &&
-      (needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true')
+      needs.plan.outputs.images != '' && needs.plan.outputs.images != '[]'
     # A native runner for the VM's architecture, both free for a public
     # repository. Under QEMU the People build takes an order of magnitude
     # longer, so there is no cross-build: `--platform` below only makes a
@@ -142,34 +203,35 @@ jobs:
     permissions:
       contents: read
       packages: write
-    outputs:
-      people: ${{ steps.names.outputs.people }}
-      router: ${{ steps.names.outputs.router }}
-      slack: ${{ steps.names.outputs.slack }}
-      audit: ${{ steps.names.outputs.audit }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.plan.outputs.images) }}
+    env:
+      SOURCE: https://github.com/${{ github.repository }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.DEPLOY_SHA }}
+      # The name the VM job pulls: lower case, because GHCR refuses anything else.
+      - name: name
+        env:
+          OWNER: ${{ github.repository_owner }}
+          NAME: ${{ matrix.image }}
+        run: echo "IMAGE=ghcr.io/${OWNER,,}/kithena-$NAME:$DEPLOY_SHA" >> "$GITHUB_ENV"
+      # Only the router needs the workspace here: `wgc` composes its supergraph
+      # and the smoke test runs under tsx. The others build inside Docker.
       - name: pnpm
+        if: matrix.image == 'router'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: node
+        if: matrix.image == 'router'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
       - name: install
+        if: matrix.image == 'router'
         run: pnpm install --frozen-lockfile
-
-      - name: names
-        id: names
-        env:
-          OWNER: ${{ github.repository_owner }}
-          SHA: ${{ env.DEPLOY_SHA }}
-        run: |
-          echo "people=ghcr.io/${OWNER,,}/kithena-people:${SHA}" >> "$GITHUB_OUTPUT"
-          echo "router=ghcr.io/${OWNER,,}/kithena-router:${SHA}" >> "$GITHUB_OUTPUT"
-          echo "slack=ghcr.io/${OWNER,,}/kithena-slack:${SHA}" >> "$GITHUB_OUTPUT"
-          echo "audit=ghcr.io/${OWNER,,}/kithena-audit:${SHA}" >> "$GITHUB_OUTPUT"
 
       - name: platform
         env:
@@ -181,11 +243,8 @@ jobs:
           esac
 
       - name: build and test the router image
-        if: needs.plan.outputs.router == 'true'
+        if: matrix.image == 'router'
         working-directory: apps/gateway
-        env:
-          IMAGE: ${{ steps.names.outputs.router }}
-          SOURCE: https://github.com/${{ github.repository }}
         run: |
           cat > graph.deploy.yaml <<'EOF'
           version: 1
@@ -203,56 +262,28 @@ jobs:
           docker build --tag "$IMAGE" --label "org.opencontainers.image.source=$SOURCE" .
           pnpm exec tsx scripts/smoke.ts "$IMAGE"
 
-      # With no settings People boots and serves its schema; a native module
-      # built for the wrong libc or architecture dies at import, before this.
-      - name: build and test the people image
-        if: needs.plan.outputs.people == 'true'
-        env:
-          IMAGE: ${{ steps.names.outputs.people }}
-          SOURCE: https://github.com/${{ github.repository }}
-        run: |
-          docker build --file services/people/Dockerfile --tag "$IMAGE" \
-            --label "org.opencontainers.image.source=$SOURCE" .
-          container="$(docker run --detach --publish 127.0.0.1:4001:4001 "$IMAGE")"
-          if ! curl --fail --silent --show-error --retry 20 --retry-delay 2 --retry-all-errors \
-            http://127.0.0.1:4001/health >/dev/null; then
-            docker logs "$container"
-            exit 1
-          fi
-          docker rm --force "$container"
-
-      # Development mode for the check only: in production the service
+      # People: with no settings it boots and serves its schema; a native
+      # module built for the wrong libc or architecture dies at import, before
+      # this. Slack: development mode for the check only — in production it
       # refuses to start without its database and key, which a bare `docker
-      # run` has neither of. What this proves is that the image boots.
-      - name: build and test the slack image
-        if: needs.plan.outputs.slack == 'true'
+      # run` has neither of; what this proves is that the image boots. Audit:
+      # with no settings it boots, keeps nothing and serves its schema.
+      - name: build and test the ${{ matrix.image }} image
+        if: matrix.image != 'router'
         env:
-          IMAGE: ${{ steps.names.outputs.slack }}
-          SOURCE: https://github.com/${{ github.repository }}
+          NAME: ${{ matrix.image }}
         run: |
-          docker build --file platform/slack/Dockerfile --tag "$IMAGE" \
+          case "$NAME" in
+            people) dockerfile=services/people/Dockerfile; port=4001; run_env=() ;;
+            slack) dockerfile=platform/slack/Dockerfile; port=4102; run_env=(--env NODE_ENV=development) ;;
+            audit) dockerfile=platform/audit/Dockerfile; port=4103; run_env=() ;;
+            *) echo "::error::no build for image $NAME"; exit 1 ;;
+          esac
+          docker build --file "$dockerfile" --tag "$IMAGE" \
             --label "org.opencontainers.image.source=$SOURCE" .
-          container="$(docker run --detach --env NODE_ENV=development --publish 127.0.0.1:4102:4102 "$IMAGE")"
+          container="$(docker run --detach "${run_env[@]}" --publish "127.0.0.1:$port:$port" "$IMAGE")"
           if ! curl --fail --silent --show-error --retry 20 --retry-delay 2 --retry-all-errors \
-            http://127.0.0.1:4102/health >/dev/null; then
-            docker logs "$container"
-            exit 1
-          fi
-          docker rm --force "$container"
-
-      # With no settings the audit service boots, keeps nothing and serves
-      # its schema; a module built wrong dies at import, before this.
-      - name: build and test the audit image
-        if: needs.plan.outputs.audit == 'true'
-        env:
-          IMAGE: ${{ steps.names.outputs.audit }}
-          SOURCE: https://github.com/${{ github.repository }}
-        run: |
-          docker build --file platform/audit/Dockerfile --tag "$IMAGE" \
-            --label "org.opencontainers.image.source=$SOURCE" .
-          container="$(docker run --detach --publish 127.0.0.1:4103:4103 "$IMAGE")"
-          if ! curl --fail --silent --show-error --retry 20 --retry-delay 2 --retry-all-errors \
-            http://127.0.0.1:4103/health >/dev/null; then
+            "http://127.0.0.1:$port/health" >/dev/null; then
             docker logs "$container"
             exit 1
           fi
@@ -262,82 +293,38 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
-          PEOPLE: ${{ steps.names.outputs.people }}
-          ROUTER: ${{ steps.names.outputs.router }}
-          PEOPLE_BUILT: ${{ needs.plan.outputs.people }}
-          ROUTER_BUILT: ${{ needs.plan.outputs.router }}
-          SLACK: ${{ steps.names.outputs.slack }}
-          SLACK_BUILT: ${{ needs.plan.outputs.slack }}
-          AUDIT: ${{ steps.names.outputs.audit }}
-          AUDIT_BUILT: ${{ needs.plan.outputs.audit }}
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
-          if [ "$PEOPLE_BUILT" = true ]; then docker push --quiet "$PEOPLE"; fi
-          if [ "$ROUTER_BUILT" = true ]; then docker push --quiet "$ROUTER"; fi
-          if [ "$SLACK_BUILT" = true ]; then docker push --quiet "$SLACK"; fi
-          if [ "$AUDIT_BUILT" = true ]; then docker push --quiet "$AUDIT"; fi
+          docker push --quiet "$IMAGE"
           docker logout ghcr.io
 
       # The registry is transport, not history: the VM keeps the image each
       # environment is on and the one before it, which is all a rollback
       # needs, so five versions a package is plenty.
-      - name: prune people images
+      - name: prune old images
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
-          package-name: kithena-people
-          package-type: container
-          min-versions-to-keep: 5
-      - name: prune router images
-        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
-        with:
-          package-name: kithena-router
-          package-type: container
-          min-versions-to-keep: 5
-      - name: prune slack images
-        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
-        with:
-          package-name: kithena-slack
-          package-type: container
-          min-versions-to-keep: 5
-      - name: prune audit images
-        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
-        with:
-          package-name: kithena-audit
+          package-name: kithena-${{ matrix.image }}
           package-type: container
           min-versions-to-keep: 5
 
-  deploy:
-    name: production deploy
-    needs: [plan, images]
-    # `!cancelled()`: an images job skipped because the VM is not configured
-    # or neither image changed must not skip the Vercel deploys with it; a
-    # failed one must. `any` is empty when `plan` did not run.
-    if: >
-      !cancelled() && needs.images.result != 'failure' &&
-      needs.plan.outputs.any == 'true'
+  # Migrations before any service, never after. Expand-contract means the new
+  # schema is readable by the old code, so migrating first is safe; migrating
+  # second leaves a window where new code reads columns that do not exist.
+  #
+  # There is no rollback for this and there will not be one. `CLAUDE.md` is
+  # explicit that there are no down migrations against a multi-tenant
+  # production database — a failed migration is fixed forward, by a
+  # migration, reviewed like any other change.
+  migrate:
+    name: migrate production
+    needs: plan
+    if: needs.plan.outputs.migrations == 'true'
     runs-on: ubuntu-latest
-    # The targets this run shipped and left shipped, for `mark`.
+    timeout-minutes: 10
+    environment: production
     outputs:
-      shipped: ${{ steps.shipped.outputs.targets }}
-    # Job-level, so the workflow's two plus the VM's pull from the registry.
-    permissions:
-      contents: read
-      pull-requests: write
-      packages: read
-      # GitHub's OIDC token, exchanged for the role that may start the VM and
-      # open an SSH tunnel to it through SSM (`deploy/aws/provision.sh`).
-      id-token: write
-    # 30, not 25: the VM deploy waits for People and the router to be healthy.
-    timeout-minutes: 30
-    # A GitHub Environment, for three reasons: the secrets here are production's
-    # and no other job can read them, the approval rule on it means a deploy is
-    # something a person chose rather than something a merge caused, and the
-    # deployment history is the change-management evidence a customer's security
-    # questionnaire asks for.
-    environment:
-      name: production
-      url: https://app.kithena.com
-
+      shipped: ${{ steps.migrations.outcome == 'success' }}
     # The throwaway database `atlas migrate lint` replays the directory into,
     # run here rather than left to `docker://` so that the service roles can be
     # created in it first. See the `atlas dev roles` step for why that matters.
@@ -356,45 +343,17 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      # The commit `ci` actually tested, not whatever main points at now. A
-      # second push while this queued would otherwise deploy an untested tip.
+      - name: check the database secret
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "::error::missing production secret: DATABASE_URL"
+            exit 1
+          fi
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.DEPLOY_SHA }}
-      - name: pnpm
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - name: node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: pnpm
-      - name: install
-        run: pnpm install --frozen-lockfile
 
-      # A missing secret should say so in one line, rather than surfacing as a
-      # CLI usage error forty lines into the output of the first deploy step.
-      - name: check the token
-        run: |
-          missing=
-          [ -z "$VERCEL_TOKEN" ] && missing="$missing VERCEL_TOKEN"
-          [ -z "${{ secrets.DATABASE_URL }}" ] && missing="$missing DATABASE_URL"
-          if [ -n "$missing" ]; then
-            echo "::error::missing production secret(s):$missing"
-            exit 1
-          fi
-
-      # Built here rather than by Vercel. Both apps are workspace consumers of
-      # `@reach/ui`, which ships TypeScript source, so a build needs the whole
-      # monorepo and its lockfile.
-      # Migrations before the deploy, never after. Expand-contract means the new
-      # schema is readable by the old code, so migrating first is safe; migrating
-      # second leaves a window where new code reads columns that do not exist.
-      #
-      # There is no rollback step and there will not be one. `CLAUDE.md` is
-      # explicit that there are no down migrations against a multi-tenant
-      # production database — a failed migration is fixed forward, by a
-      # migration, reviewed like any other change.
       # Roles are cluster-level in Postgres, so a container Atlas has just
       # started has none of them. `migrate lint` replays the whole directory
       # into the dev database to work out what a migration does, reaches
@@ -423,7 +382,6 @@ jobs:
       # itself needs `atlas login` — the paid tier this version is pinned to
       # avoid.
       - name: atlas dev roles
-        if: needs.plan.outputs.migrations == 'true'
         env:
           PGPASSWORD: dev
         run: |
@@ -438,7 +396,6 @@ jobs:
 
       - name: migrate production
         id: migrations
-        if: needs.plan.outputs.migrations == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ATLAS_DEV_URL: postgres://dev:dev@localhost:5433/dev?sslmode=disable&search_path=public
@@ -457,67 +414,99 @@ jobs:
           atlas migrate lint --env production --latest 1
           atlas migrate apply --env production
 
-      # The identity service. Deployed after the migration and before the UI,
-      # for the same reason the migration comes first: expand-contract means
-      # new code reads the old schema and old code reads the new one, so the
-      # only ordering that is never wrong is schema, then service, then client.
-
-
-      # The identity service.
-      #
-      # After the migration and before the UI. Expand-contract means new code
-      # reads the old schema and old code reads the new one, so the only
-      # ordering that is never wrong is schema, then service, then client.
-      #
-      # A Vercel function rather than a container since 2026-08-22: the reason
-      # it needed a process was a Valkey connection held across requests, and
-      # challenges live in Postgres now. docs/environments.md has the rest.
-      #
-      # `kithena-identity-production`, not `kithena-identity`. This deployed to
-      # the staging project until now, which is the project `identity.staging`
-      # points at — so production identity code went to the staging project's
-      # production environment and never reached `identity.kithena.com`, which
-      # belongs to `kithena-identity-production`. The smoke test below passed
-      # throughout, because the domain kept serving the older deployment that
-      # *was* in the right project.
-      #
-      # `docs/environments.md`: "separate databases, separate credentials and
-      # separate Vercel projects exist to make the wrong thing hard rather than
-      # merely forbidden."
+  # The identity service.
+  #
+  # After the migration and before everything that calls it. Expand-contract
+  # means new code reads the old schema and old code reads the new one, so the
+  # only ordering that is never wrong is schema, then service, then client.
+  #
+  # A Vercel function rather than a container since 2026-08-22: the reason
+  # it needed a process was a Valkey connection held across requests, and
+  # challenges live in Postgres now. docs/environments.md has the rest.
+  #
+  # `kithena-identity-production`, not `kithena-identity`. This deployed to
+  # the staging project until now, which is the project `identity.staging`
+  # points at — so production identity code went to the staging project's
+  # production environment and never reached `identity.kithena.com`, which
+  # belongs to `kithena-identity-production`. The smoke test below passed
+  # throughout, because the domain kept serving the older deployment that
+  # *was* in the right project.
+  #
+  # `docs/environments.md`: "separate databases, separate credentials and
+  # separate Vercel projects exist to make the wrong thing hard rather than
+  # merely forbidden."
+  #
+  # No install and no build here, nor in any job that deploys a Vercel-built
+  # project: `.vercelignore` keeps `node_modules` and every build output out of
+  # the upload, and Vercel installs and builds from the lockfile itself.
+  identity:
+    name: identity
+    needs: [plan, migrate]
+    if: >
+      !cancelled() && !failure() &&
+      needs.plan.outputs.identity == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
       - name: deploy identity
-        id: identity
-        if: needs.plan.outputs.identity == 'true'
+        id: deploy
         env:
           VERCEL_PROJECT_ID: prj_ShPvJf0eeh9wwe1HwB2mFnMrTjRL
         run: |
           npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod \
             --yes --archive=tgz --token "$VERCEL_TOKEN"
-
       # The custom domain, not the deployment URL. `ssoProtection` is set to
       # `all_except_custom_domains`, so a `.vercel.app` host answers 302 to a
       # login page and would pass a naive check that follows redirects.
       - name: smoke test identity
-        if: needs.plan.outputs.identity == 'true'
         run: |
           curl --fail --silent --show-error \
             --retry 5 --retry-delay 5 --max-time 30 \
             https://identity.kithena.com/.well-known/jwks.json >/dev/null
 
-      # The messaging service.
-      #
-      # After the migration, because it owns `messaging.delivery`, and after
-      # identity, because identity is what calls it. Deploying the caller first
-      # would leave a window where an invitation is issued and the thing that
-      # mails it is still the previous build.
-      #
-      # Its project id comes from a repository variable rather than being
-      # written here like identity's. The project is created once by hand, and
-      # this workflow has to be mergeable before that happens — the alternative
-      # is a literal id that does not exist yet, which fails the deploy for a
-      # reason not in this repository.
+  # The messaging service.
+  #
+  # After the migration, because it owns `messaging.delivery`, and after
+  # identity, because identity is what calls it. Deploying the caller first
+  # would leave a window where an invitation is issued and the thing that
+  # mails it is still the previous build.
+  #
+  # Its project id comes from a repository variable rather than being
+  # written here like identity's. The project is created once by hand, and
+  # this workflow has to be mergeable before that happens — the alternative
+  # is a literal id that does not exist yet, which fails the deploy for a
+  # reason not in this repository.
+  messaging:
+    name: messaging
+    needs: [plan, identity]
+    if: >
+      !cancelled() && !failure() &&
+      needs.plan.outputs.messaging == 'true' && vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
       - name: deploy messaging
-        id: messaging
-        if: needs.plan.outputs.messaging == 'true' && vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION != ''
+        id: deploy
         env:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION }}
           # The only origin shape a notice may link to (`https://{slug}.…`).
@@ -533,7 +522,6 @@ jobs:
             echo "::warning::TENANT_APP_BASE_PRODUCTION is unset: messaging will send no reminder or webhook alert"
           fi
           npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy "${args[@]}"
-
       # `/healthz` is unauthenticated on purpose and says nothing worth having:
       # a status, and which transport is composed. Putting the shared secret in
       # a smoke test is how the shared secret reaches a workflow log.
@@ -545,7 +533,6 @@ jobs:
       # service refuses to boot in that state, so this asserting `resend` is the
       # belt to that braces.
       - name: smoke test messaging
-        if: needs.plan.outputs.messaging == 'true' && vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION != ''
         run: |
           set -o pipefail
           body="$(curl --fail --silent --show-error \
@@ -557,29 +544,64 @@ jobs:
             exit 1
           fi
 
-      - name: warn about a missing messaging project
-        if: needs.plan.outputs.messaging == 'true' && vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION == ''
-        run: |
-          echo "::warning::VERCEL_PROJECT_ID_MESSAGING_PRODUCTION is unset, so \
-          the messaging service was not deployed. Invitations will not be \
-          emailed; enrolment links are still returned to the back-office."
+  # People, Slack, audit and the router, on the VM — after identity, whose
+  # keys the router checks tokens against, and after messaging, which People
+  # mails through.
+  #
+  # Schema, then service, then client, one layer further out: People serves
+  # the subgraph, the router composes it, the remote renders against what
+  # the router serves, and the shell loads the remote.
+  #
+  # People and the router run on one 4 GB VM under Docker Compose
+  # (`deploy/vm/`), reached by SSH over AWS Systems Manager; only the router is public,
+  # through a Cloudflare Tunnel. People holds Kafka consumer groups, runs
+  # hourly jobs and drains on SIGTERM (PEO-118), so it needs a process,
+  # not a function. `docs/environments.md` "Hosting" has the rest.
+  #
+  # One job, the services in series: they share the VM's 4 GB, Slack asks
+  # People, and the router routes to People and audit.
+  #
+  # Skipped while `ROUTER_URL_PRODUCTION` is unset, so this merges before the
+  # VM exists.
+  vm:
+    name: VM (people, slack, audit, router)
+    needs: [plan, images, migrate, identity, messaging]
+    if: >
+      !cancelled() && !failure() &&
+      vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.vm == 'true'
+    runs-on: ubuntu-latest
+    # The deploy waits for People and the router to be healthy.
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+      # GitHub's OIDC token, exchanged for the role that may start the VM and
+      # open an SSH tunnel to it through SSM (`deploy/aws/provision.sh`).
+      id-token: write
+    # Each service's outcome and the image it was on before, for the rollback.
+    outputs:
+      people-outcome: ${{ steps.people.outcome }}
+      people-previous: ${{ steps.people.outputs.previous }}
+      slack-outcome: ${{ steps.slack.outcome }}
+      slack-previous: ${{ steps.slack.outputs.previous }}
+      audit-outcome: ${{ steps.audit.outcome }}
+      audit-previous: ${{ steps.audit.outputs.previous }}
+      router-outcome: ${{ steps.router.outcome }}
+      router-previous: ${{ steps.router.outputs.previous }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
-      # People, the router, the People remote — then the shell.
-      #
-      # Schema, then service, then client, one layer further out: People serves
-      # the subgraph, the router composes it, the remote renders against what
-      # the router serves, and the shell loads the remote.
-      #
-      # People and the router run on one 4 GB VM under Docker Compose
-      # (`deploy/vm/`), reached by SSH over AWS Systems Manager; only the router is public,
-      # through a Cloudflare Tunnel. People holds Kafka consumer groups, runs
-      # hourly jobs and drains on SIGTERM (PEO-118), so it needs a process,
-      # not a function. `docs/environments.md` "Hosting" has the rest.
-      #
-      # Skipped with a warning while `ROUTER_URL_PRODUCTION` is unset, so this
-      # merges before the VM exists.
+      # The names the images job pushed (`ghcr.io/<owner>/kithena-<name>:<sha>`).
+      - name: names
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "IMAGES=ghcr.io/${OWNER,,}/kithena" >> "$GITHUB_ENV"
+
       - name: check the VM settings
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.vm == 'true'
         env:
           INSTANCE: ${{ vars.WORKSPACE_INSTANCE_ID_PRODUCTION }}
           AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
@@ -591,8 +613,8 @@ jobs:
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_PRODUCTION }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_PRODUCTION }}
-          IMAGES: ${{ needs.images.result }}
-          NEED_IMAGES: ${{ needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true' }}
+          IMAGES_RESULT: ${{ needs.images.result }}
+          NEED_IMAGES: ${{ needs.plan.outputs.images != '[]' }}
         run: |
           missing=
           for name in INSTANCE AWS_DEPLOY_ROLE_ARN AWS_REGION VM_DEPLOY_SSH_KEY PEOPLE_API_TOKEN AUDIT_API_TOKEN PEOPLE_ENV \
@@ -603,42 +625,25 @@ jobs:
             echo "::error::missing production setting(s):$missing (docs/environments.md, Hosting)"
             exit 1
           fi
-          if [ "$NEED_IMAGES" = true ] && [ "$IMAGES" != success ]; then
-            echo "::error::the VM images job did not succeed ($IMAGES)"
+          if [ "$NEED_IMAGES" = true ] && [ "$IMAGES_RESULT" != success ]; then
+            echo "::error::the VM images job did not succeed ($IMAGES_RESULT)"
             exit 1
           fi
+
+      - name: ssh to the VM
+        uses: ./.github/actions/vm-ssh
+        with:
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          region: ${{ vars.AWS_REGION }}
+          instance: ${{ vars.WORKSPACE_INSTANCE_ID_PRODUCTION }}
+          ssh-key: ${{ secrets.VM_DEPLOY_SSH_KEY }}
 
       # The VM stops itself when idle (`deploy/vm/idle-stop.sh`), so a deploy
       # starts it first: a no-op when it is running. The deploy itself then
       # counts as activity, so the VM stays up at least `IDLE_STOP_MINUTES`
-      # after it. The same role (`kithena-deploy-wake`) is what may open a
-      # Session Manager SSH tunnel to it, and nothing else.
-      - name: aws credentials for the VM
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.vm == 'true'
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      # Pinned and checksummed, not `latest`: the one binary here that handles
-      # the tunnel. Bump the version and the digest together
-      # (https://s3.amazonaws.com/session-manager-downloads/plugin/latest/VERSION).
-      - name: session manager plugin
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.vm == 'true'
-        env:
-          VERSION: 1.2.835.0
-          SHA256: 7c6dcad12518571cc7959a713e6a8ae1bdf6ed66fd9bee37dc189e39ca58ae03
-        run: |
-          curl -fsSL -o "$RUNNER_TEMP/session-manager-plugin.deb" \
-            "https://s3.amazonaws.com/session-manager-downloads/plugin/$VERSION/ubuntu_64bit/session-manager-plugin.deb"
-          echo "$SHA256  $RUNNER_TEMP/session-manager-plugin.deb" | sha256sum -c -
-          sudo dpkg -i "$RUNNER_TEMP/session-manager-plugin.deb"
-          session-manager-plugin --version
-
-      # Running is not reachable: SSH goes through the SSM agent, so wait until
-      # Systems Manager reports the agent `Online`.
+      # after it. Running is not reachable: SSH goes through the SSM agent, so
+      # wait until Systems Manager reports the agent `Online`.
       - name: wake the VM
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.vm == 'true'
         env:
           INSTANCE: ${{ vars.WORKSPACE_INSTANCE_ID_PRODUCTION }}
         run: |
@@ -666,10 +671,7 @@ jobs:
       # login is this job's own token, which expires with the job.
       - name: prepare the VM
         id: prepare
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.vm == 'true'
         env:
-          INSTANCE: ${{ vars.WORKSPACE_INSTANCE_ID_PRODUCTION }}
-          VM_DEPLOY_SSH_KEY: ${{ secrets.VM_DEPLOY_SSH_KEY }}
           PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
           PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
           # The assistant's model key. Optional: absent, the assistant is off.
@@ -695,20 +697,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
         run: |
-          # SSH as `deploy` with the environment's key, through a Session
-          # Manager tunnel to the instance: the VM listens on no public port.
-          install -d -m 700 ~/.ssh
-          install -m 600 /dev/null ~/.ssh/vm_deploy
-          printf '%s\n' "$VM_DEPLOY_SSH_KEY" > ~/.ssh/vm_deploy
-          cat > ~/.ssh/config <<EOF
-          Host vm
-            HostName $INSTANCE
-            User deploy
-            IdentityFile ~/.ssh/vm_deploy
-            IdentitiesOnly yes
-            StrictHostKeyChecking accept-new
-            ProxyCommand aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p
-          EOF
           # The agent can be online a moment before sshd accepts.
           for _ in $(seq 1 12); do ssh -o ConnectTimeout=10 vm true && break; sleep 5; done
           # `migrations/` replaced whole, so the copy is exactly this commit's.
@@ -740,74 +728,72 @@ jobs:
           echo "$GH_TOKEN" | ssh vm sudo docker login ghcr.io -u "$ACTOR" --password-stdin
 
       # People's database is the VM's Postgres, not Neon, so the same
-      # migrations the step above applied to Neon for identity are applied
-      # there too, before People deploys: the order stays migrations, then
+      # migrations the `migrate` job applied to Neon for identity are applied
+      # here too, before People deploys: the order stays migrations, then
       # People. `deploy.sh migrate` runs the pinned Atlas in a one-shot
-      # container on the Compose network; the directory was linted above.
+      # container on the Compose network; the directory was linted there.
       - name: migrate the VM database
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.vm == 'true'
         run: ssh vm sudo bash kithena/deploy.sh production migrate
 
       # Each deploy prints the image the service was on before it as
-      # `previous=`, recorded for the rollback below. Empty on a first deploy.
-      # Pulled, started, healthy, serving `/v1/openapi.json` (mounted only once
-      # People has a database, where Yoga's `/health` would pass without one),
-      # and reaching that database as `svc_people`. `deploy.sh` asks both from
-      # inside People.
+      # `previous=`, recorded for the rollback job — also when the deploy then
+      # fails its health check, because by then the service is on the new
+      # image and the rollback has to put it back. Empty on a first deploy.
+      #
+      # People: pulled, started, healthy, serving `/v1/openapi.json` (mounted
+      # only once People has a database, where Yoga's `/health` would pass
+      # without one), and reaching that database as `svc_people`. `deploy.sh`
+      # asks both from inside People.
       - name: deploy people
         id: people
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.people == 'true'
-        env:
-          IMAGE: ${{ needs.images.outputs.people }}
+        if: needs.plan.outputs.people == 'true'
         run: |
-          set -o pipefail
+          status=0
           # shellcheck disable=SC2029 # the image is meant to expand here
-          ssh vm sudo bash kithena/deploy.sh production people "$IMAGE" | tee deploy.out
-          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+          ssh vm sudo bash kithena/deploy.sh production people "$IMAGES-people:$DEPLOY_SHA" | tee deploy.out || status=$?
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT" || true
+          exit "$status"
 
       # After People, which it asks, and after the migration, which made its
       # schema. Pulled, started, healthy and answering `/health` from inside
       # the project's network.
       - name: deploy slack
         id: slack
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.slack == 'true'
-        env:
-          IMAGE: ${{ needs.images.outputs.slack }}
+        if: needs.plan.outputs.slack == 'true'
         run: |
-          set -o pipefail
+          status=0
           # shellcheck disable=SC2029 # the image is meant to expand here
-          ssh vm sudo bash kithena/deploy.sh production slack "$IMAGE" | tee deploy.out
-          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+          ssh vm sudo bash kithena/deploy.sh production slack "$IMAGES-slack:$DEPLOY_SHA" | tee deploy.out || status=$?
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT" || true
+          exit "$status"
 
       # After the migration, which made its schema and gave `svc_audit` its
       # login, and before the router, which routes `auditActivity` to it.
       # Pulled, started, healthy, and reaching its database as `svc_audit`.
       - name: deploy audit
         id: audit
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.audit == 'true'
-        env:
-          IMAGE: ${{ needs.images.outputs.audit }}
+        if: needs.plan.outputs.audit == 'true'
         run: |
-          set -o pipefail
+          status=0
           # shellcheck disable=SC2029 # the image is meant to expand here
-          ssh vm sudo bash kithena/deploy.sh production audit "$IMAGE" | tee deploy.out
-          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+          ssh vm sudo bash kithena/deploy.sh production audit "$IMAGES-audit:$DEPLOY_SHA" | tee deploy.out || status=$?
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT" || true
+          exit "$status"
 
       - name: deploy the router
         id: router
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.router == 'true'
-        env:
-          IMAGE: ${{ needs.images.outputs.router }}
+        if: needs.plan.outputs.router == 'true'
         run: |
-          set -o pipefail
+          status=0
           # shellcheck disable=SC2029 # the image is meant to expand here
-          ssh vm sudo bash kithena/deploy.sh production router "$IMAGE" | tee deploy.out
-          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+          ssh vm sudo bash kithena/deploy.sh production router "$IMAGES-router:$DEPLOY_SHA" | tee deploy.out || status=$?
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT" || true
+          exit "$status"
 
       # Ready, and closed to a stranger, through the tunnel as a browser meets
       # it. The safelist was proven on the image.
       - name: smoke test the router
-        if: vars.ROUTER_URL_PRODUCTION != '' && needs.plan.outputs.router == 'true'
+        if: needs.plan.outputs.router == 'true'
         env:
           ROUTER_URL: ${{ vars.ROUTER_URL_PRODUCTION }}
         run: |
@@ -824,33 +810,90 @@ jobs:
             exit 1
           fi
 
-      # The People remote, built and signed here and uploaded as files.
-      #
-      # Signed in this job, with the private key from the production
-      # environment's secrets, and never by Vercel: the shell pins the public
-      # half and renders only a server build that verifies (PEO-115), which is
-      # what makes a compromise of the remote's host survivable. A key Vercel
-      # held would make that guarantee decorative. So this deploys `dist` as
-      # static files rather than letting Vercel build the project.
-      - name: build the people remote
-        if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != '' && needs.plan.outputs.people-remote == 'true'
-        run: pnpm turbo run build --filter=@kithena/web-people...
+      # The registry login on the VM ends with the job, whatever happened.
+      - name: log the VM out of the registry
+        if: always() && steps.prepare.outcome != 'skipped'
+        run: ssh vm 'sudo docker logout ghcr.io' || true
 
-      # `sign` prints the manifest (two hashes) and nothing else, and exits
-      # non-zero naming the variable when the key is missing.
+  # The People remote, built and signed here, and uploaded as files by the job
+  # after this one.
+  #
+  # Signed in this job, with the private key from the production
+  # environment's secrets, and never by Vercel: the shell pins the public
+  # half and renders only a server build that verifies (PEO-115), which is
+  # what makes a compromise of the remote's host survivable. A key Vercel
+  # held would make that guarantee decorative. So the remote is deployed as
+  # static files rather than letting Vercel build the project.
+  #
+  # Its own job so the build runs while the VM deploys; the upload has to wait
+  # for the router, the build does not. `sign` prints the manifest (two
+  # hashes) and nothing else, and exits non-zero naming the variable when the
+  # key is missing.
+  people-remote-build:
+    name: people remote (build and sign)
+    needs: plan
+    if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != '' && needs.plan.outputs.people-remote == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: build the people remote
+        run: pnpm turbo run build --filter=@kithena/web-people...
       - name: sign the people remote
-        if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != '' && needs.plan.outputs.people-remote == 'true'
         env:
           PEOPLE_REMOTE_SSR_SIGNING_KEY: ${{ secrets.PEOPLE_REMOTE_SSR_SIGNING_KEY }}
         run: pnpm --filter @kithena/web-people sign
+      - name: keep the signed build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: people-remote-dist
+          path: apps/web/people/dist
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
 
-      # The committed `vercel.json` travels with the files for its headers, less
-      # the keys that would have Vercel build or skip them. `dist/ssr` is
-      # verified first, as the shell will verify it, so a key from the wrong
-      # pair or a `dist` written after signing never reaches the domain.
+  # The committed `vercel.json` travels with the files for its headers, less
+  # the keys that would have Vercel build or skip them. `dist/ssr` is
+  # verified first, as the shell will verify it, so a key from the wrong
+  # pair or a `dist` written after signing — here, or anywhere between the
+  # job that signed it and this one — never reaches the domain.
+  people-remote:
+    name: people remote
+    needs: [plan, people-remote-build, vm]
+    if: >
+      !cancelled() && !failure() &&
+      vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != '' && needs.plan.outputs.people-remote == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
+      - name: the signed build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: people-remote-dist
+          path: apps/web/people/dist
       - name: deploy the people remote
-        id: remote
-        if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != '' && needs.plan.outputs.people-remote == 'true'
+        id: deploy
         env:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION }}
           PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
@@ -866,12 +909,10 @@ jobs:
             exit 1
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
-
       # On its custom domain, as the shell reaches it, with the headers the
       # shell depends on and a signature that verifies under the key the shell
       # is about to be given.
       - name: smoke test the people remote
-        if: vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION != '' && needs.plan.outputs.people-remote == 'true'
         env:
           REMOTE: ${{ vars.PEOPLE_REMOTE_URL_PRODUCTION }}
           PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
@@ -883,74 +924,41 @@ jobs:
           node apps/web/people/scripts/smoke-deploy.mjs "$REMOTE" https://acme.app.kithena.com \
             apps/web/people/dist/ssr/manifest.json
 
-      - name: warn about what was not deployed
-        if: vars.ROUTER_URL_PRODUCTION == '' || vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION == ''
-        env:
-          ROUTER: ${{ vars.ROUTER_URL_PRODUCTION }}
-          REMOTE: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION }}
-        run: |
-          [ -z "$ROUTER" ] && echo "::warning::ROUTER_URL_PRODUCTION is unset: People and the router were not deployed"
-          [ -z "$REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION is unset: the People remote was not deployed"
-          true
-
-      # The tenant app, which no workflow has ever deployed to production.
-      #
-      # `kithena-web-production` already owns `app.kithena.com` and
-      # `*.app.kithena.com` — the domains were attached and the DNS wildcard
-      # was in place. The project simply had no deployments, so every tenant
-      # host answered `DEPLOYMENT_NOT_FOUND`. Staging has shipped `apps/web`
-      # since it existed; production never did.
-      #
-      # `TENANT_HOST_SUFFIX` is what `apps/web/src/proxy.ts` strips to find the
-      # tenant in a host. It falls back to `''`, so leaving it unset does not
-      # fail the build — it silently produces an app that cannot resolve a
-      # tenant, which is worse.
-      - name: build web
-        if: needs.plan.outputs.shell == 'true'
-        env:
-          TENANT_HOST_SUFFIX: app.kithena.com
-        run: pnpm turbo run build --filter=@kithena/web...
-
-      - name: build back-office
-        if: needs.plan.outputs.admin == 'true'
-        env:
-          # The same suffix `apps/web/src/proxy.ts` strips to find a tenant, so
-          # the two cannot disagree about what a company's address is. Without
-          # it the back-office printed `acme.app.kithena.com` everywhere,
-          # including on staging, where that is production's hostname.
-          TENANT_HOST_SUFFIX: app.kithena.com
-      # `turbo run ... --filter=X...` and not `pnpm --filter X build`. The
-      # trailing `...` means "and everything X depends on": turbo.json makes
-      # `build` depend on `^build` and `codegen`, so a bare pnpm filter runs
-      # `next build` against workspace packages that were never built. That is
-      # how this failed — `Module not found: Can't resolve '@kithena/contracts'`
-      # — and it passes locally only because a developer's tree already has the
-      # dist directories. The Dockerfile has always done it this way.
-        run: pnpm turbo run build --filter=@kithena/admin...
-
-      - name: build docs
-        if: needs.plan.outputs.docs == 'true'
-        run: pnpm turbo run build --filter=@reach/docs...
-      - name: build storybook
-        if: needs.plan.outputs.storybook == 'true'
-        run: pnpm storybook:build
-
-      # The back-office, on its own registrable domain rather than a path.
-      # `admin.kithena.com` is not under `app.kithena.com`, so a browser will
-      # not offer an employee's passkey here and will not offer an operator's
-      # there. The isolation is free and it is why this is a separate host.
-      # `--prod` and no `alias set`. The two tenant domains are production
-      # domains of this project, so promoting the deployment is what points
-      # them at it; aliasing each one by hand is what staging has to do because
-      # it deploys as a preview.
-      #
-      # The shell's People settings are passed per deployment and read per
-      # request, so pointing the shell at a new remote or router never needs a
-      # rebuild. Each only when set: an unset one leaves whatever the project
-      # has, rather than overwriting it with nothing.
+  # The tenant app, last: it loads the remote, which renders against the
+  # router.
+  #
+  # `kithena-web-production` owns `app.kithena.com` and `*.app.kithena.com`.
+  # `--prod` and no `alias set`: the two tenant domains are production
+  # domains of this project, so promoting the deployment is what points them
+  # at it.
+  #
+  # The shell's People settings are passed per deployment and read per
+  # request, so pointing the shell at a new remote or router never needs a
+  # rebuild. Each only when set: an unset one leaves whatever the project
+  # has, rather than overwriting it with nothing.
+  web:
+    name: web
+    needs: [plan, identity, messaging, vm, people-remote]
+    if: >
+      !cancelled() && !failure() &&
+      needs.plan.outputs.shell == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://app.kithena.com
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
       - name: deploy web
-        id: web
-        if: needs.plan.outputs.shell == 'true'
+        id: deploy
         env:
           VERCEL_PROJECT_ID: prj_gFIRdhqiaC2ynPaBNhDkM1IqzPMx
           PEOPLE_REMOTE_URL: ${{ vars.PEOPLE_REMOTE_URL_PRODUCTION }}
@@ -981,66 +989,142 @@ jobs:
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Tenant app production: $url"
+      # A deploy that returns 404 is a failed deploy, and the CLI exiting 0
+      # does not prove the CDN is serving anything.
+      #
+      # By its deployment URL and *not* by `app.kithena.com`. The bare host has
+      # no tenant in it, so `apps/web/src/proxy.ts` has nothing to resolve and
+      # answers 404 by design. Naming it here would fail every deploy and roll
+      # production back on a correctly working app. A per-tenant host would be
+      # the real check, and it needs a tenant that is guaranteed to exist first.
+      - name: smoke test
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: curl --fail --silent --show-error --location --retry 5 --retry-delay 5 --max-time 30 "$URL" >/dev/null
 
-      # The auth origin, which no workflow has ever deployed — to production or
-      # to staging. `apps/auth/shell` got a Vercel target this week and has been
-      # shipped by hand since.
-      #
-      # No build step: unlike the Next apps, this one carries its own
-      # `vercel.json` with `buildCommand: pnpm run deploy`, so Vercel builds it
-      # from `apps/auth/shell` as its Root Directory. Deploying from the
-      # repository root is what gives that command the workspace it needs —
-      # `build:packages` filters on `@kithena/auth-shell^...`.
-      #
-      # `auth.app.kithena.com` mirrors `auth.staging.app.kithena.com`. It sits
-      # under the `*.app.kithena.com` wildcard that `kithena-web-production`
-      # holds, which is fine: an explicitly assigned domain wins over a
-      # wildcard, so this reaches the auth origin and not the tenant app.
+  # The auth origin. Unlike the Next apps, this one carries its own
+  # `vercel.json` with `buildCommand: pnpm run deploy`, so Vercel builds it
+  # from `apps/auth/shell` as its Root Directory. Deploying from the
+  # repository root is what gives that command the workspace it needs —
+  # `build:packages` filters on `@kithena/auth-shell^...`.
+  #
+  # `auth.app.kithena.com` mirrors `auth.staging.app.kithena.com`. It sits
+  # under the `*.app.kithena.com` wildcard that `kithena-web-production`
+  # holds, which is fine: an explicitly assigned domain wins over a
+  # wildcard, so this reaches the auth origin and not the tenant app.
+  #
+  # A client of identity, so after it; it reaches nothing on the VM.
+  auth:
+    name: auth
+    needs: [plan, identity, messaging]
+    if: >
+      !cancelled() && !failure() &&
+      needs.plan.outputs.auth == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
       - name: deploy auth
-        id: auth
-        if: needs.plan.outputs.auth == 'true'
+        id: deploy
         env:
           VERCEL_PROJECT_ID: prj_ms3cotgBZ4hrzEoSDKoUAGVjIhiZ
         run: |
-          # `pipefail`, because this pipes into `tail`: without it the status
-          # reported is `tail`'s, so a deploy that failed exits 0 here and
-          # hands an empty URL to everything downstream.
           set -o pipefail
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           if [ -z "$url" ]; then
             echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
             exit 1
           fi
-          echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Auth origin production: $url"
+      - name: smoke test
+        run: curl --fail --silent --show-error --location --retry 5 --retry-delay 5 --max-time 30 https://auth.app.kithena.com >/dev/null
 
+  # The back-office, on its own registrable domain rather than a path.
+  # `admin.kithena.com` is not under `app.kithena.com`, so a browser will
+  # not offer an employee's passkey here and will not offer an operator's
+  # there. The isolation is free and it is why this is a separate host.
+  #
+  # A client of identity's internal API, so after it; nothing on the VM.
+  admin:
+    name: back-office
+    needs: [plan, identity, messaging]
+    if: >
+      !cancelled() && !failure() &&
+      needs.plan.outputs.admin == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
       - name: deploy back-office
-        id: admin
-        if: needs.plan.outputs.admin == 'true'
+        id: deploy
         env:
           VERCEL_PROJECT_ID: prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
         run: |
-          # `pipefail`, because this pipes into `tail`: without it the status
-          # reported is `tail`'s, so a deploy that failed exits 0 here and
-          # hands an empty URL to everything downstream.
           set -o pipefail
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           if [ -z "$url" ]; then
             echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
             exit 1
           fi
-          echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Back-office production: $url"
+      # `/sign-in` and not `/`: the root redirects when nobody is signed in,
+      # which is correct and is a 307. Following it would be following a
+      # redirect into a page that must never render for a stranger.
+      - name: smoke test
+        run: curl --fail --silent --show-error --location --retry 5 --retry-delay 5 --max-time 30 https://admin.kithena.com/sign-in >/dev/null
 
+  # Reach's two public sites. Static files built here, depending on nothing
+  # that is deployed, so they go as soon as `plan` has spoken. Both custom
+  # domains are checked too: they are what people actually open, and a domain
+  # can be detached or its certificate can lapse without the deployment
+  # noticing.
+  docs:
+    name: docs
+    needs: plan
+    if: needs.plan.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: build docs
+        run: pnpm turbo run build --filter=@reach/docs...
       - name: deploy docs
-        id: docs
-        if: needs.plan.outputs.docs == 'true'
+        id: deploy
         env:
           VERCEL_PROJECT_ID: prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
         run: |
-          # `pipefail`, because this pipes into `tail`: without it the status
-          # reported is `tail`'s, so a deploy that failed exits 0 here and
-          # hands an empty URL to everything downstream.
           set -o pipefail
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/docs/dist --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           if [ -z "$url" ]; then
@@ -1049,16 +1133,44 @@ jobs:
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Docs production: $url"
+      - name: smoke test
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          for url in "$URL" https://design.kithena.com; do
+            echo "checking $url"
+            curl --fail --silent --show-error --location --retry 5 --retry-delay 5 --max-time 30 "$url" >/dev/null
+          done
 
+  storybook:
+    name: storybook
+    needs: plan
+    if: needs.plan.outputs.storybook == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, cache: pnpm }
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: build storybook
+        run: pnpm storybook:build
       - name: deploy storybook
-        id: storybook
-        if: needs.plan.outputs.storybook == 'true'
+        id: deploy
         env:
           VERCEL_PROJECT_ID: prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
         run: |
-          # `pipefail`, because this pipes into `tail`: without it the status
-          # reported is `tail`'s, so a deploy that failed exits 0 here and
-          # hands an empty URL to everything downstream.
           set -o pipefail
           url="$(npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy apps/storybook/storybook-static --prod --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
           if [ -z "$url" ]; then
@@ -1067,129 +1179,95 @@ jobs:
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Storybook production: $url"
-
-      # A deploy that returns 404 is a failed deploy, and the CLI exiting 0 does
-      # not prove the CDN is serving anything. Both custom domains are checked
-      # too: they are what people actually open, and a domain can be detached or
-      # its certificate can lapse without the deployment noticing.
-      #
-      # Only what this run deployed: a URL is empty for a skipped target.
       - name: smoke test
-        if: >
-          steps.web.outcome == 'success' || steps.docs.outcome == 'success' ||
-          steps.storybook.outcome == 'success' || steps.auth.outcome == 'success' ||
-          steps.admin.outcome == 'success'
         env:
-          WEB_URL: ${{ steps.web.outputs.url }}
-          DOCS_URL: ${{ steps.docs.outputs.url }}
-          STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
-          AUTH_URL: ${{ steps.auth.outputs.url }}
-          ADMIN_URL: ${{ steps.admin.outputs.url }}
+          URL: ${{ steps.deploy.outputs.url }}
         run: |
-          # `/sign-in` for the back-office and not `/`: the root redirects when
-          # nobody is signed in, which is correct and is a 307. Following it
-          # would be following a redirect into a page that must never render
-          # for a stranger.
-          #
-          # The tenant app is checked by its deployment URL and *not* by
-          # `app.kithena.com`. The bare host has no tenant in it, so
-          # `apps/web/src/proxy.ts` has nothing to resolve and answers 404 by
-          # design — `staging.app.kithena.com` does the same today. Naming it
-          # here would fail every deploy and roll production back on a
-          # correctly working app. A per-tenant host would be the real check,
-          # and it needs a tenant that is guaranteed to exist first.
-          urls=()
-          [ -n "$WEB_URL" ] && urls+=("$WEB_URL")
-          [ -n "$DOCS_URL" ] && urls+=("$DOCS_URL" https://design.kithena.com)
-          [ -n "$STORYBOOK_URL" ] && urls+=("$STORYBOOK_URL" https://storybook.kithena.com)
-          [ -n "$AUTH_URL" ] && urls+=(https://auth.app.kithena.com)
-          [ -n "$ADMIN_URL" ] && urls+=(https://admin.kithena.com/sign-in)
-          for url in "${urls[@]}"; do
+          for url in "$URL" https://storybook.kithena.com; do
             echo "checking $url"
-            curl --fail --silent --show-error --location \
-                 --retry 5 --retry-delay 5 --max-time 30 "$url" >/dev/null
+            curl --fail --silent --show-error --location --retry 5 --retry-delay 5 --max-time 30 "$url" >/dev/null
           done
 
-      # Every target that deployed and passed its checks, for `mark` to move
-      # its tag. Here, before the rollback, so a failure anywhere above leaves
-      # it unset and every tag where it was: the next run retries all of it.
-      - name: record what shipped
-        id: shipped
-        env:
-          OUTCOMES: >-
-            migrations=${{ steps.migrations.outcome }}
-            identity=${{ steps.identity.outcome }}
-            messaging=${{ steps.messaging.outcome }}
-            people=${{ steps.people.outcome }}
-            router=${{ steps.router.outcome }}
-            slack=${{ steps.slack.outcome }}
-            audit=${{ steps.audit.outcome }}
-            people-remote=${{ steps.remote.outcome }}
-            shell=${{ steps.web.outcome }}
-            auth=${{ steps.auth.outcome }}
-            admin=${{ steps.admin.outcome }}
-            docs=${{ steps.docs.outcome }}
-            storybook=${{ steps.storybook.outcome }}
-        run: |
-          shipped=
-          for pair in $OUTCOMES; do
-            [ "${pair#*=}" = success ] && shipped="$shipped ${pair%%=*}"
-          done
-          echo "shipped:${shipped:- nothing}"
-          echo "targets=${shipped# }" >> "$GITHUB_OUTPUT"
-
-      # A deployment that fails its smoke test is rolled back rather than left
-      # serving. Vercel keeps the previous production deployment addressable, so
-      # promoting it back is a second alias rather than a rebuild — seconds
-      # rather than the minutes a revert-and-redeploy would take.
-      #
-      # The database is deliberately not rolled back with it. Migrations are
-      # expand-contract, so the previous build reads the new schema perfectly
-      # well; undoing the migration is what would break it.
-      #
-      # Every project this job promoted, not just the docs one. Rolling back a
-      # single project out of five leaves production in a state no commit ever
-      # produced: four surfaces on the build that just failed its smoke test,
-      # one on the build before it. That is worse than either end.
-      #
-      # Clients first, then the service, which is the deploy order reversed.
-      # Schema, then service, then client is the only ordering that is never
-      # wrong going forwards, so undoing it back-to-front is the only ordering
-      # that is never wrong coming back.
-      #
-      # Each project is skipped unless its own deploy step succeeded — a run
-      # that failed while deploying the back-office must not try to promote a
-      # tenant app it never shipped.
-      - name: roll back if the smoke test failed
-        if: failure()
-        env:
-          WEB_OUTCOME: ${{ steps.web.outcome }}
-          AUTH_OUTCOME: ${{ steps.auth.outcome }}
-          ADMIN_OUTCOME: ${{ steps.admin.outcome }}
-          DOCS_OUTCOME: ${{ steps.docs.outcome }}
-          STORYBOOK_OUTCOME: ${{ steps.storybook.outcome }}
-          IDENTITY_OUTCOME: ${{ steps.identity.outcome }}
-          REMOTE_OUTCOME: ${{ steps.remote.outcome }}
-          REMOTE_PROJECT: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION }}
-          ROUTER_OUTCOME: ${{ steps.router.outcome }}
-          ROUTER_PREVIOUS: ${{ steps.router.outputs.previous }}
-          PEOPLE_OUTCOME: ${{ steps.people.outcome }}
-          PEOPLE_PREVIOUS: ${{ steps.people.outputs.previous }}
-          SLACK_OUTCOME: ${{ steps.slack.outcome }}
-          SLACK_PREVIOUS: ${{ steps.slack.outputs.previous }}
-          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
-          AUDIT_PREVIOUS: ${{ steps.audit.outputs.previous }}
+  # A deployment that fails its smoke test is rolled back rather than left
+  # serving — and so is everything else this run deployed. Rolling back one
+  # project out of five leaves production in a state no commit ever produced:
+  # four surfaces on the build that just failed, one on the build before it.
+  # That is worse than either end.
+  #
+  # Runs when any job above failed, after all of them have finished, from what
+  # each reported: a Vercel target is rolled back when its deploy step
+  # succeeded, a VM service when it recorded the image it replaced. Vercel
+  # keeps the previous production deployment addressable, so promoting it
+  # back is a second alias rather than a rebuild — seconds rather than the
+  # minutes a revert-and-redeploy would take. The VM keeps no "previous
+  # deployment" to promote, so each service is put back on the image its
+  # deploy recorded, which is still on the VM's disk.
+  #
+  # The database is deliberately not rolled back with it. Migrations are
+  # expand-contract, so the previous build reads the new schema perfectly
+  # well; undoing the migration is what would break it.
+  #
+  # Clients first, then the services, which is the deploy order reversed.
+  # Schema, then service, then client is the only ordering that is never
+  # wrong going forwards, so undoing it back-to-front is the only ordering
+  # that is never wrong coming back.
+  rollback:
+    name: roll back
+    needs: [plan, images, migrate, identity, messaging, vm, people-remote-build, people-remote, web, auth, admin, docs, storybook]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      WEB_DEPLOYED: ${{ needs.web.outputs.deployed }}
+      AUTH_DEPLOYED: ${{ needs.auth.outputs.deployed }}
+      ADMIN_DEPLOYED: ${{ needs.admin.outputs.deployed }}
+      DOCS_DEPLOYED: ${{ needs.docs.outputs.deployed }}
+      STORYBOOK_DEPLOYED: ${{ needs.storybook.outputs.deployed }}
+      IDENTITY_DEPLOYED: ${{ needs.identity.outputs.deployed }}
+      MESSAGING_DEPLOYED: ${{ needs.messaging.outputs.deployed }}
+      MESSAGING_PROJECT: ${{ vars.VERCEL_PROJECT_ID_MESSAGING_PRODUCTION }}
+      REMOTE_DEPLOYED: ${{ needs.people-remote.outputs.deployed }}
+      REMOTE_PROJECT: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION }}
+      ROUTER_OUTCOME: ${{ needs.vm.outputs.router-outcome }}
+      ROUTER_PREVIOUS: ${{ needs.vm.outputs.router-previous }}
+      PEOPLE_OUTCOME: ${{ needs.vm.outputs.people-outcome }}
+      PEOPLE_PREVIOUS: ${{ needs.vm.outputs.people-previous }}
+      SLACK_OUTCOME: ${{ needs.vm.outputs.slack-outcome }}
+      SLACK_PREVIOUS: ${{ needs.vm.outputs.slack-previous }}
+      AUDIT_OUTCOME: ${{ needs.vm.outputs.audit-outcome }}
+      AUDIT_PREVIOUS: ${{ needs.vm.outputs.audit-previous }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+      - name: node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
+      - name: ssh to the VM
+        if: env.ROUTER_PREVIOUS != '' || env.PEOPLE_PREVIOUS != '' || env.SLACK_PREVIOUS != '' || env.AUDIT_PREVIOUS != ''
+        uses: ./.github/actions/vm-ssh
+        with:
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          region: ${{ vars.AWS_REGION }}
+          instance: ${{ vars.WORKSPACE_INSTANCE_ID_PRODUCTION }}
+          ssh-key: ${{ secrets.VM_DEPLOY_SSH_KEY }}
+      - name: roll back everything this run deployed
         run: |
           rolled=()
           missing=()
 
           roll_back() {
-            local name="$1" outcome="$2" project="$3"
-            if [ "$outcome" != "success" ]; then
+            local name="$1" deployed="$2" project="$3"
+            if [ "$deployed" != "true" ]; then
               echo "$name was not deployed by this run; nothing to roll back"
               return 0
             fi
-            # `sed -n '2p'`: the first URL is the deployment this job just made,
+            # `sed -n '2p'`: the first URL is the deployment this run just made,
             # the second is the one it replaced.
             local previous
             previous="$(VERCEL_PROJECT_ID="$project" npx --yes vercel@${VERCEL_CLI_VERSION} list \
@@ -1206,12 +1284,8 @@ jobs:
             rolled+=("$name -> $previous")
           }
 
-          # The VM keeps no "previous deployment" to promote either, so People
-          # and the router are rolled back by putting each on the image its
-          # deploy step recorded before replacing it — the same `deploy.sh`
-          # call, and that image is still on the VM's disk. Attempted on
-          # `failure` as well as `success`: a deploy that failed its health
-          # check has already switched the service to the new image.
+          # Attempted on `failure` as well as `success`: a deploy that failed
+          # its health check has already switched the service to the new image.
           roll_back_vm() {
             local name="$1" outcome="$2" previous="$3"
             if [ "$outcome" != "success" ] && [ "$outcome" != "failure" ]; then
@@ -1230,45 +1304,95 @@ jobs:
               return 0
             fi
             echo "::warning::rolling $name back to $previous"
+            # No registry login needed: `deploy.sh` pulls only an image the VM
+            # does not have, and it keeps the one each service was on before.
+            # The agent can be online a moment before sshd accepts.
+            for _ in $(seq 1 12); do ssh -o ConnectTimeout=10 vm true && break; sleep 5; done
             # shellcheck disable=SC2029 # the image is meant to expand here
             ssh vm sudo bash kithena/deploy.sh production "$name" "$previous"
             rolled+=("$name -> $previous")
           }
 
-          roll_back storybook   "$STORYBOOK_OUTCOME" prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
-          roll_back docs        "$DOCS_OUTCOME"      prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
-          roll_back back-office "$ADMIN_OUTCOME"     prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
-          roll_back auth        "$AUTH_OUTCOME"      prj_ms3cotgBZ4hrzEoSDKoUAGVjIhiZ
-          roll_back tenant-app  "$WEB_OUTCOME"       prj_gFIRdhqiaC2ynPaBNhDkM1IqzPMx
-          roll_back people-remote "$REMOTE_OUTCOME"  "$REMOTE_PROJECT"
-          roll_back_vm router   "$ROUTER_OUTCOME"    "$ROUTER_PREVIOUS"
-          roll_back_vm people   "$PEOPLE_OUTCOME"    "$PEOPLE_PREVIOUS"
-          roll_back_vm slack    "$SLACK_OUTCOME"     "$SLACK_PREVIOUS"
-          roll_back_vm audit    "$AUDIT_OUTCOME"     "$AUDIT_PREVIOUS"
-          roll_back identity    "$IDENTITY_OUTCOME"  prj_ShPvJf0eeh9wwe1HwB2mFnMrTjRL
+          roll_back storybook     "$STORYBOOK_DEPLOYED" prj_u605gEWnCNjhTkdr0J7lCBCBGgcO
+          roll_back docs          "$DOCS_DEPLOYED"      prj_hjiSAIp2hweckjQGdJVT5HAQ3zg9
+          roll_back back-office   "$ADMIN_DEPLOYED"     prj_xFPtNIieNz3jP5EvFNPaFOJwgRe4
+          roll_back auth          "$AUTH_DEPLOYED"      prj_ms3cotgBZ4hrzEoSDKoUAGVjIhiZ
+          roll_back tenant-app    "$WEB_DEPLOYED"       prj_gFIRdhqiaC2ynPaBNhDkM1IqzPMx
+          roll_back people-remote "$REMOTE_DEPLOYED"    "$REMOTE_PROJECT"
+          roll_back_vm router     "$ROUTER_OUTCOME"     "$ROUTER_PREVIOUS"
+          roll_back_vm people     "$PEOPLE_OUTCOME"     "$PEOPLE_PREVIOUS"
+          roll_back_vm slack      "$SLACK_OUTCOME"      "$SLACK_PREVIOUS"
+          roll_back_vm audit      "$AUDIT_OUTCOME"      "$AUDIT_PREVIOUS"
+          roll_back messaging     "$MESSAGING_DEPLOYED" "$MESSAGING_PROJECT"
+          roll_back identity      "$IDENTITY_DEPLOYED"  prj_ShPvJf0eeh9wwe1HwB2mFnMrTjRL
 
           if [ ${#rolled[@]} -eq 0 ] && [ ${#missing[@]} -eq 0 ]; then
-            echo "::error::this job failed before it deployed anything; nothing was rolled back"
+            echo "::error::a job failed before anything was deployed; nothing was rolled back"
             exit 1
           fi
           for line in "${rolled[@]}"; do echo "rolled back: $line"; done
           if [ ${#missing[@]} -gt 0 ]; then
             echo "::error::these had no previous deployment and are still on the failed build: ${missing[*]}"
           fi
-          echo "::error::production was rolled back. Fix forward; do not re-run this job."
+          echo "::error::production was rolled back. Fix forward; do not re-run this workflow."
           exit 1
 
-      # The registry login on the VM ends with the job, whatever happened.
-      - name: log the VM out of the registry
-        if: always() && steps.prepare.outcome != 'skipped'
-        run: ssh vm 'sudo docker logout ghcr.io' || true
-
-      - name: comment the urls on the pr
-        if: steps.docs.outcome == 'success' || steps.storybook.outcome == 'success'
+  # Moves `deployed/production/<target>` to this commit for every target that
+  # shipped, which is what the next run diffs against — and only when no job
+  # failed, so a failure anywhere leaves every tag where it was and the next
+  # run retries all of it. Its own job, so the jobs holding this environment's
+  # secrets never also hold a token that can write to the repository. Through
+  # the API: nothing to check out. A ref moved with `GITHUB_TOKEN` starts no
+  # workflow, and none listens for tags anyway.
+  mark:
+    name: record the deployed commit
+    needs: [plan, images, migrate, identity, messaging, vm, people-remote-build, people-remote, web, auth, admin, docs, storybook]
+    if: >
+      !cancelled() && !failure() &&
+      needs.plan.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: move the tags
         env:
           GH_TOKEN: ${{ github.token }}
-          DOCS_URL: ${{ steps.docs.outputs.url }}
-          STORYBOOK_URL: ${{ steps.storybook.outputs.url }}
+          REPO: ${{ github.repository }}
+          OUTCOMES: >-
+            migrations=${{ needs.migrate.outputs.shipped }}
+            identity=${{ needs.identity.outputs.deployed }}
+            messaging=${{ needs.messaging.outputs.deployed }}
+            people=${{ needs.vm.outputs.people-outcome == 'success' }}
+            router=${{ needs.vm.outputs.router-outcome == 'success' }}
+            slack=${{ needs.vm.outputs.slack-outcome == 'success' }}
+            audit=${{ needs.vm.outputs.audit-outcome == 'success' }}
+            people-remote=${{ needs.people-remote.outputs.deployed }}
+            shell=${{ needs.web.outputs.deployed }}
+            auth=${{ needs.auth.outputs.deployed }}
+            admin=${{ needs.admin.outputs.deployed }}
+            docs=${{ needs.docs.outputs.deployed }}
+            storybook=${{ needs.storybook.outputs.deployed }}
+        run: |
+          shipped=
+          for pair in $OUTCOMES; do
+            [ "${pair#*=}" = true ] && shipped="$shipped ${pair%%=*}"
+          done
+          echo "shipped:${shipped:- nothing}"
+          for target in $shipped; do
+            ref="tags/deployed/production/$target"
+            gh api --method PATCH "repos/$REPO/git/refs/$ref" -f sha="$DEPLOY_SHA" -F force=true --silent 2>/dev/null ||
+              gh api --method POST "repos/$REPO/git/refs" -f ref="refs/$ref" -f sha="$DEPLOY_SHA" --silent
+            echo "deployed/production/$target -> $DEPLOY_SHA"
+          done
+
+      - name: comment the urls on the pr
+        if: needs.docs.outputs.url != '' || needs.storybook.outputs.url != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCS_URL: ${{ needs.docs.outputs.url }}
+          STORYBOOK_URL: ${{ needs.storybook.outputs.url }}
           REPO: ${{ github.repository }}
           SHA: ${{ env.DEPLOY_SHA }}
         run: |
@@ -1292,33 +1416,3 @@ jobs:
           else
             echo "::notice::No pull request found for commit ${SHA}; deployment succeeded, nothing to comment on."
           fi
-
-  # Moves `deployed/production/<target>` to this commit for every target that
-  # shipped, which is what the next run diffs against. Its own job, so the
-  # deploy job, holding this environment's secrets, never also holds a token
-  # that can write to the repository. Through the API: nothing to check out.
-  # A ref moved with `GITHUB_TOKEN` starts no workflow, and none listens for
-  # tags anyway.
-  mark:
-    name: record the deployed commit
-    needs: deploy
-    # `always()`: `shipped` is set only once every check passed, so a later
-    # failure (the PR comment) must not throw away what did ship.
-    if: always() && needs.deploy.outputs.shipped != ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    steps:
-      - name: move the tags
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHIPPED: ${{ needs.deploy.outputs.shipped }}
-        run: |
-          for target in $SHIPPED; do
-            ref="tags/deployed/production/$target"
-            gh api --method PATCH "repos/$REPO/git/refs/$ref" -f sha="$DEPLOY_SHA" -F force=true --silent 2>/dev/null ||
-              gh api --method POST "repos/$REPO/git/refs" -f ref="refs/$ref" -f sha="$DEPLOY_SHA" --silent
-            echo "deployed/production/$target -> $DEPLOY_SHA"
-          done

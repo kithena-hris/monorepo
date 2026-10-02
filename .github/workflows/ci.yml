@@ -34,13 +34,15 @@ env:
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
-  # Which of the slow, narrow gates this change can reach. The gates below keep
-  # running as jobs (their required checks are matrix jobs, and a skipped matrix
-  # job reports without its shard, which would leave `design-system (1)` pending
-  # forever), but their expensive steps are skipped when nothing they cover
-  # changed. Pull requests only: on `main` and in the merge queue both outputs
-  # are always true, so a detector that guessed wrong costs a red build after
-  # merge, never an unmeasured regression.
+  # Which of the slow, narrow gates this change can reach. A gate whose
+  # required check is its own job (`contracts`, `web acceptance`) keeps running
+  # as a job and skips its expensive steps. A sharded gate (`design-system`,
+  # `integration`) skips its whole matrix, because the required check is the
+  # aggregate job after it, which reads these outputs — a skipped matrix job
+  # reports without its shard, so a skip on a required *shard* name would sit
+  # pending forever. Pull requests only: on `main` and in the merge queue every
+  # output is always true, so a detector that guessed wrong costs a red build
+  # after merge, never an unmeasured regression.
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -48,6 +50,7 @@ jobs:
       ui: ${{ steps.diff.outputs.ui }}
       contracts: ${{ steps.diff.outputs.contracts }}
       web: ${{ steps.diff.outputs.web }}
+      integration: ${{ steps.diff.outputs.integration }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,12 +66,13 @@ jobs:
             echo "ui=true" >> "$GITHUB_OUTPUT"
             echo "contracts=true" >> "$GITHUB_OUTPUT"
             echo "web=true" >> "$GITHUB_OUTPUT"
+            echo "integration=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
           # Anything every job depends on: a dependency, the workspace, the
           # build graph, a patch, a shared tsconfig, or this workflow itself.
-          shared='^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|turbo\.json|tsconfig[^/]*\.json|patches/|\.github/workflows/ci\.yml)'
+          shared='^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|turbo\.json|tsconfig[^/]*\.json|patches/|\.github/actions/|\.github/workflows/ci\.yml)'
           # What Storybook, axe, the contrast sweep and the docs site render.
           ui='^(packages/ui/|apps/storybook/|apps/docs/|tools/a11y/|tools/storybook/)'
           # What codegen, the contract tests and supergraph composition read.
@@ -78,10 +82,15 @@ jobs:
           # migration, and every package (the design system renders the screens,
           # `packages/testing` starts the containers).
           web='^(apps/web/|services/people/|platform/identity/|apps/gateway/|packages/|migrations/)'
+          # What the integration suites run: every package with one, what they
+          # import (the kits; never `packages/ui`, which a service may not
+          # import), and the migrations their containers apply.
+          integration='^(services/|platform/|packages/(auth-kit|contracts|db-kit|domain-kit|graphql-kit|telemetry|testing)/|migrations/|atlas\.hcl|tools/scripts/)'
           any() { printf '%s\n' "$changed" | grep -Eq "$1"; }
           if any "$shared" || any "$ui"; then echo "ui=true" >> "$GITHUB_OUTPUT"; else echo "ui=false" >> "$GITHUB_OUTPUT"; fi
           if any "$shared" || any "$contracts"; then echo "contracts=true" >> "$GITHUB_OUTPUT"; else echo "contracts=false" >> "$GITHUB_OUTPUT"; fi
           if any "$shared" || any "$web"; then echo "web=true" >> "$GITHUB_OUTPUT"; else echo "web=false" >> "$GITHUB_OUTPUT"; fi
+          if any "$shared" || any "$integration"; then echo "integration=true" >> "$GITHUB_OUTPUT"; else echo "integration=false" >> "$GITHUB_OUTPUT"; fi
           echo "changed files:"; printf '%s\n' "$changed" | head -50
 
   # Three streams at once, each on its own runner: lint (with the module
@@ -234,21 +243,25 @@ jobs:
         run: echo "::notice::No change this job covers (contracts, services, platform, gateway, codegen or shared config). It runs in full on main."
 
 
-  # Four streams at once. People's suite is most of the time and runs its files
-  # one after another (each starts its own containers), so it is split three
-  # ways with Vitest's `--shard`; every other package's suite is the fourth.
+  # Five streams at once. People's suite is most of the time and runs its files
+  # one after another (each starts its own containers), so it is split four
+  # ways with Vitest's `--shard`; every other package's suite is the fifth.
   # A shard is a whole file, so a file's containers never span two runners.
+  # Three People shards took 125-185 s of tests each, about 20 files apiece.
   integration-shard:
     name: integration (${{ matrix.stream }})
+    needs: changes
+    if: needs.changes.outputs.integration == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { stream: 'people 1/3', filter: '@kithena/people', shard: '1/3' }
-          - { stream: 'people 2/3', filter: '@kithena/people', shard: '2/3' }
-          - { stream: 'people 3/3', filter: '@kithena/people', shard: '3/3' }
+          - { stream: 'people 1/4', filter: '@kithena/people', shard: '1/4' }
+          - { stream: 'people 2/4', filter: '@kithena/people', shard: '2/4' }
+          - { stream: 'people 3/4', filter: '@kithena/people', shard: '3/4' }
+          - { stream: 'people 4/4', filter: '@kithena/people', shard: '4/4' }
           - { stream: 'the rest', filter: '!@kithena/people', shard: '' }
     steps:
       - name: checkout
@@ -273,18 +286,27 @@ jobs:
             pnpm turbo run test:integration "${args[@]}"
           fi
 
-  # The required check keeps its name: green only when every stream is.
+  # The required check keeps its name: green only when every stream is, or
+  # when the change cannot reach any integration suite.
   integration:
-    needs: integration-shard
+    needs: [changes, integration-shard]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: every stream passed
         env:
+          CHANGES: ${{ needs.changes.result }}
+          REACHED: ${{ needs.changes.outputs.integration }}
           RESULT: ${{ needs.integration-shard.result }}
         run: |
-          echo "streams: $RESULT"
+          echo "changes: $CHANGES (integration=$REACHED), streams: $RESULT"
+          # A failed detector skips the matrix; that is not a pass.
+          [ "$CHANGES" = success ] || exit 1
+          if [ "$REACHED" != true ]; then
+            echo "::notice::No change an integration suite covers (services, platform, the kits, migrations or shared config). It runs in full on main."
+            exit 0
+          fi
           [ "$RESULT" = success ]
 
   standalone:
@@ -361,7 +383,8 @@ jobs:
         run: pnpm turbo run build --filter='./packages/*'
       - name: chromium
         if: needs.changes.outputs.web == 'true'
-        run: pnpm --filter @kithena/web exec playwright install --with-deps chromium
+        uses: ./.github/actions/chromium
+        with: { package: '@kithena/web' }
       - name: acceptance suite
         if: needs.changes.outputs.web == 'true'
         env:
@@ -387,51 +410,50 @@ jobs:
     # accessibility rule that is only written down is an accessibility rule that
     # is already broken somewhere.
     #
-    # Sharded six ways, and each shard renders on four pages at once. The sweep
-    # renders every entry in two themes and two pointer profiles — 468 x 4
+    # Sharded eight ways, and each shard renders on four pages at once. The
+    # sweep renders every entry in two themes and two pointer profiles — 468 x 4
     # renders in series took 34 minutes, which was the whole pipeline. The
     # shards are a round-robin over a sorted index, verified to partition it
     # exactly. Four shards on one page each took about 9 minutes; four on four
-    # pages about 5. The required check is `design-system`, below, so the shard
-    # count can change without touching the branch ruleset.
+    # pages about 5; six took 2.6-3.5 minutes of sweep a shard, the longest
+    # job in the pipeline, so eight. The required check is `design-system`,
+    # below, so the shard count can change without touching the branch ruleset
+    # — and, for the same reason, the whole matrix is skipped when nothing it
+    # covers changed: the aggregate reports for it.
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: checkout
-        if: needs.changes.outputs.ui == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
       - name: pnpm
-        if: needs.changes.outputs.ui == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: node
-        if: needs.changes.outputs.ui == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
       - name: install
-        if: needs.changes.outputs.ui == 'true'
         run: pnpm install --frozen-lockfile
       - name: chromium
-        if: needs.changes.outputs.ui == 'true'
-        run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
+        uses: ./.github/actions/chromium
+        with: { package: '@reach/storybook' }
 
       # Narrows the *contrast sweep* and nothing else, and only on a pull
       # request. Every check below still runs on every event; the detector
       # chooses how much of one of them to run, never whether the job runs.
       - name: pick affected stories
         id: scope
-        if: needs.changes.outputs.ui == 'true' && (github.event_name == 'pull_request')
+        if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
         run: node tools/a11y/affected-stories.mjs
 
       - name: contrast
-        if: needs.changes.outputs.ui == 'true'
         # It measures focus rings, which means it cannot be replaced by anything
         # static: the ring colour only exists while an element is focused.
         timeout-minutes: 25
@@ -439,7 +461,7 @@ jobs:
           STORY_FILTER: ${{ steps.scope.outputs.filters }}
           SKIP_STORY_SWEEP: ${{ steps.scope.outputs.skip }}
           STORYBOOK_URL: http://localhost:6006
-          SHARD: ${{ matrix.shard }}/6
+          SHARD: ${{ matrix.shard }}/8
           # Pages rendering at once on this runner (tools/a11y/contrast-sweep.mjs):
           # one per vCPU.
           CONTRAST_WORKERS: 4
@@ -448,9 +470,13 @@ jobs:
         # runner that sometimes took longer than any timeout: the same story
         # (the tooltip playground) failed to settle on main three runs in a
         # row, with no contrast finding, and blocked the production deploy. A
-        # static build is compiled once, up front (about 20 s), and every page
+        # static build is compiled once, up front (about 15 s), and every page
         # after that is a file read. The sweep still focuses and measures in
         # a real browser, which is the part nothing static can replace.
+        #
+        # Built on every shard rather than once and handed round as an
+        # artifact: a build job in front of the shards would put its own setup
+        # (about 40 s) on the critical path to save 15 s on each shard.
         run: |
           pnpm --filter @reach/storybook build --quiet
           python3 -m http.server 6006 --directory apps/storybook/storybook-static > /dev/null 2>&1 &
@@ -491,7 +517,11 @@ jobs:
             # either way, and a shard left with nothing exits clean.
             node tools/a11y/affected-contrast.mjs
           else
-            node tools/a11y/contrast-sweep.mjs
+            # Unset: the sweep reads STORY_FILTER as a substring of a story
+            # id, and on a pull request with a design-system-wide change it
+            # holds `__ALL__`, which matches no story. It swept "0 of 0" and
+            # passed, on every such pull request, until 2026-10-02.
+            STORY_FILTER= node tools/a11y/contrast-sweep.mjs
           fi
 
           # The docs site is built out of the design system and makes claims
@@ -504,20 +534,15 @@ jobs:
             SHARD= PAGE_URL=http://localhost:3100/ pnpm a11y:contrast
           fi
 
-      - name: build storybook
-        if: needs.changes.outputs.ui == 'true' && (matrix.shard == 1)
-        run: pnpm storybook:build
+      # The build the sweep above just measured, not a second one: it is the
+      # same `storybook build` and took 15-20 s again.
       - name: keep the storybook build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: needs.changes.outputs.ui == 'true' && (matrix.shard == 1)
+        if: matrix.shard == 1
         with:
           name: storybook
           path: apps/storybook/storybook-static
           retention-days: 14
-
-      - name: nothing to check
-        if: needs.changes.outputs.ui != 'true'
-        run: echo "::notice::No design-system change (packages/ui, storybook, docs, a11y tooling or shared config). It runs in full on main."
 
   # Axe over every story, on its own runner beside the contrast shards. It used
   # to ride on shard 1, which made that shard the slowest by a minute and a
@@ -531,52 +556,63 @@ jobs:
     # `--shard` splits the test files; turbo hands it to both suites (Reach's
     # stories and the People app's phone screens). A suite with fewer files
     # than shards leaves some shards empty, hence `--passWithNoTests`.
+    #
+    # Five. A shard's test step is about 75 s of fixed cost (two Vitest
+    # projects and their browsers starting) plus its share of about 145 s of
+    # stories: 99 s on average at six shards, 93 s at eight. More shards buy
+    # almost nothing and each costs a runner, and runners are what this
+    # pipeline queues for — the account runs 20 jobs at once, across every
+    # workflow and pull request. Five leaves room for axe running over every
+    # story, which grows the shared half: at three times today's it is still
+    # about 3.5 minutes, under `web acceptance`.
     name: design-system (axe ${{ matrix.shard }})
     needs: changes
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - name: checkout
-        if: needs.changes.outputs.ui == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: pnpm
-        if: needs.changes.outputs.ui == 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: node
-        if: needs.changes.outputs.ui == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
       - name: install
-        if: needs.changes.outputs.ui == 'true'
         run: pnpm install --frozen-lockfile
       - name: chromium
-        if: needs.changes.outputs.ui == 'true'
-        run: pnpm --filter @reach/storybook exec playwright install --with-deps chromium
+        uses: ./.github/actions/chromium
+        with: { package: '@reach/storybook' }
       - name: axe over every story, one shard
-        if: needs.changes.outputs.ui == 'true'
-        run: pnpm turbo run test:stories -- --shard=${{ matrix.shard }}/6 --passWithNoTests
-      - name: nothing to check
-        if: needs.changes.outputs.ui != 'true'
-        run: echo "::notice::No UI change; axe runs in full on main."
+        run: pnpm turbo run test:stories -- --shard=${{ matrix.shard }}/5 --passWithNoTests
 
   # The required check: green only when every design-system shard and every
-  # axe shard are. A matrix job's result is success only when all its shards
-  # are, so the shard counts can change without touching the branch ruleset.
+  # axe shard are, or when both were skipped because the change cannot reach
+  # them. A matrix job's result is success only when all its shards are, so
+  # the shard counts can change without touching the branch ruleset.
   design-system-all:
     name: design-system
-    needs: [design-system, design-system-axe]
+    needs: [changes, design-system, design-system-axe]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: every shard passed
         env:
+          CHANGES: ${{ needs.changes.result }}
+          UI: ${{ needs.changes.outputs.ui }}
           SHARDS: ${{ needs.design-system.result }}
           AXE: ${{ needs.design-system-axe.result }}
         run: |
-          echo "shards: $SHARDS, axe: $AXE"
+          echo "changes: $CHANGES (ui=$UI), shards: $SHARDS, axe: $AXE"
+          # A failed detector skips both matrices; that is not a pass.
+          [ "$CHANGES" = success ] || exit 1
+          if [ "$UI" != true ]; then
+            echo "::notice::No design-system change (packages/ui, storybook, docs, a11y tooling or shared config). It runs in full on main."
+            exit 0
+          fi
           [ "$SHARDS" = success ] && [ "$AXE" = success ]

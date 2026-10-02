@@ -148,6 +148,14 @@ touching only `docs/` or a root Markdown file ships nothing.
 Production promotes the previous deployment when its smoke test fails. That is
 seconds, where a revert-and-redeploy is minutes.
 
+Each target deploys in its own job (`vercel-production.yml` draws the graph at
+the top), so the rollback is a job of its own too: it runs when any job
+failed, once all of them have finished, and undoes everything the run
+deployed — every Vercel project whose deploy succeeded, and every VM service
+that recorded the image it replaced (`previous=`), clients first. Until it
+has run, a target deployed in a branch that did not fail stays live, a
+minute or two at most. The run is red; fix forward, do not re-run it.
+
 **The database is not rolled back with it, and there are no down migrations.**
 The previous build reads the new schema perfectly well — that is what
 expand-contract buys. Undoing the migration is what would break it. A bad
@@ -525,12 +533,13 @@ the router has); a SCIM request carries no forwarded list to fall back on.
 
 #### What ships, and how
 
-- **Images** — a job on a native runner of the VM's architecture, chosen by the
+- **Images** — one job per changed image, in parallel, each on a native
+  runner of the VM's architecture, chosen by the
   `VM_PLATFORM` repository variable (`linux/amd64`, the default and what the
   EC2 `c7i-flex.large` is, on `ubuntu-24.04`; `linux/arm64` on
   `ubuntu-24.04-arm` stays an option for a Graviton instance; both runners
-  free for a public repository, and no QEMU) builds both images and proves them before anything is
-  pushed. The router image is `apps/gateway/Dockerfile` with the supergraph
+  free for a public repository, and no QEMU), builds its image and proves it
+  before anything is pushed. The router image is `apps/gateway/Dockerfile` with the supergraph
   composed against `http://people:4001` — People's name on the Compose
   network, the same in every environment, so one router image serves both —
   and `apps/gateway/scripts/smoke.ts` starts it: a persisted operation must
@@ -539,7 +548,8 @@ the router has); a SCIM request carries no forwarded list to fall back on.
   must boot and answer `/health`, which is where a native module built for the
   wrong architecture dies. Both are pushed to GHCR as
   `ghcr.io/<owner>/kithena-{people,router}:<sha>`.
-- **Onto the VM** — the deploy job assumes `kithena-deploy-wake` through
+- **Onto the VM** — the `vm` job, after the images, the migration, identity
+  and messaging, assumes `kithena-deploy-wake` through
   GitHub's OIDC token, starts the instance, waits for its SSM agent to be
   `Online`, and SSHes in as `deploy` through a Session Manager tunnel
   (`AWS-StartSSHSession`) with the environment's `VM_DEPLOY_SSH_KEY`. It
