@@ -1559,6 +1559,33 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.goto(`${shell}/people`);
     await page.waitForLoadState('networkidle');
     expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
+
+    // The company at the top, never Kithena: Globex's initial while it has no
+    // logo, and its logo, uncropped, once it has one.
+    const brand = page.getByRole('link', { name: 'Globex, home' });
+    expect(await brand.getByText('G', { exact: true }).isVisible()).toBe(true);
+    expect(await page.getByTitle('Kithena').count()).toBe(0);
+    const logo = `data:image/svg+xml,${encodeURIComponent(
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 32'><circle cx='16' cy='16' r='12' fill='#1f2937'/><rect x='34' y='10' width='56' height='12' rx='3' fill='#1f2937'/></svg>",
+    )}`;
+    await stack.sql`UPDATE platform.tenant SET logo_url = ${logo} WHERE id = ${GLOBEX.tenant}`;
+    await page.reload();
+    await brand.locator('img').waitFor();
+    expect(await brand.locator('img').getAttribute('src')).toBe(logo);
+    const shots = process.env['OVERVIEW_SHOTS'];
+    const shot = async (name: string): Promise<void> => {
+      if (shots !== undefined && shots !== '')
+        await page.screenshot({ path: join(shots, `${name}.png`) });
+    };
+    await page.waitForLoadState('networkidle');
+    await shot('sidebar-logo-desktop-light');
+    const dark = (on: boolean) =>
+      page.evaluate((d) => document.documentElement.classList.toggle('dark', d), on);
+    await dark(true);
+    await page.waitForTimeout(400); // the colours' own transition
+    await shot('sidebar-logo-desktop-dark');
+    await dark(false);
+
     const nav = await sections(page);
     expect(await nav.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe(
       'page',
@@ -1575,6 +1602,9 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.getByRole('button', { name: 'Collapse sidebar' }).click();
     await nav.waitFor({ state: 'detached' });
     await page.mouse.move(900, 600);
+    // The rail keeps the mark, and the link its name.
+    expect(await brand.locator('img').isVisible()).toBe(true);
+    await shot('sidebar-logo-rail-light');
     expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('false');
     await peopleItem(page).hover();
     await flyout.waitFor();

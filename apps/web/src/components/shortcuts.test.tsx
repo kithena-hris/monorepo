@@ -347,3 +347,58 @@ describe('C, ⌘Enter and the palette’s actions', () => {
     expect(result.violations.map((v) => v.id)).toEqual([]);
   }, 20_000);
 });
+
+describe('the top of the sidebar: the company, never Kithena', () => {
+  const top = (props: { logoUrl?: string | null; sidebarCollapsed?: boolean }) =>
+    render(
+      <AppShell
+        person={{ name: 'Ada Lovelace', email: 'ada@acme.example' }}
+        companyName="Acme Robotics"
+        entitlements={['module.people']}
+        shell={shell}
+        {...props}
+      >
+        <p>Page</p>
+      </AppShell>,
+    );
+  const home = () => screen.getByRole('link', { name: 'Acme Robotics, home' });
+
+  it('shows their logo, uncropped, beside their name', () => {
+    // jsdom decodes no image; this one has, so Radix mounts it.
+    const real = window.Image;
+    window.Image = class {
+      complete = true;
+      naturalWidth = 1;
+      addEventListener(): void {}
+      removeEventListener(): void {}
+    } as unknown as typeof Image;
+    try {
+      top({ logoUrl: 'https://cdn.example/acme.png' });
+      const img = home().querySelector('img');
+      expect(img?.getAttribute('src')).toBe('https://cdn.example/acme.png');
+      expect(img?.className).toContain('object-contain');
+      expect(home().getAttribute('href')).toBe('/');
+      expect(within(home()).getByText('Acme Robotics')).toBeTruthy();
+      expect(document.body.textContent).not.toMatch(/Kithena/);
+    } finally {
+      window.Image = real;
+    }
+  });
+
+  it('falls back to their initials, not our mark', () => {
+    top({ logoUrl: null });
+    expect(home().querySelector('img, svg')).toBeNull();
+    expect(within(home()).getByText('AR')).toBeTruthy();
+    expect(document.querySelector('[title="Kithena"]')).toBeNull();
+  });
+
+  it('keeps the mark and the label as the rail, and is axe-clean', async () => {
+    const { container } = top({ logoUrl: null, sidebarCollapsed: true });
+    expect(home().closest('[data-collapsed]')).not.toBeNull();
+    expect(within(home()).getByText('AR')).toBeTruthy();
+    const result = await axe.run(container, {
+      rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
+    });
+    expect(result.violations.map((v) => v.id)).toEqual([]);
+  }, 20_000);
+});

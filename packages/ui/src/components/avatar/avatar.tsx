@@ -156,14 +156,19 @@ export function Avatar({
           // on arrival rather than on a half-painted image.
           className={cn(
             'size-full animate-fade-in rounded-[inherit]',
-            fit === 'contain' ? 'object-contain p-1' : 'object-cover',
+            // A mark is almost always drawn for a white page, so in the dark
+            // theme it keeps one under it: a dark wordmark on a dark ground
+            // is not there at all. The light theme's neutral ground reads.
+            fit === 'contain' ? 'object-contain p-1 dark:bg-(--reach-neutral-0)' : 'object-cover',
           )}
         />
       )}
       <AvatarPrimitive.Fallback
         // Wait a beat before showing initials, so a cached image does not
-        // produce a visible initials-then-photo flash.
-        delayMs={safeSrc === undefined ? 0 : 120}
+        // produce a visible initials-then-photo flash. With no image there is
+        // nothing to wait for, and no delay at all — not even 0ms, which is a
+        // timer — is what puts the initials in the server's HTML.
+        {...(safeSrc === undefined ? {} : { delayMs: 120 })}
         className="flex size-full items-center justify-center overflow-hidden rounded-[inherit] leading-none font-bold [&_svg]:size-1/2"
       >
         {fallback ?? (initials === '' ? <UserRound aria-hidden /> : initials)}
