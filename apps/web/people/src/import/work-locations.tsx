@@ -257,8 +257,12 @@ function WorkLocationCard({
         {badge}
       </div>
       <p className="text-sm text-fg-muted">
-        {people} in the file: {w.people.join(', ')}
-        {w.rows > w.people.length ? ` and ${String(w.rows - w.people.length)} more` : ''}
+        {/* Left empty, the people are the table below: named once. */}
+        {choice.kind === 'leave' || w.people.length === 0
+          ? `${people} in the file`
+          : `${people} in the file: ${w.people.join(', ')}${
+              w.rows > w.people.length ? ` and ${String(w.rows - w.people.length)} more` : ''
+            }`}
       </p>
       <RadioGroup
         aria-label={`What happens to “${w.value}”`}

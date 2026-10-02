@@ -615,6 +615,46 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
   });
 });
 
+describe('Work locations set up inside the import', () => {
+  it('adds the one a file names, by the name HR gives it, and places its people there', async () => {
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/import`);
+    await upload(
+      page,
+      'offices.csv',
+      [
+        'given_name,family_name,work_email,hire_date,location_id',
+        'Andy,Bernard,andy@acme.example,2025-05-05,Stamford',
+        'Karen,Filippelli,karen@acme.example,2025-05-05,stamford',
+      ].join('\n'),
+    );
+    await page.getByRole('button', { name: 'Next: work locations' }).click({ timeout: 30_000 });
+    await page.waitForURL(/\?step=places$/);
+    const stamford = page.getByRole('radiogroup', { name: 'What happens to “Stamford”' });
+    expect(
+      await stamford.getByRole('radio', { name: /Add it as a new work location/ }).isChecked(),
+    ).toBe(true);
+    // Both people, by name, whatever the file's spelling.
+    expect(await page.getByText('2 people in the file: Andy Bernard, Karen Filippelli').count()).toBe(1);
+    await page.getByRole('textbox', { name: /^Name/ }).fill('Stamford Branch');
+    await page.getByRole('button', { name: 'Next: review the plan' }).click();
+    await page.getByText('Add 1 work location: Stamford Branch').waitFor({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('heading', { name: /^Imported 2 people/ }).waitFor({ timeout: 30_000 });
+
+    const placed = await stack.sql<{ work_email: string; name: string }[]>`
+      SELECT p.work_email, l.name FROM people.person p JOIN people.location l ON l.id = p.location_id
+       WHERE p.tenant_id = ${TENANT} AND p.work_email IN ('andy@acme.example', 'karen@acme.example')
+       ORDER BY p.work_email`;
+    expect(placed).toEqual([
+      { work_email: 'andy@acme.example', name: 'Stamford Branch' },
+      { work_email: 'karen@acme.example', name: 'Stamford Branch' },
+    ]);
+    await context.close();
+  });
+});
+
 describe('PEO-112: granting a role on the roles screen', () => {
   it('grants Finance to an employee with a reason, audited; the employee cannot see the screen', async () => {
     const context = await signedIn(ADMIN.session);

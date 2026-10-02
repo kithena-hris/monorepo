@@ -848,6 +848,7 @@ function PhonePlan({
             label={p.field.label}
             names={view.proposals.find((x) => x.column === p.column)?.counts.without ?? []}
             missing={missingOf(p)}
+            here={view.proposals.find((x) => x.column === p.column)?.counts.existingWithout ?? 0}
           />
         </section>
       ))}

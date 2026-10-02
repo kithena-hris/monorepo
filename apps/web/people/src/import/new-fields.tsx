@@ -857,13 +857,23 @@ export function WithoutValue({
   label,
   names,
   missing,
+  here,
 }: {
   readonly label: string;
   readonly names: readonly string[];
   readonly missing: number;
+  /** People already here whom the file doesn't reach. */
+  readonly here: number;
 }): JSX.Element | null {
   if (missing === 0) return null;
-  const more = missing - names.length;
+  // The table names the first twenty of the file's rows; the rest are counted.
+  const inFile = Math.max(0, missing - here - names.length);
+  const rest = [
+    inFile > 0 ? `${plural(inFile, 'more person', 'more people')} in the file` : null,
+    here > 0
+      ? `${plural(here, 'person', 'people')} already here, whom the file doesn’t reach`
+      : null,
+  ].filter((x) => x !== null);
   return (
     <div className="flex flex-col gap-2">
       {names.length === 0 ? null : (
@@ -875,10 +885,10 @@ export function WithoutValue({
           dense
         />
       )}
-      {more > 0 ? (
+      {rest.length > 0 ? (
         <p className="text-sm text-fg-muted">
           {names.length === 0 ? '' : 'And '}
-          {plural(more, 'person', 'people')} already here, whom the file doesn’t reach.
+          {rest.join(', and ')}.
         </p>
       ) : null}
     </div>
@@ -1015,6 +1025,9 @@ export function ExistingStep({
               label={current.field.label}
               names={withoutOf(current)}
               missing={missingOf(current)}
+              here={
+                view.proposals.find((x) => x.column === current.column)?.counts.existingWithout ?? 0
+              }
             />
           </div>
         </PageSection>
