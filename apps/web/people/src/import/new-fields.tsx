@@ -701,10 +701,10 @@ export function NewFieldsStep({
         </PageSection>
         <Alert
           tone="info"
-          title={view.setup === null ? 'These become fields in Settings' : 'These come with setup'}
+          title={view.setup === null ? 'These become a draft in Settings' : 'These come with setup'}
         >
           {view.setup === null
-            ? `They’re added to Employee fields as version ${String(view.version)}. Nothing is published until you approve the plan.`
+            ? `They’re added to Employee fields as a draft of version ${String(view.version)}. Nothing is published until you approve the plan.`
             : `They’re published with ${view.setup.countryName === null ? 'the fields every company has' : `the ${view.setup.countryName} pack`} as version 1. Nothing is published until you approve the plan.`}
         </Alert>
       </div>

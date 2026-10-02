@@ -8,8 +8,12 @@ People administrator approves the plan once; nothing is written before.
 ## The flow (design AI9 to AI12; MA8, MA9 on a phone)
 
 The import has five steps: **Upload → Map columns → New fields → Review plan
-→ Import**. The step, and the field in focus on the people-without-a-value
-screen, are in the address (`?step=`, `?field=`).
+→ Import**, full pages at `/people/import` under People › Import & export ›
+Import. The step, and the field in focus on the people-without-a-value
+screen, are in the address: `?step=map|fields|existing|review|done` and
+`?field=`; no step is the upload. Each step is a new history entry, except
+done, which replaces the plan so Back never offers a run that happened. An id
+or employee number column shows "Kithena creates this" and has no picker.
 
 0. **Nothing published yet is not a detour.** A company the back office has
    just made (one legal entity, nothing published) imports straight away: its
