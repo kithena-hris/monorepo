@@ -171,9 +171,10 @@ describe('a file from another system, or another Kithena', () => {
   });
 
   it('says so too when nobody will be numbered yet, and who can change that', () => {
-    const ids = planOf({ ...DEV_EXPORT, identifiers: { inFile: true, numbered: false } }).steps.find(
-      (s) => s.kind === 'ids',
-    );
+    const ids = planOf({
+      ...DEV_EXPORT,
+      identifiers: { inFile: true, numbered: false },
+    }).steps.find((s) => s.kind === 'ids');
     expect(ids?.title).toBe('Employee IDs in the file are ignored');
     expect(ids?.detail).toContain('an administrator turns numbering on in Settings › Organisation');
   });
@@ -202,7 +203,9 @@ describe('a file from another system, or another Kithena', () => {
       ...DEV_EXPORT,
       newLocations: { names: ['Scranton', 'Stamford'], added: true, mapped: [mapped] },
     }).steps.find((s) => s.kind === 'places');
-    expect(both?.title).toBe('Add 2 work locations: Scranton and Stamford; map “NYC HQ” to New York');
+    expect(both?.title).toBe(
+      'Add 2 work locations: Scranton and Stamford; map “NYC HQ” to New York',
+    );
     const only = planOf({
       ...DEV_EXPORT,
       newLocations: { names: [], added: true, mapped: [mapped] },
@@ -214,5 +217,25 @@ describe('a file from another system, or another Kithena', () => {
   it('says nothing about identifiers when the file holds none', () => {
     const { steps } = planOf({ ...DEV_EXPORT, identifiers: { inFile: false, numbered: true } });
     expect(steps.some((s) => s.kind === 'ids')).toBe(false);
+  });
+});
+
+describe('a column that is one of People’s own fields', () => {
+  it('says in one line where it goes and what it adds to the list', () => {
+    const { steps, short } = planOf({
+      ...ACME,
+      fields: [],
+      leftOut: [],
+      choices: [
+        { header: 'Employment Type', label: 'Employment type', added: ['Full-time', 'Part-time'] },
+        { header: 'Work Arrangement', label: 'Work model', added: [] },
+      ],
+    });
+    expect(steps.slice(0, 2).map((s) => [s.kind, s.title])).toEqual([
+      ['fields', 'Employment Type → Employment type; added Full-time and Part-time'],
+      ['fields', 'Work Arrangement → Work model'],
+    ]);
+    expect(steps[1]?.detail).toBe('Every value in the file is one People already has.');
+    expect(short).toBe('Add Full-time and Part-time to employment type and import 369 people.');
   });
 });

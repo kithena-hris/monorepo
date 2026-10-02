@@ -27,6 +27,15 @@ export interface PlanInput {
   /** The version the fields publish as. */
   readonly version: number;
   readonly fields: readonly PlanField[];
+  /**
+   * Columns that are one of People's own choice fields (employment type, work
+   * model): the field they go to, and the file's values it adds to its list.
+   */
+  readonly choices?: readonly {
+    readonly header: string;
+    readonly label: string;
+    readonly added: readonly string[];
+  }[];
   readonly rows: Readonly<
     Record<'create' | 'update' | 'unchanged' | 'blocked' | 'duplicate', number>
   >;
@@ -224,6 +233,17 @@ export function planOf(input: PlanInput): {
     if (places.added) {
       short.push(`add ${plural(places.names.length, 'work location', 'work locations')}`);
     }
+  }
+  for (const c of input.choices ?? []) {
+    const added = c.added.length > 0;
+    steps.push({
+      kind: 'fields',
+      title: `${c.header} → ${c.label}${added ? `; added ${listed(c.added)}` : ''}`,
+      detail: added
+        ? `People’s own ${lowerFirst(c.label)}: the file’s values it has under another name go to those, and ${listed(c.added)} ${c.added.length === 1 ? 'is' : 'are'} added to its list. Change the list in Settings › Employee fields.`
+        : 'Every value in the file is one People already has.',
+    });
+    if (added) short.push(`add ${listed(c.added)} to ${lowerFirst(c.label)}`);
   }
   if (input.fields.length > 0) {
     const n = input.fields.length;
