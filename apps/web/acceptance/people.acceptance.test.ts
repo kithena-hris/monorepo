@@ -638,7 +638,9 @@ describe('Work locations set up inside the import', () => {
       await stamford.getByRole('radio', { name: /Add it as a new work location/ }).isChecked(),
     ).toBe(true);
     // Both people, by name, whatever the file's spelling.
-    expect(await page.getByText('2 people in the file: Andy Bernard, Karen Filippelli').count()).toBe(1);
+    expect(
+      await page.getByText('2 people in the file: Andy Bernard, Karen Filippelli').count(),
+    ).toBe(1);
     await page.getByRole('textbox', { name: /^Name/ }).fill('Stamford Branch');
     await page.getByRole('button', { name: 'Next: review the plan' }).click();
     await page.getByText('Add 1 work location: Stamford Branch').waitFor({ timeout: 30_000 });
@@ -2172,6 +2174,40 @@ describe('Import & export, as the server sends it', () => {
       await from.close();
     }
     report('navigation', Object.fromEntries(keys.slice(1).map((k) => [k, mid(moves, k)])));
+    await context.close();
+  });
+});
+
+describe('A People page while the VM behind it is asleep', () => {
+  it('says People is waking, asks again by itself, and shows the page in place when it is up', async () => {
+    const context = await signedIn(EMPLOYEE.session);
+    const page = await context.newPage();
+    const address = `${stack.shell}/people/directory/list?q=shah`;
+    stack.router.asleep();
+    try {
+      await page.goto(address);
+      // The server's own answer: the header and the waking state, not an error.
+      await page.getByText('Waking up People, usually under a minute').waitFor({ timeout: 30_000 });
+      expect(await page.getByText(/The server sleeps when nobody is using it/).count()).toBe(1);
+      expect(await page.getByText(/is unavailable/).count()).toBe(0);
+      // Still waking after a few of its own asks.
+      await page.waitForTimeout(6_000);
+      expect(await page.getByText('Waking up People, usually under a minute').count()).toBe(1);
+      // Marked, so a reload would show: a new document has no mark.
+      await page.evaluate(() => {
+        (window as unknown as { stayed?: true }).stayed = true;
+      });
+    } finally {
+      stack.router.awake();
+    }
+
+    // The screen People's remote draws, whatever this tenant holds by now.
+    await page.locator('[data-remote="people"]').waitFor({ state: 'attached', timeout: 30_000 });
+    expect(await page.getByText(/Waking up People/).count()).toBe(0);
+    expect(await page.getByText(/is unavailable/).count()).toBe(0);
+    expect(await page.getByRole('status').filter({ hasText: 'People is ready' }).count()).toBe(1);
+    expect(page.url()).toBe(address);
+    expect(await page.evaluate(() => (window as unknown as { stayed?: true }).stayed)).toBe(true);
     await context.close();
   });
 });
