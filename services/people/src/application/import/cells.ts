@@ -22,6 +22,8 @@ export interface CellContext {
   /** The tenant's civil date, for a date's past/future range. */
   readonly today: string;
   readonly dateOrder: DateOrder;
+  /** The row's own currency, from its currency column: what an amount with no code is in. */
+  readonly currency?: string | null;
 }
 
 /** The masked form an export writes for a sealed value (§15.2). Never a value to import. */
@@ -113,7 +115,7 @@ function scalar(definition: AttributeDefinition, cell: string, ctx: CellContext)
     case 'duration':
       return /^-?\d+(\.\d+)?$/u.test(cell) ? Number(cell) : undefined;
     case 'money':
-      return money(cell, config.currency);
+      return money(cell, config.currency ?? ctx.currency ?? null);
     case 'boolean': {
       const b = cell.toLowerCase();
       if (['true', 'yes', 'y', '1'].includes(b)) return true;

@@ -657,6 +657,8 @@ export interface NewFieldsFile {
   }[];
   /** The file holds a person id or employee number column: Kithena's to create, so ignored. */
   readonly identifiers: boolean;
+  /** The file's columns: all, those mapped to a field here, and the ids Kithena creates. */
+  readonly columns: { readonly total: number; readonly existing: number; readonly kithena: number };
   /** Each row as the dry run reads it with the mapping so far: whom it creates or updates. */
   readonly rows: readonly {
     readonly outcome: string;
@@ -698,6 +700,13 @@ export async function newFieldsFile(
     const names = rowNamesOf(file, mapping.value);
     return ok({
       identifiers: proposed.some((c) => kithenaCreates(c.key)),
+      columns: {
+        total: mapping.value.length,
+        existing: mapping.value.filter(
+          (c) => c.status === 'mapped' && c.key !== null && !kithenaCreates(c.key),
+        ).length,
+        kithena: mapping.value.filter((c) => kithenaCreates(c.key)).length,
+      },
       unmatched: proposed
         .filter(
           (c) =>

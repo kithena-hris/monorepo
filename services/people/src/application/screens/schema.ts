@@ -312,6 +312,8 @@ export interface FieldInput {
   readonly country?: string | null;
   /** Which national identifier: `nif`, `nino`, `ssn`… */
   readonly scheme?: string | null;
+  /** How many decimal places a decimal or a percentage keeps; absent, the type's default. */
+  readonly decimals?: number | null;
   /** Whether the assistant may use it; null or absent, it may where it could be (public or internal). */
   readonly aiEligible?: boolean | null;
   /** Required of people added from now on only; existing records are not made incomplete (§6.5). */
@@ -351,6 +353,7 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
         : input.dataType === 'bank_account'
           ? { country: input.country ?? undefined }
           : {}),
+      ...(input.decimals == null ? {} : { decimals: input.decimals }),
     },
     // A conditional rule without a predicate is refused by the contract, which
     // names the field; nothing here invents one.

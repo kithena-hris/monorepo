@@ -639,6 +639,9 @@ function rowClassifier(
 
   return (parsed: ParsedRow): ClassifiedRow => {
     const cell = (m: ColumnMapping) => parsed.cells[m.index] ?? '';
+    // An amount with no currency code is in the row's own currency, when a column says it.
+    const currencyAt = mapped.find((m) => byKey.get(m.key as string)?.typeConfig.kind === 'currency');
+    const currency = currencyAt === undefined ? null : cell(currencyAt).trim().toUpperCase() || null;
     const coerceRow = (today: string) => {
       const found: CellProblem[] = [];
       const coerced: Record<string, unknown> = {};
@@ -654,7 +657,7 @@ function rowClassifier(
         const raw = cell(m);
         // A sealed value exports masked; the mask is "unchanged", not a value.
         if (definition.encrypted && isMasked(raw)) continue;
-        const one = coerceCell(definition, raw, { today, dateOrder: order });
+        const one = coerceCell(definition, raw, { today, dateOrder: order, currency });
         if (!one.ok)
           found.push({ column: m.header, key, kind: 'invalid', reason: one.error.message });
         else if (one.value !== null) coerced[key] = one.value;

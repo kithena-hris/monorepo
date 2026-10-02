@@ -52,6 +52,8 @@ const ROWS = [
 const VALUES = ROWS.flatMap((r) => r.slice(1)).filter((v) => v !== '');
 const FILE: NewFieldsFile = {
   identifiers: false,
+  // The work email mapped to its field; the five others are new.
+  columns: { total: 6, existing: 1, kithena: 0 },
   unmatched: ['Emergency contact', 'Cost centre', 'T-shirt size', 'IBAN', 'Work country'].map(
     (header, i) => ({
       index: i + 1,
@@ -360,6 +362,7 @@ describe('proposing fields for new columns', () => {
     const w = world();
     const wide: NewFieldsFile = {
       identifiers: false,
+      columns: { total: 31, existing: 1, kithena: 0 },
       unmatched: Array.from({ length: 30 }, (_, i) => ({
         index: i + 1,
         header: `Extra ${String(i + 1)}`,
@@ -535,6 +538,7 @@ describe('approving and running it', () => {
     // The default goes to the people the file gives no value: everybody but P1 and P2.
     expect(w.written).toEqual([{ ids: [P3, 'p4', 'p5'], values: { work_country: 'es' } }]);
     // Then the import, with every new column going to its new field.
+    // Approving the plan is the approval: nothing it imports waits for a second one.
     expect(w.committed).toEqual([
       {
         uploadId: w.step.uploadId,
@@ -545,8 +549,32 @@ describe('approving and running it', () => {
           '4': 'iban',
           '5': 'work_country',
         },
+        applySensitiveWithoutApproval: true,
       },
     ]);
+  });
+
+  it('fits a field HR edited into one the settings take: a sealed list is stored confidential, with changes approved', async () => {
+    const w = world();
+    const v = await proposed(w);
+    const proposals = strip(v).map((p) =>
+      p.key === 'cost_centre'
+        ? {
+            ...p,
+            field: { ...p.field, dataType: 'select' as const, options: ['CC-10'], encrypted: true },
+          }
+        : p,
+    );
+    const planned = await planImport(w.deps, w.asking, { ...w.step, proposals });
+    expect(planned.ok && planned.value.problems).toEqual([]);
+    const ran = await runImport(w.deps, w.asking, { ...w.step, proposals });
+    expect(ran.ok).toBe(true);
+    expect(w.attributes.get('cost_centre')).toMatchObject({
+      dataType: 'select',
+      encrypted: false,
+      requiresApproval: true,
+      classification: { classification: 'confidential' },
+    });
   });
 
   it('adds only fields the import can then write: the dry run maps every kept column', async () => {
@@ -582,10 +610,13 @@ describe('approving and running it', () => {
     const w = world();
     const v = await proposed(w);
     const proposals = strip(v).map((p) =>
-      p.key === 'cost_centre'
-        ? { ...p, field: { ...p.field, dataType: 'select' as const, encrypted: true } }
-        : p,
+      p.key === 'cost_centre' ? { ...p, placement: { sectionKey: 'no_such_section' } } : p,
     );
+    const planned = await planImport(w.deps, w.asking, { ...w.step, proposals });
+    // The plan names it by its header, before anything is approved.
+    expect(planned.ok && planned.value.problems).toEqual([
+      expect.objectContaining({ header: 'Cost centre' }),
+    ]);
     const ran = await runImport(w.deps, w.asking, { ...w.step, proposals });
     expect(ran).toMatchObject({ ok: false, error: { code: 'DEFINITION_INVALID' } });
     expect(ran.ok ? '' : ran.error.message).toMatch(/Nothing was added/u);
