@@ -34,43 +34,6 @@ env:
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
-  # On `main` only: did the pull request this commit came from already test this
-  # exact tree? `gh pr merge --squash` on a pull request whose CI ran against
-  # main's current tip produces a commit whose tree is byte-for-byte the
-  # `refs/pull/N/merge` commit that CI tested, and re-running the suite on it
-  # measures nothing new. `tested-tree`, at the bottom, records what a green
-  # pull request run tested; this reads the record back and proves it (the
-  # status was written by this workflow, links a green `ci` run on the PR's
-  # head, and names this tree). Then `verify` and `standalone` skip, and
-  # `changes` turns off only the gates the pull request ran in full; a gate it
-  # narrowed still runs here, so the backstop for a detector that guessed wrong
-  # stays. Any doubt is a full run: the step cannot fail the job, and empty
-  # outputs mean "run everything". docs/environments.md, "A merge is not tested
-  # twice".
-  retest:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read
-      statuses: read
-      actions: read
-    outputs:
-      matched: ${{ steps.decide.outputs.matched }}
-      proven: ${{ steps.decide.outputs.proven }}
-    steps:
-      - name: checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: already tested in its pull request?
-        id: decide
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: .github/scripts/retested-tree.sh
-
   # Which of the slow, narrow gates this change can reach. A gate whose
   # required check is its own job (`contracts`, `web acceptance`) keeps running
   # as a job and skips its expensive steps. A sharded gate (`design-system`,
@@ -79,29 +42,56 @@ jobs:
   # reports without its shard, so a skip on a required *shard* name would sit
   # pending forever. Pull requests only: on `main` and in the merge queue every
   # output is true, so a detector that guessed wrong costs a red build after
-  # merge, never an unmeasured regression. The one exception is a gate `retest`
-  # proved already ran in full on this exact tree.
+  # merge, never an unmeasured regression.
+  #
+  # The one exception: on `main`, a gate the pull request already ran in full
+  # on this exact tree. `gh pr merge --squash` on a pull request whose CI ran
+  # against main's current tip gives a commit whose tree is byte-for-byte the
+  # `refs/pull/N/merge` commit CI tested. `tested-tree`, at the bottom, records
+  # what a green pull request run tested; `already tested` reads the record
+  # back and proves it (the status was written by this workflow, links a green
+  # `ci` run on the PR's head, and names this tree). Then `verify` and
+  # `standalone` skip and the proven gates turn off; a gate the pull request
+  # narrowed still runs here. Any doubt is a full run: the step cannot fail the
+  # job, and empty outputs mean "run everything". docs/environments.md, "A merge
+  # is not tested twice".
+  #
+  # In this job rather than one of its own: every gate needs this job, and a
+  # job that is skipped on pull requests would skip everything downstream of it.
   changes:
-    needs: retest
-    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+      actions: read
     outputs:
       ui: ${{ steps.diff.outputs.ui }}
       contracts: ${{ steps.diff.outputs.contracts }}
       web: ${{ steps.diff.outputs.web }}
       integration: ${{ steps.diff.outputs.integration }}
+      matched: ${{ steps.tested.outputs.matched }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
+      - name: already tested in its pull request?
+        id: tested
+        if: github.event_name == 'push'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: .github/scripts/retested-tree.sh
       - name: what changed
         id: diff
         env:
           EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
-          PROVEN: ${{ needs.retest.outputs.proven }}
+          PROVEN: ${{ steps.tested.outputs.proven }}
         run: |
           if [ "$EVENT" != "pull_request" ]; then
             for gate in ui contracts web integration; do
@@ -143,8 +133,8 @@ jobs:
   # builds it.
   verify-stream:
     name: verify (${{ matrix.stream }})
-    needs: retest
-    if: ${{ !cancelled() && needs.retest.outputs.matched != 'true' }}
+    needs: changes
+    if: needs.changes.outputs.matched != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -241,21 +231,21 @@ jobs:
           echo "migration ledger matches the directory"
 
   # The required check keeps its name: green only when every stream is, or on
-  # main when `retest` proved this tree passed them in its pull request.
+  # main when `changes` proved this tree passed them in its pull request.
   verify:
-    needs: [retest, verify-stream]
+    needs: [changes, verify-stream]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: every stream passed
         env:
-          MATCHED: ${{ needs.retest.outputs.matched }}
+          MATCHED: ${{ needs.changes.outputs.matched }}
           RESULT: ${{ needs.verify-stream.result }}
         run: |
           echo "streams: $RESULT (already tested: ${MATCHED:-false})"
           if [ "$MATCHED" = true ] && [ "$RESULT" = skipped ]; then
-            echo "::notice::This tree already passed verify in its pull request; see the retest job's summary."
+            echo "::notice::This tree already passed verify in its pull request; see the changes job's summary."
             exit 0
           fi
           [ "$RESULT" = success ]
@@ -361,8 +351,8 @@ jobs:
           [ "$RESULT" = success ]
 
   standalone:
-    needs: retest
-    if: ${{ !cancelled() && needs.retest.outputs.matched != 'true' }}
+    needs: changes
+    if: needs.changes.outputs.matched != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -674,7 +664,7 @@ jobs:
           fi
           [ "$SHARDS" = success ] && [ "$AXE" = success ]
 
-  # The record `retest` reads on main: once every required check of a pull
+  # The record `changes` reads on main: once every required check of a pull
   # request run is green, a `ci/tested-tree` status on the PR's head naming the
   # tree this run tested (`refs/pull/N/merge`, the PR on main's tip at that
   # moment) and the narrowed gates that ran in full. `verify` and `standalone`

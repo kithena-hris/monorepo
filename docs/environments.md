@@ -58,7 +58,7 @@ skips what is already proven:
    head: `tree=<tree it tested> ran=<gates it ran in full>`, linking the run.
    Only a workflow in this repository writes it as `github-actions[bot]`; a
    fork's token cannot write statuses at all.
-2. **The check.** On a push to main, `retest`
+2. **The check.** On a push to main, the `changes` job
    (`.github/scripts/retested-tree.sh`) finds the merged pull request whose
    merge commit is this commit, reads the newest such status on its head,
    confirms the linked run is a successful `ci` run of `pull_request` on that
@@ -72,7 +72,7 @@ skips what is already proven:
    phone-screen axe pass on its pull request). The required checks still
    report green, `ci` concludes `success`, and `vercel-production` starts as it
    always has; its gate, plan, smoke tests and rollback are untouched. The
-   `retest` job's summary says which tree, which pull request and which run.
+   `changes` job's summary says which tree, which pull request and which run.
 
 Anything short of a proven match runs the full suite: a direct push (no pull
 request), no status (a fork, a merge before `tested-tree` finished, a failed
