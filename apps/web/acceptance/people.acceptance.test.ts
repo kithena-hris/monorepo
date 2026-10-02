@@ -2321,11 +2321,35 @@ describe('A company the back office has just created, with nothing published', (
     await page.getByRole('heading', { name: 'Confirm the legal entity' }).waitFor();
     await page.waitForLoadState('networkidle');
     await hydrated();
+    // Before, here: the federation runtime's RUNTIME-008, and "People is unavailable".
+    expect(refused).toEqual([]);
+    expect(await page.getByText(/is unavailable/).count()).toBe(0);
     // A press the screen answers: its code came, from this company's own host.
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByText(/United States: \d+ sections?, \d+ fields?/).waitFor({ timeout: 30_000 });
-    expect(await page.getByText(/is unavailable/).count()).toBe(0);
-    expect(refused).toEqual([]);
+    // Through the shell, the remote's caching arrives as the remote sent it.
+    const cached = await page.evaluate(async () => {
+      const first = await fetch('/_people/remoteEntry.js', { cache: 'no-store' });
+      const etag = first.headers.get('etag') ?? '';
+      const again = await fetch('/_people/remoteEntry.js', {
+        cache: 'no-store',
+        headers: { 'if-none-match': etag },
+      });
+      return {
+        status: first.status,
+        cacheControl: first.headers.get('cache-control'),
+        nosniff: first.headers.get('x-content-type-options'),
+        etag: etag !== '',
+        revalidated: again.status,
+      };
+    });
+    expect(cached).toEqual({
+      status: 200,
+      cacheControl: 'no-cache',
+      nosniff: 'nosniff',
+      etag: true,
+      revalidated: 304,
+    });
     await context.close();
   });
 
