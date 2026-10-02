@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
+import { createServer as httpServer } from 'node:http';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as httpsServer, type Server as HttpsServer } from 'node:https';
 import { connect, createServer as netServer, type Socket } from 'node:net';
@@ -205,6 +206,61 @@ async function distant(target: string, ms: number): Promise<string> {
   const address = server.address();
   if (address === null || typeof address === 'string') throw new Error('no port');
   return `http://127.0.0.1:${String(address.port)}${new URL(target).pathname.replace(/\/$/, '')}`;
+}
+
+/**
+ * The remote as Vercel serves it from `apps/web/people/vercel.json`, in front
+ * of `vite preview`, which answers CORS and revalidation its own way.
+ *
+ * - `remoteEntry.js`, `routes.json` and `ssr/*` are `no-cache`; `assets/*` take
+ *   Vercel's default, `public, max-age=0, must-revalidate`.
+ * - `Access-Control-Allow-Origin` echoes a tenant origin, with `Vary: Origin`,
+ *   on a 200.
+ * - A conditional request that still matches gets a 304 with the ETag and
+ *   `Vary`, and **no** `Access-Control-Allow-Origin`, which is what Vercel
+ *   does and what broke a second company in one browser.
+ */
+async function asDeployed(target: string): Promise<string> {
+  const tenant = /^http:\/\/[a-z0-9-]+\.app\.localhost:\d+$/;
+  const server = httpServer((request, response) => {
+    const path = request.url ?? '/';
+    void fetch(`${target}${path}`)
+      .then(async (upstream) => {
+        const body = Buffer.from(await upstream.arrayBuffer());
+        if (!upstream.ok) {
+          response.writeHead(upstream.status).end(body);
+          return;
+        }
+        const etag = `"${createHash('sha1').update(body).digest('hex')}"`;
+        const vary = { etag, vary: 'Origin' };
+        if (request.headers['if-none-match'] === etag) {
+          response.writeHead(304, vary).end();
+          return;
+        }
+        const origin = request.headers.origin;
+        response
+          .writeHead(200, {
+            ...vary,
+            'content-type': upstream.headers.get('content-type') ?? 'application/octet-stream',
+            'cache-control': path.startsWith('/assets/')
+              ? 'public, max-age=0, must-revalidate'
+              : 'no-cache',
+            'x-content-type-options': 'nosniff',
+            ...(origin !== undefined && tenant.test(origin)
+              ? { 'access-control-allow-origin': origin }
+              : {}),
+          })
+          .end(body);
+      })
+      .catch(() => {
+        response.writeHead(502).end();
+      });
+  });
+  server.unref();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('no port');
+  return `http://127.0.0.1:${String(address.port)}`;
 }
 
 async function until(what: string, ms: number, check: () => Promise<boolean>): Promise<void> {
@@ -748,8 +804,9 @@ export async function startStack(): Promise<Stack> {
         logs['remote'] ?? [],
       ),
     );
-    const remote = `http://127.0.0.1:${String(remotePort)}`;
-    await until('the remote', 30_000, async () => (await fetch(`${remote}/routes.json`)).ok);
+    const preview = `http://127.0.0.1:${String(remotePort)}`;
+    await until('the remote', 30_000, async () => (await fetch(`${preview}/routes.json`)).ok);
+    const remote = await asDeployed(preview);
 
     const env = {
       INTERNAL_API_URL: identityUrl,

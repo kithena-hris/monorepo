@@ -2284,6 +2284,51 @@ describe('A company the back office has just created, with nothing published', (
     await context.close();
   });
 
+  it('loads the remote in a browser that has already opened another company', async () => {
+    // Meridian's administrator had opened Dunder Mifflin first. One browser,
+    // its cache kept: the remote's files are already held from the first
+    // company, and the second revalidates them, a 304.
+    const made = await company('northwind-haulage', 'Northwind Haulage', 'ines@northwind.example');
+    const second = made.shell;
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.addCookies(
+      [
+        [stack.shell, ADMIN.session],
+        [second, made.session],
+      ].map(([shell, session]) => ({
+        name: '__Host-ksession',
+        value: session ?? '',
+        domain: new URL(shell ?? '').hostname,
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'Lax' as const,
+      })),
+    );
+    const refused: string[] = [];
+    context.on('console', (m) => {
+      if (/Federation|dynamically imported module/.test(m.text())) refused.push(m.text());
+    });
+    const page = await context.newPage();
+    const hydrated = () =>
+      page.waitForFunction(() => document.querySelector('[data-remote][data-hydrating]') === null);
+
+    await page.goto(`${stack.shell}/people`);
+    await page.waitForLoadState('networkidle');
+    await hydrated();
+
+    await page.goto(`${second}/people/setup`);
+    await page.getByRole('heading', { name: 'Confirm the legal entity' }).waitFor();
+    await page.waitForLoadState('networkidle');
+    await hydrated();
+    // A press the screen answers: its code came, from this company's own host.
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText(/United States: \d+ sections?, \d+ fields?/).waitFor({ timeout: 30_000 });
+    expect(await page.getByText(/is unavailable/).count()).toBe(0);
+    expect(refused).toEqual([]);
+    await context.close();
+  });
+
   it('lets its administrator go straight to the import, which sets the company up', async () => {
     const made = await company('harbour-logistics', 'Harbour Logistics', 'ines@harbour.example');
     const { context, page, problems, unavailable } = await asAdministrator(made);
