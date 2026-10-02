@@ -742,14 +742,18 @@ storage" below has the buckets' rules.
 
 - **Identity works.** Signing in, the back-office, email: all Vercel and Neon,
   always on.
-- **The People pages wait.** A request through the tunnel finds nobody
-  (Cloudflare answers 530, error 1033), and the shell shows "Your workspace is
-  asleep — Starting… (usually about 90 s)" instead of the screen
-  (`components/workspace-asleep.tsx`). It asks `POST /api/workspace` once to
-  start the instance, polls `GET /api/workspace` until EC2 says running and the
-  router answers `/health/ready` through the tunnel, then reloads the view.
-  Both routes want a signed-in person at a company that bought People; start
-  is idempotent and sent at most once a minute per function instance.
+- **The People pages wait.** A read through the tunnel finds nobody
+  (Cloudflare answers 530, error 1033), then the router before People (it
+  answers "Failed to fetch from Subgraph"); each is "waking", not an error
+  (`apps/web/src/lib/waking.ts`). The read asks EC2 to start the instance
+  once the response is sent (`lib/people.ts`, only for a signed-in person's
+  read; idempotent, at most once a minute per function instance), and the
+  page shows its header with "Waking up People, usually under a minute" in
+  place of its body (`components/waking.tsx`). The page asks the server again
+  after 2 s, 3 s, 5 s, then every 5 s, while the tab is visible, and shows
+  itself in place when People answers; after three minutes it says so and
+  offers Try again. Home, the inbox, Settings and Activity wait the same way;
+  a write made meanwhile answers "Kithena is waking up, try again in a moment".
 - **S3 is untouched.** The buckets do not sleep; their lifecycle rules keep
   deleting on time, and an upload URL signed before the stop still works for
   its five minutes.

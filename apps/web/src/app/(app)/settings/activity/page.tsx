@@ -3,7 +3,6 @@ import type { JSX } from 'react';
 
 import { ActivityLog, type ActivityLoad, type Named } from '../../../../components/activity-log';
 import { flatSearch } from '../../../../components/people-area';
-import { WorkspaceAsleep } from '../../../../components/workspace-asleep';
 import {
   activityFilters,
   activityVariables,
@@ -12,6 +11,7 @@ import {
 } from '../../../../lib/activity';
 import { people } from '../../../../lib/people';
 import { currentPerson } from '../../../../lib/session';
+import { isWaking } from '../../../../lib/waking';
 
 /**
  * Settings › Activity: who did what, and when, across every module the
@@ -28,11 +28,12 @@ export default async function Activity({
   const filters = activityFilters(await flatSearch(searchParams));
 
   const answer = await people<ActivityPage>('Activity', activityVariables(filters));
-  if (!answer.ok && answer.code === 'UNREACHABLE') return <WorkspaceAsleep />;
 
   let load: ActivityLoad;
   let named: Named = {};
-  if (answer.ok) {
+  if (isWaking(answer)) {
+    load = { status: 'waking' };
+  } else if (answer.ok) {
     load = { status: 'ready', page: answer.data };
     const ids = idsToName(answer.data);
     if (ids.accountIds.length > 0 || ids.personIds.length > 0) {

@@ -2,12 +2,15 @@ import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
 import { refresh } from 'next/cache';
 import { cookies, headers } from 'next/headers';
+import { after } from 'next/server';
 import { cache } from 'react';
 
 import { CLIENT_NAME, OPERATIONS, type OperationName } from './people-operations';
 import { currentPerson } from './session';
 import { SESSION_COOKIE } from './session-cookie';
 import { timed } from './timing';
+import { WAKING_MESSAGE, wakingCause, wakingErrors, wakingStatus } from './waking';
+import { wakeWorkspace, workspaceConfig } from './workspace';
 
 /**
  * People, through the Cosmo Router, as the person signed in (PEO-113).
@@ -27,12 +30,11 @@ import { timed } from './timing';
  * Fails closed: no session, no tenant, no token or no answer is an
  * `ok: false` with a sentence, never an exception a screen has to catch.
  *
- * `UNREACHABLE` is the one failure the shell acts on: nothing answered at the
- * router's address — a network error, or Cloudflare's own page for a tunnel
- * with nobody behind it (530, error 1033) or an origin that refused (502-504).
- * That is what a VM asleep looks like (`deploy/vm/idle-stop.sh`), and the
- * People pages offer to wake it (`components/workspace-asleep.tsx`). A timeout
- * is not it: something answered, slowly.
+ * `UNREACHABLE` is the one failure the shell acts on: the VM is asleep or
+ * still waking (`lib/waking.ts` says which failures are that). Each one asks
+ * EC2 to start it, once the response is sent (`wakeSoon`), and the page shows
+ * it waking and asks again by itself (`components/waking.tsx`); a write says
+ * to try again in a moment.
  */
 
 export type PeopleAnswer<T> =
@@ -40,13 +42,29 @@ export type PeopleAnswer<T> =
   | { readonly ok: false; readonly code: string; readonly message: string };
 
 const signedOut = { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again' } as const;
-const unreachable = {
-  ok: false,
-  code: 'UNREACHABLE',
-  message: 'People could not be reached',
-} as const;
-/** Statuses only a gateway in front of the router gives: the router never answers them. */
-const GATEWAY_DOWN = new Set([502, 503, 504, 521, 522, 523, 530]);
+const unreachable = { ok: false, code: 'UNREACHABLE', message: WAKING_MESSAGE } as const;
+
+/**
+ * Not up yet: start it, after the response, so nobody waits on AWS. Every
+ * waking answer asks; `wakeWorkspace` sends one start a minute at most. Off
+ * where waking is not configured (local, tests).
+ */
+function wakeSoon(): typeof unreachable {
+  const config = workspaceConfig();
+  if (config === null) return unreachable;
+  const wake = (): Promise<void> =>
+    wakeWorkspace(config).catch((cause: unknown) => {
+      // AWS refused or could not be reached: the reason is for the logs.
+      console.error('workspace: AWS call failed', cause);
+    });
+  try {
+    after(wake);
+  } catch {
+    // Outside a request (a script): now, then.
+    void wake();
+  }
+  return unreachable;
+}
 
 /**
  * Tokens already minted, by session, until a little before they expire.
@@ -215,11 +233,12 @@ async function send(
       for (const [k, v] of minted) if (v.token === token) minted.delete(k);
       return signedOut;
     }
-    if (GATEWAY_DOWN.has(response.status)) return unreachable;
+    if (wakingStatus(response.status)) return wakeSoon();
     const answer = (await response.json().catch(() => null)) as {
       data?: Record<string, unknown> | null;
       errors?: { message?: string; extensions?: { code?: unknown } }[];
     } | null;
+    if (wakingErrors(answer?.errors)) return wakeSoon();
     const error = answer?.errors?.[0];
     if (error !== undefined || answer?.data === undefined || answer.data === null) {
       const code = error?.extensions?.code;
@@ -233,8 +252,8 @@ async function send(
     // Every operation asks for one root field.
     return { ok: true, data: Object.values(answer.data)[0] };
   } catch (cause) {
-    return cause instanceof Error && cause.name === 'TimeoutError'
-      ? { ok: false, code: 'UNAVAILABLE', message: 'People could not be reached' }
-      : unreachable;
+    return wakingCause(cause, writes)
+      ? wakeSoon()
+      : { ok: false, code: 'UNAVAILABLE', message: 'People did not answer in time' };
   }
 }

@@ -51,6 +51,8 @@ export interface Stack {
   readonly sql: postgres.Sql;
   /** The shell's environment as it was started, for a test to read. */
   readonly shellEnv: Readonly<Record<string, string>>;
+  /** The router, as the shell reaches it, put to sleep and woken: the VM asleep, then up. */
+  readonly router: { readonly asleep: () => void; readonly awake: () => void };
   /** People's own address: for a test to show it refuses anybody but the router. */
   readonly peopleUrl: string;
   readonly shellToken: string;
@@ -186,6 +188,44 @@ async function distant(target: string, ms: number): Promise<string> {
   const address = server.address();
   if (address === null || typeof address === 'string') throw new Error('no port');
   return `http://127.0.0.1:${String(address.port)}${new URL(target).pathname.replace(/\/$/, '')}`;
+}
+
+/**
+ * `target` behind a switch: closed, every connection is refused and every
+ * open one dropped, as the shell meets a VM asleep (nobody behind the tunnel).
+ */
+async function gated(target: string): Promise<{ url: string } & Stack['router']> {
+  const { hostname, port } = new URL(target);
+  let closed = false;
+  const open = new Set<Socket>();
+  const server = netServer((client) => {
+    if (closed) {
+      client.destroy();
+      return;
+    }
+    const upstream = connect(Number(port), hostname);
+    for (const socket of [client, upstream]) {
+      open.add(socket);
+      socket.on('close', () => open.delete(socket));
+    }
+    client.pipe(upstream).pipe(client);
+    client.on('error', () => upstream.destroy());
+    upstream.on('error', () => client.destroy());
+  });
+  server.unref();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('no port');
+  return {
+    url: `http://127.0.0.1:${String(address.port)}${new URL(target).pathname.replace(/\/$/, '')}`,
+    asleep: () => {
+      closed = true;
+      for (const socket of open) socket.destroy();
+    },
+    awake: () => {
+      closed = false;
+    },
+  };
 }
 
 async function until(what: string, ms: number, check: () => Promise<boolean>): Promise<void> {
@@ -617,13 +657,15 @@ export async function startStack(): Promise<Stack> {
     const remote = `http://127.0.0.1:${String(remotePort)}`;
     await until('the remote', 30_000, async () => (await fetch(`${remote}/routes.json`)).ok);
 
+    const gate = await gated(
+      process.env['ACCEPTANCE_ROUTER_LATENCY_MS'] === undefined
+        ? router.url
+        : await distant(router.url, Number(process.env['ACCEPTANCE_ROUTER_LATENCY_MS'])),
+    );
     const env = {
       INTERNAL_API_URL: identityUrl,
       INTERNAL_API_TOKEN: SHELL_TOKEN,
-      ROUTER_URL:
-        process.env['ACCEPTANCE_ROUTER_LATENCY_MS'] === undefined
-          ? router.url
-          : await distant(router.url, Number(process.env['ACCEPTANCE_ROUTER_LATENCY_MS'])),
+      ROUTER_URL: gate.url,
       TENANT_HOST_SUFFIX: 'app.localhost',
       PEOPLE_REMOTE_URL: remote,
       PEOPLE_REMOTE_SSR_PUBLIC_KEY: signing.publicKey
@@ -671,6 +713,7 @@ export async function startStack(): Promise<Stack> {
       shell,
       sql,
       shellEnv: env,
+      router: { asleep: gate.asleep, awake: gate.awake },
       peopleUrl,
       shellToken: SHELL_TOKEN,
       receiver: { url: receiver.url, received: receiver.received },

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { people } from './people';
+import { isWaking } from './waking';
 
 /**
  * What the entry dashboard shows from People, read as the person signed in:
@@ -58,7 +59,10 @@ const STARTING = {
   sort: 'hire_date:asc',
 };
 
-export async function homeData(entitlements: readonly string[]): Promise<HomeData | null> {
+/** `'waking'`: People is asleep or still waking, and the tiles wait for it. */
+export async function homeData(
+  entitlements: readonly string[],
+): Promise<HomeData | 'waking' | null> {
   if (!entitlements.includes('module.people')) return null;
   // The directory twice: once whole for its counts (a count is narrowed by the
   // conditions it is asked with), once for who is starting.
@@ -67,7 +71,7 @@ export async function homeData(entitlements: readonly string[]): Promise<HomeDat
     people<Directory>('Directory'),
     people<Directory>('Directory', STARTING),
   ]);
-  if (!overview.ok) return null;
+  if (!overview.ok) return isWaking(overview) ? 'waking' : null;
   const all = everyone.ok ? everyone.data : null;
   const dir = directory.ok ? directory.data : null;
   const value = (p: Directory['people'][number], key: string): string | undefined =>

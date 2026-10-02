@@ -34,6 +34,7 @@ import {
   type ActivityPage,
 } from '../lib/activity';
 import { withQuery } from '../lib/url-state';
+import { Waking } from './waking';
 
 /**
  * Settings › Activity (`docs/audit.md`): who did what, and when, across the
@@ -51,7 +52,9 @@ export type ActivityLoad =
    * "not available yet", never as an error — the rest of the app does not
    * depend on it.
    */
-  | { readonly status: 'unavailable' };
+  | { readonly status: 'unavailable' }
+  /** The VM the log lives on is asleep or still waking (`components/waking.tsx`). */
+  | { readonly status: 'waking' };
 
 /** Names and faces People gave, by account id and by person id. */
 export type Named = Readonly<
@@ -82,8 +85,7 @@ function who(e: ActivityEntry, named: Named): { name: string; avatar: ReactNode 
     case 'support':
       return {
         // Which of Kithena's people, by the address their sign-in gave.
-        name:
-          e.operatorLabel === null ? 'Kithena support' : `Kithena support (${e.operatorLabel})`,
+        name: e.operatorLabel === null ? 'Kithena support' : `Kithena support (${e.operatorLabel})`,
         avatar: <Avatar size="sm" name="Kithena support" fallback={<icons.help aria-hidden />} />,
       };
     case 'system':
@@ -271,30 +273,32 @@ export function ActivityLog({
           </div>
         )}
       </div>
-      {load.status === 'forbidden' ? (
-        <EmptyState
-          icon={<icons.locked />}
-          title="The activity log is for administrators and HR"
-          description="Ask one of your People administrators if you need to know who changed something."
-        />
-      ) : load.status === 'unavailable' ? (
-        <EmptyState
-          icon={<icons.history />}
-          title="The activity log isn’t available yet"
-          description="It is still being set up for your workspace. Nothing is lost: what happens in the meantime is listed here once it is ready."
-        />
-      ) : (
-        <Entries
-          page={load.page}
-          named={named}
-          zone={zone}
-          paged={filters.before !== null}
-          filtered={Object.values({ ...filters, zone: null }).some(
-            (v) => v !== null && !(Array.isArray(v) && v.length === 0),
-          )}
-          onFilter={go}
-        />
-      )}
+      <Waking area="Activity" waking={load.status === 'waking'}>
+        {load.status === 'waking' ? null : load.status === 'forbidden' ? (
+          <EmptyState
+            icon={<icons.locked />}
+            title="The activity log is for administrators and HR"
+            description="Ask one of your People administrators if you need to know who changed something."
+          />
+        ) : load.status === 'unavailable' ? (
+          <EmptyState
+            icon={<icons.history />}
+            title="The activity log isn’t available yet"
+            description="It is still being set up for your workspace. Nothing is lost: what happens in the meantime is listed here once it is ready."
+          />
+        ) : (
+          <Entries
+            page={load.page}
+            named={named}
+            zone={zone}
+            paged={filters.before !== null}
+            filtered={Object.values({ ...filters, zone: null }).some(
+              (v) => v !== null && !(Array.isArray(v) && v.length === 0),
+            )}
+            onFilter={go}
+          />
+        )}
+      </Waking>
     </Stack>
   );
 }

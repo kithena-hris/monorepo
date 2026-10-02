@@ -1,10 +1,10 @@
 import 'server-only';
-import { DescribeInstancesCommand, EC2Client, StartInstancesCommand } from '@aws-sdk/client-ec2';
+import { EC2Client, StartInstancesCommand } from '@aws-sdk/client-ec2';
 import { awsCredentialsProvider } from '@vercel/oidc-aws-credentials-provider';
 
 /**
- * The VM that runs People, asleep or awake (`deploy/vm/idle-stop.sh` puts it
- * to sleep; this wakes it).
+ * The VM that runs People, woken (`deploy/vm/idle-stop.sh` puts it to sleep).
+ * Asked by `lib/people.ts` whenever the router is not up yet.
  *
  * One EC2 instance, named by `WORKSPACE_INSTANCE_ID`, reached with short-lived
  * credentials: Vercel's OIDC token for this deployment, exchanged for the
@@ -29,12 +29,6 @@ export function workspaceConfig(env: NodeJS.ProcessEnv = process.env): Workspace
     : { instanceId, roleArn, region };
 }
 
-/** EC2's instance state, and whether the router answers through the tunnel. */
-export interface WorkspaceStatus {
-  readonly state: string;
-  readonly ready: boolean;
-}
-
 let client: EC2Client | undefined;
 const ec2 = (config: WorkspaceConfig): EC2Client =>
   (client ??= new EC2Client({
@@ -42,40 +36,17 @@ const ec2 = (config: WorkspaceConfig): EC2Client =>
     credentials: awsCredentialsProvider({ roleArn: config.roleArn }),
   }));
 
-async function instanceState(config: WorkspaceConfig): Promise<string> {
-  const out = await ec2(config).send(
-    new DescribeInstancesCommand({ InstanceIds: [config.instanceId] }),
-  );
-  return out.Reservations?.[0]?.Instances?.[0]?.State?.Name ?? 'unknown';
-}
-
-/** `/health/ready` through the public URL: the tunnel, the router and what it waits for. */
-async function routerReady(): Promise<boolean> {
-  const router = (process.env['ROUTER_URL'] ?? 'http://localhost:4000').replace(/\/$/, '');
-  try {
-    const response = await fetch(`${router}/health/ready`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(3_000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-export async function workspaceStatus(config: WorkspaceConfig): Promise<WorkspaceStatus> {
-  const state = await instanceState(config);
-  return { state, ready: state === 'running' && (await routerReady()) };
-}
-
 /**
  * Start it. Idempotent twice over: EC2 answers a start of a running instance
  * with its current state, and this sends at most one start a minute from each
  * function instance however many people are waiting.
  *
+ * Only a signed-in person's request gets here: `lib/people.ts` asks after
+ * identity has minted their token, never for an anonymous one.
+ *
  * ponytail: the limit is per warm function instance, not global; the IAM
  * role, which can do nothing but start this one VM, is what bounds the harm.
- * Vercel's firewall rate limit on the route is the upgrade if that changes.
+ * A shared limit (Valkey is on the VM, so not there) is the upgrade if that changes.
  */
 const WAKE_EVERY_MS = 60_000;
 let lastWake = 0;
@@ -83,16 +54,10 @@ let lastWake = 0;
 export async function wakeWorkspace(
   config: WorkspaceConfig,
   now: number = Date.now(),
-): Promise<WorkspaceStatus & { readonly started: boolean }> {
-  if (now - lastWake < WAKE_EVERY_MS) {
-    return { ...(await workspaceStatus(config)), started: false };
-  }
+): Promise<void> {
+  if (now - lastWake < WAKE_EVERY_MS) return;
   lastWake = now;
-  const out = await ec2(config).send(
-    new StartInstancesCommand({ InstanceIds: [config.instanceId] }),
-  );
-  const state = out.StartingInstances?.[0]?.CurrentState?.Name ?? 'unknown';
-  return { state, ready: state === 'running' && (await routerReady()), started: true };
+  await ec2(config).send(new StartInstancesCommand({ InstanceIds: [config.instanceId] }));
 }
 
 /** For the tests: forget the last wake. */
