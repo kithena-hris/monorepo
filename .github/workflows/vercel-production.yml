@@ -1411,7 +1411,7 @@ jobs:
             if [ -n "$existing" ]; then
               gh api "repos/${REPO}/issues/comments/${existing}" --method PATCH -f body="$body"
             else
-              gh pr comment "$pr_number" --body "$body"
+              gh pr comment "$pr_number" --repo "$REPO" --body "$body"
             fi
           else
             echo "::notice::No pull request found for commit ${SHA}; deployment succeeded, nothing to comment on."
