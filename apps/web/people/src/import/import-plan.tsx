@@ -4,12 +4,7 @@ import {
   Badge,
   Button,
   Card,
-  Checkbox,
   DataTable,
-  Field,
-  FieldControl,
-  FieldDescription,
-  FieldLabel,
   IconList,
   IconListItem,
   Stat,
@@ -20,7 +15,7 @@ import {
   icons,
   type DataColumn,
 } from '@reach/ui';
-import { useState, type JSX, type ReactNode } from 'react';
+import { useId, useState, type JSX, type ReactNode } from 'react';
 
 import { TypeIcon } from '../settings/access';
 import type { DataType } from '../settings/model';
@@ -124,7 +119,12 @@ export interface ImportPlanView {
   readonly version: number;
   readonly setup: { readonly country: string | null; readonly countryName: string | null } | null;
   readonly blocked: string | null;
-  readonly problems: readonly { readonly column: number; readonly message: string }[];
+  /** Fields the settings would refuse, by column and by the file's header. */
+  readonly problems: readonly {
+    readonly column: number;
+    readonly header: string;
+    readonly message: string;
+  }[];
   readonly review: PlanReview;
   readonly asked: number;
   readonly forHr: number;
@@ -148,6 +148,13 @@ export interface ImportDoneView {
   readonly forHr?: number;
   readonly finishedAt?: string;
   readonly tookMs?: number;
+  /** Where every column of the file went: existing fields, new ones, Kithena's ids, nowhere. */
+  readonly columns?: {
+    readonly existing: number;
+    readonly created: number;
+    readonly kithena: number;
+    readonly leftOut: number;
+  };
 }
 
 const plural = (n: number, one: string, many: string): string =>
@@ -246,44 +253,96 @@ function LeftEmpty({
   );
 }
 
+/** Why the plan cannot be approved as it stands, each with its fix where there is one. */
+export interface NotYet {
+  readonly message: string;
+  /** A field the settings refuse: leaving its column out is the one-click fix. */
+  readonly column?: number;
+  readonly header?: string;
+}
+
+/** Everything that keeps "Approve and run" off; empty when it can run. */
+export function notYetOf(plan: ImportPlanView): NotYet[] {
+  if (plan.blocked !== null) return [{ message: plan.blocked }];
+  if (plan.problems.length > 0) {
+    return plan.problems.map((p) => ({
+      message: `${p.header}: ${p.message}`,
+      column: p.column,
+      header: p.header,
+    }));
+  }
+  const { counts } = plan.review.dryRun;
+  return counts.create + counts.update === 0 && plan.fields.length === 0 && plan.setup === null
+    ? [{ message: 'No row of the file has a name or a work email, so there is nobody to import.' }]
+    : [];
+}
+
+/**
+ * Why "Approve and run" is off, next to it: the button names this by
+ * `aria-describedby`, and as an alert it is announced when it appears.
+ */
+export function WhyNotYet({
+  id,
+  reasons,
+  onLeaveOut,
+}: {
+  readonly id: string;
+  readonly reasons: readonly NotYet[];
+  readonly onLeaveOut?: (column: number) => void;
+}): JSX.Element | null {
+  if (reasons.length === 0) return null;
+  return (
+    <Alert id={id} tone="warning" title="Not yet">
+      <ul className="flex flex-col gap-2">
+        {reasons.map((r) => (
+          <li key={r.message} className="flex flex-wrap items-center gap-2">
+            <span>{r.message}</span>
+            {r.column === undefined || onLeaveOut === undefined ? null : (
+              <Button
+                size="xs"
+                onClick={() => {
+                  onLeaveOut(r.column as number);
+                }}
+              >
+                Leave {r.header} out
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Alert>
+  );
+}
+
 export interface PlanStepProps {
   readonly plan: ImportPlanView;
-  /** HR may write values that need approval without it (PEO-077). */
-  readonly applyWithoutApproval: boolean;
-  readonly onApplyWithoutApprovalChange: (on: boolean) => void;
   readonly busy: boolean;
   readonly refused: string | null;
   readonly onApprove: () => void;
   readonly onChange: () => void;
+  /** Leave a refused field's column out and work the plan out again. */
+  readonly onLeaveOut: (column: number) => void;
   readonly onDownloadBlocked: (url: string) => void;
 }
 
 /** "Here's everything that will happen" (design AI11). */
 export function PlanStep({
   plan,
-  applyWithoutApproval,
-  onApplyWithoutApprovalChange,
   busy,
   refused,
   onApprove,
   onChange,
+  onLeaveOut,
   onDownloadBlocked,
 }: PlanStepProps): JSX.Element {
   const [seeingRows, setSeeingRows] = useState(false);
+  const whyId = useId();
   const { counts } = plan.review.dryRun;
   const blocked = plan.review.dryRun.blocked ?? [];
   const findings = plan.review.dryRun.findings ?? [];
   const leftEmpty = plan.review.dryRun.leftEmpty ?? [];
-  const sensitive = plan.review.dryRun.sensitive ?? { fields: [], values: 0 };
-  const importing = counts.create + counts.update;
   const blockedUrl = plan.review.blockedUrl ?? null;
-  const cannot =
-    plan.blocked ??
-    (plan.problems.length > 0
-      ? plan.problems.map((p) => p.message).join(' ')
-      : importing === 0 && plan.fields.length === 0 && plan.setup === null
-        ? 'No row of the file has a name or a work email, so there is nobody to import.'
-        : null);
+  const notYet = notYetOf(plan);
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
     { id: 'name', header: 'Name', cell: whoOf },
@@ -386,30 +445,7 @@ export function PlanStep({
                 { label: 'People asked', value: plan.asked.toLocaleString('en-GB') },
               ]}
             />
-            {sensitive.values > 0 ? (
-              <Field orientation="horizontal">
-                <FieldLabel>Apply sensitive values without approval</FieldLabel>
-                <FieldControl>
-                  <Checkbox
-                    checked={applyWithoutApproval}
-                    onCheckedChange={(checked) => {
-                      onApplyWithoutApprovalChange(checked === true);
-                    }}
-                  />
-                </FieldControl>
-                <FieldDescription>
-                  {plural(sensitive.values, 'value', 'values')} of {sensitive.fields.join(', ')}{' '}
-                  {applyWithoutApproval
-                    ? 'are applied now. Each change records that you chose to.'
-                    : 'wait for a second HR member, who has seven days to approve each.'}
-                </FieldDescription>
-              </Field>
-            ) : null}
-            {cannot === null ? null : (
-              <Alert tone="warning" title="Not yet">
-                {cannot}
-              </Alert>
-            )}
+            <WhyNotYet id={whyId} reasons={notYet} onLeaveOut={onLeaveOut} />
             {refused === null ? null : (
               <Alert tone="danger" title="That did not go through">
                 {refused}
@@ -419,7 +455,8 @@ export function PlanStep({
               variant="primary"
               className="w-full"
               startIcon={<icons.confirm aria-hidden />}
-              disabled={cannot !== null}
+              disabled={notYet.length > 0}
+              aria-describedby={notYet.length > 0 ? whyId : undefined}
               loading={busy}
               loadingLabel="Running the import"
               onClick={onApprove}
@@ -445,6 +482,15 @@ export function PlanStep({
 const clockOf = (iso: string): string =>
   new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 
+/** "12 columns → existing fields, 90 new fields, 0 left out": every column accounted for. */
+export function columnsLine(c: NonNullable<ImportDoneView['columns']>): string {
+  const ids =
+    c.kithena === 0
+      ? ''
+      : ` · ${plural(c.kithena, 'id column', 'id columns')}: Kithena creates this`;
+  return `${plural(c.existing, 'column', 'columns')} → existing fields, ${plural(c.created, 'new field', 'new fields')}, ${c.leftOut.toLocaleString('en-GB')} left out${ids}`;
+}
+
 /** "Imported 369 people and created 3 fields" (design AI12). */
 export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Element {
   const fields = done.fields ?? [];
@@ -468,6 +514,9 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
               Imported {plural(imported, 'person', 'people')}
               {fields.length > 0 ? ` and created ${plural(fields.length, 'field', 'fields')}` : ''}
             </h2>
+            {done.columns === undefined ? null : (
+              <p className="text-sm">{columnsLine(done.columns)}</p>
+            )}
             {done.finishedAt === undefined ? null : (
               <p className="text-sm text-fg-muted">
                 Finished {clockOf(done.finishedAt)}

@@ -104,10 +104,7 @@ describe('the work locations in the file', () => {
     };
     expect(plan).toHaveBeenLastCalledWith(expect.any(Object), expect.any(Array), places);
     await user.click(screen.getByRole('button', { name: 'Approve and run' }));
-    expect(run).toHaveBeenCalledWith(expect.any(Object), expect.any(Array), {
-      applyWithoutApproval: false,
-      places,
-    });
+    expect(run).toHaveBeenCalledWith(expect.any(Object), expect.any(Array), { places });
   });
 
   it('shows HR without an administrator the suggestions, read-only, and sends none', async () => {

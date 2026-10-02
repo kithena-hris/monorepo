@@ -168,8 +168,8 @@ export const NEW_FIELDS: NewFieldsView = {
         column: 4,
         header: 'Dietary requirements',
         key: 'dietary_requirements',
-        include: false,
-        why: 'This can reveal health or religion, which GDPR treats as special-category data. I suggest not importing it. If you need it, it should be optional, private to HR and asked with consent.',
+        include: true,
+        why: 'Stored as special category, not encrypted, because it’s a list: HR’s alone, and a change waits for approval.',
         forExistingWhy: 'Health information is volunteered, never chased.',
       }),
       field: {
@@ -177,14 +177,15 @@ export const NEW_FIELDS: NewFieldsView = {
         dataType: 'select',
         options: ['Vegetarian', 'Halal'],
         required: false,
-        ownership: ['employee', 'hr'],
-        visibility: ['self', 'hr'],
+        ownership: ['hr'],
+        visibility: ['hr'],
         classification: 'special-category',
         piiKind: 'health',
         encrypted: false,
         aiEligible: false,
+        requiresApproval: true,
       },
-      counts: { have: 6, missing: 15, existingWithout: 1, without: ['Kevin Malone'] },
+      counts: { have: 16, missing: 5, existingWithout: 1, without: ['Kevin Malone'] },
       sensitive: 'Special category (GDPR Article 9)',
     },
   ],
@@ -309,6 +310,7 @@ export const DONE: ImportDoneView = {
   forHr: 4,
   finishedAt: '2026-10-01T12:02:00.000Z',
   tookMs: 4100,
+  columns: { existing: 2, created: 1, kithena: 0, leftOut: 0 },
 };
 
 /** The same file with an Office column: the work locations step comes after the mapping. */
