@@ -181,7 +181,11 @@ export function PlanSteps({
   readonly onSeeRows?: () => void;
   readonly seeingRows?: boolean;
 }): JSX.Element {
-  const blocked = plan.review.dryRun.counts.blocked + plan.review.dryRun.counts.duplicate;
+  // What "See rows" opens: the skipped rows, and the cells left empty for HR.
+  const blocked =
+    plan.review.dryRun.counts.blocked +
+    plan.review.dryRun.counts.duplicate +
+    (plan.review.dryRun.leftEmptyCount ?? 0);
   return (
     <IconList divided>
       {plan.steps.map((s) => (
@@ -347,7 +351,7 @@ export function PlanStep({
             />
           </div>
         ) : null}
-        {leftEmpty.length > 0 ? (
+        {seeingRows && leftEmpty.length > 0 ? (
           <LeftEmpty
             rows={leftEmpty}
             count={plan.review.dryRun.leftEmptyCount ?? leftEmpty.length}
@@ -429,7 +433,7 @@ export function PlanStep({
         </PageSection>
         <p className="inline-flex items-center gap-1.5 text-xs text-fg-subtle [&_svg]:size-3.5">
           <icons.permission aria-hidden />
-          Approved by you, run by Kithena, kept in the import history
+          Approved by you, run by Kithena, logged in Activity
         </p>
       </div>
     </div>

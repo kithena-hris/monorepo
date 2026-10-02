@@ -591,11 +591,13 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
     await review.click();
     await page.waitForURL(/\?step=review$/);
 
-    // Nothing is blocked: Ines waits for a work email, Tom for a real start date.
+    // Nothing is blocked: Ines waits for a work email, Tom for a real start date,
+    // each named, under the plan's "See rows".
+    await page.getByRole('button', { name: 'See rows' }).click({ timeout: 30_000 });
     const left = page.getByRole('table', { name: 'Left empty for HR' });
     await left.waitFor({ timeout: 30_000 });
     expect(await left.getByRole('row').count()).toBe(3);
-    expect(await page.getByRole('button', { name: 'See rows' }).count()).toBe(0);
+    expect(await page.getByRole('table', { name: 'Skipped rows' }).count()).toBe(0);
 
     await page.getByRole('button', { name: 'Approve and run' }).click();
     await page.getByRole('heading', { name: /^Imported 4 people/ }).waitFor({ timeout: 30_000 });

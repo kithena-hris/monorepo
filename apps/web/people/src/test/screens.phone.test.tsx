@@ -1121,7 +1121,8 @@ describe('at 390×844, with a finger', () => {
       await checked(flow({ status: 'ready', data: noNewColumns }));
       await userEvent.click(screen.getByRole('button', { name: 'Next: review the plan' }));
       await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
-      // A cell left empty is a card titled by whose it is.
+      // A cell left empty is a card titled by whose it is, under "See rows".
+      await userEvent.click(screen.getByRole('button', { name: 'See rows' }));
       const left = screen.getByRole('table', { name: 'Left empty for HR' });
       const [title] = within(within(left).getAllByRole('row')[1] as HTMLElement).getAllByRole(
         'cell',

@@ -252,6 +252,9 @@ describe('ImportFlow', () => {
     ).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
 
+    // The rows the plan lists open from its people row (design AI11's "See rows").
+    expect(screen.queryByRole('table', { name: 'Left empty for HR' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'See rows' }));
     // A manager the file names that is nowhere here: listed, never blocking.
     const left = screen.getByRole('table', { name: 'Left empty for HR' });
     expect(left).toHaveTextContent('nobody in this company or this file is called “Gabe Lewis”');
@@ -259,7 +262,6 @@ describe('ImportFlow', () => {
     expect(within(left).getAllByRole('columnheader')[0]).toHaveTextContent('Name');
     expect(within(left).getAllByRole('row')[1]).toHaveTextContent(/^Pam Beesly14M14/);
 
-    await user.click(screen.getByRole('button', { name: 'See rows' }));
     expect(screen.getByText('D7 — empty')).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Skipped rows' })).toHaveTextContent(
       'Toby Flenderson',
