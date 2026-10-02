@@ -2175,3 +2175,142 @@ describe('Import & export, as the server sends it', () => {
     await context.close();
   });
 });
+
+describe('A company the back office has just created, with nothing published', () => {
+  /** A Chicago company, as Meridian Freight was made: People and Time off, one administrator. */
+  const company = (slug: string, displayName: string, admin: string) =>
+    stack.provisionCompany({
+      slug,
+      displayName,
+      admin,
+      address: {
+        country: 'US',
+        line1: '233 S Wacker Dr',
+        city: 'Chicago',
+        subdivision: 'IL',
+        postcode: '60606',
+      },
+      timeZone: 'America/Chicago',
+      entitlements: ['module.people', 'module.timeoff'],
+      name: { given: 'Ines', family: 'Okafor', preferred: 'Ini' },
+    });
+
+  async function asAdministrator(made: Awaited<ReturnType<typeof company>>) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.addCookies([
+      {
+        name: '__Host-ksession',
+        value: made.session,
+        domain: new URL(made.shell).hostname,
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ]);
+    const page = await context.newPage();
+    const problems: string[] = [];
+    page.on('pageerror', (e) => problems.push(e.message));
+    page.on('console', (m) => {
+      if (m.type() === 'error') problems.push(m.text());
+    });
+    const unavailable = () => page.getByText(/is unavailable/).count();
+    return { context, page, problems, unavailable };
+  }
+
+  it('takes its administrator from People through setup, and back to People', async () => {
+    const made = await company('meridian-freight', 'Meridian Freight', 'ines@meridian.example');
+    const { context, page, problems, unavailable } = await asAdministrator(made);
+    // People told identity who administers it, with the token both hold: the
+    // back office's view, which production's 401 left empty, not her rights.
+    const [report] = await stack.sql<{ holders: { accountId: string; roles: string[] }[] }[]>`
+      SELECT holders FROM platform.module_role_report
+       WHERE tenant_id = ${made.tenantId} AND entitlement = 'module.people'`;
+    expect(report?.holders).toEqual([{ accountId: made.account, roles: ['people_admin'] }]);
+
+    // The overview draws; the directory, by the sidebar, sends her to setup.
+    await page.goto(`${made.shell}/people`);
+    await page.waitForLoadState('networkidle');
+    await page
+      .getByRole('navigation', { name: 'Areas' })
+      .getByRole('link', { name: 'Directory' })
+      .click();
+    await page.waitForURL(/\/people\/setup$/);
+    await page.getByRole('heading', { name: 'Confirm the legal entity' }).waitFor();
+    await page.waitForLoadState('networkidle');
+    // The company as the back office recorded it, ready to confirm.
+    expect(await page.getByRole('textbox', { name: /Registered name/ }).inputValue()).toBe(
+      'Meridian Freight',
+    );
+    expect(await unavailable()).toBe(0);
+
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText(/United States: \d+ sections?, \d+ fields?/).waitFor();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Publish version 1' }).click();
+    const personal = page.getByRole('form', { name: 'Personal information' });
+    await personal.waitFor({ timeout: 30_000 });
+    const versions = await stack.sql<{ version: number }[]>`
+      SELECT version FROM people.schema_version WHERE tenant_id = ${made.tenantId}`;
+    expect(versions.map((v) => v.version)).toEqual([1]);
+
+    await personal.getByRole('textbox', { name: /Legal first name/ }).fill('Ines');
+    await personal.getByRole('textbox', { name: /Legal family name/ }).fill('Okafor');
+    await personal.getByRole('button', { name: 'Save' }).click();
+    await eventually(
+      'her names',
+      () => stack.sql<{ family_name: string | null }[]>`
+        SELECT family_name FROM people.person WHERE tenant_id = ${made.tenantId}`,
+      ([p]) => p?.family_name === 'Okafor',
+    );
+    await page.getByRole('button', { name: /^Finish/ }).click();
+    await page.waitForURL(/\/people\/me$/);
+    await page.getByRole('heading', { name: /Okafor/ }).waitFor({ timeout: 30_000 });
+
+    // People, set up: the directory is the directory now, not setup.
+    await page.goto(`${made.shell}/people/directory/list`);
+    await page.waitForLoadState('networkidle');
+    expect(new URL(page.url()).pathname).toBe('/people/directory/list');
+    await page.getByText('Okafor').first().waitFor({ timeout: 30_000 });
+    expect(await unavailable()).toBe(0);
+    expect(problems).toEqual([]);
+    await context.close();
+  });
+
+  it('lets its administrator go straight to the import, which sets the company up', async () => {
+    const made = await company('harbour-logistics', 'Harbour Logistics', 'ines@harbour.example');
+    const { context, page, problems, unavailable } = await asAdministrator(made);
+
+    // Import & export, then Import: the upload, not "an administrator imports the first file".
+    await page.goto(`${made.shell}/people/import-export`);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('link', { name: 'Start import' }).first().click();
+    await page.waitForURL(/\/people\/import$/);
+    expect(await page.getByText('An administrator imports the first file').count()).toBe(0);
+    await upload(
+      page,
+      'harbour.csv',
+      [
+        'given_name,family_name,work_email,hire_date',
+        'Maya,Chen,maya@harbour.example,2025-01-06',
+        'Luis,Ortega,luis@harbour.example,2025-02-03',
+      ].join('\n'),
+    );
+    await page.getByRole('button', { name: 'Next: review the plan' }).click({ timeout: 30_000 });
+    await page.waitForURL(/\?step=review$/);
+    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('heading', { name: /^Imported 2 people/ }).waitFor({ timeout: 30_000 });
+
+    // Approving the plan published version 1, so People opens on the directory.
+    const versions = await stack.sql<{ version: number }[]>`
+      SELECT version FROM people.schema_version WHERE tenant_id = ${made.tenantId}`;
+    expect(versions.map((v) => v.version)).toEqual([1]);
+    await page.goto(`${made.shell}/people/directory/list`);
+    await page.waitForLoadState('networkidle');
+    expect(new URL(page.url()).pathname).toBe('/people/directory/list');
+    await page.getByText('Ortega').first().waitFor({ timeout: 30_000 });
+    expect(await unavailable()).toBe(0);
+    expect(problems).toEqual([]);
+    await context.close();
+  });
+});
