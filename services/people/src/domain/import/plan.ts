@@ -38,7 +38,12 @@ export interface PlanInput {
    */
   readonly identifiers?: { readonly inFile: boolean; readonly numbered: boolean };
   /** Work locations the file names that are not here yet; `added` when this run adds them. */
-  readonly newLocations?: { readonly names: readonly string[]; readonly added: boolean };
+  readonly newLocations?: {
+    readonly names: readonly string[];
+    readonly added: boolean;
+    /** Values of the file HR mapped to a work location here, in the import. */
+    readonly mapped?: readonly { readonly value: string; readonly to: string }[];
+  };
   /** References the rows leave empty for HR, and the fields they are in. */
   readonly leftEmpty?: { readonly count: number; readonly labels: readonly string[] };
 }
@@ -187,15 +192,27 @@ export function planOf(input: PlanInput): {
     short.push(country === null ? 'set up the employee record' : `set up the ${country} pack`);
   }
   const places = input.newLocations;
+  const mapped = (places?.mapped ?? []).map((m) => `map “${m.value}” to ${m.to}`);
+  if (places !== undefined && places.names.length === 0 && mapped.length > 0) {
+    steps.push({
+      kind: 'places',
+      title: capital(mapped.join('; ')),
+      detail: 'The rows that name each join that work location.',
+    });
+    short.push(`map ${plural(mapped.length, 'work location value', 'work location values')}`);
+  }
   if (places !== undefined && places.names.length > 0) {
     const names = listed(places.names);
     steps.push(
       places.added
         ? {
             kind: 'places',
-            title: `Add ${plural(places.names.length, 'work location', 'work locations')}: ${names}`,
+            title: [
+              `Add ${plural(places.names.length, 'work location', 'work locations')}: ${names}`,
+              ...mapped,
+            ].join('; '),
             detail:
-              'Nothing here has those names yet. Each joins the legal entity of the first row that names it, on that entity’s time zone; change either in Settings › Organisation.',
+              'Nothing here has those names yet. Each joins the legal entity and time zone chosen in the import; change either in Settings › Organisation.',
           }
         : {
             kind: 'places',

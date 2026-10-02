@@ -196,6 +196,21 @@ describe('a file from another system, or another Kithena', () => {
     expect(places?.title).toBe('Leave work location empty where the file names Scranton Branch');
   });
 
+  it('says which values HR mapped to work locations here, beside the ones it adds', () => {
+    const mapped = { value: 'NYC HQ', to: 'New York' };
+    const both = planOf({
+      ...DEV_EXPORT,
+      newLocations: { names: ['Scranton', 'Stamford'], added: true, mapped: [mapped] },
+    }).steps.find((s) => s.kind === 'places');
+    expect(both?.title).toBe('Add 2 work locations: Scranton and Stamford; map “NYC HQ” to New York');
+    const only = planOf({
+      ...DEV_EXPORT,
+      newLocations: { names: [], added: true, mapped: [mapped] },
+    });
+    expect(only.steps.find((s) => s.kind === 'places')?.title).toBe('Map “NYC HQ” to New York');
+    expect(only.short).toContain('map 1 work location value');
+  });
+
   it('says nothing about identifiers when the file holds none', () => {
     const { steps } = planOf({ ...DEV_EXPORT, identifiers: { inFile: false, numbered: true } });
     expect(steps.some((s) => s.kind === 'ids')).toBe(false);

@@ -187,6 +187,22 @@ function world(
             leftEmpty: [],
             leftEmptyCount: 0,
             newLocations: [],
+            workplaces: [
+              {
+                key: 'nyc hq',
+                value: 'NYC HQ',
+                rows: 2,
+                people: ['Luis López', 'Mia Chen'],
+                found: null,
+                suggestion: null,
+                looksLikeId: false,
+                proposed: { kind: 'leave' },
+              },
+            ],
+            here: {
+              locations: [{ id: 'l-ny', name: 'New York' }],
+              entities: [{ id: 'e1', name: 'Acme SL', country: 'ES', timeZone: 'Europe/Madrid' }],
+            },
             createdIn: [],
           },
           blockedUrl: null,
@@ -407,6 +423,27 @@ describe('proposing fields for new columns', () => {
 });
 
 describe('the plan', () => {
+  it('says which work location values HR mapped, and runs with the same choices', async () => {
+    const w = world();
+    const v = await proposed(w);
+    const places = { 'nyc hq': { kind: 'map' as const, locationId: 'l-ny' } };
+    const input = { ...w.step, proposals: strip(v), places };
+    const plan = await planImport(w.deps, w.asking, input);
+    if (!plan.ok) throw new Error(plan.error.message);
+    expect(plan.value.steps.map((s) => s.title)).toContain('Map “NYC HQ” to New York');
+    const ran = await runImport(w.deps, w.asking, input);
+    if (!ran.ok) throw new Error(ran.error.message);
+    expect(w.committed.at(-1)).toMatchObject({ places });
+  });
+
+  it('reads HR’s work location choices as they are: only an administrator sets them', async () => {
+    const w = world({ viewer: HR, answer: { proposals: [] } });
+    const places = { 'nyc hq': { kind: 'map' as const, locationId: 'l-ny' } };
+    const plan = await planImport(w.deps, w.asking, { ...w.step, proposals: [], places });
+    if (!plan.ok) throw new Error(plan.error.message);
+    expect(plan.value.steps.map((s) => s.title)).not.toContain('Map “NYC HQ” to New York');
+  });
+
   it('is a dry run against the version the kept fields would make, and writes nothing', async () => {
     const w = world();
     const v = await proposed(w);

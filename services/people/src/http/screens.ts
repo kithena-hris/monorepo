@@ -83,6 +83,8 @@ import { ask } from '../application/assistant/ask.js';
 import type { AssistantPort } from '../application/assistant/assistant-port.js';
 import {
   ImportStepInput,
+  PlaceChoices,
+  placeChoices,
   PlanInput as ImportPlanInput,
   planImport,
   proposeNewFields,
@@ -361,6 +363,8 @@ export const ImportStepBody = z.strictObject({
   mapping: z.record(z.string(), z.string().nullable()).optional(),
   /** On commit only: HR writes values that require approval without it (PEO-077). */
   applySensitiveWithoutApproval: z.boolean().optional(),
+  /** HR's choice for each work location value the file names. */
+  places: PlaceChoices.optional(),
 });
 
 /** A pay band from a day (PEO-078): whole minor units, as digits. */
@@ -481,6 +485,7 @@ function body<T>(schema: z.ZodType<T>, raw: string): Result<T> {
 
 const importStep = (input: z.infer<typeof ImportStepBody>) => ({
   uploadId: input.uploadId,
+  ...(input.places === undefined ? {} : { places: placeChoices(input.places) }),
   ...(input.applySensitiveWithoutApproval === true ? { applySensitiveWithoutApproval: true } : {}),
   ...(input.mapping === undefined
     ? {}

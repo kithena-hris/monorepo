@@ -23,7 +23,15 @@ import { visibleTo } from '../../domain/access/field-access.js';
 import { kithenaCreates } from '../../domain/import/identifiers.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { importTemplate } from '../import/template.js';
-import { dryRun, rowNamesOf, type ClassifiedRow, type LeftEmpty } from '../import/dry-run.js';
+import {
+  dryRun,
+  rowNamesOf,
+  type ClassifiedRow,
+  type DryRun,
+  type LeftEmpty,
+  type NewLocation,
+} from '../import/dry-run.js';
+import type { PlaceChoice } from '../../domain/import/workplaces.js';
 import {
   proposeMapping,
   resolveMapping,
@@ -372,7 +380,11 @@ export type ImportStageView =
         readonly leftEmpty: readonly LeftEmptyView[];
         readonly leftEmptyCount: number;
         /** Work locations the file names that are not here yet, and the entity each would join. */
-        readonly newLocations: readonly { readonly name: string; readonly legalEntityId: string }[];
+        readonly newLocations: readonly NewLocation[];
+        /** Each work location value of the file, its people, and what is proposed for it. */
+        readonly workplaces: DryRun['workplaces'];
+        /** The work locations and legal entities here, to map a value to or add one in. */
+        readonly here: DryRun['here'];
         /** The legal entities the new people join: numbered when they are hired. */
         readonly createdIn: readonly string[];
       };
@@ -420,6 +432,8 @@ export interface ImportStep {
   readonly mapping?: Readonly<Record<number, string | null>>;
   /** On commit: HR's "apply sensitive values without approval" (PEO-077). */
   readonly applySensitiveWithoutApproval?: boolean;
+  /** HR's choice for each work location value, by `placeKey` (the import's own step). */
+  readonly places?: Readonly<Record<string, PlaceChoice>>;
 }
 
 /** Where the browser puts the file, and how (§14.2). */
@@ -758,6 +772,7 @@ export async function dryRunImport(
       ...asking,
       file,
       mapping: mapping.value,
+      ...(step.places === undefined ? {} : { places: step.places }),
     });
     if (!planned.ok) return planned;
     const plan = planned.value;
@@ -829,6 +844,8 @@ export async function dryRunImport(
           .map((l) => leftEmptyView(l, indexOf, byKey, names)),
         leftEmptyCount: plan.leftEmpty.length,
         newLocations: plan.newLocations,
+        workplaces: plan.workplaces,
+        here: plan.here,
         createdIn: [
           ...new Set(
             plan.rows.flatMap((r) => {
@@ -916,6 +933,7 @@ export async function commitImportView(
     mapping: planned.value.mapping,
     fileName: intent.name,
     ...(bypass ? { applySensitiveWithoutApproval: true } : {}),
+    ...(step.places === undefined ? {} : { places: step.places }),
   });
   if (!committed.ok) return committed;
   // Imported, or found imported already: either way the upload has done its
