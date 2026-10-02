@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
-import { createServer as httpServer } from 'node:http';
+import { createServer as httpServer, request as httpRequest } from 'node:http';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as httpsServer, type Server as HttpsServer } from 'node:https';
 import { connect, createServer as netServer, type Socket } from 'node:net';
@@ -228,47 +228,55 @@ async function distant(target: string, ms: number): Promise<string> {
  */
 async function asDeployed(target: string): Promise<string> {
   const tenant = /^http:\/\/[a-z0-9-]+\.app\.localhost:\d+$/;
+  // The remote's host and port are fixed here, once; a request only ever
+  // chooses the path on it, and only a plain file path at that.
+  const remote = new URL(target);
+  const file = /^\/[\w.\-/]*$/;
   const server = httpServer((request, response) => {
-    const path = request.url ?? '/';
-    // Resolved against the remote and held to its origin: a request line
-    // such as `//elsewhere/x` or an absolute URL is refused, not followed.
-    const base = new URL(target);
-    const upstreamUrl = new URL(path.startsWith('/') ? path : `/${path}`, base);
-    if (upstreamUrl.origin !== base.origin) {
+    const path = (request.url ?? '/').split('?')[0] ?? '/';
+    if (!file.test(path) || path.includes('..') || path.startsWith('//')) {
       response.writeHead(400).end();
       return;
     }
-    void fetch(upstreamUrl)
-      .then(async (upstream) => {
-        const body = Buffer.from(await upstream.arrayBuffer());
-        if (!upstream.ok) {
-          response.writeHead(upstream.status).end(body);
-          return;
-        }
-        const etag = `"${createHash('sha1').update(body).digest('hex')}"`;
-        const vary = { etag, vary: 'Origin' };
-        if (request.headers['if-none-match'] === etag) {
-          response.writeHead(304, vary).end();
-          return;
-        }
-        const origin = request.headers.origin;
-        response
-          .writeHead(200, {
-            ...vary,
-            'content-type': upstream.headers.get('content-type') ?? 'application/octet-stream',
-            'cache-control': path.startsWith('/assets/')
-              ? 'public, max-age=0, must-revalidate'
-              : 'no-cache',
-            'x-content-type-options': 'nosniff',
-            ...(origin !== undefined && tenant.test(origin)
-              ? { 'access-control-allow-origin': origin }
-              : {}),
-          })
-          .end(body);
-      })
-      .catch(() => {
-        response.writeHead(502).end();
-      });
+    const upstream = httpRequest(
+      { hostname: remote.hostname, port: remote.port, path, method: 'GET' },
+      (answer) => {
+        const chunks: Buffer[] = [];
+        answer.on('data', (chunk: Buffer) => chunks.push(chunk));
+        answer.on('end', () => {
+          const body = Buffer.concat(chunks);
+          const status = answer.statusCode ?? 502;
+          if (status < 200 || status >= 300) {
+            response.writeHead(status).end(body);
+            return;
+          }
+          const etag = `"${createHash('sha1').update(body).digest('hex')}"`;
+          const vary = { etag, vary: 'Origin' };
+          if (request.headers['if-none-match'] === etag) {
+            response.writeHead(304, vary).end();
+            return;
+          }
+          const origin = request.headers.origin;
+          response
+            .writeHead(200, {
+              ...vary,
+              'content-type': answer.headers['content-type'] ?? 'application/octet-stream',
+              'cache-control': path.startsWith('/assets/')
+                ? 'public, max-age=0, must-revalidate'
+                : 'no-cache',
+              'x-content-type-options': 'nosniff',
+              ...(origin !== undefined && tenant.test(origin)
+                ? { 'access-control-allow-origin': origin }
+                : {}),
+            })
+            .end(body);
+        });
+      },
+    );
+    upstream.on('error', () => {
+      response.writeHead(502).end();
+    });
+    upstream.end();
   });
   server.unref();
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
