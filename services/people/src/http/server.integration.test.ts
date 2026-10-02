@@ -1321,16 +1321,14 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       'Dietary Requirements',
       'Union Member',
     ]) {
-      expect([h, of(h)]).toEqual([
+      expect([h, of(h).include]).toEqual([h, true]);
+      expect([h, of(h).field]).toEqual([
         h,
         expect.objectContaining({
-          include: true,
-          field: expect.objectContaining({
-            classification: 'special-category',
-            visibility: ['hr'],
-            aiEligible: false,
-            requiresApproval: true,
-          }),
+          classification: 'special-category',
+          visibility: ['hr'],
+          aiEligible: false,
+          requiresApproval: true,
         }),
       ]);
     }
