@@ -104,7 +104,7 @@ export const placeChoices = (
   input: z.output<typeof PlaceChoices>,
 ): Readonly<Record<string, PlaceChoice>> =>
   Object.fromEntries(
-    Object.entries(input).map(([key, c]) => {
+    Object.entries(input).map(([key, c]): [string, PlaceChoice] => {
       if (c.kind !== 'add') return [key, c];
       const { legalEntityId, ...add } = c;
       return [key, legalEntityId === undefined ? add : { ...add, legalEntityId }];
