@@ -1,0 +1,62 @@
+name: chromium
+description: Playwright's Chromium and the system packages it needs, from the Actions cache when it has them.
+
+# `playwright install --with-deps` downloads about 32 MB of fonts and Mesa from
+# the Ubuntu mirror on every run. That is usually 20 seconds and sometimes six
+# minutes: the mirror served it at 89 kB/s on 2026-10-01 and the shard waiting
+# on it was the slowest job in the pipeline, four runs in six. So the browser
+# and those .deb files are cached, keyed on the Playwright version and the
+# runner image (`ImageVersion`, which changes weekly and with it what the image
+# already has), and a hit installs the same files with `dpkg` without asking
+# the mirror for anything.
+#
+# A miss, or a hit with no .deb files in it, does exactly what this used to do.
+
+inputs:
+  package:
+    description: The workspace package whose Playwright runs the browser.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # `ImageVersion` is the runner's own environment, which the `env`
+    # context does not see.
+    - name: key
+      id: key
+      shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+      run: |
+        version="$(pnpm --filter "$PACKAGE" exec playwright --version | awk '{print $2}')"
+        echo "key=chromium-$ImageOS-$ImageVersion-$version" >> "$GITHUB_OUTPUT"
+
+    - name: cache
+      id: cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ~/.cache/playwright-debs
+        key: ${{ steps.key.outputs.key }}
+
+    - name: install
+      shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+        HIT: ${{ steps.cache.outputs.cache-hit }}
+      run: |
+        debs=~/.cache/playwright-debs
+        if [ "$HIT" = true ] && compgen -G "$debs/*.deb" >/dev/null &&
+          sudo dpkg --install "$debs"/*.deb >/dev/null; then
+          pnpm --filter "$PACKAGE" exec playwright install chromium
+          exit 0
+        fi
+        # Emptied first, so what is kept is exactly what apt fetched for this
+        # image, which is what the next run on it will need.
+        sudo rm -f /var/cache/apt/archives/*.deb
+        pnpm --filter "$PACKAGE" exec playwright install --with-deps chromium
+        if [ "$HIT" != true ]; then
+          mkdir -p "$debs"
+          cp /var/cache/apt/archives/*.deb "$debs"/ 2>/dev/null || true
+        fi
