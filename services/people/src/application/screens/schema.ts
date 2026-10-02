@@ -18,12 +18,7 @@ import {
   type Attribute,
   type Section,
 } from '../../domain/schema/draft.js';
-import {
-  askAtSignup,
-  atSignup,
-  onSignupPage,
-  type SignupAsk,
-} from '../../domain/schema/signup.js';
+import { askAtSignup, atSignup, onSignupPage, type SignupAsk } from '../../domain/schema/signup.js';
 import { sortKeys, type PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking } from '../person/person-access.js';
 import { userActor } from '../person/ports.js';
@@ -188,9 +183,7 @@ export async function registryView(
         origin: a.origin,
         pending: pendingOf(a, published),
       }));
-      const entities = deps.service.org
-        ? await deps.service.org.legalEntities(tx, asking)
-        : ok([]);
+      const entities = deps.service.org ? await deps.service.org.legalEntities(tx, asking) : ok([]);
       const choices = {
         legalEntities: (entities.ok ? entities.value : [])
           .filter((e) => !e.archived)
@@ -381,21 +374,16 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
     classificationSource: input.classificationSource,
     encrypted: secret,
     ...(input.requiresApproval === null ||
-    input.requiresApproval === requiresApproval({
-      encrypted: secret,
-      classification: { piiKind: input.piiKind },
-    })
+    input.requiresApproval ===
+      requiresApproval({
+        encrypted: secret,
+        classification: { piiKind: input.piiKind },
+      })
       ? {}
       : { requiresApproval: input.requiresApproval }),
     origin: 'tenant',
   } as AttributeDefinitionInput;
 }
-
-/** The values a typed core column takes (`people.person`'s CHECKs). */
-const COLUMN_VALUES: Readonly<Record<string, readonly string[]>> = {
-  employment_type: ['permanent', 'fixed_term', 'contractor', 'intern', 'apprentice', 'seasonal'],
-  work_model: ['onsite', 'hybrid', 'remote'],
-};
 
 /** Add a field, or change one. The draft decides whether the change is allowed. */
 export async function saveField(
@@ -404,10 +392,9 @@ export async function saveField(
   input: FieldInput,
   editing: string | null,
 ): Promise<Result<void>> {
-  // A key People stores in a typed column of its own (`employment_type`,
-  // `work_model`) takes only that column's values: a choice outside them
-  // would publish and then refuse every save.
-  // A column People sorts, filters and joins on cannot be sealed.
+  // A column People sorts, filters and joins on cannot be sealed. Its choices
+  // are the company's own (`employment_type`, `work_model`): the column keeps
+  // only a key's shape.
   if (input.encrypted === true && isCoreKey(editing ?? input.key)) {
     return err(
       failure(
@@ -416,19 +403,6 @@ export async function saveField(
         ['encrypted'],
       ),
     );
-  }
-  const column = COLUMN_VALUES[input.key];
-  if (editing === null && column !== undefined) {
-    const refused = input.options.map(keyFrom).filter((v) => !column.includes(v));
-    if (refused.length > 0) {
-      return err(
-        failure(
-          'KEY_RESERVED',
-          `People keeps ${input.key} itself, as one of ${column.join(', ')}; give this field a different name, or use those choices`,
-          ['key'],
-        ),
-      );
-    }
   }
   return run(deps.service, asking.tenantId, (tx) =>
     asAdmin(deps, tx, asking, async () => {
@@ -820,9 +794,7 @@ export async function setupView(
           };
         }),
       }));
-      const entities = deps.service.org
-        ? await deps.service.org.legalEntities(tx, asking)
-        : ok([]);
+      const entities = deps.service.org ? await deps.service.org.legalEntities(tx, asking) : ok([]);
       const entity = entities.ok ? entities.value.find((e) => !e.archived) : undefined;
       return ok({
         ...(entity === undefined
