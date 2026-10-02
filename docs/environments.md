@@ -45,6 +45,54 @@ Both halves trigger on `workflow_run` after `ci` and refuse anything whose
 conclusion is not `success`. A separate workflow cannot use `needs:`, and
 without that guard either would deploy a commit whose tests failed.
 
+### A merge is not tested twice
+
+A pull request's `ci` runs on `refs/pull/N/merge`, the pull request merged
+onto main's tip at that moment. If nothing lands on main before
+`gh pr merge --squash`, the squash commit has exactly that tree, and running
+the suite on it again measures nothing new. So `ci` on main checks first and
+skips what is already proven:
+
+1. **The record.** When every required check of a pull request run is green,
+   its `tested-tree` job sets a commit status `ci/tested-tree` on the PR's
+   head: `tree=<tree it tested> ran=<gates it ran in full>`, linking the run.
+   Only a workflow in this repository writes it as `github-actions[bot]`; a
+   fork's token cannot write statuses at all.
+2. **The check.** On a push to main, `retest`
+   (`.github/scripts/retested-tree.sh`) finds the merged pull request whose
+   merge commit is this commit, reads the newest such status on its head,
+   confirms the linked run is a successful `ci` run of `pull_request` on that
+   head, and compares `git rev-parse <sha>^{tree}` with the recorded tree.
+3. **The skip.** On a match, `verify` and `standalone` skip, and `changes`
+   turns off each narrowed gate (`contracts`, `web acceptance`, `integration`,
+   `design-system`) the pull request ran in full. A gate the pull request
+   narrowed — skipped by `changes`, or a contrast sweep cut to affected stories
+   — still runs on main, so main stays the backstop for a detector that
+   guessed wrong (an `apps/web` change, for instance, never runs the People
+   phone-screen axe pass on its pull request). The required checks still
+   report green, `ci` concludes `success`, and `vercel-production` starts as it
+   always has; its gate, plan, smoke tests and rollback are untouched. The
+   `retest` job's summary says which tree, which pull request and which run.
+
+Anything short of a proven match runs the full suite: a direct push (no pull
+request), no status (a fork, a merge before `tested-tree` finished, a failed
+write), a status not written by this workflow, a run that is not green, any
+API error, or a different tree because something else merged first. The step
+cannot fail the job, and empty outputs mean "run everything".
+
+How much it saves depends on the pull request. `verify`, `standalone` and
+whichever of `contracts`, `web acceptance` and `integration` it reached are
+always saved. `design-system` is saved only when the pull request swept every
+story, which is a design-system-wide change (Storybook, tokens, the theme); any
+other pull request still pays its 4-5 minutes on main, because that run is the
+one proving it.
+
+The decision is a plain script, so it can be dry-run with local git and a fake
+`gh` (`GH=<stub> REPO=o/r SHA=<commit> .github/scripts/retested-tree.sh`): a
+commit with the recorded tree prints `matched=true`; a different tree, a
+missing status, a status from another author, a red run or a failing API each
+print `matched=false` with the reason.
+
 **Migrations run before the deploy, never after.** Expand-contract means the new
 schema is readable by the old code, so migrating first is safe. Migrating second
 leaves a window where new code reads columns that do not exist yet.
