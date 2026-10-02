@@ -260,7 +260,7 @@ export function planOf(input: PlanInput): {
     steps.push({
       kind: 'refs',
       title: `Leave ${plural(empty.count, 'value', 'values')} empty for HR`,
-      detail: `${listed(empty.labels)} on those rows can’t be read, or ${one ? 'points' : 'point'} at nobody here. The rows import without ${one ? 'it' : 'them'}, and nothing is blocked; each is listed below.`,
+      detail: `${listed(empty.labels)} on those rows can’t be read, or ${one ? 'points' : 'point'} at nobody here. The rows import without ${one ? 'it' : 'them'}, and nothing is blocked; each is listed under See rows.`,
     });
     short.push(`leave ${String(empty.count)} for HR`);
   }

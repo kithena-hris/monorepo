@@ -184,7 +184,7 @@ describe('a file from another system, or another Kithena', () => {
     expect(steps[1]?.title).toBe('Add 2 work locations: Corporate, New York and Scranton Branch');
     expect(steps[4]?.title).toBe('Leave 2 values empty for HR');
     expect(steps[4]?.detail).toBe(
-      'Manager on those rows can’t be read, or points at nobody here. The rows import without it, and nothing is blocked; each is listed below.',
+      'Manager on those rows can’t be read, or points at nobody here. The rows import without it, and nothing is blocked; each is listed under See rows.',
     );
   });
 

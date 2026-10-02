@@ -228,7 +228,7 @@ export const PLAN: ImportPlanView = {
       kind: 'refs',
       title: 'Leave 1 reference empty for HR',
       detail:
-        'Manager on those rows points at nobody in this company or this file. The rows import without it; each is listed below.',
+        'Manager on those rows points at nobody in this company or this file. The rows import without it; each is listed under See rows.',
     },
     {
       kind: 'hr',
