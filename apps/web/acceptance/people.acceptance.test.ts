@@ -638,7 +638,9 @@ describe('Work locations set up inside the import', () => {
       await stamford.getByRole('radio', { name: /Add it as a new work location/ }).isChecked(),
     ).toBe(true);
     // Both people, by name, whatever the file's spelling.
-    expect(await page.getByText('2 people in the file: Andy Bernard, Karen Filippelli').count()).toBe(1);
+    expect(
+      await page.getByText('2 people in the file: Andy Bernard, Karen Filippelli').count(),
+    ).toBe(1);
     await page.getByRole('textbox', { name: /^Name/ }).fill('Stamford Branch');
     await page.getByRole('button', { name: 'Next: review the plan' }).click();
     await page.getByText('Add 1 work location: Stamford Branch').waitFor({ timeout: 30_000 });
@@ -1557,6 +1559,33 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.goto(`${shell}/people`);
     await page.waitForLoadState('networkidle');
     expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
+
+    // The company at the top, never Kithena: Globex's initial while it has no
+    // logo, and its logo, uncropped, once it has one.
+    const brand = page.getByRole('link', { name: 'Globex, home' });
+    expect(await brand.getByText('G', { exact: true }).isVisible()).toBe(true);
+    expect(await page.getByTitle('Kithena').count()).toBe(0);
+    const logo = `data:image/svg+xml,${encodeURIComponent(
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 32'><circle cx='16' cy='16' r='12' fill='#1f2937'/><rect x='34' y='10' width='56' height='12' rx='3' fill='#1f2937'/></svg>",
+    )}`;
+    await stack.sql`UPDATE platform.tenant SET logo_url = ${logo} WHERE id = ${GLOBEX.tenant}`;
+    await page.reload();
+    await brand.locator('img').waitFor();
+    expect(await brand.locator('img').getAttribute('src')).toBe(logo);
+    const shots = process.env['OVERVIEW_SHOTS'];
+    const shot = async (name: string): Promise<void> => {
+      if (shots !== undefined && shots !== '')
+        await page.screenshot({ path: join(shots, `${name}.png`) });
+    };
+    await page.waitForLoadState('networkidle');
+    await shot('sidebar-logo-desktop-light');
+    const dark = (on: boolean) =>
+      page.evaluate((d) => document.documentElement.classList.toggle('dark', d), on);
+    await dark(true);
+    await page.waitForTimeout(400); // the colours' own transition
+    await shot('sidebar-logo-desktop-dark');
+    await dark(false);
+
     const nav = await sections(page);
     expect(await nav.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe(
       'page',
@@ -1573,6 +1602,9 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.getByRole('button', { name: 'Collapse sidebar' }).click();
     await nav.waitFor({ state: 'detached' });
     await page.mouse.move(900, 600);
+    // The rail keeps the mark, and the link its name.
+    expect(await brand.locator('img').isVisible()).toBe(true);
+    await shot('sidebar-logo-rail-light');
     expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('false');
     await peopleItem(page).hover();
     await flyout.waitFor();
@@ -2387,6 +2419,40 @@ describe('A company the back office has just created, with nothing published', (
     await page.getByText('Ortega').first().waitFor({ timeout: 30_000 });
     expect(await unavailable()).toBe(0);
     expect(problems).toEqual([]);
+    await context.close();
+  });
+});
+
+describe('A People page while the VM behind it is asleep', () => {
+  it('says People is waking, asks again by itself, and shows the page in place when it is up', async () => {
+    const context = await signedIn(EMPLOYEE.session);
+    const page = await context.newPage();
+    const address = `${stack.shell}/people/directory/list?q=shah`;
+    stack.router.asleep();
+    try {
+      await page.goto(address);
+      // The server's own answer: the header and the waking state, not an error.
+      await page.getByText('Waking up People, usually under a minute').waitFor({ timeout: 30_000 });
+      expect(await page.getByText(/The server sleeps when nobody is using it/).count()).toBe(1);
+      expect(await page.getByText(/is unavailable/).count()).toBe(0);
+      // Still waking after a few of its own asks.
+      await page.waitForTimeout(6_000);
+      expect(await page.getByText('Waking up People, usually under a minute').count()).toBe(1);
+      // Marked, so a reload would show: a new document has no mark.
+      await page.evaluate(() => {
+        (window as unknown as { stayed?: true }).stayed = true;
+      });
+    } finally {
+      stack.router.awake();
+    }
+
+    // The screen People's remote draws, whatever this tenant holds by now.
+    await page.locator('[data-remote="people"]').waitFor({ state: 'attached', timeout: 30_000 });
+    expect(await page.getByText(/Waking up People/).count()).toBe(0);
+    expect(await page.getByText(/is unavailable/).count()).toBe(0);
+    expect(await page.getByRole('status').filter({ hasText: 'People is ready' }).count()).toBe(1);
+    expect(page.url()).toBe(address);
+    expect(await page.evaluate(() => (window as unknown as { stayed?: true }).stayed)).toBe(true);
     await context.close();
   });
 });

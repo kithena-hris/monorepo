@@ -336,7 +336,7 @@ describe('a doubted identifier HR could not accept (PEO-125)', () => {
       />,
     );
     expect(screen.getByRole('region', { name: /Lucía Ortega/ })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^Tom Fischer/ }));
+    await user.click(screen.getByRole('button', { name: /Tom Fischer/ }));
     expect(screen.getByRole('region', { name: /Tom Fischer/ })).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: /I asked/ }));
     expect(screen.getByRole('region', { name: /Adam Novak/ })).toBeInTheDocument();
@@ -549,7 +549,7 @@ describe('a flagged approval (design AI7)', () => {
       />,
     );
     expect(screen.getByRole('region', { name: /Rui Dias/ })).toBeInTheDocument();
-    await fast().click(screen.getByRole('button', { name: /^Tom Fischer/ }));
+    await fast().click(screen.getByRole('button', { name: /Tom Fischer/ }));
     expect(onChangeOpen).toHaveBeenCalledWith('t1');
   });
 });

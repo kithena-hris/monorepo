@@ -2,13 +2,14 @@ import { redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { SettingsIndex } from '../../../components/settings-index';
-import { accessToken } from '../../../lib/people';
+import { accessToken, people } from '../../../lib/people';
 import { settingsOverview } from '../../../lib/people-screens';
 import { readPreference } from '../../../lib/preferences';
 import { settingsModules } from '../../../lib/settings-modules';
 import { prefsFrom } from '../../../lib/shortcuts';
 import { shellData } from '../../../lib/shell';
 import { currentPerson } from '../../../lib/session';
+import { isWaking } from '../../../lib/waking';
 
 /**
  * Settings: every setting this person may open, grouped by the module it
@@ -140,5 +141,7 @@ export default async function Settings(): Promise<JSX.Element> {
       .join(' · '),
   );
 
-  return <SettingsIndex modules={modules} />;
+  // The shell's own first read, answered already in this request.
+  const waking = person.entitlements.includes('module.people') && isWaking(await people('Home'));
+  return <SettingsIndex modules={modules} waking={waking} />;
 }

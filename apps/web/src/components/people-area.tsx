@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import type { JSX } from 'react';
 
 import { PeopleScreen } from './people-screen';
-import { WorkspaceAsleep } from './workspace-asleep';
+import { Waking, WakingHeader } from './waking';
 import { accessToken } from '../lib/people';
 import { loadScreen, today, withArrived } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
@@ -17,7 +17,6 @@ import {
 import { shellData } from '../lib/shell';
 import { currentPerson } from '../lib/session';
 import { withQuery } from '../lib/url-state';
-import { workspaceConfig } from '../lib/workspace';
 
 /**
  * A People screen inside the shell: under `/people`, or among People's
@@ -134,17 +133,17 @@ export async function PeopleArea({
             siblingsLabel: header.section,
           }
         : here?.startsWith('/people/insights/') === true &&
-        segment !== undefined &&
-        segment !== '' &&
-        header.tabs !== undefined
-        ? {
-            ...header,
-            tabs: header.tabs.map((t) => ({
-              ...t,
-              href: withQuery(t.href, {}, { segment }),
-            })),
-          }
-        : header
+            segment !== undefined &&
+            segment !== '' &&
+            header.tabs !== undefined
+          ? {
+              ...header,
+              tabs: header.tabs.map((t) => ({
+                ...t,
+                href: withQuery(t.href, {}, { segment }),
+              })),
+            }
+          : header
       : {
           // The settings overview is "Settings › People"; a setting is
           // "Settings › People › Roles". No actions: nobody adds an employee
@@ -172,37 +171,45 @@ export async function PeopleArea({
           siblingsLabel: 'People settings',
         };
 
-  // Nothing answered at the router and the VM can be woken: wake it.
-  return load.status === 'error' && load.unreachable === true && workspaceConfig() !== null ? (
-    <WorkspaceAsleep />
-  ) : (
-    // The screen, whose own header carries the breadcrumb (on a phone, the
-    // title that switches section) and what this person may start from here.
-    <div className="flex flex-col gap-6">
-      <div className="min-w-0">
-        <PeopleScreen
-          route={
-            route === null
-              ? null
-              : {
-                  entry: route.entry,
-                  component: route.component,
-                  ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
-                }
-          }
-          load={load}
-          path={path}
-          params={route?.params ?? {}}
-          search={search}
-          today={today()}
-          frame={
-            load.status === 'ready' && load.notice !== undefined
-              ? { ...frame, notice: load.notice }
-              : frame
-          }
-        />
-      </div>
-    </div>
+  // People is asleep or still waking: the page's header, and in place of its
+  // body a state that asks again by itself (`components/waking.tsx`).
+  const waking = load.status === 'error' && load.unreachable === true;
+  return (
+    <Waking
+      area="People"
+      waking={waking}
+      header={<WakingHeader frame={frame} title={area === 'people' ? 'People' : 'Settings'} />}
+    >
+      {waking ? null : (
+        // The screen, whose own header carries the breadcrumb (on a phone, the
+        // title that switches section) and what this person may start from here.
+        <div className="flex flex-col gap-6">
+          <div className="min-w-0">
+            <PeopleScreen
+              route={
+                route === null
+                  ? null
+                  : {
+                      entry: route.entry,
+                      component: route.component,
+                      ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
+                    }
+              }
+              load={load}
+              path={path}
+              params={route?.params ?? {}}
+              search={search}
+              today={today()}
+              frame={
+                load.status === 'ready' && load.notice !== undefined
+                  ? { ...frame, notice: load.notice }
+                  : frame
+              }
+            />
+          </div>
+        </div>
+      )}
+    </Waking>
   );
 }
 
