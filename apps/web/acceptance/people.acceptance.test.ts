@@ -562,7 +562,16 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
   it('imports every row and lists what it left empty for HR, without mapping anything by hand', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people/import`);
+    // From Import & export, a page of its own, under its trail: not a modal.
+    await page.goto(`${stack.shell}/people/import-export`);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('link', { name: 'Start import' }).first().click();
+    await page.waitForURL(/\/people\/import$/);
+    expect(await page.getByRole('dialog').count()).toBe(0);
+    const trail = page.getByRole('navigation', { name: 'Breadcrumb' });
+    await trail.getByRole('link', { name: 'Import & export' }).waitFor();
+    expect(await trail.getByText('Import', { exact: true }).count()).toBe(1);
+    await page.getByRole('navigation', { name: 'Importing people' }).waitFor();
 
     const broken = [
       'given_name,family_name,work_email,hire_date',
@@ -576,8 +585,11 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
     // Every column maps itself: its header is the field's key.
     const review = page.getByRole('button', { name: 'Next: review the plan' });
     await review.waitFor({ timeout: 30_000 });
+    // Each step is its own address.
+    expect(new URL(page.url()).search).toBe('?step=map');
     expect(await review.isEnabled()).toBe(true);
     await review.click();
+    await page.waitForURL(/\?step=review$/);
 
     // Nothing is blocked: Ines waits for a work email, Tom for a real start date.
     const left = page.getByRole('table', { name: 'Left empty for HR' });
@@ -587,6 +599,7 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
 
     await page.getByRole('button', { name: 'Approve and run' }).click();
     await page.getByRole('heading', { name: /^Imported 4 people/ }).waitFor({ timeout: 30_000 });
+    expect(new URL(page.url()).search).toBe('?step=done');
 
     const everyone = await stack.sql<{ work_email: string | null; status: string }[]>`
       SELECT work_email, status FROM people.person WHERE tenant_id = ${TENANT}`;
