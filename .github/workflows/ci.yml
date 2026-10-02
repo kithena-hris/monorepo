@@ -553,9 +553,14 @@ jobs:
     # stories and the People app's phone screens). A suite with fewer files
     # than shards leaves some shards empty, hence `--passWithNoTests`.
     #
-    # Eight, like the contrast sweep: at six a shard was 75-120 s of which
-    # about 50 s is Vitest and the browser starting, and axe is being turned
-    # on for every story, which grows the other half.
+    # Five. A shard's test step is about 75 s of fixed cost (two Vitest
+    # projects and their browsers starting) plus its share of about 145 s of
+    # stories: 99 s on average at six shards, 93 s at eight. More shards buy
+    # almost nothing and each costs a runner, and runners are what this
+    # pipeline queues for — the account runs 20 jobs at once, across every
+    # workflow and pull request. Five leaves room for axe running over every
+    # story, which grows the shared half: at three times today's it is still
+    # about 3.5 minutes, under `web acceptance`.
     name: design-system (axe ${{ matrix.shard }})
     needs: changes
     if: needs.changes.outputs.ui == 'true'
@@ -564,7 +569,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -579,7 +584,7 @@ jobs:
         uses: ./.github/actions/chromium
         with: { package: '@reach/storybook' }
       - name: axe over every story, one shard
-        run: pnpm turbo run test:stories -- --shard=${{ matrix.shard }}/8 --passWithNoTests
+        run: pnpm turbo run test:stories -- --shard=${{ matrix.shard }}/5 --passWithNoTests
 
   # The required check: green only when every design-system shard and every
   # axe shard are, or when both were skipped because the change cannot reach
