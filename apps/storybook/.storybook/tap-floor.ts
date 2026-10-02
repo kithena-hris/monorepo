@@ -104,11 +104,18 @@ export function underTapFloor(root: ParentNode = document.body): string[] {
  * Measured at rest. A box mid-way through a scale-in reports the scaled size,
  * so every finite animation on the page is allowed to finish first; a spinner
  * runs forever and is not waited for.
+ *
+ * Only running ones, as Storybook's own `waitForAnimations` does. Storybook
+ * pauses every animation while its `afterEach` (axe) runs, and one that starts
+ * in that window — an avatar fading in once its image loads — can stay paused
+ * after. Its `finished` never settles, and waiting on it timed the org chart
+ * and the avatar uploader out at 30 s once axe ran long enough to open the window.
  */
 async function settled(): Promise<void> {
   await Promise.all(
     document
       .getAnimations()
+      .filter((a) => a.playState === 'running')
       .filter((a) => a.effect?.getComputedTiming().endTime !== Number.POSITIVE_INFINITY)
       .map((a) => a.finished.catch(() => undefined)),
   );
