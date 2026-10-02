@@ -120,7 +120,14 @@ const NOT_YET = Symbol('not yet');
  * is in the HTML, and a slower one never holds the page.
  */
 export async function withArrived(load: ScreenLoad): Promise<ScreenLoad> {
-  if (load.status !== 'ready' || typeof load.data !== 'object' || load.data === null) return load;
+  if (
+    load.status !== 'ready' ||
+    typeof load.data !== 'object' ||
+    load.data === null ||
+    !Object.values(load.data).some((part) => part instanceof Promise)
+  ) {
+    return load;
+  }
   const parts = await Promise.all(
     Object.entries(load.data).map(async ([key, part]: [string, unknown]) => {
       if (!(part instanceof Promise)) return [key, part] as const;

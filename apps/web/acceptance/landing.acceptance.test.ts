@@ -40,7 +40,8 @@ async function stream(
 ): Promise<{ ttfb: number; cards: number; history: number; total: number }> {
   const start = performance.now();
   const response = await fetch(`${stack.shell}${path}`, { headers: { cookie: cookie() } });
-  const reader = response.body!.getReader();
+  if (response.body === null) throw new Error('no body');
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let html = '';
   let ttfb = -1;
@@ -96,7 +97,8 @@ describe('Import & export, as the server sends it', () => {
       new MutationObserver(() => {
         const l = w.landing;
         const at = performance.now() - (l['t0'] ?? 0);
-        const text = document.body?.textContent ?? '';
+        // No body yet while the document is still arriving.
+        const text = (document.body as HTMLElement | null)?.textContent ?? '';
         if (l['cards'] === undefined && text.includes('New export')) l['cards'] = at;
         if (
           l['history'] === undefined &&

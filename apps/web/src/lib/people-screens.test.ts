@@ -21,5 +21,7 @@ describe('withArrived', () => {
   it('leaves anything else as it is', async () => {
     const error = { status: 'error', message: 'down' } as const;
     expect(await withArrived(error)).toBe(error);
+    const list = { status: 'ready', data: [{ key: 'a' }] } as const;
+    expect(await withArrived(list)).toBe(list);
   });
 });
