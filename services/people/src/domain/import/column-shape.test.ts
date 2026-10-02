@@ -26,6 +26,12 @@ describe('the shape of a column', () => {
     // Codes that repeat are a list, whatever their pattern; ones that never repeat are identifiers.
     [['CC-100', 'CC-110', 'CC-100', 'CC-120'], '3 distinct short values', 'select'],
     [['', ' '], 'empty', 'text'],
+    // Names, where two people share a child: mostly once each, so text, not a list of choices.
+    [
+      ['Teddy', 'Astrid', 'Phillip', 'Cece, Phillip', 'Cece, Phillip', 'Melissa', 'Phillip', 'Sasha', 'Drake', 'Jake', 'Jada'],
+      'free text, up to 13 characters',
+      'text',
+    ],
   ])('%j reads as %s', (values, shape, dataType) => {
     expect(shapeOf(values)).toMatchObject({ shape, dataType });
   });

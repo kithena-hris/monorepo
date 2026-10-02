@@ -81,13 +81,16 @@ export function shapeOf(raw: readonly string[]): ColumnShape {
     return shape('phone-like', 'phone');
   }
   const distinct = [...new Set(values)];
-  const repeats = distinct.length < values.length;
+  // A list is mostly repeats: a quarter of the values, at least, are ones seen
+  // before. Children's or partners' names repeat now and then, never that much.
+  // ponytail: a ratio, so three rows naming two people can still read as a list.
+  const repeats = distinct.length * 4 <= values.length * 3;
   const patterns = new Set(values.map(patternOf));
   const [pattern] = patterns;
   // One pattern that never repeats is an identifier; one that repeats is a list of codes.
   if (patterns.size === 1 && pattern !== undefined && /digit/u.test(pattern) && !repeats)
     return shape(pattern, 'text');
-  // A list repeats itself: two names that never repeat are text, not choices.
+  // A list repeats itself: names that mostly never repeat are text, not choices.
   if (
     distinct.length <= LIST_AT_MOST &&
     repeats &&
