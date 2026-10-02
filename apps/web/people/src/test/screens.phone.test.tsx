@@ -1150,6 +1150,10 @@ describe('at 390×844, with a finger', () => {
       // Pinned above the tab bar, as MA8's Skip and Create are.
       const next = screen.getByRole('button', { name: 'Next: new fields' });
       expect(next.closest('[data-pinned-bar]') ?? next.parentElement).toHaveClass('sticky');
+      // Another system's long id wraps above where it goes: nothing runs off the card.
+      for (const title of screen.getAllByRole('heading', { level: 3 })) {
+        expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
+      }
       // Whoever a value leaves empty is a card titled by their name.
       const left = screen.getByRole('table', { name: /^Left without a work location/ });
       expect(within(left).getAllByRole('row').at(1)).toHaveTextContent('Toby Flenderson');

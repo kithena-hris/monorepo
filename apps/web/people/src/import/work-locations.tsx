@@ -249,9 +249,9 @@ function WorkLocationCard({
   return (
     <Card padded aria-labelledby={`${id}-title`} className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2.5">
-        <span className="font-mono text-xs break-all text-fg-subtle">{w.value}</span>
+        <span className="min-w-0 font-mono text-xs break-all text-fg-subtle">{w.value}</span>
         <icons.forward aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
-        <h3 id={`${id}-title`} className="min-w-0 flex-1 text-base font-bold">
+        <h3 id={`${id}-title`} className="min-w-32 flex-1 text-base font-bold">
           {targetOf(choice, here)}
         </h3>
         {badge}
