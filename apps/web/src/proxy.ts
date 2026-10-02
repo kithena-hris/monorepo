@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { REMOTE_PATH, remoteBase } from './lib/remotes';
 import { resolveTenant, type Tenant } from './lib/tenant';
 import { RETURN_COOKIE, SESSION_COOKIE } from './lib/session-cookie';
 
@@ -71,7 +72,28 @@ function isTenant(value: unknown): value is Tenant {
   );
 }
 
+/**
+ * The People remote's files, from the company's own host (`REMOTE_PATH`).
+ *
+ * Forwarded as asked, so `If-None-Match` reaches the remote and its 304,
+ * `Cache-Control`, `ETag` and `nosniff` come back as it sent them. Nothing
+ * of the company's goes with it: no cookie, no tenant, and no lookup, because
+ * the remote is the same public code for everybody. The path stays on the
+ * remote's origin whatever it holds: it is joined onto a URL, never parsed as one.
+ */
+function remoteFile(request: NextRequest): NextResponse {
+  const to = new URL(
+    `${remoteBase()}${request.nextUrl.pathname.slice(REMOTE_PATH.length)}${request.nextUrl.search}`,
+  );
+  const headers = new Headers(request.headers);
+  headers.delete('cookie');
+  headers.delete('authorization');
+  return NextResponse.rewrite(to, { request: { headers } });
+}
+
 export async function proxy(request: NextRequest): Promise<NextResponse> {
+  if (request.nextUrl.pathname.startsWith(`${REMOTE_PATH}/`)) return remoteFile(request);
+
   const headers = new Headers(request.headers);
 
   // First, unconditionally. Anything below may return early, and every one of

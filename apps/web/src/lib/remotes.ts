@@ -244,9 +244,9 @@ export function siblingsOf(
 }
 
 export interface RemoteRoute {
-  /** The remote's `remoteEntry.js`, loaded by the browser. */
+  /** The remote's `remoteEntry.js`, loaded by the browser: on this host, under `REMOTE_PATH`. */
   readonly entry: string;
-  /** Where the remote is served from, for its stylesheet and chunks. */
+  /** Where the remote is deployed, which the server reads its manifest and server build from. */
   readonly base: string;
   /** The export of the remote's `index.ts` that renders this path. */
   readonly component: string;
@@ -327,6 +327,26 @@ export function matchPath(
   return undefined;
 }
 
+/** Where the People remote is deployed: what the server fetches, and what `REMOTE_PATH` forwards to. */
+export const remoteBase = (): string =>
+  (process.env['PEOPLE_REMOTE_URL'] ?? 'http://localhost:3002').replace(/\/$/, '');
+
+/**
+ * Where the browser loads the People remote from: a path on the company's own
+ * host, which `proxy.ts` forwards to `remoteBase()`.
+ *
+ * Same-origin, so CORS never applies. Every company is a subdomain of one
+ * site, so a browser shares one cache entry per remote file across all of
+ * them. Served cross-origin, that entry held the first company's
+ * `Access-Control-Allow-Origin`, and the 304 that revalidated it carried none,
+ * so the next company's import of `remoteEntry.js` was refused ("People is
+ * unavailable"). Under each company's own host, each has its own entry and
+ * nothing to check. The remote builds with `base: './'`, so its chunks and
+ * stylesheet follow `remoteEntry.js` here. `_` because a Next folder starting
+ * with one is never a route.
+ */
+export const REMOTE_PATH = '/_people';
+
 /**
  * The People remote's screen for `path`.
  *
@@ -335,7 +355,7 @@ export function matchPath(
  * rather than failing the whole page because one module is down.
  */
 export async function peopleRoute(path: string): Promise<RemoteRoute | null | undefined> {
-  const base = (process.env['PEOPLE_REMOTE_URL'] ?? 'http://localhost:3002').replace(/\/$/, '');
+  const base = remoteBase();
   let manifest: unknown;
   try {
     const response = await timed(
@@ -348,5 +368,5 @@ export async function peopleRoute(path: string): Promise<RemoteRoute | null | un
     return null;
   }
   const matched = matchRoute(manifest, path);
-  return matched == null ? matched : { entry: `${base}/remoteEntry.js`, base, ...matched };
+  return matched == null ? matched : { entry: `${REMOTE_PATH}/remoteEntry.js`, base, ...matched };
 }

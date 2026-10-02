@@ -112,7 +112,7 @@ describe('prepareRemoteSsr', () => {
     serve(CODE);
     expect(await prepareRemoteSsr(base)).toEqual({
       ssr: `${base}/ssr/people.cjs`,
-      stylesheet: { href: `${base}/ssr/people.css`, integrity: sri(CSS) },
+      stylesheet: { href: `/_people/ssr/people.css`, integrity: sri(CSS) },
     });
   });
 
