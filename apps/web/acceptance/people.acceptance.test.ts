@@ -2208,6 +2208,221 @@ describe('Import & export, as the server sends it', () => {
   });
 });
 
+describe('A company the back office has just created, with nothing published', () => {
+  /** A Chicago company, as Meridian Freight was made: People and Time off, one administrator. */
+  const company = (slug: string, displayName: string, admin: string) =>
+    stack.provisionCompany({
+      slug,
+      displayName,
+      admin,
+      address: {
+        country: 'US',
+        line1: '233 S Wacker Dr',
+        city: 'Chicago',
+        subdivision: 'IL',
+        postcode: '60606',
+      },
+      timeZone: 'America/Chicago',
+      entitlements: ['module.people', 'module.timeoff'],
+      name: { given: 'Ines', family: 'Okafor', preferred: 'Ini' },
+    });
+
+  async function asAdministrator(made: Awaited<ReturnType<typeof company>>) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.addCookies([
+      {
+        name: '__Host-ksession',
+        value: made.session,
+        domain: new URL(made.shell).hostname,
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ]);
+    const page = await context.newPage();
+    // What Meridian's administrator met: the remote's code refused, or a screen that threw.
+    const problems: string[] = [];
+    page.on('pageerror', (e) => {
+      // A text mismatch React recovers from by drawing in the browser (#418) is
+      // not this, and a page on this path has one still to find.
+      if (!e.message.includes('error #418')) problems.push(e.message);
+    });
+    page.on('console', (m) => {
+      if (m.type() === 'error' && /Federation|dynamically imported module/.test(m.text())) {
+        problems.push(m.text());
+      }
+    });
+    const unavailable = () => page.getByText(/is unavailable/).count();
+    return { context, page, problems, unavailable };
+  }
+
+  it('takes its administrator from People through setup, and back to People', async () => {
+    const made = await company('meridian-freight', 'Meridian Freight', 'ines@meridian.example');
+    const { context, page, problems, unavailable } = await asAdministrator(made);
+    // People told identity who administers it, with the token both hold: the
+    // back office's view, which production's 401 left empty, not her rights.
+    const [report] = await stack.sql<{ holders: { accountId: string; roles: string[] }[] }[]>`
+      SELECT holders FROM platform.module_role_report
+       WHERE tenant_id = ${made.tenantId} AND entitlement = 'module.people'`;
+    expect(report?.holders).toEqual([{ accountId: made.account, roles: ['people_admin', 'hr'] }]);
+
+    // The overview draws; the directory, by the sidebar, sends her to setup.
+    await page.goto(`${made.shell}/people`);
+    await page.waitForLoadState('networkidle');
+    await page
+      .getByRole('navigation', { name: 'Areas' })
+      .getByRole('link', { name: 'Directory' })
+      .click();
+    await page.waitForURL(/\/people\/setup$/);
+    await page.getByRole('heading', { name: 'Confirm the legal entity' }).waitFor();
+    await page.waitForLoadState('networkidle');
+    // The company as the back office recorded it, ready to confirm.
+    expect(await page.getByRole('textbox', { name: /Registered name/ }).inputValue()).toBe(
+      'Meridian Freight',
+    );
+    expect(await unavailable()).toBe(0);
+
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText(/United States: \d+ sections?, \d+ fields?/).waitFor();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Publish version 1' }).click();
+    const personal = page.getByRole('form', { name: 'Personal information' });
+    await personal.waitFor({ timeout: 30_000 });
+    const versions = await stack.sql<{ version: number }[]>`
+      SELECT version FROM people.schema_version WHERE tenant_id = ${made.tenantId}`;
+    expect(versions.map((v) => v.version)).toEqual([1]);
+
+    await personal.getByRole('textbox', { name: /Legal first name/ }).fill('Ines');
+    await personal.getByRole('textbox', { name: /Legal family name/ }).fill('Okafor');
+    await personal.getByRole('button', { name: 'Save' }).click();
+    await eventually(
+      'her names',
+      () => stack.sql<{ family_name: string | null }[]>`
+        SELECT family_name FROM people.person WHERE tenant_id = ${made.tenantId}`,
+      ([p]) => p?.family_name === 'Okafor',
+    );
+    await page.getByRole('button', { name: /^Finish/ }).click();
+    await page.waitForURL(/\/people\/me$/);
+    await page.getByRole('heading', { name: /Okafor/ }).waitFor({ timeout: 30_000 });
+
+    // People, set up: the directory is the directory now, not setup.
+    await page.goto(`${made.shell}/people/directory/list`);
+    await page.waitForLoadState('networkidle');
+    expect(new URL(page.url()).pathname).toBe('/people/directory/list');
+    await page.getByText('Okafor').first().waitFor({ timeout: 30_000 });
+    expect(await unavailable()).toBe(0);
+    expect(problems).toEqual([]);
+    await context.close();
+  });
+
+  it('loads the remote in a browser that has already opened another company', async () => {
+    // Meridian's administrator had opened Dunder Mifflin first. One browser,
+    // its cache kept: the remote's files are already held from the first
+    // company, and the second revalidates them, a 304.
+    const made = await company('northwind-haulage', 'Northwind Haulage', 'ines@northwind.example');
+    const second = made.shell;
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.addCookies(
+      [
+        [stack.shell, ADMIN.session],
+        [second, made.session],
+      ].map(([shell, session]) => ({
+        name: '__Host-ksession',
+        value: session ?? '',
+        domain: new URL(shell ?? '').hostname,
+        path: '/',
+        secure: true,
+        httpOnly: true,
+        sameSite: 'Lax' as const,
+      })),
+    );
+    const refused: string[] = [];
+    context.on('console', (m) => {
+      if (/Federation|dynamically imported module/.test(m.text())) refused.push(m.text());
+    });
+    const page = await context.newPage();
+    const hydrated = () =>
+      page.waitForFunction(() => document.querySelector('[data-remote][data-hydrating]') === null);
+
+    await page.goto(`${stack.shell}/people`);
+    await page.waitForLoadState('networkidle');
+    await hydrated();
+
+    await page.goto(`${second}/people/setup`);
+    await page.getByRole('heading', { name: 'Confirm the legal entity' }).waitFor();
+    await page.waitForLoadState('networkidle');
+    await hydrated();
+    // Before, here: the federation runtime's RUNTIME-008, and "People is unavailable".
+    expect(refused).toEqual([]);
+    expect(await page.getByText(/is unavailable/).count()).toBe(0);
+    // A press the screen answers: its code came, from this company's own host.
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByText(/United States: \d+ sections?, \d+ fields?/).waitFor({ timeout: 30_000 });
+    // Through the shell, the remote's caching arrives as the remote sent it.
+    const cached = await page.evaluate(async () => {
+      const first = await fetch('/_people/remoteEntry.js', { cache: 'no-store' });
+      const etag = first.headers.get('etag') ?? '';
+      const again = await fetch('/_people/remoteEntry.js', {
+        cache: 'no-store',
+        headers: { 'if-none-match': etag },
+      });
+      return {
+        status: first.status,
+        cacheControl: first.headers.get('cache-control'),
+        nosniff: first.headers.get('x-content-type-options'),
+        etag: etag !== '',
+        revalidated: again.status,
+      };
+    });
+    expect(cached).toEqual({
+      status: 200,
+      cacheControl: 'no-cache',
+      nosniff: 'nosniff',
+      etag: true,
+      revalidated: 304,
+    });
+    await context.close();
+  });
+
+  it('lets its administrator go straight to the import, which sets the company up', async () => {
+    const made = await company('harbour-logistics', 'Harbour Logistics', 'ines@harbour.example');
+    const { context, page, problems, unavailable } = await asAdministrator(made);
+
+    // Import & export, then Import: the upload, not "an administrator imports the first file".
+    await page.goto(`${made.shell}/people/import-export`);
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('link', { name: 'Start import' }).first().click();
+    await page.waitForURL(/\/people\/import$/);
+    expect(await page.getByText('An administrator imports the first file').count()).toBe(0);
+    await upload(
+      page,
+      'harbour.csv',
+      [
+        'given_name,family_name,work_email,hire_date',
+        'Maya,Chen,maya@harbour.example,2025-01-06',
+        'Luis,Ortega,luis@harbour.example,2025-02-03',
+      ].join('\n'),
+    );
+    await page.getByRole('button', { name: 'Next: review the plan' }).click({ timeout: 30_000 });
+    await page.waitForURL(/\?step=review$/);
+    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('heading', { name: /^Imported 2 people/ }).waitFor({ timeout: 30_000 });
+
+    // Approving the plan published version 1, so People opens on the directory.
+    const versions = await stack.sql<{ version: number }[]>`
+      SELECT version FROM people.schema_version WHERE tenant_id = ${made.tenantId}`;
+    expect(versions.map((v) => v.version)).toEqual([1]);
+    await page.goto(`${made.shell}/people/directory/list`);
+    await page.waitForLoadState('networkidle');
+    expect(new URL(page.url()).pathname).toBe('/people/directory/list');
+    await page.getByText('Ortega').first().waitFor({ timeout: 30_000 });
+    expect(await unavailable()).toBe(0);
+    expect(problems).toEqual([]);
+    await context.close();
+  });
+});
+
 describe('A People page while the VM behind it is asleep', () => {
   it('says People is waking, asks again by itself, and shows the page in place when it is up', async () => {
     const context = await signedIn(EMPLOYEE.session);

@@ -55,8 +55,15 @@ if (process.env['NODE_ENV'] === 'production') {
   process.exit(1);
 }
 
-// One company, or every local one (`seed-companies.ts`).
-const slugs = process.argv[2] === undefined ? COMPANIES.map((c) => c.slug) : [process.argv[2]];
+// One company, or every local one (`seed-companies.ts`). `--events-only`
+// delivers and stops: a company the back office has just created, as the web
+// acceptance stack makes one, with nothing set up in People yet.
+const slugs =
+  process.argv[2] === '--events-only'
+    ? []
+    : process.argv[2] === undefined
+      ? COMPANIES.map((c) => c.slug)
+      : [process.argv[2]];
 const port = process.env['POSTGRES_PORT'] ?? '5432';
 const ownerUrl =
   process.env['DATABASE_URL'] ?? `postgres://kithena:kithena@localhost:${port}/kithena`;

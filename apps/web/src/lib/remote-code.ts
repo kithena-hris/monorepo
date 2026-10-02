@@ -2,6 +2,7 @@ import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto
 import { z } from 'zod';
 
 import { renderRemote, warmRenderer } from './remote-render';
+import { REMOTE_PATH } from './remotes';
 import { timed } from './timing';
 
 /*
@@ -169,6 +170,7 @@ export async function prepareRemoteSsr(base: string): Promise<PreparedSsr | unde
   warmRenderer(code, verdict.sha);
   return {
     ssr: url,
-    stylesheet: { href: `${base}/ssr/people.css`, integrity: verdict.stylesheet },
+    // For the browser, on the company's own host like the rest of the remote.
+    stylesheet: { href: `${REMOTE_PATH}/ssr/people.css`, integrity: verdict.stylesheet },
   };
 }

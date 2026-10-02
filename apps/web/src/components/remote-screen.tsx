@@ -68,7 +68,8 @@ function pick(
 /** In the browser: federation, from `remoteEntry.js`. */
 async function browserModule(name: string, entry: string): Promise<Record<string, unknown>> {
   const mf = runtime();
-  mf.registerRemotes([{ name, entry, type: 'module' }]);
+  // On this host (`REMOTE_PATH`): absolute, as federation keys a remote by it.
+  mf.registerRemotes([{ name, entry: new URL(entry, window.location.href).href, type: 'module' }]);
   return (await mf.loadRemote<Record<string, unknown>>(name)) ?? {};
 }
 

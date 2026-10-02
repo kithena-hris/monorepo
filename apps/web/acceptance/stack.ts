@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
+import { createServer as httpServer, request as httpRequest } from 'node:http';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as httpsServer, type Server as HttpsServer } from 'node:https';
 import { connect, createServer as netServer, type Socket } from 'node:net';
@@ -44,6 +45,8 @@ export const EMPLOYEE = {
 const SHELL_TOKEN = 'acceptance-shell-token';
 /** What only the router holds for People (`PEOPLE_API_TOKEN`). */
 const PEOPLE_TOKEN = 'acceptance-people-token';
+/** What People presents to identity (`PEOPLE_IDENTITY_TOKEN`), and identity expects of it. */
+const PEOPLE_IDENTITY_TOKEN = 'acceptance-people-identity-token';
 const AUDIENCE = 'kithena-router';
 
 export interface Stack {
@@ -60,6 +63,27 @@ export interface Stack {
   asPeople(account: string, path: string): Promise<unknown>;
   /** OpenFGA tuples, as People's consumer writes them from its events; there is no Kafka here. */
   writeTuples(tuples: readonly { user: string; relation: string; object: string }[]): Promise<void>;
+  /**
+   * A company as the back office creates one: identity's admin route, then
+   * identity's events and People's own delivered to People's consumer, as
+   * Debezium and Redpanda would. Nothing is set up in People. The
+   * administrator is then signed in, as their passkey would leave them.
+   */
+  provisionCompany(company: {
+    readonly slug: string;
+    readonly displayName: string;
+    readonly admin: string;
+    /** Where the company is: People's first legal entity and its zone. Spain when absent. */
+    readonly address?: Readonly<Record<string, string>>;
+    readonly timeZone?: string;
+    readonly entitlements?: readonly string[];
+    /** The name the administrator gives on enrolling, which identity then reports. */
+    readonly name?: {
+      readonly given: string;
+      readonly family: string;
+      readonly preferred?: string;
+    };
+  }): Promise<{ tenantId: string; account: string; session: string; shell: string }>;
   /**
    * A webhook receiver on loopback, over HTTPS with a certificate made for this
    * run: what an endpoint points at, so a delivery or a replay never leaves
@@ -188,6 +212,77 @@ async function distant(target: string, ms: number): Promise<string> {
   const address = server.address();
   if (address === null || typeof address === 'string') throw new Error('no port');
   return `http://127.0.0.1:${String(address.port)}${new URL(target).pathname.replace(/\/$/, '')}`;
+}
+
+/**
+ * The remote as Vercel serves it from `apps/web/people/vercel.json`, in front
+ * of `vite preview`, which answers CORS and revalidation its own way.
+ *
+ * - `remoteEntry.js`, `routes.json` and `ssr/*` are `no-cache`; `assets/*` take
+ *   Vercel's default, `public, max-age=0, must-revalidate`.
+ * - `Access-Control-Allow-Origin` echoes a tenant origin, with `Vary: Origin`,
+ *   on a 200.
+ * - A conditional request that still matches gets a 304 with the ETag and
+ *   `Vary`, and **no** `Access-Control-Allow-Origin`, which is what Vercel
+ *   does and what broke a second company in one browser.
+ */
+async function asDeployed(target: string): Promise<string> {
+  const tenant = /^http:\/\/[a-z0-9-]+\.app\.localhost:\d+$/;
+  // The remote's host and port are fixed here, once; a request only ever
+  // chooses the path on it, and only a plain file path at that.
+  const remote = new URL(target);
+  const file = /^\/[\w.\-/]*$/;
+  const server = httpServer((request, response) => {
+    const path = (request.url ?? '/').split('?')[0] ?? '/';
+    if (!file.test(path) || path.includes('..') || path.startsWith('//')) {
+      response.writeHead(400).end();
+      return;
+    }
+    const upstream = httpRequest(
+      { hostname: remote.hostname, port: remote.port, path, method: 'GET' },
+      (answer) => {
+        const chunks: Buffer[] = [];
+        answer.on('data', (chunk: Buffer) => chunks.push(chunk));
+        answer.on('end', () => {
+          const body = Buffer.concat(chunks);
+          const status = answer.statusCode ?? 502;
+          if (status < 200 || status >= 300) {
+            response.writeHead(status).end(body);
+            return;
+          }
+          const etag = `"${createHash('sha1').update(body).digest('hex')}"`;
+          const vary = { etag, vary: 'Origin' };
+          if (request.headers['if-none-match'] === etag) {
+            response.writeHead(304, vary).end();
+            return;
+          }
+          const origin = request.headers.origin;
+          response
+            .writeHead(200, {
+              ...vary,
+              'content-type': answer.headers['content-type'] ?? 'application/octet-stream',
+              'cache-control': path.startsWith('/assets/')
+                ? 'public, max-age=0, must-revalidate'
+                : 'no-cache',
+              'x-content-type-options': 'nosniff',
+              ...(origin !== undefined && tenant.test(origin)
+                ? { 'access-control-allow-origin': origin }
+                : {}),
+            })
+            .end(body);
+        });
+      },
+    );
+    upstream.on('error', () => {
+      response.writeHead(502).end();
+    });
+    upstream.end();
+  });
+  server.unref();
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('no port');
+  return `http://127.0.0.1:${String(address.port)}`;
 }
 
 /**
@@ -387,6 +482,7 @@ export async function startStack(): Promise<Stack> {
       await sql.unsafe(await readFile(join(migrations, file), 'utf8'));
     }
     await sql`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`;
+    const secretKeys = `k1:${randomBytes(32).toString('base64')}`;
 
     // What the back office leaves behind: the company, two accounts, and a
     // signed-in session for each — the rows a passkey sign-in writes.
@@ -443,7 +539,10 @@ export async function startStack(): Promise<Stack> {
       60_000,
       {
         ...uploads,
-        PEOPLE_UPLOAD_CORS_ORIGINS: `http://acme.app.localhost:${String(shellPort)}`,
+        // And the companies the acceptance tests make with `provisionCompany`, which import too.
+        PEOPLE_UPLOAD_CORS_ORIGINS: ['acme', 'meridian-freight', 'harbour-logistics']
+          .map((slug) => `http://${slug}.app.localhost:${String(shellPort)}`)
+          .join(','),
       },
     );
     const certificate = await loopbackCertificate(receiverDir);
@@ -457,7 +556,7 @@ export async function startStack(): Promise<Stack> {
           PEOPLE_PORT: String(peoplePort),
           PEOPLE_DATABASE_URL: service.toString(),
           PEOPLE_API_TOKEN: PEOPLE_TOKEN,
-          PEOPLE_SECRET_KEYS: `k1:${randomBytes(32).toString('base64')}`,
+          PEOPLE_SECRET_KEYS: secretKeys,
           OPENFGA_URL: fga.apiUrl,
           // Where a signed download link points: People itself, for the test to fetch.
           PEOPLE_EXPORT_LINK_BASE: `${peopleUrl}/v1/exports/files`,
@@ -487,6 +586,7 @@ export async function startStack(): Promise<Stack> {
           IDENTITY_PORT: String(identityPort),
           IDENTITY_DATABASE_URL: pg.url,
           INTERNAL_API_TOKEN: SHELL_TOKEN,
+          PEOPLE_IDENTITY_TOKEN,
           AUTH_SIGNING_KEY: JSON.stringify(signingKey),
           AUTH_ISSUER: `http://127.0.0.1:${String(identityPort)}`,
           AUTH_TOKEN_AUDIENCE: AUDIENCE,
@@ -573,6 +673,116 @@ export async function startStack(): Promise<Stack> {
     };
     await writeTuples(tuples);
 
+    /** Envelopes to People's consumer, through the same `consumerFrom` a deployment runs. */
+    const deliver = (envelopes: readonly unknown[]): Promise<void> =>
+      new Promise((resolve, reject) => {
+        const log: string[] = [];
+        const child = spawn(
+          join(ROOT, 'node_modules/.bin/tsx'),
+          ['services/people/src/seed-local.ts', '--events-only'],
+          {
+            cwd: ROOT,
+            env: {
+              PATH: process.env['PATH'] ?? '',
+              NODE_ENV: 'test',
+              DATABASE_URL: pg.url,
+              PEOPLE_DATABASE_URL: service.toString(),
+              PEOPLE_SECRET_KEYS: secretKeys,
+              OPENFGA_URL: fga.apiUrl,
+              IDENTITY_URL: identityUrl,
+              PEOPLE_IDENTITY_TOKEN,
+              LOG_LEVEL: 'warn',
+            },
+            stdio: ['pipe', 'pipe', 'pipe'],
+          },
+        );
+        child.stdout.on('data', (chunk: Buffer) => log.push(chunk.toString()));
+        child.stderr.on('data', (chunk: Buffer) => log.push(chunk.toString()));
+        const timer = setTimeout(() => child.kill('SIGKILL'), 60_000);
+        child.once('exit', (code) => {
+          clearTimeout(timer);
+          logs['people']?.push(...log);
+          if (code === 0) resolve();
+          else reject(new Error(`delivering events exited ${String(code)}\n${log.join('')}`));
+        });
+        child.stdin.end(envelopes.map((e) => `${JSON.stringify(e)}\n`).join(''));
+      });
+
+    const provisionCompany: Stack['provisionCompany'] = async (company) => {
+      const created = await fetch(`${identityUrl}/api/internal/admin/tenants`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-internal-token': SHELL_TOKEN },
+        // What the back office's company wizard sends (`apps/admin/.../companies/new`).
+        body: JSON.stringify({
+          slug: company.slug,
+          displayName: company.displayName,
+          themeId: 'indigo',
+          admins: [company.admin],
+          timeZone: company.timeZone ?? 'Europe/Madrid',
+          address: company.address ?? {
+            country: 'ES',
+            line1: 'Calle de Alcalá 45',
+            city: 'Madrid',
+            subdivision: '28',
+            postcode: '28014',
+          },
+          entitlements: company.entitlements ?? ['module.people'],
+          administrators: Object.fromEntries(
+            (company.entitlements ?? ['module.people']).map((e) => [e, company.admin]),
+          ),
+          operatorId: randomUUID(),
+        }),
+      });
+      const body = (await created.json()) as { tenantId?: string };
+      if (created.status !== 201 || body.tenantId === undefined) {
+        throw new Error(`identity refused the company: ${JSON.stringify(body)}`);
+      }
+      const tenantId = body.tenantId;
+      const envelopes = (
+        await sql<{ envelope: Record<string, unknown> }[]>`
+          SELECT envelope FROM platform.outbox WHERE tenant_id = ${tenantId}
+           ORDER BY created_at, event_id`
+      ).map((r) => r.envelope);
+      const provisioned = envelopes.find((e) => e['eventName'] === 'identity.account.provisioned');
+      if (company.name !== undefined && provisioned !== undefined) {
+        // Enrolling: what identity's page captures, as identity's outbox would carry it.
+        const payload = provisioned['payload'] as Record<string, unknown>;
+        const now = new Date().toISOString();
+        envelopes.push({
+          ...provisioned,
+          eventId: randomUUID(),
+          eventName: 'identity.account.profile_captured',
+          occurredAt: now,
+          recordedAt: now,
+          actor: { kind: 'user', userId: payload['accountId'] },
+          payload: {
+            name: company.name,
+            timeZone: payload['timeZone'],
+            accountId: payload['accountId'],
+            capturedAt: now,
+            identityId: payload['identityId'],
+            mobilePresent: true,
+          },
+        });
+      }
+      await deliver(envelopes);
+      // Signed in, as enrolling with a passkey leaves the invited administrator.
+      const [account] = await sql<{ id: string }[]>`
+        SELECT id::text FROM platform.account
+         WHERE tenant_id = ${tenantId} AND work_email = ${company.admin}`;
+      if (account === undefined) throw new Error('identity made no account for the administrator');
+      const session = randomUUID();
+      await sql`UPDATE platform.account SET status = 'active' WHERE id = ${account.id}`;
+      await sql`INSERT INTO platform.session (id, tenant_id, account_id, slot, expires_at, amr)
+                VALUES (${session}, ${tenantId}, ${account.id}, 1, now() + interval '1 day', ARRAY['hwk'])`;
+      return {
+        tenantId,
+        account: account.id,
+        session,
+        shell: `http://${company.slug}.app.localhost:${String(shellPort)}`,
+      };
+    };
+
     // The router, from the file that ships, in front of People alone. The
     // production-only parts it cannot have here — the CDN, tracing — are
     // turned off by an override; the persisted-operation safelist stays on,
@@ -654,8 +864,9 @@ export async function startStack(): Promise<Stack> {
         logs['remote'] ?? [],
       ),
     );
-    const remote = `http://127.0.0.1:${String(remotePort)}`;
-    await until('the remote', 30_000, async () => (await fetch(`${remote}/routes.json`)).ok);
+    const preview = `http://127.0.0.1:${String(remotePort)}`;
+    await until('the remote', 30_000, async () => (await fetch(`${preview}/routes.json`)).ok);
+    const remote = await asDeployed(preview);
 
     const gate = await gated(
       process.env['ACCEPTANCE_ROUTER_LATENCY_MS'] === undefined
@@ -720,6 +931,7 @@ export async function startStack(): Promise<Stack> {
       asPeople,
       writeAsPeople,
       writeTuples,
+      provisionCompany,
       stop: async () => {
         // A path: where to leave the servers' last output, for a failure to be read.
         const keep = process.env['ACCEPTANCE_LOGS'];

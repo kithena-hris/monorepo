@@ -1328,7 +1328,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load.status === 'ready' ? (load.data as { setUp?: boolean; admin?: boolean }) : {};
         return {
           load: { status: 'ready', data: stage },
-          ...(ready.setUp === false ? { setup: { href: null } } : {}),
+          // The administrator imports it: approving its plan publishes version 1.
+          ...(ready.setUp === false && ready.admin !== true ? { setup: { href: null } } : {}),
           // Only an administrator sets up work locations; HR reads the choices.
           admin: ready.admin === true,
           // The step after the mapping and the field in focus live in the address.
