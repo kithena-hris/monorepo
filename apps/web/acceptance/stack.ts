@@ -160,10 +160,18 @@ function freePort(): Promise<number> {
  */
 async function distant(target: string, ms: number): Promise<string> {
   const { hostname, port } = new URL(target);
+  // `ACCEPTANCE_SLOW_OPERATION=TransferHistory:400`: that operation takes
+  // longer still, as one doing more work in People would.
+  const [slowName = '', slowMs = '0'] = (process.env['ACCEPTANCE_SLOW_OPERATION'] ?? '').split(':');
   const later = (to: Socket) => (chunk: Buffer) => setTimeout(() => to.write(chunk), ms);
+  const asked = (to: Socket) => (chunk: Buffer) =>
+    setTimeout(
+      () => to.write(chunk),
+      slowName !== '' && chunk.includes(`"operationName":"${slowName}"`) ? ms + Number(slowMs) : ms,
+    );
   const server = netServer((client) => {
     const upstream = connect(Number(port), hostname);
-    client.on('data', later(upstream));
+    client.on('data', asked(upstream));
     upstream.on('data', later(client));
     for (const [a, b] of [
       [client, upstream],

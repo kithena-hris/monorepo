@@ -111,6 +111,27 @@ async function orBare<V extends Record<string, unknown>>(
   return bare.status === 'ready' ? { ...bare, notice: first.message } : first;
 }
 
+const NOT_YET = Symbol('not yet');
+
+/**
+ * A load's streamed parts that have already arrived, put in place, so the
+ * page is sent with them; only one still on its way is left to stream. Called
+ * once the page has everything else it waits for, so a part as quick as that
+ * is in the HTML, and a slower one never holds the page.
+ */
+export async function withArrived(load: ScreenLoad): Promise<ScreenLoad> {
+  if (load.status !== 'ready' || typeof load.data !== 'object' || load.data === null) return load;
+  const parts = await Promise.all(
+    Object.entries(load.data).map(async ([key, part]: [string, unknown]) => {
+      if (!(part instanceof Promise)) return [key, part] as const;
+      // Settled already, it wins the race: its reaction was queued first.
+      const now: unknown = await Promise.race([part, Promise.resolve(NOT_YET)]);
+      return [key, now === NOT_YET ? part : now] as const;
+    }),
+  );
+  return { ...load, data: Object.fromEntries(parts) };
+}
+
 export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   switch (component) {
     case 'Directory':
