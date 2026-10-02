@@ -79,7 +79,8 @@ const chip = cva(
       {
         variant: 'filled',
         interactive: true,
-        class: 'data-[selected]:hover:bg-accent-subtle-hover data-[state=on]:hover:bg-accent-subtle-hover',
+        class:
+          'data-[selected]:hover:bg-accent-subtle-hover data-[state=on]:hover:bg-accent-subtle-hover',
       },
       { variant: 'view', interactive: true, class: 'data-[state=on]:hover:bg-invert' },
     ],
