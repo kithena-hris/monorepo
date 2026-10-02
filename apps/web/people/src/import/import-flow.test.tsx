@@ -145,7 +145,11 @@ describe('ImportFlow', () => {
     await user.click(await screen.findByRole('option', { name: 'Cost centre' }));
     // Every column placed: straight to the plan, with no new fields.
     await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
-    expect(plan).toHaveBeenCalledWith({ 0: 'given_name', 1: 'work_email', 2: 'cost_centre' }, []);
+    expect(plan).toHaveBeenCalledWith(
+      { 0: 'given_name', 1: 'work_email', 2: 'cost_centre' },
+      [],
+      undefined,
+    );
     expect(
       await screen.findByRole('heading', { name: 'Here’s everything that will happen' }),
     ).toBeInTheDocument();

@@ -1329,6 +1329,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         return {
           load: { status: 'ready', data: stage },
           ...(ready.setUp === false ? { setup: { href: null } } : {}),
+          // Only an administrator sets up work locations; HR reads the choices.
+          admin: ready.admin === true,
           // The step after the mapping and the field in focus live in the address.
           step: at('step'),
           onStepChange: (step: string | null) => {
@@ -1365,14 +1367,21 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             const id = importing.uploadId;
             return id === null ? again : actions.proposeImportFields(id, mapping);
           },
-          plan: async (mapping: Mapping, proposals: readonly unknown[]) => {
+          plan: async (
+            mapping: Mapping,
+            proposals: readonly unknown[],
+            places?: Readonly<Record<string, unknown>>,
+          ) => {
             const id = importing.uploadId;
-            return id === null ? again : actions.planImport(id, mapping, proposals);
+            return id === null ? again : actions.planImport(id, mapping, proposals, places);
           },
           run: async (
             mapping: Mapping,
             proposals: readonly unknown[],
-            options: { readonly applyWithoutApproval: boolean },
+            options: {
+              readonly applyWithoutApproval: boolean;
+              readonly places?: Readonly<Record<string, unknown>>;
+            },
           ): Promise<Outcome> => {
             const id = importing.uploadId;
             if (id === null) return again;
@@ -1381,6 +1390,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               mapping,
               proposals,
               options.applyWithoutApproval,
+              options.places,
             );
             if (!ran.ok) return ran;
             setImporting((s) => ({

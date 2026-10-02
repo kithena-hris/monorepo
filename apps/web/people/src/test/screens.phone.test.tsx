@@ -12,7 +12,14 @@ import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
 import { ImportFlow } from '../import/import-flow';
-import { DONE, MAPPING, NEW_FIELDS, PLAN } from '../import/import.fixture';
+import {
+  DONE,
+  MAPPING,
+  MAPPING_WITH_OFFICE,
+  NEW_FIELDS,
+  PLAN,
+  PLAN_WITH_OFFICE,
+} from '../import/import.fixture';
 import { Onboarding } from '../onboarding/onboarding';
 import { PersonHistory } from '../profile/history';
 import { Profile } from '../profile/profile';
@@ -1120,6 +1127,32 @@ describe('at 390×844, with a finger', () => {
         'cell',
       );
       expect(title).toHaveTextContent('Pam Beesly');
+      await again();
+    });
+
+    it('the work locations in the file, each a card, Next in thumb reach', async () => {
+      mount(
+        <ImportFlow
+          load={{ status: 'ready', data: MAPPING_WITH_OFFICE }}
+          onUpload={ok}
+          propose={() => Promise.resolve({ ok: true as const, data: NEW_FIELDS })}
+          plan={() => Promise.resolve({ ok: true as const, data: PLAN_WITH_OFFICE })}
+          run={ok}
+          onDownloadBlocked={vi.fn()}
+          onBack={vi.fn()}
+          admin
+        />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Next: work locations' }));
+      await screen.findByRole('heading', {
+        name: '3 work locations in this file. Here’s how each maps.',
+      });
+      // Pinned above the tab bar, as MA8's Skip and Create are.
+      const next = screen.getByRole('button', { name: 'Next: new fields' });
+      expect(next.closest('[data-pinned-bar]') ?? next.parentElement).toHaveClass('sticky');
+      // Whoever a value leaves empty is a card titled by their name.
+      const left = screen.getByRole('table', { name: /^Left without a work location/ });
+      expect(within(left).getAllByRole('row').at(1)).toHaveTextContent('Toby Flenderson');
       await again();
     });
 

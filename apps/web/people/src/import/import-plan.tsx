@@ -25,6 +25,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 import { TypeIcon } from '../settings/access';
 import type { DataType } from '../settings/model';
 import type { ForExisting } from './new-fields';
+import type { PlacesHere, WorkplaceValue } from './work-locations';
 
 /**
  * The import's last two steps (design AI11, AI12; MA9 on a phone): the plan,
@@ -105,6 +106,9 @@ export interface PlanReview {
     /** The first twenty, and how many in all. */
     readonly leftEmpty?: readonly LeftEmptyRow[];
     readonly leftEmptyCount?: number;
+    /** Each work location value of the file, and what may be chosen for it. */
+    readonly workplaces?: readonly WorkplaceValue[];
+    readonly here?: PlacesHere;
   };
   readonly blockedUrl?: string | null;
 }

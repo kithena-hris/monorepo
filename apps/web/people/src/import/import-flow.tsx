@@ -25,6 +25,13 @@ import { useEffect, useState, type JSX, type ReactNode } from 'react';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { DoneStep, PlanStep, type ImportDoneView, type ImportPlanView } from './import-plan';
 import {
+  WorkLocationsStep,
+  placesReady,
+  type PlaceChoices,
+  type PlacesHere,
+  type WorkplaceValue,
+} from './work-locations';
+import {
   ExistingChoices,
   ExistingStep,
   WithoutValue,
@@ -74,7 +81,7 @@ export type ImportStage =
   | ImportDoneView;
 
 /** The steps after the upload that live in the address (`?step=`). */
-export type FlowStep = 'map' | 'fields' | 'existing' | 'review';
+export type FlowStep = 'map' | 'places' | 'fields' | 'existing' | 'review';
 
 /** PRD §14.5: 100 MB per file. The server holds it to that; this saves the wait. */
 export const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
@@ -94,6 +101,8 @@ export interface ImportFlowProps {
   readonly plan: (
     mapping: Mapping,
     proposals: readonly ColumnProposal[],
+    /** Each work location value of the file, as chosen right after the mapping. */
+    places?: PlaceChoices,
   ) => Promise<Answer<ImportPlanView>>;
   /**
    * Approve and run: setup if nothing is published, the new fields, their
@@ -103,7 +112,7 @@ export interface ImportFlowProps {
   readonly run: (
     mapping: Mapping,
     proposals: readonly ColumnProposal[],
-    options: { readonly applyWithoutApproval: boolean },
+    options: { readonly applyWithoutApproval: boolean; readonly places?: PlaceChoices },
   ) => Promise<Outcome>;
   /** The blocked rows as a file that imports once fixed: a signed link. */
   readonly onDownloadBlocked: (url: string) => void;
@@ -116,6 +125,8 @@ export interface ImportFlowProps {
    * a People administrator's. `href` is unused, kept for the shell's shape.
    */
   readonly setup?: { readonly href: string | null };
+  /** A People administrator: sets up the file's work locations. HR reads the suggestions. */
+  readonly admin?: boolean;
   /** The step in the address, so Back and a reload keep the place. */
   readonly step?: string | null;
   readonly onStepChange?: (step: FlowStep | null) => void;
@@ -256,11 +267,19 @@ function Steps({
   const [refused, setRefused] = useState<string | null>(null);
   const [applyWithoutApproval, setApplyWithoutApproval] = useState(false);
   const [card, setCard] = useState(0);
+  // The file's work locations (right after Map columns), and what is chosen for each.
+  const [places, setPlaces] = useState<{
+    readonly workplaces: readonly WorkplaceValue[];
+    readonly here: PlacesHere;
+  } | null>(null);
+  const [placeChoices, setPlaceChoices] = useState<PlaceChoices>({});
   // Another file read: nothing chosen for the last one carries over.
   const [file, setFile] = useState(stage);
   if (given.step === 'map' && file !== stage) {
     setFile(stage);
     setChoices({});
+    setPlaces(null);
+    setPlaceChoices({});
     setView(null);
     setProposals([]);
     setPlan(null);
@@ -277,7 +296,9 @@ function Steps({
       ? asked
       : asked === 'review' && plan !== null
         ? 'review'
-        : 'map';
+        : asked === 'places' && places !== null
+          ? 'places'
+          : 'map';
   const goTo = (to: FlowStep): void => {
     setRefused(null);
     if (props.onStepChange === undefined) setOwnStep(to);
@@ -294,6 +315,11 @@ function Steps({
     (c) => c.status === 'ignored' && c.source === null && chosen(c) === null,
   );
   const kept = proposals.filter((p) => p.include);
+  const mapsPlaces = Object.values(mapping).includes('location_id');
+  const hasPlaces = places !== null && places.workplaces.length > 0;
+  // What the plan and the run are given: an administrator's choices only.
+  const placesArg = props.admin === true && hasPlaces ? placeChoices : undefined;
+  const beforeFields: FlowStep = hasPlaces ? 'places' : 'map';
 
   const change = (column: number, patch: Partial<ColumnProposal>): void => {
     setProposals((list) => list.map((p) => (p.column === column ? { ...p, ...patch } : p)));
@@ -311,40 +337,68 @@ function Steps({
 
   const toPlan = (list: readonly ColumnProposal[], then: FlowStep | null = 'review') =>
     attempt(async () => {
-      const answer = await props.plan(mapping, list);
+      const answer = await props.plan(mapping, list, placesArg);
       if (!answer.ok) return answer.message;
       setPlan(answer.data);
       if (then !== null) goTo(then);
       return null;
     });
 
-  const next = (): void => {
+  // After the mapping, and the work locations: new fields, or straight to the plan.
+  const onwards = async (): Promise<string | null> => {
     if (!unplaced) {
-      void toPlan([]);
-      return;
+      const answer = await props.plan(mapping, [], placesArg);
+      if (!answer.ok) return answer.message;
+      setPlan(answer.data);
+      goTo('review');
+      return null;
     }
+    const proposed = await props.propose(mapping);
+    if (!proposed.ok) return proposed.message;
+    const list = proposalsOf(proposed.data);
+    setView(proposed.data);
+    setProposals(list);
+    setCard(0);
+    if (list.length === 0) {
+      const answer = await props.plan(mapping, [], placesArg);
+      if (!answer.ok) return answer.message;
+      setPlan(answer.data);
+      goTo('review');
+      return null;
+    }
+    goTo('fields');
+    return null;
+  };
+
+  const next = (): void => {
     void attempt(async () => {
-      const proposed = await props.propose(mapping);
-      if (!proposed.ok) return proposed.message;
-      const list = proposalsOf(proposed.data);
-      setView(proposed.data);
-      setProposals(list);
-      setCard(0);
-      if (list.length === 0) {
+      // A work location column: its values first, read by a dry run.
+      if (mapsPlaces && places === null) {
         const answer = await props.plan(mapping, []);
         if (!answer.ok) return answer.message;
-        setPlan(answer.data);
-        goTo('review');
+        const workplaces = answer.data.review.dryRun.workplaces ?? [];
+        const here = answer.data.review.dryRun.here;
+        if (workplaces.length > 0 && here !== undefined) {
+          setPlaces({ workplaces, here });
+          setPlaceChoices(Object.fromEntries(workplaces.map((w) => [w.key, w.proposed])));
+          goTo('places');
+          return null;
+        }
+        setPlaces({ workplaces: [], here: { locations: [], entities: [] } });
+      } else if (hasPlaces) {
+        goTo('places');
         return null;
       }
-      goTo('fields');
-      return null;
+      return onwards();
     });
   };
 
   const approve = (): void => {
     void attempt(async () => {
-      const ran = await props.run(mapping, proposals, { applyWithoutApproval });
+      const ran = await props.run(mapping, proposals, {
+        applyWithoutApproval,
+        ...(placesArg === undefined ? {} : { places: placesArg }),
+      });
       return ran.ok ? null : ran.message;
     });
   };
@@ -382,6 +436,7 @@ function Steps({
               setChoices((x) => ({ ...x, [c.index]: value === IGNORE ? null : value }));
               setView(null);
               setPlan(null);
+              setPlaces(null);
             }}
           >
             <SelectTrigger aria-label={`${c.header} goes to`} size="sm">
@@ -438,7 +493,25 @@ function Steps({
       Back
     </Button>
   );
-  const nextLabel = unplaced ? 'Next: new fields' : 'Next: review the plan';
+  const onwardsLabel = unplaced ? 'Next: new fields' : 'Next: review the plan';
+  const placesFirst = mapsPlaces && (places === null || hasPlaces);
+  const nextLabel = placesFirst ? 'Next: work locations' : onwardsLabel;
+  const placesDone = places === null || placesReady(places.workplaces, placeChoices);
+  const placesNext = (
+    <Button
+      variant="primary"
+      className={coarse ? 'w-full' : undefined}
+      endIcon={<icons.forward aria-hidden />}
+      disabled={!placesDone}
+      loading={busy}
+      loadingLabel={unplaced ? 'Reading the new columns' : 'Checking every row'}
+      onClick={() => {
+        void attempt(onwards);
+      }}
+    >
+      {onwardsLabel}
+    </Button>
+  );
   const actions: Record<FlowStep, ReactNode> = {
     map: (
       <>
@@ -448,16 +521,28 @@ function Steps({
           endIcon={<icons.forward aria-hidden />}
           disabled={undecided.length > 0}
           loading={busy}
-          loadingLabel={unplaced ? 'Reading the new columns' : 'Checking every row'}
+          loadingLabel={
+            placesFirst
+              ? 'Reading the work locations'
+              : unplaced
+                ? 'Reading the new columns'
+                : 'Checking every row'
+          }
           onClick={next}
         >
           {nextLabel}
         </Button>
       </>
     ),
-    fields: (
+    places: (
       <>
         {back('map')}
+        {placesNext}
+      </>
+    ),
+    fields: (
+      <>
+        {back(beforeFields)}
         <Button
           variant="primary"
           endIcon={<icons.forward aria-hidden />}
@@ -488,7 +573,7 @@ function Steps({
         </Button>
       </>
     ),
-    review: back(view === null ? 'map' : kept.length === 0 ? 'fields' : 'existing'),
+    review: back(view === null ? beforeFields : kept.length === 0 ? 'fields' : 'existing'),
   };
   if (given.step !== 'map') {
     return (
@@ -520,7 +605,13 @@ function Steps({
     );
   }
 
-  const current = step === 'map' ? 1 : step === 'review' ? 3 : 2;
+  // On a phone the people without a value share the plan's screen (MA9): Review plan.
+  const current =
+    step === 'map' || step === 'places'
+      ? 1
+      : step === 'review' || (coarse && step === 'existing')
+        ? 3
+        : 2;
 
   return (
     <Stack gap={5}>
@@ -561,6 +652,30 @@ function Steps({
             rowId={(c) => String(c.index)}
           />
         </Stack>
+      ) : null}
+
+      {step === 'places' && places !== null ? (
+        <>
+          {refusedAlert}
+          <WorkLocationsStep
+            workplaces={places.workplaces}
+            here={places.here}
+            choices={placeChoices}
+            readOnly={props.admin !== true}
+            coarse={coarse}
+            onChange={(key, choice) => {
+              setPlaceChoices((x) => ({ ...x, [key]: choice }));
+              setPlan(null);
+            }}
+          />
+        </>
+      ) : null}
+
+      {coarse && step === 'places' ? (
+        // In thumb reach, pinned above the tab bar as MA8's buttons are.
+        <div {...PINNED_BAR} className="sticky bottom-24 z-10 bg-canvas py-2">
+          {placesNext}
+        </div>
       ) : null}
 
       {step === 'fields' && view !== null ? (
