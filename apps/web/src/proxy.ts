@@ -82,9 +82,12 @@ function isTenant(value: unknown): value is Tenant {
  * remote's origin whatever it holds: it is joined onto a URL, never parsed as one.
  */
 function remoteFile(request: NextRequest): NextResponse {
+  const base = new URL(remoteBase());
   const to = new URL(
     `${remoteBase()}${request.nextUrl.pathname.slice(REMOTE_PATH.length)}${request.nextUrl.search}`,
   );
+  // Never anywhere but the remote, whatever the path held.
+  if (to.origin !== base.origin) return new NextResponse(null, { status: 400 });
   const headers = new Headers(request.headers);
   headers.delete('cookie');
   headers.delete('authorization');

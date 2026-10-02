@@ -78,7 +78,11 @@ export interface Stack {
     readonly timeZone?: string;
     readonly entitlements?: readonly string[];
     /** The name the administrator gives on enrolling, which identity then reports. */
-    readonly name?: { readonly given: string; readonly family: string; readonly preferred?: string };
+    readonly name?: {
+      readonly given: string;
+      readonly family: string;
+      readonly preferred?: string;
+    };
   }): Promise<{ tenantId: string; account: string; session: string; shell: string }>;
   /**
    * A webhook receiver on loopback, over HTTPS with a certificate made for this
@@ -226,7 +230,15 @@ async function asDeployed(target: string): Promise<string> {
   const tenant = /^http:\/\/[a-z0-9-]+\.app\.localhost:\d+$/;
   const server = httpServer((request, response) => {
     const path = request.url ?? '/';
-    void fetch(`${target}${path}`)
+    // Resolved against the remote and held to its origin: a request line
+    // such as `//elsewhere/x` or an absolute URL is refused, not followed.
+    const base = new URL(target);
+    const upstreamUrl = new URL(path.startsWith('/') ? path : `/${path}`, base);
+    if (upstreamUrl.origin !== base.origin) {
+      response.writeHead(400).end();
+      return;
+    }
+    void fetch(upstreamUrl)
       .then(async (upstream) => {
         const body = Buffer.from(await upstream.arrayBuffer());
         if (!upstream.ok) {
