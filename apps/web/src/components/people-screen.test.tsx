@@ -53,12 +53,12 @@ vi.mock('./remote-screen', () => ({
 const { PeopleScreen, heldFor } = await import('./people-screen');
 
 /** The screen at `url`, and the props it was handed. */
-function open(url: string, component: string): Record<string, unknown> {
+function open(url: string, component: string, data: unknown = {}): Record<string, unknown> {
   window.history.replaceState(null, '', url);
   render(
     <PeopleScreen
       route={{ entry: 'x', component }}
-      load={{ status: 'ready', data: {} }}
+      load={{ status: 'ready', data }}
       path={window.location.pathname}
       params={{}}
       search={Object.fromEntries(new URLSearchParams(window.location.search))}
@@ -130,6 +130,22 @@ describe('a screen that narrows what it already has', () => {
     expect(here()).toBe('/people/import?step=review');
     expect(window.history.length).toBe(before + 2);
     expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('lets the administrator of a company with nothing published import its first file', () => {
+    // Approving that import's plan is what sets the company up.
+    expect(open('/people/import', 'ImportFlow', { setUp: false, admin: true })['setup']).toBe(
+      undefined,
+    );
+    cleanup();
+    // Anybody else is told the first file is an administrator's.
+    expect(open('/people/import', 'ImportFlow', { setUp: false, admin: false })['setup']).toEqual({
+      href: null,
+    });
+    cleanup();
+    expect(open('/people/import', 'ImportFlow', { setUp: true, admin: false })['setup']).toBe(
+      undefined,
+    );
   });
 
   it('leaves a default out of the address', () => {
