@@ -2,11 +2,12 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import * as z from 'zod';
 
-import { shapeOf } from '../../domain/import/column-shape.js';
+import { shapeOf, typeFor } from '../../domain/import/column-shape.js';
 import { NEW_FIELDS_INSTRUCTION, newFieldsContext } from '../../domain/import/new-fields-prompt.js';
 import {
   asDefinition,
   ColumnProposal,
+  fitted,
   localProposal,
   sensitivity,
   takenKeys,
@@ -21,6 +22,7 @@ import type { PlaceChoice } from '../../domain/import/workplaces.js';
 import { keyFrom, SchemaDraft, type Attribute, type Section } from '../../domain/schema/draft.js';
 import { publish, type PublishedVersion } from '../../domain/schema/publish.js';
 import type { Asking } from '../person/ports.js';
+import { CORE_COLUMNS, LIFECYCLE_KEYS } from '../person/core.js';
 import { run } from '../person/service.js';
 import { userActor } from '../person/ports.js';
 import type { NewLocation } from '../import/dry-run.js';
@@ -188,13 +190,18 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
     .filter((s) => s.archivedAt === null)
     .toSorted((a, b) => a.order - b.order)
     .map((s) => ({ key: s.key, label: s.label.default }));
-  const seen: ColumnSeen[] = file.value.unmatched.map((c) => {
+  const shapes = file.value.unmatched.map((c) => shapeOf(c.cells));
+  // A salary is money when the file says each row's currency.
+  const hasCurrency =
+    shapes.some((s) => s.dataType === 'currency') ||
+    planning.attributes.some((a) => a.dataType === 'currency');
+  const seen: ColumnSeen[] = file.value.unmatched.map((c, i) => {
     const values = c.cells.map((v) => v.trim()).filter((v) => v !== '');
     const distinct = [...new Set(values)];
     return {
       column: c.index,
       header: c.header,
-      local: shapeOf(c.cells),
+      local: typeFor(c.header, shapes[i] ?? shapeOf(c.cells), { hasCurrency }),
       single: distinct.length === 1 && values.length > 1 ? (distinct[0] ?? null) : null,
     };
   });
@@ -284,17 +291,17 @@ export async function proposeNewFields(
   const gathered = await gather(deps, asking, step);
   if (!gathered.ok) return gathered;
   const g = gathered.value;
-  const taken = takenKeys(g.planning.attributes);
+  const taken = reservedAnd(takenKeys(g.planning.attributes));
   const existing = g.planning.attributes
     .filter((a) => a.deprecatedAt === null)
     .map((a) => ({ key: a.key, label: a.label.default }));
   const local = g.seen.map((s) => localProposal(s, g.sections, existing));
   const planner = deps.fieldPlanner;
   if (g.seen.length === 0 || !g.isAdmin || planner === undefined) {
-    return ok(view(g, withKeys(local, taken), false));
+    return ok(view(g, checked(g.planning, withKeys(local, taken)), false));
   }
   if (!deps.planBudget.take(asking.tenantId, deps.clock.instant()).ok) {
-    return ok(view(g, withKeys(local, taken), false));
+    return ok(view(g, checked(g.planning, withKeys(local, taken)), false));
   }
   const loaded = await run(deps.service, asking.tenantId, async (tx) => {
     await planner.loadPolicies(tx, asking.tenantId);
@@ -328,9 +335,51 @@ export async function proposeNewFields(
     }),
   );
   const heard = answers.filter((a) => a !== null);
-  if (heard.length === 0) return ok(view(g, withKeys(local, taken), false));
+  if (heard.length === 0) return ok(view(g, checked(g.planning, withKeys(local, taken)), false));
   const merged = withModel(local, heard, g.sections, g.seen);
-  return ok(view(g, withKeys(merged.proposals, taken), true));
+  return ok(view(g, checked(g.planning, withKeys(merged.proposals, taken)), true));
+}
+
+/**
+ * Keys People keeps in columns of its own (`employment_type`, `hire_date`…):
+ * a new field never takes one, or its values would land in that column.
+ */
+function reservedAnd(taken: Set<string>): Set<string> {
+  for (const k of [...Object.keys(CORE_COLUMNS), ...LIFECYCLE_KEYS]) taken.add(k);
+  return taken;
+}
+
+/**
+ * Every proposal as the draft would take it, before HR sees it: one the draft
+ * still refuses is kept as confidential text, and says why, rather than
+ * refused when the plan is approved.
+ */
+function checked(
+  planning: { readonly sections: readonly Section[]; readonly attributes: readonly Attribute[] },
+  proposals: readonly ColumnProposal[],
+): ColumnProposal[] {
+  const { problems } = draftWithNewFields(
+    planning,
+    proposals.filter((p) => p.include),
+  );
+  const refused = new Map(problems.map((x) => [x.column, x.message]));
+  return proposals.map((p) => {
+    const message = refused.get(p.column);
+    if (message === undefined) return p;
+    const { options: _o, country: _c, decimals: _d, ...rest } = p.field;
+    const { field } = fitted(
+      {
+        ...rest,
+        dataType: 'text',
+        encrypted: false,
+        classification: p.field.classification === 'special-category' ? 'special-category' : 'confidential',
+        piiKind: p.field.piiKind === 'financial' ? 'none' : p.field.piiKind,
+        requiresApproval: true,
+      },
+      p.header,
+    );
+    return { ...p, field, why: `Kept as confidential text: as proposed, ${message}. ${p.why}` };
+  });
 }
 
 /* --------------------------------------------------------------- plan -- */
@@ -363,8 +412,12 @@ export interface ImportPlanView {
   readonly setup: NewFieldsView['setup'];
   /** Why it cannot be approved as it stands; null when it can. */
   readonly blocked: string | null;
-  /** Fields the settings would refuse, by column. */
-  readonly problems: readonly { readonly column: number; readonly message: string }[];
+  /** Fields the settings would refuse, by column and its header. */
+  readonly problems: readonly {
+    readonly column: number;
+    readonly header: string;
+    readonly message: string;
+  }[];
   /** The dry run against the plan's version: counts, blocked rows, sensitive values. */
   readonly review: ImportReview;
   /** The mapping the import runs with: the file's, and each new column to its new field. */
@@ -456,9 +509,10 @@ export function draftWithNewFields(
       piiKind: p.field.piiKind,
       // A model proposed it and a person accepted it: the audit's own word for that.
       classificationSource: 'suggested',
-      requiresApproval: null,
+      requiresApproval: p.field.requiresApproval ?? null,
       encrypted: p.field.encrypted,
       country: p.field.country ?? null,
+      decimals: p.field.decimals ?? null,
       aiEligible: p.field.aiEligible,
       ...(rules.requiredness.mode === 'always' ? { appliesTo: rules.requiredness.appliesTo } : {}),
     };
@@ -528,7 +582,10 @@ async function planned(
   const chosen = keptOf(input.proposals, g.seen);
   if (!chosen.ok) return chosen;
   // HR without administrator rights adds no fields: those columns are left out.
-  const kept = g.isAdmin ? chosen.value : [];
+  // HR's edits are fitted as the proposals were: none is refused for a seal it cannot have.
+  const kept = g.isAdmin
+    ? chosen.value.map((p) => ({ ...p, field: fitted(p.field, p.header).field }))
+    : [];
   const built = draftWithNewFields(g.planning, kept);
   const needsVersion = g.published === null || kept.length > 0;
   const next = needsVersion
@@ -603,7 +660,10 @@ async function planned(
       version: next.value.version,
       setup: g.setup,
       blocked: kept.length > 0 || g.published === null ? (g.isAdmin ? g.blocked : null) : null,
-      problems: built.problems,
+      problems: built.problems.map((x) => ({
+        ...x,
+        header: kept.find((p) => p.column === x.column)?.header ?? `Column ${String(x.column + 1)}`,
+      })),
       review: review.value,
       mapping,
       asked: sum('ask'),
@@ -641,6 +701,13 @@ export type ImportRunView = ImportDone & {
   /** When it finished, and how long it took, from the approval. */
   readonly finishedAt: string;
   readonly tookMs: number;
+  /** Every column of the file: to a field here, to a new one, an id Kithena creates, or left out. */
+  readonly columns: {
+    readonly existing: number;
+    readonly created: number;
+    readonly kithena: number;
+    readonly leftOut: number;
+  };
 };
 
 /**
@@ -721,13 +788,13 @@ export async function runImport(
     });
     if (!added.ok) return added;
   }
+  // Approving the plan is the approval: the values it imports, sensitive ones
+  // included, are written, not held for a second HR member one by one.
   const done = await deps.importCommit(asking, {
     uploadId: input.uploadId,
     mapping: plan.mapping,
     ...(g.isAdmin && input.places !== undefined ? { places: input.places } : {}),
-    ...(input.applySensitiveWithoutApproval === true
-      ? { applySensitiveWithoutApproval: true }
-      : {}),
+    applySensitiveWithoutApproval: true,
   });
   if (!done.ok) {
     if (!publishing) return done;
@@ -747,6 +814,15 @@ export async function runImport(
     forHr: plan.forHr,
     finishedAt,
     tookMs: Math.max(0, Date.parse(finishedAt) - started),
+    columns: {
+      existing: g.file.columns.existing,
+      created: plan.fields.length,
+      kithena: g.file.columns.kithena,
+      leftOut: Math.max(
+        0,
+        g.file.columns.total - g.file.columns.existing - g.file.columns.kithena - plan.fields.length,
+      ),
+    },
   });
 }
 

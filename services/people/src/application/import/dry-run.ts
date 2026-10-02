@@ -32,12 +32,7 @@ import type { PersonAccess, PersonView } from '../person/person-access.js';
 import type { RelationsResolver, SchemaVersions, Viewer } from '../person/ports.js';
 import { coerceCell, coerceDate, isMasked, type DateOrder } from './cells.js';
 import { SYSTEM_COLUMNS, type ColumnMapping } from './mapping.js';
-import {
-  PERSON_ID_COLUMN,
-  type ParsedFile,
-  type ParsedRow,
-  type RepeatingSheet,
-} from './parse.js';
+import { PERSON_ID_COLUMN, type ParsedFile, type ParsedRow, type RepeatingSheet } from './parse.js';
 
 /**
  * The dry run (PRD §14.4): every row classified before anything is written.
@@ -521,11 +516,18 @@ export function rowNamesOf(
   );
 }
 
+/** The file's columns about the workplace, by header: never one about a home or the person. */
+const PERSONAL = /home|personal|private|mailing|permanent|emergency|birth/iu;
+const WORKPLACE_ZONE = /time ?zone|\btz\b/iu;
+const WORKPLACE_WHERE =
+  /(work|office|site|location|workplace|branch).*(address|city|town|post ?code|postal|zip)|^(address|city|post ?code|postal code|zip)$/iu;
+const ENTITY_NAMED = /legal entity|employer|^company$/iu;
+
 /**
  * The file's work location values, each with the people of the rows that
- * import naming it, and what may be chosen for it here. A company with one
- * legal entity proposes new ones in it; with several, in the first, and HR
- * picks.
+ * import naming it, and what may be chosen for it here. A new one is filled
+ * in from what its rows say of the workplace: the file's time zone, the
+ * workplace's address, and the legal entity it names (`workplacesIn`).
  */
 function workplacesOf(
   input: DryRunInput,
@@ -551,18 +553,33 @@ function workplacesOf(
   const importing = rows.filter(
     (r) => r.outcome === 'create' || r.outcome === 'update' || r.outcome === 'unchanged',
   );
-  const [first] = entities;
+  const about = (re: RegExp) =>
+    input.mapping.filter(
+      (m) => m.index !== column.index && re.test(m.header) && !PERSONAL.test(m.header),
+    );
+  const [zoneAt] = about(WORKPLACE_ZONE);
+  const whereAt = about(WORKPLACE_WHERE);
+  const entityAt =
+    input.mapping.find((m) => m.status === 'mapped' && m.key === 'legal_entity_id') ??
+    about(ENTITY_NAMED)[0];
+  const cell = (r: ClassifiedRow, i: number | undefined) =>
+    i === undefined ? null : (r.cells[i] ?? null);
   return {
     workplaces: workplacesIn(
       importing.map((r) => ({
         value: r.cells[column.index] ?? '',
         row: r.row,
         name: names.get(r.row) ?? null,
+        timeZone: cell(r, zoneAt?.index),
+        address:
+          whereAt
+            .map((m) => cell(r, m.index)?.trim() ?? '')
+            .filter((v) => v !== '')
+            .join(', ') || null,
+        entity: cell(r, entityAt?.index),
       })),
       locations,
-      first === undefined
-        ? null
-        : { country: first.country, timeZone: first.timeZone, legalEntityId: first.id },
+      here.entities,
     ),
     here,
   };
@@ -639,6 +656,9 @@ function rowClassifier(
 
   return (parsed: ParsedRow): ClassifiedRow => {
     const cell = (m: ColumnMapping) => parsed.cells[m.index] ?? '';
+    // An amount with no currency code is in the row's own currency, when a column says it.
+    const currencyAt = mapped.find((m) => byKey.get(m.key as string)?.typeConfig.kind === 'currency');
+    const currency = currencyAt === undefined ? null : cell(currencyAt).trim().toUpperCase() || null;
     const coerceRow = (today: string) => {
       const found: CellProblem[] = [];
       const coerced: Record<string, unknown> = {};
@@ -654,7 +674,7 @@ function rowClassifier(
         const raw = cell(m);
         // A sealed value exports masked; the mask is "unchanged", not a value.
         if (definition.encrypted && isMasked(raw)) continue;
-        const one = coerceCell(definition, raw, { today, dateOrder: order });
+        const one = coerceCell(definition, raw, { today, dateOrder: order, currency });
         if (!one.ok)
           found.push({ column: m.header, key, kind: 'invalid', reason: one.error.message });
         else if (one.value !== null) coerced[key] = one.value;
@@ -862,7 +882,14 @@ function rowClassifier(
           kind: 'missing',
           reason: 'no name and no work email: nobody to create',
         };
-        return { ...base, outcome: 'blocked', personId: null, changes: {}, problems: [nobody], missing: [] };
+        return {
+          ...base,
+          outcome: 'blocked',
+          personId: null,
+          changes: {},
+          problems: [nobody],
+          missing: [],
+        };
       }
       // Anybody else is created; without a start date they stay provisional until HR hires them.
       if (

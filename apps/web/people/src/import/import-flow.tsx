@@ -21,10 +21,18 @@ import {
   type DataColumn,
   type UploadItem,
 } from '@reach/ui';
-import { useEffect, useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useId, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
-import { DoneStep, PlanStep, type ImportDoneView, type ImportPlanView } from './import-plan';
+import {
+  DoneStep,
+  PlanStep,
+  WhyNotYet,
+  notYetOf,
+  type ImportDoneView,
+  type ImportPlanView,
+  type NotYet,
+} from './import-plan';
 import {
   WorkLocationsStep,
   placesReady,
@@ -37,7 +45,6 @@ import {
   ExistingStep,
   WithoutValue,
   NewFieldsStep,
-  isSpecial,
   proposalsOf,
   type Answer,
   type ColumnProposal,
@@ -107,13 +114,13 @@ export interface ImportFlowProps {
   ) => Promise<Answer<ImportPlanView>>;
   /**
    * Approve and run: setup if nothing is published, the new fields, their
-   * defaults, the import. `applyWithoutApproval` is HR's "apply sensitive
-   * values without approval" (PEO-077).
+   * defaults, the import. The administrator approving the plan is the
+   * approval its sensitive values need: none waits for a second one.
    */
   readonly run: (
     mapping: Mapping,
     proposals: readonly ColumnProposal[],
-    options: { readonly applyWithoutApproval: boolean; readonly places?: PlaceChoices },
+    options: { readonly places?: PlaceChoices },
   ) => Promise<Outcome>;
   /** The blocked rows as a file that imports once fixed: a signed link. */
   readonly onDownloadBlocked: (url: string) => void;
@@ -289,7 +296,6 @@ function Steps({
   const [plan, setPlan] = useState<ImportPlanView | null>(null);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
-  const [applyWithoutApproval, setApplyWithoutApproval] = useState(false);
   const [card, setCard] = useState(0);
   // The file's work locations (right after Map columns), and what is chosen for each.
   const [places, setPlaces] = useState<{
@@ -419,12 +425,20 @@ function Steps({
 
   const approve = (): void => {
     void attempt(async () => {
-      const ran = await props.run(mapping, proposals, {
-        applyWithoutApproval,
-        ...(placesArg === undefined ? {} : { places: placesArg }),
-      });
+      const ran = await props.run(
+        mapping,
+        proposals,
+        placesArg === undefined ? {} : { places: placesArg },
+      );
       return ran.ok ? null : ran.message;
     });
+  };
+
+  // A field the settings refuse, left out in one click: the plan is worked out again here.
+  const leaveOut = (column: number): void => {
+    const list = proposals.map((p) => (p.column === column ? { ...p, include: false } : p));
+    setProposals(list);
+    void toPlan(list, null);
   };
 
   // On a phone the people without a value and the plan are one screen (MA9):
@@ -440,6 +454,15 @@ function Steps({
     if (phonePlanDue) void toPlan(proposals, null);
     // Due again only when a choice cleared the plan.
   }, [phonePlanDue]);
+
+  const whyId = useId();
+  // On a phone, why Approve is off: the plan's own reasons, or that it could not be worked out.
+  const phoneNotYet: NotYet[] =
+    plan !== null
+      ? notYetOf(plan)
+      : !busy && refused !== null
+        ? [{ message: 'The plan could not be worked out, so there is nothing to approve yet.' }]
+        : [];
 
   const columns: DataColumn<ProposedColumn>[] = [
     { id: 'header', header: 'In your file', cell: (c) => c.header },
@@ -521,20 +544,32 @@ function Steps({
   const placesFirst = mapsPlaces && (places === null || hasPlaces);
   const nextLabel = placesFirst ? 'Next: work locations' : onwardsLabel;
   const placesDone = places === null || placesReady(places.workplaces, placeChoices);
+  // Which work locations still need something before Next: named, so HR knows where to look.
+  const placesMissing =
+    places === null ? [] : places.workplaces.filter((w) => !placesReady([w], placeChoices));
   const placesNext = (
-    <Button
-      variant="primary"
-      className={coarse ? 'w-full' : undefined}
-      endIcon={<icons.forward aria-hidden />}
-      disabled={!placesDone}
-      loading={busy}
-      loadingLabel={unplaced ? 'Reading the new columns' : 'Checking every row'}
-      onClick={() => {
-        void attempt(onwards);
-      }}
-    >
-      {onwardsLabel}
-    </Button>
+    <div className="flex flex-col gap-2">
+      {placesMissing.length === 0 ? null : (
+        <p id={`${whyId}-places`} role="status" className="text-sm text-warning-fg">
+          Give {placesMissing.map((w) => `“${w.value}”`).join(', ')} a name, a country and a time
+          zone, or leave {placesMissing.length === 1 ? 'it' : 'them'} empty.
+        </p>
+      )}
+      <Button
+        variant="primary"
+        className={coarse ? 'w-full' : undefined}
+        endIcon={<icons.forward aria-hidden />}
+        disabled={!placesDone}
+        aria-describedby={placesMissing.length === 0 ? undefined : `${whyId}-places`}
+        loading={busy}
+        loadingLabel={unplaced ? 'Reading the new columns' : 'Checking every row'}
+        onClick={() => {
+          void attempt(onwards);
+        }}
+      >
+        {onwardsLabel}
+      </Button>
+    </div>
   );
   const actions: Record<FlowStep, ReactNode> = {
     map: (
@@ -544,6 +579,7 @@ function Steps({
           variant="primary"
           endIcon={<icons.forward aria-hidden />}
           disabled={undecided.length > 0}
+          aria-describedby={undecided.length > 0 ? `${whyId}-map` : undefined}
           loading={busy}
           loadingLabel={
             placesFirst
@@ -669,7 +705,7 @@ function Steps({
             {stage.columns.length} columns mapped
           </p>
           {undecided.length > 0 ? (
-            <Alert tone="warning">
+            <Alert id={`${whyId}-map`} tone="warning">
               {undecided.length} {undecided.length === 1 ? 'column needs' : 'columns need'} a
               decision: {undecided.map((c) => c.header).join(', ')}. A column is never dropped
               quietly.
@@ -759,14 +795,13 @@ function Steps({
       {step === 'review' && plan !== null ? (
         <PlanStep
           plan={plan}
-          applyWithoutApproval={applyWithoutApproval}
-          onApplyWithoutApprovalChange={setApplyWithoutApproval}
           busy={busy}
           refused={refused}
           onApprove={approve}
           onChange={() => {
             goTo(view === null ? 'map' : 'fields');
           }}
+          onLeaveOut={leaveOut}
           onDownloadBlocked={props.onDownloadBlocked}
         />
       ) : null}
@@ -808,7 +843,7 @@ function Steps({
                     advance();
                   }}
                 >
-                  {isSpecial(p) ? 'Import anyway' : 'Create field'}
+                  Create field
                 </Button>
               </>
             );
@@ -817,12 +852,24 @@ function Steps({
       ) : null}
 
       {coarse && step === 'existing' ? (
-        <div {...PINNED_BAR} className="sticky bottom-24 z-10 bg-canvas py-2">
+        <div {...PINNED_BAR} className="sticky bottom-24 z-10 flex flex-col gap-2 bg-canvas py-2">
+          <WhyNotYet id={whyId} reasons={phoneNotYet} onLeaveOut={leaveOut} />
+          {plan === null && !busy && refused !== null ? (
+            <Button
+              className="w-full"
+              onClick={() => {
+                void toPlan(proposals, null);
+              }}
+            >
+              Work out the plan again
+            </Button>
+          ) : null}
           <Button
             variant="primary"
             className="w-full"
             startIcon={<icons.confirm aria-hidden />}
-            disabled={plan === null || plan.blocked !== null || plan.problems.length > 0}
+            disabled={plan === null || phoneNotYet.length > 0}
+            aria-describedby={phoneNotYet.length > 0 ? whyId : undefined}
             loading={busy}
             loadingLabel={plan === null ? 'Working out the plan' : 'Running the import'}
             onClick={approve}

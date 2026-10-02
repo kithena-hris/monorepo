@@ -38,8 +38,16 @@ title.
    lists each value the file holds (`domain/import/workplaces.ts`) with its
    people by name and a proposal: the work location here it already is; a
    close name ("Scranton Branch" → Scranton) as a suggestion; else a new one
-   by the file's name, in the first legal entity's country and zone; and,
-   for another system's id, empty. A People administrator maps each, adds it
+   by the file's name, filled in from the file (`domain/import/place-hints.ts`):
+   its country and zone from the rows' time zone column, else the work
+   location's address, else a city in its name (Chicago → United States,
+   America/Chicago; Bengaluru → India, Asia/Kolkata), and its legal entity
+   the one the file's Legal Entity column names, else the only one in that
+   country, else the first. Home addresses are never read. A place nothing
+   resolves, or a file that disagrees with itself (a city in one country, a
+   zone in another), still gets the best suggestion, with a note beside its
+   editable country and zone; nothing blocks. Rules and lookups only: no
+   model. For another system's id, empty. A People administrator maps each, adds it
    (name, country, time zone, and legal entity where there are several, as
    Settings › Organisation asks) or leaves it empty, its people then listed
    for HR. The choices go with the plan ("Add 2 work locations: Scranton and
@@ -48,13 +56,48 @@ title.
    administrator rights sees the suggestions read-only, and the server reads
    only an administrator's choices.
 2. **New fields** appears only when columns match nothing. One card per
-   column: its proposed name, type, section, who sees it, how sensitive it is,
-   how sure the rules are of the type, the choices or the shape of the values,
-   how many rows have a value, a switch, and Edit for all of it. Accept all.
-   A column that can reveal health, religion or the like (special category:
-   allergies, diet, religion…) is **held back** with its reason and "Import
-   anyway"; a model cannot put it back. When no assistant answered, the card
-   says the proposal is People's own rules.
+   column: its proposed name, type, section, who sees it, how it is
+   classified (special category, confidential, sealed, approval required),
+   why, how sure the rules are of the type, the choices or the shape of the
+   values, how many rows have a value, a switch, and Edit for all of it.
+   Every card is on: **every column of the file is imported** somewhere, an
+   existing field, a new field, or a value HR is told about. Nothing needs a
+   click, and nothing is held back:
+   - **Special category** (ethnicity, religion, disability, veteran status,
+     union membership, diet, health…) is imported, at the customer's choice
+     as data controller: special-category, HR's alone, never the
+     assistant's, never required, a change approved by a second HR member,
+     and sealed where its type can be (free text, a date); a list or a yes
+     or no is kept unsealed with the same restrictions. A model cannot lower
+     it.
+   - **Identifiers** (national ID, passport, tax ID, driving licence and
+     work permit numbers, bank account, IBAN, routing or sort code): sealed
+     text, the person's and HR's. A file mixing countries' identifiers has
+     no one country's check, so it is text; a one-country IBAN column is a
+     bank account with that country's check.
+   - **Pay** (salary, hourly rate, bonus, commission, equity, raises, tax
+     filing status): confidential, HR's and finance's, approval required. A
+     salary with a Currency column is money in each row's currency;
+     percentages are percentages; numbers keep the decimals the file has.
+   - **Personal contact and address**: confidential, the person's and HR's.
+   - The rest is ordinary.
+
+   **Proposals are valid by construction** (`fitted` in
+   `domain/import/new-fields.ts`): whatever proposed a field, People's rules,
+   a model or HR's edit, it is fitted to what the settings take before
+   anybody sees it, and the note says what changed ("Stored as
+   confidential, with changes approved, not encrypted, because it's a
+   list"). A choice, a yes or no or a percentage is never sealed; financial
+   data that cannot be sealed is not called financial (financial data must
+   be); an identifier needs its country's scheme, so a model's
+   `national_id` is sealed text. A model names a field, but cannot change a
+   type the values decided (a date, a number, an amount, a code) or lower
+   the protection the rules give. Proposing then checks every proposal
+   against the draft, and one it would still refuse is kept as confidential
+   text with the reason. A new field never takes a key People keeps in a
+   column of its own (`employment_type`, `seniority_date`, `hire_date`…).
+   When no assistant answered, the card says the proposal is People's own
+   rules.
 3. **People without a value**: for each kept field, how many people will
    have none once the file is in, and what happens for them, one suggested
    with its reason and each with what it does:
@@ -69,13 +112,20 @@ title.
    words (`domain/import/plan.ts`): setup, the fields and where they go, the
    people created and updated (with the blocked rows a click away), who is
    asked, what HR fills in, what is left out. On a phone, the plan is one
-   sentence under the choices.
+   sentence under the choices. **Approve and run is never off without its
+   reason beside it**, announced and named by the button's description: the
+   server's `blocked` message, each refused field by its header with "Leave
+   it out", or nobody to import.
 5. **Approve and run** (`POST /v1/imports/run`): the plan is worked out again
    on the server, then setup's seeding if nothing is published, the fields and
    any new sections into the draft, one publish, the defaults, all in one
    transaction refused whole if the settings refuse a field; then the import
-   commits with every new column mapped to its new field. The done screen
-   says what it did and lists the new fields, each a link to edit.
+   commits with every new column mapped to its new field. Approving the plan
+   is the approval: sensitive values are written, not held one by one for a
+   second HR member (changes made later are). The done screen says what it
+   did, where every column went ("102 columns → existing fields and new
+   fields, 0 left out", ids "Kithena creates this"), and lists the new
+   fields, each a link to edit.
 
 ## Where it runs, and what the model sees
 
