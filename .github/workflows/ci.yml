@@ -517,7 +517,11 @@ jobs:
             # either way, and a shard left with nothing exits clean.
             node tools/a11y/affected-contrast.mjs
           else
-            node tools/a11y/contrast-sweep.mjs
+            # Unset: the sweep reads STORY_FILTER as a substring of a story
+            # id, and on a pull request with a design-system-wide change it
+            # holds `__ALL__`, which matches no story. It swept "0 of 0" and
+            # passed, on every such pull request, until 2026-10-02.
+            STORY_FILTER= node tools/a11y/contrast-sweep.mjs
           fi
 
           # The docs site is built out of the design system and makes claims
