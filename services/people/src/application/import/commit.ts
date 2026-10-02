@@ -1,5 +1,13 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { err, failure, ok, type Clock, type PendingEvent, type Result } from '@kithena/domain-kit';
+import {
+  err,
+  failure,
+  ok,
+  type Clock,
+  type DomainFailure,
+  type PendingEvent,
+  type Result,
+} from '@kithena/domain-kit';
 import { ImportCompleted, ImportStarted, type Actor } from '@kithena/contracts';
 
 import { currentValue } from '../../domain/person/history.js';
@@ -15,6 +23,7 @@ import {
   type BlockedItem,
   type ClassifiedRow,
   type DryRun,
+  type LeftEmpty,
   type DryRunDeps,
   type DryRunInput,
 } from './dry-run.js';
@@ -209,6 +218,12 @@ export type CommitResult =
       /** Doubted national identifiers that imported and went to HR's review (PEO-125). */
       readonly findings: DryRun['findings'];
       /**
+       * References the import left empty, each named: a manager, legal entity
+       * or work location not in this company or this file, or a manager whose
+       * own row did not import. HR's to fill in.
+       */
+      readonly leftEmpty: readonly LeftEmpty[];
+      /**
        * Values the rows written carried for fields that require approval
        * (PEO-077): held for HR, unless HR applied them without approval.
        */
@@ -219,6 +234,8 @@ interface Outcome {
   readonly row: ClassifiedRow;
   readonly written: 'created' | 'updated' | 'unchanged' | 'blocked' | 'duplicate';
   readonly reason: string | null;
+  /** Whom the row is now about: created, updated or unchanged; null otherwise. */
+  readonly personId: string | null;
 }
 
 /** A dry run's input, and the name the file was uploaded under. */
@@ -283,6 +300,9 @@ export async function commitImport(
 
   const outcomes: Outcome[] = [];
   for (const row of plan.rows) outcomes.push(await write(tx, deps, input, row));
+  // Then each row's references to other rows of the file — a manager — once
+  // everybody they can point at is in, so the file's order does not matter.
+  const leftEmpty = [...plan.leftEmpty, ...(await link(tx, deps, input, outcomes))];
 
   const tally = (w: Outcome['written']) => outcomes.filter((o) => o.written === w).length;
   const counts: ImportCounts = {
@@ -351,6 +371,7 @@ export async function commitImport(
     report: blocked,
     reportUrl: await signReport(deps, input.tenantId, input.file.checksum, expiresAt),
     ignoredColumns: plan.ignoredColumns,
+    leftEmpty,
     effectiveFrom: plan.effectiveFrom,
     findings: plan.findings.filter((f) =>
       outcomes.some(
@@ -396,6 +417,9 @@ export async function commitImportRetrying(
       // eslint-disable-next-line no-await-in-loop -- a retry waits for the attempt before it
       return await inTenantResult(inTenant, input.tenantId, (tx) => commitImport(tx, deps, input));
     } catch (error) {
+      // A constraint the row checks did not foresee: said in words, never retried.
+      const refused = rowRefusal(error);
+      if (refused !== null) return err(refused);
       const code = contention(error);
       if (code === null) throw error;
       if (attempt >= attempts) {
@@ -435,6 +459,7 @@ async function write(
       row,
       written: 'blocked',
       reason: row.problems.map((p) => `${p.column}: ${p.reason}`).join('; '),
+      personId: null,
     };
   }
   if (row.outcome === 'duplicate') {
@@ -442,9 +467,11 @@ async function write(
       row.matchedOn === 'earlier_row'
         ? 'the same person appears earlier in this file'
         : 'looks like a person already held; review before importing';
-    return { row, written: 'duplicate', reason: why };
+    return { row, written: 'duplicate', reason: why, personId: null };
   }
-  if (row.outcome === 'unchanged') return { row, written: 'unchanged', reason: null };
+  if (row.outcome === 'unchanged') {
+    return { row, written: 'unchanged', reason: null, personId: row.personId };
+  }
 
   const asking: Asking = {
     tenantId: input.tenantId,
@@ -455,14 +482,24 @@ async function write(
       : {}),
   };
 
-  const done = await deps.rowScope(tx, async (sp) => {
+  const done = await deps.rowScope<{
+    readonly written: 'created' | 'updated';
+    readonly personId: string;
+  }>(tx, async (sp) => {
     if (row.outcome === 'update' && row.personId !== null) {
       const dated = row.effectiveFrom ? { effectiveFrom: row.effectiveFrom } : {};
       if (row.hireDateCorrection) {
-        return correctHireDate(sp, deps, asking, row.personId, row.hireDateCorrection.to, {
-          ...dated,
-          changes: row.changes,
-        });
+        const corrected = await correctHireDate(
+          sp,
+          deps,
+          asking,
+          row.personId,
+          row.hireDateCorrection.to,
+          { ...dated, changes: row.changes },
+        );
+        return corrected.ok
+          ? ok({ written: 'updated' as const, personId: row.personId })
+          : corrected;
       }
       // A provisional record — an account nobody has confirmed yet (§8.2) —
       // is hired by a row that gives it a start date, its values written with
@@ -482,14 +519,71 @@ async function write(
               personId: row.personId,
               changes: row.changes,
             });
-      return written.ok ? ok('updated' as const) : written;
+      return written.ok ? ok({ written: 'updated' as const, personId: row.personId }) : written;
     }
     return create(sp, deps, asking, row);
   });
 
   return done.ok
-    ? { row, written: done.value, reason: null }
-    : { row, written: 'blocked', reason: done.error.message };
+    ? { row, written: done.value.written, reason: null, personId: done.value.personId }
+    : { row, written: 'blocked', reason: done.error.message, personId: null };
+}
+
+/**
+ * The second pass: each reference to another row of the file, written to
+ * whom that row created or updated, from the date the row's dated facts take
+ * (§14.5). A reference whose row did not import, or that the write path
+ * refuses (a manager loop), is left empty and named; the row itself stays in.
+ */
+async function link(
+  tx: PostgresJsDatabase,
+  deps: CommitDeps,
+  input: DryRunInput,
+  outcomes: readonly Outcome[],
+): Promise<LeftEmpty[]> {
+  const byRow = new Map(outcomes.map((o) => [o.row.row, o.personId]));
+  const asking: Asking = {
+    tenantId: input.tenantId,
+    viewer: input.viewer,
+    correlationId: input.correlationId,
+  };
+  const left: LeftEmpty[] = [];
+  for (const o of outcomes) {
+    if (o.personId === null || o.row.links.length === 0) continue;
+    const changes: Record<string, string> = {};
+    for (const l of o.row.links) {
+      const target = byRow.get(l.row) ?? null;
+      const empty = (reason: string) =>
+        left.push({ row: o.row.row, column: l.column, key: l.key, value: l.value, reason });
+      if (target === null) empty(`row ${String(l.row)} of the file, whom this points at, did not import`);
+      else if (target === o.personId) empty('a person cannot point at themselves');
+      else changes[l.key] = target;
+    }
+    if (Object.keys(changes).length === 0) continue;
+    const effectiveFrom = o.row.effectiveFrom ?? o.row.hireDate;
+    const personId = o.personId;
+    // eslint-disable-next-line no-await-in-loop -- one savepoint per row, in order
+    const linked = await deps.rowScope(tx, (sp) =>
+      deps.access.update(sp, {
+        ...asking,
+        personId,
+        changes,
+        ...(effectiveFrom === null ? {} : { effectiveFrom }),
+      }),
+    );
+    if (!linked.ok) {
+      for (const l of o.row.links.filter((x) => x.key in changes)) {
+        left.push({
+          row: o.row.row,
+          column: l.column,
+          key: l.key,
+          value: l.value,
+          reason: linked.error.message,
+        });
+      }
+    }
+  }
+  return left;
 }
 
 /**
@@ -538,7 +632,7 @@ async function create(
   deps: CommitDeps,
   asking: Asking,
   row: ClassifiedRow,
-): Promise<Result<'created'>> {
+): Promise<Result<{ readonly written: 'created'; readonly personId: string }>> {
   const version = await deps.schemas.current(tx, asking.tenantId);
   const dated = new Set<string>(
     version?.document.attributes.filter((d) => d.effectiveDated).map((d) => d.key),
@@ -568,7 +662,7 @@ async function create(
     const hired = await deps.access.hire(tx, { ...asking, personId, hireDate: row.hireDate });
     if (!hired.ok) return hired;
   }
-  return ok('created');
+  return ok({ written: 'created', personId });
 }
 
 function event(
@@ -646,3 +740,52 @@ export function blockedReport(
   }
   return writeCsv(rows);
 }
+
+/** Postgres's "integrity constraint violation" class: the row's data, not the system. */
+const INTEGRITY = /^23/u;
+
+/**
+ * A constraint violation anywhere in the cause chain, as the row's reason:
+ * the column from the error's own detail ("Key (tenant_id, manager_id)=…"),
+ * in words. Null for anything that is not one.
+ */
+export function rowRefusal(error: unknown): DomainFailure | null {
+  for (let e: unknown = error, depth = 0; e !== null && e !== undefined && depth < 5; depth += 1) {
+    const pg = e as {
+      code?: unknown;
+      detail?: unknown;
+      column_name?: unknown;
+      constraint_name?: unknown;
+      cause?: unknown;
+    };
+    if (typeof pg.code === 'string' && INTEGRITY.test(pg.code)) {
+      const keys = /Key \(([^)]+)\)/u.exec(typeof pg.detail === 'string' ? pg.detail : '')?.[1];
+      const column =
+        (typeof pg.column_name === 'string' ? pg.column_name : null) ??
+        keys
+          ?.split(',')
+          .map((k) => k.trim())
+          .findLast((k) => k !== 'tenant_id') ??
+        null;
+      const named =
+        column === null ? 'A value' : capital(column.replace(/_id$/u, '').replaceAll('_', ' '));
+      const why =
+        pg.code === '23503'
+          ? 'points at something that is not in this company'
+          : pg.code === '23505'
+            ? 'is already held by somebody else'
+            : pg.code === '23502'
+              ? 'is required'
+              : 'is not a value this company allows';
+      return failure(
+        'ROW_REFUSED',
+        `${named} ${why}. The row was not imported; fix the cell and import the row again.`,
+        column === null ? [] : [column],
+      );
+    }
+    e = pg.cause;
+  }
+  return null;
+}
+
+const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

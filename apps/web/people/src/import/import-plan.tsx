@@ -13,7 +13,6 @@ import {
   IconList,
   IconListItem,
   ImportSummary,
-  KeyValues,
   List,
   ListItem,
   PageSection,
@@ -27,15 +26,26 @@ import type { DataType } from '../settings/model';
 import type { ForExisting } from './new-fields';
 
 /**
- * The import's last two steps (design AI11, AI12; MA9 on a phone): the plan,
- * in plain words, approved once; then what it did and the fields it made.
+ * The import review's plan (design AI11) in plain words, and the done screen
+ * (AI12): what it did and the fields it made.
  *
  * Written by People from HR's choices and a dry run against the version the
- * new fields would make. Nothing has happened until "Approve and run".
+ * new fields would make. Nothing has happened until Import.
  */
 
 export type PlanStepKind =
-  'setup' | 'fields' | 'people' | 'ask' | 'hr' | 'new' | 'default' | 'leave' | 'skip';
+  | 'setup'
+  | 'places'
+  | 'fields'
+  | 'people'
+  | 'ids'
+  | 'refs'
+  | 'ask'
+  | 'hr'
+  | 'new'
+  | 'default'
+  | 'leave'
+  | 'skip';
 
 export interface PlannedField {
   readonly key: string;
@@ -54,6 +64,15 @@ export interface BlockedRow {
   readonly problem: string;
   /** "D18 — empty", "F47 — “31/02/2025”". */
   readonly cell: string;
+}
+
+/** A manager or work location the file names that is nowhere here: the row imports without it. */
+export interface LeftEmptyRow {
+  readonly row: number;
+  /** "M14 — “01a0…”". */
+  readonly cell: string;
+  readonly label: string;
+  readonly reason: string;
 }
 
 export interface CellFinding {
@@ -77,6 +96,9 @@ export interface PlanReview {
     readonly blocked?: readonly BlockedRow[];
     readonly findings?: readonly CellFinding[];
     readonly sensitive?: { readonly fields: readonly string[]; readonly values: number };
+    /** The first twenty, and how many in all. */
+    readonly leftEmpty?: readonly LeftEmptyRow[];
+    readonly leftEmptyCount?: number;
   };
   readonly blockedUrl?: string | null;
 }
@@ -108,6 +130,8 @@ export interface ImportDoneView {
   readonly forReview?: number;
   readonly held?: number;
   readonly appliedWithoutApproval?: boolean;
+  readonly leftEmpty?: readonly LeftEmptyRow[];
+  readonly leftEmptyCount?: number;
   readonly fields?: readonly PlannedField[];
   readonly version?: number;
   readonly asked?: number;
@@ -124,8 +148,11 @@ const STEP_LOOK: Record<
   { readonly icon: ReactNode; readonly tone: 'accent' | 'success' | 'info' | 'warning' | 'neutral' }
 > = {
   setup: { icon: <icons.settings />, tone: 'accent' },
+  places: { icon: <icons.location />, tone: 'accent' },
   fields: { icon: <icons.add />, tone: 'accent' },
   people: { icon: <icons.people />, tone: 'success' },
+  ids: { icon: <icons.identifier />, tone: 'neutral' },
+  refs: { icon: <icons.link />, tone: 'warning' },
   ask: { icon: <icons.notifications />, tone: 'info' },
   hr: { icon: <icons.table />, tone: 'warning' },
   new: { icon: <icons.hire />, tone: 'info' },
@@ -168,43 +195,68 @@ export function PlanSteps({
   );
 }
 
-export interface PlanStepProps {
-  readonly plan: ImportPlanView;
-  /** HR may write values that need approval without it (PEO-077). */
-  readonly applyWithoutApproval: boolean;
-  readonly onApplyWithoutApprovalChange: (on: boolean) => void;
-  readonly busy: boolean;
-  readonly refused: string | null;
-  readonly onApprove: () => void;
-  readonly onChange: () => void;
-  readonly onDownloadBlocked: (url: string) => void;
+const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
+  { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
+  { id: 'cell', header: 'Cell', cell: (r) => <span className="font-mono text-xs">{r.cell}</span> },
+  { id: 'label', header: 'Field', cell: (r) => r.label },
+  { id: 'reason', header: 'Why it’s left empty', cell: (r) => r.reason },
+];
+
+/** References left empty for HR, each where it is and why. */
+function LeftEmpty({
+  rows,
+  count,
+}: {
+  readonly rows: readonly LeftEmptyRow[];
+  readonly count: number;
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-3">
+      <h2 className="text-md font-semibold">Left empty for HR</h2>
+      <p className="text-sm text-fg-muted">
+        {count > rows.length ? `The first ${String(rows.length)} of ${String(count)}. ` : ''}
+        These rows import without the value. Set each on the person’s profile.
+      </p>
+      <DataTable
+        label="Left empty for HR"
+        rows={rows}
+        columns={LEFT_EMPTY_COLUMNS}
+        rowId={(r) => `${String(r.row)}/${r.cell}`}
+      />
+    </div>
+  );
 }
 
-/** "Here's everything that will happen" (design AI11). */
-export function PlanStep({
+/** Why the plan cannot run yet, in words; null when it can. */
+export function cannotRun(plan: ImportPlanView): string | null {
+  const { counts } = plan.review.dryRun;
+  return (
+    plan.blocked ??
+    (plan.problems.length > 0
+      ? plan.problems.map((p) => p.message).join(' ')
+      : counts.create + counts.update === 0 && plan.fields.length === 0 && plan.setup === null
+        ? 'No row of the file has a name or a work email, so there is nobody to import.'
+        : null)
+  );
+}
+
+/**
+ * "Here’s everything that will happen" (design AI11), and the rows behind it:
+ * what is skipped, what is left empty for HR, what the checks doubt.
+ */
+export function PlanDetails({
   plan,
-  applyWithoutApproval,
-  onApplyWithoutApprovalChange,
-  busy,
-  refused,
-  onApprove,
-  onChange,
   onDownloadBlocked,
-}: PlanStepProps): JSX.Element {
+}: {
+  readonly plan: ImportPlanView;
+  readonly onDownloadBlocked: (url: string) => void;
+}): JSX.Element {
   const [seeingRows, setSeeingRows] = useState(false);
   const { counts } = plan.review.dryRun;
   const blocked = plan.review.dryRun.blocked ?? [];
   const findings = plan.review.dryRun.findings ?? [];
-  const sensitive = plan.review.dryRun.sensitive ?? { fields: [], values: 0 };
-  const importing = counts.create + counts.update;
+  const leftEmpty = plan.review.dryRun.leftEmpty ?? [];
   const blockedUrl = plan.review.blockedUrl ?? null;
-  const cannot =
-    plan.blocked ??
-    (plan.problems.length > 0
-      ? plan.problems.map((p) => p.message).join(' ')
-      : importing === 0 && plan.fields.length === 0 && plan.setup === null
-        ? 'No row of the file would import. Fix the blocked rows and upload it again.'
-        : null);
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
@@ -213,7 +265,7 @@ export function PlanStep({
       header: 'Cell',
       cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
     },
-    { id: 'problem', header: 'Why it’s blocked', cell: (r) => r.problem },
+    { id: 'problem', header: 'Why it’s skipped', cell: (r) => r.problem },
   ];
   const findingColumns: DataColumn<CellFinding>[] = [
     { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
@@ -227,128 +279,102 @@ export function PlanStep({
   ];
 
   return (
-    <div className="grid items-start gap-4 @4xl/page:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-      <div className="flex min-w-0 flex-col gap-4">
-        <AssistantCard
-          level={2}
-          title="Here’s everything that will happen"
-          note="Written from your choices. Nothing has happened yet."
-        >
-          <PlanSteps
-            plan={plan}
-            seeingRows={seeingRows}
-            onSeeRows={() => {
-              setSeeingRows((s) => !s);
-            }}
+    <div className="flex min-w-0 flex-col gap-4">
+      <AssistantCard
+        level={2}
+        title="Here’s everything that will happen"
+        note="Written from your choices. Nothing has happened yet."
+      >
+        <PlanSteps
+          plan={plan}
+          seeingRows={seeingRows}
+          onSeeRows={() => {
+            setSeeingRows((s) => !s);
+          }}
+        />
+      </AssistantCard>
+      {seeingRows && blocked.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-md font-semibold">Skipped rows</h2>
+            {blockedUrl === null ? null : (
+              <Button
+                size="sm"
+                startIcon={<icons.download aria-hidden />}
+                onClick={() => {
+                  onDownloadBlocked(blockedUrl);
+                }}
+              >
+                Download all {counts.blocked + counts.duplicate} as CSV
+              </Button>
+            )}
+          </div>
+          <p className="text-sm text-fg-muted">
+            Each has no name and no work email, or is somebody already in the file. Nothing else is
+            skipped.
+          </p>
+          <DataTable
+            label="Skipped rows"
+            rows={blocked}
+            columns={blockedColumns}
+            rowId={(r) => `${String(r.row)}/${r.cell}`}
           />
-        </AssistantCard>
-        {seeingRows && blocked.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-md font-semibold">Blocked rows</h2>
-              {blockedUrl === null ? null : (
-                <Button
-                  size="sm"
-                  startIcon={<icons.download aria-hidden />}
-                  onClick={() => {
-                    onDownloadBlocked(blockedUrl);
-                  }}
-                >
-                  Download all {counts.blocked + counts.duplicate} as CSV
-                </Button>
-              )}
-            </div>
-            <p className="text-sm text-fg-muted">
-              Fix the cells in the file and upload it again. It maps itself the way this one did.
-            </p>
-            <DataTable
-              label="Blocked rows"
-              rows={blocked}
-              columns={blockedColumns}
-              rowId={(r) => `${String(r.row)}/${r.cell}`}
-            />
-          </div>
-        ) : null}
-        {findings.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            <Alert
-              tone="warning"
-              title={`Our checks suggest ${plural(findings.length, 'identifier', 'identifiers')} may be wrong`}
-            >
-              These rows will import, and HR will review each value. If a value is wrong, fix it in
-              the file first.
-            </Alert>
-            <DataTable
-              label="Identifiers to check"
-              rows={findings}
-              columns={findingColumns}
-              rowId={(r) => `${r.cell}/${r.message}`}
-            />
-          </div>
-        ) : null}
-      </div>
-      <div className="flex flex-col gap-3.5">
-        <PageSection surface title="Approve">
-          <div className="flex flex-col gap-3">
-            <KeyValues
-              items={[
-                { label: 'File', value: plan.review.file.name },
-                { label: 'Rows', value: plan.review.file.rows.toLocaleString('en-GB') },
-                { label: 'New fields', value: plan.fields.length },
-                { label: 'People asked', value: plan.asked.toLocaleString('en-GB') },
-              ]}
-            />
-            {sensitive.values > 0 ? (
-              <Field orientation="horizontal">
-                <FieldLabel>Apply sensitive values without approval</FieldLabel>
-                <FieldControl>
-                  <Checkbox
-                    checked={applyWithoutApproval}
-                    onCheckedChange={(checked) => {
-                      onApplyWithoutApprovalChange(checked === true);
-                    }}
-                  />
-                </FieldControl>
-                <FieldDescription>
-                  {plural(sensitive.values, 'value', 'values')} of {sensitive.fields.join(', ')}{' '}
-                  {applyWithoutApproval
-                    ? 'are applied now. Each change records that you chose to.'
-                    : 'wait for a second HR member, who has seven days to approve each.'}
-                </FieldDescription>
-              </Field>
-            ) : null}
-            {cannot === null ? null : (
-              <Alert tone="warning" title="Not yet">
-                {cannot}
-              </Alert>
-            )}
-            {refused === null ? null : (
-              <Alert tone="danger" title="That did not go through">
-                {refused}
-              </Alert>
-            )}
-            <Button
-              variant="primary"
-              className="w-full"
-              startIcon={<icons.confirm aria-hidden />}
-              disabled={cannot !== null}
-              loading={busy}
-              loadingLabel="Running the import"
-              onClick={onApprove}
-            >
-              Approve and run
-            </Button>
-            <Button variant="ghost" className="w-full" onClick={onChange}>
-              Change something
-            </Button>
-          </div>
-        </PageSection>
-        <p className="inline-flex items-center gap-1.5 text-xs text-fg-subtle [&_svg]:size-3.5">
-          <icons.permission aria-hidden />
-          Approved by you, run by Kithena, kept in the import history
-        </p>
-      </div>
+        </div>
+      ) : null}
+      {leftEmpty.length > 0 ? (
+        <LeftEmpty rows={leftEmpty} count={plan.review.dryRun.leftEmptyCount ?? leftEmpty.length} />
+      ) : null}
+      {findings.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          <Alert
+            tone="warning"
+            title={`Our checks suggest ${plural(findings.length, 'identifier', 'identifiers')} may be wrong`}
+          >
+            These rows will import, and HR will review each value. If a value is wrong, fix it in
+            the file first.
+          </Alert>
+          <DataTable
+            label="Identifiers to check"
+            rows={findings}
+            columns={findingColumns}
+            rowId={(r) => `${r.cell}/${r.message}`}
+          />
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+/** HR may write values that need approval without it (PEO-077). */
+export function SensitiveChoice({
+  plan,
+  checked,
+  onCheckedChange,
+}: {
+  readonly plan: ImportPlanView;
+  readonly checked: boolean;
+  readonly onCheckedChange: (on: boolean) => void;
+}): JSX.Element | null {
+  const sensitive = plan.review.dryRun.sensitive ?? { fields: [], values: 0 };
+  if (sensitive.values === 0) return null;
+  return (
+    <Field orientation="horizontal">
+      <FieldLabel>Apply sensitive values without approval</FieldLabel>
+      <FieldControl>
+        <Checkbox
+          checked={checked}
+          onCheckedChange={(on) => {
+            onCheckedChange(on === true);
+          }}
+        />
+      </FieldControl>
+      <FieldDescription>
+        {plural(sensitive.values, 'value', 'values')} of {sensitive.fields.join(', ')}{' '}
+        {checked
+          ? 'are applied now. Each change records that you chose to.'
+          : 'wait for a second HR member, who has seven days to approve each.'}
+      </FieldDescription>
+    </Field>
   );
 }
 
@@ -400,7 +426,7 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         {done.blocked > 0 ? (
           <Alert
             tone="info"
-            title={`${plural(done.blocked, 'row was', 'rows were')} left out`}
+            title={`${plural(done.blocked, 'row was', 'rows were')} skipped`}
             action={
               done.reportUrl === undefined ? undefined : (
                 <Button asChild size="sm">
@@ -409,7 +435,7 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
               )
             }
           >
-            They’re in the blocked-row file, ready to fix and import again.
+            Each had no name and no work email, or repeated somebody. The file says which.
           </Alert>
         ) : null}
         {(done.forReview ?? 0) > 0 ? (
@@ -421,6 +447,9 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
             )}{' '}
             to HR’s review.
           </Alert>
+        ) : null}
+        {(done.leftEmptyCount ?? 0) > 0 ? (
+          <LeftEmpty rows={done.leftEmpty ?? []} count={done.leftEmptyCount ?? 0} />
         ) : null}
         {(done.held ?? 0) > 0 ? (
           <Alert tone="info">

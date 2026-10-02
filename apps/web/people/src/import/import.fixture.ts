@@ -1,5 +1,5 @@
 import type { ImportStage, ProposedColumn } from './import-flow';
-import type { ImportDoneView, ImportPlanView } from './import-plan';
+import type { ImportDoneView, ImportPlanView, LeftEmptyRow } from './import-plan';
 import type { ColumnProposal, NewFieldsView } from './new-fields';
 
 /**
@@ -34,6 +34,54 @@ export const MAPPING: Extract<ImportStage, { step: 'map' }> = {
     column({ index: 2, header: 'T-shirt size', status: 'ignored', source: null }),
     column({ index: 3, header: 'Laptop serial', status: 'ignored', source: null }),
     column({ index: 4, header: 'Dietary requirements', status: 'ignored', source: null }),
+  ],
+};
+
+/**
+ * A file exported from here and imported back: 23 columns, so a mapping
+ * taller than any screen. Its last column is the export's own bookkeeping.
+ */
+const EXPORTED = [
+  'Person id',
+  'Legal first name',
+  'Legal family name',
+  'Preferred name',
+  'Emergency contact',
+  'Date of birth',
+  'Marital status',
+  'Spouse or partner',
+  'Children',
+  'Hometown',
+  'Work email',
+  'Employee number',
+  'Manager',
+  'Legal entity',
+  'Work location',
+  'Job title',
+  'Department',
+  'Work phone',
+  'Start date',
+  'Working hours',
+  'Social Security number',
+];
+const keyOf = (label: string): string => label.toLowerCase().replaceAll(' ', '_');
+
+export const EXPORT_MAPPING: Extract<ImportStage, { step: 'map' }> = {
+  step: 'map',
+  file: { name: 'people-export.csv', rows: 31, sheet: null },
+  fields: EXPORTED.map((label) => ({ key: keyOf(label), label })),
+  columns: [
+    ...EXPORTED.map((header, index) =>
+      column({ index, header, key: keyOf(header), source: 'key' }),
+    ),
+    column({ index: 21, header: 'Cab service needed', status: 'ignored', source: null }),
+    column({
+      index: 22,
+      header: '__missing_required',
+      key: '__missing_required',
+      status: 'ignored',
+      source: 'system',
+    }),
   ],
 };
 
@@ -131,6 +179,14 @@ export const NEW_FIELDS: NewFieldsView = {
   ],
 };
 
+/** A manager from another system's file, found nowhere here. */
+const LEFT_EMPTY: LeftEmptyRow = {
+  row: 14,
+  cell: 'M14 — “Gabe Lewis”',
+  label: 'Manager',
+  reason: 'nobody in this company or this file is called “Gabe Lewis”',
+};
+
 export const PLAN: ImportPlanView = {
   steps: [
     {
@@ -148,7 +204,19 @@ export const PLAN: ImportPlanView = {
     {
       kind: 'people',
       title: 'Create 19 people',
-      detail: '1 blocked row is left out, in a file you can fix and import again.',
+      detail: '1 row has no name and no work email, so it’s skipped: nobody to create.',
+    },
+    {
+      kind: 'ids',
+      title: 'Employee IDs in the file are ignored; Kithena gives each new person one',
+      detail:
+        'Rows match people already here by work email; a row that matches nobody is a new person.',
+    },
+    {
+      kind: 'refs',
+      title: 'Leave 1 reference empty for HR',
+      detail:
+        'Manager on those rows points at nobody in this company or this file. The rows import without it; each is listed below.',
     },
     {
       kind: 'hr',
@@ -198,12 +266,16 @@ export const PLAN: ImportPlanView = {
       blocked: [
         { row: 7, person: null, problem: 'a new person needs a work email', cell: 'D7 — empty' },
       ],
+      leftEmpty: [LEFT_EMPTY],
+      leftEmptyCount: 1,
     },
     blockedUrl: 'https://store.test/blocked.csv',
   },
 };
 
 export const DONE: ImportDoneView = {
+  leftEmpty: [LEFT_EMPTY],
+  leftEmptyCount: 1,
   step: 'done',
   file: FILE,
   created: 19,

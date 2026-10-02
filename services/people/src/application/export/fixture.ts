@@ -62,6 +62,13 @@ export const attributes = [
     sectionKey: 'personal',
     order: 1,
   }),
+  // What an import matches people by: identifiers are Kithena's.
+  hrAndFinance({
+    key: 'work_email',
+    label: { default: 'Work email' },
+    sectionKey: 'personal',
+    order: 3,
+  }),
   hrAndFinance({
     key: 'date_of_birth',
     label: { default: 'Date of birth' },
@@ -168,6 +175,7 @@ export function financeTenant(versions: PublishedVersion[] = [register()]): InMe
       fields: {
         givenName: n,
         familyName: 'Test',
+        workEmail: `${n.toLowerCase()}@acme.test`,
         employeeNumber: `E-${n}`,
         ...(managerId ? { managerId } : {}),
       },

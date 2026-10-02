@@ -68,13 +68,13 @@ describe('filterHistory', () => {
 });
 
 describe('the wording of an entry', () => {
-  it('says what an import did, and warns when rows were blocked', () => {
+  it('says what an import did, and warns when rows were skipped', () => {
     expect(
       resultOf(entry({ id: 'a', imported: { created: 300, updated: 69, blocked: 0 } })),
     ).toEqual({ text: '369 created or updated', tone: 'success' });
     expect(resultOf(entry({ id: 'b', imported: { created: 12, updated: 0, blocked: 2 } }))).toEqual(
       {
-        text: '12 created · 2 blocked',
+        text: '12 created · 2 skipped',
         tone: 'warning',
       },
     );
@@ -102,7 +102,7 @@ describe('ImportExport', () => {
     const { container } = render(<ImportExport load={{ status: 'ready', data: state() }} />);
     expect(screen.getByRole('link', { name: 'Start import' })).toHaveAttribute(
       'href',
-      '/people/import',
+      '/people/import-export?import=new',
     );
     const template = screen.getByRole('link', { name: 'Template' });
     expect(template).toHaveAttribute('href', '/people/downloads/import-template');

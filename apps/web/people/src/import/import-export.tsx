@@ -24,6 +24,7 @@ import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
+import { ImportModal, type ImportFlowProps } from './import-flow';
 
 /**
  * Import & export (V6, MV5): two ways in and out of People, and one history
@@ -84,6 +85,9 @@ export interface ImportExportProps {
   /** The history's search (`?q=`), once typing rests. */
   readonly search?: string;
   readonly onSearchChange?: (search: string) => void;
+  /** The import, open over this page while the address says so (`?import=`). */
+  readonly importFlow?: ImportFlowProps | null;
+  readonly onImportClose?: () => void;
 }
 
 export type HistoryKind = 'all' | 'import' | 'export';
@@ -99,7 +103,7 @@ const FORMAT: Readonly<Record<string, string>> = { csv: 'CSV', xlsx: 'Excel', pd
 export const titleOf = (e: TransferEntry): string =>
   e.title ?? (e.kind === 'import' ? 'An imported file' : 'An export');
 
-/** What came of it, in words, and how loudly: blocked rows are a warning. */
+/** What came of it, in words, and how loudly: skipped rows are a warning. */
 export function resultOf(e: TransferEntry): {
   readonly text: string;
   readonly tone: 'success' | 'warning' | 'neutral';
@@ -112,7 +116,7 @@ export function resultOf(e: TransferEntry): {
     const parts = [
       created > 0 ? `${String(created)} created` : null,
       updated > 0 ? `${String(updated)} updated` : null,
-      `${String(blocked)} blocked`,
+      `${String(blocked)} skipped`,
     ].filter((p) => p !== null);
     return { text: parts.join(' · '), tone: 'warning' };
   }
@@ -189,9 +193,17 @@ export function filterHistory(
   );
 }
 
-export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element {
+export function ImportExport({
+  load,
+  importFlow = null,
+  onImportClose,
+  ...held
+}: ImportExportProps): JSX.Element {
   return (
     <Stack gap={5}>
+      {onImportClose === undefined ? null : (
+        <ImportModal flow={importFlow} onClose={onImportClose} />
+      )}
       <PageHeader
         title="Import & export"
         description="Bring people in from a spreadsheet, or take data out with a recorded reason."
@@ -208,7 +220,7 @@ export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element 
                   description="Create or update people in bulk. Nothing is written until you accept a dry run."
                   shortDescription="From a spreadsheet"
                   facts={['CSV or Excel', 'Up to 50,000 rows']}
-                  href="/people/import"
+                  href="/people/import-export?import=new"
                   start="Start import"
                   startIcon={<icons.upload aria-hidden />}
                   more={

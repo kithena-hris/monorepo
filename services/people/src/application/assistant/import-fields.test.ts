@@ -51,6 +51,7 @@ const ROWS = [
 ];
 const VALUES = ROWS.flatMap((r) => r.slice(1)).filter((v) => v !== '');
 const FILE: NewFieldsFile = {
+  identifiers: false,
   unmatched: ['Emergency contact', 'Cost centre', 'T-shirt size', 'IBAN', 'Work country'].map(
     (header, i) => ({
       index: i + 1,
@@ -117,7 +118,18 @@ function world(
       },
       org: {
         legalEntities: () =>
-          Promise.resolve(ok([{ id: 'e1', name: 'Acme SL', country: 'ES', archived: false }])),
+          Promise.resolve(
+            ok([
+              {
+                id: 'e1',
+                name: 'Acme SL',
+                country: 'ES',
+                timeZone: 'Europe/Madrid',
+                archived: false,
+              },
+            ]),
+          ),
+        numberings: () => Promise.resolve(ok([])),
       },
     },
     relations: {
@@ -172,6 +184,10 @@ function world(
           file: { name: 'people.csv', rows: 3, sheet: null },
           dryRun: {
             counts: { create: 1, update: 2, unchanged: 0, blocked: 0, duplicate: 0 },
+            leftEmpty: [],
+            leftEmptyCount: 0,
+            newLocations: [],
+            createdIn: [],
           },
           blockedUrl: null,
         }),
@@ -316,6 +332,7 @@ describe('proposing fields for new columns', () => {
   it('asks about a wide file in chunks, side by side, and falls back where a chunk fails', async () => {
     const w = world();
     const wide: NewFieldsFile = {
+      identifiers: false,
       unmatched: Array.from({ length: 30 }, (_, i) => ({
         index: i + 1,
         header: `Extra ${String(i + 1)}`,

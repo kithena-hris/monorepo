@@ -53,7 +53,7 @@ describe('the plan', () => {
       'Cost centre in Employment, and T-shirt size and Laptop serial in a new Equipment section. Published as version 8.',
     );
     expect(steps[1]?.detail).toBe(
-      '31 rows are unchanged. 9 blocked rows are left out, in a file you can fix and import again.',
+      '31 rows are unchanged. 9 rows have no name and no work email, so they’re skipped: nobody to create.',
     );
     expect(steps[4]?.detail).toBe(
       'The column is skipped and isn’t stored anywhere. Its values aren’t kept.',
@@ -142,5 +142,62 @@ describe('the plan', () => {
       rows: { create: 0, update: 0, unchanged: 3, blocked: 2, duplicate: 1 },
     });
     expect(steps[0]?.title).toBe('Nobody is created or updated');
+    expect(steps[0]?.detail).toBe(
+      '3 rows are unchanged. 2 rows have no name and no work email, so they’re skipped: nobody to create. 1 row repeats somebody, so it’s skipped.',
+    );
+  });
+});
+
+describe('a file from another system, or another Kithena', () => {
+  const DEV_EXPORT: PlanInput = {
+    setup: { countryName: 'United States' },
+    version: 1,
+    fields: [],
+    rows: { create: 30, update: 1, unchanged: 0, blocked: 0, duplicate: 0 },
+    leftOut: [],
+    identifiers: { inFile: true, numbered: true },
+    newLocations: { names: ['Corporate, New York', 'Scranton Branch'], added: true },
+    leftEmpty: { count: 2, labels: ['Manager'] },
+  };
+
+  it('says in one line that its employee IDs are ignored and Kithena gives each new person one', () => {
+    const ids = planOf(DEV_EXPORT).steps.find((s) => s.kind === 'ids');
+    expect(ids?.title).toBe(
+      'Employee IDs in the file are ignored; Kithena gives each new person one',
+    );
+    expect(ids?.detail).toBe(
+      'Rows match people already here by work email; a row that matches nobody is a new person.',
+    );
+  });
+
+  it('says so too when nobody will be numbered yet, and who can change that', () => {
+    const ids = planOf({ ...DEV_EXPORT, identifiers: { inFile: true, numbered: false } }).steps.find(
+      (s) => s.kind === 'ids',
+    );
+    expect(ids?.title).toBe('Employee IDs in the file are ignored');
+    expect(ids?.detail).toContain('an administrator turns numbering on in Settings › Organisation');
+  });
+
+  it('adds the work locations it names before the people, and lists what it leaves empty', () => {
+    const { steps } = planOf(DEV_EXPORT);
+    expect(steps.map((s) => s.kind)).toEqual(['setup', 'places', 'people', 'ids', 'refs']);
+    expect(steps[1]?.title).toBe('Add 2 work locations: Corporate, New York and Scranton Branch');
+    expect(steps[4]?.title).toBe('Leave 2 values empty for HR');
+    expect(steps[4]?.detail).toBe(
+      'Manager on those rows can’t be read, or points at nobody here. The rows import without it, and nothing is blocked; each is listed below.',
+    );
+  });
+
+  it('leaves the work locations empty when only an administrator could add them', () => {
+    const places = planOf({
+      ...DEV_EXPORT,
+      newLocations: { names: ['Scranton Branch'], added: false },
+    }).steps.find((s) => s.kind === 'places');
+    expect(places?.title).toBe('Leave work location empty where the file names Scranton Branch');
+  });
+
+  it('says nothing about identifiers when the file holds none', () => {
+    const { steps } = planOf({ ...DEV_EXPORT, identifiers: { inFile: false, numbered: true } });
+    expect(steps.some((s) => s.kind === 'ids')).toBe(false);
   });
 });

@@ -1,23 +1,15 @@
 import {
   AccessStrip,
-  Alert,
-  AssistantCard,
   Badge,
   Button,
   Card,
-  Carousel,
   ChipGroup,
   ChipGroupItem,
-  DataTable,
   Field,
   FieldControl,
   FieldDescription,
   FieldLabel,
   Input,
-  KeyValues,
-  PageSection,
-  RadioCard,
-  RadioGroup,
   Select,
   SelectContent,
   SelectItem,
@@ -26,7 +18,6 @@ import {
   Switch,
   TagsInput,
   icons,
-  type DataColumn,
 } from '@reach/ui';
 import { useId, useState, type JSX } from 'react';
 
@@ -35,13 +26,13 @@ import type { Classification, DataType, PiiKind, ViewerScope, WriterRole } from 
 import { DATA_TYPE_LABEL, SCOPE_LABEL, WRITER_LABEL } from '../settings/words';
 
 /**
- * The import's "New fields" step (design AI9, AI10; on a phone MA8, MA9):
- * the columns that match no field, proposed as fields, and what happens for
+ * The import review's new fields (design AI9, AI10): the columns that match
+ * no field, proposed as fields, each a card, and under each what happens for
  * the people who will have no value.
  *
  * Nothing here decides. People proposes (with the assistant, from the
  * columns' headers and the shape of their values, never a value), HR switches
- * each on or off and edits it, and the plan that follows says what approving
+ * each on or off and edits it, and the plan above them says what importing
  * will do. A column that can reveal health or religion is held back and
  * explained; HR may still import it. HR without administrator rights sees the
  * whole proposal and is told an administrator adds fields.
@@ -549,169 +540,13 @@ function FieldEditor({
 
 /* --------------------------------------------------- AI9: new fields -- */
 
-export interface NewFieldsStepProps {
-  readonly view: NewFieldsView;
-  readonly proposals: readonly ColumnProposal[];
-  readonly facts: FileFacts;
-  readonly onChange: (column: number, patch: Partial<ColumnProposal>) => void;
-  /** Under a finger: one card at a time (MA8), with the card the URL names. */
-  readonly coarse: boolean;
-  readonly index: number;
-  readonly onIndexChange: (index: number) => void;
-}
-
-const newSectionsOf = (proposals: readonly ColumnProposal[]): string[] => [
+export const newSectionsOf = (proposals: readonly ColumnProposal[]): string[] => [
   ...new Set(
     proposals.flatMap((p) => ('newSection' in p.placement ? [p.placement.newSection] : [])),
   ),
 ];
 
 /** "4 columns aren't fields yet. Here's what I'd create." */
-export function NewFieldsStep({
-  view,
-  proposals,
-  facts,
-  onChange,
-  coarse,
-  index,
-  onIndexChange,
-}: NewFieldsStepProps): JSX.Element {
-  const readOnly = !view.canCreate;
-  const acceptable = proposals.filter((p) => !isSpecial(p));
-  const kept = proposals.filter((p) => p.include);
-  const newSections = newSectionsOf(proposals);
-  const n = proposals.length;
-  const card = (p: ColumnProposal, selected = false): JSX.Element => {
-    const shown = view.proposals.find((x) => x.column === p.column);
-    return (
-      <ProposedFieldCard
-        key={p.column}
-        proposal={p}
-        sensitive={shown?.sensitive ?? null}
-        counts={shown?.counts}
-        rows={facts.rows}
-        sections={view.sections}
-        newSections={newSections}
-        readOnly={readOnly}
-        selected={selected}
-        footless={coarse}
-        onChange={(patch) => {
-          onChange(p.column, patch);
-        }}
-      />
-    );
-  };
-  const notImported = [
-    ...facts.ignored,
-    ...proposals.filter((p) => !p.include).map((p) => p.header),
-  ];
-  const assistantNote = view.byModel
-    ? null
-    : 'Proposed by Kithena’s own rules: the assistant didn’t answer this time.';
-  const alerts = (
-    <>
-      {view.blocked === null ? null : (
-        <Alert
-          tone={readOnly ? 'info' : 'warning'}
-          title={readOnly ? 'An administrator adds fields' : 'Not yet'}
-        >
-          {view.blocked}
-        </Alert>
-      )}
-    </>
-  );
-
-  if (coarse) {
-    // MA8: one proposed field per card, swiped through; Skip and Create below.
-    return (
-      <div className="flex flex-col gap-3">
-        <AssistantCard
-          level={2}
-          title={n === 1 ? 'This column isn’t a field yet' : 'These columns aren’t fields yet'}
-          {...(assistantNote === null ? {} : { note: assistantNote })}
-        >
-          <p className="text-sm text-fg-muted">
-            Swipe through. I’ve designed each one from the data.
-          </p>
-        </AssistantCard>
-        {alerts}
-        <Carousel
-          label="Proposed fields"
-          controls="dots"
-          itemClassName="w-full"
-          index={index}
-          onIndexChange={onIndexChange}
-        >
-          {proposals.map((p) => card(p))}
-        </Carousel>
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid items-start gap-4 @4xl/page:grid-cols-[minmax(0,1fr)_21.25rem]">
-      <div className="flex min-w-0 flex-col gap-3">
-        <AssistantCard
-          level={2}
-          title={
-            n === 1
-              ? '1 column isn’t a field yet. Here’s what I’d create.'
-              : `${String(n)} columns aren’t fields yet. Here’s what I’d create.`
-          }
-          action={
-            readOnly || acceptable.length === 0 ? undefined : (
-              <Button
-                size="sm"
-                variant="primary"
-                startIcon={<icons.confirm aria-hidden />}
-                onClick={() => {
-                  for (const p of acceptable) onChange(p.column, { include: true });
-                }}
-              >
-                Accept all {acceptable.length}
-              </Button>
-            )
-          }
-          {...(assistantNote === null ? {} : { note: assistantNote })}
-        >
-          <p className="text-sm text-fg-muted">
-            I read every value in each column to choose the type, the options and who should see it.
-            Switch off any you don’t want, or edit them.
-          </p>
-        </AssistantCard>
-        {alerts}
-        {proposals.map((p) => card(p))}
-      </div>
-      <div className="flex flex-col gap-3.5">
-        <PageSection surface title="From this file">
-          <KeyValues
-            items={[
-              { label: 'Columns', value: facts.columns },
-              { label: 'Matched to fields', value: facts.mapped },
-              { label: 'New fields suggested', value: kept.length },
-              {
-                label: 'Not imported',
-                value:
-                  notImported.length === 0
-                    ? 'None'
-                    : `${String(notImported.length)} (${notImported.join(', ')})`,
-              },
-            ]}
-          />
-        </PageSection>
-        <Alert
-          tone="info"
-          title={view.setup === null ? 'These become fields in Settings' : 'These come with setup'}
-        >
-          {view.setup === null
-            ? `They’re added to Employee fields as version ${String(view.version)}. Nothing is published until you approve the plan.`
-            : `They’re published with ${view.setup.countryName === null ? 'the fields every company has' : `the ${view.setup.countryName} pack`} as version 1. Nothing is published until you approve the plan.`}
-        </Alert>
-      </div>
-    </div>
-  );
-}
-
 /* ---------------------------------------- AI10: people without a value -- */
 
 const CHOICE: Record<
@@ -768,42 +603,24 @@ function impactOf(kind: ForExisting['kind'], n: number): string {
   }
 }
 
-/** What happens for a field's people without a value, as a short word: the table's last column. */
-export function planWord(p: ColumnProposal, missing: number): string {
-  if (missing === 0) return 'Nothing to do';
-  switch (p.forExisting.kind) {
-    case 'ask':
-      return `Ask the ${plural(missing, 'person', 'people')}`;
-    case 'hr':
-      return 'HR fills it in';
-    case 'new':
-      return 'Only new joiners';
-    case 'leave':
-      return 'Left empty';
-    case 'default':
-      return `“${p.forExisting.value}” for them`;
-  }
-}
-
-/** The choices for one field, each with what it does (`RadioCard` with impact). */
-export function ExistingChoices({
+/**
+ * What happens for the people without a value, as one inline choice: the
+ * import's review keeps each field to a line.
+ */
+export function MissingChoice({
   proposal: p,
   missing,
   recommended,
   readOnly,
-  compact = false,
   onChange,
 }: {
   readonly proposal: ColumnProposal;
   readonly missing: number;
   readonly recommended: ForExisting['kind'] | null;
   readonly readOnly: boolean;
-  /** The phone's three, in a word each (MA9). */
-  readonly compact?: boolean;
   readonly onChange: (forExisting: ForExisting) => void;
 }): JSX.Element {
   const single = p.forExisting.kind === 'default' ? p.forExisting.value : null;
-  const recommendedDefault = recommended === 'default' ? (single ?? undefined) : undefined;
   const kinds: ForExisting['kind'][] = [
     'ask',
     'hr',
@@ -811,172 +628,40 @@ export function ExistingChoices({
     'leave',
     ...(recommended === 'default' || single !== null ? (['default'] as const) : []),
   ];
-  const n = plural(missing, 'person', 'people');
-  const shown = compact ? kinds.filter((k) => k !== 'hr' || recommended === 'hr') : kinds;
   return (
-    <RadioGroup
-      aria-label={`What happens for the people without ${p.field.label}`}
-      value={p.forExisting.kind}
-      disabled={readOnly}
-      onValueChange={(kind) => {
-        onChange(
-          kind === 'default'
-            ? { kind: 'default', value: single ?? recommendedDefault ?? '' }
-            : ({ kind } as ForExisting),
-        );
-      }}
-      className="flex flex-col gap-2"
-    >
-      {shown.map((kind) => (
-        <RadioCard
-          key={kind}
-          value={kind}
-          description={compact ? undefined : CHOICE[kind].means}
-          impact={impactOf(kind, missing)}
-          {...(kind === recommended
-            ? {
-                badge: (
-                  <Badge tone="assistant" size="sm">
-                    Suggested
-                  </Badge>
-                ),
-              }
-            : {})}
+    <Field orientation="horizontal">
+      <FieldLabel>
+        {plural(missing, 'person has', 'people have')} no {p.field.label}
+      </FieldLabel>
+      <FieldControl>
+        <Select
+          value={p.forExisting.kind}
+          disabled={readOnly}
+          onValueChange={(kind) => {
+            onChange(
+              kind === 'default'
+                ? { kind: 'default', value: single ?? '' }
+                : ({ kind } as ForExisting),
+            );
+          }}
         >
-          {compact ? CHOICE[kind].short : CHOICE[kind].label(n, missing.toLocaleString('en-GB'))}
-        </RadioCard>
-      ))}
-    </RadioGroup>
-  );
-}
-
-export interface ExistingStepProps {
-  readonly view: NewFieldsView;
-  /** The proposals HR kept. */
-  readonly kept: readonly ColumnProposal[];
-  /** The field the URL names, else the first that needs a decision. */
-  readonly selected: string | null;
-  readonly onSelect: (key: string) => void;
-  readonly onChange: (column: number, patch: Partial<ColumnProposal>) => void;
-}
-
-/** "Most people already have a value from the file" (design AI10). */
-export function ExistingStep({
-  view,
-  kept,
-  selected,
-  onSelect,
-  onChange,
-}: ExistingStepProps): JSX.Element {
-  const readOnly = !view.canCreate;
-  const missingOf = (p: ColumnProposal): number =>
-    view.proposals.find((x) => x.column === p.column)?.counts.missing ?? 0;
-  const haveOf = (p: ColumnProposal): number =>
-    view.proposals.find((x) => x.column === p.column)?.counts.have ?? 0;
-  const current =
-    kept.find((p) => p.key === selected) ?? kept.find((p) => missingOf(p) > 0) ?? kept[0];
-  const recommended = (p: ColumnProposal): ForExisting['kind'] | null =>
-    view.proposals.find((x) => x.column === p.column)?.forExisting.kind ?? null;
-  const most = kept.every((p) => haveOf(p) >= missingOf(p));
-  const total = view.totalPeople;
-  const columns: DataColumn<ColumnProposal>[] = [
-    {
-      id: 'field',
-      header: 'Field',
-      cell: (p) => <span className="font-semibold">{p.field.label}</span>,
-    },
-    {
-      id: 'have',
-      header: 'Have it',
-      cell: (p) => `${haveOf(p).toLocaleString('en-GB')} of ${total.toLocaleString('en-GB')}`,
-    },
-    {
-      id: 'missing',
-      header: 'Missing',
-      cell: (p) =>
-        missingOf(p) === 0 ? (
-          <span className="text-fg-subtle">—</span>
-        ) : (
-          <span className="font-medium text-warning-fg">
-            {missingOf(p).toLocaleString('en-GB')} missing
-          </span>
-        ),
-    },
-    {
-      id: 'plan',
-      header: 'What happens',
-      cell: (p) => <span className="font-medium">{planWord(p, missingOf(p))}</span>,
-    },
-  ];
-  return (
-    <div className="grid items-start gap-4 @4xl/page:grid-cols-2">
-      <div className="flex min-w-0 flex-col gap-3">
-        <AssistantCard
-          level={2}
-          title={
-            most
-              ? 'Most people already have a value from the file'
-              : 'Many people won’t have a value from the file'
-          }
-        >
-          <p className="text-sm text-fg-muted">
-            For the people who don’t, I’ve picked the gentlest option that still gets the data.
-            Change any of them.
-          </p>
-        </AssistantCard>
-        {kept.length === 0 ? (
-          <Alert tone="info" title="No new fields">
-            Every new column is switched off, so the file imports without them.
-          </Alert>
-        ) : (
-          <DataTable
-            label="New fields and the people without a value"
-            rows={kept}
-            columns={columns}
-            rowId={(p) => p.key}
-            activeRowId={current?.key ?? null}
-            onRowClick={(p) => {
-              onSelect(p.key);
-            }}
-            describeRow={(p) => p.field.label}
-          />
-        )}
-      </div>
-      {current === undefined ? null : (
-        <PageSection
-          surface
-          title={`${current.field.label} · ${plural(missingOf(current), 'person', 'people')} without a value`}
-        >
-          <div className="flex flex-col gap-3">
-            <ExistingChoices
-              proposal={current}
-              missing={missingOf(current)}
-              recommended={recommended(current)}
-              readOnly={readOnly}
-              onChange={(forExisting) => {
-                onChange(current.column, { forExisting });
-              }}
-            />
-            {current.forExisting.kind === 'default' ? (
-              <Field>
-                <FieldLabel>Value for the people without one</FieldLabel>
-                <FieldControl>
-                  <Input
-                    value={current.forExisting.value}
-                    disabled={readOnly}
-                    onChange={(e) => {
-                      onChange(current.column, {
-                        forExisting: { kind: 'default', value: e.target.value },
-                      });
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-            ) : null}
-            <p className="text-sm text-fg-muted">Why this suggestion: {current.forExistingWhy}</p>
-          </div>
-        </PageSection>
-      )}
-    </div>
+          <SelectTrigger
+            aria-label={`What happens for the people without ${p.field.label}`}
+            size="sm"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {kinds.map((kind) => (
+              <SelectItem key={kind} value={kind}>
+                {CHOICE[kind].short}
+                {kind === recommended ? ' (suggested)' : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldControl>
+      <FieldDescription>{impactOf(p.forExisting.kind, missing)}</FieldDescription>
+    </Field>
   );
 }

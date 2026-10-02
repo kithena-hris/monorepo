@@ -32,10 +32,30 @@ export interface PlanInput {
   >;
   /** Columns of the file that are not imported, by header. */
   readonly leftOut: readonly string[];
+  /**
+   * The file holds a person id or employee number column, which is ignored:
+   * Kithena creates both. `numbered`: new people are given a number.
+   */
+  readonly identifiers?: { readonly inFile: boolean; readonly numbered: boolean };
+  /** Work locations the file names that are not here yet; `added` when this run adds them. */
+  readonly newLocations?: { readonly names: readonly string[]; readonly added: boolean };
+  /** References the rows leave empty for HR, and the fields they are in. */
+  readonly leftEmpty?: { readonly count: number; readonly labels: readonly string[] };
 }
 
 export type PlanStepKind =
-  'setup' | 'fields' | 'people' | 'ask' | 'hr' | 'new' | 'default' | 'leave' | 'skip';
+  | 'setup'
+  | 'places'
+  | 'fields'
+  | 'people'
+  | 'ids'
+  | 'refs'
+  | 'ask'
+  | 'hr'
+  | 'new'
+  | 'default'
+  | 'leave'
+  | 'skip';
 
 export interface PlanStep {
   readonly kind: PlanStepKind;
@@ -87,11 +107,15 @@ function peopleStep(rows: PlanInput['rows']): PlanStep {
         : rows.update > 0
           ? `Update ${plural(rows.update, 'person', 'people')}`
           : 'Nobody is created or updated';
-  const blocked = rows.blocked + rows.duplicate;
+  // Nothing is blocked: a row is skipped only when it cannot be anybody, or
+  // is somebody already in the file or here.
   const parts = [
     rows.unchanged > 0 ? `${plural(rows.unchanged, 'row is', 'rows are')} unchanged.` : null,
-    blocked > 0
-      ? `${plural(blocked, 'blocked row is', 'blocked rows are')} left out, in a file you can fix and import again.`
+    rows.blocked > 0
+      ? `${plural(rows.blocked, 'row has', 'rows have')} no name and no work email, so ${rows.blocked === 1 ? 'it’s' : 'they’re'} skipped: nobody to create.`
+      : null,
+    rows.duplicate > 0
+      ? `${plural(rows.duplicate, 'row repeats', 'rows repeat')} somebody, so ${rows.duplicate === 1 ? 'it’s' : 'they’re'} skipped.`
       : null,
   ].filter((p) => p !== null);
   return {
@@ -162,6 +186,28 @@ export function planOf(input: PlanInput): {
     });
     short.push(country === null ? 'set up the employee record' : `set up the ${country} pack`);
   }
+  const places = input.newLocations;
+  if (places !== undefined && places.names.length > 0) {
+    const names = listed(places.names);
+    steps.push(
+      places.added
+        ? {
+            kind: 'places',
+            title: `Add ${plural(places.names.length, 'work location', 'work locations')}: ${names}`,
+            detail:
+              'Nothing here has those names yet. Each joins the legal entity of the first row that names it, on that entity’s time zone; change either in Settings › Organisation.',
+          }
+        : {
+            kind: 'places',
+            title: `Leave work location empty where the file names ${names}`,
+            detail:
+              'Only an administrator adds work locations. Add them in Settings › Organisation and import the file again, or set them on each profile.',
+          },
+    );
+    if (places.added) {
+      short.push(`add ${plural(places.names.length, 'work location', 'work locations')}`);
+    }
+  }
   if (input.fields.length > 0) {
     const n = input.fields.length;
     steps.push({
@@ -174,6 +220,33 @@ export function planOf(input: PlanInput): {
   steps.push(peopleStep(input.rows));
   const importing = input.rows.create + input.rows.update;
   if (importing > 0) short.push(`import ${plural(importing, 'person', 'people')}`);
+  if (input.identifiers?.inFile === true) {
+    const matching =
+      'Rows match people already here by work email; a row that matches nobody is a new person.';
+    steps.push(
+      input.identifiers.numbered
+        ? {
+            kind: 'ids',
+            title: 'Employee IDs in the file are ignored; Kithena gives each new person one',
+            detail: matching,
+          }
+        : {
+            kind: 'ids',
+            title: 'Employee IDs in the file are ignored',
+            detail: `${matching} This company doesn’t number its people yet: an administrator turns numbering on in Settings › Organisation.`,
+          },
+    );
+  }
+  const empty = input.leftEmpty;
+  if (empty !== undefined && empty.count > 0) {
+    const one = empty.labels.length === 1;
+    steps.push({
+      kind: 'refs',
+      title: `Leave ${plural(empty.count, 'value', 'values')} empty for HR`,
+      detail: `${listed(empty.labels)} on those rows can’t be read, or ${one ? 'points' : 'point'} at nobody here. The rows import without ${one ? 'it' : 'them'}, and nothing is blocked; each is listed below.`,
+    });
+    short.push(`leave ${String(empty.count)} for HR`);
+  }
   for (const f of input.fields) {
     const step = forExistingStep(f);
     if (step === null) continue;

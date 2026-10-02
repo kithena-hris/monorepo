@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import ExcelJS from 'exceljs';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { PERSON_ID_COLUMN } from '../../domain/import/identifiers.js';
 
 /**
  * Upload and detect (PRD §14.1, §14.2): bytes in, one intermediate shape out.
@@ -30,7 +31,7 @@ export const MAX_ROWS = 50_000;
 export const MAX_UNCOMPRESSED = 256 * 1024 * 1024;
 
 /** The column the export writes first, and what marks row 2 as the key row (§15.3). */
-export const PERSON_ID_COLUMN = '__person_id';
+export { PERSON_ID_COLUMN };
 
 /**
  * The sheet an export opens with, saying what the file holds (design AI14).
