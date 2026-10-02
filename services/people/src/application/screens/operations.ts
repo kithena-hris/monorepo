@@ -1,5 +1,6 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import {
+  COUNTRIES,
   PersonAttributeCorrected,
   PersonCompensationChanged,
   PersonHired,
@@ -384,7 +385,10 @@ export type ImportStageView =
         /** Each work location value of the file, its people, and what is proposed for it. */
         readonly workplaces: DryRun['workplaces'];
         /** The work locations and legal entities here, to map a value to or add one in. */
-        readonly here: DryRun['here'];
+        readonly here: DryRun['here'] & {
+          /** The countries a new work location may be in. */
+          readonly countries: readonly { readonly code: string; readonly name: string }[];
+        };
         /** The legal entities the new people join: numbered when they are hired. */
         readonly createdIn: readonly string[];
       };
@@ -845,7 +849,13 @@ export async function dryRunImport(
         leftEmptyCount: plan.leftEmpty.length,
         newLocations: plan.newLocations,
         workplaces: plan.workplaces,
-        here: plan.here,
+        here: {
+          ...plan.here,
+          countries:
+            plan.workplaces.length === 0
+              ? []
+              : COUNTRIES.map((c) => ({ code: c.code, name: c.name })),
+        },
         createdIn: [
           ...new Set(
             plan.rows.flatMap((r) => {
