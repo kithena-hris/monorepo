@@ -236,6 +236,13 @@ says who did what and when. The published links are read-only copies for
 sharing and reading on a phone — their checkboxes are stale by design, so never
 read progress from them and never treat one as the thing to update.
 
+**The Time Off module is specified and being built on the `time-off` branch.**
+Requirements are in `docs/timeoff-prd.md` and the tickets, `TOF-001` to
+`TOF-114`, in `docs/timeoff-build-plan.md`, which is the record of its progress
+in the same way. Each lane is a pull request into `time-off`; `time-off` goes to
+`main` once, when every lane has landed. The screens are `T1`–`T36` (web) and
+`MT1`–`MT21` (mobile) in the same Claude Design project as People.
+
 ## Adding a module
 
 1. `services/<name>/module.manifest.ts` with `dependsOn: []`. If that array
