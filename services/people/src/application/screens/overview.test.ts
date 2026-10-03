@@ -13,6 +13,7 @@ import type { PeopleService } from '../person/service.js';
 import { overviewView } from './overview.js';
 import { completePhotoUpload, photoView, startPhotoUpload, type PhotoDeps } from './photo.js';
 import { directoryView, orgChartView, peopleHeadcount, profileView } from './people.js';
+import { waitingView } from './waiting.js';
 
 /**
  * The overview, through the application layer: the viewer's own record, the
@@ -427,5 +428,38 @@ describe('the org chart', () => {
     if (!read.ok) throw new Error(read.error.message);
     expect(read.value.people.length).toBeGreaterThan(0);
     expect(read.value.people.map((p) => p.title)).toEqual(read.value.people.map(() => null));
+  });
+});
+
+describe('what waits for a decision, counted', () => {
+  it('is nothing to ask anybody without a queue, and asks nothing', async () => {
+    const w = world();
+    const untouched = new Proxy({} as typeof w.access, {
+      get: () => {
+        throw new Error('nothing should be read for an employee');
+      },
+    });
+    const counted = await waitingView({} as never, { access: untouched }, w.as(TIM_ACCOUNT));
+    expect(counted).toEqual({
+      ok: true,
+      value: { identifiers: null, duplicates: null, accessRequests: null },
+    });
+  });
+
+  it('is the length of HR’s queues, as their screens list them', async () => {
+    const w = world();
+    const asking = w.as(HR_ACCOUNT, 'hr');
+    const counted = await waitingView({} as never, { access: w.access }, asking);
+    const reviews = await w.access.identifierReviews({} as never, asking);
+    const duplicates = await w.access.duplicates({} as never, asking);
+    expect(counted).toEqual({
+      ok: true,
+      value: {
+        identifiers: reviews.ok ? reviews.value.length : null,
+        duplicates: duplicates.ok ? duplicates.value.length : null,
+        // No full-values requests here at all: not a queue of anybody's.
+        accessRequests: null,
+      },
+    });
   });
 });

@@ -464,9 +464,12 @@ function hrFigures() {
       expiringIn90Days: number | null;
       joiners: { months: string[]; cells: { row: string; column: string; value: number }[] } | null;
     }>('Analytics', { segment: null }),
-    people<{ items: unknown[] }>('IdentifierReviews'),
-    people<{ items: unknown[] }>('Duplicates', { a: null, b: null }),
-    people<{ requests: { state: string }[] }>('FullValues'),
+    // The shell's own count of them (`shellData`), shared.
+    people<{
+      identifiers: number | null;
+      duplicates: number | null;
+      accessRequests: number | null;
+    }>('Waiting'),
     people<{ people: DirectoryRow[] }>('Directory', {
       conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }],
       sort: 'hire_date:asc',
@@ -491,7 +494,8 @@ async function overview(): Promise<ScreenLoad> {
   if (base.status !== 'ready') return base;
   const data = base.data as { roles?: { hr?: boolean } };
   if (data.roles?.hr !== true) return base;
-  const [analytics, ids, dupes, access, starting] = (await early) ?? (await hrFigures());
+  const [analytics, waiting, starting] = (await early) ?? (await hrFigures());
+  const counted = waiting.ok ? waiting.data : null;
   const a = analytics.ok ? analytics.data : null;
   const joiners =
     a?.joiners == null
@@ -511,11 +515,9 @@ async function overview(): Promise<ScreenLoad> {
         headcount: a?.headcount ?? null,
         complete: a?.complete ?? null,
         expiring: a?.expiringIn90Days ?? null,
-        identifiers: ids.ok ? ids.data.items.length : null,
-        duplicates: dupes.ok ? dupes.data.items.length : null,
-        accessRequests: access.ok
-          ? access.data.requests.filter((r) => r.state === 'pending').length
-          : null,
+        identifiers: counted?.identifiers ?? null,
+        duplicates: counted?.duplicates ?? null,
+        accessRequests: counted?.accessRequests ?? null,
         joiners,
         starting: (starting.ok ? starting.data.people : []).slice(0, 5).map((p) => ({
           id: p.id,

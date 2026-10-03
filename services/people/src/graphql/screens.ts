@@ -32,6 +32,7 @@ import type {
   RecordSection,
 } from '../application/screens/model.js';
 import type { RolesView } from '../application/screens/roles.js';
+import type { WaitingView } from '../application/screens/waiting.js';
 import type { BulkEditView, BulkResult } from '../application/screens/bulk-edit.js';
 import type { PublishPreviewView, RegistryView, SetupView } from '../application/screens/schema.js';
 import type { ColumnMapping } from '../application/import/mapping.js';
@@ -954,6 +955,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       truncated: t.exposeBoolean('truncated', {
         description: 'More people than one chart draws: it is not everybody.',
       }),
+    }),
+  });
+
+  const WaitingRef = builder.objectRef<WaitingView>('PeopleWaiting').implement({
+    description:
+      'How many decisions wait for this viewer, counted; null where they have no such queue.',
+    fields: (t) => ({
+      identifiers: t.exposeInt('identifiers', { nullable: true }),
+      duplicates: t.exposeInt('duplicates', { nullable: true }),
+      accessRequests: t.exposeInt('accessRequests', { nullable: true }),
     }),
   });
 
@@ -2037,6 +2048,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           `/v1/views/directory${qs === '' ? '' : `?${qs}`}`,
         );
       },
+    }),
+    peopleWaiting: t.field({
+      type: WaitingRef,
+      resolve: view<WaitingView>(() => '/v1/views/waiting'),
     }),
     peopleOrgChart: t.field({
       type: OrgChartRef,

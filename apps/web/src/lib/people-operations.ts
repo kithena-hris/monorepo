@@ -230,6 +230,11 @@ export const OPERATIONS = {
     peopleHome { hr admin finance }
   }`,
 
+  /** How many decisions wait for this viewer, counted: the shell's bell and badges. */
+  Waiting: `query Waiting {
+    peopleWaiting { identifiers duplicates accessRequests }
+  }`,
+
   /** Where People starts: the viewer, their line, and what waits for them. */
   Overview: `query Overview {
     peopleOverview {

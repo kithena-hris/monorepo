@@ -2158,6 +2158,15 @@ type PeopleViewedAs {
   specialCategory: Boolean
 }
 
+"""
+How many decisions wait for this viewer, counted; null where they have no such queue.
+"""
+type PeopleWaiting {
+  accessRequests: Int
+  duplicates: Int
+  identifiers: Int
+}
+
 type Person @key(fields: "id") {
   attributes: [Attribute!]
   id: ID
@@ -2451,6 +2460,7 @@ type Query {
   Imports and exports, newest first, 50 at a time; HR and People administrators.
   """
   peopleTransferHistory(before: ID): PeopleTransferHistory
+  peopleWaiting: PeopleWaiting
   """
   One endpoint’s delivery log, newest first, 50 at a time; people_admin only.
   """
