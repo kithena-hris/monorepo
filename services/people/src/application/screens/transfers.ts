@@ -4,6 +4,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { ExportFormat } from '../export/export.js';
 import type { ObjectStore } from '../export/object-store.js';
 import { REPORT_LINK_MS, reportKey, type ImportCounts } from '../import/commit.js';
+import { labelOf } from '../../domain/import/run.js';
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { actors } from './people.js';
@@ -52,6 +53,13 @@ export interface TransferRow {
   /** An import's key, and when its stored report expires; null when none is kept. */
   readonly checksum: string | null;
   readonly reportExpiresAt: string | null;
+  /** The background run an approved import went through; null for an export, or an import before runs. */
+  readonly run: {
+    readonly status: 'queued' | 'running' | 'succeeded' | 'failed';
+    readonly phase: 'setup' | 'people' | 'managers' | 'lifecycle' | 'finishing';
+    readonly done: number;
+    readonly total: number | null;
+  } | null;
 }
 
 export interface TransferHistory {
@@ -85,6 +93,15 @@ export interface TransferView {
   readonly downloadable: boolean;
   /** An import's blocked-row report, while it is kept: a link that expires. */
   readonly reportUrl: string | null;
+  /**
+   * An import's state, in the one set of words: Importing while it runs, with
+   * how many people are in, Imported once done, Import failed. Null for an export.
+   */
+  readonly run: {
+    readonly status: 'importing' | 'imported' | 'failed';
+    readonly label: 'Importing' | 'Imported' | 'Import failed';
+    readonly people: { readonly done: number; readonly total: number | null };
+  } | null;
 }
 
 export interface TransferHistoryView {
@@ -164,6 +181,7 @@ export async function transferHistoryView(
           r.expiresAt !== null &&
           Date.parse(r.expiresAt) > now,
         reportUrl: await reportLink(deps, asking.tenantId, r, now),
+        run: r.kind === 'import' ? runOf(r) : null,
       });
     }
     return ok({
@@ -171,6 +189,23 @@ export async function transferHistoryView(
       next: rows.length > limit ? (shown.at(-1)?.id ?? null) : null,
     });
   });
+}
+
+/** An import's state; one from before runs, or one its run finished, is Imported. */
+function runOf(r: TransferRow): NonNullable<TransferView['run']> {
+  const status = r.run?.status ?? 'succeeded';
+  const total = r.run?.total ?? null;
+  const done =
+    r.run === null || total === null || r.run.phase === 'setup'
+      ? 0
+      : r.run.phase === 'people'
+        ? r.run.done
+        : total;
+  return {
+    status: status === 'succeeded' ? 'imported' : status === 'failed' ? 'failed' : 'importing',
+    label: labelOf(status),
+    people: { done, total },
+  };
 }
 
 /** A day's link to an import's kept report, never outliving it; null when none is kept. */

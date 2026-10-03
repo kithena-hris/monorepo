@@ -3,8 +3,10 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { outboxTable, publish } from '@kithena/db-kit';
 import { err, type DomainFailure } from '@kithena/domain-kit';
 
+import { NO_COUNTS, type ImportRun, type RunCounts } from '../../domain/import/run.js';
 import type { UploadIntent } from '../../domain/import/upload.js';
 import { rowRefusal, type ImportLedger, type ReportIndex, type RowScope } from './commit.js';
+import type { RunStore, StoredRun } from './run-store.js';
 import type { UploadIntents } from './upload.js';
 
 /**
@@ -77,7 +79,7 @@ export function drizzleImportLedger(): ImportLedger {
  * estimate low until a replan lands past ~1,000 rows, and by then the import
  * has read 2.6 million rows it did not need.
  */
-async function planForKeyLookups(tx: PostgresJsDatabase): Promise<void> {
+export async function planForKeyLookups(tx: PostgresJsDatabase): Promise<void> {
   await tx.execute(sql`SET LOCAL enable_seqscan = off`);
   await tx.execute(sql`DISCARD PLANS`);
 }
@@ -238,4 +240,113 @@ class RowRefused extends Error {
     super(failure.message);
     this.failure = failure;
   }
+}
+
+/**
+ * Import runs, over `people.import_run`
+ * (`migrations/20261003120000_people_import_run.sql`), with the checksum of
+ * the `people.import` row a finished run wrote. Counts and words only.
+ */
+export function drizzleRunStore(): RunStore {
+  type Row = {
+    tenant_id: string;
+    id: string;
+    upload_id: string;
+    actor_id: string;
+    name: string | null;
+    status: ImportRun['status'];
+    phase: ImportRun['phase'];
+    done: number;
+    total: number | null;
+    counts: Partial<RunCounts> | null;
+    fields: number | null;
+    failure: string | null;
+    created_at: string | Date;
+    started_at: string | Date | null;
+    finished_at: string | Date | null;
+    checksum: string | null;
+  };
+  const iso = (at: string | Date | null) => (at === null ? null : new Date(at).toISOString());
+  const stored = (r: Row): StoredRun => ({
+    tenantId: r.tenant_id,
+    id: r.id,
+    uploadId: r.upload_id,
+    actorId: r.actor_id,
+    name: r.name,
+    status: r.status,
+    phase: r.phase,
+    done: r.done,
+    total: r.total,
+    counts: { ...NO_COUNTS, ...r.counts },
+    fields: r.fields,
+    failure: r.failure,
+    createdAt: iso(r.created_at) ?? '',
+    startedAt: iso(r.started_at),
+    finishedAt: iso(r.finished_at),
+    checksum: r.checksum,
+  });
+  const select = sql`
+    SELECT r.tenant_id, r.id, r.upload_id, r.actor_id, r.name, r.status, r.phase, r.done,
+           r.total, r.counts, r.fields, r.failure, r.created_at, r.started_at, r.finished_at,
+           i.checksum
+      FROM people.import_run r
+      LEFT JOIN people.import i ON i.tenant_id = r.tenant_id AND i.id = r.id`;
+  return {
+    async insert(tx, run) {
+      // The partial unique index decides: a second active run is no row, not an error.
+      const rows = await tx.execute<{ id: string }>(sql`
+        INSERT INTO people.import_run (tenant_id, id, upload_id, actor_id, name, created_at)
+        VALUES (${run.tenantId}::uuid, ${run.id}::uuid, ${run.uploadId}::uuid,
+                ${run.actorId}::uuid, ${run.name}, ${run.createdAt}::timestamptz)
+        ON CONFLICT (tenant_id) WHERE status IN ('queued', 'running') DO NOTHING
+        RETURNING id`);
+      return [...rows].length > 0;
+    },
+
+    async find(tx, tenantId, id, lock = false) {
+      if (lock) {
+        await tx.execute(sql`
+          SELECT 1 FROM people.import_run
+           WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid FOR UPDATE`);
+      }
+      const rows = await tx.execute<Row>(sql`${select}
+         WHERE r.tenant_id = ${tenantId}::uuid AND r.id = ${id}::uuid`);
+      const row = [...rows][0];
+      return row === undefined ? null : stored(row);
+    },
+
+    async save(tx, tenantId, run) {
+      await tx.execute(sql`
+        UPDATE people.import_run
+           SET status = ${run.status}, phase = ${run.phase}, done = ${run.done},
+               total = ${run.total}, counts = ${JSON.stringify(run.counts)}::jsonb,
+               fields = ${run.fields}, failure = ${run.failure},
+               started_at = ${run.startedAt}::timestamptz,
+               finished_at = ${run.finishedAt}::timestamptz
+         WHERE tenant_id = ${tenantId}::uuid AND id = ${run.id}::uuid`);
+    },
+
+    async active(tx, tenantId) {
+      const rows = await tx.execute<Row>(sql`${select}
+         WHERE r.tenant_id = ${tenantId}::uuid AND r.status IN ('queued', 'running')`);
+      const row = [...rows][0];
+      return row === undefined ? null : stored(row);
+    },
+
+    async finished(tx, tenantId, actorId, since) {
+      const rows = await tx.execute<Row>(sql`${select}
+         WHERE r.tenant_id = ${tenantId}::uuid AND r.actor_id = ${actorId}::uuid
+           AND r.finished_at >= ${since}::timestamptz
+         ORDER BY r.finished_at DESC
+         LIMIT 20`);
+      return [...rows].map(stored);
+    },
+
+    async imported(tx, tenantId, checksum) {
+      const rows = await tx.execute<{ id: string }>(sql`
+        SELECT id FROM people.import
+         WHERE tenant_id = ${tenantId}::uuid AND checksum = ${checksum}`);
+      return [...rows].length > 0;
+    },
+  };
 }

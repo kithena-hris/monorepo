@@ -25,6 +25,10 @@
 #     pending Temporal activity on `people-full-values`. A full-values request
 #     waiting a week for HR's decision is a timer, not work: Temporal fires it
 #     when the VM is next up.
+#   - no approved import running: a workflow on `people-imports` is a run
+#     working through its chunks (or retrying one), and stopping the VM would
+#     only pause it until somebody next wakes it. Its people, its counts and
+#     the bell's "Import finished" wait for it to end.
 #   - up for more than 15 minutes.
 #
 # Then: a backup (retried once; a failure stops the stop unless the last good
@@ -46,7 +50,7 @@ window=$((minutes * 60))
 # reason to stay up, never to stop.
 decide() {
   local name value
-  for name in UPTIME_SECONDS REQUESTS NEWEST_START_SECONDS SESSIONS JOBS ACTIVITIES; do
+  for name in UPTIME_SECONDS REQUESTS NEWEST_START_SECONDS SESSIONS JOBS ACTIVITIES IMPORTS; do
     value="${!name:-}"
     [[ "$value" =~ ^[0-9]+$ ]] || { echo "stay: $name unknown (${value:-unset})"; return 1; }
   done
@@ -58,6 +62,7 @@ decide() {
   if [ "$SESSIONS" -gt 0 ]; then echo "stay: $SESSIONS login session(s)"; return 1; fi
   if [ "$JOBS" -gt 0 ]; then echo "stay: $JOBS export job(s) in flight"; return 1; fi
   if [ "$ACTIVITIES" -gt 0 ]; then echo "stay: $ACTIVITIES full-values activit(y/ies) pending"; return 1; fi
+  if [ "$IMPORTS" -gt 0 ]; then echo "stay: $IMPORTS import(s) running"; return 1; fi
   echo "stop: idle for ${minutes} min"
 }
 
@@ -154,6 +159,23 @@ activities() {
   echo "$n"
 }
 
+# Approved imports running: one workflow per run on `people-imports`, open
+# from the approval until the run is over, whether a chunk is working or
+# waiting to be retried. A count, not a describe per workflow.
+imports() {
+  local env n=0 t c
+  for env in $(envs); do
+    t="kithena-$env-temporal-1"
+    running "$t" || continue
+    c="$(docker exec "$t" temporal workflow count --address temporal:7233 \
+      -q "TaskQueue='people-imports' AND ExecutionStatus='Running'" \
+      | sed -n 's/^Total: *\([0-9][0-9]*\).*/\1/p')" || { echo unknown; return; }
+    [[ "$c" =~ ^[0-9]+$ ]] || { echo unknown; return; }
+    n=$((n + c))
+  done
+  echo "$n"
+}
+
 backup() {
   local stamp="$root/.last-backup"
   [ -f "$here/backup.sh" ] || { echo "no backup.sh beside this script" >&2; return 1; }
@@ -177,7 +199,8 @@ check() {
   SESSIONS=$(($(who | wc -l) + $(pgrep -c -f ssm-session-worker || true)))
   JOBS="$(queued)"
   ACTIVITIES="$(activities)"
-  export UPTIME_SECONDS REQUESTS NEWEST_START_SECONDS SESSIONS JOBS ACTIVITIES
+  IMPORTS="$(imports)"
+  export UPTIME_SECONDS REQUESTS NEWEST_START_SECONDS SESSIONS JOBS ACTIVITIES IMPORTS
   decide || exit 0
   backup || exit 0
   local env

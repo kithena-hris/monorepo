@@ -10,6 +10,7 @@ import {
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
+  Progress,
   Skeleton,
   Stack,
   Table,
@@ -20,10 +21,18 @@ import {
   TableRow,
   icons,
 } from '@reach/ui';
-import { useEffect, useState, type JSX, type ReactNode } from 'react';
+import { useId, type JSX, type ReactNode } from 'react';
 
 import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
+import {
+  ImportBusy,
+  isRunning,
+  peopleLine,
+  runHref,
+  useZone,
+  type ImportRunStatus,
+} from './import-run';
 
 /**
  * Import & export (V6, MV5): two ways in and out of People, and one history
@@ -53,6 +62,15 @@ export interface TransferEntry {
   readonly downloadable: boolean;
   /** An import's blocked-row report, while it is kept: a link that expires. */
   readonly reportUrl: string | null;
+  /**
+   * An import's state, in the one set of words: Importing with how many people
+   * are in, Imported, Import failed; its id is the run's. Null for an export.
+   */
+  readonly run?: {
+    readonly status: 'importing' | 'imported' | 'failed';
+    readonly label: string;
+    readonly people: { readonly done: number; readonly total: number | null };
+  } | null;
 }
 
 export interface ImportExportState {
@@ -84,6 +102,8 @@ export interface ImportExportProps {
   /** The history's search (`?q=`), once typing rests. */
   readonly search?: string;
   readonly onSearchChange?: (search: string) => void;
+  /** The company's import running now, as the host follows it: Import waits for it. */
+  readonly running?: ImportRunStatus | null;
 }
 
 export type HistoryKind = 'all' | 'import' | 'export';
@@ -102,19 +122,26 @@ export const titleOf = (e: TransferEntry): string =>
 /** What came of it, in words, and how loudly: skipped rows are a warning. */
 export function resultOf(e: TransferEntry): {
   readonly text: string;
-  readonly tone: 'success' | 'warning' | 'neutral';
+  readonly tone: 'success' | 'warning' | 'danger' | 'neutral';
 } {
+  if (e.run?.status === 'importing') {
+    return { text: `Importing… ${peopleLine(e.run.people)}`, tone: 'neutral' };
+  }
+  if (e.run?.status === 'failed') return { text: 'Import failed', tone: 'danger' };
   if (e.imported !== null) {
     const { created, updated, blocked } = e.imported;
+    // Imported: the word every import is said with once it is over.
+    const lead = e.run == null ? '' : 'Imported · ';
+    const n = (count: number): string => count.toLocaleString('en-GB');
     if (blocked === 0) {
-      return { text: `${String(created + updated)} created or updated`, tone: 'success' };
+      return { text: `${lead}${n(created + updated)} created or updated`, tone: 'success' };
     }
     const parts = [
-      created > 0 ? `${String(created)} created` : null,
-      updated > 0 ? `${String(updated)} updated` : null,
-      `${String(blocked)} skipped`,
+      created > 0 ? `${n(created)} created` : null,
+      updated > 0 ? `${n(updated)} updated` : null,
+      `${n(blocked)} skipped`,
     ].filter((p) => p !== null);
-    return { text: parts.join(' · '), tone: 'warning' };
+    return { text: `${lead}${parts.join(' · ')}`, tone: 'warning' };
   }
   if (e.exported !== null) {
     const { rows } = e.exported;
@@ -125,10 +152,15 @@ export function resultOf(e: TransferEntry): {
   return { text: e.kind === 'import' ? 'Importing' : 'Being prepared', tone: 'neutral' };
 }
 
-/** An import's report, or an export's files: the export page hands the asker theirs. */
+/**
+ * An import still running, or one that failed: its page. One imported: its
+ * report. An export's files: the export page hands the asker theirs.
+ */
 export const hrefOf = (e: TransferEntry): string | null =>
   e.kind === 'import'
-    ? e.reportUrl
+    ? e.run != null && e.run.status !== 'imported'
+      ? runHref(e.id)
+      : e.reportUrl
     : e.downloadable
       ? `/people/export?export=${encodeURIComponent(e.id)}`
       : null;
@@ -164,15 +196,6 @@ export function whenOf(at: string, now: string, zone: string | undefined): strin
   return `${part('day')} ${part('month')}`;
 }
 
-/** The reader's zone once in their browser; UTC for the server's render and the first. */
-function useZone(): string | undefined {
-  const [zone, setZone] = useState<string | undefined>('UTC');
-  useEffect(() => {
-    setZone(undefined);
-  }, []);
-  return zone;
-}
-
 /** The history under its switch and its search: a file, a person or a reason. */
 export function filterHistory(
   entries: readonly TransferEntry[],
@@ -189,7 +212,9 @@ export function filterHistory(
   );
 }
 
-export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element {
+export function ImportExport({ load, running = null, ...held }: ImportExportProps): JSX.Element {
+  const busyId = useId();
+  const going = running !== null && isRunning(running) ? running : null;
   return (
     <Stack gap={5}>
       <PageHeader
@@ -208,9 +233,27 @@ export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element 
                   description="Create or update people in bulk. Nothing is written until you accept a dry run."
                   shortDescription="From a spreadsheet"
                   facts={['CSV or Excel', 'Up to 50,000 rows']}
-                  href="/people/import"
+                  href={going === null ? '/people/import' : runHref(going.id)}
                   start="Start import"
                   startIcon={<icons.upload aria-hidden />}
+                  busy={
+                    going === null
+                      ? null
+                      : {
+                          id: busyId,
+                          reason: <ImportBusy id={busyId} run={going} />,
+                          progress: (
+                            <Progress
+                              label={`Importing… ${going.step}`}
+                              showValue
+                              value={going.people.total === null ? null : going.people.done}
+                              max={Math.max(1, going.people.total ?? 1)}
+                              valueLabel={peopleLine(going.people)}
+                            />
+                          ),
+                          short: `Importing… ${peopleLine(going.people)}`,
+                        }
+                  }
                   more={
                     // Before setup there are no fields, so nothing to template.
                     state.setUp === false ? null : (
@@ -241,7 +284,23 @@ export function ImportExport({ load, ...held }: ImportExportProps): JSX.Element 
               />
             </div>
             {state.history === null ? null : (
-              <History history={state.history} now={state.now} {...held} />
+              <History
+                history={
+                  // The run as the host follows it, not as the page was read.
+                  going === null || state.history === 'loading'
+                    ? state.history
+                    : {
+                        ...state.history,
+                        items: state.history.items.map((e) =>
+                          e.id === going.id && e.run != null
+                            ? { ...e, run: { ...e.run, people: going.people } }
+                            : e,
+                        ),
+                      }
+                }
+                now={state.now}
+                {...held}
+              />
             )}
           </>
         )}
@@ -266,6 +325,7 @@ function Action({
   startIcon,
   more = null,
   shortcut,
+  busy = null,
 }: {
   readonly icon: ReactNode;
   readonly title: string;
@@ -280,6 +340,16 @@ function Action({
   readonly more?: ReactNode;
   /** The shortcut the start answers to (C for a new export), shown in its tooltip. */
   readonly shortcut?: string;
+  /**
+   * Another of these is running: the start is off, with why beside it, and how
+   * far that one is. Under a finger the tile opens it, saying how far.
+   */
+  readonly busy?: {
+    readonly id: string;
+    readonly reason: ReactNode;
+    readonly progress: ReactNode;
+    readonly short: string;
+  } | null;
 }): JSX.Element {
   return (
     <>
@@ -298,17 +368,25 @@ function Action({
             </Badge>
           ))}
         </div>
+        {busy === null ? null : busy.progress}
         <div className="flex gap-2">
-          <Button
-            asChild
-            variant="primary"
-            startIcon={startIcon}
-            {...(shortcut === undefined ? {} : { shortcut })}
-          >
-            <a href={href}>{start}</a>
-          </Button>
+          {busy === null ? (
+            <Button
+              asChild
+              variant="primary"
+              startIcon={startIcon}
+              {...(shortcut === undefined ? {} : { shortcut })}
+            >
+              <a href={href}>{start}</a>
+            </Button>
+          ) : (
+            <Button variant="primary" startIcon={startIcon} disabled aria-describedby={busy.id}>
+              {start}
+            </Button>
+          )}
           {more}
         </div>
+        {busy === null ? null : busy.reason}
       </Card>
       <Card interactive padded className="relative hidden flex-col gap-2.5 touch:flex">
         <Avatar size="lg" shape="rounded" tone="accent" name={short} fallback={icon} />
@@ -316,7 +394,7 @@ function Action({
           <a href={href} className="text-md font-bold before:absolute before:inset-0">
             {short}
           </a>
-          <p className="mt-0.5 text-sm text-fg-muted">{shortDescription}</p>
+          <p className="mt-0.5 text-sm text-fg-muted">{busy?.short ?? shortDescription}</p>
         </div>
       </Card>
     </>
@@ -502,7 +580,11 @@ function History({
                           <a
                             href={href}
                             aria-label={
-                              e.kind === 'import' ? `Report of ${title}` : `Download ${title}`
+                              e.kind === 'export'
+                                ? `Download ${title}`
+                                : href === e.reportUrl
+                                  ? `Report of ${title}`
+                                  : `Open the import of ${title}`
                             }
                           >
                             {e.kind === 'import' ? (

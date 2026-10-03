@@ -601,7 +601,8 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
 
     await page.getByRole('button', { name: 'Approve and run' }).click();
     await page.getByRole('heading', { name: /^Imported 4 people/ }).waitFor({ timeout: 30_000 });
-    expect(new URL(page.url()).search).toBe('?step=done');
+    // The run's own address replaced the plan's: Back never offers a run that has happened.
+    expect(new URL(page.url()).search).toMatch(/^\?run=[0-9a-f-]{36}$/);
 
     const everyone = await stack.sql<{ work_email: string | null; status: string }[]>`
       SELECT work_email, status FROM people.person WHERE tenant_id = ${TENANT}`;
@@ -2430,6 +2431,108 @@ describe('A company the back office has just created, with nothing published', (
     expect(problems).toEqual([]);
     await context.close();
   });
+
+  it('runs an approved import in the background, through a reload, while Import waits for it', async () => {
+    const made = await company('cascade-transit', 'Cascade Transit', 'ines@cascade.example');
+    const { context, page, problems, unavailable } = await asAdministrator(made);
+    const ROWS = 400;
+    const csv = [
+      'given_name,family_name,work_email,hire_date',
+      ...Array.from(
+        { length: ROWS },
+        (_, i) => `Person${String(i)},Cascade,p${String(i)}@cascade.example,2025-01-06`,
+      ),
+    ].join('\n');
+    await page.goto(`${made.shell}/people/import`);
+    // Hydrated first: a file chosen before the remote's handlers are on goes nowhere.
+    await page.waitForLoadState('networkidle');
+    await upload(page, 'cascade.csv', csv);
+    await page.getByRole('button', { name: 'Next: review the plan' }).click({ timeout: 120_000 });
+    await page.waitForURL(/\?step=review$/);
+    const approve = page.getByRole('button', { name: 'Approve and run' });
+    await approve.waitFor({ timeout: 120_000 });
+    const approving = Date.now();
+    await approve.click();
+
+    // Answered at once, with the run: its own address replaces the plan's.
+    await page.waitForURL(/\/people\/import\?run=[0-9a-f-]{36}$/, { timeout: 15_000 });
+    expect(Date.now() - approving).toBeLessThan(15_000);
+    const runUrl = page.url();
+    const importing = page.getByRole('heading', { name: 'Importing' });
+    const imported = page.getByRole('heading', { name: /^Imported 400 people/ });
+    await importing.waitFor({ timeout: 15_000 });
+    await page.getByText(/It carries on if you close this page/).waitFor();
+
+    // Meanwhile nobody starts another: Import & export's Import is off, saying why.
+    const other = await context.newPage();
+    await other.goto(`${made.shell}/people/import-export`);
+    const start = other.getByRole('button', { name: 'Start import' }).first();
+    await start.waitFor({ timeout: 30_000 });
+    expect(await start.isDisabled()).toBe(true);
+    await other
+      .getByText(/^An import is running\. Started by you at \d\d:\d\d\.$/)
+      .first()
+      .waitFor();
+    expect(
+      await other.getByRole('link', { name: 'See the import' }).first().getAttribute('href'),
+    ).toBe(new URL(runUrl).pathname + new URL(runUrl).search);
+    // The upload takes no file either.
+    await other.goto(`${made.shell}/people/import`);
+    await other.getByText('An import is running', { exact: true }).waitFor({ timeout: 30_000 });
+    expect(await other.locator('input[type=file]').count()).toBe(0);
+    await other.close();
+
+    // A reload, as closing the browser and coming back would be: the same run, still going or done.
+    await page.reload();
+    expect(page.url()).toBe(runUrl);
+    await importing.or(imported).waitFor({ timeout: 30_000 });
+
+    // Done by itself, with what it did: every row created.
+    const runId = new URL(runUrl).searchParams.get('run') ?? '';
+    const over = async () => {
+      const [run] = await stack.sql<
+        {
+          status: string;
+          phase: string;
+          done: number;
+          total: number | null;
+          failure: string | null;
+        }[]
+      >`SELECT status, phase, done, total, failure FROM people.import_run
+         WHERE tenant_id = ${made.tenantId} AND id = ${runId}`;
+      return run;
+    };
+    const deadline = Date.now() + 420_000;
+    let run = await over();
+    while (run !== undefined && (run.status === 'queued' || run.status === 'running')) {
+      if (Date.now() > deadline) throw new Error(`still ${JSON.stringify(run)}`);
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      run = await over();
+    }
+    expect(run).toMatchObject({ status: 'succeeded', failure: null });
+    // The page, which nobody reloaded, says so by itself.
+    await imported.waitFor({ timeout: 30_000 });
+    expect(await page.getByRole('group', { name: 'What the import did' }).textContent()).toContain(
+      'Created400',
+    );
+    const created = await stack.sql<{ count: string }[]>`
+        SELECT count(*)::text AS count FROM people.person
+         WHERE tenant_id = ${made.tenantId} AND family_name = 'Cascade'`;
+    expect(created).toEqual([{ count: String(ROWS) }]);
+
+    // Over: Import is back, the history says Imported, and the bell says so too.
+    await page.goto(`${made.shell}/people/import-export`);
+    await page.getByRole('link', { name: 'Start import' }).first().waitFor({ timeout: 30_000 });
+    await page
+      .getByText(/^Imported · 400 created or updated$/)
+      .first()
+      .waitFor({ timeout: 30_000 });
+    await page.goto(`${made.shell}/inbox`);
+    await page.getByText('Import finished: 400 people').first().waitFor({ timeout: 30_000 });
+    expect(await unavailable()).toBe(0);
+    expect(problems).toEqual([]);
+    await context.close();
+  }, 600_000);
 });
 
 describe('A People page while the VM behind it is asleep', () => {

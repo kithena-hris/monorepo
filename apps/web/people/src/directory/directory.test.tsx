@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
+import { RUN_GOING } from '../import/import.fixture';
 import { Directory, summaryOf, type DirectoryProps, type DirectoryState } from './directory';
 
 const state: DirectoryState = {
@@ -246,6 +247,24 @@ describe('Directory', () => {
     rerender(<Directory {...props({ load: empty })} />);
     expect(screen.getByText('Nobody has been added to People yet.')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('keeps Import off while an import runs, saying whose and since when, with the way to it', async () => {
+    const onImport = vi.fn();
+    const empty = { status: 'ready', data: { ...state, people: [] } } as const;
+    const { container } = render(
+      <Directory {...props({ load: empty, onImport, running: RUN_GOING })} />,
+    );
+    const button = screen.getByRole('button', { name: 'Import' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(
+      /^An import is running\. Started by Ada Lovelace at \d\d:\d\d\.$/,
+    );
+    expect(screen.getByRole('link', { name: 'See the import' })).toHaveAttribute(
+      'href',
+      `/people/import?run=${RUN_GOING.id}`,
+    );
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('draws the view its route names, and asks the shell for another (V2, V3)', async () => {

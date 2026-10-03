@@ -29,6 +29,7 @@ import {
   withQuery,
   type HistoryMode,
 } from '../lib/url-state';
+import { retryDelay } from '../lib/waking';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 import {
   exportAddressOf,
@@ -388,6 +389,71 @@ async function uploadFile(
 
 type Stage = Record<string, unknown> & { step: string; blockedUrl?: string | null };
 
+/** An approved import as People answers `importRun`, as far as the shell reads it. */
+type RunView = Readonly<Record<string, unknown>> & { readonly id: string; readonly status: string };
+
+const isRunView = (value: unknown): value is RunView =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { id?: unknown }).id === 'string' &&
+  typeof (value as { status?: unknown }).status === 'string';
+
+const runGoing = (run: RunView | null): boolean =>
+  run === null || run.status === 'queued' || run.status === 'running';
+
+/** How often a running import is asked about: often enough that its count moves. */
+const POLL_MS = 2_000;
+
+/**
+ * An approved import, followed until it is over: People is asked every two
+ * seconds, one ask at a time, starting from what the page was drawn with.
+ * While the VM wakes the last answer stays on screen, marked `waking`, and the
+ * asks back off as the waking page's do (`lib/waking.ts`); any other failure
+ * is asked again too, since the import goes on whatever this page hears.
+ * Once it is over, `over` runs once, so what was drawn from it is read again.
+ */
+function useImportRun(
+  id: string | null,
+  drawn: RunView | null,
+  over: () => void,
+): { readonly run: RunView | null; readonly waking: boolean } {
+  const [polled, setPolled] = useState<RunView | null>(null);
+  const [failures, setFailures] = useState(0);
+  const [waking, setWaking] = useState(false);
+  const run = polled?.id === id ? polled : drawn?.id === id ? drawn : null;
+  const going = id !== null && runGoing(run);
+  const was = useRef(going);
+  useEffect(() => {
+    if (was.current && !going && id !== null && polled?.id === id) over();
+    was.current = going;
+  });
+  useEffect(() => {
+    if (!going) return undefined;
+    let live = true;
+    const timer = setTimeout(
+      () => {
+        void actions.importRun(id).then((answer) => {
+          if (!live) return;
+          if (answer.ok && isRunView(answer.data)) {
+            setPolled(answer.data);
+            setWaking(false);
+            setFailures(0);
+          } else {
+            setWaking(!answer.ok && answer.waking);
+            setFailures((n) => n + 1);
+          }
+        });
+      },
+      failures === 0 ? POLL_MS : retryDelay(failures - 1),
+    );
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [id, going, polled, failures]);
+  return { run, waking: run !== null && going && waking };
+}
+
 /**
  * A small export is ready now: open its file. A queued one is announced when
  * it is ready, as the screen says.
@@ -529,6 +595,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
     uploadId: string | null;
     mapping: Readonly<Record<number, string | null>>;
     stages: Stage[];
+    /** The run just approved, until People first answers for it. */
+    run?: RunView;
   }>({ uploadId: null, mapping: {}, stages: [{ step: 'upload' }] });
 
   const loadable =
@@ -539,6 +607,28 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         : null;
 
   const component = route?.component ?? '';
+
+  // The import an import page shows (`?run=`), or the one any of the import's
+  // ways in waits for, followed until it is over; then the page is read again.
+  const drawnData =
+    load.status === 'ready' && typeof load.data === 'object' && load.data !== null
+      ? (load.data as { run?: unknown; activeImport?: unknown })
+      : {};
+  const runId =
+    component === 'ImportFlow' && at('run') !== null
+      ? at('run')
+      : isRunView(drawnData.activeImport) &&
+          (component === 'ImportFlow' || component === 'ImportExport' || component === 'Directory')
+        ? drawnData.activeImport.id
+        : null;
+  const drawnRun =
+    [drawnData.run, drawnData.activeImport, importing.run].find(
+      (r): r is RunView => isRunView(r) && r.id === runId,
+    ) ?? null;
+  const followed = useImportRun(runId, drawnRun, refresh);
+  /** The run that keeps Import waiting, or null. */
+  const running = runId !== null && runGoing(followed.run) ? followed.run : null;
+
   const props = ((): Record<string, unknown> => {
     switch (component) {
       case 'PeopleSetup':
@@ -873,6 +963,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
                 onImport: () => {
                   go('/people/import');
                 },
+                running,
               }
             : {}),
           ...(can.bulkEdit === true
@@ -1321,13 +1412,24 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         // An address without a step is the upload: browser Back from the
         // mapping returns there, and Forward finds the mapping still held.
         const stage = held.step === 'map' && at('step') === null ? { step: 'upload' } : held;
+        // An approved import's own address: Importing, then what it did, or why it stopped.
+        const watching = at('run') !== null;
         const again = { ok: false, message: 'Choose the file again' } as const;
         type Mapping = Readonly<Record<number, string | null>>;
         // Nothing published and not an administrator: the first import is one's.
         const ready =
           load.status === 'ready' ? (load.data as { setUp?: boolean; admin?: boolean }) : {};
         return {
-          load: { status: 'ready', data: stage },
+          load: !watching
+            ? { status: 'ready', data: stage }
+            : followed.run !== null
+              ? {
+                  status: 'ready',
+                  data: { step: 'run', run: followed.run, waking: followed.waking },
+                }
+              : (loadable ?? { status: 'loading' }),
+          // Another import going: no file is taken until it is over.
+          running: watching ? null : running,
           // The administrator imports it: approving its plan publishes version 1.
           ...(ready.setUp === false && ready.admin !== true ? { setup: { href: null } } : {}),
           // Only an administrator sets up work locations; HR reads the choices.
@@ -1379,8 +1481,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           run: async (
             mapping: Mapping,
             proposals: readonly unknown[],
-            options: { readonly places?: Readonly<Record<string, unknown>> },
-          ): Promise<Outcome> => {
+            options: {
+              readonly places?: Readonly<Record<string, unknown>>;
+              readonly basedOn?: number | null;
+            },
+          ) => {
             const id = importing.uploadId;
             if (id === null) return again;
             const ran = await actions.runImport(
@@ -1390,16 +1495,37 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               // The administrator approving the plan is the approval: nothing waits.
               true,
               options.places,
+              options.basedOn,
             );
             if (!ran.ok) return ran;
-            setImporting((s) => ({
-              ...s,
-              mapping,
-              stages: [...s.stages, { ...(ran.data as object), step: 'done' }],
-            }));
-            // Done replaces the plan: Back never offers a run that has happened.
-            note({ step: 'done', field: null }, 'replace');
-            return { ok: true };
+            const now = new Date().toISOString();
+            const file = importing.stages.find((s) => s.step === 'map')?.['file'] as
+              { readonly name?: string } | undefined;
+            // The run is People's from here: this page only follows it, at its own address.
+            setImporting({
+              uploadId: null,
+              mapping: {},
+              stages: [{ step: 'upload' }],
+              run: {
+                id: ran.runId,
+                status: 'queued',
+                label: 'Importing',
+                phase: 'setup',
+                step: 'Setting up the fields',
+                people: { done: 0, total: null },
+                fileName: file?.name ?? null,
+                startedBy: { name: '', you: true },
+                approvedAt: now,
+                startedAt: null,
+                finishedAt: null,
+                now,
+                result: null,
+                failure: null,
+              },
+            });
+            // The run replaces the plan: Back never offers a run that has happened.
+            note({ step: null, field: null, run: ran.runId }, 'replace');
+            return { ok: true as const };
           },
           onDownloadBlocked: (url: string) => {
             // A signed link to the stored report: it downloads, and expires.
@@ -1528,6 +1654,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       case 'ImportExport':
         return {
           load: loadable,
+          running,
           kind: oneOf(at('kind'), ['import', 'export'], null),
           onKindChange: (kind: string) => {
             note({ kind: kind === 'all' ? null : kind }, 'push');

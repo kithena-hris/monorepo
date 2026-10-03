@@ -66,6 +66,15 @@ async function read(
 const notSetUp = (load: ScreenLoad): boolean =>
   load.status === 'error' && load.code === 'SCHEMA_NOT_PUBLISHED';
 
+/**
+ * The company's import running now, or null: none, not this viewer's to
+ * see, or a People that cannot say. Import waits while there is one.
+ */
+async function activeImport(): Promise<unknown> {
+  const answer = await read('ActiveImportRun', {}, json());
+  return answer.status === 'ready' ? answer.data : null;
+}
+
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
 const today = (): string => new Date().toISOString().slice(0, 10);
 
@@ -141,10 +150,16 @@ export async function withArrived(load: ScreenLoad): Promise<ScreenLoad> {
 
 export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   switch (component) {
-    case 'Directory':
-      return orBare(directoryQuery(query.search), (asked) =>
-        read('Directory', asked, VIEWS.Directory),
-      );
+    case 'Directory': {
+      // Beside the people, the import running now: Import waits for it.
+      const [directory, running] = await Promise.all([
+        orBare(directoryQuery(query.search), (asked) => read('Directory', asked, VIEWS.Directory)),
+        activeImport(),
+      ]);
+      return directory.status === 'ready' && running !== null
+        ? { ...directory, data: { ...(directory.data as object), activeImport: running } }
+        : directory;
+    }
     case 'OrgChart':
       return orgChart();
     case 'Profile':
@@ -194,7 +209,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
       );
       // `Home` is the shell's own read of the roles (`shellData`), shared.
-      const [roles, template] = await Promise.all([read('Home'), read('ImportTemplate')]);
+      const [roles, template, running] = await Promise.all([
+        read('Home'),
+        read('ImportTemplate'),
+        activeImport(),
+      ]);
       if (roles.status !== 'ready') return roles;
       const { hr = false, admin = false } = roles.data as { hr?: boolean; admin?: boolean };
       return {
@@ -204,17 +223,27 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           setUp: !notSetUp(template),
           history: hr || admin ? history : null,
           now: new Date().toISOString(),
+          activeImport: running,
         },
       };
     }
     case 'ImportFlow': {
-      // Whether there is anything to import against yet, and who could set it up.
-      const [roles, template] = await Promise.all([read('Home'), read('ImportTemplate')]);
+      // Whether there is anything to import against yet, and who could set it up;
+      // and the run the address names (`?run=`), else the one that keeps a new upload waiting.
+      const runId = given(query.search['run']);
+      const [roles, template, run, running] = await Promise.all([
+        read('Home'),
+        read('ImportTemplate'),
+        runId === null ? null : read('ImportRun', { id: runId }, json()),
+        runId === null ? activeImport() : null,
+      ]);
+      if (run !== null && run.status !== 'ready') return run;
       return {
         status: 'ready',
         data: {
           setUp: !notSetUp(template),
           admin: roles.status === 'ready' && (roles.data as { admin?: boolean }).admin === true,
+          ...(run === null ? { activeImport: running } : { run: run.data }),
         },
       };
     }

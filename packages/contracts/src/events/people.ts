@@ -852,20 +852,38 @@ export const ImportStarted = defineEvent(
   }),
 );
 
+const ImportCounts = z.object({
+  created: z.int().nonnegative().register(policy, asInternal()),
+  updated: z.int().nonnegative().register(policy, asInternal()),
+  unchanged: z.int().nonnegative().register(policy, asInternal()),
+  blocked: z.int().nonnegative().register(policy, asInternal()),
+  duplicate: z.int().nonnegative().register(policy, asInternal()),
+  incomplete: z.int().nonnegative().register(policy, asInternal()),
+});
+
 export const ImportCompleted = defineEvent(
   'people.import.completed',
   1,
   z.object({
     importId: z.uuid().register(policy, asPublic()),
-    counts: z.object({
-      created: z.int().nonnegative().register(policy, asInternal()),
-      updated: z.int().nonnegative().register(policy, asInternal()),
-      unchanged: z.int().nonnegative().register(policy, asInternal()),
-      blocked: z.int().nonnegative().register(policy, asInternal()),
-      duplicate: z.int().nonnegative().register(policy, asInternal()),
-      incomplete: z.int().nonnegative().register(policy, asInternal()),
-    }),
+    counts: ImportCounts,
     completedAt: Instant,
+  }),
+);
+
+/**
+ * An approved import that stopped before the end. The people its finished
+ * chunks wrote stay, and are counted; nothing else of it is kept.
+ */
+export const ImportFailed = defineEvent(
+  'people.import.failed',
+  1,
+  z.object({
+    importId: z.uuid().register(policy, asPublic()),
+    counts: ImportCounts,
+    /** Why, in People's words, with what was done and what to do: never a value. */
+    reason: z.string().max(2000).register(policy, asInternal()),
+    failedAt: Instant,
   }),
 );
 
@@ -1346,6 +1364,7 @@ export const peopleEvents = [
   UniqueClaimConflict,
   ImportStarted,
   ImportCompleted,
+  ImportFailed,
   ExportCompleted,
   LegalEntityCreated,
   LegalEntityUpdated,

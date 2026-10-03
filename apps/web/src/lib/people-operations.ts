@@ -250,6 +250,7 @@ export const OPERATIONS = {
       team { waiting toFill }
       setup { photo fields { key sectionKey label description dataType required } }
       viewedAs { id by at endedAt specialCategory }
+      imports { id status finishedAt people fields fileName }
     }
   }`,
 
@@ -429,6 +430,7 @@ export const OPERATIONS = {
         by { name avatarUrl }
         imported { created updated blocked }
         exported { rows format }
+        run { status label people { done total } }
       }
       next
     }
@@ -966,6 +968,16 @@ export const OPERATIONS = {
 
   RunImport: `mutation RunImport($input: String!, $key: String!) {
     runImport(input: $input, idempotencyKey: $key)
+  }`,
+
+  /** An approved import as it runs, and what it did once it has (JSON); polled by its page. */
+  ImportRun: `query ImportRun($id: ID!) {
+    importRun(id: $id)
+  }`,
+
+  /** The company's import running now, or JSON null: another waits for it. */
+  ActiveImportRun: `query ActiveImportRun {
+    activeImportRun
   }`,
 
   // Search and export in words (docs/ai-settings.md). Plans cross as JSON; neither writes.

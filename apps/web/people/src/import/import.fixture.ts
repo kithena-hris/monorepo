@@ -1,4 +1,5 @@
 import type { ImportStage, ProposedColumn } from './import-flow';
+import type { ImportRunStatus } from './import-run';
 import type { ImportDoneView, ImportPlanView, LeftEmptyRow } from './import-plan';
 import type { ColumnProposal, NewFieldsView } from './new-fields';
 import type { PlacesHere, WorkplaceValue } from './work-locations';
@@ -267,6 +268,8 @@ export const PLAN: ImportPlanView = {
     },
   ],
   version: 1,
+  // Nothing published yet: the plan sets the company up.
+  basedOn: null,
   setup: { country: 'US', countryName: 'United States' },
   blocked: null,
   problems: [],
@@ -387,4 +390,45 @@ export const PLAN_WITH_OFFICE: ImportPlanView = {
     ...PLAN.review,
     dryRun: { ...PLAN.review.dryRun, workplaces: WORKPLACES, here: PLACES_HERE },
   },
+};
+
+/** An approved import a third of the way through its people, as People answers `importRun`. */
+export const RUN_GOING: ImportRunStatus = {
+  id: '01a0e1d1-0000-7000-8000-00000000a001',
+  status: 'running',
+  label: 'Importing',
+  phase: 'people',
+  step: 'Adding people',
+  people: { done: 312, total: 1000 },
+  fileName: 'meridian-people.xlsx',
+  startedBy: { name: 'Ada Lovelace', you: false },
+  approvedAt: '2026-10-01T14:02:00.000Z',
+  startedAt: '2026-10-01T14:02:03.000Z',
+  finishedAt: null,
+  now: '2026-10-01T14:06:15.000Z',
+  result: null,
+  failure: null,
+};
+
+/** The same import, over: what it did, as the done step says it. */
+export const RUN_DONE: ImportRunStatus = {
+  ...RUN_GOING,
+  status: 'succeeded',
+  label: 'Imported',
+  phase: 'finishing',
+  step: 'Finishing',
+  people: { done: 1000, total: 1000 },
+  finishedAt: '2026-10-01T14:08:00.000Z',
+  now: '2026-10-01T14:08:01.000Z',
+  result: (({ step: _step, ...rest }) => rest)(DONE),
+};
+
+/** The same import, stopped. */
+export const RUN_FAILED: ImportRunStatus = {
+  ...RUN_GOING,
+  status: 'failed',
+  label: 'Import failed',
+  finishedAt: '2026-10-01T14:07:00.000Z',
+  failure:
+    'Adding people stopped: the file could not be read again. 312 people were imported and stay. Upload the file again to import the rest.',
 };

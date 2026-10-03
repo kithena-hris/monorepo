@@ -42,6 +42,7 @@ export default ModuleManifest.parse({
     'people.unique_claim.conflict',
     'people.import.started',
     'people.import.completed',
+    'people.import.failed',
     'people.export.completed',
     'people.legal_entity.created',
     'people.legal_entity.updated',

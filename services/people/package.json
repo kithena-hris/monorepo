@@ -26,6 +26,7 @@
     "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
     "@openfga/sdk": "^0.9.7",
+    "@temporalio/activity": "^1.24.0",
     "@temporalio/client": "^1.24.0",
     "@temporalio/worker": "^1.24.0",
     "@temporalio/workflow": "^1.24.0",

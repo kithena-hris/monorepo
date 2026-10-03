@@ -540,7 +540,12 @@ export async function startStack(): Promise<Stack> {
       {
         ...uploads,
         // And the companies the acceptance tests make with `provisionCompany`, which import too.
-        PEOPLE_UPLOAD_CORS_ORIGINS: ['acme', 'meridian-freight', 'harbour-logistics']
+        PEOPLE_UPLOAD_CORS_ORIGINS: [
+          'acme',
+          'meridian-freight',
+          'harbour-logistics',
+          'cascade-transit',
+        ]
           .map((slug) => `http://${slug}.app.localhost:${String(shellPort)}`)
           .join(','),
       },

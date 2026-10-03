@@ -15,6 +15,7 @@ import type { FileStore } from './file-store.js';
 import type { AssistantPort } from '../assistant/assistant-port.js';
 import type { ChatDeps } from '../settings/chat-port.js';
 import type { ViewAsDeps, ViewedAs } from '../person/view-as.js';
+import type { ImportNotice } from '../import/run-store.js';
 import type {
   ReminderCompany,
   ReminderMailer,
@@ -50,6 +51,13 @@ export interface ScreenDeps {
     accountId: string,
     now: string,
   ) => Promise<readonly ViewedAs[]>;
+  /** The account's approved imports finished lately, newest first: their notices. Absent, none. */
+  readonly importNotices?: (
+    tx: Tx,
+    tenantId: string,
+    accountId: string,
+    now: string,
+  ) => Promise<readonly ImportNotice[]>;
   readonly relations: RelationsResolver;
   readonly clock: Clock;
   /** Which person signs in as an account (`PersonReader.personOf`). */
