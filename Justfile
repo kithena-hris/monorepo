@@ -9,8 +9,11 @@ default:
 # named People's administrator, version 1 published and sample employees, with
 # a reporting line, job titles and sample photos.
 # Identity's events are piped into People's seed, standing where the topic
-# would; see `services/people/src/seed-local.ts`. Time Off's comes last: Acme's
-# Platform team in October 2026 (`services/timeoff/src/seed/`).
+# would; see `services/people/src/seed-local.ts`. Time Off's comes last, with
+# the same pipe: Acme's Platform team in October 2026, each on an account
+# identity's seed invited, Ada as its HR, and its OpenFGA store, model and
+# tuples (`services/timeoff/src/seed/`). `turbo run dev` then starts Time Off
+# on 4002 and its remote on 3003 with `.env`'s TIMEOFF_* settings.
 dev:
     docker compose up -d --wait
     pnpm db:migrate

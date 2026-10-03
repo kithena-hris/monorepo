@@ -320,23 +320,58 @@ export interface MemberTuples {
  * replay converges on the same tuples. People's rule for its own
  * (`services/people/src/infrastructure/openfga.ts`, `sync`).
  *
- * Every path that changes a member goes through a unit of work — People's
- * events, the import, a location's zone — so wrapping it is the one place
- * none can miss. A tuple write that fails after the commit throws; the
+ * A delegate's `covered_by` follows the same way (TOF-050b): a delegation
+ * set or removed, or a request of the approver's saved — their own time off
+ * approved, cancelled or withdrawn, which an automatic delegation covers —
+ * re-reads the delegation and the approver's approved time off after the
+ * commit and writes the ranges `covering` checks.
+ *
+ * Every path that changes a member, a delegation or a request goes through
+ * a unit of work — People's events, the import, a location's zone, a
+ * decision, the escalation worker — so wrapping it is the one place none
+ * can miss. A tuple write that fails after the commit throws; the
  * consumer's redelivery then finds the event applied and calls `resync`.
  */
 export function syncingTuples(
   uow: UnitOfWork,
-  fga: Pick<TimeOffFga, 'syncMember' | 'setHrAdmin'>,
+  fga: Pick<TimeOffFga, 'syncMember' | 'syncCover' | 'setHrAdmin'>,
 ): { readonly uow: UnitOfWork; readonly tuples: MemberTuples } {
   const resync = async (tenantId: TenantId, personId: PersonId): Promise<void> => {
     const row = await uow.run(tenantId, (tx) => tx.members.get(personId));
     if (row !== null) await fga.syncMember(tenantId, row);
   };
+  /**
+   * An approver's `covered_by`, from their delegation and, when it is
+   * automatic, their approved time off. `delegationChanged` false means only
+   * a request moved: with no delegation there is then no tuple to clear.
+   */
+  const resyncCover = async (
+    tenantId: TenantId,
+    approverId: PersonId,
+    delegationChanged: boolean,
+  ): Promise<void> => {
+    const cover = await uow.run(tenantId, async (tx) => {
+      const d = await tx.approvals.delegation(approverId);
+      if (d === null) return null;
+      // ponytail: every approved request the approver ever had; keep only
+      // those not yet over if a tuple's condition context grows too large.
+      const away = d.automatic
+        ? await tx.requests.list({ personIds: [approverId], statuses: ['approved'] })
+        : [];
+      return {
+        delegateId: d.delegateId,
+        ranges: [...(d.range === null ? [] : [d.range]), ...away.flatMap((r) => r.request.spans)],
+      };
+    });
+    if (cover === null && !delegationChanged) return;
+    await fga.syncCover(tenantId, approverId, cover);
+  };
   return {
     uow: {
       async run(tenantId, fn) {
         const saved = new Set<PersonId>();
+        const delegations = new Set<PersonId>();
+        const requesters = new Set<PersonId>();
         const result = await uow.run(tenantId, (tx) =>
           fn({
             ...tx,
@@ -347,11 +382,33 @@ export function syncingTuples(
                 await tx.members.save(member);
               },
             },
+            approvals: {
+              ...tx.approvals,
+              saveDelegation: async (delegation) => {
+                delegations.add(delegation.approverId);
+                await tx.approvals.saveDelegation(delegation);
+              },
+              removeDelegation: async (approverId) => {
+                delegations.add(approverId);
+                await tx.approvals.removeDelegation(approverId);
+              },
+            },
+            requests: {
+              ...tx.requests,
+              save: async (record) => {
+                requesters.add(record.request.personId);
+                await tx.requests.save(record);
+              },
+            },
           }),
         );
         for (const personId of saved) {
           // oxlint-disable-next-line no-await-in-loop -- one member's tuples at a time, in order
           await resync(tenantId, personId);
+        }
+        for (const approverId of new Set([...delegations, ...requesters])) {
+          // oxlint-disable-next-line no-await-in-loop -- one approver's cover at a time, in order
+          await resyncCover(tenantId, approverId, delegations.has(approverId));
         }
         return result;
       },

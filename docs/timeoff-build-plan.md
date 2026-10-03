@@ -911,6 +911,66 @@ approver`, a conditional tuple whose ranges are checked against `today`;
   Off's settings"); the Acme seed's members carry no account, so `just dev`
   signs nobody in as Adam until the seed maps identity's accounts.
 
+### [x] TOF-050b — Delegates, local dev and deploy
+
+- **Files** `services/timeoff/src/infrastructure/openfga.ts`,
+  `services/timeoff/src/seed/`, `platform/identity/scripts/seed-auth.ts`,
+  `package.json` (`db:seed`), `deploy/vm/`, `.github/workflows/vercel-production.yml`,
+  `vercel-staging.yml`, `deploy-production.yml`,
+  `tools/scripts/src/affected-targets.ts`,
+  `apps/web/timeoff/scripts/smoke-deploy.mjs`, `docs/environments.md`,
+  `docs/demo-company.md`
+- **Depends on** TOF-050a
+- **Approach** Close TOF-050a's three open ends: delegates act through
+  OpenFGA, `just dev` signs Adam in as Adam, and Time Off deploys to the VM
+  the way People does.
+- **Done when** a delegation set, removed, or covered by the approver's own
+  approved time off rewrites `covered_by` after the commit; the seeded members
+  carry identity's demo accounts; and a merge deploys Time Off's container,
+  the router's token and the remote, each smoke-tested.
+- **As built** **Delegates**: `syncingTuples` also wraps
+  `approvals.saveDelegation`/`removeDelegation` and `requests.save`; after the
+  commit each approver touched has `covered_by` rewritten from the rows — the
+  delegation's range, plus every approved request's spans when it is
+  automatic — so an approval, a cancellation or a withdrawal of the
+  approver's own time off moves it, and a removed delegation clears it. A
+  request by somebody with no delegation costs one read and no write.
+  ponytail: every approved span the approver ever had goes into the tuple's
+  condition context; keep only those not yet over if that grows too large.
+  **Local dev**: identity's seed invites an account for each of the seven
+  (`first.last@acme.example`, ids `7ac0e000-0000-4000-8000-0000000000a1`–`a7`,
+  plain rows with no `account.provisioned`, so People makes no provisional
+  person of them), prints their enrolment links, and names Ada Time Off's
+  administrator (idempotent, so an old database gets both without a reset);
+  `acme.ts` gives each member that account, and relinks a member seeded
+  before. `pnpm db:seed` pipes identity's events into Time Off's seed, which
+  hands them to Time Off's consumer, as People's does; with `OPENFGA_URL` the
+  seed makes Time Off's store and model and resyncs the team's tuples, so
+  Marco approves and Ada is HR. `.env.example` already carried every
+  `TIMEOFF_*` setting and `turbo run dev` already starts the service (4002)
+  and the remote (3003); `just admin-dev` runs neither People nor Time Off,
+  by design, and is unchanged. **Deploy**: a `timeoff` container in
+  `deploy/vm/compose.yaml` (320 MB, `svc_timeoff`, the Compose addresses),
+  `deploy.sh <env> timeoff <image>` (password generated on the VM, LOGIN
+  granted in `migrate`, checks `/healthz`, a non-empty `TIMEOFF_API_TOKEN` and
+  `timeoff.member` as `svc_timeoff`), `idle-stop.sh` interpolating every image
+  so a never-deployed one cannot keep the VM awake, the router's supergraph
+  routing `timeoff` to `http://timeoff:4002/graphql` and its env carrying
+  `TIMEOFF_API_TOKEN`, `timeoff` and `timeoff-remote` deploy targets with
+  rollback and deploy markers, and the remote built, signed, uploaded and
+  smoke-tested exactly as People's (`smoke-deploy.mjs`, copied).
+  **Left for a person** (names in `docs/environments.md`): environment secrets
+  `TIMEOFF_API_TOKEN`, `TIMEOFF_ENV` (with `TIMEOFF_FEED_SECRET`) and
+  `TIMEOFF_REMOTE_SSR_SIGNING_KEY` in `production` (and `staging` when it is
+  switched on) — the VM job refuses to run without the first two, so create
+  them before this merges; repository variables
+  `VERCEL_PROJECT_ID_TIMEOFF_REMOTE_PRODUCTION`, `TIMEOFF_REMOTE_URL_PRODUCTION`
+  and `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_PRODUCTION` (and the `_STAGING` three);
+  a Vercel Hobby project for `apps/web/timeoff` with its custom domain; and
+  `module.timeoff` in `KITHENA_ENTITLEMENTS_PRODUCTION` when a company should
+  see it. Time Off's outbox is not relayed: nothing on the VM reads its topic
+  yet. Measure the container's memory after its first deploy.
+
 ### Web shell and Reach
 
 ### [x] TOF-051 — Reach: balance meter

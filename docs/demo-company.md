@@ -133,7 +133,16 @@ again changes nothing: it stops when Adam is already there.
 - **The team**: Marco Ruiz manages Adam Novak, Omar Haddad, Yuki Sato, Leo
   Rossi, Hana Kim and Ravi Patel, all in Madrid. Ada Lovelace is HR; she is an
   account, not a member, and her `hr_admin` comes from the authorization
-  model, not from this seed.
+  model, not from this seed: identity's seed names her Time Off's
+  administrator, and `pnpm db:seed` pipes that event into Time Off's seed,
+  which hands it to Time Off's consumer, as People's seed does with its own.
+- **Signing in**: identity's seed invites an account for each of the seven,
+  `first.last@acme.example` (account ids `7ac0e000-0000-4000-8000-0000000000a1`
+  to `…a7`, Marco first, repeated in `acme.ts`), and prints an enrolment link
+  for each still invited. Each member carries that account, so enrolling as
+  Adam and opening Time Off shows Adam. With `OPENFGA_URL` set, the seed also
+  makes Time Off's store and model and writes the team's tuples, so Marco
+  approves.
 - **Leave types**: Spain's statutory ones from the country pack, plus a
   personal day (3 a year) and comp time, in hours.
 - **Policies**, published from 1 January 2026 and only for Spain: vacation 25

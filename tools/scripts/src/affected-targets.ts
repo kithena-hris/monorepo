@@ -42,6 +42,7 @@ export const TARGETS = {
   docs: { packages: ['@reach/docs'] },
   storybook: { packages: ['@reach/storybook'] },
   'people-remote': { packages: ['@kithena/web-people'] },
+  'timeoff-remote': { packages: ['@kithena/web-timeoff'] },
   // The image is People plus the Compose files that run it on the VM.
   people: { packages: ['@kithena/people'], paths: [/^deploy\/vm\//u] },
   // The Slack service: a container beside People on the VM, holding the
@@ -50,12 +51,20 @@ export const TARGETS = {
   // The activity log (`docs/audit.md`): a container beside People on the VM,
   // holding the Kafka consumer group a serverless function could not.
   audit: { packages: ['@kithena/audit'], paths: [/^deploy\/vm\//u] },
-  // The router image bakes in the supergraph, composed from People's and the
-  // activity log's schemas, and `apps/gateway` holds its config and the
-  // persisted operations.
+  // Time Off (TOF-050b): a container beside People on the VM, for People's
+  // reasons — consumer groups, jobs, a drain.
+  timeoff: { packages: ['@kithena/timeoff'], paths: [/^deploy\/vm\//u] },
+  // The router image bakes in the supergraph, composed from People's, Time
+  // Off's and the activity log's schemas, and `apps/gateway` holds its config
+  // and the persisted operations.
   router: {
     packages: ['@kithena/gateway'],
-    paths: [/^deploy\/vm\//u, /^services\/people\/schemas\//u, /^platform\/audit\/schemas\//u],
+    paths: [
+      /^deploy\/vm\//u,
+      /^services\/people\/schemas\//u,
+      /^services\/timeoff\/schemas\//u,
+      /^platform\/audit\/schemas\//u,
+    ],
   },
   // Not a package: Atlas reads the directory and its config.
   migrations: { packages: [], paths: [/^migrations\//u, /^atlas\.hcl$/u], js: false },
@@ -73,7 +82,9 @@ export const ENV_TARGETS: Record<Env, readonly Target[]> = {
     'router',
     'slack',
     'audit',
+    'timeoff',
     'people-remote',
+    'timeoff-remote',
     'shell',
     'identity',
     'messaging',
@@ -242,7 +253,12 @@ function main(argv: string[]): void {
   }
   const vm = chosen.some(
     (t) =>
-      t === 'people' || t === 'router' || t === 'slack' || t === 'audit' || t === 'migrations',
+      t === 'people' ||
+      t === 'router' ||
+      t === 'slack' ||
+      t === 'audit' ||
+      t === 'timeoff' ||
+      t === 'migrations',
   );
   lines.push(`vm=${String(vm)}`, `any=${String(chosen.length > 0)}`, `targets=${chosen.join(',')}`);
   const out = process.env['GITHUB_OUTPUT'];
