@@ -3,6 +3,8 @@ import { fixedClock, ok } from '@kithena/domain-kit';
 import type { Prompt } from '@kithena/telemetry';
 
 import { PlanBudget } from '../../domain/import/new-fields.js';
+import { NEW_FIELDS_INSTRUCTION } from '../../domain/import/new-fields-prompt.js';
+import { WHO_FILLS_INSTRUCTION } from '../../domain/import/who-fills.js';
 import type { Attribute, Section } from '../../domain/schema/draft.js';
 import { define, versionOf } from '../person/in-memory.js';
 import { proposeMapping, resolveMapping } from '../import/mapping.js';
@@ -291,7 +293,7 @@ describe('proposing fields for new columns', () => {
     expect(v.proposals.map((p) => [p.header, p.key, p.forExisting.kind])).toEqual([
       ['Emergency contact', 'emergency_contact', 'ask'],
       ['Cost centre', 'cost_centre', 'hr'],
-      ['T-shirt size', 't_shirt_size', 'leave'],
+      ['T-shirt size', 't_shirt_size', 'ask'],
       ['IBAN', 'iban', 'ask'],
       ['Work country', 'work_country', 'default'],
     ]);
@@ -398,9 +400,78 @@ describe('proposing fields for new columns', () => {
       },
     } as NewFieldsDeps;
     const got = await proposeNewFields(deps, w.asking, w.step);
-    expect(sent.map((p) => (p.context['columns'] as unknown[]).length)).toEqual([12, 12, 6]);
+    const proposing = sent.filter((p) => p.instruction === NEW_FIELDS_INSTRUCTION);
+    expect(proposing.map((p) => (p.context['columns'] as unknown[]).length)).toEqual([12, 12, 6]);
     expect(got.ok && got.value.proposals.length).toBe(30);
     expect(got.ok && got.value.byModel).toBe(true);
+  });
+
+  it('asks the model who fills in only what the rules cannot place: labels, sections and kinds, never a value', async () => {
+    const w = world();
+    const file: NewFieldsFile = {
+      ...FILE,
+      columns: { total: 4, existing: 1, kithena: 0 },
+      unmatched: [
+        { index: 1, header: 'Favourite colour', cells: ['Teal', 'Ochre', 'Plum'] },
+        { index: 2, header: 'Spirit animal', cells: ['Owl', 'Fox', ''] },
+        { index: 3, header: 'IBAN', cells: ['ES91 2100 0418 4502 0005 1332', '', ''] },
+      ],
+    };
+    const sent: Prompt[] = [];
+    const deps = {
+      ...w.deps,
+      importFile: () => Promise.resolve(ok(file)),
+      fieldPlanner: {
+        loadPolicies: () => Promise.resolve(),
+        complete: (_t: string, prompt: Prompt) => {
+          sent.push(prompt);
+          return Promise.resolve({
+            ok: true as const,
+            value: JSON.stringify(
+              prompt.instruction === WHO_FILLS_INSTRUCTION
+                ? // A word it was not offered is not read, nor a key it was not asked.
+                  { favourite_colour: 'employee', spirit_animal: 'ask', iban: 'hr' }
+                : { proposals: [], skipped: [] },
+            ),
+          });
+        },
+      },
+    } as NewFieldsDeps;
+    const got = await proposeNewFields(deps, w.asking, w.step);
+    if (!got.ok) throw new Error(got.error.message);
+    const asked = sent.find((p) => p.instruction === WHO_FILLS_INSTRUCTION);
+    // The IBAN is the rules': the model is never asked about it.
+    expect(asked?.context).toEqual({
+      fields: [
+        {
+          key: 'favourite_colour',
+          label: 'Favourite colour',
+          section: 'Other information',
+          kind: 'none',
+          classification: 'internal',
+        },
+        {
+          key: 'spirit_animal',
+          label: 'Spirit animal',
+          section: 'Other information',
+          kind: 'none',
+          classification: 'internal',
+        },
+      ],
+    });
+    expect(JSON.stringify(asked)).not.toMatch(/Teal|Ochre|Owl|2100/u);
+    expect(
+      got.value.proposals.map((p) => [p.header, p.forExisting.kind, p.forExistingWhy]),
+    ).toEqual([
+      [
+        'Favourite colour',
+        'ask',
+        'The assistant reads it as theirs to give, so they are asked.',
+      ],
+      ['Spirit animal', 'leave', 'Nice to have: nobody is chased for it.'],
+      ['IBAN', 'ask', 'Bank details are the employee’s to give.'],
+    ]);
+    expect(got.value.byModel).toBe(true);
   });
 
   it('keeps People’s own proposal when the model does not answer in JSON', async () => {

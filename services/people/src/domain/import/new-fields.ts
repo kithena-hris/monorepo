@@ -10,6 +10,7 @@ import {
 
 import { encryptable, keyFrom } from '../schema/draft.js';
 import { kindOf, type ColumnShape } from './column-shape.js';
+import { forExistingOf, ownerByRules } from './who-fills.js';
 
 /**
  * New information in an imported file (docs/ai-settings.md).
@@ -303,6 +304,7 @@ export function localProposal(
     plain: 'Ordinary, not sensitive: the employee fills it in, and the assistant may use it.',
   }[kind];
   const twin = existing.find((f) => f.key === keyFrom(seen.header) || nearly(f.label, seen.header));
+  const placement = placementFor(kind, seen.header, sections);
   return {
     column: seen.column,
     header: seen.header,
@@ -310,14 +312,14 @@ export function localProposal(
     // "Given name" is `given_name`, whatever its label says: never a second one.
     include: twin === undefined,
     field,
-    placement: placementFor(kind, seen.header, sections),
+    placement,
     why:
       twin === undefined
         ? note === null
           ? why
           : `${note} ${why}`
         : `Looks like the existing field “${twin.label}”: choose it for this column on the mapping screen instead.`,
-    ...recommendFor(kind, seen),
+    ...recommendFor(seen, field, placement, sections),
     // The values chose the type, or the header said what it is; plain free
     // text is the header's guess.
     confidence:
@@ -391,44 +393,32 @@ function placementFor(
 }
 
 /**
- * The recommendation for people already here. Their own details: ask them.
- * Organisational data: HR fills it. One value in every row of the file: that
- * value for everybody missing it. Anything else is nice to have: leave it.
+ * The recommendation for people already here: who fills it in, by People's
+ * rules (`who-fills.ts`). A field they cannot place: one value in every row
+ * of the file is that value for everybody missing it; anything else is nice
+ * to have, and left.
  */
 function recommendFor(
-  kind: ReturnType<typeof kindOf>,
   seen: ColumnSeen,
+  field: NewField,
+  placement: Placement,
+  sections: readonly { readonly key: string; readonly label: string }[],
 ): Pick<ColumnProposal, 'forExisting' | 'forExistingWhy'> {
-  const personal =
-    kind === 'financial' || kind === 'identifier' || kind === 'contact' || kind === 'birth';
-  if (kind === 'pay') {
-    return {
-      forExisting: { kind: 'hr' },
-      forExistingWhy: 'HR and payroll hold it: it goes to HR’s completeness list.',
-    };
-  }
-  if (personal) {
-    return {
-      forExisting: { kind: 'ask' },
-      forExistingWhy: 'Only they know it: they are asked, and reminded until it is filled in.',
-    };
-  }
-  if (kind === 'special') {
-    return {
-      forExisting: { kind: 'leave' },
-      forExistingWhy: 'Volunteered, never chased.',
-    };
-  }
+  const ruled = ownerByRules({
+    key: keyFrom(field.label),
+    label: field.label,
+    section:
+      'sectionKey' in placement
+        ? (sections.find((s) => s.key === placement.sectionKey)?.label ?? placement.sectionKey)
+        : placement.newSection,
+    piiKind: field.piiKind,
+    classification: field.classification,
+  });
+  if (ruled !== null) return forExistingOf(ruled, seen.single);
   if (seen.single !== null) {
     return {
       forExisting: { kind: 'default', value: seen.single },
       forExistingWhy: 'Every row in the file has the same value, so it likely holds for everybody.',
-    };
-  }
-  if (kind === 'business') {
-    return {
-      forExisting: { kind: 'hr' },
-      forExistingWhy: 'HR records it: it goes to HR’s completeness list.',
     };
   }
   return {

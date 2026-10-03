@@ -18,6 +18,15 @@ import {
   type PlanBudget,
 } from '../../domain/import/new-fields.js';
 import { planOf, type PlanStep } from '../../domain/import/plan.js';
+import {
+  owned,
+  unplaced,
+  WHO_FILLS_INSTRUCTION,
+  whoFillsAnswer,
+  whoFillsContext,
+  type FieldFacts,
+  type Owner,
+} from '../../domain/import/who-fills.js';
 import type { PlaceChoice } from '../../domain/import/workplaces.js';
 import { keyFrom, SchemaDraft, type Attribute, type Section } from '../../domain/schema/draft.js';
 import { publish, type PublishedVersion } from '../../domain/schema/publish.js';
@@ -354,9 +363,37 @@ export async function proposeNewFields(
     }),
   );
   const heard = answers.filter((a) => a !== null);
-  if (heard.length === 0) return ok(view(g, checked(g.planning, withKeys(local, taken)), false));
-  const merged = withModel(local, heard, g.sections, g.seen);
-  return ok(view(g, checked(g.planning, withKeys(merged.proposals, taken)), true));
+  const merged = heard.length === 0 ? local : withModel(local, heard, g.sections, g.seen).proposals;
+  const keyed = checked(g.planning, withKeys(merged, taken));
+  const owners = await whoFills(planner, asking.tenantId, unplaced(keyed, g.sections));
+  return ok(
+    view(g, owned(keyed, g.sections, g.seen, owners), heard.length > 0 || owners.size > 0),
+  );
+}
+
+/**
+ * Who fills in the fields People's rules cannot place, from the model: their
+ * keys, labels, sections and kinds, never a value, read strictly. No answer
+ * leaves them as proposed.
+ */
+async function whoFills(
+  planner: AssistantPort,
+  tenantId: string,
+  fields: readonly FieldFacts[],
+): Promise<ReadonlyMap<string, Owner>> {
+  if (fields.length === 0) return new Map();
+  try {
+    const answered = await planner.complete(tenantId, {
+      instruction: WHO_FILLS_INSTRUCTION,
+      context: whoFillsContext(fields),
+      about: 'configuration',
+    });
+    return answered.ok
+      ? whoFillsAnswer(JSON.parse(answered.value), new Set(fields.map((f) => f.key)))
+      : new Map();
+  } catch {
+    return new Map();
+  }
 }
 
 /**
