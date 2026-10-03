@@ -339,9 +339,10 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   is the manager's name, so People's "Michael Scott has 2 direct reports" still
   reads; every other `described` ends a sentence about people. `understood` is
   "People …" before the joined phrases ("Managers of people …" for a managers
-  step). Not done here: "(you)" beside the asker among managers, since the
-  assistant does not know the asker's person, and §11.4's opt-in to names,
-  which needs a field in Time Off's catalogue first. The wording cases of
+  step). "(you)" beside the asker among managers came in lane 4: the assistant
+  knows an account, not a person, so `PersonRow` gained an optional `self`,
+  which `people.managers` and `timeoff.managers` set. Not done here: §11.4's
+  opt-in to names, which needs a field in Time Off's catalogue first. The wording cases of
   `ask.test.ts` that need a model or Slack's email are AST-012's.
 
 ---

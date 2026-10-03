@@ -386,7 +386,9 @@ export const managers =
       for (const m of matched.slice(0, input.limit ?? ASSISTANT_LIMITS.listed)) {
         // oxlint-disable-next-line no-await-in-loop -- a location's name once, then remembered
         const groups = await groupsOf(tx, m, places);
-        rows.push({ personId: m.personId, name: m.displayName, groups });
+        // The asker among them: the answer says "(you)".
+        const self = m.personId === caller.personId ? { self: true as const } : {};
+        rows.push({ personId: m.personId, name: m.displayName, groups, ...self });
       }
       return ok({
         kind: 'people',

@@ -442,10 +442,13 @@ const managers: Handler = async (deps, tx, asking, input) => {
   ];
   const read = await deps.service.access.readMany(tx, { ...asking, personIds: ids });
   if (!read.ok) return read;
+  const own = await deps.personOf(tx, asking.tenantId, asking.viewer.accountId);
   const rows = ids
     .flatMap((id) => {
       const manager = read.value.get(id);
-      return manager === undefined || nameOf(manager.attributes) === null ? [] : [row(manager)];
+      if (manager === undefined || nameOf(manager.attributes) === null) return [];
+      // The asker among them: the answer says "(you)".
+      return [manager.id === own ? { ...row(manager), self: true as const } : row(manager)];
     })
     .toSorted((a, b) => a.name.localeCompare(b.name));
   return ok({

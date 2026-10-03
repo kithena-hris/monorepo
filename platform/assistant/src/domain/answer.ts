@@ -208,8 +208,16 @@ const personOf = (row: { personId: string; name: string; title?: string | undefi
   title: row.title ?? null,
 });
 
-const listed = (people: readonly { name: string; title?: string | undefined }[]): string =>
-  people.map((p) => `• ${p.name}${p.title === undefined ? '' : ` — ${p.title}`}`).join('\n');
+/** One line per person; the asker, where a module marked them, as "(you)" (§7.2). */
+const listed = (
+  people: readonly { name: string; title?: string | undefined; self?: true | undefined }[],
+): string =>
+  people
+    .map(
+      (p) =>
+        `• ${p.name}${p.self === true ? ' (you)' : ''}${p.title === undefined ? '' : ` — ${p.title}`}`,
+    )
+    .join('\n');
 
 /* ------------------------------------------------------------- the answer -- */
 

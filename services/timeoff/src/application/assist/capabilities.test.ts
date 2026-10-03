@@ -335,6 +335,8 @@ describe('timeoff.managers (AST-024)', () => {
           personId: people.marco,
           name: 'Marco Ruiz',
           groups: { team: 'Platform', location: 'madrid' },
+          // Marco is asking: the answer says "(you)".
+          self: true,
         },
       ],
       ids: [people.marco],
@@ -356,6 +358,8 @@ describe('timeoff.managers (AST-024)', () => {
     });
     const everyone = await managersOf(app, hr, [NIA, ZOE, people.adam]);
     expect(everyone).toMatchObject({ total: 3, scope: 'everyone' });
+    // HR is none of them, so nobody is marked as the asker.
+    expect(everyone.kind === 'people' && everyone.rows.some((r) => r.self)).toBe(false);
     expect(everyone.kind === 'people' && everyone.rows.map((r) => r.name)).toEqual([
       'Marco Ruiz',
       'Ravi Patel',

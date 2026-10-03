@@ -175,6 +175,11 @@ export const PersonRow = z.strictObject({
   detail: z.string().max(200).optional().register(policy, asSpecialCategory('health')),
   /** Group key to the row's value's label, for the groups the capability declares. */
   groups: z.record(FieldKey, z.string().max(200)).default({}).register(policy, asInternal()),
+  /**
+   * The row is the asker: the assistant knows an account, not a person, so the
+   * module says so, and a list of managers reads "Marco Ruiz (you)" (§7.2).
+   */
+  self: z.literal(true).optional().register(policy, asPublic()),
 });
 export type PersonRow = z.infer<typeof PersonRow>;
 

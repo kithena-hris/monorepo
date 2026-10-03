@@ -39,6 +39,7 @@ interface Row {
   title?: string;
   detail?: string;
   team?: string;
+  self?: true;
 }
 
 const people = (
@@ -297,12 +298,15 @@ describe('the worked examples', () => {
         scope: 'visible',
         ids: [7, 8],
       }),
-      s2: people(1, 'their managers', [{ name: 'Marco Ruiz', title: 'Engineering Manager' }], {
-        scope: 'visible',
-      }),
+      s2: people(
+        1,
+        'their managers',
+        [{ name: 'Marco Ruiz', title: 'Engineering Manager', self: true }],
+        { scope: 'visible' },
+      ),
     });
     expect(a.text).toBe(
-      'The people away on sick leave on Tuesday 6 October that you can see report to:\n• Marco Ruiz — Engineering Manager',
+      'The people away on sick leave on Tuesday 6 October that you can see report to:\n• Marco Ruiz (you) — Engineering Manager',
     );
     expect(a.understood).toBe('Managers of people away on sick leave on Tuesday 6 October');
   });

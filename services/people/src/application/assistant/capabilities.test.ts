@@ -392,6 +392,24 @@ describe('people.managers', () => {
     expect(out.total).toBe(1);
   });
 
+  it('marks the asker when they are one of the managers', async () => {
+    const out = found(
+      await world([], MICHAEL_ACCOUNT).ask('people.managers', {
+        personIds: [DWIGHT, JIM],
+        limit: 25,
+      }),
+    );
+    expect(out.rows).toEqual([
+      {
+        personId: MICHAEL,
+        name: 'Michael Scott',
+        title: 'Regional Manager',
+        groups: {},
+        self: true,
+      },
+    ]);
+  });
+
   it('leaves out a manager the asker may not read', async () => {
     const out = found(
       await world([], JIM_ACCOUNT, [MICHAEL]).ask('people.managers', {
