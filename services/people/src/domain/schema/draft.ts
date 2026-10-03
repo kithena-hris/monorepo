@@ -230,7 +230,7 @@ function checkChoices(
         : clause.operand === 'attribute' && clause.is === 'equals' && clause.equals !== null
           ? [clause.key as string, clause.key as string, [clause.equals]]
           : [null, null, []];
-    if (named === null || key === null) continue;
+    if (named === null) continue;
     const config = attributes.find((a) => a.key === key)?.typeConfig;
     const options =
       config?.kind === 'select' || config?.kind === 'multi_select' ? config.options : null;
