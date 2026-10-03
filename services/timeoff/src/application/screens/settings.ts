@@ -2,7 +2,9 @@ import { ok, type Result } from '@kithena/domain-kit';
 import type { LeaveTypeKey, LocationKey, TeamKey } from '@kithena/contracts';
 
 import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
+import { de } from '../../country-packs/de.js';
 import { es } from '../../country-packs/es.js';
+import { gb } from '../../country-packs/gb.js';
 import { balanceOn } from '../../domain/balance/ledger.js';
 import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
 import { amount, days, sum } from '../../domain/days.js';
@@ -50,9 +52,13 @@ async function row(tx: Tx, t: LeaveType): Promise<LeaveTypesView['leaveTypes'][n
 /**
  * The country packs a tenant's statutory types or holidays came from (§12.3),
  * so settings can say when one is not yet signed off by a lawyer. A pack is in
- * use when one of its statutory types, or one of its holiday layers, is.
+ * use when one of its holiday layers is, or a statutory type only it has:
+ * every pack has a `vacation`, which says nothing about which country.
  */
-const PACKS = [es];
+const PACKS = [es, de, gb];
+const typeKeyCount = new Map<string, number>();
+for (const p of PACKS)
+  for (const t of p.leaveTypes) typeKeyCount.set(t.key, (typeKeyCount.get(t.key) ?? 0) + 1);
 function packsIn(
   leaveTypes: readonly LeaveType[],
   layerKeys: readonly string[],
@@ -62,7 +68,7 @@ function packsIn(
   );
   return PACKS.filter(
     (p) =>
-      p.leaveTypes.some((t) => statutory.has(t.key)) ||
+      p.leaveTypes.some((t) => typeKeyCount.get(t.key) === 1 && statutory.has(t.key)) ||
       p.holidayLayers.some((l) => layerKeys.includes(l.key)),
   ).map((p) => ({ country: p.country, version: p.version, reviewed: p.reviewed }));
 }

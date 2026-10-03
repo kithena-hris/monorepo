@@ -1676,9 +1676,21 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
 - **Approach** Drafts from data HR supplies or a licensed dataset; never
   publishes; unconfirmed days left for HR.
 
-### [ ] TOF-113 — Germany and UK country packs
+### [x] TOF-113 — Germany and UK country packs
 
 - **Depends on** TOF-028
+- **As built** `country-packs/de.ts` and `gb.ts`, `reviewed: false`, each
+  citing its statutes and the official holiday sources in its header; the
+  shape moved to `country-packs/pack.ts`. Germany: Munich (federal + Bavaria)
+  and Berlin (federal + Women's Day), nothing moved off a weekend. The UK:
+  London (England and Wales) and Edinburgh (Scotland), substitute days by the
+  layer's `move_to_monday` rule rather than listed. Settings names every pack
+  in use, matched by a holiday layer or a statutory type no other pack has
+  (`vacation` says nothing about the country). `parental` is `null` for both:
+  the planner's rules are Spain's equal weeks per parent, and Germany's
+  Mutterschutz and the UK's maternity and paternity leave differ by role, so
+  planning them needs a per-role shape first; their leave types and weeks are
+  in the pack as data.
 
 ### [ ] TOF-114 — SCIM member provisioning
 
