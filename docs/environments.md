@@ -573,6 +573,23 @@ configuration, set by an operator rather than by a deploy:
       provisioning to land within minutes at any hour, the VM has to stay
       up, which is a cost decision, not a code change.
 
+**Time Off's routes.** Time Off answers a few paths that a browser, a
+provider or a device opens without a Kithena token: the calendar feed a person
+subscribes to, the kiosk, the chat app's buttons and the providers' OAuth
+callbacks, and its own SCIM. Each authenticates itself (a signed feed URL, a
+device credential, Slack's signing secret, the OAuth state); everything else
+under `/v1/timeoff/` refuses a request without the router's
+`x-internal-token`. `TIMEOFF_PUBLIC_URL` is `https://api.kithena.com`, set by
+the deploy.
+
+- [ ] Add the public hostname rule `api.kithena.com`, path
+      `^/v1/timeoff/(calendar/feed\.ics|kiosk/|integrations/[a-z]+/(actions|callback)|scim/v2/)`
+      → `http://timeoff:4002`, **above** the router's catch-all, on
+      `kithena-production` (and `api.staging.kithena.com` on
+      `kithena-staging`), the same way as SCIM's above.
+- [ ] Check it: `curl -i -X POST https://api.kithena.com/v1/timeoff/integrations/slack/actions`
+      answers Time Off's refusal of an unsigned request, not the router's 404.
+
 Companies without a recorded module list (PEO-114) are refused SCIM unless
 People's own environment carries `KITHENA_ENTITLEMENTS` (the same JSON array
 the router has); a SCIM request carries no forwarded list to fall back on.
