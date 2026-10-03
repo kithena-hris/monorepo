@@ -24,10 +24,14 @@ export default async function Activity({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<JSX.Element> {
-  if ((await currentPerson()) === null) redirect('/login');
   const filters = activityFilters(await flatSearch(searchParams));
-
-  const answer = await people<ActivityPage>('Activity', activityVariables(filters));
+  // Beside the session check, not after it: a read without a live session is
+  // refused (`people`), and is thrown away here before anything is drawn.
+  const [person, answer] = await Promise.all([
+    currentPerson(),
+    people<ActivityPage>('Activity', activityVariables(filters)),
+  ]);
+  if (person === null) redirect('/login');
 
   let load: ActivityLoad;
   let named: Named = {};
