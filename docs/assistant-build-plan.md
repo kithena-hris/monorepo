@@ -195,7 +195,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 
 ## Phase 1 — the assistant's core
 
-### [ ] AST-006 — `platform/assistant` boots
+### [x] AST-006 — `platform/assistant` boots
 
 - **Spec** PRD §6.1, §15.1
 - **Files** `platform/assistant/{package.json,tsconfig.json,vitest.config.ts,Dockerfile}`,
@@ -208,6 +208,10 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   isn't available right now." No database.
 - **Done when** `pnpm --filter @kithena/assistant dev` answers `/health`,
   `just lint` (dependency boundaries included) passes, and the image builds.
+- **As built** `compose(settings)` returns a route function, as Slack's
+  `route()`; until AST-017 replaces it, `POST /internal/ask` answers "not
+  available" to any caller, which says nothing. The layer folders appear with
+  their first files; the existing boundary rules already cover `platform/*`.
 
 ### [ ] AST-007 — Plan validation
 

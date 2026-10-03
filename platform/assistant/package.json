@@ -1,0 +1,23 @@
+{
+  "name": "@kithena/assistant",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "typecheck:authoritative": "tsc6 --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "start": "node dist/src/main.js"
+  },
+  "dependencies": {
+    "@kithena/contracts": "workspace:*",
+    "@kithena/domain-kit": "workspace:*",
+    "@kithena/telemetry": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  }
+}
