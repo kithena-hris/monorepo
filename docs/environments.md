@@ -742,7 +742,11 @@ image's OpenTelemetry agent off). With them the limits are **3.3 GB**; the swap
 is what makes that fit, and `m7i-flex.large` is the step up if it stops fitting.
 `timeoff` (**320 MB**, `--max-old-space-size=192`; not yet measured) brings
 them to **3.6 GB**: measure it under the light load above after its first
-deploy, and lower the limit to what it needs.
+deploy, and lower the limit to what it needs. `assistant` (**160 MB**,
+`--max-old-space-size=96`; not yet measured, assistant PRD §15.2) brings them
+to **3.75 GB**, to be measured the same way after its first deploy. If the sum
+stops fitting, folding the assistant into Slack's process comes before
+`m7i-flex.large`.
 
 Nothing was OOM-killed and nothing restarted except `cloudflared`, which had
 a dummy token and no tunnel to reach, so its figure is the binary retrying, not
@@ -1241,6 +1245,39 @@ something does.
 same Compose addresses People reads. Who is HR in Time Off is whoever the back
 office names as its administrator (`identity.tenant.administrator_named` for
 `module.timeoff`), so Time Off consumes identity's topic as well as People's.
+
+#### The assistant's settings
+
+The assistant (`platform/assistant`, `docs/assistant-prd.md` §15) runs on the
+VM beside Slack, deployed as Slack is: its own image
+(`platform/assistant/Dockerfile`, `ghcr.io/<owner>/kithena-assistant`),
+`deploy.sh <env> assistant <image>` after People and before Slack, a Compose
+service at `http://assistant:4104`, and a `/health` check. No database, no
+Kafka, nothing at rest. Slack asks it every question; it asks identity who is
+asking and each module as that person, one secret per pair. Each pair's
+secret is one environment secret the VM job writes into both ends on every
+deploy, as `SLACK_PEOPLE_TOKEN` is, so the two cannot disagree. Every one is
+optional: unset, that pair is refused, the module is left out of the answer
+(or, for Slack's and the model's, every question is "The assistant isn't
+available right now."), and the deploy warns rather than fails.
+
+| Setting                                      | Written to                                          | Holds                                                                                                                                                                       |
+| -------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SLACK_ASSISTANT_TOKEN`                      | `slack.env`, `assistant.env`                        | Slack → the assistant's `/internal/ask`. The token, not the body, says the channel. Random, 32+ bytes.                                                                      |
+| `ASSISTANT_PEOPLE_TOKEN`                     | `people.env`, `assistant.env`                       | The assistant → People's `/internal/capabilities*`, and nothing else of People's. Random, 32+ bytes.                                                                        |
+| `ASSISTANT_TIMEOFF_TOKEN`                    | `timeoff.env`, `assistant.env`                      | The assistant → Time Off's `/internal/capabilities*`, likewise.                                                                                                             |
+| `ASSISTANT_IDENTITY_TOKEN`                   | identity's Vercel deploy (`--env`), `assistant.env` | The assistant → identity's `POST /api/internal/tenants/<id>/assistant/asker`. Identity has no fallback for it.                                                              |
+| `ASSISTANT_API_KEY`                          | `people.env`, `assistant.env`                       | The model's key (Groq by default), the one People's own words already use. `ASSISTANT_BASE_URL` and `ASSISTANT_MODEL` default as People's.                                  |
+| `TENANT_APP_BASE_<ENV>`                      | `assistant.env` (`TENANT_APP_BASE`)                 | A repository variable, messaging's: where an answer's link goes, `https://{slug}.app.kithena.com`.                                                                          |
+| `IDENTITY_URL`                               | `assistant.env`, by the VM job                      | Identity's public address, `https://identity.kithena.com` (staging's `identity.staging`): identity is on Vercel, so it differs by environment and is not a Compose address. |
+| `PEOPLE_URL`, `TIMEOFF_URL`, `ASSISTANT_URL` | `compose.yaml`                                      | Compose addresses, the same in every environment; `ASSISTANT_URL` is Slack's.                                                                                               |
+
+Identity's Vercel deploy also gets `KITHENA_ENTITLEMENTS` from
+`KITHENA_ENTITLEMENTS_<ENV>`, the router's value, so a company with no modules
+recorded holds the deployment's rather than none — without it the assistant
+would tell that company it does not use People. `PEOPLE_IDENTITY_TOKEN` stays
+a variable of identity's Vercel project, beside `IDENTITY_DATABASE_URL`, with
+the same value as in `PEOPLE_ENV`.
 
 #### GitHub: repository variables (Settings → Secrets and variables → Actions → Variables)
 

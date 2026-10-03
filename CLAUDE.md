@@ -108,6 +108,17 @@ than quietly working around it.
   module needing a genuinely analytical chart takes that as a module
   dependency.
 
+- **The assistant is a platform service, `platform/assistant`.** Like
+  messaging, nobody buys it and `ModuleKey` does not list it. It reaches a
+  module only through that module's capability routes, whose shapes live in
+  `packages/contracts` (`assistant/`), each pair with its own token; no module
+  imports it or calls it. **The model only plans**: it sees capability and
+  field names, never a value, and writes no text after anything is looked up.
+  The assistant's domain computes every number and writes every answer, and
+  the module decides who may see what. In a chat app a private leave type is
+  never written beside a name unless the company has switched that on in Time
+  Off.
+
 Full reasoning lives in `docs/tech-stack.md`.
 
 ## Rules that are enforced, not suggested
@@ -210,7 +221,7 @@ just test-all             # unit + integration + contract
 just codegen              # regenerate derived artifacts from Zod contracts
 just standalone timeoff   # boot one module with no siblings
 just supergraph           # compose the federated schema locally
-just admin-dev            # messaging, identity, the auth origin and the back-office
+just admin-dev            # messaging, identity, the assistant, the auth origin and the back-office
 just invite <tenant> <email>  # invite one person and send them their link
 just storybook            # design system docs on :6006
 just test-stories         # render every story in Chromium, run axe over it

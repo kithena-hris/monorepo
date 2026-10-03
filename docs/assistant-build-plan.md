@@ -743,7 +743,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   reason to stay, as for every probe (`tools/scripts/src/idle-stop.test.ts`).
   **Not yet seen in the VM's journal.**
 
-### [ ] AST-029 — Docs
+### [x] AST-029 — Docs
 
 - **Spec** PRD §15.2, §15.3
 - **Files** `docs/environments.md` (memory budget row and total, "The
@@ -752,6 +752,11 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   platform service; capabilities in contracts; the model only plans), this file
 - **Depends on** AST-027
 - **Done when** `pnpm docs:brand-leak` passes and the memory table adds up.
+- **As built** the memory budget now reads 3.75 GB, not §15.2's 3.76: the
+  limits sum to 3.748 (2.66 + slack 0.16 + two relays 0.448 + timeoff 0.32 +
+  assistant 0.16). "The assistant's settings" is a table of every setting,
+  where it is written and who reads it, and says identity's Vercel deploy now
+  gets `KITHENA_ENTITLEMENTS`.
 
 ### [ ] AST-029a — A company's choice to name private leave in chat
 
