@@ -1060,6 +1060,30 @@ describe('history and completeness', () => {
     const history = await people.history(tx, { ...asking(marco), personId: ADA });
     expect(history.ok && history.value.map((e) => e.attributeKey)).toEqual(['job_title']);
   });
+
+  it('judges a page at once exactly as it judges each person on it', async () => {
+    // Required, so there is something to be missing: a sealed one Ada has given.
+    const required = (a: typeof salary) => define({ ...a, requiredness: { mode: 'always' } });
+    const store = inMemoryPeople([versionOf(3, [salary, title, iban, phone].map(required))]);
+    store.seed(MARCO, { account: MARCO_ACCOUNT });
+    store.seed(ADA, { account: ADA_ACCOUNT, fields: { managerId: MARCO } });
+    store.secrets.set(`${ADA}:iban`, 'DE89370400440532013000');
+    const people = personAccess(store.deps);
+    for (const who of [hr, marco, ada]) {
+      const many = await people.completenessOf(tx, { ...asking(who), personIds: [ADA, MARCO] });
+      if (!many.ok) throw new Error(many.error.message);
+      for (const personId of [ADA, MARCO]) {
+        const one = await people.completeness(tx, { ...asking(who), personId });
+        expect(many.value.get(personId)).toEqual(one.ok ? one.value : undefined);
+      }
+    }
+    // Nobody by that id is left out, not an error.
+    const none = await people.completenessOf(tx, {
+      ...asking(hr),
+      personIds: ['00000000-0000-4000-8000-0000000000ff'],
+    });
+    expect(none.ok && none.value.size).toBe(0);
+  });
 });
 
 describe('running a use case in a tenant transaction', () => {

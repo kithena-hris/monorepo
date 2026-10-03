@@ -1680,12 +1680,15 @@ export async function directoryView(
       ...names.keys(),
     ]);
     // HR's per-row count of what is missing, as the verdict counts it: only
-    // fields HR may see on that person. One verdict per row, as the grid.
+    // fields HR may see on that person. The page's verdicts in one call, as the grid.
     const missing = new Map<string, number>();
     if (everyone.isHr) {
-      for (const p of page) {
-        const verdict = await deps.service.access.completeness(tx, { ...asking, personId: p.id });
-        if (verdict.ok) missing.set(p.id, verdict.value.missing.length);
+      const verdicts = await deps.service.access.completenessOf(tx, {
+        ...asking,
+        personIds: page.map((p) => p.id),
+      });
+      if (verdicts.ok) {
+        for (const [id, verdict] of verdicts.value) missing.set(id, verdict.missing.length);
       }
     }
     const incomplete = everyone.isHr
@@ -2030,12 +2033,14 @@ export async function completenessView(
     );
 
     const rows: CompletenessView['rows'][number][] = [];
+    const verdicts = await deps.service.access.completenessOf(tx, {
+      ...asking,
+      personIds: page.map((p) => p.id),
+    });
+    if (!verdicts.ok) return verdicts;
     for (const person of page) {
-      const verdict = await deps.service.access.completeness(tx, {
-        ...asking,
-        personId: person.id,
-      });
-      if (!verdict.ok) continue;
+      const verdict = verdicts.value.get(person.id);
+      if (verdict === undefined) continue;
       const manager = person.attributes['manager_id'];
       const row = {
         personId: person.id,
@@ -2046,11 +2051,11 @@ export async function completenessView(
             : null,
         manager: typeof manager === 'string' ? (names.get(manager) ?? null) : null,
       };
-      const hr = verdict.value.missing.filter((m) => m.owners.includes('hr'));
+      const hr = verdict.missing.filter((m) => m.owners.includes('hr'));
       if (hr.length > 0) {
         rows.push({ ...row, missing: hr.map((m) => m.key), owner: 'hr', remindedAt: null });
       }
-      const own = gapsByOwner(verdict.value).employee;
+      const own = gapsByOwner(verdict).employee;
       if (own.length > 0) {
         rows.push({
           ...row,

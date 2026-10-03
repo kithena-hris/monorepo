@@ -282,6 +282,20 @@ export function inMemoryPeople(
             .filter(([k]) => k.startsWith(`${personId}:`))
             .map(([k, v]) => ({ attributeKey: k.slice(personId.length + 1), last4: v.slice(-4) })),
         ),
+      listMany: (_tx, _tenant, personIds) =>
+        Promise.resolve(
+          new Map(
+            personIds.map((personId) => [
+              personId,
+              [...secrets.entries()]
+                .filter(([k]) => k.startsWith(`${personId}:`))
+                .map(([k, v]) => ({
+                  attributeKey: k.slice(personId.length + 1),
+                  last4: v.slice(-4),
+                })),
+            ]),
+          ),
+        ),
     },
     reviews: inMemoryReviews(reviews),
     uniques: {

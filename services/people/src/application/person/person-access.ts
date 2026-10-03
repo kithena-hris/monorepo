@@ -269,6 +269,15 @@ export interface PersonAccess {
   ): Promise<Result<CorrectedEntry | { readonly held: HeldChange }>>;
   completeness(tx: Tx, asking: On<object>): Promise<Result<CompletenessVerdict>>;
   /**
+   * `completeness` for many people at once, by person: the schema, the org
+   * calendar and who the viewer is to each read once for all of them, rather
+   * than once a person. Somebody not found is left out.
+   */
+  completenessOf(
+    tx: Tx,
+    asking: Asking & { readonly personIds: readonly string[] },
+  ): Promise<Result<ReadonlyMap<string, CompletenessVerdict>>>;
+  /**
    * Confirm a provisional record as an employee, from a start date. The one
    * hire path: every transport and the import come through here.
    */
@@ -687,6 +696,53 @@ export async function relationsToMany(
     });
   }
   return out;
+}
+
+/**
+ * One person's verdict from what was read about them: what is missing,
+ * limited to what this viewer may know exists, and what HR sent back for
+ * them to correct (PEO-125), which needs attention rather than being missing.
+ * A sealed value counts as given.
+ */
+function verdictOf(
+  version: PublishedVersion,
+  person: PersonRecord,
+  relations: ViewerRelations,
+  sealed: readonly { readonly attributeKey: string }[],
+  open: readonly { readonly state: string; readonly attributeKey: string }[],
+  zone: string,
+  clock: Clock,
+): CompletenessVerdict {
+  const definitions = version.document.attributes;
+  const values: Record<string, unknown> = { ...person.values };
+  if (definitions.some((d) => d.encrypted)) {
+    for (const s of sealed) values[s.attributeKey] = true;
+  }
+  const verdict = assessCompleteness(
+    definitions,
+    {
+      legalEntityId: person.legalEntityId,
+      country: countryOf(values),
+      employmentType: person.employmentType,
+      workModel: person.workModel,
+      status: person.snapshot.status,
+      values,
+      knownAttributes: new Set(definitions.map((d) => d.key as string)),
+    },
+    clock,
+    zone,
+  );
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  const visible = (key: string): boolean => {
+    const definition = byKey.get(key);
+    return definition !== undefined && visibleTo(definition, relations);
+  };
+  const missing = verdict.missing.filter((m) => visible(m.key));
+  const attention = open
+    .filter((r) => r.state === 'sent_back')
+    .map((r) => r.attributeKey)
+    .filter(visible);
+  return { ...verdict, missing, unevaluable: [], attention };
 }
 
 const SEARCHED = ['given_name', 'family_name', 'preferred_name', 'work_email'] as const;
@@ -2749,47 +2805,74 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.viewer,
         asking.personId,
       );
-
-      const definitions = version.document.attributes;
-      const values: Record<string, unknown> = { ...person.values };
-      if (definitions.some((d) => d.encrypted)) {
-        for (const s of await deps.secrets.list(tx, asking.tenantId, person.snapshot.id))
-          values[s.attributeKey] = true;
-      }
-
-      const verdict = assessCompleteness(
-        definitions,
-        {
-          legalEntityId: person.legalEntityId,
-          country: countryOf(values),
-          employmentType: person.employmentType,
-          workModel: person.workModel,
-          status: person.snapshot.status,
-          values,
-          knownAttributes: new Set(definitions.map((d) => d.key as string)),
-        },
-        deps.clock,
-        (await calendarOf(tx, asking.tenantId, person.values)).zone,
-      );
-
-      const byKey = new Map(definitions.map((d) => [d.key as string, d]));
-      const missing = verdict.missing.filter((m) => {
-        const definition = byKey.get(m.key);
-        return definition !== undefined && visibleTo(definition, relations);
-      });
-      // A value HR sent back is the employee's to correct: needing attention,
-      // not missing (PEO-125).
+      const sealed = version.document.attributes.some((d) => d.encrypted)
+        ? await deps.secrets.list(tx, asking.tenantId, person.snapshot.id)
+        : [];
       const open = deps.reviews
         ? await deps.reviews.open(tx, asking.tenantId, asking.personId)
         : [];
-      const attention = open
-        .filter((r) => r.state === 'sent_back')
-        .map((r) => r.attributeKey)
-        .filter((key) => {
-          const definition = byKey.get(key);
-          return definition !== undefined && visibleTo(definition, relations);
-        });
-      return ok({ ...verdict, missing, unevaluable: [], attention });
+      return ok(
+        verdictOf(
+          version,
+          person,
+          relations,
+          sealed,
+          open,
+          (await calendarOf(tx, asking.tenantId, person.values)).zone,
+          deps.clock,
+        ),
+      );
+    },
+
+    async completenessOf(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const out = new Map<string, CompletenessVerdict>();
+      const records: PersonRecord[] = [];
+      for (const personId of new Set(asking.personIds)) {
+        const person = await deps.reader.record(tx, asking.tenantId, personId);
+        if (person) records.push(person);
+      }
+      if (records.length === 0) return ok(out);
+      const ids = records.map((r) => r.snapshot.id);
+      const related = await relationsToMany(
+        deps.relations,
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        ids,
+        new Map(records.map((r) => [r.snapshot.id, factsOf(r)])),
+      );
+      const encrypted = version.document.attributes.some((d) => d.encrypted);
+      const sealed = encrypted
+        ? await deps.secrets.listMany?.(tx, asking.tenantId, ids)
+        : undefined;
+      const calendar = await calendars.load(tx, asking.tenantId);
+      const at = deps.clock.instant();
+      for (const person of records) {
+        const id = person.snapshot.id;
+        const relations = related.get(id);
+        if (relations === undefined) continue;
+        const open = deps.reviews ? await deps.reviews.open(tx, asking.tenantId, id) : [];
+        const held = !encrypted
+          ? []
+          : sealed !== undefined
+            ? (sealed.get(id) ?? [])
+            : await deps.secrets.list(tx, asking.tenantId, id);
+        out.set(
+          id,
+          verdictOf(
+            version,
+            person,
+            relations,
+            held,
+            open,
+            personZone(calendar, placementOf(person.values), at),
+            deps.clock,
+          ),
+        );
+      }
+      return ok(out);
     },
 
     async checkIdentifiers(tx, asking) {
