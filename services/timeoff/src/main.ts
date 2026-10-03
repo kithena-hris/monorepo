@@ -6,10 +6,13 @@ import manifest from '../module.manifest.js';
 import { timeoffListener } from './http/server.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
 import { wireBackground } from './infrastructure/background.js';
+import { timeoffDatabase } from './infrastructure/unit-of-work.js';
 
 startTelemetry(`kithena-${manifest.key}`);
-wireConsumers();
-wireBackground();
+// Null without TIMEOFF_DATABASE_URL; `drizzleUnitOfWork(db)` is the storage every transport takes.
+const db = timeoffDatabase(process.env);
+wireConsumers(process.env, db);
+wireBackground(process.env, db);
 
 const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
 

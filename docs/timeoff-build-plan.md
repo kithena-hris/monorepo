@@ -586,7 +586,7 @@ no decline, cancel or change.
   `FOR SHARE`, so a close and a post racing cannot both win. `punch` and
   `pay_period_line` are insert-only for `svc_timeoff`.
 
-### [ ] TOF-034 — Drizzle repositories and the unit of work
+### [x] TOF-034 — Drizzle repositories and the unit of work
 
 - **Files** `services/timeoff/src/infrastructure/drizzle-*.ts`,
   `unit-of-work.ts`
@@ -595,6 +595,26 @@ no decline, cancel or change.
   publish their events to the outbox in one transaction.
 - **Done when** integration tests round-trip every aggregate and see its events
   in the outbox.
+- **As built** `drizzleUnitOfWork(db)` is `withTenant` handing out every store
+  bound to the transaction; `timeoffDatabase(env)` opens the pool from
+  `TIMEOFF_DATABASE_URL`, and `main.ts` passes it to the consumers and the
+  jobs (the transports take `drizzleUnitOfWork(db)` the same way).
+  `LeaveRequest`, `Policy` and `LeaveType` gained `rehydrate`, and
+  `AggregateRoot` a protected `restoreVersion`, so a stored request's next
+  event numbers on from its version. `20261003120000_timeoff_repositories.sql`
+  adds what the ports hold and the tables did not: the member's zone, a
+  deleted leave type, a request's routing, which layers a location observes,
+  the two tenant settings, overtime decisions, feed versions, People's
+  locations (TOF-045) and `timeoff.tenant`, the job's tenant list on People's
+  pattern. Relaxed, each saying why: a holiday layer's place (assigned per
+  location instead) and "closed by" (the domain does not carry it yet). An
+  import's member is stored as the nil event and `-infinity`, read back as
+  null, and the upsert never moves a member backwards. `persist` now saves the
+  request before its ledger rows, which name it by foreign key; the Spain
+  pack's region keys are `es_md` and `es_ct`, the key shape the table holds.
+  The application tests stay on the in-memory ports: People has no shared
+  port contract, and `repositories.integration.test.ts` drives a hire and a
+  request through the use cases over Drizzle instead.
 
 ### Application
 

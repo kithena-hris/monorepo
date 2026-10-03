@@ -102,15 +102,19 @@ export interface Sent {
   readonly noteRequired: boolean;
 }
 
-/** Save a record, its rows and its events, in the caller's transaction. */
+/**
+ * Save a record, its rows and its events, in the caller's transaction. The
+ * request first: its ledger rows name it, by foreign key. A refusal from
+ * `post` rolls the save back with everything else.
+ */
 export async function persist(
   tx: Tx,
   record: RequestRecord,
   entries: readonly LedgerEntry[],
 ): Promise<Result<void>> {
+  await tx.requests.save(record);
   const posted = await post(tx, entries);
   if (!posted.ok) return posted;
-  await tx.requests.save(record);
   await tx.outbox.publish(record.request.drainEvents());
   return ok(undefined);
 }

@@ -51,6 +51,7 @@ export const member = timeoff.table(
     /** ISO weekdays, 1 is Monday. Null is the policy's default. */
     workPattern: smallint('work_pattern').array(),
     status: text('status').notNull().default('active'),
+    timeZone: text('time_zone').notNull().default('UTC'),
     /** Only moves forward, with `lastEffectiveFrom`: see the migration. */
     lastEventId: uuid('last_event_id').notNull(),
     lastEffectiveFrom: calendarDate('last_effective_from').notNull(),
@@ -83,6 +84,7 @@ export const leaveType = timeoff.table(
     appliesTo: jsonb('applies_to'),
     statutory: boolean('statutory').notNull().default(false),
     hiddenAt: instant('hidden_at'),
+    deletedAt: instant('deleted_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -164,6 +166,12 @@ export const request = timeoff.table(
     datesEventId: uuid('dates_event_id'),
     version: integer('version').notNull().default(0),
     requestedAt: instant('requested_at').notNull(),
+    approvalChain: text('approval_chain').array().notNull().default([]),
+    approvalStep: integer('approval_step').notNull().default(0),
+    waitingSince: calendarDate('waiting_since'),
+    /** A person's id, or `hr`. */
+    escalatedTo: text('escalated_to'),
+    proposedBy: text('proposed_by'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -243,7 +251,7 @@ export const holidayCalendar = timeoff.table(
     name: text('name').notNull(),
     level: text('level').notNull(),
     weekendRule: text('weekend_rule').notNull().default('none'),
-    country: char('country', { length: 2 }).notNull(),
+    country: char('country', { length: 2 }),
     region: text('region'),
     city: text('city'),
     createdAt: createdAt(),
@@ -368,3 +376,74 @@ export const payPeriodLine = timeoff.table(
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
 );
+
+/* ------------------------------------------------------------- TOF-034 -- */
+
+/** The layers a location observes, most general first. */
+export const locationHolidayCalendar = timeoff.table(
+  'location_holiday_calendar',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    locationKey: text('location_key').notNull(),
+    calendarKey: text('calendar_key').notNull(),
+    position: smallint('position').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.locationKey, t.calendarKey] })],
+);
+
+/** `auto_approval` and `attendance_rules`, one document each; absent is the default. */
+export const setting = timeoff.table(
+  'setting',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    key: text('key').notNull(),
+    value: jsonb('value').notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
+);
+
+export const overtimeDecision = timeoff.table(
+  'overtime_decision',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    day: calendarDate('day').notNull(),
+    minutes: integer('minutes').notNull(),
+    outcome: text('outcome').notNull(),
+    decidedBy: text('decided_by').notNull(),
+    decidedAt: instant('decided_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId, t.day] })],
+);
+
+export const feedVersion = timeoff.table(
+  'feed_version',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    version: integer('version').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId] })],
+);
+
+/** People's work locations, as its events describe them (TOF-045). */
+export const location = timeoff.table(
+  'location',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    locationKey: text('location_key').notNull(),
+    name: text('name').notNull(),
+    country: char('country', { length: 2 }),
+    timeZone: text('time_zone').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.locationKey] })],
+);
+
+/** Readable without a tenant: the list background jobs run over. */
+export const tenant = timeoff.table('tenant', {
+  tenantId: uuid('tenant_id').primaryKey(),
+  firstSeenAt: instant('first_seen_at').notNull().defaultNow(),
+});

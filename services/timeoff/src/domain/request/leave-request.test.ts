@@ -622,9 +622,8 @@ describe('LeaveRequest.rehydrate', () => {
       [LeaveApproved.name, 4],
     ]);
     // The change supersedes the event that set the dates before it.
-    expect((events[0]?.payload as { supersedes: string }).supersedes).toBe(
-      request.snapshot.datesEventId,
-    );
+    const changed = events[0]?.payload as { supersedes: string } | undefined;
+    expect(changed?.supersedes).toBe(request.snapshot.datesEventId);
   });
 
   it('keeps a pending change and the sick note reference', () => {
