@@ -81,7 +81,8 @@
     },
     {
       "path": "/time-off/approvals/waiting",
-      "label": "Requests",
+      "label": "My requests",
+      "labelFor": { "manager": "Requests", "hr": "Requests" },
       "group": "Time off",
       "icon": "approve",
       "description": "Requests waiting for a decision, and your own",

@@ -601,6 +601,7 @@ export function AppShell({
                                 <PeopleSubnav
                                   sections={timeOff.sections}
                                   route={timeOffRoute}
+                                  counts={timeOff.counts ?? {}}
                                   label="Time off sections"
                                 />
                               ),

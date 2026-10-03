@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import type { AreaPlaces } from './shell-data';
 import { timed } from './timing';
 
 /**
@@ -49,6 +50,11 @@ const Tab = z.object({
 const Place = Tab.extend({
   /** A shorter line than `description`, under the label on a phone's row. */
   summary: z.string().min(1).optional(),
+  /**
+   * Its label for a viewer with one of these roles, the first that matches:
+   * "Requests" for whoever decides them, "My requests" (`label`) for the rest.
+   */
+  labelFor: z.record(z.string(), z.string().min(1)).optional(),
   tabs: z.array(Tab).min(1).optional(),
 });
 export type Place = z.infer<typeof Place>;
@@ -86,12 +92,16 @@ export function placesFor(
 } {
   const opens = (p: Pick<Place, 'for'>): boolean =>
     p.for === undefined || p.for.some((r) => roles[r] === true);
+  const named = (p: Place): Place => {
+    const label = Object.entries(p.labelFor ?? {}).find(([role]) => roles[role] === true)?.[1];
+    return label === undefined ? p : { ...p, label };
+  };
   return {
     sections: nav.sections.filter(opens).flatMap((section): Place[] => {
-      if (section.tabs === undefined) return [section];
+      if (section.tabs === undefined) return [named(section)];
       const tabs = section.tabs.filter(opens);
       const first = tabs[0];
-      return first === undefined ? [] : [{ ...section, path: first.path, tabs }];
+      return first === undefined ? [] : [{ ...named(section), path: first.path, tabs }];
     }),
     actions: nav.actions.filter(opens),
     settings: (nav.settings ?? []).filter(opens),
@@ -243,6 +253,44 @@ export function siblingsOf(
     ]);
   }
   return [...groups].map(([label, items]) => ({ label, items }));
+}
+
+/**
+ * A screen's header among an area's places (`AREAS`): "Time off › Requests ›
+ * Decided" among its sections, with their counts, "Settings › Time off ›
+ * Leave types" among its settings, each crumb a switcher to its siblings. No
+ * actions on a setting. The page and its loading state draw the same one.
+ */
+export function areaFrame(
+  area: Area,
+  route: string | null,
+  places: AreaPlaces | undefined,
+): HeaderFrame & { readonly trail: readonly { readonly href: string; readonly label: string }[] } {
+  const own = places ?? { sections: [], actions: [], settings: [] };
+  if (route?.startsWith(`${area.settings}/`) !== true) {
+    return {
+      ...headerFrame(
+        own,
+        route,
+        area.home,
+        { sections: places?.counts ?? {}, tabs: places?.tabCounts ?? {} },
+        area.label,
+      ),
+      trail: [{ href: area.home, label: area.label }],
+    };
+  }
+  const settings = own.settings.map((p) => ({ ...p, group: `${area.label} settings` }));
+  const here = currentPlace(settings, route);
+  return {
+    section: here?.label ?? null,
+    trail: [
+      { href: '/settings', label: 'Settings' },
+      { href: '/settings', label: area.label },
+    ],
+    actions: [],
+    siblings: siblingsOf(settings, here),
+    siblingsLabel: `${area.label} settings`,
+  };
 }
 
 export interface RemoteRoute {
@@ -433,9 +481,17 @@ async function manifestOf(base: string): Promise<unknown> {
  */
 export async function remoteNav(
   area: Area,
-): Promise<{ readonly nav: RemoteRoute['nav']; readonly routes: readonly string[] } | null> {
+): Promise<{
+  readonly nav: RemoteRoute['nav'];
+  readonly routes: readonly string[];
+  readonly screens: RemoteRoute['screens'];
+} | null> {
   const parsed = RouteManifest.safeParse(await manifestOf(remoteBase(area)));
   if (!parsed.success) return null;
   const { routes, sections, actions, settings } = parsed.data;
-  return { nav: { sections, actions, settings }, routes: routes.map((r) => r.path) };
+  return {
+    nav: { sections, actions, settings },
+    routes: routes.map((r) => r.path),
+    screens: Object.fromEntries(routes.map((r) => [r.path, r.component])),
+  };
 }

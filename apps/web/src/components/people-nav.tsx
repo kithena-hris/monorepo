@@ -59,7 +59,7 @@ export function iconOf(name: string | undefined): JSX.Element | undefined {
 /** A count as a small solid badge; approvals are the urgent tone, the rest a warning. */
 function Count({ path, n }: { readonly path: string; readonly n: number }): JSX.Element {
   return (
-    <Badge size="xs" variant="solid" tone={path.endsWith('/approvals') ? 'danger' : 'warning'}>
+    <Badge size="xs" variant="solid" tone={/\/approvals(\/|$)/.test(path) ? 'danger' : 'warning'}>
       {n}
       <span className="sr-only"> waiting</span>
     </Badge>
