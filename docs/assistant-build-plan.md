@@ -727,7 +727,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   unchanged; `just dev` starts the assistant through its `dev` script.
   **Not yet proven on staging**: the staging VM is off.
 
-### [ ] AST-028 — Questions keep the VM awake
+### [x] AST-028 — Questions keep the VM awake
 
 - **Spec** PRD §10.4
 - **Files** `deploy/vm/idle-stop.sh`, `docs/environments.md`
@@ -736,6 +736,12 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   the window as activity, beside the router's `/graphql` lines.
 - **Done when** a question within the window shows as activity in
   `journalctl -u kithena-idle-stop`.
+- **As built** a `QUESTIONS` input beside `REQUESTS`: `docker logs --since`
+  of each environment's assistant container, counting
+  `"msg":"assistant question"`. `decide` stays for one ("stay: 2 question(s)
+  to the assistant in the last 30 min") and treats an unknown count as a
+  reason to stay, as for every probe (`tools/scripts/src/idle-stop.test.ts`).
+  **Not yet seen in the VM's journal.**
 
 ### [ ] AST-029 — Docs
 

@@ -889,7 +889,10 @@ storage" below has the buckets' rules.
 for `IDLE_STOP_MINUTES` (30 by default) no authenticated `/graphql` request in
 the router's access log — the router logs only `/graphql`, never `/health`,
 and a request without a valid token is a 401, which is the internet knocking,
-not a person — no kithena container started and nothing deployed, nobody
+not a person — **no question to the assistant** (its one `"assistant question"`
+log line per question, never its words: a Slack question never passes the
+router, so without this a morning of questions would not keep the VM up), no
+kithena container started and nothing deployed, nobody
 logged in and no Session Manager session open, no export job queued, running or retrying in BullMQ, no pending
 Temporal activity on `people-full-values`, **no approved import running** (a
 running workflow on `people-imports`, counted with `temporal workflow count`:

@@ -17,6 +17,9 @@
 #     what cloudflared asks), and a request without a valid token answers 401,
 #     which is the internet knocking, not a person. `docker logs --since` reads
 #     it, so there is no state here to lose.
+#   - no question to the assistant. A Slack question never passes the router,
+#     so the assistant's one log line per question (`"assistant question"`,
+#     never its words) is read the same way.
 #   - no kithena container started, and nothing deployed, inside the window:
 #     a boot, a deploy or a restart counts as activity.
 #   - nobody logged in (`who`) and no Session Manager session open (an
@@ -50,12 +53,13 @@ window=$((minutes * 60))
 # reason to stay up, never to stop.
 decide() {
   local name value
-  for name in UPTIME_SECONDS REQUESTS NEWEST_START_SECONDS SESSIONS JOBS ACTIVITIES IMPORTS; do
+  for name in UPTIME_SECONDS REQUESTS QUESTIONS NEWEST_START_SECONDS SESSIONS JOBS ACTIVITIES IMPORTS; do
     value="${!name:-}"
     [[ "$value" =~ ^[0-9]+$ ]] || { echo "stay: $name unknown (${value:-unset})"; return 1; }
   done
   if [ "$UPTIME_SECONDS" -lt 900 ]; then echo "stay: up ${UPTIME_SECONDS}s, under 15 min"; return 1; fi
   if [ "$REQUESTS" -gt 0 ]; then echo "stay: $REQUESTS request(s) in the last ${minutes} min"; return 1; fi
+  if [ "$QUESTIONS" -gt 0 ]; then echo "stay: $QUESTIONS question(s) to the assistant in the last ${minutes} min"; return 1; fi
   if [ "$NEWEST_START_SECONDS" -lt "$window" ]; then
     echo "stay: a container started or a deploy landed ${NEWEST_START_SECONDS}s ago"; return 1
   fi
@@ -103,6 +107,19 @@ requests() {
     running "kithena-$env-router-1" || continue
     c="$(docker logs --since "${minutes}m" "kithena-$env-router-1" 2>&1 \
       | grep '"path":"/graphql"' | grep -vc '"status":401' || true)"
+    n=$((n + c))
+  done
+  echo "$n"
+}
+
+# The assistant's per-question log lines inside the window: one per question,
+# whatever its outcome, and never its words.
+questions() {
+  local env n=0 c
+  for env in $(envs); do
+    running "kithena-$env-assistant-1" || continue
+    c="$(docker logs --since "${minutes}m" "kithena-$env-assistant-1" 2>&1 \
+      | grep -c '"msg":"assistant question"' || true)"
     n=$((n + c))
   done
   echo "$n"
@@ -194,6 +211,7 @@ backup() {
 check() {
   UPTIME_SECONDS="$(cut -d. -f1 /proc/uptime)"
   REQUESTS="$(requests)"
+  QUESTIONS="$(questions)"
   NEWEST_START_SECONDS="$(newest_start)"
   # `who` sees an SSH login, tunnelled through SSM or not, but a Session
   # Manager shell never writes utmp: each open session is an
@@ -203,7 +221,7 @@ check() {
   JOBS="$(queued)"
   ACTIVITIES="$(activities)"
   IMPORTS="$(imports)"
-  export UPTIME_SECONDS REQUESTS NEWEST_START_SECONDS SESSIONS JOBS ACTIVITIES IMPORTS
+  export UPTIME_SECONDS REQUESTS QUESTIONS NEWEST_START_SECONDS SESSIONS JOBS ACTIVITIES IMPORTS
   decide || exit 0
   backup || exit 0
   local env

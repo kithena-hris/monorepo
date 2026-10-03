@@ -12,6 +12,7 @@ const SCRIPT = fileURLToPath(new URL('../../../deploy/vm/idle-stop.sh', import.m
 const IDLE = {
   UPTIME_SECONDS: '3600',
   REQUESTS: '0',
+  QUESTIONS: '0',
   NEWEST_START_SECONDS: '7200',
   SESSIONS: '0',
   JOBS: '0',
@@ -19,7 +20,10 @@ const IDLE = {
   IMPORTS: '0',
 };
 
-function run(args: string[], env: Record<string, string> = {}): { status: number | null; out: string } {
+function run(
+  args: string[],
+  env: Record<string, string> = {},
+): { status: number | null; out: string } {
   const result = spawnSync('bash', [SCRIPT, ...args], {
     env: { PATH: process.env['PATH'] ?? '', KITHENA_ETC: '/nonexistent', ...env },
     encoding: 'utf8',
@@ -38,6 +42,7 @@ describe('idle-stop decide', () => {
   it.each([
     [{ UPTIME_SECONDS: '600' }, 'stay: up 600s, under 15 min'],
     [{ REQUESTS: '3' }, 'stay: 3 request(s) in the last 30 min'],
+    [{ QUESTIONS: '2' }, 'stay: 2 question(s) to the assistant in the last 30 min'],
     [{ NEWEST_START_SECONDS: '1799' }, 'stay: a container started or a deploy landed 1799s ago'],
     [{ SESSIONS: '1' }, 'stay: 1 login session(s)'],
     [{ JOBS: '2' }, 'stay: 2 export job(s) in flight'],
@@ -54,8 +59,18 @@ describe('idle-stop decide', () => {
 
   it('treats a probe that failed as a reason to stay up', () => {
     expect(decide({ JOBS: 'unknown' })).toEqual({ status: 1, out: 'stay: JOBS unknown (unknown)' });
-    expect(decide({ ACTIVITIES: '' })).toEqual({ status: 1, out: 'stay: ACTIVITIES unknown (unset)' });
-    expect(decide({ IMPORTS: 'unknown' })).toEqual({ status: 1, out: 'stay: IMPORTS unknown (unknown)' });
+    expect(decide({ ACTIVITIES: '' })).toEqual({
+      status: 1,
+      out: 'stay: ACTIVITIES unknown (unset)',
+    });
+    expect(decide({ IMPORTS: 'unknown' })).toEqual({
+      status: 1,
+      out: 'stay: IMPORTS unknown (unknown)',
+    });
+    expect(decide({ QUESTIONS: '' })).toEqual({
+      status: 1,
+      out: 'stay: QUESTIONS unknown (unset)',
+    });
   });
 });
 
