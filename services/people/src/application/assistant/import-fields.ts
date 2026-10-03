@@ -616,6 +616,25 @@ function plannedFields(
 }
 
 /**
+ * How many people are without at least one of these fields once the file is
+ * in, each counted once: the file's rows with one of them empty, and everybody
+ * here the file does not reach, as the fields are new. Nobody the file says
+ * has left.
+ */
+function peopleFor(g: Gathered, fields: readonly PlannedField[], kind: 'ask' | 'hr'): number {
+  const columns = fields.filter((f) => f.forExisting.kind === kind).map((f) => f.column);
+  if (columns.length === 0) return 0;
+  const reached = g.file.rows.filter(
+    (r) => r.outcome === 'create' || r.outcome === 'update' || r.outcome === 'unchanged',
+  );
+  const inFile = reached.filter(
+    (r) => r.left !== true && columns.some((c) => (r.cells[c] ?? '').trim() === ''),
+  ).length;
+  const here = new Set(reached.flatMap((r) => (r.personId === null ? [] : [r.personId]))).size;
+  return inFile + Math.max(0, g.existing - here);
+}
+
+/**
  * The plan: the version the kept fields would make (with setup's pack for a
  * company with nothing published), the dry run against it, and everything
  * that will happen, in words. Nothing is written.
@@ -704,6 +723,7 @@ async function planned(
         return to === undefined ? [] : [{ value: w.value, to: to.name }];
       }),
     },
+    who: { asked: peopleFor(g, fields, 'ask'), forHr: peopleFor(g, fields, 'hr') },
     lifecycle: dry.lifecycle,
     leftEmpty: {
       count: dry.leftEmptyCount,
@@ -735,7 +755,7 @@ async function planned(
       ],
       review: review.value,
       mapping,
-      asked: sum('ask'),
+      asked: peopleFor(g, fields, 'ask'),
       forHr: sum('hr'),
     },
     places: canSet ? dry.newLocations : [],

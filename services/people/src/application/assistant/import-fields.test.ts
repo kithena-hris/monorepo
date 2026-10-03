@@ -554,13 +554,13 @@ describe('the plan', () => {
     expect(plan.value.steps.map((s) => s.title)).toEqual([
       'Create 4 fields in Settings › Employee fields',
       'Create 1 person and update 2',
-      'Ask 3 people for their emergency contact',
-      'Give HR 4 cost centre values to fill in',
-      'Ask 4 people for their IBAN',
+      // Each person once, for everything asked of them.
+      'Ask 4 people for 2 personal details (emergency contact and IBAN)',
+      'HR fills 1 employment detail for 4 people',
       'Give 3 people “ES” as their work country',
       'Leave out T-shirt size',
     ]);
-    expect(plan.value.asked).toBe(7);
+    expect(plan.value.asked).toBe(4);
     expect(plan.value.forHr).toBe(4);
     expect(plan.value.blocked).toBeNull();
     // Nothing written.
@@ -595,7 +595,7 @@ describe('approving and running it', () => {
     );
     const ran = await runImport(w.deps, w.asking, { ...w.step, proposals });
     if (!ran.ok) throw new Error(ran.error.message);
-    expect(ran.value).toMatchObject({ created: 1, updated: 2, version: 5, asked: 7, forHr: 4 });
+    expect(ran.value).toMatchObject({ created: 1, updated: 2, version: 5, asked: 4, forHr: 4 });
     expect(ran.value.fields.map((f) => [f.label, f.section, f.newSection])).toEqual([
       ['Emergency contact', 'Emergency contact', true],
       ['Cost centre', 'Employment', false],
