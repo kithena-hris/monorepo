@@ -243,6 +243,16 @@ in the same way. Each lane is a pull request into `time-off`; `time-off` goes to
 `main` once, when every lane has landed. The screens are `T1`–`T36` (web) and
 `MT1`–`MT21` (mobile) in the same Claude Design project as People.
 
+**The Assistant is specified and being built on the `assistant` branch.** A
+platform service, `platform/assistant`, that answers questions in words across
+the modules a company has: each module publishes typed capabilities in
+`packages/contracts`, a model only plans which to call, and every call runs as
+the asker in the module's own authorization. Requirements are in
+`docs/assistant-prd.md` and the tickets, `AST-001` to `AST-036`, in
+`docs/assistant-build-plan.md`, which is the record of its progress in the same
+way. Each lane is a pull request into `assistant`; `assistant` goes to `main`
+once, when Phase 1's lanes have landed.
+
 ## Adding a module
 
 1. `services/<name>/module.manifest.ts` with `dependsOn: []`. If that array
