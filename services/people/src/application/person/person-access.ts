@@ -72,14 +72,7 @@ import {
   holds,
   type Holding,
 } from './pending-changes.js';
-import type {
-  Asking,
-  ConditionOp,
-  GapsIn,
-  PersonCount,
-  Refine,
-  SealedValue,
-} from './ports.js';
+import type { Asking, ConditionOp, GapsIn, PersonCount, Refine, SealedValue } from './ports.js';
 
 export type { Asking, SealedValue } from './ports.js';
 import { countryOf, factsOf } from './subject.js';
@@ -326,6 +319,13 @@ export interface PersonAccess {
        * day (PEO-109): a dismissal for cause. Same as `endAccess` after.
        */
       readonly endAccessNow?: boolean;
+      /**
+       * An import of somebody who had already left: access ended at the end
+       * of their last working day, as the hourly job would have ended it, in
+       * this transaction rather than within the hour. A last day still going
+       * on is left to the job.
+       */
+      readonly endAccessAtLastDay?: boolean;
     }>,
   ): Promise<Result<PersonView>>;
   /**
@@ -366,7 +366,8 @@ export interface PersonAccess {
   ): Promise<Result<{ readonly today: string; readonly timeZone: string }>>;
   /** Every employment period on a person, first first (PEO-110). HR only. */
   employmentPeriods(tx: Tx, asking: On<object>): Promise<Result<readonly EmploymentPeriodRow[]>>;
-  startLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
+  /** On leave from today, or from `from`: a day behind them since they started. */
+  startLeave(tx: Tx, asking: On<{ readonly from?: string }>): Promise<Result<PersonView>>;
   endLeave(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
   /** A provisional record that was never a person (§8.1); the one state a hard delete may follow. */
   discard(tx: Tx, asking: On<object>): Promise<Result<PersonView>>;
@@ -1862,7 +1863,11 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           }
           // Access may already have ended at the end of the last day, before
           // HR confirmed the termination (PEO-109); nothing more to end then.
-          return now && p.accessEndedAt === null ? p.endAccess(ctx, zone, 'now') : ok(undefined);
+          if (p.accessEndedAt !== null) return ok(undefined);
+          if (now) return p.endAccess(ctx, zone, 'now');
+          // Refused, and nothing moved, while the last day is still going on.
+          if (asking.endAccessAtLastDay === true) p.endAccess(ctx, zone, 'day_ended');
+          return ok(undefined);
         },
       );
     },
@@ -2022,7 +2027,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking,
         'puts a person on leave',
         (s) => s.status === 'on_leave',
-        (p, zone, ctx) => p.startLeave(ctx, zone),
+        (p, zone, ctx) =>
+          asking.from === undefined || CALENDAR_DATE.test(asking.from)
+            ? p.startLeave(ctx, zone, asking.from)
+            : err(failure('VALUE_INVALID', 'from is a calendar date', ['from'])),
       ),
 
     endLeave: (tx, asking) =>

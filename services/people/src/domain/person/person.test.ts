@@ -838,6 +838,23 @@ describe('ending employment, and leave, on the person’s own calendar (PEO-108)
     ]);
   });
 
+  it('dates leave from the day it began, when that is behind them: an import of who is away', () => {
+    const p = active();
+    expect(p.startLeave(ctx, UTC, '2026-06-11').ok).toBe(true);
+    expect(p.status).toBe('on_leave');
+    expect(p.drainEvents()[0]).toMatchObject({
+      effectiveFrom: '2026-06-11',
+      payload: { reason: 'leave_started', next: 'on_leave' },
+    });
+  });
+
+  it('refuses leave from a day not come yet, or before they started', () => {
+    const ahead = active().startLeave(ctx, UTC, '2026-11-01');
+    expect(ahead.ok ? null : ahead.error.code).toBe('LEAVE_NOT_STARTED');
+    const before = active().startLeave(ctx, UTC, '2025-12-31');
+    expect(before.ok ? null : before.error.code).toBe('LEAVE_BEFORE_HIRE');
+  });
+
   it('gives notice as a resignation unless told otherwise', () => {
     const p = active();
     p.giveNotice('2026-12-31', ctx, UTC);

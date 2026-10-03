@@ -302,7 +302,9 @@ export async function commitImport(
   for (const row of plan.rows) outcomes.push(await write(tx, deps, input, row));
   // Then each row's references to other rows of the file — a manager — once
   // everybody they can point at is in, so the file's order does not matter.
-  const leftEmpty = [...plan.leftEmpty, ...(await link(tx, deps, input, outcomes))];
+  const linked = await link(tx, deps, input, outcomes);
+  // Last, the lifecycle: a leaver is a tombstone nothing above could write to.
+  const leftEmpty = [...plan.leftEmpty, ...linked, ...(await settle(tx, deps, input, outcomes))];
 
   const tally = (w: Outcome['written']) => outcomes.filter((o) => o.written === w).length;
   const counts: ImportCounts = {
@@ -555,7 +557,8 @@ async function link(
       const target = byRow.get(l.row) ?? null;
       const empty = (reason: string) =>
         left.push({ row: o.row.row, column: l.column, key: l.key, value: l.value, reason });
-      if (target === null) empty(`row ${String(l.row)} of the file, whom this points at, did not import`);
+      if (target === null)
+        empty(`row ${String(l.row)} of the file, whom this points at, did not import`);
       else if (target === o.personId) empty('a person cannot point at themselves');
       else changes[l.key] = target;
     }
@@ -581,6 +584,73 @@ async function link(
           reason: linked.error.message,
         });
       }
+    }
+  }
+  return left;
+}
+
+/**
+ * The third pass: what the file's status and dates do to each person it
+ * brought in, through People's own moves — offboarded from a termination
+ * date with its reason and rehire flag (access ended with that day, as the
+ * hourly job would have ended it), on notice until a day ahead, on leave
+ * from its start. Effective from those dates, with the events every such
+ * move raises; nobody is notified, because People notifies nobody of these.
+ * A move the lifecycle refuses leaves the person as hired, and is named.
+ */
+async function settle(
+  tx: PostgresJsDatabase,
+  deps: CommitDeps,
+  input: DryRunInput,
+  outcomes: readonly Outcome[],
+): Promise<LeftEmpty[]> {
+  const asking: Asking = {
+    tenantId: input.tenantId,
+    viewer: input.viewer,
+    correlationId: input.correlationId,
+  };
+  const column =
+    input.mapping.find((m) => m.status === 'mapped' && m.key === 'employment_status') ??
+    input.mapping.find((m) => m.status === 'mapped' && m.key === 'last_working_day');
+  const left: LeftEmpty[] = [];
+  for (const o of outcomes) {
+    const move = o.row.lifecycle;
+    const personId = o.personId;
+    if (
+      move === null ||
+      personId === null ||
+      (o.written !== 'created' && o.written !== 'updated')
+    ) {
+      continue;
+    }
+    const on = { ...asking, personId };
+    // eslint-disable-next-line no-await-in-loop -- one savepoint per row, in order
+    const moved = await deps.rowScope(tx, (sp) =>
+      move.kind === 'left'
+        ? deps.access.terminate(sp, {
+            ...on,
+            lastWorkingDay: move.lastWorkingDay,
+            reason: move.reason,
+            note: move.note,
+            eligibleForRehire: move.eligibleForRehire,
+            endAccessAtLastDay: true,
+          })
+        : move.kind === 'notice'
+          ? deps.access.giveNotice(sp, {
+              ...on,
+              lastWorkingDay: move.lastWorkingDay,
+              reason: move.reason,
+            })
+          : deps.access.startLeave(sp, { ...on, from: move.from }),
+    );
+    if (!moved.ok) {
+      left.push({
+        row: o.row.row,
+        column: column?.header ?? 'Employment Status',
+        key: column?.key ?? 'employment_status',
+        value: column === undefined ? '' : (o.row.cells[column.index] ?? '').trim(),
+        reason: `imported as hired: ${moved.error.message}`,
+      });
     }
   }
   return left;

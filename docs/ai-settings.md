@@ -46,6 +46,39 @@ title.
    only an administrator's run changes the field. The columns keep only a
    key's shape (`20261003090000_people_choice_columns.sql`); the published
    options are the list.
+
+   **The employment lifecycle columns are People's own too**, and never
+   fields: "Employment Status", "Termination Date" (or "Last working day"),
+   "Termination Reason" and "Eligible for Rehire" map onto the lifecycle
+   (`SYSTEM_COLUMNS`, read by `domain/import/lifecycle.ts`). Once a new
+   person is hired from their start date, the import runs People's own moves,
+   each effective from its date and raising its usual typed events:
+   - a termination date on or before today: **offboarded** from it
+     (`terminate`), the reason as one of People's three (Resignation and
+     Retirement are resigned; Involuntary, Restructuring, Redundancy are
+     dismissed; End of contract is end of contract; a closed set, because
+     reports count it), the file's words as HR's note, the rehire flag on the
+     employment period, and access ended at the end of that day, as the hourly
+     job would have. Insights and turnover count them from their last
+     working day, as every leaver;
+   - a termination date ahead: **on notice** until it (`giveNotice`), so
+     access ends at the end of that day. Notice keeps no rehire flag or note;
+     HR gives both when confirming the termination;
+   - "On leave": **on leave** (`startLeave`) from the column headed "Leave
+     Start Date" (or today). People keeps no leave record (Time off is its
+     own module), so Leave Type, Leave Start Date and Expected Return Date
+     stay fields;
+   - "Active" and "Pre-hire" still come from the start date.
+
+   Where the word and the dates disagree, the dates decide ("Active" with a
+   start date ahead is pre-hire; "Terminated" with a day ahead is on notice;
+   "Terminated" with no date stays active, for HR), one line each in the
+   plan. The plan says it in one line: "58 people already left (offboarded
+   from their termination date); 6 are serving notice (offboarding
+   scheduled); 29 are on leave". Nobody is notified (People sends no notice
+   for these moves) and nobody is invited: an import never invites, and a
+   leaver's access has ended before anyone could. A person already here
+   keeps their status; change it from their record.
 1. **Work locations in this file** (`?step=places`, still under Map columns
    in the stepper) appears when a column maps to Work location. The dry run
    lists each value the file holds (`domain/import/workplaces.ts`) with its
