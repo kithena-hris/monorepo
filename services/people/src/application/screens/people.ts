@@ -6,12 +6,11 @@ import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import {
   filterable,
-  refinable,
   REPORTS_TO,
+  usableMetrics,
   type Asking,
   type PersonView,
 } from '../person/person-access.js';
-import { METRICS } from '../../domain/person/metrics.js';
 import { mayChangePhoto } from '../../domain/person/photo.js';
 import { matchBand, type MatchBand } from '../../domain/person/merge.js';
 import { askable } from '../../domain/person/detail-request.js';
@@ -694,7 +693,14 @@ export async function approvalsView(
   return run(deps.service, asking.tenantId, async (tx) => {
     const pending = deps.service.pending;
     if (!pending) {
-      return ok({ isHr: false, items: [], decided: [], checks: null, canTune: false, last90: null });
+      return ok({
+        isHr: false,
+        items: [],
+        decided: [],
+        checks: null,
+        canTune: false,
+        last90: null,
+      });
     }
     const inbox = await approvalsInbox(tx, pending, asking);
     if (!inbox.ok) return inbox;
@@ -743,7 +749,9 @@ export async function approvalsView(
       const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
       const attributes = person.ok ? person.value.attributes : {};
       const change =
-        c.canDecide || c.canSelfApprove ? await pending.store.find(tx, asking.tenantId, c.id) : null;
+        c.canDecide || c.canSelfApprove
+          ? await pending.store.find(tx, asking.tenantId, c.id)
+          : null;
       // Only to those who decide: a requester is never told which rule they tripped.
       const found =
         change === null
@@ -1711,7 +1719,8 @@ export async function directoryView(
     }
     // A manager a condition names ("reports of Marco"), by name, so its chip says who.
     const managers = own.filter(
-      (c) => c.key === REPORTS_TO && (c.op === 'is' || c.op === 'under') && c.values[0] !== undefined,
+      (c) =>
+        c.key === REPORTS_TO && (c.op === 'is' || c.op === 'under') && c.values[0] !== undefined,
     );
     for (const c of managers) {
       const id = c.values[0] ?? '';
@@ -1786,16 +1795,7 @@ export async function directoryView(
         : []),
     ];
     // The metrics this viewer may order by, and narrow by where a metric is a filter.
-    const metrics = METRICS.filter(
-      (m) =>
-        refinable(definitions, { sort: { key: m.key, direction: 'asc' } }, everyone).ok &&
-        (!m.filter ||
-          refinable(
-            definitions,
-            { conditions: [{ key: m.key, op: 'not_empty', values: [] }] },
-            everyone,
-          ).ok),
-    ).map((m) => ({
+    const metrics = usableMetrics(definitions, everyone).map((m) => ({
       key: m.key,
       label: m.label,
       kind: m.kind,

@@ -900,11 +900,14 @@ async function runToEnd<T>(
     { input: JSON.stringify(input), key },
   );
   expect(ran.errors?.[0]?.message).toBeUndefined();
-  const approved = JSON.parse(ran.data?.['runImport'] as string) as { runId: string; status: string };
+  const approved = JSON.parse(ran.data?.['runImport'] as string) as {
+    runId: string;
+    status: string;
+  };
   expect(approved.status).toBe('queued');
   // Approving answers in a moment, whatever the size of the file.
   expect(Date.now() - asked).toBeLessThan(2_000);
-  for (const deadline = Date.now() + 110_000; ; ) {
+  for (const deadline = Date.now() + 110_000; ;) {
     const seen = await graph(`query ($id: ID!) { importRun(id: $id) }`, { id: approved.runId });
     expect(seen.errors?.[0]?.message).toBeUndefined();
     const run = JSON.parse(seen.data?.['importRun'] as string) as {
@@ -1225,7 +1228,9 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     expect(columns).toHaveLength(105);
     // The map step says where People's own fields go, and what their lists gain,
     // though neither field is published until the plan runs.
-    const ownChoices = columns.filter((x) => ['employment_type', 'work_model'].includes(x.key ?? ''));
+    const ownChoices = columns.filter((x) =>
+      ['employment_type', 'work_model'].includes(x.key ?? ''),
+    );
     expect(ownChoices.map((x) => [x.header, x.status, x.key, x.adds])).toEqual([
       ['Employment Type', 'mapped', 'employment_type', ['Full-time', 'Part-time']],
       ['Work Arrangement', 'mapped', 'work_model', []],
@@ -1404,8 +1409,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     expect(of('Home Postal Code').field.dataType).toBe('text');
     // Who fills in what the file leaves empty: the employee their own details,
     // HR the employment ones, nobody special-category data.
-    const owner = (headers: readonly string[]) =>
-      headers.map((h) => [h, of(h).forExisting.kind]);
+    const owner = (headers: readonly string[]) => headers.map((h) => [h, of(h).forExisting.kind]);
     const personal = [
       'Marital Status',
       'Home State/Province',
@@ -1554,7 +1558,8 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       expect(requests).toHaveLength(95);
       expect(requests.filter((r) => r.status === 'terminated')).toEqual([]);
       expect(requests.filter((r) => r.sent !== 1)).toEqual([]);
-      for (const r of requests) for (const k of r.keys) expect([k, asked.has(k)]).toEqual([k, true]);
+      for (const r of requests)
+        for (const k of r.keys) expect([k, asked.has(k)]).toEqual([k, true]);
       // Whoever the file gave a passport is not asked for one; whoever it did not, is.
       const passports = (await ask.unsafe(
         `SELECT p.work_email AS email, s.person_id IS NOT NULL AS has
@@ -1567,9 +1572,10 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       const keysOf = new Map(requests.map((r) => [r.email, r.keys]));
       expect(passports.length).toBe(95);
       for (const x of passports) {
-        expect([x.email, keysOf.get(x.email)?.includes(of('Passport Number').key) ?? false]).toEqual(
-          [x.email, !x.has],
-        );
+        expect([
+          x.email,
+          keysOf.get(x.email)?.includes(of('Passport Number').key) ?? false,
+        ]).toEqual([x.email, !x.has]);
       }
     } finally {
       await ask.end();
@@ -1713,5 +1719,98 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     } finally {
       await client.end();
     }
+  });
+
+  // Smart search on the same company, with no model: People's rules alone.
+  const DIRECTORY = `query ($after: ID, $sort: String, $top: Int, $conditions: [DirectoryConditionInput!]) {
+    peopleDirectory(after: $after, sort: $sort, top: $top, conditions: $conditions) {
+      total next people { id name missing } query { sort { key direction } top }
+    }
+  }`;
+  interface Listed {
+    total: number;
+    next: string | null;
+    people: { id: string; name: string; missing: number | null }[];
+    query: { sort: { key: string; direction: string } | null; top: number | null };
+  }
+  const plan = async (c: ReturnType<typeof company>, sentence: string) => {
+    const asked = await c.graph(`query ($s: String!) { peopleDirectoryPlan(sentence: $s) }`, {
+      s: sentence,
+    });
+    expect(asked.errors?.[0]?.message).toBeUndefined();
+    return JSON.parse(asked.data?.['peopleDirectoryPlan'] as string) as {
+      sort: string | null;
+      top: number | null;
+      conditions: { key: string; op: string; values: string[] }[];
+      notes: string[];
+      unused: string[];
+      by: string;
+    };
+  };
+
+  it('“person with the highest missing fields” is exactly the person missing the most', async () => {
+    const c = company(TENANT, OWNER);
+    const asked = await plan(c, 'person with the highest missing fields');
+    expect(asked).toMatchObject({
+      sort: 'missing_count:desc',
+      top: 1,
+      conditions: [],
+      unused: [],
+      by: 'rules',
+    });
+
+    // Everybody's count as the directory's Record column shows it, every page.
+    const everybody: Listed['people'] = [];
+    for (let after: string | null = null; ;) {
+      const page = await c.graph(DIRECTORY, { after });
+      expect(page.errors?.[0]?.message).toBeUndefined();
+      const listed = page.data?.['peopleDirectory'] as Listed;
+      everybody.push(...listed.people);
+      after = listed.next;
+      if (after === null) break;
+    }
+    expect(everybody).toHaveLength(100);
+    const most = Math.max(...everybody.map((p) => p.missing ?? 0));
+    const theMost = everybody.filter((p) => p.missing === most);
+    expect(theMost).toHaveLength(1);
+
+    const answered = await c.graph(DIRECTORY, { sort: asked.sort, top: asked.top });
+    expect(answered.errors?.[0]?.message).toBeUndefined();
+    const found = answered.data?.['peopleDirectory'] as Listed;
+    expect(found).toMatchObject({
+      total: 1,
+      next: null,
+      query: { sort: { key: 'missing_count', direction: 'desc' }, top: 1 },
+    });
+    expect(found.people.map((p) => [p.id, p.missing])).toEqual([[theMost[0]?.id, most]]);
+  });
+
+  it('reads a manager by name through People’s own search, and orders by a team’s size', async () => {
+    const c = company(TENANT, OWNER);
+    const biggest = await c.graph(DIRECTORY, { sort: 'direct_reports:desc', top: 1 });
+    expect(biggest.errors?.[0]?.message).toBeUndefined();
+    const [boss] = (biggest.data?.['peopleDirectory'] as Listed).people;
+    expect(boss).toBeDefined();
+    const asked = await plan(c, `reports of ${boss?.name ?? ''}`);
+    expect(asked.conditions).toEqual([{ key: 'manager_id', op: 'is', values: [boss?.id] }]);
+    const reports = await c.graph(DIRECTORY, { conditions: asked.conditions });
+    const client = postgres(pgUrl, { max: 1 });
+    try {
+      const [direct] = (await client.unsafe(
+        `SELECT count(*)::int AS n FROM people.person WHERE tenant_id = $1::uuid AND manager_id = $2::uuid`,
+        [TENANT, boss?.id],
+      )) as unknown as { n: number }[];
+      expect((reports.data?.['peopleDirectory'] as Listed).total).toBe(direct?.n);
+      expect(direct?.n).toBeGreaterThan(1);
+    } finally {
+      await client.end();
+    }
+    // A whole team is everybody below, however deep: at least the direct reports.
+    const team = await plan(c, `${boss?.name ?? ''}'s team`);
+    expect(team.conditions).toEqual([{ key: 'manager_id', op: 'under', values: [boss?.id] }]);
+    const below = await c.graph(DIRECTORY, { conditions: team.conditions });
+    expect((below.data?.['peopleDirectory'] as Listed).total).toBeGreaterThanOrEqual(
+      (reports.data?.['peopleDirectory'] as Listed).total,
+    );
   });
 });

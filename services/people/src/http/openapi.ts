@@ -571,10 +571,10 @@ function screenPaths(): Record<string, unknown> {
     // Search and export in words (docs/ai-settings.md): a plan, never a write.
     '/v1/views/directory/plan': {
       post: screenWrite(
-        'What somebody typed in the directory, as its own conditions and order: a name alone is a name search; the model sees the sentence and field names only',
+        'What somebody typed in the directory, as its own conditions, order, top N and grouping: a name alone is a name search; the model sees the sentence, field names and metrics only',
         'DirectoryAsk',
         200,
-        '{ search, conditions, match, sort, unused, by, note, person, ask, refused, remembered }',
+        '{ search, conditions, match, sort, top, group, notes, unused, by, note, person, ask, refused, remembered }',
         { safe: true },
       ),
     },
@@ -758,13 +758,31 @@ function screenPaths(): Record<string, unknown> {
         summary:
           "A period's changes as points, each with its figure and the records behind it, in People's words; nothing goes to a model",
         parameters: [
-          { name: 'period', in: 'query', required: false, schema: { type: 'string', enum: ['week', 'month', 'quarter', 'custom'] } },
-          { name: 'from', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
+          {
+            name: 'period',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', enum: ['week', 'month', 'quarter', 'custom'] },
+          },
+          {
+            name: 'from',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+          },
           { name: 'to', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
-          { name: 'segment', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+          {
+            name: 'segment',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'uuid' },
+          },
         ],
         responses: {
-          200: { description: '{ period, title, writtenAt, points, phrasable, headcount, leavers, recipients, canSend }' },
+          200: {
+            description:
+              '{ period, title, writtenAt, points, phrasable, headcount, leavers, recipients, canSend }',
+          },
           ...failure,
         },
       },
@@ -772,12 +790,27 @@ function screenPaths(): Record<string, unknown> {
     '/v1/views/analytics/what-changed/worded': {
       get: {
         summary:
-          "The same points worded by the assistant where there is one; it is shown placeholders, never a figure or a name",
+          'The same points worded by the assistant where there is one; it is shown placeholders, never a figure or a name',
         parameters: [
-          { name: 'period', in: 'query', required: false, schema: { type: 'string', enum: ['week', 'month', 'quarter', 'custom'] } },
-          { name: 'from', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
+          {
+            name: 'period',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', enum: ['week', 'month', 'quarter', 'custom'] },
+          },
+          {
+            name: 'from',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'date' },
+          },
           { name: 'to', in: 'query', required: false, schema: { type: 'string', format: 'date' } },
-          { name: 'segment', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+          {
+            name: 'segment',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'uuid' },
+          },
         ],
         responses: { 200: { description: '{ points, byModel }' }, ...failure },
       },

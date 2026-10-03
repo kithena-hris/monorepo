@@ -182,6 +182,9 @@ describe('searching the directory in words', () => {
       ],
       match: 'all',
       sort: null,
+      top: null,
+      group: null,
+      notes: [],
       unused: [],
       by: 'assistant',
       note: null,
@@ -426,5 +429,101 @@ describe('smart search', () => {
       match: 'all',
     });
     expect(nothing.ok).toBe(false);
+  });
+});
+
+describe('rankings, counts and what was not understood', () => {
+  const USER = 'person with the highest missing fields';
+
+  it('the user’s sentence, with no model: the most missing details, top 1, never null', async () => {
+    const w = world({ model: false });
+    const plan = await planDirectory(w.deps, w.asking, { sentence: USER });
+    expect(plan.ok && plan.value).toMatchObject({
+      search: null,
+      conditions: [],
+      sort: 'missing_count:desc',
+      top: 1,
+      group: null,
+      notes: [],
+      unused: [],
+      by: 'rules',
+    });
+  });
+
+  it('the user’s sentence, with a model: shown the metrics it may use, never a value, and its answer runs', async () => {
+    const w = world({
+      answer: () => '{"sort":{"key":"missing_count","direction":"desc"},"limit":1}',
+    });
+    const plan = await planDirectory(w.deps, w.asking, { sentence: USER });
+    expect(plan.ok && plan.value).toMatchObject({
+      sort: 'missing_count:desc',
+      top: 1,
+      by: 'assistant',
+      note: null,
+    });
+    const [prompt] = w.sent;
+    const metrics = prompt?.context['metrics'] as { key: string }[];
+    expect(metrics.map((m) => m.key)).toContain('missing_count');
+    // No manager field in this company: nobody's reports are anybody's to sort by.
+    expect(metrics.map((m) => m.key)).not.toContain('direct_reports');
+    expect(prompt?.context['operators']).toMatchObject({
+      select: ['in', 'not_in', 'empty', 'not_empty'],
+    });
+    const text = JSON.stringify(prompt);
+    for (const value of RECORD_VALUES) expect(text).not.toContain(value);
+  });
+
+  it('a model that answers "null" for a name, or a metric it was not shown, is not used: the rules stand', async () => {
+    for (const answer of [
+      '{"conditions":[],"sort":null,"search":"null"}',
+      '{"sort":{"key":"missing_fields","direction":"desc"}}',
+    ]) {
+      const w = world({ answer: () => answer });
+      const plan = await planDirectory(w.deps, w.asking, { sentence: USER });
+      expect(plan.ok && plan.value).toMatchObject({
+        search: null,
+        sort: 'missing_count:desc',
+        top: 1,
+        by: 'rules',
+      });
+    }
+  });
+
+  it('a viewer who may not see completeness gets no ranking by it, and is told what was not understood', async () => {
+    const w = world({ model: false });
+    const plan = await planDirectory(
+      w.deps,
+      { ...w.asking, viewer: { accountId: TOBY_ACCOUNT, roles: new Set<string>() } },
+      { sentence: USER },
+    );
+    expect(plan.ok && plan.value).toMatchObject({ sort: null, top: null });
+    expect(plan.ok && plan.value.notes).toEqual([
+      'Not understood: “highest”, “missing”, “fields”.',
+      'None of it is a field or an order People knows, so this is everybody you can see.',
+    ]);
+  });
+
+  it('a question it cannot read at all still answers: everybody, and what was not understood', async () => {
+    const w = world({ model: false });
+    const plan = await planDirectory(w.deps, w.asking, { sentence: 'who has the shiniest shoes' });
+    expect(plan.ok && plan.value).toMatchObject({ conditions: [], sort: null, by: 'rules' });
+    expect(plan.ok && plan.value.notes).toEqual([
+      'Not understood: “shiniest”, “shoes”.',
+      'None of it is a field or an order People knows, so this is everybody you can see.',
+    ]);
+  });
+
+  it('a manager by name is People’s to find; where there is no manager field, it says so', async () => {
+    const w = world({ model: false });
+    const plan = await planDirectory(w.deps, w.asking, {
+      sentence: 'engineers who report to Dwight',
+    });
+    expect(plan.ok && plan.value).toMatchObject({
+      conditions: [{ key: 'job_title', op: 'contains', values: ['engineer'] }],
+      unused: ['Dwight'],
+    });
+    expect(plan.ok && plan.value.notes[0]).toBe(
+      'You can’t narrow the directory by manager, so the team was left out.',
+    );
   });
 });

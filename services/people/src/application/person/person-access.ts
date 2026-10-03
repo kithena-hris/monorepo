@@ -21,7 +21,7 @@ import {
   type ViewerRelations,
 } from '../../domain/access/field-access.js';
 import { assessCompleteness, type CompletenessVerdict } from '../../domain/person/completeness.js';
-import { metricAllowed, metricOf } from '../../domain/person/metrics.js';
+import { METRICS, metricAllowed, metricOf, type Metric } from '../../domain/person/metrics.js';
 import {
   arrived,
   correct,
@@ -674,6 +674,23 @@ export function refinable(
     return err(failure('CONDITION_INVALID', 'Offset out of range'));
   }
   return ok(undefined);
+}
+
+/** The metrics this viewer may order by, and narrow by where a metric is a filter. */
+export function usableMetrics(
+  definitions: readonly AttributeDefinition[],
+  everyone: ViewerRelations,
+): Metric[] {
+  return METRICS.filter(
+    (m) =>
+      refinable(definitions, { sort: { key: m.key, direction: 'asc' } }, everyone).ok &&
+      (!m.filter ||
+        refinable(
+          definitions,
+          { conditions: [{ key: m.key, op: 'not_empty', values: [] }] },
+          everyone,
+        ).ok),
+  );
 }
 
 /**

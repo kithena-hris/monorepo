@@ -8,7 +8,14 @@ import {
   type Intent,
 } from '../../domain/assistant/intent.js';
 import type { PlannedField } from '../../domain/assistant/selection.js';
-import { REPORTS_TO, refinable, type Asking, type PersonView } from '../person/person-access.js';
+import type { Metric } from '../../domain/person/metrics.js';
+import {
+  REPORTS_TO,
+  refinable,
+  usableMetrics,
+  type Asking,
+  type PersonView,
+} from '../person/person-access.js';
 import type { Condition } from '../person/ports.js';
 import { run } from '../person/service.js';
 import { approvalsView, fieldKind, STATUS_OPTIONS } from '../screens/people.js';
@@ -102,9 +109,7 @@ export async function filterFields(
                 .filter((e) => e.archived !== true)
                 .map((e) => ({ value: e.id, label: e.name }))
             : [];
-    return [
-      { key: d.key, label: d.label.default, kind, options, ai: d.classification.aiEligible },
-    ];
+    return [{ key: d.key, label: d.label.default, kind, options, ai: d.classification.aiEligible }];
   });
   return everyone.isHr
     ? [
@@ -112,6 +117,17 @@ export async function filterFields(
         { key: 'status', label: 'Status', kind: 'status', options: STATUS_OPTIONS, ai: true },
       ]
     : fields;
+}
+
+/** What People works out about each person that this person may order and narrow by. */
+export async function metricsFor(deps: ScreenDeps, tx: Tx, asking: Asking): Promise<Metric[]> {
+  const version = await deps.service.schemas.current(tx, asking.tenantId);
+  if (!version) return [];
+  const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+  return usableMetrics(
+    version.document.attributes.filter((d) => d.deprecatedAt === null),
+    everyone,
+  );
 }
 
 const personLine = (p: PersonView): { id: string; name: string; title: string | null } => ({
@@ -311,7 +327,8 @@ async function answer(
     }
     case 'person': {
       const { person, several, self } = await onePerson(deps, tx, asking, intent.name);
-      if (self === 'none') return { text: NO_PROFILE, people: [], understood: 'About you', answered: true };
+      if (self === 'none')
+        return { text: NO_PROFILE, people: [], understood: 'About you', answered: true };
       if (person === null) {
         return several.length === 0
           ? {
@@ -356,7 +373,8 @@ async function answer(
     }
     case 'reports': {
       const { person, several, self } = await onePerson(deps, tx, asking, intent.name);
-      if (self === 'none') return { text: NO_PROFILE, people: [], understood: 'Who reports to you', answered: true };
+      if (self === 'none')
+        return { text: NO_PROFILE, people: [], understood: 'Who reports to you', answered: true };
       if (person === null) {
         return {
           text:
