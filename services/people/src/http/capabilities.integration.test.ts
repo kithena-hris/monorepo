@@ -215,6 +215,13 @@ describe('the catalogue', () => {
       { value: 'people', label: 'People' },
     ]);
     for (const c of [hr, employee]) {
+      expect(c.serves.map((s) => s.name)).toEqual([
+        'people.find',
+        'people.person',
+        'people.reports',
+        'people.managers',
+        'people.approvals',
+      ]);
       expect(keys(c)).not.toContain('disability');
       expect(c.denied).toContainEqual({ key: 'disability', labels: ['Disability'] });
       expect(c.module).toBe('people');

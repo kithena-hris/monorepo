@@ -5,6 +5,7 @@ import {
   peopleCapabilities,
   PeopleApprovals,
   PeopleFind,
+  PeopleManagers,
   PeoplePerson,
   PeopleReports,
   type AmbiguousResult,
@@ -426,11 +427,47 @@ const approvals: Handler = async (deps, _tx, asking, input) => {
   });
 };
 
+/**
+ * `people.managers`: the managers of the people an earlier step found, each
+ * once (PRD §7.2). The people are read as the asker may read them, their
+ * reporting line taken where the asker reads it, and the managers read as the
+ * asker may too: one `readMany` leaves out, or whose name the asker does not
+ * read, is left out. No count of reports: "Marco — 1" names the one.
+ */
+const managers: Handler = async (deps, tx, asking, input) => {
+  const people = await deps.service.access.readMany(tx, {
+    ...asking,
+    personIds: input.personIds ?? [],
+  });
+  if (!people.ok) return people;
+  const ids = [
+    ...new Set([...people.value.values()].flatMap((p) => text(p.attributes[REPORTS_TO]) ?? [])),
+  ];
+  const read = await deps.service.access.readMany(tx, { ...asking, personIds: ids });
+  if (!read.ok) return read;
+  const rows = ids
+    .flatMap((id) => {
+      const manager = read.value.get(id);
+      return manager === undefined || nameOf(manager.attributes) === null ? [] : [row(manager)];
+    })
+    .toSorted((a, b) => a.name.localeCompare(b.name));
+  return ok({
+    kind: 'people',
+    rows: rows.slice(0, input.limit ?? 0),
+    ...(input.ids === true ? { ids: rows.map((r) => r.personId) } : {}),
+    total: rows.length,
+    scope: 'everyone',
+    described: 'the managers of the people found',
+    notes: [],
+  });
+};
+
 /** Each capability People answers, by name. */
 const handlers: Readonly<Record<string, Handler>> = {
   [PeopleFind.name]: find,
   [PeoplePerson.name]: person,
   [PeopleReports.name]: reports,
+  [PeopleManagers.name]: managers,
   [PeopleApprovals.name]: approvals,
 };
 

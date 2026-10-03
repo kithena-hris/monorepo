@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ok } from '@kithena/domain-kit';
 import {
   PeopleApprovals,
   PeopleFind,
@@ -99,7 +100,12 @@ const person = (
   },
 });
 
-function world(roles: readonly string[] = ['hr'], account = TOBY_ACCOUNT) {
+function world(
+  roles: readonly string[] = ['hr'],
+  account = TOBY_ACCOUNT,
+  /** People `readMany` leaves out for this asker, as if they could not read them. */
+  hidden: readonly string[] = [],
+) {
   const store = inMemoryPeople([versionOf(1, attributes)]);
   store.seed(MICHAEL, {
     account: MICHAEL_ACCOUNT,
@@ -118,6 +124,10 @@ function world(roles: readonly string[] = ['hr'], account = TOBY_ACCOUNT) {
   const lists: number[] = [];
   const access = {
     ...base,
+    readMany: async (tx: never, q: Parameters<typeof base.readMany>[1]) => {
+      const read = await base.readMany(tx, q);
+      return read.ok ? ok(new Map([...read.value].filter(([id]) => !hidden.includes(id)))) : read;
+    },
     list: (tx: never, q: Parameters<typeof base.list>[1]) => {
       asked.push(q.refine);
       lists.push(q.limit);
@@ -365,11 +375,68 @@ describe('people.approvals', () => {
   });
 });
 
+describe('people.managers', () => {
+  it('lists two reports’ one manager once, with no count of reports', async () => {
+    const out = found(
+      await world([], JIM_ACCOUNT).ask('people.managers', {
+        personIds: [DWIGHT, JIM],
+        limit: 25,
+        ids: true,
+      }),
+    );
+    expect(out.rows).toEqual([
+      { personId: MICHAEL, name: 'Michael Scott', title: 'Regional Manager', groups: {} },
+    ]);
+    expect(out.ids).toEqual([MICHAEL]);
+    expect(out.total).toBe(1);
+  });
+
+  it('leaves out a manager the asker may not read', async () => {
+    const out = found(
+      await world([], JIM_ACCOUNT, [MICHAEL]).ask('people.managers', {
+        personIds: [DWIGHT, JIM],
+        limit: 25,
+      }),
+    );
+    expect(out.rows).toEqual([]);
+    expect(out.total).toBe(0);
+  });
+
+  it('leaves out the people the asker may not read, and so their managers', async () => {
+    const out = found(
+      await world([], JIM_ACCOUNT, [DWIGHT, JIM]).ask('people.managers', {
+        personIds: [DWIGHT, JIM],
+        limit: 25,
+      }),
+    );
+    expect(out.total).toBe(0);
+  });
+
+  it('has nobody to list for somebody with no manager', async () => {
+    const w = world();
+    expect(found(await w.ask('people.managers', { personIds: [TOBY], limit: 25 })).total).toBe(0);
+    const some = found(await w.ask('people.managers', { personIds: [TOBY, JIM], limit: 25 }));
+    expect(some.rows.map((r) => r.personId)).toEqual([MICHAEL]);
+  });
+
+  it('means nothing without the people of an earlier step', async () => {
+    const w = world();
+    const refused = await answer(w.deps, w.asking, 'people.managers', { limit: 25 });
+    expect(!refused.ok && refused.error.code).toBe('BAD_REQUEST');
+  });
+});
+
 describe('the catalogue', () => {
   it('serves people.find with the asker’s fields, and denies what is not for AI', async () => {
     const w = world([], JIM_ACCOUNT);
     const c = await catalogue(w.deps, w.asking);
-    expect(c.ok && c.value.serves).toContainEqual({ name: 'people.find', version: 1 });
+    expect(c.ok && c.value.serves).toEqual([
+      { name: 'people.find', version: 1 },
+      { name: 'people.person', version: 1 },
+      { name: 'people.reports', version: 1 },
+      { name: 'people.managers', version: 1 },
+      { name: 'people.approvals', version: 1 },
+    ]);
     const keys = c.ok ? (c.value.fields['people.find'] ?? []).map((f) => f.key) : [];
     expect(keys).toContain('department');
     expect(keys).not.toContain('pay_band');

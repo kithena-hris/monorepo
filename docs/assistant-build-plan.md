@@ -441,7 +441,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `approvalsView`. Port the matching `ask.test.ts` cases.
 - **Done when** the ported tests pass.
 
-### [ ] AST-021 — `people.managers`
+### [x] AST-021 — `people.managers`
 
 - **Spec** PRD §7.2
 - **Files** `services/people/src/application/assistant/capabilities.ts` (+ tests)
@@ -451,6 +451,9 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   read is left out. Rows carry no count of reports.
 - **Done when** tests cover two reports with one manager (listed once), a
   manager the asker may not read, and somebody with no manager.
+- **As built** `readMany` refuses nobody outright, so "may not read" is a
+  manager it leaves out or one whose name the asker does not read; managers are
+  in name order.
 
 ---
 
