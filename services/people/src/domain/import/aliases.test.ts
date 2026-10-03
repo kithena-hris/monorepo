@@ -30,11 +30,26 @@ describe('the usual names for the core fields', () => {
     ['Reports to', 'manager_id'],
     ['Location', 'location_id'],
     ['Legal entity', 'legal_entity_id'],
+    ['Employment Status', 'employment_status'],
+    ['Termination Date', 'last_working_day'],
+    ['Last working day', 'last_working_day'],
+    ['Termination Reason', 'leaving_reason'],
+    ['Eligible for Rehire', 'eligible_for_rehire'],
   ])('%s is %s', (header, key) => {
     expect(aliasOf(header)).toBe(key);
   });
 
-  it.each(['T-shirt size', 'Cost centre', 'Personal email', 'Emergency contact email', 'Name'])(
+  it.each([
+    'T-shirt size',
+    'Cost centre',
+    'Personal email',
+    'Emergency contact email',
+    'Name',
+    // People keeps no leave record: these stay fields of their own.
+    'Leave Type',
+    'Leave Start Date',
+    'Expected Return Date',
+  ])(
     '%s is nobody’s alias',
     (header) => {
       expect(aliasOf(header)).toBeNull();

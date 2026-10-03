@@ -23,6 +23,13 @@ import {
   type PlaceChoice,
   type WorkplaceValue,
 } from '../../domain/import/workplaces.js';
+import {
+  isLeaveStart,
+  lifecycleOf,
+  statusOf,
+  type LifecycleConflict,
+  type LifecycleMove,
+} from '../../domain/import/lifecycle.js';
 import { assessCompleteness } from '../../domain/person/completeness.js';
 import type { EmployeeNumbers } from '../org/numbering.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
@@ -113,6 +120,16 @@ export interface ClassifiedRow {
    * correction carrying `supersedes` (§8.5), never as an overwrite.
    */
   readonly hireDateCorrection: { readonly from: string | null; readonly to: string } | null;
+  /**
+   * What the file's status and dates do once the person is in: offboarded
+   * from a termination date, on notice until one ahead, on leave from its
+   * start (`domain/import/lifecycle.ts`). Null leaves the hire's own status.
+   * Only a person this row creates or hires: somebody already here keeps
+   * theirs, changed from their record.
+   */
+  readonly lifecycle: LifecycleMove | null;
+  /** Where the file's status word and its dates disagreed, and the dates won. */
+  readonly lifecycleConflict: LifecycleConflict | null;
   /** Why it is blocked. Empty otherwise. */
   readonly problems: readonly CellProblem[];
   /** Required keys still missing once this row is written. */
@@ -208,6 +225,8 @@ export interface DryRun {
   readonly effectiveFrom: 'column' | 'defaults';
   /** References the rows that will import leave empty, each named. */
   readonly leftEmpty: readonly LeftEmpty[];
+  /** The rows that will import, by what the lifecycle columns do to them. */
+  readonly lifecycle: LifecycleCounts;
   /**
    * Work locations the file names that this company does not have yet, with
    * the legal entity the first row naming each sits in. An administrator's
@@ -272,6 +291,33 @@ export interface NewLocation {
 }
 
 const isSystemColumn = (key: string) => Object.hasOwn(SYSTEM_COLUMNS, key);
+
+export interface LifecycleCounts {
+  /** Offboarded from their termination date. */
+  readonly left: number;
+  /** On notice until a termination date ahead: offboarding scheduled. */
+  readonly notice: number;
+  readonly onLeave: number;
+  readonly conflicts: Readonly<Partial<Record<LifecycleConflict, number>>>;
+}
+
+function lifecycleCounts(rows: readonly ClassifiedRow[]): LifecycleCounts {
+  const importing = rows.filter((r) => r.outcome === 'create' || r.outcome === 'update');
+  const moving = (kind: LifecycleMove['kind']) =>
+    importing.filter((r) => r.lifecycle?.kind === kind).length;
+  const conflicts: Partial<Record<LifecycleConflict, number>> = {};
+  for (const r of importing) {
+    if (r.lifecycleConflict !== null) {
+      conflicts[r.lifecycleConflict] = (conflicts[r.lifecycleConflict] ?? 0) + 1;
+    }
+  }
+  return {
+    left: moving('left'),
+    notice: moving('notice'),
+    onLeave: moving('leave'),
+    conflicts,
+  };
+}
 
 /** An id no person has, for asking the importer's tenant-wide relations. */
 const NOBODY = '00000000-0000-0000-0000-000000000000';
@@ -475,6 +521,7 @@ export async function dryRun(
     sheets: sheets.map(({ sheet, key, imported }) => ({ sheet, key, imported })),
     blockedItems,
     corrections: rows.filter((r) => r.outcome === 'update' && r.hireDateCorrection).length,
+    lifecycle: lifecycleCounts(rows),
     effectiveFrom: input.mapping.some((m) => m.status === 'mapped' && m.key === 'effective_from')
       ? 'column'
       : 'defaults',
@@ -635,6 +682,9 @@ function rowClassifier(
   const onlyEntity = live.length === 1 ? (live[0]?.id ?? null) : null;
   const order = input.dateOrder ?? 'iso';
   const seen = new Map<string, number>();
+  // A leave's first day stays a field of its own (People keeps no leave
+  // record), and dates the move onto leave: found by its header, however mapped.
+  const leaveStartAt = input.mapping.find((m) => isLeaveStart(m.header));
 
   // References are resolved against this company and this file, never copied.
   const fileRows = fileRowsOf(input);
@@ -785,8 +835,7 @@ function rowClassifier(
     const problems = read.found;
     const values: Record<string, unknown> = { ...read.coerced, ...refs };
 
-    const dateColumn = (key: 'hire_date' | 'effective_from'): string | null => {
-      const m = columnOf(key);
+    const dateColumn = (key: string, m = columnOf(key)): string | null => {
       if (!m) return null;
       const day = coerceDate(cell(m), order);
       if (day === undefined) {
@@ -818,6 +867,26 @@ function rowClassifier(
 
     const hires = person?.status === 'provisional' && hireDate !== null;
 
+    // The status and dates beside it, for a person this row brings in.
+    const said = (key: string) => {
+      const m = columnOf(key);
+      return m ? cell(m) : '';
+    };
+    const lastWorkingDay = dateColumn('last_working_day');
+    const leaveStart = dateColumn('leave_start', leaveStartAt);
+    const lifecycle =
+      person && !hires
+        ? { move: null, conflict: null }
+        : lifecycleOf({
+            status: statusOf(said('employment_status')),
+            hireDate,
+            lastWorkingDay,
+            reason: said('leaving_reason'),
+            rehire: said('eligible_for_rehire'),
+            leaveStart,
+            today: personDay,
+          });
+
     // An existing person's start date is a fact already recorded, so a new
     // one is a correction of it (§8.5): typed, carrying `supersedes`, through
     // the one correction path, and refused here when that path would refuse.
@@ -844,6 +913,8 @@ function rowClassifier(
       hireDate,
       hires,
       hireDateCorrection,
+      lifecycle: lifecycle.move,
+      lifecycleConflict: lifecycle.conflict,
       effectiveFrom,
       matchedOn,
       links,
@@ -968,11 +1039,14 @@ function rowClassifier(
     // The state the commit leaves the row in, so a pre-hire is asked only for
     // what a pre-hire is asked for (§8.1): a hire, of a new person or a
     // provisional one, is active from its start date on the person's day.
+    const after = { left: 'terminated', notice: 'notice', leave: 'on_leave' } as const;
     const statusAfter = (
       !person || hires
         ? hireDate !== null && hireDate > personDay
           ? 'pre_hire'
-          : 'active'
+          : lifecycle.move === null
+            ? 'active'
+            : after[lifecycle.move.kind]
         : person.status
     ) as PersonStatus;
     const verdict = assessCompleteness(
