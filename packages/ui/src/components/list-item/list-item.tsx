@@ -435,7 +435,12 @@ export function ListItem({
             iconTone === undefined
               ? undefined
               : {
-                  color: toneVar[iconTone],
+                  // The glyph is the tone pulled a quarter of the way to `fg`,
+                  // as a status `*-fg` is to its `*-subtle`: a series colour is
+                  // only 3:1 on a bare surface, and its own wash lowers that.
+                  // Toward `fg` darkens in light and lightens in dark, so every
+                  // tone holds 4.5:1 on the wash in both themes.
+                  color: `color-mix(in oklab, ${toneVar[iconTone]} 75%, var(--color-fg))`,
                   background: `color-mix(in oklch, ${toneVar[iconTone]} 20%, transparent)`,
                 }
           }
