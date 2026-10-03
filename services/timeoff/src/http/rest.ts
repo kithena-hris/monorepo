@@ -44,6 +44,7 @@ import {
 } from '../application/approval/decide.js';
 import { setDelegation } from '../application/approval/escalation.js';
 import { describeRequest } from '../application/assist/describe.js';
+import { holidayDraft } from '../application/assist/holiday-draft.js';
 import { readPolicyProse } from '../application/assist/policy-prose.js';
 import {
   closePayPeriod,
@@ -114,6 +115,7 @@ import {
   DecisionView,
   DelegationView,
   DescribedView,
+  HolidayDraftView,
   HolidayLayerBody,
   HolidaySettingsView,
   HolidaysView,
@@ -732,6 +734,21 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ year: Year }),
     answer: HolidaySettingsView,
     run: (deps, caller, { params }) => holidaySettings(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffHolidayDraft',
+    method: 'GET',
+    path: `${V1}/settings/holidays/{year}/draft`,
+    summary:
+      'T36: a year of one calendar drafted from a list HR supplies; the unconfirmed days are marked; nothing is saved; HR',
+    params: z.object({
+      year: Year,
+      layerKey: HolidayLayerBody.shape.key,
+      source: z.string().min(1).max(4000),
+    }),
+    answer: HolidayDraftView,
+    run: (deps, caller, { params }) => holidayDraft(deps)(caller, params),
     shape: same,
   }),
   route({

@@ -87,6 +87,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T36: a year of one calendar drafted from a list HR supplies; the unconfirmed days are marked; nothing is saved; HR */
+  TimeOffHolidayDraft: `query TimeOffHolidayDraft($layerKey: String!, $source: String!, $year: Int!) {
+    timeOffHolidayDraft(layerKey: $layerKey, source: $source, year: $year) {
+      ai days { confirmed date known name } layerKey layerName skipped summary { ai text } year
+    }
+  }`,
+
   /** T36: holiday calendars, and what each work location observes in a year; HR */
   TimeOffHolidaySettings: `query TimeOffHolidaySettings($year: Int!) {
     timeOffHolidaySettings(year: $year) {

@@ -281,6 +281,10 @@ type Query {
   """
   timeOffDescribe(avoidShort: Boolean, days: Int, leaveTypeKey: String, month: String, nextToHoliday: Boolean, sentence: String): TimeOffDescribed!
   """
+  T36: a year of one calendar drafted from a list HR supplies; the unconfirmed days are marked; nothing is saved; HR
+  """
+  timeOffHolidayDraft(layerKey: String!, source: String!, year: Int!): TimeOffHolidayDraft!
+  """
   T36: holiday calendars, and what each work location observes in a year; HR
   """
   timeOffHolidaySettings(year: Int!): TimeOffSettingsHolidays!
@@ -586,6 +590,13 @@ type TimeOffDone {
   ok: Boolean!
 }
 
+type TimeOffDraftedHoliday {
+  confirmed: Boolean!
+  date: String!
+  known: Boolean!
+  name: String!
+}
+
 type TimeOffEvidence {
   at: String!
   source: String!
@@ -614,6 +625,16 @@ type TimeOffHoliday {
   layer: String!
   movedFrom: String
   name: String!
+}
+
+type TimeOffHolidayDraft {
+  ai: Boolean!
+  days: [TimeOffDraftedHoliday!]!
+  layerKey: String!
+  layerName: String!
+  skipped: [String!]!
+  summary: TimeOffWritten!
+  year: Int!
 }
 
 type TimeOffHolidayLayer {

@@ -889,6 +889,34 @@ export const HolidaySettingsView = named(
   }),
 );
 
+/** T36's assistant card: a year drafted from a list HR supplied, never saved by itself (TOF-112). */
+export const HolidayDraftView = named(
+  'TimeOffHolidayDraft',
+  z.object({
+    layerKey: z.string(),
+    layerName: z.string(),
+    year: z.int(),
+    days: z.array(
+      named(
+        'TimeOffDraftedHoliday',
+        z.object({
+          date: CalendarDate,
+          name: z.string(),
+          /** Not confirmed yet: left for HR, never saved with the rest. */
+          confirmed: z.boolean(),
+          /** The calendar already has a holiday that day. */
+          known: z.boolean(),
+        }),
+      ),
+    ),
+    /** Lines with no date in the year: shown, not guessed at. */
+    skipped: z.array(z.string()),
+    summary: WrittenView,
+    /** Whether a model said which lines are confirmed. */
+    ai: z.boolean(),
+  }),
+);
+
 /* ---------------------------------------------------------------- viewer -- */
 
 /**
@@ -1043,6 +1071,7 @@ export type SpanView = View<typeof SpanView>;
 export type WrittenView = View<typeof WrittenView>;
 export type DescribedView = View<typeof DescribedView>;
 export type PolicyReadView = View<typeof PolicyReadView>;
+export type HolidayDraftView = View<typeof HolidayDraftView>;
 export type BridgeView = View<typeof BridgeView>;
 export type MemberView = View<typeof MemberView>;
 export type BalanceView = View<typeof BalanceView>;

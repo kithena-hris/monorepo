@@ -589,14 +589,31 @@ async function approvalSettings(): Promise<ScreenLoad> {
   return both(approvals, types, (a, t) => ({ ...a, leaveTypes: t['leaveTypes'] }));
 }
 
-/** T36: the year in the address (this year without one) and the location in `?location=`. */
+/**
+ * T36: the year in the address (this year without one), the location in
+ * `?location=`, and with `?draft=` and `?source=` the year Time Off drafts for
+ * that calendar from the list HR pasted (TOF-112); a draft it refuses is said,
+ * and the page is drawn without it.
+ */
 async function holidaySettings({ params, search }: ScreenQuery): Promise<ScreenLoad> {
   const thisYear = new Date().getUTCFullYear();
   const year = /^\d{4}$/.test(params['year'] ?? '') ? Number(params['year']) : thisYear;
-  const answer = await read('TimeOffHolidaySettings', { year });
+  const layerKey = search['draft'] ?? '';
+  const source = (search['source'] ?? '').slice(0, 4000);
+  const drafting = layerKey !== '' && source.trim() !== '';
+  const [answer, draft] = await Promise.all([
+    read('TimeOffHolidaySettings', { year }),
+    drafting ? read('TimeOffHolidayDraft', { year, layerKey, source }) : null,
+  ]);
   if (answer.status !== 'ready') return answer;
   return {
     status: 'ready',
-    data: { ...(answer.data as Data), thisYear, location: search['location'] ?? null },
+    data: {
+      ...(answer.data as Data),
+      thisYear,
+      location: search['location'] ?? null,
+      draft: draft?.status === 'ready' ? draft.data : null,
+      draftProblem: draft?.status === 'error' ? draft.message : null,
+    },
   };
 }

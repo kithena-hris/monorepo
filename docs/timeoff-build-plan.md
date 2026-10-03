@@ -1767,11 +1767,21 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
 - **Approach** Status while away; approve from a message. Named generically in
   the UI ("Chat apps").
 
-### [ ] TOF-112 — AI holiday drafts
+### [x] TOF-112 — AI holiday drafts
 
 - **Screens** T36 AI card · **Depends on** TOF-084, TOF-083
 - **Approach** Drafts from data HR supplies or a licensed dataset; never
   publishes; unconfirmed days left for HR.
+- **As built** `timeOffHolidayDraft` (`assist/holiday-draft.ts`), HR only,
+  saves nothing: the code reads each pasted line's date (ISO, D/M/Y, "15 de
+  mayo", "November 9, 2028") and name for the year asked; TypeSafe says
+  whether each line is a confirmed holiday, one not confirmed yet or not a
+  holiday, else the words "provisional", "to be confirmed", "?" do. Lines
+  with no date in the year are listed as not read. T36 has the card: pick a
+  calendar, paste the list (`?draft=` and `?source=`), then the draft with
+  "To confirm" on what is not; HR's own Save adds only the confirmed days to
+  the calendar through the ordinary save, keeping what it held, and the rest
+  stay with HR. No licensed dataset is wired: data HR supplies only.
 
 ### [ ] TOF-113 — Germany and UK country packs
 

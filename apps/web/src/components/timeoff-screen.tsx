@@ -184,8 +184,17 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return {
           load: loadable,
           onYear: (year: number) => {
-            goTo({}, `/settings/time-off/holidays/${String(year)}`);
+            goTo({ draft: null, source: null }, `/settings/time-off/holidays/${String(year)}`);
           },
+          // The draft is the address, so Time Off reads the list again on the server.
+          onDraft: (draft: { readonly layerKey: string; readonly source: string } | null) => {
+            goTo(
+              draft === null
+                ? { draft: null, source: null }
+                : { draft: draft.layerKey, source: draft.source },
+            );
+          },
+          onSaveLayer: settings.saveHolidayLayer,
         };
       default:
         return {};

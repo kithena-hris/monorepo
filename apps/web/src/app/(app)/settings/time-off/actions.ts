@@ -77,3 +77,11 @@ export async function saveApprovals(
   }
   return { ok: true };
 }
+
+/**
+ * T36, TOF-112: a holiday calendar saved whole, as HR, with the confirmed days
+ * of a draft added to what it held. The draft itself never saves anything.
+ */
+export async function saveHolidayLayer(key: string, layer: unknown): Promise<Outcome> {
+  return outcome(await timeOff('SaveTimeOffHolidayCalendar', { calendarKey: key, input: layer }));
+}
