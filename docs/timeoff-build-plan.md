@@ -350,7 +350,7 @@ no decline, cancel or change.
   one step; a manager-then-HR chain is the application walking the chain
   TOF-019 returns.
 
-### [ ] TOF-017 — Sick leave
+### [x] TOF-017 — Sick leave
 
 - **Spec** PRD §8.5
 - **Files** `services/timeoff/src/domain/request/sick.ts`
