@@ -973,7 +973,7 @@ Off projects, not a role an admin grants. The shell cannot see it today.
   "Requests" for managers and HR. Tests in `shell-data.test.ts` and
   `app-shell.test.tsx`.
 
-### [ ] TOF-059 — The clock in the top bar
+### [x] TOF-059 — The clock in the top bar
 
 - **Spec** PRD §11.1 · T2
 - **Files** `apps/web/timeoff/src/clock/`, `apps/web/src/components/app-shell.tsx`
@@ -985,6 +985,20 @@ Off projects, not a role an admin grants. The shell cannot see it today.
   `popover-motion`.
 - **Done when** a test punches in from the pill on a People page and sees the
   timer, and the shell renders without the slot when the module is off.
+- **As built** A manifest may name `slots` (`{ "topBar": "TopBarClock" }`);
+  the shell reads them with the routes (`remoteNav`), a name it does not draw
+  is ignored. The layout fetches each slot's data with the area's screen
+  loader and its server build (`lib/slots.ts`), and `TopCorner` draws it
+  between search and the bell through `RemoteSlot`: `RemoteScreen` with a
+  `slot` is a stage of its own beside the area's screen and nothing at all
+  when the remote is down. The clock (`apps/web/timeoff/src/clock/`) is drawn
+  from `TimeOffTimesheet` over the last week, its state the last punch (a
+  clock left running over a week shows out; Time Off has no clock read), and
+  ticks in its own component. ⌥T is `clock` in the shell's table, run as the
+  screen command the clock offers; Reach's `chordOf` reads the letter under
+  Alt from `code`, as a Mac types `†`. "Working on" is free text kept on the
+  device. The shell test is a stand-in remote pressed on a People page; the
+  pill-to-punch path is the remote's own test.
 
 ### [x] TOF-060 — Persisted operations for Time Off
 
@@ -1103,29 +1117,58 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### Screens — attendance
 
-### [ ] TOF-074 — My timesheet
+### [x] TOF-074 — My timesheet
 
 - **Screens** T20, MT17 · **Spec** PRD §11.3
 - **Depends on** TOF-052, TOF-042
+- **As built** `apps/web/timeoff/src/attendance/timesheet.tsx`, export
+  `Timesheet`. `?week=` (any day of it) or `?month=YYYY-MM`, this week by
+  default; anything else is this week with a notice. A table at a desk; under
+  40rem each row reflows to day, worked and status over the bar. The side
+  panel has the period's total against the schedule, overtime waiting and
+  approved (comp time banked is the overview's balance, not repeated), the
+  retention line and §11.2's "never records". Retention reads "4 years,
+  Spanish law" and "your manager" until Time Off sends the pack's retention
+  and the manager's name.
 
-### [ ] TOF-075 — Fixing a missed clock-out
+### [x] TOF-075 — Fixing a missed clock-out
 
 - **Screens** T21, MT18 · **Spec** PRD §11.4
 - **Depends on** TOF-074
 - **Approach** Without TOF-089 the dialog asks for a time with no suggestion.
+- **As built** An open day's alert and its row's Fix open the dialog, as
+  does `?fix=YYYY-MM-DD` (the morning notification's link). It shows the day
+  with the chosen end, worked and overtime as you pick, and sends
+  `CorrectTimeOffPunch` with `supersedes: null` (a new clock-out beside the
+  record) through the `correctPunch` action; the wall time becomes an
+  instant in the member's zone in the remote (`instantAt`).
 
-### [ ] TOF-076 — Clocking in and out on a phone
+### [x] TOF-076 — Clocking in and out on a phone
 
 - **Screens** MT3, MT4 · **Spec** PRD §11.2, §16
 - **Depends on** TOF-055, TOF-074
 - **Approach** Slide to clock in; the one-time location check suggests Office
   and stores nothing; clock-out sheet shows the day. MT4's project split is a
   free-text "working on" until Projects exists.
+- **As built** `ClockIn` and `ClockOutSheet` in `clock/clock.tsx`, used by
+  the overview's card and the top bar's clock under a coarse pointer: where
+  you work, then `Slider variant="confirm"`; Clock out opens the day first.
+  Punches from a finger send `source: 'mobile'`. The location check
+  (`clock/location.ts`) compares one Geolocation reading with the offices it
+  is handed and keeps only the office's name; nothing hands it offices yet,
+  as no Time Off read carries an office's coordinates, so until one does it
+  never asks.
 
-### [ ] TOF-077 — Team, right now
+### [x] TOF-077 — Team, right now
 
 - **Screens** T22, MT19 · **Spec** PRD §11.6
 - **Depends on** TOF-074
+- **As built** `attendance/team-now.tsx`, export `TeamNow`, from
+  `TimeOffTeamRightNow` and today's `TimeOffCalendarDay` for who is away and
+  until when. Counts, one row each with office or remote and today's bar
+  (the bar is the desk's), and Needs you linking to the manager's timesheets
+  tab. No AI line until TOF-084; a correction shows its date, not its time,
+  as the board carries no zone.
 
 ### Screens — settings
 
