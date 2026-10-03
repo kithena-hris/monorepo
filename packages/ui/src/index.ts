@@ -542,7 +542,11 @@ export type { RevealProps } from './components/reveal/reveal';
 
 export { RichTextContent, RichTextEditor } from './components/rich-text/rich-text';
 export type { RichTextEditorProps, RichTextGroup } from './components/rich-text/rich-text';
-export type { CircularProgressProps, ProgressProps } from './components/progress/progress';
+export type {
+  CircularProgressProps,
+  ProgressProps,
+  ProgressSegment,
+} from './components/progress/progress';
 
 export { RadioCard, RadioGroup, RadioGroupItem } from './components/radio-group/radio-group';
 

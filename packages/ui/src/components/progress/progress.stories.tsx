@@ -264,3 +264,44 @@ export const InATableRow: Story = {
     </Table>
   ),
 };
+
+/**
+ * Several shares of one total. The first is spent, the second committed and
+ * not final, so it is hatched, and its label says so as well: the stripes are
+ * never the only signal. The image's name reads the whole line.
+ */
+export const Segments: Story = {
+  args: { label: 'Allowance' },
+  render: () => (
+    <div className="flex max-w-sm flex-col gap-6">
+      <Card padded>
+        <CardContent className="flex flex-col gap-2.5 p-0">
+          <p className="text-sm font-medium text-fg-muted">Allowance</p>
+          <p className="font-display text-3xl font-bold tabular-nums">19</p>
+          <Progress
+            label="Allowance"
+            max={25}
+            size="lg"
+            showValue
+            valueLabel="25 a year"
+            segments={[
+              { value: 4, label: '4 used' },
+              { value: 2, label: '2 booked', pattern: 'hatched' },
+            ]}
+          />
+        </CardContent>
+      </Card>
+      <Progress
+        label="Budget"
+        max={10}
+        showValue
+        valueLabel="10 in total"
+        segments={[
+          { value: 3, label: '3 spent', tone: 'chart-3' },
+          { value: 4, label: '4 committed', tone: 'chart-3', pattern: 'hatched' },
+          { value: 1, label: '1 over', tone: 'danger' },
+        ]}
+      />
+    </div>
+  ),
+};

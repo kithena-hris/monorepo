@@ -700,6 +700,18 @@
 }
 
 /*
+ * Stripes across whatever the element paints: the booked share of a meter, a
+ * bar that is planned rather than done. A mask rather than a gradient, so it
+ * hatches any fill (a status token, a chart tone) as alternating full and 40%
+ * strength stripes without knowing which colour it is, and a forced-colours
+ * fill is still striped. It is never the only signal: whatever is hatched is
+ * also said in words.
+ */
+@utility pattern-hatched {
+  mask-image: repeating-linear-gradient(135deg, black 0 5px, rgb(0 0 0 / 0.4) 5px 10px);
+}
+
+/*
  * How anything that pops over the page arrives and leaves: a menu, a popover,
  * a select's list, the sidebar's flyout. One motion for all of them, the
  * flyout's: out of the side it opens from with a fade and a hair of scale,
