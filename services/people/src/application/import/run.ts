@@ -44,6 +44,7 @@ import type { Asking, Viewer } from '../person/ports.js';
 import { run } from '../person/service.js';
 import { actors } from '../screens/people.js';
 import { NOBODY } from '../screens/record.js';
+import { requestFromImport } from '../screens/requests.js';
 import {
   commitInputOf,
   doneViewOf,
@@ -794,6 +795,19 @@ export function importWork(deps: WorkDeps): RunWork {
           failure('ALREADY_IMPORTED', 'This exact file was imported while this import ran'),
         );
       }
+      // Everybody without a detail asked of them, once, for all of them.
+      const requested = await requestFromImport(
+        deps,
+        tx,
+        ctx.asking,
+        set.fields.filter((f) => f.forExisting.kind === 'ask'),
+        all.flatMap((o) =>
+          o.personId === null || o.written === 'blocked' || o.written === 'duplicate'
+            ? []
+            : [{ personId: o.personId, cells: o.row.cells, left: o.row.lifecycle?.kind === 'left' }],
+        ),
+      );
+      if (!requested.ok) return requested;
       const committed = await recordImport(tx, cdeps, c.input, ctx.run.id, c.plan, all, leftEmpty);
       const done = await doneViewOf(deps, ctx.asking, ctx.run.name ?? '', c.input, committed);
       const finishedAt = deps.clock.instant();

@@ -18,6 +18,15 @@ import {
   type PlanBudget,
 } from '../../domain/import/new-fields.js';
 import { planOf, type PlanStep } from '../../domain/import/plan.js';
+import {
+  owned,
+  unplaced,
+  WHO_FILLS_INSTRUCTION,
+  whoFillsAnswer,
+  whoFillsContext,
+  type FieldFacts,
+  type Owner,
+} from '../../domain/import/who-fills.js';
 import type { PlaceChoice } from '../../domain/import/workplaces.js';
 import { keyFrom, SchemaDraft, type Attribute, type Section } from '../../domain/schema/draft.js';
 import { publish, type PublishedVersion } from '../../domain/schema/publish.js';
@@ -354,9 +363,37 @@ export async function proposeNewFields(
     }),
   );
   const heard = answers.filter((a) => a !== null);
-  if (heard.length === 0) return ok(view(g, checked(g.planning, withKeys(local, taken)), false));
-  const merged = withModel(local, heard, g.sections, g.seen);
-  return ok(view(g, checked(g.planning, withKeys(merged.proposals, taken)), true));
+  const merged = heard.length === 0 ? local : withModel(local, heard, g.sections, g.seen).proposals;
+  const keyed = checked(g.planning, withKeys(merged, taken));
+  const owners = await whoFills(planner, asking.tenantId, unplaced(keyed, g.sections));
+  return ok(
+    view(g, owned(keyed, g.sections, g.seen, owners), heard.length > 0 || owners.size > 0),
+  );
+}
+
+/**
+ * Who fills in the fields People's rules cannot place, from the model: their
+ * keys, labels, sections and kinds, never a value, read strictly. No answer
+ * leaves them as proposed.
+ */
+async function whoFills(
+  planner: AssistantPort,
+  tenantId: string,
+  fields: readonly FieldFacts[],
+): Promise<ReadonlyMap<string, Owner>> {
+  if (fields.length === 0) return new Map();
+  try {
+    const answered = await planner.complete(tenantId, {
+      instruction: WHO_FILLS_INSTRUCTION,
+      context: whoFillsContext(fields),
+      about: 'configuration',
+    });
+    return answered.ok
+      ? whoFillsAnswer(JSON.parse(answered.value), new Set(fields.map((f) => f.key)))
+      : new Map();
+  } catch {
+    return new Map();
+  }
 }
 
 /**
@@ -579,6 +616,25 @@ function plannedFields(
 }
 
 /**
+ * How many people are without at least one of these fields once the file is
+ * in, each counted once: the file's rows with one of them empty, and everybody
+ * here the file does not reach, as the fields are new. Nobody the file says
+ * has left.
+ */
+function peopleFor(g: Gathered, fields: readonly PlannedField[], kind: 'ask' | 'hr'): number {
+  const columns = fields.filter((f) => f.forExisting.kind === kind).map((f) => f.column);
+  if (columns.length === 0) return 0;
+  const reached = g.file.rows.filter(
+    (r) => r.outcome === 'create' || r.outcome === 'update' || r.outcome === 'unchanged',
+  );
+  const inFile = reached.filter(
+    (r) => r.left !== true && columns.some((c) => (r.cells[c] ?? '').trim() === ''),
+  ).length;
+  const here = new Set(reached.flatMap((r) => (r.personId === null ? [] : [r.personId]))).size;
+  return inFile + Math.max(0, g.existing - here);
+}
+
+/**
  * The plan: the version the kept fields would make (with setup's pack for a
  * company with nothing published), the dry run against it, and everything
  * that will happen, in words. Nothing is written.
@@ -667,6 +723,7 @@ async function planned(
         return to === undefined ? [] : [{ value: w.value, to: to.name }];
       }),
     },
+    who: { asked: peopleFor(g, fields, 'ask'), forHr: peopleFor(g, fields, 'hr') },
     lifecycle: dry.lifecycle,
     leftEmpty: {
       count: dry.leftEmptyCount,
@@ -698,7 +755,7 @@ async function planned(
       ],
       review: review.value,
       mapping,
-      asked: sum('ask'),
+      asked: peopleFor(g, fields, 'ask'),
       forHr: sum('hr'),
     },
     places: canSet ? dry.newLocations : [],

@@ -764,6 +764,8 @@ export interface NewFieldsFile {
     /** Who the row is, as the file names them. */
     readonly name: string | null;
     readonly cells: readonly string[];
+    /** The file says they have left: nobody asks them for anything. */
+    readonly left?: boolean;
   }[];
 }
 
@@ -832,6 +834,7 @@ export async function newFieldsFile(
         personId: r.personId,
         name: names.get(r.row) ?? null,
         cells: r.cells,
+        left: r.lifecycle?.kind === 'left',
       })),
     });
   });

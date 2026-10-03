@@ -115,6 +115,70 @@ export async function requestDetails(
 }
 
 /**
+ * What an import asks of people, once it is in: one request per person,
+ * listing every asked field they have no value for, never one per field.
+ * The fields are new, so somebody the file does not reach has none of them.
+ * Only a field they fill in themselves is asked; nobody who has left is
+ * asked anything. Recorded in the import's transaction and never emailed:
+ * an import is no email blast. They find it on their profile, or in
+ * onboarding before they start, and the weekly reminder nudges. Answers how
+ * many people were asked.
+ */
+export async function requestFromImport(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  asked: readonly { readonly key: string; readonly column: number }[],
+  rows: readonly {
+    readonly personId: string;
+    readonly cells: readonly string[];
+    readonly left: boolean;
+  }[],
+): Promise<Result<number>> {
+  const store = deps.requests?.store;
+  if (store === undefined || asked.length === 0) return ok(0);
+  const version = await deps.service.schemas.current(tx, asking.tenantId);
+  const theirs = new Set(
+    (version?.document.attributes ?? [])
+      .filter((d) => d.deprecatedAt === null && d.ownership.includes('employee'))
+      .map((d) => d.key as string),
+  );
+  const fields = asked.filter((f) => theirs.has(f.key));
+  if (fields.length === 0) return ok(0);
+  const inFile = new Map(
+    rows.map((r) => [
+      r.personId,
+      r.left ? [] : fields.filter((f) => (r.cells[f.column] ?? '').trim() === '').map((f) => f.key),
+    ]),
+  );
+  const now = deps.clock.now();
+  let people = 0;
+  let after: string | null = null;
+  do {
+    // eslint-disable-next-line no-await-in-loop -- a page at a time, in the import's transaction
+    const page = await deps.service.access.list(tx, { ...asking, after, limit: 200 });
+    if (!page.ok) return page;
+    for (const p of page.value.items) {
+      if (p.status === 'terminated') continue;
+      const keys = inFile.get(p.id) ?? fields.map((f) => f.key);
+      if (keys.length === 0) continue;
+      // eslint-disable-next-line no-await-in-loop -- one statement per person
+      await store.record(tx, {
+        tenantId: asking.tenantId,
+        personId: p.id,
+        keys,
+        requestedBy: asking.viewer.accountId,
+        requestedAt: now.toISOString(),
+        resendBefore: new Date(now.getTime() - REQUEST_AGAIN_AFTER_MS).toISOString(),
+      });
+      people += 1;
+    }
+    after = page.value.next;
+  } while (after !== null);
+  return ok(people);
+}
+
+/**
  * Ask each of these people for the same details: "Remind all" over what a
  * search found. One transaction records every request; somebody the viewer
  * may not ask (not theirs, or a detail they do not fill in themselves) is
