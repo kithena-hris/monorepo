@@ -18,6 +18,7 @@ const managersOfSick = {
 };
 
 const step = (id: string) => ({ id, capability: 'people.find', input: {} });
+const plan = (steps: unknown[]) => ({ kind: 'plan', steps, answer: { kind: 'list', step: 's1' } });
 
 describe('the plan (AST-004)', () => {
   it('reads the three kinds the model may answer with', () => {
@@ -55,11 +56,6 @@ describe('the plan (AST-004)', () => {
   });
 
   it('refuses five steps, none, or a step id beyond s4', () => {
-    const plan = (steps: unknown[]) => ({
-      kind: 'plan',
-      steps,
-      answer: { kind: 'list', step: 's1' },
-    });
     expect(AssistantPlan.safeParse(plan(['s1', 's2', 's3', 's4'].map(step))).success).toBe(true);
     expect(AssistantPlan.safeParse(plan(['s1', 's2', 's3', 's4', 's4'].map(step))).success).toBe(
       false,

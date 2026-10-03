@@ -174,7 +174,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   and `RuntimeCatalogue`, `CatalogueField`; the step limit is
   `ASSISTANT_LIMITS.steps`.
 
-### [ ] AST-005 — Codegen walks capabilities
+### [x] AST-005 — Codegen walks capabilities
 
 - **Spec** PRD §8.2
 - **Files** `tools/codegen/src/cli.ts`, `packages/contracts/src/assistant/index.ts`
@@ -186,6 +186,10 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   the run as for events.
 - **Done when** `just codegen` passes, the regenerated deny list contains the
   away row's `detail`, and removing one policy makes it exit non-zero.
+- **As built** the walk now descends an unclassified list or union (a classified
+  one stays a leaf, as before); redaction paths write items as `rows[*].detail`,
+  the deny list as `rows.detail`. `generated/` is gitignored, so nothing
+  regenerated is committed; the events' paths are unchanged.
 
 ---
 

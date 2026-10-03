@@ -77,7 +77,7 @@ describe('Time Off’s capabilities (AST-003)', () => {
     const people = output.options.find(
       (o): o is z.ZodObject => o instanceof z.ZodObject && o.shape['rows'] !== undefined,
     );
-    const rows = people?.shape['rows'];
+    const rows: unknown = people?.shape['rows'];
     if (!(rows instanceof z.ZodArray) || !(rows.element instanceof z.ZodObject)) {
       throw new Error('away answers with rows');
     }
