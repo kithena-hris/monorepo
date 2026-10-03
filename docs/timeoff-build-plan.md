@@ -1066,40 +1066,80 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### Screens — manager
 
-### [ ] TOF-068 — Approvals queue
+### [x] TOF-068 — Approvals queue
 
 - **Screens** T16, MT15 · **Spec** PRD §9.2
 - **Depends on** TOF-058, TOF-038
 - **Approach** Reasons are templated from the triage reason until TOF-086.
+- **As built** `apps/web/timeoff/src/approvals/`. `/time-off/approvals/waiting`
+  draws Clear to approve and Look closer as the domain splits them, each row
+  with its templated line (`words.ts`); Approve all sends the clear rows still
+  ticked and Time Off refuses anything else with why. Coming up and Decided
+  list their requests. Under 40rem a row's title link covers the row and the
+  checkboxes and per-row buttons go (MT15). The shell's loader passes the
+  route (`loadScreen(component, query, path)`), so one component serves the
+  tabs.
 
-### [ ] TOF-069 — Deciding one request
+### [x] TOF-069 — Deciding one request
 
 - **Screens** T17, MT16 · **Spec** PRD §9.4
 - **Depends on** TOF-068, TOF-054
+- **As built** `/time-off/approvals/waiting/:id`, owned by the Waiting tab: the
+  queue and the request side by side in `ListDetail` (the request replaces the
+  list on a phone, MT16). The decision view gained `lastTaken` and
+  `alternatives`; the team comes from `TimeOffCalendarTimeline` around the
+  dates (`lib/timeoff-calendar-views.ts`), twelve days at a desk and the
+  working week on a phone. What to know is templated from the domain's
+  numbers until TOF-087. No deadlines from Projects: that module does not
+  exist.
 
-### [ ] TOF-070 — Suggesting other dates
+### [x] TOF-070 — Suggesting other dates
 
 - **Screens** T18 · **Spec** PRD §9.5
 - **Depends on** TOF-069
 - **Approach** Options from TOF-022; templated message until TOF-088. The
   employee's accept is one tap on their request (TOF-064).
+- **As built** `…/waiting/:id/suggest`, a dialog over the request: the
+  requester-only alternatives with their coverage, or dates picked by hand,
+  and a drafted, editable message. **The counter-proposal carries no message**
+  (`CounterBody`, `timeoff.request.counter_proposed`), so the dialog says it
+  is not sent and offers to copy it; carrying one is a contract and storage
+  change for its own ticket.
 
-### [ ] TOF-071 — Delegation
+### [x] TOF-071 — Delegation
 
 - **Screens** T19 · **Spec** PRD §9.7
 - **Depends on** TOF-068
+- **As built** `/time-off/approvals/delegation` is its own component
+  (`Delegation`). The view gained `approverId` (whose delegate it is) and
+  `escalatesTo` (the caller's manager). Beside the form, whom the caller
+  covers for; the design's "recent delegated decisions" waits for a read
+  that has them.
 
-### [ ] TOF-072 — Team calendar
+### [x] TOF-072 — Team calendar
 
 - **Screens** T12, T13, T14, MT13, MT14 · **Spec** PRD §10.1
 - **Depends on** TOF-054, TOF-040
 - **Approach** Month, timeline and year as routes; team, types and holiday
   filters in the query string; Subscribe gives the feed URL.
+- **As built** `apps/web/timeoff/src/calendar/`. Month and timeline read
+  `TimeOffCalendarTimeline` over the month and the phone's week; the year is
+  `CalendarHeatmap`. Scope, team, `month`, `week` and `year` are navigations;
+  `types` (the legend toggles), `holidays` and `day` are noted in the address
+  without a round trip. A day opens from the grid as a popover, a sheet on a
+  phone: Reach's `Scheduler` gained `detail`/`onDismiss` for a month's day and
+  a rows view's day heading. Calendar people carry `teamName`. Subscribe
+  issues a token and shows `TIMEOFF_FEED_BASE?token=…`; nothing public fronts
+  Time Off's feed yet.
 
-### [ ] TOF-073 — A clash, and how to solve it
+### [x] TOF-073 — A clash, and how to solve it
 
 - **Screens** T15 · **Spec** PRD §9.6
 - **Depends on** TOF-072, TOF-022
+- **As built** On the timeline, the waiting request on a day below the
+  minimum (`?request=` picks one) opens beside it with every alternative in
+  the domain's order; the requester's become a suggestion, approving as
+  asked a decision, and asking a teammate is said, not sent.
 
 ### Screens — attendance
 
