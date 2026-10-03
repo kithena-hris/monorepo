@@ -371,7 +371,7 @@ no decline, cancel or change.
 - **Done when** T13's October fixture gives 4 of 7 on the 21st and nothing
   else below 5.
 
-### [ ] TOF-019 — Approval rules and routing
+### [x] TOF-019 — Approval rules and routing
 
 - **Spec** PRD §9.1
 - **Files** `services/timeoff/src/domain/approval/approval-rule.ts`
