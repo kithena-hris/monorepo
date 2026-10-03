@@ -517,7 +517,7 @@ no decline, cancel or change.
 
 ### Storage
 
-### [ ] TOF-029 — Member projection table
+### [x] TOF-029 — Member projection table
 
 - **Spec** PRD §5.2, §17
 - **Files** `migrations/<ts>_timeoff_member.sql`,
@@ -526,6 +526,11 @@ no decline, cancel or change.
 - **Approach** RLS as in TOF-001; `last_event_id` and `last_effective_from` for
   idempotent, ordered application.
 - **Done when** an integration test applies the same event twice and sees one row.
+- **As built** `src/infrastructure/storage.integration.test.ts` covers TOF-029 to
+  TOF-033, one section per ticket. The guard — write only when
+  `(last_effective_from, last_event_id)` moves forward — is spelled in the test
+  as TOF-035's consumer will spell it; both columns are `NOT NULL` because a
+  null never compares less. No time zone column: §5.2 does not list one.
 
 ### [ ] TOF-030 — Policy, leave type and ledger tables
 
