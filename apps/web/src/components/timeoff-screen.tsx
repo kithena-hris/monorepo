@@ -8,7 +8,7 @@ import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS, matchPath, remotePath } from '../lib/remotes';
 import { areaFrame } from '../lib/shell-data';
-import { noteInAddress } from '../lib/url-state';
+import { noteInAddress, withQuery, type HistoryMode } from '../lib/url-state';
 import { useShellData } from './app-shell';
 import { RemoteScreen, remoteLoaded, type RemoteRoute } from './remote-screen';
 
@@ -38,8 +38,10 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       router.refresh();
     });
   };
-  const go = (href: string): void => {
-    router.push(href, { scroll: false });
+  /** A navigation the screen asks for: client-side, the page where it was. */
+  const go = (to: string, mode: HistoryMode = 'push'): void => {
+    if (mode === 'push') router.push(to, { scroll: false });
+    else router.replace(to, { scroll: false });
   };
   const loadable =
     load.status === 'ready'
@@ -83,6 +85,32 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onSuggest: actions.suggestDates,
           onDecide: actions.decideRequest,
         };
+      // The employee's screens (TOF-062 to TOF-067).
+      case 'RequestTimeOff':
+        return {
+          load: loadable,
+          // What is asked lives in the address; the server asks Time Off again.
+          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
+            go(withQuery(window.location.pathname, window.location.search, patch), mode);
+          },
+          onSend: actions.sendRequest,
+          onNavigate: go,
+        };
+      case 'MyRequestsUpcoming':
+      case 'MyRequestsPast':
+      case 'MyRequestsCancelled':
+      case 'RequestDetail':
+        return {
+          load: loadable,
+          onCancel: actions.cancelRequest,
+          onChange: actions.changeRequest,
+          onShorten: actions.shortenRequest,
+          onAnswer: actions.answerSuggestion,
+        };
+      case 'Balance':
+        return { load: loadable };
+      case 'Holidays':
+        return { load: loadable, onNavigate: go, onSubscribe: actions.subscribeToCalendar };
       default:
         return {};
     }

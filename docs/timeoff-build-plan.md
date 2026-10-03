@@ -863,6 +863,54 @@ approver`, a conditional tuple whose ranges are checked against `today`;
   nothing and the suite asserts nothing asked, with `TYPESAFE_API_KEY` set or
   not. A day's worked time with no break taken is the time clocked, flagged.
 
+### [x] TOF-050a — The composition root
+
+- **Files** `services/timeoff/src/composition.ts`, `main.ts`, `http/caller.ts`,
+  `infrastructure/openfga.ts`, `infrastructure/consumers/`,
+  `apps/gateway/config.yaml`
+- **Depends on** TOF-034, TOF-045 – TOF-048
+- **Approach** `main.ts` booted Yoga alone, so production had no REST and no
+  database behind GraphQL, no tuple was ever written, and no caller was ever
+  a member. Make `main.ts` a composition root, as People's `wirePeople` is.
+- **Done when** an integration test boots the root against Postgres and
+  OpenFGA and answers `/healthz`, a REST read and a GraphQL query as a seeded
+  member named only by account.
+- **As built** `composeTimeOff(env)` builds `timeoffServer` over
+  `drizzleUnitOfWork(timeoffDatabase(env))`, Time Off's OpenFGA authorizer
+  (`OPENFGA_URL`, its own store by `TIMEOFF_OPENFGA_STORE_ID` or by name),
+  the router's principal checked with `TIMEOFF_API_TOKEN` (falling back to
+  `INTERNAL_API_TOKEN`, People's pattern), `TIMEOFF_FEED_SECRET` (required in
+  production, throwaway elsewhere) and Temporal's escalation clock when
+  `TEMPORAL_ADDRESS` is set; `main.ts` hands its unit of work to the
+  consumers and its pool to the jobs. Without `TIMEOFF_DATABASE_URL`, People's
+  rule: the schema only, every field UNAVAILABLE. Without `OPENFGA_URL`
+  nobody holds a relation (`nobodyRelates`), so only a member's own screens
+  answer — closed, as audit is. Notices stay `logNotifier`: messaging's notice
+  endpoint wants an address and a template Time Off has neither of.
+  **Caller → member**: `timeoff.member.account_id`
+  (`20261003130000_timeoff_member_account.sql`, nullable, not unique) is
+  filled from `people.person.hired` and `identity_linked`, or an import's
+  `accountId` column; `withMember` resolves the router's account to the one
+  member holding it, per request, as People resolves roles. Two holders, or
+  none, is an account and nothing more. A support or view-as session is
+  refused: Time Off has neither of People's rules for them yet. The router
+  forwards Time Off People's principal under its own secret
+  (`headers.subgraphs.timeoff`); `just dev`'s entitlements now include
+  `module.timeoff`. **Tuples**: `syncingTuples` wraps the unit of work, so
+  every member saved — People's events, the import, a zone change — has its
+  `subject`, `team` and `approver` tuples resynced from the row after the
+  commit, and a redelivered event that changes nothing resyncs again (People's
+  "the row is the truth"). `hr_admin` is whoever identity's
+  `tenant.administrator_named` names for `module.timeoff`, until
+  `administrator_removed`; the consumer now reads identity's topic too.
+  **Still open**: `syncCover` is not called — a delegate's `covered_by` needs
+  the delegation's range and the approver's approved time off, re-synced on
+  `setDelegation` and on each decision of the approver's own requests — so
+  delegates cannot act through OpenFGA yet; Time Off has no VM service, so
+  `TIMEOFF_API_TOKEN` is in no deploy workflow (`docs/environments.md`, "Time
+  Off's settings"); the Acme seed's members carry no account, so `just dev`
+  signs nobody in as Adam until the seed maps identity's accounts.
+
 ### Web shell and Reach
 
 ### [x] TOF-051 — Reach: balance meter
@@ -1028,41 +1076,90 @@ test passes, and it matches the design's screen on the seeded demo company.
   `load: loading` under the real header (`TimeOffLoading`), once the
   remote's code is in the page.
 
-### [ ] TOF-062 — Request time off
+### [x] TOF-062 — Request time off
 
 - **Screens** T3, MT5, MT6, MT7 · **Spec** PRD §8.2
 - **Depends on** TOF-061, TOF-053
 - **Approach** Web: a side panel over the overview at `/time-off/request`.
   Phone: type sheet, date step with the bottom bar, review step. The preview
   comes from the server on every change.
+- **As built** `apps/web/timeoff/src/request/`. What is asked lives in the
+  address (`type`, `from`, `to`, `half`, `month`, and a phone's `step`), so
+  every change is a client navigation that reads `TimeOffRequestPanel` again
+  beside the overview behind, the team's month (dots, days already short) and
+  the year's holidays (struck). A range half chosen stays in the screen until
+  its last day is. `Half day` makes the last day a half day. Dates Time Off
+  refuses are said in the panel, drawn without them. One component: a
+  `Sheet` side panel at a desk; under a finger the type sheet, then the dates
+  and the review full screen, each part `touch:hidden` off its step. "Who
+  else is off" and the clash's names come from the team's month; the
+  preview carries neither. Sending opens the new request.
 
-### [ ] TOF-063 — Going below zero
+### [x] TOF-063 — Going below zero
 
 - **Screens** T5, MT9 · **Spec** PRD §7.4
 - **Depends on** TOF-062
+- **As built** In the panel: the warning, what borrowing means (next
+  year's start, final pay, the approvals), and the choice. Borrowing is what
+  sending does within the limit; shortening asks for the dates that fit
+  (`to`, `half`), so the preview follows. **Unpaid is shown and disabled**:
+  `LeaveRequestInput` carries no choice, and two requests split at a half
+  day are refused as an overlap, so making days unpaid needs a contract
+  field first. Past the limit the send is refused with the limit and the
+  shorten offered. Days only, never money (§7.4, Phase 1).
 
-### [ ] TOF-064 — My requests and the timeline
+### [x] TOF-064 — My requests and the timeline
 
 - **Screens** T6, MT10 · **Spec** PRD §8.3
 - **Depends on** TOF-062
 - **Approach** Tabs Upcoming, Past, Cancelled as routes; the timeline shows
   integration steps only when integrations are connected (Phase 3).
+- **As built** `apps/web/timeoff/src/requests/`. Each tab is its own
+  component name in `routes.json` (`MyRequestsUpcoming`, `…Past`,
+  `…Cancelled`), because the shell's loader reads the name, not the path. At
+  a desk the list sits beside the request: a tab's first, or the one at
+  `/time-off/requests/:id` beside the tab it belongs to; below 40rem one or
+  the other (MT10). The timeline is what `TimeOffRequest` knows: sent, each
+  approver in the chain against its step (roles, not names: the detail
+  carries no decider or time), a suggestion or change waiting, cancelled or
+  taken, and "No payroll change" for annual leave only, as the item carries
+  no paid flag. A manager's suggested dates are one tap each, or keep your
+  own. Someone else's request (an approver, HR) is drawn alone.
 
-### [ ] TOF-065 — Change or cancel
+### [x] TOF-065 — Change or cancel
 
 - **Screens** T7 · **Spec** PRD §8.4
 - **Depends on** TOF-064
+- **As built** One dialog from "Change dates" or "Cancel request": move
+  (a new range, the booked dates highlighted; the old ones stay booked),
+  shorten (a new last day before the old one) or cancel. A request nobody
+  has decided offers only "Withdraw it". Time Off's refusal is said in the
+  dialog.
 
-### [ ] TOF-066 — Where the days went
+### [x] TOF-066 — Where the days went
 
 - **Screens** MT20 (and a web equivalent from the balance card) · **Spec** PRD §7.1
 - **Depends on** TOF-061
+- **As built** `apps/web/timeoff/src/balance/` at `/time-off/balances/:type`,
+  linked from each overview balance card ("Where the days went"). The
+  balance with its meter beside every ledger line of the leave year, newest
+  first; a line recorded on another day than it is effective says so, and a
+  superseded line is left out once. MT20's "lost on 31 Mar" warning waits
+  for the view to carry the carry-over rule.
 
-### [ ] TOF-067 — Holidays where you work
+### [x] TOF-067 — Holidays where you work
 
 - **Screens** MT21 · **Spec** PRD §10.2
 - **Depends on** TOF-061
 - **Approach** "Add to my calendar" uses the iCalendar feed.
+- **As built** `apps/web/timeoff/src/holidays/` at `/time-off/holidays/:year`:
+  this year and next as a segmented control, the layers resolved, a moved
+  holiday saying so, and the bridge day (`bridgeDays`, never one already
+  booked). The personal (`me`) feed now carries the holidays where the
+  member works (`application/calendar/ical.ts`); the button issues it and
+  shows its address to copy or open as `webcal:`. The feed's origin is
+  `TIMEOFF_PUBLIC_URL` (default `http://localhost:4002`), which the tunnel
+  must route before it works outside development.
 
 ### Screens — manager
 

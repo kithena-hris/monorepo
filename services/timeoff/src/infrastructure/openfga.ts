@@ -1,7 +1,7 @@
 import { OpenFgaClient, type TupleKey } from '@openfga/sdk';
 import type { CalendarDate, PersonId, TeamKey, TenantId } from '@kithena/contracts';
 
-import type { Authorizer } from '../application/ports.js';
+import type { Authorizer, UnitOfWork } from '../application/ports.js';
 import type { DateRange } from '../domain/days.js';
 
 /**
@@ -274,6 +274,91 @@ export function openFga(
         object: `tenant:${tenantId}`,
       };
       await replace(fga, await readAll(fga, tuple), holds ? [tuple] : []);
+    },
+  };
+}
+
+/**
+ * Time Off's graph when `OPENFGA_URL` is set, in its own store: named by
+ * `TIMEOFF_OPENFGA_STORE_ID`, or found by name ("timeoff") and created when
+ * that is unset. `OPENFGA_STORE_ID` is People's store and never this one.
+ * Null without `OPENFGA_URL`.
+ */
+export function timeoffFgaFrom(
+  env: NodeJS.ProcessEnv,
+  today: () => CalendarDate,
+): TimeOffFga | null {
+  const apiUrl = env['OPENFGA_URL'];
+  if (apiUrl === undefined || apiUrl === '') return null;
+  const storeId = env['TIMEOFF_OPENFGA_STORE_ID'];
+  return openFga(apiUrl, { today, ...(storeId ? { storeId } : {}) });
+}
+
+/**
+ * Without OpenFGA nobody holds a relation, so nobody approves, covers or is
+ * HR: the member's own screens answer, as they ask no question, and every
+ * other is refused. Closed, the way audit refuses without it; there is no
+ * second copy of the graph to fall back on.
+ */
+export const nobodyRelates: Authorizer = {
+  check: () => Promise.resolve(false),
+};
+
+/** What the member consumers ask of the graph beside the projection. */
+export interface MemberTuples {
+  /** Read the member's row and bring its tuples in line with it. */
+  resync(tenantId: TenantId, personId: PersonId): Promise<void>;
+  setHrAdmin(tenantId: TenantId, accountId: string, holds: boolean): Promise<void>;
+}
+
+/**
+ * The member tuples follow the projection (TOF-050a): every member a unit of
+ * work saved is read back once it commits, and its `subject`, `team` and
+ * `approver` tuples — and so who is their teammate — are brought in line
+ * with the row. Read back rather than taken from the save, because the row
+ * is the truth: the upsert refuses an older event, and a redelivery or a
+ * replay converges on the same tuples. People's rule for its own
+ * (`services/people/src/infrastructure/openfga.ts`, `sync`).
+ *
+ * Every path that changes a member goes through a unit of work — People's
+ * events, the import, a location's zone — so wrapping it is the one place
+ * none can miss. A tuple write that fails after the commit throws; the
+ * consumer's redelivery then finds the event applied and calls `resync`.
+ */
+export function syncingTuples(
+  uow: UnitOfWork,
+  fga: Pick<TimeOffFga, 'syncMember' | 'setHrAdmin'>,
+): { readonly uow: UnitOfWork; readonly tuples: MemberTuples } {
+  const resync = async (tenantId: TenantId, personId: PersonId): Promise<void> => {
+    const row = await uow.run(tenantId, (tx) => tx.members.get(personId));
+    if (row !== null) await fga.syncMember(tenantId, row);
+  };
+  return {
+    uow: {
+      async run(tenantId, fn) {
+        const saved = new Set<PersonId>();
+        const result = await uow.run(tenantId, (tx) =>
+          fn({
+            ...tx,
+            members: {
+              ...tx.members,
+              save: async (member) => {
+                saved.add(member.personId);
+                await tx.members.save(member);
+              },
+            },
+          }),
+        );
+        for (const personId of saved) {
+          // oxlint-disable-next-line no-await-in-loop -- one member's tuples at a time, in order
+          await resync(tenantId, personId);
+        }
+        return result;
+      },
+    },
+    tuples: {
+      resync,
+      setHrAdmin: (tenantId, accountId, holds) => fga.setHrAdmin(tenantId, accountId, holds),
     },
   };
 }

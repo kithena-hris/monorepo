@@ -105,6 +105,25 @@ headers:
         - op: 'set'
           name: 'x-internal-token'
           value: '${PEOPLE_API_TOKEN}'
+    # Time Off (`services/timeoff/src/http/caller.ts`): People's principal,
+    # under Time Off's own secret, one per pair as for audit. The token names
+    # an account and no person; Time Off finds the member that account signs
+    # in as in its own projection. A support or view-as session is forwarded
+    # as such, and Time Off refuses it rather than mistake it for the employee.
+    timeoff:
+      request:
+        - op: 'set'
+          name: 'x-kithena-principal'
+          expression: >-
+            '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
+            request.auth.claims.tid + '","impersonatedBy":' +
+            (request.auth.claims.act?.sub == nil || request.auth.claims.act?.kind == 'view_as' ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            ',"viewedBy":' +
+            (request.auth.claims.act?.sub != nil && request.auth.claims.act?.kind == 'view_as' ? '"' + request.auth.claims.act.sub + '"' : 'null') +
+            ',"entitlements":${KITHENA_ENTITLEMENTS}}'
+        - op: 'set'
+          name: 'x-internal-token'
+          value: '${TIMEOFF_API_TOKEN}'
     # The central activity log (`platform/audit`, `docs/audit.md`): the same
     # principal, less what only People reads, and its own secret — one per
     # pair of services, so a leak of People's does not open the log.

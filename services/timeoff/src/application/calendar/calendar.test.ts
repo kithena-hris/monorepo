@@ -101,4 +101,20 @@ describe('calendar queries (TOF-040)', () => {
       error: { code: 'INVALID_TOKEN' },
     });
   });
+
+  it('puts the holidays where you work in your own feed, and only there', async () => {
+    const app = await setup();
+    const feed = calendarFeed(app.deps);
+    const mine = await issueFeedToken(app.deps)(caller(people.adam), 'me');
+    const team = await issueFeedToken(app.deps)(caller(people.adam), 'team');
+    if (!mine.ok || !team.ok) throw new Error('no token');
+    const own = await feed(mine.value.token);
+    const teams = await feed(team.value.token);
+    if (!own.ok || !teams.ok) throw new Error('no feed');
+    expect(own.value).toContain(
+      'UID:holiday-madrid-2026-10-12\r\nDTSTAMP:20261001T070000Z\r\nDTSTART;VALUE=DATE:20261012\r\nDTEND;VALUE=DATE:20261013\r\nSUMMARY:Fiesta Nacional · public holiday\r\n',
+    );
+    expect(own.value).toContain('SUMMARY:Adam Novak · Sick');
+    expect(teams.value).not.toContain('public holiday');
+  });
 });
