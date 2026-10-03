@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --project unit",
-    "test:stories": "vitest run --project phone --project desk",
+    "test:stories": "vitest run --project phone --project desk --project desk-webkit",
     "sign": "node scripts/sign-ssr.mjs"
   },
   "dependencies": {

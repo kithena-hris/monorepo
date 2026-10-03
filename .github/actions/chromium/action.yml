@@ -16,6 +16,10 @@ inputs:
   package:
     description: The workspace package whose Playwright runs the browser.
     required: true
+  browsers:
+    description: Playwright's browsers to install, space-separated. WebKit is for the desk tests that check Safari's layout.
+    required: false
+    default: chromium
 
 runs:
   using: composite
@@ -27,9 +31,10 @@ runs:
       shell: bash
       env:
         PACKAGE: ${{ inputs.package }}
+        BROWSERS: ${{ inputs.browsers }}
       run: |
         version="$(pnpm --filter "$PACKAGE" exec playwright --version | awk '{print $2}')"
-        echo "key=chromium-$ImageOS-$ImageVersion-$version" >> "$GITHUB_OUTPUT"
+        echo "key=${BROWSERS// /-}-$ImageOS-$ImageVersion-$version" >> "$GITHUB_OUTPUT"
 
     - name: cache
       id: cache
@@ -45,17 +50,18 @@ runs:
       env:
         PACKAGE: ${{ inputs.package }}
         HIT: ${{ steps.cache.outputs.cache-hit }}
+        BROWSERS: ${{ inputs.browsers }}
       run: |
         debs=~/.cache/playwright-debs
         if [ "$HIT" = true ] && compgen -G "$debs/*.deb" >/dev/null &&
           sudo dpkg --install "$debs"/*.deb >/dev/null; then
-          pnpm --filter "$PACKAGE" exec playwright install chromium
+          pnpm --filter "$PACKAGE" exec playwright install $BROWSERS
           exit 0
         fi
         # Emptied first, so what is kept is exactly what apt fetched for this
         # image, which is what the next run on it will need.
         sudo rm -f /var/cache/apt/archives/*.deb
-        pnpm --filter "$PACKAGE" exec playwright install --with-deps chromium
+        pnpm --filter "$PACKAGE" exec playwright install --with-deps $BROWSERS
         if [ "$HIT" != true ]; then
           mkdir -p "$debs"
           cp /var/cache/apt/archives/*.deb "$debs"/ 2>/dev/null || true
