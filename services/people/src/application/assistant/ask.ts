@@ -1,25 +1,16 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
-import { visibleTo } from '../../domain/access/field-access.js';
 import {
   instructionFor,
   readIntent,
   type CatalogueField,
   type Intent,
 } from '../../domain/assistant/intent.js';
-import type { PlannedField } from '../../domain/assistant/selection.js';
-import type { Metric } from '../../domain/person/metrics.js';
-import {
-  REPORTS_TO,
-  refinable,
-  usableMetrics,
-  type Asking,
-  type PersonView,
-} from '../person/person-access.js';
-import type { Condition } from '../person/ports.js';
+import { REPORTS_TO, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import { approvalsView, fieldKind, STATUS_OPTIONS } from '../screens/people.js';
-import { nameOf, NOBODY, type ScreenDeps, type Tx } from '../screens/record.js';
+import { approvalsView } from '../screens/people.js';
+import { nameOf, type ScreenDeps, type Tx } from '../screens/record.js';
+import { describe, filterFields, onePerson, personLine, spokenDate } from './capabilities.js';
 
 /**
  * Ask People a question in words: from Slack, or anywhere else that carries
@@ -65,166 +56,16 @@ async function catalogueOf(deps: ScreenDeps, tx: Tx, asking: Asking): Promise<Ca
   return (await filterFields(deps, tx, asking)).flatMap(({ ai, ...field }) => (ai ? [field] : []));
 }
 
-/**
- * The fields this asker may filter everybody by, each saying whether the
- * assistant may use it (`aiEligible`). The directory's search in words names
- * the others to a model for "is empty" alone (`domain/assistant/selection.ts`).
- */
-export async function filterFields(
-  deps: ScreenDeps,
-  tx: Tx,
-  asking: Asking,
-): Promise<PlannedField[]> {
-  const version = await deps.service.schemas.current(tx, asking.tenantId);
-  if (!version) return [];
-  const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-  const definitions = version.document.attributes;
-  const org = await deps.calendars.load(tx, asking.tenantId);
-  const fields = definitions.flatMap((d): PlannedField[] => {
-    const kind = fieldKind(d.typeConfig.kind);
-    if (
-      kind === null ||
-      d.encrypted ||
-      d.deprecatedAt !== null ||
-      !visibleTo(d, everyone) ||
-      !refinable(
-        definitions,
-        { conditions: [{ key: d.key, op: 'not_empty', values: [] }] },
-        everyone,
-      ).ok
-    ) {
-      return [];
-    }
-    const options =
-      d.typeConfig.kind === 'select'
-        ? d.typeConfig.options
-            .filter((o) => o.retiredAt === null)
-            .map((o) => ({ value: o.value, label: o.label.default }))
-        : d.typeConfig.kind === 'location_ref'
-          ? [...org.locations.values()]
-              .filter((l) => l.archived !== true)
-              .map((l) => ({ value: l.id, label: l.name }))
-          : d.typeConfig.kind === 'legal_entity_ref'
-            ? [...org.entities.values()]
-                .filter((e) => e.archived !== true)
-                .map((e) => ({ value: e.id, label: e.name }))
-            : [];
-    return [{ key: d.key, label: d.label.default, kind, options, ai: d.classification.aiEligible }];
-  });
-  return everyone.isHr
-    ? [
-        ...fields,
-        { key: 'status', label: 'Status', kind: 'status', options: STATUS_OPTIONS, ai: true },
-      ]
-    : fields;
-}
-
-/** What People works out about each person that this person may order and narrow by. */
-export async function metricsFor(deps: ScreenDeps, tx: Tx, asking: Asking): Promise<Metric[]> {
-  const version = await deps.service.schemas.current(tx, asking.tenantId);
-  if (!version) return [];
-  const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-  return usableMetrics(
-    version.document.attributes.filter((d) => d.deprecatedAt === null),
-    everyone,
-  );
-}
-
-const personLine = (p: PersonView): { id: string; name: string; title: string | null } => ({
-  id: p.id,
-  name: nameOf(p.attributes) ?? text(p.attributes['work_email']) ?? 'Unnamed',
-  title: text(p.attributes['job_title']),
-});
-
 const listed = (people: readonly { name: string; title: string | null }[]): string =>
   people.map((p) => `• ${p.name}${p.title === null ? '' : ` — ${p.title}`}`).join('\n');
 
 const plural = (n: number, one: string, many: string): string => (n === 1 ? one : many);
 
-/** A calendar date as people say it: "12 March 2019". */
-function spokenDate(iso: string): string {
-  const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        timeZone: 'UTC',
-      });
-}
-
-/**
- * Who the conditions pick out, as a sentence ends: "whose department is Sales
- * and who started after 1 January 2020". "everyone" when there are none.
- */
-export function describe(
-  conditions: readonly Condition[],
-  catalogue: readonly CatalogueField[],
-  match: 'all' | 'any' = 'all',
-): string {
-  if (conditions.length === 0) return 'across the company';
-  return conditions
-    .map((c) => {
-      const f = catalogue.find((x) => x.key === c.key);
-      const label = (f?.label ?? c.key).toLowerCase();
-      const values = c.values.map((v) => {
-        const option = f?.options.find((o) => o.value === v)?.label;
-        return option ?? (f?.kind === 'date' && v !== '' ? spokenDate(v) : v);
-      });
-      switch (c.op) {
-        case 'empty':
-          return `with no ${label} yet`;
-        case 'not_empty':
-          return `with a ${label}`;
-        case 'not_in':
-          return `whose ${label} is not ${values.join(' or ')}`;
-        case 'under':
-          return 'in the team below somebody';
-        case 'contains':
-          return `whose ${label} mentions ${values.join(' or ')}`;
-        case 'before':
-          return `whose ${label} is before ${values[0] ?? ''}`;
-        case 'after':
-          return `whose ${label} is after ${values[0] ?? ''}`;
-        case 'between':
-          return `whose ${label} is between ${values[0] || 'the start'} and ${values[1] || 'today'}`;
-        default:
-          return `whose ${label} is ${values.join(' or ')}`;
-      }
-    })
-    .join(match === 'any' ? ', or ' : ' and ');
-}
-
 /** The model's opening with its count filled in, or People's own. */
 const opening = (say: string | undefined, n: number, otherwise: string): string =>
   say === undefined ? otherwise : say.replaceAll('{n}', String(n));
 
-/** One person by name, as the asker may find them; null when nobody or several match. */
-/** How the model, or a person, names the asker. */
-const SELF = /^(@me|me|myself|i|my self)$/iu;
-
 const NO_PROFILE = 'You don’t have a profile in People yet, so I can’t answer about you.';
-
-async function onePerson(
-  deps: ScreenDeps,
-  tx: Tx,
-  asking: Asking,
-  name: string,
-): Promise<{ person: PersonView | null; several: readonly PersonView[]; self?: 'none' }> {
-  // "Me" is whoever asks: resolved here, so the model never needs their name.
-  if (SELF.test(name.trim())) {
-    const own = await deps.personOf(tx, asking.tenantId, asking.viewer.accountId);
-    if (own === null) return { person: null, several: [], self: 'none' };
-    const read = await deps.service.access.read(tx, { ...asking, personId: own });
-    return { person: read.ok ? read.value : null, several: [] };
-  }
-  const found = await deps.service.access.list(tx, { ...asking, search: name, limit: 5 });
-  const items = found.ok ? found.value.items : [];
-  return items.length === 1
-    ? { person: items[0] ?? null, several: [] }
-    : { person: null, several: items };
-}
 
 async function answer(
   deps: ScreenDeps,
