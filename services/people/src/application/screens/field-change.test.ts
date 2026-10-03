@@ -16,7 +16,11 @@ const TODAY = '2026-10-03';
 const text = define({ key: 'start_day' });
 const as = (over: Partial<AttributeDefinitionInput>) => define({ key: 'start_day', ...over });
 const rows = (...values: unknown[]) =>
-  values.map((value, i) => ({ personId: `p${String(i + 1)}`, name: `Person ${String(i + 1)}`, value }));
+  values.map((value, i) => ({
+    personId: `p${String(i + 1)}`,
+    name: `Person ${String(i + 1)}`,
+    value,
+  }));
 
 describe('text to date', () => {
   const date = as({ dataType: 'date', typeConfig: { kind: 'date' } });
@@ -94,7 +98,11 @@ describe('text to a choice', () => {
         kind: 'select',
         options: [
           { value: 'full_time', label: { default: 'Full time' } },
-          { value: 'part_time', label: { default: 'Part time' }, retiredAt: '2026-10-01T00:00:00Z' },
+          {
+            value: 'part_time',
+            label: { default: 'Part time' },
+            retiredAt: '2026-10-01T00:00:00Z',
+          },
         ],
       },
     });

@@ -20,7 +20,12 @@ const field = (over: Partial<AttributeDefinitionInput> = {}) =>
     ownership: ['hr'],
     visibility: ['self', 'hr'],
     collectAt: 'hr_only',
-    classification: { classification: 'internal', piiKind: 'none', exportable: true, aiEligible: true },
+    classification: {
+      classification: 'internal',
+      piiKind: 'none',
+      exportable: true,
+      aiEligible: true,
+    },
     classificationSource: 'human',
     origin: 'tenant',
     ...over,

@@ -131,7 +131,10 @@ let keys = 0;
 const call = async (method: string, path: string, body?: unknown) => {
   const response = await fetch(`${base}${path}`, {
     method,
-    headers: { ...admin, ...(method === 'GET' ? {} : { 'idempotency-key': `k-${String(++keys)}` }) },
+    headers: {
+      ...admin,
+      ...(method === 'GET' ? {} : { 'idempotency-key': `k-${String(++keys)}` }),
+    },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   return { status: response.status, body: (await response.json()) as Record<string, unknown> };
@@ -166,7 +169,9 @@ describe('changing a text field to a date', () => {
       [GRACE, 'n/a'],
       [ALAN, '2024-01-05'],
     ] as const) {
-      expect((await call('PATCH', `/v1/people/${id}`, { attributes: { start_day: value } })).status).toBe(200);
+      expect(
+        (await call('PATCH', `/v1/people/${id}`, { attributes: { start_day: value } })).status,
+      ).toBe(200);
     }
 
     const saved = await call('POST', '/v1/schema/draft/attributes', {
@@ -180,7 +185,8 @@ describe('changing a text field to a date', () => {
 
     const outbox = async () =>
       Number(
-        (await superuser().unsafe<{ n: string }[]>('SELECT count(*) AS n FROM people.outbox'))[0]?.n,
+        (await superuser().unsafe<{ n: string }[]>('SELECT count(*) AS n FROM people.outbox'))[0]
+          ?.n,
       );
     const before = await outbox();
     const review = await call('GET', '/v1/views/registry/fields/start_day/change?to=date');
@@ -228,7 +234,7 @@ describe('changing a text field to a date', () => {
     expect(await read(ADA)).toBe('2024-03-12');
     expect(await read(GRACE)).toBe('2024-05-01');
     expect(await read(ALAN)).toBe('2024-01-05');
-    expect(await read(MARCO) ?? null).toBeNull();
+    expect((await read(MARCO)) ?? null).toBeNull();
 
     // Corrections carrying `supersedes`, and the old text kept in history.
     const corrected = await superuser().unsafe<{ aggregate_id: string; supersedes: string }[]>(
@@ -241,9 +247,7 @@ describe('changing a text field to a date', () => {
       value: unknown;
       supersedes: string | null;
     }[];
-    expect(history.map((h) => h.value)).toEqual(
-      expect.arrayContaining(['when he starts', null]),
-    );
+    expect(history.map((h) => h.value)).toEqual(expect.arrayContaining(['when he starts', null]));
 
     const requests = await superuser().unsafe<{ person_id: string; attribute_key: string }[]>(
       'SELECT person_id, attribute_key FROM people.detail_request',

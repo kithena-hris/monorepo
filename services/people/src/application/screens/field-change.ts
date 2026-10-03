@@ -292,7 +292,7 @@ async function load(
   const held: Held[] = [];
   // ponytail: every record in memory, a page at a time; a tenant of tens of
   // thousands wants this as a background job with its result stored.
-  for (let after: string | null = null; ; ) {
+  for (let after: string | null = null; ;) {
     const page = await records.page(tx, asking.tenantId, after, PAGE);
     for (const r of page) {
       let value = r.values[key];
@@ -459,7 +459,11 @@ export async function applyFieldChange(
       const changing = asSchemaChange(asking);
       const access = deps.service.access;
       const label = next.label.default;
-      const write = async (personId: string, value: unknown, why: string): Promise<Result<void>> => {
+      const write = async (
+        personId: string,
+        value: unknown,
+        why: string,
+      ): Promise<Result<void>> => {
         const on = { ...changing, personId };
         if (!next.encrypted) {
           const history = await access.history(tx, { ...on, attributeKey: key });
