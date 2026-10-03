@@ -3,15 +3,16 @@
  * internal; the names exported here are what `public/routes.json` may point at.
  *
  * Each is `framed`: the host's breadcrumb, tabs and actions join the screen's
- * own header (`./frame.tsx`). Every screen is a placeholder until its ticket
- * lands (`docs/timeoff-build-plan.md`, TOF-061 onwards).
+ * own header (`./frame.tsx`). A screen is a placeholder until its ticket
+ * lands (`docs/timeoff-build-plan.md`); the overview is TOF-061's.
  */
 import './styles.css';
 
 import { framed } from './frame';
+import { Overview as OverviewScreen } from './overview/overview';
 import { placeholder } from './placeholder';
 
-export const Overview = framed(placeholder('Overview'));
+export const Overview = framed(OverviewScreen);
 export const RequestTimeOff = framed(placeholder('Request time off'));
 export const DescribeRequest = framed(placeholder('Describe it'));
 export const MyRequests = framed(placeholder('My requests'));
