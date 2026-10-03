@@ -94,6 +94,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** The QR the caller’s phone shows a kiosk, good for a minute */
+  TimeOffKioskQr: `query TimeOffKioskQr {
+    timeOffKioskQr {
+      expiresAt personId token
+    }
+  }`,
+
   /** T30: one leave type and every version of its policies; HR */
   TimeOffLeaveTypeSetting: `query TimeOffLeaveTypeSetting($leaveTypeKey: String!) {
     timeOffLeaveTypeSetting(key: $leaveTypeKey) {
@@ -426,6 +433,13 @@ export const OPERATIONS = {
   /** How many of a team must be in, or none; HR */
   SetTimeOffTeamMinimum: `mutation SetTimeOffTeamMinimum($key: String!, $input: JSON!, $teamKey: String!) {
     setTimeOffTeamMinimum(idempotencyKey: $key, input: $input, teamKey: $teamKey) {
+      ok
+    }
+  }`,
+
+  /** A member’s badge (HR) or PIN (theirs or HR’s), kept as a keyed hash; null removes it */
+  SetTimeOffKioskCredential: `mutation SetTimeOffKioskCredential($key: String!, $input: JSON!, $kind: String!, $personId: String!) {
+    setTimeOffKioskCredential(idempotencyKey: $key, input: $input, kind: $kind, personId: $personId) {
       ok
     }
   }`,

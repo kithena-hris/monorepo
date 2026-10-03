@@ -341,7 +341,7 @@ export const KioskCredentialBody = z.discriminatedUnion('kind', [
   }),
   z.strictObject({
     kind: z.literal('pin'),
-    value: z.string().regex(/^\d{4,8}$/u, '4 to 8 digits'),
+    value: z.string().regex(/^\d{6}$/u, '6 digits'),
   }),
   z.strictObject({ kind: z.literal('qr'), value: z.string().min(1).max(1000) }),
 ]);
@@ -365,7 +365,7 @@ export const KioskBody = z.strictObject({
   locationKey: LocationKey,
 });
 export const KioskCredentialSetBody = z.strictObject({
-  /** `null` takes it away. A badge is any printable code; a PIN 4 to 8 digits. */
+  /** `null` takes it away. A badge is any printable code; a PIN 6 digits. */
   value: z.string().trim().min(1).max(64).nullable(),
 });
 const KioskParams = z.object({ deviceId: z.uuid() });
@@ -1128,8 +1128,8 @@ export const ROUTES: readonly Route[] = [
     body: KioskCredentialSetBody,
     answer: Done,
     run: (deps, caller, { params, body }) => {
-      if (params.kind === 'pin' && body.value !== null && !/^\d{4,8}$/u.test(body.value))
-        return Promise.resolve(err(failure('BAD_REQUEST', 'A PIN is 4 to 8 digits', ['value'])));
+      if (params.kind === 'pin' && body.value !== null && !/^\d{6}$/u.test(body.value))
+        return Promise.resolve(err(failure('BAD_REQUEST', 'A PIN is 6 digits', ['value'])));
       return setKioskCredential(deps)(caller, params.personId, params.kind, body.value);
     },
     shape: done,

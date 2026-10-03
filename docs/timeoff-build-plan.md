@@ -1666,12 +1666,39 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
   not stop the batch. ponytail: rotating the feed secret means setting every
   badge and PIN again.
 
-### [ ] TOF-108 — Kiosk screens, offline
+### [x] TOF-108 — Kiosk screens, offline
 
 - **Screens** T25, T26 · **Depends on** TOF-107
 - **Approach** `/kiosk/:deviceId` with its own minimal shell; a service worker
   queues punches offline with the device instant and a sequence; first name
   only; Undo for 5 seconds.
+- **As built** `apps/web/src/app/kiosk/[deviceId]/` outside `(app)`: no
+  sidebar, no session (`proxy.ts` lets `/kiosk/` and `/kiosk-sw.js`
+  through), the remote's unframed `Kiosk` (`apps/web/timeoff/src/kiosk/`)
+  drawn by `components/kiosk-shell.tsx`. HR's link carries the token once
+  (`#token=kk_…`); it moves to the tablet's storage and out of the address,
+  and without one the page asks for it. A keyboard-wedge reader's keystrokes
+  are a badge, or a QR when they start `kq_`; a PIN is six digits on
+  `PinInput`; "Show my QR code" reads the camera where `BarcodeDetector`
+  exists and otherwise says to hold the phone to the reader. The kiosk asks
+  who tapped, shows the first name, the time and "Not you? Undo · 5", and
+  sends nothing until the five seconds pass; offline it says the tap is kept.
+  Each tap then goes to `/kiosk/<id>/api/punches` with its instant and a
+  sequence (`max(last + 1, now in ms)`, so a wiped tablet stays ahead), which
+  `public/kiosk-sw.js` queues in Cache Storage and sends whole, in order,
+  with the tablet's time of sending — at once, when the page sees the
+  network return, every 30 s, and on a background sync; it also serves the
+  kiosk's pages offline. The route handler checks the token names the host's
+  tenant and forwards to Time Off at `TIMEOFF_PUBLIC_URL`, which the tunnel
+  must route as for the calendar feed. The member's side is
+  `/time-off/attendance/kiosk-code` (Attendance's "Kiosk code" tab): the QR,
+  refreshed before its minute is up, and their own PIN. The QR is drawn from
+  `uqr`'s matrix, a dependency of this module rather than of Reach (encoding
+  a QR is nothing to hand-roll, and Reach stays at two dependencies beyond
+  Radix). Reach gained four icons: `tap`, `scanCode`, `online`, `offline`.
+  The design's "Visitor" button is left out: visitors are not members, and
+  Time Off has nowhere to keep them. Badges are given through the API
+  (`PUT …/kiosk-credentials/badge`); there is no screen for it yet.
 
 ### [ ] TOF-109 — Integrations page
 

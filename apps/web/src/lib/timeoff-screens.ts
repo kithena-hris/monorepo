@@ -72,6 +72,9 @@ export async function loadScreen(
       return timesheet(query.search);
     case 'TeamNow':
       return teamNow();
+    // TOF-108: the member's own kiosk code, signed for a minute.
+    case 'KioskCode':
+      return read('TimeOffKioskQr');
     // Settings (TOF-078 to TOF-083), HR only: Time Off refuses anyone else.
     case 'LeaveTypes':
       return leaveTypeSettings();

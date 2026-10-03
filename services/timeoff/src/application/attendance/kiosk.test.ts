@@ -25,7 +25,7 @@ async function setup() {
   if (!registered.ok) throw new Error(registered.error.message);
   const { deviceId, token } = registered.value;
   const badge = await setKioskCredential(app.deps)(hr, people.adam, 'badge', '0004817265');
-  const pin = await setKioskCredential(app.deps)(adam, people.adam, 'pin', '4821');
+  const pin = await setKioskCredential(app.deps)(adam, people.adam, 'pin', '482193');
   expect([badge.ok, pin.ok]).toEqual([true, true]);
   return { app, deviceId, token };
 }
@@ -85,7 +85,7 @@ describe('kiosk devices (PRD §11.9, TOF-107)', () => {
       expect(
         await setKioskCredential(app.deps)(adam, people.adam, 'badge', '0000000001'),
       ).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
-      expect(await setKioskCredential(app.deps)(adam, people.omar, 'pin', '1111')).toMatchObject({
+      expect(await setKioskCredential(app.deps)(adam, people.omar, 'pin', '111111')).toMatchObject({
         ok: false,
         error: { code: 'FORBIDDEN' },
       });
@@ -93,7 +93,7 @@ describe('kiosk devices (PRD §11.9, TOF-107)', () => {
 
     it('two people cannot share a badge or a PIN', async () => {
       const { app } = await setup();
-      expect(await setKioskCredential(app.deps)(hr, people.omar, 'pin', '4821')).toMatchObject({
+      expect(await setKioskCredential(app.deps)(hr, people.omar, 'pin', '482193')).toMatchObject({
         ok: false,
         error: { code: 'CREDENTIAL_TAKEN' },
       });
@@ -103,7 +103,7 @@ describe('kiosk devices (PRD §11.9, TOF-107)', () => {
       const { app } = await setup();
       const kept = JSON.stringify([...app.state(TENANT).credentials.keys()]);
       expect(kept).not.toContain('0004817265');
-      expect(kept).not.toContain('4821');
+      expect(kept).not.toContain('482193');
     });
   });
 
@@ -149,7 +149,7 @@ describe('kiosk devices (PRD §11.9, TOF-107)', () => {
           {
             sequence: 1,
             at: at('2026-10-01T06:52:00.000Z'),
-            credential: { kind: 'pin', value: '4821' },
+            credential: { kind: 'pin', value: '482193' },
           },
         ],
       });
@@ -217,7 +217,7 @@ describe('kiosk devices (PRD §11.9, TOF-107)', () => {
       const send = (sequence: number, when: string) =>
         kioskPunches(app.deps)(token, deviceId, {
           sentAt: at('2026-10-01T06:55:00.000Z'),
-          punches: [{ sequence, at: at(when), credential: { kind: 'pin', value: '4821' } }],
+          punches: [{ sequence, at: at(when), credential: { kind: 'pin', value: '482193' } }],
         });
       await send(1, '2026-10-01T06:54:00.000Z');
       await send(2, '2026-10-01T06:54:30.000Z');
@@ -240,12 +240,12 @@ describe('kiosk devices (PRD §11.9, TOF-107)', () => {
           {
             sequence: 1,
             at: at('2026-10-01T06:52:00.000Z'),
-            credential: { kind: 'pin', value: '0000' },
+            credential: { kind: 'pin', value: '000000' },
           },
           {
             sequence: 2,
             at: at('2026-10-01T06:53:00.000Z'),
-            credential: { kind: 'pin', value: '4821' },
+            credential: { kind: 'pin', value: '482193' },
           },
         ],
       });

@@ -140,6 +140,9 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return { load: loadable, onCorrect: actions.correctPunch };
       case 'TeamNow':
         return { load: loadable };
+      // TOF-108: the code expires in a minute, so the screen asks for the page again.
+      case 'KioskCode':
+        return { load: loadable, onRefresh: refresh, onSavePin: actions.setKioskPin };
       // Settings (TOF-078 to TOF-083).
       case 'LeaveTypes':
         return { load: loadable };

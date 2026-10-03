@@ -17,6 +17,7 @@
     { "path": "/time-off/calendar/timeline", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/year", "component": "TeamCalendar" },
     { "path": "/time-off/attendance/timesheet", "component": "Timesheet" },
+    { "path": "/time-off/attendance/kiosk-code", "component": "KioskCode" },
     { "path": "/time-off/attendance/requests", "component": "Attendance" },
     { "path": "/time-off/attendance/schedule", "component": "Attendance" },
     { "path": "/time-off/attendance/now", "component": "TeamNow" },
@@ -120,6 +121,7 @@
       "tabs": [
         { "path": "/time-off/attendance/now", "label": "Right now", "for": ["manager", "hr"] },
         { "path": "/time-off/attendance/timesheet", "label": "My timesheet", "short": "Mine" },
+        { "path": "/time-off/attendance/kiosk-code", "label": "Kiosk code", "short": "Kiosk" },
         {
           "path": "/time-off/attendance/timesheets",
           "label": "Timesheets",

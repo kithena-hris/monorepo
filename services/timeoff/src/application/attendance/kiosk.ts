@@ -240,7 +240,7 @@ export const setKioskCredential =
 /** The QR the member's phone shows the kiosk, good for a minute. */
 export const issueKioskQr =
   (deps: Pick<Deps, 'uow' | 'clock' | 'feedSecret'>) =>
-  (caller: Caller): Promise<Result<{ token: string; expiresAt: Instant }>> =>
+  (caller: Caller): Promise<Result<{ token: string; expiresAt: Instant; personId: PersonId }>> =>
     transact(deps, caller.tenantId, async (tx) => {
       if (caller.personId === null) return forbidden();
       if ((await tx.members.get(caller.personId)) === null) return notFound('Member');
@@ -253,6 +253,7 @@ export const issueKioskQr =
       return ok({
         token: `${QR_PREFIX}${body}.${qrSignature(deps.feedSecret, body)}`,
         expiresAt,
+        personId: caller.personId,
       });
     });
 

@@ -894,7 +894,7 @@ export const KioskRegisteredView = named(
 /** The personal QR a member's phone shows a kiosk, and when it stops working. */
 export const KioskQrView = named(
   'TimeOffKioskQr',
-  z.object({ token: z.string(), expiresAt: Instant }),
+  z.object({ token: z.string(), expiresAt: Instant, personId: PersonId }),
 );
 
 /** What a kiosk shows at its top: its own name and where it is. */

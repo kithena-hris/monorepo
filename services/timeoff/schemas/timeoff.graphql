@@ -607,6 +607,7 @@ type TimeOffKiosk {
 
 type TimeOffKioskQr {
   expiresAt: String!
+  personId: String!
   token: String!
 }
 

@@ -32,6 +32,19 @@ export async function punch(
   return a.ok ? { ok: true } : { ok: false, message: a.message };
 }
 
+/**
+ * The member's own kiosk PIN (TOF-107, TOF-108): six digits, kept by Time
+ * Off as a keyed hash, refused when somebody else has it.
+ */
+export async function setKioskPin(personId: string, pin: string): Promise<Outcome> {
+  const a = await timeOff('SetTimeOffKioskCredential', {
+    personId,
+    kind: 'pin',
+    input: { value: pin },
+  });
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
 /* ------------------------------------------------------------ parental -- */
 
 type ParentRole = 'birth_parent' | 'other_parent' | 'adopting';

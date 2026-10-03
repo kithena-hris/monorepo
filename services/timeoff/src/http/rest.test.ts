@@ -205,7 +205,7 @@ describe('a kiosk, with its own token (TOF-107)', () => {
           method: 'PUT',
           url: `/v1/timeoff/members/${people.adam}/kiosk-credentials/pin`,
           headers: { 'idempotency-key': 'k-2' },
-          body: JSON.stringify({ value: '4821' }),
+          body: JSON.stringify({ value: '482193' }),
         })
       ).status,
     ).toBe(200);
@@ -226,7 +226,7 @@ describe('a kiosk, with its own token (TOF-107)', () => {
           {
             sequence: 1,
             at: '2026-10-01T06:59:00.000Z',
-            credential: { kind: 'pin', value: '4821' },
+            credential: { kind: 'pin', value: '482193' },
           },
         ],
       }),

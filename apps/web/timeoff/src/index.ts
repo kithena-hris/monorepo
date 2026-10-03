@@ -19,6 +19,7 @@ import { TeamCalendar as TeamCalendarScreen } from './calendar/calendar';
 import { Balance as BalanceScreen } from './balance/balance';
 import { framed } from './frame';
 import { Holidays as HolidaysScreen } from './holidays/holidays';
+import { KioskCode as KioskCodeScreen } from './kiosk/code';
 import { Overview as OverviewScreen } from './overview/overview';
 import { ParentalCase as ParentalCaseScreen } from './parental/case';
 import { ParentalPlan as ParentalPlanScreen } from './parental/plan';
@@ -49,6 +50,10 @@ export const Attendance = framed(placeholder('Attendance'));
 // screen: no frame), my timesheet and the team right now.
 export { TopBarClock } from './clock/clock';
 export const Timesheet = framed(TimesheetScreen);
+export const KioskCode = framed(KioskCodeScreen);
+// TOF-108: the kiosk at the door, at `/kiosk/:deviceId` in the shell — its own
+// full-screen layout, with no frame, no sidebar and no session.
+export { Kiosk } from './kiosk/kiosk';
 export const TeamNow = framed(TeamNowScreen);
 export const Balance = framed(BalanceScreen);
 export const Holidays = framed(HolidaysScreen);
