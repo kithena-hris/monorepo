@@ -168,16 +168,88 @@ title.
    reason beside it**, announced and named by the button's description: the
    server's `blocked` message, each refused field by its header with "Leave
    it out", or nobody to import.
-5. **Approve and run** (`POST /v1/imports/run`): the plan is worked out again
-   on the server, then setup's seeding if nothing is published, the fields and
-   any new sections into the draft, one publish, the defaults, all in one
-   transaction refused whole if the settings refuse a field; then the import
-   commits with every new column mapped to its new field. Approving the plan
-   is the approval: sensitive values are written, not held one by one for a
-   second HR member (changes made later are). The done screen says what it
-   did, where every column went ("102 columns → existing fields and new
-   fields, 0 left out", ids "Kithena creates this"), and lists the new
-   fields, each a link to edit.
+5. **Approve and run** (`POST /v1/imports/run`) answers at once and runs in
+   the background (below, "Running in the background"): the page moves
+   straight to **Importing** at `/people/import?run=<id>`, with the step bar,
+   where the run stands ("Adding people", "312 of 1,000 people"), the time so
+   far and a line saying it carries on if the page is closed. In the run, the
+   plan is worked out again on the server, then setup's seeding if nothing is
+   published, the fields and any new sections into the draft, one publish,
+   the defaults, all in one transaction refused whole if the settings refuse
+   a field; then the rows go in with every new column mapped to its new
+   field. Approving the plan is the approval: sensitive values are written,
+   not held one by one for a second HR member (changes made later are). The
+   done screen, **Imported**, says what it did, where every column went ("102
+   columns → existing fields and new fields, 0 left out", ids "Kithena
+   creates this"), and lists the new fields, each a link to edit.
+
+## Running in the background
+
+A thousand people take about two minutes; the shell's server action and the
+router give a request far less. So "Approve and run" checks only what can be
+checked at once, records a run, and answers with its id in well under two
+seconds (`application/import/run.ts`):
+
+- **Checked at once**: HR's rights; the upload is the viewer's, finished and
+  not expired; the file is not imported already; the plan's `basedOn` is
+  still the published version (else `STALE_PLAN`: review the plan again);
+  and **one run per company**, which is a partial unique index on
+  `people.import_run (tenant_id) WHERE status IN ('queued', 'running')`, so
+  two approvals racing each other cannot both start one (`IMPORT_RUNNING`,
+  "An import is already running, started by Ada Lovelace", with a link to
+  it). A new import upload is refused the same way while a run goes.
+- **Where it runs**: People's Temporal worker, beside the full-values and
+  pending-change workflows (`infrastructure/temporal/import-run.ts`, task
+  queue `people-imports`): long-running, it must survive a restart, a deploy
+  and the VM's idle stop, and resume from its progress, which is what
+  Temporal is here for (BullMQ is for fire-and-forget). The workflow is a
+  loop: each activity reads the run's row, does its next chunk, and says
+  whether there is another; a chunk that fails is retried with backoff, and
+  one that keeps failing (10 attempts, minutes apart) stops the run. Without
+  `TEMPORAL_ADDRESS` (standalone, tests) the same loop runs in the process.
+  Every run still going is picked up again when People boots.
+- **Chunks, each one transaction**: setup and the fields' publish; reading
+  the file against what is now published; people 50 at a time; their
+  managers (the second pass); their employment status (offboarding, notice,
+  leave); then the import's ledger row, `people.import.completed` and the
+  blocked-row report. Each chunk holds the run's row locked and commits its
+  writes, its events in the outbox and the run's progress together, so a
+  chunk is done once or not at all. The next chunk is always worked out from
+  the row: a worker that died after committing one, and is asked again, finds
+  it is no longer next and writes nothing (`STALE_CHUNK`). A run killed
+  half-way through the people (`import-run.integration.test.ts`, SIGKILL)
+  carries on in the next process and creates nobody twice.
+- **Values stay out of tables.** `people.import_run` holds counts, the step
+  and words. The approved input, the rows as classified and each batch's
+  outcome hold values, so they are sealed in the object store under
+  `imports/<tenant>/runs/<id>/` (AES-256-GCM, the export bucket) and deleted
+  when the run ends; what it did (the done screen) is kept sealed for the
+  report's week and goes with an erasure of anybody it names. A run resumes
+  from these, so the export bucket is what makes it durable; with no bucket
+  (`PEOPLE_EXPORT_BUCKET` unset, a laptop) they are in memory and a run
+  interrupted by a restart stops with "The approved plan is no longer held".
+- **Status**: queued, then running with its step and "312 of 1,000 people",
+  then **Imported** with the full result, or **Import failed** with why, how
+  many people went in before it stopped (they stay) and what to do: upload
+  the file again, and the people already in are matched, never added twice.
+  A row that cannot be written is a row in the report, as before, never a
+  failed run. `GET /v1/imports/runs/{id}` (`importRun`) and
+  `GET /v1/imports/runs/active` (`activeImportRun`) say it; Import & export's
+  history lists the run from its approval ("Importing", then "Imported"), and
+  its Import button and the Directory's are off while one runs, with who
+  started it and when, and a link to it. Coming back after closing the
+  browser, on another device or after a reload, `?run=` opens the progress
+  or the result; while the VM is waking the page shows People waking up and
+  asks again, rather than an error.
+- **Told when it is over**: whoever approved it gets a notice in the bell and
+  the Inbox for two weeks ("Import finished: 1,000 people, 95 new fields", or
+  "Import failed"), linking to the result (`overview.imports`). Notices are
+  not emailed, as no People notice is.
+- **The log**: the activity log has "Imported people" with the counts
+  (`people.import.completed`) or "Import failed" with the reason
+  (`people.import.failed`), each by whoever approved it, when; and the
+  settings log's "Added N fields from an import" is written by the run once
+  it has published them, not at the approval.
 
 ## Where it runs, and what the model sees
 
@@ -220,12 +292,13 @@ title.
 - **Nothing is written before the OK.** Proposing and planning read only;
   the new fields are held in memory, not written to the draft, so an
   abandoned import leaves nothing behind to block the next publish.
-- **Applying is one transaction**: setup's seeding when nothing is
-  published, then sections and fields checked against the draft (the field
-  editor's own rules, `fieldChange`), stored, published and the defaults
-  written; anything refused refuses the lot. The import commits after it;
-  if that fails, the fields stay published and the error says so, and
-  running it again maps the columns to them.
+- **Applying the fields is one transaction**: setup's seeding when nothing
+  is published, then sections and fields checked against the draft (the
+  field editor's own rules, `fieldChange`), stored, published and the
+  defaults written; anything refused refuses the lot, and the run stops
+  before any row. The rows go in after it, chunk by chunk; if the run stops
+  there, the fields stay published and the people written stay, and running
+  the file again maps the columns to the fields and matches those people.
 - It is refused while the draft holds other unpublished changes, because
   publishing would publish those too.
 - **Creating fields is a People administrator's** (administrators hold HR's
@@ -239,8 +312,9 @@ title.
   long as its intent. Nothing lets HR bypass the rule: the application layer
   refuses anybody who is not an administrator.
 - **Audit**: one settings-log entry, "Added N fields from an import, with the
-  AI assistant", naming the fields, never the file; an import that adds no
-  field is in Import & export's history only. The
+  AI assistant", naming the fields, never the file, written by the run when
+  it publishes them; an import that adds no field is in Import & export's
+  history and the activity log's "Imported people" only. The
   publish, the defaults (as profile updates) and completeness are recorded as
   they always are.
 - Every new field carries a classification policy; `classificationSource` is

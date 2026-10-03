@@ -823,7 +823,10 @@ storage" below has the buckets' rules.
   queue (Valkey's append-only file) and Temporal's timers are on the volume.
   Hourly and daily jobs run at their next tick after boot, the nightly backup
   runs at boot if it was missed (`Persistent=true`), and a full-values request
-  whose week ran out while asleep expires when Temporal next runs.
+  whose week ran out while asleep expires when Temporal next runs. An
+  approved import never sleeps through: it keeps the VM up (below), and one
+  interrupted anyway (a deploy, a crash) carries on from its next chunk when
+  People is back (`docs/ai-settings.md`, "Running in the background").
 - **A backup is taken before every stop.** `idle-stop.sh` runs `backup.sh`,
   retries once, and refuses to stop after two failures unless the last good
   backup (`/etc/kithena/.last-backup`) is under 24 hours old.
@@ -839,8 +842,11 @@ the router's access log — the router logs only `/graphql`, never `/health`,
 and a request without a valid token is a 401, which is the internet knocking,
 not a person — no kithena container started and nothing deployed, nobody
 logged in and no Session Manager session open, no export job queued, running or retrying in BullMQ, no pending
-Temporal activity on `people-full-values`, and the VM up for more than 15
-minutes. Then `backup.sh`, `docker compose stop` (People drains on SIGTERM) and
+Temporal activity on `people-full-values`, **no approved import running** (a
+running workflow on `people-imports`, counted with `temporal workflow count`:
+a run is open from its approval until it is over, chunk working or waiting to
+be retried, so a 1,000-person import approved just before the window closes
+is not paused half-way), and the VM up for more than 15 minutes. Then `backup.sh`, `docker compose stop` (People drains on SIGTERM) and
 `shutdown -h now`, which `InstanceInitiatedShutdownBehavior=stop` turns into a
 stop rather than a terminate. `compose stop` leaves `unless-stopped`
 containers stopped, so `kithena-start.service` starts each project at boot.
