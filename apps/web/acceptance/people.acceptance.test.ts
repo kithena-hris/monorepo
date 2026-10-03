@@ -1180,7 +1180,7 @@ describe('Employee fields: a text field becomes a date, its values reviewed', ()
       timeout: 30_000,
     });
     await page.getByRole('heading', { name: 'Change First day to date' }).waitFor();
-    await page.getByText('1 convert', { exact: true }).waitFor();
+    await page.getByText('1 converts', { exact: true }).waitFor();
     await page.getByText('12 Mar 2024').waitFor();
     for (const name of [
       `${employee?.given_name ?? ''} ${employee?.family_name ?? ''}`,
