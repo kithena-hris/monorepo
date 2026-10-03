@@ -108,7 +108,7 @@ describe('what happens to a value that does not fit', () => {
   });
 
   it('picks the default by the import\'s rules for who fills a field (who-fills.ts)', () => {
-    const both = { ownership: ['employee', 'hr'] } as const;
+    const both: Partial<AttributeDefinitionInput> = { ownership: ['employee', 'hr'] };
     // Employment data is HR's even when the employee may fill it in too.
     expect(defaultAction(field(both), 'Employment')).toBe('hr');
     const bank = field({ ...both, key: 'iban', label: { default: 'IBAN' } });
