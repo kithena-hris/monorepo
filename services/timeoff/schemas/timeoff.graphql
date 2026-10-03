@@ -275,6 +275,22 @@ type Query {
   timeOffViewer: TimeOffViewer!
 }
 
+type TimeOffAlternative {
+  absence: TimeOffRange
+  affects: String!
+  coverage: [TimeOffCoverageDay!]!
+  dates: [String!]!
+  kind: String!
+  spans: [TimeOffRange!]!
+  swapped: TimeOffAlternativeSwapped
+  teammate: TimeOffPersonRef
+}
+
+type TimeOffAlternativeSwapped {
+  in: [String!]!
+  out: [String!]!
+}
+
 type TimeOffApprovalRule {
   approvers: [String!]!
   leaveTypes: [String!]
@@ -368,6 +384,7 @@ type TimeOffCalendarPerson {
   displayName: String!
   personId: String!
   teamKey: String
+  teamName: String
 }
 
 type TimeOffCalendarYear {
@@ -425,9 +442,11 @@ type TimeOffDecided {
 }
 
 type TimeOffDelegation {
+  approverId: String!
   candidates: [TimeOffPersonRef!]!
   coveringFor: [TimeOffCover!]!
   delegation: TimeOffDelegationDelegation
+  escalatesTo: TimeOffPersonRef
 }
 
 type TimeOffDelegationDelegation {
@@ -747,9 +766,11 @@ type TimeOffRange {
 }
 
 type TimeOffRequestDecision {
+  alternatives: [TimeOffAlternative!]!
   balance: TimeOffRequestDecisionBalance
   belowMinimum: [TimeOffCoverageDay!]!
   canDecide: Boolean!
+  lastTaken: TimeOffRange
   member: TimeOffMember!
   note: String
   othersOff: [TimeOffOtherOff!]!

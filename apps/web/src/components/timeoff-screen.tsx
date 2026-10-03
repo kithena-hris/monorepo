@@ -1,14 +1,14 @@
 'use client';
 
 import { Skeleton } from '@reach/ui';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS, matchPath, remotePath } from '../lib/remotes';
 import { areaFrame } from '../lib/shell-data';
-import { withQuery, type HistoryMode } from '../lib/url-state';
+import { noteInAddress, withQuery, type HistoryMode } from '../lib/url-state';
 import { useShellData } from './app-shell';
 import { RemoteScreen, remoteLoaded, type RemoteRoute } from './remote-screen';
 
@@ -30,6 +30,8 @@ export interface TimeOffScreenProps {
 
 export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.Element {
   const router = useRouter();
+  const pathname = usePathname();
+  const live = useSearchParams();
   const [, startTransition] = useTransition();
   const refresh = (): void => {
     startTransition(() => {
@@ -52,6 +54,37 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
     switch (route?.component) {
       case 'Overview':
         return { load: loadable, onPunch: actions.punch };
+      // The manager's (TOF-068 to TOF-073). Which tab, request or view is the
+      // address; a month, a scope or a clash is a navigation Time Off answers,
+      // and the types, holidays and day open are noted in the address only.
+      case 'Approvals':
+        return {
+          load: loadable,
+          path: pathname,
+          onApprove: actions.approveRequests,
+          onDecide: actions.decideRequest,
+          onSuggest: actions.suggestDates,
+          onNavigate: go,
+        };
+      case 'Delegation':
+        return {
+          load: loadable,
+          onSave: actions.setDelegation,
+          onRemove: actions.removeDelegation,
+        };
+      case 'TeamCalendar':
+        return {
+          load: loadable,
+          path: pathname,
+          query: Object.fromEntries(live),
+          onNavigate: go,
+          onFilter: (patch: Readonly<Record<string, string | null>>) => {
+            noteInAddress(patch, 'push');
+          },
+          onSubscribe: actions.subscribeCalendar,
+          onSuggest: actions.suggestDates,
+          onDecide: actions.decideRequest,
+        };
       // The employee's screens (TOF-062 to TOF-067).
       case 'RequestTimeOff':
         return {

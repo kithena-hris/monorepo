@@ -8,9 +8,11 @@
     { "path": "/time-off/requests/cancelled", "component": "MyRequestsCancelled" },
     { "path": "/time-off/requests/:id", "component": "RequestDetail" },
     { "path": "/time-off/approvals/waiting", "component": "Approvals" },
+    { "path": "/time-off/approvals/waiting/:id", "component": "Approvals" },
+    { "path": "/time-off/approvals/waiting/:id/suggest", "component": "Approvals" },
     { "path": "/time-off/approvals/coming-up", "component": "Approvals" },
     { "path": "/time-off/approvals/decided", "component": "Approvals" },
-    { "path": "/time-off/approvals/delegation", "component": "Approvals" },
+    { "path": "/time-off/approvals/delegation", "component": "Delegation" },
     { "path": "/time-off/calendar/month", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/timeline", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/year", "component": "TeamCalendar" },
@@ -93,7 +95,8 @@
           "path": "/time-off/approvals/waiting",
           "label": "Waiting for me",
           "short": "Waiting",
-          "for": ["manager", "hr"]
+          "for": ["manager", "hr"],
+          "owns": ["/time-off/approvals/waiting/:id", "/time-off/approvals/waiting/:id/suggest"]
         },
         { "path": "/time-off/approvals/coming-up", "label": "Coming up", "for": ["manager", "hr"] },
         { "path": "/time-off/approvals/decided", "label": "Decided", "for": ["manager", "hr"] },

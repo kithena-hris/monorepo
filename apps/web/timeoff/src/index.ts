@@ -4,11 +4,15 @@
  *
  * Each is `framed`: the host's breadcrumb, tabs and actions join the screen's
  * own header (`./frame.tsx`). A screen is a placeholder until its ticket
- * lands (`docs/timeoff-build-plan.md`); the overview is TOF-061's, the employee's
- * screens TOF-062 to TOF-067's.
+ * lands (`docs/timeoff-build-plan.md`); the overview is TOF-061's, the
+ * employee's screens TOF-062 to TOF-067's, and the approvals, delegation and
+ * calendar TOF-068 to TOF-073's.
  */
 import './styles.css';
 
+import { Approvals as ApprovalsScreen } from './approvals/approvals';
+import { Delegation as DelegationScreen } from './approvals/delegation';
+import { TeamCalendar as TeamCalendarScreen } from './calendar/calendar';
 import { Balance as BalanceScreen } from './balance/balance';
 import { framed } from './frame';
 import { Holidays as HolidaysScreen } from './holidays/holidays';
@@ -26,8 +30,9 @@ export const MyRequestsUpcoming = framed(RequestsScreen);
 export const MyRequestsPast = framed(RequestsScreen);
 export const MyRequestsCancelled = framed(RequestsScreen);
 export const RequestDetail = framed(RequestsScreen);
-export const Approvals = framed(placeholder('Requests'));
-export const TeamCalendar = framed(placeholder('Calendar'));
+export const Approvals = framed(ApprovalsScreen);
+export const Delegation = framed(DelegationScreen);
+export const TeamCalendar = framed(TeamCalendarScreen);
 export const Attendance = framed(placeholder('Attendance'));
 export const Balance = framed(BalanceScreen);
 export const Holidays = framed(HolidaysScreen);
