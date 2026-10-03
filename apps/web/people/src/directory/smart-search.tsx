@@ -292,7 +292,7 @@ export function Understood({
   chips,
   unused,
   onEdit,
-  note,
+  notes,
 }: {
   readonly chips: readonly UnderstoodChip[];
   /** Parts not used, as typed, each dismissable. */
@@ -302,8 +302,11 @@ export function Understood({
     readonly onRemove: () => void;
   }[];
   readonly onEdit?: () => void;
-  /** Who read it, when it was not the assistant, and why: said, never hidden. */
-  readonly note: string | null;
+  /**
+   * What was not understood, how a part was read (a manager not found, a
+   * grouping), and who read it when it was not the assistant: said, never hidden.
+   */
+  readonly notes: readonly string[];
 }): JSX.Element {
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -344,7 +347,11 @@ export function Understood({
           </Chip>
         ))}
       </ChipRow>
-      {note === null ? null : <p className="text-xs text-fg-muted">{note}</p>}
+      {notes.map((n) => (
+        <p key={n} className="text-xs text-fg-muted">
+          {n}
+        </p>
+      ))}
     </div>
   );
 }

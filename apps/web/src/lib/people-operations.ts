@@ -306,14 +306,15 @@ export const OPERATIONS = {
     }
   }`,
 
-  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID, $incomplete: Boolean, $conditions: [DirectoryConditionInput!], $match: String, $sort: String) {
-    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment, incomplete: $incomplete, conditions: $conditions, match: $match, sort: $sort) {
+  Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID, $incomplete: Boolean, $conditions: [DirectoryConditionInput!], $match: String, $sort: String, $top: Int) {
+    peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment, incomplete: $incomplete, conditions: $conditions, match: $match, sort: $sort, top: $top) {
       total active notStarted incomplete
       segment { id name }
       segments { id name }
       columns { key label shown sortable }
       fields { key label kind options { value label } }
-      query { conditions { key op values } match sort { key direction } }
+      metrics { key label kind filter most least }
+      query { conditions { key op values } match sort { key direction } top }
       filterable { key label options { value label } }
       people { id name email avatarUrl values { key value } people { key id name avatarUrl } missing }
       next

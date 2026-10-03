@@ -1,5 +1,6 @@
 import * as z from 'zod';
 
+import type { Metric } from '../person/metrics.js';
 import { firstObject, type CatalogueField, type IntentCondition, type IntentOp } from './intent.js';
 
 /**
@@ -34,7 +35,19 @@ export interface DirectoryPlan {
   readonly search: string | null;
   readonly conditions: readonly IntentCondition[];
   readonly match: 'all' | 'any';
+  /** A field, `name`, or a metric (`domain/person/metrics.ts`). */
   readonly sort: { readonly key: string; readonly direction: 'asc' | 'desc' } | null;
+  /** At most this many people: "top 5", or 1 for "the person with…". */
+  readonly limit: number | null;
+  /** A field to group by, for "which department has the most…". */
+  readonly group: string | null;
+  /**
+   * A manager named in the sentence ("reports of Marco", "Marco's team"):
+   * the name as typed, for People to find as the viewer may, never a model.
+   */
+  readonly manager: { readonly name: string; readonly scope: 'direct' | 'all' } | null;
+  /** What was read and how, where it is not plain from the chips. */
+  readonly notes: readonly string[];
   /** Words neither reader made anything of, as typed: said, never guessed. */
   readonly unused: readonly string[];
   /** A phrase the model read more than one way, asked rather than guessed (`clarify.ts`). */
@@ -120,7 +133,8 @@ const STOP = new Set(
     'a an the and or of in at on to for from by with all any some every show me find list get give ' +
     'who whom whose that which are is was were be been being do does our my their them they his her ' +
     'people person persons employee employees staff everyone everybody anyone colleague colleagues ' +
-    'work works working based currently now please member members whole entire still yet'
+    'work works working based currently now please member members whole entire still yet ' +
+    'record records profile profiles how many headcount has have having had got'
   ).split(' '),
 );
 
@@ -128,6 +142,10 @@ const HIRE = new Set(
   'hired hire hires joined joining joiner joiners join joins started starting start starts'.split(
     ' ',
   ),
+);
+/** A date after one of these is the last day's: "left last quarter". */
+const LEFT = new Set(
+  'left leaving leaver leavers terminated exited departed quit resigned'.split(' '),
 );
 const BEFORE = new Set(['before', 'until', 'prior', 'earlier']);
 const AFTER = new Set(['after', 'since', 'from']);
@@ -212,6 +230,23 @@ export function shiftDays(date: string, days: number): string {
   return at;
 }
 
+/** A calendar date so many months later or earlier, the day kept where the month has it. */
+export function shiftMonths(date: string, months: number): string {
+  const [y = 2000, m = 1, d = 1] = date.split('-').map(Number);
+  const at = y * 12 + (m - 1) + months;
+  const year = Math.floor(at / 12);
+  const month = (at % 12) + 1;
+  return iso(year, month, Math.min(d, daysIn(year, month)));
+}
+
+/** 0 for Sunday to 6 for Saturday (Sakamoto), with no clock and no `Date`. */
+function weekday(date: string): number {
+  const [y0 = 2000, m = 1, d = 1] = date.split('-').map(Number);
+  const y = m < 3 ? y0 - 1 : y0;
+  const t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4][m - 1] ?? 0;
+  return (y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) + t + d) % 7;
+}
+
 /** "1 October 2026": a calendar date as people say it. */
 export function spokenDate(date: string): string {
   const [y = '', m = '1', d = '1'] = date.split('-');
@@ -247,6 +282,19 @@ function dateAt(ts: readonly Token[], i: number, today: string): Span | null {
     const [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3])];
     return valid(y, mo, d) ? { from: iso(y, mo, d), to: iso(y, mo, d), end: i + 1 } : null;
   }
+  if ((w === 'next' || w === 'this' || w === 'last') && next === 'quarter') {
+    const step = w === 'next' ? 1 : w === 'last' ? -1 : 0;
+    const q = Math.floor((tm - 1) / 3) + step;
+    const y = ty + Math.floor(q / 4);
+    const first = (((q % 4) + 4) % 4) * 3 + 1;
+    return { from: iso(y, first, 1), to: iso(y, first + 2, daysIn(y, first + 2)), end: i + 2 };
+  }
+  if ((w === 'next' || w === 'this' || w === 'last') && next === 'week') {
+    // Monday to Sunday, as a working week is read.
+    const monday = shiftDays(today, -((weekday(today) + 6) % 7));
+    const from = shiftDays(monday, w === 'next' ? 7 : w === 'last' ? -7 : 0);
+    return { from, to: shiftDays(from, 6), end: i + 2 };
+  }
   if ((w === 'next' || w === 'this' || w === 'last') && (next === 'month' || next === 'year')) {
     const step = w === 'next' ? 1 : w === 'last' ? -1 : 0;
     if (next === 'year') {
@@ -270,10 +318,18 @@ function dateAt(ts: readonly Token[], i: number, today: string): Span | null {
     ['next', 'last', 'past', 'coming'].includes(w) &&
     next !== undefined &&
     /^\d{1,3}$/.test(next) &&
-    /^(days?|weeks?)$/.test(unit)
+    /^(days?|weeks?|months?|years?)$/.test(unit)
   ) {
-    const days = Number(next) * (unit.startsWith('week') ? 7 : 1);
-    return w === 'next' || w === 'coming'
+    const n = Number(next);
+    const ahead = w === 'next' || w === 'coming';
+    if (/^(months?|years?)$/.test(unit)) {
+      const months = n * (unit.startsWith('year') ? 12 : 1);
+      return ahead
+        ? { from: today, to: shiftMonths(today, months), end: i + 3 }
+        : { from: shiftMonths(today, -months), to: today, end: i + 3 };
+    }
+    const days = n * (unit.startsWith('week') ? 7 : 1);
+    return ahead
       ? { from: today, to: shiftDays(today, days), end: i + 3 }
       : { from: shiftDays(today, -days), to: today, end: i + 3 };
   }
@@ -335,9 +391,10 @@ const take = (used: Set<number>, from: number, count: number): void => {
 
 /** Words in a company's name that say nothing about which one it is. */
 const GENERIC = new Set(
-  'sl slu sa sas ltd limited inc llc plc gmbh ag bv nv srl spa co company group office branch team the and of'.split(
-    ' ',
-  ),
+  (
+    'sl slu sa sas ltd limited inc llc plc gmbh ag bv nv srl spa co company group office branch team the and of ' +
+    'hq headquarters hub center centre site campus'
+  ).split(' '),
 );
 
 /** The field whose name starts at token `j`: most of its words, then the shortest name. */
@@ -361,6 +418,27 @@ function fieldAt<F extends CatalogueField>(
   return best === null ? null : { field: best.field, length: best.length };
 }
 
+/** A dated metric named just before a date: "documents expiring in the next 30 days". */
+function datedMetric(
+  ts: readonly Token[],
+  used: Set<number>,
+  at: number,
+  fields: readonly CatalogueField[],
+  metrics: readonly Metric[],
+): { field: CatalogueField; cue: number | null } | null {
+  const dated = metrics.filter((m) => m.filter && m.kind === 'date');
+  for (let k = Math.max(0, at - 4); k < at; k += 1) {
+    const hit = metricAt(ts, used, k, fields, dated);
+    if (hit === null) continue;
+    take(used, k, hit.length);
+    return {
+      field: { key: hit.metric.key, label: hit.metric.label, kind: 'date', options: [] },
+      cue: null,
+    };
+  }
+  return null;
+}
+
 /** The date field a sentence means: the start date after "hired", else one it names. */
 function dateField(
   ts: readonly Token[],
@@ -369,6 +447,12 @@ function dateField(
 ): { field: CatalogueField; cue: number | null } | null {
   const dates = fields.filter((f) => f.kind === 'date');
   for (let k = at - 1; k >= Math.max(0, at - 4); k -= 1) {
+    if (LEFT.has(ts[k]?.word ?? '')) {
+      const last =
+        dates.find((f) => f.key === 'last_working_day') ??
+        dates.find((f) => /last\s+(working\s+)?day|leav|termination|exit/iu.test(fold(f.label)));
+      if (last !== undefined) return { field: last, cue: k };
+    }
     if (HIRE.has(ts[k]?.word ?? '')) {
       const hire =
         dates.find((f) => f.key === 'hire_date') ??
@@ -400,8 +484,12 @@ function conditionsFrom(
   used: Set<number>,
   fields: readonly CatalogueField[],
   today: string,
+  metrics: readonly Metric[] = [],
 ): IntentCondition[] {
   const found: { at: number; condition: IntentCondition }[] = [];
+
+  // "more than 3 missing details", "salary above 80k", "over 5 direct reports"
+  for (const c of comparisonsFrom(ts, used, fields, metrics)) found.push(c);
 
   // "missing an emergency contact", "with no manager", "with a work phone"
   for (let i = 0; i < ts.length; i += 1) {
@@ -439,7 +527,7 @@ function conditionsFrom(
           ? 'between'
           : 'in';
     const start = relation === 'in' ? (previous === 'in' || previous === 'on' ? i - 1 : i) : i - 1;
-    const target = dateField(ts, start, fields);
+    const target = dateField(ts, start, fields) ?? datedMetric(ts, used, start, fields, metrics);
     if (target === null) continue;
     let end = span.end;
     let values: string[];
@@ -470,41 +558,74 @@ function conditionsFrom(
   }
 
   // Options: "Barcelona", "Sales or Engineering", "the Madrid entity".
-  const picked: { at: number; length: number; field: CatalogueField; value: string }[] = [];
+  // How many options anywhere carry each word: a word two of them share names neither alone.
+  const wordsOf = new Map<string, number>();
+  for (const f of fields) {
+    for (const o of f.options) {
+      for (const w of new Set(stems(o.label))) wordsOf.set(w, (wordsOf.get(w) ?? 0) + 1);
+    }
+  }
+  // `loose`: one word of a longer name, alone, which gives way to anything beside its field.
+  const picked: {
+    at: number;
+    length: number;
+    field: CatalogueField;
+    value: string;
+    loose?: boolean;
+  }[] = [];
   for (const field of fields) {
     if (field.options.length === 0) continue;
     const fieldWords = new Set(stems(field.label));
     for (const option of field.options) {
+      // A status by the words people use for it too: "serving notice", "pre-hires".
+      const said = [
+        option.label,
+        ...(field.kind === 'status' ? (STATUS_WORDS[option.value] ?? []) : []),
+      ].map(stems);
       const phrase = stems(option.label);
       // An option that is an everyday word ("People", a department) is that
       // option only as a name is written, mid-sentence, or beside its field.
       const everyday = phrase.length === 1 && STOP.has(phrase[0] ?? '');
-      const at = everyday
-        ? ts.findIndex(
-            (t, i) =>
-              !used.has(i) &&
-              t.stem === phrase[0] &&
-              ((i > 0 && /^\p{Lu}/u.test(t.raw)) ||
-                fieldWords.has(ts[i - 1]?.stem ?? '') ||
-                fieldWords.has(ts[i + 1]?.stem ?? '')),
-          )
-        : find(ts, used, phrase);
-      if (at >= 0) {
-        picked.push({ at, length: phrase.length, field, value: option.value });
+      const hit = everyday
+        ? {
+            at: ts.findIndex(
+              (t, i) =>
+                !used.has(i) &&
+                t.stem === phrase[0] &&
+                ((i > 0 && /^\p{Lu}/u.test(t.raw)) ||
+                  fieldWords.has(ts[i - 1]?.stem ?? '') ||
+                  fieldWords.has(ts[i + 1]?.stem ?? '')),
+            ),
+            length: 1,
+          }
+        : said
+            .map((words) => ({ at: find(ts, used, words), length: words.length }))
+            .find((h) => h.at >= 0);
+      if (hit !== undefined && hit.at >= 0) {
+        picked.push({ at: hit.at, length: hit.length, field, value: option.value });
         continue;
       }
-      // One telling word of a long name, only beside the field's own name.
+      // One telling word of a long name: alone when the rest says nothing
+      // ("London" for "London Office") and no other option has it, otherwise
+      // only beside the field's name ("the Madrid entity").
       if (phrase.length < 2) continue;
-      for (const s of phrase.filter((p) => p.length >= 4 && !GENERIC.has(p))) {
+      const telling = phrase.filter((p) => p.length >= 4 && !GENERIC.has(p));
+      for (const s of telling) {
         const i = find(ts, used, [s]);
         if (i < 0) continue;
         const beside = [i - 2, i - 1, i + 1, i + 2].some((k) => fieldWords.has(ts[k]?.stem ?? ''));
-        if (beside) picked.push({ at: i, length: 1, field, value: option.value });
+        const alone = telling.length === 1 && (wordsOf.get(s) ?? 0) === 1;
+        if (beside || alone) {
+          picked.push({ at: i, length: 1, field, value: option.value, loose: !beside });
+        }
       }
     }
   }
-  picked.sort((a, b) => b.length - a.length || a.at - b.at);
-  const values = new Map<string, { at: number; values: string[] }>();
+  picked.sort(
+    (a, b) =>
+      b.length - a.length || Number(a.loose === true) - Number(b.loose === true) || a.at - b.at,
+  );
+  const kept: typeof picked = [];
   for (const p of picked) {
     if ([...Array(p.length).keys()].some((k) => used.has(p.at + k))) continue;
     take(used, p.at, p.length);
@@ -513,14 +634,39 @@ function conditionsFrom(
     for (const k of [p.at - 1, p.at + p.length]) {
       if (fieldWords.has(ts[k]?.stem ?? '')) used.add(k);
     }
-    const entry = values.get(p.field.key) ?? { at: p.at, values: [] };
+    kept.push(p);
+  }
+  const values = new Map<
+    string,
+    { at: number; key: string; op: 'in' | 'not_in'; values: string[] }
+  >();
+  // Where each field's last "none of" ended: "except Finance and People" is neither.
+  const negatedTo = new Map<string, number>();
+  for (const p of kept.toSorted((a, b) => a.at - b.at)) {
+    // "not in Sales", "outside Madrid", "except Engineering": none of them.
+    let not = negatedAt(ts, used, p.at);
+    const before = negatedTo.get(p.field.key);
+    if (
+      not === null &&
+      before !== undefined &&
+      ts.slice(before + 1, p.at).every((t) => ['and', 'or', 'nor'].includes(t.word))
+    ) {
+      not = before + 1;
+    }
+    const op = not === null ? ('in' as const) : ('not_in' as const);
+    if (not !== null) {
+      take(used, not, p.at - not);
+      negatedTo.set(p.field.key, p.at + p.length - 1);
+    }
+    const id = `${p.field.key}:${op}`;
+    const entry = values.get(id) ?? { at: p.at, key: p.field.key, op, values: [] };
     if (!entry.values.includes(p.value)) entry.values.push(p.value);
     entry.at = Math.min(entry.at, p.at);
-    values.set(p.field.key, entry);
+    values.set(id, entry);
   }
-  const options = [...values.entries()]
-    .toSorted((a, b) => a[1].at - b[1].at)
-    .map(([key, v]) => ({ key, op: 'in' as const, values: v.values }));
+  const options = [...values.values()]
+    .toSorted((a, b) => a.at - b.at)
+    .map((v) => ({ key: v.key, op: v.op, values: v.values }));
 
   // A role in the plural ("engineers", "managers", "analysts"): the job title
   // mentions it. Only a role's ending, because a name ("James", "Lewis") ends
@@ -574,7 +720,443 @@ function sortFrom(
     }
     if (w === 'by' && ts[i + 1]?.word === 'name') {
       take(used, i, 2);
+      if (SORTING.has(ts[i - 1]?.word ?? '')) used.add(i - 1);
       return { key: 'name', direction: 'asc' };
+    }
+    // "sorted by start date", "ordered by department"
+    if (w === 'by' && SORTING.has(ts[i - 1]?.word ?? '')) {
+      const hit = fieldAt(ts, used, i + 1, fields);
+      if (hit !== null && hit.field.kind !== 'presence') {
+        take(used, i - 1, hit.length + 2);
+        return { key: hit.field.key, direction: 'asc' };
+      }
+    }
+  }
+  return null;
+}
+
+const SORTING = new Set(['sort', 'sorted', 'order', 'ordered', 'rank', 'ranked']);
+
+/* ------------------------------------------------- rankings and counts -- */
+
+/** How People's statuses are said, beside their labels. */
+const STATUS_WORDS: Readonly<Record<string, readonly string[]>> = {
+  on_leave: ['on leave', 'away on leave', 'off on leave'],
+  notice: [
+    'serving notice',
+    'serving their notice',
+    'notice period',
+    'on their notice',
+    'given notice',
+  ],
+  pre_hire: ['pre hire', 'prehire', 'not started yet', 'yet to start'],
+  terminated: ['left', 'former employee', 'ex employee', 'former staff'],
+};
+
+/** A word that turns an option into "none of it". */
+const NEG = new Set(['not', 'except', 'excluding', 'outside', 'non', 'besides', "aren't", "isn't"]);
+/** Words between "not" and what it negates: "not in the", "outside of", "other than". */
+const NEG_GAP = new Set(['in', 'the', 'of', 'from', 'than', 'based', 'at', 'part']);
+
+/** Where the "not" before token `at` starts, or null when nothing negates it. */
+function negatedAt(ts: readonly Token[], used: ReadonlySet<number>, at: number): number | null {
+  for (let k = at - 1; k >= Math.max(0, at - 4); k -= 1) {
+    if (used.has(k)) return null;
+    const w = ts[k]?.word ?? '';
+    if (NEG.has(w)) return k;
+    if ((w === 'other' || w === 'apart') && NEG_GAP.has(ts[k + 1]?.word ?? '')) return k;
+    if (!NEG_GAP.has(w)) return null;
+  }
+  return null;
+}
+
+/** An order word, and which way it runs. */
+const HIGH = new Set(
+  'highest most max maximum largest biggest greatest longest top latest furthest'.split(' '),
+);
+const LOW = new Set(
+  'lowest least fewest smallest shortest min minimum soonest earliest'.split(' '),
+);
+/** Words between an order word and what it orders: "the highest number of missing details". */
+const FILLER = new Set(['the', 'a', 'an', 'number', 'amount', 'count', 'of', 'total', 'recently']);
+
+/** The words for each metric, as people say them, longest first when read. */
+const METRIC_WORDS: Readonly<Record<string, readonly string[]>> = {
+  missing_count: [
+    'missing fields',
+    'missing details',
+    'missing data',
+    'missing information',
+    'missing info',
+    'missing values',
+    'missing items',
+    'empty fields',
+    'blank fields',
+    'gaps',
+    'incomplete',
+    'missing',
+  ],
+  completeness: ['complete records', 'complete profiles', 'complete', 'completeness'],
+  tenure_days: ['tenure', 'serving', 'service', 'time here', 'time at the company'],
+  direct_reports: ['direct reports', 'reports', 'directs', 'reportees'],
+  team_size: ['team size', 'teams', 'team', 'org', 'organisation', 'organization'],
+  pending_changes: [
+    'pending changes',
+    'pending approvals',
+    'pending requests',
+    'open changes',
+    'changes waiting',
+    'pending',
+  ],
+  next_expiry: [
+    'expiring documents',
+    'documents expiring',
+    'documents expire',
+    'document expires',
+    'expiring',
+    'expiry',
+    'expiries',
+    'expire',
+    'expires',
+  ],
+  updated_at: ['updated', 'edited', 'changed'],
+};
+
+/** The metric whose words start at token `j`, and how many words it took. */
+function metricAt(
+  ts: readonly Token[],
+  used: ReadonlySet<number>,
+  j: number,
+  fields: readonly CatalogueField[],
+  metrics: readonly Metric[],
+): { metric: Metric; length: number } | null {
+  let best: { metric: Metric; length: number } | null = null;
+  for (const metric of metrics) {
+    for (const words of METRIC_WORDS[metric.key] ?? []) {
+      const phrase = stems(words);
+      if (best !== null && phrase.length <= best.length) continue;
+      if (!phrase.every((p, k) => !used.has(j + k) && ts[j + k]?.stem === p)) continue;
+      // "missing" alone is the metric only when no field follows: "most missing bank details" is not.
+      if (words === 'missing' && fieldAt(ts, used, j + 1, fields) !== null) continue;
+      best = { metric, length: phrase.length };
+    }
+  }
+  return best;
+}
+
+/**
+ * "the highest missing details", "biggest team", "expiring soonest", "sorted
+ * by tenure": an order over a metric, marking what it used.
+ */
+function rankFrom(
+  ts: readonly Token[],
+  used: Set<number>,
+  fields: readonly CatalogueField[],
+  metrics: readonly Metric[],
+): DirectoryPlan['sort'] {
+  if (metrics.length === 0) return null;
+  for (let i = 0; i < ts.length; i += 1) {
+    if (used.has(i)) continue;
+    const w = ts[i]?.word ?? '';
+    const way = HIGH.has(w) ? 'desc' : LOW.has(w) ? 'asc' : null;
+    if (way === null) continue;
+    let j = i + 1;
+    while (j < ts.length && !used.has(j) && FILLER.has(ts[j]?.word ?? '')) j += 1;
+    const hit = metricAt(ts, used, j, fields, metrics);
+    if (hit === null) continue;
+    take(used, i, j + hit.length - i);
+    return { key: hit.metric.key, direction: way };
+  }
+  for (let j = 0; j < ts.length; j += 1) {
+    const hit = metricAt(ts, used, j, fields, metrics);
+    if (hit === null) continue;
+    // "expiring soonest", "updated most recently"
+    let k = j + hit.length;
+    const lead = ts[k]?.word ?? '';
+    if ((lead === 'most' || lead === 'least') && ts[k + 1]?.word === 'recently') k += 1;
+    const after = ts[k]?.word ?? '';
+    const way =
+      lead === 'least' || LOW.has(after)
+        ? 'asc'
+        : HIGH.has(after) || lead === 'most'
+          ? 'desc'
+          : null;
+    if (way !== null && !used.has(k)) {
+      take(used, j, k + 1 - j);
+      return { key: hit.metric.key, direction: way };
+    }
+    // "sorted by tenure", "by missing details"
+    if (ts[j - 1]?.word === 'by' && !used.has(j - 1)) {
+      const from = SORTING.has(ts[j - 2]?.word ?? '') ? j - 2 : j - 1;
+      take(used, from, j + hit.length - from);
+      return { key: hit.metric.key, direction: hit.metric.natural };
+    }
+  }
+  return null;
+}
+
+/** Words for one person, which make a ranking "the one with…". */
+const ONE = new Set(
+  'person employee one someone somebody individual colleague joiner starter hire worker member manager'.split(
+    ' ',
+  ),
+);
+/** Words for several, which keep a ranking a list. */
+const MANY = new Set(
+  'people persons employees staff everyone everybody joiners starters hires workers members colleagues managers ones'.split(
+    ' ',
+  ),
+);
+const COUNT = /^\d{1,3}$/u;
+const NEWEST = new Set(['newest', 'latest', 'oldest', 'earliest', 'recent', 'most']);
+
+/** "top 5", "the first 10", "3 people with…": how many, marking what it used. */
+function limitFrom(ts: readonly Token[], used: Set<number>): number | null {
+  for (let i = 0; i < ts.length; i += 1) {
+    if (used.has(i)) continue;
+    const w = ts[i]?.word ?? '';
+    const next = ts[i + 1]?.word ?? '';
+    if ((w === 'top' || w === 'first' || w === 'bottom') && COUNT.test(next) && !used.has(i + 1)) {
+      take(used, i, 2);
+      return Number(next);
+    }
+    const ranks =
+      MANY.has(next) || ONE.has(next) || HIGH.has(next) || LOW.has(next) || NEWEST.has(next);
+    if (COUNT.test(w) && ranks && ts[i - 1]?.word !== 'than') {
+      used.add(i);
+      return Number(w);
+    }
+  }
+  return null;
+}
+
+/** A ranking about one person: "the person with…", "who has the…", "newest joiner". */
+function aboutOne(ts: readonly Token[]): boolean {
+  if (ts.some((t) => MANY.has(t.word))) return false;
+  if (ts[0]?.word === 'who' && ['has', 'is', "who's", 'got'].includes(ts[1]?.word ?? ''))
+    return true;
+  if (ts[0]?.word === "who's" || ts[0]?.word === 'whos') return true;
+  return ts.some((t) => ONE.has(t.word));
+}
+
+const COMPARE: readonly {
+  readonly words: readonly string[];
+  readonly more: boolean;
+  readonly strict: boolean;
+}[] = [
+  { words: ['more', 'than'], more: true, strict: true },
+  { words: ['greater', 'than'], more: true, strict: true },
+  { words: ['higher', 'than'], more: true, strict: true },
+  { words: ['bigger', 'than'], more: true, strict: true },
+  { words: ['at', 'least'], more: true, strict: false },
+  { words: ['over'], more: true, strict: true },
+  { words: ['above'], more: true, strict: true },
+  { words: ['exceeding'], more: true, strict: true },
+  { words: ['less', 'than'], more: false, strict: true },
+  { words: ['fewer', 'than'], more: false, strict: true },
+  { words: ['lower', 'than'], more: false, strict: true },
+  { words: ['at', 'most'], more: false, strict: false },
+  { words: ['under'], more: false, strict: true },
+  { words: ['below'], more: false, strict: true },
+];
+
+/** "80k", "1.5m", "12": a number as typed; null for anything else. */
+function amountOf(word: string): number | null {
+  const m = /^(\d+(?:\.\d+)?)(k|m)?$/u.exec(word);
+  if (m === null) return null;
+  const n = Number(m[1]) * (m[2] === 'k' ? 1000 : m[2] === 'm' ? 1_000_000 : 1);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Words that say pay is being compared, when no field is named. */
+const PAY = new Set(['earning', 'earn', 'earns', 'paid', 'making', 'makes', 'salary', 'pay']);
+
+/**
+ * A number compared: to a metric named after it ("more than 3 missing
+ * details"), to a number field named before it ("salary above 80000"), or
+ * to pay when that is what the words are about. Integers count strictly:
+ * "more than 3" is 4 or more; a field's bound is as typed, as the
+ * directory's "is more than" reads it.
+ */
+function comparisonsFrom(
+  ts: readonly Token[],
+  used: Set<number>,
+  fields: readonly CatalogueField[],
+  metrics: readonly Metric[],
+): { at: number; condition: IntentCondition }[] {
+  const out: { at: number; condition: IntentCondition }[] = [];
+  const numbers = fields.filter((f) => f.kind === 'number');
+  for (let i = 0; i < ts.length; i += 1) {
+    if (used.has(i)) continue;
+    const cmp = COMPARE.find((c) => c.words.every((w, k) => ts[i + k]?.word === w));
+    if (cmp === undefined) continue;
+    const at = i + cmp.words.length;
+    const n = amountOf(ts[at]?.word ?? '');
+    if (n === null || used.has(at)) continue;
+    const op = cmp.more ? ('after' as const) : ('before' as const);
+    const metric = metricAt(
+      ts,
+      used,
+      at + 1,
+      fields,
+      metrics.filter((m) => m.filter && m.kind === 'number'),
+    );
+    if (metric !== null) {
+      const bound = cmp.strict ? (cmp.more ? Math.floor(n) + 1 : Math.ceil(n) - 1) : n;
+      take(used, i, at + 1 + metric.length - i);
+      out.push({ at: i, condition: { key: metric.metric.key, op, values: [String(bound)] } });
+      continue;
+    }
+    let field: { field: CatalogueField; from: number } | null = null;
+    for (let k = i - 1; k >= Math.max(0, i - 5) && field === null; k -= 1) {
+      const hit = fieldAt(ts, used, k, numbers);
+      const end = hit === null ? -1 : k + hit.length;
+      if (hit !== null && (end === i || (end === i - 1 && ts[i - 1]?.word === 'is'))) {
+        field = { field: hit.field, from: k };
+      }
+    }
+    if (field === null && ts.slice(Math.max(0, i - 3), i).some((t) => PAY.has(t.word))) {
+      const pay = numbers.find((f) => /salary|pay|compensation|wage/iu.test(f.label));
+      const cue = ts.findIndex((t, k) => k < i && k >= i - 3 && PAY.has(t.word));
+      if (pay !== undefined) field = { field: pay, from: cue };
+    }
+    if (field === null) continue;
+    take(used, field.from, at + 1 - field.from);
+    out.push({ at: field.from, condition: { key: field.field.key, op, values: [String(n)] } });
+  }
+  return out;
+}
+
+/** The words a team takes after a manager's name. */
+const TEAM = new Set(['team', 'teams', 'org', 'organisation', 'organization']);
+const REPORTS = new Set(['reports', 'report', 'directs', 'reportees']);
+const NOT_A_NAME = new Set([...MONTHS, 'nobody', 'noone', 'none', 'anyone', 'me', 'my', 'i']);
+
+/** Up to three words of a name from token `from`: not a cue, written as a name after the first. */
+function nameFrom(ts: readonly Token[], used: ReadonlySet<number>, from: number): number {
+  let k = from;
+  while (
+    k < ts.length &&
+    k - from < 3 &&
+    !used.has(k) &&
+    !STOP.has(ts[k]?.word ?? '') &&
+    !CUES.has(ts[k]?.word ?? '') &&
+    !NOT_A_NAME.has(ts[k]?.word ?? '') &&
+    !/\d/u.test(ts[k]?.word ?? '') &&
+    (k === from || /^\p{Lu}/u.test(ts[k]?.raw ?? ''))
+  ) {
+    k += 1;
+  }
+  return k - from;
+}
+
+/**
+ * "reports of Marco", "reporting to Marco Rossi", "Marco's team", "under
+ * Marco": the manager as typed, for People to find. Only the name is taken;
+ * who that is, and whether the viewer may see them, is People's to answer.
+ */
+function managerFrom(ts: readonly Token[], used: Set<number>): DirectoryPlan['manager'] {
+  for (let i = 0; i < ts.length; i += 1) {
+    if (used.has(i)) continue;
+    const t = ts[i];
+    if (t === undefined) continue;
+    // "Marco's team", "Marco Rossi's direct reports"
+    const own = /^(.+)['’]s$/u.exec(t.raw);
+    const next = ts[i + 1]?.word ?? '';
+    const reports = REPORTS.has(next) || (next === 'direct' && REPORTS.has(ts[i + 2]?.word ?? ''));
+    if (own !== null && (TEAM.has(next) || reports)) {
+      let first = i;
+      while (
+        first > 0 &&
+        i - first < 2 &&
+        !used.has(first - 1) &&
+        /^\p{Lu}/u.test(ts[first - 1]?.raw ?? '') &&
+        !STOP.has(ts[first - 1]?.word ?? '') &&
+        !CUES.has(ts[first - 1]?.word ?? '')
+      ) {
+        first -= 1;
+      }
+      const name = [...ts.slice(first, i).map((x) => x.raw), own[1] ?? ''].join(' ');
+      if (NOT_A_NAME.has(fold(own[1] ?? ''))) continue;
+      take(used, first, i - first + (next === 'direct' ? 3 : 2));
+      return { name, scope: TEAM.has(next) ? 'all' : 'direct' };
+    }
+    // "reports of Marco", "report to Marco", "reporting to", "managed by", "team of", "under"
+    const w = t.word;
+    const lead =
+      (REPORTS.has(w) || w === 'reporting') && (next === 'of' || next === 'to')
+        ? 2
+        : w === 'managed' && next === 'by'
+          ? 2
+          : TEAM.has(w) && next === 'of'
+            ? 2
+            : w === 'under'
+              ? 1
+              : 0;
+    if (lead === 0) continue;
+    const length = nameFrom(ts, used, i + lead);
+    if (length === 0) continue;
+    const name = ts
+      .slice(i + lead, i + lead + length)
+      .map((x) => x.raw)
+      .join(' ');
+    // "direct reports of", "who report to": the words before are part of it.
+    const start = ts[i - 1]?.word === 'direct' ? i - 1 : i;
+    take(used, start, i + lead + length - start);
+    return { name, scope: TEAM.has(w) || w === 'under' ? 'all' : 'direct' };
+  }
+  return null;
+}
+
+/** What people may be grouped by: a choice, a place, a status, a manager. */
+const GROUPS = new Set(['select', 'status', 'person']);
+
+/**
+ * "which department has the most…", "by location", "per team": a grouping,
+ * marking what it used; `ranked` when it asked which group has the most.
+ */
+function groupFrom(
+  ts: readonly Token[],
+  used: Set<number>,
+  fields: readonly CatalogueField[],
+): { key: string; label: string; ranked: boolean } | null {
+  const groupable = fields.filter((f) => GROUPS.has(f.kind));
+  // The field's name, or the last word of it: "location" for "Work location".
+  const groupAt = (j: number): { field: CatalogueField; length: number } | null => {
+    const hit = fieldAt(ts, used, j, groupable);
+    if (hit !== null) return hit;
+    const field = groupable.find((f) => stems(f.label).at(-1) === ts[j]?.stem && !used.has(j));
+    return field === undefined ? null : { field, length: 1 };
+  };
+  for (let i = 0; i < ts.length; i += 1) {
+    if (used.has(i)) continue;
+    const w = ts[i]?.word ?? '';
+    if (w === 'which' || w === 'what') {
+      const hit = groupAt(i + 1);
+      if (hit === null) continue;
+      let end = i + 1 + hit.length;
+      if (['has', 'have', 'with', 'is'].includes(ts[end]?.word ?? '')) end += 1;
+      while (FILLER.has(ts[end]?.word ?? '') && !used.has(end)) end += 1;
+      const ranked = HIGH.has(ts[end]?.word ?? '') || LOW.has(ts[end]?.word ?? '');
+      if (ranked) end += 1;
+      take(used, i, end - i);
+      return { key: hit.field.key, label: hit.field.label, ranked };
+    }
+    if (
+      ['per', 'each', 'by', 'across', 'every'].includes(w) &&
+      !SORTING.has(ts[i - 1]?.word ?? '')
+    ) {
+      const hit = groupAt(i + 1);
+      if (hit === null) continue;
+      const start = ['grouped', 'group', 'split', 'breakdown', 'down'].includes(
+        ts[i - 1]?.word ?? '',
+      )
+        ? ts[i - 2]?.word === 'broken'
+          ? i - 2
+          : i - 1
+        : i;
+      take(used, start, i + 1 + hit.length - start);
+      return { key: hit.field.key, label: hit.field.label, ranked: false };
     }
   }
   return null;
@@ -585,17 +1167,47 @@ const unusedOf = (ts: readonly Token[], used: ReadonlySet<number>): string[] =>
 
 /* ----------------------------------------------------------- directory -- */
 
-/** The directory from a sentence, by People's own rules. */
+/**
+ * The directory from a sentence, by People's own rules: a manager by name,
+ * a grouping, a ranking over a metric and how many, an order, then the
+ * conditions. `metrics` are those this viewer may order by.
+ */
 export function directoryByRules(
   sentence: string,
   fields: readonly CatalogueField[],
   today: string,
+  metrics: readonly Metric[] = [],
 ): DirectoryPlan {
   const ts = tokens(sentence);
   const used = new Set<number>();
-  const sort = sortFrom(ts, used, fields);
-  const conditions = conditionsFrom(ts, used, fields, today);
-  return { search: null, conditions, match: 'all', sort, unused: unusedOf(ts, used), ask: null };
+  const manager = managerFrom(ts, used);
+  const grouped = groupFrom(ts, used, fields);
+  const limited = limitFrom(ts, used);
+  const sort = rankFrom(ts, used, fields, metrics) ?? sortFrom(ts, used, fields);
+  const conditions = conditionsFrom(ts, used, fields, today, metrics);
+  const one = limited === null && sort !== null && sort.key !== 'name' && aboutOne(ts);
+  // "the person with…", "the manager with the biggest team": the noun said how many.
+  if (one) ts.forEach((t, i) => (ONE.has(t.word) ? used.add(i) : undefined));
+  const limit = limited ?? (one ? 1 : null);
+  const notes: string[] = [];
+  if (grouped?.ranked === true) {
+    notes.push(
+      `The directory doesn’t rank groups, so the people found are grouped by ${grouped.label.toLowerCase()}, each group with how many it holds.`,
+    );
+  }
+  return {
+    search: null,
+    conditions,
+    match: 'all',
+    // Grouped, the directory orders by the group.
+    sort: grouped === null ? sort : null,
+    limit: grouped === null ? limit : null,
+    group: grouped?.key ?? null,
+    manager,
+    notes,
+    unused: unusedOf(ts, used),
+    ask: null,
+  };
 }
 
 const CUES = new Set([
@@ -617,6 +1229,11 @@ const CUES = new Set([
   'latest',
   'earliest',
   'between',
+  'quarter',
+  ...HIGH,
+  ...LOW,
+  ...NEG,
+  ...LEFT,
 ]);
 
 /** One email address, which goes straight to whoever has it. */
@@ -633,7 +1250,13 @@ export function isPlainSearch(sentence: string, fields: readonly CatalogueField[
   if (ts.length === 0 || ts.length > 4) return false;
   if (ts.some((t) => /\d/u.test(t.word) || CUES.has(t.word))) return false;
   const plan = directoryByRules(sentence, fields, '2000-01-01');
-  return plan.conditions.length === 0 && plan.sort === null;
+  return (
+    plan.conditions.length === 0 &&
+    plan.sort === null &&
+    plan.manager === null &&
+    plan.group === null &&
+    plan.limit === null
+  );
 }
 
 /** What the model may be told of each field. */
@@ -648,15 +1271,25 @@ export function forModel(fields: readonly PlannedField[]): CatalogueField[] {
 /** Which operators each kind of field takes: the directory's own (`OPERATORS` on screen). */
 const FITS: Readonly<Record<string, readonly IntentOp[]>> = {
   text: ['contains', 'is', 'empty', 'not_empty'],
-  select: ['in', 'empty', 'not_empty'],
-  status: ['in'],
+  select: ['in', 'not_in', 'empty', 'not_empty'],
+  status: ['in', 'not_in'],
   date: ['between', 'before', 'after', 'empty', 'not_empty'],
   number: ['is', 'before', 'after', 'empty', 'not_empty'],
   person: ['empty', 'not_empty'],
   presence: ['empty', 'not_empty'],
 };
 
-const OPS = ['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty'] as const;
+const OPS = [
+  'is',
+  'in',
+  'not_in',
+  'contains',
+  'before',
+  'after',
+  'between',
+  'empty',
+  'not_empty',
+] as const;
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 const ConditionAnswer = z.strictObject({
@@ -680,7 +1313,13 @@ function checkedCondition(
   if (!(FITS[field.kind] ?? FITS['text'] ?? []).includes(op)) return null;
   const values = op === 'empty' || op === 'not_empty' ? [] : c.values.map((v) => v.trim());
   const arity =
-    op === 'between' ? 2 : op === 'in' ? -1 : op === 'empty' || op === 'not_empty' ? 0 : 1;
+    op === 'between'
+      ? 2
+      : op === 'in' || op === 'not_in'
+        ? -1
+        : op === 'empty' || op === 'not_empty'
+          ? 0
+          : 1;
   if (arity >= 0 && values.length !== arity) return null;
   if (arity < 0 && values.length === 0) return null;
   if (field.kind === 'date' && values.length > 0) {
@@ -737,10 +1376,29 @@ const DirectoryAnswer = z.strictObject({
     .strictObject({ key: z.string().max(64), direction: z.enum(['asc', 'desc']) })
     .nullable()
     .default(null),
+  limit: z.number().int().min(1).max(1000).nullable().default(null),
+  groupBy: z.string().max(64).nullable().default(null),
+  manager: z
+    .strictObject({
+      name: z.string().trim().min(1).max(80),
+      scope: z.enum(['direct', 'all']).default('direct'),
+    })
+    .nullable()
+    .default(null),
   search: z.string().trim().max(120).nullable().default(null),
 });
 
 const NAME = /^[\p{L}][\p{L}'’. -]*$/u;
+/** What a model writes for "no name", which is never a person's. */
+const NO_NAME = /^(null|none|nil|undefined|n\/?a|nobody|no one|anyone|everyone|me|myself)$/iu;
+const asName = (s: string | null): string | null =>
+  s !== null && s !== '' && NAME.test(s) && !NO_NAME.test(s.trim()) ? s : null;
+
+/** The metrics a condition may name, as the fields they read like. */
+const asFields = (metrics: readonly Metric[]): CatalogueField[] =>
+  metrics
+    .filter((m) => m.filter)
+    .map((m) => ({ key: m.key, label: m.label, kind: m.kind, options: [] }));
 
 /**
  * The model's answer for the directory, read against the fields it was
@@ -750,19 +1408,37 @@ const NAME = /^[\p{L}][\p{L}'’. -]*$/u;
 export function readDirectoryAnswer(
   text: string,
   shown: readonly CatalogueField[],
+  metrics: readonly Metric[] = [],
 ): DirectoryPlan | null {
   const parsed = DirectoryAnswer.safeParse(firstObject(text));
   if (!parsed.success) return null;
   const a = parsed.data;
-  const conditions = conditionsChecked(a.conditions, shown);
+  const runnable = [...shown, ...asFields(metrics)];
+  const conditions = conditionsChecked(a.conditions, runnable);
   if (conditions === null) return null;
   let sort: DirectoryPlan['sort'] = null;
   if (a.sort !== null) {
-    const field = shown.find((f) => f.key === a.sort?.key);
-    if (a.sort.key !== 'name' && (field === undefined || field.kind === 'presence')) return null;
+    const key = a.sort.key;
+    const field = shown.find((f) => f.key === key);
+    const metric = metrics.some((m) => m.key === key);
+    if (key !== 'name' && !metric && (field === undefined || field.kind === 'presence')) {
+      return null;
+    }
     sort = a.sort;
   }
-  const search = a.search !== null && a.search !== '' && NAME.test(a.search) ? a.search : null;
+  let group: string | null = null;
+  if (a.groupBy !== null) {
+    const field = shown.find((f) => f.key === a.groupBy);
+    if (field === undefined || !GROUPS.has(field.kind)) return null;
+    group = field.key;
+  }
+  let manager: DirectoryPlan['manager'] = null;
+  if (a.manager !== null) {
+    const name = asName(a.manager.name);
+    if (name === null) return null;
+    manager = { name, scope: a.manager.scope };
+  }
+  const search = asName(a.search);
   let ask: DirectoryPlan['ask'] = null;
   if (a.ask !== null) {
     // Words the screen shows as they are: plain, and nothing shaped like somebody's value.
@@ -782,30 +1458,73 @@ export function readDirectoryAnswer(
       })),
     };
   }
-  if (conditions.length === 0 && sort === null && search === null && ask === null) return null;
-  return { search, conditions, match: a.match, sort, unused: [], ask };
+  if (
+    conditions.length === 0 &&
+    sort === null &&
+    search === null &&
+    ask === null &&
+    group === null &&
+    manager === null
+  ) {
+    return null;
+  }
+  return {
+    search,
+    conditions,
+    match: a.match,
+    sort: group === null ? sort : null,
+    // How many only means something in an order.
+    limit: sort === null || group !== null ? null : a.limit,
+    group,
+    manager,
+    notes: [],
+    unused: [],
+    ask,
+  };
 }
 
-export const DIRECTORY_INSTRUCTION = `You turn what somebody typed into the search box of a company's employee directory into the directory's own filters. Answer with ONE JSON object and nothing else, in exactly this shape:
-{"conditions":[{"key":"<field key>","op":"<op>","values":["..."]}],"match":"all","sort":{"key":"<field key or name>","direction":"asc"}|null,"search":"<a person's name>"|null}
+export const DIRECTORY_INSTRUCTION = `You turn what somebody typed into the search box of a company's employee directory into the directory's own filters and order. Answer with ONE JSON object and nothing else, in exactly this shape:
+{"conditions":[{"key":"<field or metric key>","op":"<op>","values":["..."]}],"match":"all","sort":{"key":"<field key, metric key or name>","direction":"asc"|"desc"}|null,"limit":<a whole number>|null,"groupBy":"<field key>"|null,"manager":{"name":"<a manager's name as typed>","scope":"direct"|"all"}|null,"search":"<a person's name>"|null}
 
-You are given what was typed ("sentence"), today's date, and the fields this person may filter by, each with its key, label, kind and, for a choice, its options.
-- Ops by kind. text: contains, is, empty, not_empty. select: in, empty, not_empty (values are option values). status: in. date: between (two dates), before, after (one date, bounds included), empty, not_empty. number: is, before (less than), after (more than), empty, not_empty. person: empty, not_empty. presence: empty, not_empty only.
-- Dates are YYYY-MM-DD. "starting next month" is the start date between the first and the last day of next month; "hired before 2024" is before the last day of 2023.
+You are given what was typed ("sentence"), today's date ("today"), the fields this person may filter by (key, label, kind and, for a choice, its options), the metrics People works out about each person that this person may sort by ("metrics": key, label, kind, whether a condition may name it, and the order in words both ways), and the operators each kind takes ("operators"). Those lists are everything this person is allowed to use: nothing else will run.
+- Ops by kind. text: contains, is, empty, not_empty. select: in, not_in, empty, not_empty (values are option values). status: in, not_in. date: between (two dates), before, after (one date, bounds included), empty, not_empty. number: is, before (at most), after (at least), empty, not_empty. person: empty, not_empty. presence: empty, not_empty only.
+- Dates are YYYY-MM-DD, worked out from today. "starting next month" is the start date between the first and the last day of next month; "hired before 2024" is before the last day of 2023; "in the last 6 months" is between six months ago and today; "last quarter" is the previous calendar quarter.
+- Negation: "not in Sales", "outside Madrid", "except Engineering" is not_in. "without a manager" is that field empty.
+- Numbers: "more than 3 missing details" is the metric missing_count after 4; "salary above 80000" is that number field after 80000. Only number fields and metrics that may be conditions take numbers.
+- Rankings: "highest", "most", "biggest", "longest", "fewest", "soonest", "newest", "top 5" are a sort, desc for the most and asc for the fewest, on a metric or a field ("newest" is the start date, desc). "the person with…", "who has the…" or "newest joiner" is limit 1; "top 5" is limit 5; a list of people has no limit.
+- Group-by questions ("which department has the most people missing an address"): the conditions, and groupBy the select, status or person field asked about. No sort then.
+- A manager by name ("reports of Marco", "Marco's team"): manager with the name as typed, scope direct for reports and all for a whole team. Never a condition on the manager field for a name.
 - A job, a role or a title ("engineers", "managers") is a text field such as the job title, with contains and the word in its singular form.
 - "missing X" or "without X" is X empty; "with X" is X not_empty.
-- "search" is only for a person's name that was typed; otherwise null.
+- "search" is only for a person's name that was typed and nothing else; otherwise null, never the word null.
 - When a part could mean two or more different things the fields can express, do not pick one: leave it out of "conditions" and add "ask":{"phrase":"<those words as typed>","options":[{"label":"<a few plain words>","conditions":[...],"match":"all"}]} with 2 to 4 options. Otherwise omit "ask".
 - Never judge people: how good they are at something, how well they work, what they might do, their health, beliefs or other sensitive traits are not fields. Leave such words out.
-- sort only when an order was asked for ("newest" is the start date, desc).
-- Use only the keys given. Never invent a field, an option or a value. When you cannot tell, leave it out.`;
+- sort only when an order was asked for.
+- Use only the keys given. Never invent a field, a metric, an option or a value. When you cannot tell, leave it out.`;
+
+const OPERATORS: Readonly<Record<string, readonly IntentOp[]>> = FITS;
 
 export function directoryContext(
   sentence: string,
   shown: readonly CatalogueField[],
   today: string,
+  metrics: readonly Metric[] = [],
 ): Record<string, unknown> {
-  return { sentence, today: spokenDate(today), fields: shown };
+  return {
+    sentence,
+    // In words: a bare ISO date is shaped like somebody's birthday to the gateway.
+    today: spokenDate(today),
+    fields: shown,
+    metrics: metrics.map((m) => ({
+      key: m.key,
+      label: m.label,
+      kind: m.kind,
+      condition: m.filter,
+      desc: m.most,
+      asc: m.least,
+    })),
+    operators: OPERATORS,
+  };
 }
 
 /* -------------------------------------------------------------- export -- */

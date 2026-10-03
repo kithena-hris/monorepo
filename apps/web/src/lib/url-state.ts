@@ -108,6 +108,12 @@ export function sortOf(raw: string | null | undefined): string | null {
   return raw != null && /^[a-z][a-z0-9_]*:(asc|desc)$/.test(raw) ? raw : null;
 }
 
+/** `?top=5`: at most this many people, or null for everybody found. */
+export function topOf(raw: string | null | undefined): number | null {
+  const n = raw != null && /^\d{1,4}$/.test(raw) ? Number(raw) : 0;
+  return n >= 1 && n <= 1000 ? n : null;
+}
+
 /** A query-string value, or null for one that was not given. */
 const given = (value: string | undefined): string | null =>
   value === undefined || value.trim() === '' ? null : value;
@@ -115,7 +121,7 @@ const given = (value: string | undefined): string | null =>
 /**
  * The directory's page, as the address asks for it, in People's variables:
  * `q` the search, `filter`, `conditions` (all of them, or `match=any`),
- * `sort`, `segment`, `incomplete=true`, and `after` a page. Anything garbled
+ * `sort`, `top`, `segment`, `incomplete=true`, and `after` a page. Anything garbled
  * is as if it were not there.
  */
 export function directoryQuery(search: Readonly<Record<string, string>>): {
@@ -127,6 +133,7 @@ export function directoryQuery(search: Readonly<Record<string, string>>): {
   conditions: { key: string; op: string; values: string[] }[] | null;
   match: 'any' | null;
   sort: string | null;
+  top: number | null;
 } {
   const filter = Object.entries(filtersOf(search['filter']))
     .map(([k, v]) => `${k}:${v}`)
@@ -140,5 +147,6 @@ export function directoryQuery(search: Readonly<Record<string, string>>): {
     conditions: conditionsOf(search['conditions']),
     match: search['match'] === 'any' ? ('any' as const) : null,
     sort: sortOf(search['sort']),
+    top: topOf(search['top']),
   };
 }

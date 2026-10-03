@@ -76,7 +76,8 @@ describe('the directory’s address', () => {
         incomplete: 'true',
         conditions: '[{"key":"status","op":"in","values":["active"]}]',
         match: 'any',
-        sort: 'hire_date:desc',
+        sort: 'missing_count:desc',
+        top: '1',
       }),
     ).toEqual({
       search: 'ada',
@@ -86,7 +87,8 @@ describe('the directory’s address', () => {
       incomplete: true,
       conditions: [{ key: 'status', op: 'in', values: ['active'] }],
       match: 'any',
-      sort: 'hire_date:desc',
+      sort: 'missing_count:desc',
+      top: 1,
     });
   });
 
@@ -100,6 +102,7 @@ describe('the directory’s address', () => {
       conditions: null,
       match: null,
       sort: null,
+      top: null,
     };
     expect(
       directoryQuery({
@@ -109,6 +112,7 @@ describe('the directory’s address', () => {
         conditions: '{not json',
         match: 'some',
         sort: 'name; drop table',
+        top: '0',
       }),
     ).toEqual(none);
     expect(directoryQuery({})).toEqual(none);

@@ -829,11 +829,26 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       conditions: t.field({ type: [DirectoryCondition], resolve: (q) => list(q.conditions) }),
       match: t.exposeString('match'),
       sort: t.field({ type: DirectorySort, nullable: true, resolve: (q) => q.sort }),
+      top: t.exposeInt('top', { nullable: true, description: 'At most this many people.' }),
     }),
   });
+  const DirectoryMetric = builder
+    .objectRef<Directory['metrics'][number]>('DirectoryMetric')
+    .implement({
+      description:
+        'Something People works out about each person that the directory may be ordered by: missing details, tenure, reports.',
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        kind: t.exposeString('kind', { description: 'number or date.' }),
+        filter: t.exposeBoolean('filter', { description: 'A condition may name it too.' }),
+        most: t.exposeString('most', { description: 'The descending order in words.' }),
+        least: t.exposeString('least', { description: 'The ascending order in words.' }),
+      }),
+    });
   const DirectoryConditionInput = builder.inputType('DirectoryConditionInput', {
     description:
-      'One condition: is, in, contains, before, after, between, empty, not_empty, or under (the reporting line).',
+      'One condition: is, in, not_in, contains, before, after, between, empty, not_empty, or under (the reporting line).',
     fields: (t) => ({
       key: t.string({ required: true }),
       op: t.string({ required: true }),
@@ -911,6 +926,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       columns: t.field({ type: [Column], resolve: (v) => list(v.columns) }),
       filterable: t.field({ type: [Filterable], resolve: (v) => list(v.filterable) }),
       fields: t.field({ type: [DirectoryField], resolve: (v) => list(v.fields) }),
+      metrics: t.field({ type: [DirectoryMetric], resolve: (v) => list(v.metrics) }),
       query: t.field({ type: DirectoryQuery, resolve: (v) => v.query }),
       people: t.field({ type: [DirectoryPerson], resolve: (v) => list(v.people) }),
       next: t.exposeString('next', { nullable: true }),
@@ -2033,10 +2049,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         }),
         conditions: t.arg({ type: [DirectoryConditionInput] }),
         match: t.arg.string({ description: 'all (default) or any.' }),
-        sort: t.arg.string({ description: '`key:asc` or `key:desc`; `name` sorts by name.' }),
+        sort: t.arg.string({
+          description: '`key:asc` or `key:desc`; `name` sorts by name, and a metric by itself.',
+        }),
+        top: t.arg.int({ description: 'At most this many people, in the order asked.' }),
       },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
+        if (args.top != null) query.set('top', String(args.top));
         if (args.conditions && args.conditions.length > 0) {
           query.set('conditions', JSON.stringify(args.conditions));
         }

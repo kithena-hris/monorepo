@@ -4,6 +4,7 @@ import * as z from 'zod';
 
 import { sift, type Topic } from '../../domain/assistant/clarify.js';
 import type { IntentCondition } from '../../domain/assistant/intent.js';
+import { REPORTS_TO } from '../person/person-access.js';
 import type { PlanBudget } from '../../domain/import/new-fields.js';
 import {
   DIRECTORY_INSTRUCTION,
@@ -28,7 +29,7 @@ import type { Condition } from '../person/ports.js';
 import { exportBuilderView, type ExportBuilderView } from '../screens/operations.js';
 import { requestDetailsOfMany } from '../screens/requests.js';
 import { nameOf, type ScreenDeps } from '../screens/record.js';
-import { describe, filterFields } from './ask.js';
+import { describe, filterFields, metricsFor } from './ask.js';
 import type { AssistantPort } from './assistant-port.js';
 
 /**
@@ -76,6 +77,12 @@ export interface DirectoryPlanView {
   readonly match: 'all' | 'any';
   /** `key:asc` or `key:desc`, as the directory's address carries it; null for its own order. */
   readonly sort: string | null;
+  /** At most this many people ("top 5", "the person with…"); null for everybody found. */
+  readonly top: number | null;
+  /** A field to group the people found by, for "which department has the most…". */
+  readonly group: string | null;
+  /** What was read and how, and what was not, in words: said, never hidden. */
+  readonly notes: readonly string[];
   /** Words nothing was made of, to say so. */
   readonly unused: readonly string[];
   readonly by: ReadBy;
@@ -190,6 +197,54 @@ async function counted(
   return n.ok ? n.value.all : null;
 }
 
+/**
+ * The manager a sentence named, as this person may find people: one is their
+ * team (direct reports, or everybody below them); several are asked about,
+ * each with how many it finds; none is said. Exact full names win over
+ * partial ones, so "Ana Lopez" is not also "Ana Lopez-Garcia".
+ */
+async function managerOf(
+  deps: SelectionDeps,
+  asking: Asking,
+  manager: { readonly name: string; readonly scope: 'direct' | 'all' },
+): Promise<
+  | { readonly condition: IntentCondition }
+  | {
+      readonly phrase: string;
+      readonly readings: readonly {
+        label: string;
+        conditions: readonly IntentCondition[];
+        match: 'all';
+      }[];
+    }
+  | { readonly note: string }
+> {
+  const found = await run(deps.service, asking.tenantId, (tx) =>
+    deps.service.access.list(tx, { ...asking, search: manager.name, limit: 5 }),
+  );
+  if (!found.ok) {
+    return { note: `You can’t search people by name here, so “${manager.name}” was left out.` };
+  }
+  const people = found.value.items.map((p) => ({ id: p.id, name: nameOf(p.attributes) ?? '' }));
+  const exact = people.filter((p) => p.name.toLowerCase() === manager.name.toLowerCase());
+  const candidates = exact.length > 0 ? exact : people;
+  const op = manager.scope === 'all' ? ('under' as const) : ('is' as const);
+  const condition = (id: string): IntentCondition => ({ key: REPORTS_TO, op, values: [id] });
+  const [one] = candidates;
+  if (one === undefined) {
+    return { note: `Nobody called “${manager.name}” is in the directory for you.` };
+  }
+  if (candidates.length === 1) return { condition: condition(one.id) };
+  return {
+    phrase: manager.name,
+    readings: candidates.map((p) => ({
+      label: p.name,
+      conditions: [condition(p.id)],
+      match: 'all' as const,
+    })),
+  };
+}
+
 /** Two selections as one: all of both, or the second alone when the first is empty. */
 const joined = (
   base: readonly IntentCondition[],
@@ -215,21 +270,32 @@ export async function planDirectory(
   input: DirectoryAsk,
 ): Promise<Result<DirectoryPlanView>> {
   const sentence = input.sentence.trim();
-  const fields = await run(deps.service, asking.tenantId, async (tx) =>
-    ok(await filterFields(deps, tx, asking)),
+  const loaded = await run(deps.service, asking.tenantId, async (tx) =>
+    ok({
+      fields: await filterFields(deps, tx, asking),
+      metrics: await metricsFor(deps, tx, asking),
+    }),
   );
-  if (!fields.ok) return fields;
-  if (isEmail(sentence) || isPlainSearch(sentence, fields.value)) {
-    // One match is that person; none or several, the names to choose from.
+  if (!loaded.ok) return loaded;
+  const fields = { value: loaded.value.fields };
+  const metrics = loaded.value.metrics;
+  // One match is that person; none or several, the names to choose from.
+  const byName = async () => {
     const found = await run(deps.service, asking.tenantId, (tx) =>
       deps.service.access.list(tx, { ...asking, search: sentence, limit: 2 }),
     );
-    const one = found.ok && found.value.items.length === 1 ? found.value.items[0] : undefined;
-    return ok({
+    return found.ok ? found.value.items : [];
+  };
+  const asSearch = (found: readonly PersonView[]): DirectoryPlanView => {
+    const one = found.length === 1 ? found[0] : undefined;
+    return {
       search: sentence,
       conditions: [],
       match: 'all',
       sort: null,
+      top: null,
+      group: null,
+      notes: [],
       unused: [],
       by: 'search',
       note: null,
@@ -237,12 +303,15 @@ export async function planDirectory(
       ask: null,
       refused: [],
       remembered: null,
-    });
+    };
+  };
+  if (isEmail(sentence) || isPlainSearch(sentence, fields.value)) {
+    return ok(asSearch(await byName()));
   }
   const today = deps.clock.instant().slice(0, 10);
   const sifted = sift(sentence, fields.value, today, input.remembered ?? {});
   const rest = sifted.rest;
-  const rules = directoryByRules(rest, fields.value, today);
+  const rules = directoryByRules(rest, fields.value, today, metrics);
   const shown = forModel(fields.value);
   // Already asking, or nothing left to read: the model is not asked to guess.
   const consulted: Consulted | null =
@@ -250,21 +319,38 @@ export async function planDirectory(
       ? null
       : await consult(deps, asking, deps.searchBudget, {
           instruction: DIRECTORY_INSTRUCTION,
-          context: directoryContext(rest, shown, today),
+          context: directoryContext(rest, shown, today, metrics),
           about: 'configuration',
         });
   const heard =
     consulted !== null && 'answer' in consulted
-      ? readDirectoryAnswer(consulted.answer, shown)
+      ? readDirectoryAnswer(consulted.answer, shown, metrics)
       : null;
   const plan = heard ?? rules;
+  const notes = [...plan.notes];
+  const unused = [...plan.unused];
+
+  // A manager by name: found as this person may find people, never by the model.
+  const byManager = fields.value.some((f) => f.key === REPORTS_TO);
+  const boss =
+    plan.manager === null
+      ? null
+      : byManager
+        ? await managerOf(deps, asking, plan.manager)
+        : { note: 'You can’t narrow the directory by manager, so the team was left out.' };
+  if (plan.manager !== null && boss !== null && 'note' in boss) {
+    notes.push(boss.note);
+    unused.push(plan.manager.name);
+  }
+  const own =
+    boss !== null && 'condition' in boss ? [...plan.conditions, boss.condition] : plan.conditions;
   const chosen = sifted.reading;
   const selection =
     chosen === null
-      ? { conditions: plan.conditions, match: plan.match }
-      : joined(plan.conditions, chosen.conditions, chosen.match);
+      ? { conditions: own, match: plan.match }
+      : joined(own, chosen.conditions, chosen.match);
 
-  const asked = sifted.clarify ?? plan.ask;
+  const asked = sifted.clarify ?? (boss !== null && 'readings' in boss ? boss : null) ?? plan.ask;
   const readings: NonNullable<DirectoryPlanView['ask']>['readings'][number][] = [];
   for (const r of asked?.readings ?? []) {
     const whole = joined(selection.conditions, r.conditions, r.match);
@@ -290,12 +376,29 @@ export async function planDirectory(
             },
     });
   }
+  const understood =
+    selection.conditions.length > 0 ||
+    plan.sort !== null ||
+    plan.group !== null ||
+    plan.limit !== null ||
+    plan.search !== null ||
+    asked !== null ||
+    refused.length > 0;
+  if (!understood) {
+    // A long name is still a name: whoever it finds, as a search would.
+    const found = await byName();
+    if (found.length > 0) return ok(asSearch(found));
+    notes.push('None of it is a field or an order People knows, so this is everybody you can see.');
+  }
   return ok({
     search: plan.search,
     conditions: selection.conditions,
     match: selection.match,
     sort: sortOf(plan.sort),
-    unused: plan.unused,
+    top: plan.limit,
+    group: plan.group,
+    notes,
+    unused,
     by: heard === null ? 'rules' : 'assistant',
     note:
       heard !== null || consulted === null
@@ -318,7 +421,18 @@ export const DirectoryRemind = z.strictObject({
     .array(
       z.strictObject({
         key: z.string().max(64),
-        op: z.enum(['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty']),
+        op: z.enum([
+          'is',
+          'in',
+          'not_in',
+          'contains',
+          'before',
+          'after',
+          'between',
+          'empty',
+          'not_empty',
+          'under',
+        ]),
         values: z.array(z.string().max(200)).max(50),
       }),
     )

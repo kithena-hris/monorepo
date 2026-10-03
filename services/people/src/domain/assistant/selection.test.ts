@@ -208,6 +208,10 @@ describe('reading the model’s answer for the directory, strictly', () => {
       ],
       match: 'all',
       sort: null,
+      limit: null,
+      group: null,
+      manager: null,
+      notes: [],
       unused: [],
       ask: null,
     });

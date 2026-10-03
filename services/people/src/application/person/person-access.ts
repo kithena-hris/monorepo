@@ -21,6 +21,7 @@ import {
   type ViewerRelations,
 } from '../../domain/access/field-access.js';
 import { assessCompleteness, type CompletenessVerdict } from '../../domain/person/completeness.js';
+import { METRICS, metricAllowed, metricOf, type Metric } from '../../domain/person/metrics.js';
 import {
   arrived,
   correct,
@@ -611,6 +612,7 @@ const ARITY: Readonly<Record<ConditionOp, readonly [number, number]>> = {
   empty: [0, 0],
   not_empty: [0, 0],
   under: [1, 1],
+  not_in: [1, MAX_VALUES],
 };
 
 /**
@@ -631,11 +633,21 @@ export function refinable(
     return err(failure('TOO_MANY_CONDITIONS', `At most ${String(MAX_CONDITIONS)} conditions`));
   }
   const byKey = new Map(definitions.map((d) => [d.key as string, d]));
-  const readable = (key: string): boolean => {
+  const field = (key: string): boolean => {
     if (key === 'status') return everyone.isHr;
     const definition = byKey.get(key);
     return definition !== undefined && !definition.encrypted && visibleTo(definition, everyone);
   };
+  // A metric (`domain/person/metrics.ts`) is its fields' to give, or HR's.
+  const metric = (key: string, filtering: boolean): boolean | null => {
+    const m = metricOf(key);
+    if (m === undefined) return null;
+    return (
+      (!filtering || m.filter) &&
+      metricAllowed(m, everyone.isHr, field, (k) => byKey.has(k) || k === 'status')
+    );
+  };
+  const readable = (key: string, filtering = true): boolean => metric(key, filtering) ?? field(key);
   for (const c of conditions) {
     if (!readable(c.key)) {
       return err(failure('FIELD_NOT_FILTERABLE', `You cannot filter people by ${c.key}`, [c.key]));
@@ -655,13 +667,30 @@ export function refinable(
     }
   }
   const sort = refine.sort;
-  if (sort !== undefined && sort.key !== 'name' && !readable(sort.key)) {
+  if (sort !== undefined && sort.key !== 'name' && !readable(sort.key, false)) {
     return err(failure('FIELD_NOT_SORTABLE', `You cannot sort people by ${sort.key}`, [sort.key]));
   }
   if (refine.offset !== undefined && (refine.offset < 0 || refine.offset > 100_000)) {
     return err(failure('CONDITION_INVALID', 'Offset out of range'));
   }
   return ok(undefined);
+}
+
+/** The metrics this viewer may order by, and narrow by where a metric is a filter. */
+export function usableMetrics(
+  definitions: readonly AttributeDefinition[],
+  everyone: ViewerRelations,
+): Metric[] {
+  return METRICS.filter(
+    (m) =>
+      refinable(definitions, { sort: { key: m.key, direction: 'asc' } }, everyone).ok &&
+      (!m.filter ||
+        refinable(
+          definitions,
+          { conditions: [{ key: m.key, op: 'not_empty', values: [] }] },
+          everyone,
+        ).ok),
+  );
 }
 
 /**

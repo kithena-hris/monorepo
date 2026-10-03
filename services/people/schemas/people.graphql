@@ -451,7 +451,7 @@ type DirectoryCondition {
 }
 
 """
-One condition: is, in, contains, before, after, between, empty, not_empty, or under (the reporting line).
+One condition: is, in, not_in, contains, before, after, between, empty, not_empty, or under (the reporting line).
 """
 input DirectoryConditionInput {
   key: String!
@@ -472,6 +472,22 @@ type DirectoryFilter {
   key: String
   label: String
   options: [FieldOption!]
+}
+
+"""
+Something People works out about each person that the directory may be ordered by: missing details, tenure, reports.
+"""
+type DirectoryMetric {
+  """A condition may name it too."""
+  filter: Boolean
+  key: String
+  """number or date."""
+  kind: String
+  label: String
+  """The ascending order in words."""
+  least: String
+  """The descending order in words."""
+  most: String
 }
 
 type DirectoryPerson {
@@ -499,6 +515,8 @@ type DirectoryQuery {
   conditions: [DirectoryCondition!]
   match: String
   sort: DirectorySort
+  """At most this many people."""
+  top: Int
 }
 
 type DirectorySort {
@@ -1658,6 +1676,7 @@ type PeopleDirectory {
   fields: [DirectoryField!]
   filterable: [DirectoryFilter!]
   incomplete: Int
+  metrics: [DirectoryMetric!]
   next: String
   notStarted: Int
   people: [DirectoryPerson!]
@@ -2365,8 +2384,10 @@ type Query {
     match: String
     search: String
     segment: ID
-    """`key:asc` or `key:desc`; `name` sorts by name."""
+    """`key:asc` or `key:desc`; `name` sorts by name, and a metric by itself."""
     sort: String
+    """At most this many people, in the order asked."""
+    top: Int
   ): PeopleDirectory
   """
   What somebody typed in the directory, as its own filters and order (JSON). A name alone is a name search. The model, where there is one, sees the sentence and field names only.

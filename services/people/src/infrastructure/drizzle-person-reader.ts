@@ -29,6 +29,7 @@ import {
 } from '../application/person/ports.js';
 import type { Arrivals, Leavers, Scheduled } from '../application/person/start.js';
 import type { GapFigures, GapTotals } from '../application/screens/record.js';
+import { EXPIRY_KEYS } from '../domain/person/metrics.js';
 import { reminderDueBefore } from '../domain/person/reminder-cadence.js';
 import type { PersonState } from '../domain/person/person.js';
 import { deepFreeze, type PublishedVersion, type SchemaDocument } from '../domain/schema/publish.js';
@@ -187,6 +188,8 @@ function matching(
  * order is date order.
  */
 function fieldSql(key: string): SQL {
+  const metric = metricSql(key);
+  if (metric !== null) return sql`(${metric})::text`;
   if (key === 'status') return sql`${person.status}::text`;
   if (key === 'hire_date') return sql`${person.hireDate}::text`;
   if (Object.hasOwn(CORE_COLUMNS, key)) {
@@ -194,6 +197,62 @@ function fieldSql(key: string): SQL {
     return sql`${column}::text`;
   }
   return sql`(${person.custom} ->> ${key})`;
+}
+
+const stillHere = sql.raw(`(${LEAVERS.map((l) => `'${l}'`).join(', ')})`);
+
+/** Missing values, as the gap row holds the verdict: one probe by the person's key. */
+const missingSql = sql`coalesce((
+  SELECT cardinality(ARRAY(SELECT DISTINCT unnest(g.staff_keys || g.employee_keys)))
+    FROM people.completeness_gap g
+   WHERE g.tenant_id = ${person.tenantId} AND g.person_id = ${person.id}), 0)`;
+
+/**
+ * A metric (`domain/person/metrics.ts`) as SQL over the row being read; null
+ * for a key that is not one. The caller authorized it (`refinable`).
+ *
+ * ponytail: `team_size` walks each row's reporting line, so a sorted page of
+ * a large tenant costs a walk per person; keep a closure table if it is felt.
+ */
+function metricSql(key: string): SQL | null {
+  switch (key) {
+    case 'missing_count':
+      return missingSql;
+    case 'completeness':
+      return sql`(0 - ${missingSql})`;
+    case 'tenure_days':
+      return sql`(current_date - ${person.hireDate})`;
+    case 'direct_reports':
+      return sql`(SELECT count(*)::int FROM people.person r
+                   WHERE r.tenant_id = ${person.tenantId} AND r.manager_id = ${person.id}
+                     AND r.status NOT IN ${stillHere})`;
+    case 'team_size':
+      return sql`(WITH RECURSIVE below(id) AS (
+                    SELECT r.id FROM people.person r
+                     WHERE r.tenant_id = ${person.tenantId} AND r.manager_id = ${person.id}
+                       AND r.status NOT IN ${stillHere}
+                    UNION
+                    SELECT r.id FROM people.person r JOIN below b ON r.manager_id = b.id
+                     WHERE r.tenant_id = ${person.tenantId} AND r.status NOT IN ${stillHere}
+                  ) SELECT count(*)::int FROM below)`;
+    case 'pending_changes':
+      return sql`(SELECT count(*)::int FROM people.pending_change c
+                   WHERE c.tenant_id = ${person.tenantId} AND c.person_id = ${person.id}
+                     AND c.state = 'pending')`;
+    case 'next_expiry':
+      // The soonest of the dated fields still to come; dates are ISO text.
+      return sql`LEAST(${sql.join(
+        EXPIRY_KEYS.map(
+          (k) =>
+            sql`CASE WHEN (${person.custom} ->> ${k}) >= current_date::text THEN (${person.custom} ->> ${k}) END`,
+        ),
+        sql`, `,
+      )})`;
+    case 'updated_at':
+      return sql`${person.updatedAt}`;
+    default:
+      return null;
+  }
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -229,6 +288,14 @@ function refined(tenantId: string, refine: Refine | undefined): SQL | undefined 
               c.values.map((v) => sql`${v}`),
               sql`, `,
             )})`;
+      case 'not_in':
+        // "Not in Sales" holds for somebody with no department too.
+        return c.values.length === 0
+          ? sql`true`
+          : sql`(${field} IS NULL OR ${field} NOT IN (${sql.join(
+              c.values.map((v) => sql`${v}`),
+              sql`, `,
+            )}))`;
       case 'contains':
         return sql`${text} ILIKE ${likePattern(first)}`;
       case 'before':
@@ -272,7 +339,15 @@ function orderOf(refine: Refine | undefined): SQL[] | undefined {
     ];
   }
   // A person with no value sorts last whichever way the list runs.
-  return [sql`${fieldSql(sort.key)} ${dir} NULLS LAST`, sql`${person.id} ASC`];
+  const metric = metricSql(sort.key);
+  if (metric !== null) return [sql`${metric} ${dir} NULLS LAST`, sql`${person.id} ASC`];
+  // A number orders as a number ("9" before "10"), anything else as text.
+  const text = fieldSql(sort.key);
+  return [
+    sql`(CASE WHEN ${text} ~ '^-?[0-9]+(\.[0-9]+)?$' THEN (${text})::numeric END) ${dir} NULLS LAST`,
+    sql`${text} ${dir} NULLS LAST`,
+    sql`${person.id} ASC`,
+  ];
 }
 
 export function drizzleGapTotals() {

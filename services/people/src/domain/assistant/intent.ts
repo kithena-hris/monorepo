@@ -15,7 +15,17 @@ import * as z from 'zod';
  * guess.
  */
 
-const OPS = ['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty'] as const;
+const OPS = [
+  'is',
+  'in',
+  'not_in',
+  'contains',
+  'before',
+  'after',
+  'between',
+  'empty',
+  'not_empty',
+] as const;
 
 export interface CatalogueField {
   readonly key: string;
@@ -25,7 +35,8 @@ export interface CatalogueField {
   readonly options: readonly { readonly value: string; readonly label: string }[];
 }
 
-export type IntentOp = (typeof OPS)[number];
+/** `under` is People's own, from a manager it found by name; a model never answers with it. */
+export type IntentOp = (typeof OPS)[number] | 'under';
 
 export interface IntentCondition {
   readonly key: string;

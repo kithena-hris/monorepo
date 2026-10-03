@@ -464,6 +464,7 @@ export const SegmentBody = z.strictObject({
         op: z.enum([
           'is',
           'in',
+          'not_in',
           'contains',
           'before',
           'after',
@@ -1003,10 +1004,11 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           conditions: parseJson(query.get('conditions')),
           match: query.get('match') ?? undefined,
           sort: query.get('sort') ?? undefined,
+          top: query.get('top') ?? undefined,
         });
         if (!refine.success) {
           return refused(
-            failure('BAD_REQUEST', 'conditions, match or sort is malformed', ['conditions']),
+            failure('BAD_REQUEST', 'conditions, match, sort or top is malformed', ['conditions']),
           );
         }
         return answer(
@@ -1847,6 +1849,7 @@ const DirectoryRefine = z
           op: z.enum([
             'is',
             'in',
+            'not_in',
             'contains',
             'before',
             'after',
@@ -1870,11 +1873,14 @@ const DirectoryRefine = z
         return { key, direction: direction === 'desc' ? ('desc' as const) : ('asc' as const) };
       })
       .optional(),
+    // "Top 5": at most this many people, in the order asked.
+    top: z.coerce.number().int().min(1).max(1000).optional(),
   })
   .transform((v) => ({
     ...(v.conditions === undefined ? {} : { conditions: v.conditions }),
     ...(v.match === undefined ? {} : { match: v.match }),
     ...(v.sort === undefined ? {} : { sort: v.sort }),
+    ...(v.top === undefined ? {} : { top: v.top }),
   }));
 
 function parseJson(text: string | null): unknown {
