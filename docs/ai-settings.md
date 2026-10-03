@@ -152,9 +152,27 @@ title.
    rules.
 3. **People without a value**: for each kept field, how many people will
    have none once the file is in, and what happens for them, one suggested
-   with its reason and each with what it does:
+   with its reason and each with what it does. **Who fills it in is decided
+   per field, rules first** (`domain/import/who-fills.ts`): employment data
+   (job, team, manager, location, dates, contract, pay, equipment the
+   company assigns) is HR's; personal data the employee holds (licence,
+   passport, national and tax IDs, tax filing status, bank details, home
+   address, personal contact, emergency contact, family, sizes, languages,
+   education, certifications, profiles) is asked of them; special-category
+   data and free notes are left. The rules read the key and label, then the
+   kind (`piiKind`), then the section. Only a field they cannot place goes
+   to the model, as its key, label, section and kind, never a value, read
+   strictly as `{key: 'hr' | 'employee' | 'leave'}`; no answer leaves
+   People's fallback. HR changes any of them in one click.
    - *Ask them*: theirs to fill in and required, so they show as incomplete
-     and the weekly reminder asks (an optional ask is PEO-148);
+     and the weekly reminder asks (an optional ask is PEO-148). When the run
+     finishes, **each person gets one detail request** listing every asked
+     field they have no value for (`requestFromImport`), only for fields
+     the employee fills in, never for anybody who has left, and **never
+     emailed**: a pre-hire or somebody without an account finds it on their
+     profile or in onboarding. The plan says it once: "Ask 412 people for 9
+     personal details (bank account, emergency contact, …); HR fills 3
+     employment details for 32 people";
    - *HR fills it in*: HR's and required, on Data health's list;
    - *Only new joiners*: required of people added from now on;
    - *Leave it empty*: optional, nobody asked;
