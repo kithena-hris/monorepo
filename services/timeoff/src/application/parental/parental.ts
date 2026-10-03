@@ -249,10 +249,7 @@ export const answerParental =
         singleParent: input.singleParent,
         children: input.children,
         company,
-        blocks:
-          same && draft !== null
-            ? draft.blocks
-            : firstBlocks(entitlement, input.childDate, company),
+        blocks: same ? draft.blocks : firstBlocks(entitlement, input.childDate, company),
         version: 0,
         teamSees: input.teamSees,
         handover: draft?.handover ?? [],
@@ -281,7 +278,10 @@ export const editParentalBlocks =
       const loaded = await load(tx, found.value);
       if (!loaded.ok) return loaded;
       const { plan, stored } = loaded.value;
-      const blocks = input.blocks.map((b) => ({ ...b, leaveTypeKey: keyed(b.kind, stored.company) }));
+      const blocks = input.blocks.map((b) => ({
+        ...b,
+        leaveTypeKey: keyed(b.kind, stored.company),
+      }));
       const replaced = plan.replaceBlocks(blocks);
       if (!replaced.ok) return replaced;
       await persist(tx, plan, restored(loaded.value));
@@ -409,11 +409,13 @@ export const parentalNotices =
     transact(deps, tenantId, async (tx) => {
       let told = 0;
       for (const stored of await tx.parental.list({ statuses: ['submitted', 'approved'] })) {
+        // oxlint-disable-next-line no-await-in-loop -- one transaction, a handful of plans
         const loaded = await load(tx, stored);
         if (!loaded.ok) continue;
         const today = deps.clock.date(loaded.value.member.timeZone);
         for (const r of loaded.value.plan.reminders) {
           if (r.remindOn !== today) continue;
+          // oxlint-disable-next-line no-await-in-loop -- at most a block or two a day
           await deps.notifier.notify(
             tenantId,
             stored.personId,
@@ -443,7 +445,8 @@ function entitlementView(
     paidBy: e.paidBy,
     payPercent: e.payPercent,
     companyWeeks: e.companyWeeks,
-    companyAfterYears: company === null || company.extraWeeks === 0 ? null : company.afterServiceYears,
+    companyAfterYears:
+      company === null || company.extraWeeks === 0 ? null : company.afterServiceYears,
     vacationAccrues: e.vacationAccrues,
     noticeDays: e.noticeDays,
   };

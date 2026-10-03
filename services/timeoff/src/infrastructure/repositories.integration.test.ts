@@ -559,8 +559,8 @@ describe('parental plans', () => {
       uow,
       clock: fixedClock('2026-10-01T07:00:00.000Z'),
       newId: ids,
-      authz: { check: async () => false },
-      notifier: { notify: async () => {} },
+      authz: { check: () => Promise.resolve(false) },
+      notifier: { notify: () => Promise.resolve() },
     };
     await run((tx) =>
       tx.parental.setCompany({

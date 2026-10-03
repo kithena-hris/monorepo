@@ -1,12 +1,6 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import type {
-  CalendarDate,
-  Instant,
-  LeaveTypeKey,
-  PersonId,
-  TenantId,
-} from '@kithena/contracts';
+import type { CalendarDate, Instant, LeaveTypeKey, PersonId, TenantId } from '@kithena/contracts';
 
 import type {
   CompanyParentalWeeks,
@@ -33,7 +27,7 @@ function toStored(r: PlanRow, blocks: readonly BlockRow[]): StoredPlan {
     id: r.id as ParentalPlanId,
     personId: r.personId as PersonId,
     status: r.status as PlanStatus,
-    country: r.country as StoredPlan['country'],
+    country: r.country,
     role: r.role as ParentRole,
     childDate: r.childDate as CalendarDate,
     dueDate: r.dueDate as CalendarDate | null,

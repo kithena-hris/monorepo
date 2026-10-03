@@ -29,13 +29,28 @@ async function read(
       : { status: 'error', message: answer.message, code: answer.code };
 }
 
-export async function loadScreen(component: string, _query: ScreenQuery): Promise<ScreenLoad> {
+export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   switch (component) {
     case 'Overview':
       return overview();
+    case 'ParentalPlan':
+      return parental(query.params['step'] ?? 'plan');
+    case 'ParentalCase':
+      return read('TimeOffParentalCase', { planId: query.params['id'] ?? null });
     default:
       return { status: 'none' };
   }
+}
+
+/**
+ * T8–T10, MT11, MT12: the person's plan, with the step the address names
+ * (`about`, `plan`, `handover`, `send`), so the screen draws that step.
+ */
+async function parental(step: string): Promise<ScreenLoad> {
+  const base = await read('TimeOffParentalPlan');
+  return base.status === 'ready'
+    ? { status: 'ready', data: { ...(base.data as object), step } }
+    : base;
 }
 
 /**

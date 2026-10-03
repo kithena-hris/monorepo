@@ -46,6 +46,24 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
     switch (route?.component) {
       case 'Overview':
         return { load: loadable, onPunch: actions.punch };
+      case 'ParentalPlan':
+        return {
+          load: loadable,
+          onPreview: actions.parentalEntitlement,
+          onAnswer: actions.answerParental,
+          onBlocks: actions.editParentalBlocks,
+          onHandover: actions.saveParentalHandover,
+          onSend: actions.sendParentalPlan,
+          onBirth: actions.recordParentalBirth,
+          onNavigate: (href: string) => {
+            router.push(href);
+          },
+        };
+      case 'ParentalCase':
+        return {
+          load: loadable,
+          onApprove: actions.approveParentalPlan,
+        };
       default:
         return {};
     }

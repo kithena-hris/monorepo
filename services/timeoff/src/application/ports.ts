@@ -369,7 +369,11 @@ export type Notice =
   | { readonly kind: 'missed_clock_out'; readonly date: CalendarDate }
   | { readonly kind: 'still_clocked_in' }
   | { readonly kind: 'parental_plan_sent'; readonly planId: string }
-  | { readonly kind: 'parental_notice_due'; readonly planId: string; readonly blockFrom: CalendarDate }
+  | {
+      readonly kind: 'parental_notice_due';
+      readonly planId: string;
+      readonly blockFrom: CalendarDate;
+    }
   | {
       readonly kind: 'negative_on_leaving';
       readonly leaveTypeKey: LeaveTypeKey;

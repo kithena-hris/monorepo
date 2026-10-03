@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation AnswerTimeOffParental($key: String!, $input: JSON!) {\n    answerTimeOffParental(idempotencyKey: $key, input: $input) {\n      planId\n    }\n  }"}

@@ -91,6 +91,7 @@ describe('parental leave (TOF-102)', () => {
     expect(plan?.problems).toEqual([]);
     expect(plan?.keptWeeks).toBe(2);
     for (const who of [marco, hr]) {
+      // oxlint-disable-next-line no-await-in-loop -- two callers, one after the other
       const seen = await parentalCase(app.deps)(who, planId);
       expect(seen.ok ? null : seen.error.code).toBe('NOT_FOUND');
     }
@@ -140,8 +141,10 @@ describe('parental leave (TOF-102)', () => {
   it('nobody else edits, hands over or sends Adam’s plan', async () => {
     const { app, planId } = await started();
     for (const who of [omar, hr]) {
+      // oxlint-disable-next-line no-await-in-loop -- two callers, one after the other
       const edited = await editParentalBlocks(app.deps)(who, { planId, blocks: [] });
       expect(edited.ok).toBe(false);
+      // oxlint-disable-next-line no-await-in-loop -- two callers, one after the other
       const sent = await sendParentalPlan(app.deps)(who, planId);
       expect(sent.ok).toBe(false);
     }
@@ -195,9 +198,7 @@ describe('parental leave (TOF-102)', () => {
     expect(unwrap(await approveParentalPlan(app.deps)(hr, planId))).toEqual({ status: 'approved' });
     const events = app.state(TENANT).events;
     expect(events.at(-1)?.eventName).toBe(ParentalPlanApproved.name);
-    expect(ParentalPlanApproved.payload.parse(events.at(-1)?.payload).approvedBy).toBe(
-      ADA_ACCOUNT,
-    );
+    expect(ParentalPlanApproved.payload.parse(events.at(-1)?.payload).approvedBy).toBe(ADA_ACCOUNT);
     expect(unwrap(await parentalCase(app.deps)(hr, planId)).canApprove).toBe(false);
   });
 

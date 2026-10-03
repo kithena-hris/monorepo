@@ -129,6 +129,20 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T11: a sent plan with its checklist and rules check; HR and the manager */
+  TimeOffParentalCase: `query TimeOffParentalCase($planId: String!) {
+    timeOffParentalCase(planId: $planId) {
+      canApprove checklist { key module on status } managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees }
+    }
+  }`,
+
+  /** T8–T10: the caller’s parental plan, and the entitlement the answers asked about would give; nothing is saved */
+  TimeOffParentalPlan: `query TimeOffParentalPlan($childDate: String, $children: Int, $role: String, $singleParent: Boolean) {
+    timeOffParentalPlan(childDate: $childDate, children: $children, role: $role, singleParent: $singleParent) {
+      managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees } preview { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } supported
+    }
+  }`,
+
   /** One request, for its member, an approver or HR */
   TimeOffRequest: `query TimeOffRequest($requestId: String!) {
     timeOffRequest(requestId: $requestId) {
@@ -174,6 +188,20 @@ export const OPERATIONS = {
   /** Take one of the suggested dates, which approves them, or keep your own */
   AnswerSuggestedTimeOffDates: `mutation AnswerSuggestedTimeOffDates($key: String!, $input: JSON!, $requestId: String!) {
     answerSuggestedTimeOffDates(idempotencyKey: $key, input: $input, requestId: $requestId) {
+      status
+    }
+  }`,
+
+  /** T8: the four answers and what teammates see; starts or re-answers a private draft */
+  AnswerTimeOffParental: `mutation AnswerTimeOffParental($key: String!, $input: JSON!) {
+    answerTimeOffParental(idempotencyKey: $key, input: $input) {
+      planId
+    }
+  }`,
+
+  /** T11: approve a sent plan after the rules check; HR */
+  ApproveTimeOffParentalPlan: `mutation ApproveTimeOffParentalPlan($key: String!, $planId: String!) {
+    approveTimeOffParentalPlan(idempotencyKey: $key, planId: $planId) {
       status
     }
   }`,
@@ -262,6 +290,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T9: the draft’s blocks as the parent left them, and every rule they break */
+  EditTimeOffParentalBlocks: `mutation EditTimeOffParentalBlocks($key: String!, $input: JSON!, $planId: String!) {
+    editTimeOffParentalBlocks(idempotencyKey: $key, input: $input, planId: $planId) {
+      problems { code message }
+    }
+  }`,
+
   /** Members from CSV or JSON when People is absent: a dry run, then all rows or none; HR */
   ImportTimeOffMembers: `mutation ImportTimeOffMembers($key: String!, $input: JSON!) {
     importTimeOffMembers(idempotencyKey: $key, input: $input) {
@@ -287,6 +322,13 @@ export const OPERATIONS = {
   PunchTimeOffClock: `mutation PunchTimeOffClock($key: String!, $input: JSON!) {
     punchTimeOffClock(idempotencyKey: $key, input: $input) {
       punch { at id kind reason recordedAt source supersedes workModel } state
+    }
+  }`,
+
+  /** The baby arrived: the mandatory weeks move to the birth; the parent or HR */
+  RecordTimeOffParentalBirth: `mutation RecordTimeOffParentalBirth($key: String!, $input: JSON!, $planId: String!) {
+    recordTimeOffParentalBirth(idempotencyKey: $key, input: $input, planId: $planId) {
+      ok
     }
   }`,
 
@@ -329,6 +371,20 @@ export const OPERATIONS = {
   SaveTimeOffHolidayCalendar: `mutation SaveTimeOffHolidayCalendar($key: String!, $input: JSON!, $calendarKey: String!) {
     saveTimeOffHolidayCalendar(idempotencyKey: $key, input: $input, key: $calendarKey) {
       ok
+    }
+  }`,
+
+  /** T10: who covers what while the parent is away, and what teammates see */
+  SaveTimeOffParentalHandover: `mutation SaveTimeOffParentalHandover($key: String!, $input: JSON!, $planId: String!) {
+    saveTimeOffParentalHandover(idempotencyKey: $key, input: $input, planId: $planId) {
+      ok
+    }
+  }`,
+
+  /** T10: send the plan to HR and the manager; refused while a rule is broken */
+  SendTimeOffParentalPlan: `mutation SendTimeOffParentalPlan($key: String!, $planId: String!) {
+    sendTimeOffParentalPlan(idempotencyKey: $key, planId: $planId) {
+      status
     }
   }`,
 
