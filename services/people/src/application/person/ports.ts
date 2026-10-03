@@ -236,6 +236,17 @@ export interface Secrets {
     personId: string,
   ): Promise<readonly { readonly attributeKey: string; readonly last4: string | null }[]>;
   /**
+   * `list` for a page of people in one query, by person: what a list of a
+   * thousand reads instead of a thousand `list`s. Absent, `list` per person.
+   */
+  listMany?(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    personIds: readonly string[],
+  ): Promise<
+    ReadonlyMap<string, readonly { readonly attributeKey: string; readonly last4: string | null }[]>
+  >;
+  /**
    * The plaintext, for claiming a sealed unique value again when a merge is
    * undone. Absent, such a value goes unclaimed until it is next written.
    */

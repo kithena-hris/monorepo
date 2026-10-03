@@ -997,6 +997,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     version: PublishedVersion,
     relations: ViewerRelations,
     asOf?: string,
+    /** This person's sealed values, read already with the rest of a page's (`listMany`). */
+    held?: readonly { readonly attributeKey: string; readonly last4: string | null }[],
   ): Promise<PersonView> {
     const definitions = version.document.attributes;
     const values = new Map(Object.entries(person.values));
@@ -1005,7 +1007,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const sealed = definitions.filter((d) => d.encrypted);
     if (sealed.length > 0) {
       for (const d of sealed) values.delete(d.key);
-      for (const s of await deps.secrets.list(tx, asking.tenantId, person.snapshot.id)) {
+      for (const s of held ?? (await deps.secrets.list(tx, asking.tenantId, person.snapshot.id))) {
         values.set(s.attributeKey, { last4: s.last4 } satisfies SealedValue);
       }
     }
@@ -2372,11 +2374,29 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         rows.map((r) => r.snapshot.id),
         new Map(rows.map((r) => [r.snapshot.id, factsOf(r)])),
       );
+      // Every sealed value on the page in one read, not one per person.
+      const sealed = version.document.attributes.some((d) => d.encrypted)
+        ? await deps.secrets.listMany?.(
+            tx,
+            asking.tenantId,
+            rows.map((r) => r.snapshot.id),
+          )
+        : undefined;
       const items: PersonView[] = [];
       for (const row of rows) {
         const relations = related.get(row.snapshot.id);
         if (relations === undefined) continue;
-        items.push(await view(tx, asking, row, version, relations, asking.asOf));
+        items.push(
+          await view(
+            tx,
+            asking,
+            row,
+            version,
+            relations,
+            asking.asOf,
+            sealed === undefined ? undefined : (sealed.get(row.snapshot.id) ?? []),
+          ),
+        );
       }
       // A sorted list's next page is its offset; an unsorted one's, the last id.
       const next =
