@@ -10,6 +10,8 @@ import {
   DataTable,
   EmptyState,
   FilterBuilder,
+  Kbd,
+  KbdShortcut,
   KeyValues,
   List,
   ListItem,
@@ -37,8 +39,11 @@ import {
   Toolbar,
   icons,
   isConditionComplete,
+  keysOf,
+  pressed,
   useCoarsePointer,
   useInView,
+  useShortcutKeys,
   type ColumnChooserValue,
   type DataColumn,
   type DataTableHandle,
@@ -47,7 +52,15 @@ import {
   type FilterGroup,
   type FilterOperator,
 } from '@reach/ui';
-import { useEffect, useId, useRef, useState, type JSX, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { useTyped } from '../held';
 import { ImportBusy, isRunning, type ImportRunStatus } from '../import/import-run';
@@ -777,8 +790,29 @@ function usePlace({
   readonly loadMore: (() => void) | undefined;
   readonly loading: boolean;
   readonly done: boolean;
-}): { readonly top: number; readonly last: number; readonly toTop: () => void } {
-  const [at, setAt] = useState({ top: 0, last: 0 });
+}): Place {
+  // A store rather than state: the place moves on nearly every scroll frame,
+  // and as state it re-rendered the whole directory, table and all, on each.
+  // Only the counter reads it (`PlacePill`).
+  const [at] = useState(() => {
+    let value = { top: 0, last: 0 };
+    const listeners = new Set<() => void>();
+    return {
+      get: () => value,
+      set: (next: { top: number; last: number }) => {
+        if (next.top === value.top && next.last === value.last) return;
+        value = next;
+        for (const listener of listeners) listener();
+      },
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+  });
+  const setAt = at.set;
   const restore = useRef<number | null>(place !== null && place > 1 ? place - 1 : null);
   const tell = useRef(onPlaceChange);
   tell.current = onPlaceChange;
@@ -812,7 +846,7 @@ function usePlace({
       const index = new Map(latest.current.map((p, i) => [p.id, i]));
       const top = index.get(id(seen[0])) ?? 0;
       const last = index.get(id(seen.at(-1))) ?? top;
-      setAt((was) => (was.top === top && was.last === last ? was : { top, last }));
+      setAt({ top, last });
       // ponytail: halfway through what is loaded keeps up to twice what was read
       // loaded; a fixed lookahead (one page past the reader) if pages get expensive.
       if (seen.length > 0 && (last + 1) * 2 >= latest.current.length) more.current?.();
@@ -868,7 +902,32 @@ function usePlace({
     setAt({ top: 0, last: 0 });
     tell.current?.(null);
   };
-  return { top: at.top, last: at.last, toTop };
+  return { get: at.get, subscribe: at.subscribe, toTop };
+}
+
+interface Place {
+  readonly get: () => { readonly top: number; readonly last: number };
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly toTop: () => void;
+}
+
+/** "150 of 388" and Back to top, once the reader is past the first row. */
+function PlacePill({
+  place,
+  total,
+  className,
+}: {
+  readonly place: Place;
+  readonly total: number;
+  readonly className: string;
+}): JSX.Element | null {
+  const at = useSyncExternalStore(place.subscribe, place.get, place.get);
+  if (at.top === 0) return null;
+  return (
+    <ScrollPosition onBackToTop={place.toTop} className={className}>
+      {`${(at.last + 1).toLocaleString('en-GB')} of ${total.toLocaleString('en-GB')}`}
+    </ScrollPosition>
+  );
 }
 
 function Body({
@@ -902,6 +961,7 @@ function Body({
   onPlaceChange,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const coarse = useCoarsePointer();
+  const keys = useShortcutKeys();
   const busyId = useId();
   const smart = onAsk !== undefined;
   // Without smart search the field searches names as they are typed; with it, Enter asks.
@@ -1110,9 +1170,9 @@ function Body({
       <Avatar size="md" name={p.name} src={p.avatarUrl ?? undefined} />
       <span className="min-w-0">
         {/*
-          The name is the row's control: Space or a click opens the quick
-          look, ↵ the full profile, and ↑ ↓ walk the people without leaving
-          the list.
+          The name is the row's control: a click or ↵ opens their quick look,
+          ↑ ↓ walk the people without leaving the list, and the profile is
+          the row's Edit key (E) or the card's Open profile.
         */}
         <button
           id={`person-${p.id}`}
@@ -1124,6 +1184,9 @@ function Body({
           }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
+              event.preventDefault();
+              setPeek(p.id);
+            } else if (pressed(event, 'row.edit', keys)) {
               event.preventDefault();
               onOpen(p.id);
             } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -1364,9 +1427,10 @@ function Body({
       onRowClick={(p) => {
         setPeek(p.id);
       }}
-      // From the keyboard: Enter or O to the profile, Space for the quick look.
+      // Enter or O opens the card, as a click does; the profile is the
+      // row's Edit key or the card's Open profile. Space toggles the card.
       onRowOpen={(p) => {
-        onOpen(p.id);
+        setPeek(p.id);
       }}
       onRowPreview={(p) => {
         setPeek(peek === p.id ? null : p.id);
@@ -1414,9 +1478,23 @@ function Body({
             ),
           })}
       stickyHeader
+      striped
       empty={empty}
     />
   );
+  // Where the reader is in a list that keeps loading, and the way back: at
+  // the list's own top corner, never over the quick look beside it.
+  const pill =
+    onLoadMore === undefined ? null : (
+      <PlacePill
+        place={placed}
+        total={state.total}
+        className={
+          coarse || view === 'cards' ? 'fixed end-4 bottom-40 z-20' : 'absolute end-4.5 top-15 z-10'
+        }
+      />
+    );
+  const profileKeys = keysOf('row.edit', keys);
 
   // Smart search's row: the conditions in force as the chips a question
   // became, the order when it is not by name, and the parts not used.
@@ -1713,9 +1791,14 @@ function Body({
       <div ref={wrapper} className="relative">
         {peeked !== null && view === 'list' && !coarse ? (
           <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4">
-            {table}
+            <div className="relative min-w-0">
+              {table}
+              {pill}
+            </div>
             <QuickLook
               className="sticky top-4"
+              // Its keys are the list's, said once under the list.
+              hideHints
               media={
                 <Avatar
                   name={peeked.name}
@@ -1756,7 +1839,7 @@ function Body({
                       onOpen(peeked.id);
                     }}
                   >
-                    Profile
+                    Open profile
                   </Button>
                 </>
               }
@@ -1791,22 +1874,27 @@ function Body({
             </QuickLook>
           </div>
         ) : (
-          table
-        )}
-        {placed.top === 0 || onLoadMore === undefined ? null : (
-          // Where the reader is in a list that keeps loading, and the way back.
-          <ScrollPosition
-            onBackToTop={placed.toTop}
-            className={
-              coarse || view === 'cards'
-                ? 'fixed end-4 bottom-40 z-20'
-                : 'absolute end-4.5 top-15 z-10'
-            }
-          >
-            {`${(placed.last + 1).toLocaleString('en-GB')} of ${state.total.toLocaleString('en-GB')}`}
-          </ScrollPosition>
+          <>
+            {table}
+            {pill}
+          </>
         )}
       </div>
+      {view === 'list' && !coarse && rows.length > 0 ? (
+        // The list's keys, under the list rather than on the card they move.
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-fg-muted">
+          <Kbd keyName="up" />
+          <Kbd keyName="down" /> to move
+          <span aria-hidden>·</span>
+          <Kbd keyName="enter" /> to open the card
+          {profileKeys.length === 0 ? null : (
+            <>
+              <span aria-hidden>·</span>
+              <KbdShortcut keys={profileKeys} /> for the profile
+            </>
+          )}
+        </p>
+      ) : null}
       {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
         <div ref={endOfPage} aria-hidden className="h-px" />
       ) : null}

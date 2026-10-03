@@ -924,6 +924,37 @@ export const InfiniteVirtualized: Story = {
       />
     );
   },
+  play: async ({ canvasElement }) => {
+    // Under a finger the rows are cards under a header strip of their own.
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    const box = canvasElement.querySelector<HTMLElement>('[role="region"]');
+    if (box === null) throw new Error('No table');
+    await waitFor(async () => {
+      await expect(box.scrollHeight).toBeGreaterThan(box.clientHeight * 2);
+    });
+    box.scrollTop = box.scrollHeight / 2;
+    await waitFor(async () => {
+      await expect(canvasElement.querySelector('tbody tr[data-skeleton]')).not.toBeNull();
+    });
+    // The header holds over the rows scrolling under it: the pinned corner
+    // and a plain header cell are each the topmost thing where they are.
+    const heads = [...canvasElement.querySelectorAll<HTMLElement>('thead th')];
+    for (const th of [heads[0], heads[2]]) {
+      const r = th?.getBoundingClientRect();
+      if (th === undefined || r === undefined) throw new Error('No header');
+      const top = document.elementFromPoint(r.left + 4, r.top + r.height / 2);
+      await expect(th.contains(top)).toBe(true);
+      await expect(getComputedStyle(th).backgroundColor).not.toMatch(/rgba\(.*, 0\)|transparent/);
+    }
+    // Every other row by its place in the list, wherever the scroll left the DOM.
+    const rows = [...canvasElement.querySelectorAll<HTMLElement>('tbody tr[data-row-id]')];
+    await expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const place = Number(row.getAttribute('aria-rowindex')) - 2;
+      await expect(row.hasAttribute('data-striped')).toBe(place % 2 === 1);
+    }
+    box.scrollTop = 0;
+  },
 };
 
 const employeePage = (from: number): Row[] =>

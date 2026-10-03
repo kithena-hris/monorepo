@@ -12,6 +12,8 @@ import { Directory, type DirectoryPerson, type DirectoryState } from './director
  */
 const coarse = matchMedia('(pointer: coarse)').matches;
 const PAGE = 50;
+/** A desk row's height: the table's `estimateRowHeight`. */
+const ROW = 57;
 
 const person = (i: number): DirectoryPerson => ({
   id: `p${String(i)}`,
@@ -22,7 +24,7 @@ const person = (i: number): DirectoryPerson => ({
   values: { job_title: i % 5 === 0 ? 'Principal product designer and researcher' : 'Engineer' },
   missing: 0,
 });
-const everybody = Array.from({ length: 400 }, (_, i) => person(i));
+const everybody = Array.from({ length: 1000 }, (_, i) => person(i));
 const state: DirectoryState = {
   total: everybody.length,
   active: everybody.length,
@@ -82,6 +84,97 @@ function inView(id: string): boolean {
   const edge = box.getBoundingClientRect();
   const head = box.querySelector('thead')?.getBoundingClientRect().height ?? 0;
   return r.top >= edge.top + head - 1 && r.bottom <= edge.bottom + 1;
+}
+
+/**
+ * How much of the box's view, below its header, shows neither a row nor a
+ * skeleton, in px. Read in a scroll listener that runs before the table's
+ * own: the old rows at the new position, which is what the compositor shows
+ * while the main thread is still rendering.
+ */
+function gap(box: HTMLElement, rowsOnly = false): number {
+  const edge = box.getBoundingClientRect();
+  const top = edge.top + (box.querySelector('thead')?.getBoundingClientRect().height ?? 0);
+  const spans = [
+    ...box.querySelectorAll<HTMLElement>(
+      rowsOnly
+        ? 'tbody tr[data-row-id]'
+        : 'tbody tr[data-row-id], tbody [aria-busy], [data-skeleton]',
+    ),
+  ]
+    .map((el) => el.getBoundingClientRect())
+    .map((r) => [Math.max(r.top, top), Math.min(r.bottom, edge.bottom)] as const)
+    .filter(([a, b]) => b > a)
+    .sort((a, b) => a[0] - b[0]);
+  let blank = 0;
+  let at = top;
+  for (const [a, b] of spans) {
+    if (a > at) blank += a - at;
+    at = Math.max(at, b);
+  }
+  return blank + Math.max(0, edge.bottom - at);
+}
+
+/**
+ * A fast fling over the box: `step` px a frame for exactly `budget` frames,
+ * driven from the page's own frames rather than the test driver's, so it
+ * takes the same number of frames on any machine. Per frame: `early`, a gap
+ * before the table rendered the new position; `late`, one after it;
+ * `skeleton`, skeleton rather than rows in view; `off`, a total height that is
+ * not the rows' at their estimate; `jumps`, a total height that moved with the
+ * rows unchanged.
+ */
+async function fling(box: HTMLElement, budget: number, step: number) {
+  let early = 0;
+  let late = 0;
+  let skeleton = 0;
+  let off = 0;
+  let jumps = 0;
+  let was = { shape: '', height: 0 };
+  let worst = 0;
+  let frames = 0;
+  let sawEarly = false;
+  let sawSkeleton = false;
+  const before = (): void => {
+    const g = gap(box);
+    worst = Math.max(worst, g);
+    if (g > 2) sawEarly = true;
+    if (gap(box, true) > 2) sawSkeleton = true;
+  };
+  const table = box.querySelector('table');
+  const head = box.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+  // Capture on the window: it runs before the table's own scroll listener.
+  window.addEventListener('scroll', before, { capture: true });
+  let done: () => void = () => undefined;
+  const finished = new Promise<void>((resolve) => {
+    done = resolve;
+  });
+  const tick = (): void => {
+    frames += 1;
+    if (sawEarly) early += 1;
+    if (sawSkeleton) skeleton += 1;
+    sawEarly = false;
+    sawSkeleton = false;
+    if (gap(box) > 2) late += 1;
+    const count = Number(table?.getAttribute('aria-rowcount') ?? 1) - 1;
+    const busy = box.querySelector('tbody [aria-busy]') === null ? 0 : ROW;
+    if (Math.abs(box.scrollHeight - (head + count * ROW + busy)) > 2) off += 1;
+    // The same rows, yet a different height: a row measured off its estimate.
+    const shape = `${String(count)}:${String(busy)}`;
+    if (shape === was.shape && box.scrollHeight !== was.height) jumps += 1;
+    was = { shape, height: box.scrollHeight };
+    // One frame after the last step, to see it rendered.
+    if (frames > budget) {
+      done();
+      return;
+    }
+    box.scrollTop += step;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  await finished;
+  window.removeEventListener('scroll', before, { capture: true });
+  return { frames, early, late, skeleton, off, jumps, worst: Math.round(worst) };
 }
 
 afterEach(() => {
@@ -144,6 +237,64 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
       },
       { timeout: 3000 },
     );
+  });
+
+  // A fixed 42 frames of flinging, at 300, 900 and 2,400 px a frame (the last
+  // two past the overscan), down and back up. Each frame renders a fresh run
+  // of rows: about 1.5 s here and 7 s with the CPU throttled 4x, so the
+  // timeout leaves a slow runner four times the throttled figure.
+  it(
+    'never shows a blank frame in a fast fling, with pages still arriving',
+    { timeout: 30_000 },
+    async () => {
+      const { onLoadMore } = pages();
+      directory({ onLoadMore });
+      const box = screen.getByRole('region', { name: 'People' });
+      await vi.waitFor(() => {
+        expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+      });
+      const runs = [
+        await fling(box, 10, 300),
+        await fling(box, 10, 900),
+        await fling(box, 6, 2400),
+        await fling(box, 10, -900),
+        await fling(box, 6, -2400),
+      ];
+      console.info('fling', JSON.stringify(runs));
+      for (const run of runs) {
+        expect(run.early + run.late).toBe(0);
+        expect(run.off + run.jumps).toBe(0);
+      }
+      // The skeleton is painted, in the theme's own colours.
+      const spacer = box.querySelector<HTMLElement>('tr[data-skeleton] td');
+      expect(getComputedStyle(spacer as Element).backgroundImage).toMatch(
+        /linear-gradient\(.*(?:rgb|oklch|color)\(/,
+      );
+    },
+  );
+
+  it('keeps the place and Back to top at the list’s top corner, off the quick look', async () => {
+    const { onLoadMore } = pages();
+    directory({ onLoadMore });
+    const box = screen.getByRole('region', { name: 'People' });
+    await vi.waitFor(() => {
+      expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+    });
+    box.scrollTop = 40 * ROW;
+    const back = await screen.findByRole('button', { name: 'Back to top' });
+    const look = screen.getByRole('complementary', { name: 'Quick look' });
+    expect(look).not.toContainElement(back);
+    expect(within(look).queryByText(/ of 1,000/)).toBeNull();
+    const pill = screen.getByText(/ of 1,000$/).getBoundingClientRect();
+    const list = box.getBoundingClientRect();
+    const card = look.getBoundingClientRect();
+    // Inside the list's box, at its top right, and clear of the card.
+    for (const r of [pill, back.getBoundingClientRect()]) {
+      expect(r.left).toBeGreaterThanOrEqual(list.left);
+      expect(r.right).toBeLessThanOrEqual(list.right);
+      expect(r.right).toBeLessThan(card.left);
+    }
+    expect(pill.top - list.top).toBeLessThan(80);
   });
 
   it('jumps instead under reduced motion', async () => {

@@ -371,3 +371,123 @@ describe('<DataTable> that keeps loading', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('<DataTable> pinned header and a virtualized body', () => {
+  const many = Array.from({ length: 400 }, (_, i) => ({
+    id: String(i),
+    name: `Person ${String(i)}`,
+  }));
+  const nameAndTeam: DataColumn<{ id: string; name: string }>[] = [
+    { id: 'name', header: 'Name', sticky: true, cell: (r) => r.name },
+    { id: 'team', header: 'Team', cell: () => 'Research' },
+  ];
+
+  /** The box 400px tall and every row its 57px estimate, as a browser would lay them out. */
+  function layOut(): void {
+    const height = (el: HTMLElement): number => (el.getAttribute('role') === 'region' ? 400 : 57);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const h = height(this);
+      return { top: 0, left: 0, right: 800, bottom: h, width: 800, height: h } as DOMRect;
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return height(this);
+    });
+  }
+
+  function scrollTo(top: number): void {
+    const box = screen.getByRole('region', { name: 'People' });
+    Object.defineProperty(box, 'scrollTop', { configurable: true, value: top });
+    act(() => {
+      fireEvent.scroll(box);
+    });
+  }
+
+  it('keeps every header cell opaque and above the body, the pinned corner above both', () => {
+    render(
+      <DataTable
+        label="People"
+        rows={many.slice(0, 3)}
+        columns={nameAndTeam}
+        rowId={(r) => r.id}
+        stickyHeader
+      />,
+    );
+    const head = document.querySelector('thead');
+    expect(head?.className).toContain('[[data-sticky-header]_&_th]:bg-surface');
+    expect(head?.className).toContain('[[data-sticky-header]_&_th]:z-20');
+    expect(head?.className).not.toContain('glass');
+    // The corner over the header row; the body's pinned column under both.
+    expect(document.querySelector('thead th')?.className).toMatch(/(^| )z-30!( |$)/);
+    expect(document.querySelector('tbody td')?.className).toMatch(/(^| )z-10( |$)/);
+    // And all of it inside the table's own stacking, under the page's bars.
+    expect(screen.getByRole('region', { name: 'People' })).toHaveClass('isolate');
+  });
+
+  it('stripes by a row’s place in the list, not in the DOM, as rows are recycled', () => {
+    layOut();
+    render(
+      <DataTable
+        label="People"
+        rows={many}
+        columns={nameAndTeam}
+        rowId={(r) => r.id}
+        virtualize
+        striped
+      />,
+    );
+    const firstDrawn = (): number => {
+      const drawn = [...document.querySelectorAll<HTMLElement>('tbody tr[data-row-id]')];
+      for (const row of drawn) {
+        const place = Number(row.dataset['rowId']);
+        expect(row.hasAttribute('data-striped'), `row ${String(place)}`).toBe(place % 2 === 1);
+      }
+      return Number(drawn[0]?.dataset['rowId']);
+    };
+    expect(firstDrawn()).toBe(0);
+    // Down the list: the first row in the DOM is a different one, at its own place.
+    scrollTo(101 * 57);
+    const first = firstDrawn();
+    expect(first).toBeGreaterThan(0);
+    scrollTo(102 * 57);
+    expect(firstDrawn()).not.toBe(first);
+    vi.restoreAllMocks();
+  });
+
+  it('draws the rows it has not rendered as skeleton rows, at the rows’ height, never blank', () => {
+    layOut();
+    render(
+      <DataTable
+        label="People"
+        rows={many}
+        columns={nameAndTeam}
+        rowId={(r) => r.id}
+        virtualize
+        estimateRowHeight={57}
+      />,
+    );
+    scrollTo(200 * 57);
+    const spacers = [...document.querySelectorAll<HTMLElement>('tbody tr[data-skeleton]')];
+    // One above what is drawn and one below: together, every row not drawn.
+    expect(spacers).toHaveLength(2);
+    const drawn = document.querySelectorAll('tbody tr[data-row-id]').length;
+    const height = spacers.reduce((sum, row) => sum + Number.parseFloat(row.style.height), 0);
+    expect(height).toBe((many.length - drawn) * 57);
+    for (const row of spacers) {
+      expect(row).toHaveAttribute('aria-hidden', 'true');
+      // A bar in each column, tiled at the row height.
+      const cells = [...row.querySelectorAll<HTMLElement>('td')];
+      expect(cells).toHaveLength(nameAndTeam.length);
+      for (const cell of cells) {
+        expect(cell.style.backgroundSize).toContain('57px');
+        expect(cell.style.backgroundRepeat).toBe('repeat-y');
+      }
+    }
+    // A drawn desk row is exactly its estimate, so measuring it moves nothing.
+    expect(document.querySelector<HTMLElement>('tbody tr[data-row-id]')?.style.height).toBe('57px');
+    vi.restoreAllMocks();
+  });
+});
