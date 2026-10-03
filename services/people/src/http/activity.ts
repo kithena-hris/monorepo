@@ -123,6 +123,15 @@ const RULES: readonly Rule[] = [
     }),
   },
   {
+    path: new RegExp(`^/v1/schema/draft/attributes/${ID}/change$`),
+    area: 'fields',
+    say: (_m, b, id) => ({
+      action: 'Published a field’s new type',
+      subjectKey: id ?? null,
+      detail: `Every value was reviewed: ${String(Array.isArray(b['decisions']) ? b['decisions'].length : 0)} decided by hand, the rest converted or handled as suggested.`,
+    }),
+  },
+  {
     path: new RegExp(`^/v1/schema/draft/attributes/${ID}/assistant$`),
     area: 'fields',
     say: (_m, b, id) => ({

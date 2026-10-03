@@ -167,6 +167,7 @@ import {
   setupView,
   type SchemaScreenDeps,
 } from '../application/screens/schema.js';
+import { applyFieldChange, fieldChangeView } from '../application/screens/field-change.js';
 import { run } from '../application/person/service.js';
 import {
   answerAboutChange,
@@ -328,6 +329,13 @@ export const Field = z.strictObject({
     scheme: z.string().max(32).nullable().default(null),
     // Null keeps the default: shared where it could be.
     aiEligible: z.boolean().nullable().default(null),
+    // A number's decimal places, and money's one currency; absent keeps what it has.
+    decimals: z.int().min(0).max(6).nullable().default(null),
+    currency: z
+      .string()
+      .regex(/^[A-Z]{3}$/u)
+      .nullable()
+      .optional(),
   }),
   editing: z.string().max(64).nullable(),
 });
@@ -339,6 +347,21 @@ export const Advice = z.strictObject({
   options: z.array(z.string().max(200)).max(200),
 });
 export const RequiredFrom = z.strictObject({ requiredFrom: z.iso.date() });
+/** What HR decided for each value that does not fit a field's new type. */
+export const FieldChangeBody = z.strictObject({
+  to: z.string().max(40).nullable().default(null),
+  decisions: z
+    .array(
+      z.strictObject({
+        personId: z.uuid(),
+        action: z.enum(['edit', 'clear', 'request', 'hr', 'leave']),
+        // Of the new type; the write path validates it as it validates any value.
+        value: z.unknown().optional(),
+      }),
+    )
+    .max(20_000),
+  requiredFrom: z.iso.date().optional(),
+});
 export const Grid = z.strictObject({
   changes: z
     .array(z.object({ personId: z.uuid(), values: z.record(z.string(), z.string()) }))
@@ -1178,6 +1201,23 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       pattern: new RegExp(`^/v1/schema/draft/attributes/${KEY}/signup$`),
       handle: write(SignupAskBody, (asking, input, key) =>
         setFieldSignup(deps, asking, key, input.ask),
+      ),
+    },
+    {
+      // A field's new type, with every value it holds checked against it; nothing written.
+      method: 'GET',
+      pattern: new RegExp(`^/v1/views/registry/fields/${KEY}/change$`),
+      handle: async (asking, _r, params, query) =>
+        answer(await fieldChangeView(deps, asking, params['id'] ?? '', query.get('to'))),
+    },
+    {
+      // Publish it, with what HR decided for each value: one transaction.
+      method: 'POST',
+      pattern: new RegExp(`^/v1/schema/draft/attributes/${KEY}/change$`),
+      handle: write(
+        FieldChangeBody,
+        (asking, input, key) => applyFieldChange(deps, asking, key, input.to, input),
+        { status: 201 },
       ),
     },
     {

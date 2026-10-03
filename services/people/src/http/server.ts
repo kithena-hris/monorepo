@@ -756,6 +756,9 @@ function screenDeps(
     schedules: scheduleAdmin(),
     schema,
     draft: drizzleDraftWriter(),
+    // A field change reads every value, and opens a sealed one only to convert it.
+    records: reader,
+    reveal: (tx, where) => service.secrets.reveal(tx, where),
     publisher: publishSchema({
       schema,
       people: drizzlePeopleFacts(),

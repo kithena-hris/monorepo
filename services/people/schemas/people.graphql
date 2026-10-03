@@ -510,7 +510,13 @@ input DraftFieldInput {
   classification: String!
   classificationSource: String!
   collectAt: String!
+  """
+  Money in this currency only; null for the record’s own, absent keeps it.
+  """
+  currency: String
   dataType: String!
+  """A number’s decimal places; absent keeps them."""
+  decimals: Int
   description: String
   """
   Store it sealed: once on, never off. Existing values are sealed when it is published.
@@ -1049,6 +1055,15 @@ type Mutation {
   addDraftSection(idempotencyKey: String!, label: String!): WriteOutcome
   """The requester answers a question about their change, once."""
   answerApprovalQuestion(answer: String!, id: ID!, idempotencyKey: String!): WriteOutcome
+  """
+  Publish a field’s new type with every value it holds, in one transaction: conversions and edits as corrections, the rest cleared, asked of the employee or left for HR (JSON in and out).
+  """
+  applyFieldChange(
+    idempotencyKey: String!
+    """JSON: to, decisions, requiredFrom"""
+    input: String!
+    key: String!
+  ): String
   """Whoever may decide a change asks the requester first (“Ask Nora”)."""
   askAboutPendingChange(id: ID!, idempotencyKey: String!, question: String!): WriteOutcome
   """
@@ -2362,6 +2377,14 @@ type Query {
     """JSON: choice, recipient, sentence"""
     input: String!
   ): String
+  """
+  A field’s new type, with every value it holds read again as that type and nothing written (JSON): what converts, with examples, and each value that does not, with whose it is and why.
+  """
+  peopleFieldChange(
+    key: String!
+    """The new type, as the address names it."""
+    to: String
+  ): String
   peopleFile(id: ID!): PeopleFile
   peopleFullValues: PeopleFullValues
   """
@@ -2504,7 +2527,9 @@ type RegistryField {
   aiShareable: Boolean
   classification: String
   collectAt: String
+  currency: String
   dataType: String
+  decimals: Int
   description: String
   """
   It may be switched to encrypted: a sealable type, not a column People sorts by.
@@ -2527,6 +2552,10 @@ type RegistryField {
   Whether a change waits for HR approval: the tenant’s choice, else the default.
   """
   requiresApproval: Boolean
+  """
+  Its type or format changes in the draft: published only through the review of its values.
+  """
+  review: Boolean
   sectionKey: String
   """
   page: asked on the sign-up page; after: on the first screen after it; null: not at sign-up.
