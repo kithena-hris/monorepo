@@ -73,7 +73,8 @@ services:
   # Slack, the first chat app (`platform/slack`): Socket Mode, so it dials out
   # to Slack and publishes nothing, like everything here. People reaches it at
   # `http://slack:4102` and it reaches People at `http://people:4001`, both
-  # with `SLACK_PEOPLE_TOKEN`. Its own schema in People's database, as
+  # with `SLACK_PEOPLE_TOKEN`; Time Off the same way, at `http://timeoff:4002`,
+  # with `SLACK_TIMEOFF_TOKEN`. Its own schema in People's database, as
   # `svc_slack`. Optional: with no `slack.env` settings it starts and stays off.
   slack:
     image: ${SLACK_IMAGE:?SLACK_IMAGE is set by deploy.sh}
@@ -83,6 +84,7 @@ services:
       NODE_ENV: production
       NODE_OPTIONS: --max-old-space-size=96
       PEOPLE_URL: http://people:4001
+      TIMEOFF_URL: http://timeoff:4002
       SLACK_DATABASE_URL: postgres://svc_slack:${SLACK_DB_PASSWORD:?SLACK_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
     stop_grace_period: 15s
     healthcheck:
@@ -162,6 +164,8 @@ services:
       TEMPORAL_ADDRESS: temporal:7233
       OPENFGA_URL: http://openfga:8080
       VALKEY_URL: redis://valkey:6379
+      # Kithena's one Slack app; off until `timeoff.env` has `SLACK_TIMEOFF_TOKEN`.
+      SLACK_URL: http://slack:4102
       TIMEOFF_DATABASE_URL: postgres://svc_timeoff:${TIMEOFF_DB_PASSWORD:?TIMEOFF_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
     stop_grace_period: 30s
     healthcheck:

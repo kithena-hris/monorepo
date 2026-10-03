@@ -196,4 +196,27 @@ describe('integrations (T35, TOF-109)', () => {
     expect(app.state(TENANT).memberSecrets.get(`slack:${people.adam}`)).toBe('sealed-adam');
     expect(app.state(TENANT).integrations.get('slack')?.secret).toBe('sealed-bot');
   });
+
+  it('connects a chat app at once where its install is Kithena’s, and offers no member grant through it', async () => {
+    const { app, deps } = setup();
+    const shared: ChatPort = { ...slackWithoutCredentials(), configured: true, memberGrant: false };
+    const withSlack: Deps = {
+      ...deps,
+      reach: { calendars: [], chats: [shared], publicUrl: 'https://timeoff.example' },
+    };
+    expect(await connectIntegration(withSlack)(hr, 'slack', BACK)).toEqual({
+      ok: true,
+      value: { url: null },
+    });
+    expect(app.state(TENANT).integrations.get('slack')?.secret).toBeNull();
+    expect(await connectMyIntegration(withSlack)(caller(people.adam), 'slack', BACK)).toMatchObject(
+      {
+        ok: false,
+        error: {
+          code: 'NOT_CONFIGURED',
+          message: 'A slack status while you are away is not available yet',
+        },
+      },
+    );
+  });
 });

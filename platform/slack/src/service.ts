@@ -3,6 +3,8 @@ import {
   fillView,
   noticeMessage,
   savedView,
+  textMessage,
+  timeOffApprovalMessage,
   valuesOf,
   type Approval,
   type Form,
@@ -19,7 +21,8 @@ import type { Store } from './store.js';
  *
  * It holds no Kithena data. Everything a message shows is read from People as
  * the person reading it, when it is drawn; every button is People's own route,
- * called as whoever pressed it. What it keeps is which workspace is which
+ * called as whoever pressed it, except Time Off's, whose signed value is passed
+ * to Time Off as it came. What it keeps is which workspace is which
  * company, and that workspace's token. Which notices are sent is each
  * module's setting; a notice that arrives here was switched on there.
  */
@@ -41,20 +44,40 @@ export type Outcome<T> =
   | { readonly ok: false; readonly message: string; readonly field?: string };
 
 export interface People {
-  ask(tenantId: string, email: string, question: string): Promise<{ text: string; understood: string } | null>;
+  ask(
+    tenantId: string,
+    email: string,
+    question: string,
+  ): Promise<{ text: string; understood: string } | null>;
   act<T>(tenantId: string, email: string, action: Record<string, unknown>): Promise<Outcome<T>>;
+}
+
+/** Time Off, over internal HTTP: a press on one of its buttons, answered with what the message becomes. */
+export interface TimeOff {
+  relay(tenantId: string, value: string): Promise<{ text: string }>;
 }
 
 export interface Slack {
   emailOf(token: string, user: string): Promise<string | null>;
   userByEmail(token: string, email: string): Promise<string | null>;
-  postBlocks(token: string, m: { channel: string; text: string; blocks: readonly unknown[] }): Promise<void>;
-  postMessage(token: string, m: { channel: string; text: string; threadTs?: string }): Promise<void>;
+  postBlocks(
+    token: string,
+    m: { channel: string; text: string; blocks: readonly unknown[] },
+  ): Promise<void>;
+  postMessage(
+    token: string,
+    m: { channel: string; text: string; threadTs?: string },
+  ): Promise<void>;
   respond(url: string, text: string): Promise<void>;
   replaceMessage(url: string, m: { text: string; blocks: readonly unknown[] }): Promise<void>;
   openView(token: string, triggerId: string, view: unknown): Promise<string>;
   updateView(token: string, viewId: string, view: unknown): Promise<void>;
-  exchangeCode(c: { clientId: string; clientSecret: string; code: string; redirectUri: string }): Promise<{
+  exchangeCode(c: {
+    clientId: string;
+    clientSecret: string;
+    code: string;
+    redirectUri: string;
+  }): Promise<{
     botToken: string;
     teamId: string;
     teamName: string;
@@ -74,6 +97,7 @@ export interface OAuth {
 export interface Deps {
   readonly store: Store;
   readonly people: People;
+  readonly timeOff: TimeOff;
   readonly slack: Slack;
   readonly command: string;
   readonly oauth: OAuth | null;
@@ -101,8 +125,19 @@ export interface SlackService {
     tenantId: string,
     notice: Notice & { readonly email: string },
   ): Promise<'sent' | 'not_connected' | 'not_in_slack'>;
+  askTimeOff(
+    tenantId: string,
+    ask: {
+      readonly email: string;
+      readonly text: string;
+      readonly approve: string;
+      readonly decline: string;
+    },
+  ): Promise<'sent' | 'not_connected' | 'not_in_slack'>;
   interact(payload: Interaction): Promise<unknown>;
-  status(tenantId: string): Promise<{ readonly canConnect: boolean; readonly connection: Connection | null }>;
+  status(
+    tenantId: string,
+  ): Promise<{ readonly canConnect: boolean; readonly connection: Connection | null }>;
   authorizeUrl(tenantId: string, accountId: string, origin: string): string | null;
   complete(tenantId: string, code: string, state: string): Promise<Outcome<Connection>>;
   disconnect(tenantId: string): Promise<void>;
@@ -120,8 +155,28 @@ export function slackService(deps: Deps): SlackService {
   const emailOf = async (token: string, user: string) =>
     deps.dev?.actAs ?? (await deps.slack.emailOf(token, user));
 
-  const approvalsFor = async (tenantId: string, email: string, url: string, said: string | null) => {
-    const found = await deps.people.act<{ items: Approval[] }>(tenantId, email, { action: 'approvals' });
+  /** The person's direct message in the company's workspace, or why there is none. */
+  const recipient = async (
+    tenantId: string,
+    email: string,
+  ): Promise<{ token: string; user: string } | 'not_connected' | 'not_in_slack'> => {
+    const installation = await deps.store.installation(tenantId);
+    if (installation === null) return 'not_connected';
+    const token = installation.botToken;
+    const address = deps.dev !== undefined && email === deps.dev.actAs ? deps.dev.inbox : email;
+    const user = address === null ? null : await deps.slack.userByEmail(token, address);
+    return user === null ? 'not_in_slack' : { token, user };
+  };
+
+  const approvalsFor = async (
+    tenantId: string,
+    email: string,
+    url: string,
+    said: string | null,
+  ) => {
+    const found = await deps.people.act<{ items: Approval[] }>(tenantId, email, {
+      action: 'approvals',
+    });
     return found.ok ? approvalsMessage(found.body.items, url, said) : null;
   };
 
@@ -135,7 +190,9 @@ export function slackService(deps: Deps): SlackService {
       else {
         const email = await emailOf(where.token, q.user);
         const answer =
-          email === null ? null : await deps.people.ask(where.tenantId, email, q.text).catch(() => null);
+          email === null
+            ? null
+            : await deps.people.ask(where.tenantId, email, q.text).catch(() => null);
         text =
           email === null
             ? 'I could not read your email from Slack, so I cannot tell who you are in Kithena.'
@@ -146,7 +203,11 @@ export function slackService(deps: Deps): SlackService {
       const to = q.reply;
       if (to.via === 'response_url') await deps.slack.respond(to.url, text);
       else if (to.via === 'thread')
-        await deps.slack.postMessage(where.token, { channel: to.channel, text, threadTs: to.threadTs });
+        await deps.slack.postMessage(where.token, {
+          channel: to.channel,
+          text,
+          threadTs: to.threadTs,
+        });
       else await deps.slack.postMessage(where.token, { channel: to.channel, text });
     },
 
@@ -155,17 +216,21 @@ export function slackService(deps: Deps): SlackService {
       tenantId: string,
       notice: Notice & { readonly email: string },
     ): Promise<'sent' | 'not_connected' | 'not_in_slack'> {
-      const installation = await deps.store.installation(tenantId);
-      if (installation === null) return 'not_connected';
-      const token = installation.botToken;
-      const address = deps.dev !== undefined && notice.email === deps.dev.actAs ? deps.dev.inbox : notice.email;
-      const user = address === null ? null : await deps.slack.userByEmail(token, address);
-      if (user === null) return 'not_in_slack';
+      const to = await recipient(tenantId, notice.email);
+      if (typeof to === 'string') return to;
       const message =
         (notice.event === 'approval_requested'
           ? await approvalsFor(tenantId, notice.email, notice.url, null)
           : null) ?? noticeMessage(notice);
-      await deps.slack.postBlocks(token, { channel: user, ...message });
+      await deps.slack.postBlocks(to.token, { channel: to.user, ...message });
+      return 'sent';
+    },
+
+    /** Time Off asking an approver, with its two signed buttons. Says why when it is not sent. */
+    async askTimeOff(tenantId, ask) {
+      const to = await recipient(tenantId, ask.email);
+      if (typeof to === 'string') return to;
+      await deps.slack.postBlocks(to.token, { channel: to.user, ...timeOffApprovalMessage(ask) });
       return 'sent';
     },
 
@@ -176,6 +241,18 @@ export function slackService(deps: Deps): SlackService {
     async interact(payload: Interaction): Promise<unknown> {
       const where = await workspace(payload.team?.id ?? '');
       if (where === null) return undefined;
+
+      // Time Off's button: its value is Time Off's to read, and it names the approver itself.
+      const pressed = payload.type === 'block_actions' ? payload.actions?.[0] : undefined;
+      if (pressed?.action_id.startsWith('timeoff_') === true && pressed.value) {
+        const answer = await deps.timeOff
+          .relay(where.tenantId, pressed.value)
+          .catch(() => ({ text: 'Time Off could not take that just now. Try again in a moment.' }));
+        if (payload.response_url)
+          await deps.slack.replaceMessage(payload.response_url, textMessage(answer.text));
+        return undefined;
+      }
+
       const email = await emailOf(where.token, payload.user?.id ?? '');
       if (email === null) return undefined;
 
@@ -186,7 +263,9 @@ export function slackService(deps: Deps): SlackService {
 
         if ((action.action_id === 'approve' || action.action_id === 'reject') && action.value) {
           const approve = action.action_id === 'approve';
-          const before = await deps.people.act<{ items: Approval[] }>(where.tenantId, email, { action: 'approvals' });
+          const before = await deps.people.act<{ items: Approval[] }>(where.tenantId, email, {
+            action: 'approvals',
+          });
           const item = before.ok ? before.body.items.find((i) => i.id === action.value) : undefined;
           const done = await deps.people.act(where.tenantId, email, {
             action: 'decide',
@@ -197,7 +276,8 @@ export function slackService(deps: Deps): SlackService {
             ? `${approve ? ':white_check_mark: You approved' : ':x: You rejected'} ${item === undefined ? 'the change' : `${item.name}’s ${item.label}`}.`
             : `:warning: ${done.message}`;
           const next = await approvalsFor(where.tenantId, email, url, said);
-          if (next !== null && payload.response_url) await deps.slack.replaceMessage(payload.response_url, next);
+          if (next !== null && payload.response_url)
+            await deps.slack.replaceMessage(payload.response_url, next);
           return undefined;
         }
 
@@ -220,7 +300,8 @@ export function slackService(deps: Deps): SlackService {
           values,
         });
         if (saved.ok) return { response_action: 'update', view: savedView(saved.body.saved) };
-        const block = saved.field !== undefined && saved.field in values ? saved.field : Object.keys(values)[0];
+        const block =
+          saved.field !== undefined && saved.field in values ? saved.field : Object.keys(values)[0];
         return block === undefined
           ? { response_action: 'update', view: messageView(saved.message) }
           : { response_action: 'errors', errors: { [block]: saved.message } };
@@ -237,7 +318,10 @@ export function slackService(deps: Deps): SlackService {
         connection:
           installation === null
             ? null
-            : ({ teamName: installation.teamName, installedAt: installation.installedAt } satisfies Connection),
+            : ({
+                teamName: installation.teamName,
+                installedAt: installation.installedAt,
+              } satisfies Connection),
       };
     },
 
@@ -260,15 +344,27 @@ export function slackService(deps: Deps): SlackService {
       if (deps.oauth === null) return { ok: false, message: 'Slack is not set up here.' };
       const claims = verifyState(deps.oauth.stateSecret, state, deps.now());
       if (claims === null || claims.t !== tenantId) {
-        return { ok: false, message: 'That link expired or was not started here. Start again from Settings.' };
+        return {
+          ok: false,
+          message: 'That link expired or was not started here. Start again from Settings.',
+        };
       }
       const got = await deps.slack
-        .exchangeCode({ clientId: deps.oauth.clientId, clientSecret: deps.oauth.clientSecret, code, redirectUri: deps.oauth.redirectUri })
+        .exchangeCode({
+          clientId: deps.oauth.clientId,
+          clientSecret: deps.oauth.clientSecret,
+          code,
+          redirectUri: deps.oauth.redirectUri,
+        })
         .catch(() => null);
-      if (got === null) return { ok: false, message: 'Slack did not confirm the connection. Try again.' };
+      if (got === null)
+        return { ok: false, message: 'Slack did not confirm the connection. Try again.' };
       const owner = await deps.store.companyOf(got.teamId);
       if (owner !== null && owner !== tenantId) {
-        return { ok: false, message: `${got.teamName} is already connected to another company in Kithena.` };
+        return {
+          ok: false,
+          message: `${got.teamName} is already connected to another company in Kithena.`,
+        };
       }
       const installedAt = new Date(deps.now()).toISOString();
       await deps.store.install({ tenantId, ...got, installedBy: claims.a, installedAt });
@@ -278,10 +374,10 @@ export function slackService(deps: Deps): SlackService {
     async disconnect(tenantId: string): Promise<void> {
       const installation = await deps.store.installation(tenantId);
       if (installation === null) return;
-      if (installation.botToken !== deps.keepToken) await deps.slack.revoke(installation.botToken).catch(() => undefined);
+      if (installation.botToken !== deps.keepToken)
+        await deps.slack.revoke(installation.botToken).catch(() => undefined);
       await deps.store.uninstall(tenantId);
     },
-
   };
 }
 
@@ -303,7 +399,8 @@ export interface Interaction {
 /** The "Open in Kithena" link a message carries, so a redrawn one keeps it. */
 export function openUrlOf(message: Interaction['message']): string | null {
   for (const block of message?.blocks ?? []) {
-    const elements = (block as { elements?: readonly { action_id?: string; url?: string }[] }).elements ?? [];
+    const elements =
+      (block as { elements?: readonly { action_id?: string; url?: string }[] }).elements ?? [];
     const open = elements.find((e) => e.action_id === 'open');
     if (open?.url !== undefined) return open.url;
   }
