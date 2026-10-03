@@ -36,6 +36,8 @@ const draft: RegistryDraft = {
       { value: 'ES', label: 'Spain' },
       { value: 'DE', label: 'Germany' },
     ],
+    employmentTypes: [],
+    workModels: [],
   },
   sections: [
     {

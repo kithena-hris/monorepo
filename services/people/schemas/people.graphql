@@ -820,6 +820,10 @@ type ImportCellFinding {
 }
 
 type ImportColumn {
+  """
+  One of People’s own choice fields: the file’s values its list gains, by label, when an administrator imports it.
+  """
+  adds: [String!]
   confidence: Float
   header: String
   index: Int
@@ -2444,7 +2448,9 @@ type RegistryChoice {
 
 type RegistryChoices {
   countries: [RegistryChoice!]
+  employmentTypes: [RegistryChoice!]
   legalEntities: [RegistryChoice!]
+  workModels: [RegistryChoice!]
 }
 
 type RegistryField {

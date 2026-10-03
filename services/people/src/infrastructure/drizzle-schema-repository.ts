@@ -291,8 +291,8 @@ function toEvaluable(
     facts: {
       legalEntityId: row.legalEntityId,
       country: countryOf(custom),
-      employmentType: row.employmentType as EvaluablePerson['facts']['employmentType'],
-      workModel: row.workModel as EvaluablePerson['facts']['workModel'],
+      employmentType: row.employmentType,
+      workModel: row.workModel,
       status: row.status as PersonStatus,
       values,
       // Filled in by the caller's document: which attributes the published

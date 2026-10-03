@@ -32,7 +32,7 @@ const STAGE = `
     __typename
     ... on ImportMapStage {
       step file { name rows sheet }
-      columns { index header status key source confidence reason }
+      columns { index header status key source confidence reason adds }
       fields { key label sensitive }
     }
     ... on ImportReviewStage {
@@ -362,7 +362,12 @@ export const OPERATIONS = {
         requiredWhen { ...PredicateParts }
         visibilityRules { scopes when { ...PredicateParts } }
       }
-      choices { legalEntities { value label } countries { value label } }
+      choices {
+        legalEntities { value label }
+        countries { value label }
+        employmentTypes { value label }
+        workModels { value label }
+      }
     }
   }
   fragment PredicateParts on PersonPredicate {

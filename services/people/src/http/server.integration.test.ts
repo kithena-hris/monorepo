@@ -929,7 +929,7 @@ const company = (tenant: string, owner: string) => {
     });
     const completed = await graph(
       `mutation ($id: ID!) { completeImportUpload(uploadId: $id) {
-        __typename ... on ImportMapStage { columns { index header status key reason } }
+        __typename ... on ImportMapStage { columns { index header status key reason adds } }
       } }`,
       { id: target.uploadId },
     );
@@ -941,6 +941,7 @@ const company = (tenant: string, owner: string) => {
         status: string;
         key: string | null;
         reason: string | null;
+        adds: string[] | null;
       }[];
     };
     return { uploadId: target.uploadId, columns: stage.columns };
@@ -1195,6 +1196,13 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     const file = new Uint8Array(await MERIDIAN);
     const { uploadId, columns } = await c.upload(file);
     expect(columns).toHaveLength(105);
+    // The map step says where People's own fields go, and what their lists gain,
+    // though neither field is published until the plan runs.
+    const ownChoices = columns.filter((x) => ['employment_type', 'work_model'].includes(x.key ?? ''));
+    expect(ownChoices.map((x) => [x.header, x.status, x.key, x.adds])).toEqual([
+      ['Employment Type', 'mapped', 'employment_type', ['Full-time', 'Part-time']],
+      ['Work Arrangement', 'mapped', 'work_model', []],
+    ]);
     const mapping = Object.fromEntries(
       columns.map((x) => [x.index, x.status === 'mapped' ? x.key : null]),
     );

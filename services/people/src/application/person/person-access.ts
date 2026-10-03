@@ -8,7 +8,7 @@ import {
   type DomainFailure,
   type Result,
 } from '@kithena/domain-kit';
-import type { Actor, AttributeDefinition, EmploymentType, WorkModel } from '@kithena/contracts';
+import type { Actor, AttributeDefinition } from '@kithena/contracts';
 
 import {
   canWrite,
@@ -2742,8 +2742,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         {
           legalEntityId: person.legalEntityId,
           country: countryOf(values),
-          employmentType: person.employmentType as EmploymentType | null,
-          workModel: person.workModel as WorkModel | null,
+          employmentType: person.employmentType,
+          workModel: person.workModel,
           status: person.snapshot.status,
           values,
           knownAttributes: new Set(definitions.map((d) => d.key as string)),

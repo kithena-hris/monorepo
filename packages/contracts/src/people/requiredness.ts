@@ -42,23 +42,28 @@ export const PredicateOperand = z.enum([
 export type PredicateOperand = z.infer<typeof PredicateOperand>;
 
 /**
- * The employment shapes requiredness can turn on.
+ * The employment shapes and work models requiredness can turn on.
  *
- * Enumerated here rather than left as free text because a predicate comparing
- * against a string the tenant typed is a predicate that silently never matches
- * the day somebody writes "Full-Time".
+ * A key, not a fixed list: the list is the company's (People's own values and
+ * whatever it adds, "Full-time" from an import among them), so the contract
+ * can only hold the shape the option keys share. The draft checks each value
+ * against the field's options (`checkRequirednessPredicate` in People's
+ * `domain/schema/draft.ts`), which is where "Full-Time" typed by hand is
+ * refused rather than silently never matching.
  */
-export const EmploymentType = z.enum([
-  'permanent',
-  'fixed_term',
-  'contractor',
-  'intern',
-  'apprentice',
-  'seasonal',
-]);
+const choiceKey = (what: string) =>
+  z
+    .string()
+    .regex(
+      /^[a-z][a-z0-9_]{0,63}$/u,
+      `A ${what} is an option's key: lowercase letters, digits and underscores`,
+    )
+    .register(policy, asInternal());
+
+export const EmploymentType = choiceKey('employment type');
 export type EmploymentType = z.infer<typeof EmploymentType>;
 
-export const WorkModel = z.enum(['onsite', 'hybrid', 'remote']);
+export const WorkModel = choiceKey('work model');
 export type WorkModel = z.infer<typeof WorkModel>;
 
 /**

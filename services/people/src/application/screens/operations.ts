@@ -66,6 +66,7 @@ import { run } from '../person/service.js';
 import type { SchemaRepository } from '../schema/schema-repository.js';
 import { publish, type PublishedVersion } from '../../domain/schema/publish.js';
 import { SchemaDraft } from '../../domain/schema/draft.js';
+import { choiceFields, withChanged } from '../import/choice-fields.js';
 import { NOBODY, tenantToday, type ScreenDeps, type Tx } from './record.js';
 import { setupDraft } from './setup-draft.js';
 import { segmentsFor } from './segments.js';
@@ -539,9 +540,18 @@ async function prepare(
   tx: Tx,
   asking: Asking,
   bytes: Uint8Array,
-  /** A version not published yet: the plan's, with the import's new fields in it. */
-  over?: PublishedVersion,
+  read: {
+    /** A version not published yet: the plan's, with the import's new fields in it. */
+    readonly over?: PublishedVersion | undefined;
+    /**
+     * Read as the plan will run it, People's own choice fields in
+     * (`withChoices`): the mapping and the steps before the plan. A dry run
+     * or commit of its own reads the version it is given, as it writes.
+     */
+    readonly choices?: boolean;
+  } = {},
 ): Promise<Result<Prepared>> {
+  const { over } = read;
   const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
   if (!relations.isHr) return onlyHr();
   const base =
@@ -556,7 +566,64 @@ async function prepare(
     relations,
     advisor: deps.advisor,
   });
-  return ok({ file: file.value, proposed, version, relations });
+  const chosen =
+    read.choices === true && relations.isAdmin
+      ? withChoices(deps, asking, file.value, proposed, version)
+      : { proposed, version };
+  return ok({ file: file.value, ...chosen, relations });
+}
+
+/**
+ * People's own choice fields, as an administrator's import leaves them: a
+ * column for employment type or work model mapped onto People's field, and
+ * the file read against the version with that field and the values its list
+ * gains (`choiceFields`), as the plan publishes it in the same run. The
+ * column says what it adds. HR's import changes no field, so is read as is.
+ */
+function withChoices(
+  deps: ImportDeps,
+  asking: Asking,
+  file: ParsedFile,
+  proposed: readonly ColumnMapping[],
+  version: PublishedVersion,
+): { readonly proposed: readonly ColumnMapping[]; readonly version: PublishedVersion } {
+  const cells = (index: number) => file.rows.map((r) => r.cells[index] ?? '');
+  const choices = choiceFields(version.document, {
+    choices: proposed
+      .filter((c) => c.status === 'mapped' && CHOICE_KEYS.includes(c.key ?? ''))
+      .map((c) => ({ index: c.index, header: c.header, key: c.key as string, cells: cells(c.index) })),
+    unmatched: proposed
+      .filter((c) => c.status === 'ignored' && c.key === null && c.source === null)
+      .map((c) => ({ index: c.index, header: c.header, cells: cells(c.index) })),
+  });
+  if (choices.attributes.length === 0) return { proposed, version };
+  const next = publish(
+    SchemaDraft.rehydrate(
+      version.document.sections,
+      withChanged(version.document.attributes, choices.attributes),
+    ),
+    version,
+    { clock: deps.clock, actor: asking.viewer.accountId },
+  );
+  // Refused: the plan says why, from the same check; the file is read as it is.
+  if (!next.ok) return { proposed, version };
+  const byColumn = new Map(choices.columns.map((c) => [c.column, c]));
+  return {
+    version: next.value,
+    proposed: proposed.map((c) => {
+      const choice = byColumn.get(c.index);
+      return choice === undefined
+        ? c
+        : {
+            ...c,
+            status: 'mapped',
+            key: choice.key,
+            source: c.source ?? 'alias',
+            reason: null,
+            adds: choice.added,
+          };
+    }),
+  };
 }
 
 function resolved(prepared: Prepared, mapping: Readonly<Record<number, string | null>>) {
@@ -627,7 +694,7 @@ export async function completeImportUpload(
   if (!finished.ok) return finished;
   const { intent, bytes } = finished.value;
   return run(deps.service, asking.tenantId, async (tx) => {
-    const prepared = await prepare(deps, tx, asking, bytes);
+    const prepared = await prepare(deps, tx, asking, bytes, { choices: true });
     if (!prepared.ok) return prepared;
     const { file, proposed, version } = prepared.value;
     const everyone = prepared.value.relations;
@@ -695,7 +762,7 @@ export async function newFieldsFile(
   if (!read.ok) return read;
   const { bytes } = read.value;
   return run(deps.service, asking.tenantId, async (tx) => {
-    const prepared = await prepare(deps, tx, asking, bytes);
+    const prepared = await prepare(deps, tx, asking, bytes, { choices: true });
     if (!prepared.ok) return prepared;
     const { file, proposed } = prepared.value;
     const chosen = step.mapping ?? {};
@@ -794,7 +861,7 @@ export async function dryRunImport(
   if (!read.ok) return read;
   const { intent, bytes } = read.value;
   const reviewed = await run(deps.service, asking.tenantId, async (tx) => {
-    const prepared = await prepare(deps, tx, asking, bytes, over);
+    const prepared = await prepare(deps, tx, asking, bytes, { over });
     if (!prepared.ok) return prepared;
     const mapping = resolved(prepared.value, step.mapping ?? {});
     if (!mapping.ok) return mapping;

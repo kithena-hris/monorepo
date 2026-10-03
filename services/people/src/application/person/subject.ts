@@ -1,5 +1,4 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import type { EmploymentType, WorkModel } from '@kithena/contracts';
 
 import { SUPPORT_RELATIONS, type ExternalSource } from '../../domain/access/field-access.js';
 import type { PersonFacts } from '../../domain/schema/requiredness.js';
@@ -22,8 +21,8 @@ export function factsOf(record: PersonRecord): PersonFacts {
   return {
     legalEntityId: record.legalEntityId,
     country: countryOf(values),
-    employmentType: record.employmentType as EmploymentType | null,
-    workModel: record.workModel as WorkModel | null,
+    employmentType: record.employmentType,
+    workModel: record.workModel,
     status: record.snapshot.status,
     values,
     // Only what the record holds. A clause on a key it does not hold cannot

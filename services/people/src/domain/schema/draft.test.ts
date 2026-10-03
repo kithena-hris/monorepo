@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fixedClock } from '@kithena/domain-kit';
 import type { AttributeDefinitionInput } from '@kithena/contracts';
 
+import { choiceField } from '../../country-packs/core.js';
 import { keyFrom, SchemaDraft, type SectionInput } from './draft.js';
 
 /**
@@ -497,6 +498,92 @@ describe('a requiredness predicate', () => {
       requiredness: requiredOnHealth.requiredness,
     });
     expect(!refused.ok && refused.error.code).toBe('PREDICATE_DISCLOSES');
+  });
+});
+
+describe('a predicate on employment type or work model', () => {
+  const requiredFor = (operand: 'employmentType' | 'workModel', values: string[]) => ({
+    ...attribute,
+    key: 'visa_type',
+    origin: 'tenant' as const,
+    requiredness: {
+      mode: 'conditional' as const,
+      when: { combine: 'all' as const, clauses: [{ operand, in: values }] },
+    },
+  });
+  const withTypes = (): SchemaDraft => {
+    const d = draft();
+    const field = choiceField('employment_type', { sectionKey: 'hr_information', order: 1 }, [
+      { value: 'permanent', label: 'Permanent' },
+      { value: 'full_time', label: 'Full-time' },
+    ]);
+    expect(d.addAttribute(field).ok).toBe(true);
+    return d;
+  };
+
+  it("names one of the company's own values, an import's Full-time among them", () => {
+    expect(withTypes().addAttribute(requiredFor('employmentType', ['full_time'])).ok).toBe(true);
+  });
+
+  it('may name one of People’s own, so a rule written before the company had a list still saves', () => {
+    expect(withTypes().addAttribute(requiredFor('employmentType', ['seasonal'])).ok).toBe(true);
+    expect(draft().addAttribute(requiredFor('workModel', ['remote'])).ok).toBe(true);
+  });
+
+  it('is refused for a value nobody has, which would never hold', () => {
+    const refused = withTypes().addAttribute(requiredFor('employmentType', ['part_time']));
+    expect(!refused.ok && refused.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
+    expect(!refused.ok && refused.error.message).toContain('part_time');
+    expect(!refused.ok && refused.error.path).toEqual(['requiredness']);
+    const remote = draft().addAttribute(requiredFor('workModel', ['four_day_week']));
+    expect(!remote.ok && remote.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
+  });
+
+  const shownFor = (clause: Record<string, unknown>) => ({
+    ...attribute,
+    key: 'bonus_band',
+    origin: 'tenant' as const,
+    requiredness: { mode: 'never' as const },
+    visibility: ['hr' as const],
+    visibilityRules: [
+      { scopes: ['manager' as const], when: { combine: 'all' as const, clauses: [clause as never] } },
+    ],
+  });
+
+  it('holds a visibility rule to the same list', () => {
+    const d = withTypes();
+    expect(d.addAttribute(shownFor({ operand: 'employmentType', in: ['full_time'] })).ok).toBe(true);
+    const refused = withTypes().addAttribute(
+      shownFor({ operand: 'employmentType', in: ['part_time'] }),
+    );
+    expect(!refused.ok && refused.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
+    expect(!refused.ok && refused.error.path).toEqual(['visibilityRules']);
+    expect(!refused.ok && refused.error.message).toContain('part_time');
+  });
+
+  it('holds a rule on any choice field to its options, whichever rule it is', () => {
+    const level = choiceField('level', { sectionKey: 'hr_information', order: 2 }, [
+      { value: 'senior', label: 'Senior' },
+      { value: 'junior', label: 'Junior' },
+    ]);
+    const on = (equals: string) => ({ operand: 'attribute', key: 'level', is: 'equals', equals });
+    const withLevel = (): SchemaDraft => {
+      const d = draft();
+      expect(d.addAttribute({ ...level, key: 'level', origin: 'tenant' }).ok).toBe(true);
+      return d;
+    };
+    expect(withLevel().addAttribute(shownFor(on('senior'))).ok).toBe(true);
+    const shown = withLevel().addAttribute(shownFor(on('principal')));
+    expect(!shown.ok && shown.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
+    const required = withLevel().addAttribute({
+      ...requiredFor('workModel', ['remote']),
+      requiredness: {
+        mode: 'conditional',
+        when: { combine: 'all', clauses: [on('principal') as never] },
+      },
+    });
+    expect(!required.ok && required.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
+    expect(!required.ok && required.error.path).toEqual(['requiredness']);
   });
 });
 

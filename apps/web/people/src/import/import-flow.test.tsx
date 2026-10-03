@@ -421,6 +421,48 @@ describe('ImportFlow', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it("maps Employment Type onto People's own field, and says what its list gains", async () => {
+    const user = fast();
+    const ours = {
+      ...MAPPING,
+      fields: [
+        ...MAPPING.fields,
+        { key: 'employment_type', label: 'Employment type' },
+        { key: 'work_model', label: 'Work model' },
+      ],
+      columns: [
+        ...MAPPING.columns,
+        column({
+          index: 5,
+          header: 'Employment Type',
+          key: 'employment_type',
+          source: 'alias',
+          adds: ['Full-time', 'Part-time'],
+        }),
+        column({
+          index: 6,
+          header: 'Work Arrangement',
+          key: 'work_model',
+          source: 'alias',
+          adds: [],
+        }),
+      ],
+    };
+    const { container } = render(<ImportFlow {...props(ready(ours))} />);
+    const type = screen.getByRole('combobox', { name: 'Employment Type goes to' });
+    expect(type).toHaveTextContent('Employment type');
+    expect(type).toHaveAccessibleDescription('Adds Full-time, Part-time to the list');
+    const model = screen.getByRole('combobox', { name: 'Work Arrangement goes to' });
+    expect(model).toHaveTextContent('Work model');
+    expect(model).not.toHaveAccessibleDescription();
+    expect(await axeViolations(container)).toEqual([]);
+
+    // Sent elsewhere, the column no longer adds anything.
+    await user.click(type);
+    await user.click(screen.getByRole('option', { name: 'Ignored' }));
+    expect(screen.queryByText('Adds Full-time, Part-time to the list')).toBeNull();
+  });
+
   it('keeps its step in the address, and opens the mapping when it no longer holds that step', async () => {
     const user = fast();
     const onStepChange = vi.fn();
