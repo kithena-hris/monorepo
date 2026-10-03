@@ -490,4 +490,34 @@ describe('<DataTable> pinned header and a virtualized body', () => {
     expect(document.querySelector<HTMLElement>('tbody tr[data-row-id]')?.style.height).toBe('57px');
     vi.restoreAllMocks();
   });
+
+  it('holds the box to the whole list’s height, not the table’s layout of the moment', () => {
+    layOut();
+    const props = {
+      label: 'People',
+      rows: many,
+      columns: nameAndTeam,
+      rowId: (r: { id: string }) => r.id,
+      estimateRowHeight: 57,
+      onEndReached: vi.fn(),
+    };
+    const { rerender } = render(<DataTable {...props} />);
+    const box = screen.getByRole('region', { name: 'People' });
+    const extent = (): number =>
+      Number.parseFloat(
+        box.querySelector<HTMLElement>(':scope > div[aria-hidden]')?.style.height ?? '',
+      );
+    // The header (57 here) and every row at its height, drawn or not.
+    expect(extent()).toBe(57 + many.length * 57);
+    expect(box).toHaveClass('relative');
+    // The next page's skeleton row counts too.
+    rerender(<DataTable {...props} loadingMore />);
+    expect(extent()).toBe(57 + (many.length + 1) * 57);
+    // While more is coming the wheel stays with the table; at the end it may go on to the page.
+    expect(box).toHaveClass('overscroll-y-contain');
+    const { onEndReached: _more, ...done } = props;
+    rerender(<DataTable {...done} />);
+    expect(box).not.toHaveClass('overscroll-y-contain');
+    vi.restoreAllMocks();
+  });
 });

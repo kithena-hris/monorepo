@@ -34,11 +34,14 @@ const row = (i: number): HTMLElement => {
 /** A key on a row; focus moves a frame later, once the row is drawn. */
 async function press(i: number, key: string, init: KeyboardEventInit = {}): Promise<void> {
   fireEvent.keyDown(row(i), { key, ...init });
-  await act(() => new Promise<void>((done) => {
-      requestAnimationFrame(() => {
-        done();
-      });
-    }));
+  await act(
+    () =>
+      new Promise<void>((done) => {
+        requestAnimationFrame(() => {
+          done();
+        });
+      }),
+  );
 }
 
 describe('<DataTable> from the keyboard', () => {
