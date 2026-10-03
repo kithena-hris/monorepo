@@ -1,0 +1,571 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { sql } from 'drizzle-orm';
+import postgres from 'postgres';
+import { readdir, readFile } from 'node:fs/promises';
+import { fixedClock } from '@kithena/domain-kit';
+import {
+  DateSpan,
+  DayAmount,
+  LeaveApproved,
+  LeaveChanged,
+  LeaveCounterProposed,
+  LeaveRequested,
+  PersonId,
+  PolicyPublished,
+  TenantId,
+} from '@kithena/contracts';
+import { startPostgres } from '@kithena/testing';
+
+import { upsertMember } from '../application/member/sync.js';
+import { MemberFields, type Tx, type UnitOfWork } from '../application/ports.js';
+import { sendRequest } from '../application/request/request.js';
+import { sequentialIds } from '../application/testing/in-memory.js';
+import {
+  caller,
+  MADRID,
+  member,
+  people,
+  PLATFORM,
+  sickType,
+  TENANT,
+  vacationPolicy,
+  vacationType,
+} from '../application/testing/world.js';
+import { es } from '../country-packs/es.js';
+import { week } from '../domain/attendance/t20.fixture.js';
+import { entry } from '../domain/balance/ledger.js';
+import type { EventContext } from '../domain/context.js';
+import { LeaveType } from '../domain/policy/leave-type.js';
+import { Policy, policyId } from '../domain/policy/policy.js';
+import { LeaveRequest, leaveRequestId, type Span } from '../domain/request/leave-request.js';
+import { knownTenants } from './drizzle-members.js';
+import { drizzleUnitOfWork } from './unit-of-work.js';
+
+/**
+ * TOF-034: every store against the real migrations, as `svc_timeoff`. Each
+ * aggregate goes in, comes back equal, and what it raised is in
+ * `timeoff.outbox` from the same transaction.
+ */
+
+const OTHER = TenantId.parse('99999999-9999-7999-8999-999999999999');
+const MARCO_ACCOUNT = '0000000a-0000-7000-8000-000000000001';
+const MIGRATIONS_DIR = new URL('../../../../migrations/', import.meta.url);
+
+let stopPg: (() => Promise<void>) | undefined;
+let adminClient: ReturnType<typeof postgres> | undefined;
+let serviceClient: ReturnType<typeof postgres> | undefined;
+let asTimeoff: PostgresJsDatabase;
+let uow: UnitOfWork;
+
+const ids = sequentialIds();
+const ctx: EventContext = {
+  clock: fixedClock('2026-10-01T09:00:00.000Z'),
+  newId: ids,
+  actor: { kind: 'system', process: 'integration-test' },
+  correlationId: '00000000-0000-4000-8000-0000000000c1',
+  causationId: null,
+  timeZone: 'Europe/Madrid',
+};
+const run = <T>(fn: (tx: Tx) => Promise<T>): Promise<T> => uow.run(TENANT, fn);
+const must = <T>(r: { ok: true; value: T } | { ok: false; error: { message: string } }): T => {
+  if (!r.ok) throw new Error(r.error.message);
+  return r.value;
+};
+const outboxNames = async (aggregateId: string): Promise<string[]> => {
+  const rows = await asTimeoffIn(TENANT, (tx) =>
+    tx.execute(
+      sql`SELECT event_name FROM timeoff.outbox WHERE aggregate_id = ${aggregateId} ORDER BY event_id`,
+    ),
+  );
+  return [...rows].map((r) => String(r['event_name']));
+};
+
+function asTimeoffIn<T>(tenant: string, fn: (tx: PostgresJsDatabase) => Promise<T>): Promise<T> {
+  return asTimeoff.transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenant}, true)`);
+    return fn(tx);
+  });
+}
+
+beforeAll(async () => {
+  const pg = await startPostgres();
+  stopPg = pg.stop;
+  adminClient = postgres(pg.url, { max: 1, onnotice: () => {} });
+  const admin = drizzle(adminClient);
+  const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.includes('_timeoff_')).toSorted();
+  for (const file of files) {
+    // oxlint-disable-next-line no-await-in-loop -- in order, each builds on the last
+    await admin.execute(sql.raw(await readFile(new URL(file, MIGRATIONS_DIR), 'utf8')));
+  }
+  await admin.execute(sql`ALTER ROLE svc_timeoff LOGIN PASSWORD 'svc_timeoff'`);
+  const asService = new URL(pg.url);
+  asService.username = 'svc_timeoff';
+  asService.password = 'svc_timeoff';
+  serviceClient = postgres(asService.toString(), { max: 4 });
+  asTimeoff = drizzle(serviceClient);
+  uow = drizzleUnitOfWork(asTimeoff);
+
+  // What every section stands on: the team and two leave types.
+  await run(async (tx) => {
+    for (const def of [vacationType(), sickType()]) {
+      // oxlint-disable-next-line no-await-in-loop -- two rows
+      await tx.leaveTypes.save(must(LeaveType.define(def)));
+    }
+    for (const [name, personId] of Object.entries(people)) {
+      // oxlint-disable-next-line no-await-in-loop -- seven rows
+      await tx.members.save(member(personId, name));
+    }
+  });
+});
+
+afterAll(async () => {
+  await serviceClient?.end();
+  await adminClient?.end();
+  await stopPg?.();
+});
+
+describe('members', () => {
+  it('round-trips an imported member, nothing applied yet, as it went in', async () => {
+    expect(await run((tx) => tx.members.get(people.adam))).toEqual(member(people.adam, 'adam'));
+    expect(await run((tx) => tx.members.list({ teamKey: PLATFORM }))).toHaveLength(7);
+  });
+
+  it('moves forward with an event and refuses to be moved back by an older one', async () => {
+    const adam = member(people.adam, 'Adam Novak');
+    const newer = { ...adam, lastEventId: ids(), lastEffectiveFrom: adam.hireDate };
+    await run((tx) => tx.members.save({ ...newer, displayName: 'Adam N.' }));
+    await run((tx) =>
+      tx.members.save({
+        ...adam,
+        displayName: 'stale',
+        lastEventId: ids(),
+        lastEffectiveFrom: '2021-01-01' as typeof adam.hireDate,
+      }),
+    );
+    expect(await run((tx) => tx.members.get(people.adam))).toEqual({
+      ...newer,
+      displayName: 'Adam N.',
+    });
+  });
+
+  it('keeps a leaver as left, and the zone', async () => {
+    const hana = member(people.hana, 'hana', { status: 'left', timeZone: 'Atlantic/Canary' });
+    await run((tx) => tx.members.save(hana));
+    expect(await run((tx) => tx.members.get(people.hana))).toEqual(hana);
+  });
+
+  it('lists the tenant for background jobs once it has a member', async () => {
+    expect(await knownTenants(asTimeoff)).toEqual([TENANT]);
+  });
+
+  it('round-trips a location', async () => {
+    const madrid = {
+      locationKey: MADRID,
+      name: 'Madrid',
+      country: 'ES',
+      timeZone: 'Europe/Madrid',
+    };
+    await run((tx) => tx.locations.save(madrid as Parameters<Tx['locations']['save']>[0]));
+    expect(await run((tx) => tx.locations.get(MADRID))).toEqual(madrid);
+  });
+});
+
+describe('leave types', () => {
+  it('comes back hidden, and deleted, as it was saved', async () => {
+    const sick = must(LeaveType.define(sickType()));
+    sick.hide();
+    await run((tx) => tx.leaveTypes.save(sick));
+    const back = await run((tx) => tx.leaveTypes.get(sick.id));
+    expect(back?.definition).toEqual(sick.definition);
+    expect([back?.hidden, back?.deleted]).toEqual([true, false]);
+
+    sick.show();
+    await run((tx) => tx.leaveTypes.save(sick));
+    expect((await run((tx) => tx.leaveTypes.get(sick.id)))?.hidden).toBe(false);
+  });
+});
+
+describe('policies', () => {
+  it('round-trips draft, publish and the next draft, with policy.published in the outbox', async () => {
+    const id = policyId(ids());
+    const policy = Policy.draft({ id, tenantId: TENANT, definition: vacationPolicy() });
+    await run((tx) => tx.policies.save(policy));
+
+    must(policy.publish('2026-01-01' as never, ctx));
+    await run(async (tx) => {
+      await tx.policies.save(policy);
+      await tx.outbox.publish(policy.drainEvents());
+    });
+    must(policy.revise(vacationPolicy({ allowance: [{ fromYears: 0, days: '26.000' }] })));
+    // The published version is skipped, not rewritten: the table refuses that.
+    await run((tx) => tx.policies.save(policy));
+
+    const back = await run((tx) => tx.policies.get(id));
+    expect(back?.versions).toEqual(policy.versions);
+    expect(
+      (await run((tx) => tx.policies.forLeaveType(vacationType().key))).map((p) => p.id),
+    ).toEqual([id]);
+    expect(await outboxNames(id)).toEqual([PolicyPublished.name]);
+  });
+});
+
+describe('the ledger', () => {
+  it('appends and reads back as the contract has it', async () => {
+    const grant = entry(
+      {
+        personId: people.omar,
+        leaveTypeKey: vacationType().key,
+        unit: 'day',
+        kind: 'grant',
+        amount: '25.000',
+        effectiveOn: '2026-01-01' as never,
+        policyVersion: 1,
+      },
+      ctx,
+    );
+    const correction = entry(
+      {
+        personId: people.omar,
+        leaveTypeKey: vacationType().key,
+        unit: 'day',
+        kind: 'grant',
+        amount: '24.500',
+        effectiveOn: '2026-01-01' as never,
+        policyVersion: 1,
+        supersedes: grant.entryId,
+      },
+      ctx,
+    );
+    await run((tx) => tx.ledger.append([grant, correction]));
+    const back = await run((tx) => tx.ledger.forMember(people.omar, vacationType().key));
+    expect(back).toEqual([
+      { ...grant, occurredAt: '2026-10-01T09:00:00.000Z' },
+      { ...correction, occurredAt: '2026-10-01T09:00:00.000Z' },
+    ]);
+  });
+});
+
+describe('requests', () => {
+  const span = (from: string, to: string, workingDays: string): Span => ({
+    from: from as never,
+    to: to as never,
+    startsHalfDay: false,
+    endsHalfDay: false,
+    workingDays: DayAmount.parse(workingDays),
+  });
+
+  it('round-trips a request, its routing and a swap with a gap, with every event in the outbox', async () => {
+    const id = leaveRequestId(ids());
+    const { request, entries } = must(
+      LeaveRequest.request(
+        {
+          id,
+          tenantId: TENANT,
+          personId: people.adam,
+          // What a request keeps of its type; the rest is the type's own row.
+          leaveType: {
+            key: vacationType().key,
+            category: 'annual_leave',
+            tracked: true,
+            paid: 'paid',
+            unit: 'day',
+          },
+          span: span('2026-10-19', '2026-10-23', '5.000'),
+          verdict: { kind: 'fits' },
+        },
+        ctx,
+      ),
+    );
+    const record = {
+      request,
+      routing: {
+        chain: ['manager', 'hr'] as const,
+        step: 0,
+        since: '2026-10-01' as never,
+        escalatedTo: null,
+      },
+      note: 'Family visit',
+      requestedAt: '2026-10-01T09:00:00.000Z' as never,
+      proposedBy: null,
+    };
+    await run(async (tx) => {
+      await tx.requests.save(record);
+      await tx.ledger.append(entries);
+      await tx.outbox.publish(request.drainEvents());
+    });
+
+    const back = await run((tx) => tx.requests.get(id));
+    expect(back?.request.snapshot).toEqual(request.snapshot);
+    expect(back?.routing).toEqual(record.routing);
+    expect(back?.note).toBe('Family visit');
+
+    // Marco swaps the 21st out; Adam accepts.
+    const loaded = back?.request as LeaveRequest;
+    must(
+      loaded.counterPropose(
+        {
+          by: MARCO_ACCOUNT,
+          proposals: [
+            {
+              spans: [
+                { from: '2026-10-19' as never, to: '2026-10-20' as never },
+                { from: '2026-10-22' as never, to: '2026-10-23' as never },
+              ],
+              workingDays: DayAmount.parse('4.000'),
+            },
+          ],
+        },
+        ctx,
+      ),
+    );
+    await run(async (tx) => {
+      await tx.requests.save({ ...record, request: loaded, proposedBy: MARCO_ACCOUNT });
+      await tx.outbox.publish(loaded.drainEvents());
+    });
+    const proposed = (await run((tx) => tx.requests.get(id)))?.request as LeaveRequest;
+    expect(proposed.proposals).toEqual(loaded.proposals);
+    must(proposed.acceptCounter({ index: 0, approvedBy: MARCO_ACCOUNT, jurisdiction: 'ES' }, ctx));
+    await run(async (tx) => {
+      await tx.requests.save({
+        ...record,
+        request: proposed,
+        routing: { ...record.routing, step: 2 },
+      });
+      await tx.outbox.publish(proposed.drainEvents());
+    });
+
+    const accepted = await run((tx) => tx.requests.get(id));
+    expect(accepted?.request.snapshot).toEqual(proposed.snapshot);
+    expect(accepted?.request.spans).toHaveLength(2);
+    // The gap day is inside the bounds, as the in-memory store answers.
+    expect(
+      await run((tx) =>
+        tx.requests.list({
+          from: '2026-10-21' as never,
+          to: '2026-10-21' as never,
+          statuses: ['approved'],
+        }),
+      ),
+    ).toHaveLength(1);
+    expect(await run((tx) => tx.requests.list({ personIds: [people.leo] }))).toEqual([]);
+    expect(await outboxNames(id)).toEqual([
+      LeaveRequested.name,
+      LeaveCounterProposed.name,
+      LeaveChanged.name,
+      LeaveApproved.name,
+    ]);
+  });
+});
+
+describe('settings', () => {
+  it('keeps approval rules, auto-approval, a delegation and a team minimum', async () => {
+    const rules = [
+      { subject: 'request', leaveTypes: null, when: 'always', approvers: ['manager'] },
+      { subject: 'request', leaveTypes: null, when: 'below_zero', approvers: ['manager', 'hr'] },
+    ] as const;
+    const delegation = {
+      approverId: people.marco,
+      delegateId: people.omar,
+      range: { from: '2026-12-21' as never, to: '2026-12-31' as never },
+      automatic: true,
+      salaryRelated: false,
+    };
+    await run(async (tx) => {
+      await tx.approvals.setRules([...rules, rules[0]]);
+      await tx.approvals.setRules(rules);
+      await tx.approvals.setAutoApproval({
+        shortenOrCancel: false,
+        sickUnderDays: null,
+        oneDayAboveMinimum: true,
+      });
+      await tx.approvals.saveDelegation(delegation);
+      await tx.approvals.setTeamMinimum(PLATFORM, { atLeast: 5, unit: 'people' });
+    });
+    await run(async (tx) => {
+      expect(await tx.approvals.rules()).toEqual(rules);
+      expect(await tx.approvals.autoApproval()).toEqual({
+        shortenOrCancel: false,
+        sickUnderDays: null,
+        oneDayAboveMinimum: true,
+      });
+      expect(await tx.approvals.delegation(people.marco)).toEqual(delegation);
+      expect(await tx.approvals.teamMinimum(PLATFORM)).toEqual({ atLeast: 5, unit: 'people' });
+    });
+    await run(async (tx) => {
+      await tx.approvals.removeDelegation(people.marco);
+      await tx.approvals.setTeamMinimum(PLATFORM, null);
+    });
+    expect(await run((tx) => tx.approvals.delegation(people.marco))).toBeNull();
+    expect(await run((tx) => tx.approvals.teamMinimum(PLATFORM))).toBeNull();
+  });
+
+  it('keeps holiday layers and the ones a location observes, in order', async () => {
+    const layers = es.calendars.madrid;
+    await run(async (tx) => {
+      for (const layer of layers) {
+        // oxlint-disable-next-line no-await-in-loop -- three layers
+        await tx.holidays.saveLayer(layer);
+      }
+      await tx.holidays.assign(MADRID, layers.map((l) => l.key).toReversed());
+      await tx.holidays.assign(
+        MADRID,
+        layers.map((l) => l.key),
+      );
+    });
+    await run(async (tx) => {
+      expect((await tx.holidays.layers()).toSorted((a, b) => a.key.localeCompare(b.key))).toEqual(
+        layers.toSorted((a, b) => a.key.localeCompare(b.key)),
+      );
+      expect(await tx.holidays.assigned(MADRID)).toEqual(layers.map((l) => l.key));
+    });
+    await run((tx) => tx.holidays.removeLayer('madrid'));
+    expect(await run((tx) => tx.holidays.assigned(MADRID))).toEqual(['es', 'es_md']);
+  });
+
+  it('bumps a feed version from nothing', async () => {
+    expect(await run((tx) => tx.feeds.version(people.adam))).toBe(0);
+    expect(await run((tx) => tx.feeds.bump(people.adam))).toBe(1);
+    expect(await run((tx) => tx.feeds.bump(people.adam))).toBe(2);
+    expect(await run((tx) => tx.feeds.version(people.adam))).toBe(2);
+  });
+});
+
+describe('attendance', () => {
+  it('keeps punches, a schedule, the rules, periods, lines and overtime decisions', async () => {
+    const schedule = {
+      kind: 'fixed' as const,
+      name: 'Office hours',
+      week: { 1: { start: 540, end: 1050, breakMinutes: 30 } },
+    };
+    const rules = {
+      breakAfterMinutes: 360,
+      breakMinutes: 30,
+      restMinutes: 720,
+      weeklyMaxMinutes: 2520,
+      overtime: { becomes: 'comp' as const, multiplier: '1.50' },
+    };
+    const period = {
+      id: ids(),
+      from: '2026-09-01' as never,
+      to: '2026-09-30' as never,
+      closedAt: null,
+    };
+    const line = {
+      id: ids(),
+      personId: people.adam,
+      team: PLATFORM,
+      date: '2026-09-29' as never,
+      periodId: period.id,
+      workedMinutes: 525,
+      compMinutes: 45,
+      paidMinutes: 0,
+      supersedes: null,
+    };
+    await run(async (tx) => {
+      for (const p of week) {
+        // oxlint-disable-next-line no-await-in-loop -- in order, as punched
+        await tx.attendance.appendPunch(people.adam, p);
+      }
+      await tx.attendance.setSchedule(people.adam, schedule);
+      await tx.attendance.setRules(rules);
+      await tx.attendance.savePeriod(period);
+      await tx.attendance.appendLine(line);
+      await tx.attendance.decideOvertime({
+        personId: people.adam,
+        date: line.date,
+        minutes: 45,
+        outcome: 'comp',
+        decidedBy: MARCO_ACCOUNT,
+      });
+      await tx.attendance.savePeriod({ ...period, closedAt: '2026-10-01T09:00:00.000Z' as never });
+      // Closed: a later save changes nothing rather than failing on the lock.
+      await tx.attendance.savePeriod({ ...period, closedAt: null });
+    });
+    await run(async (tx) => {
+      const punches = await tx.attendance.punches(people.adam);
+      expect(punches.map((p) => [p.id, Date.parse(p.at), p.kind])).toEqual(
+        week.map((p) => [p.id, Date.parse(p.at), p.kind]),
+      );
+      expect(await tx.attendance.schedule(people.adam)).toEqual(schedule);
+      expect(await tx.attendance.schedule(people.omar)).toBeNull();
+      expect(await tx.attendance.rules()).toEqual(rules);
+      expect(await tx.attendance.periods()).toEqual([
+        { ...period, closedAt: '2026-10-01T09:00:00.000Z' },
+      ]);
+      expect(await tx.attendance.lines()).toEqual([line]);
+      expect(await tx.attendance.overtime(people.adam)).toEqual([
+        {
+          personId: people.adam,
+          date: line.date,
+          minutes: 45,
+          outcome: 'comp',
+          decidedBy: MARCO_ACCOUNT,
+        },
+      ]);
+    });
+  });
+});
+
+/** On what the sections above stored: the published vacation policy and Madrid's layers. */
+describe('the use cases, over Drizzle', () => {
+  it('hires a member with their grant, and sends a request whose rows name it', async () => {
+    const nora = PersonId.parse('00000000-0000-7000-8000-000000000008');
+    const deps = {
+      uow,
+      clock: fixedClock('2026-10-01T07:00:00.000Z'),
+      newId: ids,
+      timers: { started: async () => {}, closed: async () => {} },
+    };
+    const hired = must(
+      await upsertMember(deps)(TENANT, MemberFields.parse({ ...member(nora, 'Nora Field') }), {
+        eventId: ids(),
+        effectiveFrom: '2026-10-01' as never,
+        correlationId: ctx.correlationId,
+      }),
+    );
+    expect(hired.posted.map((e) => [e.kind, e.amount])).toEqual([['grant', '25.000']]);
+
+    const sent = must(
+      await sendRequest(deps)(caller(nora), {
+        leaveTypeKey: vacationType().key,
+        span: DateSpan.parse({ from: '2026-11-02', to: '2026-11-06' }),
+      }),
+    );
+    expect(sent.status).toBe('pending');
+    const rows = await run((tx) => tx.ledger.forMember(nora, vacationType().key));
+    expect(rows.map((e) => [e.kind, e.amount, e.requestId])).toEqual([
+      ['grant', '25.000', null],
+      // Monday 2 November is the Madrid region's moved Todos los Santos, read from the stored layers.
+      ['booking', '-4.000', sent.requestId],
+    ]);
+    expect(await outboxNames(sent.requestId)).toEqual([LeaveRequested.name]);
+  });
+});
+
+describe('the unit of work', () => {
+  it('rolls back the write and its events together when it throws', async () => {
+    const id = policyId(ids());
+    const policy = Policy.draft({ id, tenantId: TENANT, definition: vacationPolicy() });
+    must(policy.publish('2026-01-01' as never, ctx));
+    await expect(
+      run(async (tx) => {
+        await tx.policies.save(policy);
+        await tx.outbox.publish(policy.drainEvents());
+        throw new Error('refused after writing');
+      }),
+    ).rejects.toThrow('refused after writing');
+    expect(await run((tx) => tx.policies.get(id))).toBeNull();
+    expect(await outboxNames(id)).toEqual([]);
+  });
+
+  it('shows another tenant none of it', async () => {
+    await uow.run(OTHER, async (tx) => {
+      expect(await tx.members.list()).toEqual([]);
+      expect(await tx.policies.list()).toEqual([]);
+      expect(await tx.requests.list({})).toEqual([]);
+      expect(await tx.holidays.layers()).toEqual([]);
+      expect(await tx.attendance.punches(people.adam)).toEqual([]);
+    });
+  });
+});

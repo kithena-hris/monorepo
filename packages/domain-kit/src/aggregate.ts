@@ -16,6 +16,14 @@ export abstract class AggregateRoot<TId extends string> extends Entity<TId> {
     return this.#version;
   }
 
+  /**
+   * The version an aggregate was stored at, for a repository rebuilding it:
+   * the next event it raises then numbers on from there, not from 1.
+   */
+  protected restoreVersion(version: number): void {
+    this.#version = version;
+  }
+
   protected raise(event: PendingEvent): void {
     this.#version += 1;
     this.#pending.push(event);

@@ -586,7 +586,7 @@ no decline, cancel or change.
   `FOR SHARE`, so a close and a post racing cannot both win. `punch` and
   `pay_period_line` are insert-only for `svc_timeoff`.
 
-### [ ] TOF-034 — Drizzle repositories and the unit of work
+### [x] TOF-034 — Drizzle repositories and the unit of work
 
 - **Files** `services/timeoff/src/infrastructure/drizzle-*.ts`,
   `unit-of-work.ts`
@@ -595,6 +595,26 @@ no decline, cancel or change.
   publish their events to the outbox in one transaction.
 - **Done when** integration tests round-trip every aggregate and see its events
   in the outbox.
+- **As built** `drizzleUnitOfWork(db)` is `withTenant` handing out every store
+  bound to the transaction; `timeoffDatabase(env)` opens the pool from
+  `TIMEOFF_DATABASE_URL`, and `main.ts` passes it to the consumers and the
+  jobs (the transports take `drizzleUnitOfWork(db)` the same way).
+  `LeaveRequest`, `Policy` and `LeaveType` gained `rehydrate`, and
+  `AggregateRoot` a protected `restoreVersion`, so a stored request's next
+  event numbers on from its version. `20261003120000_timeoff_repositories.sql`
+  adds what the ports hold and the tables did not: the member's zone, a
+  deleted leave type, a request's routing, which layers a location observes,
+  the two tenant settings, overtime decisions, feed versions, People's
+  locations (TOF-045) and `timeoff.tenant`, the job's tenant list on People's
+  pattern. Relaxed, each saying why: a holiday layer's place (assigned per
+  location instead) and "closed by" (the domain does not carry it yet). An
+  import's member is stored as the nil event and `-infinity`, read back as
+  null, and the upsert never moves a member backwards. `persist` now saves the
+  request before its ledger rows, which name it by foreign key; the Spain
+  pack's region keys are `es_md` and `es_ct`, the key shape the table holds.
+  The application tests stay on the in-memory ports: People has no shared
+  port contract, and `repositories.integration.test.ts` drives a hire and a
+  request through the use cases over Drizzle instead.
 
 ### Application
 
@@ -721,7 +741,7 @@ no decline, cancel or change.
   Regenerate SDL with `just codegen`; `just supergraph` must compose.
 - **Done when** `just supergraph` composes and the schema snapshot test passes.
 
-### [ ] TOF-045 — People event consumers
+### [x] TOF-045 — People event consumers
 
 - **Files** `services/timeoff/src/infrastructure/consumers/`
 - **Depends on** TOF-035
@@ -731,6 +751,21 @@ no decline, cancel or change.
   by `effectiveFrom`. Update the manifest's `consumes`.
 - **Done when** a consumer test applies out-of-order events and ends in the right
   state.
+- **As built** `handle.ts` is transport-free like People's; `wire.ts` consumes
+  `kithena.people.v1` as group `timeoff` when `TIMEOFF_DATABASE_URL` and
+  `KAFKA_BROKERS` are both set. Each person event reads, merges and calls
+  `upsertIn` in one transaction, so the fields it does not carry stay as
+  stored; an event about somebody unknown is ignored (People keys a person's
+  events to one partition, so `hired` comes first). People names org units
+  and locations by id, so the keys are `u_<hex>` and `l_<hex>`, and no People
+  event names an org unit: a team's name stays the import's, or none.
+  Locations are a small projection (`LocationStore`, a new port) that turns a
+  member's location into country and zone; a zone change rewrites the
+  members there without an event id, so it never holds back their own events.
+  `profile_updated` applies a name only when given and family name both
+  carry values, and a start date; `synced_from_external` carries field names
+  only and is ignored, its values arriving on the events People raises beside
+  it. A zone change applies on arrival, not from its date.
 
 ### [ ] TOF-046 — REST and OpenAPI
 
@@ -754,13 +789,25 @@ no decline, cancel or change.
 - **Done when** model tests cover manager, delegate during range only, HR, and a
   teammate who may see "Off" but not the type.
 
-### [ ] TOF-049 — Seed for the demo company
+### [x] TOF-049 — Seed for the demo company
 
 - **Files** `services/timeoff/src/seed/`, `docs/demo-company.md`
 - **Depends on** TOF-044
 - **Approach** Acme's Platform team, Adam, Marco, Ada and the design's October
   2026 data, so screens match the design on `just dev`.
 - **Done when** `just dev` shows T1 with 11.5 days left for Adam.
+- **As built** `pnpm db:seed` ends with `pnpm --filter @kithena/timeoff seed`,
+  which finds Acme by slug and runs `seedAcme` over the Drizzle unit of work:
+  one transaction, as of 1 October 2026 12:33 in Madrid, through the import's
+  `upsertIn`, the aggregates' own transitions at the dates they happened and
+  `persist`; skipped whole once Adam exists. T1 is not built yet (TOF-051 on),
+  so the "done when" is held by `acme.test.ts` and `acme.integration.test.ts`:
+  Adam's vacation folds to 11.5 left, 10.5 used, 3 booked, personal 2, comp
+  6h. With monthly accrual those need 4.167 carried in, and five days taken
+  in February so the carry does not expire. Adam's own 19–23 October is left
+  out: it is T3's request, whose 11.5 → 6.5 preview and 21 October clash only
+  hold while it is unsent (`docs/demo-company.md`). Ravi's comp day books 1
+  hour, the application having no day-to-hours rule for hour-unit leave.
 
 ### [ ] TOF-050 — Standalone acceptance
 

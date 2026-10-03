@@ -1,5 +1,6 @@
 import { Queue, Worker } from 'bullmq';
-import type { Result } from '@kithena/domain-kit';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { systemClock, type Result } from '@kithena/domain-kit';
 import type { TenantId } from '@kithena/contracts';
 import { logger, onShutdown } from '@kithena/telemetry';
 
@@ -11,7 +12,9 @@ import {
   postAccruals,
   yearEnd,
 } from '../application/jobs.js';
-import type { Deps } from '../application/ports.js';
+import type { Deps, Notifier } from '../application/ports.js';
+import { knownTenants } from './drizzle-members.js';
+import { drizzleUnitOfWork, uuidv7 } from './unit-of-work.js';
 
 /**
  * Everything Time Off does that no request asks for (TOF-043), on BullMQ, as
@@ -109,15 +112,37 @@ export async function startBackground(
 }
 
 /**
- * Called from `main.ts`. The jobs need the Drizzle unit of work, which is
- * TOF-034's; until it lands there is nothing durable to run them against,
- * and this says so rather than running them over memory.
+ * What Time Off tells people, until messaging carries it: the log line only,
+ * by kind and key, never the notice's figures.
+ *
+ * ponytail: nobody is told anything yet. Swap for messaging's port when Time
+ * Off's notices get their templates.
  */
-export function wireBackground(env = process.env, deps?: BackgroundDeps): void {
-  if (deps === undefined) {
-    logger.info({ module: 'timeoff' }, 'no Time Off storage yet (TOF-034); no background jobs');
+export const logNotifier: Notifier = {
+  notify(tenantId, to, notice, dedupeKey) {
+    logger.info({ module: 'timeoff', tenantId, to, kind: notice.kind, dedupeKey }, 'notice');
+    return Promise.resolve();
+  },
+};
+
+/**
+ * Called from `main.ts` with Time Off's database: the jobs over the Drizzle
+ * unit of work, for every tenant with a member. Without a database there is
+ * nothing durable to run them against, and this says so rather than running
+ * them over memory.
+ */
+export function wireBackground(env: NodeJS.ProcessEnv, db: PostgresJsDatabase | null): void {
+  if (db === null) {
+    logger.info({ module: 'timeoff' }, 'no Time Off database; no background jobs');
     return;
   }
+  const deps: BackgroundDeps = {
+    uow: drizzleUnitOfWork(db),
+    clock: systemClock,
+    newId: uuidv7,
+    notifier: logNotifier,
+    tenants: () => knownTenants(db),
+  };
   const started = startBackground(env, deps);
   started.catch((error: unknown) => {
     logger.error({ err: error }, 'timeoff background work failed to start');

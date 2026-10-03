@@ -184,7 +184,7 @@ const national = layer('es', 'Spain', 'national', [
   ['2027-12-25', 'Navidad'],
 ]);
 
-const comunidadDeMadrid = layer('es-md', 'Madrid region', 'regional', [
+const comunidadDeMadrid = layer('es_md', 'Madrid region', 'regional', [
   ['2026-04-02', 'Jueves Santo'],
   ['2026-05-02', 'Fiesta de la Comunidad de Madrid'],
   ['2026-11-02', 'Todos los Santos (trasladado)'],
@@ -194,7 +194,7 @@ const comunidadDeMadrid = layer('es-md', 'Madrid region', 'regional', [
   ['2027-08-16', 'Asunción (trasladada)'],
 ]);
 
-const catalunya = layer('es-ct', 'Catalonia', 'regional', [
+const catalunya = layer('es_ct', 'Catalonia', 'regional', [
   ['2026-04-06', 'Dilluns de Pasqua Florida'],
   ['2026-06-24', 'Sant Joan'],
   ['2026-09-11', 'Diada Nacional de Catalunya'],

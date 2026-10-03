@@ -53,6 +53,23 @@ export class LeaveType extends AggregateRoot<LeaveTypeKey> {
     return checked.ok ? ok(new LeaveType(checked.value)) : checked;
   }
 
+  /**
+   * A leave type as it was stored. Throws on a private type stored as
+   * showing its reason: that row is corrupt, not a user's mistake.
+   */
+  static rehydrate(stored: {
+    definition: LeaveTypeDefinition;
+    hidden: boolean;
+    deleted: boolean;
+  }): LeaveType {
+    const checked = check(stored.definition);
+    if (!checked.ok) throw new Error(checked.error.message);
+    const type = new LeaveType(checked.value);
+    type.#hidden = stored.hidden;
+    type.#deleted = stored.deleted;
+    return type;
+  }
+
   get definition(): LeaveTypeDefinition {
     return this.#definition;
   }

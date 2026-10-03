@@ -88,6 +88,23 @@ export interface MemberStore {
   save(member: Member): Promise<void>;
 }
 
+/**
+ * A work location as People's `people.location.*` events describe it
+ * (TOF-045): how a member's location, which People names by id, becomes the
+ * country and zone the projection keeps.
+ */
+export interface Location {
+  readonly locationKey: LocationKey;
+  readonly name: string;
+  readonly country: MemberFields['country'];
+  readonly timeZone: string;
+}
+
+export interface LocationStore {
+  get(locationKey: LocationKey): Promise<Location | null>;
+  save(location: Location): Promise<void>;
+}
+
 /* ---------------------------------------------------------------- policy -- */
 
 export interface LeaveTypeStore {
@@ -214,6 +231,7 @@ export interface Outbox {
 export interface Tx {
   readonly tenantId: TenantId;
   readonly members: MemberStore;
+  readonly locations: LocationStore;
   readonly leaveTypes: LeaveTypeStore;
   readonly policies: PolicyStore;
   readonly ledger: LedgerStore;

@@ -73,6 +73,23 @@ export interface Proposal {
 
 type Entries = Result<readonly LedgerEntry[]>;
 
+/** Everything a request is, for a repository to store and rebuild it from. */
+export interface LeaveRequestSnapshot {
+  readonly id: LeaveRequestId;
+  readonly tenantId: TenantId;
+  readonly personId: PersonId;
+  readonly leaveType: RequestLeaveType;
+  readonly status: RequestStatus;
+  readonly span: Span;
+  readonly runs: readonly DateRange[];
+  readonly proposals: readonly Proposal[];
+  readonly pendingChange: Span | null;
+  readonly belowZero: boolean;
+  readonly sickNoteFileId: string | null;
+  readonly datesEventId: string;
+  readonly version: number;
+}
+
 /** In order, each ending on or after it starts, none touching the one before. */
 const ordered = (runs: readonly DateRange[]): boolean =>
   runs.length > 0 &&
@@ -168,6 +185,43 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
     if (args.verdict.kind === 'borrow')
       entries.push(request.#post(ctx, 'borrow', args.verdict.days, today(ctx)));
     return ok({ request, entries });
+  }
+
+  /** A request as it was stored. No event: nothing happened, it was only read. */
+  static rehydrate(s: LeaveRequestSnapshot): LeaveRequest {
+    const request = new LeaveRequest(s.id, {
+      tenantId: s.tenantId,
+      personId: s.personId,
+      leaveType: s.leaveType,
+      span: s.span,
+      belowZero: s.belowZero,
+      sickNoteFileId: s.sickNoteFileId,
+    });
+    request.#status = s.status;
+    request.#runs = s.runs;
+    request.#proposals = s.proposals;
+    request.#pendingChange = s.pendingChange;
+    request.#datesEventId = s.datesEventId;
+    request.restoreVersion(s.version);
+    return request;
+  }
+
+  get snapshot(): LeaveRequestSnapshot {
+    return {
+      id: this.id,
+      tenantId: this.#tenantId,
+      personId: this.#personId,
+      leaveType: this.#leaveType,
+      status: this.#status,
+      span: this.#span,
+      runs: this.#runs,
+      proposals: this.#proposals,
+      pendingChange: this.#pendingChange,
+      belowZero: this.#belowZero,
+      sickNoteFileId: this.#sickNoteFileId,
+      datesEventId: this.#datesEventId,
+      version: this.version,
+    };
   }
 
   get status(): RequestStatus {

@@ -25,6 +25,8 @@ import type {
   HolidayStore,
   LeaveTypeStore,
   LedgerStore,
+  Location,
+  LocationStore,
   Member,
   MemberStore,
   Notice,
@@ -47,6 +49,7 @@ import type {
 
 interface State {
   members: Map<string, Member>;
+  locations: Map<string, Location>;
   leaveTypes: Map<string, LeaveType>;
   policies: Map<string, Policy>;
   ledger: LedgerEntry[];
@@ -69,6 +72,7 @@ interface State {
 
 const empty = (): State => ({
   members: new Map(),
+  locations: new Map(),
   leaveTypes: new Map(),
   policies: new Map(),
   ledger: [],
@@ -136,6 +140,12 @@ function stores(tenantId: TenantId, s: State): Tx {
         ),
       save: (member) => {
         s.members.set(member.personId, member);
+      },
+    }),
+    locations: promised<LocationStore>({
+      get: (key) => s.locations.get(key) ?? null,
+      save: (location) => {
+        s.locations.set(location.locationKey, location);
       },
     }),
     leaveTypes: promised<LeaveTypeStore>({
