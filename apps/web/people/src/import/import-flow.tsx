@@ -68,6 +68,11 @@ export interface ProposedColumn {
   readonly confidence: number | null;
   /** Why it is refused, in words. */
   readonly reason: string | null;
+  /**
+   * Employment type or work model, People's own: the values its list gains
+   * from the file, by label, when an administrator's import adds them.
+   */
+  readonly adds?: readonly string[] | null;
 }
 
 export type ImportStage =
@@ -464,6 +469,12 @@ function Steps({
         ? [{ message: 'The plan could not be worked out, so there is nothing to approve yet.' }]
         : [];
 
+  // People's own choice field, still where the file goes: what its list gains.
+  const addsNote = (c: ProposedColumn): string | null =>
+    c.adds == null || c.adds.length === 0 || chosen(c) !== c.key
+      ? null
+      : `Adds ${c.adds.join(', ')} to the list`;
+
   const columns: DataColumn<ProposedColumn>[] = [
     { id: 'header', header: 'In your file', cell: (c) => c.header },
     {
@@ -477,36 +488,49 @@ function Steps({
             {c.reason ?? 'You may not write this field.'}
           </span>
         ) : (
-          <Select
-            value={chosen(c) ?? IGNORE}
-            onValueChange={(value) => {
-              setChoices((x) => ({ ...x, [c.index]: value === IGNORE ? null : value }));
-              setView(null);
-              setPlan(null);
-              setPlaces(null);
-            }}
-          >
-            <SelectTrigger aria-label={`${c.header} goes to`} size="sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={IGNORE}>
-                {c.status === 'ignored' && c.source === null
-                  ? 'A new field, or ignored'
-                  : 'Ignored'}
-              </SelectItem>
-              {c.key !== null && !labelOf.has(c.key) && c.source === 'system' ? (
-                <SelectItem value={c.key}>{c.key.replaceAll('_', ' ')}</SelectItem>
-              ) : null}
-              {stage.fields.map((f) => (
-                <SelectItem key={f.key} value={f.key}>
-                  {f.sensitive === true
-                    ? `${f.label} (sensitive: changes wait for approval)`
-                    : f.label}
+          <Stack gap={1}>
+            <Select
+              value={chosen(c) ?? IGNORE}
+              onValueChange={(value) => {
+                setChoices((x) => ({ ...x, [c.index]: value === IGNORE ? null : value }));
+                setView(null);
+                setPlan(null);
+                setPlaces(null);
+              }}
+            >
+              <SelectTrigger
+                aria-label={`${c.header} goes to`}
+                aria-describedby={
+                  addsNote(c) === null ? undefined : `${whyId}-adds-${String(c.index)}`
+                }
+                size="sm"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={IGNORE}>
+                  {c.status === 'ignored' && c.source === null
+                    ? 'A new field, or ignored'
+                    : 'Ignored'}
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {c.key !== null && !labelOf.has(c.key) && c.source === 'system' ? (
+                  <SelectItem value={c.key}>{c.key.replaceAll('_', ' ')}</SelectItem>
+                ) : null}
+                {stage.fields.map((f) => (
+                  <SelectItem key={f.key} value={f.key}>
+                    {f.sensitive === true
+                      ? `${f.label} (sensitive: changes wait for approval)`
+                      : f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {addsNote(c) === null ? null : (
+              <span id={`${whyId}-adds-${String(c.index)}`} className="text-sm text-fg-muted">
+                {addsNote(c)}
+              </span>
+            )}
+          </Stack>
         ),
     },
     { id: 'confidence', header: 'Confidence', cell: confidence },

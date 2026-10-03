@@ -104,6 +104,12 @@ export interface ColumnMapping {
   readonly source: 'key' | 'label' | 'alias' | 'suggested' | 'manual' | 'system' | null;
   readonly confidence: number | null;
   readonly reason: string | null;
+  /**
+   * One of People's own choice fields (employment type, work model): the
+   * file's values its list gains, by label, when an administrator's import
+   * adds them. The field itself may come with the import (`choice-fields.ts`).
+   */
+  readonly adds?: readonly string[];
 }
 
 export interface ProposeInput {

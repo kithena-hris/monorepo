@@ -32,7 +32,7 @@ const STAGE = `
     __typename
     ... on ImportMapStage {
       step file { name rows sheet }
-      columns { index header status key source confidence reason }
+      columns { index header status key source confidence reason adds }
       fields { key label sensitive }
     }
     ... on ImportReviewStage {

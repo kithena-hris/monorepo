@@ -1626,6 +1626,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       source: t.exposeString('source', { nullable: true }),
       confidence: t.exposeFloat('confidence', { nullable: true }),
       reason: t.exposeString('reason', { nullable: true }),
+      adds: t.stringList({
+        nullable: true,
+        description:
+          'One of People’s own choice fields: the file’s values its list gains, by label, when an administrator imports it.',
+        resolve: (m) => (m.adds === undefined ? null : list(m.adds)),
+      }),
     }),
   });
   const ImportTarget = builder
