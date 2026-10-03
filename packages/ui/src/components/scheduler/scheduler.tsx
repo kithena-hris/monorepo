@@ -1,7 +1,14 @@
 'use client';
 
 import { TriangleAlert } from 'lucide-react';
-import { useRef, useState, type CSSProperties, type JSX, type ReactNode } from 'react';
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
@@ -532,7 +539,9 @@ function spoken(event: SchedulerEvent, columns: readonly SchedulerColumn[]): str
 /**
  * The selected day's detail, opening from its day. Closing it hands focus
  * back to the day's button, which Radix cannot find for an anchor that is
- * not a trigger.
+ * not a trigger. Only a day on screen opens it: a grid hidden at this width
+ * (a phone's week drawn beside a desk's month) keeps its detail shut, or
+ * one selection would open two.
  */
 function DayDetail({
   name,
@@ -547,9 +556,14 @@ function DayDetail({
   returnTo: { readonly current: HTMLButtonElement | null };
   children: ReactNode;
 }): JSX.Element {
+  const [onScreen, setOnScreen] = useState(false);
+  useLayoutEffect(() => {
+    const day = returnTo.current;
+    setOnScreen(day === null || typeof day.checkVisibility !== 'function' || day.checkVisibility());
+  }, [returnTo]);
   return (
     <Popover
-      open
+      open={onScreen}
       onOpenChange={(open) => {
         if (!open) onDismiss?.();
       }}
