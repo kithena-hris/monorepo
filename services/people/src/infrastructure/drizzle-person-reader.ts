@@ -367,6 +367,15 @@ export function drizzlePersonReader(): PersonReader {
       return row ? toRecord(row) : null;
     },
 
+    async records(tx, tenantId, personIds) {
+      if (personIds.length === 0) return [];
+      const rows = await tx
+        .select(withEmployment)
+        .from(person)
+        .where(and(eq(person.tenantId, tenantId), inArray(person.id, [...personIds])));
+      return rows.map(toRecord);
+    },
+
     async page(tx, tenantId, after, limit, where, search, gaps, leavers, gapsIn, refine) {
       const order = orderOf(refine);
       // ponytail: a sorted page reads by offset, so page n costs n pages; the

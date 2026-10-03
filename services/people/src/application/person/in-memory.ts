@@ -223,6 +223,8 @@ export function inMemoryPeople(
         const row = rows.get(id);
         return Promise.resolve(row ? toRecord(row) : null);
       },
+      records: (_tx, _tenant, ids) =>
+        Promise.resolve(ids.flatMap((id) => (rows.has(id) ? [toRecord(rows.get(id) as Row)] : []))),
       page: (_tx, _tenant, after, limit, where = {}, search, _gaps, leavers = true) =>
         Promise.resolve(
           [...rows.values()]

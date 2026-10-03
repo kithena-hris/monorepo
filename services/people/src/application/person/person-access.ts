@@ -2828,10 +2828,15 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const version = await deps.schemas.current(tx, asking.tenantId);
       if (!version) return err(NotPublished());
       const out = new Map<string, CompletenessVerdict>();
+      const wanted = [...new Set(asking.personIds)];
       const records: PersonRecord[] = [];
-      for (const personId of new Set(asking.personIds)) {
-        const person = await deps.reader.record(tx, asking.tenantId, personId);
-        if (person) records.push(person);
+      if (deps.reader.records !== undefined) {
+        records.push(...(await deps.reader.records(tx, asking.tenantId, wanted)));
+      } else {
+        for (const personId of wanted) {
+          const person = await deps.reader.record(tx, asking.tenantId, personId);
+          if (person) records.push(person);
+        }
       }
       if (records.length === 0) return ok(out);
       const ids = records.map((r) => r.snapshot.id);

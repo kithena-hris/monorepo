@@ -110,6 +110,12 @@ export interface PersonReader {
     personId: string,
     lock?: boolean,
   ): Promise<PersonRecord | null>;
+  /** `record` for many people in one query; whoever is not found is left out. Absent, `record` each. */
+  records?(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    personIds: readonly string[],
+  ): Promise<readonly PersonRecord[]>;
 
   /**
    * Keyset by id: the last page of a large tenant costs what the first does.
