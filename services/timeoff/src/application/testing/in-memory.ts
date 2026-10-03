@@ -23,6 +23,7 @@ import type {
   Deps,
   FeedStore,
   HolidayStore,
+  IdempotencyStore,
   LeaveTypeStore,
   LedgerStore,
   Member,
@@ -34,6 +35,7 @@ import type {
   PolicyStore,
   RequestRecord,
   RequestStore,
+  StoredKey,
   Tx,
   UnitOfWork,
 } from '../ports.js';
@@ -65,6 +67,7 @@ interface State {
   overtime: OvertimeDecision[];
   feeds: Map<string, number>;
   events: PendingEvent[];
+  keys: Map<string, StoredKey>;
 }
 
 const empty = (): State => ({
@@ -87,6 +90,7 @@ const empty = (): State => ({
   overtime: [],
   feeds: new Map(),
   events: [],
+  keys: new Map(),
 });
 
 /**
@@ -249,6 +253,14 @@ function stores(tenantId: TenantId, s: State): Tx {
     outbox: promised<Outbox>({
       publish: (events) => {
         s.events.push(...events);
+      },
+    }),
+    idempotency: promised<IdempotencyStore>({
+      find: (key) => s.keys.get(key) ?? null,
+      save: (key, stored) => {
+        if (s.keys.has(key)) return false;
+        s.keys.set(key, stored);
+        return true;
       },
     }),
   };

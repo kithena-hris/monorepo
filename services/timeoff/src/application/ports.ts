@@ -210,6 +210,24 @@ export interface Outbox {
   publish(events: readonly PendingEvent[]): Promise<void>;
 }
 
+/**
+ * A REST write's `Idempotency-Key` (TOF-046), saved in the write's own
+ * transaction, so the write and the record of it commit together or not at
+ * all — People's rule. `answer` is the body the write answered with: a retry
+ * is answered with it rather than run again.
+ */
+export interface StoredKey {
+  readonly requestHash: string;
+  readonly status: number;
+  readonly answer: unknown;
+}
+
+export interface IdempotencyStore {
+  find(key: string): Promise<StoredKey | null>;
+  /** False when another request committed this key first. */
+  save(key: string, stored: StoredKey): Promise<boolean>;
+}
+
 /** Every store, bound to one tenant transaction. */
 export interface Tx {
   readonly tenantId: TenantId;
@@ -223,6 +241,7 @@ export interface Tx {
   readonly attendance: AttendanceStore;
   readonly feeds: FeedStore;
   readonly outbox: Outbox;
+  readonly idempotency: IdempotencyStore;
 }
 
 export interface UnitOfWork {
