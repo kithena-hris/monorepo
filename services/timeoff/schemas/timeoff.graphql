@@ -253,6 +253,10 @@ type Query {
   timeOffNegativeBalanceSettings: TimeOffSettingsNegativeBalance!
   """T1: the clock, the balances, what is coming up and who is off today"""
   timeOffOverview: TimeOffOverview!
+  """
+  T30: what publishing the draft today would do to each member, folded; nothing is saved; HR
+  """
+  timeOffPolicyPreview(policyId: String!): TimeOffPolicyPreview!
   """One request, for its member, an approver or HR"""
   timeOffRequest(requestId: String!): TimeOffRequestDetail!
   """
@@ -273,6 +277,11 @@ type Query {
   Whether the caller approves anyone, is HR, and the counts on Requests and Attendance (TOF-058a)
   """
   timeOffViewer: TimeOffViewer!
+}
+
+type TimeOffAmountChange {
+  current: String!
+  draft: String!
 }
 
 type TimeOffApprovalRule {
@@ -378,6 +387,12 @@ type TimeOffCalendarYear {
 type TimeOffCorrection {
   needsManager: Boolean!
   punch: TimeOffPunch!
+}
+
+type TimeOffCountryPack {
+  country: String!
+  reviewed: Boolean!
+  version: Int!
 }
 
 type TimeOffCover {
@@ -566,6 +581,14 @@ type TimeOffMember {
   timeZone: String!
 }
 
+type TimeOffMemberPreview {
+  allowance: TimeOffAmountChange!
+  displayName: String!
+  left: TimeOffAmountChange!
+  lostAtYearEnd: TimeOffAmountChange!
+  personId: String!
+}
+
 type TimeOffMyRequests {
   items: [TimeOffRequestItem!]!
   tab: String!
@@ -696,6 +719,13 @@ type TimeOffPolicyDefinitionYear {
 
 type TimeOffPolicyDrafted {
   policyId: String!
+}
+
+type TimeOffPolicyPreview {
+  draftVersion: Int
+  effectiveFrom: String!
+  members: [TimeOffMemberPreview!]!
+  yearEnd: String!
 }
 
 type TimeOffPolicyPublished {
@@ -915,6 +945,7 @@ type TimeOffSettingsAttendance {
 type TimeOffSettingsHolidays {
   layers: [TimeOffHolidayLayer!]!
   locations: [TimeOffLocationHolidays!]!
+  packs: [TimeOffCountryPack!]!
   year: Int!
 }
 
@@ -925,6 +956,7 @@ type TimeOffSettingsLeaveType {
 
 type TimeOffSettingsLeaveTypes {
   leaveTypes: [TimeOffLeaveTypeSetting!]!
+  packs: [TimeOffCountryPack!]!
 }
 
 type TimeOffSettingsNegativeBalance {

@@ -23,6 +23,7 @@ import {
   setNegativeBalanceRule,
   setTeamMinimum,
 } from './admin.js';
+import { holidaySettings, policyPreview } from '../screens/settings.js';
 
 describe('settings (TOF-041)', () => {
   it('publishing a policy re-folds the balances it affects and emits policy.published', async () => {
@@ -86,5 +87,48 @@ describe('settings (TOF-041)', () => {
       error: { code: 'NOT_FOUND' },
     });
     expect(await assign(hr, barcelona, ['es'])).toEqual({ ok: true, value: undefined });
+  });
+});
+
+describe('the policy preview and the pack flag (TOF-079, TOF-083)', () => {
+  it('folds the draft beside the version in effect for every member, and posts nothing', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
+    const before = app.state(TENANT).ledger.length;
+    await revisePolicy(app.deps)(
+      hr,
+      VACATION_POLICY,
+      vacationPolicy({ allowance: [{ fromYears: 0, days: '27.000' }] }),
+    );
+    const preview = await policyPreview(app.deps)(hr, { policyId: VACATION_POLICY });
+    if (!preview.ok) throw new Error(preview.error.message);
+    expect(preview.value).toMatchObject({
+      draftVersion: 2,
+      effectiveFrom: '2026-10-01',
+      yearEnd: '2026-12-31',
+    });
+    expect(preview.value.members).toHaveLength(7);
+    expect(preview.value.members.find((m) => m.personId === people.adam)).toMatchObject({
+      allowance: { current: '25.000', draft: '27.000' },
+    });
+    expect(app.state(TENANT).ledger).toHaveLength(before);
+    expect(
+      await policyPreview(app.deps)(caller(people.marco), { policyId: VACATION_POLICY }),
+    ).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+  });
+
+  it('has nobody to show without a draft', async () => {
+    const app = world();
+    expect(await policyPreview(app.deps)(hr, { policyId: VACATION_POLICY })).toMatchObject({
+      ok: true,
+      value: { draftVersion: null, members: [] },
+    });
+  });
+
+  it('names the Spanish pack, not yet reviewed, where its holidays are in use', async () => {
+    const app = world();
+    const holidays = await holidaySettings(app.deps)(hr, { year: 2026 });
+    expect(holidays.ok && holidays.value.packs).toEqual([
+      { country: 'ES', version: 1, reviewed: false },
+    ]);
   });
 });
