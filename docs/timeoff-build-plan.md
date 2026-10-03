@@ -382,7 +382,7 @@ no decline, cancel or change.
 - **Done when** T34's five rules resolve as drawn and a shorten resolves to no
   approver.
 
-### [ ] TOF-020 — Delegation and escalation
+### [x] TOF-020 — Delegation and escalation
 
 - **Spec** PRD §9.7
 - **Files** `services/timeoff/src/domain/approval/delegation.ts`
