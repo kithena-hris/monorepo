@@ -552,6 +552,19 @@ type TimeOffDone {
   ok: Boolean!
 }
 
+type TimeOffEvidence {
+  at: String!
+  source: String!
+  what: String!
+}
+
+type TimeOffFinishSuggestion {
+  ai: Boolean!
+  at: String!
+  evidence: [TimeOffEvidence!]!
+  time: String!
+}
+
 type TimeOffHandoverItem {
   coveredBy: String!
   work: String!
@@ -728,6 +741,7 @@ type TimeOffNoticeReminder {
 type TimeOffOpenDay {
   date: String!
   lastPunchAt: String!
+  suggestion: TimeOffFinishSuggestion
 }
 
 type TimeOffOtherOff {

@@ -7,6 +7,7 @@ import { calendarIn, type CalendarQuery } from '../calendar/calendar.js';
 import { AttendanceClock, standing, type Punch } from '../../domain/attendance/clock.js';
 import { openDays } from '../../domain/attendance/correction.js';
 import type { LookCloser, Triage } from '../../domain/approval/triage.js';
+import { kithenaActivity, suggestFinish, type Evidence } from '../assist/clock-out.js';
 import { writeDecision } from '../assist/decision.js';
 import { reasonFacts, writeReasons, type ReasonFacts } from '../assist/reasons.js';
 import { addDays, amount, days } from '../../domain/days.js';
@@ -36,7 +37,7 @@ import type {
  * (T12–T14), and what the shell asks about the viewer (TOF-058a).
  */
 
-type ReadDeps = Pick<Deps, 'uow' | 'authz' | 'clock' | 'writer'>;
+type ReadDeps = Pick<Deps, 'uow' | 'authz' | 'clock' | 'writer' | 'judge' | 'calendar'>;
 
 export const reasonView = (reason: LookCloser): View<typeof LookCloserReason> => ({
   rule: reason.rule,
@@ -388,28 +389,62 @@ export const timesheetScreen =
     if (personId === null) return forbidden();
     const sheet = await timesheet(deps)(caller, { personId, from: query.from, to: query.to });
     if (!sheet.ok) return sheet;
-    return transact<TimesheetView>(deps, caller.tenantId, async (tx) => {
-      const member = await tx.members.get(personId);
-      if (member === null) return notFound('Member');
-      // A night shift's clock-out lands the morning after the range.
-      const inRange = (at: string) =>
-        at.slice(0, 10) >= query.from && at.slice(0, 10) <= addDays(query.to, 1);
-      const s = sheet.value;
-      return ok({
-        member: memberView(member),
-        days: [...s.days],
-        weeks: s.weeks.map((w) => ({ ...w, flags: [...w.flags] })),
-        open: [...s.open],
-        restBreaches: [...s.restBreaches],
-        overtime: s.overtime.map((o) => ({ date: o.date, minutes: o.minutes, outcome: o.outcome })),
-        punches: standing(await tx.attendance.punches(personId))
-          .filter((p) => inRange(p.at))
-          .map(punchView),
-        corrections: s.corrections.map((c) => ({
-          punch: punchView(c.punch),
-          needsManager: c.needsManager,
+    const mine = caller.personId === personId;
+    const read = await transact<{ view: TimesheetView; activity: Evidence[][] }>(
+      deps,
+      caller.tenantId,
+      async (tx) => {
+        const member = await tx.members.get(personId);
+        if (member === null) return notFound('Member');
+        const activity = mine
+          ? await Promise.all(
+              sheet.value.open.map((o) => kithenaActivity(tx, personId, o.date, member.timeZone)),
+            )
+          : [];
+        // A night shift's clock-out lands the morning after the range.
+        const inRange = (at: string) =>
+          at.slice(0, 10) >= query.from && at.slice(0, 10) <= addDays(query.to, 1);
+        const s = sheet.value;
+        return ok({
+          activity,
+          view: {
+            member: memberView(member),
+            days: [...s.days],
+            weeks: s.weeks.map((w) => ({ ...w, flags: [...w.flags] })),
+            open: s.open.map((o) => ({ ...o, suggestion: null })),
+            restBreaches: [...s.restBreaches],
+            overtime: s.overtime.map((o) => ({
+              date: o.date,
+              minutes: o.minutes,
+              outcome: o.outcome,
+            })),
+            punches: standing(await tx.attendance.punches(personId))
+              .filter((p) => inRange(p.at))
+              .map(punchView),
+            corrections: s.corrections.map((c) => ({
+              punch: punchView(c.punch),
+              needsManager: c.needsManager,
+            })),
+          },
+        });
+      },
+    );
+    if (!read.ok || !mine) return read.ok ? ok(read.value.view) : read;
+    const { view, activity } = read.value;
+    return ok({
+      ...view,
+      open: await Promise.all(
+        view.open.map(async (o, i) => ({
+          ...o,
+          suggestion: await suggestFinish(
+            deps,
+            caller.tenantId,
+            { personId, timeZone: view.member.timeZone },
+            o,
+            activity[i] ?? [],
+          ),
         })),
-      });
+      ),
     });
   };
 

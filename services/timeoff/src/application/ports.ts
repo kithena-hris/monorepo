@@ -13,7 +13,7 @@ import {
   type TenantId,
 } from '@kithena/contracts';
 
-import type { Judge, Writer } from './assist/ports.js';
+import type { CalendarEvidence, Judge, Writer } from './assist/ports.js';
 import type { ApprovalRule, ApproverRole, AutoApproval } from '../domain/approval/approval-rule.js';
 import type { Delegation } from '../domain/approval/delegation.js';
 import type { Punch } from '../domain/attendance/clock.js';
@@ -411,6 +411,8 @@ export interface Deps {
   readonly judge?: Judge;
   /** The assistant's lines (`ASSISTANT_*`); absent, every line is its template (§14.1). */
   readonly writer?: Writer;
+  /** A connected calendar's event end times, evidence for a missed clock-out (§11.4). */
+  readonly calendar?: CalendarEvidence;
 }
 
 export const userActor = (caller: Caller): Actor => ({ kind: 'user', userId: caller.accountId });

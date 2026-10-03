@@ -1528,11 +1528,20 @@ test passes, and it matches the design's screen on the seeded demo company.
   Time Off never saw them. Committed with TOF-086 and TOF-087, which share
   the decision view.
 
-### [ ] TOF-089 — Missed clock-out suggestion
+### [x] TOF-089 — Missed clock-out suggestion
 
 - **Screens** T21, MT18 · **Depends on** TOF-084, TOF-075
 - **Approach** Evidence is only calendar event end times (when a calendar is
   connected) and Kithena activity timestamps. Shown with the evidence.
+- **As built** `Deps.calendar` (`CalendarEvidence`) is the calendar's port,
+  with no adapter until TOF-110; Kithena's activity is what Time Off itself
+  saw the person do that day (requests sent). `domain/attendance/suggestion.ts`
+  turns the evidence after the last punch into candidate times rounded up to
+  five minutes; TypeSafe picks the likeliest from times and kinds alone (no
+  event title, no name), otherwise the latest. Each `timeOffTimesheet` open
+  day carries `suggestion`, only for the person themselves, `null` without
+  evidence. The fix dialog fills the time in and lists the evidence; the AI
+  tag shows when the model chose.
 
 ### [ ] TOF-090 — Describe it, get the best dates
 

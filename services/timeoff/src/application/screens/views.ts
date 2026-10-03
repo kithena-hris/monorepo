@@ -503,7 +503,35 @@ export const TimesheetView = named(
         }),
       ),
     ),
-    open: z.array(named('TimeOffOpenDay', z.object({ date: CalendarDate, lastPunchAt: Instant }))),
+    open: z.array(
+      named(
+        'TimeOffOpenDay',
+        z.object({
+          date: CalendarDate,
+          lastPunchAt: Instant,
+          /** When they probably finished, from their own evidence; only for themselves (TOF-089). */
+          suggestion: named(
+            'TimeOffFinishSuggestion',
+            z.object({
+              at: Instant,
+              time: z.string(),
+              /** Whether a model chose it among the domain's candidates. */
+              ai: z.boolean(),
+              evidence: z.array(
+                named(
+                  'TimeOffEvidence',
+                  z.object({
+                    source: z.enum(['calendar', 'kithena']),
+                    at: Instant,
+                    what: z.string(),
+                  }),
+                ),
+              ),
+            }),
+          ).nullable(),
+        }),
+      ),
+    ),
     restBreaches: z.array(
       named('TimeOffRestBreach', z.object({ date: CalendarDate, restMinutes: z.int() })),
     ),

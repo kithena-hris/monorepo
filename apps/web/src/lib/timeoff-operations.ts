@@ -181,7 +181,7 @@ export const OPERATIONS = {
   /** T20: a timesheet by week or month, the caller’s own unless a member is named */
   TimeOffTimesheet: `query TimeOffTimesheet($from: String!, $personId: String, $to: String!) {
     timeOffTimesheet(from: $from, personId: $personId, to: $to) {
-      corrections { needsManager punch { at id kind reason recordedAt source supersedes workModel } } days { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } open { date lastPunchAt } overtime { date minutes outcome } punches { at id kind reason recordedAt source supersedes workModel } restBreaches { date restMinutes } weeks { flags monday overtimeMinutes plannedMinutes workedMinutes }
+      corrections { needsManager punch { at id kind reason recordedAt source supersedes workModel } } days { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } open { date lastPunchAt suggestion { ai at evidence { at source what } time } } overtime { date minutes outcome } punches { at id kind reason recordedAt source supersedes workModel } restBreaches { date restMinutes } weeks { flags monday overtimeMinutes plannedMinutes workedMinutes }
     }
   }`,
 

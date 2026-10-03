@@ -59,3 +59,21 @@ export interface Writer {
   /** A line per key it wrote; null on any failure. */
   write(tenantId: string, ask: WriteAsk): Promise<Readonly<Record<string, unknown>> | null>;
 }
+
+/** One calendar event, as the person's own connected calendar has it. */
+export interface CalendarEvent {
+  readonly endsAt: string;
+  /** Shown to the person beside the suggestion; never to a model. */
+  readonly title: string;
+  /** "Google Calendar". */
+  readonly calendar: string;
+}
+
+/**
+ * The person's own calendar, when they have connected one (TOF-110): the end
+ * times of a day's events, as evidence for when they finished (§11.4). No
+ * adapter yet, so no calendar evidence; Kithena's own activity still counts.
+ */
+export interface CalendarEvidence {
+  events(tenantId: string, personId: string, date: string): Promise<readonly CalendarEvent[]>;
+}
