@@ -34,9 +34,7 @@ export interface AskerRoutesDeps {
   /** Active member accounts with this work email in the tenant: two are enough to refuse. */
   readonly accounts: (tenantId: string, email: string) => Promise<readonly AskerAccountRow[]>;
   /** The tenant's slug and its modules; null for a tenant there is not. */
-  readonly tenant: (
-    tenantId: string,
-  ) => Promise<{
+  readonly tenant: (tenantId: string) => Promise<{
     readonly slug: string;
     readonly entitlements: readonly ModuleEntitlement[];
   } | null>;

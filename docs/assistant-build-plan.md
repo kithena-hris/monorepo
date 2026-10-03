@@ -492,7 +492,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** a test posts a question through the route against fake modules
   and a fake model, and a log-capture test finds no word of the question.
 - **As built** the token, not the body, says the channel. `compose(settings,
-  wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
+wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   calendar link); the test swaps `fetch`, the logger and the clock and runs
   the whole service against fake HTTP services. With no model the answer is
   "not available" before identity is asked. One span per question
