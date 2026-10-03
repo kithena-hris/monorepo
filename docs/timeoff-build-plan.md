@@ -138,7 +138,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 - **Done when** `pnpm --filter @kithena/timeoff dev` serves `/graphql` and
   `/healthz`, and the standalone boot test still passes.
 
-### [ ] TOF-004 — Dockerfile and deploy
+### [x] TOF-004 — Dockerfile and deploy
 
 - **Files** `services/timeoff/Dockerfile`, `deploy/vm/deploy.sh`
 - **Depends on** TOF-003
@@ -146,6 +146,10 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   dependency fix from #208.
 - **Done when** `docker build -f services/timeoff/Dockerfile .` succeeds and the
   image answers `/healthz`.
+- **As built** `deploy/vm/deploy.sh` is unchanged: it already creates
+  `svc_timeoff NOLOGIN NOBYPASSRLS` before migrating, and Time Off has no VM
+  service, database URL or relay to deploy until it holds data (TOF-030 on).
+  `graphql` moved from dev to runtime dependencies, the #208 fix.
 
 ### [x] TOF-005 — Codegen sees Time Off's new events
 
