@@ -2,7 +2,7 @@ import * as z from 'zod';
 
 import { asPublic, policy } from '../classification.js';
 import type { LeaveTypeDefinition } from '../timeoff/policy.js';
-import { LeaveTypeKey } from '../timeoff/primitives.js';
+import { LeaveCategory, LeaveTypeKey } from '../timeoff/primitives.js';
 import { capability } from './capability.js';
 
 /**
@@ -47,6 +47,13 @@ export const CatalogueLeaveType = z.strictObject({
   key: LeaveTypeKey,
   name: z.string().min(1).max(120).register(policy, asPublic()),
   private: z.boolean().register(policy, asPublic()),
+  /**
+   * Which everyday words name it: "off sick" names a `sick_leave` type, whatever
+   * the company called it. Optional, so an older Time Off still parses; a
+   * private type without it is masked by its name and key alone, and the
+   * assistant refuses the everyday words rather than guess.
+   */
+  category: LeaveCategory.optional(),
 });
 export type CatalogueLeaveType = z.infer<typeof CatalogueLeaveType>;
 

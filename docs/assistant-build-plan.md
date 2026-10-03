@@ -195,7 +195,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 
 ## Phase 1 — the assistant's core
 
-### [ ] AST-006 — `platform/assistant` boots
+### [x] AST-006 — `platform/assistant` boots
 
 - **Spec** PRD §6.1, §15.1
 - **Files** `platform/assistant/{package.json,tsconfig.json,vitest.config.ts,Dockerfile}`,
@@ -208,8 +208,12 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   isn't available right now." No database.
 - **Done when** `pnpm --filter @kithena/assistant dev` answers `/health`,
   `just lint` (dependency boundaries included) passes, and the image builds.
+- **As built** `compose(settings)` returns a route function, as Slack's
+  `route()`; until AST-017 replaces it, `POST /internal/ask` answers "not
+  available" to any caller, which says nothing. The layer folders appear with
+  their first files; the existing boundary rules already cover `platform/*`.
 
-### [ ] AST-007 — Plan validation
+### [x] AST-007 — Plan validation
 
 - **Spec** PRD §9.2, §9.3
 - **Files** `platform/assistant/src/domain/plan.ts` (+ test, first)
@@ -224,8 +228,18 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `intent.ts`). Refusal is whole and carries a reason code for telemetry.
 - **Done when** one test per rule, each refusing; a valid plan for every PRD §7
   example accepted.
+- **As built** the catalogue is an `Offer` (capability name → `Offered`:
+  the pinned `Capability`, its runtime fields, its module's metrics), built by
+  `offer(catalogues)`, which also pins versions, checks the module, and drops
+  what yields (§8.4). `readPlan` reads the plan against the offer the model was
+  shown, masked references included, so AST-012 validates and then unmasks.
+  Three refusals the PRD implies but does not list: `within` an earlier step
+  whose output is not people, a count or list of something that is not people
+  (`ANSWER_KIND`), and a `sort` or `groupBy` the capability does not offer.
+  An `unclear` with an empty reply carries none, so the template's sentence
+  stands.
 
-### [ ] AST-008 — Dates in the asker's zone
+### [x] AST-008 — Dates in the asker's zone
 
 - **Spec** PRD §9.4
 - **Files** `platform/assistant/src/domain/dates.ts` (+ test, first)
@@ -237,8 +251,14 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** tests cover 00:30 in Madrid on the 7th being the 7th (UTC
   says the 6th), `next_week` on a Sunday, `next_month` in December, and an
   unknown zone falling back to UTC with the answer saying so.
+- **As built** `todayIn(zone, clock)` gives a `Today` (`date`, `zone`, `utc`)
+  once per question, so every step agrees across midnight; `resolve(on, today)`
+  takes a plan's `on` (one reference or `{ from, to }`) and is null for a range
+  that ends before it starts; `spoken(range, today)` adds the year only when it
+  is not this one. No `Date` is constructed: days are `Date.UTC` arithmetic
+  formatted with `Intl`. The answer's UTC sentence is AST-011's.
 
-### [ ] AST-009 — Masking and refusals
+### [x] AST-009 — Masking and refusals
 
 - **Spec** PRD §7.6, §12.2
 - **Files** `platform/assistant/src/domain/mask.ts` (+ test, first)
@@ -255,8 +275,19 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   type masks to "managers of people on L1 today"; the same question with no
   Time Off is refused as special-category; "who is pregnant" is refused either
   way; a masked prompt fixture never contains "sick".
+- **As built** `mask(question, leaveTypes)` gives `{ question, refs }`, each
+  `LeaveRef` a reference and the private types it stands for: one everyday
+  word names every private type of its category, so a reference can be
+  several keys, and `unmask(plan, refs)` expands it in `leave_type` filters.
+  `maskOffer(offer, leaveTypes, refs)` is the catalogue the model is shown and
+  the plan is read against (AST-007). The words need a type's category, so
+  `CatalogueLeaveType` gains an optional `category` (Time Off's catalogue,
+  AST-022, fills it); without one a private type is masked by name and key
+  only, and "off sick" is then refused rather than guessed. `refused()` is
+  People's performance, prediction and special-category refusals; skills is
+  left out, since it only offers a field.
 
-### [ ] AST-010 — Join, count, group
+### [x] AST-010 — Join, count, group
 
 - **Spec** PRD §9.3, §9.5, §9.6
 - **Files** `platform/assistant/src/domain/execute.ts` (+ test, first)
@@ -268,8 +299,18 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   groups the final rows and counts each group. Distinctness is the module's.
 - **Done when** tests cover a two-step join, two independent steps, a failure
   in s1 failing s2, too broad, and grouping by team.
+- **As built** `execute(plan, today, call)` runs `order(plan)`'s waves through
+  an injected `Call` (`(step, input) → Result<CapabilityOutput, CallFailure>`),
+  so the application adds only the deadlines and the abort; it builds each
+  module input (dates resolved, `limitFor`, `personIds`) and returns
+  `Executed` (`answered`, `output`, every step's `outputs`, `groups`) or an
+  `ExecutionFailure` (`UNREACHABLE` or `REFUSED` with the module, `TOO_BROAD`,
+  `DATES`). A name in an earlier step that matched nobody or several stops the
+  chain and answers instead; an intermediate step without `ids` is a module
+  outside its contract; a count by group whose rows fall short of its total is
+  too broad. Only the answer's own chain can fail the question.
 
-### [ ] AST-011 — Answer text
+### [x] AST-011 — Answer text
 
 - **Spec** PRD §7, §11
 - **Files** `platform/assistant/src/domain/answer.ts` (+ test, first)
@@ -288,6 +329,20 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   listed without per-manager counts. `understood` from the steps' `described`.
 - **Done when** `services/people/src/application/assistant/ask.test.ts`'s
   wording cases are ported here and pass, and every PRD §7 answer is a test.
+- **As built** `answerOf(plan, executed, setting)`, `setting` being the
+  asker's `Today`, the channel, the offer (for a group's label), Time Off's
+  leave types and the company's app origin for the link. Beside it, for
+  everything that is not a plan that ran: `unclearAnswer`, `unavailableAnswer`
+  (with the modules present, for what they help with), `refusedAnswer`,
+  `failedAnswer`, and the fixed sentences `UNAVAILABLE`, `NOT_ALLOWED`,
+  `TOO_SLOW`, `WHO_ARE_YOU`, `NOT_IN_KITHENA`. `people.reports`'s `described`
+  is the manager's name, so People's "Michael Scott has 2 direct reports" still
+  reads; every other `described` ends a sentence about people. `understood` is
+  "People …" before the joined phrases ("Managers of people …" for a managers
+  step). Not done here: "(you)" beside the asker among managers, since the
+  assistant does not know the asker's person, and §11.4's opt-in to names,
+  which needs a field in Time Off's catalogue first. The wording cases of
+  `ask.test.ts` that need a model or Slack's email are AST-012's.
 
 ---
 
