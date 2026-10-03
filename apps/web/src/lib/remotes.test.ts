@@ -110,6 +110,15 @@ describe('matchPath', () => {
     expect(matchPath(paths, '/people/01a0/history')?.path).toBe('/people/:id/history');
   });
 
+  it('takes a field key, snake case, as a parameter, and nothing that leaves the segment', () => {
+    const change = ['/settings/people/fields/:key/change'];
+    expect(matchPath(change, '/settings/people/fields/first_day/change')?.params).toEqual({
+      key: 'first_day',
+    });
+    expect(matchPath(change, '/settings/people/fields/a.b/change')).toBeUndefined();
+    expect(matchPath(change, '/settings/people/fields/%2e%2e/change')).toBeUndefined();
+  });
+
   it('marks the section the server would, from the address alone', () => {
     const hr = placesFor(PEOPLE_NAV, HR).sections;
     const at = (address: string) => currentPlace(hr, matchPath(paths, address)?.path ?? null);

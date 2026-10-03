@@ -318,7 +318,8 @@ export function matchPath(
     const fits = pattern.every((part, i) => {
       const actual = segments[i] ?? '';
       if (!part.startsWith(':')) return part === actual;
-      if (!/^[A-Za-z0-9-]{1,64}$/.test(actual)) return false;
+      // A field key is snake case (`first_day`); still one plain segment.
+      if (!/^[\w-]{1,64}$/u.test(actual)) return false;
       params[part.slice(1)] = actual;
       return true;
     });
