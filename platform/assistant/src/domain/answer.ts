@@ -58,6 +58,9 @@ export const NO_PROFILE = 'You don’t have a profile in People yet, so I can’
 export const NOT_ALLOWED =
   'That question touches information I’m not allowed to see, so I can’t help with it here. You’ll find it in People.';
 export const TOO_SLOW = 'Sorry, that took too long. Try again in a moment.';
+/** The model did not answer, or not within its time: People's sentence for it. */
+export const NOT_NOW =
+  'Sorry, I couldn’t take that question just now. Could you try again in a moment?';
 export const WHO_ARE_YOU = 'Kithena couldn’t check who you are just now. Try again in a minute.';
 export const NOT_IN_KITHENA =
   'I could not find you in Kithena. Ask your HR team to check that your Slack email is your work email there.';

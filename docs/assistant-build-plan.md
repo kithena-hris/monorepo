@@ -349,7 +349,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 
 ## Phase 1 — the assistant as a service
 
-### [ ] AST-012 — The ask use case
+### [x] AST-012 — The ask use case
 
 - **Spec** PRD §7, §10.4
 - **Files** `platform/assistant/src/application/ask.ts`,
@@ -366,6 +366,16 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** tests with fake ports cover People only, Time Off only, both,
   neither, a module down, a module refusing, identity's 404, the budget spent,
   and every PRD §7 example end to end.
+- **As built** one `Modules` port holds `configured`, `catalogue` and `call`;
+  the 4 s per call is the client's (AST-013), the 15 s per question and its
+  abort are the use case's. A module that is entitled but whose catalogue
+  failed goes to the planner as `unavailable` too, and a plan answering
+  `unavailable` for it says "I couldn't reach …" rather than "your company
+  doesn't use …"; `unavailable` for a module that answered is read as
+  unclear. No model, a spent budget and a failed model are outcome `failed`
+  with a reason (`NO_MODEL`, `BUDGET`, `MODEL`); the model failing says People's
+  "Sorry, I couldn't take that question just now". `AssistantAsker` (identity's
+  answer) is in contracts beside `AssistantQuestion`.
 
 ### [ ] AST-013 — The module client
 

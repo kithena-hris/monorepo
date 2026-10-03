@@ -9,6 +9,8 @@ import {
   asSpecialCategory,
   policy,
 } from '../classification.js';
+import { ModuleEntitlement } from '../entitlements.js';
+import { AccountId } from '../events/identity.js';
 import type { ModuleKey } from '../module.js';
 import { keySchema } from '../people/primitives.js';
 import { CalendarDate, PersonId, TenantId } from '../primitives.js';
@@ -404,3 +406,19 @@ export const AssistantAnswer = z.strictObject({
   answered: z.boolean().register(policy, asPublic()),
 });
 export type AssistantAnswer = z.infer<typeof AssistantAnswer>;
+
+/**
+ * Who is asking, as identity answers the assistant (§6.6, §10.1):
+ * `POST /api/internal/tenants/<id>/assistant/asker`. Identity serialises to it
+ * and the assistant parses with it, so neither drifts alone.
+ */
+export const AssistantAsker = z.object({
+  accountId: AccountId,
+  /** The account's IANA zone, for "today" where the asker is. */
+  timeZone: z.string().min(1).max(64).register(policy, asInternal()),
+  /** The tenant's label, for links to its own app. */
+  slug: z.string().min(1).max(63).register(policy, asPublic()),
+  /** The recorded list, else the deployment's: what `ent` carries. */
+  entitlements: z.array(ModuleEntitlement),
+});
+export type AssistantAsker = z.infer<typeof AssistantAsker>;
