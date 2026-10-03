@@ -714,10 +714,7 @@ jobs:
           TIMEOFF_GOOGLE_SERVICE_ACCOUNT: ${{ secrets.TIMEOFF_GOOGLE_SERVICE_ACCOUNT }}
           TIMEOFF_MICROSOFT_CLIENT_ID: ${{ secrets.TIMEOFF_MICROSOFT_CLIENT_ID }}
           TIMEOFF_MICROSOFT_CLIENT_SECRET: ${{ secrets.TIMEOFF_MICROSOFT_CLIENT_SECRET }}
-          # Slack for Time Off (TOF-111) and the key its tokens are sealed under.
-          TIMEOFF_SLACK_CLIENT_ID: ${{ secrets.TIMEOFF_SLACK_CLIENT_ID }}
-          TIMEOFF_SLACK_CLIENT_SECRET: ${{ secrets.TIMEOFF_SLACK_CLIENT_SECRET }}
-          TIMEOFF_SLACK_SIGNING_SECRET: ${{ secrets.TIMEOFF_SLACK_SIGNING_SECRET }}
+          # The key a provider's tokens are sealed under.
           TIMEOFF_INTEGRATION_KEY: ${{ secrets.TIMEOFF_INTEGRATION_KEY }}
           # Where a provider calls back: the tunnel routes Time Off's public
           # paths on this host to it (docs/environments.md, "Time Off's routes").
@@ -755,8 +752,7 @@ jobs:
           {
             printf '%s\nTIMEOFF_API_TOKEN=%s\n' "$TIMEOFF_ENV" "$TIMEOFF_API_TOKEN"
             for name in TIMEOFF_PUBLIC_URL TIMEOFF_INTEGRATION_KEY TIMEOFF_GOOGLE_SERVICE_ACCOUNT \
-                        TIMEOFF_MICROSOFT_CLIENT_ID TIMEOFF_MICROSOFT_CLIENT_SECRET \
-                        TIMEOFF_SLACK_CLIENT_ID TIMEOFF_SLACK_CLIENT_SECRET TIMEOFF_SLACK_SIGNING_SECRET; do
+                        TIMEOFF_MICROSOFT_CLIENT_ID TIMEOFF_MICROSOFT_CLIENT_SECRET; do
               if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
             done
           } | put timeoff.env

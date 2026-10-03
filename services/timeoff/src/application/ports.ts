@@ -327,6 +327,8 @@ export interface IntegrationPort {
    * a person's own grant only (a chat status), never the company's.
    */
   connectUrl(state: string, redirectUri: string, forMember?: boolean): string | null;
+  /** `false` where the provider offers no member's own grant (yet), so asking for one is refused. */
+  readonly memberGrant?: boolean;
   /** What the redirect brought, made into the company's connection; a member's own grant when one came too. */
   complete(
     answer: ProviderAnswer,
@@ -373,6 +375,7 @@ export interface ChatPort extends IntegrationPort {
   askApproval(
     integration: Integration,
     message: {
+      readonly tenantId: TenantId;
       readonly email: string;
       readonly text: string;
       readonly approve: string;

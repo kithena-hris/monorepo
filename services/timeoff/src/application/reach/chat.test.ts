@@ -10,7 +10,13 @@ import { reachOnEvent } from './events.js';
 
 /** A chat app that records what it was asked, and presses a button when told to. */
 function recording() {
-  const asked: { email: string; text: string; approve: string; decline: string }[] = [];
+  const asked: {
+    tenantId: string;
+    email: string;
+    text: string;
+    approve: string;
+    decline: string;
+  }[] = [];
   const statuses: { secret: string; text: string; until: string }[] = [];
   let pressed: string | null = null;
   const replies: string[] = [];
@@ -87,6 +93,7 @@ describe('chat apps (TOF-111)', () => {
     expect(done).toMatchObject({ ok: true, value: { sent: 1 } });
     expect(chat.asked).toHaveLength(1);
     const [message] = chat.asked;
+    expect(message?.tenantId).toBe(TENANT);
     expect(message?.email).toBe('marco@acme.example');
     expect(message?.text).toBe('Adam Novak asks for Vacation, 19–23 Oct.');
     expect(message?.approve).not.toBe(message?.decline);

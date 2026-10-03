@@ -153,6 +153,7 @@ export const askApproverInChat =
     for (const { port, integration } of targets) {
       try {
         await port.askApproval(integration, {
+          tenantId,
           email: approver.workEmail ?? '',
           text: `${member.displayName} asks for ${found.typeName ?? 'time off'}, ${spanWords(from, to)}.`,
           approve: value('approve'),
