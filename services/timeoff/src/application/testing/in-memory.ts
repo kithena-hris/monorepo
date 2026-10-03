@@ -306,7 +306,7 @@ export function inMemoryTimeOff(at = '2026-10-01T07:00:00.000Z'): InMemoryTimeOf
       try {
         return await fn(stores(tenantId, state(tenantId)));
       } catch (error) {
-        tenants.set(tenantId, before);
+        Object.assign(state(tenantId), before);
         throw error;
       }
     },
