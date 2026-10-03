@@ -126,6 +126,93 @@ describe('the member projection', () => {
   });
 });
 
+/* ------------------------------------------------------------- TOF-030 -- */
+
+/** The SQLSTATE a statement failed with, or `resolved`. */
+async function sqlState(work: Promise<unknown>): Promise<unknown> {
+  try {
+    await work;
+  } catch (e) {
+    return (e as { cause?: { code?: string } }).cause?.code ?? (e as { code?: string }).code;
+  }
+  return 'resolved';
+}
+
+const INSUFFICIENT_PRIVILEGE = '42501';
+const RESTRICT_VIOLATION = '23001';
+
+TABLES.push('leave_type', 'policy', 'policy_version', 'ledger_entry');
+seeds.push(async (tx) => {
+  await tx.insert(t.leaveType).values({
+    tenantId,
+    key: 'vacation',
+    name: { default: 'Vacation' },
+    category: 'annual_leave',
+    colorToken: 'chart-1',
+    icon: 'sun',
+    tracked: true,
+    paid: 'paid',
+    visibility: 'type',
+  });
+  await tx.insert(t.policy).values({ tenantId, id: id(10), leaveTypeKey: 'vacation' });
+  await tx.insert(t.policyVersion).values({
+    tenantId,
+    policyId: id(10),
+    version: 1,
+    status: 'published',
+    definition: { leaveTypeKey: 'vacation' },
+    effectiveFrom: '2026-01-01',
+    publishedAt: '2026-01-01T09:00:00Z',
+  });
+  await tx.insert(t.ledgerEntry).values({
+    tenantId,
+    id: id(30),
+    personId: ADAM,
+    leaveTypeKey: 'vacation',
+    kind: 'accrual',
+    amount: '2.083',
+    unit: 'day',
+    effectiveOn: '2026-10-01',
+    occurredAt: '2026-10-01T00:00:00Z',
+    policyVersion: 1,
+  });
+});
+
+describe('the ledger', () => {
+  it('cannot be updated by svc_timeoff', async () => {
+    expect(
+      await sqlState(
+        inTenant(TENANT_A, (tx) => tx.execute(sql`UPDATE timeoff.ledger_entry SET amount = 0`)),
+      ),
+    ).toBe(INSUFFICIENT_PRIVILEGE);
+  });
+
+  it('cannot be deleted from by svc_timeoff', async () => {
+    expect(
+      await sqlState(inTenant(TENANT_A, (tx) => tx.execute(sql`DELETE FROM timeoff.ledger_entry`))),
+    ).toBe(INSUFFICIENT_PRIVILEGE);
+  });
+
+  it('gives an amount back with the three places it went in with', async () => {
+    const rows = await inTenant(TENANT_A, (tx) =>
+      tx.select({ amount: t.ledgerEntry.amount }).from(t.ledgerEntry),
+    );
+    expect(rows).toContainEqual({ amount: '2.083' });
+  });
+});
+
+describe('a published policy version', () => {
+  it('refuses any change', async () => {
+    expect(
+      await sqlState(
+        inTenant(TENANT_A, (tx) =>
+          tx.execute(sql`UPDATE timeoff.policy_version SET definition = '{}'::jsonb`),
+        ),
+      ),
+    ).toBe(RESTRICT_VIOLATION);
+  });
+});
+
 /* -------------------------------------------------------- every table -- */
 
 describe('every Time Off table', () => {

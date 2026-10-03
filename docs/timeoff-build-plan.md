@@ -532,7 +532,7 @@ no decline, cancel or change.
   as TOF-035's consumer will spell it; both columns are `NOT NULL` because a
   null never compares less. No time zone column: §5.2 does not list one.
 
-### [ ] TOF-030 — Policy, leave type and ledger tables
+### [x] TOF-030 — Policy, leave type and ledger tables
 
 - **Files** `migrations/<ts>_timeoff_policy_ledger.sql`
 - **Depends on** TOF-029
@@ -540,6 +540,10 @@ no decline, cancel or change.
   (`REVOKE UPDATE, DELETE` from `svc_timeoff`).
 - **Done when** an integration test proves `svc_timeoff` cannot update or delete
   a ledger row.
+- **As built** A published `policy_version` refuses any change by trigger, and
+  a policy has one draft at a time (a partial unique index). An entry is
+  corrected once (a partial unique index on `supersedes`); a correction of a
+  correction names the correction.
 
 ### [ ] TOF-031 — Requests with the overlap constraint
 

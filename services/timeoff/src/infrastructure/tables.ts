@@ -1,4 +1,15 @@
-import { char, pgSchema, primaryKey, smallint, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  char,
+  integer,
+  jsonb,
+  numeric,
+  pgSchema,
+  primaryKey,
+  smallint,
+  text,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { calendarDate, instant, outboxTable } from '@kithena/db-kit';
 
 /**
@@ -46,4 +57,81 @@ export const member = timeoff.table(
     updatedAt: updatedAt(),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.personId] })],
+);
+
+/* ------------------------------------------------------------- TOF-030 -- */
+
+/** Days or hours, `numeric(9,3)`. */
+const amount = (name: string) => numeric(name, { precision: 9, scale: 3 });
+
+export const leaveType = timeoff.table(
+  'leave_type',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    key: text('key').notNull(),
+    name: jsonb('name').notNull(),
+    category: text('category').notNull(),
+    colorToken: text('color_token').notNull(),
+    icon: text('icon').notNull(),
+    unit: text('unit').notNull().default('day'),
+    tracked: boolean('tracked').notNull(),
+    paid: text('paid').notNull(),
+    approvalRuleKey: text('approval_rule_key'),
+    visibility: text('visibility').notNull(),
+    requiresNoteAfterDays: integer('requires_note_after_days'),
+    appliesTo: jsonb('applies_to'),
+    statutory: boolean('statutory').notNull().default(false),
+    hiddenAt: instant('hidden_at'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
+);
+
+export const policy = timeoff.table(
+  'policy',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    leaveTypeKey: text('leave_type_key').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+export const policyVersion = timeoff.table(
+  'policy_version',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    policyId: uuid('policy_id').notNull(),
+    version: integer('version').notNull(),
+    status: text('status').notNull().default('draft'),
+    /** `PolicyDefinition`, whole. */
+    definition: jsonb('definition').notNull(),
+    effectiveFrom: calendarDate('effective_from'),
+    publishedAt: instant('published_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.policyId, t.version] })],
+);
+
+/** Insert-only: `svc_timeoff` holds no UPDATE or DELETE on it. */
+export const ledgerEntry = timeoff.table(
+  'ledger_entry',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    personId: uuid('person_id').notNull(),
+    leaveTypeKey: text('leave_type_key').notNull(),
+    kind: text('kind').notNull(),
+    amount: amount('amount').notNull(),
+    unit: text('unit').notNull(),
+    effectiveOn: calendarDate('effective_on').notNull(),
+    occurredAt: instant('occurred_at').notNull(),
+    policyVersion: integer('policy_version'),
+    supersedes: uuid('supersedes'),
+    requestId: uuid('request_id'),
+    reason: text('reason'),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
 );
