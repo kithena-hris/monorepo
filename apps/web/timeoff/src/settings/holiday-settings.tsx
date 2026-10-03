@@ -456,10 +456,12 @@ function DraftCard({
       );
     });
   };
+  // The calendar's name is the tenant's, of any length, so it goes in the
+  // title, which wraps, and not in the button, which never does.
   return (
     <AssistantCard
       level={2}
-      title={`${String(draft.year)} is ready to review`}
+      title={`${draft.layerName} for ${String(draft.year)} is ready to review`}
       action={
         draft.ai || draft.summary.ai ? (
           <Badge tone="assistant" size="sm">
@@ -508,7 +510,7 @@ function DraftCard({
           loading={pending}
           onClick={save}
         >
-          {`Save ${String(confirmed.length)} confirmed ${confirmed.length === 1 ? 'day' : 'days'} to ${draft.layerName}`}
+          {`Save ${String(confirmed.length)} confirmed ${confirmed.length === 1 ? 'day' : 'days'}`}
         </Button>
         <Button
           onClick={() => {

@@ -49,14 +49,14 @@ describe('drafting a year from a list (TOF-112)', () => {
     const onSaveCalendar = vi.fn(() => Promise.resolve({ ok: true as const }));
     const data = { ...holidays(), year: 2027, draft: draft() };
     const { container } = render(<HolidaySettings load={ready(data)} onSaveCalendar={onSaveCalendar} />);
-    const c = card(/2027 is ready to review/);
+    const c = card(/Madrid city for 2027 is ready to review/);
     expect(c.getByText(/1 is not confirmed yet and stays with you/)).toBeTruthy();
     expect(c.queryByText('AI')).toBeNull();
     const rows = c.getAllByRole('listitem').map((li) => li.textContent);
     expect(rows).toEqual(['San IsidroSat 15 May', 'La AlmudenaTue 9 NovTo confirm']);
     expect(c.getByText('Not read: Fiestas locales de Madrid 2027')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
-    fireEvent.click(c.getByRole('button', { name: 'Save 1 confirmed day to Madrid city' }));
+    fireEvent.click(c.getByRole('button', { name: 'Save 1 confirmed day' }));
     const city = data.layers.find((l) => l.key === 'madrid');
     expect(onSaveCalendar).toHaveBeenCalledWith('madrid', {
       name: 'Madrid city',
