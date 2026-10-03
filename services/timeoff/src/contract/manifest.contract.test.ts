@@ -96,14 +96,17 @@ describe('the envelope holds', () => {
     if (!requested) throw new Error('timeoff.request.requested is missing from the registry');
 
     const parsed = requested.safeParse({
-      ...envelope('timeoff.request.requested'),
+      ...envelope('timeoff.request.requested', requested.version),
       payload: {
         requestId: '00000000-0000-4000-8000-000000000010',
         personId: '00000000-0000-4000-8000-000000000011',
-        kind: 'sick_leave',
+        leaveTypeKey: 'sick',
+        category: 'sick_leave',
         from: '2026-03-02',
         to: '2026-03-04',
-        medicalNote: null,
+        workingDays: '3.000',
+        belowZero: false,
+        notePresent: false,
       },
     });
     expect(parsed.success).toBe(true);
@@ -140,14 +143,18 @@ describe('classification is a safety property, not a label', () => {
     }
   });
 
-  it('keeps the sick-note field out of model prompts', () => {
-    // Named explicitly, because this is the field the privacy documentation
-    // cites as the worked example.
-    const note = fields.get('timeoff.request.requested.medicalNote');
-    expect(note).toBeDefined();
-    expect(note?.classification).toBe('special-category');
-    expect(note?.piiKind).toBe('health');
-    expect(note?.aiEligible).toBe(false);
+  it('keeps the sick note out of every payload, leaving only whether one exists', () => {
+    // Named explicitly, because this is the worked example the privacy
+    // documentation cites. v1 carried the note's text as `medicalNote`; v2
+    // carries a boolean, and the text never leaves Time Off (PRD §8.5).
+    expect(fields.has('timeoff.request.requested.medicalNote')).toBe(false);
+    expect(fields.get('timeoff.request.requested.notePresent')?.classification).toBe('internal');
+  });
+
+  it('treats a parental due date as health data', () => {
+    const due = fields.get('timeoff.parental.plan_submitted.dueDate');
+    expect(due?.classification).toBe('special-category');
+    expect(due?.piiKind).toBe('health');
   });
 
   it('never sends an identity-bearing field to a model', () => {
@@ -164,11 +171,11 @@ describe('classification is a safety property, not a label', () => {
 /* --------------------------------------------------------------- helpers -- */
 
 /** A minimal valid envelope, so a test can vary one field and check the rest. */
-function envelope(eventName: string): Record<string, unknown> {
+function envelope(eventName: string, eventVersion = 1): Record<string, unknown> {
   return {
     eventId: '01890000-0000-7000-8000-000000000000',
     eventName,
-    eventVersion: 1,
+    eventVersion,
     tenantId: '00000000-0000-4000-8000-000000000001',
     occurredAt: '2026-01-01T00:00:00.000Z',
     recordedAt: '2026-01-01T00:00:00.000Z',

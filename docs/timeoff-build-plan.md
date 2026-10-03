@@ -141,7 +141,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 - **Done when** `docker build -f services/timeoff/Dockerfile .` succeeds and the
   image answers `/healthz`.
 
-### [ ] TOF-005 — Codegen sees Time Off's new events
+### [x] TOF-005 — Codegen sees Time Off's new events
 
 - **Files** `tools/codegen/src/cli.ts`
 - **Depends on** nothing
@@ -150,6 +150,12 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   and the DSAR manifest include them.
 - **Done when** `just codegen` passes and the generated redaction paths contain
   a Time Off path.
+- **As built** No change to `cli.ts`: every new event is in `timeoffEvents`,
+  which it already concatenates. The walk reads event payloads only, so the
+  policy, request and ledger shapes are classified field by field but checked
+  by their own tests, not by codegen. `payload.medicalNote` leaves the
+  redaction list with v1 (TOF-009); `payload.dueDate` is the Time Off path now
+  in it.
 
 ---
 
@@ -157,7 +163,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 
 ### Contracts
 
-### [ ] TOF-006 — Primitives
+### [x] TOF-006 — Primitives
 
 - **Spec** PRD §6.1, §7.1
 - **Files** `packages/contracts/src/timeoff/primitives.ts`
@@ -169,8 +175,14 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   existing `AbsenceKind`. Register a policy on every field.
 - **Done when** `just codegen` passes and tests refuse a float, a negative
   zero and a key with a hyphen.
+- **As built** `WorkModel` is `AttendanceWorkModel`: People's requiredness
+  already exports a `WorkModel` (a company's own option key) from the same
+  package. `AbsenceKind` moved here from `events/timeoff.ts` so the policy and
+  request files can use it without an import cycle; `LeaveCategory` is
+  `AbsenceKind` without `public_holiday`. Keys reuse People's `keySchema`.
+  `NonNegativeDayAmount` and `LeaveUnit` were added for TOF-007.
 
-### [ ] TOF-007 — Leave type and policy contracts
+### [x] TOF-007 — Leave type and policy contracts
 
 - **Spec** PRD §6.1, §6.2, §7.4
 - **Files** `packages/contracts/src/timeoff/policy.ts`
@@ -183,7 +195,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 - **Done when** tests prove an unknown predicate operand is refused at parse
   time and a negative-balance limit cannot be negative.
 
-### [ ] TOF-008 — Request, ledger and attendance contracts
+### [x] TOF-008 — Request, ledger and attendance contracts
 
 - **Spec** PRD §7.1, §8.1, §11.2
 - **Files** `packages/contracts/src/timeoff/request.ts`, `ledger.ts`,
@@ -194,8 +206,14 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   shape for anyone but the member and HR.
 - **Done when** a type-level test asserts the teammate view of a sick request
   has no `typeKey` and no `note`.
+- **As built** Three views: `LeaveRequestView` (member and HR, the only one
+  with `sickNoteFileId`), `ApproverRequestView` (type, note, `notePresent`) and
+  `TeammateRequestView`, a union on `shows: 'type' | 'off'` whose `off` branch
+  has no type, category or note. The sick note is a reference to the encrypted
+  file, never its content. `PunchInput` is `strict`, so a coordinate is refused
+  rather than dropped.
 
-### [ ] TOF-009 — Events
+### [x] TOF-009 — Events
 
 - **Spec** PRD §13
 - **Files** `packages/contracts/src/events/timeoff.ts`,
@@ -210,6 +228,15 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 - **Done when** `just codegen` passes, the manifest contract test is green, and
   a contract test proves no Time Off payload can hold a latitude, a longitude
   or a sick note body.
+- **As built** v2 drops v1's `medicalNote` (the note's text, which §8.5 keeps
+  out of every payload) for `notePresent`, and adds `belowZero`. `workingDays`
+  is a `DayAmount` and nullable only for an upcast v1, which never recorded a
+  cost. v1 stays defined as `LeaveRequestedV1` but is out of `timeoffEvents`,
+  so it is read and not published. The upcaster is one function,
+  `readLeaveRequested`, in `events/timeoff.ts` rather than a mechanism in
+  `event.ts`: it is the only versioned event in the registry. A parental due
+  date is `asSpecialCategory('health')`. The `LeaveRequest` aggregate still
+  builds a v1 payload and lifts it through the upcaster until TOF-016.
 
 ### Domain
 

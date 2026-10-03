@@ -3,6 +3,7 @@ import { AggregateRoot, ok, err, type Result, failure, type Clock } from '@kithe
 import {
   LeaveApproved,
   LeaveRequested,
+  upcastLeaveRequestedV1,
   type AbsenceKind,
   type CalendarDate,
   type PersonId,
@@ -112,7 +113,9 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
       actor: { kind: 'user', userId: args.actorUserId },
       correlationId: args.correlationId,
       causationId: null,
-      payload: {
+      // Still the v1 shape, lifted to v2 by the contract's own upcaster, until
+      // TOF-016 rewrites this aggregate around tenant leave types.
+      payload: upcastLeaveRequestedV1({
         requestId: args.id,
         personId: args.personId,
         kind: args.kind,
@@ -121,7 +124,7 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
         startsHalfDay: false,
         endsHalfDay: false,
         medicalNote: null,
-      },
+      }),
     });
 
     return ok(aggregate);
