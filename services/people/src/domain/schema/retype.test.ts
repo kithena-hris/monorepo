@@ -96,8 +96,8 @@ describe('what happens to a value that does not fit', () => {
   const problems = [{ personId: 'p1' }, { personId: 'p2' }, { personId: 'p3' }];
 
   it('the employee is asked for their own details; HR fills in the rest', () => {
-    expect(defaultAction(field({ ownership: ['employee', 'hr'] }))).toBe('request');
-    expect(defaultAction(field({ ownership: ['hr'] }))).toBe('hr');
+    expect(defaultAction(field({ ownership: ['employee', 'hr'] }), 'Other')).toBe('request');
+    expect(defaultAction(field({ ownership: ['hr'] }), 'Other')).toBe('hr');
     expect(actionsFor(field({ ownership: ['hr'] }))).toEqual(['edit', 'clear', 'hr', 'leave']);
     expect(actionsFor(field({ ownership: ['employee'] }))).toEqual([
       'edit',
@@ -107,8 +107,20 @@ describe('what happens to a value that does not fit', () => {
     ]);
   });
 
+  it('picks the default by the import\'s rules for who fills a field (who-fills.ts)', () => {
+    const both = { ownership: ['employee', 'hr'] } as const;
+    // Employment data is HR's even when the employee may fill it in too.
+    expect(defaultAction(field(both), 'Employment')).toBe('hr');
+    const bank = field({ ...both, key: 'iban', label: { default: 'IBAN' } });
+    expect(defaultAction(bank, 'Employment')).toBe('request');
+    const notes = field({ ...both, key: 'notes', label: { default: 'Notes' } });
+    expect(defaultAction(notes, 'Other')).toBe('leave');
+    // The rules never offer what the field does not: nobody else may be asked.
+    expect(defaultAction(field({ key: 'iban', label: { default: 'IBAN' } }), 'Other')).toBe('hr');
+  });
+
   it('takes each decision, and the default for a value nobody decided', () => {
-    const decided = decide(field({ ownership: ['employee', 'hr'] }), problems, [
+    const decided = decide(field({ ownership: ['employee', 'hr'] }), 'Other', problems, [
       { personId: 'p1', action: 'edit', value: '2024-03-12' },
       { personId: 'p2', action: 'clear' },
       // Somebody not on the list is ignored, not an error: their value fits now.
@@ -126,11 +138,11 @@ describe('what happens to a value that does not fit', () => {
 
   it('refuses asking the employee for a field only HR fills in, and an edit with no value', () => {
     const hrOnly = field({ ownership: ['hr'] });
-    expect(decide(hrOnly, problems, [{ personId: 'p1', action: 'request' }])).toMatchObject({
+    expect(decide(hrOnly, 'Other', problems, [{ personId: 'p1', action: 'request' }])).toMatchObject({
       ok: false,
       error: { code: 'ACTION_NOT_ALLOWED' },
     });
-    expect(decide(hrOnly, problems, [{ personId: 'p1', action: 'edit' }])).toMatchObject({
+    expect(decide(hrOnly, 'Other', problems, [{ personId: 'p1', action: 'edit' }])).toMatchObject({
       ok: false,
       error: { code: 'VALUE_INVALID' },
     });

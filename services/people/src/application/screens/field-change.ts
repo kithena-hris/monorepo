@@ -254,6 +254,8 @@ interface Loaded {
   readonly alsoPublished: number;
   readonly blockedBy: string | null;
   readonly today: string;
+  /** The field's section as HR names it: what the rules for who fills it in read. */
+  readonly section: string;
 }
 
 const mask = (text: string) => `•••• ${text.slice(-4)}`;
@@ -325,6 +327,8 @@ async function load(
     alsoPublished,
     blockedBy: others[0]?.label.default ?? null,
     today,
+    section:
+      draft.sections.find((s) => s.key === next.sectionKey)?.label.default ?? next.sectionKey,
   });
 }
 
@@ -339,7 +343,7 @@ export async function fieldChangeView(
     asAdmin(deps, tx, asking, async () => {
       const loaded = await load(deps, tx, asking, key, to);
       if (!loaded.ok) return loaded;
-      const { was, to: next, review, hidden } = loaded.value;
+      const { was, to: next, review, hidden, section } = loaded.value;
       const shownAs = (text: string) => (hidden ? mask(text) : text);
       const config = next.typeConfig;
       return ok({
@@ -374,7 +378,7 @@ export async function fieldChangeView(
           reason: hidden ? u.reason.replace(u.before, mask(u.before)) : u.reason,
         })),
         actions: actionsFor(next),
-        defaultAction: defaultAction(next),
+        defaultAction: defaultAction(next, section),
         hidden,
         alsoPublished: loaded.value.alsoPublished,
         blockedBy: loaded.value.blockedBy,
@@ -436,7 +440,7 @@ export async function applyFieldChange(
     asAdmin(deps, tx, asking, async () => {
       const loaded = await load(deps, tx, asking, key, to);
       if (!loaded.ok) return loaded;
-      const { to: next, review, blockedBy, today } = loaded.value;
+      const { to: next, review, blockedBy, today, section } = loaded.value;
       if (blockedBy !== null) {
         return err(
           failure(
@@ -446,7 +450,7 @@ export async function applyFieldChange(
           ),
         );
       }
-      const decided = decide(next, review.unfit, input.decisions);
+      const decided = decide(next, section, review.unfit, input.decisions);
       if (!decided.ok) return decided;
 
       await applyRequiredFrom(deps, tx, asking.tenantId, input.requiredFrom ?? today);

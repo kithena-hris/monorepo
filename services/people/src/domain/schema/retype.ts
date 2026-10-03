@@ -1,6 +1,8 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type { AttributeDefinition } from '@kithena/contracts';
 
+import { ownerByRules, type Owner } from '../import/who-fills.js';
+
 /**
  * Changing a field that already holds values: a text becoming a date, a
  * number losing its decimals, an option retired.
@@ -86,12 +88,29 @@ export function actionsFor(definition: Pick<AttributeDefinition, 'ownership'>): 
   ];
 }
 
+/** What the field needs to be placed by the rules for who fills it in. */
+export type Placed = Pick<AttributeDefinition, 'key' | 'label' | 'ownership' | 'classification'>;
+
+const BY_OWNER: Record<Owner, ReviewAction> = { employee: 'request', hr: 'hr', leave: 'leave' };
+
 /**
- * The default for a value nobody decided on: their own details go back to
- * the employee, the company's to HR, and anything else is left empty.
+ * The default for a value nobody decided on, by the import's rules for who
+ * fills a field in (`who-fills.ts`, one rule table for both): their own
+ * details go back to the employee, employment data to HR, notes and anything
+ * sensitive are left empty. Never what the field does not offer; a field the
+ * rules cannot place goes to the employee if they fill it in, else to HR.
  */
-export function defaultAction(definition: Pick<AttributeDefinition, 'ownership'>): ReviewAction {
+export function defaultAction(definition: Placed, section: string): ReviewAction {
   const offered = actionsFor(definition);
+  const ruled = ownerByRules({
+    key: definition.key,
+    label: definition.label.default,
+    section,
+    piiKind: definition.classification.piiKind,
+    classification: definition.classification.classification,
+  });
+  const wanted = ruled === null ? null : BY_OWNER[ruled.owner];
+  if (wanted !== null && offered.includes(wanted)) return wanted;
   return offered.includes('request') ? 'request' : offered.includes('hr') ? 'hr' : 'leave';
 }
 
@@ -115,12 +134,13 @@ export interface Decided {
  * now (it was fixed since the review was drawn) is dropped, not refused.
  */
 export function decide(
-  definition: Pick<AttributeDefinition, 'key' | 'ownership'>,
+  definition: Placed,
+  section: string,
   problems: readonly { readonly personId: string }[],
   decisions: readonly Decision[],
 ): Result<readonly Decided[]> {
   const offered = actionsFor(definition);
-  const fallback = defaultAction(definition);
+  const fallback = defaultAction(definition, section);
   const byPerson = new Map(decisions.map((d) => [d.personId, d]));
   const out: Decided[] = [];
   for (const { personId } of problems) {

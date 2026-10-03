@@ -163,7 +163,9 @@ title.
    kind (`piiKind`), then the section. Only a field they cannot place goes
    to the model, as its key, label, section and kind, never a value, read
    strictly as `{key: 'hr' | 'employee' | 'leave'}`; no answer leaves
-   People's fallback. HR changes any of them in one click.
+   People's fallback. HR changes any of them in one click. The same rules
+   pick the default for a value that stops fitting when a field changes
+   type (`domain/schema/retype.ts`), within what the field offers.
    - *Ask them*: theirs to fill in and required, so they show as incomplete
      and the weekly reminder asks (an optional ask is PEO-148). When the run
      finishes, **each person gets one detail request** listing every asked
