@@ -1,7 +1,25 @@
 import * as z from 'zod';
 import type { Classification, PiiKind } from '@kithena/contracts';
 
-import type { ColumnProposal, ColumnSeen } from './new-fields.js';
+/** What happens for people without a value: `ForExisting` in `new-fields.ts`, which reads this file. */
+type ForExisting =
+  | { readonly kind: 'ask' | 'hr' | 'leave' | 'new' }
+  | { readonly kind: 'default'; readonly value: string };
+
+/** As much of a proposal (`ColumnProposal`) as who fills it in needs. */
+interface Proposed {
+  readonly column: number;
+  readonly key: string;
+  readonly include: boolean;
+  readonly field: {
+    readonly label: string;
+    readonly piiKind: PiiKind;
+    readonly classification: Classification;
+  };
+  readonly placement: { readonly sectionKey: string } | { readonly newSection: string };
+  readonly forExisting: ForExisting;
+  readonly forExistingWhy: string;
+}
 
 /**
  * Who fills in a new field for the people the file gives no value
@@ -122,7 +140,7 @@ export function ownerByRules(f: FieldFacts): Suggested | null {
 export function forExistingOf(
   s: Suggested,
   single: string | null,
-): Pick<ColumnProposal, 'forExisting' | 'forExistingWhy'> {
+): { forExisting: ForExisting; forExistingWhy: string } {
   if (s.owner === 'employee') return { forExisting: { kind: 'ask' }, forExistingWhy: s.why };
   if (s.owner === 'leave') return { forExisting: { kind: 'leave' }, forExistingWhy: s.why };
   return single === null
@@ -178,7 +196,7 @@ const BY_MODEL: Record<Owner, string> = {
 
 /** A proposal's facts, its section named as HR sees it. */
 export function factsOf(
-  p: ColumnProposal,
+  p: Proposed,
   sections: readonly { readonly key: string; readonly label: string }[],
 ): FieldFacts {
   const section =
@@ -197,7 +215,7 @@ export function factsOf(
 
 /** The proposals the rules cannot place: what the model is asked about. */
 export const unplaced = (
-  proposals: readonly ColumnProposal[],
+  proposals: readonly Proposed[],
   sections: readonly { readonly key: string; readonly label: string }[],
 ): FieldFacts[] =>
   proposals
@@ -209,12 +227,12 @@ export const unplaced = (
  * Each proposal with who fills it in: the rules' suggestion where they place
  * it, else the model's, else what was proposed already.
  */
-export function owned(
-  proposals: readonly ColumnProposal[],
+export function owned<P extends Proposed>(
+  proposals: readonly P[],
   sections: readonly { readonly key: string; readonly label: string }[],
-  seen: readonly ColumnSeen[],
+  seen: readonly { readonly column: number; readonly single: string | null }[],
   model: ReadonlyMap<string, Owner> = new Map(),
-): ColumnProposal[] {
+): P[] {
   return proposals.map((p) => {
     const ruled = ownerByRules(factsOf(p, sections));
     const answered = model.get(p.key);
