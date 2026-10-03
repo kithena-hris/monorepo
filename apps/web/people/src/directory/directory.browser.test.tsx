@@ -249,6 +249,11 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
       expect(run.early + run.late).toBe(0);
       expect(run.off + run.jumps).toBe(0);
     }
+    // The skeleton is painted, in the theme's own colours.
+    const spacer = box.querySelector<HTMLElement>('tr[data-skeleton] td');
+    expect(getComputedStyle(spacer as Element).backgroundImage).toMatch(
+      /linear-gradient\(.*(?:rgb|oklch|color)\(/,
+    );
   });
 
   it('keeps the place and Back to top at the list’s top corner, off the quick look', async () => {

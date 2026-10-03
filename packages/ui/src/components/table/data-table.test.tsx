@@ -373,7 +373,10 @@ describe('<DataTable> that keeps loading', () => {
 });
 
 describe('<DataTable> pinned header and a virtualized body', () => {
-  const many = Array.from({ length: 400 }, (_, i) => ({ id: String(i), name: `Person ${String(i)}` }));
+  const many = Array.from({ length: 400 }, (_, i) => ({
+    id: String(i),
+    name: `Person ${String(i)}`,
+  }));
   const nameAndTeam: DataColumn<{ id: string; name: string }>[] = [
     { id: 'name', header: 'Name', sticky: true, cell: (r) => r.name },
     { id: 'team', header: 'Team', cell: () => 'Research' },
@@ -484,9 +487,7 @@ describe('<DataTable> pinned header and a virtualized body', () => {
       }
     }
     // A drawn desk row is exactly its estimate, so measuring it moves nothing.
-    expect(document.querySelector<HTMLElement>('tbody tr[data-row-id]')?.style.height).toBe(
-      '57px',
-    );
+    expect(document.querySelector<HTMLElement>('tbody tr[data-row-id]')?.style.height).toBe('57px');
     vi.restoreAllMocks();
   });
 });
