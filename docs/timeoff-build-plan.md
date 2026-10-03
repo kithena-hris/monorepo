@@ -252,7 +252,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 
 Test-first, all of it. No drivers, no I/O.
 
-### [ ] TOF-010 — Working days and days away
+### [x] TOF-010 — Working days and days away
 
 - **Spec** PRD §7.3
 - **Files** `services/timeoff/src/domain/calendar/working-days.ts`
@@ -263,8 +263,15 @@ Test-first, all of it. No drivers, no I/O.
   12 Oct a holiday costs 4 and is 9 days away.
 - **Done when** fixtures from T3, T4 and MT6 pass, and property tests prove
   `workingDays ≤ daysAway`.
+- **As built** A work pattern is the ISO weekdays worked; hours per day waits
+  for comp time, which is the first thing that needs it. Both functions take
+  the contracts' `DateSpan` and return `DayAmount`, counted internally in whole
+  half days, so no decimal library is needed. `daysAway` also returns the
+  stretched `from` and `to` (Sat 10 to Sun 18). A half day at an end stops the
+  absence reaching the weekend beside it. The property test is a seeded loop:
+  fast-check is not a dependency.
 
-### [ ] TOF-011 — Layered holiday calendars
+### [x] TOF-011 — Layered holiday calendars
 
 - **Spec** PRD §10.2
 - **Files** `services/timeoff/src/domain/calendar/holiday-calendar.ts`
@@ -273,6 +280,12 @@ Test-first, all of it. No drivers, no I/O.
   a location and year; weekend rule (`move_to_monday | none`) per layer.
 - **Done when** Madrid 2026 resolves to the eleven dates in T36 plus San Isidro
   and La Almudena, and Barcelona does not get either.
+- **As built** The weekend rule governs a layer's own days. Spanish layers
+  say `none` and carry the moved days their decrees publish, because Madrid
+  moves a Sunday holiday and Catalonia does not. T36 leaves out three days
+  of Madrid's 2026 decree (2 May, 2 Nov, 7 Dec), so Madrid 2026 resolves to 14,
+  T36's 11 among them. The Madrid and Barcelona tests are in
+  `country-packs/es.test.ts`, next to the data.
 
 ### [x] TOF-012 — Leave type aggregate
 
@@ -365,7 +378,7 @@ no decline, cancel or change.
 - **Done when** a 2-day sick record is approved on creation and a 4-day one
   asks for a note.
 
-### [ ] TOF-018 — Team minimums and coverage
+### [x] TOF-018 — Team minimums and coverage
 
 - **Spec** PRD §9.3
 - **Files** `services/timeoff/src/domain/coverage/coverage.ts`
@@ -374,6 +387,10 @@ no decline, cancel or change.
   absences and holidays; minimum as count or percentage; returns the days below.
 - **Done when** T13's October fixture gives 4 of 7 on the 21st and nothing
   else below 5.
+- **As built** A day is held to the minimum only when someone on the team was
+  due to work. A half day off counts as out. A percentage rounds up to whole
+  people. `.gitignore` ignored every `coverage/` folder, so it now makes an
+  exception for `services/*/src/domain/coverage/`.
 
 ### [x] TOF-019 — Approval rules and routing
 
@@ -412,7 +429,7 @@ no decline, cancel or change.
   first rule that fails, `below_minimum` on the 21st, and the release is
   only the next one (`protected_period`).
 
-### [ ] TOF-022 — Clash fixes and counter-proposals
+### [x] TOF-022 — Clash fixes and counter-proposals
 
 - **Spec** PRD §9.5, §9.6
 - **Files** `services/timeoff/src/domain/approval/alternatives.ts`
@@ -421,6 +438,10 @@ no decline, cancel or change.
   clean week; approve as asked. Rank requester-only first, then no change, then
   changes to someone else's approved time.
 - **Done when** T15 and T18 produce "19, 20, 22, 23 and 26 Oct" first.
+- **As built** A swap is not contiguous (19–20 and 22–26 Oct), so every
+  option carries `spans`. `LeaveCounterProposed.proposals` holds one span per
+  option, so TOF-016 cannot carry a swap as one proposal without a contract
+  change. Asks to teammates go smallest absence first (Yuki before Omar).
 
 ### [ ] TOF-023 — Punches and the clock
 
@@ -471,7 +492,7 @@ no decline, cancel or change.
 - **Done when** closing September refuses a correction dated September and
   posts it to October.
 
-### [ ] TOF-028 — Spain country pack
+### [x] TOF-028 — Spain country pack
 
 - **Spec** PRD §12.3
 - **Files** `services/timeoff/src/country-packs/es.ts`
@@ -481,6 +502,12 @@ no decline, cancel or change.
   Mark the pack `reviewed: false` until legal signs off.
 - **Done when** a new Spanish tenant gets the statutory types and the national
   layer, and the pack's `reviewed` flag is surfaced in settings.
+- **As built** Data only: seeding a tenant and the settings flag come with
+  the application and settings tickets. TOF-012 was still open, so the types
+  are parsed `LeaveTypeDefinition`s. An `entitlements` table holds the
+  statutory days (vacation 30 calendar, marriage 15, and so on). The 2027
+  national layer is what Madrid's and Catalonia's published 2027 calendars
+  share, until the BOE list comes out.
 
 ### Storage
 
