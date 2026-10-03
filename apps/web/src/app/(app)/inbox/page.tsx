@@ -8,6 +8,10 @@ import { VIEWS } from '../../../lib/people-views';
 import { signedIn } from '../../../lib/signed-in';
 import { isWaking } from '../../../lib/waking';
 
+/** HR's approvals, for the flags beside them; nobody else's to ask for. */
+const approvalsFor = (home: PeopleAnswer<{ hr: boolean }>) =>
+  home.ok && home.data.hr ? people<never>('Approvals', {}) : null;
+
 /** The inbox, from the shell's data as this request reads it (`components/inbox.tsx`). */
 export default async function InboxPage({
   searchParams,
@@ -16,9 +20,7 @@ export default async function InboxPage({
 }): Promise<JSX.Element> {
   // Only for whoever decides: People flags nothing for anybody else. Asked as
   // soon as the roles say HR, beside the shell's overview rather than after it.
-  const approvals = (h: PeopleAnswer<{ hr: boolean }>) =>
-    h.ok && h.data.hr ? people<never>('Approvals', {}) : null;
-  const early = people<{ hr: boolean }>('Home').then(approvals);
+  const early = people<{ hr: boolean }>('Home').then(approvalsFor);
   const { person, shell, entitlements } = await signedIn();
   const view = inboxView((await flatSearch(searchParams))['view']);
   // The shell's own first read, answered already in this request: asleep, the
