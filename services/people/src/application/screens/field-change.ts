@@ -494,9 +494,21 @@ export async function applyFieldChange(
       const counts = { edited: 0, cleared: 0, requested: 0, forHr: 0, notAsked: 0 };
       const asked: Recorded[] = [];
       for (const d of decided.value) {
+        let value = d.value;
+        // Typed into a form: read as the import reads a cell, so "42" is a number.
+        if (typeof value === 'string') {
+          const typed = coerceCell(next, value.trim(), { today, dateOrder: 'iso' });
+          if (!typed.ok) return refused(d.personId, typed.error);
+          value = typed.value;
+        }
+        // A form's money carries its minor units as digits.
+        const money = value as { amountMinor?: unknown; currency?: unknown } | null;
+        if (typeof money?.amountMinor === 'string') {
+          value = { amountMinor: Number(money.amountMinor), currency: money.currency };
+        }
         const wrote = await write(
           d.personId,
-          d.value,
+          value,
           d.action === 'edit'
             ? 'corrected by hand'
             : `the value did not fit, so it was ${WORDS[d.action]}`,
