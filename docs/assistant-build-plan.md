@@ -678,7 +678,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   `SLACK_ASSISTANT_TOKEN` a question is answered "The assistant isn't
   available right now." without a call.
 
-### [ ] AST-026 — People's old chat route is deleted
+### [x] AST-026 — People's old chat route is deleted
 
 - **Spec** PRD §16
 - **Files** `services/people/src/http/server.ts`,
@@ -690,6 +690,12 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   the import keep `AssistantPort`. `/internal/chat/act` stays.
 - **Done when** `just check-strict`, `just lint` and `just test` pass and
   nothing references `/internal/assistant/ask`.
+- **As built** `/internal/assistant/ask`, `answerChat`, `ChatQuestion`,
+  `from-chat.ts` (`askFromChat`, `ChatDeps`) and its test are gone; the
+  work-email lookup stays as `accountByEmail` for `/internal/chat/act`.
+  **`ask()` stays**: the web overview's `peopleAsk` (`POST /v1/assistant/ask`)
+  still calls it, and it goes when the web search box asks the assistant
+  (AST-036).
 
 ### [ ] AST-027 — Deploy the assistant
 

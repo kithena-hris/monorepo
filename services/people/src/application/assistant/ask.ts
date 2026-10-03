@@ -13,8 +13,9 @@ import { nameOf, type ScreenDeps, type Tx } from '../screens/record.js';
 import { describe, filterFields, onePerson, personLine, spokenDate } from './capabilities.js';
 
 /**
- * Ask People a question in words: from Slack, or anywhere else that carries
- * a person's question.
+ * Ask People a question in words, from the web overview's box (`peopleAsk`).
+ * Slack's questions go to the assistant (`platform/assistant`), which reads
+ * People through its capability routes instead.
  *
  * The model is told the question and the names of the fields the asker may
  * filter on — never a value from anybody's record — and answers with a query

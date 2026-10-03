@@ -51,8 +51,8 @@ import { nameOf, NOBODY, type ScreenDeps, type Tx } from '../screens/record.js';
  * never a value from anybody's record.
  *
  * `filterFields`, `metricsFor`, `describe`, `personLine` and the `@me`
- * resolution live here because the Slack answer (`ask.ts`) and smart search
- * share them, and `ask.ts` goes once Slack asks the assistant (AST-026).
+ * resolution live here because the capabilities, the web overview's answer
+ * (`ask.ts`) and smart search share them.
  */
 
 const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
