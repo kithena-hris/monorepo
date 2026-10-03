@@ -21,6 +21,7 @@ import {
 import type { ListedDelivery, ListedEndpoint } from '../../infrastructure/webhooks/list.js';
 import type { EndpointInput, WebhookService } from '../../infrastructure/webhooks/webhooks.js';
 import { visibleTo } from '../../domain/access/field-access.js';
+import { CHOICE_KEYS } from '../../domain/import/aliases.js';
 import { kithenaCreates } from '../../domain/import/identifiers.js';
 import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
 import { importTemplate } from '../import/template.js';
@@ -655,6 +656,13 @@ export interface NewFieldsFile {
     readonly header: string;
     readonly cells: readonly string[];
   }[];
+  /** Columns mapped to one of People's own choice fields (`CHOICE_KEYS`), with their cells. */
+  readonly choices: readonly {
+    readonly index: number;
+    readonly header: string;
+    readonly key: string;
+    readonly cells: readonly string[];
+  }[];
   /** The file holds a person id or employee number column: Kithena's to create, so ignored. */
   readonly identifiers: boolean;
   /** The file's columns: all, those mapped to a field here, and the ids Kithena creates. */
@@ -719,6 +727,14 @@ export async function newFieldsFile(
         .map((c) => ({
           index: c.index,
           header: c.header,
+          cells: file.rows.map((r) => r.cells[c.index] ?? ''),
+        })),
+      choices: mapping.value
+        .filter((c) => c.status === 'mapped' && CHOICE_KEYS.includes(c.key ?? ''))
+        .map((c) => ({
+          index: c.index,
+          header: c.header,
+          key: c.key as string,
           cells: file.rows.map((r) => r.cells[c.index] ?? ''),
         })),
       rows: planned.value.rows.map((r) => ({

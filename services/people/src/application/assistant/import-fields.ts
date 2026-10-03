@@ -2,6 +2,8 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import * as z from 'zod';
 
+import { choiceField } from '../../country-packs/core.js';
+import { aliasOf, builtInChoices, CHOICE_KEYS, choiceOf } from '../../domain/import/aliases.js';
 import { shapeOf, typeFor } from '../../domain/import/column-shape.js';
 import { NEW_FIELDS_INSTRUCTION, newFieldsContext } from '../../domain/import/new-fields-prompt.js';
 import {
@@ -50,7 +52,9 @@ import type { AssistantPort } from './assistant-port.js';
  * cannot set a company up or add fields: they see the proposal read-only and
  * import without those columns, once something is published.
  *
- * Existing fields and sections are never touched.
+ * Existing fields and sections are never touched, but for People's own
+ * choice fields (employment type, work model): a file's column for one maps
+ * onto it, never a second field, and its values the list lacks are added.
  */
 
 type Tx = PostgresJsDatabase;
@@ -132,6 +136,8 @@ export interface NewFieldsView {
     readonly sensitive: string | null;
   })[];
   readonly sections: readonly { readonly key: string; readonly label: string }[];
+  /** Columns that go to People's own choice fields, never proposed: where, and what they add. */
+  readonly choices: readonly ChoiceColumn[];
   /** People already here, whom the file may or may not reach. */
   readonly existingPeople: number;
   /** Everybody once the file is in: people here now, and the rows that create someone. */
@@ -185,17 +191,28 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
     });
   });
   if (!read.ok) return read;
-  const { planning, published, stored, existing } = read.value;
+  const { published, stored, existing } = read.value;
+  // People's own choice fields first: their columns are mapped, never proposed.
+  // Adding to the employee record is an administrator's, so HR's run leaves them.
+  const choices = read.value.isAdmin
+    ? choiceFields(read.value.planning, file.value)
+    : { columns: [], attributes: [], problems: [] };
+  const planning = {
+    sections: read.value.planning.sections,
+    attributes: withChanged(read.value.planning.attributes, choices.attributes),
+  };
+  const mappedHere = new Set(choices.columns.filter((c) => c.unmatched).map((c) => c.column));
+  const unmatched = file.value.unmatched.filter((c) => !mappedHere.has(c.index));
   const sections = planning.sections
     .filter((s) => s.archivedAt === null)
     .toSorted((a, b) => a.order - b.order)
     .map((s) => ({ key: s.key, label: s.label.default }));
-  const shapes = file.value.unmatched.map((c) => shapeOf(c.cells));
+  const shapes = unmatched.map((c) => shapeOf(c.cells));
   // A salary is money when the file says each row's currency.
   const hasCurrency =
     shapes.some((s) => s.dataType === 'currency') ||
     planning.attributes.some((a) => a.dataType === 'currency');
-  const seen: ColumnSeen[] = file.value.unmatched.map((c, i) => {
+  const seen: ColumnSeen[] = unmatched.map((c, i) => {
     const values = c.cells.map((v) => v.trim()).filter((v) => v !== '');
     const distinct = [...new Set(values)];
     return {
@@ -238,6 +255,8 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
         );
   return ok({
     ...read.value,
+    planning,
+    choices,
     file: file.value,
     sections,
     seen,
@@ -252,6 +271,123 @@ async function gather(deps: NewFieldsDeps, asking: Asking, step: ImportStepInput
   });
 }
 type Gathered = Extract<Awaited<ReturnType<typeof gather>>, { ok: true }>['value'];
+
+/** A column of the file that is one of People's own choice fields, and what approving does to it. */
+interface ChoiceColumn {
+  readonly column: number;
+  readonly header: string;
+  readonly key: string;
+  readonly label: string;
+  /** The file's values the field's list gains, by label. */
+  readonly added: readonly string[];
+  /** The column matched no field: People's field comes in with this import. */
+  readonly unmatched: boolean;
+}
+
+/**
+ * The file's columns for People's own choice fields (employment type, work
+ * model), mapped already or under a header that means one, each onto
+ * People's field and never a second one beside it: the field is added when
+ * the company has none, with People's values, and a value of the file it has
+ * under no spelling is added to its list (`choiceOf`). Nothing is stored:
+ * the attributes come back changed, and the plan publishes them.
+ */
+function choiceFields(
+  current: { readonly sections: readonly Section[]; readonly attributes: readonly Attribute[] },
+  file: Pick<NewFieldsFile, 'choices' | 'unmatched'>,
+): {
+  readonly columns: readonly ChoiceColumn[];
+  readonly attributes: readonly Attribute[];
+  readonly problems: readonly { column: number; header: string; message: string }[];
+} {
+  const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
+  const live = (key: string) =>
+    current.attributes.find((a) => a.key === key && a.deprecatedAt === null);
+  const candidates = [
+    ...file.choices.map((c) => ({ ...c, unmatched: false })),
+    ...file.unmatched.flatMap((c) => {
+      const key = aliasOf(c.header);
+      return key !== null && CHOICE_KEYS.includes(key) && live(key) === undefined
+        ? [{ ...c, key, unmatched: true }]
+        : [];
+    }),
+  ];
+  const columns: ChoiceColumn[] = [];
+  const attributes: Attribute[] = [];
+  const problems: { column: number; header: string; message: string }[] = [];
+  const done = new Set<string>();
+  for (const c of candidates) {
+    const was = live(c.key);
+    const config = was?.typeConfig.kind === 'select' ? was.typeConfig : null;
+    // A company's own field under the key, of another kind, is left as it is.
+    if (done.has(c.key) || (was !== undefined && config === null)) continue;
+    done.add(c.key);
+    const options =
+      config === null
+        ? [...builtInChoices(c.key)]
+        : config.options.map((o) => ({ value: o.value, label: o.label.default }));
+    const added: { value: string; label: string }[] = [];
+    // As a cell is read (`coerceCell`): an option by value or label, else what it means.
+    for (const cell of c.cells) {
+      const known = [...options, ...added];
+      const wanted = cell.trim().toLocaleLowerCase('en');
+      if (known.some((o) => o.value === wanted || o.label.toLocaleLowerCase('en') === wanted)) {
+        continue;
+      }
+      const meant = choiceOf(c.key, cell);
+      if (meant !== null && !known.some((o) => o.value === meant.value)) added.push(meant);
+    }
+    if (config !== null && added.length === 0) continue;
+    const section =
+      draft.section('employment')?.archivedAt === null
+        ? 'employment'
+        : (draft.liveSections()[0]?.key ?? 'employment');
+    const saved =
+      config === null
+        ? draft.addAttribute(
+            choiceField(
+              c.key,
+              {
+                sectionKey: section,
+                order: current.attributes.filter((a) => a.sectionKey === section).length,
+              },
+              [...options, ...added],
+            ),
+          )
+        : draft.updateAttribute(c.key, {
+            typeConfig: {
+              ...config,
+              options: [
+                ...config.options,
+                ...added.map((o) => ({
+                  value: o.value,
+                  label: { default: o.label, translations: {} },
+                })),
+              ],
+            },
+          });
+    if (!saved.ok) {
+      problems.push({ column: c.index, header: c.header, message: saved.error.message });
+      continue;
+    }
+    attributes.push(saved.value);
+    columns.push({
+      column: c.index,
+      header: c.header,
+      key: c.key,
+      label: saved.value.label.default,
+      added: added.map((a) => a.label),
+      unmatched: c.unmatched,
+    });
+  }
+  return { columns, attributes, problems };
+}
+
+/** `attributes` with each of `changed` in its place, or added. */
+const withChanged = (
+  attributes: readonly Attribute[],
+  changed: readonly Attribute[],
+): Attribute[] => [...attributes.filter((a) => !changed.some((c) => c.key === a.key)), ...changed];
 
 /** Draft fields not in the published version: what a publish would carry besides this import's. */
 function pendingIn(attributes: readonly Attribute[], published: readonly string[]): number {
@@ -273,6 +409,7 @@ function view(g: Gathered, proposals: readonly ColumnProposal[], byModel: boolea
       sensitive: sensitivity(p.field),
     })),
     sections: g.sections,
+    choices: g.choices.columns,
     existingPeople: g.existing,
     totalPeople: g.total,
     byModel,
@@ -372,7 +509,8 @@ function checked(
         ...rest,
         dataType: 'text',
         encrypted: false,
-        classification: p.field.classification === 'special-category' ? 'special-category' : 'confidential',
+        classification:
+          p.field.classification === 'special-category' ? 'special-category' : 'confidential',
         piiKind: p.field.piiKind === 'financial' ? 'none' : p.field.piiKind,
         requiresApproval: true,
       },
@@ -587,7 +725,8 @@ async function planned(
     ? chosen.value.map((p) => ({ ...p, field: fitted(p.field, p.header).field }))
     : [];
   const built = draftWithNewFields(g.planning, kept);
-  const needsVersion = g.published === null || kept.length > 0;
+  const choosing = g.choices.attributes.length > 0;
+  const needsVersion = g.published === null || kept.length > 0 || choosing;
   const next = needsVersion
     ? publish(
         SchemaDraft.rehydrate(
@@ -604,6 +743,7 @@ async function planned(
   const fields = plannedFields(g, kept, built);
   const mapping = {
     ...input.mapping,
+    ...Object.fromEntries(g.choices.columns.map((c) => [String(c.column), c.key])),
     ...Object.fromEntries(fields.map((f) => [String(f.column), f.key])),
   };
   // Work locations are set up by an administrator: HR's run reads them as they are.
@@ -625,6 +765,7 @@ async function planned(
     setup: g.setup === null ? null : { countryName: g.setup.countryName },
     version: next.value.version,
     fields,
+    choices: g.choices.columns,
     rows: dry.counts,
     leftOut,
     identifiers: {
@@ -659,11 +800,16 @@ async function planned(
       fields,
       version: next.value.version,
       setup: g.setup,
-      blocked: kept.length > 0 || g.published === null ? (g.isAdmin ? g.blocked : null) : null,
-      problems: built.problems.map((x) => ({
-        ...x,
-        header: kept.find((p) => p.column === x.column)?.header ?? `Column ${String(x.column + 1)}`,
-      })),
+      blocked:
+        kept.length > 0 || choosing || g.published === null ? (g.isAdmin ? g.blocked : null) : null,
+      problems: [
+        ...g.choices.problems,
+        ...built.problems.map((x) => ({
+          ...x,
+          header:
+            kept.find((p) => p.column === x.column)?.header ?? `Column ${String(x.column + 1)}`,
+        })),
+      ],
       review: review.value,
       mapping,
       asked: sum('ask'),
@@ -730,14 +876,13 @@ export async function runImport(
   }
   const [problem] = plan.problems;
   if (problem !== undefined) {
-    const header = kept.find((p) => p.column === problem.column)?.header ?? 'A column';
     return err(
-      failure('DEFINITION_INVALID', `${header}: ${problem.message}. Nothing was added.`, [
+      failure('DEFINITION_INVALID', `${problem.header}: ${problem.message}. Nothing was added.`, [
         'proposals',
       ]),
     );
   }
-  const publishing = g.published === null || kept.length > 0;
+  const publishing = g.published === null || kept.length > 0 || g.choices.attributes.length > 0;
   if (publishing || places.length > 0 || numbering.length > 0) {
     const today = deps.clock.instant().slice(0, 10);
     const added = await run(deps.service, asking.tenantId, async (tx) => {
@@ -751,10 +896,17 @@ export async function runImport(
         const seeded = await seedSetup(tx, asking.tenantId, g.setup?.country ?? null, 'all');
         if (!seeded.ok) return seeded;
       }
-      const draft = await deps.schema.loadDraft(tx, asking.tenantId);
+      const stored = await deps.schema.loadDraft(tx, asking.tenantId);
+      // People's own choice fields, worked out again against what is stored now.
+      const choices = choiceFields(stored, g.file);
+      const draft = {
+        sections: stored.sections,
+        attributes: withChanged(stored.attributes, choices.attributes),
+      };
       const built = draftWithNewFields(draft, kept);
-      const [refused] = built.problems;
+      const [refused] = [...choices.problems, ...built.problems];
       if (refused !== undefined) return err(failure('DEFINITION_INVALID', refused.message));
+      for (const a of choices.attributes) await deps.draft.saveAttribute(tx, asking.tenantId, a);
       for (const s of built.sections) await deps.draft.saveSection(tx, asking.tenantId, s);
       for (const a of built.attributes) await deps.draft.saveAttribute(tx, asking.tenantId, a);
       const version = ((await deps.schema.currentVersion(tx, asking.tenantId))?.version ?? 0) + 1;
@@ -806,6 +958,8 @@ export async function runImport(
     });
   }
   const finishedAt = deps.clock.instant();
+  // A column mapped here onto People's own field is a column to a field here.
+  const existing = g.file.columns.existing + g.choices.columns.filter((c) => c.unmatched).length;
   return ok({
     ...done.value,
     fields: plan.fields,
@@ -815,12 +969,12 @@ export async function runImport(
     finishedAt,
     tookMs: Math.max(0, Date.parse(finishedAt) - started),
     columns: {
-      existing: g.file.columns.existing,
+      existing,
       created: plan.fields.length,
       kithena: g.file.columns.kithena,
       leftOut: Math.max(
         0,
-        g.file.columns.total - g.file.columns.existing - g.file.columns.kithena - plan.fields.length,
+        g.file.columns.total - existing - g.file.columns.kithena - plan.fields.length,
       ),
     },
   });

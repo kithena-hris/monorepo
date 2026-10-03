@@ -69,6 +69,37 @@ function field(
   };
 }
 
+/**
+ * People's own choice fields, each in a typed column (`core.ts`), and not
+ * seeded: a company gets one when a file it imports carries it. Its options
+ * are People's values (`builtInChoices`) and whatever the company adds.
+ */
+export const CHOICE_LABELS: Readonly<Record<string, string>> = {
+  employment_type: 'Employment type',
+  work_model: 'Work model',
+};
+
+export const choiceField = (
+  key: string,
+  at: { readonly sectionKey: string; readonly order: number },
+  options: readonly { readonly value: string; readonly label: string }[],
+): AttributeDefinitionInput =>
+  field({
+    key,
+    ...at,
+    label: CHOICE_LABELS[key] ?? key,
+    dataType: 'select',
+    typeConfig: {
+      kind: 'select',
+      options: options.map((o) => ({ value: o.value, label: text(o.label) })),
+    },
+    ownership: ['hr'],
+    visibility: ['self', 'manager', 'hr'],
+    collectAt: 'hr_only',
+    classification: { ...identity, piiKind: 'none', aiEligible: true },
+    effectiveDated: true,
+  });
+
 export const CORE_PACK: {
   readonly sections: readonly SectionInput[];
   readonly attributes: readonly AttributeDefinitionInput[];

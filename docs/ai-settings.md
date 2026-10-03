@@ -32,7 +32,20 @@ title.
 1. **Upload and map.** Columns map by key, by label, by the usual names other
    systems export (`domain/import/aliases.ts`: "First Name", "Email",
    "Employee ID", "Hire Date"…), then by the column-mapping judgment.
-   Existing fields and sections are never changed by anything below.
+   Existing fields and sections are never changed by anything below, with
+   one exception: **People's own choice fields**, employment type and work
+   model, each kept in a column of its own. A column for one ("Employment
+   Type", "Contract type", "Work Arrangement"…) maps onto People's field,
+   never a second field beside it. Its values map by any spelling
+   (`choiceOf` in `domain/import/aliases.ts`: "Fixed-term" is Fixed term,
+   "Freelancer" a contractor, "WFH" remote), and a value the field lacks is
+   added to its list ("FT" and "Full Time" both become one Full-time). A
+   company without the field gets it with People's values and the file's.
+   The plan says it in one line ("Employment Type → Employment type; added
+   Full-time and Part-time"), the column counts as one to a field here, and
+   only an administrator's run changes the field. The columns keep only a
+   key's shape (`20261003090000_people_choice_columns.sql`); the published
+   options are the list.
 1. **Work locations in this file** (`?step=places`, still under Map columns
    in the stepper) appears when a column maps to Work location. The dry run
    lists each value the file holds (`domain/import/workplaces.ts`) with its

@@ -1195,7 +1195,13 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     const view = JSON.parse(proposed.data?.['proposeImportFields'] as string) as {
       blocked: string | null;
       proposals: (Proposal & { counts: unknown; sensitive: unknown })[];
+      choices: { column: number; header: string; key: string; added: string[] }[];
     };
+    // Employment type and work model are People's own: mapped onto them, never a second field.
+    expect(view.choices.map((c) => [c.header, c.key, c.added])).toEqual([
+      ['Employment Type', 'employment_type', ['Full-time', 'Part-time']],
+      ['Work Arrangement', 'work_model', []],
+    ]);
     expect(view.blocked).toBeNull();
     const proposals = view.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p);
     const of = (header: string): Proposal => {
@@ -1206,8 +1212,9 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
 
     // Every column: a field here, a new field, or an id Kithena creates.
     const proposedFor = new Set(proposals.map((p) => p.column));
+    const ours = new Set(view.choices.map((c) => c.column));
     const where = (x: (typeof columns)[number]) =>
-      x.status === 'mapped'
+      x.status === 'mapped' || ours.has(x.index)
         ? 'existing'
         : x.reason === 'Kithena creates this'
           ? 'kithena'
@@ -1345,9 +1352,9 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
         expect.objectContaining({ classification: 'confidential', visibility: ['self', 'hr'] }),
       ]);
     }
-    // A postal code keeps its digits; a key People keeps in a column of its own is not taken.
+    // A postal code keeps its digits.
     expect(of('Home Postal Code').field.dataType).toBe('text');
-    expect(of('Employment Type').key).not.toBe('employment_type');
+    expect(proposals.filter((p) => /^(employment_type|work_model)/u.test(p.key))).toEqual([]);
 
     // The plan: nothing refused, nothing blocked, so Approve and run is on.
     const planned = await c.graph(`mutation ($input: String!) { planImport(input: $input) }`, {
@@ -1372,6 +1379,13 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     expect(plan.blocked).toBeNull();
     expect(plan.problems).toEqual([]);
     expect(plan.review.dryRun.counts).toMatchObject({ create: 100, blocked: 0, duplicate: 0 });
+    // People's values under the file's spelling go to those; the rest are added.
+    expect(plan.steps.map((s) => s.title)).toEqual(
+      expect.arrayContaining([
+        'Employment Type → Employment type; added Full-time and Part-time',
+        'Work Arrangement → Work model',
+      ]),
+    );
     // Each new office where the file says it is, in the company's one entity.
     const offices = Object.fromEntries(
       plan.review.dryRun.workplaces.map((w) => [
@@ -1399,8 +1413,8 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       columns: { existing: number; created: number; kithena: number; leftOut: number };
     }>(c.graph, { ...step, proposals }, 'meridian-run');
     expect(done).toMatchObject({ created: 100, blocked: 0, held: 0 });
-    // 7 to fields here, 95 new, 2 ids; Preferred name is the employee's to write.
-    expect(done.columns).toEqual({ existing: 8, created: 95, kithena: 2, leftOut: 0 });
+    // 10 to fields here (employment type and work model among them), 93 new, 2 ids.
+    expect(done.columns).toEqual({ existing: 10, created: 93, kithena: 2, leftOut: 0 });
 
     // What was written: a salary as money in the row's currency, an identifier sealed.
     const client = postgres(pgUrl, { max: 1 });
@@ -1421,6 +1435,41 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
         [TENANT],
       )) as unknown as { n: number }[];
       expect(plain?.n).toBe(0);
+      // Every row in People's own fields, and no second field beside them. Read
+      // from the dated history: a pre-hire's holds from their start date, so
+      // the column is empty for them until then.
+      const values = (await client.unsafe(
+        `SELECT attribute_key AS k, value #>> '{}' AS v, count(*)::int AS n
+           FROM people.person_attribute_history
+          WHERE tenant_id = $1::uuid AND attribute_key IN ('employment_type', 'work_model')
+          GROUP BY 1, 2`,
+        [TENANT],
+      )) as unknown as { k: string; v: string; n: number }[];
+      const counted = (k: string) =>
+        Object.fromEntries(values.filter((r) => r.k === k).map((r) => [r.v, r.n]));
+      expect(counted('employment_type')).toEqual({
+        full_time: 93,
+        part_time: 3,
+        fixed_term: 2,
+        contractor: 2,
+      });
+      expect(counted('work_model')).toEqual({ hybrid: 44, onsite: 41, remote: 15 });
+      // The columns take a company's own value: all but the three pre-hires, today.
+      const [column] = (await client.unsafe(
+        `SELECT count(employment_type)::int AS t, count(work_model)::int AS w,
+                count(*) FILTER (WHERE employment_type = 'full_time')::int AS full
+           FROM people.person WHERE tenant_id = $1::uuid`,
+        [TENANT],
+      )) as unknown as { t: number; w: number; full: number }[];
+      expect(column?.t).toBeGreaterThanOrEqual(97);
+      expect(column?.w).toBe(column?.t);
+      expect(column?.full).toBeGreaterThanOrEqual(90);
+      const [second] = (await client.unsafe(
+        `SELECT count(*)::int AS n FROM people.person
+          WHERE tenant_id = $1::uuid AND (custom ? 'employment_type_2' OR custom ? 'work_arrangement')`,
+        [TENANT],
+      )) as unknown as { n: number }[];
+      expect(second?.n).toBe(0);
     } finally {
       await client.end();
     }
