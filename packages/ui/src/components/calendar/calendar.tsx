@@ -389,7 +389,7 @@ export function Calendar(props: CalendarProps): JSX.Element {
                 const notes = [
                   ...dots.map((dot) => dot.label),
                   style?.label,
-                  fromHighlight && (between || isStart || isEnd) ? highlight?.label : undefined,
+                  fromHighlight && (between || isStart || isEnd) ? highlight.label : undefined,
                 ].filter(Boolean);
 
                 return (

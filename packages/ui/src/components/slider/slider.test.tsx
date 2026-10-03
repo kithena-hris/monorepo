@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Slider } from './slider';
 
 // Radix measures the thumb; jsdom has no layout to observe.
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- absent under jsdom, whatever the DOM types say
 globalThis.ResizeObserver ??= class {
   observe(): void {}
   unobserve(): void {}
