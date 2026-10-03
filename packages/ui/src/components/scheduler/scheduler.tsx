@@ -680,6 +680,11 @@ function Rows({
   );
 }
 
+/** Monday is 0. In the month view the columns are calendar dates. */
+function weekday(id: string): number {
+  return (new Date(parseIsoDate(id)).getUTCDay() + 6) % 7;
+}
+
 function Month({
   columns,
   events,
@@ -700,8 +705,6 @@ function Month({
   className: string | undefined;
 }): JSX.Element {
   const order = new Map(columns.map((entry, index) => [entry.id, index]));
-  /** Monday is 0. The columns are calendar dates in this view. */
-  const weekday = (id: string): number => (new Date(parseIsoDate(id)).getUTCDay() + 6) % 7;
   const lead = columns[0] ? weekday(columns[0].id) : 0;
   const cells: (SchedulerColumn | null)[] = [...Array<null>(lead).fill(null), ...columns];
   while (cells.length % 7 !== 0) cells.push(null);
