@@ -1,7 +1,7 @@
-import type { Result } from '@kithena/domain-kit';
-import { failure } from '@kithena/domain-kit';
+import { err, failure, type Result } from '@kithena/domain-kit';
+import { TimeOffAway, type Capability, type CapabilityInput } from '@kithena/contracts';
 
-import { capabilityCatalogue } from '../application/assist/capabilities.js';
+import { away, capabilityCatalogue } from '../application/assist/capabilities.js';
 import type { Caller, Deps } from '../application/ports.js';
 import type { CallerFrom } from './caller.js';
 import { refused, type RestRequest, type RestResponse } from './rest.js';
@@ -28,7 +28,22 @@ export const CAPABILITIES_PREFIX = '/internal/capabilities';
 
 type Handler = (deps: Deps, caller: Caller, body: unknown) => Promise<Result<unknown>>;
 
-const HANDLERS: Readonly<Record<string, Handler>> = {};
+/** A capability's input parsed by its own contract, then its use case as the asker. */
+const served =
+  (
+    capability: Capability,
+    run: (deps: Deps) => (caller: Caller, input: CapabilityInput) => Promise<Result<unknown>>,
+  ): Handler =>
+  async (deps, caller, body) => {
+    const parsed = capability.schemas.input.safeParse(body);
+    if (parsed.success) return run(deps)(caller, parsed.data);
+    const issue = parsed.error.issues[0];
+    return err(failure('BAD_REQUEST', issue?.message ?? 'invalid input', issue?.path.map(String)));
+  };
+
+const HANDLERS: Readonly<Record<string, Handler>> = {
+  [TimeOffAway.name]: served(TimeOffAway, away),
+};
 
 const notFound = (): RestResponse => refused(failure('NOT_FOUND', 'No such capability'));
 

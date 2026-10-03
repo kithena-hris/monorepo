@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { RuntimeCatalogue } from '@kithena/contracts';
+import { RuntimeCatalogue, TimeOffAway } from '@kithena/contracts';
 
 import { people, TENANT, world } from '../application/testing/world.js';
 import { callerFromHeaders, withMember } from './caller.js';
@@ -85,6 +85,28 @@ describe('the capability routes (AST-022)', () => {
     expect(await as({ entitlements: ['module.people'] })).toBe(403);
     expect(await as({ viewedBy: '0000000b-0000-4000-8000-000000000001' })).toBe(403);
     expect(await as({ impersonatedBy: '0000000b-0000-4000-8000-000000000001' })).toBe(403);
+  });
+
+  it('answer timeoff.away with its contract’s input, and refuse anything else (AST-023)', async () => {
+    const post = (body: unknown, token = ASSISTANT) =>
+      call('/internal/capabilities/timeoff.away', token, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    const answer = await post({ on: { from: '2026-10-06', to: '2026-10-06' }, limit: 25 });
+    expect(answer.status).toBe(200);
+    expect(TimeOffAway.schemas.output.parse(answer.body)).toMatchObject({
+      kind: 'people',
+      scope: 'visible',
+    });
+    expect((await post({ limit: 25 })).status).toBe(400);
+    expect(
+      (await post({ on: { from: '2026-10-06', to: '2026-10-06' }, limit: 25, personIds: ['x'] }))
+        .status,
+    ).toBe(400);
+    expect(
+      (await post({ on: { from: '2026-10-06', to: '2026-10-06' }, limit: 25 }, ROUTER)).status,
+    ).toBe(401);
   });
 
   it('answer nothing they do not serve', async () => {

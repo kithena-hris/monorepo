@@ -17,6 +17,12 @@ export const shortDate = (date: string): string =>
 /** "Wed 21". */
 export const dayName = (date: string): string =>
   format({ weekday: 'short', day: 'numeric' }).format(asDate(date));
+/** "Tuesday 6". */
+export const longDay = (date: string): string =>
+  format({ weekday: 'long', day: 'numeric' }).format(asDate(date));
+/** "Tuesday 6 October". */
+export const longDate = (date: string): string =>
+  format({ weekday: 'long', day: 'numeric', month: 'long' }).format(asDate(date));
 /** "October". */
 export const monthName = (date: string): string => format({ month: 'long' }).format(asDate(date));
 

@@ -485,7 +485,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   row's location is in its `groups`. `DENIED` moved to
   `application/assist/denied.ts` so the application layer can serve it.
 
-### [ ] AST-023 — `timeoff.away`
+### [x] AST-023 — `timeoff.away`
 
 - **Spec** PRD §7.1, §7.2, §7.3, §7.7, §14
 - **Files** `services/timeoff/src/application/calendar/calendar.ts`,
@@ -502,6 +502,19 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   request for a private type returns a byte-identical response whether two
   teammates are on that leave or none are**; and the standalone suite answers
   with People absent.
+- **As built** `calendar.ts` exports `sightOf`, `seesType` (the visibility
+  rule) and `runsIn` (a request's runs with their half days), and
+  `calendarIn` uses all three. Away is `approved`, `change_pending` and
+  `taken`; a pending request is never included, because the contract has no
+  input to ask for one. A `name` is matched word by word against the members
+  the asker has sight of (sight checked only for the names that match),
+  accents and case aside, a single exact match winning. Filters take `is`,
+  `in` and `not_in`, by key or label. A row is one person, every run in the
+  range joined ("Mon 5 to Wed 7 · Vacation", "Tue 6, half day · Away");
+  `groups` holds `team` and `location`. Holiday `notes` come from where the
+  people found work and where the asker does, so they never vary with anybody
+  hidden. No integration test: no new query, only the repositories the
+  calendar already uses.
 
 ### [ ] AST-024 — `timeoff.managers`
 
