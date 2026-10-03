@@ -177,10 +177,12 @@ export type {
   TimelineChartProps,
   TimelineDragMode,
   TimelineEntry,
+  TimelineMarker,
   TimelineMove,
   TimelineRow,
   TimelineSeparator,
   TimelineUnit,
+  TimelineVariant,
 } from './components/chart/timeline-chart';
 
 export { ChartCard } from './components/chart/chart-card';

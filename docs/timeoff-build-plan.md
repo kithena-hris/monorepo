@@ -1263,13 +1263,13 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### Parental leave
 
-### [ ] TOF-100 — Parental entitlement (domain)
+### [x] TOF-100 — Parental entitlement (domain)
 
 - **Spec** PRD §12.1, §12.3 · **Files** `services/timeoff/src/domain/parental/`
 - **Depends on** TOF-028
 - **Done when** Adam's answers give 6 + 11 + 2 weeks and Acme's 2 weeks.
 
-### [ ] TOF-101 — The plan and its validation (domain)
+### [x] TOF-101 — The plan and its validation (domain)
 
 - **Spec** PRD §12.2 · **Depends on** TOF-100
 - **Done when** a block of 10 days is refused (whole weeks), a flexible block
@@ -1280,7 +1280,7 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 - **Depends on** TOF-101, TOF-034
 
-### [ ] TOF-103 — Reach: draggable lane track
+### [x] TOF-103 — Reach: draggable lane track
 
 - **Spec** PRD §15.3 · **Depends on** nothing
 - **Approach** `TimelineChart` lanes with segments draggable by pointer and
