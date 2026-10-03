@@ -9,7 +9,14 @@ import { amount, days, sum } from '../../domain/days.js';
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import type { PolicyId } from '../../domain/policy/policy.js';
 import { previewChange, shadowBalances, type PreviewInput } from '../../domain/policy/preview.js';
-import { contextFor, userActor, type Caller, type Deps, type Tx } from '../ports.js';
+import {
+  contextFor,
+  DEFAULT_ESCALATION,
+  userActor,
+  type Caller,
+  type Deps,
+  type Tx,
+} from '../ports.js';
 import { applies, forbidden, isHrAdmin, leaveYear, live, notFound, transact } from '../shared.js';
 import type {
   ApprovalsSettingsView,
@@ -75,7 +82,19 @@ export const leaveTypesSettings =
       const all = await tx.leaveTypes.list();
       const rows: LeaveTypesView['leaveTypes'][number][] = [];
       for (const t of all) if (!t.deleted) rows.push(await row(tx, t));
-      return ok({ leaveTypes: rows, packs: packsIn(all, []) });
+      const company = await tx.parental.company();
+      return ok({
+        leaveTypes: rows,
+        packs: packsIn(all, []),
+        parentalCompany:
+          company === null
+            ? null
+            : {
+                extraWeeks: company.extraWeeks,
+                afterServiceYears: company.afterServiceYears,
+                leaveTypeKey: company.leaveTypeKey,
+              },
+      });
     });
 
 /** T30: one leave type and its policies, every version. */
@@ -85,12 +104,19 @@ export const leaveTypeSetting =
     asHr(deps, caller, async (tx) => {
       const t = await tx.leaveTypes.get(query.key);
       if (t === null || t.deleted) return notFound('Leave type');
+      const members = (await tx.members.list()).filter((m) => m.status !== 'left');
+      const distinct = <T>(xs: readonly (T | null)[]): T[] =>
+        [...new Set(xs.filter((x) => x !== null))].toSorted();
       return ok({
         leaveType: await row(tx, t),
         policies: (await tx.policies.forLeaveType(query.key)).map((p) => ({
           id: p.id,
           versions: p.versions.map((v) => ({ ...v, definition: v.definition })),
         })),
+        places: {
+          countries: distinct(members.map((m) => m.country)),
+          locations: distinct(members.map((m) => m.locationKey)),
+        },
       });
     });
 
@@ -205,6 +231,7 @@ export const approvalsSettings =
           approvers: [...r.approvers],
         })),
         autoApproval: await tx.approvals.autoApproval(),
+        escalation: (await tx.settings.get('escalation')) ?? DEFAULT_ESCALATION,
         teams: rows.toSorted((a, b) => a.teamKey.localeCompare(b.teamKey)),
       });
     });

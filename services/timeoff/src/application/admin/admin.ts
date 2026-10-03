@@ -23,7 +23,9 @@ import {
   contextFor,
   userActor,
   type Caller,
+  type CompanyParentalWeeks,
   type Deps,
+  type Escalation,
   type PolicyShadow,
   type Tx,
 } from '../ports.js';
@@ -254,7 +256,12 @@ export const assignHolidayCalendars =
 
 export const setApprovalRules =
   (deps: AdminDeps) =>
-  (caller: Caller, rules: readonly ApprovalRule[], auto?: AutoApproval): Promise<Result<void>> =>
+  (
+    caller: Caller,
+    rules: readonly ApprovalRule[],
+    auto?: AutoApproval,
+    escalation?: Escalation,
+  ): Promise<Result<void>> =>
     asHr(deps, caller, async (tx) => {
       if (rules.some((r) => r.leaveTypes !== null && r.leaveTypes.length === 0)) {
         return refuse('EMPTY_RULE', 'A rule names at least one leave type, or all of them', [
@@ -263,6 +270,22 @@ export const setApprovalRules =
       }
       await tx.approvals.setRules(rules);
       if (auto !== undefined) await tx.approvals.setAutoApproval(auto);
+      if (escalation !== undefined) await tx.settings.set('escalation', escalation);
+      return ok(undefined);
+    });
+
+/**
+ * The company's own parental weeks (T8: "Acme adds 2 paid weeks after a
+ * year"), booked as one of its leave types; 0 weeks for none. A plan already
+ * answered keeps the weeks it was answered with.
+ */
+export const setParentalCompany =
+  (deps: AdminDeps) =>
+  (caller: Caller, weeks: CompanyParentalWeeks): Promise<Result<void>> =>
+    asHr(deps, caller, async (tx) => {
+      const type = await tx.leaveTypes.get(weeks.leaveTypeKey);
+      if (type === null || type.deleted) return notFound('Leave type');
+      await tx.parental.setCompany(weeks);
       return ok(undefined);
     });
 

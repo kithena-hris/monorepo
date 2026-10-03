@@ -106,6 +106,9 @@ export const leaveTypes = (): LeaveTypesData => ({
   leaveTypes: leaveTypeRows(),
   packs: [spainPack],
   rules: approvalRules(),
+  // Acme's 2 paid weeks after a year, booked as parental leave (T8).
+  parentalCompany: { extraWeeks: 2, afterServiceYears: 1, leaveTypeKey: 'parental' },
+  adding: false,
 });
 
 /* ---------------------------------------------------------------- T30 -- */
@@ -202,6 +205,7 @@ export const vacationWithDraft = (): LeaveTypeData => {
       shadow: null,
     },
     as: null as string | null,
+    places: { countries: ['DE', 'ES'], locations: ['barcelona', 'berlin', 'madrid'] },
   };
 };
 
@@ -307,6 +311,7 @@ export const attendance = (): AttendanceSettingsData => ({
 export const approvals = (): ApprovalSettingsData => ({
   rules: approvalRules(),
   autoApproval: { shortenOrCancel: true, sickUnderDays: 3, oneDayAboveMinimum: false },
+  escalation: { afterWorkingDays: 3, to: 'manager', remindAt: 540 },
   teams: [
     { teamKey: 'platform', teamName: 'Platform', minimum: { atLeast: 5, unit: 'people' as const } },
     { teamKey: 'support', teamName: 'Support', minimum: { atLeast: 60, unit: 'percent' as const } },

@@ -1,5 +1,7 @@
 import {
+  Alert,
   Badge,
+  Button,
   List,
   ListItem,
   PageHeader,
@@ -7,11 +9,13 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   Skeleton,
+  icons,
 } from '@reach/ui';
-import type { JSX } from 'react';
+import { useState, type JSX } from 'react';
 
-import { Loaded, type Loadable } from '../load';
-import { PackNotice, placeName, shortDate, type Pack } from './shared';
+import { Loaded, type Loadable, type Outcome } from '../load';
+import { HolidayCalendar, type Layer } from './holiday-calendar';
+import { PackNotice, Toggle, placeName, shortDate, type Pack } from './shared';
 
 /**
  * Holiday calendars (T36 without the assistant's draft, TOF-083): each work
@@ -29,6 +33,8 @@ export interface HolidaySettingsData {
   readonly thisYear: number;
   /** The address's location; the first otherwise. */
   readonly location: string | null;
+  /** The calendar open in its dialog (`?calendar=`), `new` for one being added. */
+  readonly calendar?: string | null;
   readonly packs: readonly Pack[];
   readonly layers: readonly {
     readonly key: string;
@@ -53,6 +59,80 @@ export interface HolidaySettingsProps {
   readonly load: Loadable<HolidaySettingsData>;
   /** Another year's calendars. */
   readonly onYear?: (year: number) => void;
+  /** Another state in the address: a calendar's dialog open or closed. */
+  readonly onAsk?: (patch: Readonly<Record<string, string | null>>) => void;
+  readonly onSaveCalendar?: (key: string, layer: Omit<Layer, 'key'>) => Promise<Outcome>;
+  readonly onRemoveCalendar?: (key: string) => Promise<Outcome>;
+  /** The calendars a location keeps, most general first. */
+  readonly onAssign?: (locationKey: string, layerKeys: readonly string[]) => Promise<Outcome>;
+}
+
+const LEVELS: Record<Layer['level'], number> = { national: 0, regional: 1, city: 2 };
+const LEVEL_NAME: Record<Layer['level'], string> = {
+  national: 'National',
+  regional: 'Regional',
+  city: 'City',
+};
+
+/** The calendars a location keeps, ticked, saved with their own button (TOF-099a). */
+function Keeps({
+  location,
+  layers,
+  onAssign,
+}: {
+  readonly location: HolidaySettingsData['locations'][number];
+  readonly layers: HolidaySettingsData['layers'];
+  readonly onAssign: NonNullable<HolidaySettingsProps['onAssign']>;
+}): JSX.Element {
+  const [keys, setKeys] = useState<readonly string[]>(location.layerKeys);
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const ordered = layers.toSorted((a, b) => LEVELS[a.level] - LEVELS[b.level]);
+  const changed = keys.toSorted().join() !== location.layerKeys.toSorted().join();
+  return (
+    <PageSection title={`Calendars ${placeName(location.locationKey)} keeps`} surface>
+      <div className="flex flex-col gap-3">
+        {ordered.map((l) => (
+          <Toggle
+            key={l.key}
+            kind="checkbox"
+            label={l.name}
+            description={LEVEL_NAME[l.level]}
+            checked={keys.includes(l.key)}
+            onChange={(on) => {
+              setKeys(on ? [...keys, l.key] : keys.filter((k) => k !== l.key));
+            }}
+          />
+        ))}
+        {refused === null ? null : (
+          <Alert tone="danger" title="Not saved">
+            {refused}
+          </Alert>
+        )}
+        <div>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!changed}
+            loading={busy}
+            loadingLabel="Saving"
+            onClick={() => {
+              setBusy(true);
+              setRefused(null);
+              // Most general first, as the layers resolve.
+              const next = ordered.map((l) => l.key).filter((k) => keys.includes(k));
+              void onAssign(location.locationKey, next).then((outcome) => {
+                setBusy(false);
+                if (!outcome.ok) setRefused(outcome.message);
+              });
+            }}
+          >
+            Save calendars
+          </Button>
+        </div>
+      </div>
+    </PageSection>
+  );
 }
 
 const TITLE = 'Holidays';
@@ -62,13 +142,14 @@ const page = '@container/holidays flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[48rem]/holidays:grid @min-[48rem]/holidays:grid-cols-[17rem_minmax(0,1fr)] @min-[48rem]/holidays:items-start';
 
-export function HolidaySettings({ load, onYear }: HolidaySettingsProps): JSX.Element {
+export function HolidaySettings(props: HolidaySettingsProps): JSX.Element {
+  const { load } = props;
   if (load.status === 'loading') return <HolidaySettingsSkeleton />;
   return (
     <div className={page}>
       {load.status === 'error' ? <PageHeader title={TITLE} description={DESCRIPTION} /> : null}
       <Loaded load={load} what="the holiday calendars">
-        {(data) => <Ready data={data} onYear={onYear} />}
+        {(data) => <Ready {...props} data={data} />}
       </Loaded>
     </div>
   );
@@ -77,10 +158,17 @@ export function HolidaySettings({ load, onYear }: HolidaySettingsProps): JSX.Ele
 function Ready({
   data,
   onYear,
-}: {
-  readonly data: HolidaySettingsData;
-  readonly onYear: HolidaySettingsProps['onYear'];
-}): JSX.Element {
+  onAsk,
+  onSaveCalendar,
+  onRemoveCalendar,
+  onAssign,
+}: HolidaySettingsProps & { readonly data: HolidaySettingsData }): JSX.Element {
+  const here = (calendar: string): string =>
+    `/settings/time-off/holidays/${String(data.year)}?${data.location === null ? '' : `location=${encodeURIComponent(data.location)}&`}calendar=${encodeURIComponent(calendar)}`;
+  const editing =
+    data.calendar === 'new'
+      ? null
+      : (data.layers.find((l) => l.key === data.calendar) ?? undefined);
   const years = [...new Set([data.thisYear, data.thisYear + 1, data.year])].toSorted();
   const layerName = new Map(data.layers.map((l) => [l.key, l.name]));
   const layersOf = (keys: readonly string[]): string =>
@@ -92,22 +180,41 @@ function Ready({
         title={TITLE}
         description={DESCRIPTION}
         actions={
-          <SegmentedControl
-            aria-label="Year"
-            size="sm"
-            value={String(data.year)}
-            onValueChange={(year) => {
-              if (year !== '') onYear?.(Number(year));
-            }}
-          >
-            {years.map((y) => (
-              <SegmentedControlItem key={y} value={String(y)}>
-                {String(y)}
-              </SegmentedControlItem>
-            ))}
-          </SegmentedControl>
+          <>
+            <SegmentedControl
+              aria-label="Year"
+              size="sm"
+              value={String(data.year)}
+              onValueChange={(year) => {
+                if (year !== '') onYear?.(Number(year));
+              }}
+            >
+              {years.map((y) => (
+                <SegmentedControlItem key={y} value={String(y)}>
+                  {String(y)}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+            {onSaveCalendar === undefined ? null : (
+              <Button asChild variant="primary" startIcon={<icons.add aria-hidden />}>
+                <a href={here('new')}>Add calendar</a>
+              </Button>
+            )}
+          </>
         }
       />
+      {data.calendar === null ||
+      data.calendar === undefined ||
+      editing === undefined ||
+      onSaveCalendar === undefined ? null : (
+        <HolidayCalendar
+          layer={editing}
+          year={data.year}
+          onSave={onSaveCalendar}
+          {...(onRemoveCalendar === undefined ? {} : { onRemove: onRemoveCalendar })}
+          onClose={() => onAsk?.({ calendar: null })}
+        />
+      )}
       <PackNotice packs={data.packs} />
       {chosen === undefined ? (
         <p className="text-sm text-fg-muted">
@@ -115,27 +222,53 @@ function Ready({
         </p>
       ) : (
         <div className={columns}>
-          <List navigable aria-label="Work locations">
-            {data.locations.map((l) => {
-              const current = l.locationKey === chosen.locationKey;
-              return (
-                <ListItem
-                  key={l.locationKey}
-                  asChild
-                  selected={current}
-                  description={layersOf(l.layerKeys)}
-                  meta={`${String(l.holidays.length)} days`}
-                >
-                  <a
-                    href={`/settings/time-off/holidays/${String(data.year)}?location=${encodeURIComponent(l.locationKey)}`}
-                    aria-current={current ? 'page' : undefined}
+          <div className="flex min-w-0 flex-col gap-6">
+            <List navigable aria-label="Work locations">
+              {data.locations.map((l) => {
+                const current = l.locationKey === chosen.locationKey;
+                return (
+                  <ListItem
+                    key={l.locationKey}
+                    asChild
+                    selected={current}
+                    description={layersOf(l.layerKeys)}
+                    meta={`${String(l.holidays.length)} days`}
                   >
-                    {placeName(l.locationKey)}
-                  </a>
-                </ListItem>
-              );
-            })}
-          </List>
+                    <a
+                      href={`/settings/time-off/holidays/${String(data.year)}?location=${encodeURIComponent(l.locationKey)}`}
+                      aria-current={current ? 'page' : undefined}
+                    >
+                      {placeName(l.locationKey)}
+                    </a>
+                  </ListItem>
+                );
+              })}
+            </List>
+            {onAssign === undefined ? null : (
+              <Keeps
+                key={`${chosen.locationKey} ${chosen.layerKeys.join()}`}
+                location={chosen}
+                layers={data.layers}
+                onAssign={onAssign}
+              />
+            )}
+            {onSaveCalendar === undefined ? null : (
+              <List navigable aria-label="Calendars">
+                {data.layers.map((l) => (
+                  <ListItem
+                    key={l.key}
+                    asChild
+                    description={`${LEVEL_NAME[l.level]} · ${String(
+                      l.holidays.filter((h) => h.date.startsWith(String(data.year))).length,
+                    )} days in ${String(data.year)}`}
+                    chevron
+                  >
+                    <a href={here(l.key)}>{l.name}</a>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </div>
           <PageSection
             title={`${placeName(chosen.locationKey)} in ${String(data.year)}`}
             description={layersOf(chosen.layerKeys)}
@@ -183,7 +316,11 @@ export function HolidaySettingsSkeleton(): JSX.Element {
       />
       <div role="status" className={columns}>
         <span className="sr-only">Loading holidays</span>
-        <Skeleton className="h-60 rounded-lg" />
+        <div className="flex min-w-0 flex-col gap-6">
+          <Skeleton className="h-60 rounded-lg" />
+          <Skeleton className="h-72 rounded-lg" />
+          <Skeleton className="h-80 rounded-lg" />
+        </div>
         <div className="flex min-w-0 flex-col gap-4">
           <Skeleton className="h-11 w-64 rounded-md" />
           <Skeleton className="h-[42rem] rounded-lg" />

@@ -21,10 +21,16 @@ import {
   publishPolicy,
   revisePolicy,
   setNegativeBalanceRule,
+  setParentalCompany,
   setTeamMinimum,
   startShadowRun,
 } from './admin.js';
-import { holidaySettings, policyPreview } from '../screens/settings.js';
+import {
+  holidaySettings,
+  leaveTypeSetting,
+  leaveTypesSettings,
+  policyPreview,
+} from '../screens/settings.js';
 
 describe('settings (TOF-041)', () => {
   it('publishing a policy re-folds the balances it affects and emits policy.published', async () => {
@@ -151,6 +157,33 @@ describe('the policy preview and the pack flag (TOF-079, TOF-083)', () => {
     await revisePolicy(app.deps)(hr, VACATION_POLICY, vacationPolicy());
     const next = await policyPreview(app.deps)(hr, { policyId: VACATION_POLICY });
     expect(next.ok && next.value.shadow).toBeNull();
+  });
+
+  it('keeps the company’s parental weeks, booked as a type that exists (TOF-099a)', async () => {
+    const app = world();
+    const weeks = {
+      extraWeeks: 2,
+      afterServiceYears: 1,
+      leaveTypeKey: LeaveTypeKey.parse('vacation'),
+    };
+    expect(await setParentalCompany(app.deps)(caller(people.marco), weeks)).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+    expect(
+      await setParentalCompany(app.deps)(hr, {
+        ...weeks,
+        leaveTypeKey: LeaveTypeKey.parse('nope'),
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } });
+    expect(await setParentalCompany(app.deps)(hr, weeks)).toEqual({ ok: true, value: undefined });
+    const listed = await leaveTypesSettings(app.deps)(hr);
+    expect(listed.ok && listed.value.parentalCompany).toEqual(weeks);
+    const setting = await leaveTypeSetting(app.deps)(hr, { key: LeaveTypeKey.parse('vacation') });
+    expect(setting.ok && setting.value.places).toEqual({
+      countries: ['ES'],
+      locations: ['madrid'],
+    });
   });
 
   it('has nobody to show without a draft', async () => {

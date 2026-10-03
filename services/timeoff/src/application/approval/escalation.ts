@@ -4,7 +4,7 @@ import type { PersonId, TenantId } from '@kithena/contracts';
 import { escalation, type Delegation } from '../../domain/approval/delegation.js';
 import { isWorkingDay } from '../../domain/calendar/working-days.js';
 import type { LeaveRequestId } from '../../domain/request/leave-request.js';
-import type { Caller, Deps } from '../ports.js';
+import { DEFAULT_ESCALATION, type Caller, type Deps } from '../ports.js';
 import { calendarOf, forbidden, isHrAdmin, notFound, refuse, transact } from '../shared.js';
 import { localMinutes, msUntilLocal } from '../zone.js';
 
@@ -50,8 +50,6 @@ export const setDelegation =
       return ok(undefined);
     });
 
-const REMIND_AT = 9 * 60;
-
 export interface Tick {
   /** False once the request is decided or withdrawn: the workflow ends. */
   readonly open: boolean;
@@ -63,8 +61,9 @@ export interface Tick {
 /**
  * One wake-up of a pending request's timer. `now` is the caller's: the
  * workflow's own time, so a test server that skips three days skips them
- * here too. Escalates when three working days have passed since the step
- * started waiting; reminds whoever decides now, once a day, from 09:00.
+ * here too. Escalates when the working days HR set (three by default) have
+ * passed since the step started waiting, to the approver's manager or to HR;
+ * reminds whoever decides now, once a day, from the hour HR set (09:00).
  */
 export const escalationTick =
   (deps: Pick<Deps, 'uow' | 'newId' | 'notifier'>) =>
@@ -85,6 +84,8 @@ export const escalationTick =
       if (member === null) return notFound('Member');
       const today = clock.date(member.timeZone);
       const approverId = role === 'manager' ? member.managerPersonId : null;
+      // T34's "If nobody decides", as HR set it.
+      const rule = (await tx.settings.get('escalation')) ?? DEFAULT_ESCALATION;
 
       let escalatedTo = routing.escalatedTo;
       let escalated = false;
@@ -93,8 +94,9 @@ export const escalationTick =
         const calendar = await calendarOf(tx, approver ?? member, routing.since, today);
         const due = escalation({
           pendingSince: routing.since,
-          approverManagerId: approver?.managerPersonId ?? null,
+          approverManagerId: rule.to === 'hr' ? null : (approver?.managerPersonId ?? null),
           isWorkingDay: (date) => isWorkingDay(date, calendar),
+          afterWorkingDays: rule.afterWorkingDays,
         });
         if (today >= due.on) {
           escalatedTo = due.to.kind === 'hr' ? 'hr' : due.to.personId;
@@ -114,7 +116,7 @@ export const escalationTick =
       }
       const at = new Date(now);
       // From the day after it started waiting: the approver was told when it was sent.
-      if (today > routing.since && localMinutes(at, member.timeZone) >= REMIND_AT) {
+      if (today > routing.since && localMinutes(at, member.timeZone) >= rule.remindAt) {
         await deps.notifier.notify(
           tenantId,
           decider,
@@ -122,6 +124,10 @@ export const escalationTick =
           `reminder/${requestId}/${decider}/${today}`,
         );
       }
-      return ok({ open: true, sleepMs: msUntilLocal(at, member.timeZone, REMIND_AT), escalated });
+      return ok({
+        open: true,
+        sleepMs: msUntilLocal(at, member.timeZone, rule.remindAt),
+        escalated,
+      });
     });
   };

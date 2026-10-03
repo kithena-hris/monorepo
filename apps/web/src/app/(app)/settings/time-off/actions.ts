@@ -54,6 +54,50 @@ export async function saveNegativeBalance(
   return publishPolicy(policyId, new Date().toISOString().slice(0, 10));
 }
 
+/** T29: a new leave type; answers with its key, to open its page. */
+export async function addLeaveType(
+  definition: unknown,
+): Promise<
+  { readonly ok: true; readonly key: string } | { readonly ok: false; readonly message: string }
+> {
+  const a = await timeOff<{ key: string }>('DefineTimeOffLeaveType', { input: definition });
+  return a.ok ? { ok: true, key: a.data.key } : { ok: false, message: a.message };
+}
+
+/** T30: a first policy for a type that has none, granting nothing until it is edited. */
+export async function startPolicy(leaveTypeKey: string): Promise<Outcome> {
+  return outcome(
+    await timeOff('DraftTimeOffPolicy', {
+      input: { leaveTypeKey, allowance: [{ fromYears: 0, days: '0.000' }] },
+    }),
+  );
+}
+
+/** T8's company weeks: how many, after how many years, booked as which type; 0 for none. */
+export async function saveParentalCompany(weeks: unknown): Promise<Outcome> {
+  return outcome(await timeOff('SetTimeOffParentalCompany', { input: weeks }));
+}
+
+/** T36: a holiday calendar, new or changed, with its days. */
+export async function saveHolidayCalendar(key: string, layer: unknown): Promise<Outcome> {
+  return outcome(await timeOff('SaveTimeOffHolidayCalendar', { calendarKey: key, input: layer }));
+}
+
+/** T36: a calendar nobody keeps any more. */
+export async function removeHolidayCalendar(key: string): Promise<Outcome> {
+  return outcome(await timeOff('RemoveTimeOffHolidayCalendar', { calendarKey: key }));
+}
+
+/** T36: the calendars a work location keeps, most general first. */
+export async function assignHolidayCalendars(
+  locationKey: string,
+  layerKeys: readonly string[],
+): Promise<Outcome> {
+  return outcome(
+    await timeOff('AssignTimeOffHolidayCalendars', { locationKey, input: { layerKeys } }),
+  );
+}
+
 /** T33: breaks, rest, the weekly limit and what overtime becomes. */
 export async function saveAttendanceRules(rules: unknown): Promise<Outcome> {
   return outcome(await timeOff('SetTimeOffAttendanceRules', { input: rules }));
@@ -67,8 +111,11 @@ export async function saveApprovals(
   rules: unknown,
   autoApproval: unknown,
   minimums: readonly { readonly teamKey: string; readonly minimum: unknown }[],
+  escalation?: unknown,
 ): Promise<Outcome> {
-  const set = await timeOff('SetTimeOffApprovalRules', { input: { rules, autoApproval } });
+  const set = await timeOff('SetTimeOffApprovalRules', {
+    input: { rules, autoApproval, ...(escalation === undefined ? {} : { escalation }) },
+  });
   if (!set.ok) return outcome(set);
   for (const { teamKey, minimum } of minimums) {
     const done = await timeOff('SetTimeOffTeamMinimum', { teamKey, input: { minimum } });

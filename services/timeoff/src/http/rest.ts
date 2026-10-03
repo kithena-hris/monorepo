@@ -35,6 +35,7 @@ import {
   setTeamMinimum,
   setAttendanceRules,
   assignSchedule,
+  setParentalCompany,
   startShadowRun,
   stopShadowRun,
 } from '../application/admin/admin.js';
@@ -122,6 +123,7 @@ import {
   CalendarView,
   DecisionView,
   DelegationView,
+  EscalationBody,
   ExceptionsView,
   FileView,
   HolidayLayerBody,
@@ -138,6 +140,7 @@ import {
   OverviewView,
   ParentalCasesView,
   ParentalCaseView,
+  ParentalCompanyBody,
   ParentalScreenView,
   ParentRoleView,
   PayPeriodView,
@@ -347,6 +350,7 @@ export const AssignBody = z.strictObject({ layerKeys: z.array(z.string()).max(10
 export const ApprovalRulesBody = z.strictObject({
   rules: z.array(ApprovalRuleBody).max(50),
   autoApproval: AutoApprovalBody.optional(),
+  escalation: EscalationBody.optional(),
 });
 export const MinimumBody = z.strictObject({ minimum: TeamMinimumBody.nullable() });
 const Children = z.int().min(1).max(9);
@@ -1295,10 +1299,23 @@ export const ROUTES: readonly Route[] = [
     name: 'setTimeOffApprovalRules',
     method: 'PUT',
     path: `${V1}/approval-rules`,
-    summary: 'T34: who approves what, and what is approved automatically; HR',
+    summary:
+      'T34: who approves what, what is approved automatically, and what happens if nobody decides; HR',
     body: ApprovalRulesBody,
     answer: Done,
-    run: (deps, caller, { body }) => setApprovalRules(deps)(caller, body.rules, body.autoApproval),
+    run: (deps, caller, { body }) =>
+      setApprovalRules(deps)(caller, body.rules, body.autoApproval, body.escalation),
+    shape: done,
+  }),
+  route({
+    name: 'setTimeOffParentalCompany',
+    method: 'PUT',
+    path: `${V1}/settings/parental-company`,
+    summary:
+      'The company’s own parental weeks, after how many years, and the leave type they are booked as; 0 weeks for none; HR',
+    body: ParentalCompanyBody,
+    answer: Done,
+    run: (deps, caller, { body }) => setParentalCompany(deps)(caller, body),
     shape: done,
   }),
   route({

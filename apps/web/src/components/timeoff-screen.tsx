@@ -161,13 +161,22 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         };
       // Settings (TOF-078 to TOF-083).
       case 'LeaveTypes':
-        return { load: loadable };
+        return {
+          load: loadable,
+          onAsk: (patch: Readonly<Record<string, string | null>>) => {
+            goTo(patch);
+          },
+          onAdd: settings.addLeaveType,
+          onNavigate: go,
+          onSaveParentalCompany: settings.saveParentalCompany,
+        };
       case 'LeaveType':
         return {
           load: loadable,
           onSaveDraft: settings.savePolicyDraft,
           onPublish: settings.publishPolicy,
           onShadow: settings.shadowRun,
+          onStartPolicy: settings.startPolicy,
           onPolicy: (policy: string) => {
             goTo({ policy, as: null });
           },
@@ -187,6 +196,12 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onYear: (year: number) => {
             goTo({}, `/settings/time-off/holidays/${String(year)}`);
           },
+          onAsk: (patch: Readonly<Record<string, string | null>>) => {
+            goTo(patch);
+          },
+          onSaveCalendar: settings.saveHolidayCalendar,
+          onRemoveCalendar: settings.removeHolidayCalendar,
+          onAssign: settings.assignHolidayCalendars,
         };
       default:
         return {};

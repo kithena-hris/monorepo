@@ -238,4 +238,21 @@ describe('escalation (TOF-039)', () => {
       value: { open: false },
     });
   });
+
+  it('follows HR’s "If nobody decides": one working day, straight to HR (TOF-099a)', async () => {
+    const { app, s, ask } = setup();
+    s.settings.set('escalation', { afterWorkingDays: 1, to: 'hr', remindAt: 8 * 60 });
+    const id = await ask(people.adam, '2026-10-19', '2026-10-23');
+    const tick = escalationTick(app.deps);
+    // Friday 2nd is one working day after Thursday 1st; 08:00 in Madrid is 06:00Z.
+    expect(await tick(TENANT, id, '2026-10-02T06:00:00.000Z')).toMatchObject({
+      ok: true,
+      value: { escalated: true },
+    });
+    expect(s.requests.get(id)?.routing.escalatedTo).toBe('hr');
+    expect(app.notices.map((n) => [n.to, n.notice.kind])).toEqual([
+      ['hr', 'approval_escalated'],
+      ['hr', 'approval_waiting'],
+    ]);
+  });
 });

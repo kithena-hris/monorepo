@@ -300,7 +300,24 @@ export interface Settings {
   readonly policy_shadows: Readonly<Record<string, PolicyShadow>>;
   /** The smallest group a report may describe, as People last said (`people.settings.changed`). */
   readonly cohort_minimum: { readonly value: number };
+  /** T34's "If nobody decides" (§9.7). */
+  readonly escalation: Escalation;
 }
+
+/** How long a request waits before it moves on, to whom, and when the daily reminder goes. */
+export interface Escalation {
+  readonly afterWorkingDays: number;
+  /** The approver's own manager (HR when they have none), or HR straight away. */
+  readonly to: 'manager' | 'hr';
+  /** Minutes after midnight in the member's zone. */
+  readonly remindAt: number;
+}
+
+export const DEFAULT_ESCALATION: Escalation = {
+  afterWorkingDays: 3,
+  to: 'manager',
+  remindAt: 9 * 60,
+};
 
 export interface SettingStore {
   get<K extends keyof Settings>(key: K): Promise<Settings[K] | null>;

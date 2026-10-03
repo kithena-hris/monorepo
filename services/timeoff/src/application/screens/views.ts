@@ -744,9 +744,23 @@ const PackView = named(
   z.object({ country: z.string(), version: z.int(), reviewed: z.boolean() }),
 );
 
+/** The company's own parental weeks, booked as one leave type (T8, TOF-099a); 0 for none. */
+export const ParentalCompanyBody = named(
+  'TimeOffParentalCompany',
+  z.strictObject({
+    extraWeeks: z.int().min(0).max(52),
+    afterServiceYears: z.int().min(0).max(50),
+    leaveTypeKey: LeaveTypeKey,
+  }),
+);
+
 export const LeaveTypesView = named(
   'TimeOffSettingsLeaveTypes',
-  z.object({ leaveTypes: z.array(LeaveTypeRow), packs: z.array(PackView) }),
+  z.object({
+    leaveTypes: z.array(LeaveTypeRow),
+    packs: z.array(PackView),
+    parentalCompany: ParentalCompanyBody.nullable(),
+  }),
 );
 
 const PolicyVersionView = named(
@@ -765,6 +779,11 @@ export const LeaveTypeSettingView = named(
     leaveType: LeaveTypeRow,
     policies: z.array(
       named('TimeOffPolicy', z.object({ id: z.uuid(), versions: z.array(PolicyVersionView) })),
+    ),
+    /** The countries and work locations members are in: what a policy can apply to (TOF-099a). */
+    places: named(
+      'TimeOffPlaces',
+      z.object({ countries: z.array(z.string()), locations: z.array(LocationKey) }),
     ),
   }),
 );
@@ -893,11 +912,26 @@ export const TeamMinimumBody = named(
   z.strictObject({ atLeast: z.int(), unit: z.enum(['people', 'percent']) }),
 );
 
+/** T34's "If nobody decides" (TOF-099a): after how many working days, to whom, reminded when. */
+export const EscalationBody = named(
+  'TimeOffEscalation',
+  z.strictObject({
+    afterWorkingDays: z.int().min(1).max(20),
+    to: z.enum(['manager', 'hr']),
+    /** Minutes after midnight in the member's zone. */
+    remindAt: z
+      .int()
+      .min(0)
+      .max(24 * 60 - 1),
+  }),
+);
+
 export const ApprovalsSettingsView = named(
   'TimeOffSettingsApprovals',
   z.object({
     rules: z.array(ApprovalRuleBody),
     autoApproval: AutoApprovalBody,
+    escalation: EscalationBody,
     teams: z.array(
       named(
         'TimeOffTeamSetting',

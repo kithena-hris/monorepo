@@ -34,10 +34,10 @@ import {
   SettingsSkeleton,
   Toggle,
   appliesToLabel,
-  appliesToParts,
   daysLabel,
   longDate,
   monthDay,
+  placeName,
   useSaved,
   type LeaveTypeRow,
   type Predicate,
@@ -128,6 +128,11 @@ export interface LeaveTypeData {
   readonly preview: PolicyPreview | null;
   /** Whose view of the draft to show (`?as=`). */
   readonly as: string | null;
+  /** The countries and work locations members are in: what a policy can reach. */
+  readonly places?: {
+    readonly countries: readonly string[];
+    readonly locations: readonly string[];
+  };
 }
 
 export interface LeaveTypeProps {
@@ -140,6 +145,35 @@ export interface LeaveTypeProps {
   readonly onPreviewAs?: (personId: string) => void;
   /** Start (`true`) or stop the draft's month beside the version in effect. */
   readonly onShadow?: (policyId: string, run: boolean) => Promise<Outcome>;
+  /** A first policy for a tracked type that has none (TOF-099a). */
+  readonly onStartPolicy?: (leaveTypeKey: string) => Promise<Outcome>;
+}
+
+/** "Start a policy", saying Time Off's refusal where it is pressed. */
+function StartPolicy({ onStart }: { readonly onStart: () => Promise<Outcome> }): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  return (
+    <span className="flex flex-col items-end gap-1">
+      <Button
+        size="sm"
+        variant="primary"
+        loading={busy}
+        loadingLabel="Starting"
+        onClick={() => {
+          setBusy(true);
+          setRefused(null);
+          void onStart().then((outcome) => {
+            setBusy(false);
+            if (!outcome.ok) setRefused(outcome.message);
+          });
+        }}
+      >
+        Start a policy
+      </Button>
+      {refused === null ? null : <span className="text-sm text-danger-fg">{refused}</span>}
+    </span>
+  );
 }
 
 const page = '@container/policy flex flex-col gap-6';
@@ -168,6 +202,7 @@ function Ready({
   onPolicy,
   onPreviewAs,
   onShadow,
+  onStartPolicy,
 }: LeaveTypeProps & { readonly data: LeaveTypeData }): JSX.Element {
   const type = data.leaveType.definition;
   const policy = data.policies.find((p) => p.id === data.policyId);
@@ -176,7 +211,15 @@ function Ready({
     return (
       <>
         <PageHeader title={type.name.default} description={appliesToLabel(type.appliesTo)} />
-        <Alert tone="info" title="No policy to edit">
+        <Alert
+          tone="info"
+          title="No policy to edit"
+          action={
+            type.tracked && onStartPolicy !== undefined ? (
+              <StartPolicy onStart={() => onStartPolicy(type.key)} />
+            ) : undefined
+          }
+        >
           {type.tracked
             ? `${type.name.default} has no policy yet, so nobody earns any.`
             : `${type.name.default} draws no balance, so there is no allowance to set.`}
@@ -207,7 +250,8 @@ function Editor({
   onPreviewAs,
   onShadow,
 }: {
-  readonly [K in Exclude<keyof LeaveTypeProps, 'load'>]: LeaveTypeProps[K] | undefined;
+  readonly [K in Exclude<keyof LeaveTypeProps, 'load' | 'onStartPolicy'>]:
+    LeaveTypeProps[K] | undefined;
 } & {
   readonly data: LeaveTypeData;
   readonly policyId: string;
@@ -311,15 +355,13 @@ function Editor({
               onShadow={onShadow === undefined ? undefined : (run) => onShadow(policyId, run)}
             />
           )}
-          <PageSection title="Applies to" surface>
-            <div className="flex flex-wrap gap-2">
-              {appliesToParts(saved.appliesTo).map(([what, value]) => (
-                <Badge key={`${what} ${value}`} variant="outline">
-                  {`${what}: ${value}`}
-                </Badge>
-              ))}
-            </div>
-          </PageSection>
+          <AppliesTo
+            value={form.draft.appliesTo}
+            places={data.places}
+            onChange={(appliesTo) => {
+              form.set({ ...form.draft, appliesTo });
+            }}
+          />
         </div>
       </div>
       {onSaveDraft === undefined
@@ -712,6 +754,66 @@ function PreviewAs({
             {`${amount(who.lostAtYearEnd.draft)} of them would be lost on ${longDate(preview.yearEnd)}, above what carries over.`}
           </p>
         ) : null}
+      </div>
+    </PageSection>
+  );
+}
+
+/* ---------------------------------------------------------- applies to -- */
+
+type Place = 'country' | 'location';
+const region = new Intl.DisplayNames('en', { type: 'region' });
+
+/**
+ * Who the policy reaches (§6.2, TOF-099a): the countries and work locations
+ * members are in, ticked; none ticked is everyone. Saved with the draft, so
+ * the preview says who it would reach before anything is published. A
+ * clause on what Time Off does not hold (contract, legal entity) is kept as
+ * it was.
+ */
+function AppliesTo({
+  value,
+  places,
+  onChange,
+}: {
+  readonly value: Predicate | null;
+  readonly places: LeaveTypeData['places'];
+  readonly onChange: (next: Predicate | null) => void;
+}): JSX.Element {
+  const picked = (operand: Place): readonly string[] =>
+    value?.clauses.find((c) => c.operand === operand)?.in ?? [];
+  const toggle = (operand: Place, place: string, on: boolean): void => {
+    const now = picked(operand);
+    const next = on ? [...now, place] : now.filter((p) => p !== place);
+    const others = (value?.clauses ?? []).filter((c) => c.operand !== operand);
+    const clauses = next.length === 0 ? others : [...others, { operand, in: next }];
+    onChange(clauses.length === 0 ? null : { combine: 'all', clauses });
+  };
+  const group = (operand: Place, legend: string, items: readonly string[]): JSX.Element | null =>
+    items.length === 0 ? null : (
+      <fieldset className="flex min-w-0 flex-col gap-2">
+        <legend className="mb-1 text-sm font-medium">{legend}</legend>
+        {items.map((place) => (
+          <Toggle
+            key={place}
+            kind="checkbox"
+            label={operand === 'country' ? (region.of(place) ?? place) : placeName(place)}
+            checked={picked(operand).includes(place)}
+            onChange={(on) => {
+              toggle(operand, place, on);
+            }}
+          />
+        ))}
+      </fieldset>
+    );
+  return (
+    <PageSection title="Applies to" description={appliesToLabel(value)} surface>
+      <div className="flex flex-col gap-4">
+        {group('country', 'Countries', places?.countries ?? [])}
+        {group('location', 'Work locations', places?.locations ?? [])}
+        <p className="text-sm text-fg-muted">
+          Nothing ticked is everyone. A change is part of the draft until it is published.
+        </p>
       </div>
     </PageSection>
   );

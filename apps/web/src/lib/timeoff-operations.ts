@@ -20,7 +20,7 @@ export const OPERATIONS = {
   /** T34: approval rules, automatic approval and team minimums; HR */
   TimeOffApprovalSettings: `query TimeOffApprovalSettings {
     timeOffApprovalSettings {
-      autoApproval { oneDayAboveMinimum shortenOrCancel sickUnderDays } rules { approvers leaveTypes subject when } teams { minimum { atLeast unit } teamKey teamName }
+      autoApproval { oneDayAboveMinimum shortenOrCancel sickUnderDays } escalation { afterWorkingDays remindAt to } rules { approvers leaveTypes subject when } teams { minimum { atLeast unit } teamKey teamName }
     }
   }`,
 
@@ -125,14 +125,14 @@ export const OPERATIONS = {
   /** T30: one leave type and every version of its policies; HR */
   TimeOffLeaveTypeSetting: `query TimeOffLeaveTypeSetting($leaveTypeKey: String!) {
     timeOffLeaveTypeSetting(key: $leaveTypeKey) {
-      leaveType { definition { appliesTo { clauses combine } approvalRuleKey category colorToken icon key name { default translations } paid requiresNote { afterDays } statutory tracked unit visibility } deleted hidden policyIds } policies { id versions { definition { allowance { days fromYears } appliesTo { clauses combine } carryOver { maxDays useBy { day month } } earning keepEarningOnParental leaveTypeKey negativeBalance { approvers atYearEnd limit onLeaving } proRata probationMonths requests { blockBelowMinimum halfDays showWhoIsOff } year { day month } } effectiveFrom status version } }
+      leaveType { definition { appliesTo { clauses combine } approvalRuleKey category colorToken icon key name { default translations } paid requiresNote { afterDays } statutory tracked unit visibility } deleted hidden policyIds } places { countries locations } policies { id versions { definition { allowance { days fromYears } appliesTo { clauses combine } carryOver { maxDays useBy { day month } } earning keepEarningOnParental leaveTypeKey negativeBalance { approvers atYearEnd limit onLeaving } proRata probationMonths requests { blockBelowMinimum halfDays showWhoIsOff } year { day month } } effectiveFrom status version } }
     }
   }`,
 
   /** T29: every leave type; HR */
   TimeOffLeaveTypeSettings: `query TimeOffLeaveTypeSettings {
     timeOffLeaveTypeSettings {
-      leaveTypes { definition { appliesTo { clauses combine } approvalRuleKey category colorToken icon key name { default translations } paid requiresNote { afterDays } statutory tracked unit visibility } deleted hidden policyIds } packs { country reviewed version }
+      leaveTypes { definition { appliesTo { clauses combine } approvalRuleKey category colorToken icon key name { default translations } paid requiresNote { afterDays } statutory tracked unit visibility } deleted hidden policyIds } packs { country reviewed version } parentalCompany { afterServiceYears extraWeeks leaveTypeKey }
     }
   }`,
 
@@ -483,6 +483,13 @@ export const OPERATIONS = {
   SetTimeOffNegativeBalanceRule: `mutation SetTimeOffNegativeBalanceRule($key: String!, $input: JSON!, $policyId: String!) {
     setTimeOffNegativeBalanceRule(idempotencyKey: $key, input: $input, policyId: $policyId) {
       version
+    }
+  }`,
+
+  /** The company’s own parental weeks, after how many years, and the leave type they are booked as; 0 weeks for none; HR */
+  SetTimeOffParentalCompany: `mutation SetTimeOffParentalCompany($key: String!, $input: JSON!) {
+    setTimeOffParentalCompany(idempotencyKey: $key, input: $input) {
+      ok
     }
   }`,
 

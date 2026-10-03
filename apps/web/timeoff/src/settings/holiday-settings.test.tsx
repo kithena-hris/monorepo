@@ -39,6 +39,69 @@ describe('holiday calendars', () => {
     expect(items[2]?.textContent).toBe('Jueves SantoThu 2 AprMadrid region');
   });
 
+  it('ticks the calendars a location keeps, and saves them most general first (TOF-099a)', () => {
+    const onAssign = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(
+      <HolidaySettings load={ready({ ...holidays(), location: 'madrid' })} onAssign={onAssign} />,
+    );
+    const keeps = within(
+      screen
+        .getByRole('heading', { name: 'Calendars Madrid keeps' })
+        .closest('section') as HTMLElement,
+    );
+    expect(keeps.getByRole('checkbox', { name: /^Madrid city/ })).toHaveProperty(
+      'ariaChecked',
+      'true',
+    );
+    fireEvent.click(keeps.getByRole('checkbox', { name: /^Madrid city/ }));
+    fireEvent.click(keeps.getByRole('checkbox', { name: /^Catalonia/ }));
+    fireEvent.click(keeps.getByRole('button', { name: 'Save calendars' }));
+    expect(onAssign).toHaveBeenCalledWith('madrid', ['es', 'es_md', 'es_ct']);
+  });
+
+  it('adds a calendar with its days, and edits one (TOF-099a)', async () => {
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const { unmount } = render(
+      <HolidaySettings
+        load={ready({ ...holidays(), calendar: 'new' })}
+        onSaveCalendar={onSave}
+        onAsk={vi.fn()}
+      />,
+    );
+    const dialog = within(screen.getByRole('dialog', { name: 'Add a calendar' }));
+    fireEvent.change(dialog.getByRole('textbox', { name: /^Name/ }), {
+      target: { value: 'Valencia city' },
+    });
+    fireEvent.change(dialog.getByLabelText('Date'), { target: { value: '2026-03-19' } });
+    fireEvent.change(dialog.getByRole('textbox', { name: /^Holiday/ }), {
+      target: { value: 'San José' },
+    });
+    fireEvent.click(dialog.getByRole('button', { name: 'Add day' }));
+    expect(dialog.getByRole('list', { name: 'Days in 2026' }).textContent).toContain('San José');
+    fireEvent.click(dialog.getByRole('button', { name: 'Save calendar' }));
+    expect(onSave).toHaveBeenCalledWith('valencia_city', {
+      name: 'Valencia city',
+      level: 'city',
+      weekendRule: 'none',
+      holidays: [{ date: '2026-03-19', name: 'San José' }],
+    });
+    expect(await axeViolations(document.body)).toEqual([]);
+    unmount();
+
+    render(
+      <HolidaySettings
+        load={ready({ ...holidays(), calendar: 'barcelona' })}
+        onSaveCalendar={onSave}
+        onRemoveCalendar={vi.fn()}
+        onAsk={vi.fn()}
+      />,
+    );
+    const edit = within(screen.getByRole('dialog', { name: 'Barcelona city' }));
+    fireEvent.click(edit.getByRole('button', { name: 'Remove La Mercè' }));
+    fireEvent.click(edit.getByRole('button', { name: 'Save calendar' }));
+    expect(onSave).toHaveBeenLastCalledWith('barcelona', expect.objectContaining({ holidays: [] }));
+  });
+
   it('switches between this year and the next', () => {
     const onYear = vi.fn();
     render(<HolidaySettings load={ready(holidays())} onYear={onYear} />);

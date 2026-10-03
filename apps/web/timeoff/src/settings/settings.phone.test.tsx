@@ -123,7 +123,34 @@ const screens: readonly (readonly [string, () => JSX.Element])[] = [
       <HolidaySettings
         load={ready({ ...holidays(), location: 'madrid' })}
         onYear={() => undefined}
+        onAssign={noop}
+        onSaveCalendar={noop}
         frame={frame('Holidays', '/settings/time-off/holidays')}
+      />
+    ),
+  ],
+  [
+    'a holiday calendar being edited',
+    () => (
+      <HolidaySettings
+        load={ready({ ...holidays(), location: 'madrid', calendar: 'madrid' })}
+        onYear={() => undefined}
+        onSaveCalendar={noop}
+        onRemoveCalendar={noop}
+        onAsk={() => undefined}
+        frame={frame('Holidays', '/settings/time-off/holidays')}
+      />
+    ),
+  ],
+  [
+    'leave types, adding one',
+    () => (
+      <LeaveTypes
+        load={ready({ ...leaveTypes(), adding: true })}
+        onAdd={() => Promise.resolve({ ok: true as const, key: 'x' })}
+        onAsk={() => undefined}
+        onSaveParentalCompany={noop}
+        frame={frame('Leave types', '/settings/time-off/leave-types')}
       />
     ),
   ],

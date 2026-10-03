@@ -1626,7 +1626,7 @@ test passes, and it matches the design's screen on the seeded demo company.
   `decideTimeOffOvertime`; a late correction links to the timesheet beside
   the original. T22's "Needs you" now sends overtime there.
 
-### [ ] TOF-099a — Settings you can edit, not only read
+### [x] TOF-099a — Settings you can edit, not only read
 
 - **Screens** T29, T30, T34, T36, T8's company weeks · **Depends on** TOF-078 – TOF-083, TOF-106
 - **Approach** The gaps the "As built" notes of TOF-078 to TOF-083 and
@@ -1634,6 +1634,22 @@ test passes, and it matches the design's screen on the seeded demo company.
   remove approval rules and set "If nobody decides"; add a holiday calendar,
   its days, and which calendars a location keeps; the company's own parental
   weeks.
+- **As built** T29: "Add leave type" opens a dialog at `?add=1` (name, its
+  key derived and shown, kind, pay, balance, hours, what teammates see)
+  sent through `defineTimeOffLeaveType`, then the new type's page, where a
+  tracked type without a policy offers "Start a policy"
+  (`draftTimeOffPolicy`, nothing granted until edited). The company's own
+  parental weeks are a section of the page (`setTimeOffParentalCompany`,
+  read back on `timeOffLeaveTypeSettings`). T30: "Applies to" ticks the
+  countries and work locations members are in (`places` on the setting
+  view), part of the draft, so the preview says who it reaches; clauses Time
+  Off cannot hold are kept. T34: rules are removed per row and added from
+  three choices; "If nobody decides" (working days, the manager's manager or
+  HR, the reminder's time) is the new `escalation` setting, saved with the
+  rules and read by `escalationTick`. T36: "Add calendar" and each calendar
+  open a dialog at `?calendar=` (name, level, Sunday-to-Monday, the year's
+  days added and removed, other years kept; removable), and a location's
+  calendars are ticked and saved most general first.
 
 ### [x] TOF-099b — A counter-proposal carries a message
 

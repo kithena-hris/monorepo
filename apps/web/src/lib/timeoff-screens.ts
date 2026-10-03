@@ -85,7 +85,7 @@ export async function loadScreen(
       return insights(path, query.search);
     // Settings (TOF-078 to TOF-083), HR only: Time Off refuses anyone else.
     case 'LeaveTypes':
-      return leaveTypeSettings();
+      return leaveTypeSettings(query.search);
     case 'LeaveType':
       return leaveType(query);
     case 'NegativeBalance':
@@ -591,13 +591,20 @@ function both(a: ScreenLoad, b: ScreenLoad, join: (a: Data, b: Data) => Data): S
   return { status: 'ready', data: join(a.data as Data, b.data as Data) };
 }
 
-/** T29: every leave type, and the approval rules that say who approves each. */
-async function leaveTypeSettings(): Promise<ScreenLoad> {
+/**
+ * T29: every leave type, and the approval rules that say who approves each;
+ * `?add=1` opens the dialog that adds one.
+ */
+async function leaveTypeSettings(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
   const [types, approvals] = await Promise.all([
     read('TimeOffLeaveTypeSettings'),
     read('TimeOffApprovalSettings'),
   ]);
-  return both(types, approvals, (t, a) => ({ ...t, rules: a['rules'] }));
+  return both(types, approvals, (t, a) => ({
+    ...t,
+    rules: a['rules'],
+    adding: search['add'] === '1',
+  }));
 }
 
 /**
@@ -645,6 +652,11 @@ async function holidaySettings({ params, search }: ScreenQuery): Promise<ScreenL
   if (answer.status !== 'ready') return answer;
   return {
     status: 'ready',
-    data: { ...(answer.data as Data), thisYear, location: search['location'] ?? null },
+    data: {
+      ...(answer.data as Data),
+      thisYear,
+      location: search['location'] ?? null,
+      calendar: search['calendar'] ?? null,
+    },
   };
 }

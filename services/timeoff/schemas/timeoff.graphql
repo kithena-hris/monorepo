@@ -209,7 +209,9 @@ type Mutation {
   T10: send the plan to HR and the manager; refused while a rule is broken
   """
   sendTimeOffParentalPlan(idempotencyKey: String!, planId: String!): TimeOffParentalPlanStatus!
-  """T34: who approves what, and what is approved automatically; HR"""
+  """
+  T34: who approves what, what is approved automatically, and what happens if nobody decides; HR
+  """
   setTimeOffApprovalRules(
     idempotencyKey: String!
     """The REST body"""
@@ -237,6 +239,14 @@ type Mutation {
     input: JSON!
     policyId: String!
   ): TimeOffPolicyVersionNumber!
+  """
+  The company’s own parental weeks, after how many years, and the leave type they are booked as; 0 weeks for none; HR
+  """
+  setTimeOffParentalCompany(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffDone!
   """How many of a team must be in, or none; HR"""
   setTimeOffTeamMinimum(
     idempotencyKey: String!
@@ -602,6 +612,12 @@ type TimeOffDone {
   ok: Boolean!
 }
 
+type TimeOffEscalation {
+  afterWorkingDays: Int!
+  remindAt: Int!
+  to: String!
+}
+
 type TimeOffFile {
   base64: String!
   contentType: String!
@@ -957,6 +973,12 @@ type TimeOffParentalCases {
   cases: [TimeOffParentalCaseRow!]!
 }
 
+type TimeOffParentalCompany {
+  afterServiceYears: Int!
+  extraWeeks: Int!
+  leaveTypeKey: String!
+}
+
 type TimeOffParentalEntitlement {
   companyAfterYears: Int
   companyWeeks: Int!
@@ -1043,6 +1065,11 @@ type TimeOffPayPeriodTotals {
 type TimeOffPersonRef {
   displayName: String!
   personId: String!
+}
+
+type TimeOffPlaces {
+  countries: [String!]!
+  locations: [String!]!
 }
 
 type TimeOffPlanProblem {
@@ -1326,6 +1353,7 @@ type TimeOffRightNowPerson {
 
 type TimeOffSettingsApprovals {
   autoApproval: TimeOffAutoApproval!
+  escalation: TimeOffEscalation!
   rules: [TimeOffApprovalRule!]!
   teams: [TimeOffTeamSetting!]!
 }
@@ -1344,12 +1372,14 @@ type TimeOffSettingsHolidays {
 
 type TimeOffSettingsLeaveType {
   leaveType: TimeOffLeaveTypeSetting!
+  places: TimeOffPlaces!
   policies: [TimeOffPolicy!]!
 }
 
 type TimeOffSettingsLeaveTypes {
   leaveTypes: [TimeOffLeaveTypeSetting!]!
   packs: [TimeOffCountryPack!]!
+  parentalCompany: TimeOffParentalCompany
 }
 
 type TimeOffSettingsNegativeBalance {

@@ -102,6 +102,46 @@ describe('editing a policy', () => {
     expect(onShadow).toHaveBeenCalledWith(VACATION_POLICY, false);
   });
 
+  it('changes who the policy reaches as part of the draft (TOF-099a)', () => {
+    const onSaveDraft = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(<LeaveType load={ready(vacationWithDraft())} onSaveDraft={onSaveDraft} />);
+    const applies = within(section('Applies to'));
+    expect(applies.getByRole('checkbox', { name: 'Spain' })).toHaveProperty('ariaChecked', 'true');
+    expect(applies.getByRole('checkbox', { name: 'Germany' })).toHaveProperty(
+      'ariaChecked',
+      'false',
+    );
+    fireEvent.click(applies.getByRole('checkbox', { name: 'Madrid' }));
+    expect(applies.getByText('Spain and Madrid')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    expect(onSaveDraft).toHaveBeenCalledWith(
+      VACATION_POLICY,
+      expect.objectContaining({
+        appliesTo: {
+          combine: 'all',
+          clauses: [
+            { operand: 'country', in: ['ES'] },
+            { operand: 'location', in: ['madrid'] },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('starts a policy for a tracked type that has none (TOF-099a)', () => {
+    const onStartPolicy = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const comp = leaveTypeRows()[7];
+    if (comp === undefined) throw new Error('no comp time');
+    render(
+      <LeaveType
+        load={ready({ leaveType: comp, policies: [], policyId: null, preview: null, as: null })}
+        onStartPolicy={onStartPolicy}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Start a policy' }));
+    expect(onStartPolicy).toHaveBeenCalledWith('comp');
+  });
+
   it('publishes the draft from the leave year’s first day', () => {
     const onPublish = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<LeaveType load={ready(vacationWithDraft())} onPublish={onPublish} />);
