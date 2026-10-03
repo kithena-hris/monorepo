@@ -1509,10 +1509,19 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### HR operations
 
-### [ ] TOF-093 — Policy preview, preview as a person, shadow runs
+### [x] TOF-093 — Policy preview, preview as a person, shadow runs
 
 - **Screens** T30 · **Spec** PRD §6.3
 - **Depends on** TOF-079
+- **As built** Preview and preview-as were TOF-079's. A shadow run is
+  `startTimeOffShadowRun` (PUT `/policies/{id}/shadow`, HR, a draft only):
+  the draft runs beside the version in effect for a month from today, kept
+  in the `policy_shadows` setting and ended by publishing or
+  `stopTimeOffShadowRun`. `timeOffPolicyPreview` carries `shadow`: each
+  member's credited allowance and balance under both, folded to today (or
+  the run's last day once over) by `shadowBalances`, the preview's fold cut
+  at a date. Nothing is posted and only HR's settings read it. T30's "Shadow
+  run" section starts and stops it and lists whose balance differs.
 
 ### [ ] TOF-094 — Write a policy in plain words
 

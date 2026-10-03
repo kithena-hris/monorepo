@@ -35,6 +35,8 @@ import {
   setTeamMinimum,
   setAttendanceRules,
   assignSchedule,
+  startShadowRun,
+  stopShadowRun,
 } from '../application/admin/admin.js';
 import {
   answerCounter,
@@ -1106,6 +1108,26 @@ export const ROUTES: readonly Route[] = [
     run: (deps, caller, { params, body }) =>
       publishPolicy(deps)(caller, params.policyId, body.effectiveFrom),
     shape: same,
+  }),
+  route({
+    name: 'startTimeOffShadowRun',
+    method: 'PUT',
+    path: `${V1}/policies/{policyId}/shadow`,
+    summary: 'Run the draft beside the policy in effect for a month, to compare balances; HR',
+    params: z.object({ policyId: PolicyId }),
+    answer: z.object({ from: CalendarDate, to: CalendarDate }).meta({ title: 'TimeOffShadow' }),
+    run: (deps, caller, { params }) => startShadowRun(deps)(caller, params.policyId),
+    shape: same,
+  }),
+  route({
+    name: 'stopTimeOffShadowRun',
+    method: 'DELETE',
+    path: `${V1}/policies/{policyId}/shadow`,
+    summary: 'Stop running the draft beside the policy in effect; HR',
+    params: z.object({ policyId: PolicyId }),
+    answer: Done,
+    run: (deps, caller, { params }) => stopShadowRun(deps)(caller, params.policyId),
+    shape: done,
   }),
   route({
     name: 'saveTimeOffHolidayCalendar',

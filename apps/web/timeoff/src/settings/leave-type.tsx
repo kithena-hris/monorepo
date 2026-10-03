@@ -1,7 +1,10 @@
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
+  List,
+  ListItem,
   Field,
   FieldControl,
   FieldLabel,
@@ -93,6 +96,19 @@ export interface PolicyPreview {
     readonly left: Change;
     readonly lostAtYearEnd: Change;
   }[];
+  /** The draft running beside the version in effect (TOF-093); `null` when none was started. */
+  readonly shadow: {
+    readonly from: string;
+    readonly to: string;
+    /** Today, or the run's last day once it is over. */
+    readonly asOf: string;
+    readonly members: readonly {
+      readonly personId: string;
+      readonly displayName: string;
+      readonly credited: Change;
+      readonly balance: Change;
+    }[];
+  } | null;
 }
 
 export interface LeaveTypeData {
@@ -122,6 +138,8 @@ export interface LeaveTypeProps {
   readonly onPolicy?: (policyId: string) => void;
   /** Show the draft as this member sees it. */
   readonly onPreviewAs?: (personId: string) => void;
+  /** Start (`true`) or stop the draft's month beside the version in effect. */
+  readonly onShadow?: (policyId: string, run: boolean) => Promise<Outcome>;
 }
 
 const page = '@container/policy flex flex-col gap-6';
@@ -149,6 +167,7 @@ function Ready({
   onPublish,
   onPolicy,
   onPreviewAs,
+  onShadow,
 }: LeaveTypeProps & { readonly data: LeaveTypeData }): JSX.Element {
   const type = data.leaveType.definition;
   const policy = data.policies.find((p) => p.id === data.policyId);
@@ -172,7 +191,7 @@ function Ready({
       policyId={policy.id}
       versions={policy.versions}
       latest={latest}
-      {...{ onSaveDraft, onPublish, onPolicy, onPreviewAs }}
+      {...{ onSaveDraft, onPublish, onPolicy, onPreviewAs, onShadow }}
     />
   );
 }
@@ -186,6 +205,7 @@ function Editor({
   onPublish,
   onPolicy,
   onPreviewAs,
+  onShadow,
 }: {
   readonly [K in Exclude<keyof LeaveTypeProps, 'load'>]: LeaveTypeProps[K] | undefined;
 } & {
@@ -282,6 +302,13 @@ function Editor({
               typeName={type.name.default}
               unit={unit}
               onPreviewAs={onPreviewAs}
+            />
+          )}
+          {preview === null || draft === null || form.dirty ? null : (
+            <ShadowRun
+              shadow={preview.shadow}
+              unit={unit}
+              onShadow={onShadow === undefined ? undefined : (run) => onShadow(policyId, run)}
             />
           )}
           <PageSection title="Applies to" surface>
@@ -525,6 +552,11 @@ function range(deltas: readonly number[], more: string, unit: string): string {
 }
 
 const people = (n: number): string => (n === 1 ? '1 person' : `${String(n)} people`);
+/** Thousandths as "1 day", "2.5 days". */
+const counted = (thousandths: number, unit: string): string => {
+  const n = fromMilli(thousandths);
+  return `${n} ${n === '1' ? unit.replace(/s$/, '') : unit}`;
+};
 
 function ChangePreview({
   preview,
@@ -681,6 +713,93 @@ function PreviewAs({
           </p>
         ) : null}
       </div>
+    </PageSection>
+  );
+}
+
+/* ---------------------------------------------------------- shadow run -- */
+
+/**
+ * The draft beside the version in effect for a month (PRD §6.3): each
+ * member's balance under both, folded by Time Off to the same day. HR's
+ * alone; nobody's own balance ever shows it.
+ */
+function ShadowRun({
+  shadow,
+  unit,
+  onShadow,
+}: {
+  readonly shadow: PolicyPreview['shadow'];
+  readonly unit: string;
+  readonly onShadow: ((run: boolean) => Promise<Outcome>) | undefined;
+}): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const press = (run: boolean): void => {
+    if (onShadow === undefined) return;
+    setBusy(true);
+    setRefused(null);
+    void onShadow(run).then((outcome) => {
+      setBusy(false);
+      if (!outcome.ok) setRefused(outcome.message);
+    });
+  };
+  const delta = (c: Change): number => milli(c.draft) - milli(c.current);
+  const differ = shadow?.members.filter((m) => delta(m.balance) !== 0) ?? [];
+  const over = shadow !== null && shadow.asOf === shadow.to;
+  return (
+    <PageSection
+      title="Shadow run"
+      description={
+        shadow === null
+          ? 'Run the draft beside the policy in effect for a month, and compare balances before anyone sees them.'
+          : `${over ? 'Ran' : 'Running'} ${longDate(shadow.from)} to ${longDate(shadow.to)} · balances as of ${longDate(shadow.asOf)}. Only HR sees this.`
+      }
+      actions={
+        onShadow === undefined ? undefined : (
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={busy}
+            loadingLabel={shadow === null ? 'Starting' : 'Stopping'}
+            onClick={() => {
+              press(shadow === null);
+            }}
+          >
+            {shadow === null ? 'Run for a month' : 'Stop'}
+          </Button>
+        )
+      }
+      surface
+    >
+      {refused === null ? null : (
+        <Alert tone="danger" title="Not changed">
+          {refused}
+        </Alert>
+      )}
+      {shadow === null ? null : differ.length === 0 ? (
+        <p className="text-sm text-fg-muted">{`Every balance is the same under both, ${people(shadow.members.length)} compared.`}</p>
+      ) : (
+        <List aria-label="Balances under the draft">
+          {differ.map((m) => (
+            <ListItem
+              key={m.personId}
+              leading={<Avatar name={m.displayName} size="sm" />}
+              description={`${amount(m.balance.current)} now, ${amount(m.balance.draft)} under the draft`}
+              trailing={
+                <Badge size="sm" tone={delta(m.balance) > 0 ? 'success' : 'danger'}>
+                  {`${delta(m.balance) > 0 ? '+' : '−'}${counted(Math.abs(delta(m.balance)), unit)}`}
+                </Badge>
+              }
+            >
+              {m.displayName}
+            </ListItem>
+          ))}
+        </List>
+      )}
+      {shadow === null || differ.length === 0 ? null : (
+        <p className="text-sm text-fg-muted">{`${people(shadow.members.length - differ.length)} the same under both.`}</p>
+      )}
     </PageSection>
   );
 }

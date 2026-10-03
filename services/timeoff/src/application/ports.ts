@@ -281,6 +281,23 @@ export interface ParentalStore {
   setCompany(weeks: CompanyParentalWeeks): Promise<void>;
 }
 
+/** A policy's draft running beside the version in effect, for a month (PRD §6.3, TOF-093). */
+export interface PolicyShadow {
+  readonly from: CalendarDate;
+  readonly to: CalendarDate;
+}
+
+/** The small tenant settings kept as one document each, by key. */
+export interface Settings {
+  /** Shadow runs, by policy id. */
+  readonly policy_shadows: Readonly<Record<string, PolicyShadow>>;
+}
+
+export interface SettingStore {
+  get<K extends keyof Settings>(key: K): Promise<Settings[K] | null>;
+  set<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void>;
+}
+
 /** The revocation counter behind a calendar feed token (§10.1). */
 export interface FeedStore {
   version(personId: PersonId): Promise<number>;
@@ -324,6 +341,7 @@ export interface Tx {
   readonly attendance: AttendanceStore;
   readonly feeds: FeedStore;
   readonly parental: ParentalStore;
+  readonly settings: SettingStore;
   readonly outbox: Outbox;
   readonly idempotency: IdempotencyStore;
 }

@@ -8,7 +8,13 @@ import {
   type AutoApproval,
 } from '../domain/approval/approval-rule.js';
 import type { HolidayLayer } from '../domain/calendar/holiday-calendar.js';
-import type { ApprovalStore, FeedStore, HolidayStore } from '../application/ports.js';
+import type {
+  ApprovalStore,
+  FeedStore,
+  HolidayStore,
+  SettingStore,
+  Settings,
+} from '../application/ports.js';
 import { fromRange, rangeOf } from './drizzle-leave.js';
 import {
   approvalRule,
@@ -26,20 +32,30 @@ import {
  * one tenant transaction.
  */
 
+type SettingKey = 'auto_approval' | 'attendance_rules' | 'parental_company' | keyof Settings;
+
 /** A tenant setting stored as one document, or `fallback` when none is. */
 export async function readSetting<T>(
   tx: PostgresJsDatabase,
-  key: 'auto_approval' | 'attendance_rules' | 'parental_company',
+  key: SettingKey,
   fallback: T,
 ): Promise<T> {
   const [row] = await tx.select({ value: setting.value }).from(setting).where(eq(setting.key, key));
   return row === undefined ? fallback : (row.value as T);
 }
 
+/** The settings without a store of their own (`ports.ts`, `Settings`). */
+export function drizzleSettings(tx: PostgresJsDatabase, tenantId: TenantId): SettingStore {
+  return {
+    get: (key) => readSetting(tx, key, null),
+    set: (key, value) => writeSetting(tx, tenantId, key, value),
+  };
+}
+
 export async function writeSetting(
   tx: PostgresJsDatabase,
   tenantId: TenantId,
-  key: 'auto_approval' | 'attendance_rules' | 'parental_company',
+  key: SettingKey,
   value: object,
 ): Promise<void> {
   await tx

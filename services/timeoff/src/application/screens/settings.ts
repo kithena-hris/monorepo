@@ -8,7 +8,7 @@ import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
 import { amount, days, sum } from '../../domain/days.js';
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import type { PolicyId } from '../../domain/policy/policy.js';
-import { previewChange, type PreviewInput } from '../../domain/policy/preview.js';
+import { previewChange, shadowBalances, type PreviewInput } from '../../domain/policy/preview.js';
 import { contextFor, userActor, type Caller, type Deps, type Tx } from '../ports.js';
 import { applies, forbidden, isHrAdmin, leaveYear, live, notFound, transact } from '../shared.js';
 import type {
@@ -113,7 +113,8 @@ export const policyPreview =
       const current = policy.inEffectOn(today)?.definition ?? null;
       const { year, start, end } = leaveYear(draft?.definition ?? current, today);
       const base = { effectiveFrom: start, yearEnd: end };
-      if (draft === null) return ok({ ...base, draftVersion: null, members: [] });
+      if (draft === null) return ok({ ...base, draftVersion: null, members: [], shadow: null });
+      const running = (await tx.settings.get('policy_shadows'))?.[policy.id] ?? null;
       const key = draft.definition.leaveTypeKey;
       const inputs: PreviewInput[] = [];
       const names = new Map<string, string>();
@@ -138,12 +139,20 @@ export const policyPreview =
         });
       }
       const ctx = contextFor(deps, userActor(caller), caller.correlationId, 'UTC');
+      const named = <T extends { personId: string }>(rows: readonly T[]) =>
+        rows
+          .map((p) => ({ ...p, displayName: names.get(p.personId) ?? '' }))
+          .toSorted((a, b) => a.displayName.localeCompare(b.displayName));
+      // The run is over a month later, and shows where it stood on its last day.
+      const asOf = running === null ? null : today < running.to ? today : running.to;
       return ok({
         ...base,
         draftVersion: draft.version,
-        members: previewChange(inputs, year, ctx)
-          .map((p) => ({ ...p, displayName: names.get(p.personId) ?? '' }))
-          .toSorted((a, b) => a.displayName.localeCompare(b.displayName)),
+        members: named(previewChange(inputs, year, ctx)),
+        shadow:
+          running === null || asOf === null
+            ? null
+            : { ...running, asOf, members: named(shadowBalances(inputs, year, asOf, ctx)) },
       });
     });
 

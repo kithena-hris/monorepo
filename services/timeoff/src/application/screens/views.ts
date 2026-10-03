@@ -598,6 +598,30 @@ export const PolicyPreviewView = named(
         }),
       ),
     ),
+    /**
+     * TOF-093: the draft running beside the version in effect for a month,
+     * each folded to `asOf` (today, or the run's last day once it is over);
+     * `null` when no run was started. HR's only.
+     */
+    shadow: named(
+      'TimeOffShadowRun',
+      z.object({
+        from: CalendarDate,
+        to: CalendarDate,
+        asOf: CalendarDate,
+        members: z.array(
+          named(
+            'TimeOffMemberShadow',
+            z.object({
+              personId: PersonId,
+              displayName: z.string(),
+              credited: AmountChange,
+              balance: AmountChange,
+            }),
+          ),
+        ),
+      }),
+    ).nullable(),
   }),
 );
 

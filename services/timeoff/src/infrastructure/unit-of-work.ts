@@ -16,7 +16,12 @@ import {
 import { drizzleIdempotency } from './idempotency.js';
 import { drizzleLocations, drizzleMembers } from './drizzle-members.js';
 import { drizzleParental } from './drizzle-parental.js';
-import { drizzleApprovals, drizzleFeeds, drizzleHolidays } from './drizzle-settings.js';
+import {
+  drizzleApprovals,
+  drizzleFeeds,
+  drizzleHolidays,
+  drizzleSettings,
+} from './drizzle-settings.js';
 import { outbox } from './tables.js';
 
 /**
@@ -50,6 +55,7 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
     attendance: drizzleAttendance(tx, tenantId),
     feeds: drizzleFeeds(tx, tenantId),
     parental: drizzleParental(tx, tenantId),
+    settings: drizzleSettings(tx, tenantId),
     idempotency: drizzleIdempotency(tx, tenantId),
     outbox: { publish: (events) => publish(tx, outbox, events) },
   };

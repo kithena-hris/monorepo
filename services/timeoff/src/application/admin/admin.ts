@@ -17,8 +17,16 @@ import type { HolidayLayer } from '../../domain/calendar/holiday-calendar.js';
 import type { TeamMinimum } from '../../domain/coverage/coverage.js';
 import { LeaveType, type LeaveTypeInput } from '../../domain/policy/leave-type.js';
 import { Policy, policyId, type PolicyId } from '../../domain/policy/policy.js';
+import { addDays, addMonths } from '../../domain/days.js';
 import { refold } from '../entitlement.js';
-import { contextFor, userActor, type Caller, type Deps, type Tx } from '../ports.js';
+import {
+  contextFor,
+  userActor,
+  type Caller,
+  type Deps,
+  type PolicyShadow,
+  type Tx,
+} from '../ports.js';
 import { applies, forbidden, isHrAdmin, notFound, refuse, transact } from '../shared.js';
 
 /**
@@ -171,7 +179,42 @@ export const publishPolicy =
         if (!done.ok) return done;
         refolded += done.value.length;
       }
+      // Published, the draft is the policy: there is nothing left to run beside it.
+      await setShadow(tx, id, null);
       return ok({ version: policy.latest.version, refolded });
+    });
+
+async function setShadow(tx: Tx, id: PolicyId, shadow: PolicyShadow | null): Promise<void> {
+  const { [id]: _was, ...rest } = (await tx.settings.get('policy_shadows')) ?? {};
+  await tx.settings.set('policy_shadows', shadow === null ? rest : { ...rest, [id]: shadow });
+}
+
+/**
+ * A shadow run (§6.3, TOF-093): the draft runs beside the version in effect
+ * for a month from today, so HR can compare balances day by day before
+ * publishing. Nothing is posted; only HR's settings read it.
+ */
+export const startShadowRun =
+  (deps: AdminDeps & Pick<Deps, 'clock'>) =>
+  (caller: Caller, id: PolicyId): Promise<Result<PolicyShadow>> =>
+    asHr(deps, caller, async (tx) => {
+      const policy = await tx.policies.get(id);
+      if (policy === null) return notFound('Policy');
+      if (policy.latest.status !== 'draft') {
+        return refuse('NO_DRAFT', 'Only a draft can run beside the policy in effect');
+      }
+      const from = deps.clock.date('UTC');
+      const shadow = { from, to: addDays(addMonths(from, 1), -1) };
+      await setShadow(tx, id, shadow);
+      return ok(shadow);
+    });
+
+export const stopShadowRun =
+  (deps: AdminDeps) =>
+  (caller: Caller, id: PolicyId): Promise<Result<void>> =>
+    asHr(deps, caller, async (tx) => {
+      await setShadow(tx, id, null);
+      return ok(undefined);
     });
 
 /* ------------------------------------------------------------- calendars -- */

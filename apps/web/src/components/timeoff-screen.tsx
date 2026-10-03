@@ -148,6 +148,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           load: loadable,
           onSaveDraft: settings.savePolicyDraft,
           onPublish: settings.publishPolicy,
+          onShadow: settings.shadowRun,
           onPolicy: (policy: string) => {
             goTo({ policy, as: null });
           },

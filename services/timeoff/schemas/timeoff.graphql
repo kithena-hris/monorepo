@@ -234,6 +234,12 @@ type Mutation {
     input: JSON!
     requestId: String!
   ): TimeOffShortened!
+  """
+  Run the draft beside the policy in effect for a month, to compare balances; HR
+  """
+  startTimeOffShadowRun(idempotencyKey: String!, policyId: String!): TimeOffShadow!
+  """Stop running the draft beside the policy in effect; HR"""
+  stopTimeOffShadowRun(idempotencyKey: String!, policyId: String!): TimeOffDone!
   """Suggest other dates instead of declining"""
   suggestTimeOffDates(
     idempotencyKey: String!
@@ -667,6 +673,13 @@ type TimeOffMemberPreview {
   personId: String!
 }
 
+type TimeOffMemberShadow {
+  balance: TimeOffAmountChange!
+  credited: TimeOffAmountChange!
+  displayName: String!
+  personId: String!
+}
+
 type TimeOffMyRequests {
   items: [TimeOffRequestItem!]!
   tab: String!
@@ -892,6 +905,7 @@ type TimeOffPolicyPreview {
   draftVersion: Int
   effectiveFrom: String!
   members: [TimeOffMemberPreview!]!
+  shadow: TimeOffShadowRun
   yearEnd: String!
 }
 
@@ -1130,6 +1144,18 @@ type TimeOffSettingsLeaveTypes {
 
 type TimeOffSettingsNegativeBalance {
   policies: [TimeOffNegativeBalancePolicy!]!
+}
+
+type TimeOffShadow {
+  from: String!
+  to: String!
+}
+
+type TimeOffShadowRun {
+  asOf: String!
+  from: String!
+  members: [TimeOffMemberShadow!]!
+  to: String!
 }
 
 type TimeOffShortened {

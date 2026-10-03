@@ -146,7 +146,7 @@ export const OPERATIONS = {
   /** T30: what publishing a policy's draft would do to each member, folded; HR */
   TimeOffPolicyPreview: `query TimeOffPolicyPreview($policyId: String!) {
     timeOffPolicyPreview(policyId: $policyId) {
-      draftVersion effectiveFrom members { allowance { current draft } displayName left { current draft } lostAtYearEnd { current draft } personId } yearEnd
+      draftVersion effectiveFrom members { allowance { current draft } displayName left { current draft } lostAtYearEnd { current draft } personId } shadow { asOf from members { balance { current draft } credited { current draft } displayName personId } to } yearEnd
     }
   }`,
 
@@ -434,6 +434,20 @@ export const OPERATIONS = {
   ShortenTimeOffRequest: `mutation ShortenTimeOffRequest($key: String!, $input: JSON!, $requestId: String!) {
     shortenTimeOffRequest(idempotencyKey: $key, input: $input, requestId: $requestId) {
       releasedDays
+    }
+  }`,
+
+  /** Run the draft beside the policy in effect for a month, to compare balances; HR */
+  StartTimeOffShadowRun: `mutation StartTimeOffShadowRun($key: String!, $policyId: String!) {
+    startTimeOffShadowRun(idempotencyKey: $key, policyId: $policyId) {
+      from to
+    }
+  }`,
+
+  /** Stop running the draft beside the policy in effect; HR */
+  StopTimeOffShadowRun: `mutation StopTimeOffShadowRun($key: String!, $policyId: String!) {
+    stopTimeOffShadowRun(idempotencyKey: $key, policyId: $policyId) {
+      ok
     }
   }`,
 

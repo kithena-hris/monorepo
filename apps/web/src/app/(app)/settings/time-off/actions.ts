@@ -30,6 +30,13 @@ export async function publishPolicy(policyId: string, effectiveFrom: string): Pr
   return outcome(await timeOff('PublishTimeOffPolicy', { policyId, input: { effectiveFrom } }));
 }
 
+/** T30: start (`run`) or stop the draft's month beside the version in effect (TOF-093). */
+export async function shadowRun(policyId: string, run: boolean): Promise<Outcome> {
+  return outcome(
+    await timeOff(run ? 'StartTimeOffShadowRun' : 'StopTimeOffShadowRun', { policyId }),
+  );
+}
+
 /**
  * T31: going below zero, as a revision of the policy. With `publish` (the
  * policy's latest version is published) it is published again from today, so

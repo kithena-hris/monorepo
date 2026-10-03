@@ -199,8 +199,46 @@ export const vacationWithDraft = (): LeaveTypeData => {
           lostAtYearEnd: pair('0.000', '0.000'),
         },
       ],
+      shadow: null,
     },
     as: null as string | null,
+  };
+};
+
+/** T30's draft two weeks into its shadow run (TOF-093): Hana's 15-year band is a day ahead. */
+export const vacationShadowing = (): LeaveTypeData => {
+  const data = vacationWithDraft();
+  if (data.preview === null) throw new Error('no preview');
+  return {
+    ...data,
+    preview: {
+      ...data.preview,
+      shadow: {
+        from: '2026-10-01',
+        to: '2026-10-31',
+        asOf: '2026-10-15',
+        members: [
+          {
+            personId: ADAM,
+            displayName: 'Adam Novak',
+            credited: pair('25.000', '25.000'),
+            balance: pair('14.500', '14.500'),
+          },
+          {
+            personId: HANA,
+            displayName: 'Hana Kim',
+            credited: pair('28.000', '29.000'),
+            balance: pair('8.000', '9.000'),
+          },
+          {
+            personId: MARCO,
+            displayName: 'Marco Ruiz',
+            credited: pair('27.000', '27.000'),
+            balance: pair('2.000', '2.000'),
+          },
+        ],
+      },
+    },
   };
 };
 

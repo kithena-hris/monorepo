@@ -7,6 +7,7 @@ import {
   VACATION_POLICY,
   leaveTypeRows,
   vacationPublished,
+  vacationShadowing,
   vacationWithDraft,
 } from './acme.fixture';
 import { LeaveType } from './leave-type';
@@ -69,6 +70,36 @@ describe('editing a policy', () => {
     // 28 → 29: the draft's 15-year band.
     expect(hana.getByText('29')).toBeTruthy();
     expect(hana.getByText('28')).toBeTruthy();
+  });
+
+  it('offers to run the draft beside the policy for a month (TOF-093)', () => {
+    const onShadow = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(<LeaveType load={ready(vacationWithDraft())} onShadow={onShadow} />);
+    const shadow = within(section('Shadow run'));
+    expect(shadow.getByText(/^Run the draft beside the policy in effect/)).toBeTruthy();
+    fireEvent.click(shadow.getByRole('button', { name: 'Run for a month' }));
+    expect(onShadow).toHaveBeenCalledWith(VACATION_POLICY, true);
+  });
+
+  it('compares the balances a shadow run has folded, and stops it', async () => {
+    const onShadow = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const { container } = render(
+      <LeaveType load={ready(vacationShadowing())} onShadow={onShadow} />,
+    );
+    const shadow = within(section('Shadow run'));
+    expect(
+      shadow.getByText(
+        'Running 1 October 2026 to 31 October 2026 · balances as of 15 October 2026. Only HR sees this.',
+      ),
+    ).toBeTruthy();
+    const rows = within(shadow.getByRole('list', { name: 'Balances under the draft' }));
+    expect(rows.getAllByRole('listitem')).toHaveLength(1);
+    expect(rows.getByText('8 now, 9 under the draft')).toBeTruthy();
+    expect(rows.getByText('+1 day')).toBeTruthy();
+    expect(shadow.getByText('2 people the same under both.')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+    fireEvent.click(shadow.getByRole('button', { name: 'Stop' }));
+    expect(onShadow).toHaveBeenCalledWith(VACATION_POLICY, false);
   });
 
   it('publishes the draft from the leave year’s first day', () => {

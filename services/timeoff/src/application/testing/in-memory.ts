@@ -39,6 +39,7 @@ import type {
   PolicyStore,
   RequestRecord,
   RequestStore,
+  Settings,
   StoredKey,
   StoredPlan,
   Tx,
@@ -74,6 +75,7 @@ interface State {
   feeds: Map<string, number>;
   plans: Map<string, StoredPlan>;
   parentalCompany: CompanyParentalWeeks | null;
+  settings: Map<keyof Settings, Settings[keyof Settings]>;
   events: PendingEvent[];
   keys: Map<string, StoredKey>;
 }
@@ -100,6 +102,7 @@ const empty = (): State => ({
   feeds: new Map(),
   plans: new Map(),
   parentalCompany: null,
+  settings: new Map(),
   events: [],
   keys: new Map(),
 });
@@ -289,6 +292,13 @@ function stores(tenantId: TenantId, s: State): Tx {
         s.parentalCompany = weeks;
       },
     }),
+    settings: {
+      get: (key) => Promise.resolve((s.settings.get(key) ?? null) as never),
+      set: (key, value) => {
+        s.settings.set(key, value);
+        return Promise.resolve();
+      },
+    },
     outbox: promised<Outbox>({
       publish: (events) => {
         s.events.push(...events);

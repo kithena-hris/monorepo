@@ -19,6 +19,7 @@ import {
   holidays,
   leaveTypes,
   negativeBalance,
+  vacationShadowing,
   vacationWithDraft,
 } from './acme.fixture';
 
@@ -70,6 +71,18 @@ const screens: readonly (readonly [string, () => JSX.Element])[] = [
         onSaveDraft={noop}
         onPublish={noop}
         onPreviewAs={() => undefined}
+        frame={frame('Leave types', '/settings/time-off/leave-types')}
+      />
+    ),
+  ],
+  [
+    'a policy in its shadow run',
+    () => (
+      <LeaveType
+        load={ready(vacationShadowing())}
+        onSaveDraft={noop}
+        onPublish={noop}
+        onShadow={noop}
         frame={frame('Leave types', '/settings/time-off/leave-types')}
       />
     ),
