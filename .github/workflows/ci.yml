@@ -41,32 +41,65 @@ jobs:
   # aggregate job after it, which reads these outputs — a skipped matrix job
   # reports without its shard, so a skip on a required *shard* name would sit
   # pending forever. Pull requests only: on `main` and in the merge queue every
-  # output is always true, so a detector that guessed wrong costs a red build
-  # after merge, never an unmeasured regression.
+  # output is true, so a detector that guessed wrong costs a red build after
+  # merge, never an unmeasured regression.
+  #
+  # The one exception: on `main`, a gate the pull request already ran in full
+  # on this exact tree. `gh pr merge --squash` on a pull request whose CI ran
+  # against main's current tip gives a commit whose tree is byte-for-byte the
+  # `refs/pull/N/merge` commit CI tested. `tested-tree`, at the bottom, records
+  # what a green pull request run tested; `already tested` reads the record
+  # back and proves it (the status was written by this workflow, links a green
+  # `ci` run on the PR's head, and names this tree). Then `verify` and
+  # `standalone` skip and the proven gates turn off; a gate the pull request
+  # narrowed still runs here. Any doubt is a full run: the step cannot fail the
+  # job, and empty outputs mean "run everything". docs/environments.md, "A merge
+  # is not tested twice".
+  #
+  # In this job rather than one of its own: every gate needs this job, and a
+  # job that is skipped on pull requests would skip everything downstream of it.
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+      actions: read
     outputs:
       ui: ${{ steps.diff.outputs.ui }}
       contracts: ${{ steps.diff.outputs.contracts }}
       web: ${{ steps.diff.outputs.web }}
       integration: ${{ steps.diff.outputs.integration }}
+      matched: ${{ steps.tested.outputs.matched }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
+      - name: already tested in its pull request?
+        id: tested
+        if: github.event_name == 'push'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: .github/scripts/retested-tree.sh
       - name: what changed
         id: diff
         env:
           EVENT: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
+          PROVEN: ${{ steps.tested.outputs.proven }}
         run: |
           if [ "$EVENT" != "pull_request" ]; then
-            echo "ui=true" >> "$GITHUB_OUTPUT"
-            echo "contracts=true" >> "$GITHUB_OUTPUT"
-            echo "web=true" >> "$GITHUB_OUTPUT"
-            echo "integration=true" >> "$GITHUB_OUTPUT"
+            for gate in ui contracts web integration; do
+              case " $PROVEN " in
+                *" $gate "*) echo "$gate=false" >> "$GITHUB_OUTPUT" ;;
+                *) echo "$gate=true" >> "$GITHUB_OUTPUT" ;;
+              esac
+            done
             exit 0
           fi
           changed="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
@@ -100,6 +133,8 @@ jobs:
   # builds it.
   verify-stream:
     name: verify (${{ matrix.stream }})
+    needs: changes
+    if: needs.changes.outputs.matched != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -195,18 +230,24 @@ jobs:
           fi
           echo "migration ledger matches the directory"
 
-  # The required check keeps its name: green only when every stream is.
+  # The required check keeps its name: green only when every stream is, or on
+  # main when `changes` proved this tree passed them in its pull request.
   verify:
-    needs: verify-stream
+    needs: [changes, verify-stream]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: every stream passed
         env:
+          MATCHED: ${{ needs.changes.outputs.matched }}
           RESULT: ${{ needs.verify-stream.result }}
         run: |
-          echo "streams: $RESULT"
+          echo "streams: $RESULT (already tested: ${MATCHED:-false})"
+          if [ "$MATCHED" = true ] && [ "$RESULT" = skipped ]; then
+            echo "::notice::This tree already passed verify in its pull request; see the changes job's summary."
+            exit 0
+          fi
           [ "$RESULT" = success ]
 
   contracts:
@@ -240,7 +281,7 @@ jobs:
 
       - name: nothing to check
         if: needs.changes.outputs.contracts != 'true'
-        run: echo "::notice::No change this job covers (contracts, services, platform, gateway, codegen or shared config). It runs in full on main."
+        run: echo "::notice::No change this job covers (contracts, services, platform, gateway, codegen or shared config). On main it runs unless this tree already passed it in its pull request."
 
 
   # Five streams at once. People's suite is most of the time and runs its files
@@ -304,12 +345,14 @@ jobs:
           # A failed detector skips the matrix; that is not a pass.
           [ "$CHANGES" = success ] || exit 1
           if [ "$REACHED" != true ]; then
-            echo "::notice::No change an integration suite covers (services, platform, the kits, migrations or shared config). It runs in full on main."
+            echo "::notice::No change an integration suite covers (services, platform, the kits, migrations or shared config). On main it runs unless this tree already passed it in its pull request."
             exit 0
           fi
           [ "$RESULT" = success ]
 
   standalone:
+    needs: changes
+    if: needs.changes.outputs.matched != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -402,7 +445,7 @@ jobs:
 
       - name: nothing to check
         if: needs.changes.outputs.web != 'true'
-        run: echo "::notice::No change this job covers (apps/web, People, identity, the gateway, packages, migrations or shared config). It runs in full on main."
+        run: echo "::notice::No change this job covers (apps/web, People, identity, the gateway, packages, migrations or shared config). On main it runs unless this tree already passed it in its pull request."
 
   design-system:
     needs: changes
@@ -423,6 +466,10 @@ jobs:
     if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Whether the contrast sweep covered every story: `tested-tree` records the
+    # design system as tested only then. Every shard computes the same value.
+    outputs:
+      full-sweep: ${{ github.event_name != 'pull_request' || (steps.scope.outputs.skip != 'true' && (steps.scope.outputs.filters == '' || steps.scope.outputs.filters == '__ALL__')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -612,7 +659,54 @@ jobs:
           # A failed detector skips both matrices; that is not a pass.
           [ "$CHANGES" = success ] || exit 1
           if [ "$UI" != true ]; then
-            echo "::notice::No design-system change (packages/ui, storybook, docs, a11y tooling or shared config). It runs in full on main."
+            echo "::notice::No design-system change (packages/ui, storybook, docs, a11y tooling or shared config). On main it runs unless this tree already passed it in its pull request."
             exit 0
           fi
           [ "$SHARDS" = success ] && [ "$AXE" = success ]
+
+  # The record `changes` reads on main: once every required check of a pull
+  # request run is green, a `ci/tested-tree` status on the PR's head naming the
+  # tree this run tested (`refs/pull/N/merge`, the PR on main's tip at that
+  # moment) and the narrowed gates that ran in full. `verify` and `standalone`
+  # always run in full on a pull request, so a green run proves them; if that
+  # ever changes, they need a word in `ran=` too. The newest status wins, so it
+  # always describes the last green run. Not a required check. A fork's token
+  # cannot write statuses: nothing is recorded and main runs the full suite,
+  # which is also what happens when this step fails.
+  tested-tree:
+    needs: [changes, verify, contracts, integration, standalone, web-acceptance, design-system, design-system-all]
+    if: >-
+      ${{ github.event_name == 'pull_request' && !cancelled() &&
+      needs.changes.result == 'success' && needs.verify.result == 'success' &&
+      needs.contracts.result == 'success' && needs.integration.result == 'success' &&
+      needs.standalone.result == 'success' && needs.web-acceptance.result == 'success' &&
+      needs.design-system-all.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    steps:
+      - name: record the tested tree
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MERGE_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CONTRACTS: ${{ needs.changes.outputs.contracts }}
+          WEB: ${{ needs.changes.outputs.web }}
+          INTEGRATION: ${{ needs.changes.outputs.integration }}
+          UI: ${{ needs.changes.outputs.ui }}
+          FULL_SWEEP: ${{ needs.design-system.outputs.full-sweep }}
+        run: |
+          tree="$(gh api "repos/$REPO/git/commits/$MERGE_SHA" --jq .tree.sha)"
+          ran=()
+          [ "$CONTRACTS" = true ] && ran+=(contracts)
+          [ "$WEB" = true ] && ran+=(web)
+          [ "$INTEGRATION" = true ] && ran+=(integration)
+          [ "$UI" = true ] && [ "$FULL_SWEEP" = true ] && ran+=(ui)
+          description="tree=$tree ran=$(IFS=,; echo "${ran[*]}")"
+          echo "$description"
+          gh api "repos/$REPO/statuses/$HEAD_SHA" -f state=success -f context=ci/tested-tree \
+            -f description="$description" -f target_url="$RUN_URL" > /dev/null
