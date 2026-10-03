@@ -14,10 +14,10 @@
     { "path": "/time-off/calendar/month", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/timeline", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/year", "component": "TeamCalendar" },
-    { "path": "/time-off/attendance/timesheet", "component": "Attendance" },
+    { "path": "/time-off/attendance/timesheet", "component": "Timesheet" },
     { "path": "/time-off/attendance/requests", "component": "Attendance" },
     { "path": "/time-off/attendance/schedule", "component": "Attendance" },
-    { "path": "/time-off/attendance/now", "component": "Attendance" },
+    { "path": "/time-off/attendance/now", "component": "TeamNow" },
     { "path": "/time-off/attendance/timesheets", "component": "Attendance" },
     { "path": "/time-off/attendance/exceptions", "component": "Attendance" },
     { "path": "/time-off/attendance/pay-period", "component": "Attendance" },
@@ -149,6 +149,7 @@
       ]
     }
   ],
+  "slots": { "topBar": "TopBarClock" },
   "settings": [
     {
       "path": "/settings/time-off/leave-types",

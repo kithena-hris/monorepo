@@ -24,6 +24,11 @@ describe('routes.json', () => {
     expect(paths.filter((p) => !routes.has(p))).toEqual([]);
   });
 
+  it('fills the shell’s places with exports too', () => {
+    const exported = new Set(Object.keys(screens));
+    expect(Object.values(manifest.slots).filter((c) => !exported.has(c))).toEqual([]);
+  });
+
   it('starts each umbrella section at its first tab', () => {
     for (const s of manifest.sections) {
       if ('tabs' in s) expect(s.path).toBe(s.tabs[0]?.path);
