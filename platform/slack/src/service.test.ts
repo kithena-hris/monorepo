@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { signState } from './secrets.js';
-import { slackService, type People, type Slack } from './service.js';
+import { slackService, type People, type Slack, type TimeOff } from './service.js';
 import { memoryStore } from './store.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
@@ -40,10 +40,20 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       return Promise.resolve((answer ?? { ok: true, body: { items: [] } }) as never);
     },
   };
+  const relayed: { tenantId: string; value: string }[] = [];
+  const timeOff: TimeOff = {
+    relay: (tenantId, value) => {
+      relayed.push({ tenantId, value });
+      return value === 'down'
+        ? Promise.reject(new Error('ECONNREFUSED'))
+        : Promise.resolve({ text: 'Approved: Adam Novak, 19–23 Oct.' });
+    },
+  };
   const secret = randomBytes(32);
   const service = slackService({
     store,
     people,
+    timeOff,
     slack,
     command: '/kithena',
     now: () => 1_000,
@@ -54,7 +64,7 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       stateSecret: secret,
     },
   });
-  return { store, service, posted, replaced, acted, secret };
+  return { store, service, posted, replaced, acted, relayed, secret };
 }
 
 const connect = (store: ReturnType<typeof memoryStore>, tenantId = TENANT, teamId = 'T1') =>
@@ -158,6 +168,38 @@ describe('a button', () => {
       actions: [{ action_id: 'approve', value: 'c1' }],
     });
     expect(w.acted).toEqual([]);
+  });
+
+  it('passes Time Off’s press to Time Off as the workspace’s company, and shows its answer', async () => {
+    const w = world();
+    await connect(w.store);
+    const press = (value: string) =>
+      w.service.interact({
+        type: 'block_actions',
+        team: { id: 'T1' },
+        user: { id: 'U1' },
+        response_url: 'https://hooks/r',
+        actions: [{ action_id: 'timeoff_approve', value }],
+      });
+    await press('ca_signed');
+    expect(w.relayed).toEqual([{ tenantId: TENANT, value: 'ca_signed' }]);
+    expect(w.replaced[0]?.text).toBe('Approved: Adam Novak, 19–23 Oct.');
+    expect(w.acted).toEqual([]);
+
+    await press('down');
+    expect(w.replaced[1]?.text).toBe(
+      'Time Off could not take that just now. Try again in a moment.',
+    );
+  });
+
+  it('never passes a press from a workspace no company connected', async () => {
+    const w = world();
+    await w.service.interact({
+      type: 'block_actions',
+      team: { id: 'T9' },
+      actions: [{ action_id: 'timeoff_decline', value: 'ca_signed' }],
+    });
+    expect(w.relayed).toEqual([]);
   });
 });
 

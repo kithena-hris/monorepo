@@ -3,6 +3,7 @@ import {
   fillView,
   noticeMessage,
   savedView,
+  textMessage,
   timeOffApprovalMessage,
   valuesOf,
   type Approval,
@@ -20,7 +21,8 @@ import type { Store } from './store.js';
  *
  * It holds no Kithena data. Everything a message shows is read from People as
  * the person reading it, when it is drawn; every button is People's own route,
- * called as whoever pressed it. What it keeps is which workspace is which
+ * called as whoever pressed it, except Time Off's, whose signed value is passed
+ * to Time Off as it came. What it keeps is which workspace is which
  * company, and that workspace's token. Which notices are sent is each
  * module's setting; a notice that arrives here was switched on there.
  */
@@ -48,6 +50,11 @@ export interface People {
     question: string,
   ): Promise<{ text: string; understood: string } | null>;
   act<T>(tenantId: string, email: string, action: Record<string, unknown>): Promise<Outcome<T>>;
+}
+
+/** Time Off, over internal HTTP: a press on one of its buttons, answered with what the message becomes. */
+export interface TimeOff {
+  relay(tenantId: string, value: string): Promise<{ text: string }>;
 }
 
 export interface Slack {
@@ -90,6 +97,7 @@ export interface OAuth {
 export interface Deps {
   readonly store: Store;
   readonly people: People;
+  readonly timeOff: TimeOff;
   readonly slack: Slack;
   readonly command: string;
   readonly oauth: OAuth | null;
@@ -233,6 +241,18 @@ export function slackService(deps: Deps): SlackService {
     async interact(payload: Interaction): Promise<unknown> {
       const where = await workspace(payload.team?.id ?? '');
       if (where === null) return undefined;
+
+      // Time Off's button: its value is Time Off's to read, and it names the approver itself.
+      const pressed = payload.type === 'block_actions' ? payload.actions?.[0] : undefined;
+      if (pressed?.action_id.startsWith('timeoff_') === true && pressed.value) {
+        const answer = await deps.timeOff
+          .relay(where.tenantId, pressed.value)
+          .catch(() => ({ text: 'Time Off could not take that just now. Try again in a moment.' }));
+        if (payload.response_url)
+          await deps.slack.replaceMessage(payload.response_url, textMessage(answer.text));
+        return undefined;
+      }
+
       const email = await emailOf(where.token, payload.user?.id ?? '');
       if (email === null) return undefined;
 

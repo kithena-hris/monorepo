@@ -4,7 +4,7 @@ import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import { questionOf, type Envelope } from './events.js';
 import * as api from './slack-api.js';
-import { slackService, type Interaction, type People } from './service.js';
+import { slackService, type Interaction, type People, type TimeOff } from './service.js';
 import { tokenKeyFrom } from './secrets.js';
 import { memoryStore, postgresStore, type Store } from './store.js';
 
@@ -82,6 +82,23 @@ const people: People = {
   },
 };
 
+const timeOffUrl = (env['TIMEOFF_URL'] ?? 'http://localhost:4002').replace(/\/$/, '');
+const timeOff: TimeOff = {
+  relay: async (tenantId, value) => {
+    const response = await fetch(`${timeOffUrl}/v1/timeoff/integrations/slack/relay`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-token': timeOffToken },
+      body: JSON.stringify({ tenantId, value }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      logger.error({ status: response.status }, 'time off refused a slack press');
+      throw new Error(`timeoff relay: ${String(response.status)}`);
+    }
+    return (await response.json()) as { text: string };
+  },
+};
+
 const clientId = env['SLACK_CLIENT_ID'] ?? '';
 const clientSecret = env['SLACK_CLIENT_SECRET'] ?? '';
 const authOrigin = env['AUTH_ORIGIN'] ?? '';
@@ -89,6 +106,7 @@ const store = storeFrom();
 const service = slackService({
   store,
   people,
+  timeOff,
   slack: api,
   command: env['SLACK_COMMAND'] ?? '/kithena',
   now: () => Date.now(),
