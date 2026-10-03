@@ -42,7 +42,11 @@ export const KEY_MAX = 64;
  */
 const KEY_SHAPE = /^[a-z][a-z0-9_]*$/u;
 
-const keySchema = (what: string) =>
+/**
+ * Exported because Time Off's keys (`LeaveTypeKey`, `TeamKey`, `LocationKey`)
+ * end up in the same payloads, headers and URLs, for the same reasons.
+ */
+export const keySchema = (what: string): z.ZodString =>
   z
     .string()
     .min(1, `A ${what} key is required`)

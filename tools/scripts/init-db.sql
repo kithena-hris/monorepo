@@ -29,8 +29,10 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_people') THEN
     CREATE ROLE svc_people LOGIN PASSWORD 'kithena' NOBYPASSRLS;
   END IF;
+  -- NOBYPASSRLS for the same reason: every Time Off table carries a tenant
+  -- policy, and sick days are the last thing to leak across companies.
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'svc_timeoff') THEN
-    CREATE ROLE svc_timeoff LOGIN PASSWORD 'kithena';
+    CREATE ROLE svc_timeoff LOGIN PASSWORD 'kithena' NOBYPASSRLS;
   END IF;
   -- The identity service is not a module and gets the platform schema instead.
   --

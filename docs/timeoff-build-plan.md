@@ -92,7 +92,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 
 ## Phase 0 — unblock
 
-### [ ] TOF-001 — `svc_timeoff` hardened and the schema bootstrap
+### [x] TOF-001 — `svc_timeoff` hardened and the schema bootstrap
 
 **Goal** `svc_timeoff` exists in `init-db.sql` without `NOBYPASSRLS`, unlike
 `svc_people`, and there is no `timeoff` migration at all.
@@ -105,8 +105,14 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   usage. Fix the role in `init-db.sql`. Rehash `atlas.sum`.
 - **Done when** `pnpm db:migrate` applies clean twice and an integration test
   proves a `svc_timeoff` connection without `app.tenant_id` sees nothing.
+- **As built** One integration test covers this ticket and TOF-002
+  (`src/infrastructure/bootstrap.integration.test.ts`), with `timeoff.outbox`
+  as the tenant-scoped probe instead of a throwaway table. The bootstrap does
+  not `ALTER` a `svc_timeoff` that already exists: changing `BYPASSRLS` needs
+  privileges the migrator may lack, and `deploy/vm/deploy.sh` already creates
+  it `NOBYPASSRLS`.
 
-### [ ] TOF-002 — Outbox and Debezium
+### [x] TOF-002 — Outbox and Debezium
 
 - **Spec** PRD §17
 - **Files** `migrations/<ts>_timeoff_outbox.sql`, `docker-compose.yml`,
@@ -118,7 +124,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 - **Done when** an integration test writes an event through `publish()` and
   reads it from `timeoff.outbox`.
 
-### [ ] TOF-003 — Boot like People
+### [x] TOF-003 — Boot like People
 
 **Goal** `src/main.ts` is a bare yoga server on a hardcoded port.
 
@@ -132,7 +138,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 - **Done when** `pnpm --filter @kithena/timeoff dev` serves `/graphql` and
   `/healthz`, and the standalone boot test still passes.
 
-### [ ] TOF-004 — Dockerfile and deploy
+### [x] TOF-004 — Dockerfile and deploy
 
 - **Files** `services/timeoff/Dockerfile`, `deploy/vm/deploy.sh`
 - **Depends on** TOF-003
@@ -140,8 +146,12 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   dependency fix from #208.
 - **Done when** `docker build -f services/timeoff/Dockerfile .` succeeds and the
   image answers `/healthz`.
+- **As built** `deploy/vm/deploy.sh` is unchanged: it already creates
+  `svc_timeoff NOLOGIN NOBYPASSRLS` before migrating, and Time Off has no VM
+  service, database URL or relay to deploy until it holds data (TOF-030 on).
+  `graphql` moved from dev to runtime dependencies, the #208 fix.
 
-### [ ] TOF-005 — Codegen sees Time Off's new events
+### [x] TOF-005 — Codegen sees Time Off's new events
 
 - **Files** `tools/codegen/src/cli.ts`
 - **Depends on** nothing
@@ -150,6 +160,12 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   and the DSAR manifest include them.
 - **Done when** `just codegen` passes and the generated redaction paths contain
   a Time Off path.
+- **As built** No change to `cli.ts`: every new event is in `timeoffEvents`,
+  which it already concatenates. The walk reads event payloads only, so the
+  policy, request and ledger shapes are classified field by field but checked
+  by their own tests, not by codegen. `payload.medicalNote` leaves the
+  redaction list with v1 (TOF-009); `payload.dueDate` is the Time Off path now
+  in it.
 
 ---
 
@@ -157,7 +173,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 
 ### Contracts
 
-### [ ] TOF-006 — Primitives
+### [x] TOF-006 — Primitives
 
 - **Spec** PRD §6.1, §7.1
 - **Files** `packages/contracts/src/timeoff/primitives.ts`
@@ -169,8 +185,14 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   existing `AbsenceKind`. Register a policy on every field.
 - **Done when** `just codegen` passes and tests refuse a float, a negative
   zero and a key with a hyphen.
+- **As built** `WorkModel` is `AttendanceWorkModel`: People's requiredness
+  already exports a `WorkModel` (a company's own option key) from the same
+  package. `AbsenceKind` moved here from `events/timeoff.ts` so the policy and
+  request files can use it without an import cycle; `LeaveCategory` is
+  `AbsenceKind` without `public_holiday`. Keys reuse People's `keySchema`.
+  `NonNegativeDayAmount` and `LeaveUnit` were added for TOF-007.
 
-### [ ] TOF-007 — Leave type and policy contracts
+### [x] TOF-007 — Leave type and policy contracts
 
 - **Spec** PRD §6.1, §6.2, §7.4
 - **Files** `packages/contracts/src/timeoff/policy.ts`
@@ -183,7 +205,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 - **Done when** tests prove an unknown predicate operand is refused at parse
   time and a negative-balance limit cannot be negative.
 
-### [ ] TOF-008 — Request, ledger and attendance contracts
+### [x] TOF-008 — Request, ledger and attendance contracts
 
 - **Spec** PRD §7.1, §8.1, §11.2
 - **Files** `packages/contracts/src/timeoff/request.ts`, `ledger.ts`,
@@ -194,8 +216,14 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   shape for anyone but the member and HR.
 - **Done when** a type-level test asserts the teammate view of a sick request
   has no `typeKey` and no `note`.
+- **As built** Three views: `LeaveRequestView` (member and HR, the only one
+  with `sickNoteFileId`), `ApproverRequestView` (type, note, `notePresent`) and
+  `TeammateRequestView`, a union on `shows: 'type' | 'off'` whose `off` branch
+  has no type, category or note. The sick note is a reference to the encrypted
+  file, never its content. `PunchInput` is `strict`, so a coordinate is refused
+  rather than dropped.
 
-### [ ] TOF-009 — Events
+### [x] TOF-009 — Events
 
 - **Spec** PRD §13
 - **Files** `packages/contracts/src/events/timeoff.ts`,
@@ -210,12 +238,21 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 - **Done when** `just codegen` passes, the manifest contract test is green, and
   a contract test proves no Time Off payload can hold a latitude, a longitude
   or a sick note body.
+- **As built** v2 drops v1's `medicalNote` (the note's text, which §8.5 keeps
+  out of every payload) for `notePresent`, and adds `belowZero`. `workingDays`
+  is a `DayAmount` and nullable only for an upcast v1, which never recorded a
+  cost. v1 stays defined as `LeaveRequestedV1` but is out of `timeoffEvents`,
+  so it is read and not published. The upcaster is one function,
+  `readLeaveRequested`, in `events/timeoff.ts` rather than a mechanism in
+  `event.ts`: it is the only versioned event in the registry. A parental due
+  date is `asSpecialCategory('health')`. The `LeaveRequest` aggregate still
+  builds a v1 payload and lifts it through the upcaster until TOF-016.
 
 ### Domain
 
 Test-first, all of it. No drivers, no I/O.
 
-### [ ] TOF-010 — Working days and days away
+### [x] TOF-010 — Working days and days away
 
 - **Spec** PRD §7.3
 - **Files** `services/timeoff/src/domain/calendar/working-days.ts`
@@ -226,8 +263,15 @@ Test-first, all of it. No drivers, no I/O.
   12 Oct a holiday costs 4 and is 9 days away.
 - **Done when** fixtures from T3, T4 and MT6 pass, and property tests prove
   `workingDays ≤ daysAway`.
+- **As built** A work pattern is the ISO weekdays worked; hours per day waits
+  for comp time, which is the first thing that needs it. Both functions take
+  the contracts' `DateSpan` and return `DayAmount`, counted internally in whole
+  half days, so no decimal library is needed. `daysAway` also returns the
+  stretched `from` and `to` (Sat 10 to Sun 18). A half day at an end stops the
+  absence reaching the weekend beside it. The property test is a seeded loop:
+  fast-check is not a dependency.
 
-### [ ] TOF-011 — Layered holiday calendars
+### [x] TOF-011 — Layered holiday calendars
 
 - **Spec** PRD §10.2
 - **Files** `services/timeoff/src/domain/calendar/holiday-calendar.ts`
@@ -236,8 +280,14 @@ Test-first, all of it. No drivers, no I/O.
   a location and year; weekend rule (`move_to_monday | none`) per layer.
 - **Done when** Madrid 2026 resolves to the eleven dates in T36 plus San Isidro
   and La Almudena, and Barcelona does not get either.
+- **As built** The weekend rule governs a layer's own days. Spanish layers
+  say `none` and carry the moved days their decrees publish, because Madrid
+  moves a Sunday holiday and Catalonia does not. T36 leaves out three days
+  of Madrid's 2026 decree (2 May, 2 Nov, 7 Dec), so Madrid 2026 resolves to 14,
+  T36's 11 among them. The Madrid and Barcelona tests are in
+  `country-packs/es.test.ts`, next to the data.
 
-### [ ] TOF-012 — Leave type aggregate
+### [x] TOF-012 — Leave type aggregate
 
 - **Spec** PRD §6.1
 - **Files** `services/timeoff/src/domain/policy/leave-type.ts`
@@ -247,7 +297,7 @@ Test-first, all of it. No drivers, no I/O.
   loosened to show the reason to teammates.
 - **Done when** every invariant has a failing-first test.
 
-### [ ] TOF-013 — Policy, versions and the entitlement fold
+### [x] TOF-013 — Policy, versions and the entitlement fold
 
 - **Spec** PRD §6.2, §6.3, §7.1
 - **Files** `services/timeoff/src/domain/policy/policy.ts`,
@@ -260,7 +310,7 @@ Test-first, all of it. No drivers, no I/O.
   2.08 on the 1st with the year summing to exactly 25, and a 3-year
   anniversary moves to 26 from the band boundary.
 
-### [ ] TOF-014 — The ledger and the balance fold
+### [x] TOF-014 — The ledger and the balance fold
 
 - **Spec** PRD §7.1, §7.2
 - **Files** `services/timeoff/src/domain/balance/ledger.ts`
@@ -270,7 +320,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** MT20's ledger folds to 11.5 left with 10.5 used and 3 booked,
   and a superseded entry is excluded exactly once.
 
-### [ ] TOF-015 — Negative balance
+### [x] TOF-015 — Negative balance
 
 - **Spec** PRD §7.4
 - **Files** `services/timeoff/src/domain/balance/negative.ts`
@@ -281,8 +331,13 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** T5's numbers come out: 6.5 left, 8 requested, borrow 1.5,
   2027 starts at 23.5, approvers manager then HR; and 10 requested is refused
   at a limit of 3.
+- **As built** T5 labels the shorten option "14–21 Dec, 6.5 days", but 14–21
+  Dec is 6 working days. `goingBelowZero` returns 14–22 Dec ending on a half
+  day, which is what 6.5 actually covers, or 14–21 Dec at 6 when the policy
+  allows no half days. The function takes the working dates as input rather
+  than computing them, because TOF-010 owns working days.
 
-### [ ] TOF-016 — The request aggregate, rewritten
+### [x] TOF-016 — The request aggregate, rewritten
 
 **Goal** The existing `LeaveRequest` refuses anything over the balance and has
 no decline, cancel or change.
@@ -298,8 +353,21 @@ no decline, cancel or change.
   and returns the ledger entries it implies.
 - **Done when** every transition and every refused transition has a test, and
   the old `INSUFFICIENT_BALANCE` test is replaced by a borrow test.
+- **As built** The contracts have no event for a withdrawal, a change asked
+  for or turned down, a counter-proposal turned down, or a request taken, so
+  `withdraw` raises `cancelled` (the whole request released) and the other
+  four raise nothing: a change reaches consumers as `changed` once approved,
+  and `taken` tells nobody anything approval did not. `acceptCounter` raises
+  `changed` then `approved`. A booking settles as a `release` and a `taken`
+  of the same amount, so `left` stays the plain sum of the ledger. Approval is
+  one step; a manager-then-HR chain is the application walking the chain
+  TOF-019 returns. A counter-proposal is runs of days, not one range,
+  because TOF-022's swap (19, 20, 22, 23 and 26 Oct) is not continuous:
+  `counter_proposed.proposals` is `{ spans, workingDays }[]` and `changed`
+  carries the `spans` inside its `from`–`to`, both widened in place at v1
+  since neither has been published.
 
-### [ ] TOF-017 — Sick leave
+### [x] TOF-017 — Sick leave
 
 - **Spec** PRD §8.5
 - **Files** `services/timeoff/src/domain/request/sick.ts`
@@ -310,7 +378,7 @@ no decline, cancel or change.
 - **Done when** a 2-day sick record is approved on creation and a 4-day one
   asks for a note.
 
-### [ ] TOF-018 — Team minimums and coverage
+### [x] TOF-018 — Team minimums and coverage
 
 - **Spec** PRD §9.3
 - **Files** `services/timeoff/src/domain/coverage/coverage.ts`
@@ -319,8 +387,12 @@ no decline, cancel or change.
   absences and holidays; minimum as count or percentage; returns the days below.
 - **Done when** T13's October fixture gives 4 of 7 on the 21st and nothing
   else below 5.
+- **As built** A day is held to the minimum only when someone on the team was
+  due to work. A half day off counts as out. A percentage rounds up to whole
+  people. `.gitignore` ignored every `coverage/` folder, so it now makes an
+  exception for `services/*/src/domain/coverage/`.
 
-### [ ] TOF-019 — Approval rules and routing
+### [x] TOF-019 — Approval rules and routing
 
 - **Spec** PRD §9.1
 - **Files** `services/timeoff/src/domain/approval/approval-rule.ts`
@@ -331,7 +403,7 @@ no decline, cancel or change.
 - **Done when** T34's five rules resolve as drawn and a shorten resolves to no
   approver.
 
-### [ ] TOF-020 — Delegation and escalation
+### [x] TOF-020 — Delegation and escalation
 
 - **Spec** PRD §9.7
 - **Files** `services/timeoff/src/domain/approval/delegation.ts`
@@ -342,7 +414,7 @@ no decline, cancel or change.
 - **Done when** Marco away 13–16 Oct routes Adam's request to Omar, and a
   request untouched for 3 working days escalates.
 
-### [ ] TOF-021 — Queue grouping
+### [x] TOF-021 — Queue grouping
 
 - **Spec** PRD §9.2
 - **Files** `services/timeoff/src/domain/approval/triage.ts`
@@ -351,8 +423,13 @@ no decline, cancel or change.
   sick under threshold, comp within banked hours; otherwise look closer with
   the first failing rule as a typed reason.
 - **Done when** T16's five requests split 3 and 2 with the reasons drawn.
+- **As built** Coverage comes in as `daysBelowMinimum` rather than being
+  computed here, so this landed before TOF-018 and imports nothing from it.
+  Adam's T16 line names the release on the 22nd too; the reason is the
+  first rule that fails, `below_minimum` on the 21st, and the release is
+  only the next one (`protected_period`).
 
-### [ ] TOF-022 — Clash fixes and counter-proposals
+### [x] TOF-022 — Clash fixes and counter-proposals
 
 - **Spec** PRD §9.5, §9.6
 - **Files** `services/timeoff/src/domain/approval/alternatives.ts`
@@ -361,8 +438,12 @@ no decline, cancel or change.
   clean week; approve as asked. Rank requester-only first, then no change, then
   changes to someone else's approved time.
 - **Done when** T15 and T18 produce "19, 20, 22, 23 and 26 Oct" first.
+- **As built** A swap is not contiguous (19–20 and 22–26 Oct), so every
+  option carries `spans`. `LeaveCounterProposed.proposals` holds one span per
+  option, so TOF-016 cannot carry a swap as one proposal without a contract
+  change. Asks to teammates go smallest absence first (Yuki before Omar).
 
-### [ ] TOF-023 — Punches and the clock
+### [x] TOF-023 — Punches and the clock
 
 - **Spec** PRD §11.1, §11.2
 - **Files** `services/timeoff/src/domain/attendance/clock.ts`
@@ -372,7 +453,7 @@ no decline, cancel or change.
 - **Done when** a punch from the kiosk followed by one from the web reads as one
   continuous day.
 
-### [ ] TOF-024 — The working day and overtime
+### [x] TOF-024 — The working day and overtime
 
 - **Spec** PRD §11.3, §11.5
 - **Files** `services/timeoff/src/domain/attendance/day.ts`
@@ -383,7 +464,7 @@ no decline, cancel or change.
 - **Done when** T20's week computes 7h 58m, 9h 05m with +1h 05m, a missing
   Wednesday and 3h 41m live.
 
-### [ ] TOF-025 — Missed punches and corrections
+### [x] TOF-025 — Missed punches and corrections
 
 - **Spec** PRD §11.4
 - **Files** `services/timeoff/src/domain/attendance/correction.ts`
@@ -392,8 +473,14 @@ no decline, cancel or change.
   with `supersedes`; corrections after 24 hours flag for the manager.
 - **Done when** Wednesday's missing out is detected on Thursday and a
   correction at 18:05 yields 9h 18m with 1h 18m overtime.
+- **As built, 2026-10-03** The correction yields 8h 28m with 28m overtime.
+  The design's 9h 18m is the whole 08:47–18:05 span, but the same row records
+  a 50-minute break, and Monday and Tuesday subtract theirs. A forgotten
+  clock-out has no original punch to supersede, so
+  `AttendanceCorrected.supersedes` is nullable. Tuesday's overtime starts at
+  17:42, where the eighth hour ends, not at the 17:00 the design draws.
 
-### [ ] TOF-026 — Schedules
+### [x] TOF-026 — Schedules
 
 - **Spec** PRD §11.5
 - **Files** `services/timeoff/src/domain/attendance/schedule.ts`
@@ -401,7 +488,7 @@ no decline, cancel or change.
 - **Approach** Fixed, flexible with core hours, seasonal, rotating.
 - **Done when** "Summer hours" Jul–Aug plans 35h and Madrid office plans 40h.
 
-### [ ] TOF-027 — Pay period
+### [x] TOF-027 — Pay period
 
 - **Spec** PRD §11.8
 - **Files** `services/timeoff/src/domain/attendance/pay-period.ts`
@@ -411,7 +498,7 @@ no decline, cancel or change.
 - **Done when** closing September refuses a correction dated September and
   posts it to October.
 
-### [ ] TOF-028 — Spain country pack
+### [x] TOF-028 — Spain country pack
 
 - **Spec** PRD §12.3
 - **Files** `services/timeoff/src/country-packs/es.ts`
@@ -421,6 +508,12 @@ no decline, cancel or change.
   Mark the pack `reviewed: false` until legal signs off.
 - **Done when** a new Spanish tenant gets the statutory types and the national
   layer, and the pack's `reviewed` flag is surfaced in settings.
+- **As built** Data only: seeding a tenant and the settings flag come with
+  the application and settings tickets. TOF-012 was still open, so the types
+  are parsed `LeaveTypeDefinition`s. An `entitlements` table holds the
+  statutory days (vacation 30 calendar, marriage 15, and so on). The 2027
+  national layer is what Madrid's and Catalonia's published 2027 calendars
+  share, until the BOE list comes out.
 
 ### Storage
 
