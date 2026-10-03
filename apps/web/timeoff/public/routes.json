@@ -3,21 +3,23 @@
     { "path": "/time-off/overview", "component": "Overview" },
     { "path": "/time-off/request", "component": "RequestTimeOff" },
     { "path": "/time-off/request/describe", "component": "DescribeRequest" },
-    { "path": "/time-off/requests/upcoming", "component": "MyRequests" },
-    { "path": "/time-off/requests/past", "component": "MyRequests" },
-    { "path": "/time-off/requests/cancelled", "component": "MyRequests" },
+    { "path": "/time-off/requests/upcoming", "component": "MyRequestsUpcoming" },
+    { "path": "/time-off/requests/past", "component": "MyRequestsPast" },
+    { "path": "/time-off/requests/cancelled", "component": "MyRequestsCancelled" },
     { "path": "/time-off/requests/:id", "component": "RequestDetail" },
     { "path": "/time-off/approvals/waiting", "component": "Approvals" },
+    { "path": "/time-off/approvals/waiting/:id", "component": "Approvals" },
+    { "path": "/time-off/approvals/waiting/:id/suggest", "component": "Approvals" },
     { "path": "/time-off/approvals/coming-up", "component": "Approvals" },
     { "path": "/time-off/approvals/decided", "component": "Approvals" },
-    { "path": "/time-off/approvals/delegation", "component": "Approvals" },
+    { "path": "/time-off/approvals/delegation", "component": "Delegation" },
     { "path": "/time-off/calendar/month", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/timeline", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/year", "component": "TeamCalendar" },
-    { "path": "/time-off/attendance/timesheet", "component": "Attendance" },
+    { "path": "/time-off/attendance/timesheet", "component": "Timesheet" },
     { "path": "/time-off/attendance/requests", "component": "Attendance" },
     { "path": "/time-off/attendance/schedule", "component": "Attendance" },
-    { "path": "/time-off/attendance/now", "component": "Attendance" },
+    { "path": "/time-off/attendance/now", "component": "TeamNow" },
     { "path": "/time-off/attendance/timesheets", "component": "Attendance" },
     { "path": "/time-off/attendance/exceptions", "component": "Attendance" },
     { "path": "/time-off/attendance/pay-period", "component": "Attendance" },
@@ -93,7 +95,8 @@
           "path": "/time-off/approvals/waiting",
           "label": "Waiting for me",
           "short": "Waiting",
-          "for": ["manager", "hr"]
+          "for": ["manager", "hr"],
+          "owns": ["/time-off/approvals/waiting/:id", "/time-off/approvals/waiting/:id/suggest"]
         },
         { "path": "/time-off/approvals/coming-up", "label": "Coming up", "for": ["manager", "hr"] },
         { "path": "/time-off/approvals/decided", "label": "Decided", "for": ["manager", "hr"] },
@@ -149,6 +152,7 @@
       ]
     }
   ],
+  "slots": { "topBar": "TopBarClock" },
   "settings": [
     {
       "path": "/settings/time-off/leave-types",

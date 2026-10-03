@@ -96,6 +96,7 @@ import {
   leaveTypeSetting,
   leaveTypesSettings,
   negativeBalanceSettings,
+  policyPreview,
 } from '../application/screens/settings.js';
 import {
   ApprovalRuleBody,
@@ -123,6 +124,7 @@ import {
   ParentalCaseView,
   ParentalScreenView,
   ParentRoleView,
+  PolicyPreviewView,
   PunchView,
   RequestDetailView,
   RequestPanelView,
@@ -634,6 +636,17 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ key: LeaveTypeKey }),
     answer: LeaveTypeSettingView,
     run: (deps, caller, { params }) => leaveTypeSetting(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffPolicyPreview',
+    method: 'GET',
+    path: `${V1}/settings/policies/{policyId}/preview`,
+    summary:
+      'T30: what publishing the draft would do to each member this leave year, folded; nothing is saved; HR',
+    params: z.object({ policyId: PolicyId }),
+    answer: PolicyPreviewView,
+    run: (deps, caller, { params }) => policyPreview(deps)(caller, params),
     shape: same,
   }),
   route({

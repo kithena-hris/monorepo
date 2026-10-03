@@ -18,8 +18,9 @@ import {
   workingDays,
   type WorkCalendar,
 } from '../../domain/calendar/working-days.js';
+import { alternatives, type Alternative } from '../../domain/approval/alternatives.js';
 import { coverage, type Absence, type DayCoverage } from '../../domain/coverage/coverage.js';
-import { amount, days } from '../../domain/days.js';
+import { addDays, amount, days } from '../../domain/days.js';
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import type { LeaveRequest, Span } from '../../domain/request/leave-request.js';
 import type { Member, RequestRecord, Tx } from '../ports.js';
@@ -113,6 +114,41 @@ export async function teamBelow(
     ...extra,
   ];
   return coverage({ members, absences, minimum, from, to }).days.filter((day) => day.below);
+}
+
+/**
+ * What to do about a request that breaks its team's minimum (§9.5, §9.6):
+ * the domain's options, ranked, or `[]` for a team with no minimum. Read far
+ * enough ahead for the latest clean week the domain looks for (eight weeks
+ * out, then eight more of days).
+ */
+export async function teamAlternatives(
+  tx: Tx,
+  member: Member,
+  span: DateSpan,
+  excluding: string,
+): Promise<Alternative[]> {
+  if (member.teamKey === null) return [];
+  const minimum = await tx.approvals.teamMinimum(member.teamKey);
+  if (minimum === null) return [];
+  const until = addDays(span.from, 120);
+  const team = (await tx.members.list({ teamKey: member.teamKey })).filter(
+    (m) => m.status !== 'left',
+  );
+  const members = await Promise.all(
+    team.map(async (m) => ({
+      personId: m.personId,
+      calendar: await calendarOf(tx, m, span.from, until),
+    })),
+  );
+  const absences = await absencesIn(
+    tx,
+    team.map((m) => m.personId),
+    span.from,
+    until,
+    excluding,
+  );
+  return alternatives({ request: { personId: member.personId, span }, members, absences, minimum });
 }
 
 export async function assess(

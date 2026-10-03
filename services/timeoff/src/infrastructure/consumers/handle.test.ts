@@ -3,11 +3,14 @@ import {
   LocationCreated,
   LocationZoneChanged,
   PersonHired,
+  PersonIdentityLinked,
   PersonManagerChanged,
   PersonOrgChanged,
   PersonStatusChanged,
   PersonSyncedFromExternal,
   PersonTerminated,
+  TenantAdministratorNamed,
+  TenantAdministratorRemoved,
   type DefinedEvent,
 } from '@kithena/contracts';
 
@@ -22,6 +25,8 @@ import { locationKeyOf, teamKeyOf, timeoffConsumer } from './handle.js';
 const ADAM = people.adam;
 const ORG = '0c0c0c0c-0000-4000-8000-000000000001';
 const MADRID_OFFICE = '1d1d1d1d-0000-4000-8000-000000000001';
+const ADAM_ACCOUNT = '0000000a-0000-4000-8000-0000000000ad';
+const HR_ACCOUNT = '0000000a-0000-4000-8000-0000000000a1';
 
 /** UUIDv7 ids in the order given: `id(1)` is older than `id(2)`. */
 const id = (n: number): string => `01920000-0000-7000-8000-${String(n).padStart(12, '0')}`;
@@ -142,9 +147,20 @@ describe('the People consumer', () => {
         }),
       ),
     ).toBe('applied');
+    // He signs in for the first time: the account is how a caller becomes him.
+    expect(
+      await handle(
+        envelope(PersonIdentityLinked, 9, '2026-09-20', {
+          personId: ADAM,
+          identityAccountId: ADAM_ACCOUNT,
+          direction: 'person_first',
+        }),
+      ),
+    ).toBe('applied');
 
     expect(s.members.get(ADAM)).toEqual({
       personId: ADAM,
+      accountId: ADAM_ACCOUNT,
       displayName: 'Adam Novak',
       firstName: 'Adam',
       managerPersonId: people.omar,
@@ -160,8 +176,8 @@ describe('the People consumer', () => {
       terminationDate: '2026-12-31',
       workPattern: null,
       status: 'active',
-      lastEventId: id(8),
-      lastEffectiveFrom: '2026-09-15',
+      lastEventId: id(9),
+      lastEffectiveFrom: '2026-09-20',
     });
   });
 
@@ -187,5 +203,60 @@ describe('the People consumer', () => {
     const app = world('2026-10-01T07:00:00.000Z', { members: false });
     const handle = timeoffConsumer(app.deps);
     expect(await handle({ eventName: PersonHired.name, payload: {} })).toBe('rejected');
+  });
+});
+
+const graph = () => {
+  const calls: string[] = [];
+  return {
+    calls,
+    tuples: {
+      resync: (_t: string, personId: string) => {
+        calls.push(`resync ${personId}`);
+        return Promise.resolve();
+      },
+      setHrAdmin: (_t: string, accountId: string, holds: boolean) => {
+        calls.push(`hr_admin ${accountId} ${String(holds)}`);
+        return Promise.resolve();
+      },
+    },
+  };
+};
+const naming = (event: DefinedEvent, n: number, entitlement: string) =>
+  envelope(event, n, '2026-10-01', {
+    entitlement,
+    accountId: HR_ACCOUNT,
+    ...(event === TenantAdministratorNamed ? { namedBy: null } : { removedBy: null }),
+  });
+
+describe('the graph beside the projection', () => {
+  it("makes whom identity names Time Off's administrator HR, and takes it back", async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { members: false });
+    const { calls, tuples } = graph();
+    const handle = timeoffConsumer({ ...app.deps, tuples });
+
+    expect(await handle(naming(TenantAdministratorNamed, 1, 'module.timeoff'))).toBe('applied');
+    expect(await handle(naming(TenantAdministratorNamed, 2, 'module.people'))).toBe('ignored');
+    expect(await handle(naming(TenantAdministratorRemoved, 3, 'module.timeoff'))).toBe('applied');
+    expect(calls).toEqual([`hr_admin ${HR_ACCOUNT} true`, `hr_admin ${HR_ACCOUNT} false`]);
+  });
+
+  it('resyncs a member when a redelivered event changes nothing', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { members: false });
+    const { calls, tuples } = graph();
+    const handle = timeoffConsumer({ ...app.deps, tuples });
+
+    expect(await handle(hired)).toBe('applied');
+    // The first delivery's tuples are the unit of work's (`syncingTuples`); this
+    // one may be the retry after they failed.
+    expect(calls).toEqual([]);
+    expect(await handle(hired)).toBe('unchanged');
+    expect(calls).toEqual([`resync ${ADAM}`]);
+  });
+
+  it('ignores the naming without a graph to write it to', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { members: false });
+    const handle = timeoffConsumer(app.deps);
+    expect(await handle(naming(TenantAdministratorNamed, 1, 'module.timeoff'))).toBe('ignored');
   });
 });

@@ -107,14 +107,24 @@ export const calendarFeed =
         renderICal({
           name: claims.s === 'me' ? 'My time off' : 'Time off',
           stamp: deps.clock.instant(),
-          events: view.value.entries.map((e) => ({
-            uid: `${e.requestId}-${e.span.from}`,
-            summary: `${names.get(e.personId) ?? ''} · ${
-              e.shows === 'type' ? (types.get(e.leaveTypeKey) ?? e.leaveTypeKey) : 'Off'
-            }${e.status === 'pending' ? ' (pending)' : ''}`,
-            from: e.span.from,
-            to: e.span.to,
-          })),
+          events: [
+            ...view.value.entries.map((e) => ({
+              uid: `${e.requestId}-${e.span.from}`,
+              summary: `${names.get(e.personId) ?? ''} · ${
+                e.shows === 'type' ? (types.get(e.leaveTypeKey) ?? e.leaveTypeKey) : 'Off'
+              }${e.status === 'pending' ? ' (pending)' : ''}`,
+              from: e.span.from,
+              to: e.span.to,
+            })),
+            // A person's own feed carries the holidays where they work (MT21's
+            // "Add to my calendar"); a team's would repeat them per location.
+            ...(claims.s === 'me' ? view.value.holidays : []).map((h) => ({
+              uid: `holiday-${h.locationKey}-${h.date}`,
+              summary: `${h.name} · public holiday`,
+              from: h.date,
+              to: h.date,
+            })),
+          ],
         }),
       );
     });

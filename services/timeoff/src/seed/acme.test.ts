@@ -4,7 +4,7 @@ import { CalendarDate, LeaveTypeKey } from '@kithena/contracts';
 import { balanceFor } from '../application/shared.js';
 import { inMemoryTimeOff, sequentialIds } from '../application/testing/in-memory.js';
 import { TENANT } from '../application/testing/world.js';
-import { SEEDED_AT, seedAcme, team } from './acme.js';
+import { accounts, SEEDED_AT, seedAcme, team } from './acme.js';
 
 /** TOF-049's "done when", short of a browser: T1's numbers for Adam on 1 October. */
 describe('the Acme seed', () => {
@@ -45,5 +45,23 @@ describe('the Acme seed', () => {
       value: null,
     });
     expect(s.events).toHaveLength(events);
+  });
+
+  it("links each member to the account identity's seed invites, and relinks an older seed", async () => {
+    const app = inMemoryTimeOff(SEEDED_AT);
+    await seedAcme(app.deps.uow, TENANT, sequentialIds());
+    const s = app.state(TENANT);
+    expect(s.members.get(team.adam)?.accountId).toBe(accounts.adam);
+    expect(new Set([...s.members.values()].map((m) => m.accountId)).size).toBe(7);
+
+    // A database seeded before members carried an account.
+    const marco = s.members.get(team.marco);
+    if (marco === undefined) throw new Error('no Marco');
+    s.members.set(team.marco, { ...marco, accountId: null });
+    expect(await seedAcme(app.deps.uow, TENANT, sequentialIds())).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(s.members.get(team.marco)?.accountId).toBe(accounts.marco);
   });
 });

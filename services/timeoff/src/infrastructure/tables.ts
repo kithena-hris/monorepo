@@ -52,6 +52,8 @@ export const member = timeoff.table(
     workPattern: smallint('work_pattern').array(),
     status: text('status').notNull().default('active'),
     timeZone: text('time_zone').notNull().default('UTC'),
+    /** The account the member signs in with (TOF-050a); not unique, see the migration. */
+    accountId: uuid('account_id'),
     /** Only moves forward, with `lastEffectiveFrom`: see the migration. */
     lastEventId: uuid('last_event_id').notNull(),
     lastEffectiveFrom: calendarDate('last_effective_from').notNull(),

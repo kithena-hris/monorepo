@@ -79,12 +79,15 @@ running() { [ "$(docker container inspect -f '{{.State.Running}}' "$1" 2>/dev/nu
 compose() { # <env> <compose args…>
   local env="$1" dir="$root/$1"
   shift
-  local files=(-f "$dir/compose.yaml") people router
+  local files=(-f "$dir/compose.yaml") key value
   [ "$env" = staging ] && files+=(-f "$dir/compose.staging.yaml")
-  people="$(sed -n 's/^PEOPLE_IMAGE=//p' "$dir/state.env" | tail -n 1)"
-  router="$(sed -n 's/^ROUTER_IMAGE=//p' "$dir/state.env" | tail -n 1)"
-  PEOPLE_IMAGE="${people:-not-deployed-yet}" ROUTER_IMAGE="${router:-not-deployed-yet}" \
-    docker compose -p "kithena-$env" --project-directory "$dir" "${files[@]}" \
+  # Every image Compose interpolates; one never deployed (Time Off before its
+  # first deploy) would otherwise fail the whole command, and the VM never sleep.
+  for key in PEOPLE ROUTER SLACK AUDIT TIMEOFF; do
+    value="$(sed -n "s/^${key}_IMAGE=//p" "$dir/state.env" | tail -n 1)"
+    export "${key}_IMAGE=${value:-not-deployed-yet}"
+  done
+  docker compose -p "kithena-$env" --project-directory "$dir" "${files[@]}" \
     --env-file "$dir/secrets.env" --env-file "$dir/state.env" "$@"
 }
 

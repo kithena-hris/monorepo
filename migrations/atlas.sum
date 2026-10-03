@@ -1,4 +1,4 @@
-h1:Um5OL+Frmk9mosgi0Oma2oO5ua13l4EAYfjWfXFg9KY=
+h1:BYAeC7jtk7lo5Fyl4VgCr5Eog3JuTcUDCNjrX6PIoI0=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -94,4 +94,5 @@ h1:Um5OL+Frmk9mosgi0Oma2oO5ua13l4EAYfjWfXFg9KY=
 20261003110400_timeoff_attendance.sql h1:wBUjW+PfOmhHR0MoFXYEzbz3JBsoz5Upg4txAAM3R/w=
 20261003120000_timeoff_repositories.sql h1:2Uns5sNmgS+61wVu/abB/KTLQfRH8GAF8TGky2+LM8c=
 20261003120100_timeoff_idempotency.sql h1:LOEbNJYWxhe5cF0CuNmEJAtHsZfRdkLvjILd6UFvjpc=
-20261003130000_timeoff_parental.sql h1:3O5FwX5cB5ZGFgFtAxZlSU8mvdijbKjFMITCCraZlx4=
+20261003130000_timeoff_member_account.sql h1:/U9TSQtoiDZbIR64EBwMFbNpSQfvol16Q6f21lDevd8=
+20261003140000_timeoff_parental.sql h1:BJbUWJzCBa7VWoB0z+ixnT+RyuSwuCDBpSx0UHNhVMQ=

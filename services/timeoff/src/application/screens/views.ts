@@ -290,6 +290,11 @@ export const HolidaysView = named(
 
 /* --------------------------------------------------------------- manager -- */
 
+export const PersonRef = named(
+  'TimeOffPersonRef',
+  z.object({ personId: PersonId, displayName: z.string() }),
+);
+
 export const LookCloserReason = named(
   'TimeOffLookCloser',
   z.object({
@@ -344,12 +349,41 @@ export const DecisionView = named(
       ),
     ),
     canDecide: z.boolean(),
+    /** The member's last approved or taken time off before these dates (§9.4). */
+    lastTaken: RangeView.nullable(),
+    /**
+     * What to do about a clash with the team minimum (§9.5, §9.6), ranked by
+     * the domain: the requester's own changes first, then none, then asking a
+     * teammate. Each with its days and their coverage. Empty when nothing
+     * clashes in a team with a minimum, or the request waits on nobody.
+     */
+    alternatives: z.array(
+      named(
+        'TimeOffAlternative',
+        z.object({
+          kind: z.enum(['swap_days', 'next_clean_week', 'approve_as_asked', 'ask_teammate']),
+          affects: z.enum(['requester', 'nobody', 'teammate']),
+          dates: z.array(CalendarDate),
+          spans: z.array(RangeView),
+          coverage: z.array(CoverageDay),
+          /** `swap_days`: the clash days out, and the days in. */
+          swapped: z.object({ out: z.array(CalendarDate), in: z.array(CalendarDate) }).nullable(),
+          /** `ask_teammate`: whose approved time off would move, and which. */
+          teammate: PersonRef.nullable(),
+          absence: RangeView.nullable(),
+        }),
+      ),
+    ),
   }),
 );
 
 export const DelegationView = named(
   'TimeOffDelegation',
   z.object({
+    /** The caller, whose delegate this is: the approver a change is for. */
+    approverId: PersonId,
+    /** Where a request nobody decides goes after three working days: the caller's manager. */
+    escalatesTo: PersonRef.nullable(),
     delegation: z
       .object({
         delegateId: PersonId,
@@ -359,9 +393,7 @@ export const DelegationView = named(
         salaryRelated: z.boolean(),
       })
       .nullable(),
-    candidates: z.array(
-      named('TimeOffPersonRef', z.object({ personId: PersonId, displayName: z.string() })),
-    ),
+    candidates: z.array(PersonRef),
     coveringFor: z.array(
       named(
         'TimeOffCover',
@@ -384,7 +416,12 @@ export const CalendarView = named(
     people: z.array(
       named(
         'TimeOffCalendarPerson',
-        z.object({ personId: PersonId, displayName: z.string(), teamKey: TeamKey.nullable() }),
+        z.object({
+          personId: PersonId,
+          displayName: z.string(),
+          teamKey: TeamKey.nullable(),
+          teamName: z.string().nullable(),
+        }),
       ),
     ),
     entries: z.array(
@@ -499,9 +536,15 @@ const LeaveTypeRow = named(
   }),
 );
 
+/** A country pack the tenant's statutory types or holidays came from, and whether a lawyer signed it off. */
+const PackView = named(
+  'TimeOffCountryPack',
+  z.object({ country: z.string(), version: z.int(), reviewed: z.boolean() }),
+);
+
 export const LeaveTypesView = named(
   'TimeOffSettingsLeaveTypes',
-  z.object({ leaveTypes: z.array(LeaveTypeRow) }),
+  z.object({ leaveTypes: z.array(LeaveTypeRow), packs: z.array(PackView) }),
 );
 
 const PolicyVersionView = named(
@@ -520,6 +563,40 @@ export const LeaveTypeSettingView = named(
     leaveType: LeaveTypeRow,
     policies: z.array(
       named('TimeOffPolicy', z.object({ id: z.uuid(), versions: z.array(PolicyVersionView) })),
+    ),
+  }),
+);
+
+/** One amount now and under the draft. */
+const AmountChange = named(
+  'TimeOffAmountChange',
+  z.object({ current: DayAmount, draft: DayAmount }),
+);
+
+/**
+ * T30: what publishing the draft would do to each member the draft or the
+ * version in effect reaches, folded over this leave year
+ * (`domain/policy/preview.ts`). `effectiveFrom` is the leave year's first
+ * day, the date to publish from for the whole year to follow the draft.
+ * `draftVersion` is `null` when there is no draft, and `members` empty.
+ */
+export const PolicyPreviewView = named(
+  'TimeOffPolicyPreview',
+  z.object({
+    draftVersion: z.int().nullable(),
+    effectiveFrom: CalendarDate,
+    yearEnd: CalendarDate,
+    members: z.array(
+      named(
+        'TimeOffMemberPreview',
+        z.object({
+          personId: PersonId,
+          displayName: z.string(),
+          allowance: AmountChange,
+          left: AmountChange,
+          lostAtYearEnd: AmountChange,
+        }),
+      ),
     ),
   }),
 );
@@ -628,6 +705,7 @@ export const HolidaySettingsView = named(
   'TimeOffSettingsHolidays',
   z.object({
     year: z.int(),
+    packs: z.array(PackView),
     layers: z.array(HolidayLayerBody),
     locations: z.array(
       named(
@@ -821,6 +899,7 @@ export type TimesheetView = View<typeof TimesheetView>;
 export type RightNowView = View<typeof RightNowView>;
 export type LeaveTypesView = View<typeof LeaveTypesView>;
 export type LeaveTypeSettingView = View<typeof LeaveTypeSettingView>;
+export type PolicyPreviewView = View<typeof PolicyPreviewView>;
 export type NegativeBalanceView = View<typeof NegativeBalanceView>;
 export type AttendanceSettingsView = View<typeof AttendanceSettingsView>;
 export type ApprovalsSettingsView = View<typeof ApprovalsSettingsView>;

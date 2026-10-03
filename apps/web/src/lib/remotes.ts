@@ -68,7 +68,19 @@ const RouteManifest = z.object({
    * not somewhere you work.
    */
   settings: z.array(Place).default([]),
+  /**
+   * What the remote draws in the shell's own chrome, on every page of a
+   * company that has the area: by the place's name, the export that fills
+   * it. The shell names the places (`topBar`, beside search and the bell)
+   * and fetches each one's data; the remote says what goes there. Time
+   * Off's clock is `{ "topBar": "TopBarClock" }`. A name this shell does
+   * not know is left alone, so a remote can offer a place before the shell
+   * draws it.
+   */
+  slots: z.record(z.string(), z.string().min(1)).default({}),
 });
+/** The places in the shell's chrome a remote may fill. */
+export type SlotName = 'topBar';
 
 /**
  * The sections and actions this viewer's roles open, in the manifest's order.
@@ -444,13 +456,16 @@ export async function remoteNav(area: Area): Promise<{
   readonly nav: RemoteRoute['nav'];
   readonly routes: readonly string[];
   readonly screens: RemoteRoute['screens'];
+  /** The shell's places the remote fills, and with which export. */
+  readonly slots: Readonly<Partial<Record<SlotName, string>>>;
 } | null> {
   const parsed = RouteManifest.safeParse(await manifestOf(remoteBase(area)));
   if (!parsed.success) return null;
-  const { routes, sections, actions, settings } = parsed.data;
+  const { routes, sections, actions, settings, slots } = parsed.data;
   return {
     nav: { sections, actions, settings },
     routes: routes.map((r) => r.path),
     screens: Object.fromEntries(routes.map((r) => [r.path, r.component])),
+    slots: slots['topBar'] === undefined ? {} : { topBar: slots['topBar'] },
   };
 }
