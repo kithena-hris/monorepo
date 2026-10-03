@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import { setShortcutKeys } from '@reach/ui';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
@@ -256,14 +257,47 @@ describe('Directory', () => {
     const look = screen.getByRole('complementary', { name: 'Quick look' });
     expect(within(look).getByRole('heading', { name: 'Lena Moreau' })).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
-    // ↑ moves the look to the person above, ↵ opens them.
+    // ↑ moves the look to the person above; ↵ keeps them on the card, and
+    // the profile is the card's own button.
     screen.getByRole('button', { name: 'Lena Moreau' }).focus();
     await user.keyboard('{ArrowUp}');
     expect(within(look).getByRole('heading', { name: 'Adam Reyes' })).toBeInTheDocument();
     await user.keyboard('{Enter}');
-    expect(onOpen).toHaveBeenCalledWith('a');
-    await user.click(within(look).getByRole('button', { name: 'Profile' }));
+    expect(within(look).getByRole('heading', { name: 'Adam Reyes' })).toBeInTheDocument();
+    expect(onOpen).not.toHaveBeenCalled();
+    await user.click(within(look).getByRole('button', { name: 'Open profile' }));
     expect(onOpen).toHaveBeenLastCalledWith('a');
+  });
+
+  it('opens the card on Enter from a row, never the profile, which is the row’s Edit key', async () => {
+    const user = fast();
+    const onOpen = vi.fn();
+    setShortcutKeys({ keys: { 'row.edit': ['e'] }, characterKeys: true });
+    const { container } = render(<Directory {...props({ onOpen })} />);
+    await user.click(
+      within(screen.getByRole('complementary', { name: 'Quick look' })).getByRole('button', {
+        name: 'Close',
+      }),
+    );
+    const row = container.querySelector<HTMLElement>('tr[data-row-id="l"]');
+    row?.focus();
+    await user.keyboard('{Enter}');
+    const look = screen.getByRole('complementary', { name: 'Quick look' });
+    expect(within(look).getByRole('heading', { name: 'Lena Moreau' })).toBeInTheDocument();
+    expect(onOpen).not.toHaveBeenCalled();
+    // From the name, where ↑ and ↓ leave the keyboard, too.
+    screen.getByRole('button', { name: 'Adam Reyes' }).focus();
+    await user.keyboard('{Enter}');
+    expect(within(look).getByRole('heading', { name: 'Adam Reyes' })).toBeInTheDocument();
+    expect(onOpen).not.toHaveBeenCalled();
+    await user.keyboard('e');
+    expect(onOpen).toHaveBeenCalledWith('a');
+    // The keys are said once, under the list, not on the card.
+    const hint = screen.getByText(/to open the card/);
+    expect(look).not.toContainElement(hint);
+    expect(hint).toHaveTextContent(/to move.*to open the card.*E for the profile/);
+    expect(within(look).queryByText(/next record/)).toBeNull();
+    setShortcutKeys({ keys: {}, characterKeys: true });
   });
 
   it('lets HR choose people and edit them together, and nobody else choose at all (PEO-071)', async () => {

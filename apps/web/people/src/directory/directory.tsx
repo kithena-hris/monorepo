@@ -10,6 +10,8 @@ import {
   DataTable,
   EmptyState,
   FilterBuilder,
+  Kbd,
+  KbdShortcut,
   KeyValues,
   List,
   ListItem,
@@ -37,8 +39,11 @@ import {
   Toolbar,
   icons,
   isConditionComplete,
+  keysOf,
+  pressed,
   useCoarsePointer,
   useInView,
+  useShortcutKeys,
   type ColumnChooserValue,
   type DataColumn,
   type DataTableHandle,
@@ -902,6 +907,7 @@ function Body({
   onPlaceChange,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const coarse = useCoarsePointer();
+  const keys = useShortcutKeys();
   const busyId = useId();
   const smart = onAsk !== undefined;
   // Without smart search the field searches names as they are typed; with it, Enter asks.
@@ -1110,9 +1116,9 @@ function Body({
       <Avatar size="md" name={p.name} src={p.avatarUrl ?? undefined} />
       <span className="min-w-0">
         {/*
-          The name is the row's control: Space or a click opens the quick
-          look, ↵ the full profile, and ↑ ↓ walk the people without leaving
-          the list.
+          The name is the row's control: a click or ↵ opens their quick look,
+          ↑ ↓ walk the people without leaving the list, and the profile is
+          the row's Edit key (E) or the card's Open profile.
         */}
         <button
           id={`person-${p.id}`}
@@ -1124,6 +1130,9 @@ function Body({
           }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
+              event.preventDefault();
+              setPeek(p.id);
+            } else if (pressed(event, 'row.edit', keys)) {
               event.preventDefault();
               onOpen(p.id);
             } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -1364,9 +1373,10 @@ function Body({
       onRowClick={(p) => {
         setPeek(p.id);
       }}
-      // From the keyboard: Enter or O to the profile, Space for the quick look.
+      // Enter or O opens the card, as a click does; the profile is the
+      // row's Edit key or the card's Open profile. Space toggles the card.
       onRowOpen={(p) => {
-        onOpen(p.id);
+        setPeek(p.id);
       }}
       onRowPreview={(p) => {
         setPeek(peek === p.id ? null : p.id);
@@ -1414,9 +1424,24 @@ function Body({
             ),
           })}
       stickyHeader
+      striped
       empty={empty}
     />
   );
+  // Where the reader is in a list that keeps loading, and the way back: at
+  // the list's own top corner, never over the quick look beside it.
+  const pill =
+    placed.top === 0 || onLoadMore === undefined ? null : (
+      <ScrollPosition
+        onBackToTop={placed.toTop}
+        className={
+          coarse || view === 'cards' ? 'fixed end-4 bottom-40 z-20' : 'absolute end-4.5 top-15 z-10'
+        }
+      >
+        {`${(placed.last + 1).toLocaleString('en-GB')} of ${state.total.toLocaleString('en-GB')}`}
+      </ScrollPosition>
+    );
+  const profileKeys = keysOf('row.edit', keys);
 
   // Smart search's row: the conditions in force as the chips a question
   // became, the order when it is not by name, and the parts not used.
@@ -1713,9 +1738,14 @@ function Body({
       <div ref={wrapper} className="relative">
         {peeked !== null && view === 'list' && !coarse ? (
           <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4">
-            {table}
+            <div className="relative min-w-0">
+              {table}
+              {pill}
+            </div>
             <QuickLook
               className="sticky top-4"
+              // Its keys are the list's, said once under the list.
+              hideHints
               media={
                 <Avatar
                   name={peeked.name}
@@ -1756,7 +1786,7 @@ function Body({
                       onOpen(peeked.id);
                     }}
                   >
-                    Profile
+                    Open profile
                   </Button>
                 </>
               }
@@ -1791,22 +1821,27 @@ function Body({
             </QuickLook>
           </div>
         ) : (
-          table
-        )}
-        {placed.top === 0 || onLoadMore === undefined ? null : (
-          // Where the reader is in a list that keeps loading, and the way back.
-          <ScrollPosition
-            onBackToTop={placed.toTop}
-            className={
-              coarse || view === 'cards'
-                ? 'fixed end-4 bottom-40 z-20'
-                : 'absolute end-4.5 top-15 z-10'
-            }
-          >
-            {`${(placed.last + 1).toLocaleString('en-GB')} of ${state.total.toLocaleString('en-GB')}`}
-          </ScrollPosition>
+          <>
+            {table}
+            {pill}
+          </>
         )}
       </div>
+      {view === 'list' && !coarse && rows.length > 0 ? (
+        // The list's keys, under the list rather than on the card they move.
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-fg-muted">
+          <Kbd keyName="up" />
+          <Kbd keyName="down" /> to move
+          <span aria-hidden>·</span>
+          <Kbd keyName="enter" /> to open the card
+          {profileKeys.length === 0 ? null : (
+            <>
+              <span aria-hidden>·</span>
+              <KbdShortcut keys={profileKeys} /> for the profile
+            </>
+          )}
+        </p>
+      ) : null}
       {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
         <div ref={endOfPage} aria-hidden className="h-px" />
       ) : null}
