@@ -17,9 +17,12 @@ import type { TimeOffCountryPack } from './pack.js';
  * Sources, as of October 2026: Estatuto de los Trabajadores arts. 34, 37, 38,
  * 48 and 48 bis as amended by RDL 5/2023 and RDL 9/2025; the BOE list of
  * fiestas laborales for 2026 (Resolución de 17 de octubre de 2025); Comunidad
- * de Madrid Decreto 75/2025 (2026) and its 2027 decree of 30 September 2026;
- * Catalonia's Ordre EMT/66/2025 (2026) and its 2027 order; the Madrid and
- * Barcelona city councils' local days for 2026 and 2027.
+ * de Madrid Decreto 75/2025 (2026) and Decreto 82/2026, BOCM 1 October 2026
+ * (2027); Catalonia's Ordre EMT/66/2025 (2026) and Ordre EMT/52/2026 (2027);
+ * the Madrid and Barcelona city councils' local days for 2026 and 2027 — the
+ * 2027 ones approved by the councils, the regional resolution that makes them
+ * official still due in December. In the Val d'Aran, 17 June replaces Sant
+ * Esteve (2026) and Easter Monday (2027); the pack has no Aran calendar.
  */
 
 const type = (
@@ -203,6 +206,7 @@ const barcelonaCity = layer('barcelona', 'Barcelona city', 'city', [
 const parental = {
   law: 'ET art. 48.4, RDL 9/2025',
   paidBy: 'social_security',
+  /** Of the base reguladora, capped at the maximum contribution base (LGSS art. 179), not of salary. */
   payPercent: 100,
   /** Each parent's own weeks. Not transferable between them. */
   twoParents: { mandatoryWeeks: 6, flexibleWeeks: 11, laterWeeks: 2 },

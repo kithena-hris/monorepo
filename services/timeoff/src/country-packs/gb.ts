@@ -8,7 +8,9 @@ import { holidayLayer, statutoryType, type TimeOffCountryPack } from './pack.js'
  * Sources, as of October 2026:
  * - Working Time Regulations 1998 (WTR) regs 13 and 13A: 5.6 weeks' leave a
  *   year, 28 days on a five-day week, which may include the bank holidays;
- *   reg 10: eleven hours' rest; reg 9: records kept two years.
+ *   reg 10: eleven hours' rest; reg 9: working-hours records kept two years;
+ *   reg 16B (from 6 April 2026, Employment Rights Act 2025 s.35): records of
+ *   annual leave and holiday pay kept six years.
  * - Statutory Sick Pay (Social Security Contributions and Benefits Act 1992,
  *   Part XI) and the Statutory Sick Pay (Medical Evidence) Regulations 1985:
  *   an employee self-certifies the first seven days, a fit note after.
@@ -27,9 +29,14 @@ import { holidayLayer, statutoryType, type TimeOffCountryPack } from './pack.js'
  * - Neonatal Care (Leave and Pay) Act 2023, in force 6 April 2025: up to 12
  *   weeks while a newborn is in neonatal care.
  * - Parental Bereavement (Leave and Pay) Act 2018: two weeks.
+ * - The Bereaved Partner's Paternity Leave Regulations 2026 (SI 2026/237),
+ *   from 6 April 2026, Great Britain only: unpaid leave from the day after the
+ *   mother's or main adopter's death, in one block, ending by the child's
+ *   first birthday or placement anniversary — up to 52 weeks.
  * - Bank holidays: the Banking and Financial Dealings Act 1971 and the
  *   dates the UK Government publishes at gov.uk/bank-holidays for England and
- *   Wales and for Scotland. A holiday on a weekend is observed on the next
+ *   Wales and for Scotland, including Scotland's one-off World Cup bank
+ *   holiday on 15 June 2026. A holiday on a weekend is observed on the next
  *   working day ("substitute day"), which the layer's rule computes rather
  *   than listing. Easter 2026 is 5 April, 2027 28 March.
  */
@@ -179,6 +186,19 @@ const leaveTypes = [
       visibility: 'off_only',
     },
   ),
+  statutoryType(
+    'bereaved_partner_paternity',
+    'Bereaved partner’s paternity leave',
+    {},
+    {
+      category: 'parental_leave',
+      colorToken: 'chart-6',
+      icon: 'baby',
+      tracked: false,
+      paid: 'unpaid',
+      visibility: 'off_only',
+    },
+  ),
 ];
 
 const entitlements: TimeOffCountryPack['entitlements'] = {
@@ -191,6 +211,7 @@ const entitlements: TimeOffCountryPack['entitlements'] = {
   parental_unpaid: { days: 126, counted: 'calendar', per: 'event' }, // 18 weeks per child
   carers: { days: 5, counted: 'working', per: 'year' }, // one working week
   parental_bereavement: { days: 14, counted: 'calendar', per: 'event' }, // 2018 Act: 2 weeks
+  bereaved_partner_paternity: { days: 364, counted: 'calendar', per: 'event' }, // SI 2026/237: up to 52 weeks
 };
 
 /** The days England and Wales and Scotland share. */
@@ -218,6 +239,7 @@ const englandAndWales = holidayLayer('gb_eaw', 'England and Wales', 'regional', 
 
 const scotland = holidayLayer('gb_sct', 'Scotland', 'regional', 'move_to_monday', [
   ['2026-01-02', '2nd January'],
+  ['2026-06-15', 'World Cup bank holiday'],
   ['2026-08-03', 'Summer bank holiday'],
   ['2026-11-30', 'St Andrew’s Day'],
   ['2027-01-02', '2nd January'],
@@ -236,7 +258,8 @@ export const gb = {
     london: [national, englandAndWales],
     edinburgh: [national, scotland],
   },
-  // WTR reg 10: eleven hours' rest. Reg 9: records kept two years.
-  attendance: { minimumRestHours: 11, retentionYears: 2 },
+  // WTR reg 10: eleven hours' rest. Reg 16B: leave records kept six years,
+  // longer than reg 9's two for hours, so the longer one wins.
+  attendance: { minimumRestHours: 11, retentionYears: 6 },
   parental: null,
 } satisfies TimeOffCountryPack;
