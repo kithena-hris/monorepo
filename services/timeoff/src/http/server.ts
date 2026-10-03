@@ -68,7 +68,10 @@ export function timeoffListener(graphql: Listener, rest?: RestDispatch): Listene
   };
 }
 
-export interface TimeOffServerOptions extends Pick<Deps, 'uow' | 'authz' | 'feedSecret'> {
+export interface TimeOffServerOptions extends Pick<
+  Deps,
+  'uow' | 'authz' | 'feedSecret' | 'judge' | 'writer'
+> {
   readonly callerFrom: CallerFrom;
   readonly clock?: Deps['clock'];
   readonly newId?: Deps['newId'];
@@ -96,6 +99,8 @@ export function timeoffServer(options: TimeOffServerOptions): {
     newId: options.newId ?? uuidv7,
     timers: options.timers ?? { started: async () => {}, closed: async () => {} },
     notifier: options.notifier ?? { notify: async () => {} },
+    ...(options.judge === undefined ? {} : { judge: options.judge }),
+    ...(options.writer === undefined ? {} : { writer: options.writer }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

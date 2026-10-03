@@ -13,6 +13,7 @@ import {
   type TenantId,
 } from '@kithena/contracts';
 
+import type { Judge, Writer } from './assist/ports.js';
 import type { ApprovalRule, ApproverRole, AutoApproval } from '../domain/approval/approval-rule.js';
 import type { Delegation } from '../domain/approval/delegation.js';
 import type { Punch } from '../domain/attendance/clock.js';
@@ -406,6 +407,10 @@ export interface Deps {
   readonly notifier: Notifier;
   /** Signs calendar feed tokens. */
   readonly feedSecret: string;
+  /** TypeSafe's judgments (`TYPESAFE_API_KEY`); absent, every caller uses its own rule (§14.1). */
+  readonly judge?: Judge;
+  /** The assistant's lines (`ASSISTANT_*`); absent, every line is its template (§14.1). */
+  readonly writer?: Writer;
 }
 
 export const userActor = (caller: Caller): Actor => ({ kind: 'user', userId: caller.accountId });

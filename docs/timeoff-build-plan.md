@@ -1458,7 +1458,7 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### Assistance
 
-### [ ] TOF-084 — AI ports and the gateway
+### [x] TOF-084 — AI ports and the gateway
 
 - **Spec** PRD §14.1
 - **Files** `services/timeoff/src/application/assist/`,
@@ -1469,6 +1469,20 @@ test passes, and it matches the design's screen on the seeded demo company.
   nothing on failure; template fallbacks for every caller.
 - **Done when** the standalone suite is green with the keys unset and with them
   set and `fetch` mocked.
+- **As built** `Judge.choose` asks choice questions over one state in one
+  TypeSafe call (`TYPESAFE_API_KEY`) and keeps only options it offered;
+  `Writer.write` asks People's OpenAI-compatible model (`ASSISTANT_*`, copied,
+  not shared) for one JSON object of lines. Both are optional on `Deps`, both
+  go through `timeOffGateway`, which loads the same denied keys and words for
+  every tenant (sick note, due and birth dates, a person's name or id), and
+  both remember answers per tenant and ask (500, per process). `written()` is
+  the one way a feature gets text: the template without a writer, else the
+  model's line, refused back to the template when it is not one line, leaves
+  a placeholder unfilled or carries a number the facts do not. People are
+  placeholders (`{who}`) filled in after the answer, so no name reaches a
+  model. The standalone suite builds the ports from the environment; CI sets
+  both keys on its second run and the suite answers the two model addresses
+  with a 503.
 
 ### [ ] TOF-085 — Bridge days
 

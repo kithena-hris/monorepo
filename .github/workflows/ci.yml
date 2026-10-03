@@ -387,6 +387,7 @@ jobs:
       - name: boot the module alone, TypeSafe key set (advisor mocked)
         env:
           TYPESAFE_API_KEY: standalone-dummy-key
+          ASSISTANT_API_KEY: standalone-dummy-key
         run: pnpm --filter @kithena/${{ matrix.module }} test:standalone
 
   # The tenant app as a person meets it: Postgres with every migration,

@@ -5,6 +5,7 @@ import type { Caller } from '../application/ports.js';
 import { ADA_ACCOUNT, caller, people, TENANT, world } from '../application/testing/world.js';
 import type { CallerFrom } from '../http/caller.js';
 import type { RestRequest, RestResponse } from '../http/rest.js';
+import { assistFrom } from '../composition.js';
 import { timeoffServer } from '../http/server.js';
 
 /**
@@ -19,9 +20,10 @@ import { timeoffServer } from '../http/server.js';
  * through manager then HR, a day clocked and corrected, and the month closed
  * for Payroll.
  *
- * Time Off calls no AI service yet, so `TYPESAFE_API_KEY` changes nothing
- * here; CI runs this file with it unset and set, and `fetch` answers nothing
- * in either, so a feature that reached for the network would fail here.
+ * CI runs this file with `TYPESAFE_API_KEY` and `ASSISTANT_API_KEY` unset and
+ * then set (PRD §14.1). Set, the model ports exist and `fetch` answers their
+ * two addresses with a 503, so every screen here must still come out whole on
+ * its rules and templates; any other address fails the test.
  */
 
 const header =
@@ -53,7 +55,7 @@ const callerFrom: CallerFrom = (request) => ok(callers[request.headers['x-as'] a
 
 function boot() {
   const app = world('2026-10-01T07:00:00.000Z', { members: false });
-  const server = timeoffServer({ ...app.deps, callerFrom });
+  const server = timeoffServer({ ...app.deps, ...assistFrom(process.env), callerFrom });
   let keys = 0;
   const rest = async (
     who: Who,
@@ -112,12 +114,14 @@ const DECIDE = `mutation ($id: String!, $input: JSON!, $key: String!) {
 
 const vacation = (from: string, to: string) => ({ leaveTypeKey: 'vacation', span: { from, to } });
 
-/** Whatever `fetch` is asked for, recorded; nothing answers. */
+/** The model ports' two addresses, which answer 503; anything else is recorded and refused. */
+const MODELS = /^https:\/\/(api\.typesafe\.ai|api\.groq\.com)\//u;
 const asked: string[] = [];
 beforeEach(() => {
   asked.length = 0;
   vi.stubGlobal('fetch', (input: string | URL | Request) => {
     const url = input instanceof Request ? input.url : String(input);
+    if (MODELS.test(url)) return Promise.resolve(new Response('{}', { status: 503 }));
     asked.push(url);
     return Promise.reject(new Error(`the standalone suite reached for the network: ${url}`));
   });
