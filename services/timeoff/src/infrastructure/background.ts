@@ -12,6 +12,7 @@ import {
   postAccruals,
   yearEnd,
 } from '../application/jobs.js';
+import { parentalNotices } from '../application/parental/parental.js';
 import type { Deps, Notifier } from '../application/ports.js';
 import { knownTenants } from './drizzle-members.js';
 import { drizzleUnitOfWork, uuidv7 } from './unit-of-work.js';
@@ -31,6 +32,7 @@ import { drizzleUnitOfWork, uuidv7 } from './unit-of-work.js';
  * - **mark-taken**, daily: approved requests whose last day has passed.
  * - **missed-punch**, hourly: the morning check for clock-outs nobody made.
  * - **clock-out-reminder**, every 15 minutes: still in at 20:00, where they are.
+ * - **parental-notices**, hourly: a flexible block's notice falling due today.
  */
 
 export const QUEUE_NAME = 'timeoff-jobs';
@@ -51,6 +53,7 @@ export function jobs(
     'mark-taken': { pattern: '45 0 * * *', run: markTakenDue(deps) },
     'missed-punch': { pattern: '0 * * * *', run: missedPunchCheck(deps) },
     'clock-out-reminder': { pattern: '*/15 * * * *', run: clockOutReminder(deps) },
+    'parental-notices': { pattern: '30 * * * *', run: parentalNotices(deps) },
   };
 }
 

@@ -19,6 +19,16 @@ type Mutation {
     requestId: String!
   ): TimeOffRequestStatus!
   """
+  T8: the four answers and what teammates see; starts or re-answers a private draft
+  """
+  answerTimeOffParental(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffParentalAnswered!
+  """T11: approve a sent plan after the rules check; HR"""
+  approveTimeOffParentalPlan(idempotencyKey: String!, planId: String!): TimeOffParentalPlanStatus!
+  """
   Approve several; only the ones triage calls clear, the rest are refused with why
   """
   approveTimeOffRequests(
@@ -97,6 +107,15 @@ type Mutation {
     input: JSON!
   ): TimeOffPolicyDrafted!
   """
+  T9: the draft’s blocks as the parent left them, and every rule they break
+  """
+  editTimeOffParentalBlocks(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    planId: String!
+  ): TimeOffParentalBlocksSaved!
+  """
   Members from CSV or JSON when People is absent: a dry run, then all rows or none; HR
   """
   importTimeOffMembers(
@@ -125,6 +144,15 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): TimeOffPunched!
+  """
+  The baby arrived: the mandatory weeks move to the birth; the parent or HR
+  """
+  recordTimeOffParentalBirth(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    planId: String!
+  ): TimeOffDone!
   """Nobody covers for an approver any more"""
   removeTimeOffDelegation(approverId: String!, idempotencyKey: String!): TimeOffDone!
   """Remove a holiday layer; HR"""
@@ -153,6 +181,17 @@ type Mutation {
     input: JSON!
     key: String!
   ): TimeOffDone!
+  """T10: who covers what while the parent is away, and what teammates see"""
+  saveTimeOffParentalHandover(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    planId: String!
+  ): TimeOffDone!
+  """
+  T10: send the plan to HR and the manager; refused while a rule is broken
+  """
+  sendTimeOffParentalPlan(idempotencyKey: String!, planId: String!): TimeOffParentalPlanStatus!
   """T34: who approves what, and what is approved automatically; HR"""
   setTimeOffApprovalRules(
     idempotencyKey: String!
@@ -253,6 +292,14 @@ type Query {
   timeOffNegativeBalanceSettings: TimeOffSettingsNegativeBalance!
   """T1: the clock, the balances, what is coming up and who is off today"""
   timeOffOverview: TimeOffOverview!
+  """
+  T11: a sent plan with its checklist and rules check; HR and the manager
+  """
+  timeOffParentalCase(planId: String!): TimeOffParentalCase!
+  """
+  T8–T10: the caller’s parental plan, and the entitlement the answers asked about would give; nothing is saved
+  """
+  timeOffParentalPlan(childDate: String, children: Int, role: String, singleParent: Boolean): TimeOffParentalScreen!
   """One request, for its member, an approver or HR"""
   timeOffRequest(requestId: String!): TimeOffRequestDetail!
   """
@@ -375,6 +422,13 @@ type TimeOffCalendarYear {
   year: Int!
 }
 
+type TimeOffCaseStep {
+  key: String!
+  module: String
+  on: String
+  status: String!
+}
+
 type TimeOffCorrection {
   needsManager: Boolean!
   punch: TimeOffPunch!
@@ -440,6 +494,11 @@ type TimeOffDelegationDelegation {
 
 type TimeOffDone {
   ok: Boolean!
+}
+
+type TimeOffHandoverItem {
+  coveredBy: String!
+  work: String!
 }
 
 type TimeOffHoliday {
@@ -596,6 +655,11 @@ type TimeOffNegativeBalanceRule {
   onLeaving: String!
 }
 
+type TimeOffNoticeReminder {
+  blockFrom: String!
+  remindOn: String!
+}
+
 type TimeOffOpenDay {
   date: String!
   lastPunchAt: String!
@@ -635,6 +699,80 @@ type TimeOffOverviewClock {
   workModel: String
 }
 
+type TimeOffParentalAnswered {
+  planId: String!
+}
+
+type TimeOffParentalBlock {
+  from: String!
+  kind: String!
+  leaveTypeKey: String!
+  paidBy: String!
+  payPercent: Int!
+  to: String!
+  workingDays: String!
+}
+
+type TimeOffParentalBlocksSaved {
+  problems: [TimeOffPlanRule!]!
+}
+
+type TimeOffParentalCase {
+  canApprove: Boolean!
+  checklist: [TimeOffCaseStep!]!
+  managerName: String
+  member: TimeOffMember!
+  plan: TimeOffParentalPlan!
+}
+
+type TimeOffParentalEntitlement {
+  companyAfterYears: Int
+  companyWeeks: Int!
+  flexibleBefore: String!
+  flexibleWeeks: Int!
+  laterBefore: String!
+  laterWeeks: Int!
+  law: String!
+  mandatoryWeeks: Int!
+  noticeDays: Int!
+  paidBy: String!
+  payPercent: Int!
+  startsFrom: String!
+  vacationAccrues: Boolean!
+}
+
+type TimeOffParentalPlan {
+  approvedAt: String
+  birth: String
+  blocks: [TimeOffParentalBlock!]!
+  childDate: String!
+  children: Int!
+  dueDate: String
+  entitlement: TimeOffParentalEntitlement!
+  handover: [TimeOffHandoverItem!]!
+  keptWeeks: Float!
+  planId: String!
+  problems: [TimeOffPlanProblem!]!
+  reminders: [TimeOffNoticeReminder!]!
+  role: String!
+  sentAt: String
+  singleParent: Boolean!
+  status: String!
+  teamSees: String!
+}
+
+type TimeOffParentalPlanStatus {
+  status: String!
+}
+
+type TimeOffParentalScreen {
+  managerName: String
+  member: TimeOffMember
+  plan: TimeOffParentalPlan
+  preview: TimeOffParentalEntitlement
+  supported: Boolean!
+}
+
 type TimeOffPayPeriodClosed {
   from: String!
   members: Int!
@@ -645,6 +783,16 @@ type TimeOffPayPeriodClosed {
 type TimeOffPersonRef {
   displayName: String!
   personId: String!
+}
+
+type TimeOffPlanProblem {
+  code: String!
+  message: String!
+}
+
+type TimeOffPlanRule {
+  code: String!
+  message: String!
 }
 
 type TimeOffPolicy {

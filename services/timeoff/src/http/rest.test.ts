@@ -152,4 +152,33 @@ describe('REST', () => {
     });
     expect(revoked).toMatchObject({ status: 401, body: { error: { code: 'INVALID_TOKEN' } } });
   });
+
+  it('answers, sends and approves a parental plan; the entitlement reads from the query', async () => {
+    const { call } = boot();
+    const asked = await call({
+      url: '/v1/timeoff/parental?role=other_parent&childDate=2027-01-14&singleParent=false&children=2',
+    });
+    expect(asked.body).toMatchObject({ plan: null, preview: { flexibleWeeks: 12 } });
+    const answered = await call({
+      method: 'POST',
+      url: '/v1/timeoff/parental',
+      headers: { 'idempotency-key': 'p1' },
+      body: JSON.stringify({ role: 'other_parent', childDate: '2027-01-14' }),
+    });
+    const { planId } = answered.body as { planId: string };
+    const sent = await call({
+      method: 'POST',
+      url: `/v1/timeoff/parental/${planId}/send`,
+      headers: { 'idempotency-key': 'p2' },
+    });
+    expect(sent.body).toEqual({ status: 'submitted' });
+    expect((await call({ url: `/v1/timeoff/parental/${planId}/case` })).status).toBe(200);
+    const approved = await call({
+      as: 'ada',
+      method: 'POST',
+      url: `/v1/timeoff/parental/${planId}/approve`,
+      headers: { 'idempotency-key': 'p3' },
+    });
+    expect(approved.body).toEqual({ status: 'approved' });
+  });
 });
