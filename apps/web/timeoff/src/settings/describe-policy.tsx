@@ -320,8 +320,8 @@ function Ready({
                 <Alert
                   tone="warning"
                   title={data.question.title}
-                  action={
-                    <span className="flex flex-wrap gap-2">
+                  actions={
+                    <>
                       {data.question.options.map((o, i) => (
                         <Button
                           key={o.value}
@@ -338,7 +338,7 @@ function Ready({
                           {o.label}
                         </Button>
                       ))}
-                    </span>
+                    </>
                   }
                 >
                   <span className="inline-flex flex-wrap items-center gap-2">
