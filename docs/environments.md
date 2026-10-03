@@ -109,7 +109,7 @@ affected targets after a merge to `main`, and that is the only automatic deploy:
 - `vercel-preview` runs only on a pull request labelled `preview`: adding the
   label and every push after it deploy the apps that push affected.
 - `vercel-staging` runs only by hand (`gh workflow run vercel-staging.yml --ref
-  <branch> -f targets=all`).
+<branch> -f targets=all`).
 - Vercel's own Git deploys are off for the one project connected to the
   repository (`apps/admin/vercel.json`, `git.deploymentEnabled: false`); the
   workflows deploy through the CLI, which that setting does not affect.
@@ -127,19 +127,19 @@ called with `only`), so migrations, smoke tests, rollbacks and the
 
 **Targets.** Each deploy workflow knows these, one gated group of steps each:
 
-| Target          | Ships                         | Affected by                                                               |
-| --------------- | ----------------------------- | ------------------------------------------------------------------------- |
-| `shell`         | `apps/web` (tenant app)       | `@kithena/web` or anything it depends on                                  |
-| `auth`          | `apps/auth/shell`             | `@kithena/auth-shell` …                                                   |
-| `admin`         | `apps/admin`                  | `@kithena/admin` …                                                        |
-| `identity`      | `platform/identity`           | `@kithena/identity` …                                                     |
-| `messaging`     | `platform/messaging`          | `@kithena/messaging` …                                                    |
-| `docs`          | `apps/docs`                   | `@reach/docs` … (production and previews only)                            |
-| `storybook`     | `apps/storybook`              | `@reach/storybook` … (production and previews only)                       |
-| `people-remote` | `apps/web/people`             | `@kithena/web-people` … (not previewed)                                   |
-| `people`        | People's image, on the VM     | `@kithena/people` …, `deploy/vm/**`                                       |
+| Target          | Ships                         | Affected by                                                                                       |
+| --------------- | ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `shell`         | `apps/web` (tenant app)       | `@kithena/web` or anything it depends on                                                          |
+| `auth`          | `apps/auth/shell`             | `@kithena/auth-shell` …                                                                           |
+| `admin`         | `apps/admin`                  | `@kithena/admin` …                                                                                |
+| `identity`      | `platform/identity`           | `@kithena/identity` …                                                                             |
+| `messaging`     | `platform/messaging`          | `@kithena/messaging` …                                                                            |
+| `docs`          | `apps/docs`                   | `@reach/docs` … (production and previews only)                                                    |
+| `storybook`     | `apps/storybook`              | `@reach/storybook` … (production and previews only)                                               |
+| `people-remote` | `apps/web/people`             | `@kithena/web-people` … (not previewed)                                                           |
+| `people`        | People's image, on the VM     | `@kithena/people` …, `deploy/vm/**`                                                               |
 | `router`        | the router's image, on the VM | `@kithena/gateway` … (config, persisted operations), `services/people/schemas/**`, `deploy/vm/**` |
-| `migrations`    | Atlas, Neon and the VM        | `migrations/**`, `atlas.hcl`                                              |
+| `migrations`    | Atlas, Neon and the VM        | `migrations/**`, `atlas.hcl`                                                                      |
 
 "…" is turbo's graph: a change to `packages/ui` reaches `shell`, `auth`,
 `admin`, `docs`, `storybook` and `people-remote`; one to `packages/contracts`
@@ -346,14 +346,13 @@ plan this ends up on.
 
 ### The auth origin's server
 
-`apps/auth/shell` pins `typescript` to 6 while the rest of the repository uses
-7. Modern.js compiles `server/` with the TypeScript programmatic API —
+`apps/auth/shell` pins `typescript` to 6 while the rest of the repository uses 7. Modern.js compiles `server/` with the TypeScript programmatic API —
 `TypescriptLoader({ appDirectory }).load()`, resolving from the app directory —
 and `CLAUDE.md` already records that 7.0 ships no programmatic API. Concretely,
 `require('typescript').sys` is `undefined` on 7.0.2 and the build dies in
 `getFormatHost`. The pin is on that one package, so nothing else slows down.
 
-Two things that do *not* fix it, both tried: a `pnpm.overrides` entry keyed
+Two things that do _not_ fix it, both tried: a `pnpm.overrides` entry keyed
 `@modern-js/server-utils>typescript`, which cannot work because typescript is
 only a devDependency there and no edge exists to override; and a
 `packageExtensions` entry, which does place TS6 inside server-utils but is
@@ -399,7 +398,7 @@ behind `node:http`. A Node function receives `VercelRequest` and
 route moved across unchanged and so did its tests.
 
 This ran on Fly until 2026-08-22. The reason it did was real at the time — the
-service held a Postgres pool *and a Valkey connection* across requests, and a
+service held a Postgres pool _and a Valkey connection_ across requests, and a
 function-per-request runtime takes both away. Valkey is gone: challenges live
 in Postgres, because a Valkey machine with no declared services could not be
 autostarted by Fly's proxy and took a passkey enrolment down with it. What was
@@ -413,25 +412,24 @@ deploy.
 
 Three things this depends on, none of them optional:
 
-  * **The pooled Neon host.** `IDENTITY_DATABASE_URL` must be the `-pooler`
-    endpoint. A serverless instance opening a direct connection each time is
-    the objection that sent this to a container in the first place.
-  * **`prepare: false` and `max: 1`** on the postgres client, set in
-    `composition.ts`. Neon's pooler is PgBouncer in transaction mode, which
-    hands a different server connection to each transaction — a prepared
-    statement made on one is missing on the next. It fails as
-    `prepared statement "s1" does not exist`, under concurrency and nowhere
-    else.
-  * **A custom domain.** `ssoProtection` is `all_except_custom_domains`, so
-    every `*.vercel.app` host answers `302` to a login page. Only
-    `identity.staging.kithena.com` and `identity.kithena.com` are reachable,
-    which is also why the smoke tests name them rather than the deployment URL.
+- **The pooled Neon host.** `IDENTITY_DATABASE_URL` must be the `-pooler`
+  endpoint. A serverless instance opening a direct connection each time is
+  the objection that sent this to a container in the first place.
+- **`prepare: false` and `max: 1`** on the postgres client, set in
+  `composition.ts`. Neon's pooler is PgBouncer in transaction mode, which
+  hands a different server connection to each transaction — a prepared
+  statement made on one is missing on the next. It fails as
+  `prepared statement "s1" does not exist`, under concurrency and nowhere
+  else.
+- **A custom domain.** `ssoProtection` is `all_except_custom_domains`, so
+  every `*.vercel.app` host answers `302` to a login page. Only
+  `identity.staging.kithena.com` and `identity.kithena.com` are reachable,
+  which is also why the smoke tests name them rather than the deployment URL.
 
 `Dockerfile` and `src/main.ts` stay, and are not dead weight. They are what
 `just dev` runs, and they are the reason this is still an HTTP server that
 happens to be deployed as a function rather than one that can only ever be a
 function. Nothing under `src/` imports anything from Vercel.
-
 
 ### Until then, the back-office is a locked door
 
@@ -459,9 +457,9 @@ Every enrolment and recovery link is built from `AUTH_ORIGIN`, and two services
 read it: identity mints the link, messaging refuses to send one that is not on
 that origin. They must agree, and the value differs per environment.
 
-| Setting        | Local                            | Staging                          | Production                |
-| -------------- | -------------------------------- | -------------------------------- | ------------------------- |
-| `AUTH_ORIGIN`  | `http://auth.app.localhost:3100` | `https://auth.staging.kithena.com` | `https://auth.kithena.com` |
+| Setting        | Local                            | Staging                             | Production                  |
+| -------------- | -------------------------------- | ----------------------------------- | --------------------------- |
+| `AUTH_ORIGIN`  | `http://auth.app.localhost:3100` | `https://auth.staging.kithena.com`  | `https://auth.kithena.com`  |
 | `ADMIN_ORIGIN` | `http://localhost:3001`          | `https://admin.staging.kithena.com` | `https://admin.kithena.com` |
 
 Set on the identity, messaging and tenant-app projects alike. A deployment that
@@ -591,8 +589,7 @@ the router has); a SCIM request carries no forwarded list to fall back on.
   composed against `http://people:4001` — People's name on the Compose
   network, the same in every environment, so one router image serves both —
   and `apps/gateway/scripts/smoke.ts` starts it: a persisted operation must
-  pass, an unknown hash must be refused, a request without a token must get
-  401. People's image (`services/people/Dockerfile`, `node:24-bookworm-slim`)
+  pass, an unknown hash must be refused, a request without a token must get 401. People's image (`services/people/Dockerfile`, `node:24-bookworm-slim`)
   must boot and answer `/health`, which is where a native module built for the
   wrong architecture dies. Both are pushed to GHCR as
   `ghcr.io/<owner>/kithena-{people,router}:<sha>`.
@@ -707,17 +704,17 @@ use (2,000 and 1,600 rows: upload, dry run, commit) and two exports, the
 second over 2,000 rows so it went through the BullMQ queue. Peak is the
 highest `docker stats` reading across two such runs.
 
-| Container | Idle | Light load, peak | Limit | Knobs |
-| --- | --- | --- | --- | --- |
-| people | 233 MB | 566 MB | **768 MB** | `NODE_OPTIONS=--max-old-space-size=384` |
-| postgres (People's data, Temporal, OpenFGA) | 99 MB | 247 MB | **512 MB** | `shared_buffers=128MB`, `effective_cache_size=512MB`, `work_mem=4MB`, `maintenance_work_mem=32MB`, `max_connections=80` |
-| redpanda | 78 MB | 100 MB | **512 MB** | `--memory 320M`, `--smp 1`, dev-container mode (overprovisioned, no reserved memory) |
-| temporal (auto-setup) | 138 MB | 303 MB | **448 MB** | `GOMEMLIMIT=320MiB`; pools `SQL_MAX_CONNS=5`, `SQL_VIS_MAX_CONNS=2` |
-| router | 28 MB | 52 MB | **128 MB** | `GOMEMLIMIT=100MiB` |
-| openfga | 16 MB | 57 MB | **128 MB** | `GOMEMLIMIT=100MiB`; `MAX_OPEN_CONNS=10` |
-| valkey | 7 MB | 15 MB | **128 MB** | `maxmemory 64mb`, `noeviction` (BullMQ); limit twice that for the AOF rewrite's fork |
-| cloudflared | 20 MB | 46 MB | **96 MB** | — |
-| **Total** | **0.6 GB** | **1.4 GB** | **2.66 GB** | |
+| Container                                   | Idle       | Light load, peak | Limit       | Knobs                                                                                                                   |
+| ------------------------------------------- | ---------- | ---------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------- |
+| people                                      | 233 MB     | 566 MB           | **768 MB**  | `NODE_OPTIONS=--max-old-space-size=384`                                                                                 |
+| postgres (People's data, Temporal, OpenFGA) | 99 MB      | 247 MB           | **512 MB**  | `shared_buffers=128MB`, `effective_cache_size=512MB`, `work_mem=4MB`, `maintenance_work_mem=32MB`, `max_connections=80` |
+| redpanda                                    | 78 MB      | 100 MB           | **512 MB**  | `--memory 320M`, `--smp 1`, dev-container mode (overprovisioned, no reserved memory)                                    |
+| temporal (auto-setup)                       | 138 MB     | 303 MB           | **448 MB**  | `GOMEMLIMIT=320MiB`; pools `SQL_MAX_CONNS=5`, `SQL_VIS_MAX_CONNS=2`                                                     |
+| router                                      | 28 MB      | 52 MB            | **128 MB**  | `GOMEMLIMIT=100MiB`                                                                                                     |
+| openfga                                     | 16 MB      | 57 MB            | **128 MB**  | `GOMEMLIMIT=100MiB`; `MAX_OPEN_CONNS=10`                                                                                |
+| valkey                                      | 7 MB       | 15 MB            | **128 MB**  | `maxmemory 64mb`, `noeviction` (BullMQ); limit twice that for the AOF rewrite's fork                                    |
+| cloudflared                                 | 20 MB      | 46 MB            | **96 MB**   | —                                                                                                                       |
+| **Total**                                   | **0.6 GB** | **1.4 GB**       | **2.66 GB** |                                                                                                                         |
 
 Added since, measured the same way but not in the runs above: `slack` (**160
 MB**, `--max-old-space-size=96`) and the two outbox relays, `relay-people` and
@@ -751,12 +748,12 @@ it makes one.
 
 **Architecture.** Four places, each doing the one thing it is cheapest at:
 
-| Piece | Where | Always on? |
-| --- | --- | --- |
-| Tenant app (shell), People remote, back-office, auth origin, Reach docs | Vercel Hobby | Yes |
-| Identity and messaging | Vercel functions; identity's data on Neon Free | Yes (Neon's compute sleeps between requests) |
-| People, the router, Redpanda, Temporal, OpenFGA, Valkey, People's Postgres | One EC2 `c7i-flex.large`, reached only through Cloudflare Tunnel (public) and AWS Systems Manager Session Manager (deploys, SSH); no inbound port | No: sleeps when idle, wakes on demand |
-| Uploads, exports, reports, backups | Amazon S3, three private buckets in the same region | Yes |
+| Piece                                                                      | Where                                                                                                                                             | Always on?                                   |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Tenant app (shell), People remote, back-office, auth origin, Reach docs    | Vercel Hobby                                                                                                                                      | Yes                                          |
+| Identity and messaging                                                     | Vercel functions; identity's data on Neon Free                                                                                                    | Yes (Neon's compute sleeps between requests) |
+| People, the router, Redpanda, Temporal, OpenFGA, Valkey, People's Postgres | One EC2 `c7i-flex.large`, reached only through Cloudflare Tunnel (public) and AWS Systems Manager Session Manager (deploys, SSH); no inbound port | No: sleeps when idle, wakes on demand        |
+| Uploads, exports, reports, backups                                         | Amazon S3, three private buckets in the same region                                                                                               | Yes                                          |
 
 **The Free plan** (accounts opened since July 2025): up to $200 of credits —
 $100 at sign-up and up to $100 more for trying services — spent against normal
@@ -770,16 +767,16 @@ up when staging should share the VM.
 
 **What it costs a month** (us-east-1 on-demand):
 
-| | Always on (730 h) | Stopped when idle (~4 h each weekday, ~90 h) |
-| --- | --- | --- |
-| `c7i-flex.large`, ~$0.085/h | ~$62 | ~$7.60 |
-| Public IPv4, $0.005/h while running | ~$3.65 | ~$0.45 |
-| 30 GB gp3, $0.08/GB-month, running or not | $2.40 | $2.40 |
-| S3: a few GB at $0.023/GB-month, a few thousand requests | < $0.25 | < $0.25 |
-| Data out: inside AWS's 100 GB a month free | $0 | $0 |
-| EventBridge Scheduler, Budgets, IAM, Session Manager | $0 | $0 |
-| **AWS, a month** | **~$68** | **~$11** |
-| Vercel Hobby, Neon Free, Cloudflare (DNS, Tunnel), Resend Free, GHCR, GitHub Actions | $0 | $0 |
+|                                                                                      | Always on (730 h) | Stopped when idle (~4 h each weekday, ~90 h) |
+| ------------------------------------------------------------------------------------ | ----------------- | -------------------------------------------- |
+| `c7i-flex.large`, ~$0.085/h                                                          | ~$62              | ~$7.60                                       |
+| Public IPv4, $0.005/h while running                                                  | ~$3.65            | ~$0.45                                       |
+| 30 GB gp3, $0.08/GB-month, running or not                                            | $2.40             | $2.40                                        |
+| S3: a few GB at $0.023/GB-month, a few thousand requests                             | < $0.25           | < $0.25                                      |
+| Data out: inside AWS's 100 GB a month free                                           | $0                | $0                                           |
+| EventBridge Scheduler, Budgets, IAM, Session Manager                                 | $0                | $0                                           |
+| **AWS, a month**                                                                     | **~$68**          | **~$11**                                     |
+| Vercel Hobby, Neon Free, Cloudflare (DNS, Tunnel), Resend Free, GHCR, GitHub Actions | $0                | $0                                           |
 
 Always on, $200 of credits last under three months; stopped when idle, they
 cover the whole six. S3's transfer from the instance is free in the same
@@ -795,18 +792,35 @@ than the host; at 1, the container's token request dies on the way back and
 the SDK finds no credentials. The role's whole policy:
 
 ```json
-{ "Statement": [
-  { "Sid": "ListTheThreeBuckets", "Effect": "Allow", "Action": "s3:ListBucket",
-    "Resource": ["arn:aws:s3:::kithena-<account>-uploads",
-                 "arn:aws:s3:::kithena-<account>-exports",
-                 "arn:aws:s3:::kithena-<account>-backups"] },
-  { "Sid": "UploadsAndExports", "Effect": "Allow",
-    "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-    "Resource": ["arn:aws:s3:::kithena-<account>-uploads/*",
-                 "arn:aws:s3:::kithena-<account>-exports/*"] },
-  { "Sid": "BackupsWithoutDelete", "Effect": "Allow",
-    "Action": ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload"],
-    "Resource": "arn:aws:s3:::kithena-<account>-backups/*" } ] }
+{
+  "Statement": [
+    {
+      "Sid": "ListTheThreeBuckets",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": [
+        "arn:aws:s3:::kithena-<account>-uploads",
+        "arn:aws:s3:::kithena-<account>-exports",
+        "arn:aws:s3:::kithena-<account>-backups"
+      ]
+    },
+    {
+      "Sid": "UploadsAndExports",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": [
+        "arn:aws:s3:::kithena-<account>-uploads/*",
+        "arn:aws:s3:::kithena-<account>-exports/*"
+      ]
+    },
+    {
+      "Sid": "BackupsWithoutDelete",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:AbortMultipartUpload"],
+      "Resource": "arn:aws:s3:::kithena-<account>-backups/*"
+    }
+  ]
+}
 ```
 
 The backups bucket has no delete: a compromised VM can add a backup but cannot
@@ -865,11 +879,20 @@ OIDC token, which `@vercel/oidc-aws-credentials-provider` exchanges for the
 owner:<team>:project:kithena-web-production:environment:production`. The role:
 
 ```json
-{ "Statement": [
-  { "Effect": "Allow", "Action": "ec2:StartInstances",
-    "Resource": "arn:aws:ec2:<region>:<account>:instance/<id>" },
-  { "Effect": "Allow", "Action": ["ec2:DescribeInstances", "ec2:DescribeInstanceStatus"],
-    "Resource": "*" } ] }
+{
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "ec2:StartInstances",
+      "Resource": "arn:aws:ec2:<region>:<account>:instance/<id>"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["ec2:DescribeInstances", "ec2:DescribeInstanceStatus"],
+      "Resource": "*"
+    }
+  ]
+}
 ```
 
 `Describe*` cannot be narrower: EC2 has no resource-level permissions for
@@ -904,23 +927,53 @@ counts it). The deploy workflows get narrower rights than the operator: the
 deploy role's policy is
 
 ```json
-{ "Statement": [
-  { "Sid": "StartThisInstance", "Effect": "Allow", "Action": "ec2:StartInstances",
-    "Resource": "arn:aws:ec2:<region>:<account>:instance/<id>" },
-  { "Sid": "DescribeHasNoResourceLevelPermissions", "Effect": "Allow",
-    "Action": ["ec2:DescribeInstances", "ec2:DescribeInstanceStatus",
-               "ssm:DescribeInstanceInformation"], "Resource": "*" },
-  { "Sid": "SshSessionToThisInstanceOnly", "Effect": "Allow", "Action": "ssm:StartSession",
-    "Resource": ["arn:aws:ec2:<region>:<account>:instance/<id>",
-                 "arn:aws:ssm:<region>::document/AWS-StartSSHSession"],
-    "Condition": { "BoolIfExists": { "ssm:SessionDocumentAccessCheck": "true" } } },
-  { "Sid": "OwnSessionsOnly", "Effect": "Allow",
-    "Action": ["ssm:TerminateSession", "ssm:ResumeSession"],
-    "Resource": "arn:aws:ssm:<region>:<account>:session/*",
-    "Condition": { "StringLike": {
-      "ssm:resourceTag/aws:ssmmessages:session-id": "${aws:userid}*" } } },
-  { "Sid": "SessionDataChannel", "Effect": "Allow", "Action": "ssmmessages:OpenDataChannel",
-    "Resource": "arn:aws:ssm:<region>:<account>:session/*" } ] }
+{
+  "Statement": [
+    {
+      "Sid": "StartThisInstance",
+      "Effect": "Allow",
+      "Action": "ec2:StartInstances",
+      "Resource": "arn:aws:ec2:<region>:<account>:instance/<id>"
+    },
+    {
+      "Sid": "DescribeHasNoResourceLevelPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "ssm:DescribeInstanceInformation"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SshSessionToThisInstanceOnly",
+      "Effect": "Allow",
+      "Action": "ssm:StartSession",
+      "Resource": [
+        "arn:aws:ec2:<region>:<account>:instance/<id>",
+        "arn:aws:ssm:<region>::document/AWS-StartSSHSession"
+      ],
+      "Condition": { "BoolIfExists": { "ssm:SessionDocumentAccessCheck": "true" } }
+    },
+    {
+      "Sid": "OwnSessionsOnly",
+      "Effect": "Allow",
+      "Action": ["ssm:TerminateSession", "ssm:ResumeSession"],
+      "Resource": "arn:aws:ssm:<region>:<account>:session/*",
+      "Condition": {
+        "StringLike": {
+          "ssm:resourceTag/aws:ssmmessages:session-id": "${aws:userid}*"
+        }
+      }
+    },
+    {
+      "Sid": "SessionDataChannel",
+      "Effect": "Allow",
+      "Action": "ssmmessages:OpenDataChannel",
+      "Resource": "arn:aws:ssm:<region>:<account>:session/*"
+    }
+  ]
+}
 ```
 
 trusted for `repo:<repo>:environment:staging` and `…:production` only. The
@@ -944,7 +997,7 @@ lands.
    plugin (`brew install --cask session-manager-plugin`, or AWS's package).
 2. **Provision.** Create or import an EC2 key pair for the `ubuntu` user
    (`kithena-operator`), then `deploy/aws/provision.sh --vercel-team <team
-   slug> --budget-email <you> --key-name kithena-operator` and read the plan it
+slug> --budget-email <you> --key-name kithena-operator` and read the plan it
    prints; then the same with `--apply`. It makes, in this order: the security
    group (no inbound rule at all); the three buckets; the `kithena-vm` role
    (with `AmazonSSMManagedInstanceCore`) and instance profile; the instance (Canonical's
@@ -992,6 +1045,7 @@ lands.
    - `api.kithena.com` (no path) → `http://router:4000`
 
    (Staging: `api.staging.kithena.com`.) Cloudflare adds the DNS record.
+
 6. **Vercel project for the People remote**, staging and production: Framework
    **Other**, Root Directory **empty**, no build command. **Do not connect the
    Git repository**: a Git build is unsigned. Add a custom domain to each. Ids
@@ -1031,18 +1085,18 @@ included — go with it.
 
 #### The bill of materials
 
-| Piece | Service, plan | Limits that matter here |
-| --- | --- | --- |
-| People, router, Redpanda, Temporal, OpenFGA, Valkey | **One EC2 `c7i-flex.large`**, `us-east-1` (above) | ~$11 a month stopped when idle, paid from Free-plan credits. 30 GB of disk holds the images, the volumes and the swapfile; People's image is ~520 MB. Staging does not fit beside production (see "Memory budget"). |
-| Uploads, exports, reports, backups | **Amazon S3**, three buckets | Cents a month; SSE-S3, private, lifecycle rules as below. |
-| Public HTTPS for the router | **Cloudflare Tunnel** (Zero Trust Free) | Free, no bandwidth charge; the VM opens no inbound port. |
-| People's database | **The VM's Postgres** | Inside the instance's disk and memory; no separate bill. No point-in-time restore — see "Backups". |
-| Identity's database | **Neon Free** (unchanged) | 100 CU-hours per project a month, 0.5 GB storage, 5 GB egress; scale-to-zero after 5 minutes. Identity is request-driven and sleeps, so it sits well inside the hours. |
-| Frontends, identity, messaging | **Vercel Hobby** | 100 deployments a day — every PR run spends several, one per project. **No deployment protection on production or a custom domain** (the API refuses `ssoProtection` there), which is why the back-office's own check is its only door. Hobby is non-commercial use only: the first paying customer is the trigger for Pro. |
-| Email | **Resend Free** | 3,000 emails a month, 100 a day, one domain. |
-| Images | **GHCR** | Container registry storage and bandwidth are currently free; the published Packages allowance on GitHub Free is 500 MB storage and 1 GB/month transfer for private packages, if that ever applies. Measured: People's image is ~520 MB uncompressed, most of it one layer that changes every commit; the router's per-commit layers are under 1 MB. Five versions of each are kept (`delete-package-versions`). Pulls by Actions are free. **Making both packages public** (the repository is public and the images hold no secret) takes them out of any quota for good. |
-| CI | **GitHub Actions**, public repository | Standard runners free. |
-| Private access | **AWS Systems Manager Session Manager** | Free for EC2 instances. IAM decides who, CloudTrail records every session; no inbound port, no third-party account. |
+| Piece                                               | Service, plan                                     | Limits that matter here                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| People, router, Redpanda, Temporal, OpenFGA, Valkey | **One EC2 `c7i-flex.large`**, `us-east-1` (above) | ~$11 a month stopped when idle, paid from Free-plan credits. 30 GB of disk holds the images, the volumes and the swapfile; People's image is ~520 MB. Staging does not fit beside production (see "Memory budget").                                                                                                                                                                                                                                                                                                                                                       |
+| Uploads, exports, reports, backups                  | **Amazon S3**, three buckets                      | Cents a month; SSE-S3, private, lifecycle rules as below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Public HTTPS for the router                         | **Cloudflare Tunnel** (Zero Trust Free)           | Free, no bandwidth charge; the VM opens no inbound port.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| People's database                                   | **The VM's Postgres**                             | Inside the instance's disk and memory; no separate bill. No point-in-time restore — see "Backups".                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Identity's database                                 | **Neon Free** (unchanged)                         | 100 CU-hours per project a month, 0.5 GB storage, 5 GB egress; scale-to-zero after 5 minutes. Identity is request-driven and sleeps, so it sits well inside the hours.                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Frontends, identity, messaging                      | **Vercel Hobby**                                  | 100 deployments a day — every PR run spends several, one per project. **No deployment protection on production or a custom domain** (the API refuses `ssoProtection` there), which is why the back-office's own check is its only door. Hobby is non-commercial use only: the first paying customer is the trigger for Pro.                                                                                                                                                                                                                                               |
+| Email                                               | **Resend Free**                                   | 3,000 emails a month, 100 a day, one domain.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Images                                              | **GHCR**                                          | Container registry storage and bandwidth are currently free; the published Packages allowance on GitHub Free is 500 MB storage and 1 GB/month transfer for private packages, if that ever applies. Measured: People's image is ~520 MB uncompressed, most of it one layer that changes every commit; the router's per-commit layers are under 1 MB. Five versions of each are kept (`delete-package-versions`). Pulls by Actions are free. **Making both packages public** (the repository is public and the images hold no secret) takes them out of any quota for good. |
+| CI                                                  | **GitHub Actions**, public repository             | Standard runners free.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Private access                                      | **AWS Systems Manager Session Manager**           | Free for EC2 instances. IAM decides who, CloudTrail records every session; no inbound port, no third-party account.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 #### Why Session Manager for deploys
 
@@ -1060,13 +1114,13 @@ Docker rather than inside it.
 
 Same names in both environments, different values.
 
-| Secret | Holds |
-| --- | --- |
-| `VM_DEPLOY_SSH_KEY` | The `deploy` user's ed25519 private key, OpenSSH format (checklist step 3). The same key in both environments while they share the VM. |
-| `CLOUDFLARE_TUNNEL_TOKEN` | That environment's tunnel token (step 5). |
-| `PEOPLE_API_TOKEN` | The token the router sends People as `x-internal-token`. Written to both on every deploy, so the two cannot disagree. Random, 32+ bytes. |
-| `PEOPLE_ENV` | Every other People setting, as a dotenv file (below). Written to `/etc/kithena/<env>/people.env`, 0600, on every deploy. |
-| `PEOPLE_REMOTE_SSR_SIGNING_KEY` | The Ed25519 private key, base64 PKCS#8 DER. Never put in Vercel. |
+| Secret                          | Holds                                                                                                                                    |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `VM_DEPLOY_SSH_KEY`             | The `deploy` user's ed25519 private key, OpenSSH format (checklist step 3). The same key in both environments while they share the VM.   |
+| `CLOUDFLARE_TUNNEL_TOKEN`       | That environment's tunnel token (step 5).                                                                                                |
+| `PEOPLE_API_TOKEN`              | The token the router sends People as `x-internal-token`. Written to both on every deploy, so the two cannot disagree. Random, 32+ bytes. |
+| `PEOPLE_ENV`                    | Every other People setting, as a dotenv file (below). Written to `/etc/kithena/<env>/people.env`, 0600, on every deploy.                 |
+| `PEOPLE_REMOTE_SSR_SIGNING_KEY` | The Ed25519 private key, base64 PKCS#8 DER. Never put in Vercel.                                                                         |
 
 `PEOPLE_ENV` — one multi-line secret, so a setting People gains later (the
 Kafka SASL/TLS settings, the uploads bucket) is a secret edit, not a workflow
@@ -1108,22 +1162,43 @@ the object and decrypts it on `GET /v1/exports/files/…`, which is why that one
 path is routed through the tunnel and the bucket stays private. Nothing
 presigns a GET.
 
+#### Time Off's settings
+
+Time Off has no VM service yet (TOF-004), so none of these is a GitHub secret
+today and the deployed router's `TIMEOFF_API_TOKEN` is empty, which Time Off
+refuses. When it gets one, they follow People's pattern exactly: the token as
+an environment secret written to both the router's and Time Off's env files on
+every deploy, the rest in a `TIMEOFF_ENV` file, and the Compose addresses in
+`compose.yaml`.
+
+| Setting                    | Holds                                                                                                                                                                                         |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TIMEOFF_DATABASE_URL`     | `svc_timeoff`'s connection. Unset: the subgraph serves its schema, every field answers UNAVAILABLE, no REST, no consumer, no job. A Compose address, like People's.                           |
+| `TIMEOFF_API_TOKEN`        | What the router sends Time Off as `x-internal-token` (`apps/gateway/config.yaml`), the pair's own secret. Falls back to `INTERNAL_API_TOKEN`; empty refuses every request. Random, 32+ bytes. |
+| `TIMEOFF_FEED_SECRET`      | Signs calendar feed links. Required in production (the process refuses to boot without it); rotating it revokes every subscribed feed. Random, 32+ bytes.                                     |
+| `TIMEOFF_OPENFGA_STORE_ID` | Time Off's own store on the shared `OPENFGA_URL`, never People's `OPENFGA_STORE_ID`. Unset: found by name (`timeoff`) or created. Without `OPENFGA_URL` nobody approves or is HR in Time Off. |
+
+`OPENFGA_URL`, `KAFKA_BROKERS`, `VALKEY_URL` and `TEMPORAL_ADDRESS` are the
+same Compose addresses People reads. Who is HR in Time Off is whoever the back
+office names as its administrator (`identity.tenant.administrator_named` for
+`module.timeoff`), so Time Off consumes identity's topic as well as People's.
+
 #### GitHub: repository variables (Settings → Secrets and variables → Actions → Variables)
 
-| Variable | Holds |
-| --- | --- |
-| `VM_PLATFORM` | The VM's platform: `linux/amd64` (unset means this), which the EC2 `c7i-flex.large` is; `linux/arm64` only for a Graviton instance. Picks the native runner the images are built on; anything else fails the images job. |
-| `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`, `AWS_REGION` | The EC2 instance id, the `kithena-workspace-wake` role and its region, all printed by `deploy/aws/provision.sh`. Passed to the shell, which then wakes the VM from the People pages. Any unset: waking is off. |
-| `WORKSPACE_INSTANCE_ID_STAGING` | The instance staging deploys to, which is production's while they share it. Both ids are also the SSH target: the deploy connects to `deploy@<id>` through Session Manager. |
-| `AWS_DEPLOY_ROLE_ARN` | `kithena-deploy-wake`, the deploy role both deploys assume to start the VM, wait for its SSM agent and open the SSH tunnel. Required with `ROUTER_URL_*`. |
-| `ROUTER_URL_STAGING`, `ROUTER_URL_PRODUCTION` | `https://api.staging.kithena.com`, `https://api.kithena.com`. Unset: People and the router are skipped for that environment. Also the shell's `ROUTER_URL`. |
-| `AUTH_TOKEN_AUDIENCE_STAGING`, `AUTH_TOKEN_AUDIENCE_PRODUCTION` | Exactly identity's `AUTH_TOKEN_AUDIENCE` in that environment (`kithena-router` locally). A mismatch refuses every token. |
-| `KITHENA_ENTITLEMENTS_STAGING`, `KITHENA_ENTITLEMENTS_PRODUCTION` | Exactly identity's `KITHENA_ENTITLEMENTS`, a JSON array, e.g. `["module.people"]`. |
-| `VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING`, `VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION` | The remote's Vercel project id (`prj_…`). Unset: the remote is skipped. |
-| `PEOPLE_REMOTE_URL_STAGING`, `PEOPLE_REMOTE_URL_PRODUCTION` | The remote's custom domain, `https://…`, no trailing slash. |
-| `PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION` | The Ed25519 public key, base64 SPKI DER. |
-| `TIMEOFF_REMOTE_URL_STAGING`, `TIMEOFF_REMOTE_URL_PRODUCTION` | The Time Off remote's custom domain, `https://…`, no trailing slash. Passed to the shell as `TIMEOFF_REMOTE_URL`. Unset: Time off is unavailable in the shell. |
-| `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING`, `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_PRODUCTION` | The Time Off remote's Ed25519 public key, base64 SPKI DER. Passed to the shell as `TIMEOFF_REMOTE_SSR_PUBLIC_KEY`. Unset: its screens render in the browser only. |
+| Variable                                                                                | Holds                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VM_PLATFORM`                                                                           | The VM's platform: `linux/amd64` (unset means this), which the EC2 `c7i-flex.large` is; `linux/arm64` only for a Graviton instance. Picks the native runner the images are built on; anything else fails the images job. |
+| `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`, `AWS_REGION`             | The EC2 instance id, the `kithena-workspace-wake` role and its region, all printed by `deploy/aws/provision.sh`. Passed to the shell, which then wakes the VM from the People pages. Any unset: waking is off.           |
+| `WORKSPACE_INSTANCE_ID_STAGING`                                                         | The instance staging deploys to, which is production's while they share it. Both ids are also the SSH target: the deploy connects to `deploy@<id>` through Session Manager.                                              |
+| `AWS_DEPLOY_ROLE_ARN`                                                                   | `kithena-deploy-wake`, the deploy role both deploys assume to start the VM, wait for its SSM agent and open the SSH tunnel. Required with `ROUTER_URL_*`.                                                                |
+| `ROUTER_URL_STAGING`, `ROUTER_URL_PRODUCTION`                                           | `https://api.staging.kithena.com`, `https://api.kithena.com`. Unset: People and the router are skipped for that environment. Also the shell's `ROUTER_URL`.                                                              |
+| `AUTH_TOKEN_AUDIENCE_STAGING`, `AUTH_TOKEN_AUDIENCE_PRODUCTION`                         | Exactly identity's `AUTH_TOKEN_AUDIENCE` in that environment (`kithena-router` locally). A mismatch refuses every token.                                                                                                 |
+| `KITHENA_ENTITLEMENTS_STAGING`, `KITHENA_ENTITLEMENTS_PRODUCTION`                       | Exactly identity's `KITHENA_ENTITLEMENTS`, a JSON array, e.g. `["module.people"]`.                                                                                                                                       |
+| `VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING`, `VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION` | The remote's Vercel project id (`prj_…`). Unset: the remote is skipped.                                                                                                                                                  |
+| `PEOPLE_REMOTE_URL_STAGING`, `PEOPLE_REMOTE_URL_PRODUCTION`                             | The remote's custom domain, `https://…`, no trailing slash.                                                                                                                                                              |
+| `PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`       | The Ed25519 public key, base64 SPKI DER.                                                                                                                                                                                 |
+| `TIMEOFF_REMOTE_URL_STAGING`, `TIMEOFF_REMOTE_URL_PRODUCTION`                           | The Time Off remote's custom domain, `https://…`, no trailing slash. Passed to the shell as `TIMEOFF_REMOTE_URL`. Unset: Time off is unavailable in the shell.                                                           |
+| `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING`, `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`     | The Time Off remote's Ed25519 public key, base64 SPKI DER. Passed to the shell as `TIMEOFF_REMOTE_SSR_PUBLIC_KEY`. Unset: its screens render in the browser only.                                                        |
 
 The router's `AUTH_JWKS_URL` is identity's own domain and is written in the
 workflow.
@@ -1216,18 +1291,18 @@ password login working, and a second run did nothing.
 Everything above is a set of containers, S3 buckets and URLs, so each move is a
 host or a setting, not a rewrite.
 
-| Move | When | What changes |
-| --- | --- | --- |
-| `c7i-flex.large` → `m7i-flex.large` (8 GB), then `m7i.xlarge` | People's peak nears its 768 MB, the swap is being used, or staging is wanted beside production | Stop, change the instance type, start (the volume, role and instance id stay), then raise the limits in `compose.yaml`. |
-| People and router → ECS on Fargate | A second instance is needed (availability, or load one VM cannot carry), or a customer asks for an SLA | Same images (from GHCR, or pushed to ECR); `compose.yaml`'s environment becomes the task definition, the `kithena-vm` policy becomes the task role, the tunnel becomes an ALB. The buckets do not move. Waking and idle-stop go away. |
-| Redpanda → Amazon MSK or Redpanda Cloud | Real event volume, or People running more than one replica | `KAFKA_BROKERS` and the SASL/TLS settings in `PEOPLE_ENV`, the `redpanda` service deleted. |
-| Temporal → Temporal Cloud | Long-running workflows start to matter to customers, or auto-setup's single binary becomes the thing that pages | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, mTLS settings; the `temporal` service deleted. |
-| People's database: VM Postgres → Amazon RDS for PostgreSQL | The first customer (for point-in-time restore), or data or load the VM's disk and memory cannot carry | `pg_dump` here, `pg_restore` there; `PEOPLE_DATABASE_URL` in `PEOPLE_ENV` (and out of `compose.yaml`); the migrate step pointed at the new host. |
-| Valkey → ElastiCache | Export queue durability matters beyond one disk | `VALKEY_URL`. |
-| OpenFGA → a managed OpenFGA | Tuple volume or availability outgrows one container | `OPENFGA_URL`, `OPENFGA_STORE_ID` and credentials. |
-| `us-east-1` → an EU region (`eu-central-1` or `eu-west-1`) | **Before the first real customer's data.** Employee records of EU staff belong in the EU for GDPR, and moving is cheap only while nothing real is stored | `provision.sh --region eu-…` makes a new instance and new buckets beside the old; restore the last backup there, point `PEOPLE_ENV`'s regions and bucket names and the wake variables at the new ones, deploy, then delete the old. Move Neon's project to the matching region at the same time. |
-| Identity's database: Neon Free → Launch/Scale | 0.5 GB of data, the CU-hour ceiling, or the first customer | The plan. Same connection string. |
-| Vercel Hobby → Pro | The first paying customer (Hobby is non-commercial), or production needs deployment protection | The plan. |
+| Move                                                          | When                                                                                                                                                     | What changes                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `c7i-flex.large` → `m7i-flex.large` (8 GB), then `m7i.xlarge` | People's peak nears its 768 MB, the swap is being used, or staging is wanted beside production                                                           | Stop, change the instance type, start (the volume, role and instance id stay), then raise the limits in `compose.yaml`.                                                                                                                                                                          |
+| People and router → ECS on Fargate                            | A second instance is needed (availability, or load one VM cannot carry), or a customer asks for an SLA                                                   | Same images (from GHCR, or pushed to ECR); `compose.yaml`'s environment becomes the task definition, the `kithena-vm` policy becomes the task role, the tunnel becomes an ALB. The buckets do not move. Waking and idle-stop go away.                                                            |
+| Redpanda → Amazon MSK or Redpanda Cloud                       | Real event volume, or People running more than one replica                                                                                               | `KAFKA_BROKERS` and the SASL/TLS settings in `PEOPLE_ENV`, the `redpanda` service deleted.                                                                                                                                                                                                       |
+| Temporal → Temporal Cloud                                     | Long-running workflows start to matter to customers, or auto-setup's single binary becomes the thing that pages                                          | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, mTLS settings; the `temporal` service deleted.                                                                                                                                                                                                         |
+| People's database: VM Postgres → Amazon RDS for PostgreSQL    | The first customer (for point-in-time restore), or data or load the VM's disk and memory cannot carry                                                    | `pg_dump` here, `pg_restore` there; `PEOPLE_DATABASE_URL` in `PEOPLE_ENV` (and out of `compose.yaml`); the migrate step pointed at the new host.                                                                                                                                                 |
+| Valkey → ElastiCache                                          | Export queue durability matters beyond one disk                                                                                                          | `VALKEY_URL`.                                                                                                                                                                                                                                                                                    |
+| OpenFGA → a managed OpenFGA                                   | Tuple volume or availability outgrows one container                                                                                                      | `OPENFGA_URL`, `OPENFGA_STORE_ID` and credentials.                                                                                                                                                                                                                                               |
+| `us-east-1` → an EU region (`eu-central-1` or `eu-west-1`)    | **Before the first real customer's data.** Employee records of EU staff belong in the EU for GDPR, and moving is cheap only while nothing real is stored | `provision.sh --region eu-…` makes a new instance and new buckets beside the old; restore the last backup there, point `PEOPLE_ENV`'s regions and bucket names and the wake variables at the new ones, deploy, then delete the old. Move Neon's project to the matching region at the same time. |
+| Identity's database: Neon Free → Launch/Scale                 | 0.5 GB of data, the CU-hour ceiling, or the first customer                                                                                               | The plan. Same connection string.                                                                                                                                                                                                                                                                |
+| Vercel Hobby → Pro                                            | The first paying customer (Hobby is non-commercial), or production needs deployment protection                                                           | The plan.                                                                                                                                                                                                                                                                                        |
 
 #### Kafka: SASL and TLS
 
@@ -1237,13 +1312,13 @@ credentials works for every consumer or for none. A broker on a private
 network needs only `KAFKA_BROKERS`; a managed Redpanda needs SASL/SCRAM and
 TLS as well:
 
-| Setting | Holds |
-| --- | --- |
-| `KAFKA_BROKERS` | Comma-separated `host:port`. Unset: nothing consumes. |
-| `KAFKA_SASL_MECHANISM` | `scram-sha-256` or `scram-sha-512`, as the cluster's user was created. |
+| Setting                                      | Holds                                                                                                                           |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `KAFKA_BROKERS`                              | Comma-separated `host:port`. Unset: nothing consumes.                                                                           |
+| `KAFKA_SASL_MECHANISM`                       | `scram-sha-256` or `scram-sha-512`, as the cluster's user was created.                                                          |
 | `KAFKA_SASL_USERNAME`, `KAFKA_SASL_PASSWORD` | The SCRAM user. A secret; never logged (kafkajs logs the broker only, and the password is not enumerable on the config object). |
-| `KAFKA_TLS` | `true` or `false`. Unset: on when SASL is set, off otherwise. |
-| `KAFKA_TLS_CA` | Optional PEM bundle for a broker with a private CA. Implies TLS. Certificate checks cannot be turned off. |
+| `KAFKA_TLS`                                  | `true` or `false`. Unset: on when SASL is set, off otherwise.                                                                   |
+| `KAFKA_TLS_CA`                               | Optional PEM bundle for a broker with a private CA. Implies TLS. Certificate checks cannot be turned off.                       |
 
 The three SASL settings go together or not at all. Half of them, an unknown
 mechanism, an unreadable `KAFKA_TLS` or a `KAFKA_TLS_CA` that is not PEM stops
@@ -1265,11 +1340,11 @@ private buckets in the instance's region, made by `deploy/aws/provision.sh`.
 People keeps two stores, each its own bucket and settings, because they are
 different trust boundaries:
 
-| Bucket | Written by | Holds | Variables |
-| --- | --- | --- | --- |
-| `kithena-<account>-uploads` | the browser, with a presigned PUT People signs | an import's file, for its import (≤ 24 h) | `PEOPLE_UPLOAD_BUCKET`, `PEOPLE_UPLOAD_S3_*`, `PEOPLE_UPLOAD_SSE` |
-| `kithena-<account>-exports` | People only | export files, import reports and dry-run reports, all sealed by People (AES-256-GCM) | `PEOPLE_EXPORT_BUCKET`, `PEOPLE_EXPORT_S3_*`, `PEOPLE_EXPORT_SSE` |
-| `kithena-<account>-backups` | `backup.sh` only | `<env>/<date>/…` dumps | none: derived on the instance |
+| Bucket                      | Written by                                     | Holds                                                                                | Variables                                                         |
+| --------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `kithena-<account>-uploads` | the browser, with a presigned PUT People signs | an import's file, for its import (≤ 24 h)                                            | `PEOPLE_UPLOAD_BUCKET`, `PEOPLE_UPLOAD_S3_*`, `PEOPLE_UPLOAD_SSE` |
+| `kithena-<account>-exports` | People only                                    | export files, import reports and dry-run reports, all sealed by People (AES-256-GCM) | `PEOPLE_EXPORT_BUCKET`, `PEOPLE_EXPORT_S3_*`, `PEOPLE_EXPORT_SSE` |
+| `kithena-<account>-backups` | `backup.sh` only                               | `<env>/<date>/…` dumps                                                               | none: derived on the instance                                     |
 
 `PEOPLE_<STORE>_S3_ENDPOINT`, `_REGION`, `_ACCESS_KEY_ID` and
 `_SECRET_ACCESS_KEY` each fall back to the plain `S3_*`, which is how one local
@@ -1295,14 +1370,14 @@ impossible to sign. `none` sends no header, for a store that refuses it.
 **Object keys, and the lifecycle rules that match them.** S3 lifecycle filters
 are prefixes, not globs, so each key starts with how long it lives:
 
-| Bucket | Key | Written by | People deletes it | Lifecycle rule (backstop) |
-| --- | --- | --- | --- | --- |
-| uploads | `<tenant>/import/<upload id>` | the browser | on commit, on the next upload, on a failed check, or after 24 h (hourly sweep) | whole bucket: 1 day |
-| exports | `exports/<tenant>/<export id>/<file>` | an export | after its link's 24 h (hourly sweep) | prefix `exports/`: 2 days |
-| exports | `dry-runs/<tenant>/<upload id>/blocked-rows.csv` | a dry run | after 24 h | prefix `dry-runs/`: 2 days |
-| exports | `imports/<tenant>/<checksum>/blocked-rows.csv` | a commit | after 7 days, or at once on an erasure | prefix `imports/`: 8 days |
-| exports | `shared/<tenant>/<export id>/<file>` | an export sent to somebody | after its 7 days (hourly sweep) | prefix `shared/`: 8 days |
-| backups | `<env>/<date>/{people.dump,postgres.sql.gz,topics.txt.gz}` | `backup.sh` | never (the role cannot delete) | whole bucket: 30 days |
+| Bucket  | Key                                                        | Written by                 | People deletes it                                                              | Lifecycle rule (backstop)  |
+| ------- | ---------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------ | -------------------------- |
+| uploads | `<tenant>/import/<upload id>`                              | the browser                | on commit, on the next upload, on a failed check, or after 24 h (hourly sweep) | whole bucket: 1 day        |
+| exports | `exports/<tenant>/<export id>/<file>`                      | an export                  | after its link's 24 h (hourly sweep)                                           | prefix `exports/`: 2 days  |
+| exports | `dry-runs/<tenant>/<upload id>/blocked-rows.csv`           | a dry run                  | after 24 h                                                                     | prefix `dry-runs/`: 2 days |
+| exports | `imports/<tenant>/<checksum>/blocked-rows.csv`             | a commit                   | after 7 days, or at once on an erasure                                         | prefix `imports/`: 8 days  |
+| exports | `shared/<tenant>/<export id>/<file>`                       | an export sent to somebody | after its 7 days (hourly sweep)                                                | prefix `shared/`: 8 days   |
+| backups | `<env>/<date>/{people.dump,postgres.sql.gz,topics.txt.gz}` | `backup.sh`                | never (the role cannot delete)                                                 | whole bucket: 30 days      |
 
 The sweep's own rule is `lifetimeOf` in
 `services/people/src/application/export/object-store.ts`; the key builders are
@@ -1375,19 +1450,19 @@ buckets `kithena-dev` and `people-exports` are created on boot by `-bucket`.
 It replaced MinIO in September 2026, when MinIO's images stopped being publicly
 pullable. Each candidate was run against the same checks:
 
-| Check | SeaweedFS 4.47 | RustFS 1.0.0 | Garage 2.4.1 |
-| --- | --- | --- | --- |
-| SigV4, wrong secret refused | yes | yes | yes |
-| Several buckets | yes, created on boot | yes | yes, after a layout and key bootstrap |
-| SSE-S3 (`AES256`) stored and reported | yes, no key to set | only with a master key set | accepted, not reported |
-| Presigned GET; tampered URL refused | yes | yes | yes |
-| Presigned PUT; a length other than the signed one refused | yes | yes | yes |
-| Rejects a checksum that does not match the body, as S3 does | yes | no | yes |
-| `PutBucketCors`; preflight allows the origin, refuses another | yes | yes | allows `*` to any origin |
-| 100 MB multipart round trip, checksum intact | yes | yes | no, CRC32 mismatch on read |
-| Ready from start | ~3 s | ~5 s | needs a CLI bootstrap |
-| linux/amd64 and linux/arm64 | yes | yes | yes |
-| Licence | Apache-2.0 | Apache-2.0 | AGPL-3.0 |
+| Check                                                         | SeaweedFS 4.47       | RustFS 1.0.0               | Garage 2.4.1                          |
+| ------------------------------------------------------------- | -------------------- | -------------------------- | ------------------------------------- |
+| SigV4, wrong secret refused                                   | yes                  | yes                        | yes                                   |
+| Several buckets                                               | yes, created on boot | yes                        | yes, after a layout and key bootstrap |
+| SSE-S3 (`AES256`) stored and reported                         | yes, no key to set   | only with a master key set | accepted, not reported                |
+| Presigned GET; tampered URL refused                           | yes                  | yes                        | yes                                   |
+| Presigned PUT; a length other than the signed one refused     | yes                  | yes                        | yes                                   |
+| Rejects a checksum that does not match the body, as S3 does   | yes                  | no                         | yes                                   |
+| `PutBucketCors`; preflight allows the origin, refuses another | yes                  | yes                        | allows `*` to any origin              |
+| 100 MB multipart round trip, checksum intact                  | yes                  | yes                        | no, CRC32 mismatch on read            |
+| Ready from start                                              | ~3 s                 | ~5 s                       | needs a CLI bootstrap                 |
+| linux/amd64 and linux/arm64                                   | yes                  | yes                        | yes                                   |
+| Licence                                                       | Apache-2.0           | Apache-2.0                 | AGPL-3.0                              |
 
 RustFS passed nearly as much, but it accepted a presigned PUT carrying a
 checksum of the wrong body, which S3 refuses — a test against it would have
