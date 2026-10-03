@@ -1478,7 +1478,6 @@ function Body({
             ),
           })}
       stickyHeader
-      striped
       empty={empty}
     />
   );
@@ -1788,6 +1787,22 @@ function Body({
           {reminded}
         </p>
       )}
+      {view === 'list' && !coarse && rows.length > 0 ? (
+        // The list's keys, at its head: under it, a list that keeps loading
+        // only showed them once the last page had.
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-fg-muted">
+          <Kbd keyName="up" />
+          <Kbd keyName="down" /> to move
+          <span aria-hidden>·</span>
+          <Kbd keyName="enter" /> to open the card
+          {profileKeys.length === 0 ? null : (
+            <>
+              <span aria-hidden>·</span>
+              <KbdShortcut keys={profileKeys} /> for the profile
+            </>
+          )}
+        </p>
+      ) : null}
       <div ref={wrapper} className="relative">
         {peeked !== null && view === 'list' && !coarse ? (
           <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4">
@@ -1880,21 +1895,6 @@ function Body({
           </>
         )}
       </div>
-      {view === 'list' && !coarse && rows.length > 0 ? (
-        // The list's keys, under the list rather than on the card they move.
-        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-fg-muted">
-          <Kbd keyName="up" />
-          <Kbd keyName="down" /> to move
-          <span aria-hidden>·</span>
-          <Kbd keyName="enter" /> to open the card
-          {profileKeys.length === 0 ? null : (
-            <>
-              <span aria-hidden>·</span>
-              <KbdShortcut keys={profileKeys} /> for the profile
-            </>
-          )}
-        </p>
-      ) : null}
       {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
         <div ref={endOfPage} aria-hidden className="h-px" />
       ) : null}
