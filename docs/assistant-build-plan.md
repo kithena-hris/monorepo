@@ -98,7 +98,7 @@ green with their capability routes.
 
 ## Phase 1 — contracts
 
-### [ ] AST-001 — The shared capability shapes
+### [x] AST-001 — The shared capability shapes
 
 **Goal** One vocabulary every module's capabilities are built from, so the
 assistant can validate and join any of them without knowing the module.
@@ -121,8 +121,13 @@ answered }`, today's shape from `ask.ts`), which Slack and the assistant
   both parse.
 - **Done when** the contract tests pass and `just codegen` reports no
   unclassified field once AST-005 walks it.
+- **As built** each descriptor carries `schemas.step` (what a plan may write:
+  date references, no `personIds`/`limit`) and `schemas.input` (what the module
+  receives: resolved `{ from, to }`, `limit` up to 5,000 for §9.6's count by
+  group, `ids`, `personIds`); every result has a `kind`; generic names are
+  prefixed (`CapabilityFilter`, `NameAsTyped`, `ASSISTANT_LIMITS`).
 
-### [ ] AST-002 — People's capability contracts
+### [x] AST-002 — People's capability contracts
 
 - **Spec** PRD §7.4, §8, §16
 - **Files** `packages/contracts/src/assistant/people.ts` (+ test)
@@ -136,7 +141,7 @@ answered }`, today's shape from `ask.ts`), which Slack and the assistant
 - **Done when** the tests parse a sample input and output for each and refuse a
   `people.managers` input without `personIds`.
 
-### [ ] AST-003 — Time Off's capability contracts
+### [x] AST-003 — Time Off's capability contracts
 
 - **Spec** PRD §7.1, §7.2, §7.5, §8.2, §8.4
 - **Files** `packages/contracts/src/assistant/timeoff.ts` (+ test)
@@ -149,8 +154,10 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `off_only`).
 - **Done when** the tests pass and a row's `detail` is classified
   special-category.
+- **As built** the entry is `CatalogueLeaveType`, and `isPrivateLeaveType()`
+  decides `private`; each capability declares its own yield.
 
-### [ ] AST-004 — The plan and the catalogue
+### [x] AST-004 — The plan and the catalogue
 
 - **Spec** PRD §8.5, §9.1, §9.3
 - **Files** `packages/contracts/src/assistant/plan.ts`,
@@ -163,8 +170,11 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `leaveTypes`, `denied`). The plan's schema is shape only; meaning is checked
   in the assistant's domain (AST-007), against the catalogue.
 - **Done when** the tests refuse an extra key at every level and five steps.
+- **As built** exported as `AssistantPlan`, `PlanStep`, `PlanAnswer`, `StepId`
+  and `RuntimeCatalogue`, `CatalogueField`; the step limit is
+  `ASSISTANT_LIMITS.steps`.
 
-### [ ] AST-005 — Codegen walks capabilities
+### [x] AST-005 — Codegen walks capabilities
 
 - **Spec** PRD §8.2
 - **Files** `tools/codegen/src/cli.ts`, `packages/contracts/src/assistant/index.ts`
@@ -176,6 +186,10 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   the run as for events.
 - **Done when** `just codegen` passes, the regenerated deny list contains the
   away row's `detail`, and removing one policy makes it exit non-zero.
+- **As built** the walk now descends an unclassified list or union (a classified
+  one stays a leaf, as before); redaction paths write items as `rows[*].detail`,
+  the deny list as `rows.detail`. `generated/` is gitignored, so nothing
+  regenerated is committed; the events' paths are unchanged.
 
 ---
 
