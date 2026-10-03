@@ -150,6 +150,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T28: who has had no break, and the first one’s message as it would be sent; HR or a manager */
+  TimeOffNudge: `query TimeOffNudge($balance: Boolean, $bridge: Boolean, $losing: Boolean) {
+    timeOffNudge(balance: $balance, bridge: $bridge, losing: $losing) {
+      preview { displayName heading lede personId } recipients { displayName personId reachable } since
+    }
+  }`,
+
   /** T1: the clock, the balances, what is coming up and who is off today */
   TimeOffOverview: `query TimeOffOverview {
     timeOffOverview {
@@ -427,6 +434,13 @@ export const OPERATIONS = {
   SaveTimeOffParentalHandover: `mutation SaveTimeOffParentalHandover($key: String!, $input: JSON!, $planId: String!) {
     saveTimeOffParentalHandover(idempotencyKey: $key, input: $input, planId: $planId) {
       ok
+    }
+  }`,
+
+  /** T28: send each person without a break their own message through messaging, once a day; HR or a manager */
+  SendTimeOffNudges: `mutation SendTimeOffNudges($key: String!, $input: JSON!) {
+    sendTimeOffNudges(idempotencyKey: $key, input: $input) {
+      failed sent unreachable
     }
   }`,
 

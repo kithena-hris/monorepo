@@ -1,10 +1,10 @@
 import { TooltipProvider } from '@reach/ui';
-import { render as draw, screen, within } from '@testing-library/react';
+import { fireEvent, render as draw, screen, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
-import { adaInsights } from './acme.fixture';
+import { adaInsights, adaNudging } from './acme.fixture';
 import { Insights } from './insights';
 
 // The charts' tooltips need the provider `framed` gives every screen.
@@ -85,6 +85,31 @@ describe('insights', () => {
       expect.stringContaining('Adam Novak'),
       expect.stringContaining('Hana Kim'),
     ]);
+  });
+
+  it('nudges the people without a break, each with only their own numbers (T28)', async () => {
+    const onAsk = vi.fn();
+    const onSend = vi.fn(() =>
+      Promise.resolve({ ok: true as const, sent: 3, unreachable: 1, failed: 0 }),
+    );
+    render(
+      <Insights
+        load={{ status: 'ready', data: adaNudging() }}
+        onAsk={onAsk}
+        onSendNudges={onSend}
+      />,
+    );
+    const dialog = within(screen.getByRole('dialog', { name: 'Nudge 4 people to take a break' }));
+    expect(dialog.getByText('Preview for Leo Rossi')).toBeTruthy();
+    expect(dialog.getByText('Leo, you haven’t had a day off since June')).toBeTruthy();
+    expect(dialog.getByText('1 person without a work email won’t get one.')).toBeTruthy();
+    fireEvent.click(dialog.getByRole('checkbox', { name: /Days they’ll lose/ }));
+    expect(onAsk).toHaveBeenCalledWith({ losing: '1' });
+    fireEvent.click(dialog.getByRole('button', { name: 'Send now' }));
+    expect(onSend).toHaveBeenCalledWith({ balance: true, bridge: true, losing: false });
+    expect(await dialog.findByText('Sent to 3 people')).toBeTruthy();
+    expect(dialog.getByText('1 person has no work email Time Off knows.')).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
   });
 
   it('loads in the page’s shape', async () => {

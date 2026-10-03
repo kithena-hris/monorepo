@@ -198,6 +198,14 @@ type Mutation {
     planId: String!
   ): TimeOffDone!
   """
+  T28: send each person without a break their own message through messaging, once a day; HR or a manager
+  """
+  sendTimeOffNudges(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffNudgesSent!
+  """
   T10: send the plan to HR and the manager; refused while a rule is broken
   """
   sendTimeOffParentalPlan(idempotencyKey: String!, planId: String!): TimeOffParentalPlanStatus!
@@ -321,6 +329,10 @@ type Query {
   timeOffMyRequests(tab: String): TimeOffMyRequests!
   """T31: each policy’s negative balance rule; HR"""
   timeOffNegativeBalanceSettings: TimeOffSettingsNegativeBalance!
+  """
+  T28: who has had no break, and the first one’s message as it would be sent; HR or a manager
+  """
+  timeOffNudge(balance: Boolean, bridge: Boolean, losing: Boolean): TimeOffNudge!
   """T1: the clock, the balances, what is coming up and who is off today"""
   timeOffOverview: TimeOffOverview!
   """
@@ -829,6 +841,31 @@ type TimeOffNegativeBalanceRule {
 type TimeOffNoticeReminder {
   blockFrom: String!
   remindOn: String!
+}
+
+type TimeOffNudge {
+  preview: TimeOffNudgePreview
+  recipients: [TimeOffNudgeRecipient!]!
+  since: String
+}
+
+type TimeOffNudgePreview {
+  displayName: String!
+  heading: String!
+  lede: String!
+  personId: String!
+}
+
+type TimeOffNudgeRecipient {
+  displayName: String!
+  personId: String!
+  reachable: Boolean!
+}
+
+type TimeOffNudgesSent {
+  failed: Int!
+  sent: Int!
+  unreachable: Int!
 }
 
 type TimeOffOpenDay {

@@ -298,7 +298,17 @@ async function insights(
 ): Promise<ScreenLoad> {
   const last = path.split('/').at(-1) ?? '';
   const tab = INSIGHT_TABS.has(last) ? last : 'what-changed';
-  const answer = await read('TimeOffInsights');
+  const nudging = tab === 'what-changed' && search['nudge'] === 'no_break';
+  // What the nudge includes, each a switch in the address: `0` is off.
+  const include = {
+    balance: search['balance'] !== '0',
+    bridge: search['bridge'] !== '0',
+    losing: search['losing'] === '1',
+  };
+  const [answer, nudge] = await Promise.all([
+    read('TimeOffInsights'),
+    nudging ? timeOff<unknown>('TimeOffNudge', include) : null,
+  ]);
   if (answer.status !== 'ready') return answer;
   return {
     status: 'ready',
@@ -306,7 +316,7 @@ async function insights(
       ...(answer.data as object),
       tab,
       point: search['point'] ?? null,
-      nudge: search['nudge'] ?? null,
+      nudge: nudge?.ok === true ? { ...(nudge.data as object), include } : null,
     },
   };
 }

@@ -4,7 +4,7 @@ import { expect, it } from 'vitest';
 
 import { Insights } from '../index';
 import { underFloor } from '../test/floor';
-import { adaInsights } from './acme.fixture';
+import { adaInsights, adaNudging } from './acme.fixture';
 import type { InsightsData } from './insights';
 
 /**
@@ -20,6 +20,14 @@ const states: readonly (readonly [string, Partial<InsightsData>])[] = [
   ['attendance', { tab: 'attendance' }],
   ['balances', { tab: 'balances' }],
 ];
+
+it('draws the nudge as a sheet on a phone, every target reachable', async () => {
+  render(<Insights load={{ status: 'ready', data: adaNudging() }} onAsk={() => undefined} />);
+  expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+  const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
+  expect(result.violations.map((v) => v.id)).toEqual([]);
+  expect(underFloor(document.body)).toEqual([]);
+});
 
 for (const [name, over] of states) {
   it(`draws ${name} on a phone`, async () => {

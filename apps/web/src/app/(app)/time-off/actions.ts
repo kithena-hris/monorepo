@@ -1,5 +1,8 @@
 'use server';
 
+import { headers } from 'next/headers';
+
+import { currentTenant } from '../../../lib/branding';
 import { timeOff } from '../../../lib/people';
 
 /**
@@ -138,6 +141,41 @@ export async function decideOvertime(input: {
 }): Promise<Outcome> {
   const a = await timeOff('DecideTimeOffOvertime', { input });
   return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
+/**
+ * T28: send each person without a break their own message. The company's
+ * name and its own origin come from this request, never the browser: Time
+ * Off puts the origin in the link, and messaging checks it is the company's.
+ */
+export async function sendNudges(include: {
+  readonly balance: boolean;
+  readonly bridge: boolean;
+  readonly losing: boolean;
+}): Promise<
+  | {
+      readonly ok: true;
+      readonly sent: number;
+      readonly unreachable: number;
+      readonly failed: number;
+    }
+  | { readonly ok: false; readonly message: string }
+> {
+  const inbound = await headers();
+  const host = inbound.get('x-forwarded-host') ?? inbound.get('host') ?? '';
+  const proto = inbound.get('x-forwarded-proto') ?? 'https';
+  const tenant = await currentTenant();
+  const a = await timeOff<{ sent: number; unreachable: number; failed: number }>(
+    'SendTimeOffNudges',
+    {
+      input: {
+        include,
+        companyName: tenant?.branding.displayName ?? tenant?.slug ?? host,
+        appOrigin: `${proto}://${host}`,
+      },
+    },
+  );
+  return a.ok ? { ok: true, ...a.data } : { ok: false, message: a.message };
 }
 
 /* ---------------------------------------- HR operations, TOF-096 onwards -- */

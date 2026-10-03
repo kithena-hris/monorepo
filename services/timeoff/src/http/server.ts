@@ -75,6 +75,8 @@ export interface TimeOffServerOptions extends Pick<Deps, 'uow' | 'authz' | 'feed
   /** Temporal's, when `TEMPORAL_ADDRESS` is set; without it nothing reminds or escalates. */
   readonly timers?: Deps['timers'];
   readonly notifier?: Deps['notifier'];
+  /** Messaging's, when `MESSAGING_URL` and `MESSAGING_TIMEOFF_TOKEN` are set; without it no nudge is sent. */
+  readonly mailer?: Deps['mailer'];
 }
 
 /**
@@ -96,6 +98,7 @@ export function timeoffServer(options: TimeOffServerOptions): {
     newId: options.newId ?? uuidv7,
     timers: options.timers ?? { started: async () => {}, closed: async () => {} },
     notifier: options.notifier ?? { notify: async () => {} },
+    ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

@@ -56,6 +56,7 @@ import {
 } from '../application/attendance/attendance.js';
 import { inspectorExport } from '../application/attendance/inspector-files.js';
 import { insights } from '../application/insights/insights.js';
+import { nudgePreview, sendNudges } from '../application/insights/nudge.js';
 import { calendarFeed, issueFeedToken, revokeFeeds } from '../application/calendar/ical.js';
 import { importMembers } from '../application/member/import.js';
 import {
@@ -132,6 +133,7 @@ import {
   LookCloserReason,
   MyRequestsView,
   NegativeBalanceView,
+  NudgeView,
   OverviewView,
   ParentalCaseView,
   ParentalScreenView,
@@ -655,6 +657,21 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffNudge',
+    method: 'GET',
+    path: `${V1}/insights/nudge`,
+    summary:
+      'T28: who has had no break, and the first one’s message as it would be sent; HR or a manager',
+    params: z.object({
+      balance: z.boolean().default(true),
+      bridge: z.boolean().default(true),
+      losing: z.boolean().default(false),
+    }),
+    answer: NudgeView,
+    run: (deps, caller, { params }) => nudgePreview(deps)(caller, params),
+    shape: same,
+  }),
+  route({
     name: 'timeOffPayPeriod',
     method: 'GET',
     path: `${V1}/pay-periods/{month}`,
@@ -1004,6 +1021,23 @@ export const ROUTES: readonly Route[] = [
       .meta({ title: 'TimeOffPayPeriodClosed' }),
     run: (deps, caller, { params }) =>
       closePayPeriod(deps)(caller, { from: firstOf(params.month) }),
+    shape: same,
+  }),
+  route({
+    name: 'sendTimeOffNudges',
+    method: 'POST',
+    path: `${V1}/insights/nudge`,
+    summary:
+      'T28: send each person without a break their own message through messaging, once a day; HR or a manager',
+    body: z.strictObject({
+      include: z.strictObject({ balance: z.boolean(), bridge: z.boolean(), losing: z.boolean() }),
+      companyName: z.string().trim().min(1).max(120),
+      appOrigin: z.string().max(300),
+    }),
+    answer: z
+      .object({ sent: z.int(), unreachable: z.int(), failed: z.int() })
+      .meta({ title: 'TimeOffNudgesSent' }),
+    run: (deps, caller, { body }) => sendNudges(deps)(caller, body),
     shape: same,
   }),
   route({

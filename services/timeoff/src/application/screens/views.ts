@@ -667,6 +667,29 @@ export const InsightsView = named(
   }),
 );
 
+/** T28 (TOF-098): who would be nudged, and one of their messages exactly as it would go. */
+export const NudgeView = named(
+  'TimeOffNudge',
+  z.object({
+    since: CalendarDate.nullable(),
+    recipients: z.array(
+      named(
+        'TimeOffNudgeRecipient',
+        z.object({ personId: PersonId, displayName: z.string(), reachable: z.boolean() }),
+      ),
+    ),
+    preview: named(
+      'TimeOffNudgePreview',
+      z.object({
+        personId: PersonId,
+        displayName: z.string(),
+        heading: z.string(),
+        lede: z.string(),
+      }),
+    ).nullable(),
+  }),
+);
+
 /** A file to download, as base64: the inspector's record as CSV or PDF. */
 export const FileView = named(
   'TimeOffFile',

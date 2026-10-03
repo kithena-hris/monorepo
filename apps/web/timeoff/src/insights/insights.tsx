@@ -20,10 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from '@reach/ui';
-import type { JSX, ReactNode } from 'react';
+import type { JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import { amount, longDate, shortDate } from '../words';
+import { Nudge, type NudgeData, type NudgeProps } from './nudge';
 
 /**
  * Insights (T27, PRD §14.2): time off and attendance across the company for
@@ -80,12 +81,16 @@ export interface InsightsData {
     readonly losesAtYearEnd: string;
     readonly lastDayOff: string | null;
   }[];
+  /** T28's dialog, open (`?nudge=no_break`) with who it reaches and one message. */
+  readonly nudge?: NudgeData | null;
 }
 
 export interface InsightsProps {
   readonly load: Loadable<InsightsData>;
-  /** T28's dialog over the page, when a point can nudge its people (TOF-098). */
-  readonly nudge?: (data: InsightsData) => ReactNode;
+  /** Another state in the address: the nudge opened or closed, what it includes. */
+  readonly onAsk?: (patch: Readonly<Record<string, string | null>>) => void;
+  /** T28's send: each person their own message. */
+  readonly onSendNudges?: NudgeProps['onSend'];
 }
 
 const body =
@@ -111,7 +116,7 @@ const BEHIND: Record<PointKind, string> = {
   overtime: '',
 };
 
-export function Insights({ load, nudge }: InsightsProps): JSX.Element {
+export function Insights({ load, onAsk, onSendNudges }: InsightsProps): JSX.Element {
   if (load.status === 'loading') return <InsightsSkeleton />;
   return (
     <div className="@container/insights flex flex-col gap-6">
@@ -136,7 +141,14 @@ export function Insights({ load, nudge }: InsightsProps): JSX.Element {
                   : ` ${String(data.hiddenTeams)} smaller ${data.hiddenTeams === 1 ? 'team is' : 'teams are'} left out of the per-team figures.`
               }`}
             </p>
-            {nudge?.(data)}
+            {data.nudge === null || data.nudge === undefined ? null : (
+              <Nudge
+                nudge={data.nudge}
+                onAsk={onAsk}
+                onSend={onSendNudges}
+                onClose={() => onAsk?.({ nudge: null })}
+              />
+            )}
           </>
         )}
       </Loaded>

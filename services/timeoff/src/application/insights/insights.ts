@@ -14,7 +14,7 @@ import {
   type Point,
 } from '../../domain/insights/insights.js';
 import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
-import type { Caller, Deps, Member, Tx } from '../ports.js';
+import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
 import { forbidden, isHrAdmin, leaveYear, policyFor, relates, transact } from '../shared.js';
 
 /**
@@ -125,7 +125,7 @@ export interface InsightsView {
 }
 
 /** HR sees the company; an approver their reports; anybody else nothing. */
-async function scopeOf(
+export async function scopeOf(
   tx: Tx,
   deps: Pick<Deps, 'authz'>,
   caller: Caller,
@@ -142,22 +142,32 @@ interface MemberYear extends Facts {
   readonly byMonth: ReadonlyMap<string, Omit<Monthly, 'month'>>;
 }
 
-async function factsOf(
+/**
+ * A member's annual leave this leave year: what is left, what the year end
+ * would take above the carry-over, when it ends, their last day off up to
+ * today, and the approved requests that say so.
+ */
+export async function annualFacts(
   tx: Tx,
-  deps: Pick<Deps, 'clock'>,
-  tenantId: Caller['tenantId'],
   m: Member,
-  months: readonly string[],
-): Promise<MemberYear> {
-  const today = deps.clock.date(m.timeZone);
+  today: CalendarDate,
+): Promise<{
+  left: DayAmount;
+  losesAtYearEnd: DayAmount;
+  yearEnd: CalendarDate;
+  lastDayOff: CalendarDate | null;
+  requests: readonly RequestRecord[];
+}> {
   const annual = (await tx.leaveTypes.list()).filter(
     (t) => t.definition.category === 'annual_leave' && t.definition.tracked && !t.deleted,
   );
   let left = new Decimal(0);
   let loses = new Decimal(0);
+  let yearEnd = leaveYear(null, today).end;
   for (const t of annual) {
     const policy = await policyFor(tx, m, t.definition.key, today);
     const { start, end } = leaveYear(policy?.definition ?? null, today);
+    yearEnd = end;
     const entries = (await tx.ledger.forMember(m.personId, t.definition.key)).filter(
       (e) => e.effectiveOn >= start && e.effectiveOn <= end,
     );
@@ -179,7 +189,18 @@ async function factsOf(
       .map((r) => (r.request.span.to < today ? r.request.span.to : today))
       .toSorted()
       .at(-1) ?? null;
+  return { left: amount(left), losesAtYearEnd: amount(loses), yearEnd, lastDayOff, requests };
+}
 
+async function factsOf(
+  tx: Tx,
+  deps: Pick<Deps, 'clock'>,
+  tenantId: Caller['tenantId'],
+  m: Member,
+  months: readonly string[],
+): Promise<MemberYear> {
+  const today = deps.clock.date(m.timeZone);
+  const { left, losesAtYearEnd, lastDayOff, requests } = await annualFacts(tx, m, today);
   const clock = AttendanceClock.of({
     tenantId,
     personId: m.personId,
@@ -232,8 +253,8 @@ async function factsOf(
     team: m.teamKey,
     hireDate: m.hireDate,
     lastDayOff,
-    left: amount(left),
-    losesAtYearEnd: amount(loses),
+    left,
+    losesAtYearEnd,
     byMonth,
   };
 }

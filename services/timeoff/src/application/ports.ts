@@ -64,6 +64,11 @@ export const MemberFields = z.object({
   accountId: z.string().check(z.uuid()).nullable().default(null),
   displayName: z.string().trim().min(1).max(200),
   firstName: z.string().trim().min(1).max(100),
+  /**
+   * Where messaging reaches the member (a nudge, TOF-098); `null` until People
+   * or an import says. Checked as the account id is, for TS 7's sake.
+   */
+  workEmail: z.string().check(z.email()).nullable().default(null),
   managerPersonId: PersonId.nullable().default(null),
   teamKey: TeamKey.nullable().default(null),
   teamName: z.string().trim().max(200).nullable().default(null),
@@ -409,6 +414,26 @@ export type Notice =
       readonly days: string;
     };
 
+/**
+ * A nudge to rest (T28, TOF-098), through `platform/messaging` over internal
+ * HTTP as identity's invitation is: the recipient's address, a link on their
+ * company's own origin, and words carrying only their own figures. Rejects
+ * when messaging refuses it.
+ */
+export interface NudgeMailer {
+  send(
+    tenantId: TenantId,
+    message: {
+      readonly email: string;
+      readonly url: string;
+      readonly companyName: string;
+      readonly dedupeKey: string;
+      readonly heading: string;
+      readonly lede: string;
+    },
+  ): Promise<void>;
+}
+
 export interface Notifier {
   /** At most once per `dedupeKey`, so a job run twice tells nobody twice. */
   notify(tenantId: TenantId, to: PersonId | 'hr', notice: Notice, dedupeKey: string): Promise<void>;
@@ -427,6 +452,8 @@ export interface Deps {
   readonly notifier: Notifier;
   /** Signs calendar feed tokens. */
   readonly feedSecret: string;
+  /** Messaging's door for nudges; absent, nudges are refused as unavailable. */
+  readonly mailer?: NudgeMailer;
 }
 
 export const userActor = (caller: Caller): Actor => ({ kind: 'user', userId: caller.accountId });

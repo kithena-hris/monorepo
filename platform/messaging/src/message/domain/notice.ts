@@ -70,7 +70,18 @@ export type Notice =
    * who sent it, a figure or a sentence of it: the summary is read signed in,
    * on the page the button opens, and only by its recipient.
    */
-  | { readonly kind: 'summary_shared' };
+  | { readonly kind: 'summary_shared' }
+  /*
+   * A nudge to take a break (Time Off, T28): the one notice whose words the
+   * module writes, because they are the recipient's own — their days left,
+   * a day that suits them — and nobody else's. Time Off guarantees that; this
+   * only bounds the length, keeps the heading to one line, and escapes both.
+   */
+  | { readonly kind: 'rest_nudge'; readonly heading: string; readonly lede: string };
+
+/** A nudge's heading fits a subject line; its sentence or two fit a phone's screen. */
+export const NUDGE_HEADING_MAX = 120;
+export const NUDGE_LEDE_MAX = 600;
 
 export const REPORT_CADENCES = ['daily', 'weekly', 'monthly'] as const;
 export type ReportCadence = (typeof REPORT_CADENCES)[number];
@@ -206,6 +217,14 @@ const COPY: {
     action: 'Review the export',
     footer: `Sent by Kithena on behalf of ${company} because you are a People administrator.`,
   }),
+  // Bounded and escaped in `renderNotice`, before either call reaches here.
+  rest_nudge: ({ heading, lede }, company) => ({
+    subject: `${company}: ${heading}`,
+    heading,
+    lede,
+    action: 'Open Time off',
+    footer: `Sent by Kithena on behalf of ${company}, because HR suggested you take a break. Only you see these numbers.`,
+  }),
   summary_shared: (_notice, company) => ({
     subject: `${company}: a People summary was shared with you`,
     heading: 'A People summary for you',
@@ -247,11 +266,26 @@ export function renderNotice(
   const company = companyName.trim();
   if (company.length === 0 || company.length > MAX_COMPANY_NAME) return err(Unrenderable);
 
+  // A nudge's words are the module's: one line of heading, bounded, and
+  // escaped for the HTML exactly as the company's name is.
+  let words = notice;
+  let escaped = notice;
+  if (notice.kind === 'rest_nudge') {
+    const heading = notice.heading.trim();
+    const lede = notice.lede.trim();
+    if (heading.length === 0 || heading.length > NUDGE_HEADING_MAX || /[\r\n]/u.test(heading)) {
+      return err(Unrenderable);
+    }
+    if (lede.length === 0 || lede.length > NUDGE_LEDE_MAX) return err(Unrenderable);
+    words = { kind: 'rest_nudge', heading, lede };
+    escaped = { kind: 'rest_nudge', heading: escapeHtml(heading), lede: escapeHtml(lede) };
+  }
+
   // The mapped type pairs each kind with its input; TypeScript cannot follow
   // that through an index, so the call is widened by hand.
   const copyFor = COPY[notice.kind] as (n: Notice, company: string) => Copy | null;
-  const plain = copyFor(notice, company);
-  const marked = copyFor(notice, escapeHtml(company));
+  const plain = copyFor(words, company);
+  const marked = copyFor(escaped, escapeHtml(company));
   const href = safeHref(url);
   if (plain === null || marked === null || href === null) return err(Unrenderable);
 

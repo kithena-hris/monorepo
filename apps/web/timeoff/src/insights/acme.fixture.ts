@@ -159,3 +159,25 @@ export const adaInsights = (over: Partial<InsightsData> = {}): InsightsData => (
   ],
   ...over,
 });
+
+/** T28 open over What changed: the four without a break, Yuki without a work email. */
+export const adaNudging = (): InsightsData =>
+  adaInsights({
+    point: 'no_break',
+    nudge: {
+      include: { balance: true, bridge: true, losing: false },
+      since: '2026-06-01',
+      recipients: [
+        { personId: P(6), displayName: 'Leo Rossi', reachable: true },
+        { personId: P(3), displayName: 'Omar Haddad', reachable: true },
+        { personId: P(5), displayName: 'Ravi Patel', reachable: true },
+        { personId: P(7), displayName: 'Yuki Sato', reachable: false },
+      ],
+      preview: {
+        personId: P(6),
+        displayName: 'Leo Rossi',
+        heading: 'Leo, you haven’t had a day off since June',
+        lede: 'You have 2 days left this year. Taking Mon 7 Dec gives you 4 days off with Inmaculada Concepción. A few days away do more than they look. Nobody else sees this message.',
+      },
+    },
+  });

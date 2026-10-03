@@ -150,16 +150,29 @@ describe('HR’s attendance pages (TOF-095 onwards)', () => {
     });
   });
 
-  it('reads the insights once, and the tab, point and nudge from the address', async () => {
-    answering({ TimeOffInsights: () => ({ ok: true, data: { points: [] } }) });
+  it('reads the insights, the tab and point from the address, and the nudge only when open', async () => {
+    answering({
+      TimeOffInsights: () => ({ ok: true, data: { points: [] } }),
+      TimeOffNudge: () => ({ ok: true, data: { recipients: [] } }),
+    });
     const load = await loadScreen(
       'Insights',
-      { params: {}, search: { point: 'no_break', nudge: 'no_break' } },
+      { params: {}, search: { point: 'no_break' } },
       '/time-off/insights/balances',
     );
-    expect(load).toMatchObject({
+    expect(load).toMatchObject({ status: 'ready', data: { tab: 'balances', nudge: null } });
+    const open = await loadScreen(
+      'Insights',
+      { params: {}, search: { point: 'no_break', nudge: 'no_break', bridge: '0', losing: '1' } },
+      '/time-off/insights/what-changed',
+    );
+    expect(asked('TimeOffNudge')).toEqual([{ balance: true, bridge: false, losing: true }]);
+    expect(open).toMatchObject({
       status: 'ready',
-      data: { tab: 'balances', point: 'no_break', nudge: 'no_break' },
+      data: {
+        point: 'no_break',
+        nudge: { recipients: [], include: { balance: true, bridge: false, losing: true } },
+      },
     });
   });
 

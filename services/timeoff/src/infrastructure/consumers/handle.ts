@@ -199,6 +199,7 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
             accountId: p.identityAccountId ?? existing?.accountId ?? null,
             displayName: `${p.name.preferred ?? p.name.given} ${p.name.family}`,
             firstName: p.name.preferred ?? p.name.given,
+            workEmail: p.workEmail,
             managerPersonId: p.managerId,
             teamKey,
             teamName: existing !== null && existing.teamKey === teamKey ? existing.teamName : null,
@@ -265,13 +266,17 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
         const family = value('family_name');
         const preferred = value('preferred_name');
         const hireDate = value('hire_date');
-        if ((given === null || family === null) && hireDate === null) return 'ignored';
+        const workEmail = value('work_email');
+        if ((given === null || family === null) && hireDate === null && workEmail === null) {
+          return 'ignored';
+        }
         return change(event, event.payload.personId, (m) => ({
           ...fieldsOf(m),
           ...(given === null || family === null
             ? {}
             : { displayName: `${preferred ?? given} ${family}`, firstName: preferred ?? given }),
           ...(hireDate === null ? {} : { hireDate: hireDate as CalendarDate }),
+          ...(workEmail === null ? {} : { workEmail }),
         }));
       }
 

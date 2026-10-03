@@ -1590,11 +1590,28 @@ test passes, and it matches the design's screen on the seeded demo company.
   a point's people beside it. The design's follow-up question box and the
   unbooked value in euros wait for the assistant and for pay rates.
 
-### [ ] TOF-098 — Nudges
+### [x] TOF-098 — Nudges
 
 - **Screens** T28 · **Depends on** TOF-097
 - **Approach** Each message carries only its recipient's data; sent through
   `platform/messaging`.
+- **As built** The people are the insight's "no day off since": `whatChanged`
+  picks them, `nextBridge` (domain) finds each one's bridge day within the
+  leave year, and a `NudgeWriter` words their own figures (balance, bridge,
+  what the year end would take) — `templatedNudge` until the assistant's
+  writer, which falls back to it. `timeOffNudge` previews the first
+  person's message exactly; `sendTimeOffNudges` sends each through
+  `platform/messaging` over internal HTTP (`infrastructure/messaging.ts`,
+  `MESSAGING_URL` and Time Off's own `MESSAGING_TIMEOFF_TOKEN`), once a day
+  each, linking to the company's own origin, which the web's server action
+  takes from the request and messaging checks again. Messaging gained the
+  `rest_nudge` notice: the module's words, bounded, one-line heading,
+  escaped, outcome recorded and never the words. The member projection
+  gained `workEmail` (from `people.person.hired`, a profile update or an
+  import); somebody without one is counted, not guessed at. The dialog opens
+  over What changed at `?nudge=no_break`, its includes in the address.
+  Deviations: managers are not written to (their message would carry other
+  people's figures), and it sends now rather than "Monday 09:00".
 
 ### [x] TOF-099 — Overtime approvals for managers
 

@@ -140,8 +140,16 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return { load: loadable, onCorrect: actions.correctPunch };
       case 'TeamNow':
       case 'Exceptions':
-      case 'Insights':
         return { load: loadable };
+      // What the nudge includes and whether it is open are the address.
+      case 'Insights':
+        return {
+          load: loadable,
+          onAsk: (patch: Readonly<Record<string, string | null>>) => {
+            goTo(patch);
+          },
+          onSendNudges: actions.sendNudges,
+        };
       case 'AttendanceRequests':
         return { load: loadable, onDecide: actions.decideOvertime };
       case 'PayPeriod':

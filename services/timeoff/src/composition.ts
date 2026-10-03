@@ -10,6 +10,7 @@ import { yogaOptions } from './graphql/schema.js';
 import { callerFromHeaders, withMember } from './http/caller.js';
 import { timeoffListener, timeoffServer } from './http/server.js';
 import { logNotifier } from './infrastructure/background.js';
+import { nudgeMailerFrom } from './infrastructure/messaging.js';
 import {
   nobodyRelates,
   syncingTuples,
@@ -93,6 +94,7 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
   // The router's secret for this pair, as People's `PEOPLE_API_TOKEN`; empty refuses everybody.
   const internalToken = env['TIMEOFF_API_TOKEN'] ?? env['INTERNAL_API_TOKEN'] ?? '';
   const timers = await startEscalation(env, { uow, newId: uuidv7, notifier: logNotifier });
+  const mailer = nudgeMailerFrom(env);
   onShutdown('escalation worker', () => timers.close());
 
   const { listener } = timeoffServer({
@@ -102,6 +104,7 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
     callerFrom: withMember(callerFromHeaders(internalToken), uow),
     timers,
     notifier: logNotifier,
+    ...(mailer === undefined ? {} : { mailer }),
   });
   return {
     listener,
