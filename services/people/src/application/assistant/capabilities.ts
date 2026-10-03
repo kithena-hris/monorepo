@@ -398,19 +398,16 @@ const person: Handler = async (deps, tx, asking, input) => {
   });
 };
 
-/** `people.reports`: who reports directly to somebody named, as the directory lists them. */
+/**
+ * `people.reports`: who reports directly to somebody named, as the directory
+ * lists them. `described` is the manager's name alone, so the assistant can
+ * say "Michael Scott has 2 direct reports", as People's own answer did.
+ */
 const reports: Handler = async (deps, tx, asking, input) => {
   const found = await named(deps, tx, asking, input.name ?? '');
   if (!('person' in found)) return ok(found);
   const { name } = personLine(found.person);
-  return listedPeople(
-    deps,
-    tx,
-    asking,
-    { where: { [REPORTS_TO]: found.person.id } },
-    input,
-    `reporting directly to ${name}`,
-  );
+  return listedPeople(deps, tx, asking, { where: { [REPORTS_TO]: found.person.id } }, input, name);
 };
 
 /** `people.approvals`: the asker's approvals inbox, as People's own screen shows it. */
@@ -445,10 +442,13 @@ const managers: Handler = async (deps, tx, asking, input) => {
   ];
   const read = await deps.service.access.readMany(tx, { ...asking, personIds: ids });
   if (!read.ok) return read;
+  const own = await deps.personOf(tx, asking.tenantId, asking.viewer.accountId);
   const rows = ids
     .flatMap((id) => {
       const manager = read.value.get(id);
-      return manager === undefined || nameOf(manager.attributes) === null ? [] : [row(manager)];
+      if (manager === undefined || nameOf(manager.attributes) === null) return [];
+      // The asker among them: the answer says "(you)".
+      return [manager.id === own ? { ...row(manager), self: true as const } : row(manager)];
     })
     .toSorted((a, b) => a.name.localeCompare(b.name));
   return ok({

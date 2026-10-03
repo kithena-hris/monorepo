@@ -77,6 +77,9 @@ export const capabilityCatalogue =
           key: t.key,
           name: t.name.default,
           private: isPrivateLeaveType(t),
+          // "Off sick" names a sick_leave type whatever the company called it: without
+          // the category the assistant can mask only the name and key (§12.2).
+          category: t.category,
         })),
         denied: DENIED.map((d) => ({ key: d.key, labels: [...(d.labels ?? [])] })),
       });
@@ -383,7 +386,9 @@ export const managers =
       for (const m of matched.slice(0, input.limit ?? ASSISTANT_LIMITS.listed)) {
         // oxlint-disable-next-line no-await-in-loop -- a location's name once, then remembered
         const groups = await groupsOf(tx, m, places);
-        rows.push({ personId: m.personId, name: m.displayName, groups });
+        // The asker among them: the answer says "(you)".
+        const self = m.personId === caller.personId ? { self: true as const } : {};
+        rows.push({ personId: m.personId, name: m.displayName, groups, ...self });
       }
       return ok({
         kind: 'people',

@@ -345,7 +345,8 @@ describe('people.reports', () => {
     );
     expect(out.rows.map((r) => r.name).toSorted()).toEqual(['Dwight Schrute', 'Jim Halpert']);
     expect(out.total).toBe(2);
-    expect(out.described).toBe('reporting directly to Michael Scott');
+    // The manager's name alone: the assistant writes "Michael Scott has 2 direct reports".
+    expect(out.described).toBe('Michael Scott');
   });
 
   it('reads "me" as whoever is asking', async () => {
@@ -389,6 +390,24 @@ describe('people.managers', () => {
     ]);
     expect(out.ids).toEqual([MICHAEL]);
     expect(out.total).toBe(1);
+  });
+
+  it('marks the asker when they are one of the managers', async () => {
+    const out = found(
+      await world([], MICHAEL_ACCOUNT).ask('people.managers', {
+        personIds: [DWIGHT, JIM],
+        limit: 25,
+      }),
+    );
+    expect(out.rows).toEqual([
+      {
+        personId: MICHAEL,
+        name: 'Michael Scott',
+        title: 'Regional Manager',
+        groups: {},
+        self: true,
+      },
+    ]);
   });
 
   it('leaves out a manager the asker may not read', async () => {

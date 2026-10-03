@@ -339,16 +339,17 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   is the manager's name, so People's "Michael Scott has 2 direct reports" still
   reads; every other `described` ends a sentence about people. `understood` is
   "People …" before the joined phrases ("Managers of people …" for a managers
-  step). Not done here: "(you)" beside the asker among managers, since the
-  assistant does not know the asker's person, and §11.4's opt-in to names,
-  which needs a field in Time Off's catalogue first. The wording cases of
+  step). "(you)" beside the asker among managers came in lane 4: the assistant
+  knows an account, not a person, so `PersonRow` gained an optional `self`,
+  which `people.managers` and `timeoff.managers` set. Not done here: §11.4's
+  opt-in to names, which needs a field in Time Off's catalogue first. The wording cases of
   `ask.test.ts` that need a model or Slack's email are AST-012's.
 
 ---
 
 ## Phase 1 — the assistant as a service
 
-### [ ] AST-012 — The ask use case
+### [x] AST-012 — The ask use case
 
 - **Spec** PRD §7, §10.4
 - **Files** `platform/assistant/src/application/ask.ts`,
@@ -365,8 +366,18 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** tests with fake ports cover People only, Time Off only, both,
   neither, a module down, a module refusing, identity's 404, the budget spent,
   and every PRD §7 example end to end.
+- **As built** one `Modules` port holds `configured`, `catalogue` and `call`;
+  the 4 s per call is the client's (AST-013), the 15 s per question and its
+  abort are the use case's. A module that is entitled but whose catalogue
+  failed goes to the planner as `unavailable` too, and a plan answering
+  `unavailable` for it says "I couldn't reach …" rather than "your company
+  doesn't use …"; `unavailable` for a module that answered is read as
+  unclear. No model, a spent budget and a failed model are outcome `failed`
+  with a reason (`NO_MODEL`, `BUDGET`, `MODEL`); the model failing says People's
+  "Sorry, I couldn't take that question just now". `AssistantAsker` (identity's
+  answer) is in contracts beside `AssistantQuestion`.
 
-### [ ] AST-013 — The module client
+### [x] AST-013 — The module client
 
 - **Spec** PRD §6.5, §8.6, §10.2
 - **Files** `platform/assistant/src/infrastructure/modules.ts` (+ test)
@@ -382,8 +393,13 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   account, module). A capability version the assistant does not pin is absent.
 - **Done when** tests with a mocked `fetch` cover the headers, a timeout, a
   malformed response and an unknown version.
+- **As built** a 403 is the module's refusal in its own words (`REFUSED`);
+  every other status, a body outside the contract, a timeout or the
+  question's abort is `UNREACHABLE`, logged with the module, capability and
+  status only. A catalogue naming another module is outside its contract. Only
+  a catalogue that parsed is cached.
 
-### [ ] AST-014 — Identity says who is asking
+### [x] AST-014 — Identity says who is asking
 
 - **Spec** PRD §6.6, §10.1
 - **Files** `platform/identity/src/account/http/asker-routes.ts` (+ test,
@@ -398,8 +414,15 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   Precedent: `directory-routes.ts`. The client caches 60 s per (tenant, email).
 - **Done when** the integration test covers one match, none, two, and an
   account whose access ended.
+- **As built** "active" is `status = 'active'` and `kind = 'member'`, matched
+  case-insensitively. The live-email index makes two live accounts with one
+  email impossible, so "two" is the route's unit test; the integration test
+  shows a terminated account and its rehired successor finding the successor.
+  `ASSISTANT_IDENTITY_TOKEN` has no fallback to `INTERNAL_API_TOKEN`: unset,
+  the route refuses everyone. It is read in `main.ts` and the Vercel entry
+  (`api/gateway.ts`). The response is `AssistantAsker` in contracts.
 
-### [ ] AST-015 — The planner, through the AI gateway
+### [x] AST-015 — The planner, through the AI gateway
 
 - **Spec** PRD §12.1, §12.3, §14
 - **Files** `platform/assistant/src/infrastructure/planner.ts`,
@@ -418,8 +441,17 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** a test asserts the prompt for each PRD §7 example holds no
   value, no `personId` and no private word, and a prompt naming "sick leave"
   unmasked is refused by the gateway.
+- **As built** the instruction is fixed text (`INSTRUCTION`), so its hash is
+  the eval gate's; each capability's `about`, inputs, fields, metrics and
+  groups go in the prompt's context beside the masked question, today in words
+  and the `unavailable` lines. Every catalogue's `denied` is loaded into the
+  planner's registry for each question (key and labels, as not for AI).
+  `people.person`'s `about` no longer says "work email": People's core fields
+  not for AI include it, and the gateway refused every prompt in a company
+  with People. `AI_FIELD_NAMED` and `AI_VALUE_DENIED` are "not allowed to
+  see"; any other refusal or a failed model is "couldn't take that question".
 
-### [ ] AST-016 — The eval set and its gate
+### [x] AST-016 — The eval set and its gate
 
 - **Spec** PRD §13.2
 - **Files** `platform/assistant/eval/{cases.ts,recorded.json,run.ts}`,
@@ -433,8 +465,20 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   exact plans (filters and values order-normalised), or any safety case.
 - **Done when** the recording is committed, the test passes, and changing one
   word of the instruction makes it fail until re-recorded.
+- **As built** 46 cases, 40 of them plans; the others are refused before the
+  model or by the gateway, and the test checks those without a recording.
+  Fixtures are the domain's (`fixtures.ts`, now with realistic `denied`), an
+  employee's People catalogue beside HR's. The harness is in `cases.ts`
+  (`prepare` mirrors the use case up to the planner). **The committed
+  recording is stubbed** (`model: "stub"`, the expected plans): no model was
+  called to make it, so its 100 % measures nothing until somebody runs
+  `ASSISTANT_EVAL_LIVE=1 just assistant-eval --record` with a key. A live run
+  needs `ASSISTANT_EVAL_LIVE=1` as well as `ASSISTANT_API_KEY`; `--stub`
+  re-hashes after a prompt change without one. The safety rules (only what was
+  offered, nothing only Kithena sets, no digit in `say`, no private word in a
+  masked prompt) run over every recorded answer.
 
-### [ ] AST-017 — The internal route
+### [x] AST-017 — The internal route
 
 - **Spec** PRD §5, §12.4, §13.1
 - **Files** `platform/assistant/src/http/server.ts` (+ test)
@@ -447,6 +491,16 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   counters in PRD §13.1.
 - **Done when** a test posts a question through the route against fake modules
   and a fake model, and a log-capture test finds no word of the question.
+- **As built** the token, not the body, says the channel. `compose(settings,
+wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
+  calendar link); the test swaps `fetch`, the logger and the clock and runs
+  the whole service against fake HTTP services. With no model the answer is
+  "not available" before identity is asked. One span per question
+  (`assistant.ask`), whose children are the HTTP instrumentation's spans for
+  each call; one counter (`assistant.questions` by channel, outcome and
+  reason — a plan refusal's code and a failure's are the reason) and one
+  histogram of the whole question. No hand-made child spans or
+  per-capability histogram: the HTTP spans carry those durations.
 
 ---
 

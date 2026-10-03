@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage } from 'node:http';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import { compose } from './composition.js';
@@ -21,8 +21,25 @@ const PORT = Number(process.env['PORT'] ?? 4104);
 
 const route = compose(process.env);
 
+/** A question is a few hundred bytes; anything past this is not one. */
+const MAX_BODY = 16 * 1024;
+
+async function bodyOf(request: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += (chunk as Buffer).length;
+    if (size > MAX_BODY) return '';
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 const server = createServer((request, response) => {
-  route(request)
+  bodyOf(request)
+    .then((body) =>
+      route({ method: request.method, url: request.url, headers: request.headers, body }),
+    )
     .then(({ status, body }) => {
       response.writeHead(status, { 'content-type': 'application/json' });
       response.end(JSON.stringify(body));

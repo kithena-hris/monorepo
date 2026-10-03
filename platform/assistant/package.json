@@ -9,12 +9,15 @@
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --passWithNoTests",
-    "start": "node dist/src/main.js"
+    "start": "node dist/src/main.js",
+    "eval": "tsx eval/run.ts"
   },
   "dependencies": {
+    "@kithena/auth-kit": "workspace:*",
     "@kithena/contracts": "workspace:*",
     "@kithena/domain-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

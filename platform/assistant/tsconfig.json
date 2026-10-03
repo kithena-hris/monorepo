@@ -4,8 +4,9 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["src/**/*", "vitest.config.ts"],
+  "include": ["src/**/*", "eval/**/*", "vitest.config.ts"],
   "references": [
+    { "path": "../../packages/auth-kit" },
     { "path": "../../packages/contracts" },
     { "path": "../../packages/domain-kit" },
     { "path": "../../packages/telemetry" }

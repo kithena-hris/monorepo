@@ -37,6 +37,14 @@ export const PEOPLE_CATALOGUE = RuntimeCatalogue.parse({
     ],
   },
   metrics: [{ key: 'tenure', label: 'Time at the company' }],
+  // People's core fields not for AI, and a company's own salary field.
+  denied: [
+    { key: 'legal_first_name', labels: ['Legal first name'] },
+    { key: 'preferred_name', labels: ['Preferred name'] },
+    { key: 'work_email', labels: ['Work email'] },
+    { key: 'employee_number', labels: ['Employee number'] },
+    { key: 'salary', labels: ['Salary', 'Salario'] },
+  ],
 });
 
 export const TIMEOFF_CATALOGUE = RuntimeCatalogue.parse({
@@ -66,5 +74,14 @@ export const TIMEOFF_CATALOGUE = RuntimeCatalogue.parse({
     { key: 'comp', name: 'Comp', private: false },
     { key: 'sick', name: 'Baja médica', private: true, category: 'sick_leave' },
     { key: 'parental', name: 'Parental leave', private: true, category: 'parental_leave' },
+  ],
+  // Time Off's fixed list (`services/timeoff/src/application/assist/denied.ts`).
+  denied: [
+    { key: 'sick_note', labels: ['sick note', 'medical note', 'sick leave', 'diagnosis'] },
+    { key: 'medical_note', labels: ['medical certificate'] },
+    { key: 'due_date', labels: ['due date'] },
+    { key: 'birth_date', labels: ['birth date', 'date of birth'] },
+    { key: 'display_name', labels: ['display name', 'full name'] },
+    { key: 'person_id', labels: ['person id'] },
   ],
 });

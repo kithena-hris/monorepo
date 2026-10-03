@@ -9,6 +9,8 @@ import {
   asSpecialCategory,
   policy,
 } from '../classification.js';
+import { ModuleEntitlement } from '../entitlements.js';
+import { AccountId } from '../events/identity.js';
 import type { ModuleKey } from '../module.js';
 import { keySchema } from '../people/primitives.js';
 import { CalendarDate, PersonId, TenantId } from '../primitives.js';
@@ -175,6 +177,11 @@ export const PersonRow = z.strictObject({
   detail: z.string().max(200).optional().register(policy, asSpecialCategory('health')),
   /** Group key to the row's value's label, for the groups the capability declares. */
   groups: z.record(FieldKey, z.string().max(200)).default({}).register(policy, asInternal()),
+  /**
+   * The row is the asker: the assistant knows an account, not a person, so the
+   * module says so, and a list of managers reads "Marco Ruiz (you)" (§7.2).
+   */
+  self: z.literal(true).optional().register(policy, asPublic()),
 });
 export type PersonRow = z.infer<typeof PersonRow>;
 
@@ -399,3 +406,19 @@ export const AssistantAnswer = z.strictObject({
   answered: z.boolean().register(policy, asPublic()),
 });
 export type AssistantAnswer = z.infer<typeof AssistantAnswer>;
+
+/**
+ * Who is asking, as identity answers the assistant (§6.6, §10.1):
+ * `POST /api/internal/tenants/<id>/assistant/asker`. Identity serialises to it
+ * and the assistant parses with it, so neither drifts alone.
+ */
+export const AssistantAsker = z.object({
+  accountId: AccountId,
+  /** The account's IANA zone, for "today" where the asker is. */
+  timeZone: z.string().min(1).max(64).register(policy, asInternal()),
+  /** The tenant's label, for links to its own app. */
+  slug: z.string().min(1).max(63).register(policy, asPublic()),
+  /** The recorded list, else the deployment's: what `ent` carries. */
+  entitlements: z.array(ModuleEntitlement),
+});
+export type AssistantAsker = z.infer<typeof AssistantAsker>;

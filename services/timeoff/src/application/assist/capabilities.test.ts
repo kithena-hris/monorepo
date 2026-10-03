@@ -41,8 +41,8 @@ describe('Time Off’s capability catalogue (AST-022)', () => {
       { name: 'timeoff.managers', version: 1 },
     ]);
     expect(catalogue.leaveTypes).toEqual([
-      { key: 'sick', name: 'Sick', private: true },
-      { key: 'vacation', name: 'Vacation', private: false },
+      { key: 'sick', name: 'Sick', private: true, category: 'sick_leave' },
+      { key: 'vacation', name: 'Vacation', private: false, category: 'annual_leave' },
     ]);
     const fields = catalogue.fields['timeoff.away'] ?? [];
     expect(fields.map((f) => f.key)).toEqual(['leave_type', 'team']);
@@ -76,7 +76,18 @@ describe('Time Off’s capability catalogue (AST-022)', () => {
       key: 'comp',
       name: 'Comp',
       private: true,
+      category: 'annual_leave',
     });
+  });
+
+  it('says each type’s category, so the assistant masks "off sick" as well as the type’s name', async () => {
+    const app = world();
+    const answer = await capabilityCatalogue(app.deps)(hr);
+    if (!answer.ok) throw new Error(answer.error.message);
+    // A company that calls sick leave "Baja médica" is still asked about people "off sick".
+    expect(RuntimeCatalogue.parse(answer.value).leaveTypes.find((t) => t.private)?.category).toBe(
+      'sick_leave',
+    );
   });
 });
 
@@ -324,6 +335,8 @@ describe('timeoff.managers (AST-024)', () => {
           personId: people.marco,
           name: 'Marco Ruiz',
           groups: { team: 'Platform', location: 'madrid' },
+          // Marco is asking: the answer says "(you)".
+          self: true,
         },
       ],
       ids: [people.marco],
@@ -345,6 +358,8 @@ describe('timeoff.managers (AST-024)', () => {
     });
     const everyone = await managersOf(app, hr, [NIA, ZOE, people.adam]);
     expect(everyone).toMatchObject({ total: 3, scope: 'everyone' });
+    // HR is none of them, so nobody is marked as the asker.
+    expect(everyone.kind === 'people' && everyone.rows.some((r) => r.self)).toBe(false);
     expect(everyone.kind === 'people' && everyone.rows.map((r) => r.name)).toEqual([
       'Marco Ruiz',
       'Ravi Patel',

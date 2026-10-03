@@ -21,7 +21,10 @@ export const PeoplePerson = capability({
   name: 'people.person',
   version: 1,
   module: 'people',
-  about: 'About one person named in the question: their job, manager, start date and work email.',
+  // Worded without "work email": a company's fields not for AI include it, and
+  // the AI gateway refuses a prompt that names one (assistant PRD §12.3).
+  about:
+    'About one person named in the question: their job, manager, start date and how to reach them.',
   accepts: { name: 'required' },
   output: 'profile',
 });

@@ -804,6 +804,9 @@ importers:
 
   platform/assistant:
     dependencies:
+      '@kithena/auth-kit':
+        specifier: workspace:*
+        version: link:../../packages/auth-kit
       '@kithena/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -813,6 +816,9 @@ importers:
       '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
+      '@opentelemetry/api':
+        specifier: ^1.9.0
+        version: 1.9.1
       zod:
         specifier: ^4.6.5
         version: 4.6.5
