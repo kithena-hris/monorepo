@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation IssueTimeOffCalendarFeed($key: String!, $input: JSON!) {\n    issueTimeOffCalendarFeed(idempotencyKey: $key, input: $input) {\n      token\n    }\n  }"}

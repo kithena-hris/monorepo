@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffHolidaySettings($year: Int!) {\n    timeOffHolidaySettings(year: $year) {\n      layers { holidays { date name } key level name weekendRule } locations { holidays { date layer movedFrom name } layerKeys locationKey } year\n    }\n  }"}

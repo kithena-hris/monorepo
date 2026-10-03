@@ -49,6 +49,11 @@ const Tab = z.object({
 const Place = Tab.extend({
   /** A shorter line than `description`, under the label on a phone's row. */
   summary: z.string().min(1).optional(),
+  /**
+   * Its label for a viewer with one of these roles, the first that matches:
+   * "Requests" for whoever decides them, "My requests" (`label`) for the rest.
+   */
+  labelFor: z.record(z.string(), z.string().min(1)).optional(),
   tabs: z.array(Tab).min(1).optional(),
 });
 export type Place = z.infer<typeof Place>;
@@ -86,12 +91,16 @@ export function placesFor(
 } {
   const opens = (p: Pick<Place, 'for'>): boolean =>
     p.for === undefined || p.for.some((r) => roles[r] === true);
+  const named = (p: Place): Place => {
+    const label = Object.entries(p.labelFor ?? {}).find(([role]) => roles[role] === true)?.[1];
+    return label === undefined ? p : { ...p, label };
+  };
   return {
     sections: nav.sections.filter(opens).flatMap((section): Place[] => {
-      if (section.tabs === undefined) return [section];
+      if (section.tabs === undefined) return [named(section)];
       const tabs = section.tabs.filter(opens);
       const first = tabs[0];
-      return first === undefined ? [] : [{ ...section, path: first.path, tabs }];
+      return first === undefined ? [] : [{ ...named(section), path: first.path, tabs }];
     }),
     actions: nav.actions.filter(opens),
     settings: (nav.settings ?? []).filter(opens),
@@ -431,11 +440,17 @@ async function manifestOf(base: string): Promise<unknown> {
  * places and every route it lists, whichever path is asked for. `null` when
  * the remote is not configured, cannot be reached or is not a manifest.
  */
-export async function remoteNav(
-  area: Area,
-): Promise<{ readonly nav: RemoteRoute['nav']; readonly routes: readonly string[] } | null> {
+export async function remoteNav(area: Area): Promise<{
+  readonly nav: RemoteRoute['nav'];
+  readonly routes: readonly string[];
+  readonly screens: RemoteRoute['screens'];
+} | null> {
   const parsed = RouteManifest.safeParse(await manifestOf(remoteBase(area)));
   if (!parsed.success) return null;
   const { routes, sections, actions, settings } = parsed.data;
-  return { nav: { sections, actions, settings }, routes: routes.map((r) => r.path) };
+  return {
+    nav: { sections, actions, settings },
+    routes: routes.map((r) => r.path),
+    screens: Object.fromEntries(routes.map((r) => [r.path, r.component])),
+  };
 }

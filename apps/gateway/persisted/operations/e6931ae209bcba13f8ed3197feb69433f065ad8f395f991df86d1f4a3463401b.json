@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CorrectTimeOffPunch($key: String!, $input: JSON!) {\n    correctTimeOffPunch(idempotencyKey: $key, input: $input) {\n      needsManager punch { at id kind reason recordedAt source supersedes workModel }\n    }\n  }"}

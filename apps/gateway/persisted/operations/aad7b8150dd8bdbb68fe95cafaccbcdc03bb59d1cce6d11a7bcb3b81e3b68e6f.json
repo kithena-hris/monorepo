@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffMyRequests($tab: String) {\n    timeOffMyRequests(tab: $tab) {\n      items { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } tab\n    }\n  }"}

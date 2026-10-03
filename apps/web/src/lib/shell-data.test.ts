@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { FINANCE, HR, PEOPLE_NAV } from './people-nav.fixture';
-import { placesFor } from './remotes';
-import { countsOf, noticesOf, type Overview } from './shell-data';
+import timeOffManifest from '../../timeoff/public/routes.json';
+import { headerFrame, matchRoute, placesFor } from './remotes';
+import {
+  countsOf,
+  noticesOf,
+  timeOffCounts,
+  timeOffRoles,
+  type Overview,
+  type TimeOffViewer,
+} from './shell-data';
 
 const overview = (roles: Overview['roles'], approvals: number): Overview => ({
   roles,
@@ -53,7 +61,10 @@ describe('telling somebody they were viewed as', () => {
   it('is a notice for a fortnight after it ended, saying who, how long, and what showed', () => {
     const notices = noticesOf({
       ...overview(HR, 0),
-      viewedAs: [viewed('2026-09-29T08:00:00.000Z', true), viewed('2026-09-01T08:00:00.000Z', false)],
+      viewedAs: [
+        viewed('2026-09-29T08:00:00.000Z', true),
+        viewed('2026-09-01T08:00:00.000Z', false),
+      ],
     });
     expect(notices).toEqual([
       {
@@ -94,5 +105,60 @@ describe('a question about one’s own change (AI7)', () => {
       detail: 'Tom Fischer · answer it to move it on',
       href: '/people/approvals?tab=asked&change=c1',
     });
+  });
+});
+
+describe('Time Off for its approvers (TOF-058a)', () => {
+  const nav = matchRoute(timeOffManifest, '/time-off/overview')?.nav ?? {
+    sections: [],
+    actions: [],
+    settings: [],
+  };
+  const employee = { hr: false, admin: false, finance: false };
+  const viewer = (approves: boolean): TimeOffViewer => ({
+    approves,
+    hrAdmin: false,
+    counts: { requestsWaiting: approves ? 3 : 0, attendanceExceptions: 0 },
+  });
+  const requests = (v: TimeOffViewer) => {
+    const places = placesFor(nav, timeOffRoles(employee, v));
+    const frame = headerFrame(
+      places,
+      '/time-off/requests/upcoming',
+      '/time-off',
+      { tabs: timeOffCounts(v, places.sections).tabs },
+      'Time off',
+    );
+    return {
+      section: frame.section,
+      tabs: frame.tabs?.map((t) => `${t.label}${String(t.count ?? '')}`),
+    };
+  };
+
+  it('shows Marco, who approves with no admin role, the queue tabs and what waits', () => {
+    expect(requests(viewer(true))).toEqual({
+      section: 'Requests',
+      tabs: [
+        'Waiting for me3',
+        'Coming up',
+        'Decided',
+        'Delegation',
+        'Upcoming',
+        'Past',
+        'Cancelled',
+      ],
+    });
+  });
+
+  it('shows Adam, who approves nobody, his own requests and none of the queue', () => {
+    expect(requests(viewer(false))).toEqual({
+      section: 'My requests',
+      tabs: ['Upcoming', 'Past', 'Cancelled'],
+    });
+  });
+
+  it('keeps the shell’s roles when Time Off does not answer', () => {
+    expect(timeOffRoles(employee, null)).toBe(employee);
+    expect(timeOffCounts(null, [])).toEqual({ sections: {}, tabs: {} });
   });
 });

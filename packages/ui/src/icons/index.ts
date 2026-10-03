@@ -139,6 +139,13 @@ import {
   Cpu,
   ScanSearch,
   Sparkles,
+  Baby,
+  CircleSlash,
+  Coffee,
+  Plane,
+  Square,
+  Thermometer,
+  Timer,
 } from 'lucide-react';
 
 /**
@@ -177,6 +184,8 @@ export const iconGroups = {
     externalLink: ExternalLink,
     addImage: ImagePlus,
     play: Play,
+    /** Ending something that runs on a clock: a timer, a shift, a recording. */
+    stop: Square,
     pause: Pause,
     signOut: LogOut,
   },
@@ -279,6 +288,19 @@ export const iconGroups = {
     theme: Sun,
     themeDark: Moon,
     remove: Minus,
+    /**
+     * Kinds of time away and time at work. Each is the glyph a calendar
+     * draws beside the word, so a day off reads the same everywhere.
+     */
+    vacation: Sun,
+    sick: Thermometer,
+    parental: Baby,
+    unpaid: CircleSlash,
+    travel: Plane,
+    /** A pause in the working day. */
+    break: Coffee,
+    /** Time worked beyond the plan, or banked from it. */
+    overtime: Timer,
   },
   /**
    * Where a clock has got to, for the band of the day it is in.

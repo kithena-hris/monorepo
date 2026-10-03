@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffAttendanceSettings {\n    timeOffAttendanceSettings {\n      defaultSchedule rules { breakAfterMinutes breakMinutes overtime { becomes multiplier } restMinutes weeklyMaxMinutes }\n    }\n  }"}

@@ -77,6 +77,9 @@ async function browserModule(name: string, entry: string): Promise<Record<string
 const loading = new Map<string, Promise<Record<string, unknown>>>();
 const loaded = new Map<string, Record<string, unknown>>();
 
+/** Whether a remote's code is in the page already: a loading state may draw its screen at once. */
+export const remoteLoaded = (entry: string): boolean => loaded.has(entry);
+
 function browserModuleOf(name: string, entry: string): Promise<Record<string, unknown>> {
   let promise = loading.get(entry);
   if (promise === undefined) {

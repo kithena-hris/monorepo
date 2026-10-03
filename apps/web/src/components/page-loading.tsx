@@ -12,6 +12,7 @@ import { HomeLoading } from './home-dashboard';
 import { Inbox } from './inbox';
 import { PeopleLoading } from './people-screen';
 import { SettingsIndex } from './settings-index';
+import { TimeOffLoading } from './timeoff-screen';
 
 /** Every People setting's "how it is set now", still to come. */
 const PENDING_NOW = Object.fromEntries(PEOPLE_NOW_PATHS.map((path) => [path, '']));
@@ -31,6 +32,8 @@ const PENDING_NOW = Object.fromEntries(PEOPLE_NOW_PATHS.map((path) => [path, '']
  *   that, the skeleton the screen shows while its own code loads
  *   (`people-screen.tsx`), with the header `headerFrame` gives it — a
  *   breadcrumb, and on an umbrella page as many tabs as this viewer opens.
+ * - A Time Off screen: the screen itself, loading, under its real header,
+ *   so it draws its own skeleton in its exact shape (`TimeOffLoading`).
  * - The inbox: the inbox itself, from the shell's copy of what the bell holds.
  * - Settings: the page itself from the shell's places, each card's "set now"
  *   still to come.
@@ -60,6 +63,9 @@ export function PageLoading(): JSX.Element {
         }
       />
     );
+  }
+  if (pathname.startsWith('/time-off/') || pathname.startsWith('/settings/time-off/')) {
+    return <TimeOffLoading />;
   }
   // People's settings: the same, under their trail in Settings.
   if (pathname.startsWith('/settings/people/')) {

@@ -14,9 +14,10 @@ persisted_operations:
   # Self-hosted, no control plane: the safelist is the files under
   # `persisted/operations/<sha256>.json`, one `{ "version": 1, "body": … }`
   # per operation, generated from the tenant app's list
-  # (`apps/web/src/lib/people-operations.ts`, `pnpm --filter @kithena/gateway
-  # persist`). Relative to the router's working directory: `apps/gateway`
-  # for `pnpm dev`, `/` in the image, where `persisted/` is mounted.
+  # (`apps/web/src/lib/people-operations.ts` and `timeoff-operations.ts`,
+  # `pnpm --filter @kithena/gateway persist`). Relative to the router's
+  # working directory: `apps/gateway` for `pnpm dev`, `/` in the image, where
+  # `persisted/` is mounted.
   storage:
     provider_id: operations
     object_prefix: operations

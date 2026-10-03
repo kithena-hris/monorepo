@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetTimeOffDelegation($approverId: String!, $key: String!, $input: JSON!) {\n    setTimeOffDelegation(approverId: $approverId, idempotencyKey: $key, input: $input) {\n      ok\n    }\n  }"}

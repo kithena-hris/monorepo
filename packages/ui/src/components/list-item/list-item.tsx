@@ -24,6 +24,7 @@ import {
   shortcutKeys,
   type RowAction,
 } from '../../lib/shortcut-keys';
+import { toneVar, type ChartTone } from '../chart/chart';
 import { RowMenu } from '../table/row-menu';
 
 /**
@@ -153,6 +154,12 @@ export interface ListItemProps extends Omit<ComponentPropsWithoutRef<'li'>, 'tit
    * what the place holds.
    */
   icon?: ReactNode;
+  /**
+   * Tints `icon`'s tile with a series tone, glyph and wash, where the tile
+   * stands for one of several kinds the page tells apart by colour (a
+   * category, a type). The title still names it.
+   */
+  iconTone?: ChartTone;
   /** One line under the title, truncated. */
   description?: ReactNode;
   /** A longer passage under the description, clamped to two lines. */
@@ -384,6 +391,7 @@ export function ListItem({
   className,
   leading,
   icon,
+  iconTone,
   description,
   supporting,
   meta,
@@ -423,6 +431,19 @@ export function ListItem({
         <span
           aria-hidden
           className="flex size-10 shrink-0 items-center justify-center rounded-[0.75rem] bg-surface-sunken text-fg [&_svg]:size-5"
+          style={
+            iconTone === undefined
+              ? undefined
+              : {
+                  // The glyph is the tone pulled a quarter of the way to `fg`,
+                  // as a status `*-fg` is to its `*-subtle`: a series colour is
+                  // only 3:1 on a bare surface, and its own wash lowers that.
+                  // Toward `fg` darkens in light and lightens in dark, so every
+                  // tone holds 4.5:1 on the wash in both themes.
+                  color: `color-mix(in oklab, ${toneVar[iconTone]} 75%, var(--color-fg))`,
+                  background: `color-mix(in oklch, ${toneVar[iconTone]} 20%, transparent)`,
+                }
+          }
         >
           {icon}
         </span>

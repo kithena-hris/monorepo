@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetTimeOffTeamMinimum($key: String!, $input: JSON!, $teamKey: String!) {\n    setTimeOffTeamMinimum(idempotencyKey: $key, input: $input, teamKey: $teamKey) {\n      ok\n    }\n  }"}
