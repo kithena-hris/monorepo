@@ -4,7 +4,14 @@ import { requiresApproval, type Actor, type AttributeDefinition } from '@kithena
 import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 
 import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
-import { filterable, REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
+import {
+  filterable,
+  refinable,
+  REPORTS_TO,
+  type Asking,
+  type PersonView,
+} from '../person/person-access.js';
+import { METRICS } from '../../domain/person/metrics.js';
 import { mayChangePhoto } from '../../domain/person/photo.js';
 import { matchBand, type MatchBand } from '../../domain/person/merge.js';
 import { askable } from '../../domain/person/detail-request.js';
@@ -1367,7 +1374,22 @@ export interface DirectoryView {
     readonly conditions: readonly Condition[];
     readonly match: 'all' | 'any';
     readonly sort: { readonly key: string; readonly direction: 'asc' | 'desc' } | null;
+    /** At most this many people ("top 5"); null for everybody found. */
+    readonly top: number | null;
   };
+  /**
+   * What People works out about each person that this viewer may order by
+   * (`domain/person/metrics.ts`), with the order in words; those that are
+   * `filter` are in `fields` too, as numbers or dates a condition may name.
+   */
+  readonly metrics: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly kind: 'number' | 'date';
+    readonly filter: boolean;
+    readonly most: string;
+    readonly least: string;
+  }[];
   readonly filterable: readonly {
     readonly key: string;
     readonly label: string;
@@ -1579,6 +1601,8 @@ export async function directoryView(
     readonly conditions?: readonly Condition[];
     readonly match?: 'all' | 'any';
     readonly sort?: { readonly key: string; readonly direction: 'asc' | 'desc' };
+    /** At most this many people, in the order asked. */
+    readonly top?: number;
   },
 ): Promise<Result<DirectoryView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
@@ -1633,15 +1657,26 @@ export async function directoryView(
       ...gaps,
       refine,
     };
+    // "Top 5": the page stops at the fifth, and so does the count.
+    const top = query.top ?? null;
     const listed = await deps.service.access.list(tx, {
       ...narrowed,
       after: query.sort === undefined ? (query.after ?? null) : null,
-      limit: DIRECTORY_PAGE,
+      limit: top === null ? DIRECTORY_PAGE : Math.max(1, Math.min(DIRECTORY_PAGE, top - offset)),
     });
     if (!listed.ok) return listed;
-    const counted = await deps.service.access.count(tx, narrowed);
-    if (!counted.ok) return counted;
+    const found = await deps.service.access.count(tx, narrowed);
+    if (!found.ok) return found;
+    const capped = (n: number): number => (top === null ? n : Math.min(n, top));
+    const counted = {
+      value: {
+        all: capped(found.value.all),
+        active: capped(found.value.active),
+        notStarted: capped(found.value.notStarted),
+      },
+    };
     const page = listed.value.items;
+    const next = top !== null && offset + page.length >= top ? null : listed.value.next;
 
     const columns = directoryColumns(definitions, everyone);
     const shownDefault = new Set(
@@ -1673,6 +1708,18 @@ export async function directoryView(
       const read = await deps.service.access.read(tx, { ...asking, personId: reportsTo });
       const name = read.ok ? nameOf(read.value.attributes) : null;
       if (name !== null) names.set(reportsTo, name);
+    }
+    // A manager a condition names ("reports of Marco"), by name, so its chip says who.
+    const managers = own.filter(
+      (c) => c.key === REPORTS_TO && (c.op === 'is' || c.op === 'under') && c.values[0] !== undefined,
+    );
+    for (const c of managers) {
+      const id = c.values[0] ?? '';
+      if (names.has(id)) continue;
+      // eslint-disable-next-line no-await-in-loop -- one or two managers a question names
+      const read = await deps.service.access.read(tx, { ...asking, personId: id });
+      const name = read.ok ? nameOf(read.value.attributes) : null;
+      if (name !== null) names.set(id, name);
     }
     const personColumns = columns.filter((c) => c.typeConfig.kind === 'person_ref');
     const avatars = await avatarsOf(deps, tx, asking.tenantId, [
@@ -1738,6 +1785,24 @@ export async function directoryView(
           ]
         : []),
     ];
+    // The metrics this viewer may order by, and narrow by where a metric is a filter.
+    const metrics = METRICS.filter(
+      (m) =>
+        refinable(definitions, { sort: { key: m.key, direction: 'asc' } }, everyone).ok &&
+        (!m.filter ||
+          refinable(
+            definitions,
+            { conditions: [{ key: m.key, op: 'not_empty', values: [] }] },
+            everyone,
+          ).ok),
+    ).map((m) => ({
+      key: m.key,
+      label: m.label,
+      kind: m.kind,
+      filter: m.filter,
+      most: m.most,
+      least: m.least,
+    }));
     const aiEligible = new Map(
       definitions.map((d) => [d.key as string, d.classification.aiEligible]),
     );
@@ -1760,11 +1825,29 @@ export async function directoryView(
         })),
         ...(everyone.isHr ? [{ key: 'status', label: 'Status', shown: true, sortable: true }] : []),
       ],
-      fields,
+      fields: [
+        ...fields.map((f) =>
+          f.key === REPORTS_TO && managers.length > 0
+            ? {
+                ...f,
+                options: managers.flatMap((c) => {
+                  const id = c.values[0] ?? '';
+                  const name = names.get(id);
+                  return name === undefined ? [] : [{ value: id, label: name }];
+                }),
+              }
+            : f,
+        ),
+        ...metrics
+          .filter((m) => m.filter)
+          .map((m) => ({ key: m.key, label: m.label, kind: m.kind, options: [] })),
+      ],
+      metrics,
       query: {
         conditions: own,
         match: ownMatch,
         sort: query.sort ?? null,
+        top,
       },
       filterable: [
         ...(reportsTo === undefined
@@ -1813,7 +1896,7 @@ export async function directoryView(
           missing: missing.get(p.id) ?? null,
         };
       }),
-      next: listed.value.next,
+      next,
       // An export is a read, so everybody may build one of what they can see.
       can: { import: everyone.isHr, export: true, bulkEdit: everyone.isHr },
       segment: segment === null ? null : { id: segment.value.id, name: segment.value.name },

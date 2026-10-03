@@ -87,4 +87,27 @@ describe('refinable', () => {
     }));
     expect(code(refinable(definitions, { conditions: many }, hr))).toBe('TOO_MANY_CONDITIONS');
   });
+
+  it('orders and narrows by a metric only as its fields allow: missing details are HR’s, reports the manager field’s', () => {
+    const by = (key: string, who: ViewerRelations) =>
+      code(refinable(definitions, { sort: { key, direction: 'desc' } }, who));
+    expect(by('missing_count', none)).toBe('FIELD_NOT_SORTABLE');
+    expect(by('missing_count', hr)).toBe('ok');
+    expect(by('direct_reports', none)).toBe('ok');
+    // No start date in this schema: tenure is nobody's to sort by.
+    expect(by('tenure_days', hr)).toBe('FIELD_NOT_SORTABLE');
+    const more = { conditions: [{ key: 'missing_count', op: 'after' as const, values: ['4'] }] };
+    expect(code(refinable(definitions, more, none))).toBe('FIELD_NOT_FILTERABLE');
+    expect(code(refinable(definitions, more, hr))).toBe('ok');
+    // Completeness orders, and is no condition.
+    const complete = { conditions: [{ key: 'completeness', op: 'after' as const, values: ['1'] }] };
+    expect(code(refinable(definitions, complete, hr))).toBe('FIELD_NOT_FILTERABLE');
+  });
+
+  it('takes "none of" as it takes "any of"', () => {
+    const not = { conditions: [{ key: 'department', op: 'not_in' as const, values: ['sales'] }] };
+    expect(code(refinable(definitions, not, none))).toBe('ok');
+    const empty = { conditions: [{ key: 'department', op: 'not_in' as const, values: [] }] };
+    expect(code(refinable(definitions, empty, none))).toBe('CONDITION_INVALID');
+  });
 });

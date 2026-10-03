@@ -70,13 +70,23 @@ export type GapsIn = 'staff' | 'any';
 /**
  * A directory condition: one field, an operator, and its values.
  *
- * `is` one value; `in` any of several (OR within a field); `contains` a
- * substring; `before`, `after` and `between` a date or number range, bounds
+ * `is` one value; `in` any of several (OR within a field); `not_in` none of
+ * them, an empty value included ("not in Sales"); `contains` a substring; `before`, `after` and `between` a date or number range, bounds
  * included; `empty` and `not_empty` take no value; `under` a manager and
- * everybody below them, however deep. `status` is a key too, HR's alone.
+ * everybody below them, however deep. `status` is a key too, HR's alone,
+ * and so is each metric of `domain/person/metrics.ts` its own way.
  */
 export type ConditionOp =
-  'is' | 'in' | 'contains' | 'before' | 'after' | 'between' | 'empty' | 'not_empty' | 'under';
+  | 'is'
+  | 'in'
+  | 'not_in'
+  | 'contains'
+  | 'before'
+  | 'after'
+  | 'between'
+  | 'empty'
+  | 'not_empty'
+  | 'under';
 
 export interface Condition {
   readonly key: string;

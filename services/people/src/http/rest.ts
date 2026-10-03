@@ -360,6 +360,7 @@ export const CreateExportBody = z.strictObject({
         op: z.enum([
           'is',
           'in',
+          'not_in',
           'contains',
           'before',
           'after',

@@ -75,7 +75,18 @@ type Tx = PostgresJsDatabase;
 
 const ConditionChoice = z.strictObject({
   key: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/),
-  op: z.enum(['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty', 'under']),
+  op: z.enum([
+    'is',
+    'in',
+    'not_in',
+    'contains',
+    'before',
+    'after',
+    'between',
+    'empty',
+    'not_empty',
+    'under',
+  ]),
   values: z.array(z.string().max(200)).max(50),
 });
 

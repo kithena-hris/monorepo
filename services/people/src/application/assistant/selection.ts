@@ -318,7 +318,18 @@ export const DirectoryRemind = z.strictObject({
     .array(
       z.strictObject({
         key: z.string().max(64),
-        op: z.enum(['is', 'in', 'contains', 'before', 'after', 'between', 'empty', 'not_empty']),
+        op: z.enum([
+          'is',
+          'in',
+          'not_in',
+          'contains',
+          'before',
+          'after',
+          'between',
+          'empty',
+          'not_empty',
+          'under',
+        ]),
         values: z.array(z.string().max(200)).max(50),
       }),
     )

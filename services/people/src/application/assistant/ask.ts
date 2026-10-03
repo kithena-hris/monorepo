@@ -161,6 +161,10 @@ export function describe(
           return `with no ${label} yet`;
         case 'not_empty':
           return `with a ${label}`;
+        case 'not_in':
+          return `whose ${label} is not ${values.join(' or ')}`;
+        case 'under':
+          return 'in the team below somebody';
         case 'contains':
           return `whose ${label} mentions ${values.join(' or ')}`;
         case 'before':
