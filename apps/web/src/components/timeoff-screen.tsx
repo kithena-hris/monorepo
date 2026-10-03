@@ -171,6 +171,15 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
             goTo({}, `/settings/time-off/holidays/${String(year)}`);
           },
         };
+      case 'Integrations':
+        return {
+          load: loadable,
+          query: Object.fromEntries(live),
+          onConnect: settings.connectIntegration,
+          onDisconnect: settings.disconnectIntegration,
+          onRegisterKiosk: settings.registerKiosk,
+          onRevokeKiosk: settings.revokeKiosk,
+        };
       default:
         return {};
     }

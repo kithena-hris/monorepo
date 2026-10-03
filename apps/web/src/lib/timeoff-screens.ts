@@ -88,6 +88,9 @@ export async function loadScreen(
       return approvalSettings();
     case 'HolidaySettings':
       return holidaySettings(query);
+    // TOF-109: where time off shows up outside Time Off.
+    case 'Integrations':
+      return read('TimeOffIntegrations');
     default:
       return { status: 'none' };
   }

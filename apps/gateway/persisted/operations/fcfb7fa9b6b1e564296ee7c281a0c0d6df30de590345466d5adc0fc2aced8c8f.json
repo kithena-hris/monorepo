@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RegisterTimeOffKiosk($key: String!, $input: JSON!) {\n    registerTimeOffKiosk(idempotencyKey: $key, input: $input) {\n      deviceId token\n    }\n  }"}

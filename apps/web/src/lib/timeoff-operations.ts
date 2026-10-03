@@ -94,6 +94,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T35: calendars, chat apps, kiosks, country packs, and the modules that would read Time Off; HR */
+  TimeOffIntegrations: `query TimeOffIntegrations {
+    timeOffIntegrations {
+      integrations { account available configured connected connectedAt kind provider } kiosks { id lastSeenAt locationKey name revokedAt } locations { locationKey name } modules { events key } packs { country inUse reviewed }
+    }
+  }`,
+
   /** The QR the caller’s phone shows a kiosk, good for a minute */
   TimeOffKioskQr: `query TimeOffKioskQr {
     timeOffKioskQr {
@@ -269,6 +276,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** The provider’s consent page, or the connection at once where access is granted in the company’s own admin console; HR */
+  ConnectTimeOffIntegration: `mutation ConnectTimeOffIntegration($key: String!, $input: JSON!, $provider: String!) {
+    connectTimeOffIntegration(idempotencyKey: $key, input: $input, provider: $provider) {
+      url
+    }
+  }`,
+
   /** A punch made afterwards: replacing one, or one never made; the member’s own or HR’s */
   CorrectTimeOffPunch: `mutation CorrectTimeOffPunch($key: String!, $input: JSON!) {
     correctTimeOffPunch(idempotencyKey: $key, input: $input) {
@@ -294,6 +308,13 @@ export const OPERATIONS = {
   DefineTimeOffLeaveType: `mutation DefineTimeOffLeaveType($key: String!, $input: JSON!) {
     defineTimeOffLeaveType(idempotencyKey: $key, input: $input) {
       key
+    }
+  }`,
+
+  /** Forgets the company’s connection and every member’s grant; HR */
+  DisconnectTimeOffIntegration: `mutation DisconnectTimeOffIntegration($key: String!, $provider: String!) {
+    disconnectTimeOffIntegration(idempotencyKey: $key, provider: $provider) {
+      ok
     }
   }`,
 
@@ -346,6 +367,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** A kiosk for a location, and its token, shown this once; HR */
+  RegisterTimeOffKiosk: `mutation RegisterTimeOffKiosk($key: String!, $input: JSON!) {
+    registerTimeOffKiosk(idempotencyKey: $key, input: $input) {
+      deviceId token
+    }
+  }`,
+
   /** Nobody covers for an approver any more */
   RemoveTimeOffDelegation: `mutation RemoveTimeOffDelegation($approverId: String!, $key: String!) {
     removeTimeOffDelegation(approverId: $approverId, idempotencyKey: $key) {
@@ -377,6 +405,13 @@ export const OPERATIONS = {
   /** Every feed the caller issued stops working */
   RevokeTimeOffCalendarFeeds: `mutation RevokeTimeOffCalendarFeeds($key: String!) {
     revokeTimeOffCalendarFeeds(idempotencyKey: $key) {
+      ok
+    }
+  }`,
+
+  /** The kiosk’s token stops working at once; HR */
+  RevokeTimeOffKiosk: `mutation RevokeTimeOffKiosk($deviceId: String!, $key: String!) {
+    revokeTimeOffKiosk(deviceId: $deviceId, idempotencyKey: $key) {
       ok
     }
   }`,

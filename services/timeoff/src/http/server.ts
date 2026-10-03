@@ -75,6 +75,8 @@ export interface TimeOffServerOptions extends Pick<Deps, 'uow' | 'authz' | 'feed
   /** Temporal's, when `TEMPORAL_ADDRESS` is set; without it nothing reminds or escalates. */
   readonly timers?: Deps['timers'];
   readonly notifier?: Deps['notifier'];
+  /** Calendars and chat apps, as their credentials allow. */
+  readonly reach?: Deps['reach'];
 }
 
 /**
@@ -96,6 +98,7 @@ export function timeoffServer(options: TimeOffServerOptions): {
     newId: options.newId ?? uuidv7,
     timers: options.timers ?? { started: async () => {}, closed: async () => {} },
     notifier: options.notifier ?? { notify: async () => {} },
+    ...(options.reach === undefined ? {} : { reach: options.reach }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   configureGraphQL({ rest });

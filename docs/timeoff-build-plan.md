@@ -1700,11 +1700,30 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
   Time Off has nowhere to keep them. Badges are given through the API
   (`PUT …/kiosk-credentials/badge`); there is no screen for it yet.
 
-### [ ] TOF-109 — Integrations page
+### [x] TOF-109 — Integrations page
 
 - **Screens** T35 · **Depends on** TOF-078
 - **Approach** Lists connected integrations and the Kithena modules that would
   consume Time Off events, marked "Kithena module".
+- **As built** `apps/web/timeoff/src/settings/integrations.tsx` at
+  `/settings/time-off/integrations`, from `timeOffIntegrations`
+  (`application/reach/integrations.ts`). Groups are named by what they are —
+  Calendar, Chat apps — and a vendor's name is only on its own row (Google
+  Calendar, Microsoft Outlook, Slack, Microsoft Teams, which "Follows
+  Slack"). Each row says where it stands: Connected, Not connected, Needs
+  credentials (no app created at the provider, so no button), Not available
+  yet (no adapter). Connecting goes to the provider's consent page with a
+  state Time Off signs (tenant, HR account, the page to return to, 15
+  minutes) and comes back to Time Off's public
+  `/v1/timeoff/integrations/<provider>/callback`, which checks it, stores
+  what was granted (`timeoff.integration`, secrets sealed by the adapter;
+  `integration_member` for a person's own grant) and redirects to the page
+  with `?connected=` or `?refused=`. Where access is granted in the
+  company's own admin console (Google), connecting is recorded at once. The
+  page also lists the kiosks with Add (the link with its token, shown once)
+  and Revoke, the country packs with "Not reviewed yet", and Payroll,
+  Benefits and Projects as "Kithena module", each with the events it would
+  read. The design's "Browse more" has nothing to browse and is left out.
 
 ### [ ] TOF-110 — Calendar integration (Google, Microsoft)
 

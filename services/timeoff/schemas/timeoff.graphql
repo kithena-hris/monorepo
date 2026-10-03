@@ -74,6 +74,15 @@ type Mutation {
   """
   closeTimeOffPayPeriod(idempotencyKey: String!, month: String!): TimeOffPayPeriodClosed!
   """
+  The provider’s consent page, or the connection at once where access is granted in the company’s own admin console; HR
+  """
+  connectTimeOffIntegration(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    provider: String!
+  ): TimeOffIntegrationConnect!
+  """
   A punch made afterwards: replacing one, or one never made; the member’s own or HR’s
   """
   correctTimeOffPunch(
@@ -100,6 +109,8 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): TimeOffLeaveTypeDefined!
+  """Forgets the company’s connection and every member’s grant; HR"""
+  disconnectTimeOffIntegration(idempotencyKey: String!, provider: String!): TimeOffDone!
   """A policy for a leave type, as a draft; HR"""
   draftTimeOffPolicy(
     idempotencyKey: String!
@@ -300,6 +311,10 @@ type Query {
   timeOffHolidaySettings(year: Int!): TimeOffSettingsHolidays!
   """MT21: the holidays the caller’s work location observes"""
   timeOffHolidays(year: Int!): TimeOffHolidays!
+  """
+  T35: calendars, chat apps, kiosks, country packs, and the modules that would read Time Off; HR
+  """
+  timeOffIntegrations: TimeOffIntegrations!
   """The QR the caller’s phone shows a kiosk, good for a minute"""
   timeOffKioskQr: TimeOffKioskQr!
   """Every kiosk and when it was last seen; never a token; HR"""
@@ -477,6 +492,11 @@ type TimeOffCaseStep {
   status: String!
 }
 
+type TimeOffConsumingModule {
+  events: [String!]!
+  key: String!
+}
+
 type TimeOffCorrection {
   needsManager: Boolean!
   punch: TimeOffPunch!
@@ -597,12 +617,45 @@ type TimeOffImportReport {
   updated: Int!
 }
 
+type TimeOffIntegration {
+  account: String
+  available: Boolean!
+  configured: Boolean!
+  connected: Boolean!
+  connectedAt: String
+  kind: String!
+  provider: String!
+}
+
+type TimeOffIntegrationConnect {
+  url: String
+}
+
+type TimeOffIntegrationPack {
+  country: String!
+  inUse: Boolean!
+  reviewed: Boolean!
+}
+
+type TimeOffIntegrations {
+  integrations: [TimeOffIntegration!]!
+  kiosks: [TimeOffKiosk!]!
+  locations: [TimeOffKioskLocation!]!
+  modules: [TimeOffConsumingModule!]!
+  packs: [TimeOffIntegrationPack!]!
+}
+
 type TimeOffKiosk {
   id: String!
   lastSeenAt: String
   locationKey: String!
   name: String!
   revokedAt: String
+}
+
+type TimeOffKioskLocation {
+  locationKey: String!
+  name: String
 }
 
 type TimeOffKioskQr {

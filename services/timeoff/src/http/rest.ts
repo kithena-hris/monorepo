@@ -62,6 +62,12 @@ import {
 } from '../application/attendance/kiosk.js';
 import { importMembers } from '../application/member/import.js';
 import {
+  completeIntegration,
+  connectIntegration,
+  disconnectIntegration,
+  integrationsScreen,
+} from '../application/reach/integrations.js';
+import {
   answerParental,
   approveParentalPlan,
   editParentalBlocks,
@@ -125,6 +131,8 @@ import {
   HolidaySettingsView,
   HolidaysView,
   HandoverView,
+  IntegrationProviderView,
+  IntegrationsView,
   KioskIdentityView,
   KioskQrView,
   KioskRegisteredView,
@@ -369,6 +377,11 @@ export const KioskCredentialSetBody = z.strictObject({
   value: z.string().trim().min(1).max(64).nullable(),
 });
 const KioskParams = z.object({ deviceId: z.uuid() });
+const ProviderParams = z.object({ provider: IntegrationProviderView });
+export const ConnectBody = z.strictObject({
+  /** The integrations page to come back to once the provider has answered. */
+  back: z.url({ protocol: /^https?$/u }),
+});
 export const ImportBody = z.strictObject({
   format: z.enum(['csv', 'json']),
   content: z.string().max(5_000_000),
@@ -1185,6 +1198,69 @@ export const ROUTES: readonly Route[] = [
     shape: (v) => ({ results: [...v.results] }),
   }),
 
+  /* ----------------------------------------------------- integrations -- */
+  route({
+    name: 'timeOffIntegrations',
+    method: 'GET',
+    path: `${V1}/integrations`,
+    summary:
+      'T35: calendars, chat apps, kiosks, country packs, and the modules that would read Time Off; HR',
+    answer: IntegrationsView,
+    run: (deps, caller) => integrationsScreen(deps)(caller),
+    shape: (v) => ({
+      integrations: [...v.integrations],
+      kiosks: [...v.kiosks],
+      locations: [...v.locations],
+      packs: [...v.packs],
+      modules: v.modules.map((m) => ({ key: m.key, events: [...m.events] })),
+    }),
+  }),
+  route({
+    name: 'connectTimeOffIntegration',
+    method: 'POST',
+    path: `${V1}/integrations/{provider}/connect`,
+    summary:
+      'The provider’s consent page, or the connection at once where access is granted in the company’s own admin console; HR',
+    params: ProviderParams,
+    body: ConnectBody,
+    answer: z.object({ url: z.string().nullable() }).meta({ title: 'TimeOffIntegrationConnect' }),
+    run: (deps, caller, { params, body }) =>
+      connectIntegration(deps)(caller, params.provider, body.back),
+    shape: same,
+  }),
+  route({
+    name: 'disconnectTimeOffIntegration',
+    method: 'DELETE',
+    path: `${V1}/integrations/{provider}`,
+    summary: 'Forgets the company’s connection and every member’s grant; HR',
+    params: ProviderParams,
+    answer: Done,
+    run: (deps, caller, { params }) => disconnectIntegration(deps)(caller, params.provider),
+    shape: done,
+  }),
+  route({
+    name: 'completeTimeOffIntegration',
+    method: 'GET',
+    path: `${V1}/integrations/{provider}/callback`,
+    summary:
+      'Where a provider sends the browser back: checked against the state Time Off signed, stored, and redirected to the page HR came from',
+    params: z.looseObject({ provider: IntegrationProviderView, state: z.string().max(4000) }),
+    answer: z.object({ location: z.string() }),
+    status: 302,
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params }) => {
+      const { provider, ...answer } = params;
+      return completeIntegration(deps)(
+        provider,
+        Object.fromEntries(
+          Object.entries(answer).filter((e): e is [string, string] => typeof e[1] === 'string'),
+        ),
+      );
+    },
+    shape: same,
+  }),
+
   /* --------------------------------------------------------- settings -- */
   route({
     name: 'defineTimeOffLeaveType',
@@ -1473,6 +1549,14 @@ export function restHandler(
   const answer = (r: Route, result: Result<unknown>): RestResponse => {
     if (!result.ok) return refused(result.error);
     const body = r.shape(result.value);
+    // A provider's callback sends the browser back where it came from.
+    if (r.status === 302) {
+      return {
+        status: 302,
+        body: '',
+        headers: { location: (body as { location: string }).location },
+      };
+    }
     return typeof body === 'string'
       ? { status: r.status, body, headers: { 'content-type': 'text/calendar; charset=utf-8' } }
       : { status: r.status, body };

@@ -1,6 +1,15 @@
 'use client';
 
-import { Alert, Button, Field, FieldDescription, FieldLabel, Input, Spinner } from '@reach/ui';
+import {
+  Alert,
+  Button,
+  Field,
+  FieldControl,
+  FieldDescription,
+  FieldLabel,
+  Input,
+  Spinner,
+} from '@reach/ui';
 import { useCallback, useEffect, useState, type JSX } from 'react';
 
 import { nextSequence, sequenceKey, tokenFromFragment, tokenKey } from '../lib/kiosk';
@@ -156,14 +165,16 @@ export function KioskShell({ deviceId }: { readonly deviceId: string }): JSX.Ele
           ) : null}
           <Field>
             <FieldLabel>Kiosk token</FieldLabel>
-            <Input
-              value={typed}
-              onChange={(event) => {
-                setTyped(event.target.value);
-              }}
-              autoComplete="off"
-              spellCheck={false}
-            />
+            <FieldControl>
+              <Input
+                value={typed}
+                onChange={(event) => {
+                  setTyped(event.target.value);
+                }}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </FieldControl>
             <FieldDescription>
               Shown once to HR when the kiosk was registered. It starts with kk_.
             </FieldDescription>

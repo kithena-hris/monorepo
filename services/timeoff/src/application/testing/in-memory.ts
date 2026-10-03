@@ -25,6 +25,8 @@ import type {
   FeedStore,
   HolidayStore,
   IdempotencyStore,
+  Integration,
+  IntegrationStore,
   KioskDevice,
   KioskStore,
   LeaveTypeStore,
@@ -79,6 +81,9 @@ interface State {
   kiosks: Map<string, KioskDevice>;
   /** `${kind}:${hash}` to the member holding it. */
   credentials: Map<string, PersonId>;
+  integrations: Map<string, Integration>;
+  /** `${provider}:${personId}` to the member's sealed grant. */
+  memberSecrets: Map<string, string>;
   events: PendingEvent[];
   keys: Map<string, StoredKey>;
 }
@@ -107,6 +112,8 @@ const empty = (): State => ({
   parentalCompany: null,
   kiosks: new Map(),
   credentials: new Map(),
+  integrations: new Map(),
+  memberSecrets: new Map(),
   events: [],
   keys: new Map(),
 });
@@ -310,6 +317,23 @@ function stores(tenantId: TenantId, s: State): Tx {
         // The partial unique index's refusal, as Postgres would raise it.
         if (s.credentials.has(`${kind}:${hash}`)) throw new Error('kiosk_credential unique');
         s.credentials.set(`${kind}:${hash}`, personId);
+      },
+    }),
+    integrations: promised<IntegrationStore>({
+      list: () => [...s.integrations.values()],
+      get: (provider) => s.integrations.get(provider) ?? null,
+      save: (integration) => {
+        s.integrations.set(integration.provider, integration);
+      },
+      remove: (provider) => {
+        s.integrations.delete(provider);
+        for (const key of s.memberSecrets.keys())
+          if (key.startsWith(`${provider}:`)) s.memberSecrets.delete(key);
+      },
+      memberSecret: (provider, personId) => s.memberSecrets.get(`${provider}:${personId}`) ?? null,
+      setMemberSecret: (provider, personId, sealed) => {
+        if (sealed === null) s.memberSecrets.delete(`${provider}:${personId}`);
+        else s.memberSecrets.set(`${provider}:${personId}`, sealed);
       },
     }),
     outbox: promised<Outbox>({

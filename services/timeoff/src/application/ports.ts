@@ -257,6 +257,135 @@ export interface KioskStore {
   setCredential(personId: PersonId, kind: KioskCredentialKind, hash: string | null): Promise<void>;
 }
 
+/* ---------------------------------------------------------- integrations -- */
+
+/**
+ * Where time off shows up outside Time Off (PRD §5.3, T35): a calendar and a
+ * chat app. Named by what they are; the vendor only names its own adapter.
+ */
+export type CalendarProvider = 'google' | 'microsoft';
+export type ChatProvider = 'slack' | 'teams';
+export type IntegrationProvider = CalendarProvider | ChatProvider;
+
+/**
+ * A company's connection to one provider. `secret` is sealed by the adapter
+ * that made it (a bot token, say) and opened only by that adapter: the
+ * application stores and hands it back, and never reads it.
+ */
+export interface Integration {
+  readonly provider: IntegrationProvider;
+  /** What the provider said about the company: a directory id, a workspace's name. Never a secret. */
+  readonly config: Readonly<Record<string, string>>;
+  readonly secret: string | null;
+  readonly connectedAt: Instant;
+  /** The HR account that connected it. */
+  readonly connectedBy: string;
+}
+
+export interface IntegrationStore {
+  list(): Promise<readonly Integration[]>;
+  get(provider: IntegrationProvider): Promise<Integration | null>;
+  save(integration: Integration): Promise<void>;
+  /** Disconnecting forgets the company's connection and every member's. */
+  remove(provider: IntegrationProvider): Promise<void>;
+  /** A member's own sealed grant, where a provider needs one (a chat status is the person's to set). */
+  memberSecret(provider: IntegrationProvider, personId: PersonId): Promise<string | null>;
+  setMemberSecret(
+    provider: IntegrationProvider,
+    personId: PersonId,
+    sealed: string | null,
+  ): Promise<void>;
+}
+
+/** What the provider sent back to the redirect: `code`, `tenant`, `admin_consent` and the like. */
+export type ProviderAnswer = Readonly<Record<string, string>>;
+
+/**
+ * One provider's adapter, as connecting sees it. **Inert without
+ * credentials**: `configured` is false until a person has created the app at
+ * the provider and given Time Off its client id and secret, and nothing is
+ * then offered or called.
+ */
+export interface IntegrationPort {
+  readonly provider: IntegrationProvider;
+  readonly configured: boolean;
+  /**
+   * Where HR grants access, carrying `state` and coming back to
+   * `redirectUri`; `null` when access is granted outside Kithena (Google's
+   * admin console), so connecting is recorded at once.
+   */
+  connectUrl(state: string, redirectUri: string): string | null;
+  /** What the redirect brought, made into the company's connection; a member's own grant when one came too. */
+  complete(
+    answer: ProviderAnswer,
+    redirectUri: string,
+  ): Promise<{
+    readonly config: Readonly<Record<string, string>>;
+    readonly secret: string | null;
+    readonly memberSecret?: string | null;
+  }>;
+}
+
+/** An all-day entry on somebody's calendar, idempotent by `key`: put twice is one entry. */
+export interface CalendarEntry {
+  readonly key: string;
+  /** The calendar's owner, by their work address. */
+  readonly email: string;
+  readonly title: string;
+  readonly from: CalendarDate;
+  /** Inclusive. */
+  readonly to: CalendarDate;
+  /** Out of office blocks the time and declines meetings; a holiday only marks it. */
+  readonly kind: 'out_of_office' | 'holiday';
+  readonly timeZone: string;
+}
+
+export interface CalendarPort extends IntegrationPort {
+  readonly provider: CalendarProvider;
+  put(integration: Integration, entry: CalendarEntry): Promise<void>;
+  remove(integration: Integration, entry: Pick<CalendarEntry, 'key' | 'email'>): Promise<void>;
+}
+
+export interface ChatPort extends IntegrationPort {
+  readonly provider: ChatProvider;
+  /** The member's status while they are away, cleared by the provider at `until`. */
+  setStatus(
+    integration: Integration,
+    memberSecret: string,
+    status: { readonly text: string; readonly until: Instant },
+  ): Promise<void>;
+  /**
+   * A direct message to an approver with Approve and Decline, each carrying
+   * a value Time Off signed; pressing one comes back through `action`.
+   */
+  askApproval(
+    integration: Integration,
+    message: {
+      readonly email: string;
+      readonly text: string;
+      readonly approve: string;
+      readonly decline: string;
+    },
+  ): Promise<void>;
+  /**
+   * A button press, verified as the provider's own (its signing secret over
+   * the raw body): the value Time Off put on the button. `null` when the
+   * request is not the provider's, or not a press.
+   */
+  action(request: {
+    readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+    readonly body: string;
+  }): string | null;
+}
+
+/** Every adapter Time Off has, and where providers send people back to. */
+export interface Reach {
+  readonly calendars: readonly CalendarPort[];
+  readonly chats: readonly ChatPort[];
+  /** `TIMEOFF_PUBLIC_URL`: the redirect is `${publicUrl}/v1/timeoff/integrations/<provider>/callback`. */
+  readonly publicUrl: string;
+}
+
 /* -------------------------------------------------------------- parental -- */
 
 /** Who covers one piece of the parent's work while they are away (T10, manual for now). */
@@ -356,6 +485,7 @@ export interface Tx {
   readonly feeds: FeedStore;
   readonly parental: ParentalStore;
   readonly kiosks: KioskStore;
+  readonly integrations: IntegrationStore;
   readonly outbox: Outbox;
   readonly idempotency: IdempotencyStore;
 }
@@ -439,6 +569,8 @@ export interface Deps {
   readonly notifier: Notifier;
   /** Signs calendar feed tokens. */
   readonly feedSecret: string;
+  /** Calendars and chat apps; none at all without credentials, which changes nothing else. */
+  readonly reach?: Reach;
 }
 
 export const userActor = (caller: Caller): Actor => ({ kind: 'user', userId: caller.accountId });

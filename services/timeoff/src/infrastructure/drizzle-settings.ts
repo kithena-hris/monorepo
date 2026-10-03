@@ -1,4 +1,4 @@
-import { asc, eq, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, notInArray, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { CalendarDate, LeaveTypeKey, PersonId, TenantId } from '@kithena/contracts';
 
@@ -8,14 +8,22 @@ import {
   type AutoApproval,
 } from '../domain/approval/approval-rule.js';
 import type { HolidayLayer } from '../domain/calendar/holiday-calendar.js';
-import type { ApprovalStore, FeedStore, HolidayStore } from '../application/ports.js';
-import { fromRange, rangeOf } from './drizzle-leave.js';
+import type {
+  ApprovalStore,
+  FeedStore,
+  HolidayStore,
+  Integration,
+  IntegrationStore,
+} from '../application/ports.js';
+import { fromRange, instantOf, rangeOf } from './drizzle-leave.js';
 import {
   approvalRule,
   delegation,
   feedVersion,
   holiday,
   holidayCalendar,
+  integration,
+  integrationMember,
   locationHolidayCalendar,
   setting,
   teamMinimum,
@@ -225,6 +233,75 @@ export function drizzleFeeds(tx: PostgresJsDatabase, tenantId: TenantId): FeedSt
         })
         .returning({ version: feedVersion.version });
       return r?.version ?? 1;
+    },
+  };
+}
+
+const integrationOf = (r: typeof integration.$inferSelect): Integration => ({
+  provider: r.provider as Integration['provider'],
+  config: r.config as Integration['config'],
+  secret: r.secret,
+  connectedAt: instantOf(r.connectedAt),
+  connectedBy: r.connectedBy,
+});
+
+/** Calendar and chat connections (TOF-109), secrets sealed by their adapters. */
+export function drizzleIntegrations(tx: PostgresJsDatabase, tenantId: TenantId): IntegrationStore {
+  return {
+    async list() {
+      return (await tx.select().from(integration).orderBy(asc(integration.provider))).map(
+        integrationOf,
+      );
+    },
+    async get(provider) {
+      const [r] = await tx.select().from(integration).where(eq(integration.provider, provider));
+      return r === undefined ? null : integrationOf(r);
+    },
+    async save(i) {
+      const row = {
+        config: i.config,
+        secret: i.secret,
+        connectedAt: i.connectedAt,
+        connectedBy: i.connectedBy,
+      };
+      await tx
+        .insert(integration)
+        .values({ tenantId, provider: i.provider, ...row })
+        .onConflictDoUpdate({ target: [integration.tenantId, integration.provider], set: row });
+    },
+    async remove(provider) {
+      // The members' grants go with it (ON DELETE CASCADE).
+      await tx.delete(integration).where(eq(integration.provider, provider));
+    },
+    async memberSecret(provider, personId) {
+      const [r] = await tx
+        .select({ secret: integrationMember.secret })
+        .from(integrationMember)
+        .where(
+          and(eq(integrationMember.provider, provider), eq(integrationMember.personId, personId)),
+        );
+      return r?.secret ?? null;
+    },
+    async setMemberSecret(provider, personId, sealed) {
+      if (sealed === null) {
+        await tx
+          .delete(integrationMember)
+          .where(
+            and(eq(integrationMember.provider, provider), eq(integrationMember.personId, personId)),
+          );
+        return;
+      }
+      await tx
+        .insert(integrationMember)
+        .values({ tenantId, provider, personId, secret: sealed })
+        .onConflictDoUpdate({
+          target: [
+            integrationMember.tenantId,
+            integrationMember.provider,
+            integrationMember.personId,
+          ],
+          set: { secret: sealed },
+        });
     },
   };
 }

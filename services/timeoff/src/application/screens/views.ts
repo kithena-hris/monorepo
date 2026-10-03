@@ -929,6 +929,47 @@ export const KioskSyncView = named(
   }),
 );
 
+/* ---------------------------------------------------------- integrations -- */
+
+export const IntegrationProviderView = z.enum(['google', 'microsoft', 'slack', 'teams']);
+
+/** T35: calendars, chat apps, kiosks, country packs and the modules that would read Time Off. */
+export const IntegrationsView = named(
+  'TimeOffIntegrations',
+  z.object({
+    integrations: z.array(
+      named(
+        'TimeOffIntegration',
+        z.object({
+          provider: IntegrationProviderView,
+          kind: z.enum(['calendar', 'chat']),
+          available: z.boolean(),
+          configured: z.boolean(),
+          connected: z.boolean(),
+          connectedAt: Instant.nullable(),
+          account: z.string().nullable(),
+        }),
+      ),
+    ),
+    kiosks: z.array(KioskView),
+    locations: z.array(
+      named(
+        'TimeOffKioskLocation',
+        z.object({ locationKey: LocationKey, name: z.string().nullable() }),
+      ),
+    ),
+    packs: z.array(
+      named(
+        'TimeOffIntegrationPack',
+        z.object({ country: z.string(), reviewed: z.boolean(), inUse: z.boolean() }),
+      ),
+    ),
+    modules: z.array(
+      named('TimeOffConsumingModule', z.object({ key: z.string(), events: z.array(z.string()) })),
+    ),
+  }),
+);
+
 /** A view as a use case builds it: readonly all the way down, as the domain's values are. */
 type DeepReadonly<T> = T extends readonly (infer U)[]
   ? readonly DeepReadonly<U>[]

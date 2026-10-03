@@ -244,3 +244,44 @@ describe('a kiosk, with its own token (TOF-107)', () => {
     expect(wrong.status).toBe(401);
   });
 });
+
+describe('a provider’s callback (TOF-109)', () => {
+  it('sends the browser back where HR came from, with a 302', async () => {
+    const app = world('2026-10-01T07:00:00.000Z');
+    const microsoft = {
+      provider: 'microsoft' as const,
+      configured: true,
+      connectUrl: (state: string) => `https://login.example/?state=${state}`,
+      complete: () => Promise.resolve({ config: { directory: 'd-1' }, secret: null }),
+      put: () => Promise.resolve(),
+      remove: () => Promise.resolve(),
+    };
+    const rest = restHandler({
+      deps: {
+        ...app.deps,
+        reach: { calendars: [microsoft], chats: [], publicUrl: 'https://to.example' },
+      },
+      callerFrom: () => ok(caller(null, ADA_ACCOUNT)),
+    });
+    const connect = await rest({
+      method: 'POST',
+      url: '/v1/timeoff/integrations/microsoft/connect',
+      headers: { 'idempotency-key': 'c-1' },
+      body: JSON.stringify({ back: 'https://acme.example/settings/time-off/integrations' }),
+    });
+    const state = new URL((connect?.body as { url: string }).url).searchParams.get('state') ?? '';
+    const back = await rest({
+      method: 'GET',
+      url: `/v1/timeoff/integrations/microsoft/callback?state=${encodeURIComponent(state)}&tenant=d-1&admin_consent=True`,
+      headers: {},
+      body: '',
+    });
+    expect(back).toEqual({
+      status: 302,
+      body: '',
+      headers: {
+        location: 'https://acme.example/settings/time-off/integrations?connected=microsoft',
+      },
+    });
+  });
+});

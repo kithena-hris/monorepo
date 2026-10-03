@@ -1,5 +1,7 @@
 'use server';
 
+import { headers } from 'next/headers';
+
 import { timeOff } from '../../../../lib/people';
 
 /**
@@ -68,4 +70,51 @@ export async function saveApprovals(
     if (!done.ok) return outcome(done);
   }
   return { ok: true };
+}
+
+/* -------------------------------------------------------- integrations -- */
+
+type Provider = 'google' | 'microsoft' | 'slack' | 'teams';
+
+/**
+ * T35: connect a calendar or chat app. Time Off answers with the provider's
+ * consent page, or `null` when it is connected at once; the provider sends
+ * the browser back to this page on the company's own address.
+ */
+export async function connectIntegration(
+  provider: Provider,
+): Promise<
+  | { readonly ok: true; readonly url: string | null }
+  | { readonly ok: false; readonly message: string }
+> {
+  const asked = await headers();
+  const host = asked.get('x-forwarded-host') ?? asked.get('host') ?? 'localhost:3000';
+  const proto = asked.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
+  const a = await timeOff<{ url: string | null }>('ConnectTimeOffIntegration', {
+    provider,
+    input: { back: `${proto}://${host}/settings/time-off/integrations` },
+  });
+  return a.ok ? { ok: true, url: a.data.url } : { ok: false, message: a.message };
+}
+
+/** T35: forget a connection, and every member's grant with it. */
+export async function disconnectIntegration(provider: Provider): Promise<Outcome> {
+  return outcome(await timeOff('DisconnectTimeOffIntegration', { provider }));
+}
+
+/** T35: a kiosk for a location; its token is shown this once. */
+export async function registerKiosk(input: {
+  readonly name: string;
+  readonly locationKey: string;
+}): Promise<
+  | { readonly ok: true; readonly deviceId: string; readonly token: string }
+  | { readonly ok: false; readonly message: string }
+> {
+  const a = await timeOff<{ deviceId: string; token: string }>('RegisterTimeOffKiosk', { input });
+  return a.ok ? { ok: true, ...a.data } : { ok: false, message: a.message };
+}
+
+/** T35: the kiosk's token stops working at once. */
+export async function revokeKiosk(deviceId: string): Promise<Outcome> {
+  return outcome(await timeOff('RevokeTimeOffKiosk', { deviceId }));
 }

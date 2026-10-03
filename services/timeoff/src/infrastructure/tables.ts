@@ -509,3 +509,33 @@ export const tenant = timeoff.table('tenant', {
   tenantId: uuid('tenant_id').primaryKey(),
   firstSeenAt: instant('first_seen_at').notNull().defaultNow(),
 });
+
+/* ------------------------------------------------------------- TOF-109 -- */
+
+/** A company's connection to a calendar or chat provider; `secret` sealed by its adapter. */
+export const integration = timeoff.table(
+  'integration',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    provider: text('provider').notNull(),
+    config: jsonb('config').notNull(),
+    secret: text('secret'),
+    connectedAt: instant('connected_at').notNull(),
+    connectedBy: uuid('connected_by').notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.provider] })],
+);
+
+/** A member's own sealed grant for a provider. */
+export const integrationMember = timeoff.table(
+  'integration_member',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    provider: text('provider').notNull(),
+    personId: uuid('person_id').notNull(),
+    secret: text('secret').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.provider, t.personId] })],
+);

@@ -563,6 +563,33 @@ describe('kiosks (TOF-107)', () => {
   });
 });
 
+describe('integrations (TOF-109)', () => {
+  it('keeps a connection and a member’s grant, and forgets both on disconnecting', async () => {
+    const slack = {
+      provider: 'slack' as const,
+      config: { name: 'Acme' },
+      secret: 'sealed-bot-token',
+      connectedAt: '2026-10-01T09:00:00.000Z' as never,
+      connectedBy: MARCO_ACCOUNT,
+    };
+    await run(async (tx) => {
+      await tx.integrations.save(slack);
+      await tx.integrations.save({ ...slack, config: { name: 'Acme Inc' } });
+      await tx.integrations.setMemberSecret('slack', people.adam, 'sealed-user-token');
+    });
+    await run(async (tx) => {
+      expect(await tx.integrations.get('slack')).toEqual({
+        ...slack,
+        config: { name: 'Acme Inc' },
+      });
+      expect(await tx.integrations.memberSecret('slack', people.adam)).toBe('sealed-user-token');
+      await tx.integrations.remove('slack');
+      expect(await tx.integrations.list()).toEqual([]);
+      expect(await tx.integrations.memberSecret('slack', people.adam)).toBeNull();
+    });
+  });
+});
+
 /** On what the sections above stored: the published vacation policy and Madrid's layers. */
 describe('the use cases, over Drizzle', () => {
   it('hires a member with their grant, and sends a request whose rows name it', async () => {
