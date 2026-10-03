@@ -963,6 +963,8 @@ jobs:
           VERCEL_PROJECT_ID: prj_gFIRdhqiaC2ynPaBNhDkM1IqzPMx
           PEOPLE_REMOTE_URL: ${{ vars.PEOPLE_REMOTE_URL_PRODUCTION }}
           PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
+          TIMEOFF_REMOTE_URL: ${{ vars.TIMEOFF_REMOTE_URL_PRODUCTION }}
+          TIMEOFF_REMOTE_SSR_PUBLIC_KEY: ${{ vars.TIMEOFF_REMOTE_SSR_PUBLIC_KEY_PRODUCTION }}
           ROUTER_URL: ${{ vars.ROUTER_URL_PRODUCTION }}
           # Waking the VM from the People pages (`apps/web/src/lib/workspace.ts`):
           # all three, or the feature stays off.
@@ -977,6 +979,8 @@ jobs:
           args=(--prod --yes --archive=tgz --token "$VERCEL_TOKEN")
           [ -n "$PEOPLE_REMOTE_URL" ] && args+=(--env "PEOPLE_REMOTE_URL=$PEOPLE_REMOTE_URL")
           [ -n "$PEOPLE_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "PEOPLE_REMOTE_SSR_PUBLIC_KEY=$PEOPLE_REMOTE_SSR_PUBLIC_KEY")
+          [ -n "$TIMEOFF_REMOTE_URL" ] && args+=(--env "TIMEOFF_REMOTE_URL=$TIMEOFF_REMOTE_URL")
+          [ -n "$TIMEOFF_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "TIMEOFF_REMOTE_SSR_PUBLIC_KEY=$TIMEOFF_REMOTE_SSR_PUBLIC_KEY")
           [ -n "$ROUTER_URL" ] && args+=(--env "ROUTER_URL=$ROUTER_URL")
           if [ -n "$WORKSPACE_INSTANCE_ID" ] && [ -n "$AWS_ROLE_ARN" ] && [ -n "$WAKE_REGION" ]; then
             args+=(--env "WORKSPACE_INSTANCE_ID=$WORKSPACE_INSTANCE_ID" \

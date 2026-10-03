@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { REMOTE_PATH, remoteBase } from './lib/remotes';
+import { AREAS, remoteBase, remotePath, type Area } from './lib/remotes';
 import { resolveTenant, type Tenant } from './lib/tenant';
 import { RETURN_COOKIE, SESSION_COOKIE } from './lib/session-cookie';
 
@@ -73,7 +73,8 @@ function isTenant(value: unknown): value is Tenant {
 }
 
 /**
- * The People remote's files, from the company's own host (`REMOTE_PATH`).
+ * A remote's files, from the company's own host (`remotePath`): `/_people/*`,
+ * `/_timeoff/*`. A remote that is not configured has none.
  *
  * Forwarded as asked, so `If-None-Match` reaches the remote and its 304,
  * `Cache-Control`, `ETag` and `nosniff` come back as it sent them. Nothing
@@ -81,10 +82,11 @@ function isTenant(value: unknown): value is Tenant {
  * the remote is the same public code for everybody. The path stays on the
  * remote's origin whatever it holds: it is joined onto a URL, never parsed as one.
  */
-function remoteFile(request: NextRequest): NextResponse {
-  const base = new URL(remoteBase());
+function remoteFile(request: NextRequest, area: Area): NextResponse {
+  const remote = remoteBase(area);
+  const base = new URL(remote);
   const to = new URL(
-    `${remoteBase()}${request.nextUrl.pathname.slice(REMOTE_PATH.length)}${request.nextUrl.search}`,
+    `${remote}${request.nextUrl.pathname.slice(remotePath(area).length)}${request.nextUrl.search}`,
   );
   // Never anywhere but the remote, whatever the path held.
   if (to.origin !== base.origin) return new NextResponse(null, { status: 400 });
@@ -95,7 +97,10 @@ function remoteFile(request: NextRequest): NextResponse {
 }
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  if (request.nextUrl.pathname.startsWith(`${REMOTE_PATH}/`)) return remoteFile(request);
+  const files = Object.values(AREAS).find((a) =>
+    request.nextUrl.pathname.startsWith(`${remotePath(a)}/`),
+  );
+  if (files !== undefined) return remoteFile(request, files);
 
   const headers = new Headers(request.headers);
 

@@ -671,7 +671,7 @@ no decline, cancel or change.
   keyboard operable).
 - **Done when** each has a story and `just test-stories` is green.
 
-### [ ] TOF-056 — The shell loads a second remote
+### [x] TOF-056 — The shell loads a second remote
 
 **Goal** The shell's remote loading, screen loading, persisted operations and
 SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
@@ -686,7 +686,7 @@ SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
 - **Done when** People's tests pass and a test resolves a `/time-off` path to
   the Time Off remote.
 
-### [ ] TOF-057 — The Time Off remote
+### [x] TOF-057 — The Time Off remote
 
 - **Files** `apps/web/timeoff/` (new, mirroring `apps/web/people`)
 - **Depends on** TOF-056
@@ -696,7 +696,7 @@ SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
 - **Done when** `/time-off/overview` renders a placeholder screen through the
   shell, client and server side.
 
-### [ ] TOF-058 — Navigation turns on
+### [x] TOF-058 — Navigation turns on
 
 - **Files** `apps/web/src/components/app-shell.tsx`, `lib/shortcuts.ts`
 - **Depends on** TOF-057
