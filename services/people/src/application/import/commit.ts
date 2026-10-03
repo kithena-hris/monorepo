@@ -230,7 +230,7 @@ export type CommitResult =
       readonly held: number;
     };
 
-interface Outcome {
+export interface Outcome {
   readonly row: ClassifiedRow;
   readonly written: 'created' | 'updated' | 'unchanged' | 'blocked' | 'duplicate';
   readonly reason: string | null;
@@ -268,7 +268,31 @@ export async function commitImport(
     });
   }
 
-  const actor: Actor = userActor(input.viewer);
+  await deps.ledger.publish(tx, [importStarted(deps, input, importId, plan)]);
+
+  const outcomes: Outcome[] = [];
+  for (const row of plan.rows) outcomes.push(await writeRow(tx, deps, input, row));
+  // Then each row's references to other rows of the file — a manager — once
+  // everybody they can point at is in, so the file's order does not matter.
+  const linked = await linkRows(tx, deps, input, outcomes);
+  // Last, the lifecycle: a leaver is a tombstone nothing above could write to.
+  const settled = await settleRows(tx, deps, input, outcomes);
+  return ok(
+    await recordImport(tx, deps, input, importId, plan, outcomes, [
+      ...plan.leftEmpty,
+      ...linked,
+      ...settled,
+    ]),
+  );
+}
+
+/** `people.import.started`: counts, keys and the checksum, never a value. */
+export function importStarted(
+  deps: CommitDeps,
+  input: DryRunInput,
+  importId: string,
+  plan: Pick<DryRun, 'rowsRead' | 'sheets'>,
+): PendingEvent {
   const attributeKeys = [
     ...new Set([
       ...input.mapping.flatMap((m) =>
@@ -282,32 +306,25 @@ export async function commitImport(
       ...plan.sheets.filter((s) => s.imported).map((s) => s.key),
     ]),
   ];
-  await deps.ledger.publish(tx, [
-    event(
-      deps,
-      input,
-      actor,
+  return event(
+    deps,
+    input,
+    userActor(input.viewer),
+    importId,
+    'people.import.started',
+    ImportStarted.payload.parse({
       importId,
-      'people.import.started',
-      ImportStarted.payload.parse({
-        importId,
-        rowCount: plan.rowsRead,
-        attributeKeys,
-        checksum: input.file.checksum,
-      }),
-    ),
-  ]);
+      rowCount: plan.rowsRead,
+      attributeKeys,
+      checksum: input.file.checksum,
+    }),
+  );
+}
 
-  const outcomes: Outcome[] = [];
-  for (const row of plan.rows) outcomes.push(await write(tx, deps, input, row));
-  // Then each row's references to other rows of the file — a manager — once
-  // everybody they can point at is in, so the file's order does not matter.
-  const linked = await link(tx, deps, input, outcomes);
-  // Last, the lifecycle: a leaver is a tombstone nothing above could write to.
-  const leftEmpty = [...plan.leftEmpty, ...linked, ...(await settle(tx, deps, input, outcomes))];
-
+/** How many rows did what, from each row's outcome. */
+export function countsOf(outcomes: readonly Outcome[]): ImportCounts {
   const tally = (w: Outcome['written']) => outcomes.filter((o) => o.written === w).length;
-  const counts: ImportCounts = {
+  return {
     created: tally('created'),
     updated: tally('updated'),
     unchanged: tally('unchanged'),
@@ -317,6 +334,23 @@ export async function commitImport(
       (o) => (o.written === 'created' || o.written === 'updated') && o.row.missing.length > 0,
     ).length,
   };
+}
+
+/**
+ * Once every row is written: the ledger's counts, `people.import.completed`,
+ * the blocked-row report stored sealed and indexed, and what the import did.
+ */
+export async function recordImport(
+  tx: PostgresJsDatabase,
+  deps: CommitDeps,
+  input: DryRunInput,
+  importId: string,
+  plan: Pick<DryRun, 'blockedItems' | 'ignoredColumns' | 'effectiveFrom' | 'findings'>,
+  outcomes: readonly Outcome[],
+  leftEmpty: readonly LeftEmpty[],
+): Promise<Extract<CommitResult, { status: 'imported' }>> {
+  const actor: Actor = userActor(input.viewer);
+  const counts = countsOf(outcomes);
 
   await deps.ledger.complete(tx, input.tenantId, importId, counts);
   await deps.ledger.publish(tx, [
@@ -365,7 +399,7 @@ export async function commitImport(
             0,
           );
 
-  return ok({
+  return {
     status: 'imported',
     importId,
     counts,
@@ -380,7 +414,7 @@ export async function commitImport(
         (o) => o.row.row === f.row && (o.written === 'created' || o.written === 'updated'),
       ),
     ),
-  });
+  };
 }
 
 /**
@@ -450,7 +484,7 @@ function contention(error: unknown): string | null {
   return null;
 }
 
-async function write(
+export async function writeRow(
   tx: PostgresJsDatabase,
   deps: CommitDeps,
   input: DryRunInput,
@@ -537,11 +571,13 @@ async function write(
  * (§14.5). A reference whose row did not import, or that the write path
  * refuses (a manager loop), is left empty and named; the row itself stays in.
  */
-async function link(
+export async function linkRows(
   tx: PostgresJsDatabase,
   deps: CommitDeps,
   input: DryRunInput,
   outcomes: readonly Outcome[],
+  /** The rows to link, of `outcomes`: a batch of them, in a run (`import/run.ts`). */
+  these: readonly Outcome[] = outcomes,
 ): Promise<LeftEmpty[]> {
   const byRow = new Map(outcomes.map((o) => [o.row.row, o.personId]));
   const asking: Asking = {
@@ -550,7 +586,7 @@ async function link(
     correlationId: input.correlationId,
   };
   const left: LeftEmpty[] = [];
-  for (const o of outcomes) {
+  for (const o of these) {
     if (o.personId === null || o.row.links.length === 0) continue;
     const changes: Record<string, string> = {};
     for (const l of o.row.links) {
@@ -598,7 +634,7 @@ async function link(
  * move raises; nobody is notified, because People notifies nobody of these.
  * A move the lifecycle refuses leaves the person as hired, and is named.
  */
-async function settle(
+export async function settleRows(
   tx: PostgresJsDatabase,
   deps: CommitDeps,
   input: DryRunInput,

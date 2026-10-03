@@ -23,7 +23,14 @@ import type { EndpointInput, WebhookService } from '../../infrastructure/webhook
 import { visibleTo } from '../../domain/access/field-access.js';
 import { CHOICE_KEYS } from '../../domain/import/aliases.js';
 import { kithenaCreates } from '../../domain/import/identifiers.js';
-import { blockedReport, commitImportRetrying, type CommitDeps } from '../import/commit.js';
+import {
+  blockedReport,
+  commitImportRetrying,
+  type CommitDeps,
+  type CommitInput,
+  type CommitResult,
+} from '../import/commit.js';
+import type { UploadIntent } from '../../domain/import/upload.js';
 import { importTemplate } from '../import/template.js';
 import {
   dryRun,
@@ -997,7 +1004,7 @@ export async function dryRunImport(
  * plan's version with its new fields. Only a dry run is given one, and a
  * dry run writes nothing.
  */
-function importDeps(deps: ImportDeps, version?: PublishedVersion): CommitDeps {
+export function importDeps(deps: ImportDeps, version?: PublishedVersion): CommitDeps {
   return {
     ...deps.commit,
     access: deps.service.access,
@@ -1021,30 +1028,14 @@ export async function commitImportView(
   asking: Asking,
   step: ImportStep,
 ): Promise<Result<ImportStageView>> {
-  const read = await readUpload(uploadDeps(deps), inTx(deps, asking), who(asking), step.uploadId);
+  const read = await commitInputOf(deps, asking, step);
   if (!read.ok) return read;
-  const { intent, bytes } = read.value;
-  const planned = await run(deps.service, asking.tenantId, async (tx) => {
-    const prepared = await prepare(deps, tx, asking, bytes);
-    if (!prepared.ok) return prepared;
-    const mapping = resolved(prepared.value, step.mapping ?? {});
-    return mapping.ok ? ok({ file: prepared.value.file, mapping: mapping.value }) : mapping;
-  });
-  if (!planned.ok) return planned;
-  const bypass = step.applySensitiveWithoutApproval === true;
-  const committed = await commitImportRetrying(deps.service.inTenant, importDeps(deps), {
-    ...asking,
-    file: planned.value.file,
-    mapping: planned.value.mapping,
-    fileName: intent.name,
-    ...(bypass ? { applySensitiveWithoutApproval: true } : {}),
-    ...(step.places === undefined ? {} : { places: step.places }),
-  });
+  const { intent, input } = read.value;
+  const committed = await commitImportRetrying(deps.service.inTenant, importDeps(deps), input);
   if (!committed.ok) return committed;
   // Imported, or found imported already: either way the upload has done its
   // work, and it and its dry run's report go now rather than at expiry.
-  await discard(uploadDeps(deps), inTx(deps, asking), intent);
-  await deps.commit.reports.store.remove(dryRunReportKey(asking.tenantId, intent.id));
+  await releaseUpload(deps, asking, intent);
   if (committed.value.status === 'already_imported') {
     // The report that import stored, for the HR user `prepare` let this far;
     // after its 7 days, or once somebody in it was erased, there is none.
@@ -1058,28 +1049,83 @@ export async function commitImportView(
         : { ...failure('ALREADY_IMPORTED', 'This exact file has already been imported'), link },
     );
   }
-  const { counts, reportUrl, findings, leftEmpty } = committed.value;
+  return ok(await doneViewOf(deps, asking, intent.name, input, committed.value));
+}
+
+/**
+ * What a commit writes from: the upload read again, its file and the
+ * mapping resolved against what is published now. Writes nothing.
+ */
+export async function commitInputOf(
+  deps: ImportDeps,
+  asking: Asking,
+  step: ImportStep,
+): Promise<Result<{ readonly intent: UploadIntent; readonly input: CommitInput }>> {
+  const read = await readUpload(uploadDeps(deps), inTx(deps, asking), who(asking), step.uploadId);
+  if (!read.ok) return read;
+  const { intent, bytes } = read.value;
+  const planned = await run(deps.service, asking.tenantId, async (tx) => {
+    const prepared = await prepare(deps, tx, asking, bytes);
+    if (!prepared.ok) return prepared;
+    const mapping = resolved(prepared.value, step.mapping ?? {});
+    return mapping.ok ? ok({ file: prepared.value.file, mapping: mapping.value }) : mapping;
+  });
+  if (!planned.ok) return planned;
+  const bypass = step.applySensitiveWithoutApproval === true;
+  return ok({
+    intent,
+    input: {
+      ...asking,
+      file: planned.value.file,
+      mapping: planned.value.mapping,
+      fileName: intent.name,
+      ...(bypass ? { applySensitiveWithoutApproval: true } : {}),
+      ...(step.places === undefined ? {} : { places: step.places }),
+    },
+  });
+}
+
+/** The upload, and its dry run's report, once an import has used them. */
+export async function releaseUpload(
+  deps: ImportDeps,
+  asking: Asking,
+  intent: UploadIntent,
+): Promise<void> {
+  await discard(uploadDeps(deps), inTx(deps, asking), intent);
+  await deps.commit.reports.store.remove(dryRunReportKey(asking.tenantId, intent.id));
+}
+
+/** What an import did, as its done step says it. */
+export async function doneViewOf(
+  deps: ImportDeps,
+  asking: Asking,
+  fileName: string,
+  input: CommitInput,
+  committed: Extract<CommitResult, { status: 'imported' }>,
+): Promise<Extract<ImportStageView, { step: 'done' }>> {
+  const { counts, reportUrl, findings, leftEmpty } = committed;
+  const bypass = input.applySensitiveWithoutApproval === true;
   const version = await run(deps.service, asking.tenantId, async (tx) =>
     ok(await deps.service.schemas.current(tx, asking.tenantId)),
   );
   const byKey = new Map(
     (version.ok ? (version.value?.document.attributes ?? []) : []).map((d) => [d.key as string, d]),
   );
-  const indexOf = new Map(planned.value.file.headers.map((h, i) => [h, i]));
-  const names = rowNamesOf(planned.value.file, planned.value.mapping);
-  return ok({
+  const indexOf = new Map(input.file.headers.map((h, i) => [h, i]));
+  const names = rowNamesOf(input.file, input.mapping);
+  return {
     step: 'done' as const,
-    file: fileView(intent.name, planned.value.file),
+    file: fileView(fileName, input.file),
     created: counts.created,
     updated: counts.updated,
     blocked: counts.blocked + counts.duplicate,
     reportUrl,
     forReview: new Set(findings.map((f) => `${String(f.row)}/${f.key}`)).size,
-    held: bypass ? 0 : committed.value.held,
+    held: bypass ? 0 : committed.held,
     appliedWithoutApproval: bypass,
     leftEmpty: leftEmpty.slice(0, SHOWN).map((l) => leftEmptyView(l, indexOf, byKey, names)),
     leftEmptyCount: leftEmpty.length,
-  });
+  };
 }
 
 /* ------------------------------------------------------------- export -- */

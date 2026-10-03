@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Result } from '@kithena/domain-kit';
 
 import {
   afterChunk,
@@ -118,15 +119,20 @@ describe('an import run', () => {
   });
 
   it('fails with its reason, keeping what was done; a finished run neither fails nor moves', () => {
-    const half = afterChunk(
-      afterChunk(begun(run0, AT), { kind: 'setup' }, AT).value as ImportRun,
-      { kind: 'read' },
-      AT,
-      { total: 100 },
-    ).value as ImportRun;
-    const people = afterChunk(half, { kind: 'rows', phase: 'people', from: 0, to: 50 }, AT, {
-      tally: { created: 50 },
-    }).value as ImportRun;
+    const must = (r: Result<ImportRun>): ImportRun => {
+      if (!r.ok) throw new Error(r.error.message);
+      return r.value;
+    };
+    const half = must(
+      afterChunk(must(afterChunk(begun(run0, AT), { kind: 'setup' }, AT)), { kind: 'read' }, AT, {
+        total: 100,
+      }),
+    );
+    const people = must(
+      afterChunk(half, { kind: 'rows', phase: 'people', from: 0, to: 50 }, AT, {
+        tally: { created: 50 },
+      }),
+    );
     const failed = failRun(people, 'Postgres is unreachable', AT);
     expect(failed).toMatchObject({
       ok: true,
