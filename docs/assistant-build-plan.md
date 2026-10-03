@@ -516,7 +516,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   hidden. No integration test: no new query, only the repositories the
   calendar already uses.
 
-### [ ] AST-024 — `timeoff.managers`
+### [x] AST-024 — `timeoff.managers`
 
 - **Spec** PRD §7.5, §8.4
 - **Files** `services/timeoff/src/application/assist/capabilities.ts` (+ tests)
@@ -525,6 +525,10 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `displayName`, for the given `personIds`, distinct, leaving out members the
   asker may not see. No per-manager count.
 - **Done when** tests pass in the standalone suite.
+- **As built** "May not see" is the calendar's sight, applied twice: a
+  person the asker has no sight of is left out, and so is a manager they have
+  no sight of, as `people.managers` leaves out a manager the asker cannot
+  read.
 
 ---
 

@@ -336,3 +336,63 @@ export const away =
         notes: [...notes].slice(0, 5),
       });
     });
+
+/* ------------------------------------------------------ timeoff.managers -- */
+
+/**
+ * `timeoff.managers` (assistant PRD §7.5, §8.4): the managers of the people
+ * an earlier step found, from the member projection's `managerPersonId`,
+ * which Time Off keeps for approvals. Offered only where People is absent;
+ * where it is present `people.managers` answers instead.
+ *
+ * A person the asker has no sight of is left out, and so is a manager they
+ * have no sight of. Each manager once, with no count of how many of theirs
+ * were found: "Marco — 1" names the one.
+ */
+export const managers =
+  (deps: Pick<Deps, 'uow' | 'authz'>) =>
+  (caller: Caller, input: CapabilityInput): Promise<Result<PeopleResult>> =>
+    transact(deps, caller.tenantId, async (tx) => {
+      const hr = await isHrAdmin(deps, caller);
+      const everyone = new Map((await tx.members.list()).map((m) => [m.personId, m]));
+      const checked = new Map<PersonId, Member | null>();
+      const seen = async (id: PersonId | null): Promise<Member | null> => {
+        if (id === null) return null;
+        if (!checked.has(id)) {
+          const m = everyone.get(id);
+          const visible =
+            m !== undefined && m.status !== 'left' && (await sightOf(deps, caller, m, hr)) !== null;
+          checked.set(id, visible ? m : null);
+        }
+        return checked.get(id) ?? null;
+      };
+      const found = new Map<PersonId, Member>();
+      for (const id of input.personIds ?? []) {
+        // oxlint-disable-next-line no-await-in-loop -- each person's sight, then their manager's, once
+        const manager = await seen((await seen(id))?.managerPersonId ?? null);
+        if (manager !== null) found.set(manager.personId, manager);
+      }
+
+      const matched = [...found.values()].toSorted((a, b) =>
+        a.displayName.localeCompare(b.displayName),
+      );
+      const places = new Map<string, string>();
+      const rows: PeopleResult['rows'] = [];
+      for (const m of matched.slice(0, input.limit ?? ASSISTANT_LIMITS.listed)) {
+        // oxlint-disable-next-line no-await-in-loop -- a location's name once, then remembered
+        rows.push({
+          personId: m.personId,
+          name: m.displayName,
+          groups: await groupsOf(tx, m, places),
+        });
+      }
+      return ok({
+        kind: 'people',
+        rows,
+        ...(input.ids === true ? { ids: matched.map((m) => m.personId) } : {}),
+        total: matched.length,
+        scope: scopeOf(hr),
+        described: 'managers of people',
+        notes: [],
+      });
+    });

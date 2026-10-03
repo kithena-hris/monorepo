@@ -7,6 +7,7 @@ import {
   RuntimeCatalogue,
   TeamKey,
   TimeOffAway,
+  TimeOffManagers,
   type CapabilityInput,
 } from '@kithena/contracts';
 
@@ -25,7 +26,7 @@ import {
   vacationType,
   world,
 } from '../testing/world.js';
-import { away, capabilityCatalogue } from './capabilities.js';
+import { away, capabilityCatalogue, managers } from './capabilities.js';
 
 /** Assistant PRD §8.5: what Time Off offers the assistant, as the asker. */
 
@@ -281,6 +282,83 @@ describe('timeoff.away (AST-023)', () => {
       total: 0,
       described: 'away from Monday 12 to Sunday 18 October',
       notes: ['Monday 12 October is a public holiday in Madrid.'],
+    });
+  });
+});
+
+/* -------------------------------------------------------- timeoff.managers -- */
+
+describe('timeoff.managers (AST-024)', () => {
+  const NIA = PersonId.parse('00000000-0000-7000-8000-000000000097');
+
+  /** Zoe, in Sales, reports to Ravi; Nia, on Platform, reports to Zoe. */
+  function org() {
+    const app = world();
+    const s = app.state(TENANT);
+    s.members.set(
+      ZOE,
+      member(ZOE, 'Zoe Lane', {
+        teamKey: TeamKey.parse('sales'),
+        teamName: 'Sales',
+        managerPersonId: people.ravi,
+      }),
+    );
+    s.members.set(NIA, member(NIA, 'Nia Okafor', { managerPersonId: ZOE }));
+    return app;
+  }
+
+  async function managersOf(app: App, who: Caller, personIds: PersonId[], limit = 25) {
+    const answer = await managers(app.deps)(
+      who,
+      TimeOffManagers.schemas.input.parse({ personIds, limit, ids: true }) as CapabilityInput,
+    );
+    if (!answer.ok) throw new Error(answer.error.message);
+    return TimeOffManagers.schemas.output.parse(answer.value);
+  }
+
+  it('lists a manager once, however many of their people were found, and with no count', async () => {
+    const result = await managersOf(org(), caller(people.marco), [people.adam, people.omar]);
+    expect(result).toEqual({
+      kind: 'people',
+      rows: [
+        {
+          personId: people.marco,
+          name: 'Marco Ruiz',
+          groups: { team: 'Platform', location: 'madrid' },
+        },
+      ],
+      ids: [people.marco],
+      total: 1,
+      scope: 'visible',
+      described: 'managers of people',
+      notes: [],
+    });
+  });
+
+  it('leaves out a person the asker may not see, and a manager they may not see', async () => {
+    const app = org();
+    // Omar does not see Zoe, so her manager is nobody's business of his.
+    expect(await managersOf(app, caller(people.omar), [ZOE])).toMatchObject({ rows: [], total: 0 });
+    // He sees Nia, a teammate, but not Zoe, her manager.
+    expect(await managersOf(app, caller(people.omar), [NIA, people.adam])).toMatchObject({
+      ids: [people.marco],
+      total: 1,
+    });
+    const everyone = await managersOf(app, hr, [NIA, ZOE, people.adam]);
+    expect(everyone).toMatchObject({ total: 3, scope: 'everyone' });
+    expect(everyone.kind === 'people' && everyone.rows.map((r) => r.name)).toEqual([
+      'Marco Ruiz',
+      'Ravi Patel',
+      'Zoe Lane',
+    ]);
+  });
+
+  it('has nobody for somebody with no manager, and lists only up to the limit', async () => {
+    const app = org();
+    expect(await managersOf(app, hr, [people.marco])).toMatchObject({ rows: [], total: 0 });
+    expect(await managersOf(app, hr, [NIA, ZOE, people.adam], 0)).toMatchObject({
+      rows: [],
+      total: 3,
     });
   });
 });

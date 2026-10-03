@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { ok } from '@kithena/domain-kit';
-import { DateSpan, LeaveTypeKey, RuntimeCatalogue, TimeOffAway } from '@kithena/contracts';
+import {
+  DateSpan,
+  LeaveTypeKey,
+  RuntimeCatalogue,
+  TimeOffAway,
+  TimeOffManagers,
+} from '@kithena/contracts';
 
 import type { Caller } from '../application/ports.js';
 import { sendRequest } from '../application/request/request.js';
@@ -80,5 +86,19 @@ describe('Time Off’s capabilities with People absent', () => {
     expect((await ask('ada', '/timeoff.away', sick)).body).toMatchObject({ total: 1 });
     expect((await ask('adam', '/timeoff.away', sick)).body).toMatchObject({ total: 1 });
     expect((await ask('marco', '/timeoff.away', sick)).body).toMatchObject({ total: 1 });
+  });
+
+  it('answers timeoff.managers from its own projection', async () => {
+    const { ask } = boot();
+    const answer = await ask('adam', '/timeoff.managers', {
+      personIds: [people.omar, people.yuki],
+      limit: 25,
+    });
+    expect(answer.status).toBe(200);
+    expect(TimeOffManagers.schemas.output.parse(answer.body)).toMatchObject({
+      rows: [{ personId: people.marco, name: 'Marco Ruiz' }],
+      total: 1,
+    });
+    expect((await ask('adam', '/timeoff.managers', { limit: 25 })).status).toBe(400);
   });
 });
