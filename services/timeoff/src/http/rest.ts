@@ -604,7 +604,7 @@ export const ROUTES: readonly Route[] = [
     method: 'GET',
     path: `${V1}/settings/policies/{policyId}/preview`,
     summary:
-      'T30: what publishing the draft today would do to each member, folded; nothing is saved; HR',
+      'T30: what publishing the draft would do to each member this leave year, folded; nothing is saved; HR',
     params: z.object({ policyId: PolicyId }),
     answer: PolicyPreviewView,
     run: (deps, caller, { params }) => policyPreview(deps)(caller, params),

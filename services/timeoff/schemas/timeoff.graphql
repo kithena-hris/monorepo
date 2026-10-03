@@ -254,7 +254,7 @@ type Query {
   """T1: the clock, the balances, what is coming up and who is off today"""
   timeOffOverview: TimeOffOverview!
   """
-  T30: what publishing the draft today would do to each member, folded; nothing is saved; HR
+  T30: what publishing the draft would do to each member this leave year, folded; nothing is saved; HR
   """
   timeOffPolicyPreview(policyId: String!): TimeOffPolicyPreview!
   """One request, for its member, an approver or HR"""

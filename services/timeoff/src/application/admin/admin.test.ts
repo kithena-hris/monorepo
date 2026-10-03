@@ -103,7 +103,7 @@ describe('the policy preview and the pack flag (TOF-079, TOF-083)', () => {
     if (!preview.ok) throw new Error(preview.error.message);
     expect(preview.value).toMatchObject({
       draftVersion: 2,
-      effectiveFrom: '2026-10-01',
+      effectiveFrom: '2026-01-01',
       yearEnd: '2026-12-31',
     });
     expect(preview.value.members).toHaveLength(7);

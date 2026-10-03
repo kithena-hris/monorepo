@@ -112,7 +112,7 @@ export const policyPreview =
       const draft = policy.latest.status === 'draft' ? policy.latest : null;
       const current = policy.inEffectOn(today)?.definition ?? null;
       const { year, start, end } = leaveYear(draft?.definition ?? current, today);
-      const base = { effectiveFrom: today, yearEnd: end };
+      const base = { effectiveFrom: start, yearEnd: end };
       if (draft === null) return ok({ ...base, draftVersion: null, members: [] });
       const key = draft.definition.leaveTypeKey;
       const inputs: PreviewInput[] = [];

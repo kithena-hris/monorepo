@@ -537,8 +537,10 @@ const AmountChange = named(
 );
 
 /**
- * T30: what publishing the draft today would do to each member the draft or
- * the version in effect reaches, folded (`domain/policy/preview.ts`).
+ * T30: what publishing the draft would do to each member the draft or the
+ * version in effect reaches, folded over this leave year
+ * (`domain/policy/preview.ts`). `effectiveFrom` is the leave year's first
+ * day, the date to publish from for the whole year to follow the draft.
  * `draftVersion` is `null` when there is no draft, and `members` empty.
  */
 export const PolicyPreviewView = named(
