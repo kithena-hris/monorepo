@@ -4,6 +4,7 @@ import { expect, it } from 'vitest';
 
 import { Approvals, Overview } from '../index';
 import { adam } from '../overview/acme.fixture';
+import { underFloor } from './floor';
 
 /**
  * The screens at 390×844 with a coarse pointer and the real stylesheet: axe
@@ -11,26 +12,6 @@ import { adam } from '../overview/acme.fixture';
  * against the 44px floor. People's phone suite, for Time Off; each screen
  * ticket adds its own states here.
  */
-
-/** WCAG 2.5.8 and the iOS HIG: nothing a finger has to hit is smaller. */
-const FLOOR = 44;
-
-/** Targets under the floor, by name and size. A `::before` hit area counts, as Reach draws one. */
-function underFloor(root: Element): string[] {
-  return [...root.querySelectorAll<HTMLElement>('button, a[href]')].flatMap((el) => {
-    if (el.closest('[aria-hidden="true"]') !== null) return [];
-    const box = el.getBoundingClientRect();
-    if (box.width === 0 || box.height === 0) return [];
-    const hit = getComputedStyle(el, '::before');
-    const width = Math.max(box.width, Number.parseFloat(hit.width) || 0);
-    const height = Math.max(box.height, Number.parseFloat(hit.height) || 0);
-    if (width >= FLOOR - 0.5 && height >= FLOOR - 0.5) return [];
-    const name = el.getAttribute('aria-label') ?? el.textContent.trim().slice(0, 40);
-    return [
-      `${el.tagName.toLowerCase()} "${name}" ${String(Math.round(width))}×${String(Math.round(height))}`,
-    ];
-  });
-}
 
 it('draws a placeholder under a phone’s bar, its tabs as pills, every target reachable', async () => {
   render(
