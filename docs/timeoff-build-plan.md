@@ -124,7 +124,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 - **Done when** an integration test writes an event through `publish()` and
   reads it from `timeoff.outbox`.
 
-### [ ] TOF-003 — Boot like People
+### [x] TOF-003 — Boot like People
 
 **Goal** `src/main.ts` is a bare yoga server on a hardcoded port.
 
