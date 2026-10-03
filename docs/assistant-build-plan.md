@@ -239,7 +239,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   An `unclear` with an empty reply carries none, so the template's sentence
   stands.
 
-### [ ] AST-008 — Dates in the asker's zone
+### [x] AST-008 — Dates in the asker's zone
 
 - **Spec** PRD §9.4
 - **Files** `platform/assistant/src/domain/dates.ts` (+ test, first)
@@ -251,6 +251,12 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** tests cover 00:30 in Madrid on the 7th being the 7th (UTC
   says the 6th), `next_week` on a Sunday, `next_month` in December, and an
   unknown zone falling back to UTC with the answer saying so.
+- **As built** `todayIn(zone, clock)` gives a `Today` (`date`, `zone`, `utc`)
+  once per question, so every step agrees across midnight; `resolve(on, today)`
+  takes a plan's `on` (one reference or `{ from, to }`) and is null for a range
+  that ends before it starts; `spoken(range, today)` adds the year only when it
+  is not this one. No `Date` is constructed: days are `Date.UTC` arithmetic
+  formatted with `Intl`. The answer's UTC sentence is AST-011's.
 
 ### [ ] AST-009 — Masking and refusals
 
