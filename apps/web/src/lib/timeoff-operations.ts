@@ -31,6 +31,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T23: missed clock-outs, short rest, overtime waiting and holidays worked over a period; HR */
+  TimeOffAttendanceExceptions: `query TimeOffAttendanceExceptions($from: String!, $to: String!) {
+    timeOffAttendanceExceptions(from: $from, to: $to) {
+      from items { date displayName holiday kind minutes personId teamName } restMinutes to
+    }
+  }`,
+
   /** T33: breaks, limits, overtime and the default schedule; HR */
   TimeOffAttendanceSettings: `query TimeOffAttendanceSettings {
     timeOffAttendanceSettings {
@@ -91,6 +98,13 @@ export const OPERATIONS = {
   TimeOffHolidays: `query TimeOffHolidays($year: Int!) {
     timeOffHolidays(year: $year) {
       holidays { date layer movedFrom name } locationKey year
+    }
+  }`,
+
+  /** The labour inspector’s daily record (start, end, breaks) per person for a period, as CSV or PDF in base64; HR */
+  TimeOffInspectorRecord: `query TimeOffInspectorRecord($format: String!, $from: String!, $to: String!) {
+    timeOffInspectorRecord(format: $format, from: $from, to: $to) {
+      base64 contentType name
     }
   }`,
 

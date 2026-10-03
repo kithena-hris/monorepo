@@ -46,11 +46,13 @@ import {
 } from '../application/approval/decide.js';
 import { setDelegation } from '../application/approval/escalation.js';
 import {
+  attendanceExceptions,
   closePayPeriod,
   correctPunch,
   decideOvertime,
   punch,
 } from '../application/attendance/attendance.js';
+import { inspectorExport } from '../application/attendance/inspector-files.js';
 import { calendarFeed, issueFeedToken, revokeFeeds } from '../application/calendar/ical.js';
 import { importMembers } from '../application/member/import.js';
 import {
@@ -113,6 +115,8 @@ import {
   CalendarView,
   DecisionView,
   DelegationView,
+  ExceptionsView,
+  FileView,
   HolidayLayerBody,
   HolidaySettingsView,
   HolidaysView,
@@ -599,6 +603,28 @@ export const ROUTES: readonly Route[] = [
     summary: 'T22: the caller’s reports, live, and what needs them',
     answer: RightNowView,
     run: (deps, caller) => rightNowScreen(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffAttendanceExceptions',
+    method: 'GET',
+    path: `${V1}/attendance/exceptions`,
+    summary:
+      'T23: missed clock-outs, short rest, overtime waiting and holidays worked over a period; HR',
+    params: z.object({ from: CalendarDate, to: CalendarDate }),
+    answer: ExceptionsView,
+    run: (deps, caller, { params }) => attendanceExceptions(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffInspectorRecord',
+    method: 'GET',
+    path: `${V1}/attendance/inspector-record`,
+    summary:
+      'The labour inspector’s daily record (start, end, breaks) per person for a period, as CSV or PDF in base64; HR',
+    params: z.object({ from: CalendarDate, to: CalendarDate, format: z.enum(['csv', 'pdf']) }),
+    answer: FileView,
+    run: (deps, caller, { params }) => inspectorExport(deps)(caller, params),
     shape: same,
   }),
   route({

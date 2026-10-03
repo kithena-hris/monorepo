@@ -11,6 +11,7 @@
  */
 import './styles.css';
 
+import { Exceptions as ExceptionsScreen } from './attendance/exceptions';
 import { TeamNow as TeamNowScreen } from './attendance/team-now';
 import { Timesheet as TimesheetScreen } from './attendance/timesheet';
 import { Approvals as ApprovalsScreen } from './approvals/approvals';
@@ -50,6 +51,8 @@ export const Attendance = framed(placeholder('Attendance'));
 export { TopBarClock } from './clock/clock';
 export const Timesheet = framed(TimesheetScreen);
 export const TeamNow = framed(TeamNowScreen);
+// HR operations (TOF-095 onwards).
+export const Exceptions = framed(ExceptionsScreen);
 export const Balance = framed(BalanceScreen);
 export const Holidays = framed(HolidaysScreen);
 export const ParentalPlan = framed(ParentalPlanScreen);

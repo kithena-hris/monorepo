@@ -266,6 +266,10 @@ type Query {
   T16: waiting for the caller (clear and look closer), coming up, or decided
   """
   timeOffApprovals(tab: String): TimeOffApprovals!
+  """
+  T23: missed clock-outs, short rest, overtime waiting and holidays worked over a period; HR
+  """
+  timeOffAttendanceExceptions(from: String!, to: String!): TimeOffAttendanceExceptions!
   """T33: breaks, limits, overtime and the default schedule; HR"""
   timeOffAttendanceSettings: TimeOffSettingsAttendance!
   """MT20: where the days of one leave type went this leave year"""
@@ -288,6 +292,10 @@ type Query {
   timeOffHolidaySettings(year: Int!): TimeOffSettingsHolidays!
   """MT21: the holidays the caller’s work location observes"""
   timeOffHolidays(year: Int!): TimeOffHolidays!
+  """
+  The labour inspector’s daily record (start, end, breaks) per person for a period, as CSV or PDF in base64; HR
+  """
+  timeOffInspectorRecord(format: String!, from: String!, to: String!): TimeOffFile!
   """T30: one leave type and every version of its policies; HR"""
   timeOffLeaveTypeSetting(key: String!): TimeOffSettingsLeaveType!
   """T29: every leave type; HR"""
@@ -365,6 +373,23 @@ type TimeOffApprovals {
   items: [TimeOffRequestItem!]!
   lookCloser: [TimeOffLookCloserItem!]!
   tab: String!
+}
+
+type TimeOffAttendanceException {
+  date: String!
+  displayName: String!
+  holiday: String
+  kind: String!
+  minutes: Int
+  personId: String!
+  teamName: String
+}
+
+type TimeOffAttendanceExceptions {
+  from: String!
+  items: [TimeOffAttendanceException!]!
+  restMinutes: Int!
+  to: String!
 }
 
 type TimeOffAttendanceRules {
@@ -534,6 +559,12 @@ type TimeOffDelegationDelegation {
 
 type TimeOffDone {
   ok: Boolean!
+}
+
+type TimeOffFile {
+  base64: String!
+  contentType: String!
+  name: String!
 }
 
 type TimeOffHandoverItem {

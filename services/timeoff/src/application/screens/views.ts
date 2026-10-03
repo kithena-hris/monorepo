@@ -524,6 +524,38 @@ export const RightNowView = named(
   }),
 );
 
+/** T23 (TOF-095): what needs HR in attendance over a period, oldest first. */
+export const ExceptionsView = named(
+  'TimeOffAttendanceExceptions',
+  z.object({
+    from: CalendarDate,
+    to: CalendarDate,
+    /** The rest the rules require between days, which a short rest is short of. */
+    restMinutes: z.int(),
+    items: z.array(
+      named(
+        'TimeOffAttendanceException',
+        z.object({
+          kind: z.enum(['missed_clock_out', 'short_rest', 'overtime_waiting', 'worked_on_holiday']),
+          date: CalendarDate,
+          /** The rest taken, the overtime waiting, or the time worked on the holiday. */
+          minutes: z.int().nullable(),
+          holiday: z.string().nullable(),
+          personId: PersonId,
+          displayName: z.string(),
+          teamName: z.string().nullable(),
+        }),
+      ),
+    ),
+  }),
+);
+
+/** A file to download, as base64: the inspector's record as CSV or PDF. */
+export const FileView = named(
+  'TimeOffFile',
+  z.object({ name: z.string(), contentType: z.string(), base64: z.string() }),
+);
+
 /* -------------------------------------------------------------- settings -- */
 
 const LeaveTypeRow = named(

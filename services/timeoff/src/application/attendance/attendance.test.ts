@@ -2,8 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { Instant, LeaveTypeDefinition, PunchInput, type PunchKind } from '@kithena/contracts';
 
 import { LeaveType } from '../../domain/policy/leave-type.js';
-import { caller, d, people, TENANT, world } from '../testing/world.js';
-import { correctPunch, decideOvertime, punch, teamRightNow, timesheet } from './attendance.js';
+import { caller, d, hr, people, TENANT, world } from '../testing/world.js';
+import {
+  attendanceExceptions,
+  correctPunch,
+  decideOvertime,
+  punch,
+  teamRightNow,
+  timesheet,
+} from './attendance.js';
+import { inspectorExport } from './inspector-files.js';
 
 const adam = caller(people.adam);
 const marco = caller(people.marco);
@@ -154,5 +162,56 @@ describe('the clock and the timesheet (TOF-042)', () => {
     expect([...s.periods.values()]).toEqual([
       expect.objectContaining({ from: '2026-10-01', to: '2026-10-31', closedAt: null }),
     ]);
+  });
+});
+
+describe('HR’s exceptions and the inspector’s record (TOF-095)', () => {
+  async function adamsWeek() {
+    const { app, at } = setup();
+    // Monday 09:00–18:00, an hour over; Tuesday in at 09:00 and never out.
+    await at('2026-10-05T07:00:00.000Z', 'in');
+    await at('2026-10-05T16:00:00.000Z', 'out');
+    await at('2026-10-06T07:00:00.000Z', 'in');
+    app.clock.set('2026-10-08T07:00:00.000Z');
+    return app;
+  }
+  const october = { from: d('2026-10-01'), to: d('2026-10-31') };
+
+  it('lists only what needs HR, oldest first, and nobody else may ask', async () => {
+    const app = await adamsWeek();
+    const found = await attendanceExceptions(app.deps)(hr, october);
+    if (!found.ok) throw new Error(found.error.message);
+    expect(found.value.items.map((e) => [e.kind, e.date, e.minutes, e.displayName])).toEqual([
+      ['overtime_waiting', '2026-10-05', 60, 'Adam Novak'],
+      ['missed_clock_out', '2026-10-06', null, 'Adam Novak'],
+    ]);
+    expect(await attendanceExceptions(app.deps)(marco, october)).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+    expect(
+      await attendanceExceptions(app.deps)(hr, { from: d('2026-01-01'), to: d('2027-06-01') }),
+    ).toMatchObject({ ok: false, error: { code: 'PERIOD_TOO_LONG' } });
+  });
+
+  it('gives the inspector each day’s start, end and breaks, as CSV and as PDF', async () => {
+    const app = await adamsWeek();
+    const csv = await inspectorExport(app.deps)(hr, { ...october, format: 'csv' });
+    if (!csv.ok) throw new Error(csv.error.message);
+    expect(csv.value.name).toBe('working-time-2026-10-01-to-2026-10-31.csv');
+    expect(Buffer.from(csv.value.base64, 'base64').toString('utf8').split('\r\n')).toEqual([
+      'Person,Date,Start,End,Breaks,Break minutes,Worked',
+      'Adam Novak,2026-10-05,09:00,18:00,,0,9:00',
+      'Adam Novak,2026-10-06,09:00,,,0,',
+      '',
+    ]);
+    const pdf = await inspectorExport(app.deps)(hr, { ...october, format: 'pdf' });
+    if (!pdf.ok) throw new Error(pdf.error.message);
+    expect(pdf.value.contentType).toBe('application/pdf');
+    expect(Buffer.from(pdf.value.base64, 'base64').subarray(0, 5).toString()).toBe('%PDF-');
+    expect(await inspectorExport(app.deps)(adam, { ...october, format: 'csv' })).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
   });
 });

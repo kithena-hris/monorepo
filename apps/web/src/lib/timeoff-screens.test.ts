@@ -130,3 +130,23 @@ describe('holidays', () => {
     });
   });
 });
+
+describe('HR’s attendance pages (TOF-095 onwards)', () => {
+  it('asks for the month in the address, this month without one, and says when it was not one', async () => {
+    answering({ TimeOffAttendanceExceptions: () => ({ ok: true, data: { items: [] } }) });
+    await loadScreen('Exceptions', {
+      params: {},
+      search: { month: '2026-02', kind: 'short_rest' },
+    });
+    const odd = await loadScreen('Exceptions', { params: {}, search: { month: 'soon' } });
+    expect(asked('TimeOffAttendanceExceptions')).toEqual([
+      { from: '2026-02-01', to: '2026-02-28' },
+      { from: '2026-10-01', to: '2026-10-31' },
+    ]);
+    expect(odd).toMatchObject({
+      status: 'ready',
+      data: { month: '2026-10', kind: null },
+      notice: '“soon” is not a month',
+    });
+  });
+});

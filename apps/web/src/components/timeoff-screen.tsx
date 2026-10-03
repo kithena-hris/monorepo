@@ -139,6 +139,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       case 'Timesheet':
         return { load: loadable, onCorrect: actions.correctPunch };
       case 'TeamNow':
+      case 'Exceptions':
         return { load: loadable };
       // Settings (TOF-078 to TOF-083).
       case 'LeaveTypes':

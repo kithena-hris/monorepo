@@ -1,4 +1,5 @@
 import type { ClockData } from '../clock/clock';
+import type { ExceptionsData } from './exceptions';
 import type { TeamNowData } from './team-now';
 import type { Punch } from './time';
 import type { TimesheetData } from './timesheet';
@@ -251,4 +252,74 @@ export const marcoBoard = (): TeamNowData => ({
     { personId: 'p-hana', status: 'approved', span: { from: '2026-09-30', to: '2026-10-02' } },
   ],
   now: NOW,
+});
+
+/**
+ * T23 for Ada, September 2026: Adam's Wednesday and Leo's Friday without a
+ * clock-out, two short nights after the 29 Sep release, Omar's and Yuki's
+ * overtime waiting, and Diego on the 15 August holiday — kept to the month
+ * on show, so Diego's is in August's.
+ */
+export const adaExceptions = (): ExceptionsData => ({
+  from: '2026-09-01',
+  to: '2026-09-30',
+  month: '2026-09',
+  restMinutes: 720,
+  kind: null,
+  items: [
+    {
+      kind: 'missed_clock_out',
+      date: '2026-09-25',
+      minutes: null,
+      holiday: null,
+      personId: 'p-leo',
+      displayName: 'Leo Rossi',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'overtime_waiting',
+      date: '2026-09-29',
+      minutes: 90,
+      holiday: null,
+      personId: 'p-omar',
+      displayName: 'Omar Haddad',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'overtime_waiting',
+      date: '2026-09-29',
+      minutes: 65,
+      holiday: null,
+      personId: ADAM,
+      displayName: 'Adam Novak',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'short_rest',
+      date: '2026-09-30',
+      minutes: 610,
+      holiday: null,
+      personId: 'p-omar',
+      displayName: 'Omar Haddad',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'short_rest',
+      date: '2026-09-30',
+      minutes: 655,
+      holiday: null,
+      personId: 'p-yuki',
+      displayName: 'Yuki Sato',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'missed_clock_out',
+      date: '2026-09-30',
+      minutes: null,
+      holiday: null,
+      personId: ADAM,
+      displayName: 'Adam Novak',
+      teamName: 'Platform',
+    },
+  ],
 });

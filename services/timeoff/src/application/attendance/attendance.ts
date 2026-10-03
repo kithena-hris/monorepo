@@ -21,7 +21,14 @@ import {
   type Day,
   type WeekTotal,
 } from '../../domain/attendance/day.js';
+import {
+  dailyRecord,
+  exceptionsOf,
+  type DailyRecord,
+  type Exception,
+} from '../../domain/attendance/exceptions.js';
 import { close, hours, post as postLine } from '../../domain/attendance/pay-period.js';
+import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
 import { hm, weekdays, type Schedule } from '../../domain/attendance/schedule.js';
 import { entry } from '../../domain/balance/ledger.js';
 import { datesIn, weekday } from '../../domain/calendar/working-days.js';
@@ -412,6 +419,142 @@ export const decideOvertime =
         if (!banked.ok) return banked;
       }
       return ok(decision);
+    });
+
+/* ------------------------------------------------- HR's view, TOF-095 -- */
+
+/** The holidays a member's work location observes between two dates, by name. */
+async function holidaysOf(
+  tx: Tx,
+  member: Member,
+  from: CalendarDate,
+  to: CalendarDate,
+): Promise<{ date: CalendarDate; name: string }[]> {
+  if (member.locationKey === null) return [];
+  const keys = await tx.holidays.assigned(member.locationKey);
+  const layers = (await tx.holidays.layers()).filter((l) => keys.includes(l.key));
+  const years = datesIn(from, to).map((d) => Number(d.slice(0, 4)));
+  return [...new Set(years)]
+    .flatMap((y) => resolveHolidays(layers, y))
+    .filter((h) => h.date >= from && h.date <= to);
+}
+
+/** At most a year at once: the inspector asks for a period, not a career. */
+const MAX_DAYS = 366;
+
+async function hrPeriod(
+  deps: Pick<Deps, 'authz'>,
+  caller: Caller,
+  from: CalendarDate,
+  to: CalendarDate,
+): Promise<Result<void>> {
+  if (!(await isHrAdmin(deps, caller))) return forbidden();
+  if (to < from) return refuse('INVALID_PERIOD', 'The range ends before it starts', ['to']);
+  if (datesIn(from, to).length > MAX_DAYS) {
+    return refuse('PERIOD_TOO_LONG', 'Ask for a year or less at once', ['to']);
+  }
+  return ok(undefined);
+}
+
+export interface AttendanceExceptions {
+  readonly from: CalendarDate;
+  readonly to: CalendarDate;
+  readonly restMinutes: number;
+  readonly items: readonly (Exception & {
+    readonly personId: PersonId;
+    readonly displayName: string;
+    readonly teamName: string | null;
+  })[];
+}
+
+/**
+ * T23 (§11.7): every member's exceptions over a period, for HR — missed
+ * clock-outs, short rest, overtime nobody decided and holidays worked —
+ * oldest first. Days still to come are not asked about.
+ */
+export const attendanceExceptions =
+  (deps: Pick<Deps, 'uow' | 'authz' | 'clock'>) =>
+  (
+    caller: Caller,
+    input: { readonly from: CalendarDate; readonly to: CalendarDate },
+  ): Promise<Result<AttendanceExceptions>> =>
+    transact(deps, caller.tenantId, async (tx) => {
+      const allowed = await hrPeriod(deps, caller, input.from, input.to);
+      if (!allowed.ok) return allowed;
+      const rules = await tx.attendance.rules();
+      const now = deps.clock.instant();
+      const items: AttendanceExceptions['items'][number][] = [];
+      for (const m of await tx.members.list()) {
+        if (m.status === 'left') continue;
+        const today = deps.clock.date(m.timeZone);
+        const to = input.to < today ? input.to : today;
+        if (to < input.from) continue;
+        const clock = await clockOf(tx, m, caller.tenantId);
+        const schedule = await scheduleOf(tx, m);
+        const days = datesIn(input.from, to).map((date) =>
+          dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
+        );
+        const found = exceptionsOf({
+          days,
+          restBreaches: restBreaches(clock.shifts, rules).filter(
+            (r) => r.date >= input.from && r.date <= to,
+          ),
+          holidays: await holidaysOf(tx, m, input.from, to),
+          decided: (await tx.attendance.overtime(m.personId)).map((o) => o.date),
+        });
+        for (const e of found) {
+          items.push({
+            ...e,
+            personId: m.personId,
+            displayName: m.displayName,
+            teamName: m.teamName,
+          });
+        }
+      }
+      return ok({
+        from: input.from,
+        to: input.to,
+        restMinutes: rules.restMinutes,
+        items: items.toSorted((a, b) => a.date.localeCompare(b.date)),
+      });
+    });
+
+export interface InspectorRecord {
+  readonly from: CalendarDate;
+  readonly to: CalendarDate;
+  readonly people: readonly {
+    readonly personId: PersonId;
+    readonly displayName: string;
+    readonly days: readonly DailyRecord[];
+  }[];
+}
+
+/**
+ * The labour inspector's record (§11.7): per person, each day's start, end
+ * and breaks over a period, from the punches that stand. HR only; never a
+ * location, a device or a source.
+ */
+export const inspectorRecord =
+  (deps: Pick<Deps, 'uow' | 'authz'>) =>
+  (
+    caller: Caller,
+    input: { readonly from: CalendarDate; readonly to: CalendarDate },
+  ): Promise<Result<InspectorRecord>> =>
+    transact(deps, caller.tenantId, async (tx) => {
+      const allowed = await hrPeriod(deps, caller, input.from, input.to);
+      if (!allowed.ok) return allowed;
+      const people: InspectorRecord['people'][number][] = [];
+      for (const m of (await tx.members.list()).toSorted((a, b) =>
+        a.displayName.localeCompare(b.displayName),
+      )) {
+        const clock = await clockOf(tx, m, caller.tenantId);
+        const days = dailyRecord(clock.shifts, m.timeZone).filter(
+          (r) => r.date >= input.from && r.date <= input.to,
+        );
+        if (days.length > 0)
+          people.push({ personId: m.personId, displayName: m.displayName, days });
+      }
+      return ok({ from: input.from, to: input.to, people });
     });
 
 /** The month's pay period, opened when the first line needs it. */

@@ -72,6 +72,9 @@ export async function loadScreen(
       return timesheet(query.search);
     case 'TeamNow':
       return teamNow();
+    // HR operations (TOF-095 onwards).
+    case 'Exceptions':
+      return exceptions(query.search);
     // Settings (TOF-078 to TOF-083), HR only: Time Off refuses anyone else.
     case 'LeaveTypes':
       return leaveTypeSettings();
@@ -222,6 +225,40 @@ async function teamNow(): Promise<ScreenLoad> {
       away: calendar.ok ? calendar.data.entries : [],
       now: now.toISOString(),
     },
+  };
+}
+
+/** A month in the address (`?month=2026-09`), this month without one it can read. */
+function monthIn(search: Readonly<Record<string, string>>): {
+  month: string;
+  from: string;
+  to: string;
+  refused: boolean;
+} {
+  const asked = search['month'];
+  const month =
+    asked !== undefined && MONTH.test(asked) ? asked : new Date().toISOString().slice(0, 7);
+  const from = `${month}-01`;
+  return {
+    month,
+    from,
+    to: addDays(`${addDays(from, 31).slice(0, 7)}-01`, -1),
+    refused: asked !== undefined && !MONTH.test(asked),
+  };
+}
+
+/**
+ * T23: what needs HR in attendance over a month (`?month=`), and the kind
+ * open beside the list (`?kind=`), the screen's to apply.
+ */
+async function exceptions(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+  const { month, from, to, refused } = monthIn(search);
+  const answer = await read('TimeOffAttendanceExceptions', { from, to });
+  if (answer.status !== 'ready') return answer;
+  return {
+    status: 'ready',
+    data: { ...(answer.data as object), month, kind: search['kind'] ?? null },
+    ...(refused ? { notice: `“${search['month'] ?? ''}” is not a month` } : {}),
   };
 }
 

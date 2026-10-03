@@ -1528,10 +1528,23 @@ test passes, and it matches the design's screen on the seeded demo company.
 - **Screens** T32 · **Spec** PRD §6.4
 - **Depends on** TOF-084, TOF-093
 
-### [ ] TOF-095 — Exceptions for HR and the inspector export
+### [x] TOF-095 — Exceptions for HR and the inspector export
 
 - **Screens** T23 · **Spec** PRD §11.7
 - **Depends on** TOF-042
+- **As built** `domain/attendance/exceptions.ts`: `exceptionsOf` (a day
+  never clocked out, rest under the rules' minimum, overtime nobody decided,
+  a holiday worked where the member works) and `dailyRecord` (each shift's
+  start, end and breaks as wall times in the member's zone, from the
+  punches that stand). `timeOffAttendanceExceptions` (HR, a year at most)
+  answers every member's over a period; `timeOffInspectorRecord` answers the
+  record as CSV (formula-safe) or a landscape A4 PDF (pdfkit, Noto Sans
+  vendored in `services/timeoff/assets/fonts`, as People's exports), base64,
+  which `apps/web/src/app/time-off/downloads/inspector` turns into a
+  download. `attendance/exceptions.tsx` at `/time-off/attendance/exceptions`:
+  the month in `?month=`, the four kinds with their count and why each
+  matters, the open kind's people beside them (`?kind=`). The design's "What
+  changed in September" card is TOF-097's.
 
 ### [ ] TOF-096 — Close the month for Payroll
 
