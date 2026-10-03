@@ -743,6 +743,24 @@ const APPROVED_RELATIONS: ViewerRelations = {
 };
 
 /**
+ * A field's values rewritten because its type changed (Settings › Employee
+ * fields › Change): the administrator reviewed every value and published the
+ * change, so each write is theirs, made with every role's reach — whoever
+ * normally fills the field in — and never held for approval, recorded on the
+ * event as applied without it. A symbol, so no transport can claim it.
+ */
+const AS_SCHEMA_CHANGE = Symbol('people.schema-change');
+type SchemaChangeAsking = Asking & { readonly [AS_SCHEMA_CHANGE]?: true };
+const schemaChangeOf = (asking: Asking): boolean =>
+  (asking as SchemaChangeAsking)[AS_SCHEMA_CHANGE] === true;
+
+/** The asking of a field change's writes. Only the publish of a reviewed change builds one. */
+export function asSchemaChange(asking: Asking): Asking {
+  const changing: SchemaChangeAsking = { ...asking, [AS_SCHEMA_CHANGE]: true };
+  return changing;
+}
+
+/**
  * An integration writing (PEO-072, PEO-073): a SCIM connection whose token
  * the transport has already checked. Like `AS_SYSTEM` a symbol, so nothing
  * parsed from a request body can claim to be one.
@@ -865,6 +883,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
    */
   async function relationsOf(tx: Tx, asking: Asking, personId: string): Promise<ViewerRelations> {
     if (systemOf(asking) !== undefined) return SYSTEM_RELATIONS;
+    if (schemaChangeOf(asking)) return APPROVED_RELATIONS;
     const integration = integrationOf(asking);
     if (integration !== undefined) {
       return {
@@ -907,6 +926,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     asking: Asking,
     relations: ViewerRelations,
   ): Result<'hold' | 'bypass' | 'write'> {
+    if (schemaChangeOf(asking)) return ok(deps.approvals === undefined ? 'write' : 'bypass');
     if (asking.applySensitiveWithoutApproval === true && !relations.isHr) {
       return err(
         failure('FORBIDDEN', 'Only HR applies a value that needs approval without it', [

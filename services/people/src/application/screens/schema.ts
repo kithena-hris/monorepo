@@ -21,10 +21,12 @@ import {
 } from '../../domain/schema/draft.js';
 import { askAtSignup, atSignup, onSignupPage, type SignupAsk } from '../../domain/schema/signup.js';
 import { sortKeys, type PublishedVersion } from '../../domain/schema/publish.js';
+import { needsReview } from '../../domain/schema/retype.js';
 import type { Asking } from '../person/person-access.js';
+import type { PersonReader } from '../person/ports.js';
 import { userActor } from '../person/ports.js';
 import { run } from '../person/service.js';
-import type { PublishSchema } from '../schema/publish-schema.js';
+import type { PublishRequest, PublishSchema } from '../schema/publish-schema.js';
 import type { DraftWriter, SchemaRepository } from '../schema/schema-repository.js';
 import type { RecordSection, FormValues, PendingFieldView } from './model.js';
 import { countryName, seedSetup } from './setup-draft.js';
@@ -53,9 +55,19 @@ export interface SchemaScreenDeps extends ScreenDeps {
   readonly publisher: PublishSchema;
   /** Where version `n`'s artifact is fetchable, for `schema.published`. */
   readonly artifactUrl: (version: number) => string;
+  /** Every record, a page at a time: a field change reads each value it converts. */
+  readonly records?: Pick<PersonReader, 'page'>;
+  /**
+   * A sealed value's plaintext, the audited read (`Secrets.reveal`): a field
+   * change converts it in memory and keeps, logs and shows none of it.
+   */
+  readonly reveal?: (
+    tx: Tx,
+    where: { readonly tenantId: string; readonly personId: string; readonly attributeKey: string },
+  ) => Promise<string | null>;
 }
 
-async function asAdmin<T>(
+export async function asAdmin<T>(
   deps: SchemaScreenDeps,
   tx: Tx,
   asking: Asking,
@@ -120,6 +132,15 @@ export interface RegistryView {
     readonly encryptable: boolean;
     readonly origin: string;
     readonly pending: Pending;
+    /**
+     * Its type or format changes in the draft in a way the values it holds
+     * may not fit: published only through the review of every value.
+     */
+    readonly review: boolean;
+    /** A number's decimal places, or null for a type without them. */
+    readonly decimals: number | null;
+    /** Money's fixed currency, or null: the record's own. */
+    readonly currency: string | null;
   }[];
   /** What a predicate's clauses may name, each list the company's own. */
   readonly choices: {
@@ -146,10 +167,26 @@ export function pendingOf(draft: Attribute, published: PublishedVersion | null):
   return same(draft) === same(was) ? null : 'changed';
 }
 
+/** The options a form offers: a retired one stays on the records holding it, and off the list. */
 const optionsOf = (a: AttributeDefinition): string[] =>
   a.typeConfig.kind === 'select' || a.typeConfig.kind === 'multi_select'
-    ? a.typeConfig.options.map((o) => o.label.default)
+    ? a.typeConfig.options.filter((o) => o.retiredAt === null).map((o) => o.label.default)
     : [];
+
+/** The draft fields whose values must be reviewed before they publish. */
+export function toReview(
+  attributes: readonly Attribute[],
+  published: PublishedVersion | null,
+): readonly Attribute[] {
+  return attributes.filter(
+    (a) =>
+      a.deprecatedAt === null &&
+      needsReview(
+        published?.document.attributes.find((p) => p.key === a.key),
+        a,
+      ),
+  );
+}
 
 /**
  * One of People's own choice fields as the company has it: its field's live
@@ -174,6 +211,7 @@ export async function registryView(
         deps.schema.loadDraft(tx, asking.tenantId),
         deps.schema.currentVersion(tx, asking.tenantId),
       ]);
+      const reviewing = new Set<string>(toReview(draft.attributes, published).map((a) => a.key));
       const fields = draft.attributes.map((a) => ({
         key: a.key,
         sectionKey: a.sectionKey,
@@ -198,6 +236,9 @@ export async function registryView(
         encryptable: !isCoreKey(a.key) && encryptable(a),
         origin: a.origin,
         pending: pendingOf(a, published),
+        review: reviewing.has(a.key),
+        decimals: 'decimals' in a.typeConfig ? a.typeConfig.decimals : null,
+        currency: a.typeConfig.kind === 'money' ? a.typeConfig.currency : null,
       }));
       const entities = deps.service.org ? await deps.service.org.legalEntities(tx, asking) : ok([]);
       const choices = {
@@ -325,6 +366,8 @@ export interface FieldInput {
   readonly scheme?: string | null;
   /** How many decimal places a decimal or a percentage keeps; absent, the type's default. */
   readonly decimals?: number | null;
+  /** Money in one currency only (an ISO code), or null for the record's own; absent, unchanged. */
+  readonly currency?: string | null | undefined;
   /** Whether the assistant may use it; null or absent, it may where it could be (public or internal). */
   readonly aiEligible?: boolean | null;
   /** Required of people added from now on only; existing records are not made incomplete (§6.5). */
@@ -365,6 +408,9 @@ function definitionOf(input: FieldInput, order: number): AttributeDefinitionInpu
           ? { country: input.country ?? undefined }
           : {}),
       ...(input.decimals == null ? {} : { decimals: input.decimals }),
+      ...(input.dataType === 'money' && input.currency !== undefined
+        ? { currency: input.currency }
+        : {}),
     },
     // A conditional rule without a predicate is refused by the contract, which
     // names the field; nothing here invents one.
@@ -426,7 +472,7 @@ export async function saveField(
     asAdmin(deps, tx, asking, async () => {
       const current = await deps.schema.loadDraft(tx, asking.tenantId);
       const draft = SchemaDraft.rehydrate(current.sections, current.attributes);
-      const saved = fieldChange(draft, current.attributes, input, editing);
+      const saved = fieldChange(draft, current.attributes, input, editing, deps.clock.instant());
       if (!saved.ok) return saved;
       await deps.draft.saveAttribute(tx, asking.tenantId, saved.value);
       return ok(undefined);
@@ -444,6 +490,8 @@ export function fieldChange(
   attributes: readonly Attribute[],
   input: FieldInput,
   editing: string | null,
+  /** When an option taken off the list is retired: the save's instant. */
+  now = '1970-01-01T00:00:00.000Z',
 ): Result<Attribute> {
   const siblings = attributes.filter((a) => a.sectionKey === input.sectionKey).length;
   const definition = definitionOf(input, siblings);
@@ -452,6 +500,17 @@ export function fieldChange(
   const { key: _key, origin: _origin, order: _order, ...patch } = definition;
   // Sealed stays sealed: a form that says nothing of it keeps it.
   const was = attributes.find((a) => a.key === editing);
+  // Kithena's own fields and a country pack's keep their type (§6.2).
+  if (was !== undefined && was.origin !== 'tenant' && was.dataType !== input.dataType) {
+    return err(
+      failure('TYPE_FIXED', `${was.label.default} is built in, and its type is fixed`, [
+        'dataType',
+      ]),
+    );
+  }
+  if (was !== undefined && was.dataType === input.dataType) {
+    patch.typeConfig = configAfter(was, patch.typeConfig, now);
+  }
   // Named even when absent, so removing the last rule removes it.
   return draft.updateAttribute(editing, {
     ...patch,
@@ -459,6 +518,38 @@ export function fieldChange(
     visibilityRules: patch.visibilityRules,
     requiresApproval: patch.requiresApproval,
   });
+}
+
+/**
+ * The same type's settings after an edit: what the form did not send (a text's
+ * shape, a number's bounds) is kept, and an option taken off the list is
+ * retired rather than deleted — the records holding it still hold it, and
+ * publishing the change reviews them. An option put back is live again.
+ */
+function configAfter(
+  was: Attribute,
+  sent: AttributeDefinitionInput['typeConfig'],
+  now: string,
+): AttributeDefinitionInput['typeConfig'] {
+  const merged = { ...was.typeConfig, ...sent } as Record<string, unknown>;
+  if (was.typeConfig.kind !== 'select' && was.typeConfig.kind !== 'multi_select') {
+    return merged as AttributeDefinitionInput['typeConfig'];
+  }
+  const given = ((sent as { options?: { value: string; label: { default: string } }[] }).options ??
+    []) as { value: string; label: { default: string } }[];
+  const kept = was.typeConfig.options;
+  // Matched by label as well as by value: an option an import made keeps its own value.
+  const live = given.map((o) => {
+    const same =
+      kept.find((k) => k.value === o.value) ?? kept.find((k) => k.label.default === o.label.default);
+    return same === undefined
+      ? { ...o, retiredAt: null }
+      : { ...same, label: { ...same.label, default: o.label.default }, retiredAt: null };
+  });
+  const retired = kept
+    .filter((k) => !live.some((o) => o.value === k.value))
+    .map((k) => ({ ...k, retiredAt: k.retiredAt ?? now }));
+  return { ...merged, options: [...live, ...retired] } as AttributeDefinitionInput['typeConfig'];
 }
 
 /**
@@ -548,7 +639,7 @@ const WORDS = {
  * first so the preview and the publish evaluate it (§6.5). A date on or
  * before today is left off: required from today is what "no date" means.
  */
-async function applyRequiredFrom(
+export async function applyRequiredFrom(
   deps: SchemaScreenDeps,
   tx: Tx,
   tenantId: string,
@@ -571,7 +662,11 @@ async function applyRequiredFrom(
   }
 }
 
-function request(deps: SchemaScreenDeps, asking: Asking, next: number) {
+export function publishRequest(
+  deps: SchemaScreenDeps,
+  asking: Asking,
+  next: number,
+): PublishRequest {
   return {
     tenantId: asking.tenantId,
     actor: userActor(asking.viewer),
@@ -605,7 +700,7 @@ export async function previewPublish(
           const current = await deps.schema.currentVersion(inner, asking.tenantId);
           const preview = await deps.publisher.preview(
             inner,
-            request(deps, asking, (current?.version ?? 0) + 1),
+            publishRequest(deps, asking, (current?.version ?? 0) + 1),
           );
           if (!preview.ok) throw new Rollback(preview);
           const special = new Set(
@@ -656,11 +751,22 @@ export async function publishDraft(
 ): Promise<Result<{ version: number }>> {
   return run(deps.service, asking.tenantId, (tx) =>
     asAdmin(deps, tx, asking, async () => {
-      await applyRequiredFrom(deps, tx, asking.tenantId, requiredFrom);
       const current = await deps.schema.currentVersion(tx, asking.tenantId);
+      // A new type or format is published with the review of every value it holds.
+      const [first] = toReview((await deps.schema.loadDraft(tx, asking.tenantId)).attributes, current);
+      if (first !== undefined) {
+        return err(
+          failure(
+            'VALUES_NEED_REVIEW',
+            `${first.label.default} changes type or format: review its values, from its row in the list, to publish`,
+            [first.key],
+          ),
+        );
+      }
+      await applyRequiredFrom(deps, tx, asking.tenantId, requiredFrom);
       const published = await deps.publisher.publish(
         tx,
-        request(deps, asking, (current?.version ?? 0) + 1),
+        publishRequest(deps, asking, (current?.version ?? 0) + 1),
       );
       return published.ok ? ok({ version: published.value.version.version }) : published;
     }),
@@ -895,7 +1001,7 @@ export async function publishSetup(
 
       const seeded = await seedSetup(tx, asking.tenantId, choice.country, choice.sections);
       if (!seeded.ok) return seeded;
-      const published = await deps.publisher.publish(tx, request(deps, asking, 1));
+      const published = await deps.publisher.publish(tx, publishRequest(deps, asking, 1));
       return published.ok ? ok({ version: published.value.version.version }) : published;
     }),
   );
