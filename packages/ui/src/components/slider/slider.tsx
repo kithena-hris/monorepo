@@ -1,7 +1,8 @@
 'use client';
 
 import * as SliderPrimitive from '@radix-ui/react-slider';
-import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
+import { ChevronsRight } from 'lucide-react';
+import { useState, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 
@@ -16,6 +17,12 @@ import { cn } from '../../lib/cn';
  * The thumb is 20px visually but carries a 44px hit area on a coarse pointer,
  * because a target you cannot land on with a thumb is a control that does not
  * exist on a phone.
+ *
+ * `variant="confirm"` is not a value at all but a deliberate gesture: drag the
+ * knob to the end to confirm, for an action a stray tap must not trigger.
+ * Let go short of the end and it slides back. From a keyboard, Enter, Space,
+ * End or the forward arrows confirm at once: the deliberateness a drag adds
+ * for a thumb, a focused control and a key press already have.
  */
 
 export interface SliderProps extends ComponentPropsWithoutRef<typeof SliderPrimitive.Root> {
@@ -39,6 +46,90 @@ export interface SliderProps extends ComponentPropsWithoutRef<typeof SliderPrimi
    * small set of discrete steps, alongside `showTicks`.
    */
   labels?: readonly ReactNode[];
+  /** `confirm`: slide to the end to confirm. `label` is printed in the track. */
+  variant?: 'default' | 'confirm';
+  /** Confirm: called when the knob reaches the end, or a confirming key is pressed. */
+  onConfirm?: () => void;
+}
+
+const CONFIRM_KEYS = new Set(['Enter', ' ', 'End', 'ArrowRight', 'ArrowUp', 'PageUp']);
+const IGNORED_KEYS = new Set(['ArrowLeft', 'ArrowDown', 'PageDown', 'Home']);
+
+function ConfirmSlider({
+  label,
+  onConfirm,
+  disabled,
+  className,
+}: {
+  label: string;
+  onConfirm: (() => void) | undefined;
+  disabled: boolean | undefined;
+  className: string | undefined;
+}): JSX.Element {
+  const [value, setValue] = useState(0);
+  // Sliding back is animated, following the finger never is: a transition
+  // during the drag would make the knob lag behind it.
+  const [settling, setSettling] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        'relative w-full rounded-full bg-accent-subtle p-1.5',
+        disabled && 'opacity-45',
+        className,
+      )}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 grid place-items-center px-16 text-center text-base font-semibold text-accent-fg touch:text-md"
+        style={{ opacity: 1 - value / 100 }}
+      >
+        {label}
+      </span>
+      <SliderPrimitive.Root
+        value={[value]}
+        max={100}
+        step={1}
+        disabled={disabled ?? false}
+        onPointerDown={() => {
+          setSettling(false);
+        }}
+        onValueChange={([next = 0]) => {
+          setValue(next);
+        }}
+        onValueCommit={([next = 0]) => {
+          if (next >= 100) onConfirm?.();
+          setSettling(true);
+          setValue(0);
+        }}
+        className={cn(
+          'relative flex h-control-lg touch-none items-center select-none',
+          settling &&
+            'motion-safe:[&>span:has(>[role=slider])]:transition-[left] motion-safe:[&>span:has(>[role=slider])]:duration-(--animate-duration-normal) motion-safe:[&>span:has(>[role=slider])]:ease-standard',
+        )}
+      >
+        <SliderPrimitive.Track className="absolute inset-0" />
+        <SliderPrimitive.Thumb
+          aria-label={label}
+          onKeyDown={(event) => {
+            if (CONFIRM_KEYS.has(event.key)) {
+              event.preventDefault();
+              onConfirm?.();
+            } else if (IGNORED_KEYS.has(event.key)) {
+              event.preventDefault();
+            }
+          }}
+          className={cn(
+            'grid size-control-lg place-items-center rounded-full bg-accent-solid text-fg-on-accent shadow-md',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
+            '[&_svg]:size-5 touch:[&_svg]:size-6',
+          )}
+        >
+          <ChevronsRight aria-hidden />
+        </SliderPrimitive.Thumb>
+      </SliderPrimitive.Root>
+    </div>
+  );
 }
 
 export function Slider({
@@ -49,11 +140,23 @@ export function Slider({
   showTicks = false,
   tip,
   labels,
+  variant = 'default',
+  onConfirm,
   min = 0,
   max = 100,
   step = 1,
   ...props
 }: SliderProps): JSX.Element {
+  if (variant === 'confirm') {
+    return (
+      <ConfirmSlider
+        label={label}
+        onConfirm={onConfirm}
+        disabled={props.disabled}
+        className={className}
+      />
+    );
+  }
   const values = props.value ?? props.defaultValue ?? [min];
   const tickCount = Math.round((max - min) / step) + 1;
   const low = values.length > 1 ? (values[0] ?? min) : min;

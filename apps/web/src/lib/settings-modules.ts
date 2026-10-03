@@ -11,14 +11,14 @@ export const PEOPLE_NOW_PATHS = [
 
 /**
  * The Settings page's modules, in order: People's settings where this viewer
- * has any, the activity log for People administrators and HR, and their own.
+ * has any, Time Off's likewise, the activity log for People administrators and HR, and their own.
  *
  * One list for the page and for its loading state, which draws it from the
  * shell's copy with every "how it is set now" still to come: the same cards,
  * so the page arriving moves nothing.
  */
 export function settingsModules(
-  shell: Pick<ShellData, 'settings' | 'roles'>,
+  shell: Pick<ShellData, 'settings' | 'roles' | 'remotes'>,
   people: {
     readonly now: Readonly<Record<string, string | null>>;
     readonly attention: Readonly<Record<string, { badge: string; chip: string }>>;
@@ -39,6 +39,25 @@ export function settingsModules(
         icon: place.icon,
         now: people.now[place.path] ?? null,
         attention: people.attention[place.path] ?? null,
+      })),
+    });
+  }
+
+  // Time Off's settings, from its own manifest, where this viewer has any.
+  const timeOff = shell.remotes?.['timeoff']?.settings ?? [];
+  if (timeOff.length > 0) {
+    modules.push({
+      key: 'time-off',
+      title: 'Time off',
+      description:
+        'Leave types, holidays and attendance: how time off is earned, asked for and approved.',
+      settings: timeOff.map((place) => ({
+        path: place.path,
+        label: place.label,
+        description: place.description,
+        icon: place.icon,
+        now: null,
+        attention: null,
       })),
     });
   }

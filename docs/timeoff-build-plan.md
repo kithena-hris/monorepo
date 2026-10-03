@@ -39,20 +39,20 @@ one pull request **into `time-off`**, squash-merged once CI is green. When every
 lane has landed, `time-off` goes to `main` as one pull request, so production
 deploys once.
 
-| PR  | Lane                                                                                        | Tickets           |
-| --- | ------------------------------------------------------------------------------------------- | ----------------- |
-| 1   | `timeoff/docs` — this plan and the PRD                                                      | —                 |
-| 2   | `timeoff/foundation` — unblock, contracts, domain                                           | TOF-001 – TOF-028 |
-| 3   | `timeoff/service` — storage, application, transports, standalone                            | TOF-029 – TOF-050 |
-| 4   | `timeoff/web-shell` — Reach additions, the second remote, navigation, the clock             | TOF-051 – TOF-060 |
-| 5   | `timeoff/employee` — overview, request, my requests, balances, holidays                     | TOF-061 – TOF-067 |
-| 6   | `timeoff/manager` — approvals, calendar, delegation                                         | TOF-068 – TOF-073 |
-| 7   | `timeoff/attendance` — timesheet, corrections, team right now                               | TOF-074 – TOF-077 |
-| 8   | `timeoff/settings` — leave types, policy, negative balance, attendance, approvals, holidays | TOF-078 – TOF-083 |
-| 9   | `timeoff/assist` — Phase 2 AI                                                               | TOF-084 – TOF-092 |
-| 10  | `timeoff/hr-ops` — exceptions, month close, insights, nudges, policy preview                | TOF-093 – TOF-099 |
-| 11  | `timeoff/parental` — parental leave                                                         | TOF-100 – TOF-106 |
-| 12  | `timeoff/reach` — kiosk, integrations, more country packs                                   | TOF-107 – TOF-114 |
+| PR  | Lane                                                                                        | Tickets                              |
+| --- | ------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1   | `timeoff/docs` — this plan and the PRD                                                      | —                                    |
+| 2   | `timeoff/foundation` — unblock, contracts, domain                                           | TOF-001 – TOF-028                    |
+| 3   | `timeoff/service` — storage, application, transports, standalone                            | TOF-029 – TOF-050                    |
+| 4   | `timeoff/web-shell` — Reach additions, the second remote, navigation                        | TOF-051 – TOF-058                    |
+| 5   | `timeoff/employee` — operations, overview, request, my requests, balances, holidays         | TOF-060 – TOF-067                    |
+| 6   | `timeoff/manager` — approvals, calendar, delegation                                         | TOF-068 – TOF-073                    |
+| 7   | `timeoff/attendance` — the clock, timesheet, corrections, team right now                    | TOF-058a, TOF-059, TOF-074 – TOF-077 |
+| 8   | `timeoff/settings` — leave types, policy, negative balance, attendance, approvals, holidays | TOF-078 – TOF-083                    |
+| 9   | `timeoff/assist` — Phase 2 AI                                                               | TOF-084 – TOF-092                    |
+| 10  | `timeoff/hr-ops` — exceptions, month close, insights, nudges, policy preview                | TOF-093 – TOF-099                    |
+| 11  | `timeoff/parental` — parental leave                                                         | TOF-100 – TOF-106                    |
+| 12  | `timeoff/reach` — kiosk, integrations, more country packs                                   | TOF-107 – TOF-114                    |
 
 PRs 5 to 8 can run in parallel once PR 4 is in. PRs 9 to 12 can run in parallel
 once PRs 5 to 8 are in.
@@ -720,7 +720,7 @@ no decline, cancel or change.
 
 ### Web shell and Reach
 
-### [ ] TOF-051 — Reach: balance meter
+### [x] TOF-051 — Reach: balance meter
 
 - **Spec** PRD §15.3
 - **Files** `packages/ui/src/components/progress/`
@@ -729,7 +729,7 @@ no decline, cancel or change.
   Story with used and booked.
 - **Done when** `just test-stories` is green.
 
-### [ ] TOF-052 — Reach: day bar
+### [x] TOF-052 — Reach: day bar
 
 - **Files** `packages/ui/src/components/chart/`
 - **Depends on** nothing
@@ -738,7 +738,7 @@ no decline, cancel or change.
   be hidden. Hand-drawn SVG, per the charts decision.
 - **Done when** stories for T20's five days pass axe.
 
-### [ ] TOF-053 — Reach: calendar markers
+### [x] TOF-053 — Reach: calendar markers
 
 - **Files** `packages/ui/src/components/calendar/`
 - **Depends on** nothing
@@ -746,7 +746,7 @@ no decline, cancel or change.
   `today`, struck-through days and an error tone per day.
 - **Done when** a story reproduces MT6.
 
-### [ ] TOF-054 — Reach: rows scheduler and month grid
+### [x] TOF-054 — Reach: rows scheduler and month grid
 
 - **Files** `packages/ui/src/components/scheduler/`
 - **Depends on** nothing
@@ -755,7 +755,7 @@ no decline, cancel or change.
   `view="month"` (chips per day, "+N more", selected and clash cells).
 - **Done when** stories reproduce T12 and T13 and pass axe.
 
-### [ ] TOF-055 — Reach: small variants
+### [x] TOF-055 — Reach: small variants
 
 - **Files** `packages/ui/src/components/{card,badge,stat,slider}/`
 - **Depends on** nothing
@@ -764,7 +764,7 @@ no decline, cancel or change.
   keyboard operable).
 - **Done when** each has a story and `just test-stories` is green.
 
-### [ ] TOF-056 — The shell loads a second remote
+### [x] TOF-056 — The shell loads a second remote
 
 **Goal** The shell's remote loading, screen loading, persisted operations and
 SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
@@ -779,7 +779,7 @@ SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
 - **Done when** People's tests pass and a test resolves a `/time-off` path to
   the Time Off remote.
 
-### [ ] TOF-057 — The Time Off remote
+### [x] TOF-057 — The Time Off remote
 
 - **Files** `apps/web/timeoff/` (new, mirroring `apps/web/people`)
 - **Depends on** TOF-056
@@ -789,7 +789,7 @@ SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
 - **Done when** `/time-off/overview` renders a placeholder screen through the
   shell, client and server side.
 
-### [ ] TOF-058 — Navigation turns on
+### [x] TOF-058 — Navigation turns on
 
 - **Files** `apps/web/src/components/app-shell.tsx`, `lib/shortcuts.ts`
 - **Depends on** TOF-057
@@ -798,6 +798,28 @@ SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
   between Home and People; "My time off" in the account menu.
 - **Done when** a shell test sees the sub-items for an employee without
   Insights, and for HR with it.
+
+- **As built, 2026-10-03** The shell knows only the `hr`, `admin` and
+  `finance` roles, so the manifest tags manager tabs `["manager", "hr"]` for a
+  role that does not exist yet. Counts and the "My requests" label for
+  employees wait for Time Off data. TOF-058a closes the gap.
+
+### [ ] TOF-058a — Manager is a capability, not a shell role
+
+**Goal** Whether someone approves time off is a fact about the org graph Time
+Off projects, not a role an admin grants. The shell cannot see it today.
+
+- **Spec** PRD §9.1, §15.1
+- **Files** `services/timeoff/src/graphql/`, `apps/web/src/lib/shell-data.ts`,
+  `apps/web/timeoff/public/routes.json`
+- **Depends on** TOF-044, TOF-058
+- **Approach** The subgraph answers `timeOffViewer { approves, hrAdmin, counts }`.
+  The shell asks it once per page for the Time Off area and adds `manager` to the
+  viewer's roles for that area only when `approves` is true, so the manifest's
+  `for` keeps working. Counts on Requests and Attendance come from the same
+  answer. Employees see "My requests".
+- **Done when** a shell test shows Marco (approves, no admin role) the Requests
+  queue tabs and Adam none of them.
 
 ### [ ] TOF-059 — The clock in the top bar
 

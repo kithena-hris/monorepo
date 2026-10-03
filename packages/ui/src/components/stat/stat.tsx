@@ -22,6 +22,12 @@ export interface StatProps extends ComponentPropsWithoutRef<'div'> {
   value: ReactNode;
   /** A unit set small after the value: `days`, `%`, `FTE`. */
   unit?: string;
+  /**
+   * The value before a change, printed small ahead of an arrow: "18 → 13".
+   * For a preview of what an action will do, not a trend over time (that is
+   * `delta`).
+   */
+  from?: ReactNode;
   /** e.g. `+12%`, `−4 days`. */
   delta?: string;
   /** What the delta is measured against. Required alongside `delta`. */
@@ -62,6 +68,7 @@ export function Stat({
   label,
   value,
   unit,
+  from,
   delta,
   deltaLabel,
   direction = 'flat',
@@ -104,6 +111,14 @@ export function Stat({
             'text-[clamp(1.125rem,14cqi,2.125rem)] [overflow-wrap:anywhere]',
           )}
         >
+          {from === undefined ? null : (
+            <span className="me-2 inline-flex items-center gap-2 align-baseline text-[0.55em] font-semibold tracking-normal text-fg-muted">
+              <span className="sr-only">From </span>
+              {from}
+              <ArrowRight aria-hidden className="size-[0.9em] text-fg-subtle" />
+              <span className="sr-only"> to </span>
+            </span>
+          )}
           {value}
           {unit ? (
             <span className="ms-1 text-[0.5em] font-semibold tracking-normal text-fg-muted">
