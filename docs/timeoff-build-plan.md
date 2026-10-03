@@ -517,7 +517,7 @@ no decline, cancel or change.
 
 ### Storage
 
-### [ ] TOF-029 — Member projection table
+### [x] TOF-029 — Member projection table
 
 - **Spec** PRD §5.2, §17
 - **Files** `migrations/<ts>_timeoff_member.sql`,
@@ -526,8 +526,13 @@ no decline, cancel or change.
 - **Approach** RLS as in TOF-001; `last_event_id` and `last_effective_from` for
   idempotent, ordered application.
 - **Done when** an integration test applies the same event twice and sees one row.
+- **As built** `src/infrastructure/storage.integration.test.ts` covers TOF-029 to
+  TOF-033, one section per ticket. The guard — write only when
+  `(last_effective_from, last_event_id)` moves forward — is spelled in the test
+  as TOF-035's consumer will spell it; both columns are `NOT NULL` because a
+  null never compares less. No time zone column: §5.2 does not list one.
 
-### [ ] TOF-030 — Policy, leave type and ledger tables
+### [x] TOF-030 — Policy, leave type and ledger tables
 
 - **Files** `migrations/<ts>_timeoff_policy_ledger.sql`
 - **Depends on** TOF-029
@@ -535,8 +540,12 @@ no decline, cancel or change.
   (`REVOKE UPDATE, DELETE` from `svc_timeoff`).
 - **Done when** an integration test proves `svc_timeoff` cannot update or delete
   a ledger row.
+- **As built** A published `policy_version` refuses any change by trigger, and
+  a policy has one draft at a time (a partial unique index). An entry is
+  corrected once (a partial unique index on `supersedes`); a correction of a
+  correction names the correction.
 
-### [ ] TOF-031 — Requests with the overlap constraint
+### [x] TOF-031 — Requests with the overlap constraint
 
 - **Files** `migrations/<ts>_timeoff_request.sql`
 - **Depends on** TOF-030
@@ -544,20 +553,38 @@ no decline, cancel or change.
   states per member.
 - **Done when** two concurrent inserts of overlapping live requests leave
   exactly one, in an integration test.
+- **As built** `days` is a `datemultirange` rather than a `daterange`: an
+  accepted counter-proposal books runs with a gap (T18), and a range would
+  claim the day in between. Live is `pending`, `approved`, `change_pending`,
+  `counter_proposed` and `taken`. A morning and an afternoon off on one date
+  still overlap, until the domain has morning and afternoon. `btree_gist` is
+  created `IF NOT EXISTS`, a trusted extension like `btree_gin`.
+  `ledger_entry.request_id` gets its foreign key here.
 
-### [ ] TOF-032 — Approval, delegation, minimum and holiday tables
+### [x] TOF-032 — Approval, delegation, minimum and holiday tables
 
 - **Files** `migrations/<ts>_timeoff_approval_holiday.sql`
 - **Depends on** TOF-030
 - **Done when** migrations apply clean twice.
+- **As built** Checked with `atlas migrate apply` twice against a fresh
+  Postgres 18 initialised by `init-db.sql`: 93 migrations, then "No migration
+  files to execute". A holiday layer carries `country`, `region` and `city`,
+  which is how a member's location picks its layers. One delegation per
+  approver, the shape `routeTo` takes. `leave_type.approval_rule_key` gets its
+  foreign key here.
 
-### [ ] TOF-033 — Attendance tables
+### [x] TOF-033 — Attendance tables
 
 - **Files** `migrations/<ts>_timeoff_attendance.sql`
 - **Depends on** TOF-030
 - **Approach** `punch` insert-only, `schedule`, `pay_period`, `pay_period_line`;
   no coordinate column anywhere.
 - **Done when** an integration test asserts the `punch` column list.
+- **As built** `kiosk_device` is here too (the token's SHA-256 only), because a
+  punch names its device. `member_schedule` is effective dated. A closed
+  `pay_period` refuses changes, and a line posted into one is refused under
+  `FOR SHARE`, so a close and a post racing cannot both win. `punch` and
+  `pay_period_line` are insert-only for `svc_timeoff`.
 
 ### [ ] TOF-034 — Drizzle repositories and the unit of work
 
