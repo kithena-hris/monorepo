@@ -33,7 +33,6 @@ import {
   SheetHeader,
   SheetTitle,
   Skeleton,
-  Spinner,
   Stack,
   Toolbar,
   icons,
@@ -42,6 +41,7 @@ import {
   useInView,
   type ColumnChooserValue,
   type DataColumn,
+  type DataTableHandle,
   type DataTableSort,
   type FilterField,
   type FilterGroup,
@@ -303,8 +303,12 @@ function useWidths() {
 }
 
 /**
- * The rows: the first page as the shell drew it, then each page after it as
- * the reader scrolls. A new query is a new first page, and starts again.
+ * The rows: the first page as the shell drew it, then each page after it,
+ * a page ahead of the reader. The second is asked for as soon as the first is
+ * drawn, and each after it once the reader is halfway through what is loaded
+ * (`usePlace`), so the end of the list is never where they wait. A cursor is
+ * asked for once, however many triggers fire together. A new query is a new
+ * first page, and starts again.
  */
 function useRows(
   first: readonly DirectoryPerson[],
@@ -318,20 +322,35 @@ function useRows(
   const [loading, setLoading] = useState(false);
   // How many the last page added, for the live region: "50 more loaded".
   const [added, setAdded] = useState<number | null>(null);
-  useEffect(() => {
+  // Reset while rendering, not after: an effect would leave one render, and a
+  // prefetch, holding the old query's cursor.
+  const [query, setQuery] = useState({ first, next });
+  if (query.first !== first || query.next !== next) {
+    setQuery({ first, next });
     setMore({ people: [], next });
     setAdded(null);
-  }, [first, next]);
+  }
+  // The cursors asked for, for this first page: each is fetched once.
+  const asked = useRef<{ first: readonly DirectoryPerson[]; cursors: Set<string> }>({
+    first,
+    cursors: new Set(),
+  });
   const loadMore =
     onLoadMore === undefined || more.next === null
       ? undefined
       : () => {
-          if (loading || more.next === null) return;
           const after = more.next;
+          if (asked.current.first !== first) asked.current = { first, cursors: new Set() };
+          if (after === null || asked.current.cursors.has(after)) return;
+          asked.current.cursors.add(after);
           setLoading(true);
           void onLoadMore(after).then((page) => {
             setLoading(false);
-            if (page === null) return;
+            // Nothing came: the next trigger may ask again.
+            if (page === null) {
+              asked.current.cursors.delete(after);
+              return;
+            }
             setAdded(page.people.length);
             setMore((m) =>
               m.next !== after
@@ -340,6 +359,12 @@ function useRows(
             );
           });
         };
+  // The page after the first, as soon as the first is drawn.
+  const ahead = useRef(loadMore);
+  ahead.current = loadMore;
+  useEffect(() => {
+    ahead.current?.();
+  }, [first]);
   return { rows: [...first, ...more.people], loading, loadMore, added, done: more.next === null };
 }
 
@@ -729,8 +754,9 @@ const ROW_HEIGHT = 57;
  * Where the reader is in a list that keeps loading, and the way back
  * (AI3, MA2): the first row in view goes into the address as it settles, so
  * Back (or a reload) loads as many pages as it takes and returns to it; the
- * last row in view is the counter's "150 of 388". The table scrolls in a box
- * of its own (the region it names); cards and the phone's list scroll the
+ * last row in view is the counter's "150 of 388", and once it is halfway
+ * through what is loaded the next page is asked for. The table scrolls in a
+ * box of its own (the region it names); cards and the phone's list scroll the
  * page.
  */
 function usePlace({
@@ -760,6 +786,8 @@ function usePlace({
   // subscribing again (which would cancel the settle timer each time the counter moves).
   const latest = useRef(rows);
   latest.current = rows;
+  const more = useRef(loadMore);
+  more.current = loadMore;
   const box = (): HTMLElement | null =>
     pageScrolls ? null : (wrapper.current?.querySelector<HTMLElement>('[role="region"]') ?? null);
 
@@ -785,6 +813,9 @@ function usePlace({
       const top = index.get(id(seen[0])) ?? 0;
       const last = index.get(id(seen.at(-1))) ?? top;
       setAt((was) => (was.top === top && was.last === last ? was : { top, last }));
+      // ponytail: halfway through what is loaded keeps up to twice what was read
+      // loaded; a fixed lookahead (one page past the reader) if pages get expensive.
+      if (seen.length > 0 && (last + 1) * 2 >= latest.current.length) more.current?.();
       clearTimeout(settle);
       // Noted once the scroll settles, rewriting this entry: a scroll is not a step Back undoes.
       settle = setTimeout(() => {
@@ -875,7 +906,16 @@ function Body({
   const smart = onAsk !== undefined;
   // Without smart search the field searches names as they are typed; with it, Enter asks.
   const [typed, type] = useTyped(search, smart ? undefined : onSearchChange);
-  const [peek, setPeek] = useState<string | null>(null);
+  // The person the quick look is on. Until somebody chooses (undefined), the
+  // first, so the page opens on a record and the keyboard starts there; null
+  // once they close it. A new query starts on its own first person.
+  const [chosen, setPeek] = useState<string | null | undefined>(undefined);
+  const [chosenIn, setChosenIn] = useState(state.people);
+  if (chosenIn !== state.people) {
+    setChosenIn(state.people);
+    setPeek(undefined);
+  }
+  const tableRef = useRef<DataTableHandle | null>(null);
   const columnsChosen = useColumns(state.columns);
   const widths = useWidths();
   const loaded = useRows(state.people, next, onLoadMore);
@@ -1049,13 +1089,20 @@ function Body({
       .join(' · ');
 
   const rows = loaded.rows;
+  const peek = chosen === undefined ? (rows[0]?.id ?? null) : chosen;
   const peeked = rows.find((p) => p.id === peek) ?? null;
-  const move = (step: 1 | -1) => {
+  /**
+   * The quick look to the person above or below: the one way the selection
+   * moves, from the list (focus follows, onto their name) and from the card
+   * (focus stays in the card, and their row comes into view).
+   */
+  const move = (step: 1 | -1, from: 'list' | 'card'): void => {
     const at = rows.findIndex((p) => p.id === peek);
     const to = rows[at + step];
     if (to === undefined) return;
     setPeek(to.id);
-    document.getElementById(`person-${to.id}`)?.focus();
+    if (from === 'list') document.getElementById(`person-${to.id}`)?.focus();
+    else tableRef.current?.revealRow(to.id);
   };
 
   const nameCell = (p: DirectoryPerson): JSX.Element => (
@@ -1081,11 +1128,13 @@ function Body({
               onOpen(p.id);
             } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
               event.preventDefault();
-              const at = rows.findIndex((r) => r.id === p.id);
-              const to = rows[at + (event.key === 'ArrowDown' ? 1 : -1)];
-              if (to === undefined) return;
-              if (peek !== null) setPeek(to.id);
-              document.getElementById(`person-${to.id}`)?.focus();
+              const step = event.key === 'ArrowDown' ? 1 : -1;
+              if (peek !== null) {
+                move(step, 'list');
+                return;
+              }
+              const to = rows[rows.findIndex((r) => r.id === p.id) + step];
+              document.getElementById(`person-${to?.id ?? ''}`)?.focus();
             } else if (event.key === 'Escape' && peek !== null) {
               setPeek(null);
             }
@@ -1189,6 +1238,7 @@ function Body({
           <ListItem
             key={p.id}
             asChild
+            selected={p.id === peek}
             leading={
               <Avatar
                 name={p.name}
@@ -1215,6 +1265,7 @@ function Body({
             <a
               href={`/people/${p.id}`}
               data-person-id={p.id}
+              {...(p.id === peek ? { 'aria-current': true } : {})}
               onClick={(event) => {
                 event.preventDefault();
                 onOpen(p.id);
@@ -1292,6 +1343,7 @@ function Body({
     )
   ) : (
     <DataTable
+      ref={tableRef}
       label="People"
       rows={rows}
       {...(grouping === null ? {} : { groupBy: groupOf })}
@@ -1685,10 +1737,10 @@ function Body({
                 document.getElementById(`person-${peeked.id}`)?.focus();
               }}
               onPrevious={() => {
-                move(-1);
+                move(-1, 'card');
               }}
               onNext={() => {
-                move(1);
+                move(1, 'card');
               }}
               actions={
                 <>
@@ -1720,6 +1772,22 @@ function Body({
                   required {peeked.missing === 1 ? 'detail' : 'details'} to fill in
                 </p>
               )}
+              {/*
+                Back to their row, wherever the list has scrolled: smoothly,
+                unless motion is reduced, and the keyboard lands on it. Always
+                there, so the card does not change shape as the row scrolls in
+                and out of view; on a row in full view it only moves focus.
+              */}
+              <Button
+                size="sm"
+                variant="ghost"
+                startIcon={<icons.list aria-hidden />}
+                onClick={() => {
+                  tableRef.current?.revealRow(peeked.id, { focus: true });
+                }}
+              >
+                Show in list
+              </Button>
             </QuickLook>
           </div>
         ) : (
@@ -1744,22 +1812,14 @@ function Body({
       ) : null}
       {onLoadMore === undefined ? null : (
         // Said as each page lands, to a screen reader too: "50 more loaded".
+        // The line itself holds still: pages load a page ahead of the reader,
+        // so a "Loading" swapped in each time would blink under a scroll that
+        // never waits. Where they would wait, the rows' own skeleton says so.
         <p role="status" className="flex items-center justify-center gap-2.5 text-sm text-fg-muted">
-          {loaded.loading ? (
-            <>
-              <span aria-hidden className="inline-flex">
-                <Spinner size="sm" />
-              </span>
-              Loading the next {DIRECTORY_PAGE}
-            </>
-          ) : (
-            <>
-              {loaded.added === null ? null : (
-                <span className="sr-only">{loaded.added} more loaded. </span>
-              )}
-              {`Results stream in ${String(DIRECTORY_PAGE)} at a time${sort === null ? '' : `, ${orderWords(sort, fields)}`}.`}
-            </>
+          {loaded.added === null || loaded.loading ? null : (
+            <span className="sr-only">{loaded.added} more loaded. </span>
           )}
+          {`Results stream in ${String(DIRECTORY_PAGE)} at a time${sort === null ? '' : `, ${orderWords(sort, fields)}`}.`}
         </p>
       )}
       {onLoadMore !== undefined ||

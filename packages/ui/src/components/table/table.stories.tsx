@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useCallback, useState } from 'react';
-import { fn } from 'storybook/test';
+import { useCallback, useRef, useState } from 'react';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
@@ -9,7 +9,7 @@ import { EmptyState, Skeleton } from '../feedback/feedback';
 import { KeyValues } from '../key-values/key-values';
 import { Money } from '../money/money';
 import { Button } from '../button/button';
-import { DataTable, type DataColumn } from './data-table';
+import { DataTable, type DataColumn, type DataTableHandle } from './data-table';
 import {
   Table,
   TableBody,
@@ -923,6 +923,138 @@ export const InfiniteVirtualized: Story = {
         containerClassName="h-[32rem]"
       />
     );
+  },
+};
+
+const employeePage = (from: number): Row[] =>
+  Array.from({ length: 50 }, (_, i) => {
+    const index = from + i;
+    return {
+      id: `EMP-${String(300_000 + index)}`,
+      // Names that grow, so a table laid out on its content would widen as they arrive.
+      name: `Employee ${String(index + 1)}${index % 7 === 6 ? ' Featherstonehaugh-Cholmondeley' : ''}`,
+      role:
+        ['Engineer', 'Principal product designer', 'Analyst', 'Manager'][index % 4] ?? 'Engineer',
+      status: (['active', 'on-leave', 'offboarding'] as const)[index % 3] ?? 'active',
+      hiredOn: `20${String(15 + (index % 10)).padStart(2, '0')}-0${String((index % 9) + 1)}-15`,
+      salaryMinorUnits: String(4_000_000 + index * 137),
+    };
+  });
+
+/** A table that keeps loading, fifty rows a page, 300 ms a page, up to 500. */
+function useLoadingRows(): { rows: Row[]; loading: boolean; more: () => void } {
+  const [rows, setRows] = useState<Row[]>(() => employeePage(0));
+  const [loading, setLoading] = useState(false);
+  const more = (): void => {
+    if (loading || rows.length >= 500) return;
+    setLoading(true);
+    setTimeout(() => {
+      setRows((current) => [...current, ...employeePage(current.length)]);
+      setLoading(false);
+    }, 300);
+  };
+  return { rows, loading, more };
+}
+
+/** Header widths, in px, as laid out. */
+const headerWidths = (root: HTMLElement): string =>
+  [...root.querySelectorAll('thead th')].map((th) => th.getBoundingClientRect().width).join(',');
+
+export const ColumnsFixedWhileLoading: Story = {
+  name: 'Infinite, columns fixed',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`columnSizing="fixed"` lays the table out on the declared widths, and gives spare room once to the columns the first rows overflow. After that nothing moves them: not a page arriving, not a long name scrolling into view, not the scrollbar appearing. It is the default with `resizable`. A table that loads more starts virtualized, rather than switching on mid-scroll and remounting the rows on screen.',
+      },
+    },
+  },
+  render: function FixedColumns() {
+    const { rows: loaded, loading, more } = useLoadingRows();
+    return (
+      <DataTable<Row>
+        label="Employees, loaded as you scroll"
+        caption={`${String(loaded.length)} of 500 loaded`}
+        rows={loaded}
+        columns={dataColumns}
+        rowId={(row) => row.id}
+        describeRow={(row) => row.name}
+        columnSizing="fixed"
+        stickyHeader
+        loadingMore={loading}
+        onEndReached={more}
+        containerClassName="h-[28rem]"
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    // Under a finger the rows are cards, and there are no columns to hold.
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    const box = canvasElement.querySelector<HTMLElement>('[role="region"]');
+    if (box === null) throw new Error('No table');
+    const before = headerWidths(canvasElement);
+    for (const loaded of ['100 of', '150 of']) {
+      box.scrollTop = box.scrollHeight;
+      await waitFor(async () => {
+        await expect(canvasElement.querySelector('caption')).toHaveTextContent(loaded);
+      });
+    }
+    await expect(headerWidths(canvasElement)).toBe(before);
+    box.scrollTop = 0;
+  },
+};
+
+/**
+ * A row brought back into view from outside the table: a detail pane's "Show
+ * in list", say. `ref` hands over `revealRow(id, { focus })`, which scrolls
+ * smoothly (or jumps, with reduced motion), mounts a virtualized row on the
+ * way, does nothing to a row already in full view, and lands the keyboard on it.
+ */
+export const RevealRow: Story = {
+  name: 'Reveal a row',
+  render: function Reveal() {
+    const { rows: loaded, loading, more } = useLoadingRows();
+    const table = useRef<DataTableHandle | null>(null);
+    return (
+      <div className="space-y-3">
+        <Button
+          size="sm"
+          onClick={() => {
+            table.current?.revealRow('EMP-300000', { focus: true });
+          }}
+        >
+          Show Employee 1
+        </Button>
+        <DataTable<Row>
+          ref={table}
+          label="Employees"
+          rows={loaded}
+          columns={dataColumns}
+          rowId={(row) => row.id}
+          describeRow={(row) => row.name}
+          onRowClick={fn()}
+          resizable
+          stickyHeader
+          loadingMore={loading}
+          onEndReached={more}
+          containerClassName="h-[28rem]"
+        />
+      </div>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const box = canvasElement.querySelector<HTMLElement>('[role="region"]');
+    if (box === null) throw new Error('No table');
+    box.scrollTop = box.scrollHeight;
+    await waitFor(async () => {
+      await expect(canvasElement.querySelector('tr[data-row-id="EMP-300000"]')).toBeNull();
+    });
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Show Employee 1' }));
+    await waitFor(async () => {
+      const row = canvasElement.querySelector('tr[data-row-id="EMP-300000"]');
+      await expect(row).toHaveFocus();
+    });
   },
 };
 
