@@ -297,7 +297,7 @@ Test-first, all of it. No drivers, no I/O.
   2.08 on the 1st with the year summing to exactly 25, and a 3-year
   anniversary moves to 26 from the band boundary.
 
-### [ ] TOF-014 — The ledger and the balance fold
+### [x] TOF-014 — The ledger and the balance fold
 
 - **Spec** PRD §7.1, §7.2
 - **Files** `services/timeoff/src/domain/balance/ledger.ts`
