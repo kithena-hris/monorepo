@@ -1,28 +1,17 @@
-import { createYoga } from 'graphql-yoga';
 import { createServer } from 'node:http';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
-import { yogaOptions } from './graphql/schema.js';
 import manifest from '../module.manifest.js';
-import { timeoffListener } from './http/server.js';
+import { composeTimeOff } from './composition.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
 import { wireBackground } from './infrastructure/background.js';
-import { timeoffDatabase } from './infrastructure/unit-of-work.js';
 
 startTelemetry(`kithena-${manifest.key}`);
-// Null without TIMEOFF_DATABASE_URL; `drizzleUnitOfWork(db)` is the storage every transport takes.
-const db = timeoffDatabase(process.env);
-wireConsumers(process.env, db);
-wireBackground(process.env, db);
+// REST, the subgraph and what they stand on (`composition.ts`).
+const { listener, storage } = await composeTimeOff(process.env);
+wireConsumers(process.env, storage?.uow ?? null, storage?.tuples);
+wireBackground(process.env, storage?.db ?? null);
 
-const yoga = createYoga(yogaOptions);
-
-// Yoga's handler is async; a Node request listener is not. `void` says the
-// rejection is handled inside Yoga, which it is, rather than hiding it.
-const server = createServer(
-  timeoffListener((request, response) => {
-    void yoga(request, response);
-  }),
-);
+const server = createServer(listener);
 
 // SIGTERM drains it, then the process exits (PEO-118).
 onShutdown('http server', () => drain(server));

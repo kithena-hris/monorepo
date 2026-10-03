@@ -863,6 +863,54 @@ approver`, a conditional tuple whose ranges are checked against `today`;
   nothing and the suite asserts nothing asked, with `TYPESAFE_API_KEY` set or
   not. A day's worked time with no break taken is the time clocked, flagged.
 
+### [x] TOF-050a — The composition root
+
+- **Files** `services/timeoff/src/composition.ts`, `main.ts`, `http/caller.ts`,
+  `infrastructure/openfga.ts`, `infrastructure/consumers/`,
+  `apps/gateway/config.yaml`
+- **Depends on** TOF-034, TOF-045 – TOF-048
+- **Approach** `main.ts` booted Yoga alone, so production had no REST and no
+  database behind GraphQL, no tuple was ever written, and no caller was ever
+  a member. Make `main.ts` a composition root, as People's `wirePeople` is.
+- **Done when** an integration test boots the root against Postgres and
+  OpenFGA and answers `/healthz`, a REST read and a GraphQL query as a seeded
+  member named only by account.
+- **As built** `composeTimeOff(env)` builds `timeoffServer` over
+  `drizzleUnitOfWork(timeoffDatabase(env))`, Time Off's OpenFGA authorizer
+  (`OPENFGA_URL`, its own store by `TIMEOFF_OPENFGA_STORE_ID` or by name),
+  the router's principal checked with `TIMEOFF_API_TOKEN` (falling back to
+  `INTERNAL_API_TOKEN`, People's pattern), `TIMEOFF_FEED_SECRET` (required in
+  production, throwaway elsewhere) and Temporal's escalation clock when
+  `TEMPORAL_ADDRESS` is set; `main.ts` hands its unit of work to the
+  consumers and its pool to the jobs. Without `TIMEOFF_DATABASE_URL`, People's
+  rule: the schema only, every field UNAVAILABLE. Without `OPENFGA_URL`
+  nobody holds a relation (`nobodyRelates`), so only a member's own screens
+  answer — closed, as audit is. Notices stay `logNotifier`: messaging's notice
+  endpoint wants an address and a template Time Off has neither of.
+  **Caller → member**: `timeoff.member.account_id`
+  (`20261003130000_timeoff_member_account.sql`, nullable, not unique) is
+  filled from `people.person.hired` and `identity_linked`, or an import's
+  `accountId` column; `withMember` resolves the router's account to the one
+  member holding it, per request, as People resolves roles. Two holders, or
+  none, is an account and nothing more. A support or view-as session is
+  refused: Time Off has neither of People's rules for them yet. The router
+  forwards Time Off People's principal under its own secret
+  (`headers.subgraphs.timeoff`); `just dev`'s entitlements now include
+  `module.timeoff`. **Tuples**: `syncingTuples` wraps the unit of work, so
+  every member saved — People's events, the import, a zone change — has its
+  `subject`, `team` and `approver` tuples resynced from the row after the
+  commit, and a redelivered event that changes nothing resyncs again (People's
+  "the row is the truth"). `hr_admin` is whoever identity's
+  `tenant.administrator_named` names for `module.timeoff`, until
+  `administrator_removed`; the consumer now reads identity's topic too.
+  **Still open**: `syncCover` is not called — a delegate's `covered_by` needs
+  the delegation's range and the approver's approved time off, re-synced on
+  `setDelegation` and on each decision of the approver's own requests — so
+  delegates cannot act through OpenFGA yet; Time Off has no VM service, so
+  `TIMEOFF_API_TOKEN` is in no deploy workflow (`docs/environments.md`, "Time
+  Off's settings"); the Acme seed's members carry no account, so `just dev`
+  signs nobody in as Adam until the seed maps identity's accounts.
+
 ### Web shell and Reach
 
 ### [x] TOF-051 — Reach: balance meter

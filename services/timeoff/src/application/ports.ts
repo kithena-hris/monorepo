@@ -54,6 +54,12 @@ export interface Caller {
  */
 export const MemberFields = z.object({
   personId: PersonId,
+  /**
+   * The identity account the member signs in with; `null` for somebody who
+   * has none. A checked string rather than `z.uuid()`, under which TS 7 loses
+   * this object's inferred type (the subgraph and the tests stop compiling).
+   */
+  accountId: z.string().check(z.uuid()).nullable().default(null),
   displayName: z.string().trim().min(1).max(200),
   firstName: z.string().trim().min(1).max(100),
   managerPersonId: PersonId.nullable().default(null),
@@ -85,6 +91,8 @@ export type Member = MemberFields & {
 export interface MemberStore {
   get(personId: PersonId): Promise<Member | null>;
   list(filter?: { readonly teamKey?: TeamKey }): Promise<readonly Member[]>;
+  /** The member signing in as this account, when exactly one does. */
+  byAccount(accountId: string): Promise<Member | null>;
   save(member: Member): Promise<void>;
 }
 

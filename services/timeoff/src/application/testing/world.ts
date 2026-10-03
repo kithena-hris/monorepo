@@ -56,6 +56,8 @@ export const hr = caller(null, ADA_ACCOUNT);
 export function member(personId: PersonId, name: string, over: Partial<Member> = {}): Member {
   return {
     personId,
+    // `caller`'s convention: the person's id with `0000000a` in front.
+    accountId: personId.replace(/^00000000/u, '0000000a'),
     displayName: name,
     firstName: name.split(' ')[0] ?? name,
     managerPersonId: personId === people.marco ? null : people.marco,
