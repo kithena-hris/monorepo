@@ -77,6 +77,9 @@ export const capabilityCatalogue =
           key: t.key,
           name: t.name.default,
           private: isPrivateLeaveType(t),
+          // "Off sick" names a sick_leave type whatever the company called it: without
+          // the category the assistant can mask only the name and key (§12.2).
+          category: t.category,
         })),
         denied: DENIED.map((d) => ({ key: d.key, labels: [...(d.labels ?? [])] })),
       });
