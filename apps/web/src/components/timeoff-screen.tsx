@@ -111,6 +111,11 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return { load: loadable };
       case 'Holidays':
         return { load: loadable, onNavigate: go, onSubscribe: actions.subscribeToCalendar };
+      // TOF-074 to TOF-077: attendance.
+      case 'Timesheet':
+        return { load: loadable, onCorrect: actions.correctPunch };
+      case 'TeamNow':
+        return { load: loadable };
       default:
         return {};
     }
@@ -121,7 +126,14 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       name={AREAS.timeoff.name}
       area={AREAS.timeoff.label}
       route={route}
-      props={{ ...props, frame }}
+      props={{
+        ...props,
+        // What the address asked for and Time Off refused, said above the page.
+        frame:
+          load.status === 'ready' && load.notice !== undefined
+            ? { ...frame, notice: load.notice }
+            : frame,
+      }}
       // Drawn in the browser, the screen is its header's shape until it is.
       fallback={
         <Skeleton

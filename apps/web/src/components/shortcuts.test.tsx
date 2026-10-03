@@ -19,6 +19,7 @@ vi.mock('../app/(app)/settings/shortcuts/actions', () => ({
   saveShortcuts: vi.fn(() => Promise.resolve({ ok: true })),
 }));
 vi.mock('../app/assistant/actions', () => ({ askAssistant: vi.fn() }));
+vi.mock('../app/(app)/time-off/actions', () => ({ punch: vi.fn(), correctPunch: vi.fn() }));
 
 const { AppShell } = await import('./app-shell');
 const { useScreenCommand } = await import('@reach/ui');
@@ -169,7 +170,10 @@ describe('the shortcuts, in the shell', () => {
       press(...shortcut.keys);
       if (expected[shortcut.id] === undefined) {
         // Time off is not built: its keys go nowhere rather than to a 404.
-        expect({ id: shortcut.id, pushed: push.mock.calls }).toEqual({ id: shortcut.id, pushed: [] });
+        expect({ id: shortcut.id, pushed: push.mock.calls }).toEqual({
+          id: shortcut.id,
+          pushed: [],
+        });
       } else {
         expect({ id: shortcut.id, to: push.mock.calls[0]?.[0] }).toEqual({
           id: shortcut.id,
@@ -226,9 +230,9 @@ describe('the shortcuts, in the shell', () => {
       'Search and run a command',
     );
     expect(within(dialog).getByRole('switch', { name: 'Single-key shortcuts' })).toBeTruthy();
-    expect(within(dialog).getByRole('link', { name: 'Change shortcuts' }).getAttribute('href')).toBe(
-      '/settings/shortcuts',
-    );
+    expect(
+      within(dialog).getByRole('link', { name: 'Change shortcuts' }).getAttribute('href'),
+    ).toBe('/settings/shortcuts');
     const result = await axe.run(dialog, {
       rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
     });
@@ -243,10 +247,12 @@ describe('the shortcuts, in the shell', () => {
       fireEvent.keyDown(trigger, { key: 'Enter' });
     });
     const menu = await screen.findByRole('menu');
-    expect(within(menu).getByRole('menuitem', { name: /My profile/ }).textContent).toContain('G then M');
-    expect(within(menu).getByRole('menuitem', { name: /Keyboard shortcuts/ }).textContent).toContain(
-      '?',
+    expect(within(menu).getByRole('menuitem', { name: /My profile/ }).textContent).toContain(
+      'G then M',
     );
+    expect(
+      within(menu).getByRole('menuitem', { name: /Keyboard shortcuts/ }).textContent,
+    ).toContain('?');
   });
 });
 
@@ -286,9 +292,12 @@ describe('C, ⌘Enter and the palette’s actions', () => {
       event.preventDefault();
     });
     renderShell(
-      <form aria-label="Note" onSubmit={(event) => {
+      <form
+        aria-label="Note"
+        onSubmit={(event) => {
           submitted(event.nativeEvent);
-        }}>
+        }}
+      >
         <textarea aria-label="Note text" />
         <button type="submit">Save</button>
       </form>,
@@ -330,7 +339,10 @@ describe('C, ⌘Enter and the palette’s actions', () => {
     const { container } = renderShell(
       <DataTable
         label="People"
-        rows={[{ id: 'a', name: 'Ada' }, { id: 'b', name: 'Grace' }]}
+        rows={[
+          { id: 'a', name: 'Ada' },
+          { id: 'b', name: 'Grace' },
+        ]}
         rowId={(r) => r.id}
         columns={[{ id: 'name', header: 'Name', cell: (r) => r.name }]}
         selectable

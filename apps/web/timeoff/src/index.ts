@@ -10,6 +10,8 @@
  */
 import './styles.css';
 
+import { TeamNow as TeamNowScreen } from './attendance/team-now';
+import { Timesheet as TimesheetScreen } from './attendance/timesheet';
 import { Approvals as ApprovalsScreen } from './approvals/approvals';
 import { Delegation as DelegationScreen } from './approvals/delegation';
 import { TeamCalendar as TeamCalendarScreen } from './calendar/calendar';
@@ -34,6 +36,11 @@ export const Approvals = framed(ApprovalsScreen);
 export const Delegation = framed(DelegationScreen);
 export const TeamCalendar = framed(TeamCalendarScreen);
 export const Attendance = framed(placeholder('Attendance'));
+// TOF-059, TOF-074 to TOF-077: the clock in the shell's top bar (a slot, not a
+// screen: no frame), my timesheet and the team right now.
+export { TopBarClock } from './clock/clock';
+export const Timesheet = framed(TimesheetScreen);
+export const TeamNow = framed(TeamNowScreen);
 export const Balance = framed(BalanceScreen);
 export const Holidays = framed(HolidaysScreen);
 export const ParentalPlan = framed(placeholder('Plan parental leave'));
