@@ -360,6 +360,7 @@ export const requestDetail =
           spans: p.spans.map((r) => ({ from: r.from, to: r.to })),
           workingDays: p.workingDays,
         })),
+        proposalMessage: request.status === 'counter_proposed' ? record.proposalMessage : null,
         chain: [...routing.chain],
         step: routing.step,
         escalated: routing.escalatedTo !== null,

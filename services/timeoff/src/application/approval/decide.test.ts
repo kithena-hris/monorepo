@@ -3,6 +3,7 @@ import { DateSpan, LeaveTypeKey, type PersonId } from '@kithena/contracts';
 
 import type { LeaveRequestId } from '../../domain/request/leave-request.js';
 import { sendRequest } from '../request/request.js';
+import { requestDetail } from '../screens/employee.js';
 import { caller, d, hr, people, TENANT, world } from '../testing/world.js';
 import {
   answerCounter,
@@ -170,6 +171,29 @@ describe('suggesting other dates (TOF-038)', () => {
       value: { status: 'approved' },
     });
     expect(s.requests.get(id)?.request.spans).toHaveLength(3);
+  });
+
+  it('carries the manager’s message to the member and onto the event (TOF-099b)', async () => {
+    const { app, s, ask } = setup();
+    const id = await ask(people.adam, '2026-10-19', '2026-10-23');
+    await counterPropose(app.deps)(caller(people.marco), {
+      requestId: id,
+      proposals: [{ spans: [{ from: d('2026-10-26'), to: d('2026-10-30') }] }],
+      message: 'Could you take the week after? The release lands on the 21st.',
+    });
+    const detail = await requestDetail(app.deps)(caller(people.adam), { requestId: id });
+    expect(detail.ok && detail.value.proposalMessage).toBe(
+      'Could you take the week after? The release lands on the 21st.',
+    );
+    expect(
+      s.events.find((e) => e.eventName === 'timeoff.request.counter_proposed')?.payload,
+    ).toMatchObject({
+      message: 'Could you take the week after? The release lands on the 21st.',
+    });
+    // Answered, the message has done its job.
+    await answerCounter(app.deps)(caller(people.adam), { requestId: id, accept: 0 });
+    const after = await requestDetail(app.deps)(caller(people.adam), { requestId: id });
+    expect(after.ok && after.value.proposalMessage).toBeNull();
   });
 });
 

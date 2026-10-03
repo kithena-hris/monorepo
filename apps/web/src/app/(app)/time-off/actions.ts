@@ -224,12 +224,18 @@ export async function decideRequest(
   return outcome(await timeOff('DecideTimeOffRequest', { requestId, input: { decision } }));
 }
 
-/** Other dates instead of a decline (T18, T15): up to three suggestions, each runs of days. */
+/**
+ * Other dates instead of a decline (T18, T15): up to three suggestions, each
+ * runs of days, and what the approver wrote with them, which the member reads.
+ */
 export async function suggestDates(
   requestId: string,
   proposals: readonly { readonly spans: readonly { from: string; to: string }[] }[],
+  message: string | null = null,
 ): Promise<Outcome> {
-  return outcome(await timeOff('SuggestTimeOffDates', { requestId, input: { proposals } }));
+  return outcome(
+    await timeOff('SuggestTimeOffDates', { requestId, input: { proposals, message } }),
+  );
 }
 
 /** Who decides for the caller while they are away (T19). */

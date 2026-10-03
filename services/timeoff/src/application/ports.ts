@@ -163,6 +163,8 @@ export interface RequestRecord {
   readonly requestedAt: Instant;
   /** The account that suggested other dates, which approves them when accepted. */
   readonly proposedBy: string | null;
+  /** What they wrote with the dates (TOF-099b); `null` for nothing. */
+  readonly proposalMessage: string | null;
 }
 
 export interface RequestStore {

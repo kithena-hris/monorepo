@@ -1626,6 +1626,33 @@ test passes, and it matches the design's screen on the seeded demo company.
   `decideTimeOffOvertime`; a late correction links to the timesheet beside
   the original. T22's "Needs you" now sends overtime there.
 
+### [ ] TOF-099a — Settings you can edit, not only read
+
+- **Screens** T29, T30, T34, T36, T8's company weeks · **Depends on** TOF-078 – TOF-083, TOF-106
+- **Approach** The gaps the "As built" notes of TOF-078 to TOF-083 and
+  TOF-106 left: add a leave type; edit who a policy applies to; add and
+  remove approval rules and set "If nobody decides"; add a holiday calendar,
+  its days, and which calendars a location keeps; the company's own parental
+  weeks.
+
+### [x] TOF-099b — A counter-proposal carries a message
+
+- **Screens** T18, T6 · **Depends on** TOF-070
+- **Approach** The message T18 drafts reaches the member: a contract field,
+  storage, the API, the dialog sends it, the employee reads it.
+- **As built** `timeoff.request.counter_proposed` gained `message` (free
+  text, `null` by default); `counterPropose` trims it into the event, and
+  the request keeps it as `proposal_message` beside who suggested the
+  dates. `CounterBody.message` carries it; T18's dialog sends what it
+  drafted or the approver typed (no more "copy it"), and the member's
+  suggestion card on T6 shows it while the suggestion waits.
+
+### [ ] TOF-099c — HR's list of parental cases
+
+- **Screens** T11's way in · **Depends on** TOF-106
+- **Approach** Sent plans, waiting for HR and approved, as a list that opens
+  each case, so HR reaches a case without its link.
+
 ---
 
 ## Phase 3 — planning and reach

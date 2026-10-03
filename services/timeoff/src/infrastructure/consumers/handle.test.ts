@@ -164,6 +164,8 @@ describe('the People consumer', () => {
       accountId: ADAM_ACCOUNT,
       displayName: 'Adam Novak',
       firstName: 'Adam',
+      // From the hire: where messaging reaches him (TOF-098).
+      workEmail: 'adam.novak@acme.example',
       managerPersonId: people.omar,
       teamKey: teamKeyOf(ORG),
       teamName: null,

@@ -195,7 +195,7 @@ export const OPERATIONS = {
   /** One request, for its member, an approver or HR */
   TimeOffRequest: `query TimeOffRequest($requestId: String!) {
     timeOffRequest(requestId: $requestId) {
-      canAnswer canCancel canChange canDecide chain escalated mine note notePresent pendingChange { endsHalfDay from startsHalfDay to } proposals { index spans { from to } workingDays } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } sickNoteFileId step
+      canAnswer canCancel canChange canDecide chain escalated mine note notePresent pendingChange { endsHalfDay from startsHalfDay to } proposalMessage proposals { index spans { from to } workingDays } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } sickNoteFileId step
     }
   }`,
 

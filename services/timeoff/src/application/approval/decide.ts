@@ -160,6 +160,8 @@ export const counterPropose =
     input: {
       readonly requestId: LeaveRequestId;
       readonly proposals: readonly { readonly spans: readonly DateRange[] }[];
+      /** What the manager writes with the dates; shown to the member and sent on the event. */
+      readonly message?: string | null;
     },
   ): Promise<Result<{ status: LeaveRequest['status'] }>> => {
     const done = await transact(deps, caller.tenantId, async (tx) => {
@@ -180,9 +182,17 @@ export const counterPropose =
         }),
       );
       const ctx = contextFor(deps, userActor(caller), caller.correlationId, member.timeZone);
-      const entries = record.request.counterPropose({ by: caller.accountId, proposals }, ctx);
+      const message = input.message?.trim() || null;
+      const entries = record.request.counterPropose(
+        { by: caller.accountId, proposals, message },
+        ctx,
+      );
       if (!entries.ok) return entries;
-      const saved = await persist(tx, { ...record, proposedBy: caller.accountId }, entries.value);
+      const saved = await persist(
+        tx,
+        { ...record, proposedBy: caller.accountId, proposalMessage: message },
+        entries.value,
+      );
       if (!saved.ok) return saved;
       return ok({ status: record.request.status });
     });

@@ -276,6 +276,35 @@ describe('transitions', () => {
     });
   });
 
+  it('counterPropose carries the manager’s message, trimmed, or none (TOF-099b)', () => {
+    const said = inState('pending');
+    must(
+      said.counterPropose(
+        {
+          by: MARCO_ACCOUNT,
+          proposals: [option('5.000', ['2026-10-26', '2026-10-30'])],
+          message: '  The week after works better for the release.  ',
+        },
+        ctx,
+      ),
+    );
+    expect(said.drainEvents()[0]?.payload).toMatchObject({
+      message: 'The week after works better for the release.',
+    });
+    const silent = inState('pending');
+    must(
+      silent.counterPropose(
+        {
+          by: MARCO_ACCOUNT,
+          proposals: [option('5.000', ['2026-10-26', '2026-10-30'])],
+          message: ' ',
+        },
+        ctx,
+      ),
+    );
+    expect(silent.drainEvents()[0]?.payload).toMatchObject({ message: null });
+  });
+
   it('counterPropose refuses none, or more than three', () => {
     const none = inState('pending').counterPropose({ by: MARCO_ACCOUNT, proposals: [] }, ctx);
     const four = inState('pending').counterPropose(

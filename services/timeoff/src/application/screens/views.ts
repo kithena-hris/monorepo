@@ -250,6 +250,8 @@ export const RequestDetailView = named(
         z.object({ index: z.int(), spans: z.array(RangeView), workingDays: DayAmount }),
       ),
     ),
+    /** What the manager wrote with the suggested dates (TOF-099b), while they wait. */
+    proposalMessage: z.string().nullable(),
     chain: z.array(z.enum(['manager', 'hr'])),
     step: z.int(),
     escalated: z.boolean(),

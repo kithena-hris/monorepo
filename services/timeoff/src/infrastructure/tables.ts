@@ -175,6 +175,7 @@ export const request = timeoff.table(
     /** A person's id, or `hr`. */
     escalatedTo: text('escalated_to'),
     proposedBy: text('proposed_by'),
+    proposalMessage: text('proposal_message'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

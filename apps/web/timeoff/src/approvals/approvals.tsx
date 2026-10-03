@@ -70,6 +70,8 @@ export interface ApprovalsProps {
   readonly onSuggest?: (
     requestId: string,
     proposals: readonly { readonly spans: readonly { from: string; to: string }[] }[],
+    /** What the approver wrote with the dates (TOF-099b). */
+    message?: string | null,
   ) => Promise<Outcome>;
   /** Go to an address of this screen; a plain link does the same. */
   readonly onNavigate?: (href: string) => void;
@@ -395,8 +397,8 @@ function Opened({
           onSend={
             onSuggest === undefined
               ? undefined
-              : async (proposals) => {
-                  const outcome = await onSuggest(decision.request.requestId, proposals);
+              : async (proposals, message) => {
+                  const outcome = await onSuggest(decision.request.requestId, proposals, message);
                   if (outcome.ok) onNavigate?.(WAITING);
                   return outcome;
                 }

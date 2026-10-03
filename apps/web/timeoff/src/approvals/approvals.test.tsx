@@ -165,9 +165,11 @@ describe('suggesting other dates (T18)', () => {
       'Hi Adam, could you take 26–30 Oct instead? Omar and Yuki are out on the day you asked. Happy to approve straight away if that works.',
     );
     fireEvent.click(dialog.getByRole('button', { name: 'Send suggestion' }));
-    expect(onSuggest).toHaveBeenCalledWith(adam.requestId, [
-      { spans: [{ from: '2026-10-26', to: '2026-10-30' }] },
-    ]);
+    expect(onSuggest).toHaveBeenCalledWith(
+      adam.requestId,
+      [{ spans: [{ from: '2026-10-26', to: '2026-10-30' }] }],
+      'Hi Adam, could you take 26–30 Oct instead? Omar and Yuki are out on the day you asked. Happy to approve straight away if that works.',
+    );
     await vi.waitFor(() => {
       expect(onNavigate).toHaveBeenCalledWith('/time-off/approvals/waiting');
     });

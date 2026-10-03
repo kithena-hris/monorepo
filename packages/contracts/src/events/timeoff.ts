@@ -227,6 +227,11 @@ export const LeaveCounterProposed = defineEvent(
       .min(1)
       .max(3)
       .register(policy, asInternal()),
+    /**
+     * What the manager wrote with the dates (TOF-099b), typed by a person:
+     * free text. `null` when they wrote nothing, and on messages before it.
+     */
+    message: z.string().max(1000).nullable().default(null).register(policy, asFreeText()),
   }),
 );
 

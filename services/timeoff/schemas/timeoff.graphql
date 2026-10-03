@@ -257,7 +257,9 @@ type Mutation {
   startTimeOffShadowRun(idempotencyKey: String!, policyId: String!): TimeOffShadow!
   """Stop running the draft beside the policy in effect; HR"""
   stopTimeOffShadowRun(idempotencyKey: String!, policyId: String!): TimeOffDone!
-  """Suggest other dates instead of declining"""
+  """
+  Suggest other dates instead of declining, with a message for the member
+  """
   suggestTimeOffDates(
     idempotencyKey: String!
     """The REST body"""
@@ -1181,6 +1183,7 @@ type TimeOffRequestDetail {
   note: String
   notePresent: Boolean!
   pendingChange: TimeOffSpan
+  proposalMessage: String
   proposals: [TimeOffProposal!]!
   request: TimeOffRequestItem!
   sickNoteFileId: String

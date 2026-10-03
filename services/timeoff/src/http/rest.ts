@@ -295,6 +295,8 @@ export const CounterBody = z.strictObject({
     .array(z.strictObject({ spans: z.array(Range).min(1).max(10) }))
     .min(1)
     .max(3),
+  /** What the manager writes with the dates (T18, TOF-099b). */
+  message: z.string().max(1000).nullable().default(null),
 });
 export const AnswerBody = z.strictObject({
   /** Which suggestion to take; `null` keeps the member's own dates. */
@@ -872,12 +874,16 @@ export const ROUTES: readonly Route[] = [
     name: 'suggestTimeOffDates',
     method: 'POST',
     path: `${V1}/requests/{requestId}/counter-proposal`,
-    summary: 'Suggest other dates instead of declining',
+    summary: 'Suggest other dates instead of declining, with a message for the member',
     params: RequestParams,
     body: CounterBody,
     answer: StatusAnswer,
     run: (deps, caller, { params, body }) =>
-      counterPropose(deps)(caller, { requestId: params.requestId, proposals: body.proposals }),
+      counterPropose(deps)(caller, {
+        requestId: params.requestId,
+        proposals: body.proposals,
+        message: body.message,
+      }),
     shape: same,
   }),
   route({

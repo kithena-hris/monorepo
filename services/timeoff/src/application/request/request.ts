@@ -196,6 +196,7 @@ export const sendRequest =
           note: input.note ?? null,
           requestedAt: deps.clock.instant(),
           proposedBy: null,
+          proposalMessage: null,
         },
         entries,
       );

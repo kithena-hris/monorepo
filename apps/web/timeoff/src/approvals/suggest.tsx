@@ -2,7 +2,6 @@ import {
   Alert,
   Badge,
   Button,
-  CopyButton,
   DatePicker,
   Dialog,
   DialogBody,
@@ -40,7 +39,11 @@ export function SuggestDates({
   readonly data: DecisionData;
   readonly onClose: () => void;
   readonly onSend?:
-    ((proposals: readonly { readonly spans: readonly Range[] }[]) => Promise<Outcome>) | undefined;
+    | ((
+        proposals: readonly { readonly spans: readonly Range[] }[],
+        message: string | null,
+      ) => Promise<Outcome>)
+    | undefined;
 }): JSX.Element {
   const who = firstName(data.member.displayName);
   const options = data.alternatives.filter((a) => a.affects === 'requester');
@@ -56,7 +59,7 @@ export function SuggestDates({
     if (onSend === undefined || spans.length === 0) return;
     setFailed(null);
     start(async () => {
-      const outcome = await onSend([{ spans }]);
+      const outcome = await onSend([{ spans }], text.trim() === '' ? null : text.trim());
       if (!outcome.ok) setFailed(outcome.message);
     });
   };
@@ -128,6 +131,7 @@ export function SuggestDates({
               <Textarea
                 autoResize
                 rows={3}
+                maxLength={1000}
                 value={text}
                 onChange={(event) => {
                   setMessage(event.target.value);
@@ -135,12 +139,9 @@ export function SuggestDates({
               />
             </FieldControl>
             <FieldDescription>
-              {`Written by Kithena from your choice. Time Off sends ${who} the dates, not the message yet: copy it to ${who} if you want to say more.`}
+              {`Written by Kithena from your choice; change it as you like. ${who} reads it with the dates.`}
             </FieldDescription>
           </Field>
-          <div className="flex justify-end">
-            <CopyButton value={text} label="Copy the message" />
-          </div>
           <Alert tone="info" title={`${who} can accept in one tap`}>
             If they accept, it is approved with no second step. If not, the original request comes
             back to you.
