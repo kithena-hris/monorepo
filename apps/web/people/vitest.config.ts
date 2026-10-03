@@ -107,7 +107,9 @@ export default defineConfig({
           // a scroll box differently from Chromium, and a list that kept its
           // place in one lost it in the other.
           name: 'desk-webkit',
+          // Not the import flow's: it scrolls through Chromium's own protocol (CDP).
           include: ['src/**/*.browser.test.{ts,tsx}'],
+          exclude: ['src/import/import-flow.browser.test.tsx'],
           setupFiles: ['./src/test/phone-setup.ts'],
           browser: {
             enabled: true,
