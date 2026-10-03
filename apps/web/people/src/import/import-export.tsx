@@ -132,13 +132,14 @@ export function resultOf(e: TransferEntry): {
     const { created, updated, blocked } = e.imported;
     // Imported: the word every import is said with once it is over.
     const lead = e.run == null ? '' : 'Imported · ';
+    const n = (count: number): string => count.toLocaleString('en-GB');
     if (blocked === 0) {
-      return { text: `${lead}${String(created + updated)} created or updated`, tone: 'success' };
+      return { text: `${lead}${n(created + updated)} created or updated`, tone: 'success' };
     }
     const parts = [
-      created > 0 ? `${String(created)} created` : null,
-      updated > 0 ? `${String(updated)} updated` : null,
-      `${String(blocked)} skipped`,
+      created > 0 ? `${n(created)} created` : null,
+      updated > 0 ? `${n(updated)} updated` : null,
+      `${n(blocked)} skipped`,
     ].filter((p) => p !== null);
     return { text: `${lead}${parts.join(' · ')}`, tone: 'warning' };
   }
