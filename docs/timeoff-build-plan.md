@@ -324,7 +324,7 @@ Test-first, all of it. No drivers, no I/O.
   allows no half days. The function takes the working dates as input rather
   than computing them, because TOF-010 owns working days.
 
-### [ ] TOF-016 — The request aggregate, rewritten
+### [x] TOF-016 — The request aggregate, rewritten
 
 **Goal** The existing `LeaveRequest` refuses anything over the balance and has
 no decline, cancel or change.
@@ -340,6 +340,15 @@ no decline, cancel or change.
   and returns the ledger entries it implies.
 - **Done when** every transition and every refused transition has a test, and
   the old `INSUFFICIENT_BALANCE` test is replaced by a borrow test.
+- **As built** The contracts have no event for a withdrawal, a change asked
+  for or turned down, a counter-proposal turned down, or a request taken, so
+  `withdraw` raises `cancelled` (the whole request released) and the other
+  four raise nothing: a change reaches consumers as `changed` once approved,
+  and `taken` tells nobody anything approval did not. `acceptCounter` raises
+  `changed` then `approved`. A booking settles as a `release` and a `taken`
+  of the same amount, so `left` stays the plain sum of the ledger. Approval is
+  one step; a manager-then-HR chain is the application walking the chain
+  TOF-019 returns.
 
 ### [ ] TOF-017 — Sick leave
 
