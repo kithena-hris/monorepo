@@ -209,7 +209,7 @@ function fieldsFrom(
   );
   const own = get(body, TIMEOFF_USER);
   const parsed = MemberFields.safeParse({
-    ...(existing ?? {}),
+    ...existing,
     personId,
     accountId: existing?.accountId ?? null,
     displayName,
@@ -437,10 +437,9 @@ export const patchUser =
         // Removing an attribute is saying it has no value.
         next[first] = op === 'remove' ? null : value;
       } else {
-        next[first] = {
-          ...(next[first] ?? {}),
+        next[first] = Object.assign({}, next[first], {
           [second]: op === 'remove' ? null : value,
-        };
+        });
       }
     }
     return write(deps, caller, base, next, PersonId.parse(String(current.value['id'])), false);

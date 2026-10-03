@@ -269,7 +269,8 @@ describe('a provider’s callback (TOF-109)', () => {
       headers: { 'idempotency-key': 'c-1' },
       body: JSON.stringify({ back: 'https://acme.example/settings/time-off/integrations' }),
     });
-    const state = new URL((connect?.body as { url: string }).url).searchParams.get('state') ?? '';
+    if (connect === null) throw new Error('not a route');
+    const state = new URL((connect.body as { url: string }).url).searchParams.get('state') ?? '';
     const back = await rest({
       method: 'GET',
       url: `/v1/timeoff/integrations/microsoft/callback?state=${encodeURIComponent(state)}&tenant=d-1&admin_consent=True`,
