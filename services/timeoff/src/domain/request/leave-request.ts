@@ -18,7 +18,7 @@ import {
 import { entry, type LedgerEntry } from '../balance/ledger.js';
 import type { NegativeVerdict } from '../balance/negative.js';
 import { envelope, today, type EventContext } from '../context.js';
-import { addDays, amount, days } from '../days.js';
+import { addDays, amount, days, type DateRange } from '../days.js';
 
 /**
  * A leave request and its whole lifecycle (PRD §8.1, §8.4, §8.5).
@@ -59,7 +59,20 @@ export interface Span {
   readonly workingDays: DayAmount;
 }
 
+/**
+ * Other dates a manager suggests (§9.5): runs of days in order, more than one
+ * when a clash day is swapped out (T18: 19, 20, 22, 23 and 26 Oct).
+ */
+export interface Proposal {
+  readonly spans: readonly DateRange[];
+  readonly workingDays: DayAmount;
+}
+
 type Entries = Result<readonly LedgerEntry[]>;
+
+/** In order, each ending on or after it starts, none touching the one before. */
+const ordered = (runs: readonly DateRange[]): boolean =>
+  runs.length > 0 && runs.every((r, i) => r.from <= r.to && (i === 0 || r.from > (runs[i - 1]?.to ?? r.from)));
 
 const refuse = (status: RequestStatus, action: string) =>
   err(failure('INVALID_TRANSITION', `A ${status.replace('_', ' ')} request cannot be ${action}`));
@@ -72,8 +85,11 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   /** Special-category health data (§8.5). Read by the member's and HR's view only. */
   readonly #sickNoteFileId: string | null;
   #status: RequestStatus = 'pending';
+  /** The bounds, half days and cost. */
   #span: Span;
-  #proposals: readonly Span[] = [];
+  /** The days off inside the bounds: one run, or several after an accepted swap. */
+  #runs: readonly DateRange[];
+  #proposals: readonly Proposal[] = [];
   #pendingChange: Span | null = null;
   /** The event that set the current dates, which a change supersedes. */
   #datesEventId = '';
@@ -87,6 +103,7 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
     this.#personId = props.personId;
     this.#leaveType = props.leaveType;
     this.#span = props.span;
+    this.#runs = [{ from: props.span.from, to: props.span.to }];
     this.#belowZero = props.belowZero;
     this.#sickNoteFileId = props.sickNoteFileId;
   }
@@ -149,7 +166,10 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   get span(): Span {
     return this.#span;
   }
-  get proposals(): readonly Span[] {
+  get spans(): readonly DateRange[] {
+    return this.#runs;
+  }
+  get proposals(): readonly Proposal[] {
     return this.#proposals;
   }
   get pendingChange(): Span | null {
@@ -193,21 +213,21 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   }
 
   /** Other dates instead of a decline (§9.5). The asked-for dates stay booked meanwhile. */
-  counterPropose(args: { by: string; proposals: readonly Span[] }, ctx: EventContext): Entries {
+  counterPropose(args: { by: string; proposals: readonly Proposal[] }, ctx: EventContext): Entries {
     if (this.#status !== 'pending') return refuse(this.#status, 'answered with other dates');
     if (args.proposals.length < 1 || args.proposals.length > 3) {
       return err(failure('PROPOSALS', 'Suggest between one and three sets of dates', ['proposals']));
     }
-    if (args.proposals.some((p) => p.to < p.from)) {
-      return err(failure('INVALID_PERIOD', 'Leave cannot end before it starts', ['proposals']));
+    if (!args.proposals.every((p) => ordered(p.spans))) {
+      return err(failure('INVALID_PERIOD', 'Each suggestion is runs of days in order, none overlapping', ['proposals']));
     }
     this.#status = 'counter_proposed';
     this.#proposals = args.proposals;
-    this.#raise(ctx, LeaveCounterProposed, args.proposals[0]?.from ?? this.#span.from, {
+    this.#raise(ctx, LeaveCounterProposed, args.proposals[0]?.spans[0]?.from ?? this.#span.from, {
       requestId: this.id,
       personId: this.#personId,
       proposedBy: args.by,
-      proposals: args.proposals.map((p) => ({ ...p })),
+      proposals: args.proposals.map((p) => ({ spans: p.spans.map((r) => ({ ...r })), workingDays: p.workingDays })),
     });
     return ok([]);
   }
@@ -216,8 +236,13 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   acceptCounter(args: { index: number; approvedBy: string; jurisdiction: string }, ctx: EventContext): Entries {
     if (this.#status !== 'counter_proposed') return refuse(this.#status, 'accepted');
     const chosen = this.#proposals[args.index];
-    if (chosen === undefined) return err(failure('UNKNOWN_PROPOSAL', 'That suggestion was not made', ['index']));
-    const entries = this.#move(chosen, ctx);
+    const first = chosen?.spans[0];
+    const last = chosen?.spans.at(-1);
+    if (chosen === undefined || first === undefined || last === undefined) {
+      return err(failure('UNKNOWN_PROPOSAL', 'That suggestion was not made', ['index']));
+    }
+    const span: Span = { from: first.from, to: last.to, startsHalfDay: false, endsHalfDay: false, workingDays: chosen.workingDays };
+    const entries = this.#move(span, ctx, chosen.spans);
     this.#proposals = [];
     this.#approved(args.approvedBy, args.jurisdiction, ctx);
     return ok(entries);
@@ -269,7 +294,13 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
       return err(failure('ALREADY_PASSED', 'Days already passed cannot be given back; HR can adjust them', ['to']));
     }
     const oldTo = this.#span.to;
-    this.#span = { ...this.#span, to: args.to, endsHalfDay: args.endsHalfDay, workingDays: args.workingDays };
+    // Runs after the new end go; the one it falls in ends there. An end in a
+    // gap between runs leaves the request ending on its last day off.
+    this.#runs = this.#runs
+      .filter((r) => r.from <= args.to)
+      .map((r) => (r.to > args.to ? { from: r.from, to: args.to } : r));
+    const to = this.#runs.at(-1)?.to ?? args.to;
+    this.#span = { ...this.#span, to, endsHalfDay: args.endsHalfDay, workingDays: args.workingDays };
     this.#raise(ctx, LeaveCancelled, releasedFrom, {
       requestId: this.id,
       personId: this.#personId,
@@ -327,11 +358,13 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   }
 
   /** New dates replace the current ones: a changed event, and the booking moved. */
-  #move(to: Span, ctx: EventContext): LedgerEntry[] {
+  #move(to: Span, ctx: EventContext, runs: readonly DateRange[] = [{ from: to.from, to: to.to }]): LedgerEntry[] {
     const old = this.#span;
     this.#span = to;
+    this.#runs = runs;
     this.#datesEventId = this.#raise(ctx, LeaveChanged, to.from, {
       ...to,
+      spans: runs.map((r) => ({ ...r })),
       requestId: this.id,
       personId: this.#personId,
       supersedes: this.#datesEventId,

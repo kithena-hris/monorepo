@@ -190,6 +190,22 @@ const span = () =>
     workingDays: DayAmount,
   });
 
+/**
+ * The continuous runs of days an option covers, in order and apart. One run
+ * for most; several when a clash day is swapped out (T15, T18: 19, 20, 22, 23
+ * and 26 Oct), which no single `from`–`to` can say.
+ */
+const runs = () =>
+  z
+    .array(z.object({ from: CalendarDate, to: CalendarDate }))
+    .min(1)
+    .refine(
+      (rs) => rs.every((r, i) => r.from <= r.to && (i === 0 || r.from > (rs[i - 1]?.to ?? r.from))),
+      'runs are in order, each ending on or after it starts, none overlapping',
+    )
+    // Classified whole: the codegen walk does not descend into arrays.
+    .register(policy, asInternal());
+
 /** The manager suggested other dates (§9.5, T18). */
 export const LeaveCounterProposed = defineEvent(
   'timeoff.request.counter_proposed',
@@ -198,16 +214,23 @@ export const LeaveCounterProposed = defineEvent(
     requestId: requestId(),
     personId: PersonId,
     proposedBy: accountId(),
-    // Classified whole: the codegen walk does not descend into arrays.
-    proposals: z.array(span()).min(1).max(3).register(policy, asInternal()),
+    proposals: z
+      .array(z.object({ spans: runs(), workingDays: DayAmount }))
+      .min(1)
+      .max(3)
+      .register(policy, asInternal()),
   }),
 );
 
-/** New dates approved; the old booking is released by this (§8.4). */
+/**
+ * New dates approved; the old booking is released by this (§8.4). `from` and
+ * `to` bound them; `spans` says which days in between, for a swap.
+ */
 export const LeaveChanged = defineEvent(
   'timeoff.request.changed',
   1,
   span().extend({
+    spans: runs(),
     requestId: requestId(),
     personId: PersonId,
     supersedes: supersedes(),

@@ -13,7 +13,7 @@ import {
 
 import { balanceOn, type LedgerEntry } from '../balance/ledger.js';
 import { ADAM, context, date, TENANT } from '../fixtures.js';
-import { LeaveRequest, leaveRequestId, type RequestLeaveType, type Span } from './leave-request.js';
+import { LeaveRequest, leaveRequestId, type Proposal, type RequestLeaveType, type Span } from './leave-request.js';
 
 const MARCO_ACCOUNT = '77777777-7777-7777-8777-777777777777';
 const ctx = context('2026-10-01T09:00:00.000Z');
@@ -32,6 +32,12 @@ const span = (from: string, to: string, workingDays: string, ends = false): Span
   to: date(to),
   startsHalfDay: false,
   endsHalfDay: ends,
+  workingDays: DayAmount.parse(workingDays),
+});
+
+/** A suggestion of runs of days, as `alternatives` returns one. */
+const option = (workingDays: string, ...runs: [string, string][]): Proposal => ({
+  spans: runs.map(([from, to]) => ({ from: date(from), to: date(to) })),
   workingDays: DayAmount.parse(workingDays),
 });
 
@@ -79,7 +85,7 @@ function inState(status: RequestStatus): LeaveRequest {
       must(request.withdraw(ctx));
       break;
     case 'counter_proposed':
-      must(request.counterPropose({ by: MARCO_ACCOUNT, proposals: [span('2026-10-26', '2026-10-30', '5.000')] }, ctx));
+      must(request.counterPropose({ by: MARCO_ACCOUNT, proposals: [option('5.000', ['2026-10-26', '2026-10-30'])] }, ctx));
       break;
     case 'change_pending':
       approve();
@@ -212,7 +218,7 @@ describe('transitions', () => {
 
   it('counterPropose: pending → counter_proposed; the booking stays', () => {
     const request = inState('pending');
-    const proposals = [span('2026-10-19', '2026-10-26', '5.000'), span('2026-10-26', '2026-10-30', '5.000')];
+    const proposals = [option('5.000', ['2026-10-19', '2026-10-20'], ['2026-10-22', '2026-10-23'], ['2026-10-26', '2026-10-26']), option('5.000', ['2026-10-26', '2026-10-30'])];
     const entries = must(request.counterPropose({ by: MARCO_ACCOUNT, proposals }, ctx));
     expect(request.status).toBe('counter_proposed');
     expect(entries).toEqual([]);
@@ -221,7 +227,7 @@ describe('transitions', () => {
 
   it('counterPropose refuses none, or more than three', () => {
     const none = inState('pending').counterPropose({ by: MARCO_ACCOUNT, proposals: [] }, ctx);
-    const four = inState('pending').counterPropose({ by: MARCO_ACCOUNT, proposals: Array.from({ length: 4 }, () => october) }, ctx);
+    const four = inState('pending').counterPropose({ by: MARCO_ACCOUNT, proposals: Array.from({ length: 4 }, () => option('5.000', ['2026-10-19', '2026-10-23'])) }, ctx);
     expect([none.ok, four.ok]).toEqual([false, false]);
     if (!none.ok) expect(none.error.code).toBe('PROPOSALS');
   });
@@ -238,6 +244,38 @@ describe('transitions', () => {
     const events = request.drainEvents();
     expect(events.map((e) => e.eventName)).toEqual([LeaveChanged.name, LeaveApproved.name]);
     expect(events[0]?.effectiveFrom).toBe('2026-10-26');
+  });
+
+  it('counterPropose refuses runs out of order or overlapping', () => {
+    const result = inState('pending').counterPropose(
+      { by: MARCO_ACCOUNT, proposals: [option('5.000', ['2026-10-22', '2026-10-23'], ['2026-10-19', '2026-10-20'])] },
+      ctx,
+    );
+    if (result.ok) throw new Error('expected a refusal');
+    expect(result.error.code).toBe('INVALID_PERIOD');
+  });
+
+  it('acceptCounter takes a swap, which is not one range: 19, 20, 22, 23 and 26 Oct (T18)', () => {
+    const request = inState('pending');
+    const swap = option('5.000', ['2026-10-19', '2026-10-20'], ['2026-10-22', '2026-10-23'], ['2026-10-26', '2026-10-26']);
+    must(request.counterPropose({ by: MARCO_ACCOUNT, proposals: [swap] }, ctx));
+    expect(request.drainEvents()[0]?.payload).toMatchObject({ proposals: [{ spans: swap.spans, workingDays: '5.000' }] });
+    must(request.acceptCounter({ index: 0, approvedBy: MARCO_ACCOUNT, jurisdiction: 'ES' }, ctx));
+    expect([request.span.from, request.span.to]).toEqual(['2026-10-19', '2026-10-26']);
+    expect(request.spans).toEqual(swap.spans);
+    const [changed] = request.drainEvents();
+    expect(changed?.payload).toMatchObject({ from: '2026-10-19', to: '2026-10-26', spans: swap.spans, workingDays: '5.000' });
+  });
+
+  it('shortening a swap drops the runs after the new end', () => {
+    const request = inState('pending');
+    const swap = option('5.000', ['2026-10-19', '2026-10-20'], ['2026-10-22', '2026-10-23'], ['2026-10-26', '2026-10-26']);
+    must(request.counterPropose({ by: MARCO_ACCOUNT, proposals: [swap] }, ctx));
+    must(request.acceptCounter({ index: 0, approvedBy: MARCO_ACCOUNT, jurisdiction: 'ES' }, ctx));
+    // Ending on Sat 24, in the gap: the request now ends on Fri 23, its last day off.
+    must(request.shorten({ to: date('2026-10-24'), endsHalfDay: false, workingDays: DayAmount.parse('4.000') }, ctx));
+    expect(request.spans).toEqual(swap.spans.slice(0, 2));
+    expect(request.span.to).toBe('2026-10-23');
   });
 
   it('acceptCounter refuses a proposal that was not made', () => {
@@ -375,7 +413,7 @@ describe('refused transitions', () => {
     approve: { from: ['pending'], run: (r) => r.approve({ by: MARCO_ACCOUNT, jurisdiction: 'ES' }, ctx) },
     decline: { from: ['pending'], run: (r) => r.decline({ by: MARCO_ACCOUNT, reason: null }, ctx) },
     withdraw: { from: ['pending', 'counter_proposed'], run: (r) => r.withdraw(ctx) },
-    counterPropose: { from: ['pending'], run: (r) => r.counterPropose({ by: MARCO_ACCOUNT, proposals: [later] }, ctx) },
+    counterPropose: { from: ['pending'], run: (r) => r.counterPropose({ by: MARCO_ACCOUNT, proposals: [option('5.000', ['2026-11-02', '2026-11-06'])] }, ctx) },
     acceptCounter: { from: ['counter_proposed'], run: (r) => r.acceptCounter({ index: 0, approvedBy: MARCO_ACCOUNT, jurisdiction: 'ES' }, ctx) },
     keepOwnDates: { from: ['counter_proposed'], run: (r) => r.keepOwnDates(ctx) },
     requestChange: { from: ['approved'], run: (r) => r.requestChange({ span: later }, ctx) },

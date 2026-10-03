@@ -3,6 +3,7 @@ import * as z from 'zod';
 
 import {
   AttendancePunched,
+  LeaveCounterProposed,
   LeaveRequested,
   LeaveRequestedV1,
   readLeaveRequested,
@@ -151,5 +152,32 @@ describe('the v1 upcaster', () => {
     const v2 = readLeaveRequested(v1);
     expect(readLeaveRequested(v2)).toEqual(v2);
     expect(() => readLeaveRequested({ ...v2, eventVersion: 3 })).toThrow();
+  });
+});
+
+describe('a counter-proposal', () => {
+  const base = {
+    requestId: '0189aaaa-0000-7000-8000-000000000001',
+    personId: '0189aaaa-0000-7000-8000-000000000002',
+    proposedBy: '0189aaaa-0000-7000-8000-000000000003',
+  };
+  const option = (spans: { from: string; to: string }[]) => ({ ...base, proposals: [{ spans, workingDays: '5.000' }] });
+
+  it('carries a swap, which is not one range: 19, 20, 22, 23 and 26 Oct (T15, T18)', () => {
+    const swap = option([
+      { from: '2026-10-19', to: '2026-10-20' },
+      { from: '2026-10-22', to: '2026-10-23' },
+      { from: '2026-10-26', to: '2026-10-26' },
+    ]);
+    expect(LeaveCounterProposed.payload.safeParse(swap).success).toBe(true);
+  });
+
+  it.each([
+    ['out of order', [{ from: '2026-10-22', to: '2026-10-23' }, { from: '2026-10-19', to: '2026-10-20' }]],
+    ['overlapping', [{ from: '2026-10-19', to: '2026-10-22' }, { from: '2026-10-22', to: '2026-10-23' }]],
+    ['backwards', [{ from: '2026-10-23', to: '2026-10-19' }]],
+    ['empty', []],
+  ])('refuses runs that are %s', (_what, spans) => {
+    expect(LeaveCounterProposed.payload.safeParse(option(spans)).success).toBe(false);
   });
 });

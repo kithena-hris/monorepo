@@ -1,6 +1,6 @@
 import type { CalendarDate, PersonId } from '@kithena/contracts';
 
-import { addDays } from '../days.js';
+import { addDays, type DateRange } from '../days.js';
 
 /**
  * Delegation and escalation (PRD §9.7, T19).
@@ -14,10 +14,7 @@ import { addDays } from '../days.js';
  * a holiday set is per member.
  */
 
-export interface DateRange {
-  readonly from: CalendarDate;
-  readonly to: CalendarDate;
-}
+export type { DateRange };
 
 export interface Delegation {
   readonly approverId: PersonId;

@@ -29,6 +29,12 @@ export const sum = (values: readonly (DayAmount | Decimal)[]): Decimal =>
 /** Rounded up to the nearest half day (PRD §6.2). */
 export const ceilHalf = (value: Decimal): Decimal => value.times(2).ceil().div(2);
 
+/** A continuous run of calendar days, both ends included. */
+export interface DateRange {
+  readonly from: CalendarDate;
+  readonly to: CalendarDate;
+}
+
 const DAY_MS = 86_400_000;
 
 /**
