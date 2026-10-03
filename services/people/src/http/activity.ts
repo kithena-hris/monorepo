@@ -150,26 +150,6 @@ const RULES: readonly Rule[] = [
     },
   },
   {
-    // An approved import plan (docs/ai-settings.md): one entry, naming the
-    // fields it added. Never the file.
-    path: /^\/v1\/imports\/run$/,
-    area: 'fields',
-    say: (_m, b) => {
-      const kept = Array.isArray(b['proposals'])
-        ? b['proposals'].filter((p) => (p as Body | null)?.['include'] === true)
-        : [];
-      const labels = kept
-        .map((p) => text(((p as Body)['field'] as Body | undefined)?.['label']))
-        .filter((l): l is string => l !== null);
-      // An import that adds no field changes no setting: the import's own ledger has it.
-      if (kept.length === 0) return null;
-      return {
-        action: `Added ${String(kept.length)} ${kept.length === 1 ? 'field' : 'fields'} from an import, with the AI assistant`,
-        detail: `${labels.join(', ')}. Approved with the import’s plan.`.slice(0, 500),
-      };
-    },
-  },
-  {
     path: /^\/v1\/schema\/draft\/publish$/,
     area: 'fields',
     say: () => ({

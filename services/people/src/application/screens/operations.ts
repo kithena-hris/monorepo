@@ -31,6 +31,7 @@ import {
   type CommitResult,
 } from '../import/commit.js';
 import type { UploadIntent } from '../../domain/import/upload.js';
+import type { RunStore } from '../import/run-store.js';
 import { importTemplate } from '../import/template.js';
 import {
   dryRun,
@@ -309,6 +310,8 @@ export interface ImportDeps extends ScreenDeps {
   readonly commit: Omit<CommitDeps, 'access' | 'schemas' | 'relations' | 'clock'>;
   /** Where the file waits between the steps, and who may put it there (§14.2). */
   readonly uploads: Pick<UploadDeps, 'store' | 'intents'>;
+  /** Approved imports running in the background: while one runs, no other starts. */
+  readonly importRuns?: { readonly store: RunStore };
 }
 
 export interface ImportFileView {
@@ -661,9 +664,20 @@ export async function startImportUpload(
   asking: Asking,
   file: { readonly name: string; readonly size: number },
 ): Promise<Result<ImportUploadView>> {
-  const allowed = await run(deps.service, asking.tenantId, async (tx) =>
-    (await isHr(deps, tx, asking)) ? ok(null) : onlyHr(),
-  );
+  const allowed = await run(deps.service, asking.tenantId, async (tx) => {
+    if (!(await isHr(deps, tx, asking))) return onlyHr();
+    // One import at a time: a new upload would let go of the running one's file.
+    const going = await deps.importRuns?.store.active(tx, asking.tenantId);
+    return going === undefined || going === null
+      ? ok(null)
+      : err({
+          ...failure(
+            'IMPORT_RUNNING',
+            'An import is already running. Only one import runs at a time: wait for it to finish.',
+          ),
+          link: `/people/import?run=${going.id}`,
+        });
+  });
   if (!allowed.ok) return allowed;
   return startUpload(uploadDeps(deps), inTx(deps, asking), who(asking), file);
 }

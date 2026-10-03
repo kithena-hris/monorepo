@@ -884,18 +884,44 @@ interface Answered {
   errors?: { message: string; extensions: { code: string } }[];
 }
 
-/** Approve and run: the import's outcome, or the test fails on its error. */
+/**
+ * Approve and run: answered at once with the run, which goes on in the
+ * background; followed until it is over. The import's outcome, or the test
+ * fails on its error.
+ */
 async function runToEnd<T>(
   graph: (query: string, variables?: Record<string, unknown>) => Promise<Answered>,
   input: unknown,
   key: string,
 ): Promise<T> {
+  const asked = Date.now();
   const ran = await graph(
     `mutation ($input: String!, $key: String!) { runImport(input: $input, idempotencyKey: $key) }`,
     { input: JSON.stringify(input), key },
   );
   expect(ran.errors?.[0]?.message).toBeUndefined();
-  return JSON.parse(ran.data?.['runImport'] as string) as T;
+  const approved = JSON.parse(ran.data?.['runImport'] as string) as { runId: string; status: string };
+  expect(approved.status).toBe('queued');
+  // Approving answers in a moment, whatever the size of the file.
+  expect(Date.now() - asked).toBeLessThan(2_000);
+  for (const deadline = Date.now() + 110_000; ; ) {
+    const seen = await graph(`query ($id: ID!) { importRun(id: $id) }`, { id: approved.runId });
+    expect(seen.errors?.[0]?.message).toBeUndefined();
+    const run = JSON.parse(seen.data?.['importRun'] as string) as {
+      status: string;
+      label: string;
+      result: T | null;
+      failure: string | null;
+    };
+    if (run.status === 'succeeded') {
+      expect(run.label).toBe('Imported');
+      return run.result as T;
+    }
+    if (run.status === 'failed') throw new Error(run.failure ?? 'the import failed');
+    expect(run.label).toBe('Importing');
+    if (Date.now() > deadline) throw new Error('the import did not finish');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
 }
 
 const company = (tenant: string, owner: string) => {
