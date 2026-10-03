@@ -53,7 +53,7 @@ const week: { day: string; segments: RangeBarSegment[] }[] = [
     day: 'Monday',
     segments: [
       { start: 8.9, end: 17.1, label: 'Worked', tone: 'success' },
-      { start: 13, end: 13.75, label: 'Break', tone: 'warning', size: 'thin' },
+      { start: 13, end: 13.75, label: 'Break', tone: 'chart-3', size: 'thin' },
     ],
   },
   {
@@ -61,7 +61,7 @@ const week: { day: string; segments: RangeBarSegment[] }[] = [
     segments: [
       { start: 9, end: 17, label: 'Worked', tone: 'success' },
       { start: 17, end: 18.5, label: 'Extra', tone: 'chart-4' },
-      { start: 13, end: 13.5, label: 'Break', tone: 'warning', size: 'thin' },
+      { start: 13, end: 13.5, label: 'Break', tone: 'chart-3', size: 'thin' },
     ],
   },
   {

@@ -47,7 +47,7 @@ export interface ProgressSegment {
   value: number;
   /** Printed under the bar with `showValue`, and read out: "4 used". */
   label: string;
-  /** Defaults to the categorical order: `chart-1`, `chart-2` … */
+  /** Defaults to `chart-1`, so a hatched share reads as more of the same thing. */
   tone?: ChartTone;
   /**
    * `hatched` stripes the share: something counted but not final yet, such as
@@ -156,8 +156,6 @@ export function Progress({
   );
 }
 
-const segmentOrder: readonly ChartTone[] = ['chart-1', 'chart-2', 'chart-3', 'chart-4'];
-
 /**
  * Not a `progressbar`: that role has one value, and this has several. It is an
  * image whose name is the whole sentence, "Allowance: 4 used, 2 committed, 25
@@ -192,12 +190,12 @@ function SegmentedProgress({
         // read as one longer bar.
         className={cn(track({ size }), 'flex gap-0.5', className)}
       >
-        {segments.map((segment, index) => (
+        {segments.map((segment) => (
           <span
             key={segment.label}
             className={cn(
               'h-full shrink-0',
-              bgTone[segment.tone ?? segmentOrder[index % segmentOrder.length] ?? 'chart-1'],
+              bgTone[segment.tone ?? 'chart-1'],
               segment.pattern === 'hatched' && 'pattern-hatched',
             )}
             style={{
