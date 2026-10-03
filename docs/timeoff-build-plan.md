@@ -284,7 +284,7 @@ Test-first, all of it. No drivers, no I/O.
   loosened to show the reason to teammates.
 - **Done when** every invariant has a failing-first test.
 
-### [ ] TOF-013 — Policy, versions and the entitlement fold
+### [x] TOF-013 — Policy, versions and the entitlement fold
 
 - **Spec** PRD §6.2, §6.3, §7.1
 - **Files** `services/timeoff/src/domain/policy/policy.ts`,
