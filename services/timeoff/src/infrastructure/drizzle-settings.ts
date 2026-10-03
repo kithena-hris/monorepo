@@ -29,7 +29,7 @@ import {
 /** A tenant setting stored as one document, or `fallback` when none is. */
 export async function readSetting<T>(
   tx: PostgresJsDatabase,
-  key: 'auto_approval' | 'attendance_rules',
+  key: 'auto_approval' | 'attendance_rules' | 'parental_company',
   fallback: T,
 ): Promise<T> {
   const [row] = await tx.select({ value: setting.value }).from(setting).where(eq(setting.key, key));
@@ -39,7 +39,7 @@ export async function readSetting<T>(
 export async function writeSetting(
   tx: PostgresJsDatabase,
   tenantId: TenantId,
-  key: 'auto_approval' | 'attendance_rules',
+  key: 'auto_approval' | 'attendance_rules' | 'parental_company',
   value: object,
 ): Promise<void> {
   await tx
