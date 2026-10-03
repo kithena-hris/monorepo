@@ -1,8 +1,127 @@
+import { Queue, Worker } from 'bullmq';
+import type { Result } from '@kithena/domain-kit';
+import type { TenantId } from '@kithena/contracts';
+import { logger, onShutdown } from '@kithena/telemetry';
+
+import {
+  balanceWarnings,
+  clockOutReminder,
+  markTakenDue,
+  missedPunchCheck,
+  postAccruals,
+  yearEnd,
+} from '../application/jobs.js';
+import type { Deps } from '../application/ports.js';
+
 /**
- * Everything Time Off does that no request asks for: accruals, expiries,
- * reminders. Empty until TOF-043; called from `main.ts` already so the boot
- * sequence is People's from the start.
+ * Everything Time Off does that no request asks for (TOF-043), on BullMQ, as
+ * CLAUDE.md says for fire-and-forget work: nothing here waits on a person.
+ *
+ * Each job is a job scheduler, so one replica runs each tick, and each calls
+ * an application function with the injected clock for every tenant, one at a
+ * time; one tenant failing is logged and the rest still run. The functions
+ * are idempotent, so a retried or doubled tick posts and tells nothing twice.
+ *
+ * - **accrual**, 00:15 UTC on the 1st: the month's accrual, a new year's grant.
+ * - **year-end**, daily: carry-over in, below-zero carried, expiry after use-by.
+ * - **warnings**, 08:00 UTC on 1 October and 1 December: "use it or lose it".
+ * - **mark-taken**, daily: approved requests whose last day has passed.
+ * - **missed-punch**, hourly: the morning check for clock-outs nobody made.
+ * - **clock-out-reminder**, every 15 minutes: still in at 20:00, where they are.
  */
-export function wireBackground(): void {
-  // TOF-043.
+
+export const QUEUE_NAME = 'timeoff-jobs';
+
+type JobDeps = Pick<Deps, 'uow' | 'clock' | 'newId' | 'notifier'>;
+
+/** Each job by name, with when it runs. */
+export function jobs(
+  deps: JobDeps,
+): Record<
+  string,
+  { readonly pattern: string; readonly run: (tenantId: TenantId) => Promise<Result<unknown>> }
+> {
+  return {
+    accrual: { pattern: '15 0 1 * *', run: postAccruals(deps) },
+    'year-end': { pattern: '30 0 * * *', run: yearEnd(deps) },
+    warnings: { pattern: '0 8 1 10,12 *', run: balanceWarnings(deps) },
+    'mark-taken': { pattern: '45 0 * * *', run: markTakenDue(deps) },
+    'missed-punch': { pattern: '0 * * * *', run: missedPunchCheck(deps) },
+    'clock-out-reminder': { pattern: '*/15 * * * *', run: clockOutReminder(deps) },
+  };
+}
+
+/** One job across every tenant. */
+export async function runJob(
+  table: ReturnType<typeof jobs>,
+  name: string,
+  tenants: readonly TenantId[],
+): Promise<void> {
+  const job = table[name];
+  if (job === undefined) throw new Error(`No Time Off job called ${name}`);
+  for (const tenantId of tenants) {
+    try {
+      const result = await job.run(tenantId);
+      if (!result.ok) logger.warn({ job: name, tenantId, code: result.error.code }, 'job refused');
+    } catch (error) {
+      logger.error({ err: error, job: name, tenantId }, 'background job failed for a tenant');
+    }
+  }
+}
+
+export interface BackgroundDeps extends JobDeps {
+  /** Every tenant with Time Off data. */
+  readonly tenants: () => Promise<readonly TenantId[]>;
+}
+
+/** The queue, its schedulers and its worker. Null without `VALKEY_URL`. */
+export async function startBackground(
+  env: NodeJS.ProcessEnv,
+  deps: BackgroundDeps,
+): Promise<{ stop(): Promise<void> } | null> {
+  const url = env['VALKEY_URL'];
+  if (!url) {
+    logger.info({ module: 'timeoff' }, 'VALKEY_URL unset; no background jobs');
+    return null;
+  }
+  const connection = { url, maxRetriesPerRequest: null };
+  const table = jobs(deps);
+  const queue = new Queue(QUEUE_NAME, { connection });
+  await Promise.all(
+    Object.entries(table).map(([name, { pattern }]) =>
+      queue.upsertJobScheduler(`timeoff-${name}`, { pattern }, { name }),
+    ),
+  );
+  const worker = new Worker(
+    QUEUE_NAME,
+    async (job) => runJob(table, job.name, await deps.tenants()),
+    { connection, concurrency: 1 },
+  );
+  worker.on('failed', (job, cause) => {
+    logger.error({ module: 'timeoff', job: job?.name, err: cause }, 'background job failed');
+  });
+  return {
+    async stop() {
+      await worker.close();
+      await queue.close();
+    },
+  };
+}
+
+/**
+ * Called from `main.ts`. The jobs need the Drizzle unit of work, which is
+ * TOF-034's; until it lands there is nothing durable to run them against,
+ * and this says so rather than running them over memory.
+ */
+export function wireBackground(env = process.env, deps?: BackgroundDeps): void {
+  if (deps === undefined) {
+    logger.info({ module: 'timeoff' }, 'no Time Off storage yet (TOF-034); no background jobs');
+    return;
+  }
+  const started = startBackground(env, deps);
+  started.catch((error: unknown) => {
+    logger.error({ err: error }, 'timeoff background work failed to start');
+    process.exit(1);
+  });
+  onShutdown('background jobs', async () => (await started)?.stop());
 }
