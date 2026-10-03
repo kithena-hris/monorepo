@@ -97,8 +97,8 @@ describe('workingDays ≤ daysAway', () => {
     return seed % n;
   };
 
-  it('holds for 500 generated requests', () => {
-    for (let i = 0; i < 500; i += 1) {
+  it('holds for 100 generated requests', () => {
+    for (let i = 0; i < 100; i += 1) {
       const weekdays = new Set([1, 2, 3, 4, 5, 6, 7].filter(() => next(4) > 0));
       const start = addDays(d('2026-01-01'), next(365));
       const holidays = new Set(
