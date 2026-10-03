@@ -1171,10 +1171,18 @@ test passes, and it matches the design's screen on the seeded demo company.
   data Time Off does not have (balances by sign; contracts), so the page
   says what to check instead.
 
-### [ ] TOF-081 — Attendance rules
+### [x] TOF-081 — Attendance rules
 
 - **Screens** T33 · **Spec** PRD §11.5
 - **Depends on** TOF-078
+- **As built** `settings/attendance-settings.tsx`: breaks, rest and the
+  weekly maximum in the hours a form asks for (saved in minutes), and what
+  overtime becomes with its rate, behind `FormSaveBar`. "What Kithena never
+  records" is an `Alert` on the page. Ways to clock in lists the two Phase 1
+  has (web, mobile) and the office-area check as off, without switches:
+  readers and the kiosk are TOF-107 onwards, and reminders, automatic
+  clock-out and schedules other than the default have no rule in Time Off
+  yet, so the page shows the default schedule rather than a list to edit.
 
 ### [ ] TOF-082 — Approval rules and team minimums
 
