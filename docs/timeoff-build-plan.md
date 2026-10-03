@@ -1184,10 +1184,18 @@ test passes, and it matches the design's screen on the seeded demo company.
   clock-out and schedules other than the default have no rule in Time Off
   yet, so the page shows the default schedule rather than a list to edit.
 
-### [ ] TOF-082 — Approval rules and team minimums
+### [x] TOF-082 — Approval rules and team minimums
 
 - **Screens** T34 · **Spec** PRD §9.1, §9.3
 - **Depends on** TOF-078
+- **As built** `settings/approval-settings.tsx`: each rule as a field named
+  for what it covers ("Any request below zero", "Parental leave plans"),
+  its chain read as "Request → Manager → HR" and chosen from a `Select`;
+  automatic approval as checkboxes, the sick threshold a `NumberField`;
+  each team's minimum as none, people or a share. One save sends the rules
+  and only the minimums that changed (`saveApprovals`). Rules are edited,
+  not added or removed, and "If nobody decides" waits for the escalation
+  settings to be readable.
 
 ### [ ] TOF-083 — Holiday calendars
 
