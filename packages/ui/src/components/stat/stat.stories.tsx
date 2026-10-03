@@ -300,3 +300,22 @@ export const Inset: Story = {
     </div>
   ),
 };
+
+export const FromTo: Story = {
+  name: 'Before and after',
+  args: { label: 'Balance', value: '13', from: '18', unit: 'days' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`from` prints the value before a change, small, ahead of an arrow: what an action will do, previewed before it is taken. Read out as "From 18 to 13". A trend over time is `delta`, not this.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="grid max-w-md grid-cols-2 gap-3">
+      <Stat label={args.label} value={args.value} from={args.from} unit="days" />
+      <Stat label="Hours" value="-4" from="2" unit="h" inset />
+    </div>
+  ),
+};

@@ -106,7 +106,14 @@ export {
   formatIsoDate,
   parseIsoDate,
 } from './components/calendar/calendar';
-export type { CalendarProps, DateRange, IsoDate } from './components/calendar/calendar';
+export type {
+  CalendarDayStyle,
+  CalendarMarker,
+  CalendarProps,
+  CalendarTone,
+  DateRange,
+  IsoDate,
+} from './components/calendar/calendar';
 
 export {
   ChatComposer,
@@ -201,6 +208,9 @@ export type { BinOptions, HistogramBin } from './components/chart/geometry';
 
 export { CohortChart } from './components/chart/cohort-chart';
 export type { CohortChartProps, CohortRow } from './components/chart/cohort-chart';
+
+export { RangeBar } from './components/chart/range-bar';
+export type { RangeBarProps, RangeBarSegment } from './components/chart/range-bar';
 
 export { BulletChart } from './components/chart/bullet-chart';
 export type { BulletChartProps, BulletMeasure } from './components/chart/bullet-chart';
@@ -542,7 +552,11 @@ export type { RevealProps } from './components/reveal/reveal';
 
 export { RichTextContent, RichTextEditor } from './components/rich-text/rich-text';
 export type { RichTextEditorProps, RichTextGroup } from './components/rich-text/rich-text';
-export type { CircularProgressProps, ProgressProps } from './components/progress/progress';
+export type {
+  CircularProgressProps,
+  ProgressProps,
+  ProgressSegment,
+} from './components/progress/progress';
 
 export { RadioCard, RadioGroup, RadioGroupItem } from './components/radio-group/radio-group';
 
@@ -737,6 +751,8 @@ export type {
   SchedulerColumn,
   SchedulerEvent,
   SchedulerProps,
+  SchedulerRow,
+  SchedulerSummaryRow,
   SchedulerTone,
 } from './components/scheduler/scheduler';
 export { dayColumns, formatMinutes } from './components/scheduler/scheduler-model';

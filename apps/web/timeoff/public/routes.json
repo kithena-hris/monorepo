@@ -1,0 +1,197 @@
+{
+  "routes": [
+    { "path": "/time-off/overview", "component": "Overview" },
+    { "path": "/time-off/request", "component": "RequestTimeOff" },
+    { "path": "/time-off/request/describe", "component": "DescribeRequest" },
+    { "path": "/time-off/requests/upcoming", "component": "MyRequests" },
+    { "path": "/time-off/requests/past", "component": "MyRequests" },
+    { "path": "/time-off/requests/cancelled", "component": "MyRequests" },
+    { "path": "/time-off/requests/:id", "component": "RequestDetail" },
+    { "path": "/time-off/approvals/waiting", "component": "Approvals" },
+    { "path": "/time-off/approvals/coming-up", "component": "Approvals" },
+    { "path": "/time-off/approvals/decided", "component": "Approvals" },
+    { "path": "/time-off/approvals/delegation", "component": "Approvals" },
+    { "path": "/time-off/calendar/month", "component": "TeamCalendar" },
+    { "path": "/time-off/calendar/timeline", "component": "TeamCalendar" },
+    { "path": "/time-off/calendar/year", "component": "TeamCalendar" },
+    { "path": "/time-off/attendance/timesheet", "component": "Attendance" },
+    { "path": "/time-off/attendance/requests", "component": "Attendance" },
+    { "path": "/time-off/attendance/schedule", "component": "Attendance" },
+    { "path": "/time-off/attendance/now", "component": "Attendance" },
+    { "path": "/time-off/attendance/timesheets", "component": "Attendance" },
+    { "path": "/time-off/attendance/exceptions", "component": "Attendance" },
+    { "path": "/time-off/attendance/pay-period", "component": "Attendance" },
+    { "path": "/time-off/balances/:type", "component": "Balance" },
+    { "path": "/time-off/holidays/:year", "component": "Holidays" },
+    { "path": "/time-off/parental/:step", "component": "ParentalPlan" },
+    { "path": "/time-off/parental/cases/:id", "component": "ParentalCase" },
+    { "path": "/time-off/insights/what-changed", "component": "Insights" },
+    { "path": "/time-off/insights/time-off", "component": "Insights" },
+    { "path": "/time-off/insights/attendance", "component": "Insights" },
+    { "path": "/time-off/insights/balances", "component": "Insights" },
+    { "path": "/settings/time-off/leave-types", "component": "LeaveTypes" },
+    { "path": "/settings/time-off/leave-types/:id", "component": "LeaveType" },
+    { "path": "/settings/time-off/leave-types/new/describe", "component": "DescribePolicy" },
+    { "path": "/settings/time-off/holidays", "component": "HolidaySettings" },
+    { "path": "/settings/time-off/holidays/:year", "component": "HolidaySettings" },
+    { "path": "/settings/time-off/negative-balance", "component": "NegativeBalance" },
+    { "path": "/settings/time-off/attendance", "component": "AttendanceSettings" },
+    { "path": "/settings/time-off/approvals", "component": "ApprovalSettings" },
+    { "path": "/settings/time-off/integrations", "component": "Integrations" }
+  ],
+  "actions": [
+    {
+      "path": "/time-off/request",
+      "label": "Request time off",
+      "icon": "add",
+      "owns": ["/time-off/request/describe"],
+      "on": [
+        "/time-off/overview",
+        "/time-off/requests/upcoming",
+        "/time-off/requests/past",
+        "/time-off/requests/cancelled",
+        "/time-off/calendar/month",
+        "/time-off/calendar/timeline",
+        "/time-off/calendar/year"
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "path": "/time-off/overview",
+      "label": "Overview",
+      "group": "Time off",
+      "icon": "overview",
+      "description": "Your balances, the clock, what is coming up and who is away",
+      "summary": "Balances and what is coming up",
+      "owns": ["/time-off/balances/:type", "/time-off/holidays/:year", "/time-off/parental/:step"]
+    },
+    {
+      "path": "/time-off/calendar/month",
+      "label": "Calendar",
+      "group": "Time off",
+      "icon": "calendar",
+      "description": "Who is away, by month, as a timeline or across the year",
+      "summary": "Who is away, and when",
+      "tabs": [
+        { "path": "/time-off/calendar/month", "label": "Month" },
+        { "path": "/time-off/calendar/timeline", "label": "Timeline" },
+        { "path": "/time-off/calendar/year", "label": "Year" }
+      ]
+    },
+    {
+      "path": "/time-off/approvals/waiting",
+      "label": "Requests",
+      "group": "Time off",
+      "icon": "approve",
+      "description": "Requests waiting for a decision, and your own",
+      "summary": "Decisions and your own requests",
+      "owns": ["/time-off/requests/:id", "/time-off/parental/cases/:id"],
+      "tabs": [
+        {
+          "path": "/time-off/approvals/waiting",
+          "label": "Waiting for me",
+          "short": "Waiting",
+          "for": ["manager", "hr"]
+        },
+        { "path": "/time-off/approvals/coming-up", "label": "Coming up", "for": ["manager", "hr"] },
+        { "path": "/time-off/approvals/decided", "label": "Decided", "for": ["manager", "hr"] },
+        {
+          "path": "/time-off/approvals/delegation",
+          "label": "Delegation",
+          "for": ["manager", "hr"]
+        },
+        { "path": "/time-off/requests/upcoming", "label": "Upcoming" },
+        { "path": "/time-off/requests/past", "label": "Past" },
+        { "path": "/time-off/requests/cancelled", "label": "Cancelled" }
+      ]
+    },
+    {
+      "path": "/time-off/attendance/now",
+      "label": "Attendance",
+      "group": "Time off",
+      "icon": "scheduled",
+      "description": "Your timesheet and schedule; for managers and HR, who is in and what needs fixing",
+      "summary": "Timesheets and schedules",
+      "tabs": [
+        { "path": "/time-off/attendance/now", "label": "Right now", "for": ["manager", "hr"] },
+        { "path": "/time-off/attendance/timesheet", "label": "My timesheet", "short": "Mine" },
+        {
+          "path": "/time-off/attendance/timesheets",
+          "label": "Timesheets",
+          "for": ["manager", "hr"]
+        },
+        { "path": "/time-off/attendance/requests", "label": "Requests" },
+        { "path": "/time-off/attendance/schedule", "label": "Schedule" },
+        { "path": "/time-off/attendance/exceptions", "label": "Exceptions", "for": ["hr"] },
+        {
+          "path": "/time-off/attendance/pay-period",
+          "label": "Pay period",
+          "short": "Period",
+          "for": ["hr"]
+        }
+      ]
+    },
+    {
+      "path": "/time-off/insights/what-changed",
+      "label": "Insights",
+      "group": "Time off",
+      "for": ["manager", "hr"],
+      "icon": "analytics",
+      "description": "Unbooked days, people who have not had a break, and attendance trends",
+      "summary": "Trends across the company",
+      "tabs": [
+        { "path": "/time-off/insights/what-changed", "label": "What changed" },
+        { "path": "/time-off/insights/time-off", "label": "Time off" },
+        { "path": "/time-off/insights/attendance", "label": "Attendance" },
+        { "path": "/time-off/insights/balances", "label": "Balances" }
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "path": "/settings/time-off/leave-types",
+      "label": "Leave types",
+      "for": ["hr", "admin"],
+      "owns": ["/settings/time-off/leave-types/:id", "/settings/time-off/leave-types/new/describe"],
+      "description": "The kinds of time off people can request, and how each one is paid and approved.",
+      "icon": "leave"
+    },
+    {
+      "path": "/settings/time-off/holidays",
+      "label": "Holidays",
+      "for": ["hr", "admin"],
+      "owns": ["/settings/time-off/holidays/:year"],
+      "description": "The public holidays each location keeps, year by year.",
+      "icon": "calendar"
+    },
+    {
+      "path": "/settings/time-off/negative-balance",
+      "label": "Negative balance",
+      "for": ["hr", "admin"],
+      "description": "What happens when someone books more than they have earned.",
+      "icon": "adjust"
+    },
+    {
+      "path": "/settings/time-off/attendance",
+      "label": "Attendance",
+      "for": ["hr", "admin"],
+      "description": "Schedules, breaks, overtime and how clocking in works.",
+      "icon": "scheduled"
+    },
+    {
+      "path": "/settings/time-off/approvals",
+      "label": "Approvals",
+      "for": ["hr", "admin"],
+      "description": "Who approves what, cover minimums and when a request escalates.",
+      "icon": "approve"
+    },
+    {
+      "path": "/settings/time-off/integrations",
+      "label": "Integrations",
+      "for": ["admin"],
+      "description": "Calendars, chat apps and badge readers.",
+      "icon": "link"
+    }
+  ]
+}

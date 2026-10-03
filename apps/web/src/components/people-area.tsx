@@ -10,8 +10,8 @@ import {
   currentPlace,
   firstUnder,
   headerFrame,
-  peopleRoute,
   placesFor,
+  remoteRoute,
   siblingsOf,
 } from '../lib/remotes';
 import { shellData } from '../lib/shell';
@@ -45,7 +45,7 @@ export async function PeopleArea({
 }): Promise<JSX.Element> {
   // All three at once: which screen the path is does not depend on who asks,
   // and the token is minted (or found) while identity checks the session.
-  const [person, route] = await Promise.all([currentPerson(), peopleRoute(path), accessToken()]);
+  const [person, route] = await Promise.all([currentPerson(), remoteRoute(path), accessToken()]);
   if (person === null) redirect('/login');
   // A company that did not buy People has no People screens (PEO-114).
   if (!person.entitlements.includes('module.people')) notFound();
@@ -75,9 +75,7 @@ export async function PeopleArea({
     route === null
       ? ({ status: 'none' } as const)
       : loadScreen(route.component, { params: route.params, search }),
-    route === null || process.env['PEOPLE_REMOTE_SSR'] === 'off'
-      ? undefined
-      : prepareRemoteSsr(route.base),
+    route === null ? undefined : prepareRemoteSsr(route.base, route.area),
     // Which of People's places this person's roles open, the counts and the
     // notices, for the shell around the screen.
     shellData(person.entitlements),

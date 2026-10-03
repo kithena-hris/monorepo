@@ -5,6 +5,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { useId, type ComponentPropsWithoutRef, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { bgTone, type ChartTone } from '../chart/chart';
 
 /**
  * Determinate and indeterminate progress.
@@ -41,6 +42,20 @@ const fill = cva('h-full w-full flex-1 rounded-full transition-transform', {
   defaultVariants: { tone: 'accent' },
 });
 
+/** One share of a segmented bar. */
+export interface ProgressSegment {
+  value: number;
+  /** Printed under the bar with `showValue`, and read out: "4 used". */
+  label: string;
+  /** Defaults to `chart-1`, so a hatched share reads as more of the same thing. */
+  tone?: ChartTone;
+  /**
+   * `hatched` stripes the share: something counted but not final yet, such as
+   * an amount committed but not spent. The label still has to say so.
+   */
+  pattern?: 'hatched';
+}
+
 export interface ProgressProps
   extends
     Omit<ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>, 'value'>,
@@ -59,6 +74,13 @@ export interface ProgressProps
    * the bar already shows the proportion.
    */
   valueLabel?: string;
+  /**
+   * Several shares of one total side by side, in place of `value`: spent and
+   * committed, done and in review. Each is a width of `max`; whatever is left
+   * is the track. With `showValue` the segment labels print under the bar and
+   * `valueLabel` closes the line.
+   */
+  segments?: readonly ProgressSegment[];
 }
 
 export function Progress({
@@ -70,12 +92,27 @@ export function Progress({
   label,
   showValue = false,
   valueLabel,
+  segments,
   ...props
 }: ProgressProps): JSX.Element {
+  const labelId = useId();
+  if (segments) {
+    return (
+      <SegmentedProgress
+        className={className}
+        segments={segments}
+        max={max}
+        size={size}
+        label={label}
+        showValue={showValue}
+        valueLabel={valueLabel}
+      />
+    );
+  }
+
   const indeterminate = value === null;
   const raw = indeterminate ? 0 : (value / max) * 100;
   const percent = indeterminate ? 0 : Math.min(100, Math.max(0, raw));
-  const labelId = useId();
 
   return (
     <div className="w-full">
@@ -115,6 +152,66 @@ export function Progress({
           />
         )}
       </ProgressPrimitive.Root>
+    </div>
+  );
+}
+
+/**
+ * Not a `progressbar`: that role has one value, and this has several. It is an
+ * image whose name is the whole sentence, "Allowance: 4 used, 2 committed, 25
+ * in total", because a list of widths says nothing to a screen reader.
+ */
+function SegmentedProgress({
+  className,
+  segments,
+  max,
+  size,
+  label,
+  showValue,
+  valueLabel,
+}: {
+  className: string | undefined;
+  segments: readonly ProgressSegment[];
+  max: number;
+  size: ProgressProps['size'];
+  label: string;
+  showValue: boolean;
+  valueLabel: string | undefined;
+}): JSX.Element {
+  const parts = segments.map((segment) => segment.label);
+  const spoken = `${label}: ${[...parts, ...(valueLabel ? [valueLabel] : [])].join(', ')}`;
+
+  return (
+    <div className="w-full">
+      <div
+        role="img"
+        aria-label={spoken}
+        // A hairline gap between shares, so two neighbouring tones never
+        // read as one longer bar.
+        className={cn(track({ size }), 'flex gap-0.5', className)}
+      >
+        {segments.map((segment) => (
+          <span
+            key={segment.label}
+            className={cn(
+              'h-full shrink-0',
+              bgTone[segment.tone ?? 'chart-1'],
+              segment.pattern === 'hatched' && 'pattern-hatched',
+            )}
+            style={{
+              width: `${String(Math.min(100, Math.max(0, (segment.value / (max || 1)) * 100)))}%`,
+            }}
+          />
+        ))}
+      </div>
+      {showValue ? (
+        <div aria-hidden className="mt-2 flex gap-3 text-xs leading-none text-fg-subtle">
+          {parts.map((part) => (
+            <span key={part}>{part}</span>
+          ))}
+          {valueLabel ? <span className="ms-auto">{valueLabel}</span> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

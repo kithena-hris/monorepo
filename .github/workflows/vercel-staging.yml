@@ -708,6 +708,8 @@ jobs:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_WEB_PROJECT_ID }}
           PEOPLE_REMOTE_URL: ${{ vars.PEOPLE_REMOTE_URL_STAGING }}
           PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING }}
+          TIMEOFF_REMOTE_URL: ${{ vars.TIMEOFF_REMOTE_URL_STAGING }}
+          TIMEOFF_REMOTE_SSR_PUBLIC_KEY: ${{ vars.TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING }}
           ROUTER_URL: ${{ vars.ROUTER_URL_STAGING }}
         run: |
           # `pipefail`, because this pipes into `tail`: without it the status
@@ -717,6 +719,8 @@ jobs:
           args=(--yes --archive=tgz --token "$VERCEL_TOKEN")
           [ -n "$PEOPLE_REMOTE_URL" ] && args+=(--env "PEOPLE_REMOTE_URL=$PEOPLE_REMOTE_URL")
           [ -n "$PEOPLE_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "PEOPLE_REMOTE_SSR_PUBLIC_KEY=$PEOPLE_REMOTE_SSR_PUBLIC_KEY")
+          [ -n "$TIMEOFF_REMOTE_URL" ] && args+=(--env "TIMEOFF_REMOTE_URL=$TIMEOFF_REMOTE_URL")
+          [ -n "$TIMEOFF_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "TIMEOFF_REMOTE_SSR_PUBLIC_KEY=$TIMEOFF_REMOTE_SSR_PUBLIC_KEY")
           [ -n "$ROUTER_URL" ] && args+=(--env "ROUTER_URL=$ROUTER_URL")
           url="$(npx --yes "vercel@${VERCEL_CLI_VERSION}" deploy "${args[@]}" | tail -n 1)"
           if [ -z "$url" ]; then

@@ -92,6 +92,12 @@ export interface BadgeProps extends ComponentPropsWithoutRef<'span'>, VariantPro
    */
   dot?: boolean;
   /**
+   * The dot, ringing: something happening now, a live status. The ring loops
+   * under normal motion and plays once under reduced motion; the label still
+   * has to say it is live.
+   */
+  pulse?: boolean;
+  /**
    * Makes the badge a removable chip: an active filter, a chosen tag. The
    * button is a real one with its own name, because "×" read aloud is
    * "times", and a chip whose only exit is a pointer is a trap.
@@ -119,6 +125,7 @@ export function Badge({
   variant,
   size,
   dot = false,
+  pulse = false,
   onRemove,
   removeLabel,
   children,
@@ -126,11 +133,15 @@ export function Badge({
 }: BadgeProps): JSX.Element {
   return (
     <span className={cn(badge({ tone, variant, size }), onRemove && 'pe-1', className)} {...props}>
-      {dot ? (
+      {dot || pulse ? (
         <span
           className={cn(
             'size-1.5 shrink-0 rounded-full',
             variant === 'soft' || variant == null ? dotTone[tone ?? 'neutral'] : 'bg-current',
+            // The ring is the badge's own ink, thinned: green on a success
+            // badge, red on a danger one, with no per-tone table.
+            pulse &&
+              'motion-safe:animate-pulse-ring [--pulse-color:color-mix(in_oklch,currentColor_45%,transparent)]',
           )}
           aria-hidden="true"
         />
