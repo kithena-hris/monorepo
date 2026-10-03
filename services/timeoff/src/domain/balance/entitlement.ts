@@ -38,7 +38,7 @@ interface Month {
 }
 
 /** Whole years of service on a date. */
-function tenureOn(hire: CalendarDate, on: CalendarDate): number {
+export function tenureOn(hire: CalendarDate, on: CalendarDate): number {
   const years = Number(on.slice(0, 4)) - Number(hire.slice(0, 4));
   return on.slice(5) < hire.slice(5) ? years - 1 : years;
 }

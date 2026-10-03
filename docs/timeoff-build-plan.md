@@ -1091,7 +1091,7 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### Parental leave
 
-### [ ] TOF-100 — Parental entitlement (domain)
+### [x] TOF-100 — Parental entitlement (domain)
 
 - **Spec** PRD §12.1, §12.3 · **Files** `services/timeoff/src/domain/parental/`
 - **Depends on** TOF-028

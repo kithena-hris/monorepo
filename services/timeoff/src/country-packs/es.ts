@@ -241,6 +241,8 @@ const parental = {
   extraWeeks: { twoParents: 1, singleParent: 2 },
   /** Notice the employer is owed for each flexible block. */
   noticeDays: 15,
+  /** Art. 38.3: vacation accrues through the suspension and is taken afterwards, even in a later year. */
+  vacationAccrues: true,
   /** Art. 48 bis permiso parental, unpaid, before the child is 8. */
   unpaidWeeks: 8,
 } as const;
