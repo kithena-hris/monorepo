@@ -26,3 +26,4 @@ export * from './account-directory.js';
 export * from './module-roles.js';
 export * from './signup-questions.js';
 export * from './assistant/capability.js';
+export * from './assistant/people.js';

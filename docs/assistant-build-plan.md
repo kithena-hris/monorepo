@@ -127,7 +127,7 @@ answered }`, today's shape from `ask.ts`), which Slack and the assistant
   group, `ids`, `personIds`); every result has a `kind`; generic names are
   prefixed (`CapabilityFilter`, `NameAsTyped`, `ASSISTANT_LIMITS`).
 
-### [ ] AST-002 — People's capability contracts
+### [x] AST-002 — People's capability contracts
 
 - **Spec** PRD §7.4, §8, §16
 - **Files** `packages/contracts/src/assistant/people.ts` (+ test)
