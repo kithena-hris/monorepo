@@ -41,11 +41,17 @@ title.
    "Freelancer" a contractor, "WFH" remote), and a value the field lacks is
    added to its list ("FT" and "Full Time" both become one Full-time). A
    company without the field gets it with People's values and the file's.
-   The plan says it in one line ("Employment Type → Employment type; added
-   Full-time and Part-time"), the column counts as one to a field here, and
-   only an administrator's run changes the field. The columns keep only a
-   key's shape (`20261003090000_people_choice_columns.sql`); the published
-   options are the list.
+   The map step already shows the column going to Employment type, "Adds
+   Full-time, Part-time to the list": an administrator's mapping reads the
+   file against the version the plan will publish, People's field and its
+   new values in (`application/import/choice-fields.ts`), even before the
+   field is published. The plan says it in one line ("Employment Type →
+   Employment type; added Full-time and Part-time"), the column counts as
+   one to a field here, and only an administrator's run changes the field.
+   The columns keep only a key's shape
+   (`20261003090000_people_choice_columns.sql`); the published options are
+   the list, and a requiredness rule may name any of them, or People's own
+   (`checkRequirednessPredicate` in `domain/schema/draft.ts`).
 1. **Work locations in this file** (`?step=places`, still under Map columns
    in the stepper) appears when a column maps to Work location. The dry run
    lists each value the file holds (`domain/import/workplaces.ts`) with its
