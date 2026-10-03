@@ -27,3 +27,4 @@ export * from './module-roles.js';
 export * from './signup-questions.js';
 export * from './assistant/capability.js';
 export * from './assistant/people.js';
+export * from './assistant/timeoff.js';

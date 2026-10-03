@@ -141,7 +141,7 @@ answered }`, today's shape from `ask.ts`), which Slack and the assistant
 - **Done when** the tests parse a sample input and output for each and refuse a
   `people.managers` input without `personIds`.
 
-### [ ] AST-003 — Time Off's capability contracts
+### [x] AST-003 — Time Off's capability contracts
 
 - **Spec** PRD §7.1, §7.2, §7.5, §8.2, §8.4
 - **Files** `packages/contracts/src/assistant/timeoff.ts` (+ test)
@@ -154,6 +154,8 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `off_only`).
 - **Done when** the tests pass and a row's `detail` is classified
   special-category.
+- **As built** the entry is `CatalogueLeaveType`, and `isPrivateLeaveType()`
+  decides `private`; each capability declares its own yield.
 
 ### [ ] AST-004 — The plan and the catalogue
 
