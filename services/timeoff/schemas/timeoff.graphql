@@ -332,6 +332,7 @@ type TimeOffAlternative {
   coverage: [TimeOffCoverageDay!]!
   dates: [String!]!
   kind: String!
+  message: TimeOffWritten
   spans: [TimeOffRange!]!
   swapped: TimeOffAlternativeSwapped
   teammate: TimeOffPersonRef
@@ -359,6 +360,7 @@ type TimeOffApprovals {
   items: [TimeOffRequestItem!]!
   lookCloser: [TimeOffLookCloserItem!]!
   tab: String!
+  why: [TimeOffWhy!]!
 }
 
 type TimeOffAttendanceRules {
@@ -970,12 +972,14 @@ type TimeOffRequestDecision {
   balance: TimeOffRequestDecisionBalance
   belowMinimum: [TimeOffCoverageDay!]!
   canDecide: Boolean!
+  clash: TimeOffWritten
   lastTaken: TimeOffRange
   member: TimeOffMember!
   note: String
   othersOff: [TimeOffOtherOff!]!
   request: TimeOffRequestItem!
   triage: TimeOffRequestDecisionTriage!
+  whatToKnow: TimeOffWritten!
 }
 
 type TimeOffRequestDecisionBalance {
@@ -1216,6 +1220,11 @@ type TimeOffWhoIsOff {
   leaveTypeKey: String
   personId: String!
   span: TimeOffSpan!
+}
+
+type TimeOffWhy {
+  requestId: String!
+  text: TimeOffWritten!
 }
 
 type TimeOffWritten {

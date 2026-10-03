@@ -343,6 +343,8 @@ export const ApprovalsView = named(
       named('TimeOffLookCloserItem', z.object({ item: RequestItem, reason: LookCloserReason })),
     ),
     items: z.array(RequestItem),
+    /** Waiting for me: each request's one line, clear or not (TOF-086). */
+    why: z.array(named('TimeOffWhy', z.object({ requestId: z.uuid(), text: WrittenView }))),
   }),
 );
 
@@ -394,9 +396,15 @@ export const DecisionView = named(
           /** `ask_teammate`: whose approved time off would move, and which. */
           teammate: PersonRef.nullable(),
           absence: RangeView.nullable(),
+          /** The requester's own options: the message to send with them, editable (TOF-088). */
+          message: WrittenView.nullable(),
         }),
       ),
     ),
+    /** What to know's closing line: whether it might be fine, and on what (TOF-087). */
+    whatToKnow: WrittenView,
+    /** Why a clash matters and what fixing it costs (T15, TOF-088); `null` with nothing to fix. */
+    clash: WrittenView.nullable(),
   }),
 );
 

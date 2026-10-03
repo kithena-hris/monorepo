@@ -1500,17 +1500,33 @@ test passes, and it matches the design's screen on the seeded demo company.
   ahead, templated. The card shows `used → away` and the AI tag only when a
   line was the model's.
 
-### [ ] TOF-086 — Reasons in the approvals queue
+### [x] TOF-086 — Reasons in the approvals queue
 
 - **Screens** T16, MT15 · **Depends on** TOF-084, TOF-068
+- **As built** `timeOffApprovals` carries `why`, one line per waiting request,
+  clear or not (`assist/reasons.ts`): the rule's numbers — what is left
+  after, the team's worst day (`teamCoverage`, split out of `teamBelow`), the
+  days below the minimum — in the model's words, each requester a
+  placeholder, or the template ("Wed 21 Oct: 4 of 7 in, below the 5 the team
+  needs."). Sick leave is never shown to a model. The screen's own templates
+  are gone; a row is tagged AI only when its line was the model's.
 
-### [ ] TOF-087 — What to know
+### [x] TOF-087 — What to know
 
 - **Screens** T17, MT16 · **Depends on** TOF-084, TOF-069
+- **As built** The card's facts stay the domain's, drawn by the screen; its
+  closing line is `whatToKnow` on `timeOffRequestDecision`
+  (`assist/decision.ts`), from the worst day, the balance after and the last
+  break, the requester `{who}`, teammates only a count, the note never sent.
 
-### [ ] TOF-088 — Counter-proposal message and clash explanation
+### [x] TOF-088 — Counter-proposal message and clash explanation
 
 - **Screens** T15, T18 · **Depends on** TOF-084, TOF-070, TOF-073
+- **As built** In the same call as TOF-087: `clash` (why it matters and how
+  many fixes keep the minimum) and a `message` on each of the requester's own
+  alternatives. Dates picked by hand in T18 keep the screen's template, since
+  Time Off never saw them. Committed with TOF-086 and TOF-087, which share
+  the decision view.
 
 ### [ ] TOF-089 — Missed clock-out suggestion
 

@@ -27,7 +27,7 @@ export const OPERATIONS = {
   /** T16: waiting for the caller (clear and look closer), coming up, or decided */
   TimeOffApprovals: `query TimeOffApprovals($tab: String) {
     timeOffApprovals(tab: $tab) {
-      clear { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } items { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } lookCloser { item { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } reason { amount days rule } } tab
+      clear { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } items { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } lookCloser { item { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } reason { amount days rule } } tab why { requestId text { ai text } }
     }
   }`,
 
@@ -160,7 +160,7 @@ export const OPERATIONS = {
   /** T17: one request with the balance, the team and the rule an approver weighs */
   TimeOffRequestDecision: `query TimeOffRequestDecision($requestId: String!) {
     timeOffRequestDecision(requestId: $requestId) {
-      alternatives { absence { from to } affects coverage { below checked date in of required } dates kind spans { from to } swapped { in out } teammate { displayName personId } } balance { after before } belowMinimum { below checked date in of required } canDecide lastTaken { from to } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } note othersOff { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } triage { group reason { amount days rule } }
+      alternatives { absence { from to } affects coverage { below checked date in of required } dates kind message { ai text } spans { from to } swapped { in out } teammate { displayName personId } } balance { after before } belowMinimum { below checked date in of required } canDecide clash { ai text } lastTaken { from to } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } note othersOff { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } triage { group reason { amount days rule } } whatToKnow { ai text }
     }
   }`,
 

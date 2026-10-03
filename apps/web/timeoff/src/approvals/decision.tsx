@@ -34,6 +34,7 @@ import {
   type Range,
   type RequestItem,
   type Span,
+  type Written,
 } from './words';
 
 /**
@@ -56,6 +57,8 @@ export interface Alternative {
   readonly swapped: { readonly out: readonly string[]; readonly in: readonly string[] } | null;
   readonly teammate: { readonly personId: string; readonly displayName: string } | null;
   readonly absence: Range | null;
+  /** The requester's own options: the message to send with them (TOF-088). */
+  readonly message: Written | null;
 }
 
 export interface DecisionData {
@@ -82,6 +85,10 @@ export interface DecisionData {
   readonly canDecide: boolean;
   readonly lastTaken: Range | null;
   readonly alternatives: readonly Alternative[];
+  /** What to know's closing line (TOF-087). */
+  readonly whatToKnow: Written;
+  /** Why the clash matters and what fixing it costs (T15, TOF-088); `null` with nothing to fix. */
+  readonly clash: Written | null;
   /** The member's team around the dates, when they are on one. */
   readonly team: CalendarView | null;
 }
@@ -246,14 +253,24 @@ export function Decision({
   );
 }
 
+/** On a line a model wrote, and only there (§14.1). */
+export function AiTag(): JSX.Element {
+  return (
+    <Badge tone="assistant" size="sm">
+      AI
+    </Badge>
+  );
+}
+
 /** "Wed 21 for Mon 26". */
 export const swapWords = (swapped: NonNullable<Alternative['swapped']>): string =>
   `${listOf(swapped.out.map(dayName))} for ${listOf(swapped.in.map(dayName))}`;
 
 /**
  * What to know (T17's card): the days the team falls short and who is off
- * then, the balance after, the last break, and a closing line on why it
- * might be fine. Templated from the domain's numbers until TOF-087.
+ * then, the balance after, the last break, all from the domain's numbers,
+ * and Time Off's closing line on why it might be fine (TOF-087), tagged AI
+ * only when a model wrote it.
  */
 function WhatToKnow({ data }: { readonly data: DecisionData }): JSX.Element {
   const who = firstName(data.member.displayName);
@@ -261,11 +278,11 @@ function WhatToKnow({ data }: { readonly data: DecisionData }): JSX.Element {
     data.othersOff
       .filter((o) => o.span.from <= date && date <= o.span.to)
       .map((o) => firstName(o.displayName));
-  const worst = data.belowMinimum.toSorted((a, b) => a.in - b.in)[0];
   const after = data.balance === null ? null : Number(data.balance.after);
   return (
     <AssistantCard
       title="What to know"
+      action={data.whatToKnow.ai ? <AiTag /> : undefined}
       note="Written from the balance and the team calendar. The decision is yours."
     >
       <IconList>
@@ -300,11 +317,7 @@ function WhatToKnow({ data }: { readonly data: DecisionData }): JSX.Element {
           </IconListItem>
         )}
       </IconList>
-      <p className="text-sm text-fg-muted">
-        {worst === undefined
-          ? 'This looks fine: the team stays at its minimum and the balance covers it.'
-          : `This might be fine if ${String(worst.in)} people can cover on ${dayName(worst.date)}.`}
-      </p>
+      <p className="text-sm text-fg-muted">{data.whatToKnow.text}</p>
     </AssistantCard>
   );
 }
