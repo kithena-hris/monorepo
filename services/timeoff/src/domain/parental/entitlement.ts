@@ -92,7 +92,7 @@ export function parentalEntitlement(a: EntitlementAnswers): ParentalEntitlement 
         : a.childDate,
     paidBy: pack.paidBy,
     payPercent: pack.payPercent,
-    companyWeeks: served ? (a.company?.extraWeeks ?? 0) : 0,
+    companyWeeks: served ? a.company.extraWeeks : 0,
     vacationAccrues: pack.vacationAccrues,
     noticeDays: pack.noticeDays,
   };

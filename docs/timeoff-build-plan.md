@@ -1097,7 +1097,7 @@ test passes, and it matches the design's screen on the seeded demo company.
 - **Depends on** TOF-028
 - **Done when** Adam's answers give 6 + 11 + 2 weeks and Acme's 2 weeks.
 
-### [ ] TOF-101 — The plan and its validation (domain)
+### [x] TOF-101 — The plan and its validation (domain)
 
 - **Spec** PRD §12.2 · **Depends on** TOF-100
 - **Done when** a block of 10 days is refused (whole weeks), a flexible block
