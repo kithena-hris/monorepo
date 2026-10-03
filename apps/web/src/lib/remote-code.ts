@@ -2,7 +2,7 @@ import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto
 import { z } from 'zod';
 
 import { renderRemote, warmRenderer } from './remote-render';
-import { REMOTE_PATH } from './remotes';
+import { AREAS, remotePath, type Area } from './remotes';
 import { timed } from './timing';
 
 /*
@@ -12,7 +12,8 @@ import { timed } from './timing';
  * **What is checked.** The remote's deploy pipeline signs a manifest of the
  * build's SHA-384 hashes, SRI-style, with a key only that pipeline holds
  * (`apps/web/people/scripts/sign-ssr.mjs`). The shell pins the matching
- * public key in its own configuration, `PEOPLE_REMOTE_SSR_PUBLIC_KEY`, and
+ * public key in its own configuration, one per remote
+ * (`PEOPLE_REMOTE_SSR_PUBLIC_KEY`, `TIMEOFF_REMOTE_SSR_PUBLIC_KEY`), and
  * renders only a build whose bytes match a manifest that key signed. The
  * remote's host serves the three files and is trusted for none of them: it
  * can withhold a build, never substitute one. A redeploy of the remote signs
@@ -23,13 +24,14 @@ import { timed } from './timing';
  *
  * Every failure — no key, the remote down, a bad signature, a hash that does
  * not match — leaves `prepareRemoteSsr` returning `undefined` and the screen
- * rendered in the browser, as it was before PEO-094.
+ * rendered in the browser, as it was before PEO-094. So does
+ * `<env>_REMOTE_SSR=off`, the switch.
  */
 
 const Sri = z.string().regex(/^sha384-[A-Za-z0-9+/]{64}$/);
-const Manifest = z.object({
-  files: z.object({ 'people.cjs': Sri, 'people.css': Sri }),
-});
+/** The signed manifest of the remote named `name`: its `<name>.cjs` and `<name>.css`. */
+const manifestOf = (name: string) =>
+  z.object({ files: z.object({ [`${name}.cjs`]: Sri, [`${name}.css`]: Sri }) });
 
 export type Verdict =
   | { readonly ok: true; readonly sha: string; readonly stylesheet: string }
@@ -49,6 +51,7 @@ export function verifyBuild(
   manifest: string,
   signature: string,
   code: string,
+  name: string = AREAS.people.name,
 ): Verdict {
   const actual = sri(code);
   let signed = false;
@@ -58,17 +61,19 @@ export function verifyBuild(
     signed = false;
   }
   if (!signed) return { ok: false, reason: 'the manifest is not signed by the pinned key', actual };
-  let parsed: z.infer<typeof Manifest>;
+  let files: Record<string, string>;
   try {
-    parsed = Manifest.parse(JSON.parse(manifest));
+    files = manifestOf(name).parse(JSON.parse(manifest)).files;
   } catch {
     return { ok: false, reason: 'the signed manifest is not one the shell reads', actual };
   }
-  const expected = parsed.files['people.cjs'];
+  // Both are there: the parse above requires them.
+  const expected = files[`${name}.cjs`] ?? '';
+  const stylesheet = files[`${name}.css`] ?? '';
   if (actual !== expected) {
     return { ok: false, reason: 'the server build does not match its manifest', expected, actual };
   }
-  return { ok: true, sha: actual, stylesheet: parsed.files['people.css'] };
+  return { ok: true, sha: actual, stylesheet };
 }
 
 /** The pinned key, or `undefined` when none is configured or it does not parse. */
@@ -144,11 +149,17 @@ export interface PreparedSsr {
  * for rendering if and only if it verifies. Fetched before the page renders,
  * so the render never waits on the network.
  */
-export async function prepareRemoteSsr(base: string): Promise<PreparedSsr | undefined> {
-  const url = `${base}/ssr/people.cjs`;
-  const key = pinnedKey(process.env['PEOPLE_REMOTE_SSR_PUBLIC_KEY']);
+export async function prepareRemoteSsr(
+  base: string,
+  area: Area = AREAS.people,
+): Promise<PreparedSsr | undefined> {
+  if (process.env[`${area.env}_REMOTE_SSR`] === 'off') return undefined;
+  const { name } = area;
+  const url = `${base}/ssr/${name}.cjs`;
+  const pin = `${area.env}_REMOTE_SSR_PUBLIC_KEY`;
+  const key = pinnedKey(process.env[pin]);
   if (key === undefined) {
-    refuse({ ok: false, reason: 'PEOPLE_REMOTE_SSR_PUBLIC_KEY is not an Ed25519 key' }, url);
+    refuse({ ok: false, reason: `${pin} is not an Ed25519 key` }, url);
     return undefined;
   }
   const [code, manifest, signature] = await timed(
@@ -161,16 +172,17 @@ export async function prepareRemoteSsr(base: string): Promise<PreparedSsr | unde
   );
   // Down, slow or not deployed with a server build: nothing to say.
   if (code === undefined || manifest === undefined || signature === undefined) return undefined;
-  const verdict = verifyBuild(key, manifest, signature, code);
+  const verdict = verifyBuild(key, manifest, signature, code, name);
   if (!verdict.ok) {
     refuse(verdict, url);
     return undefined;
   }
   verified.set(url, { code, sha: verdict.sha });
-  warmRenderer(code, verdict.sha);
+  // The remote's own renderer, under the id prefix its screens render with.
+  warmRenderer(code, verdict.sha, `${name}-`);
   return {
     ssr: url,
     // For the browser, on the company's own host like the rest of the remote.
-    stylesheet: { href: `${REMOTE_PATH}/ssr/people.css`, integrity: verdict.stylesheet },
+    stylesheet: { href: `${remotePath(area)}/ssr/${name}.css`, integrity: verdict.stylesheet },
   };
 }

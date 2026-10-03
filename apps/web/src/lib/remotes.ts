@@ -244,10 +244,12 @@ export function siblingsOf(
 }
 
 export interface RemoteRoute {
-  /** The remote's `remoteEntry.js`, loaded by the browser: on this host, under `REMOTE_PATH`. */
+  /** The remote's `remoteEntry.js`, loaded by the browser: on this host, under `remotePath`. */
   readonly entry: string;
   /** Where the remote is deployed, which the server reads its manifest and server build from. */
   readonly base: string;
+  /** Whose remote it is. */
+  readonly area: Area;
   /** The export of the remote's `index.ts` that renders this path. */
   readonly component: string;
   /** The manifest route that matched, as written there: `/people/:id`. */
@@ -327,12 +329,54 @@ export function matchPath(
   return undefined;
 }
 
-/** Where the People remote is deployed: what the server fetches, and what `REMOTE_PATH` forwards to. */
-export const remoteBase = (): string =>
-  (process.env['PEOPLE_REMOTE_URL'] ?? 'http://localhost:3002').replace(/\/$/, '');
+/**
+ * The remotes the shell loads, each an area of the app: the paths it owns, its
+ * settings under Settings, the entitlement that opens it, and the prefix of its
+ * runtime configuration — `<env>_REMOTE_URL`, `<env>_REMOTE_SSR_PUBLIC_KEY`
+ * and `<env>_REMOTE_SSR=off`. A second remote is an entry here and its
+ * configuration; nothing else in the plumbing names one.
+ *
+ * `name` is the federation name the remote is built with, and names its
+ * server build (`ssr/<name>.cjs`). `dev` is where it runs locally when its URL
+ * is unset; without one, an unset URL is an area that is not available.
+ */
+export const AREAS = {
+  people: {
+    name: 'people',
+    label: 'People',
+    home: '/people',
+    settings: '/settings/people',
+    entitlement: 'module.people',
+    env: 'PEOPLE',
+    dev: 'http://localhost:3002',
+  },
+  timeoff: {
+    name: 'timeoff',
+    label: 'Time off',
+    home: '/time-off',
+    settings: '/settings/time-off',
+    entitlement: 'module.timeoff',
+    env: 'TIMEOFF',
+    dev: undefined,
+  },
+} as const;
+export type Area = (typeof AREAS)[keyof typeof AREAS];
+
+const under = (path: string, prefix: string): boolean =>
+  path === prefix || path.startsWith(`${prefix}/`);
+
+/** The area whose remote answers `path`, among its screens or its settings. */
+export const areaOf = (path: string): Area | undefined =>
+  Object.values(AREAS).find((a) => under(path, a.home) || under(path, a.settings));
+
+/** Where an area's remote is deployed: what the server fetches, and what `remotePath` forwards to. */
+export function remoteBase(area: Area): string | undefined {
+  const url = process.env[`${area.env}_REMOTE_URL`];
+  return (url === undefined || url === '' ? area.dev : url)?.replace(/\/$/, '');
+}
 
 /**
- * Where the browser loads the People remote from: a path on the company's own
+ * Where the browser loads an area's remote from: a path on the company's own
  * host, which `proxy.ts` forwards to `remoteBase()`.
  *
  * Same-origin, so CORS never applies. Every company is a subdomain of one
@@ -345,17 +389,21 @@ export const remoteBase = (): string =>
  * stylesheet follow `remoteEntry.js` here. `_` because a Next folder starting
  * with one is never a route.
  */
-export const REMOTE_PATH = '/_people';
+export const remotePath = (area: Area): string => `/_${area.name}`;
 
 /**
- * The People remote's screen for `path`.
+ * The screen for `path`, from the manifest of the remote whose area it is.
  *
- * `null` when the remote cannot be reached or answers with something that is
- * not a manifest: the shell still renders, and says the area is unavailable,
- * rather than failing the whole page because one module is down.
+ * `null` when that remote is not configured, cannot be reached or answers
+ * with something that is not a manifest: the shell still renders, and says
+ * the area is unavailable, rather than failing the whole page because one
+ * module is down. `undefined` when no screen answers the path.
  */
-export async function peopleRoute(path: string): Promise<RemoteRoute | null | undefined> {
-  const base = remoteBase();
+export async function remoteRoute(path: string): Promise<RemoteRoute | null | undefined> {
+  const area = areaOf(path);
+  if (area === undefined) return undefined;
+  const base = remoteBase(area);
+  if (base === undefined) return null;
   let manifest: unknown;
   try {
     const response = await timed(
@@ -368,5 +416,7 @@ export async function peopleRoute(path: string): Promise<RemoteRoute | null | un
     return null;
   }
   const matched = matchRoute(manifest, path);
-  return matched == null ? matched : { entry: `${REMOTE_PATH}/remoteEntry.js`, base, ...matched };
+  return matched == null
+    ? matched
+    : { entry: `${remotePath(area)}/remoteEntry.js`, base, area, ...matched };
 }

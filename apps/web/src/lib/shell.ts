@@ -2,7 +2,7 @@ import 'server-only';
 
 import { cache } from 'react';
 import { people } from './people';
-import { peopleRoute, placesFor } from './remotes';
+import { placesFor, remoteRoute } from './remotes';
 import {
   countsOf,
   EMPTY_SHELL,
@@ -53,7 +53,7 @@ const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
   // published yet, which the overview does not.
   const home = people<ShellData['roles']>('Home');
   const [route, overview, waiting] = await Promise.all([
-    peopleRoute('/people').catch(() => undefined),
+    remoteRoute('/people').catch(() => undefined),
     people<Overview>('Overview'),
     // What waits for HR, asked as soon as the roles say who this is rather
     // than after the overview, which takes twice as long.

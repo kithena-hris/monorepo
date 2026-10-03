@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EMPLOYEE, FINANCE, HR, PEOPLE_NAV } from './people-nav.fixture';
 import {
+  AREAS,
+  areaOf,
   currentPlace,
   currentTab,
   firstUnder,
@@ -9,6 +11,7 @@ import {
   matchPath,
   matchRoute,
   placesFor,
+  remoteRoute,
 } from './remotes';
 
 describe('matchRoute', () => {
@@ -285,5 +288,83 @@ describe('firstUnder', () => {
     expect(firstUnder(sections(EMPLOYEE), '/people/data-health')).toBeUndefined();
     expect(firstUnder(sections(HR), '/people/data')).toBeUndefined();
     expect(firstUnder(sections(HR), '/people/nobody')).toBeUndefined();
+  });
+});
+
+describe('remoteRoute', () => {
+  const asked: string[] = [];
+
+  beforeEach(() => {
+    asked.length = 0;
+    vi.stubEnv('PEOPLE_REMOTE_URL', 'https://people.example/');
+    vi.stubEnv('TIMEOFF_REMOTE_URL', 'https://timeoff.example');
+    const manifests: Record<string, unknown> = {
+      'https://people.example/routes.json': {
+        routes: [{ path: '/people/:id', component: 'Profile' }],
+      },
+      'https://timeoff.example/routes.json': {
+        routes: [
+          { path: '/time-off/overview', component: 'Overview' },
+          { path: '/settings/time-off/leave-types', component: 'LeaveTypes' },
+        ],
+      },
+    };
+    vi.stubGlobal('fetch', (url: string) => {
+      asked.push(url);
+      const body = manifests[url];
+      return Promise.resolve(
+        body === undefined ? new Response(null, { status: 404 }) : Response.json(body),
+      );
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('reads a /time-off path, and a Time Off setting, from the Time Off remote', async () => {
+    expect(await remoteRoute('/time-off/overview')).toMatchObject({
+      area: AREAS.timeoff,
+      base: 'https://timeoff.example',
+      entry: '/_timeoff/remoteEntry.js',
+      component: 'Overview',
+    });
+    expect(await remoteRoute('/settings/time-off/leave-types')).toMatchObject({
+      component: 'LeaveTypes',
+    });
+    expect(asked).toEqual([
+      'https://timeoff.example/routes.json',
+      'https://timeoff.example/routes.json',
+    ]);
+  });
+
+  it('reads a People path from the People remote, as it always has', async () => {
+    expect(await remoteRoute('/people/p-1')).toMatchObject({
+      area: AREAS.people,
+      base: 'https://people.example',
+      entry: '/_people/remoteEntry.js',
+      component: 'Profile',
+      params: { id: 'p-1' },
+    });
+    expect(asked).toEqual(['https://people.example/routes.json']);
+  });
+
+  it('finds the People remote on its local port when its URL is unset', async () => {
+    vi.stubEnv('PEOPLE_REMOTE_URL', undefined);
+    await remoteRoute('/people/p-1');
+    expect(asked).toEqual(['http://localhost:3002/routes.json']);
+  });
+
+  it('is unavailable, without asking anybody, for a remote that is not configured', async () => {
+    vi.stubEnv('TIMEOFF_REMOTE_URL', undefined);
+    expect(await remoteRoute('/time-off/overview')).toBeNull();
+    expect(asked).toEqual([]);
+  });
+
+  it('is no screen for a path no remote owns', async () => {
+    expect(areaOf('/time-offer')).toBeUndefined();
+    expect(await remoteRoute('/settings/shortcuts')).toBeUndefined();
+    expect(asked).toEqual([]);
   });
 });
