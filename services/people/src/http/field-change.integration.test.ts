@@ -211,6 +211,26 @@ describe('changing a text field to a date', () => {
     );
     expect(await outbox()).toBe(before);
 
+    // Refused after the new version is written inside the transaction: it
+    // rolls back, and the schema this process keeps by version and checksum
+    // must not serve the version that never was.
+    const refused = await call('POST', '/v1/schema/draft/attributes/start_day/change', {
+      to: 'date',
+      decisions: [{ personId: GRACE, action: 'edit', value: 'not a date' }],
+    });
+    expect(refused.status).toBe(422);
+    // `/v1/schema` is the published version as this process keeps it.
+    const published = async () =>
+      (await call('GET', '/v1/schema')).body as {
+        version: number;
+        attributes: { key: string; dataType: string }[];
+      };
+    const typeOf = (v: Awaited<ReturnType<typeof published>>) =>
+      v.attributes.find((a) => a.key === 'start_day')?.dataType;
+    const stillOne = await published();
+    expect([stillOne.version, typeOf(stillOne)]).toEqual([1, 'text']);
+    expect(await outbox()).toBe(before);
+
     const applied = await call('POST', '/v1/schema/draft/attributes/start_day/change', {
       to: 'date',
       decisions: [
@@ -236,6 +256,10 @@ describe('changing a text field to a date', () => {
     expect(await read(GRACE)).toBe('2024-05-01');
     expect(await read(ALAN)).toBe('2024-01-05');
     expect((await read(MARCO)) ?? null).toBeNull();
+
+    // The same process serves the new version on the next read, as a date.
+    const two = await published();
+    expect([two.version, typeOf(two)]).toEqual([2, 'date']);
 
     // Corrections carrying `supersedes`, and the old text kept in history.
     const corrected = await superuser().unsafe<{ aggregate_id: string; supersedes: string }[]>(
