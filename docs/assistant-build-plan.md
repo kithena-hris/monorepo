@@ -287,7 +287,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   People's performance, prediction and special-category refusals; skills is
   left out, since it only offers a field.
 
-### [ ] AST-010 — Join, count, group
+### [x] AST-010 — Join, count, group
 
 - **Spec** PRD §9.3, §9.5, §9.6
 - **Files** `platform/assistant/src/domain/execute.ts` (+ test, first)
@@ -299,6 +299,16 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   groups the final rows and counts each group. Distinctness is the module's.
 - **Done when** tests cover a two-step join, two independent steps, a failure
   in s1 failing s2, too broad, and grouping by team.
+- **As built** `execute(plan, today, call)` runs `order(plan)`'s waves through
+  an injected `Call` (`(step, input) → Result<CapabilityOutput, CallFailure>`),
+  so the application adds only the deadlines and the abort; it builds each
+  module input (dates resolved, `limitFor`, `personIds`) and returns
+  `Executed` (`answered`, `output`, every step's `outputs`, `groups`) or an
+  `ExecutionFailure` (`UNREACHABLE` or `REFUSED` with the module, `TOO_BROAD`,
+  `DATES`). A name in an earlier step that matched nobody or several stops the
+  chain and answers instead; an intermediate step without `ids` is a module
+  outside its contract; a count by group whose rows fall short of its total is
+  too broad. Only the answer's own chain can fail the question.
 
 ### [ ] AST-011 — Answer text
 
