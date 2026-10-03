@@ -751,6 +751,8 @@ export type {
   SchedulerColumn,
   SchedulerEvent,
   SchedulerProps,
+  SchedulerRow,
+  SchedulerSummaryRow,
   SchedulerTone,
 } from './components/scheduler/scheduler';
 export { dayColumns, formatMinutes } from './components/scheduler/scheduler-model';
