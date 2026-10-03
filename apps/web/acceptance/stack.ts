@@ -60,7 +60,12 @@ export interface Stack {
   readonly peopleUrl: string;
   readonly shellToken: string;
   /** People's REST, as the router would call it: for a test to check a result without a screen. */
-  asPeople(account: string, path: string): Promise<unknown>;
+  asPeople(
+    account: string,
+    path: string,
+    /** A write: its method and body, keyed as the router keys one. */
+    write?: { readonly method: string; readonly body: unknown },
+  ): Promise<unknown>;
   /** OpenFGA tuples, as People's consumer writes them from its events; there is no Kafka here. */
   writeTuples(tuples: readonly { user: string; relation: string; object: string }[]): Promise<void>;
   /**
@@ -631,9 +636,17 @@ export async function startStack(): Promise<Stack> {
       });
       return { status: response.status, body: (await response.json()) as unknown };
     };
-    const asPeople = async (account: string, path: string): Promise<unknown> => {
+    const asPeople = async (
+      account: string,
+      path: string,
+      write?: { readonly method: string; readonly body: unknown },
+    ): Promise<unknown> => {
       const response = await fetch(`${peopleUrl}${path}`, {
+        ...(write === undefined ? {} : { method: write.method, body: JSON.stringify(write.body) }),
         headers: {
+          ...(write === undefined
+            ? {}
+            : { 'content-type': 'application/json', 'idempotency-key': randomUUID() }),
           'x-internal-token': PEOPLE_TOKEN,
           'x-kithena-principal': JSON.stringify({
             userId: account,

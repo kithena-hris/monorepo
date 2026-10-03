@@ -249,6 +249,12 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     }
     case 'FieldRegistry':
       return read('Registry');
+    case 'FieldChange':
+      return read(
+        'FieldChange',
+        { field: query.params['key'] ?? '', to: given(query.search['to']) },
+        json(),
+      );
     case 'Integrations': {
       // Chat apps beside the rest; a chat service that is down hides its section, not the page.
       const [integrations, chat] = await Promise.all([read('Integrations'), read('Chat')]);
