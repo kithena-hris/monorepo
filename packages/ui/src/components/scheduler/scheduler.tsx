@@ -902,8 +902,9 @@ function Month({
                     }}
                     className={cn(
                       // Stretched over the cell: the day is the target, the
-                      // number is what it looks like.
-                      'after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-border-focus',
+                      // number is what it looks like. The ring is the
+                      // button's own, around the number, so it is measured.
+                      'after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
                       dayNumber(isToday, Boolean(entry.shade)),
                     )}
                   >
