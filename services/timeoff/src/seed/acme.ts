@@ -36,6 +36,8 @@ import { LeaveRequest, leaveRequestId } from '../domain/request/leave-request.js
  * by the import's path, accruals by the hire's, requests by the aggregate's
  * transitions, each at the date it happened. One transaction, and skipped
  * whole when Adam is already there, so running it twice changes nothing.
+ * Each member carries the account identity's seed invites for them, so
+ * signing in as Adam in `just dev` is answered as Adam.
  *
  * Adam's numbers are T1's: 11.5 days of vacation left of 25, 10.5 used and 3
  * booked; 2 personal days of 3; 6 hours of comp time. His 19–23 October is
@@ -59,6 +61,15 @@ export const team = {
   hana: person(6),
   ravi: person(7),
 };
+
+/**
+ * The account each signs in with: identity's seed makes them
+ * (`platform/identity/scripts/seed-auth.ts`, `TIMEOFF_TEAM`), invited, with
+ * these ids, and a module imports no other, so they are repeated here.
+ */
+export const accounts = Object.fromEntries(
+  Object.keys(team).map((k, i) => [k, `7ac0e000-0000-4000-8000-0000000000a${String(i + 1)}`]),
+) as Record<keyof typeof team, string>;
 
 const roster: readonly (readonly [keyof typeof team, string, string])[] = [
   ['marco', 'Marco Ruiz', '2019-05-06'],
@@ -285,7 +296,11 @@ export interface Seeded {
   readonly requests: number;
 }
 
-/** Seed Acme's Platform team into `tenantId`. `null` when it was already there. */
+/**
+ * Seed Acme's Platform team into `tenantId`. `null` when it was already
+ * there, and then only each member's account is put right, for a database
+ * seeded before members carried one.
+ */
 export async function seedAcme(
   uow: UnitOfWork,
   tenantId: TenantId,
@@ -303,13 +318,24 @@ export async function seedAcme(
   const day = (d: string, hh = '09:00'): EventContext => at(`${d}T${hh}:00+02:00`);
 
   return transact({ uow }, tenantId, async (tx) => {
-    if ((await tx.members.get(team.adam)) !== null) return ok(null);
+    if ((await tx.members.get(team.adam)) !== null) {
+      for (const [k] of roster) {
+        // oxlint-disable-next-line no-await-in-loop -- seven members, in order
+        const m = await tx.members.get(team[k]);
+        if (m !== null && m.accountId === null) {
+          // oxlint-disable-next-line no-await-in-loop -- seven members, in order
+          await tx.members.save({ ...m, accountId: accounts[k] });
+        }
+      }
+      return ok(null);
+    }
 
     await settings(tx, tenantId, now);
 
     for (const [k, displayName, hireDate] of roster) {
       const fields = MemberFields.parse({
         personId: team[k],
+        accountId: accounts[k],
         displayName,
         firstName: displayName.split(' ')[0],
         managerPersonId: k === 'marco' ? null : team.marco,
