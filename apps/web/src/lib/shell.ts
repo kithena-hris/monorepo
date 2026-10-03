@@ -1,14 +1,18 @@
 import 'server-only';
 
 import { cache } from 'react';
-import { people } from './people';
-import { AREAS, placesFor, remoteNav, remoteRoute } from './remotes';
+import { people, timeOff } from './people';
+import { AREAS, placesFor, remoteNav, remoteRoute, type Area } from './remotes';
 import {
   countsOf,
   EMPTY_SHELL,
   noticesOf,
+  timeOffCounts,
+  timeOffRoles,
+  type AreaPlaces,
   type Overview,
   type ShellData,
+  type TimeOffViewer,
   type Waiting,
 } from './shell-data';
 
@@ -53,19 +57,42 @@ const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
   const others = Object.values(AREAS).filter(
     (a) => a !== AREAS.people && entitlements.includes(a.entitlement),
   );
-  const [base, navs] = await Promise.all([
-    peopleShell(entitlements),
-    Promise.all(others.map(async (a) => [a.name, await remoteNav(a)] as const)),
+  const base = peopleShell(entitlements);
+  const [shell, areas] = await Promise.all([
+    base,
+    Promise.all(others.map(async (a) => [a.name, await areaPlaces(a, base)] as const)),
   ]);
-  const remotes = Object.fromEntries(
-    navs.flatMap(([name, found]) =>
-      found === null
-        ? []
-        : [[name, { ...placesFor(found.nav, base.roles), routes: found.routes }]],
-    ),
-  );
-  return { ...base, remotes };
+  const remotes = Object.fromEntries(areas.flatMap(([name, p]) => (p === null ? [] : [[name, p]])));
+  return { ...shell, remotes };
 });
+
+/**
+ * An area's places for this viewer, from its manifest. Time Off is asked once
+ * per page who the viewer is to it (`timeOffViewer`, TOF-058a), beside the
+ * manifest: whether they approve anybody opens its queues, and what waits
+ * for them is its counts. A Time Off that does not answer leaves the shell's
+ * roles and no counts, never a guess.
+ */
+async function areaPlaces(area: Area, base: Promise<ShellData>): Promise<AreaPlaces | null> {
+  const [found, shell, viewer] = await Promise.all([
+    remoteNav(area),
+    base,
+    area === AREAS.timeoff
+      ? timeOff<TimeOffViewer>('TimeOffViewer').then((a) => (a.ok ? a.data : null))
+      : null,
+  ]);
+  if (found === null) return null;
+  const places = placesFor(found.nav, timeOffRoles(shell.roles, viewer));
+  const counts = timeOffCounts(viewer, places.sections);
+  return {
+    ...places,
+    routes: found.routes,
+    screens: found.screens,
+    counts: counts.sections,
+    tabCounts: counts.tabs,
+    slots: found.slots,
+  };
+}
 
 /** People's part of the shell: its places, counts and notices, for a company that has it. */
 async function peopleShell(entitlements: readonly string[]): Promise<ShellData> {

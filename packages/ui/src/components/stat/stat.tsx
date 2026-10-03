@@ -49,6 +49,12 @@ export interface StatProps extends ComponentPropsWithoutRef<'div'> {
    * card rather than a second card on top of it.
    */
   inset?: boolean;
+  /**
+   * Full width under the value, before the delta and the description: a
+   * meter of what the number is out of, where a sparkline beside it (`chart`)
+   * would be the wrong shape.
+   */
+  children?: ReactNode;
 }
 
 const sentimentClass = {
@@ -77,6 +83,7 @@ export function Stat({
   description,
   icon,
   inset = false,
+  children,
   ...props
 }: StatProps): JSX.Element {
   const DirectionIcon = directionIcon[direction];
@@ -128,6 +135,8 @@ export function Stat({
         </p>
         {chart ? <div className="min-w-0 shrink-0">{chart}</div> : null}
       </div>
+
+      {children}
 
       {delta ? (
         <p className={cn('flex items-center gap-1 text-xs', sentimentClass[sentiment])}>

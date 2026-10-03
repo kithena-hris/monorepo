@@ -4,8 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { chordOf } from '../kbd/kbd';
 import { KeyRecorder } from './key-recorder';
 
-const key = (k: string, mods: Partial<Record<'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey', boolean>> = {}) =>
-  ({ key: k, metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, ...mods });
+const key = (
+  k: string,
+  mods: Partial<Record<'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey', boolean>> = {},
+) => ({ key: k, metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, ...mods });
 
 describe('chordOf', () => {
   it('writes a key the way a shortcut is matched', () => {
@@ -18,6 +20,12 @@ describe('chordOf', () => {
     expect(chordOf(key(' '))).toBe('space');
     expect(chordOf(key('Escape'))).toBe('escape');
     expect(chordOf(key('Shift', { shiftKey: true }))).toBeNull();
+  });
+
+  it('reads the letter under Alt from the key, where a Mac types a character instead', () => {
+    expect(chordOf({ ...key('†', { altKey: true }), code: 'KeyT' })).toBe('alt+t');
+    expect(chordOf({ ...key('t', { altKey: true }), code: 'KeyT' })).toBe('alt+t');
+    expect(chordOf({ ...key('†'), code: 'KeyT' })).toBe('†');
   });
 });
 

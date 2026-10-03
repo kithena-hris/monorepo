@@ -77,6 +77,9 @@ async function browserModule(name: string, entry: string): Promise<Record<string
 const loading = new Map<string, Promise<Record<string, unknown>>>();
 const loaded = new Map<string, Record<string, unknown>>();
 
+/** Whether a remote's code is in the page already: a loading state may draw its screen at once. */
+export const remoteLoaded = (entry: string): boolean => loaded.has(entry);
+
 function browserModuleOf(name: string, entry: string): Promise<Record<string, unknown>> {
   let promise = loading.get(entry);
   if (promise === undefined) {
@@ -133,7 +136,12 @@ const rendering = new Map<string, Promise<string>>();
 /** The identifiers of a remote's own React root, on the server and in the browser. */
 const idPrefix = (name: string): string => `${name}-`;
 
-function serverHtml(name: string, route: RemoteRoute, props: object): Promise<string> {
+function serverHtml(
+  name: string,
+  stage: string,
+  route: RemoteRoute,
+  props: object,
+): Promise<string> {
   if (route.ssr === undefined) throw new Error('server rendering is off; drawn in the browser');
   const render = (globalThis as unknown as Record<symbol, Render | undefined>)[
     Symbol.for('kithena.remote-render')
@@ -145,7 +153,7 @@ function serverHtml(name: string, route: RemoteRoute, props: object): Promise<st
   const key = `${route.ssr}\n${route.component}\n${json}`;
   let html = rendering.get(key);
   if (html === undefined) {
-    html = render(route.ssr, route.component, json, idPrefix(name));
+    html = render(route.ssr, route.component, json, idPrefix(stage));
     rendering.set(key, html);
     const forget = (): void => {
       const timer = setTimeout(() => rendering.delete(key), 10_000) as unknown as {
@@ -208,16 +216,19 @@ function Staged({
   area,
   current,
   container,
+  quiet,
 }: {
   readonly name: string;
   readonly area: string;
   readonly current: Store;
   readonly container: Element;
+  readonly quiet: boolean;
 }): JSX.Element {
   const showing = useSyncExternalStore(current.subscribe, current.get, current.get);
   return (
     <RemoteBoundary
       area={area}
+      quiet={quiet}
       showing={showing}
       onFail={() => {
         releaseEarlyPresses(container, false);
@@ -270,12 +281,13 @@ const stages = new Map<string, Stage>();
  */
 function stageOf(
   name: string,
+  stageKey: string,
   area: string,
   container: HTMLElement,
   current: Current,
   hydrate: boolean,
 ): Stage {
-  const kept = stages.get(name);
+  const kept = stages.get(stageKey);
   if (kept !== undefined && !hydrate) return kept;
   // A second page from the server in one document has no stage to keep.
   if (kept !== undefined) {
@@ -286,8 +298,10 @@ function stageOf(
   const element = hydrate ? container : document.createElement('div');
   element.style.display = 'contents';
   const state = store(current);
-  const tree = <Staged name={name} area={area} current={state} container={element} />;
-  const options = { identifierPrefix: idPrefix(name) };
+  const tree = (
+    <Staged name={name} area={area} current={state} container={element} quiet={stageKey !== name} />
+  );
+  const options = { identifierPrefix: idPrefix(stageKey) };
   let root: Root;
   if (hydrate) {
     root = hydrateRoot(element, tree, options);
@@ -298,19 +312,22 @@ function stageOf(
     root.render(tree);
   }
   const stage: Stage = { element, root, store: state, owner: null };
-  stages.set(name, stage);
+  stages.set(stageKey, stage);
   return stage;
 }
 
 /** Where the area's stage is on this page. */
 function Host({
   name,
+  stage: stageKey,
   area,
   route,
   props,
   hydrate,
 }: {
   readonly name: string;
+  /** The stage's key: the area's name, or a place in the shell's chrome (`RemoteScreen`'s `slot`). */
+  readonly stage: string;
   readonly area: string;
   readonly route: RemoteRoute;
   readonly props: Readonly<Record<string, unknown>>;
@@ -325,7 +342,7 @@ function Host({
   useLayoutEffect(() => {
     const container = ref.current;
     if (container === null) return;
-    const stage = stageOf(name, area, container, latest.current, hydrate);
+    const stage = stageOf(name, stageKey, area, container, latest.current, hydrate);
     clearTimeout(stage.timer);
     if (stage.element !== container && stage.element.parentNode !== container) {
       container.append(stage.element);
@@ -336,14 +353,14 @@ function Host({
       stage.owner = null;
       // Left the area, unless another host takes the stage in this same commit.
       stage.timer = setTimeout(() => {
-        if (stage.owner !== null || stages.get(name) !== stage) return;
-        stages.delete(name);
+        if (stage.owner !== null || stages.get(stageKey) !== stage) return;
+        stages.delete(stageKey);
         stage.root.unmount();
       }, 0);
     };
-  }, [name, area, hydrate]);
+  }, [name, stageKey, area, hydrate]);
   useLayoutEffect(() => {
-    stages.get(name)?.store.set({ route, props });
+    stages.get(stageKey)?.store.set({ route, props });
   });
   return (
     <div
@@ -369,6 +386,8 @@ function Unavailable({ area }: { readonly area: string }): JSX.Element {
 class RemoteBoundary extends Component<
   {
     readonly area: string;
+    /** A place in the shell's chrome: down, it is nothing rather than a message. */
+    readonly quiet?: boolean;
     /** What it shows: anything else to show tries again, as a new page once did. */
     readonly showing?: unknown;
     readonly onFail?: () => void;
@@ -393,7 +412,8 @@ class RemoteBoundary extends Component<
   }
 
   override render(): ReactNode {
-    return this.state.failed ? <Unavailable area={this.props.area} /> : this.props.children;
+    if (!this.state.failed) return this.props.children;
+    return this.props.quiet === true ? null : <Unavailable area={this.props.area} />;
   }
 }
 
@@ -420,15 +440,24 @@ export interface RemoteScreenProps {
    * than by the server: a skeleton of its shape. A spinner when absent.
    */
   readonly fallback?: ReactNode;
+  /**
+   * A place in the shell's own chrome the remote fills (`topBar`) rather
+   * than the page: a stage of its own beside the area's screen, which may be
+   * on the page at the same time, and nothing at all, never a message, when
+   * the remote cannot be reached.
+   */
+  readonly slot?: string;
 }
 
 function Drawn({
   name,
+  stage,
   area,
   route,
   props,
 }: {
   readonly name: string;
+  readonly stage: string;
   readonly area: string;
   readonly route: RemoteRoute;
   readonly props: Readonly<Record<string, unknown>>;
@@ -442,7 +471,7 @@ function Drawn({
   );
   const [fromServer] = useState(hydrating);
   if (typeof window === 'undefined') {
-    const html = use(serverHtml(name, route, props));
+    const html = use(serverHtml(name, stage, route, props));
     // Waiting for the remote's code: a press here is held until it hydrates.
     return (
       <div data-remote={name} {...{ [WAITING]: '' }} dangerouslySetInnerHTML={{ __html: html }} />
@@ -453,7 +482,9 @@ function Drawn({
   if (!fromServer) screenOf(name, route);
   // Marked like the server's HTML, so the remote's stylesheet applies here and
   // nowhere else on the page (`apps/web/people/src/contain-utilities.ts`).
-  return <Host name={name} area={area} route={route} props={props} hydrate={fromServer} />;
+  return (
+    <Host name={name} stage={stage} area={area} route={route} props={props} hydrate={fromServer} />
+  );
 }
 
 /**
@@ -508,7 +539,8 @@ export function RemoteScreen({
   route,
   props = {},
   fallback,
-}: RemoteScreenProps): JSX.Element {
+  slot,
+}: RemoteScreenProps): JSX.Element | null {
   const hydrating = useSyncExternalStore(
     subscribeNever,
     () => false,
@@ -516,16 +548,25 @@ export function RemoteScreen({
   );
   // Latched like `Drawn`'s, so the render after hydration does not start waiting.
   const [arrived] = useState(!hydrating);
-  if (route === null) return <Unavailable area={area} />;
+  if (route === null) return slot === undefined ? <Unavailable area={area} /> : null;
+  const stage = slot === undefined ? name : `${name}-${slot}`;
   // Fetched beside the shell's own bundle rather than after it has hydrated.
   preloadModule(route.entry);
   const screen = (
-    <Suspense fallback={fallback ?? <Spinner label={`Loading ${area}`} />}>
-      <Drawn name={name} area={area} route={route} props={props} />
+    <Suspense
+      fallback={
+        fallback === undefined && slot === undefined ? (
+          <Spinner label={`Loading ${area}`} />
+        ) : (
+          fallback
+        )
+      }
+    >
+      <Drawn name={name} stage={stage} area={area} route={route} props={props} />
     </Suspense>
   );
   return (
-    <RemoteBoundary area={area}>
+    <RemoteBoundary area={area} quiet={slot !== undefined}>
       {route.stylesheet === undefined ? null : (
         <link
           rel="stylesheet"

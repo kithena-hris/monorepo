@@ -253,6 +253,10 @@ type Query {
   timeOffNegativeBalanceSettings: TimeOffSettingsNegativeBalance!
   """T1: the clock, the balances, what is coming up and who is off today"""
   timeOffOverview: TimeOffOverview!
+  """
+  T30: what publishing the draft would do to each member this leave year, folded; nothing is saved; HR
+  """
+  timeOffPolicyPreview(policyId: String!): TimeOffPolicyPreview!
   """One request, for its member, an approver or HR"""
   timeOffRequest(requestId: String!): TimeOffRequestDetail!
   """
@@ -273,6 +277,27 @@ type Query {
   Whether the caller approves anyone, is HR, and the counts on Requests and Attendance (TOF-058a)
   """
   timeOffViewer: TimeOffViewer!
+}
+
+type TimeOffAlternative {
+  absence: TimeOffRange
+  affects: String!
+  coverage: [TimeOffCoverageDay!]!
+  dates: [String!]!
+  kind: String!
+  spans: [TimeOffRange!]!
+  swapped: TimeOffAlternativeSwapped
+  teammate: TimeOffPersonRef
+}
+
+type TimeOffAlternativeSwapped {
+  in: [String!]!
+  out: [String!]!
+}
+
+type TimeOffAmountChange {
+  current: String!
+  draft: String!
 }
 
 type TimeOffApprovalRule {
@@ -368,6 +393,7 @@ type TimeOffCalendarPerson {
   displayName: String!
   personId: String!
   teamKey: String
+  teamName: String
 }
 
 type TimeOffCalendarYear {
@@ -378,6 +404,12 @@ type TimeOffCalendarYear {
 type TimeOffCorrection {
   needsManager: Boolean!
   punch: TimeOffPunch!
+}
+
+type TimeOffCountryPack {
+  country: String!
+  reviewed: Boolean!
+  version: Int!
 }
 
 type TimeOffCover {
@@ -425,9 +457,11 @@ type TimeOffDecided {
 }
 
 type TimeOffDelegation {
+  approverId: String!
   candidates: [TimeOffPersonRef!]!
   coveringFor: [TimeOffCover!]!
   delegation: TimeOffDelegationDelegation
+  escalatesTo: TimeOffPersonRef
 }
 
 type TimeOffDelegationDelegation {
@@ -566,6 +600,14 @@ type TimeOffMember {
   timeZone: String!
 }
 
+type TimeOffMemberPreview {
+  allowance: TimeOffAmountChange!
+  displayName: String!
+  left: TimeOffAmountChange!
+  lostAtYearEnd: TimeOffAmountChange!
+  personId: String!
+}
+
 type TimeOffMyRequests {
   items: [TimeOffRequestItem!]!
   tab: String!
@@ -698,6 +740,13 @@ type TimeOffPolicyDrafted {
   policyId: String!
 }
 
+type TimeOffPolicyPreview {
+  draftVersion: Int
+  effectiveFrom: String!
+  members: [TimeOffMemberPreview!]!
+  yearEnd: String!
+}
+
 type TimeOffPolicyPublished {
   refolded: Int!
   version: Int!
@@ -747,9 +796,11 @@ type TimeOffRange {
 }
 
 type TimeOffRequestDecision {
+  alternatives: [TimeOffAlternative!]!
   balance: TimeOffRequestDecisionBalance
   belowMinimum: [TimeOffCoverageDay!]!
   canDecide: Boolean!
+  lastTaken: TimeOffRange
   member: TimeOffMember!
   note: String
   othersOff: [TimeOffOtherOff!]!
@@ -915,6 +966,7 @@ type TimeOffSettingsAttendance {
 type TimeOffSettingsHolidays {
   layers: [TimeOffHolidayLayer!]!
   locations: [TimeOffLocationHolidays!]!
+  packs: [TimeOffCountryPack!]!
   year: Int!
 }
 
@@ -925,6 +977,7 @@ type TimeOffSettingsLeaveType {
 
 type TimeOffSettingsLeaveTypes {
   leaveTypes: [TimeOffLeaveTypeSetting!]!
+  packs: [TimeOffCountryPack!]!
 }
 
 type TimeOffSettingsNegativeBalance {

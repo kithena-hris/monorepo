@@ -49,6 +49,11 @@ const Tab = z.object({
 const Place = Tab.extend({
   /** A shorter line than `description`, under the label on a phone's row. */
   summary: z.string().min(1).optional(),
+  /**
+   * Its label for a viewer with one of these roles, the first that matches:
+   * "Requests" for whoever decides them, "My requests" (`label`) for the rest.
+   */
+  labelFor: z.record(z.string(), z.string().min(1)).optional(),
   tabs: z.array(Tab).min(1).optional(),
 });
 export type Place = z.infer<typeof Place>;
@@ -63,7 +68,19 @@ const RouteManifest = z.object({
    * not somewhere you work.
    */
   settings: z.array(Place).default([]),
+  /**
+   * What the remote draws in the shell's own chrome, on every page of a
+   * company that has the area: by the place's name, the export that fills
+   * it. The shell names the places (`topBar`, beside search and the bell)
+   * and fetches each one's data; the remote says what goes there. Time
+   * Off's clock is `{ "topBar": "TopBarClock" }`. A name this shell does
+   * not know is left alone, so a remote can offer a place before the shell
+   * draws it.
+   */
+  slots: z.record(z.string(), z.string().min(1)).default({}),
 });
+/** The places in the shell's chrome a remote may fill. */
+export type SlotName = 'topBar';
 
 /**
  * The sections and actions this viewer's roles open, in the manifest's order.
@@ -86,12 +103,16 @@ export function placesFor(
 } {
   const opens = (p: Pick<Place, 'for'>): boolean =>
     p.for === undefined || p.for.some((r) => roles[r] === true);
+  const named = (p: Place): Place => {
+    const label = Object.entries(p.labelFor ?? {}).find(([role]) => roles[role] === true)?.[1];
+    return label === undefined ? p : { ...p, label };
+  };
   return {
     sections: nav.sections.filter(opens).flatMap((section): Place[] => {
-      if (section.tabs === undefined) return [section];
+      if (section.tabs === undefined) return [named(section)];
       const tabs = section.tabs.filter(opens);
       const first = tabs[0];
-      return first === undefined ? [] : [{ ...section, path: first.path, tabs }];
+      return first === undefined ? [] : [{ ...named(section), path: first.path, tabs }];
     }),
     actions: nav.actions.filter(opens),
     settings: (nav.settings ?? []).filter(opens),
@@ -431,11 +452,20 @@ async function manifestOf(base: string): Promise<unknown> {
  * places and every route it lists, whichever path is asked for. `null` when
  * the remote is not configured, cannot be reached or is not a manifest.
  */
-export async function remoteNav(
-  area: Area,
-): Promise<{ readonly nav: RemoteRoute['nav']; readonly routes: readonly string[] } | null> {
+export async function remoteNav(area: Area): Promise<{
+  readonly nav: RemoteRoute['nav'];
+  readonly routes: readonly string[];
+  readonly screens: RemoteRoute['screens'];
+  /** The shell's places the remote fills, and with which export. */
+  readonly slots: Readonly<Partial<Record<SlotName, string>>>;
+} | null> {
   const parsed = RouteManifest.safeParse(await manifestOf(remoteBase(area)));
   if (!parsed.success) return null;
-  const { routes, sections, actions, settings } = parsed.data;
-  return { nav: { sections, actions, settings }, routes: routes.map((r) => r.path) };
+  const { routes, sections, actions, settings, slots } = parsed.data;
+  return {
+    nav: { sections, actions, settings },
+    routes: routes.map((r) => r.path),
+    screens: Object.fromEntries(routes.map((r) => [r.path, r.component])),
+    slots: slots['topBar'] === undefined ? {} : { topBar: slots['topBar'] },
+  };
 }

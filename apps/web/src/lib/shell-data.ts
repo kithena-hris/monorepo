@@ -1,4 +1,12 @@
-import type { Place } from './remotes';
+import {
+  currentPlace,
+  headerFrame,
+  siblingsOf,
+  type Area,
+  type HeaderFrame,
+  type Place,
+  type SlotName,
+} from './remotes';
 
 /**
  * What the shell draws around every screen, beyond the person: People's
@@ -67,6 +75,95 @@ export interface AreaPlaces {
   readonly actions: readonly Place[];
   readonly settings: readonly Place[];
   readonly routes: readonly string[];
+  /** Which of the remote's exports draws each route: what a loading state draws. */
+  readonly screens?: Readonly<Record<string, string>>;
+  /** By a section's path, what needs this viewer; a zero is left out. */
+  readonly counts?: Readonly<Record<string, number>>;
+  /** By a tab's path, the same. */
+  readonly tabCounts?: Readonly<Record<string, number>>;
+  /** The places in the shell's chrome its remote fills, and with which export (`lib/slots.ts`). */
+  readonly slots?: Readonly<Partial<Record<SlotName, string>>>;
+}
+
+/**
+ * A place in the shell's chrome a remote fills (`slots` in its manifest), as
+ * the layout fetched it (`lib/slots.ts`): its export, where its code is, and
+ * the data it is drawn from.
+ */
+export interface ShellSlot {
+  readonly area: Area['name'];
+  readonly slot: SlotName;
+  readonly route: {
+    readonly entry: string;
+    readonly component: string;
+    readonly ssr?: string;
+    readonly stylesheet?: { readonly href: string; readonly integrity: string };
+  };
+  readonly load:
+    | { readonly status: 'ready'; readonly data: unknown }
+    | { readonly status: 'error'; readonly message: string }
+    | { readonly status: 'none' };
+}
+
+/**
+ * What Time Off says of the person signed in (TOF-058a): whether they approve
+ * anybody, whether they are its HR, and what waits for them.
+ */
+export interface TimeOffViewer {
+  readonly approves: boolean;
+  readonly hrAdmin: boolean;
+  readonly counts: {
+    readonly requestsWaiting: number;
+    readonly attendanceExceptions: number;
+  };
+}
+
+/**
+ * The roles Time Off's manifest is cut by. Approving is a fact of the org
+ * graph Time Off holds, not a role anybody grants, so `manager` is added here
+ * for this area only, when Time Off says they approve somebody; `hr` too when
+ * they are Time Off's HR in a company whose People says otherwise (or that
+ * has no People). Without an answer, the shell's own roles.
+ */
+export function timeOffRoles(
+  roles: ShellData['roles'],
+  viewer: TimeOffViewer | null,
+): Readonly<Record<string, boolean>> {
+  return viewer === null
+    ? roles
+    : { ...roles, manager: viewer.approves, hr: roles.hr || viewer.hrAdmin };
+}
+
+const WAITING = '/time-off/approvals/waiting';
+const EXCEPTIONS = '/time-off/attendance/exceptions';
+
+/**
+ * Time Off's counts (PRD §15.1): Requests, what waits for this approver;
+ * Attendance, the exceptions to fix. Keyed by the viewer's own places, so a
+ * section is counted only where they have it; a zero is not shown.
+ */
+export function timeOffCounts(
+  viewer: TimeOffViewer | null,
+  sections: readonly Place[],
+): { readonly sections: Record<string, number>; readonly tabs: Record<string, number> } {
+  const counts: Record<string, number> = {};
+  const tabs: Record<string, number> = {};
+  if (viewer === null) return { sections: counts, tabs };
+  const { requestsWaiting, attendanceExceptions } = viewer.counts;
+  for (const section of sections) {
+    const paths = [section.path, ...(section.tabs ?? []).map((t) => t.path)];
+    const n = paths.includes(WAITING)
+      ? requestsWaiting
+      : paths.some((p) => p.startsWith('/time-off/attendance/'))
+        ? attendanceExceptions
+        : 0;
+    if (n > 0) counts[section.path] = n;
+    if (paths.includes(WAITING) && requestsWaiting > 0) tabs[WAITING] = requestsWaiting;
+    if (paths.includes(EXCEPTIONS) && attendanceExceptions > 0) {
+      tabs[EXCEPTIONS] = attendanceExceptions;
+    }
+  }
+  return { sections: counts, tabs };
 }
 
 export const EMPTY_SHELL: ShellData = {
@@ -227,4 +324,42 @@ export function countsOf(
     if (n > 0) counts[section.path] = n;
   }
   return { sections: counts, tabs };
+}
+
+/**
+ * A screen's header among an area's places (`AREAS`): "Time off › Requests ›
+ * Decided" among its sections, with their counts, "Settings › Time off ›
+ * Leave types" among its settings, each crumb a switcher to its siblings. No
+ * actions on a setting. The page and its loading state draw the same one.
+ */
+export function areaFrame(
+  area: Area,
+  route: string | null,
+  places: AreaPlaces | undefined,
+): HeaderFrame & { readonly trail: readonly { readonly href: string; readonly label: string }[] } {
+  const own = places ?? { sections: [], actions: [], settings: [] };
+  if (route?.startsWith(`${area.settings}/`) !== true) {
+    return {
+      ...headerFrame(
+        own,
+        route,
+        area.home,
+        { sections: places?.counts ?? {}, tabs: places?.tabCounts ?? {} },
+        area.label,
+      ),
+      trail: [{ href: area.home, label: area.label }],
+    };
+  }
+  const settings = own.settings.map((p) => ({ ...p, group: `${area.label} settings` }));
+  const here = currentPlace(settings, route);
+  return {
+    section: here?.label ?? null,
+    trail: [
+      { href: '/settings', label: 'Settings' },
+      { href: '/settings', label: area.label },
+    ],
+    actions: [],
+    siblings: siblingsOf(settings, here),
+    siblingsLabel: `${area.label} settings`,
+  };
 }

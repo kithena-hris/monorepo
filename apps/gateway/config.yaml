@@ -14,9 +14,10 @@ persisted_operations:
   # Self-hosted, no control plane: the safelist is the files under
   # `persisted/operations/<sha256>.json`, one `{ "version": 1, "body": … }`
   # per operation, generated from the tenant app's list
-  # (`apps/web/src/lib/people-operations.ts`, `pnpm --filter @kithena/gateway
-  # persist`). Relative to the router's working directory: `apps/gateway`
-  # for `pnpm dev`, `/` in the image, where `persisted/` is mounted.
+  # (`apps/web/src/lib/people-operations.ts` and `timeoff-operations.ts`,
+  # `pnpm --filter @kithena/gateway persist`). Relative to the router's
+  # working directory: `apps/gateway` for `pnpm dev`, `/` in the image, where
+  # `persisted/` is mounted.
   storage:
     provider_id: operations
     object_prefix: operations
@@ -140,6 +141,20 @@ headers:
         - op: 'set'
           name: 'x-internal-token'
           value: '${AUDIT_API_TOKEN}'
+    # Time Off (`services/timeoff/src/http/caller.ts`): People's principal,
+    # entitlements included (it refuses a company without `module.timeoff`),
+    # and its own secret. `personId` is forwarded once identity's token
+    # carries one; until then the caller is an account.
+    timeoff:
+      request:
+        - op: 'set'
+          name: 'x-kithena-principal'
+          expression: >-
+            '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
+            request.auth.claims.tid + '","entitlements":${KITHENA_ENTITLEMENTS}}'
+        - op: 'set'
+          name: 'x-internal-token'
+          value: '${TIMEOFF_API_TOKEN}'
 
 # People's refusal reaches the caller as People gave it: its code (FORBIDDEN,
 # LAST_ADMIN, IDEMPOTENCY_KEY_REUSED …), its message and the field it names
