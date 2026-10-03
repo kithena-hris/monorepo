@@ -437,6 +437,34 @@ variant="prompt"`). Typing searches nothing; Enter does.
   the same Filters sheet. Same filters as the manual ones, so permissions
   apply exactly as before. A question's results are ordered by name unless it
   asked for an order. Who read it is said when it was not the assistant.
+- **Rankings, counts and how many.** "The person with the highest missing
+  fields" is an order and a number: most missing details, top 1, the chip
+  "Sorted by most missing details · top 1" (`?sort=missing_count:desc&top=1`).
+  The orders are People's metrics (`domain/person/metrics.ts`), worked out in
+  Postgres over everybody: missing details, completeness, tenure, direct
+  reports, team size, pending changes, the next expiry and last updated, each
+  usable only as its fields are (missing details are HR's, tenure the start
+  date's). They are the Directory's "Sort by" menu too, and the ones that are
+  numbers or dates are conditions ("more than 3 missing details"). "Top 5" is
+  five; "the person with…", "who has the…" and "newest joiner" are one.
+- **Compound, relative and negative.** The rules also read numbers compared
+  ("salary above 80k", run as the viewer like any condition), the last or
+  next N days, weeks, months and years, this, last and next week, month,
+  quarter and year, "left last quarter" (the last working day), none-of ("not
+  in Sales", "outside Madrid", "except Finance and People", a `not_in`
+  condition), and statuses as people say them ("serving notice", "pre-hires").
+- **A manager is People's to find, never the model's.** "Reports of Marco" and
+  "Marco's team" give only the name; People searches for it as the viewer may.
+  One person is their direct reports or everybody below them; several are
+  asked about, each with its count; nobody is said.
+- **Which group has the most.** The directory has no count per group to sort
+  by, so "which department has the most people missing a bank account" is
+  those people grouped by department, each group with its count, and says so.
+- **Never empty-handed.** A question nothing could be read of stays a
+  question: everybody, the parts not understood dashed and said ("Not
+  understood: “shiniest”, “shoes”."), unless the whole sentence is somebody's
+  name. A model's answer of `"search": "null"` is no name, and a model that
+  orders by a key it was not shown is not used: the rules stand.
 - **It asks instead of guessing** (`sift`, `clarify.ts`): "leaving soon",
   "new joiners" and "starting soon" each have readings this company's fields
   can run (given notice, a date field named like an end within 90 days; the
@@ -465,9 +493,12 @@ variant="prompt"`). Typing searches nothing; Enter does.
   way), so Back or a reload loads as many pages as it takes and returns to
   that row.
 
-What the model sees here is what it saw before, less anything refused: the
-sentence without the refused parts, today's date, and the field keys,
-labels and kinds, with options only for configuration it may use. Checked in
+What the model sees here is the sentence without the refused parts, today's
+date in words, the field keys, labels and kinds, with options only for
+configuration it may use, the metrics this viewer may order by, and the
+operators each kind takes: never a value. Its answer may add an order on a
+metric, how many, a grouping and a manager's name, each read as strictly as
+its conditions. Checked in
 `application/assistant/selection.test.ts` and, against a fake model, in the
 browser (the logged request held "senior people in Engineering" for "senior
 people in Engineering who are good at Go", and no record's value).
