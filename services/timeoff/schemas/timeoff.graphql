@@ -150,6 +150,10 @@ type Mutation {
     input: JSON!
   ): TimeOffCalendarFeed!
   """
+  A bearer token for an identity provider to provision members over SCIM 2.0 at /v1/timeoff/scim/v2, shown once; HR
+  """
+  issueTimeOffScimConnection(idempotencyKey: String!): TimeOffScimConnection!
+  """
   Publish the draft from a date: balances re-fold and timeoff.policy.published goes out; HR
   """
   publishTimeOffPolicy(
@@ -202,6 +206,8 @@ type Mutation {
   revokeTimeOffCalendarFeeds(idempotencyKey: String!): TimeOffDone!
   """The kiosk’s token stops working at once; HR"""
   revokeTimeOffKiosk(deviceId: String!, idempotencyKey: String!): TimeOffDone!
+  """The identity provider’s token stops working at once; HR"""
+  revokeTimeOffScimConnection(connectionId: String!, idempotencyKey: String!): TimeOffDone!
   """A layer of holidays: national, regional or city; HR"""
   saveTimeOffHolidayCalendar(
     idempotencyKey: String!
@@ -1202,6 +1208,11 @@ type TimeOffRightNowPerson {
   state: String!
   today: TimeOffDay!
   workModel: String
+}
+
+type TimeOffScimConnection {
+  id: String!
+  token: String!
 }
 
 type TimeOffSettingsApprovals {

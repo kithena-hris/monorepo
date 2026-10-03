@@ -394,6 +394,35 @@ export interface Reach {
   readonly publicUrl: string;
 }
 
+/* ------------------------------------------------------------------ scim -- */
+
+/** An identity provider's connection (TOF-114): only its token's SHA-256, hex. */
+export interface ScimConnection {
+  readonly id: string;
+  readonly tokenHash: string;
+  readonly createdBy: string;
+  readonly revokedAt: Instant | null;
+}
+
+/** What an identity provider calls a member. */
+export interface ScimUser {
+  readonly personId: PersonId;
+  readonly userName: string;
+  readonly externalId: string | null;
+  readonly createdAt: Instant;
+  readonly updatedAt: Instant;
+}
+
+export interface ScimStore {
+  connection(id: string): Promise<ScimConnection | null>;
+  saveConnection(connection: ScimConnection): Promise<void>;
+  user(personId: PersonId): Promise<ScimUser | null>;
+  /** Whatever its case. */
+  byUserName(userName: string): Promise<ScimUser | null>;
+  users(): Promise<readonly ScimUser[]>;
+  saveUser(user: ScimUser): Promise<void>;
+}
+
 /* -------------------------------------------------------------- parental -- */
 
 /** Who covers one piece of the parent's work while they are away (T10, manual for now). */
@@ -494,6 +523,7 @@ export interface Tx {
   readonly parental: ParentalStore;
   readonly kiosks: KioskStore;
   readonly integrations: IntegrationStore;
+  readonly scim: ScimStore;
   readonly outbox: Outbox;
   readonly idempotency: IdempotencyStore;
 }

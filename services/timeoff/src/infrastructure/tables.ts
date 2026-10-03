@@ -540,3 +540,31 @@ export const integrationMember = timeoff.table(
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.provider, t.personId] })],
 );
+
+/* ------------------------------------------------------------- TOF-114 -- */
+
+export const scimConnection = timeoff.table(
+  'scim_connection',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    tokenHash: sha256('token_hash').notNull(),
+    createdBy: uuid('created_by').notNull(),
+    createdAt: createdAt(),
+    revokedAt: instant('revoked_at'),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+export const scimUser = timeoff.table(
+  'scim_user',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    userName: text('user_name').notNull(),
+    externalId: text('external_id'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId] })],
+);

@@ -14,7 +14,7 @@ import {
   drizzleRequests,
 } from './drizzle-leave.js';
 import { drizzleIdempotency } from './idempotency.js';
-import { drizzleLocations, drizzleMembers } from './drizzle-members.js';
+import { drizzleLocations, drizzleMembers, drizzleScim } from './drizzle-members.js';
 import { drizzleParental } from './drizzle-parental.js';
 import {
   drizzleApprovals,
@@ -57,6 +57,7 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
     parental: drizzleParental(tx, tenantId),
     kiosks: drizzleKiosks(tx, tenantId),
     integrations: drizzleIntegrations(tx, tenantId),
+    scim: drizzleScim(tx, tenantId),
     idempotency: drizzleIdempotency(tx, tenantId),
     outbox: { publish: (events) => publish(tx, outbox, events) },
   };

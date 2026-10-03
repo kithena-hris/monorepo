@@ -590,6 +590,50 @@ describe('integrations (TOF-109)', () => {
   });
 });
 
+describe('SCIM (TOF-114)', () => {
+  it('keeps a connection and its revocation, and finds a user by userName whatever its case', async () => {
+    const id = ids();
+    await run(async (tx) => {
+      await tx.scim.saveConnection({
+        id,
+        tokenHash: 'ef'.repeat(32),
+        createdBy: MARCO_ACCOUNT,
+        revokedAt: null,
+      });
+      await tx.scim.saveUser({
+        personId: people.adam,
+        userName: 'Adam.Novak@acme.example',
+        externalId: 'entra-adam',
+        createdAt: '2026-10-01T09:00:00.000Z' as never,
+        updatedAt: '2026-10-01T09:00:00.000Z' as never,
+      });
+      await tx.scim.saveConnection({
+        id,
+        tokenHash: 'ef'.repeat(32),
+        createdBy: MARCO_ACCOUNT,
+        revokedAt: '2026-10-02T09:00:00.000Z' as never,
+      });
+    });
+    await run(async (tx) => {
+      expect((await tx.scim.connection(id))?.revokedAt).not.toBeNull();
+      expect((await tx.scim.byUserName('adam.novak@ACME.example'))?.personId).toBe(people.adam);
+      expect((await tx.scim.users()).map((u) => u.externalId)).toEqual(['entra-adam']);
+    });
+    // One userName per company, whatever its case.
+    await expect(
+      run((tx) =>
+        tx.scim.saveUser({
+          personId: people.omar,
+          userName: 'ADAM.NOVAK@acme.example',
+          externalId: null,
+          createdAt: '2026-10-01T09:00:00.000Z' as never,
+          updatedAt: '2026-10-01T09:00:00.000Z' as never,
+        }),
+      ),
+    ).rejects.toThrow();
+  });
+});
+
 /** On what the sections above stored: the published vacation policy and Madrid's layers. */
 describe('the use cases, over Drizzle', () => {
   it('hires a member with their grant, and sends a request whose rows name it', async () => {

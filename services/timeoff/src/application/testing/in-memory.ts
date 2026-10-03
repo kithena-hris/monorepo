@@ -27,6 +27,9 @@ import type {
   IdempotencyStore,
   Integration,
   IntegrationStore,
+  ScimConnection,
+  ScimStore,
+  ScimUser,
   KioskDevice,
   KioskStore,
   LeaveTypeStore,
@@ -84,6 +87,8 @@ interface State {
   integrations: Map<string, Integration>;
   /** `${provider}:${personId}` to the member's sealed grant. */
   memberSecrets: Map<string, string>;
+  scimConnections: Map<string, ScimConnection>;
+  scimUsers: Map<string, ScimUser>;
   events: PendingEvent[];
   keys: Map<string, StoredKey>;
 }
@@ -114,6 +119,8 @@ const empty = (): State => ({
   credentials: new Map(),
   integrations: new Map(),
   memberSecrets: new Map(),
+  scimConnections: new Map(),
+  scimUsers: new Map(),
   events: [],
   keys: new Map(),
 });
@@ -334,6 +341,28 @@ function stores(tenantId: TenantId, s: State): Tx {
       setMemberSecret: (provider, personId, sealed) => {
         if (sealed === null) s.memberSecrets.delete(`${provider}:${personId}`);
         else s.memberSecrets.set(`${provider}:${personId}`, sealed);
+      },
+    }),
+    scim: promised<ScimStore>({
+      connection: (id) => s.scimConnections.get(id) ?? null,
+      saveConnection: (connection) => {
+        s.scimConnections.set(connection.id, connection);
+      },
+      user: (personId) => s.scimUsers.get(personId) ?? null,
+      byUserName: (userName) =>
+        [...s.scimUsers.values()].find(
+          (u) => u.userName.toLowerCase() === userName.toLowerCase(),
+        ) ?? null,
+      users: () => [...s.scimUsers.values()],
+      saveUser: (user) => {
+        // The unique index's refusal, as Postgres would raise it.
+        const clash = [...s.scimUsers.values()].find(
+          (u) =>
+            u.personId !== user.personId &&
+            u.userName.toLowerCase() === user.userName.toLowerCase(),
+        );
+        if (clash !== undefined) throw new Error('scim_user_user_name_key');
+        s.scimUsers.set(user.personId, user);
       },
     }),
     outbox: promised<Outbox>({

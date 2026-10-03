@@ -1830,9 +1830,32 @@ users:read.email, im:write` and user scope `users.profile:write`;
   planning them needs a per-role shape first; their leave types and weeks are
   in the pack as data.
 
-### [ ] TOF-114 — SCIM member provisioning
+### [x] TOF-114 — SCIM member provisioning
 
 - **Spec** PRD §18 · **Depends on** TOF-036
+- **As built** People's approach in Time Off's own copy:
+  `application/member/scim.ts` and `http/scim.ts` at `/v1/timeoff/scim/v2/*`
+  on Time Off's port (under `/v1/timeoff/`, so the tunnel route that serves
+  the feed serves it too), ahead of REST in the listener. An identity
+  provider presents a connection token HR issues
+  (`POST /v1/timeoff/scim/connections`, shown once; `…/{id}/revoke`): `kts_`
+  and the tenant, the connection and 32 random bytes, only its SHA-256 kept
+  (`scim_connection`). Users only — a member has a fixed handful of fields,
+  so no groups and no attribute mapping: `userName` (unique per company
+  whatever its case, `scim_user`), `externalId`, `name`, `displayName`,
+  `emails` (the work address), `active`; the enterprise extension's
+  `department` (team, keyed `t_<slug>`) and `manager`; and Time Off's own
+  `urn:kithena:params:scim:schemas:extension:timeoff:2.0:User` for
+  `hireDate` (today when absent), `locationKey`, `country`, `timeZone`. A
+  User becomes `MemberFields` through `upsertIn`, the import's and People's
+  command, so a hire posts its entitlement. PATCH takes `add`, `replace` and
+  `remove` on those paths, Entra's `emails[type eq "work"].value` and string
+  booleans included, or a value object. Deprovisioning (`active: false` or
+  DELETE) ends the member through `endMember`; the member stays as a leaver.
+  Filters are `userName eq` and `externalId eq`, what providers send to
+  match before creating; anything else is `invalidFilter`. Like the import,
+  nothing stops it running beside People — choosing the source is HR's.
+  There is no settings screen for the token yet.
 
 ---
 

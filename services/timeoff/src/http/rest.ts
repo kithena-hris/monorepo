@@ -61,6 +61,7 @@ import {
   setKioskCredential,
 } from '../application/attendance/kiosk.js';
 import { importMembers } from '../application/member/import.js';
+import { issueScimConnection, revokeScimConnection } from '../application/member/scim.js';
 import { approveFromChat } from '../application/reach/chat.js';
 import {
   completeIntegration,
@@ -1298,6 +1299,28 @@ export const ROUTES: readonly Route[] = [
       );
     },
     shape: same,
+  }),
+
+  route({
+    name: 'issueTimeOffScimConnection',
+    method: 'POST',
+    path: `${V1}/scim/connections`,
+    summary:
+      'A bearer token for an identity provider to provision members over SCIM 2.0 at /v1/timeoff/scim/v2, shown once; HR',
+    answer: z.object({ id: z.uuid(), token: z.string() }).meta({ title: 'TimeOffScimConnection' }),
+    status: 201,
+    run: (deps, caller) => issueScimConnection(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'revokeTimeOffScimConnection',
+    method: 'POST',
+    path: `${V1}/scim/connections/{connectionId}/revoke`,
+    summary: 'The identity provider’s token stops working at once; HR',
+    params: z.object({ connectionId: z.uuid() }),
+    answer: Done,
+    run: (deps, caller, { params }) => revokeScimConnection(deps)(caller, params.connectionId),
+    shape: done,
   }),
 
   /* --------------------------------------------------------- settings -- */

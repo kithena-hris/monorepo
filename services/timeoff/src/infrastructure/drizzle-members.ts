@@ -2,8 +2,16 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { CalendarDate, LocationKey, PersonId, TeamKey, TenantId } from '@kithena/contracts';
 
-import type { Location, LocationStore, Member, MemberStore } from '../application/ports.js';
-import { location, member, tenant } from './tables.js';
+import type {
+  Location,
+  LocationStore,
+  Member,
+  MemberStore,
+  ScimStore,
+  ScimUser,
+} from '../application/ports.js';
+import { instantOf } from './drizzle-leave.js';
+import { location, member, scimConnection, scimUser, tenant } from './tables.js';
 
 /**
  * The member projection and the locations that fill it in (TOF-029, TOF-045),
@@ -143,4 +151,65 @@ export async function knownTenants(db: PostgresJsDatabase): Promise<TenantId[]> 
     .from(tenant)
     .orderBy(asc(tenant.tenantId));
   return rows.map((r) => r.tenantId as TenantId);
+}
+
+const scimUserOf = (r: typeof scimUser.$inferSelect): ScimUser => ({
+  personId: r.personId as PersonId,
+  userName: r.userName,
+  externalId: r.externalId,
+  createdAt: instantOf(r.createdAt),
+  updatedAt: instantOf(r.updatedAt),
+});
+
+/** SCIM connections and what an identity provider calls each member (TOF-114). */
+export function drizzleScim(tx: PostgresJsDatabase, tenantId: TenantId): ScimStore {
+  return {
+    async connection(id) {
+      const [r] = await tx.select().from(scimConnection).where(eq(scimConnection.id, id));
+      return r === undefined
+        ? null
+        : {
+            id: r.id,
+            tokenHash: r.tokenHash,
+            createdBy: r.createdBy,
+            revokedAt: r.revokedAt === null ? null : instantOf(r.revokedAt),
+          };
+    },
+    async saveConnection(c) {
+      await tx
+        .insert(scimConnection)
+        .values({
+          tenantId,
+          id: c.id,
+          tokenHash: c.tokenHash,
+          createdBy: c.createdBy,
+          revokedAt: c.revokedAt,
+        })
+        .onConflictDoUpdate({
+          target: [scimConnection.tenantId, scimConnection.id],
+          set: { revokedAt: c.revokedAt },
+        });
+    },
+    async user(personId) {
+      const [r] = await tx.select().from(scimUser).where(eq(scimUser.personId, personId));
+      return r === undefined ? null : scimUserOf(r);
+    },
+    async byUserName(userName) {
+      const [r] = await tx
+        .select()
+        .from(scimUser)
+        .where(sql`lower(${scimUser.userName}) = lower(${userName})`);
+      return r === undefined ? null : scimUserOf(r);
+    },
+    async users() {
+      return (await tx.select().from(scimUser).orderBy(asc(scimUser.createdAt))).map(scimUserOf);
+    },
+    async saveUser(u) {
+      const row = { userName: u.userName, externalId: u.externalId };
+      await tx
+        .insert(scimUser)
+        .values({ tenantId, personId: u.personId, ...row })
+        .onConflictDoUpdate({ target: [scimUser.tenantId, scimUser.personId], set: row });
+    },
+  };
 }
