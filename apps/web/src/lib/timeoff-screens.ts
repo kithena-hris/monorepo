@@ -2,6 +2,7 @@ import 'server-only';
 
 import { timeOff } from './people';
 import type { ScreenLoad, ScreenQuery } from './people-screens';
+import { aroundRequest, calendarWindow, clashOf } from './timeoff-calendar-views';
 import type { OperationName } from './timeoff-operations';
 import { bridgeDays, upcomingHolidays, type Holiday } from './timeoff-views';
 
@@ -29,10 +30,21 @@ async function read(
       : { status: 'error', message: answer.message, code: answer.code };
 }
 
-export async function loadScreen(component: string, _query: ScreenQuery): Promise<ScreenLoad> {
+export async function loadScreen(
+  component: string,
+  query: ScreenQuery,
+  path = '',
+): Promise<ScreenLoad> {
   switch (component) {
     case 'Overview':
       return overview();
+    // The manager's (TOF-068 to TOF-073).
+    case 'Approvals':
+      return approvals(path, query);
+    case 'Delegation':
+      return read('TimeOffDelegation');
+    case 'TeamCalendar':
+      return teamCalendar(path, query);
     default:
       return { status: 'none' };
   }
@@ -68,6 +80,115 @@ async function overview(): Promise<ScreenLoad> {
         data.comingUp.map((r) => r.span),
       ),
       now: now.toISOString(),
+    },
+  };
+}
+
+/* ------------------------------------------- the manager's, TOF-068 to TOF-073 -- */
+
+interface Span {
+  readonly from: string;
+  readonly to: string;
+}
+interface CalendarAnswer {
+  readonly entries: readonly { requestId: string; status: string; span: Span }[];
+  readonly coverage: readonly { date: string; below: boolean }[];
+}
+interface DecisionAnswer {
+  readonly request: { readonly span: Span };
+  readonly member: { readonly teamKey: string | null };
+}
+
+/** How each leave type looks: the request panel's list, or none for an account that is not a member. */
+async function leaveTypes(): Promise<unknown[]> {
+  const panel = await timeOff<{ leaveTypes: unknown[] }>('TimeOffRequestPanel');
+  return panel.ok ? panel.data.leaveTypes : [];
+}
+
+/** One request with its team around the dates (T17), or `null` when Time Off refuses it. */
+async function decisionOf(requestId: string): Promise<Record<string, unknown> | null> {
+  const answer = await timeOff<DecisionAnswer>('TimeOffRequestDecision', { requestId });
+  if (!answer.ok) return null;
+  const { teamKey } = answer.data.member;
+  const team =
+    teamKey === null
+      ? null
+      : await timeOff<unknown>('TimeOffCalendarTimeline', {
+          scope: 'team',
+          teamKey,
+          ...aroundRequest(answer.data.request.span),
+        });
+  return { ...answer.data, team: team?.ok === true ? team.data : null };
+}
+
+const TABS: Readonly<Record<string, 'waiting' | 'coming_up' | 'decided'>> = {
+  waiting: 'waiting',
+  'coming-up': 'coming_up',
+  decided: 'decided',
+};
+
+/**
+ * T16–T18: the tab the address names, the leave types' looks, and, under
+ * Waiting for me, the request it opens (`/time-off/approvals/waiting/:id`)
+ * with its team around the dates. `now` is when it was asked, for "Sent
+ * yesterday".
+ */
+async function approvals(path: string, query: ScreenQuery): Promise<ScreenLoad> {
+  const tab = TABS[path.split('/')[3] ?? ''] ?? 'waiting';
+  const id = tab === 'waiting' ? (query.params['id'] ?? null) : null;
+  const [base, types, decision] = await Promise.all([
+    read('TimeOffApprovals', { tab }),
+    leaveTypes(),
+    id === null ? null : decisionOf(id),
+  ]);
+  if (base.status !== 'ready') return base;
+  return {
+    status: 'ready',
+    data: { ...(base.data as object), types, decision, now: new Date().toISOString() },
+  };
+}
+
+const SCOPES = new Set(['team', 'company', 'me']);
+
+/**
+ * T12–T15, MT13, MT14: the view the address names; the scope and team, the
+ * month and the phone's week, or the year, from the query (the types,
+ * holidays and day open are the screen's to apply); and on the timeline,
+ * the waiting request that breaks the minimum with the fixes for it.
+ */
+async function teamCalendar(path: string, query: ScreenQuery): Promise<ScreenLoad> {
+  const view = path.endsWith('/timeline') ? 'timeline' : path.endsWith('/year') ? 'year' : 'month';
+  const scope = SCOPES.has(query.search['scope'] ?? '')
+    ? (query.search['scope'] ?? 'team')
+    : 'team';
+  const teamKey = scope === 'team' ? (query.search['team'] ?? null) : null;
+  const today = new Date().toISOString().slice(0, 10);
+  const window = calendarWindow(query.search, today);
+  const asked = { scope, ...(teamKey === null ? {} : { teamKey }) };
+  const [answer, types] = await Promise.all([
+    view === 'year'
+      ? read('TimeOffCalendarYear', { ...asked, year: window.year })
+      : read('TimeOffCalendarTimeline', { ...asked, from: window.from, to: window.to }),
+    leaveTypes(),
+  ]);
+  if (answer.status !== 'ready') return answer;
+  const calendar = view === 'year' ? null : (answer.data as CalendarAnswer);
+  const clash =
+    calendar === null || view !== 'timeline' ? null : clashOf(calendar, query.search['request']);
+  return {
+    status: 'ready',
+    data: {
+      view,
+      scope,
+      teamKey,
+      month: window.month,
+      week: window.week,
+      year: window.year,
+      today,
+      calendar,
+      days: view === 'year' ? (answer.data as { days: unknown[] }).days : null,
+      types,
+      clash: clash === null ? null : await decisionOf(clash),
     },
   };
 }
