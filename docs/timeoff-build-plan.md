@@ -274,7 +274,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** Madrid 2026 resolves to the eleven dates in T36 plus San Isidro
   and La Almudena, and Barcelona does not get either.
 
-### [ ] TOF-012 — Leave type aggregate
+### [x] TOF-012 — Leave type aggregate
 
 - **Spec** PRD §6.1
 - **Files** `services/timeoff/src/domain/policy/leave-type.ts`
