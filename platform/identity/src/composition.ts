@@ -18,11 +18,13 @@ import {
 import { startSession } from './account/application/start-session.js';
 import {
   accountsPage,
+  askerAccounts,
   drizzleAccountRepository,
   recordCapturedName,
   loadSession,
   profileOf,
 } from './account/infrastructure/drizzle-account-repository.js';
+import { askerRoutes } from './account/http/asker-routes.js';
 import { directoryRoutes } from './account/http/directory-routes.js';
 import { preferenceRoutes } from './account/http/preference-routes.js';
 import {
@@ -176,6 +178,13 @@ export interface Config {
    * should not be enough to read it. Falls back to `internalToken` when unset.
    */
   readonly peopleToken?: string | undefined;
+  /**
+   * The secret the assistant presents to ask who an email is
+   * (`ASSISTANT_IDENTITY_TOKEN`, assistant PRD §10.1). No fallback: that
+   * route turns a work email into an account and its modules, and with no
+   * token of its own it refuses everyone.
+   */
+  readonly assistantToken?: string | undefined;
   /**
    * The deployment's modules, `KITHENA_ENTITLEMENTS` (PEO-114): what a company
    * with no list of its own holds. A default, never an override — a company
@@ -776,6 +785,21 @@ export async function compose(config: Config): Promise<RequestHandler> {
     internalToken: config.peopleToken ?? config.internalToken,
     page: (tenantId, after, limit) =>
       inTenantTransaction(tenantId, (tx) => accountsPage(tx, after, limit)),
+  });
+
+  // Who is asking the assistant, from a verified work email (assistant PRD §10.1).
+  const asker = askerRoutes({
+    internalToken: config.assistantToken ?? '',
+    accounts: (tenantId, email) => inTenantTransaction(tenantId, (tx) => askerAccounts(tx, email)),
+    tenant: async (tenantId) => {
+      const rows = await db.execute(sql`
+        SELECT slug FROM platform.tenant WHERE id = ${tenantId}::uuid
+      `);
+      const slug = [...rows][0]?.['slug'];
+      return typeof slug === 'string'
+        ? { slug, entitlements: await entitlementsOf(tenantId) }
+        : null;
+    },
   });
 
   // A person's own preferences (keyboard shortcuts), for the tenant app's server.
@@ -1978,6 +2002,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     (await operator(request, response)) ||
     (await admin(request, response)) ||
     (await directory(request, response)) ||
+    (await asker(request, response)) ||
     (await preferences(request, response)) ||
     (await moduleRoles(request, response)) ||
     (await signupQuestionSets(request, response)) ||

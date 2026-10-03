@@ -399,7 +399,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   status only. A catalogue naming another module is outside its contract. Only
   a catalogue that parsed is cached.
 
-### [ ] AST-014 — Identity says who is asking
+### [x] AST-014 — Identity says who is asking
 
 - **Spec** PRD §6.6, §10.1
 - **Files** `platform/identity/src/account/http/asker-routes.ts` (+ test,
@@ -414,6 +414,13 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   Precedent: `directory-routes.ts`. The client caches 60 s per (tenant, email).
 - **Done when** the integration test covers one match, none, two, and an
   account whose access ended.
+- **As built** "active" is `status = 'active'` and `kind = 'member'`, matched
+  case-insensitively. The live-email index makes two live accounts with one
+  email impossible, so "two" is the route's unit test; the integration test
+  shows a terminated account and its rehired successor finding the successor.
+  `ASSISTANT_IDENTITY_TOKEN` has no fallback to `INTERNAL_API_TOKEN`: unset,
+  the route refuses everyone. It is read in `main.ts` and the Vercel entry
+  (`api/gateway.ts`). The response is `AssistantAsker` in contracts.
 
 ### [ ] AST-015 — The planner, through the AI gateway
 
