@@ -1,14 +1,19 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import {
   ASSISTANT_LIMITS,
+  CalendarDate,
   peopleCapabilities,
+  PeopleApprovals,
   PeopleFind,
+  PeoplePerson,
+  PeopleReports,
   type AmbiguousResult,
   type Capability,
   type CapabilityInput,
   type CapabilityOutput,
   type CatalogueField,
   type NotFoundResult,
+  type PeopleResult,
   type PersonRow,
   type RuntimeCatalogue,
 } from '@kithena/contracts';
@@ -31,7 +36,7 @@ import {
 } from '../person/person-access.js';
 import type { Condition, Refine } from '../person/ports.js';
 import { run } from '../person/service.js';
-import { fieldKind, STATUS_OPTIONS } from '../screens/people.js';
+import { approvalsView, fieldKind, STATUS_OPTIONS } from '../screens/people.js';
 import { nameOf, NOBODY, type ScreenDeps, type Tx } from '../screens/record.js';
 
 /**
@@ -244,6 +249,48 @@ async function named(
   };
 }
 
+/**
+ * People a query finds, as the directory lists them for the asker: the total
+ * from `count`, the first `limit` as rows, and every id when a later step
+ * needs them.
+ */
+async function listedPeople(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  query: { readonly where?: Readonly<Record<string, string>>; readonly refine?: Refine },
+  input: CapabilityInput,
+  described: string,
+  groupOf: (p: PersonView) => PersonRow['groups'] = () => ({}),
+): Promise<Result<PeopleResult>> {
+  const counted = await deps.service.access.count(tx, { ...asking, ...query });
+  if (!counted.ok) return counted;
+  const total = counted.value.all;
+  const limit = input.limit ?? 0;
+  // Ids only when a later step needs them, and never a truncated list: the
+  // assistant reads a total over the limit as too broad to join (§9.3).
+  // ponytail: up to 5,000 people read as views to take their ids; an id-only
+  // read through the same authorization if a join is ever felt.
+  const ids = input.ids === true && total <= ASSISTANT_LIMITS.ids;
+  const wanted = Math.max(limit, ids ? ASSISTANT_LIMITS.ids : 0);
+  const listed =
+    wanted === 0
+      ? ok({ items: [] as readonly PersonView[], next: null })
+      : await deps.service.access.list(tx, { ...asking, ...query, limit: wanted });
+  if (!listed.ok) return listed;
+  const items = listed.value.items;
+  return ok({
+    kind: 'people',
+    rows: items.slice(0, limit).map((p) => row(p, groupOf(p))),
+    ...(ids ? { ids: items.map((p) => p.id as PersonId) } : {}),
+    total,
+    // The directory: every current colleague to anybody, and leavers too to HR.
+    scope: 'everyone',
+    described: described.slice(0, 240),
+    notes: [],
+  });
+}
+
 const refusedSelection = () =>
   err(failure('BAD_REQUEST', 'People cannot run that selection', ['filters']));
 
@@ -305,49 +352,86 @@ const find: Handler = async (deps, tx, asking, input) => {
     ...(input.personIds === undefined ? {} : { personIds: input.personIds }),
   };
 
-  const counted = await deps.service.access.count(tx, { ...asking, refine });
-  if (!counted.ok) return counted;
-  const total = counted.value.all;
-  const limit = input.limit ?? 0;
-  // Ids only when a later step needs them, and never a truncated list: the
-  // assistant reads a total over the limit as too broad to join (§9.3).
-  // ponytail: up to 5,000 people read as views to take their ids; an id-only
-  // read through the same authorization if a join is ever felt.
-  const ids = input.ids === true && total <= ASSISTANT_LIMITS.ids;
-  const wanted = Math.max(limit, ids ? ASSISTANT_LIMITS.ids : 0);
-  const listed =
-    wanted === 0
-      ? ok({ items: [] as readonly PersonView[], next: null })
-      : await deps.service.access.list(tx, { ...asking, refine, limit: wanted });
-  if (!listed.ok) return listed;
-  const items = listed.value.items;
-
-  const groupOf = (p: PersonView): PersonRow['groups'] => {
-    if (group === undefined) return {};
-    const value = group.key === 'status' ? p.status : p.attributes[group.key];
-    const label = group.options.find((o) => o.value === value)?.label;
-    return label === undefined ? {} : { [group.key]: label };
-  };
   const what =
     plan === null || plan.conditions.length === 0 ? null : describe(plan.conditions, fields, match);
   const described =
     [team === null ? null : `in ${team}’s team`, what].filter((x) => x !== null).join(' ') ||
     'across the company';
+  return listedPeople(deps, tx, asking, { refine }, input, described, (p) => {
+    if (group === undefined) return {};
+    const value = group.key === 'status' ? p.status : p.attributes[group.key];
+    const label = group.options.find((o) => o.value === value)?.label;
+    return label === undefined ? {} : { [group.key]: label };
+  });
+};
+
+/**
+ * `people.person`: one person by name, or `@me`, as the asker may read them —
+ * their job, their manager's name, their start date and work email, each only
+ * where the asker reads it on them.
+ */
+const person: Handler = async (deps, tx, asking, input) => {
+  const found = await named(deps, tx, asking, input.name ?? '');
+  if (!('person' in found)) return ok(found);
+  const p = found.person;
+  const line = personLine(p);
+  const managerId = text(p.attributes[REPORTS_TO]);
+  const manager =
+    managerId === null
+      ? null
+      : await deps.service.access
+          .read(tx, { ...asking, personId: managerId })
+          .then((r) => (r.ok ? nameOf(r.value.attributes) : null));
+  const hired = CalendarDate.safeParse(text(p.attributes['hire_date'])?.slice(0, 10));
+  const email = text(p.attributes['work_email']);
+  const own = await deps.personOf(tx, asking.tenantId, asking.viewer.accountId);
   return ok({
-    kind: 'people',
-    rows: items.slice(0, limit).map((p) => row(p, groupOf(p))),
-    ...(ids ? { ids: items.map((p) => p.id as PersonId) } : {}),
-    total,
-    // The directory: every current colleague to anybody, and leavers too to HR.
-    scope: 'everyone',
-    described: described.slice(0, 240),
-    notes: [],
+    kind: 'profile',
+    personId: line.id as PersonId,
+    name: line.name,
+    ...(line.title === null ? {} : { title: line.title }),
+    ...(manager === null ? {} : { manager }),
+    ...(hired.success ? { hireDate: hired.data } : {}),
+    ...(email === null ? {} : { email }),
+    self: own === p.id,
+  });
+};
+
+/** `people.reports`: who reports directly to somebody named, as the directory lists them. */
+const reports: Handler = async (deps, tx, asking, input) => {
+  const found = await named(deps, tx, asking, input.name ?? '');
+  if (!('person' in found)) return ok(found);
+  const { name } = personLine(found.person);
+  return listedPeople(
+    deps,
+    tx,
+    asking,
+    { where: { [REPORTS_TO]: found.person.id } },
+    input,
+    `reporting directly to ${name}`,
+  );
+};
+
+/** `people.approvals`: the asker's approvals inbox, as People's own screen shows it. */
+const approvals: Handler = async (deps, _tx, asking, input) => {
+  const inbox = await approvalsView(deps, asking);
+  if (!inbox.ok) return inbox;
+  const items = inbox.value.items;
+  return ok({
+    kind: 'items',
+    items: items
+      .slice(0, Math.min(input.limit ?? 0, ASSISTANT_LIMITS.listed))
+      .map((i) => ({ name: i.name, label: i.label })),
+    total: items.length,
   });
 };
 
 /** Each capability People answers, by name. */
 const handlers: Readonly<Record<string, Handler>> = {
   [PeopleFind.name]: find,
+  [PeoplePerson.name]: person,
+  [PeopleReports.name]: reports,
+  [PeopleApprovals.name]: approvals,
 };
 
 const served = (): readonly Capability[] => peopleCapabilities.filter((c) => c.name in handlers);

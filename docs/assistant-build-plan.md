@@ -430,7 +430,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   of" several filters cannot be combined with a team: both refused. Ids are
   left out when the total is over 5,000.
 
-### [ ] AST-020 — `people.person`, `people.reports`, `people.approvals`
+### [x] AST-020 — `people.person`, `people.reports`, `people.approvals`
 
 - **Spec** PRD §7.4, §16
 - **Files** `services/people/src/application/assistant/capabilities.ts` (+ tests)

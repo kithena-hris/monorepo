@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { PeopleFind, type CapabilityOutput } from '@kithena/contracts';
+import {
+  PeopleApprovals,
+  PeopleFind,
+  PeoplePerson,
+  type CapabilityOutput,
+} from '@kithena/contracts';
 
 import { utcCalendars } from '../org/org.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../person/in-memory.js';
@@ -90,7 +95,6 @@ const person = (
     job_title: title,
     department,
     work_email: `${given.toLowerCase()}@dunder.example`,
-    hire_date: '2019-03-12',
     ...(manager === undefined ? {} : { manager_id: manager }),
   },
 });
@@ -276,6 +280,88 @@ describe('people.find', () => {
     const hr = found(await world().ask('people.find', { personIds: [LEFT, DWIGHT], limit: 25 }));
     expect(hr.rows.map((r) => r.personId).toSorted()).toEqual([DWIGHT, LEFT].toSorted());
     expect(found(await world().ask('people.find', { personIds: [], limit: 25 })).total).toBe(0);
+  });
+});
+
+describe('people.person', () => {
+  it('is one person as the asker may read them: job, manager, start date and work email', async () => {
+    const out = PeoplePerson.schemas.output.parse(
+      await world([], MICHAEL_ACCOUNT).ask('people.person', { name: 'Jim' }),
+    );
+    expect(out).toEqual({
+      kind: 'profile',
+      personId: JIM,
+      name: 'Jim Halpert',
+      title: 'Salesman',
+      manager: 'Michael Scott',
+      // The hire's own date, from the record.
+      hireDate: '2026-01-01',
+      email: 'jim@dunder.example',
+      self: false,
+    });
+  });
+
+  it('reads "me" as whoever is asking, and says so when they have no record', async () => {
+    const mine = await world([], JIM_ACCOUNT).ask('people.person', { name: '@me' });
+    expect(mine).toMatchObject({ kind: 'profile', personId: JIM, self: true });
+    const stranger = world([], '00000000-0000-4000-8000-0000000000ff');
+    expect(await stranger.ask('people.person', { name: '@me' })).toEqual({
+      kind: 'not_found',
+      self: true,
+    });
+  });
+
+  it('asks which one when a name finds several, and says nobody when it finds none', async () => {
+    const w = world();
+    expect((await w.ask('people.person', { name: 'Dunder' })).kind).toBe('ambiguous');
+    expect(await w.ask('people.person', { name: 'Kevin' })).toEqual({
+      kind: 'not_found',
+      name: 'Kevin',
+    });
+  });
+
+  it('takes a name and nothing else', async () => {
+    const w = world();
+    const refused = await answer(w.deps, w.asking, 'people.person', {});
+    expect(!refused.ok && refused.error.code).toBe('BAD_REQUEST');
+  });
+});
+
+describe('people.reports', () => {
+  it('is who reports directly to somebody found by name, as the directory lists them', async () => {
+    // An employee's directory has no leavers: Ryan reported to Michael, and has left.
+    const out = found(
+      await world([], JIM_ACCOUNT).ask('people.reports', { name: 'Michael', limit: 25 }),
+    );
+    expect(out.rows.map((r) => r.name).toSorted()).toEqual(['Dwight Schrute', 'Jim Halpert']);
+    expect(out.total).toBe(2);
+    expect(out.described).toBe('reporting directly to Michael Scott');
+  });
+
+  it('reads "me" as whoever is asking', async () => {
+    const out = found(
+      await world([], MICHAEL_ACCOUNT).ask('people.reports', { name: '@me', limit: 25 }),
+    );
+    expect(out.total).toBe(2);
+    const stranger = world([], '00000000-0000-4000-8000-0000000000ff');
+    expect(await stranger.ask('people.reports', { name: '@me', limit: 25 })).toEqual({
+      kind: 'not_found',
+      self: true,
+    });
+  });
+
+  it('asks which one when a name finds several', async () => {
+    const out = await world().ask('people.reports', { name: 'Dunder', limit: 25 });
+    expect(out.kind).toBe('ambiguous');
+  });
+});
+
+describe('people.approvals', () => {
+  it('is the asker’s inbox: empty where nothing waits', async () => {
+    const out = PeopleApprovals.schemas.output.parse(
+      await world().ask('people.approvals', { limit: 25 }),
+    );
+    expect(out).toEqual({ kind: 'items', items: [], total: 0 });
   });
 });
 
