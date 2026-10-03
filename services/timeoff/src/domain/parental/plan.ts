@@ -8,6 +8,7 @@ import {
   type Result,
 } from '@kithena/domain-kit';
 import {
+  ParentalBirthRecorded,
   ParentalPlanApproved,
   ParentalPlanSubmitted,
   type CalendarDate,
@@ -33,7 +34,8 @@ import {
  * draft ──▶ submitted ──▶ approved
  * ```
  *
- * A draft is private (§12.4) and raises nothing; the rules are checked on
+ * A draft is private (§12.4) and raises nothing, not even a recorded birth;
+ * its blocks are replaced freely while it is drafted. The rules are checked on
  * every read so the timeline can show them while a block is dragged, and
  * enforced on submit and again on approval, which is HR's rules check (T11).
  * Weeks are calendar weeks, seven days, as the law counts them.
@@ -125,7 +127,9 @@ export class ParentalPlan extends AggregateRoot<ParentalPlanId> {
   readonly #personId: PersonId;
   readonly #calendar: WorkCalendar;
   /** Null when adopting or fostering: there is no pregnancy to speak of. */
-  readonly #dueDate: CalendarDate | null;
+  #dueDate: CalendarDate | null;
+  /** Set once the baby has arrived. */
+  #birth: CalendarDate | null = null;
   #answers: EntitlementAnswers;
   #entitlement: ParentalEntitlement;
   #blocks: readonly PlanBlock[];
@@ -163,6 +167,27 @@ export class ParentalPlan extends AggregateRoot<ParentalPlanId> {
     return new ParentalPlan(args.id, args);
   }
 
+  /** A stored plan, as `answers`, `dueDate`, `birth`, `status` and `version` describe it. */
+  static rehydrate(args: {
+    id: ParentalPlanId;
+    tenantId: TenantId;
+    personId: PersonId;
+    answers: EntitlementAnswers;
+    calendar: WorkCalendar;
+    blocks: readonly PlanBlock[];
+    status: PlanStatus;
+    dueDate: CalendarDate | null;
+    birth: CalendarDate | null;
+    version: number;
+  }): ParentalPlan {
+    const plan = new ParentalPlan(args.id, args);
+    plan.#dueDate = args.dueDate;
+    plan.#birth = args.birth;
+    plan.#status = args.status;
+    plan.restoreVersion(args.version);
+    return plan;
+  }
+
   get status(): PlanStatus {
     return this.#status;
   }
@@ -171,6 +196,19 @@ export class ParentalPlan extends AggregateRoot<ParentalPlanId> {
   }
   get blocks(): readonly PlanBlock[] {
     return this.#blocks;
+  }
+  /** The four answers, with the child's date moved to the birth once it is recorded. */
+  get answers(): EntitlementAnswers {
+    return this.#answers;
+  }
+  get dueDate(): CalendarDate | null {
+    return this.#dueDate;
+  }
+  get birth(): CalendarDate | null {
+    return this.#birth;
+  }
+  get personId(): PersonId {
+    return this.#personId;
   }
 
   /** Later weeks not booked yet: "kept for later" on the timeline. */
@@ -198,7 +236,9 @@ export class ParentalPlan extends AggregateRoot<ParentalPlanId> {
    * the mandatory weeks move to it with every block running on from them
    * without a gap. Blocks further out stay where the parent put them.
    */
-  recordBirth(birth: CalendarDate): void {
+  recordBirth(birth: CalendarDate, ctx: EventContext): Result<void> {
+    if (this.#birth !== null)
+      return err(failure('BIRTH_ALREADY_RECORDED', 'The birth is already recorded'));
     const shift = daysBetween(this.#answers.childDate, birth) - 1;
     const sorted = this.#blocks.toSorted((a, b) => a.from.localeCompare(b.from));
     const moving = new Set<PlanBlock>();
@@ -210,8 +250,30 @@ export class ParentalPlan extends AggregateRoot<ParentalPlanId> {
     this.#blocks = this.#blocks.map((b) =>
       moving.has(b) ? { ...b, from: addDays(b.from, shift), to: addDays(b.to, shift) } : b,
     );
+    this.#birth = birth;
     this.#answers = { ...this.#answers, childDate: birth };
     this.#entitlement = parentalEntitlement(this.#answers);
+    if (this.#status !== 'draft') {
+      this.#raise(
+        ctx,
+        ParentalBirthRecorded,
+        {
+          planId: this.id,
+          personId: this.#personId,
+          birthDate: birth,
+          blocks: this.#payloadBlocks(),
+        },
+        birth,
+      );
+    }
+    return ok(undefined);
+  }
+
+  /** The parent moved, added or removed blocks: a draft only, checked on every read. */
+  replaceBlocks(blocks: readonly PlanBlock[]): Result<void> {
+    if (this.#status !== 'draft') return this.#refuse('changed');
+    this.#blocks = blocks;
+    return ok(undefined);
   }
 
   /** Sent to HR and the manager (T10). */
@@ -266,8 +328,9 @@ export class ParentalPlan extends AggregateRoot<ParentalPlanId> {
     ctx: EventContext,
     event: { name: string; version: number; payload: z.ZodType },
     payload: unknown,
+    effectiveFrom: CalendarDate | null = this.#blocks.map((b) => b.from).toSorted()[0] ?? null,
   ): void {
-    const from = this.#blocks.map((b) => b.from).toSorted()[0] ?? null;
+    const from = effectiveFrom;
     this.raise(
       envelope(ctx, {
         tenantId: this.#tenantId,

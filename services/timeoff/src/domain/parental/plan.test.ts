@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { LeaveTypeKey, ParentalPlanApproved, ParentalPlanSubmitted } from '@kithena/contracts';
+import {
+  LeaveTypeKey,
+  ParentalBirthRecorded,
+  ParentalPlanApproved,
+  ParentalPlanSubmitted,
+} from '@kithena/contracts';
 
 import { es } from '../../country-packs/es.js';
 import { MONDAY_TO_FRIDAY } from '../calendar/working-days.js';
@@ -108,7 +113,9 @@ describe('the parental plan (PRD §12.2)', () => {
 
   it('when the birth is recorded, the mandatory weeks and the blocks running on from them move', () => {
     const plan = draft();
-    plan.recordBirth(date('2027-01-20'));
+    expect(plan.recordBirth(date('2027-01-20'), ctx).ok).toBe(true);
+    expect(plan.birth).toBe(date('2027-01-20'));
+    expect(plan.dueDate).toBe(date('2027-01-14'));
     expect(plan.blocks.map((b) => [b.kind, b.from, b.to])).toEqual([
       ['mandatory', '2027-01-20', '2027-03-02'],
       ['flexible', '2027-03-03', '2027-04-27'],
@@ -118,6 +125,53 @@ describe('the parental plan (PRD §12.2)', () => {
     ]);
     expect(plan.entitlement.flexibleBefore).toBe(date('2028-01-20'));
     expect(plan.check()).toEqual([]);
+    // A draft is private: nobody is told.
+    expect(plan.drainEvents()).toEqual([]);
+  });
+
+  it('tells HR and the manager a sent plan’s birth with birth_recorded, once', () => {
+    const plan = draft();
+    plan.submit(ctx);
+    plan.drainEvents();
+    expect(plan.recordBirth(date('2027-01-10'), ctx).ok).toBe(true);
+    const [event] = plan.drainEvents();
+    expect(event?.eventName).toBe(ParentalBirthRecorded.name);
+    expect(event?.effectiveFrom).toBe('2027-01-10');
+    const payload = ParentalBirthRecorded.payload.parse(event?.payload);
+    expect(payload.birthDate).toBe('2027-01-10');
+    expect(payload.blocks[0]).toMatchObject({ from: '2027-01-10', to: '2027-02-20' });
+    const again = plan.recordBirth(date('2027-01-11'), ctx);
+    expect(again.ok ? null : again.error.code).toBe('BIRTH_ALREADY_RECORDED');
+  });
+
+  it('a draft’s blocks can be replaced; a sent plan’s cannot', () => {
+    const plan = draft(without(4));
+    expect(plan.replaceBlocks(t9).ok).toBe(true);
+    expect(plan.blocks).toEqual(t9);
+    plan.submit(ctx);
+    const late = plan.replaceBlocks(without(4));
+    expect(late.ok ? null : late.error.code).toBe('INVALID_TRANSITION');
+    expect(plan.blocks).toEqual(t9);
+  });
+
+  it('rehydrates as stored, numbering its next event on from its version', () => {
+    const plan = draft();
+    plan.submit(ctx);
+    const stored = ParentalPlan.rehydrate({
+      id: plan.id,
+      tenantId: TENANT,
+      personId: ADAM,
+      answers: plan.answers,
+      calendar: { pattern: MONDAY_TO_FRIDAY, holidays: new Set() },
+      blocks: plan.blocks,
+      status: plan.status,
+      dueDate: plan.dueDate,
+      birth: plan.birth,
+      version: plan.version,
+    });
+    expect(stored.status).toBe('submitted');
+    expect(stored.approve(HR_ACCOUNT, ctx).ok).toBe(true);
+    expect(stored.drainEvents()[0]?.aggregate.version).toBe(2);
   });
 
   it('submits with plan_submitted and the working days of each block', () => {

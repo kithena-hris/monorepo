@@ -1,7 +1,14 @@
 import * as z from 'zod';
 import { defineEvent, EventEnvelope } from '../event.js';
 import { CalendarDate, Instant, PersonId } from '../primitives.js';
-import { policy, asFreeText, asInternal, asPublic, asSpecialCategory } from '../classification.js';
+import {
+  policy,
+  asFreeText,
+  asIdentity,
+  asInternal,
+  asPublic,
+  asSpecialCategory,
+} from '../classification.js';
 import {
   AbsenceKind,
   AttendanceWorkModel,
@@ -378,6 +385,23 @@ export const ParentalPlanApproved = defineEvent(
   }),
 );
 
+/**
+ * The baby arrived (§12.4): the mandatory weeks moved to the birth, with the
+ * blocks running on from them. Raised for a plan HR and the manager have;
+ * a draft is private and raises nothing.
+ */
+export const ParentalBirthRecorded = defineEvent(
+  'timeoff.parental.birth_recorded',
+  1,
+  z.object({
+    planId: z.uuid().register(policy, asPublic()),
+    personId: PersonId,
+    /** A child's date of birth: it identifies a minor. */
+    birthDate: CalendarDate.register(policy, asIdentity()),
+    blocks: blocks(),
+  }),
+);
+
 /** What Time Off publishes, one entry per event name. v1 of `requested` is read, not published. */
 export const timeoffEvents = [
   LeaveRequested,
@@ -394,4 +418,5 @@ export const timeoffEvents = [
   PeriodClosed,
   ParentalPlanSubmitted,
   ParentalPlanApproved,
+  ParentalBirthRecorded,
 ] as const;
