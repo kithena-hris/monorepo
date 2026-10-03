@@ -53,6 +53,8 @@ export async function loadScreen(
     // The employee's screens (TOF-062 to TOF-067).
     case 'RequestTimeOff':
       return requestPanel(query.search);
+    case 'DescribeRequest':
+      return describeRequest(query.search);
     case 'MyRequestsUpcoming':
       return myRequests('upcoming');
     case 'MyRequestsPast':
@@ -125,6 +127,38 @@ async function overview(): Promise<ScreenLoad> {
       ...(base.data as object),
       holidays: upcomingHolidays(holidays, today),
       now: now.toISOString(),
+    },
+  };
+}
+
+/**
+ * T4, MT8: the sentence in the address (`q`) and whatever the person changed
+ * of what it was understood as (`type`, `days`, `month`, `holiday`, `team`),
+ * as Time Off read them, over the overview. `month=none` is "no month".
+ */
+async function describeRequest(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+  const flag = (value: string | undefined): boolean | undefined =>
+    value === '1' ? true : value === '0' ? false : undefined;
+  const days = Number(search['days']);
+  const month = search['month'];
+  const asked = Object.fromEntries(
+    Object.entries({
+      sentence: search['q']?.slice(0, 300) || undefined,
+      leaveTypeKey: search['type'] || undefined,
+      days: Number.isInteger(days) && days >= 1 && days <= 30 ? days : undefined,
+      month: month === 'none' ? '' : MONTH.test(month ?? '') ? month : undefined,
+      nextToHoliday: flag(search['holiday']),
+      avoidShort: flag(search['team']),
+    }).filter(([, v]) => v !== undefined),
+  );
+  const [behind, answer] = await Promise.all([overview(), read('TimeOffDescribe', asked)]);
+  if (answer.status !== 'ready') return answer;
+  return {
+    status: 'ready',
+    data: {
+      ...(answer.data as object),
+      overview: behind.status === 'ready' ? behind.data : null,
+      today: todayUtc(),
     },
   };
 }

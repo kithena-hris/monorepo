@@ -43,6 +43,7 @@ import {
   decideRequest,
 } from '../application/approval/decide.js';
 import { setDelegation } from '../application/approval/escalation.js';
+import { describeRequest } from '../application/assist/describe.js';
 import {
   closePayPeriod,
   correctPunch,
@@ -111,6 +112,7 @@ import {
   CalendarView,
   DecisionView,
   DelegationView,
+  DescribedView,
   HolidayLayerBody,
   HolidaySettingsView,
   HolidaysView,
@@ -476,6 +478,27 @@ export const ROUTES: readonly Route[] = [
     }),
     answer: RequestPanelView,
     run: (deps, caller, { params }) => requestPanel(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffDescribe',
+    method: 'GET',
+    path: `${V1}/describe`,
+    summary:
+      'T4, MT8: a sentence read as choices the caller can change, and the best dates for them; nothing is saved',
+    params: z.object({
+      sentence: z.string().max(300).optional(),
+      leaveTypeKey: LeaveTypeKey.optional(),
+      days: z.int().min(1).max(30).optional(),
+      month: z
+        .string()
+        .regex(/^(\d{4}-(0[1-9]|1[0-2]))?$/u, 'a month, such as 2026-10, or nothing')
+        .optional(),
+      nextToHoliday: z.boolean().optional(),
+      avoidShort: z.boolean().optional(),
+    }),
+    answer: DescribedView,
+    run: (deps, caller, { params }) => describeRequest(deps)(caller, params),
     shape: same,
   }),
   route({

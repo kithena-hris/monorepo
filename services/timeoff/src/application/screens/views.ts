@@ -311,6 +311,60 @@ export const HolidaysView = named(
   }),
 );
 
+/** T4, MT8: a sentence read as choices, and the dates the domain found for them (TOF-090). */
+export const DescribedView = named(
+  'TimeOffDescribed',
+  z.object({
+    sentence: z.string().nullable(),
+    understood: named(
+      'TimeOffUnderstood',
+      z.object({
+        leaveTypeKey: LeaveTypeKey.nullable(),
+        leaveTypeName: z.string().nullable(),
+        days: z.int(),
+        /** `YYYY-MM`, or `null` for the next three months. */
+        month: z.string().nullable(),
+        nextToHoliday: z.boolean(),
+        avoidShort: z.boolean(),
+        /** Whether a model read the sentence; the rules did otherwise. */
+        ai: z.boolean(),
+      }),
+    ),
+    leaveTypes: z.array(
+      named('TimeOffTypeChoice', z.object({ key: LeaveTypeKey, name: z.string() })),
+    ),
+    /** What is left of the type, `null` when it is not tracked. */
+    left: DayAmount.nullable(),
+    options: z.array(
+      named(
+        'TimeOffDateOption',
+        z.object({
+          from: CalendarDate,
+          to: CalendarDate,
+          used: z.int(),
+          away: z.object({ from: CalendarDate, to: CalendarDate, days: z.int() }).meta({
+            title: 'TimeOffOptionBreak',
+          }),
+          holidays: z.array(
+            z
+              .object({ date: CalendarDate, name: z.string() })
+              .meta({ title: 'TimeOffOptionHoliday' }),
+          ),
+          short: z.array(CoverageDay),
+          fewest: z
+            .object({ in: z.int(), of: z.int() })
+            .meta({ title: 'TimeOffFewest' })
+            .nullable(),
+          /** Whether the balance covers it, and what it would leave. */
+          fits: z.boolean(),
+          leftAfter: DayAmount.nullable(),
+          line: WrittenView,
+        }),
+      ),
+    ),
+  }),
+);
+
 /* --------------------------------------------------------------- manager -- */
 
 export const PersonRef = named(
@@ -938,6 +992,7 @@ export type View<S extends z.ZodType> = DeepReadonly<z.output<S>>;
 
 export type SpanView = View<typeof SpanView>;
 export type WrittenView = View<typeof WrittenView>;
+export type DescribedView = View<typeof DescribedView>;
 export type BridgeView = View<typeof BridgeView>;
 export type MemberView = View<typeof MemberView>;
 export type BalanceView = View<typeof BalanceView>;

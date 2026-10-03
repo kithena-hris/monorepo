@@ -27,6 +27,30 @@ beforeEach(() => {
   vi.useFakeTimers({ now: Date.parse('2026-10-01T10:33:00.000Z'), toFake: ['Date'] });
 });
 
+describe('describe it', () => {
+  it('asks Time Off to read the sentence, with what the person changed and nothing it cannot read', async () => {
+    answering({ TimeOffDescribe: () => ({ ok: true, data: { options: [] } }) });
+    const load = await loadScreen('DescribeRequest', {
+      params: {},
+      search: {
+        q: 'a week in October',
+        days: '10',
+        month: 'none',
+        holiday: '0',
+        team: 'x',
+        type: '',
+      },
+    });
+    expect(asked('TimeOffDescribe')).toEqual([
+      { sentence: 'a week in October', days: 10, month: '', nextToHoliday: false },
+    ]);
+    expect(load).toMatchObject({
+      status: 'ready',
+      data: { options: [], overview: null, today: '2026-10-01' },
+    });
+  });
+});
+
 describe('the request panel', () => {
   it('asks the preview for what the address says, and the team’s month on show', async () => {
     answering({ TimeOffRequestPanel: () => ({ ok: true, data: { leaveTypes: [], preview: {} } }) });

@@ -277,6 +277,10 @@ type Query {
   """
   timeOffDelegation: TimeOffDelegation!
   """
+  T4, MT8: a sentence read as choices the caller can change, and the best dates for them; nothing is saved
+  """
+  timeOffDescribe(avoidShort: Boolean, days: Int, leaveTypeKey: String, month: String, nextToHoliday: Boolean, sentence: String): TimeOffDescribed!
+  """
   T36: holiday calendars, and what each work location observes in a year; HR
   """
   timeOffHolidaySettings(year: Int!): TimeOffSettingsHolidays!
@@ -504,6 +508,19 @@ type TimeOffCoverageDay {
   required: Int!
 }
 
+type TimeOffDateOption {
+  away: TimeOffOptionBreak!
+  fewest: TimeOffFewest
+  fits: Boolean!
+  from: String!
+  holidays: [TimeOffOptionHoliday!]!
+  leftAfter: String
+  line: TimeOffWritten!
+  short: [TimeOffCoverageDay!]!
+  to: String!
+  used: Int!
+}
+
 type TimeOffDay {
   breakMinutes: Int!
   date: String!
@@ -548,6 +565,14 @@ type TimeOffDelegationDelegation {
   salaryRelated: Boolean!
 }
 
+type TimeOffDescribed {
+  leaveTypes: [TimeOffTypeChoice!]!
+  left: String
+  options: [TimeOffDateOption!]!
+  sentence: String
+  understood: TimeOffUnderstood!
+}
+
 type TimeOffDone {
   ok: Boolean!
 }
@@ -556,6 +581,11 @@ type TimeOffEvidence {
   at: String!
   source: String!
   what: String!
+}
+
+type TimeOffFewest {
+  in: Int!
+  of: Int!
 }
 
 type TimeOffFinishSuggestion {
@@ -742,6 +772,17 @@ type TimeOffOpenDay {
   date: String!
   lastPunchAt: String!
   suggestion: TimeOffFinishSuggestion
+}
+
+type TimeOffOptionBreak {
+  days: Int!
+  from: String!
+  to: String!
+}
+
+type TimeOffOptionHoliday {
+  date: String!
+  name: String!
 }
 
 type TimeOffOtherOff {
@@ -1208,6 +1249,21 @@ type TimeOffTimesheet {
   punches: [TimeOffPunch!]!
   restBreaches: [TimeOffRestBreach!]!
   weeks: [TimeOffWeek!]!
+}
+
+type TimeOffTypeChoice {
+  key: String!
+  name: String!
+}
+
+type TimeOffUnderstood {
+  ai: Boolean!
+  avoidShort: Boolean!
+  days: Int!
+  leaveTypeKey: String
+  leaveTypeName: String
+  month: String
+  nextToHoliday: Boolean!
 }
 
 type TimeOffViewer {

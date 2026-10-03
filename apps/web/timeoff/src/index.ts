@@ -29,12 +29,13 @@ import { HolidaySettings as HolidaySettingsScreen } from './settings/holiday-set
 import { LeaveType as LeaveTypeScreen } from './settings/leave-type';
 import { LeaveTypes as LeaveTypesScreen } from './settings/leave-types';
 import { NegativeBalance as NegativeBalanceScreen } from './settings/negative-balance';
+import { DescribeRequest as DescribeScreen } from './request/describe';
 import { RequestTimeOff as RequestScreen } from './request/request';
 import { MyRequests as RequestsScreen } from './requests/requests';
 
 export const Overview = framed(OverviewScreen);
 export const RequestTimeOff = framed(RequestScreen);
-export const DescribeRequest = framed(placeholder('Describe it'));
+export const DescribeRequest = framed(DescribeScreen);
 // One screen, three tabs and a request's own address: each name is what the
 // shell's loader reads to know which (`lib/timeoff-screens.ts`).
 export const MyRequestsUpcoming = framed(RequestsScreen);

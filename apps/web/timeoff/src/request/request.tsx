@@ -302,6 +302,15 @@ function Panel({
             ? 'Choose a type and the dates. Nothing is sent until you send it.'
             : `${preview.approver.displayName} approves.`}
         </SheetDescription>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`self-start ${shown('type') ?? ''}`}
+          startIcon={<icons.assistant aria-hidden />}
+          asChild
+        >
+          <a href="/time-off/request/describe">Describe it instead</a>
+        </Button>
       </SheetHeader>
       <SheetBody>
         <div className={columns}>

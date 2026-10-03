@@ -80,6 +80,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T4, MT8: a sentence read as choices the caller can change, and the best dates for them; nothing is saved */
+  TimeOffDescribe: `query TimeOffDescribe($avoidShort: Boolean, $days: Int, $leaveTypeKey: String, $month: String, $nextToHoliday: Boolean, $sentence: String) {
+    timeOffDescribe(avoidShort: $avoidShort, days: $days, leaveTypeKey: $leaveTypeKey, month: $month, nextToHoliday: $nextToHoliday, sentence: $sentence) {
+      leaveTypes { key name } left options { away { days from to } fewest { in of } fits from holidays { date name } leftAfter line { ai text } short { below checked date in of required } to used } sentence understood { ai avoidShort days leaveTypeKey leaveTypeName month nextToHoliday }
+    }
+  }`,
+
   /** T36: holiday calendars, and what each work location observes in a year; HR */
   TimeOffHolidaySettings: `query TimeOffHolidaySettings($year: Int!) {
     timeOffHolidaySettings(year: $year) {

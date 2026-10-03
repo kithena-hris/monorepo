@@ -120,6 +120,15 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onSend: actions.sendRequest,
           onNavigate: go,
         };
+      case 'DescribeRequest':
+        return {
+          load: loadable,
+          // The sentence and every choice changed are the address; Time Off reads them again.
+          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
+            go(withQuery(window.location.pathname, window.location.search, patch), mode);
+          },
+          onNavigate: go,
+        };
       case 'MyRequestsUpcoming':
       case 'MyRequestsPast':
       case 'MyRequestsCancelled':

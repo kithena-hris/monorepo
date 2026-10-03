@@ -1543,12 +1543,25 @@ test passes, and it matches the design's screen on the seeded demo company.
   evidence. The fix dialog fills the time in and lists the evidence; the AI
   tag shows when the model chose.
 
-### [ ] TOF-090 — Describe it, get the best dates
+### [x] TOF-090 — Describe it, get the best dates
 
 - **Screens** T4, MT8 · **Spec** PRD §14.2
 - **Depends on** TOF-084, TOF-062
 - **Approach** The sentence becomes editable chips (Judge); the domain generates
   and scores date options; the Writer writes each option's line.
+- **As built** `timeOffDescribe` (`assist/describe.ts`): five choices — type,
+  about how many days, month, next to a holiday, not when the team is short —
+  read by TypeSafe from options the code offered (sick leave never among
+  them, and a sentence mentioning health never sent), by Time Off's own
+  rules without a key, and overridden by anything the person changed.
+  `domain/request/options.ts` scores every run of N−1 to N+1 working days in
+  the window by days away per day used, a holiday when wanted, a short day
+  when to be avoided, and keeps the best three that do not overlap; the
+  balance after each is Time Off's. `/time-off/request/describe` is a dialog
+  over the overview (a sheet on a phone): the composer, "Understood as"
+  chips (remove, or Change for selects and switches), each change the
+  address; "Request 13–16 Oct" opens the ordinary panel with those dates, so
+  nothing is sent from here. The panel links to it ("Describe it instead").
 
 ### [ ] TOF-091 — Today in a sentence
 
