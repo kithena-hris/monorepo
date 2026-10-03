@@ -310,7 +310,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   outside its contract; a count by group whose rows fall short of its total is
   too broad. Only the answer's own chain can fail the question.
 
-### [ ] AST-011 — Answer text
+### [x] AST-011 — Answer text
 
 - **Spec** PRD §7, §11
 - **Files** `platform/assistant/src/domain/answer.ts` (+ test, first)
@@ -329,6 +329,20 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   listed without per-manager counts. `understood` from the steps' `described`.
 - **Done when** `services/people/src/application/assistant/ask.test.ts`'s
   wording cases are ported here and pass, and every PRD §7 answer is a test.
+- **As built** `answerOf(plan, executed, setting)`, `setting` being the
+  asker's `Today`, the channel, the offer (for a group's label), Time Off's
+  leave types and the company's app origin for the link. Beside it, for
+  everything that is not a plan that ran: `unclearAnswer`, `unavailableAnswer`
+  (with the modules present, for what they help with), `refusedAnswer`,
+  `failedAnswer`, and the fixed sentences `UNAVAILABLE`, `NOT_ALLOWED`,
+  `TOO_SLOW`, `WHO_ARE_YOU`, `NOT_IN_KITHENA`. `people.reports`'s `described`
+  is the manager's name, so People's "Michael Scott has 2 direct reports" still
+  reads; every other `described` ends a sentence about people. `understood` is
+  "People …" before the joined phrases ("Managers of people …" for a managers
+  step). Not done here: "(you)" beside the asker among managers, since the
+  assistant does not know the asker's person, and §11.4's opt-in to names,
+  which needs a field in Time Off's catalogue first. The wording cases of
+  `ask.test.ts` that need a model or Slack's email are AST-012's.
 
 ---
 

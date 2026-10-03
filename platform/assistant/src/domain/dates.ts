@@ -103,6 +103,10 @@ const say = (d: string, options: Intl.DateTimeFormatOptions): string => {
   );
 };
 
+/** A calendar date as People says one: "12 March 2019". */
+export const longDate = (d: string): string =>
+  say(d, { day: 'numeric', month: 'long', year: 'numeric' });
+
 /**
  * A range as people say it: "Tuesday 6 October", "12–18 October", "28
  * September–4 October". The year only when it is not this one.

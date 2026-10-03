@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AssistantAnswer } from '@kithena/contracts';
 
-import { compose, UNAVAILABLE } from './composition.js';
+import { compose } from './composition.js';
+import { UNAVAILABLE } from './domain/answer.js';
 
 const request = (method: string, url: string) => ({ method, url });
 

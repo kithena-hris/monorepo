@@ -1,5 +1,7 @@
 import type { AssistantAnswer } from '@kithena/contracts';
 
+import { UNAVAILABLE } from './domain/answer.js';
+
 /**
  * The assistant, wired from its settings.
  *
@@ -22,8 +24,6 @@ export interface Reply {
   readonly status: number;
   readonly body: unknown;
 }
-
-export const UNAVAILABLE = 'The assistant isn’t available right now.';
 
 const unavailable: AssistantAnswer = {
   text: UNAVAILABLE,
