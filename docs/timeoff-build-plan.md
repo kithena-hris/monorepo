@@ -561,11 +561,17 @@ no decline, cancel or change.
   created `IF NOT EXISTS`, a trusted extension like `btree_gin`.
   `ledger_entry.request_id` gets its foreign key here.
 
-### [ ] TOF-032 — Approval, delegation, minimum and holiday tables
+### [x] TOF-032 — Approval, delegation, minimum and holiday tables
 
 - **Files** `migrations/<ts>_timeoff_approval_holiday.sql`
 - **Depends on** TOF-030
 - **Done when** migrations apply clean twice.
+- **As built** Checked with `atlas migrate apply` twice against a fresh
+  Postgres 18 initialised by `init-db.sql`: 93 migrations, then "No migration
+  files to execute". A holiday layer carries `country`, `region` and `city`,
+  which is how a member's location picks its layers. One delegation per
+  approver, the shape `routeTo` takes. `leave_type.approval_rule_key` gets its
+  foreign key here.
 
 ### [ ] TOF-033 — Attendance tables
 

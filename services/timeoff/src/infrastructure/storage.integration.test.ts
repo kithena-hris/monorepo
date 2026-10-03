@@ -307,6 +307,31 @@ describe('requests', () => {
   });
 });
 
+/* ------------------------------------------------------------- TOF-032 -- */
+
+TABLES.push('approval_rule', 'delegation', 'team_minimum', 'holiday_calendar', 'holiday');
+seeds.push(async (tx) => {
+  await tx
+    .insert(t.approvalRule)
+    .values({ tenantId, key: 'manager_then_hr', subject: 'request', approvers: ['manager', 'hr'] });
+  await tx.update(t.leaveType).set({ approvalRuleKey: 'manager_then_hr' });
+  await tx.insert(t.delegation).values({
+    tenantId,
+    approverPersonId: MARCO,
+    delegatePersonId: ADAM,
+    during: '[2026-12-21,2026-12-31]',
+  });
+  await tx
+    .insert(t.teamMinimum)
+    .values({ tenantId, teamKey: 'platform', atLeast: 4, unit: 'people' });
+  await tx
+    .insert(t.holidayCalendar)
+    .values({ tenantId, key: 'es', name: 'Spain', level: 'national', country: 'ES' });
+  await tx
+    .insert(t.holiday)
+    .values({ tenantId, calendarKey: 'es', day: '2026-10-12', name: 'Fiesta Nacional' });
+});
+
 /* -------------------------------------------------------- every table -- */
 
 describe('every Time Off table', () => {

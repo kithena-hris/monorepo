@@ -186,3 +186,79 @@ export const requestDecision = timeoff.table(
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
 );
+
+/* ------------------------------------------------------------- TOF-032 -- */
+
+/** `[2026-12-21,2027-01-01)`, as Postgres prints it. */
+const daterange = customType<{ data: string }>({ dataType: () => 'daterange' });
+
+export const approvalRule = timeoff.table(
+  'approval_rule',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    key: text('key').notNull(),
+    subject: text('subject').notNull(),
+    leaveTypes: text('leave_types').array(),
+    appliesWhen: text('applies_when').notNull().default('always'),
+    approvers: text('approvers').array().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
+);
+
+export const delegation = timeoff.table(
+  'delegation',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    approverPersonId: uuid('approver_person_id').notNull(),
+    delegatePersonId: uuid('delegate_person_id').notNull(),
+    during: daterange('during'),
+    automatic: boolean('automatic').notNull().default(false),
+    salaryRelated: boolean('salary_related').notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.approverPersonId] })],
+);
+
+export const teamMinimum = timeoff.table(
+  'team_minimum',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    teamKey: text('team_key').notNull(),
+    atLeast: integer('at_least').notNull(),
+    unit: text('unit').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.teamKey] })],
+);
+
+export const holidayCalendar = timeoff.table(
+  'holiday_calendar',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    level: text('level').notNull(),
+    weekendRule: text('weekend_rule').notNull().default('none'),
+    country: char('country', { length: 2 }).notNull(),
+    region: text('region'),
+    city: text('city'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
+);
+
+export const holiday = timeoff.table(
+  'holiday',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    calendarKey: text('calendar_key').notNull(),
+    day: calendarDate('day').notNull(),
+    name: text('name').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.calendarKey, t.day] })],
+);
