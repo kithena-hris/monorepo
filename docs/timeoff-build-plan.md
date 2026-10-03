@@ -696,7 +696,7 @@ SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
 - **Done when** `/time-off/overview` renders a placeholder screen through the
   shell, client and server side.
 
-### [ ] TOF-058 — Navigation turns on
+### [x] TOF-058 — Navigation turns on
 
 - **Files** `apps/web/src/components/app-shell.tsx`, `lib/shortcuts.ts`
 - **Depends on** TOF-057
