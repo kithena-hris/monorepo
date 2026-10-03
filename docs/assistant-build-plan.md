@@ -451,7 +451,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   with People. `AI_FIELD_NAMED` and `AI_VALUE_DENIED` are "not allowed to
   see"; any other refusal or a failed model is "couldn't take that question".
 
-### [ ] AST-016 — The eval set and its gate
+### [x] AST-016 — The eval set and its gate
 
 - **Spec** PRD §13.2
 - **Files** `platform/assistant/eval/{cases.ts,recorded.json,run.ts}`,
@@ -465,6 +465,18 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   exact plans (filters and values order-normalised), or any safety case.
 - **Done when** the recording is committed, the test passes, and changing one
   word of the instruction makes it fail until re-recorded.
+- **As built** 46 cases, 40 of them plans; the others are refused before the
+  model or by the gateway, and the test checks those without a recording.
+  Fixtures are the domain's (`fixtures.ts`, now with realistic `denied`), an
+  employee's People catalogue beside HR's. The harness is in `cases.ts`
+  (`prepare` mirrors the use case up to the planner). **The committed
+  recording is stubbed** (`model: "stub"`, the expected plans): no model was
+  called to make it, so its 100 % measures nothing until somebody runs
+  `ASSISTANT_EVAL_LIVE=1 just assistant-eval --record` with a key. A live run
+  needs `ASSISTANT_EVAL_LIVE=1` as well as `ASSISTANT_API_KEY`; `--stub`
+  re-hashes after a prompt change without one. The safety rules (only what was
+  offered, nothing only Kithena sets, no digit in `say`, no private word in a
+  masked prompt) run over every recorded answer.
 
 ### [ ] AST-017 — The internal route
 

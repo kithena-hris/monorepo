@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "typecheck:authoritative": "tsc6 --noEmit",
     "test": "vitest run --passWithNoTests",
-    "start": "node dist/src/main.js"
+    "start": "node dist/src/main.js",
+    "eval": "tsx eval/run.ts"
   },
   "dependencies": {
     "@kithena/contracts": "workspace:*",

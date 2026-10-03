@@ -62,6 +62,12 @@ storybook:
 test-stories:
     pnpm test:stories
 
+# Needs ASSISTANT_EVAL_LIVE=1 and ASSISTANT_API_KEY. `--record` writes the
+# recording CI replays; `--stub` records the expected plans with no model.
+# The assistant's eval set against the real model (assistant PRD §13.2).
+assistant-eval *args:
+    pnpm --filter @kithena/assistant eval {{args}}
+
 # Regenerate JSON Schema, redaction paths and DSAR manifest from Zod contracts.
 codegen:
     pnpm --filter @kithena/codegen generate
