@@ -5,6 +5,8 @@ import {
   useCallback,
   useEffect,
   useId,
+  useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -12,6 +14,7 @@ import {
   type JSX,
   type KeyboardEvent,
   type ReactNode,
+  type Ref,
 } from 'react';
 import {
   DndContext,
@@ -323,7 +326,18 @@ export interface DataTableReorder {
   order: readonly string[];
 }
 
+/** What a caller can ask of the table from outside it, through `ref`. */
+export interface DataTableHandle {
+  /**
+   * Brings a row into view: smoothly, unless the reader asked for reduced
+   * motion, and not at all when it is already in full view. A virtualized row
+   * is mounted on the way. With `focus`, the keyboard lands on it too.
+   */
+  revealRow: (id: string, options?: { readonly focus?: boolean }) => void;
+}
+
 export interface DataTableProps<T extends TableRow> {
+  ref?: Ref<DataTableHandle>;
   rows: readonly T[];
   columns: readonly DataColumn<T>[];
   /** Stable identity. An index stops being identity the moment anything sorts. */
@@ -391,6 +405,15 @@ export interface DataTableProps<T extends TableRow> {
    * pushing its neighbours.
    */
   resizable?: boolean;
+  /**
+   * How the columns get their widths. `content` (the default without
+   * `resizable`) is the browser's table layout: each column as wide as what
+   * it holds. `fixed` (the default with it) lays out on the declared widths,
+   * gives spare room once to the columns the first rows overflow, and never
+   * moves them again: rows arriving or scrolling past cannot nudge a column,
+   * which is what a table that keeps loading needs.
+   */
+  columnSizing?: 'content' | 'fixed';
   /** Widths in px by column id. Uncontrolled when omitted. */
   columnWidths?: Readonly<Record<string, number>>;
   onColumnWidthsChange?: (widths: Readonly<Record<string, number>>) => void;
@@ -460,6 +483,7 @@ export interface DataTableProps<T extends TableRow> {
 }
 
 export function DataTable<T extends TableRow>({
+  ref,
   rows,
   columns,
   rowId,
@@ -484,6 +508,7 @@ export function DataTable<T extends TableRow>({
   defaultCollapsedGroups,
   striped = false,
   resizable = false,
+  columnSizing = resizable ? 'fixed' : 'content',
   columnWidths,
   onColumnWidthsChange,
   onEndReached,
@@ -512,11 +537,12 @@ export function DataTable<T extends TableRow>({
   const [collapsed, setCollapsed] = useState<readonly string[]>(defaultCollapsedGroups ?? []);
   const [ownWidths, setOwnWidths] = useState<Readonly<Record<string, number>>>({});
   const widths = columnWidths ?? ownWidths;
+  const fixed = columnSizing === 'fixed';
   // Width a column was given to show what it truncates (`stretchOverflowing`),
-  // keyed by the columns, the widths somebody chose and the container's width,
-  // so any change to those measures again from the declared widths.
-  const [boxWidth, setBoxWidth] = useState(0);
-  const fitKey = `${columns.map((c) => `${c.id}:${String(widths[c.id] ?? '')}`).join('|')}@${String(boxWidth)}`;
+  // measured once per set of columns: measuring again as rows arrive, as the
+  // container gained a scrollbar or as a column was dragged moved every
+  // column under the reader's eye.
+  const fitKey = columns.map((c) => c.id).join('|');
   const [fit, setFit] = useState<{
     readonly key: string;
     readonly extra: Readonly<Record<string, number>>;
@@ -711,7 +737,12 @@ export function DataTable<T extends TableRow>({
    * more than rendering the rows it would have saved.
    */
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const wantsVirtual = virtualize === 'auto' ? items.length >= virtualizeThreshold : virtualize;
+  // A table that keeps loading will pass the threshold mid-scroll, and turning
+  // virtualization on then remounts the rows on screen: it starts on instead.
+  const wantsVirtual =
+    virtualize === 'auto'
+      ? items.length >= virtualizeThreshold || onEndReached !== undefined
+      : virtualize;
   const virtualized = wantsVirtual && !canReorder && renderDetail === undefined;
 
   // Memoised for the reason spelled out in `virtual-list.tsx`: a fresh arrow
@@ -781,6 +812,44 @@ export function DataTable<T extends TableRow>({
       row?.focus();
     });
   };
+  const rowElement = (id: string): HTMLTableRowElement | undefined =>
+    [...(scrollRef.current?.querySelectorAll<HTMLTableRowElement>('tr[data-row-id]') ?? [])].find(
+      (el) => el.dataset['rowId'] === id,
+    );
+  useImperativeHandle(ref, () => ({
+    revealRow: (id, { focus = false } = {}) => {
+      const box = scrollRef.current;
+      if (box === null) return;
+      const behavior: ScrollBehavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth';
+      const el = rowElement(id);
+      if (el === undefined) {
+        // Not mounted: the virtualizer knows where it is.
+        const at = items.findIndex((item) => item.kind === 'row' && rowId(item.row) === id);
+        if (virtualized && at >= 0) virtualizer.scrollToIndex(at, { align: 'center', behavior });
+      } else {
+        // In full view already: below the pinned header, inside the box and the window.
+        const r = el.getBoundingClientRect();
+        const edge = box.getBoundingClientRect();
+        const head = box.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+        const seen =
+          r.top >= Math.max(edge.top + head, 0) &&
+          r.bottom <= Math.min(edge.bottom, window.innerHeight);
+        if (!seen) el.scrollIntoView({ block: 'center', behavior });
+      }
+      if (!focus) return;
+      setFocusId(id);
+      // A virtualized row mounts once the scroll nears it; focus it then, where it is.
+      let frames = 0;
+      const land = (): void => {
+        const row = rowElement(id);
+        if (row !== undefined) row.focus({ preventScroll: true });
+        else if (frames++ < 120) requestAnimationFrame(land);
+      };
+      land();
+    },
+  }));
   const onRowKey = (row: T, id: string, event: KeyboardEvent<HTMLTableRowElement>): void => {
     // The row's own keys, not those of a control inside it, nor the second
     // key of a sequence the app is waiting on (G then M).
@@ -863,32 +932,27 @@ export function DataTable<T extends TableRow>({
     };
   }, [wantsEnd, ordered.length]);
 
-  // The container's width, whole pixels, so a resize measures again.
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!resizable || el === null || typeof ResizeObserver === 'undefined') return undefined;
-    const observer = new ResizeObserver(() => {
-      setBoxWidth(Math.round(el.clientWidth));
-    });
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-    };
-  }, [resizable]);
-
   /*
    * A table of few columns leaves room at its end. That room goes to the
    * columns whose content is cut off, header or cell, up to what each needs;
    * a table with nothing cut off keeps its declared widths. A column somebody
    * resized keeps their width. Only what is rendered is measured, which on a
-   * virtualized table is the rows in view.
+   * virtualized table is the rows in view, and only once, before the first
+   * paint with rows: from then on the widths are locked.
    */
-  useEffect(() => {
+  const hasRows = ordered.length > 0;
+  useLayoutEffect(() => {
     const el = scrollRef.current;
     const table = el?.querySelector('table');
-    if (!resizable || el == null || table == null) return;
+    if (!fixed || !hasRows || fit.key === fitKey || el == null || table == null) return;
     const spare = el.clientWidth - table.offsetWidth;
-    if (spare <= 0) return;
+    const done = (extra: Readonly<Record<string, number>>): void => {
+      setFit({ key: fitKey, extra });
+    };
+    if (spare <= 0) {
+      done({});
+      return;
+    }
     const heads = [...table.querySelectorAll<HTMLTableCellElement>('thead th[data-column-id]')];
     const span = heads[0]?.parentElement?.children.length ?? 0;
     const overflow: Record<string, number> = {};
@@ -913,21 +977,8 @@ export function DataTable<T extends TableRow>({
       }
       if (need > 0) overflow[id] = need;
     }
-    const more = stretchOverflowing(spare, overflow);
-    if (Object.keys(more).length === 0) return;
-    setFit((prev) => {
-      const base = prev.key === fitKey ? prev.extra : {};
-      return {
-        key: fitKey,
-        extra: Object.fromEntries(
-          [...new Set([...Object.keys(base), ...Object.keys(more)])].map((id) => [
-            id,
-            (base[id] ?? 0) + (more[id] ?? 0),
-          ]),
-        ),
-      };
-    });
-  }, [fitKey, resizable, ordered.length, widths]);
+    done(stretchOverflowing(spare, overflow));
+  }, [fitKey, fixed, hasRows, fit.key, widths]);
 
   const body = (
     <Table
@@ -940,11 +991,20 @@ export function DataTable<T extends TableRow>({
       // Only when virtualized. On a fully rendered table the DOM already tells
       // the truth, and a redundant count is one more thing to get wrong.
       {...(virtualized ? { 'aria-rowcount': items.length + 1 } : {})}
-      className={cn(
-        CARD.table,
-        resizable && 'w-max table-fixed touch:w-full touch:table-auto',
-        className,
-      )}
+      className={cn(CARD.table, fixed && 'table-fixed touch:w-full! touch:table-auto', className)}
+      // Fixed widths add up to the table's: `w-max` would size it on its
+      // content, and the browser would then share that out as cells came and
+      // went. The leading controls are 40px each, the actions 48px.
+      {...(fixed
+        ? {
+            style: {
+              width:
+                columns.reduce((sum, column) => sum + widthFor(column), 0) +
+                leadingColumns * 40 +
+                (rowActions ? 48 : 0),
+            },
+          }
+        : {})}
       {...(containerClassName === undefined ? {} : { containerClassName })}
     >
       {caption === undefined ? null : (
@@ -987,7 +1047,7 @@ export function DataTable<T extends TableRow>({
             const position = activeSorts.findIndex((entry) => entry.columnId === column.id);
             const current = activeSorts[position];
             const isSorted = current !== undefined;
-            const width = resizable ? `${String(widthFor(column))}px` : column.width;
+            const width = fixed ? `${String(widthFor(column))}px` : column.width;
             return (
               <TableHead
                 key={column.id}
@@ -1163,10 +1223,10 @@ export function DataTable<T extends TableRow>({
                 {...(virtualized ? { 'aria-rowindex': rowIndex + 2 } : {})}
                 reorderable={canReorder}
                 selected={picked.has(id)}
+                data-row-id={id}
                 {...(moves
                   ? {
                       tabIndex: id === tabbableId ? 0 : -1,
-                      'data-row-id': id,
                       'data-roving-row': true,
                       // A grid's row says whether it is selected either way.
                       ...(selectable ? { 'aria-selected': picked.has(id) } : {}),
@@ -1276,7 +1336,7 @@ export function DataTable<T extends TableRow>({
                         !column.cardTrailing &&
                         CARD.label,
                       column.hideOnCard && 'touch:hidden',
-                      resizable && 'overflow-hidden text-ellipsis touch:overflow-visible',
+                      fixed && 'overflow-hidden text-ellipsis touch:overflow-visible',
                       column.className,
                     )}
                   >
