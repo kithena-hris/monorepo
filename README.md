@@ -34,7 +34,10 @@ way the back office does, events included. Debezium does not run locally, so
 pipes it into People's (`services/people/src/seed-local.ts`), which hands each
 event to People's consumer and then acts as Ada through People's own
 endpoints. It is idempotent, and only fills a fresh
-database: `just reset` for one.
+database: `just reset` for one. Time Off's seed comes last, with the same pipe:
+Acme's Platform team, Ada as Time Off's HR, and an invited account for each of
+the seven (`marco.ruiz@acme.example`, `adam.novak@acme.example`, …), whose
+enrolment links it prints (`docs/demo-company.md`).
 
 ### Working on a screen
 

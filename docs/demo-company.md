@@ -1,6 +1,6 @@
 # The Dunder Mifflin demo company
 
-How to put *The Office*'s paper company into a deployment, the way a customer
+How to put _The Office_'s paper company into a deployment, the way a customer
 would set one up: the back office creates the company, its administrator signs
 in, and everything else goes through People's own screens' operations.
 
@@ -119,6 +119,56 @@ For staging: `https://identity.staging.kithena.com`,
 2. `unset KITHENA_INTERNAL_TOKEN KITHENA_SESSION`.
 3. Look at People as Toby: the directory, the org chart from David Wallace
    down, and a few profiles.
+
+## Acme's Platform team, in Time Off
+
+Locally, `pnpm db:seed` ends with Time Off's seed
+(`services/timeoff/src/seed/acme.ts`): Acme's Platform team as the Time Off
+design draws it, as of Thursday 1 October 2026, 12:33 in Madrid. Acme is
+found by its slug in `platform.tenant`; nothing else is read from another
+module, and the team is Time Off's own members, imported the way a company
+without People would, so they are not the People roster above. Running it
+again changes nothing: it stops when Adam is already there.
+
+- **The team**: Marco Ruiz manages Adam Novak, Omar Haddad, Yuki Sato, Leo
+  Rossi, Hana Kim and Ravi Patel, all in Madrid. Ada Lovelace is HR; she is an
+  account, not a member, and her `hr_admin` comes from the authorization
+  model, not from this seed: identity's seed names her Time Off's
+  administrator, and `pnpm db:seed` pipes that event into Time Off's seed,
+  which hands it to Time Off's consumer, as People's seed does with its own.
+- **Signing in**: identity's seed invites an account for each of the seven,
+  `first.last@acme.example` (account ids `7ac0e000-0000-4000-8000-0000000000a1`
+  to `…a7`, Marco first, repeated in `acme.ts`), and prints an enrolment link
+  for each still invited. Each member carries that account, so enrolling as
+  Adam and opening Time Off shows Adam. With `OPENFGA_URL` set, the seed also
+  makes Time Off's store and model and writes the team's tuples, so Marco
+  approves.
+- **Leave types**: Spain's statutory ones from the country pack, plus a
+  personal day (3 a year) and comp time, in hours.
+- **Policies**, published from 1 January 2026 and only for Spain: vacation 25
+  days by tenure (26 from 3 years, 27 from 6, 28 from 10), credited a twelfth
+  on the 1st of each month, 5 days carried to 31 March, up to 3 below zero
+  approved by the manager then HR.
+- **Holidays**: Spain, the Comunidad de Madrid and Madrid city, assigned to
+  the `madrid` location. **Approval**: the manager; below zero, the manager
+  then HR. **Team minimum**: Platform, 5 of 7 in. **Schedules**: everyone
+  09:00–17:30, Monday to Friday, half an hour's break.
+- **Adam**, T1's numbers: 11.5 days of vacation left (4.167 carried in, ten
+  monthly credits of 25, 10.5 taken, 3 booked for 10–12 November), 2 personal
+  days of 3 (one taken on 4 September), 6 hours of comp time. His punches for
+  the week of 28 September are T20's, Wednesday without its clock-out and
+  Thursday still clocked in.
+- **October**, the design's `OFF`: Marco 13–16, Omar 19–21, Yuki a personal
+  day on the 21st, Leo 26–30, Hana sick on the 1st and 2nd, Ravi a comp day on
+  the 9th, all approved.
+
+**Adam's 19–23 October is deliberately missing.** It is the request T3 shows
+him sending: the panel's 11.5 → 6.5 and its warning that Wednesday 21 drops
+to 4 of 7 only read true while it is unsent. Send it as Adam, and the
+calendar (T12, T13) and Marco's queue show it pending, as drawn.
+
+Ravi's comp day costs 1 hour, not 8: the application books an hour-unit
+request's working days as hours until it has a day-to-hours rule.
 
 ## Things to know
 

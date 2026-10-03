@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ChangeTimeOffLeaveType($key: String!, $input: JSON!, $leaveTypeKey: String!) {\n    changeTimeOffLeaveType(idempotencyKey: $key, input: $input, key: $leaveTypeKey) {\n      ok\n    }\n  }"}

@@ -68,6 +68,40 @@ export interface DateRange {
   end: IsoDate | null;
 }
 
+/** The status tones and the categorical chart palette. */
+export type CalendarTone =
+  | 'accent'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'info'
+  | 'neutral'
+  | 'chart-1'
+  | 'chart-2'
+  | 'chart-3'
+  | 'chart-4'
+  | 'chart-5'
+  | 'chart-6';
+
+/** A dot under a day. */
+export interface CalendarMarker {
+  tone: CalendarTone;
+  /** Read after the date: "Public holiday", "2 away". A dot alone says nothing to a screen reader. */
+  label?: string;
+}
+
+/** How one day's number is drawn, apart from selection. */
+export interface CalendarDayStyle {
+  /**
+   * `struck`: muted and crossed out, but still selectable, unlike a disabled
+   * day: a day that does not count. `danger`: the number in the danger colour,
+   * a day with a problem on it.
+   */
+  appearance: 'struck' | 'danger';
+  /** Read after the date. The appearance is never the only signal. */
+  label?: string;
+}
+
 /**
  * Everything that does not depend on the selection mode.
  *
@@ -83,8 +117,20 @@ interface CalendarBaseProps {
   max?: IsoDate;
   /** Per-day veto: company holidays, blackout periods, weekends. */
   isDateDisabled?: (date: IsoDate) => boolean;
-  /** Dots under a day: existing leave, a public holiday, a payroll cut-off. */
-  markers?: Readonly<Record<IsoDate, { tone: 'accent' | 'success' | 'warning' | 'danger' }>>;
+  /**
+   * Dots under a day: something already booked, a public holiday, a cut-off.
+   * One marker or several; three fit under a day.
+   */
+  markers?: Readonly<Record<IsoDate, CalendarMarker | readonly CalendarMarker[]>>;
+  /** Per-day appearance: crossed out, or in the danger colour. */
+  dayStyles?: Readonly<Record<IsoDate, CalendarDayStyle>>;
+  /**
+   * A period drawn as a range is, ends filled and a band between, without
+   * being the selection: a period chosen elsewhere and shown here for
+   * reference. In `range` mode a selection in progress takes its place.
+   * `label` is read after each day inside it.
+   */
+  highlight?: { start: IsoDate; end: IsoDate; label?: string } | null;
   /**
    * 0 = Sunday. Defaults to Monday, which is the ISO week and what every
    * European payroll calendar uses. Do not hardcode the US week.
@@ -132,12 +178,20 @@ export type CalendarProps = CalendarBaseProps &
       }
   );
 
-const dotTone = {
+const dotTone: Record<CalendarTone, string> = {
   accent: 'bg-accent',
   success: 'bg-success',
   warning: 'bg-warning',
   danger: 'bg-danger',
-} as const;
+  info: 'bg-info',
+  neutral: 'bg-fg-subtle',
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
+  'chart-5': 'bg-chart-5',
+  'chart-6': 'bg-chart-6',
+};
 
 function startOfMonth(iso: IsoDate): IsoDate {
   return `${iso.slice(0, 7)}-01`;
@@ -158,6 +212,8 @@ export function Calendar(props: CalendarProps): JSX.Element {
     max,
     isDateDisabled,
     markers,
+    dayStyles,
+    highlight,
     weekStartsOn = 1,
     locale = 'en-GB',
     today = formatIsoDate(Date.now()),
@@ -249,8 +305,12 @@ export function Calendar(props: CalendarProps): JSX.Element {
     );
   };
 
+  // The band drawn: the selection once one is under way, else the highlight.
+  const band = range?.start ? range : (highlight ?? null);
+  const fromHighlight = band !== null && band === highlight;
+
   const inRange = (date: IsoDate): boolean =>
-    Boolean(range?.start && range.end && date > range.start && date < range.end);
+    Boolean(band?.start && band.end && date > band.start && date < band.end);
 
   const isSelected = (date: IsoDate): boolean =>
     mode === 'single' ? date === single : date === range?.start || date === range?.end;
@@ -314,18 +374,27 @@ export function Calendar(props: CalendarProps): JSX.Element {
                 const disabled = isDisabled(date);
                 const selectedDay = isSelected(date);
                 const between = inRange(date);
-                const marker = markers?.[date];
+                const entry = markers?.[date];
+                const dots: readonly CalendarMarker[] =
+                  entry === undefined ? [] : 'tone' in entry ? [entry] : entry;
+                const style = dayStyles?.[date];
                 // The band under a range runs edge to edge between the ends
                 // and stops at the centre of each end's circle.
-                const isStart = range?.start === date;
-                const isEnd = range?.end === date;
-                const band =
+                const isStart = band?.start === date;
+                const isEnd = band?.end === date;
+                const banded =
                   between ||
-                  (Boolean(range?.end) && range?.start !== range?.end && (isStart || isEnd));
+                  (Boolean(band?.end) && band?.start !== band?.end && (isStart || isEnd));
+                const filled = selectedDay || (fromHighlight && (isStart || isEnd));
+                const notes = [
+                  ...dots.map((dot) => dot.label),
+                  style?.label,
+                  fromHighlight && (between || isStart || isEnd) ? highlight.label : undefined,
+                ].filter(Boolean);
 
                 return (
                   <td key={date} className="relative h-9 p-0 text-center touch:h-11">
-                    {band ? (
+                    {banded ? (
                       <span
                         aria-hidden
                         className={cn(
@@ -340,7 +409,10 @@ export function Calendar(props: CalendarProps): JSX.Element {
                       disabled={disabled}
                       aria-pressed={selectedDay}
                       aria-current={date === today ? 'date' : undefined}
-                      aria-label={dayFormatter.format(new Date(parseIsoDate(date)))}
+                      aria-label={[
+                        dayFormatter.format(new Date(parseIsoDate(date))),
+                        ...notes,
+                      ].join(', ')}
                       onClick={() => {
                         handleSelect(date);
                       }}
@@ -352,26 +424,36 @@ export function Calendar(props: CalendarProps): JSX.Element {
                         'text-sm font-medium tabular-nums touch:text-base',
                         'transition-colors duration-(--animate-duration-fast)',
                         'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
-                        outsideMonth ? 'text-fg-subtle' : 'text-fg',
-                        !disabled && !selectedDay && 'hover:bg-surface-hover',
-                        selectedDay &&
-                          'bg-accent-solid font-bold text-fg-on-accent hover:bg-accent-hover',
+                        outsideMonth || style?.appearance === 'struck'
+                          ? 'text-fg-subtle'
+                          : 'text-fg',
+                        style?.appearance === 'struck' && 'line-through',
+                        style?.appearance === 'danger' && 'text-danger-fg',
+                        !disabled && !filled && 'hover:bg-surface-hover',
+                        filled &&
+                          'bg-accent-solid font-bold text-fg-on-accent no-underline hover:bg-accent-hover',
                         date === today &&
-                          !selectedDay &&
+                          !filled &&
                           'font-bold text-accent-fg ring-[1.5px] ring-accent ring-inset',
                         disabled && 'cursor-not-allowed text-fg-disabled line-through',
                       )}
                     >
                       {Number(date.slice(8))}
-                      {marker ? (
+                      {dots.length > 0 ? (
                         <span
                           aria-hidden
-                          className={cn(
-                            'absolute bottom-0.75 size-[5px] rounded-full touch:bottom-1.25',
-                            dotTone[marker.tone],
-                            selectedDay && 'bg-fg-on-accent',
-                          )}
-                        />
+                          className="absolute bottom-0.75 flex gap-0.5 touch:bottom-1.25"
+                        >
+                          {dots.slice(0, 3).map((dot, index) => (
+                            <span
+                              key={index}
+                              className={cn(
+                                'size-[5px] rounded-full',
+                                filled ? 'bg-fg-on-accent' : dotTone[dot.tone],
+                              )}
+                            />
+                          ))}
+                        </span>
                       ) : null}
                     </button>
                   </td>

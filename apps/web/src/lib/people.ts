@@ -6,6 +6,10 @@ import { after } from 'next/server';
 import { cache } from 'react';
 
 import { CLIENT_NAME, OPERATIONS, type OperationName } from './people-operations';
+import {
+  OPERATIONS as TIMEOFF_OPERATIONS,
+  type OperationName as TimeOffOperationName,
+} from './timeoff-operations';
 import { currentPerson } from './session';
 import { SESSION_COOKIE } from './session-cookie';
 import { timed } from './timing';
@@ -152,12 +156,26 @@ export const accessToken = cache(async (): Promise<string | null> => {
 });
 
 /**
+ * Whose operations: People's, or another area's through the same router, the
+ * same token and the same rules (TOF-060). `service` names it in a sentence.
+ */
+interface Area {
+  readonly service: string;
+  readonly operations: Readonly<Record<string, string>>;
+}
+const AREAS: Readonly<Record<'people' | 'timeoff', Area>> = {
+  people: { service: 'People', operations: OPERATIONS },
+  timeoff: { service: 'Time Off', operations: TIMEOFF_OPERATIONS },
+};
+
+/**
  * One answer per read per request: the shell's counts and the screen under
  * them ask People some of the same questions (the overview, what waits for
  * HR), and asking twice cost a round trip each. Writes are never shared.
  */
-const read = cache((name: OperationName, variables: string): Promise<PeopleAnswer<unknown>> =>
-  send(name, JSON.parse(variables) as Record<string, unknown>),
+const read = cache(
+  (area: keyof typeof AREAS, name: string, variables: string): Promise<PeopleAnswer<unknown>> =>
+    send(area, name, JSON.parse(variables) as Record<string, unknown>),
 );
 
 /**
@@ -179,12 +197,13 @@ function changed(): void {
   }
 }
 
-const hashes = new Map<OperationName, string>();
-const hashOf = (name: OperationName): string => {
-  let hash = hashes.get(name);
+/** By the document, which is what the router's safelist is keyed by. */
+const hashes = new Map<string, string>();
+const hashOf = (body: string): string => {
+  let hash = hashes.get(body);
   if (hash === undefined) {
-    hash = createHash('sha256').update(OPERATIONS[name]).digest('hex');
-    hashes.set(name, hash);
+    hash = createHash('sha256').update(body).digest('hex');
+    hashes.set(body, hash);
   }
   return hash;
 };
@@ -197,27 +216,46 @@ export async function people<T>(
   name: OperationName,
   variables: Record<string, unknown> = {},
 ): Promise<PeopleAnswer<T>> {
-  const answer = OPERATIONS[name].trimStart().startsWith('mutation')
-    ? send(name, variables)
-    : read(name, JSON.stringify(variables));
+  return ask<T>('people', name, variables);
+}
+
+/** One of Time Off's operations (`timeoff-operations.ts`), as `people` runs People's. */
+export async function timeOff<T>(
+  name: TimeOffOperationName,
+  variables: Record<string, unknown> = {},
+): Promise<PeopleAnswer<T>> {
+  return ask<T>('timeoff', name, variables);
+}
+
+function ask<T>(
+  area: keyof typeof AREAS,
+  name: string,
+  variables: Record<string, unknown>,
+): Promise<PeopleAnswer<T>> {
+  const answer = (AREAS[area].operations[name] ?? '').trimStart().startsWith('mutation')
+    ? send(area, name, variables)
+    : read(area, name, JSON.stringify(variables));
   return answer as Promise<PeopleAnswer<T>>;
 }
 
 async function send(
-  name: OperationName,
+  area: keyof typeof AREAS,
+  name: string,
   variables: Record<string, unknown>,
 ): Promise<PeopleAnswer<unknown>> {
+  const { service, operations } = AREAS[area];
+  const body = operations[name] ?? '';
   const token = await accessToken();
   if (token === null) return signedOut;
   const router = (process.env['ROUTER_URL'] ?? 'http://localhost:4000').replace(/\/$/, '');
-  const writes = OPERATIONS[name].trimStart().startsWith('mutation');
+  const writes = body.trimStart().startsWith('mutation');
   // Every keyed write declares `$key`; the two that only compute do not.
-  const keyed = OPERATIONS[name].includes('$key: String!');
+  const keyed = body.includes('$key: String!');
   const operation = {
-    query: OPERATIONS[name],
+    query: body,
     operationName: name,
     variables: keyed ? { ...variables, key: randomUUID() } : variables,
-    extensions: { persistedQuery: { version: 1, sha256Hash: hashOf(name) } },
+    extensions: { persistedQuery: { version: 1, sha256Hash: hashOf(body) } },
   };
   try {
     const response = await timed(
@@ -252,7 +290,7 @@ async function send(
       return {
         ok: false,
         code: typeof code === 'string' ? code : 'UNAVAILABLE',
-        message: error?.message ?? 'People did not answer',
+        message: error?.message ?? `${service} did not answer`,
         // Only a path in this app: a refusal never sends the browser elsewhere.
         ...(typeof link === 'string' && link.startsWith('/') && !link.startsWith('//')
           ? { link }
@@ -265,6 +303,6 @@ async function send(
   } catch (cause) {
     return wakingCause(cause, writes)
       ? wakeSoon()
-      : { ok: false, code: 'UNAVAILABLE', message: 'People did not answer in time' };
+      : { ok: false, code: 'UNAVAILABLE', message: `${service} did not answer in time` };
   }
 }

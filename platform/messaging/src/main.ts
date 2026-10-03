@@ -82,6 +82,8 @@ const routes = compose({
    * `just local` serves.
    */
   noticeToken: process.env['MESSAGING_PEOPLE_TOKEN'],
+  // What Time Off presents for its own notices; a pair's secret, like People's.
+  timeOffNoticeToken: process.env['MESSAGING_TIMEOFF_TOKEN'],
   // Defaulted to the local app only in development; see `selectTenantAppBase`.
   tenantAppBase: process.env['TENANT_APP_BASE'],
   allowLogTransport: process.env['NODE_ENV'] !== 'production',

@@ -59,7 +59,7 @@ export function iconOf(name: string | undefined): JSX.Element | undefined {
 /** A count as a small solid badge; approvals are the urgent tone, the rest a warning. */
 function Count({ path, n }: { readonly path: string; readonly n: number }): JSX.Element {
   return (
-    <Badge size="xs" variant="solid" tone={path.endsWith('/approvals') ? 'danger' : 'warning'}>
+    <Badge size="xs" variant="solid" tone={/\/approvals(\/|$)/.test(path) ? 'danger' : 'warning'}>
       {n}
       <span className="sr-only"> waiting</span>
     </Badge>
@@ -71,12 +71,21 @@ function countOf(counts: Readonly<Record<string, number>>, path: string): { badg
   return n === undefined ? {} : { badge: <Count path={path} n={n} /> };
 }
 
-/** The sidebar's People pages, inline under its item (V2): ruled rows with their counts. */
-export function PeopleSubnav({ sections, route, counts = {} }: PeopleNavProps): JSX.Element {
+/**
+ * The sidebar's People pages, inline under its item (V2): ruled rows with
+ * their counts. Any other area's sections are drawn the same way, named by
+ * `label` ("Time off sections").
+ */
+export function PeopleSubnav({
+  sections,
+  route,
+  counts = {},
+  label = 'People sections',
+}: PeopleNavProps & { readonly label?: string }): JSX.Element {
   const current = currentPlace(sections, route);
   const hint = useHint();
   return (
-    <NavList variant="ruled" aria-label="People sections">
+    <NavList variant="ruled" aria-label={label}>
       {sections.map((s) => (
         <NavItem
           key={s.path}

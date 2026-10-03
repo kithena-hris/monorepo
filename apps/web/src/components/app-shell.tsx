@@ -63,7 +63,7 @@ import {
 
 import { searchPeople } from '../app/(app)/people/actions';
 import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
-import { EMPTY_SHELL, type ShellData } from '../lib/shell-data';
+import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
 import { useInAppLinks } from '../lib/links';
 import { matchPath } from '../lib/remotes';
 import {
@@ -79,6 +79,7 @@ import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
 import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
+import { RemoteSlot } from './remote-slot';
 import {
   Shortcuts,
   ShortcutsHelp,
@@ -120,8 +121,8 @@ const ThemeDark = icons.themeDark;
  * semantics. People's sections sit inline under its item while you are in
  * People; in the collapsed rail they are its flyout. Where the layout is too
  * narrow for a sidebar (a 640px container, never the window's) the tab bar
- * takes over: Home, People, Inbox and Me, the way every app on a phone
- * already works.
+ * takes over: Home, Time off, People, Inbox and Me, the way every app on a
+ * phone already works. Time off's sections sit under its item the same way.
  */
 export interface AppShellProps {
   readonly person: {
@@ -154,16 +155,19 @@ export interface AppShellProps {
   readonly sidebarCollapsed?: boolean | undefined;
   /** This person's keyboard shortcuts, as identity keeps them (`ShortcutPrefs`). */
   readonly shortcuts?: ShortcutPrefs;
+  /** What the company's remotes draw in the chrome (`lib/slots.ts`): Time Off's clock. */
+  readonly slots?: readonly ShellSlot[];
   readonly children: ReactNode;
 }
 
 /**
  * What a person can reach today, and what is coming.
  *
- * The dashboard and People are built. The rest are listed as disabled rather
- * than hidden, because a sidebar that grows an item per release teaches nobody
- * where anything lives — and each one maps to a module in `ModuleKey`, so this
- * list is the product's shape rather than a guess at one.
+ * The dashboard, Time off and People are built. The rest are listed as
+ * disabled rather than hidden, because a sidebar that grows an item per
+ * release teaches nobody where anything lives — and each one maps to a module
+ * in `ModuleKey`, so this list is the product's shape rather than a guess at
+ * one.
  */
 const AREAS: readonly {
   readonly label: string;
@@ -174,7 +178,7 @@ const AREAS: readonly {
   readonly module?: string;
 }[] = [
   { label: 'Home', icon: <Home />, href: '/', built: true },
-  { label: 'Time off', icon: <Leave />, href: '/time-off', built: false, module: 'module.timeoff' },
+  { label: 'Time off', icon: <Leave />, href: '/time-off', built: true, module: 'module.timeoff' },
   { label: 'People', icon: <People />, href: '/people', built: true, module: 'module.people' },
   {
     label: 'Documents',
@@ -379,7 +383,8 @@ function useShortcutsFor({
         return true;
       }
       const to = destinations.get(id);
-      if (to === undefined) return false;
+      // Not somewhere to go: what a screen on the page offers under the id (⌥T, the clock).
+      if (to === undefined) return runScreenCommand(id);
       router.push(to);
       return true;
     };
@@ -455,6 +460,7 @@ export function AppShell({
   shell = EMPTY_SHELL,
   sidebarCollapsed,
   shortcuts = DEFAULT_PREFS,
+  slots = [],
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
@@ -468,6 +474,12 @@ export function AppShell({
   const route = isCurrent('/people', pathname)
     ? (matchPath(shell.routes, pathname)?.path ?? null)
     : null;
+  // Time Off's places, from its own manifest, and which of its routes this is.
+  const timeOff = shell.remotes?.['timeoff'];
+  const timeOffRoute =
+    timeOff !== undefined && isCurrent('/time-off', pathname)
+      ? (matchPath(timeOff.routes, pathname)?.path ?? null)
+      : null;
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const keys = useShortcutsFor({
@@ -492,8 +504,11 @@ export function AppShell({
   // Hover-prefetch a plain link only where there is a page: People's routes
   // and the host's own, never a file or a download behind a route handler.
   const isPage = useCallback(
-    (path: string) => HOST_PAGES.has(path) || matchPath(shell.routes, path) !== undefined,
-    [shell.routes],
+    (path: string) =>
+      HOST_PAGES.has(path) ||
+      matchPath(shell.routes, path) !== undefined ||
+      (timeOff !== undefined && matchPath(timeOff.routes, path) !== undefined),
+    [shell.routes, timeOff],
   );
   useInAppLinks(isPage);
   /*
@@ -589,7 +604,20 @@ export function AppShell({
                                 ),
                                 flyoutSize: 'compact' as const,
                               }
-                            : {})}
+                            : area.href === '/time-off' && timeOff !== undefined
+                              ? {
+                                  // Its five sections inline while you are in it, as People's.
+                                  subnav: (
+                                    <PeopleSubnav
+                                      sections={timeOff.sections}
+                                      route={timeOffRoute}
+                                      counts={timeOff.counts ?? {}}
+                                      label="Time off sections"
+                                    />
+                                  ),
+                                  expanded: isCurrent(area.href, pathname),
+                                }
+                              : {})}
                         >
                           <Link href={area.href as Route}>{area.label}</Link>
                         </NavItem>
@@ -650,6 +678,7 @@ export function AppShell({
               dark={dark}
               onTheme={setTheme}
               viewing={person.viewing == null ? null : person.name}
+              slots={slots}
             />
             {/*
           The page's own `loading.tsx` stands in for it while it is fetched: a
@@ -681,6 +710,7 @@ function TopCorner({
   dark,
   onTheme,
   viewing,
+  slots,
 }: {
   readonly shell: ShellData;
   readonly open: boolean;
@@ -689,6 +719,8 @@ function TopCorner({
   readonly onTheme: (dark: boolean) => void;
   /** Whose view this is, while an administrator views as them; null otherwise. */
   readonly viewing: string | null;
+  /** What the remotes draw here, between search and the bell: Time Off's clock. */
+  readonly slots: readonly ShellSlot[];
 }): JSX.Element {
   return (
     <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @min-[40rem]/page:flex">
@@ -711,6 +743,9 @@ function TopCorner({
         onTheme={onTheme}
         viewing={viewing}
       />
+      {slots.map((s) => (
+        <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
+      ))}
       <Notices shell={shell} />
     </div>
   );
@@ -1160,7 +1195,7 @@ function PersonMenu({
         {/* Not a link until the company has time off: an item that 404s says less than a disabled one. */}
         {timeOff ? (
           <DropdownMenuItem asChild>
-            <Link href="/time-off">
+            <Link href="/time-off/overview">
               <icons.calendar />
               My time off
             </Link>
@@ -1356,8 +1391,9 @@ function rememberSidebar(collapsed: boolean): void {
 /**
  * The sidebar, for a layout too narrow to hold one: a floating tab bar.
  *
- * Home, People, Inbox and Me. People opens the section list (the sidebar's
- * menu, as a page); Inbox is what the bell holds; Me is their own record.
+ * Home, Time off, People, Inbox and Me. Time off opens its overview; People
+ * opens the section list (the sidebar's menu, as a page); Inbox is what the
+ * bell holds; Me is their own record.
  * Areas that are not built yet are left off here rather than disabled: five
  * slots is the ceiling, and a dead tab costs one of them.
  */
@@ -1370,6 +1406,7 @@ function MobileTabs({
 }): JSX.Element {
   const pathname = usePathname();
   const people = areas.some((a) => a.href === '/people');
+  const timeOff = areas.some((a) => a.href === '/time-off' && a.built);
   const tabs: readonly {
     href: string;
     label: string;
@@ -1378,6 +1415,16 @@ function MobileTabs({
     count?: number;
   }[] = [
     { href: '/', label: 'Home', icon: <Home />, current: pathname === '/' },
+    ...(timeOff
+      ? [
+          {
+            href: '/time-off/overview',
+            label: 'Time off',
+            icon: <Leave />,
+            current: isCurrent('/time-off', pathname),
+          },
+        ]
+      : []),
     ...(people
       ? [
           {

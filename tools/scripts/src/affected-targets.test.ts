@@ -69,14 +69,25 @@ describe('reason', () => {
       'people',
       'slack',
       'audit',
+      'timeoff',
       'router',
     ]);
   });
 
+  it("rebuilds the router for Time Off's schema, and Time Off and its remote for their own code", () => {
+    expect(
+      chosen(change(['services/timeoff/schemas/timeoff.graphql'], ['@kithena/timeoff'])),
+    ).toEqual(['timeoff', 'router']);
+    expect(chosen(change(['apps/web/timeoff/src/x.tsx'], ['@kithena/web-timeoff']))).toEqual([
+      'timeoff-remote',
+    ]);
+  });
+
   it("rebuilds the router for the activity log's schema, and the log for its own code", () => {
-    expect(chosen(change(['platform/audit/schemas/audit.graphql'], ['@kithena/audit']))).toEqual(
-      ['audit', 'router'],
-    );
+    expect(chosen(change(['platform/audit/schemas/audit.graphql'], ['@kithena/audit']))).toEqual([
+      'audit',
+      'router',
+    ]);
     expect(chosen(change(['platform/audit/src/x.ts'], ['@kithena/audit']))).toEqual(['audit']);
   });
 

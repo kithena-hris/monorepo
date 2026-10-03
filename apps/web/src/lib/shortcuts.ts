@@ -163,6 +163,16 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: ['v'],
     icon: 'visible',
   },
+  // The clock in the top bar, on every page of a company with Time Off: the
+  // screen that offers `clock` (`useScreenCommand`) opens and closes it.
+  {
+    id: 'clock',
+    group: 'Everywhere',
+    label: 'Open or close the clock',
+    does: 'opens the clock',
+    keys: ['alt+t'],
+    icon: 'scheduled',
+  },
   {
     id: 'create',
     group: 'Create',

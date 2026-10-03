@@ -4,7 +4,12 @@ import { presentsInternalToken } from '@kithena/auth-kit';
 
 import { readJsonBody } from '../../shared/http.js';
 import type { SendNotice } from '../application/send-notice.js';
-import { REPORT_CADENCES, REPORT_FORMATS } from '../domain/notice.js';
+import {
+  NUDGE_HEADING_MAX,
+  NUDGE_LEDE_MAX,
+  REPORT_CADENCES,
+  REPORT_FORMATS,
+} from '../domain/notice.js';
 import { STATUS, refusalOf } from './messaging-routes.js';
 
 /**
@@ -33,6 +38,11 @@ const NoticeRequest = z.object({
     z.object({ kind: z.literal('export_share_requested') }),
     z.object({ kind: z.literal('summary_shared') }),
     z.object({
+      kind: z.literal('rest_nudge'),
+      heading: z.string().min(1).max(NUDGE_HEADING_MAX),
+      lede: z.string().min(1).max(NUDGE_LEDE_MAX),
+    }),
+    z.object({
       kind: z.literal('scheduled_report'),
       cadence: z.enum(REPORT_CADENCES),
       format: z.enum(REPORT_FORMATS),
@@ -42,7 +52,8 @@ const NoticeRequest = z.object({
 
 export interface NoticeRoutesDeps {
   readonly sendNotice: SendNotice;
-  readonly internalToken: string;
+  /** One secret per module that asks: People's, Time Off's. Each empty one matches nothing. */
+  readonly internalToken: string | readonly string[];
 }
 
 export function noticeRoutes({ sendNotice, internalToken }: NoticeRoutesDeps) {
@@ -60,7 +71,7 @@ export function noticeRoutes({ sendNotice, internalToken }: NoticeRoutesDeps) {
       response.writeHead(405, { allow: 'POST' }).end();
       return true;
     }
-    if (!presentsInternalToken(request, internalToken)) {
+    if (![internalToken].flat().some((token) => presentsInternalToken(request, token))) {
       response.writeHead(401).end();
       return true;
     }

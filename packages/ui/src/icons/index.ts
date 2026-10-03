@@ -90,12 +90,14 @@ import {
   Moon,
   MoonStar,
   MoveRight,
+  Nfc,
   Paperclip,
   Pause,
   Pencil,
   Phone,
   Play,
   Plus,
+  QrCode,
   RefreshCw,
   RotateCcw,
   RotateCcwClock,
@@ -139,6 +141,15 @@ import {
   Cpu,
   ScanSearch,
   Sparkles,
+  Baby,
+  CircleSlash,
+  Coffee,
+  Plane,
+  Square,
+  Thermometer,
+  Timer,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 
 /**
@@ -177,8 +188,14 @@ export const iconGroups = {
     externalLink: ExternalLink,
     addImage: ImagePlus,
     play: Play,
+    /** Ending something that runs on a clock: a timer, a shift, a recording. */
+    stop: Square,
     pause: Pause,
     signOut: LogOut,
+    /** Holding a card or a phone to a reader. */
+    tap: Nfc,
+    /** Showing or reading a code with a camera. */
+    scanCode: QrCode,
   },
   /** How a record stands. Always paired with the word. */
   status: {
@@ -190,6 +207,9 @@ export const iconGroups = {
     pending: Clock,
     blocked: Ban,
     loading: LoaderCircle,
+    /** A device that can reach the network, and one working without it. */
+    online: Wifi,
+    offline: WifiOff,
     up: TrendingUp,
     down: TrendingDown,
     flagged: Flag,
@@ -279,6 +299,19 @@ export const iconGroups = {
     theme: Sun,
     themeDark: Moon,
     remove: Minus,
+    /**
+     * Kinds of time away and time at work. Each is the glyph a calendar
+     * draws beside the word, so a day off reads the same everywhere.
+     */
+    vacation: Sun,
+    sick: Thermometer,
+    parental: Baby,
+    unpaid: CircleSlash,
+    travel: Plane,
+    /** A pause in the working day. */
+    break: Coffee,
+    /** Time worked beyond the plan, or banked from it. */
+    overtime: Timer,
   },
   /**
    * Where a clock has got to, for the band of the day it is in.

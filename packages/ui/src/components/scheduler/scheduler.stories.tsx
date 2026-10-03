@@ -1,6 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState, type JSX } from 'react';
 
-import { Scheduler, type SchedulerEvent } from './scheduler';
+import { Avatar } from '../avatar/avatar';
+import {
+  Scheduler,
+  type SchedulerColumn,
+  type SchedulerEvent,
+  type SchedulerRow,
+  type SchedulerTone,
+} from './scheduler';
 import { dayColumns } from './scheduler-model';
 
 const week = dayColumns('2026-10-12', 5, 'en-GB');
@@ -232,5 +240,221 @@ export const Resources: Story = {
         tone: 'accent',
       },
     ],
+  },
+};
+
+/* ------------------------------------------------------------------ */
+/* Rows of days, and a month                                          */
+/* ------------------------------------------------------------------ */
+
+const OCTOBER = '2026-10-01';
+const HOLIDAY = '2026-10-12';
+const CLASH = '2026-10-21';
+const isWeekend = (id: string): boolean => {
+  const day = new Date(`${id}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+};
+const october: SchedulerColumn[] = dayColumns(OCTOBER, 31, 'en-GB').map((day) => ({
+  ...day,
+  ...(isWeekend(day.id) ? { shade: 'muted' as const } : {}),
+  ...(day.id === HOLIDAY ? { shade: 'hatched' as const, note: 'Public holiday' } : {}),
+  ...(day.id === CLASH ? { clash: true, note: 'Below the minimum' } : {}),
+}));
+const oct = (day: number): string => `2026-10-${String(day).padStart(2, '0')}`;
+
+const people: SchedulerRow[] = [
+  'Nora Becker',
+  'Jonas Weber',
+  'Mei Tanaka',
+  'Leo Rossi',
+  'Amara Okafor',
+  'Hana Kim',
+  'Lucas Moreau',
+].map((name, index) => ({
+  id: `p${String(index)}`,
+  label: name,
+  leading: <Avatar name={name} size="sm" />,
+  ...(index === 2 ? { highlighted: true } : {}),
+}));
+
+const span = (
+  id: string,
+  row: string,
+  from: number,
+  to: number,
+  title: string,
+  tone: SchedulerTone,
+  tentative = false,
+): SchedulerEvent => ({
+  id,
+  row,
+  column: oct(from),
+  endColumn: oct(to),
+  start: 0,
+  end: 0,
+  allDay: true,
+  title,
+  tone,
+  ...(tentative ? { tentative: true, detail: 'Waiting for a decision' } : {}),
+});
+
+const away: SchedulerEvent[] = [
+  span('b1', 'p0', 5, 9, 'Away', 'chart-1'),
+  span('b2', 'p1', 19, 23, 'Away', 'chart-1'),
+  span('b3', 'p2', 20, 22, 'Requested', 'chart-1', true),
+  span('b4', 'p3', 21, 21, 'Sick', 'chart-5'),
+  span('b5', 'p4', 14, 16, 'Training', 'chart-2'),
+  span('b6', 'p5', 26, 30, 'Away', 'chart-1', true),
+  span('b7', 'p6', 1, 2, 'Personal', 'chart-2'),
+];
+
+/** People in, per working day: seven less whoever is away. */
+const inPerDay: Record<string, number> = Object.fromEntries(
+  october
+    .filter((day) => !day.shade)
+    .map((day, index) => {
+      const position = october.indexOf(day);
+      const out = away.filter((event) => {
+        const first = october.findIndex((entry) => entry.id === event.column);
+        const last = october.findIndex((entry) => entry.id === event.endColumn);
+        return position >= first && position <= last;
+      }).length;
+      return [day.id, 7 - out - (index % 9 === 4 ? 1 : 0)];
+    }),
+);
+
+export const Rows: Story = {
+  name: 'Rows of days',
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        story:
+          '`variant="rows"`: a row per person, a column per day, events as bars from `column` to `endColumn`. Weekends are `shade="muted"`, a holiday `shade="hatched"`, a day short of people `clash`, each with a `note` that is read out. A `tentative` bar is hatched and outlined, and says why in `detail`. `summaryRow` counts per day and turns a count below `minimum` into a badge.',
+      },
+    },
+  },
+  args: {
+    variant: 'rows',
+    label: 'Team A, October',
+    columns: october,
+    rows: people,
+    events: away,
+    today: oct(1),
+    summaryRow: {
+      label: 'In (min 5)',
+      values: inPerDay,
+      minimum: 5,
+      belowLabel: 'below the minimum',
+    },
+  },
+  render: (args) => (
+    <div className="p-4">
+      <Scheduler {...args} />
+    </div>
+  ),
+};
+
+const monthEvents: SchedulerEvent[] = [
+  ...away.map((event) => ({
+    ...event,
+    title: people.find((person) => person.id === event.row)?.label.split(' ')[0] ?? '',
+  })),
+  span('m1', 'p0', 21, 21, 'Ines', 'chart-3'),
+  span('m2', 'p0', 21, 21, 'Omar', 'chart-4'),
+  span('m3', 'p0', 21, 22, 'Sven', 'chart-2', true),
+];
+
+export const Month: Story = {
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        story:
+          '`view="month"` lays the day columns out in weeks, Monday first. Each day lists its events as chips, as many as `maxChips` and then "+N more"; the rest are still read out. A `tentative` chip is outlined. With `onSelect` each day is a button, and `selected` outlines it. Under a finger the chips shrink to dots.',
+      },
+    },
+  },
+  args: {
+    view: 'month',
+    label: 'October 2026',
+    columns: october,
+    events: monthEvents,
+    today: oct(1),
+    selected: CLASH,
+  },
+  render: function MonthStory(args) {
+    const [selected, setSelected] = useState<string | undefined>(args.selected);
+    return (
+      <div className="p-4">
+        <Scheduler
+          {...args}
+          {...(selected === undefined ? {} : { selected })}
+          onSelect={setSelected}
+        />
+      </div>
+    );
+  },
+};
+
+/** What a day's detail might say: who is away that day. */
+function WhoIsAway({ day }: { day: string }): JSX.Element {
+  const off = away.filter(
+    (event) => event.column <= day && day <= (event.endColumn ?? event.column),
+  );
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-md font-semibold">
+        {october.find((entry) => entry.id === day)?.fullLabel}
+      </p>
+      {off.length === 0 ? (
+        <p className="text-sm text-fg-muted">Everybody is in.</p>
+      ) : (
+        <ul className="flex flex-col gap-2 text-sm">
+          {off.map((event) => (
+            <li key={event.id}>
+              {people.find((person) => person.id === event.row)?.label}, {event.title}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export const DayDetail: Story = {
+  name: 'About one day',
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        story:
+          'With `onSelect`, a day in a month, or a day’s heading in rows, is a button; `detail` opens from the `selected` day as a popover, a sheet under a finger, named by the day, and `onDismiss` clears the selection when it closes. Focus goes back to the day.',
+      },
+    },
+  },
+  args: {
+    variant: 'rows',
+    label: 'Team A, 19 to 23 October',
+    columns: october.slice(18, 23),
+    rows: people,
+    events: away,
+    selected: CLASH,
+  },
+  render: function DayDetailStory(args) {
+    const [selected, setSelected] = useState<string | undefined>(args.selected);
+    return (
+      <div className="p-4">
+        <Scheduler
+          {...args}
+          {...(selected === undefined ? {} : { selected })}
+          onSelect={setSelected}
+          detail={selected === undefined ? undefined : <WhoIsAway day={selected} />}
+          onDismiss={() => {
+            setSelected(undefined);
+          }}
+        />
+      </div>
+    );
   },
 };

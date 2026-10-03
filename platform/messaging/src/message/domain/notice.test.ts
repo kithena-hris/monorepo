@@ -175,6 +175,38 @@ describe('renderNotice: summary_shared', () => {
   });
 });
 
+describe('renderNotice: rest_nudge (Time Off, T28)', () => {
+  const OVERVIEW = 'https://acme.app.kithena.com/time-off/overview';
+  const nudge = (heading: string, lede: string) =>
+    renderNotice({ kind: 'rest_nudge', heading, lede }, OVERVIEW, ACME);
+
+  it('says the module’s own words, the recipient’s only, under the company’s name', () => {
+    const result = nudge(
+      'Omar, you haven’t had a day off since June',
+      'You have 14 days left this year. Taking Mon 7 Dec gives you 4 days off with the holiday.',
+    );
+    if (!result.ok) throw new Error('expected a message');
+    expect(result.value.subject).toBe('Acme Corp: Omar, you haven’t had a day off since June');
+    expect(result.value.text).toContain('Taking Mon 7 Dec gives you 4 days off');
+    expect(result.value.text).toContain('Open Time off');
+    expect(result.value.html).toContain(`href="${OVERVIEW}"`);
+  });
+
+  it('escapes what the module wrote, as it escapes the company', () => {
+    const result = nudge('Rest <b>now</b>', 'Days & <script>x</script>');
+    if (!result.ok) throw new Error('expected a message');
+    expect(result.value.html).toContain('Rest &lt;b&gt;now&lt;/b&gt;');
+    expect(result.value.html).not.toContain('<script>');
+  });
+
+  it('refuses a heading over one line or too long, and an empty or long sentence', () => {
+    expect(nudge('Two\nlines', 'ok').ok).toBe(false);
+    expect(nudge('x'.repeat(121), 'ok').ok).toBe(false);
+    expect(nudge('ok', '  ').ok).toBe(false);
+    expect(nudge('ok', 'x'.repeat(601)).ok).toBe(false);
+  });
+});
+
 describe('the company', () => {
   it('is named in the subject and both bodies, and escaped in the HTML', () => {
     const result = renderNotice({ kind: 'profile_reminder', missing: 2 }, PROFILE, 'Smith & <Co>');

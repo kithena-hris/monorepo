@@ -402,3 +402,24 @@ export const Places: Story = {
     </List>
   ),
 };
+
+/**
+ * Kinds told apart by colour: `iconTone` tints the tile with a series tone,
+ * so a row reads as the same kind as its bar in a chart beside it. The
+ * title still says which.
+ */
+export const TintedIcons: Story = {
+  render: () => (
+    <List className="max-w-md">
+      <ListItem icon={<icons.vacation />} iconTone="chart-1" description="5 days · approved">
+        Vacation
+      </ListItem>
+      <ListItem icon={<icons.sick />} iconTone="chart-5" description="1 day · recorded">
+        Sick
+      </ListItem>
+      <ListItem icon={<icons.flagged />} iconTone="neutral" description="Monday · everybody">
+        Public holiday
+      </ListItem>
+    </List>
+  ),
+};

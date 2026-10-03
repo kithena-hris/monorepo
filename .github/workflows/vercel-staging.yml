@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: 'Redeploy even if unchanged: all, or a comma list of shell, auth, admin, identity, messaging, people-remote, people, router, slack, audit, migrations'
+        description: 'Redeploy even if unchanged: all, or a comma list of shell, auth, admin, identity, messaging, people-remote, timeoff-remote, people, router, slack, audit, timeoff, migrations'
         type: string
         default: ''
 
@@ -71,10 +71,12 @@ jobs:
       identity: ${{ steps.plan.outputs.identity }}
       messaging: ${{ steps.plan.outputs.messaging }}
       people-remote: ${{ steps.plan.outputs.people-remote }}
+      timeoff-remote: ${{ steps.plan.outputs.timeoff-remote }}
       people: ${{ steps.plan.outputs.people }}
       router: ${{ steps.plan.outputs.router }}
       slack: ${{ steps.plan.outputs.slack }}
       audit: ${{ steps.plan.outputs.audit }}
+      timeoff: ${{ steps.plan.outputs.timeoff }}
       migrations: ${{ steps.plan.outputs.migrations }}
       vm: ${{ steps.plan.outputs.vm }}
       any: ${{ steps.plan.outputs.any }}
@@ -118,7 +120,7 @@ jobs:
     needs: plan
     if: >
       vars.ROUTER_URL_STAGING != '' &&
-      (needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true')
+      (needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true' || needs.plan.outputs.timeoff == 'true')
     # A native runner for the VM's architecture, both free for a public
     # repository. Under QEMU the People build takes an order of magnitude
     # longer, so there is no cross-build: `--platform` below only makes a
@@ -133,6 +135,7 @@ jobs:
       router: ${{ steps.names.outputs.router }}
       slack: ${{ steps.names.outputs.slack }}
       audit: ${{ steps.names.outputs.audit }}
+      timeoff: ${{ steps.names.outputs.timeoff }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -156,6 +159,7 @@ jobs:
           echo "router=ghcr.io/${OWNER,,}/kithena-router:${SHA}" >> "$GITHUB_OUTPUT"
           echo "slack=ghcr.io/${OWNER,,}/kithena-slack:${SHA}" >> "$GITHUB_OUTPUT"
           echo "audit=ghcr.io/${OWNER,,}/kithena-audit:${SHA}" >> "$GITHUB_OUTPUT"
+          echo "timeoff=ghcr.io/${OWNER,,}/kithena-timeoff:${SHA}" >> "$GITHUB_OUTPUT"
 
       - name: platform
         env:
@@ -180,6 +184,10 @@ jobs:
               routing_url: http://people:4001/graphql
               schema:
                 file: ../../services/people/schemas/people.graphql
+            - name: timeoff
+              routing_url: http://timeoff:4002/graphql
+              schema:
+                file: ../../services/timeoff/schemas/timeoff.graphql
             - name: audit
               routing_url: http://audit:4103/graphql
               schema:
@@ -244,6 +252,23 @@ jobs:
           fi
           docker rm --force "$container"
 
+      # With no settings Time Off boots and serves its schema, on `/healthz`.
+      - name: build and test the timeoff image
+        if: needs.plan.outputs.timeoff == 'true'
+        env:
+          IMAGE: ${{ steps.names.outputs.timeoff }}
+          SOURCE: https://github.com/${{ github.repository }}
+        run: |
+          docker build --file services/timeoff/Dockerfile --tag "$IMAGE" \
+            --label "org.opencontainers.image.source=$SOURCE" .
+          container="$(docker run --detach --publish 127.0.0.1:4002:4002 "$IMAGE")"
+          if ! curl --fail --silent --show-error --retry 20 --retry-delay 2 --retry-all-errors \
+            http://127.0.0.1:4002/healthz >/dev/null; then
+            docker logs "$container"
+            exit 1
+          fi
+          docker rm --force "$container"
+
       - name: push
         env:
           GH_TOKEN: ${{ github.token }}
@@ -256,12 +281,15 @@ jobs:
           SLACK_BUILT: ${{ needs.plan.outputs.slack }}
           AUDIT: ${{ steps.names.outputs.audit }}
           AUDIT_BUILT: ${{ needs.plan.outputs.audit }}
+          TIMEOFF: ${{ steps.names.outputs.timeoff }}
+          TIMEOFF_BUILT: ${{ needs.plan.outputs.timeoff }}
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
           if [ "$PEOPLE_BUILT" = true ]; then docker push --quiet "$PEOPLE"; fi
           if [ "$ROUTER_BUILT" = true ]; then docker push --quiet "$ROUTER"; fi
           if [ "$SLACK_BUILT" = true ]; then docker push --quiet "$SLACK"; fi
           if [ "$AUDIT_BUILT" = true ]; then docker push --quiet "$AUDIT"; fi
+          if [ "$TIMEOFF_BUILT" = true ]; then docker push --quiet "$TIMEOFF"; fi
           docker logout ghcr.io
 
       # The registry is transport, not history: the VM keeps the image each
@@ -289,6 +317,13 @@ jobs:
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
           package-name: kithena-audit
+          package-type: container
+          min-versions-to-keep: 5
+      - name: prune timeoff images
+        if: needs.plan.outputs.timeoff == 'true'
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: kithena-timeoff
           package-type: container
           min-versions-to-keep: 5
 
@@ -389,15 +424,17 @@ jobs:
           PEOPLE_API_TOKEN: ${{ secrets.PEOPLE_API_TOKEN }}
           AUDIT_API_TOKEN: ${{ secrets.AUDIT_API_TOKEN }}
           PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
+          TIMEOFF_API_TOKEN: ${{ secrets.TIMEOFF_API_TOKEN }}
+          TIMEOFF_ENV: ${{ secrets.TIMEOFF_ENV }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
           IMAGES: ${{ needs.images.result }}
-          NEED_IMAGES: ${{ needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true' }}
+          NEED_IMAGES: ${{ needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true' || needs.plan.outputs.timeoff == 'true' }}
         run: |
           missing=
           for name in INSTANCE AWS_DEPLOY_ROLE_ARN AWS_REGION VM_DEPLOY_SSH_KEY PEOPLE_API_TOKEN AUDIT_API_TOKEN PEOPLE_ENV \
-                      CLOUDFLARE_TUNNEL_TOKEN AUTH_TOKEN_AUDIENCE KITHENA_ENTITLEMENTS; do
+                      TIMEOFF_API_TOKEN TIMEOFF_ENV CLOUDFLARE_TUNNEL_TOKEN AUTH_TOKEN_AUDIENCE KITHENA_ENTITLEMENTS; do
             [ -z "${!name}" ] && missing="$missing $name"
           done
           if [ -n "$missing" ]; then
@@ -485,6 +522,11 @@ jobs:
           # The router–audit pair's secret (`docs/audit.md`, "Deploying"),
           # written into both ends from the one secret, as PEOPLE_API_TOKEN is.
           AUDIT_API_TOKEN: ${{ secrets.AUDIT_API_TOKEN }}
+          # The router–Time Off pair's secret, written into both ends from the
+          # one secret, as PEOPLE_API_TOKEN is; `TIMEOFF_ENV` is the rest of
+          # Time Off's settings, `TIMEOFF_FEED_SECRET` among them.
+          TIMEOFF_API_TOKEN: ${{ secrets.TIMEOFF_API_TOKEN }}
+          TIMEOFF_ENV: ${{ secrets.TIMEOFF_ENV }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
@@ -524,8 +566,9 @@ jobs:
           printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nAUTH_ORIGIN=https://auth.staging.app.kithena.com\nSLACK_COMMAND=/kithena-staging\n' \
             "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" | put slack.env
           printf 'AUDIT_API_TOKEN=%s\n' "$AUDIT_API_TOKEN" | put audit.env
-          printf 'PEOPLE_API_TOKEN=%s\nAUDIT_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
-            "$PEOPLE_API_TOKEN" "$AUDIT_API_TOKEN" \
+          printf '%s\nTIMEOFF_API_TOKEN=%s\n' "$TIMEOFF_ENV" "$TIMEOFF_API_TOKEN" | put timeoff.env
+          printf 'PEOPLE_API_TOKEN=%s\nAUDIT_API_TOKEN=%s\nTIMEOFF_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
+            "$PEOPLE_API_TOKEN" "$AUDIT_API_TOKEN" "$TIMEOFF_API_TOKEN" \
             https://identity.staging.kithena.com/.well-known/jwks.json \
             "$AUTH_TOKEN_AUDIENCE" "$KITHENA_ENTITLEMENTS" | put router.env
           printf 'CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$CLOUDFLARE_TUNNEL_TOKEN" | put secrets.env
@@ -581,6 +624,21 @@ jobs:
           set -o pipefail
           # shellcheck disable=SC2029 # the image is meant to expand here
           ssh vm sudo bash kithena/deploy.sh staging audit "$IMAGE" | tee deploy.out
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+
+      # After the migration, which made its schema and gave `svc_timeoff` its
+      # login, and before the router, which routes Time Off's fields to it.
+      # Pulled, started, healthy, holding the router's token, and reaching its
+      # database as `svc_timeoff`.
+      - name: deploy timeoff
+        id: timeoff
+        if: vars.ROUTER_URL_STAGING != '' && needs.plan.outputs.timeoff == 'true'
+        env:
+          IMAGE: ${{ needs.images.outputs.timeoff }}
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2029 # the image is meant to expand here
+          ssh vm sudo bash kithena/deploy.sh staging timeoff "$IMAGE" | tee deploy.out
           grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
 
       - name: deploy the router
@@ -674,14 +732,59 @@ jobs:
           node apps/web/people/scripts/smoke-deploy.mjs "$REMOTE" https://acme.staging.app.kithena.com \
             apps/web/people/dist/ssr/manifest.json
 
+      # The Time Off remote, exactly as the People remote above, with its own key.
+      - name: build the time off remote
+        if: vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_STAGING != '' && needs.plan.outputs.timeoff-remote == 'true'
+        run: pnpm turbo run build --filter=@kithena/web-timeoff...
+
+      - name: sign the time off remote
+        if: vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_STAGING != '' && needs.plan.outputs.timeoff-remote == 'true'
+        env:
+          TIMEOFF_REMOTE_SSR_SIGNING_KEY: ${{ secrets.TIMEOFF_REMOTE_SSR_SIGNING_KEY }}
+        run: pnpm --filter @kithena/web-timeoff sign
+
+      - name: deploy the time off remote
+        id: timeoff-remote
+        if: vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_STAGING != '' && needs.plan.outputs.timeoff-remote == 'true'
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_STAGING }}
+          TIMEOFF_REMOTE_SSR_PUBLIC_KEY: ${{ vars.TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING }}
+        run: |
+          set -o pipefail
+          node apps/web/timeoff/scripts/verify-ssr.mjs
+          jq 'del(.ignoreCommand, .installCommand, .buildCommand, .outputDirectory)' \
+            apps/web/timeoff/vercel.json > apps/web/timeoff/dist/vercel.json
+          url="$(npx --yes "vercel@${VERCEL_CLI_VERSION}" deploy apps/web/timeoff/dist --prod \
+            --yes --archive=tgz --token "$VERCEL_TOKEN" | tail -n 1)"
+          if [ -z "$url" ]; then
+            echo "::error::vercel deploy produced no URL; treating this as a failed deploy"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: smoke test the time off remote
+        if: vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_STAGING != '' && needs.plan.outputs.timeoff-remote == 'true'
+        env:
+          REMOTE: ${{ vars.TIMEOFF_REMOTE_URL_STAGING }}
+          TIMEOFF_REMOTE_SSR_PUBLIC_KEY: ${{ vars.TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING }}
+        run: |
+          if [ -z "$REMOTE" ] || [ -z "$TIMEOFF_REMOTE_SSR_PUBLIC_KEY" ]; then
+            echo "::error::TIMEOFF_REMOTE_URL_STAGING and TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING must be set with the remote's project"
+            exit 1
+          fi
+          node apps/web/timeoff/scripts/smoke-deploy.mjs "$REMOTE" https://acme.staging.app.kithena.com \
+            apps/web/timeoff/dist/ssr/manifest.json
+
       - name: warn about what was not deployed
-        if: vars.ROUTER_URL_STAGING == '' || vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING == ''
+        if: vars.ROUTER_URL_STAGING == '' || vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING == '' || vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_STAGING == ''
         env:
           ROUTER: ${{ vars.ROUTER_URL_STAGING }}
           REMOTE: ${{ vars.VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING }}
+          TIMEOFF_REMOTE: ${{ vars.VERCEL_PROJECT_ID_TIMEOFF_REMOTE_STAGING }}
         run: |
-          [ -z "$ROUTER" ] && echo "::warning::ROUTER_URL_STAGING is unset: People and the router were not deployed"
+          [ -z "$ROUTER" ] && echo "::warning::ROUTER_URL_STAGING is unset: People, Time Off and the router were not deployed"
           [ -z "$REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING is unset: the People remote was not deployed"
+          [ -z "$TIMEOFF_REMOTE" ] && echo "::warning::VERCEL_PROJECT_ID_TIMEOFF_REMOTE_STAGING is unset: the Time Off remote was not deployed"
           true
 
       - name: build web
@@ -708,6 +811,8 @@ jobs:
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_WEB_PROJECT_ID }}
           PEOPLE_REMOTE_URL: ${{ vars.PEOPLE_REMOTE_URL_STAGING }}
           PEOPLE_REMOTE_SSR_PUBLIC_KEY: ${{ vars.PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING }}
+          TIMEOFF_REMOTE_URL: ${{ vars.TIMEOFF_REMOTE_URL_STAGING }}
+          TIMEOFF_REMOTE_SSR_PUBLIC_KEY: ${{ vars.TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING }}
           ROUTER_URL: ${{ vars.ROUTER_URL_STAGING }}
         run: |
           # `pipefail`, because this pipes into `tail`: without it the status
@@ -717,6 +822,8 @@ jobs:
           args=(--yes --archive=tgz --token "$VERCEL_TOKEN")
           [ -n "$PEOPLE_REMOTE_URL" ] && args+=(--env "PEOPLE_REMOTE_URL=$PEOPLE_REMOTE_URL")
           [ -n "$PEOPLE_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "PEOPLE_REMOTE_SSR_PUBLIC_KEY=$PEOPLE_REMOTE_SSR_PUBLIC_KEY")
+          [ -n "$TIMEOFF_REMOTE_URL" ] && args+=(--env "TIMEOFF_REMOTE_URL=$TIMEOFF_REMOTE_URL")
+          [ -n "$TIMEOFF_REMOTE_SSR_PUBLIC_KEY" ] && args+=(--env "TIMEOFF_REMOTE_SSR_PUBLIC_KEY=$TIMEOFF_REMOTE_SSR_PUBLIC_KEY")
           [ -n "$ROUTER_URL" ] && args+=(--env "ROUTER_URL=$ROUTER_URL")
           url="$(npx --yes "vercel@${VERCEL_CLI_VERSION}" deploy "${args[@]}" | tail -n 1)"
           if [ -z "$url" ]; then
@@ -999,7 +1106,9 @@ jobs:
             router=${{ steps.router.outcome }}
             slack=${{ steps.slack.outcome }}
             audit=${{ steps.audit.outcome }}
+            timeoff=${{ steps.timeoff.outcome }}
             people-remote=${{ steps.remote.outcome }}
+            timeoff-remote=${{ steps.timeoff-remote.outcome }}
             shell=${{ steps.deploy.outcome }}
             identity=${{ steps.identity.outcome }}
             messaging=${{ steps.messaging.outcome }}

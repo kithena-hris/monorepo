@@ -3,6 +3,7 @@ import { CalendarDays, TrendingDown, Users, Wallet } from 'lucide-react';
 
 import { Sparkline } from '../chart/chart';
 import { Money } from '../money/money';
+import { Progress } from '../progress/progress';
 import { Stat } from './stat';
 
 const meta = {
@@ -297,6 +298,59 @@ export const Inset: Story = {
       <Stat inset label="Updated" value="71" />
       <Stat inset label="Asked" value="14" />
       <Stat inset label="For HR" value="32" />
+    </div>
+  ),
+};
+
+export const FromTo: Story = {
+  name: 'Before and after',
+  args: { label: 'Balance', value: '13', from: '18', unit: 'days' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`from` prints the value before a change, small, ahead of an arrow: what an action will do, previewed before it is taken. Read out as "From 18 to 13". A trend over time is `delta`, not this.',
+      },
+    },
+  },
+  render: (args) => (
+    <div className="grid max-w-md grid-cols-2 gap-3">
+      <Stat label={args.label} value={args.value} from={args.from} unit="days" />
+      <Stat label="Hours" value="-4" from="2" unit="h" inset />
+    </div>
+  ),
+};
+
+/**
+ * What the number is out of, full width under it: a segmented `Progress` as
+ * the tile's child, spent solid and committed hatched, before the line of
+ * context.
+ */
+export const WithMeter: Story = {
+  name: 'With a meter',
+  render: () => (
+    <div className="grid max-w-xl grid-cols-2 gap-3">
+      <Stat label="Allowance" value="11.5" unit="left" description="Up to 5 carry into next year.">
+        <Progress
+          label="Allowance"
+          max={25}
+          showValue
+          valueLabel="25 a year"
+          segments={[
+            { value: 10.5, label: '10.5 used' },
+            { value: 3, label: '3 committed', pattern: 'hatched' },
+          ]}
+        />
+      </Stat>
+      <Stat label="Second allowance" value="2" unit="left">
+        <Progress
+          label="Second allowance"
+          max={3}
+          showValue
+          valueLabel="3 a year"
+          segments={[{ value: 1, label: '1 used', tone: 'chart-2' }]}
+        />
+      </Stat>
     </div>
   ),
 };

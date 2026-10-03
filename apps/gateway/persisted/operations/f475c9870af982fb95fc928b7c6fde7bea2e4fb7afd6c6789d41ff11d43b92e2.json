@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffCalendarYear($scope: String, $teamKey: String, $year: Int!) {\n    timeOffCalendarYear(scope: $scope, teamKey: $teamKey, year: $year) {\n      days { date off } year\n    }\n  }"}

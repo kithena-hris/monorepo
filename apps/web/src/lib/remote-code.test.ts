@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { pinnedKey, prepareRemoteSsr, sri, verifyBuild } from './remote-code';
 import { stopRenderer } from './remote-render';
+import { AREAS } from './remotes';
 
 /*
  * The shell renders a remote's server build only when a manifest signed by
@@ -136,6 +137,31 @@ describe('prepareRemoteSsr', () => {
     serve(CODE);
     expect(await prepareRemoteSsr(base)).toBeUndefined();
     vi.stubEnv('PEOPLE_REMOTE_SSR_PUBLIC_KEY', pinned(publicKey));
+    warn.mockRestore();
+  });
+
+  it('renders nothing on the server when the switch is off', async () => {
+    vi.stubEnv('PEOPLE_REMOTE_SSR', 'off');
+    serve(CODE);
+    expect(await prepareRemoteSsr(base)).toBeUndefined();
+    vi.stubEnv('PEOPLE_REMOTE_SSR', '');
+  });
+
+  it('holds another remote to its own key, build and files', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const manifest = JSON.stringify({
+      files: { 'timeoff.cjs': sri(CODE), 'timeoff.css': sri(CSS) },
+    });
+    files['/ssr/timeoff.cjs'] = CODE;
+    files['/ssr/manifest.json'] = manifest;
+    files['/ssr/manifest.json.sig'] = signed(manifest);
+    // People's key is not Time Off's.
+    expect(await prepareRemoteSsr(base, AREAS.timeoff)).toBeUndefined();
+    vi.stubEnv('TIMEOFF_REMOTE_SSR_PUBLIC_KEY', pinned(publicKey));
+    expect(await prepareRemoteSsr(base, AREAS.timeoff)).toEqual({
+      ssr: `${base}/ssr/timeoff.cjs`,
+      stylesheet: { href: `/_timeoff/ssr/timeoff.css`, integrity: sri(CSS) },
+    });
     warn.mockRestore();
   });
 });

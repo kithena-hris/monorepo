@@ -93,10 +93,31 @@ const only = (process.env['SEED_TENANTS'] ?? '')
   .map((s) => s.trim())
   .filter((s) => s !== '');
 
+/*
+ * Acme's Platform team as Time Off's seed has it (`services/timeoff/src/seed/
+ * acme.ts` repeats these account ids, as this file repeats People's slugs): an
+ * invited account each, so `just dev` can sign in as Adam and Time Off finds
+ * the member that account signs in as. Plain rows and no
+ * `account.provisioned`, because People's consumer would make each a
+ * provisional person in People's Acme, and the team is Time Off's own
+ * (`docs/demo-company.md`). The `n`th has account `…a<n>` and identity `…d<n>`.
+ */
+const TIMEOFF_TEAM = [
+  ['Marco', 'Ruiz'],
+  ['Adam', 'Novak'],
+  ['Omar', 'Haddad'],
+  ['Yuki', 'Sato'],
+  ['Leo', 'Rossi'],
+  ['Hana', 'Kim'],
+  ['Ravi', 'Patel'],
+] as const;
+
 for (const company of COMPANIES) {
   if (only.length > 0 && !only.includes(company.slug)) continue;
   // eslint-disable-next-line no-await-in-loop -- one company at a time
   await seedCompany(company);
+  // eslint-disable-next-line no-await-in-loop -- one company at a time
+  if (company.slug === 'acme') await seedTimeOffTeam(company);
 }
 
 async function seedCompany(company: (typeof COMPANIES)[number]): Promise<void> {
@@ -263,6 +284,90 @@ async function seedCompany(company: (typeof COMPANIES)[number]): Promise<void> {
   process.stdout.write(
     `\n${company.displayName} (${EMAIL})\nEnrol:  ${enrol.toString()}\nSign in: ${login.toString()}\n`,
   );
+}
+
+/**
+ * Time Off's half of Acme: Ada named its administrator too, as the back
+ * office names one per module, and the Platform team's accounts. Both
+ * idempotent on their own, so a database seeded before Time Off existed gets
+ * them without a reset: the naming is published only when its row is new, and
+ * an account keeps its passkeys — only one still invited gets a fresh link.
+ */
+async function seedTimeOffTeam(company: (typeof COMPANIES)[number]): Promise<void> {
+  const [tenant] = await sql<
+    { id: string }[]
+  >`SELECT id FROM platform.tenant WHERE slug = ${company.slug}`;
+  if (!tenant) throw new Error(`the ${company.slug} tenant did not get created`);
+
+  await drizzle(sql).transaction(async (tx) => {
+    const named = await tx.execute(dsql`
+      INSERT INTO platform.tenant_administrator (tenant_id, entitlement, account_id)
+      VALUES (${tenant.id}::uuid, 'module.timeoff', ${company.account}::uuid)
+      ON CONFLICT DO NOTHING
+      RETURNING account_id
+    `);
+    if (named.length === 0) return;
+    await publish(tx, outboxTable('platform'), [
+      {
+        eventId: uuidv7(),
+        eventName: TenantAdministratorNamed.name,
+        eventVersion: 1,
+        tenantId: tenant.id as PendingEvent['tenantId'],
+        occurredAt: systemClock.instant(),
+        effectiveFrom: null,
+        aggregate: { type: 'Tenant', id: tenant.id, version: 1 },
+        actor: { kind: 'system', process: 'seed' },
+        correlationId: randomUUID(),
+        causationId: null,
+        payload: TenantAdministratorNamed.payload.parse({
+          entitlement: 'module.timeoff',
+          accountId: company.account,
+          namedBy: null,
+        }),
+      },
+    ]);
+  });
+
+  const origin = process.env['AUTH_ORIGIN'] ?? 'http://localhost:3100';
+  const lines: string[] = [];
+  for (const [n, [given, family]] of TIMEOFF_TEAM.entries()) {
+    const account = `7ac0e000-0000-4000-8000-0000000000a${String(n + 1)}`;
+    const identity = `7ac0e000-0000-4000-8000-0000000000d${String(n + 1)}`;
+    const email = `${given}.${family}@${company.slug}.example`.toLowerCase();
+    // eslint-disable-next-line no-await-in-loop -- seven accounts, in order
+    await sql`INSERT INTO platform.identity (id) VALUES (${identity}::uuid) ON CONFLICT DO NOTHING`;
+    // eslint-disable-next-line no-await-in-loop -- seven accounts, in order
+    const [row] = await sql<{ status: string }[]>`
+      INSERT INTO platform.account
+        (id, tenant_id, identity_id, status, work_email, time_zone, employment_start,
+         given_name, family_name)
+      VALUES (${account}::uuid, ${tenant.id}::uuid, ${identity}::uuid, 'invited',
+              ${email}, ${company.zone}, '2026-01-01', ${given}, ${family})
+      ON CONFLICT (id) DO UPDATE SET work_email = EXCLUDED.work_email
+      RETURNING status
+    `;
+    if (row?.status !== 'invited') continue;
+    const token = randomBytes(32).toString('base64url');
+    // eslint-disable-next-line no-await-in-loop -- seven accounts, in order
+    await sql`DELETE FROM platform.enrolment_token WHERE account_id = ${account}::uuid`;
+    // eslint-disable-next-line no-await-in-loop -- seven accounts, in order
+    await sql`
+      INSERT INTO platform.enrolment_token
+        (tenant_id, account_id, token_hash, second_channel, expires_at)
+      VALUES (${tenant.id}::uuid, ${account}::uuid,
+              ${createHash('sha256').update(token).digest()}, 'in_person',
+              now() + interval '72 hours')
+    `;
+    const enrol = new URL('/enrol', origin);
+    enrol.searchParams.set('identity', identity);
+    enrol.searchParams.set('tenant', company.slug);
+    enrol.searchParams.set('token', token);
+    enrol.searchParams.set('name', email);
+    lines.push(`  ${given} ${family} (${email})\n  Enrol:  ${enrol.toString()}`);
+  }
+  if (lines.length > 0) {
+    process.stdout.write(`\nAcme's Platform team, in Time Off\n${lines.join('\n')}\n`);
+  }
 }
 
 await sql.end();

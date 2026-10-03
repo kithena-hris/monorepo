@@ -781,3 +781,113 @@ export const Separators: Story = {
     </Card>
   ),
 };
+
+export const Track: Story = {
+  name: 'Track with draggable segments',
+  args: {
+    variant: 'track',
+    label: 'Plan for 2027',
+    editable: true,
+    snapDays: 7,
+    labelWidth: 150,
+    domain: { start: '2027-01-01', end: '2028-01-31' },
+    markers: [
+      { date: '2027-01-14', label: 'Start' },
+      { date: '2027-05-12', label: 'Return' },
+      { date: '2028-01-13', label: 'Deadline' },
+    ],
+    rows: [
+      {
+        label: 'Phase A',
+        items: [
+          {
+            id: 't1',
+            label: '6 weeks · 14 Jan – 24 Feb',
+            start: '2027-01-14',
+            end: '2027-02-24',
+            tone: 'chart-3',
+            locked: true,
+          },
+        ],
+      },
+      {
+        label: 'Phase B, 11 weeks',
+        items: [
+          {
+            id: 't2',
+            label: '8 weeks · 25 Feb – 21 Apr',
+            start: '2027-02-25',
+            end: '2027-04-21',
+            tone: 'chart-3',
+          },
+          {
+            id: 't3',
+            label: '3 weeks · 2–22 Aug',
+            start: '2027-08-02',
+            end: '2027-08-22',
+            tone: 'chart-3',
+          },
+        ],
+      },
+      {
+        label: 'Phase C',
+        items: [
+          {
+            id: 't4',
+            label: '4 days · 22–27 Apr',
+            start: '2027-04-22',
+            end: '2027-04-27',
+            tone: 'chart-1',
+          },
+        ],
+      },
+      {
+        label: 'Phase D',
+        items: [
+          {
+            id: 't5',
+            label: '2 weeks · to 11 May',
+            start: '2027-04-28',
+            end: '2027-05-11',
+            tone: 'chart-2',
+          },
+        ],
+      },
+      {
+        label: 'Reserve',
+        items: [
+          {
+            id: 't6',
+            label: '2 weeks, not booked yet',
+            start: '2027-09-06',
+            end: '2028-01-31',
+            tone: 'chart-3',
+            tentative: true,
+            locked: true,
+          },
+        ],
+      },
+    ],
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: [
+          '`variant="track"` lays a plan over a **fixed** axis (`domain`), months as columns. Bars are thin with the label under them, a `tentative` segment is hatched (the same `pattern-hatched` every "not final" uses), and `markers` call dates out under the axis.',
+          '',
+          'Segments slide **along the axis only**, never to another lane, in steps of `snapDays` (here a week), and stop at the ends of the axis. Drag with a pointer, or focus a segment and press `Space`, then `←` `→`, then `Space` to drop or `Escape` to put it back. The drag runs through dnd-kit, so its live region says where the segment is at every step. `locked` segments stay put.',
+        ].join('\n'),
+      },
+    },
+  },
+  render: (args) => (
+    <Card>
+      <CardHeader>
+        <CardTitle>Plan · 21 weeks</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <TimelineChart {...args} />
+      </CardContent>
+    </Card>
+  ),
+};

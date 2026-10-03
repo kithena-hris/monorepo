@@ -277,3 +277,27 @@ export const Composed: Story = {
     </Card>
   ),
 };
+
+export const Assistant: Story = {
+  name: 'Written by the assistant',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`variant="assistant"`: a 1.5px edge fading from the accent, for content a machine proposed rather than a person entered. `AssistantCard` adds the mark and a title; this is the bare surface.',
+      },
+    },
+  },
+  render: () => (
+    <Card variant="assistant" padded className="max-w-sm">
+      <div className="flex items-center gap-2">
+        <Badge tone="assistant" size="sm">
+          Suggested
+        </Badge>
+      </div>
+      <p className="mt-3 text-sm text-fg">
+        Moving the start by one day keeps the team above its minimum all week.
+      </p>
+    </Card>
+  ),
+};

@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffNegativeBalanceSettings {\n    timeOffNegativeBalanceSettings {\n      policies { leaveTypeKey leaveTypeName policyId rule { approvers atYearEnd limit onLeaving } status version }\n    }\n  }"}
