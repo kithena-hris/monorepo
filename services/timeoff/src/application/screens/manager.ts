@@ -10,7 +10,7 @@ import type { LookCloser } from '../../domain/approval/triage.js';
 import { addDays, amount, days } from '../../domain/days.js';
 import type { LeaveRequest, LeaveRequestId } from '../../domain/request/leave-request.js';
 import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
-import { teamBelow } from '../request/assess.js';
+import { teamAlternatives, teamBelow } from '../request/assess.js';
 import { balanceFor, forbidden, isHrAdmin, notFound, transact } from '../shared.js';
 import { approves, memberView, requestItem, typesOf } from './employee.js';
 import type {
@@ -170,6 +170,18 @@ export const requestDecision =
       const names = new Map(
         others.ok ? others.value.people.map((p) => [p.personId, p.displayName]) : [],
       );
+      const waiting = request.status === 'pending' || request.status === 'change_pending';
+      const options = waiting ? await teamAlternatives(tx, member, span, request.id) : [];
+      const before = (
+        await tx.requests.list({
+          personIds: [member.personId],
+          statuses: ['approved', 'taken'],
+          to: addDays(span.from, -1),
+        })
+      )
+        .map((r) => r.request.span)
+        .filter((s) => s.to < span.from)
+        .toSorted((a, b) => b.to.localeCompare(a.to))[0];
       return ok({
         request: requestItem(record, member, await typesOf(tx)),
         member: memberView(member),
@@ -189,6 +201,26 @@ export const requestDecision =
             span: e.span,
           })),
         canDecide,
+        lastTaken: before === undefined ? null : { from: before.from, to: before.to },
+        alternatives: await Promise.all(
+          options.map(async (o) => ({
+            kind: o.kind,
+            affects: o.affects,
+            dates: [...o.dates],
+            spans: o.spans.map((s) => ({ from: s.from, to: s.to })),
+            coverage: [...o.coverage],
+            swapped:
+              o.kind === 'swap_days' ? { out: [...o.swapped.out], in: [...o.swapped.in] } : null,
+            teammate:
+              o.kind === 'ask_teammate'
+                ? {
+                    personId: o.teammate,
+                    displayName: (await tx.members.get(o.teammate))?.displayName ?? '',
+                  }
+                : null,
+            absence: o.kind === 'ask_teammate' ? { from: o.absence.from, to: o.absence.to } : null,
+          })),
+        ),
       });
     });
 

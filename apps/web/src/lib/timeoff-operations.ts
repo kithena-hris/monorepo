@@ -48,21 +48,21 @@ export const OPERATIONS = {
   /** T14: one day — who is off, holidays and coverage */
   TimeOffCalendarDay: `query TimeOffCalendarDay($date: String!, $scope: String, $teamKey: String) {
     timeOffCalendarDay(date: $date, scope: $scope, teamKey: $teamKey) {
-      coverage { below checked date in of required } entries { leaveTypeKey personId requestId span { endsHalfDay from startsHalfDay to } status } from holidays { date locationKey name } people { displayName personId teamKey } to
+      coverage { below checked date in of required } entries { leaveTypeKey personId requestId span { endsHalfDay from startsHalfDay to } status } from holidays { date locationKey name } people { displayName personId teamKey teamName } to
     }
   }`,
 
   /** T12: a month of the team’s, the company’s or the caller’s time off */
   TimeOffCalendarMonth: `query TimeOffCalendarMonth($month: String!, $scope: String, $teamKey: String) {
     timeOffCalendarMonth(month: $month, scope: $scope, teamKey: $teamKey) {
-      coverage { below checked date in of required } entries { leaveTypeKey personId requestId span { endsHalfDay from startsHalfDay to } status } from holidays { date locationKey name } people { displayName personId teamKey } to
+      coverage { below checked date in of required } entries { leaveTypeKey personId requestId span { endsHalfDay from startsHalfDay to } status } from holidays { date locationKey name } people { displayName personId teamKey teamName } to
     }
   }`,
 
   /** T13: people by days over a range, with the coverage row */
   TimeOffCalendarTimeline: `query TimeOffCalendarTimeline($from: String!, $scope: String, $teamKey: String, $to: String!) {
     timeOffCalendarTimeline(from: $from, scope: $scope, teamKey: $teamKey, to: $to) {
-      coverage { below checked date in of required } entries { leaveTypeKey personId requestId span { endsHalfDay from startsHalfDay to } status } from holidays { date locationKey name } people { displayName personId teamKey } to
+      coverage { below checked date in of required } entries { leaveTypeKey personId requestId span { endsHalfDay from startsHalfDay to } status } from holidays { date locationKey name } people { displayName personId teamKey teamName } to
     }
   }`,
 
@@ -139,7 +139,7 @@ export const OPERATIONS = {
   /** T17: one request with the balance, the team and the rule an approver weighs */
   TimeOffRequestDecision: `query TimeOffRequestDecision($requestId: String!) {
     timeOffRequestDecision(requestId: $requestId) {
-      balance { after before } belowMinimum { below checked date in of required } canDecide member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } note othersOff { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } triage { group reason { amount days rule } }
+      alternatives { absence { from to } affects coverage { below checked date in of required } dates kind spans { from to } swapped { in out } teammate { displayName personId } } balance { after before } belowMinimum { below checked date in of required } canDecide lastTaken { from to } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } note othersOff { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } triage { group reason { amount days rule } }
     }
   }`,
 
