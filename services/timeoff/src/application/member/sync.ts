@@ -82,32 +82,40 @@ export interface Upserted {
 export const upsertMember =
   (deps: Pick<Deps, 'uow' | 'clock' | 'newId'>) =>
   (tenantId: TenantId, fields: MemberFields, applied: Applied): Promise<Result<Upserted>> =>
-    transact<Upserted>(deps, tenantId, async (tx) => {
-      const existing = await tx.members.get(fields.personId);
-      if (existing !== null && stale(existing, applied)) {
-        return ok({ member: existing, created: false, applied: false, posted: [] });
-      }
-      const member: Member = {
-        ...fields,
-        lastEventId: applied.eventId ?? existing?.lastEventId ?? null,
-        lastEffectiveFrom: applied.effectiveFrom ?? existing?.lastEffectiveFrom ?? null,
-      };
-      await tx.members.save(member);
-      if (existing !== null) return ok({ member, created: false, applied: true, posted: [] });
+    transact(deps, tenantId, (tx) => upsertIn(tx, deps, fields, applied));
 
-      const ctx = contextFor(deps, ACTOR, applied.correlationId, member.timeZone);
-      const today = deps.clock.date(member.timeZone);
-      const on = member.hireDate > today ? member.hireDate : today;
-      const posted: LedgerEntry[] = [];
-      for (const key of await trackedTypes(tx)) {
-        const policy = await policyFor(tx, member, key, on);
-        if (policy === null) continue;
-        const done = await postEntitlement(tx, ctx, member, policy.policy, on);
-        if (!done.ok) return done;
-        posted.push(...done.value);
-      }
-      return ok({ member, created: true, applied: true, posted });
-    });
+/** `upsertMember` inside a transaction someone else opened: the import's, for one. */
+export async function upsertIn(
+  tx: Tx,
+  deps: Pick<Deps, 'clock' | 'newId'>,
+  fields: MemberFields,
+  applied: Applied,
+): Promise<Result<Upserted>> {
+  const existing = await tx.members.get(fields.personId);
+  if (existing !== null && stale(existing, applied)) {
+    return ok({ member: existing, created: false, applied: false, posted: [] });
+  }
+  const member: Member = {
+    ...fields,
+    lastEventId: applied.eventId ?? existing?.lastEventId ?? null,
+    lastEffectiveFrom: applied.effectiveFrom ?? existing?.lastEffectiveFrom ?? null,
+  };
+  await tx.members.save(member);
+  if (existing !== null) return ok({ member, created: false, applied: true, posted: [] });
+
+  const ctx = contextFor(deps, ACTOR, applied.correlationId, member.timeZone);
+  const today = deps.clock.date(member.timeZone);
+  const on = member.hireDate > today ? member.hireDate : today;
+  const posted: LedgerEntry[] = [];
+  for (const key of await trackedTypes(tx)) {
+    const policy = await policyFor(tx, member, key, on);
+    if (policy === null) continue;
+    const done = await postEntitlement(tx, ctx, member, policy.policy, on);
+    if (!done.ok) return done;
+    posted.push(...done.value);
+  }
+  return ok({ member, created: true, applied: true, posted });
+}
 
 export interface Settlement {
   readonly leaveTypeKey: LeaveTypeKey;

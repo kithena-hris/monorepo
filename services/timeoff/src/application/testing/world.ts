@@ -113,11 +113,12 @@ export const vacationPolicy = (over: Partial<PolicyDefinition> = {}): PolicyDefi
 /**
  * The world, seeded directly into the store: the leave types, a published
  * policy, Madrid's calendars, the team minimum and the seven members — with
- * no ledger, so a test posts what it needs. `withGrant` adds the year's 25.
+ * no ledger, so a test posts what it needs. `withGrant` adds the year's 25;
+ * `members: false` leaves the team out, for an import to bring.
  */
 export function world(
   at = '2026-10-01T07:00:00.000Z',
-  options: { withGrant?: boolean } = {},
+  options: { withGrant?: boolean; members?: boolean } = {},
 ): InMemoryTimeOff {
   const app = inMemoryTimeOff(at);
   app.hrAccounts.add(ADA_ACCOUNT);
@@ -162,6 +163,7 @@ export function world(
     hana: 'Hana Kim',
     ravi: 'Ravi Patel',
   };
+  if (options.members === false) return app;
   for (const [k, id] of Object.entries(people)) {
     s.members.set(id, member(id, names[k as keyof typeof people]));
   }

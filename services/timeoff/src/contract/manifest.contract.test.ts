@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import * as z from 'zod';
-import { EVENT_NAMESPACE, peopleEvents, timeoffEvents, type DefinedEvent } from '@kithena/contracts';
+import {
+  EVENT_NAMESPACE,
+  peopleEvents,
+  timeoffEvents,
+  type DefinedEvent,
+} from '@kithena/contracts';
 import { classifiedFieldsOf } from '@kithena/testing';
 
 import manifest from '../../module.manifest.js';
