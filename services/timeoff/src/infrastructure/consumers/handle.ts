@@ -6,6 +6,7 @@ import {
   LocationUpdated,
   LocationZoneChanged,
   PersonHired,
+  PersonIdentityLinked,
   PersonManagerChanged,
   PersonOrgChanged,
   PersonProfileUpdated,
@@ -13,6 +14,8 @@ import {
   PersonSyncedFromExternal,
   PersonTerminated,
   TeamKey,
+  TenantAdministratorNamed,
+  TenantAdministratorRemoved,
   type CalendarDate,
   type EventDefinition,
   type EventEnvelope,
@@ -24,6 +27,7 @@ import { logger } from '@kithena/telemetry';
 import { endMember, upsertIn, type Applied } from '../../application/member/sync.js';
 import { MemberFields, type Deps, type Member, type Tx } from '../../application/ports.js';
 import { transact } from '../../application/shared.js';
+import type { MemberTuples } from '../openfga.js';
 
 /**
  * People's events, translated into Time Off's two member commands (PRD §5.2,
@@ -47,6 +51,12 @@ import { transact } from '../../application/shared.js';
  * - **A malformed message** is logged and skipped: Kafka would redeliver it
  *   forever. A database error throws, because that may succeed on retry.
  *
+ * - **The authorization graph** follows the projection: the unit of work
+ *   resyncs a saved member's tuples (`syncingTuples`), and a redelivered
+ *   event that changes nothing resyncs them again, so a tuple write that
+ *   failed after its commit is retried. Whom identity names as Time Off's
+ *   administrator holds `hr_admin`. Without OpenFGA there are no tuples.
+ *
  * People's org units and locations are ids; Time Off's keys are
  * `u_<hex>` and `l_<hex>` of them. People raises no event naming an org unit,
  * so a team's name stays what an import gave it, or none.
@@ -54,7 +64,9 @@ import { transact } from '../../application/shared.js';
 
 export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
 
-type ConsumerDeps = Pick<Deps, 'uow' | 'clock' | 'newId' | 'notifier'>;
+type ConsumerDeps = Pick<Deps, 'uow' | 'clock' | 'newId' | 'notifier'> & {
+  readonly tuples?: MemberTuples;
+};
 
 export const teamKeyOf = (orgUnitId: string): TeamKey =>
   TeamKey.parse(`u_${orgUnitId.replaceAll('-', '')}`);
@@ -104,6 +116,16 @@ const outcome = (r: Result<{ applied: boolean }>, event: EventEnvelope): Outcome
 };
 
 export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Outcome> {
+  /** An event already applied: its tuples may be what failed, so they are brought in line again. */
+  const settled = async (
+    result: Outcome,
+    event: EventEnvelope,
+    personId: PersonId,
+  ): Promise<Outcome> => {
+    if (result === 'unchanged') await deps.tuples?.resync(event.tenantId, personId);
+    return result;
+  };
+
   /** Merge an event into a known member, or ignore it for somebody unknown. */
   const change = async (
     event: EventEnvelope,
@@ -118,7 +140,7 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
       return upsertIn(tx, deps, MemberFields.parse(fields), appliedBy(event));
     });
     if (result.ok && result.value === null) return 'ignored';
-    return outcome(result as Result<{ applied: boolean }>, event);
+    return settled(outcome(result as Result<{ applied: boolean }>, event), event, personId);
   };
 
   /** Everyone at a location, after People changed it: no event id onto the member. */
@@ -173,6 +195,7 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
           const fields = MemberFields.parse({
             ...(existing === null ? {} : fieldsOf(existing)),
             personId: p.personId,
+            accountId: p.identityAccountId ?? existing?.accountId ?? null,
             displayName: `${p.name.preferred ?? p.name.given} ${p.name.family}`,
             firstName: p.name.preferred ?? p.name.given,
             managerPersonId: p.managerId,
@@ -184,7 +207,17 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
           });
           return upsertIn(tx, deps, fields, appliedBy(event));
         });
-        return outcome(result, event);
+        return settled(outcome(result, event), event, p.personId);
+      }
+
+      /* The account somebody signs in with, which is how a caller becomes this member. */
+      case PersonIdentityLinked.name: {
+        const event = parse(PersonIdentityLinked, raw);
+        if (!event) return 'rejected';
+        return change(event, event.payload.personId, (m) => ({
+          ...fieldsOf(m),
+          accountId: event.payload.identityAccountId,
+        }));
       }
 
       case PersonManagerChanged.name: {
@@ -261,7 +294,11 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
         );
         if (!result.ok && result.error.code === 'NOT_FOUND') return 'ignored';
         if (!result.ok) return outcome(result, event);
-        return result.value.member.lastEventId === event.eventId ? 'applied' : 'unchanged';
+        return settled(
+          result.value.member.lastEventId === event.eventId ? 'applied' : 'unchanged',
+          event,
+          event.payload.personId,
+        );
       }
 
       /*
@@ -316,6 +353,25 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
           event.correlationId,
         );
         return outcome(result, event);
+      }
+
+      /*
+       * The back office named, or stopped naming, somebody as Time Off's
+       * administrator (PEO-112): HR, in Time Off's words. Identity raises one
+       * event per account and module, so the tuple is the latest of them.
+       */
+      case TenantAdministratorNamed.name:
+      case TenantAdministratorRemoved.name: {
+        const named = name === TenantAdministratorNamed.name;
+        const event = named
+          ? parse(TenantAdministratorNamed, raw)
+          : parse(TenantAdministratorRemoved, raw);
+        if (!event) return 'rejected';
+        if (event.payload.entitlement !== 'module.timeoff' || deps.tuples === undefined) {
+          return 'ignored';
+        }
+        await deps.tuples.setHrAdmin(event.tenantId, event.payload.accountId, named);
+        return 'applied';
       }
 
       default:
