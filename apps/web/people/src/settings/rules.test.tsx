@@ -290,6 +290,36 @@ describe('custom visibility rules (PEO-066)', () => {
     ]);
   });
 
+  it("offers the company's own work models and employment types, an import's Full-time among them", async () => {
+    const user = fast();
+    const onSave = editor(costCentre);
+    const sheet = await sheetNamed('Edit Cost centre');
+
+    await user.click(
+      within(sheet).getByRole('button', { name: /^Let more people see it, on some records only/ }),
+    );
+    await user.click(within(sheet).getByRole('button', { name: 'Add a rule' }));
+    const n = 'Rule 1: when, condition 1';
+    await user.click(within(sheet).getByRole('combobox', { name: `${n}: what it reads` }));
+    await user.click(screen.getByRole('option', { name: 'Employment type' }));
+    await user.click(within(sheet).getByRole('button', { name: `${n}: is one of` }));
+    expect(screen.queryByRole('option', { name: 'Permanent' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Full-time' }));
+    await user.keyboard('{Escape}');
+
+    await within(sheet).findByText('Ordinary job data.');
+    await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledOnce();
+    });
+    expect(saved(onSave).visibilityRules).toEqual([
+      {
+        scopes: ['manager'],
+        when: { combine: 'all', clauses: [{ operand: 'employmentType', in: ['full_time'] }] },
+      },
+    ]);
+  });
+
   it('is refused for special-category data before it reaches the server', async () => {
     const user = fast();
     const onSave = editor(
