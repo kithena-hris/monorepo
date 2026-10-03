@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
+
 import type { ChatPort } from '../../application/ports.js';
 
 /**
@@ -11,7 +13,10 @@ import type { ChatPort } from '../../application/ports.js';
  *   Slack service's, not Time Off's;
  * - asking an approver is `POST /internal/timeoff/approval` with Time Off's
  *   sentence and its two signed values; the service finds the person by
- *   address and sends the direct message.
+ *   address and sends the direct message;
+ * - a press reaches the Slack service over its socket and is relayed to
+ *   `POST /v1/timeoff/integrations/slack/relay` with the same secret, which
+ *   `action` checks; that route is internal, never on the public tunnel.
  *
  * **Inert without `SLACK_URL` and `SLACK_TIMEOFF_TOKEN`.**
  */
@@ -53,6 +58,20 @@ export function slackThroughService(env: NodeJS.ProcessEnv, options: SlackOption
       }
     },
 
-    action: () => null,
+    // The service answers the conversation itself, with what the relay returns.
+    action(request) {
+      const given = request.headers['x-internal-token'];
+      if (token === '' || typeof given !== 'string') return null;
+      const a = createHash('sha256').update(given).digest();
+      const b = createHash('sha256').update(token).digest();
+      if (!timingSafeEqual(a, b)) return null;
+      try {
+        const body = JSON.parse(request.body) as { tenantId?: unknown; value?: unknown };
+        if (typeof body.tenantId !== 'string' || typeof body.value !== 'string') return null;
+        return { value: body.value, tenantId: body.tenantId, reply: () => Promise.resolve() };
+      } catch {
+        return null;
+      }
+    },
   };
 }

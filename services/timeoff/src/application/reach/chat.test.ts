@@ -19,6 +19,7 @@ function recording() {
   }[] = [];
   const statuses: { secret: string; text: string; until: string }[] = [];
   let pressed: string | null = null;
+  let from: string | undefined;
   const replies: string[] = [];
   const port: ChatPort = {
     provider: 'slack',
@@ -38,6 +39,7 @@ function recording() {
         ? null
         : {
             value: pressed,
+            ...(from === undefined ? {} : { tenantId: from }),
             reply: (text) => {
               replies.push(text);
               return Promise.resolve();
@@ -49,8 +51,10 @@ function recording() {
     asked,
     statuses,
     replies,
-    press: (value: string | null) => {
+    /** `tenantId`: the company a relaying service says the press came from. */
+    press: (value: string | null, tenantId?: string) => {
       pressed = value;
+      from = tenantId;
     },
   };
 }
@@ -128,6 +132,21 @@ describe('chat apps (TOF-111)', () => {
       ok: false,
       error: { code: 'INVALID_ACTION' },
     });
+  });
+
+  it('refuses a press relayed from another company’s workspace', async () => {
+    const { app, deps, chat, ask } = setup();
+    const id = await ask('2026-10-19', '2026-10-23');
+    await askApproverInChat(deps)(TENANT, id);
+    chat.press(chat.asked[0]?.approve ?? null, '99999999-9999-4999-8999-999999999999');
+    expect(await approveFromChat(deps)('slack', RAW)).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ACTION' },
+    });
+    expect(app.state(TENANT).requests.get(id)?.request.status).toBe('pending');
+
+    chat.press(chat.asked[0]?.approve ?? null, TENANT);
+    expect(await approveFromChat(deps)('slack', RAW)).toMatchObject({ ok: true });
   });
 
   it('declines from the message too', async () => {

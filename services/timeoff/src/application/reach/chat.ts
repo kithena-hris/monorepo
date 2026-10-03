@@ -21,7 +21,7 @@ import type { Delivery } from './calendar.js';
  *
  * Each button carries a value Time Off signs — the tenant, the request, the
  * approver it was sent to, approve or decline, and an expiry — so a press
- * proves twice over where it came from: the provider's signature on the
+ * proves twice over where it came from: the relaying service's secret on the
  * request (checked by the adapter), and Time Off's on the value. Whether the
  * approver may still decide is `decideRequest`'s question, as always.
  */
@@ -174,8 +174,9 @@ const invalidAction = (): Result<never> =>
   err(failure('INVALID_ACTION', 'This press did not come from a message Time Off sent'));
 
 /**
- * A press on Approve or Decline, on Time Off's public route: verified by the
- * provider's adapter and by Time Off's signature, then decided as the
+ * A press on Approve or Decline, relayed by the Slack service (the provider's
+ * adapter checks the pair's secret) and verified by Time Off's own
+ * signature, then decided as the
  * approver the message was sent to. The answer is what the conversation is
  * told; a refusal (the request was decided already, the approver no longer
  * may) is said there too rather than failing the press.
@@ -201,6 +202,8 @@ export const approveFromChat =
       !tenant.success ||
       !person.success ||
       !requestId.success ||
+      // Relayed: the workspace it was pressed in is the company the value was signed for.
+      (press.tenantId !== undefined && press.tenantId !== claims.t) ||
       Date.parse(claims.e) < Date.parse(deps.clock.instant())
     ) {
       return invalidAction();
