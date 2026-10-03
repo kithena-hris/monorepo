@@ -190,7 +190,7 @@ describe('at 390×844, with a finger', () => {
                 pending: 'added',
               },
             ],
-            choices: { legalEntities: [], countries: [] },
+            choices: { legalEntities: [], countries: [], employmentTypes: [], workModels: [] },
           },
         }}
         today="2026-09-22"
@@ -244,7 +244,12 @@ describe('at 390×844, with a finger', () => {
           pending: null,
         }}
         takenKeys={[]}
-        choices={{ legalEntities: [], countries: [{ value: 'ES', label: 'Spain' }] }}
+        choices={{
+          legalEntities: [],
+          countries: [{ value: 'ES', label: 'Spain' }],
+          employmentTypes: [],
+          workModels: [],
+        }}
         fields={[{ key: 'grade', label: 'Grade', options: [] }]}
         advise={never}
         onSave={ok}

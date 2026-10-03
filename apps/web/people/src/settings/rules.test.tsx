@@ -54,6 +54,12 @@ const choices: RegistryDraft['choices'] = {
     { value: 'ES', label: 'Spain' },
     { value: 'DE', label: 'Germany' },
   ],
+  employmentTypes: [
+    { value: 'full_time', label: 'Full-time' },
+    { value: 'part_time', label: 'Part-time' },
+    { value: 'contractor', label: 'Contractor' },
+  ],
+  workModels: [{ value: 'remote', label: 'Remote' }],
 };
 
 const advise = (): Promise<ClassificationAdvice> =>
@@ -123,6 +129,33 @@ describe('conditional requiredness (PEO-065)', () => {
       requiredness: 'conditional',
       requiredWhen: { combine: 'all', clauses: [{ operand: 'country', in: ['ES'] }] },
       visibilityRules: [],
+    });
+  });
+
+  it("offers the company's own employment types, an import's Full-time among them", async () => {
+    const user = fast();
+    const onSave = editor();
+    const sheet = await sheetNamed('New field');
+    await user.click(within(sheet).getByLabelText(/^Field name/));
+    await user.paste('Pension scheme');
+
+    await user.click(within(sheet).getByRole('radio', { name: /Required when/ }));
+    const n = 'Required when, condition 1';
+    await user.click(within(sheet).getByRole('combobox', { name: `${n}: what it reads` }));
+    await user.click(screen.getByRole('option', { name: 'Employment type' }));
+    await user.click(within(sheet).getByRole('button', { name: `${n}: is one of` }));
+    expect(screen.queryByRole('option', { name: 'Permanent' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Full-time' }));
+    await user.keyboard('{Escape}');
+    await within(sheet).findByText('Ordinary job data.');
+    await user.click(within(sheet).getByRole('button', { name: 'Add field' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledOnce();
+    });
+    expect(saved(onSave).requiredWhen).toEqual({
+      combine: 'all',
+      clauses: [{ operand: 'employmentType', in: ['full_time'] }],
     });
   });
 

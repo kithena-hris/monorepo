@@ -10,6 +10,7 @@ import {
 } from '@kithena/contracts';
 
 import { COUNTRY_PACKS } from '../../country-packs/packs.js';
+import { builtInChoices } from '../../domain/import/aliases.js';
 import {
   aiShareable,
   encryptable,
@@ -120,10 +121,12 @@ export interface RegistryView {
     readonly origin: string;
     readonly pending: Pending;
   }[];
-  /** What a predicate's legal-entity and country clauses may name. */
+  /** What a predicate's clauses may name, each list the company's own. */
   readonly choices: {
     readonly legalEntities: readonly Choice[];
     readonly countries: readonly Choice[];
+    readonly employmentTypes: readonly Choice[];
+    readonly workModels: readonly Choice[];
   };
 }
 
@@ -147,6 +150,19 @@ const optionsOf = (a: AttributeDefinition): string[] =>
   a.typeConfig.kind === 'select' || a.typeConfig.kind === 'multi_select'
     ? a.typeConfig.options.map((o) => o.label.default)
     : [];
+
+/**
+ * One of People's own choice fields as the company has it: its field's live
+ * options, else People's values while it has no field (it gets one from an
+ * import). The draft checks a rule against the same list.
+ */
+function companyChoices(attributes: readonly Attribute[], key: string): Choice[] {
+  const field = attributes.find((a) => a.key === key && a.deprecatedAt === null);
+  if (field?.typeConfig.kind !== 'select') return [...builtInChoices(key)];
+  return field.typeConfig.options
+    .filter((o) => o.retiredAt === null)
+    .map((o) => ({ value: o.value, label: o.label.default }));
+}
 
 export async function registryView(
   deps: SchemaScreenDeps,
@@ -189,6 +205,8 @@ export async function registryView(
           .filter((e) => !e.archived)
           .map((e) => ({ value: e.id, label: e.name })),
         countries: COUNTRIES.map((c) => ({ value: c.code, label: c.name })),
+        employmentTypes: companyChoices(draft.attributes, 'employment_type'),
+        workModels: companyChoices(draft.attributes, 'work_model'),
       };
       const newSections = draft.sections.filter(
         (s) => !(published?.document.sections.some((p) => p.key === s.key) ?? false),

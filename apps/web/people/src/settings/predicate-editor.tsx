@@ -115,11 +115,13 @@ export function PredicateEditor({
   fields,
 }: PredicateEditorProps): JSX.Element {
   const listed = (operand: ListOperand): readonly Choice[] =>
-    operand === 'legalEntity'
-      ? choices.legalEntities
-      : operand === 'country'
-        ? choices.countries
-        : FACT_VALUES[operand];
+    ({
+      legalEntity: choices.legalEntities,
+      country: choices.countries,
+      employmentType: choices.employmentTypes,
+      workModel: choices.workModels,
+      status: FACT_VALUES.status,
+    })[operand];
   const set = (index: number, clause: PredicateClause): void => {
     onChange({ ...value, clauses: value.clauses.map((c, i) => (i === index ? clause : c)) });
   };

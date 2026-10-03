@@ -362,7 +362,12 @@ export const OPERATIONS = {
         requiredWhen { ...PredicateParts }
         visibilityRules { scopes when { ...PredicateParts } }
       }
-      choices { legalEntities { value label } countries { value label } }
+      choices {
+        legalEntities { value label }
+        countries { value label }
+        employmentTypes { value label }
+        workModels { value label }
+      }
     }
   }
   fragment PredicateParts on PersonPredicate {

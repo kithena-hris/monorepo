@@ -1081,6 +1081,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       legalEntities: t.field({ type: [Choice], resolve: (c) => list(c.legalEntities) }),
       countries: t.field({ type: [Choice], resolve: (c) => list(c.countries) }),
+      employmentTypes: t.field({ type: [Choice], resolve: (c) => list(c.employmentTypes) }),
+      workModels: t.field({ type: [Choice], resolve: (c) => list(c.workModels) }),
     }),
   });
   const RegistryField = builder

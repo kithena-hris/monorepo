@@ -234,21 +234,11 @@ export const OPERAND_LABEL: Record<ListOperand | 'attribute', string> = {
   attribute: 'Another field',
 };
 
-/** The values the three enumerated facts can hold, mirrored from the contract. */
-export const FACT_VALUES: Record<'employmentType' | 'workModel' | 'status', readonly Choice[]> = {
-  employmentType: [
-    { value: 'permanent', label: 'Permanent' },
-    { value: 'fixed_term', label: 'Fixed term' },
-    { value: 'contractor', label: 'Contractor' },
-    { value: 'intern', label: 'Intern' },
-    { value: 'apprentice', label: 'Apprentice' },
-    { value: 'seasonal', label: 'Seasonal' },
-  ],
-  workModel: [
-    { value: 'onsite', label: 'On site' },
-    { value: 'hybrid', label: 'Hybrid' },
-    { value: 'remote', label: 'Remote' },
-  ],
+/**
+ * The values status can hold, mirrored from the contract. Employment type and
+ * work model are the company's own lists, from the registry's `choices`.
+ */
+export const FACT_VALUES: Record<'status', readonly Choice[]> = {
   status: [
     { value: 'provisional', label: 'Provisional' },
     { value: 'pre_hire', label: 'Pre-hire' },

@@ -145,10 +145,12 @@ export interface RegistryDraft {
   readonly unpublishedChanges: number;
   readonly sections: readonly RegistrySection[];
   readonly fields: readonly RegistryField[];
-  /** What a predicate's legal-entity and country clauses may name. */
+  /** What a predicate's clauses may name, each list the company's own. */
   readonly choices: {
     readonly legalEntities: readonly Choice[];
     readonly countries: readonly Choice[];
+    readonly employmentTypes: readonly Choice[];
+    readonly workModels: readonly Choice[];
   };
 }
 

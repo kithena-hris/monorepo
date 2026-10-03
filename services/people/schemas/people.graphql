@@ -2444,7 +2444,9 @@ type RegistryChoice {
 
 type RegistryChoices {
   countries: [RegistryChoice!]
+  employmentTypes: [RegistryChoice!]
   legalEntities: [RegistryChoice!]
+  workModels: [RegistryChoice!]
 }
 
 type RegistryField {
