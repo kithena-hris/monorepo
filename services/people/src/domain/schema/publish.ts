@@ -116,7 +116,7 @@ export function checksumOf(document: SchemaDocument): string {
  * obeys. The value crosses into the application layer, a GraphQL resolver and
  * a cache, and any of those could hold it while something else edits it.
  */
-function deepFreeze<T>(value: T): T {
+export function deepFreeze<T>(value: T): T {
   if (value === null || typeof value !== 'object') return value;
   for (const inner of Object.values(value as Record<string, unknown>)) deepFreeze(inner);
   return Object.freeze(value);
