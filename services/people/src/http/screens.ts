@@ -1420,12 +1420,12 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       // The company's run going now, or null: Import & export and the Directory say so.
       method: 'GET',
       pattern: /^\/v1\/imports\/runs\/active$/,
-      handle: async (asking) =>
-        answer(
-          runs === undefined
-            ? ok(null)
-            : await activeImportRunView(runDeps(runs.store), asking),
-        ),
+      handle: async (asking) => {
+        const going =
+          runs === undefined ? ok(null) : await activeImportRunView(runDeps(runs.store), asking);
+        // Wrapped: a body of null is no answer.
+        return answer(going.ok ? ok({ run: going.value }) : going);
+      },
     },
     {
       // One run, as its page shows it while it goes and once it is over.

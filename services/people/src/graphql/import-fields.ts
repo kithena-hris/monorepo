@@ -71,7 +71,10 @@ export function defineImportFields(builder: PeopleBuilder, viaRest: ViaRest): vo
     activeImportRun: t.string({
       description:
         'The company’s import running now, as `importRun` says it (JSON), or JSON null: another import waits for it. HR and People administrators.',
-      resolve: (_root, _args, ctx) => json(viaRest(ctx, 'GET', '/v1/imports/runs/active')),
+      resolve: (_root, _args, ctx) =>
+        json(
+          viaRest<{ run: unknown }>(ctx, 'GET', '/v1/imports/runs/active').then((b) => b.run),
+        ),
     }),
   }));
 }
