@@ -47,6 +47,8 @@ export const ASSISTANT_LIMITS = {
   ids: 5000,
   /** People's chat route's limit. */
   question: 500,
+  /** Steps in a plan: every example needs at most two. */
+  steps: 4,
 } as const;
 const {
   filters: MAX_FILTERS,
@@ -73,7 +75,11 @@ export const FilterOp = z.enum(FILTER_OPS).register(policy, asPublic());
 export type FilterOp = z.infer<typeof FilterOp>;
 
 /** A field, metric or group key. Configuration, never a value. */
-const fieldKey = (): z.ZodString => keySchema('field').register(policy, asPublic());
+export const FieldKey = keySchema('field').register(policy, asPublic());
+
+/** `<module>.<verb>`. */
+const NAME = /^([a-z]+)\.[a-z][a-z_]*$/u;
+export const CapabilityName = z.string().max(64).regex(NAME).register(policy, asPublic());
 
 /**
  * What a filter compares with. Words from the question, which can be a name,
@@ -87,7 +93,7 @@ const filterValues = z
 
 const filterOf = (keys: true | readonly [string, ...string[]]) =>
   z.strictObject({
-    key: keys === true ? fieldKey() : z.enum(keys).register(policy, asPublic()),
+    key: keys === true ? FieldKey : z.enum(keys).register(policy, asPublic()),
     op: FilterOp,
     values: filterValues,
   });
@@ -136,7 +142,7 @@ export const SELF_NAME = '@me';
 export const NameAsTyped = z.string().trim().min(1).max(120).register(policy, asIdentity());
 
 export const CapabilitySort = z.strictObject({
-  key: fieldKey(),
+  key: FieldKey,
   direction: z.enum(['asc', 'desc']).register(policy, asPublic()),
 });
 export type CapabilitySort = z.infer<typeof CapabilitySort>;
@@ -168,7 +174,7 @@ export const PersonRow = z.strictObject({
   title: title().optional(),
   detail: z.string().max(200).optional().register(policy, asSpecialCategory('health')),
   /** Group key to the row's value's label, for the groups the capability declares. */
-  groups: z.record(fieldKey(), z.string().max(200)).default({}).register(policy, asInternal()),
+  groups: z.record(FieldKey, z.string().max(200)).default({}).register(policy, asInternal()),
 });
 export type PersonRow = z.infer<typeof PersonRow>;
 
@@ -286,7 +292,7 @@ export const AnyInput = z.strictObject({
   on: DateRange.optional(),
   name: NameAsTyped.optional(),
   sort: CapabilitySort.optional(),
-  groupBy: fieldKey().optional(),
+  groupBy: FieldKey.optional(),
   limit: Limit.optional(),
   ids: z.boolean().optional().register(policy, asPublic()),
   personIds: PersonIds.optional(),
@@ -302,8 +308,6 @@ export interface Capability extends Required<CapabilityDefinition> {
     readonly output: z.ZodType<CapabilityOutput>;
   };
 }
-
-const NAME = /^([a-z]+)\.[a-z][a-z_]*$/u;
 
 const optionalUnless = (flag: true | 'required', schema: z.ZodType): z.ZodType =>
   flag === 'required' ? schema : schema.optional();
@@ -333,7 +337,7 @@ export function capability(definition: CapabilityDefinition): Capability {
   if (accepts.name !== undefined)
     step['name'] = input['name'] = optionalUnless(accepts.name, NameAsTyped);
   if (accepts.sort) step['sort'] = input['sort'] = CapabilitySort.optional();
-  if (accepts.groupBy) step['groupBy'] = input['groupBy'] = fieldKey().optional();
+  if (accepts.groupBy) step['groupBy'] = input['groupBy'] = FieldKey.optional();
   if (output !== 'profile') input['limit'] = Limit;
   if (output === 'people') input['ids'] = AnyInput.shape.ids;
   if (accepts.within !== undefined) input['personIds'] = optionalUnless(accepts.within, PersonIds);

@@ -157,7 +157,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **As built** the entry is `CatalogueLeaveType`, and `isPrivateLeaveType()`
   decides `private`; each capability declares its own yield.
 
-### [ ] AST-004 — The plan and the catalogue
+### [x] AST-004 — The plan and the catalogue
 
 - **Spec** PRD §8.5, §9.1, §9.3
 - **Files** `packages/contracts/src/assistant/plan.ts`,
@@ -170,6 +170,9 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `leaveTypes`, `denied`). The plan's schema is shape only; meaning is checked
   in the assistant's domain (AST-007), against the catalogue.
 - **Done when** the tests refuse an extra key at every level and five steps.
+- **As built** exported as `AssistantPlan`, `PlanStep`, `PlanAnswer`, `StepId`
+  and `RuntimeCatalogue`, `CatalogueField`; the step limit is
+  `ASSISTANT_LIMITS.steps`.
 
 ### [ ] AST-005 — Codegen walks capabilities
 
