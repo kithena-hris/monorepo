@@ -1686,6 +1686,14 @@ test passes, and it matches the design's screen on the seeded demo company.
   `insights/insights.tsx`, one component for the four tabs; `?point=` opens
   a point's people beside it. The design's follow-up question box and the
   unbooked value in euros wait for the assistant and for pay rates.
+  Wired to the assistant once the stack merged: `writeInsights` is the
+  `InsightWriter`, one `Writer` call for all of a month's points through
+  assist's `written()` guard, `templatedInsight` for any line that is
+  missing, too long or carries a number the facts do not. The model sees
+  each point's counts, months and hours, never a person or an id, and the
+  team only as `{team}`; the test asserts the prompt. Written after the
+  transaction closes; each point carries `ai`, and the card's tag says AI
+  rather than Templated when a model wrote any of them.
 
 ### [x] TOF-098 — Nudges
 
@@ -1709,6 +1717,14 @@ test passes, and it matches the design's screen on the seeded demo company.
   over What changed at `?nudge=no_break`, its includes in the address.
   Deviations: managers are not written to (their message would carry other
   people's figures), and it sends now rather than "Monday 09:00".
+  Wired to the assistant once the stack merged: `writeNudge` is the
+  `NudgeWriter`, one `Writer` call per recipient through `written()`, with
+  `templatedNudge` as each line's fallback. Its facts are the recipient's
+  own and only what HR included (days left, the bridge day and its holiday,
+  what the year end takes), the name as `{who}` filled in afterwards; the
+  test asserts every prompt names nobody and carries no id or address. The
+  closing "Nobody else sees this message" is the code's, never the model's.
+  The preview carries `ai` and the dialog tags it.
 
 ### [x] TOF-099 — Overtime approvals for managers
 

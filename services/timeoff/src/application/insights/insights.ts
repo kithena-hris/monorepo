@@ -1,5 +1,5 @@
 import { ok, type Result } from '@kithena/domain-kit';
-import type { CalendarDate, DayAmount, PersonId, TeamKey } from '@kithena/contracts';
+import type { CalendarDate, DayAmount, PersonId, TeamKey, TenantId } from '@kithena/contracts';
 
 import { AttendanceClock } from '../../domain/attendance/clock.js';
 import { dayOf } from '../../domain/attendance/day.js';
@@ -13,6 +13,8 @@ import {
   type Monthly,
   type Point,
 } from '../../domain/insights/insights.js';
+import type { Writer } from '../assist/ports.js';
+import { written, type Line } from '../assist/written.js';
 import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
 import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
 import { forbidden, isHrAdmin, leaveYear, policyFor, relates, transact } from '../shared.js';
@@ -24,10 +26,11 @@ import { forbidden, isHrAdmin, leaveYear, policyFor, relates, transact } from '.
  * people behind every point.
  *
  * Every number is the domain's (`domain/insights`). The sentence for each
- * point comes from an `InsightWriter`; until the assistant's writer lands
- * (TOF-084) it is `templatedInsight`, which is also what that writer falls
- * back to without a key. Health data never leaves here as anything but a
- * total for a group at or above the cohort minimum.
+ * point comes from an `InsightWriter`: `writeInsights`, the assistant's
+ * `Writer` through `written()`, with `templatedInsight` wherever there is no
+ * model or its line does not hold up. Health data never leaves here as
+ * anything but a total for a group at or above the cohort minimum, and no
+ * point carries any.
  */
 
 /** The cohort minimum when People has not said one: its own floor. */
@@ -42,8 +45,18 @@ export interface PointFacts {
   readonly teamName: string | null;
 }
 
-/** One sentence per point and the chips that say where it came from. */
-export type InsightWriter = (facts: PointFacts) => { text: string; sources: string[] };
+/** What a point says and where it came from; `ai` when a model wrote the sentence. */
+export interface PointWords {
+  readonly text: string;
+  readonly ai: boolean;
+  readonly sources: readonly string[];
+}
+
+/** One sentence per point, in the points' order. */
+export type InsightWriter = (
+  tenantId: TenantId,
+  points: readonly PointFacts[],
+) => Promise<readonly PointWords[]>;
 
 const people = (n: number): string => (n === 1 ? '1 person' : `${String(n)} people`);
 const hours = (minutes: number): string => `${String(Math.round(minutes / 60))}h`;
@@ -56,8 +69,11 @@ const change = (now: number, before: number): string =>
     ? ''
     : ` (${now >= before ? 'up' : 'down'} ${String(Math.round((Math.abs(now - before) / before) * 100))}%)`;
 
-/** The templated writer: plain sentences from the domain's numbers, nothing guessed. */
-export const templatedInsight: InsightWriter = ({ point, teamName }) => {
+/** The template: plain sentences from the domain's numbers, nothing guessed. */
+export const templatedInsight = ({
+  point,
+  teamName,
+}: PointFacts): { text: string; sources: string[] } => {
   switch (point.kind) {
     case 'unbooked':
       return {
@@ -90,6 +106,81 @@ export const templatedInsight: InsightWriter = ({ point, teamName }) => {
   }
 };
 
+/** A point's figures as the model may see them: counts, months and hours, never a person. */
+function modelFacts({ point, teamName }: PointFacts): Record<string, unknown> {
+  switch (point.kind) {
+    case 'unbooked':
+      return {
+        unbookedDays: days(point.days).toString(),
+        peopleWhoWouldLoseSome: point.personIds.length,
+      };
+    case 'no_break':
+      return {
+        people: point.personIds.length,
+        noDayOffSince: monthOf(point.since),
+        // The team is a placeholder, filled in after the model answers.
+        mostAreIn:
+          point.largestTeam === null || teamName === null
+            ? null
+            : { team: '{team}', count: point.largestTeam.count },
+      };
+    case 'missed_clock_outs':
+      return {
+        missedClockOutsLastMonth: point.lastMonth,
+        missedClockOutsThisMonth: point.thisMonth,
+      };
+    case 'overtime':
+      return {
+        overtimeThisMonth: hours(point.thisMonthMinutes),
+        overtimeLastMonth: hours(point.lastMonthMinutes),
+        change: change(point.thisMonthMinutes, point.lastMonthMinutes).trim() || null,
+      };
+  }
+}
+
+const ABOUT: Record<Point['kind'], string> = {
+  unbooked: 'How much vacation is still unbooked, and how many would lose some at the year end.',
+  no_break: 'How many have not taken a day off since the month given, and the team most are in.',
+  missed_clock_outs: 'How missed clock-outs moved from last month to this one.',
+  overtime: 'How much overtime there was this month, against last month.',
+};
+
+/**
+ * The assistant's sentences for a month's points (TOF-097 on TOF-084), one
+ * call for all of them, through `written()`: a line that is missing, too
+ * long or carries a number the facts do not is the template instead. The
+ * model sees each point's counts and nothing else: no person, no id, and the
+ * team only as `{team}`.
+ */
+export const writeInsights =
+  (writer: Writer | undefined): InsightWriter =>
+  async (tenantId, points) => {
+    const plain = points.map(templatedInsight);
+    const lines = Object.fromEntries(
+      points.map((p, i) => [
+        `p${String(i)}`,
+        { about: ABOUT[p.point.kind], template: plain[i]?.text ?? '' } satisfies Line,
+      ]),
+    );
+    const team = points.find((p) => p.teamName !== null)?.teamName ?? null;
+    const out = await written(
+      writer,
+      tenantId,
+      {
+        instruction:
+          'HR or a manager is reading what changed this month in time off and attendance. ' +
+          'Say each point in one plain sentence.',
+        facts: Object.fromEntries(points.map((p, i) => [`p${String(i)}`, modelFacts(p)])),
+      },
+      lines,
+      team === null ? {} : { team },
+    );
+    return points.map((_, i) => ({
+      ...(out[`p${String(i)}`] ?? { text: plain[i]?.text ?? '', ai: false }),
+      sources: plain[i]?.sources ?? [],
+    }));
+  };
+
 export interface InsightsView {
   readonly asOf: CalendarDate;
   readonly scope: 'company' | 'team';
@@ -99,6 +190,8 @@ export interface InsightsView {
     /** The headline figure, as the domain counted it. */
     readonly figure: string;
     readonly text: string;
+    /** A model wrote `text`; the screen tags it (PRD §14.1). */
+    readonly ai: boolean;
     readonly sources: readonly string[];
     readonly personIds: readonly PersonId[];
   }[];
@@ -259,108 +352,133 @@ async function factsOf(
   };
 }
 
-/** T27–T28's read: the month in points, its trends, the teams and the people behind it. */
+/**
+ * T27–T28's read: the month in points, its trends, the teams and the people
+ * behind it. The sentences are written after the transaction, so a model's
+ * latency never holds one open.
+ */
 export const insights =
-  (deps: Pick<Deps, 'uow' | 'authz' | 'clock'>, writer: InsightWriter = templatedInsight) =>
-  (caller: Caller): Promise<Result<InsightsView>> =>
-    transact<InsightsView>(deps, caller.tenantId, async (tx) => {
-      const scope = await scopeOf(tx, deps, caller);
-      if (scope === null) return forbidden();
-      const today = deps.clock.date('UTC');
-      const first = `${today.slice(0, 7)}-01` as CalendarDate;
-      const months = Array.from({ length: MONTHS }, (_, i) =>
-        addMonths(first, i - MONTHS + 1).slice(0, 7),
-      );
-      const cohortMinimum =
-        (await tx.settings.get('cohort_minimum'))?.value ?? DEFAULT_COHORT_MINIMUM;
-      const years: MemberYear[] = [];
-      for (const m of scope.members)
-        years.push(await factsOf(tx, deps, caller.tenantId, m, months));
+  (
+    deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'writer'>,
+    writer: InsightWriter = writeInsights(deps.writer),
+  ) =>
+  async (caller: Caller): Promise<Result<InsightsView>> => {
+    const read = await transact<{ view: InsightsView; facts: PointFacts[] }>(
+      deps,
+      caller.tenantId,
+      async (tx) => {
+        const scope = await scopeOf(tx, deps, caller);
+        if (scope === null) return forbidden();
+        const today = deps.clock.date('UTC');
+        const first = `${today.slice(0, 7)}-01` as CalendarDate;
+        const months = Array.from({ length: MONTHS }, (_, i) =>
+          addMonths(first, i - MONTHS + 1).slice(0, 7),
+        );
+        const cohortMinimum =
+          (await tx.settings.get('cohort_minimum'))?.value ?? DEFAULT_COHORT_MINIMUM;
+        const years: MemberYear[] = [];
+        for (const m of scope.members)
+          years.push(await factsOf(tx, deps, caller.tenantId, m, months));
 
-      const monthly: Monthly[] = months.map((month) => {
-        const all = years.map((y) => y.byMonth.get(month));
-        const dayTotal = (f: (x: Omit<Monthly, 'month'>) => DayAmount) =>
-          amount(sum(all.flatMap((x) => (x === undefined ? [] : [days(f(x))]))));
-        return {
-          month,
-          vacation: dayTotal((x) => x.vacation),
-          personal: dayTotal((x) => x.personal),
-          sick: dayTotal((x) => x.sick),
-          missedClockOuts: all.reduce((n, x) => n + (x?.missedClockOuts ?? 0), 0),
-          overtimeMinutes: all.reduce((n, x) => n + (x?.overtimeMinutes ?? 0), 0),
-        };
-      });
-      // Four months back from the start of this one: "since May" on 1 October.
-      const since = addMonths(first, -4);
-      const teamNames = new Map(years.map((y) => [y.team, y.member.teamName]));
-      const points = whatChanged({ facts: years, months: monthly, since, cohortMinimum }).map(
-        (point) => {
-          const { text, sources } = writer({
-            point,
-            teamName:
-              point.kind === 'no_break' && point.largestTeam !== null
-                ? (teamNames.get(point.largestTeam.team) ?? null)
-                : null,
-          });
+        const monthly: Monthly[] = months.map((month) => {
+          const all = years.map((y) => y.byMonth.get(month));
+          const dayTotal = (f: (x: Omit<Monthly, 'month'>) => DayAmount) =>
+            amount(sum(all.flatMap((x) => (x === undefined ? [] : [days(f(x))]))));
           return {
-            kind: point.kind,
-            figure:
-              point.kind === 'unbooked'
-                ? days(point.days).toString()
-                : point.kind === 'no_break'
-                  ? String(point.personIds.length)
-                  : point.kind === 'missed_clock_outs'
-                    ? String(point.thisMonth)
-                    : hours(point.thisMonthMinutes),
-            text,
-            sources,
-            personIds: 'personIds' in point ? point.personIds : [],
+            month,
+            vacation: dayTotal((x) => x.vacation),
+            personal: dayTotal((x) => x.personal),
+            sick: dayTotal((x) => x.sick),
+            missedClockOuts: all.reduce((n, x) => n + (x?.missedClockOuts ?? 0), 0),
+            overtimeMinutes: all.reduce((n, x) => n + (x?.overtimeMinutes ?? 0), 0),
           };
-        },
-      );
+        });
+        // Four months back from the start of this one: "since May" on 1 October.
+        const since = addMonths(first, -4);
+        const teamNames = new Map(years.map((y) => [y.team, y.member.teamName]));
+        const facts: PointFacts[] = whatChanged({
+          facts: years,
+          months: monthly,
+          since,
+          cohortMinimum,
+        }).map((point) => ({
+          point,
+          teamName:
+            point.kind === 'no_break' && point.largestTeam !== null
+              ? (teamNames.get(point.largestTeam.team) ?? null)
+              : null,
+        }));
+        // The words are written once the transaction is over.
+        const points = facts.map(({ point }) => ({
+          kind: point.kind,
+          figure:
+            point.kind === 'unbooked'
+              ? days(point.days).toString()
+              : point.kind === 'no_break'
+                ? String(point.personIds.length)
+                : point.kind === 'missed_clock_outs'
+                  ? String(point.thisMonth)
+                  : hours(point.thisMonthMinutes),
+          text: '',
+          ai: false,
+          sources: [],
+          personIds: 'personIds' in point ? point.personIds : [],
+        }));
 
-      const groups = new Map<TeamKey, MemberYear[]>();
-      for (const y of years) {
-        if (y.team !== null) groups.set(y.team, [...(groups.get(y.team) ?? []), y]);
-      }
-      const { shown, hidden } = describable(
-        [...groups].map(([team, ys]) => ({
-          team,
-          teamName: ys[0]?.member.teamName ?? null,
-          people: ys.length,
-          daysTaken: amount(
-            sum(
-              ys.flatMap((y) =>
-                [...y.byMonth.values()].map((x) => days(x.vacation).plus(x.personal)),
+        const groups = new Map<TeamKey, MemberYear[]>();
+        for (const y of years) {
+          if (y.team !== null) groups.set(y.team, [...(groups.get(y.team) ?? []), y]);
+        }
+        const { shown, hidden } = describable(
+          [...groups].map(([team, ys]) => ({
+            team,
+            teamName: ys[0]?.member.teamName ?? null,
+            people: ys.length,
+            daysTaken: amount(
+              sum(
+                ys.flatMap((y) =>
+                  [...y.byMonth.values()].map((x) => days(x.vacation).plus(x.personal)),
+                ),
               ),
             ),
-          ),
-          overtimeMinutes: ys.reduce(
-            (n, y) => n + [...y.byMonth.values()].reduce((k, x) => k + x.overtimeMinutes, 0),
-            0,
-          ),
-          left: amount(sum(ys.map((y) => days(y.left)))),
-        })),
-        cohortMinimum,
-      );
-      const small = scope.members.length < cohortMinimum;
-      return ok({
-        asOf: today,
-        scope: scope.scope,
-        cohortMinimum,
-        points,
-        months: monthly.map((x) => ({ ...x, sick: small ? null : x.sick })),
-        teams: shown.toSorted((a, b) => a.team.localeCompare(b.team)),
-        hiddenTeams: hidden,
-        people: years
-          .map((y) => ({
-            personId: y.personId,
-            displayName: y.member.displayName,
-            teamName: y.member.teamName,
-            left: y.left,
-            losesAtYearEnd: y.losesAtYearEnd,
-            lastDayOff: y.lastDayOff,
-          }))
-          .toSorted((a, b) => a.displayName.localeCompare(b.displayName)),
-      });
+            overtimeMinutes: ys.reduce(
+              (n, y) => n + [...y.byMonth.values()].reduce((k, x) => k + x.overtimeMinutes, 0),
+              0,
+            ),
+            left: amount(sum(ys.map((y) => days(y.left)))),
+          })),
+          cohortMinimum,
+        );
+        const small = scope.members.length < cohortMinimum;
+        return ok({
+          facts,
+          view: {
+            asOf: today,
+            scope: scope.scope,
+            cohortMinimum,
+            points,
+            months: monthly.map((x) => ({ ...x, sick: small ? null : x.sick })),
+            teams: shown.toSorted((a, b) => a.team.localeCompare(b.team)),
+            hiddenTeams: hidden,
+            people: years
+              .map((y) => ({
+                personId: y.personId,
+                displayName: y.member.displayName,
+                teamName: y.member.teamName,
+                left: y.left,
+                losesAtYearEnd: y.losesAtYearEnd,
+                lastDayOff: y.lastDayOff,
+              }))
+              .toSorted((a, b) => a.displayName.localeCompare(b.displayName)),
+          },
+        });
+      },
+    );
+    if (!read.ok) return read;
+    const words = await writer(caller.tenantId, read.value.facts);
+    const { view } = read.value;
+    return ok({
+      ...view,
+      points: view.points.map((p, i) => ({ ...p, ...words[i] })),
     });
+  };

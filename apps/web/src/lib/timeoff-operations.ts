@@ -125,7 +125,7 @@ export const OPERATIONS = {
   /** T27: the month in points, six months of trends, the teams large enough to describe and the people behind each point; HR or a manager */
   TimeOffInsights: `query TimeOffInsights {
     timeOffInsights {
-      asOf cohortMinimum hiddenTeams months { missedClockOuts month overtimeMinutes personal sick vacation } people { displayName lastDayOff left losesAtYearEnd personId teamName } points { figure kind personIds sources text } scope teams { daysTaken left overtimeMinutes people team teamName }
+      asOf cohortMinimum hiddenTeams months { missedClockOuts month overtimeMinutes personal sick vacation } people { displayName lastDayOff left losesAtYearEnd personId teamName } points { ai figure kind personIds sources text } scope teams { daysTaken left overtimeMinutes people team teamName }
     }
   }`,
 
@@ -181,7 +181,7 @@ export const OPERATIONS = {
   /** T28: who has had no break, and the first one’s message as it would be sent; HR or a manager */
   TimeOffNudge: `query TimeOffNudge($balance: Boolean, $bridge: Boolean, $losing: Boolean) {
     timeOffNudge(balance: $balance, bridge: $bridge, losing: $losing) {
-      preview { displayName heading lede personId } recipients { displayName personId reachable } since
+      preview { ai displayName heading lede personId } recipients { displayName personId reachable } since
     }
   }`,
 

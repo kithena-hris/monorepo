@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { NudgeMailer } from '../ports.js';
+import { recordingWriter, shown } from '../testing/assist.js';
 import { caller, d, hr, MADRID, people, TENANT, world } from '../testing/world.js';
 import { nudgePreview, sendNudges } from './nudge.js';
 
@@ -37,6 +38,7 @@ describe('nudges (TOF-098)', () => {
       displayName: 'Adam Novak',
       heading: 'Adam, you haven’t had a day off since June',
       lede: 'You have 25 days left this year. 20 of them would be lost on 31 December if they stay unbooked. A few days away do more than they look. Nobody else sees this message.',
+      ai: false,
     });
     const plain = await nudgePreview(app.deps)(hr, {
       balance: false,
@@ -83,6 +85,47 @@ describe('nudges (TOF-098)', () => {
       );
       for (const name of others) expect(`${m.heading} ${m.lede}`).not.toContain(name);
     }
+  });
+
+  it('asks the assistant with only the recipient’s own figures, and keeps the closing promise', async () => {
+    const app = world(AT, { withGrant: true });
+    const writer = recordingWriter((key) =>
+      key === 'heading'
+        ? '{who}, it has been a while since June'
+        : 'You still have 25 days this year, and 20 would go on 31 December.',
+    );
+    const mailer = recording();
+    const sent = await sendNudges({ ...app.deps, mailer, writer })(hr, {
+      include,
+      companyName: 'Acme Corp',
+      appOrigin: 'https://acme.app.kithena.com',
+    });
+    expect(sent).toEqual({ ok: true, value: { sent: 7, unreachable: 0, failed: 0 } });
+    expect(mailer.sent.find((m) => m.email === 'adam@acme.example')).toMatchObject({
+      heading: 'Adam, it has been a while since June',
+      lede: 'You still have 25 days this year, and 20 would go on 31 December. Nobody else sees this message.',
+    });
+    // One ask per recipient, each carrying their own figures and nobody at all by name.
+    expect(writer.asks).toHaveLength(7);
+    const prompts = shown(writer.asks);
+    for (const id of Object.values(people)) expect(prompts).not.toContain(id);
+    for (const name of ['Adam', 'Marco', 'Yuki', 'Leo', 'Hana', 'Ravi', 'Omar', 'Platform', '@'])
+      expect(prompts).not.toContain(name);
+    expect(writer.asks[0]?.facts).toEqual({
+      who: '{who}',
+      noDayOffSince: 'June',
+      daysLeftThisYear: '25',
+      daysLostIfUnbooked: '20',
+      lostOn: '31 December',
+    });
+
+    // A line with a figure the facts do not hold is the template; the preview says which.
+    const wrong = recordingWriter(() => 'Take 9 days off soon.');
+    const preview = await nudgePreview({ ...app.deps, writer: wrong })(hr, include);
+    expect(preview.ok && preview.value.preview).toMatchObject({
+      heading: 'Adam, you haven’t had a day off since June',
+      ai: false,
+    });
   });
 
   it('refuses without messaging, a link that is no origin, and anybody but HR or a manager', async () => {

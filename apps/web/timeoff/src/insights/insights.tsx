@@ -53,6 +53,8 @@ export interface InsightsData {
     readonly kind: PointKind;
     readonly figure: string;
     readonly text: string;
+    /** A model wrote `text` (TOF-097 on the assistant's writer). */
+    readonly ai?: boolean;
     readonly sources: readonly string[];
     readonly personIds: readonly string[];
   }[];
@@ -168,7 +170,7 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
         title={`${monthLong(month)} in ${String(data.points.length)} ${data.points.length === 1 ? 'point' : 'points'}`}
         action={
           <Badge tone="assistant" size="sm">
-            Templated
+            {data.points.some((p) => p.ai === true) ? 'AI' : 'Templated'}
           </Badge>
         }
         note="Written from Time Off’s own numbers. Each point links to the people behind it."

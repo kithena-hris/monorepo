@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { recordingWriter, shown } from '../testing/assist.js';
 import { caller, hr, people, TENANT, world } from '../testing/world.js';
 import { insights } from './insights.js';
 
@@ -76,9 +77,40 @@ describe('insights (TOF-097)', () => {
     });
   });
 
-  it('takes its sentences from the writer it is given, the seam the assistant fills', async () => {
+  it('takes its sentences from the assistant’s writer, with nobody in the prompt', async () => {
     const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
-    const read = await insights(app.deps, ({ point }) => ({ text: point.kind, sources: [] }))(hr);
-    expect(read.ok && read.value.points.map((p) => p.text)).toEqual(['unbooked', 'no_break']);
+    app.state(TENANT).settings.set('cohort_minimum', { value: 5 });
+    const writer = recordingWriter((key) =>
+      key === 'p0'
+        ? '175 days are still unbooked, and 7 people would lose some.'
+        : '7 people, all 7 in {team}, have had no day off since June.',
+    );
+    const read = await insights({ ...app.deps, writer })(hr);
+    if (!read.ok) throw new Error(read.error.message);
+    expect(read.value.points.map((p) => [p.text, p.ai])).toEqual([
+      ['175 days are still unbooked, and 7 people would lose some.', true],
+      ['7 people, all 7 in Platform, have had no day off since June.', true],
+    ]);
+    expect(read.value.points[0]?.sources).toEqual(['Balances', 'Carry-over']);
+    // Counts only: no person, no id, and the team as a placeholder.
+    const prompt = shown(writer.asks);
+    for (const id of Object.values(people)) expect(prompt).not.toContain(id);
+    for (const name of ['Adam', 'Marco', 'Platform']) expect(prompt).not.toContain(name);
+  });
+
+  it('keeps the template for a line the model got wrong, and without a model', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
+    // 9 is nowhere in the facts.
+    const writer = recordingWriter((key) => (key === 'p0' ? null : '9 people need a break.'));
+    const read = await insights({ ...app.deps, writer })(hr);
+    expect(read.ok && read.value.points.map((p) => [p.text, p.ai])).toEqual([
+      [
+        '175 days of vacation are still unbooked this year. At this pace 7 people will lose some at the year end.',
+        false,
+      ],
+      ['7 people haven’t taken a day off since June.', false],
+    ]);
+    const plain = await insights(app.deps)(hr);
+    expect(plain.ok && plain.value.points.every((p) => !p.ai)).toBe(true);
   });
 });

@@ -841,6 +841,7 @@ type TimeOffInsightPerson {
 }
 
 type TimeOffInsightPoint {
+  ai: Boolean!
   figure: String!
   kind: String!
   personIds: [String!]!
@@ -1075,6 +1076,7 @@ type TimeOffNudge {
 }
 
 type TimeOffNudgePreview {
+  ai: Boolean!
   displayName: String!
   heading: String!
   lede: String!

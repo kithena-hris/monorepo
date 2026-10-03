@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffNudge($balance: Boolean, $bridge: Boolean, $losing: Boolean) {\n    timeOffNudge(balance: $balance, bridge: $bridge, losing: $losing) {\n      preview { ai displayName heading lede personId } recipients { displayName personId reachable } since\n    }\n  }"}

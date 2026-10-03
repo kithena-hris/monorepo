@@ -118,6 +118,8 @@ describe(`the AI features with the keys ${keyed ? 'set' : 'unset'}`, () => {
         'ada',
         `/v1/timeoff/settings/holidays/2028/draft?layerKey=madrid&source=${encodeURIComponent('15 de mayo San Isidro')}`,
       ),
+      get('marco', '/v1/timeoff/insights'),
+      get('marco', '/v1/timeoff/insights/nudge'),
     ]);
     for (const answer of screens) expect(answer.status).toBe(200);
     const written = screens.flatMap((s) => lines(s.body));
@@ -128,10 +130,12 @@ describe(`the AI features with the keys ${keyed ? 'set' : 'unset'}`, () => {
       expect(asked.assistant).toBeGreaterThan(0);
       expect(written.some((w) => w.ai)).toBe(true);
       expect((screens[1].body as { understood: { ai: boolean } }).understood.ai).toBe(true);
+      expect((screens[7].body as { preview: { ai: boolean } }).preview.ai).toBe(true);
     } else {
       expect(asked).toEqual({ typesafe: 0, assistant: 0 });
       expect(written.every((w) => !w.ai)).toBe(true);
       expect((screens[1].body as { understood: { ai: boolean } }).understood.ai).toBe(false);
+      expect((screens[7].body as { preview: { ai: boolean } }).preview.ai).toBe(false);
     }
   });
 });

@@ -1,5 +1,6 @@
 import {
   Alert,
+  Badge,
   Button,
   Card,
   Dialog,
@@ -46,6 +47,8 @@ export interface NudgeData {
     readonly displayName: string;
     readonly heading: string;
     readonly lede: string;
+    /** A model wrote the words (TOF-098 on the assistant's writer). */
+    readonly ai?: boolean;
   } | null;
 }
 
@@ -133,7 +136,14 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
             ) : (
               <Card padded>
                 <div className="flex flex-col gap-2.5">
-                  <span className="text-xs text-fg-muted">{`Preview for ${nudge.preview.displayName}`}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-fg-muted">{`Preview for ${nudge.preview.displayName}`}</span>
+                    {nudge.preview.ai === true ? (
+                      <Badge tone="assistant" size="sm">
+                        AI
+                      </Badge>
+                    ) : null}
+                  </div>
                   <p className="font-semibold">{nudge.preview.heading}</p>
                   <p className="text-sm text-fg-muted">{nudge.preview.lede}</p>
                 </div>

@@ -738,6 +738,8 @@ export const InsightsView = named(
           kind: z.enum(['unbooked', 'no_break', 'missed_clock_outs', 'overtime']),
           figure: z.string(),
           text: z.string(),
+          /** A model wrote `text` (PRD §14.1). */
+          ai: z.boolean(),
           sources: z.array(z.string()),
           personIds: z.array(PersonId),
         }),
@@ -804,6 +806,8 @@ export const NudgeView = named(
         displayName: z.string(),
         heading: z.string(),
         lede: z.string(),
+        /** A model wrote the words (PRD §14.1). */
+        ai: z.boolean(),
       }),
     ).nullable(),
   }),
