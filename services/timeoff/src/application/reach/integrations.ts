@@ -140,12 +140,18 @@ export const integrationsScreen =
 const STATE_MINUTES = 15;
 
 interface State {
-  /** Tenant, HR account, provider, where to go back, expiry. */
+  /** Tenant, account, provider, where to go back, expiry; `m` for a member's own grant. */
   readonly t: string;
   readonly a: string;
   readonly v: IntegrationProvider;
   readonly b: string;
   readonly e: string;
+  readonly m?: true;
+}
+
+function signedState(secret: string, state: State): string {
+  const body = Buffer.from(JSON.stringify(state)).toString('base64url');
+  return `${body}.${signState(secret, body)}`;
 }
 
 const signState = (secret: string, body: string) =>
@@ -197,16 +203,13 @@ export const connectIntegration =
         );
       }
       const now = deps.clock.instant();
-      const body = Buffer.from(
-        JSON.stringify({
-          t: caller.tenantId,
-          a: caller.accountId,
-          v: provider,
-          b: back,
-          e: new Date(Date.parse(now) + STATE_MINUTES * 60_000).toISOString(),
-        } satisfies State),
-      ).toString('base64url');
-      const state = `${body}.${signState(deps.feedSecret, body)}`;
+      const state = signedState(deps.feedSecret, {
+        t: caller.tenantId,
+        a: caller.accountId,
+        v: provider,
+        b: back,
+        e: new Date(Date.parse(now) + STATE_MINUTES * 60_000).toISOString(),
+      });
       const url = port.connectUrl(state, redirectUri(deps.reach.publicUrl, provider));
       if (url === null) {
         await tx.integrations.save({
@@ -218,6 +221,41 @@ export const connectIntegration =
         });
       }
       return ok({ url });
+    });
+
+/**
+ * A member's own grant, where the company is connected and the provider
+ * needs one: a chat status is the person's to set. Any member, for
+ * themselves; the company's connection is untouched.
+ */
+export const connectMyIntegration =
+  (deps: ReachDeps) =>
+  (
+    caller: Caller,
+    provider: IntegrationProvider,
+    back: string,
+  ): Promise<Result<{ url: string | null }>> =>
+    transact(deps, caller.tenantId, async (tx) => {
+      if (caller.personId === null) return forbidden();
+      const port = portOf(deps, provider);
+      if (port === null || !port.configured || deps.reach === undefined) {
+        return refuse(
+          'NOT_CONFIGURED',
+          `${provider} cannot be connected until its credentials are set`,
+        );
+      }
+      if ((await tx.integrations.get(provider)) === null) {
+        return refuse('NOT_CONNECTED', `Your company has not connected ${provider}`);
+      }
+      const state = signedState(deps.feedSecret, {
+        t: caller.tenantId,
+        a: caller.accountId,
+        v: provider,
+        b: back,
+        e: new Date(Date.parse(deps.clock.instant()) + STATE_MINUTES * 60_000).toISOString(),
+        m: true,
+      });
+      return ok({ url: port.connectUrl(state, redirectUri(deps.reach.publicUrl, provider), true) });
     });
 
 /** Forgets the company's connection, and every member's grant with it. HR. */
@@ -263,6 +301,18 @@ export const completeIntegration =
     }
     const granted = await port.complete(answer, redirectUri(deps.reach.publicUrl, provider));
     return transact(deps, tenant.data, async (tx) => {
+      const member = await tx.members.byAccount(state.a);
+      if (state.m === true) {
+        // A member's own grant: theirs alone, and only while the company is connected.
+        if (member === null || (await tx.integrations.get(provider)) === null)
+          return invalidState();
+        await tx.integrations.setMemberSecret(
+          provider,
+          member.personId,
+          granted.memberSecret ?? null,
+        );
+        return ok({ location: withQuery(state.b, 'connected', provider) });
+      }
       await tx.integrations.save({
         provider,
         config: granted.config,
@@ -270,7 +320,6 @@ export const completeIntegration =
         connectedAt: deps.clock.instant(),
         connectedBy: state.a,
       });
-      const member = await tx.members.byAccount(state.a);
       if (member !== null && (granted.memberSecret ?? null) !== null) {
         await tx.integrations.setMemberSecret(
           provider,

@@ -1,5 +1,10 @@
 import { Kafka } from 'kafkajs';
-import { LeaveApproved, PersonHired, TenantAdministratorNamed } from '@kithena/contracts';
+import {
+  LeaveApproved,
+  LeaveRequested,
+  PersonHired,
+  TenantAdministratorNamed,
+} from '@kithena/contracts';
 import { kafkaConfigFrom } from '@kithena/db-kit';
 import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
@@ -26,8 +31,9 @@ export function wireConsumers(
   uow: UnitOfWork | null,
   tuples?: MemberTuples,
   reach?: Reach,
+  feedSecret?: string,
 ): void {
-  const started = startConsumers(env, uow, tuples, reach);
+  const started = startConsumers(env, uow, tuples, reach, feedSecret);
   started.catch((error: unknown) => {
     logger.error({ err: error }, 'timeoff consumers failed');
     process.exit(1);
@@ -41,6 +47,8 @@ export async function startConsumers(
   uow: UnitOfWork | null,
   tuples?: MemberTuples,
   reach?: Reach,
+  /** Signs the chat app's buttons; the composition root's. */
+  feedSecret?: string,
 ): Promise<{ stop(): Promise<void> } | null> {
   // First, so a half-configured broker refuses to boot even without a database.
   const kafka = kafkaConfigFrom(env, 'timeoff');
@@ -81,7 +89,10 @@ export async function startConsumers(
       await handle(envelope);
     },
   });
-  const outside = reach === undefined ? null : await startReach(new Kafka(kafka), uow, reach);
+  const outside =
+    reach === undefined || feedSecret === undefined
+      ? null
+      : await startReach(new Kafka(kafka), uow, reach, feedSecret);
   return {
     async stop() {
       await consumer.disconnect();
@@ -97,12 +108,16 @@ export async function startConsumers(
  * year's approvals replayed into it. A provider's failure is logged, not
  * thrown, so one mailbox does not stop the topic.
  */
-async function startReach(kafka: Kafka, uow: UnitOfWork, reach: Reach) {
+async function startReach(kafka: Kafka, uow: UnitOfWork, reach: Reach, feedSecret: string) {
   if ([...reach.calendars, ...reach.chats].every((p) => !p.configured)) return null;
-  const handle = reachOnEvent({ uow, clock: systemClock, reach });
+  const handle = reachOnEvent({ uow, clock: systemClock, reach, feedSecret });
   const consumer = kafka.consumer({ groupId: 'timeoff-reach' });
   await consumer.connect();
-  await consumer.subscribe({ topics: [LeaveApproved.topic], fromBeginning: false });
+  // Approvals, changes and cancellations on v1; a request sent is v2.
+  await consumer.subscribe({
+    topics: [...new Set([LeaveApproved.topic, LeaveRequested.topic])],
+    fromBeginning: false,
+  });
   await consumer.run({
     eachMessage: async ({ message }) => {
       if (message.value === null) return;

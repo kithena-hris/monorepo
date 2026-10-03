@@ -74,6 +74,15 @@ type Mutation {
   """
   closeTimeOffPayPeriod(idempotencyKey: String!, month: String!): TimeOffPayPeriodClosed!
   """
+  A member’s own grant where the provider needs one (a chat status is the person’s to set); the caller, for themselves
+  """
+  connectMyTimeOffIntegration(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    provider: String!
+  ): TimeOffIntegrationConnect!
+  """
   The provider’s consent page, or the connection at once where access is granted in the company’s own admin console; HR
   """
   connectTimeOffIntegration(

@@ -318,9 +318,10 @@ export interface IntegrationPort {
   /**
    * Where HR grants access, carrying `state` and coming back to
    * `redirectUri`; `null` when access is granted outside Kithena (Google's
-   * admin console), so connecting is recorded at once.
+   * admin console), so connecting is recorded at once. `forMember` asks for
+   * a person's own grant only (a chat status), never the company's.
    */
-  connectUrl(state: string, redirectUri: string): string | null;
+  connectUrl(state: string, redirectUri: string, forMember?: boolean): string | null;
   /** What the redirect brought, made into the company's connection; a member's own grant when one came too. */
   complete(
     answer: ProviderAnswer,
@@ -375,13 +376,14 @@ export interface ChatPort extends IntegrationPort {
   ): Promise<void>;
   /**
    * A button press, verified as the provider's own (its signing secret over
-   * the raw body): the value Time Off put on the button. `null` when the
-   * request is not the provider's, or not a press.
+   * the raw body): the value Time Off put on the button, and how to answer
+   * in the conversation it came from. `null` when the request is not the
+   * provider's, or not a press.
    */
   action(request: {
     readonly headers: Readonly<Record<string, string | string[] | undefined>>;
     readonly body: string;
-  }): string | null;
+  }): { readonly value: string; readonly reply: (text: string) => Promise<void> } | null;
 }
 
 /** Every adapter Time Off has, and where providers send people back to. */

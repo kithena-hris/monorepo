@@ -46,6 +46,8 @@ export interface Composed {
     readonly tuples?: MemberTuples;
     /** Calendars and chat apps, for the consumer and the jobs that reach them. */
     readonly reach: Reach;
+    /** Signs what Time Off hands out: feed links, kiosk codes, a chat message's buttons. */
+    readonly feedSecret: string;
   } | null;
 }
 
@@ -99,10 +101,11 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
   onShutdown('escalation worker', () => timers.close());
 
   const reach = reachFrom(env);
+  const feedSecret = feedSecretFrom(env);
   const { listener } = timeoffServer({
     uow,
     authz: fga?.authorizer ?? nobodyRelates,
-    feedSecret: feedSecretFrom(env),
+    feedSecret,
     callerFrom: withMember(callerFromHeaders(internalToken), uow),
     timers,
     notifier: logNotifier,
@@ -110,6 +113,12 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
   });
   return {
     listener,
-    storage: { db, uow, reach, ...(synced === null ? {} : { tuples: synced.tuples }) },
+    storage: {
+      db,
+      uow,
+      reach,
+      feedSecret,
+      ...(synced === null ? {} : { tuples: synced.tuples }),
+    },
   };
 }

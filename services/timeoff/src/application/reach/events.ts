@@ -1,21 +1,28 @@
 import { ok, type Result } from '@kithena/domain-kit';
-import { LeaveApproved, LeaveCancelled, LeaveChanged, TenantId } from '@kithena/contracts';
+import {
+  LeaveApproved,
+  LeaveCancelled,
+  LeaveChanged,
+  LeaveRequested,
+  TenantId,
+} from '@kithena/contracts';
 
 import { LeaveRequestId } from '../../domain/request/leave-request.js';
 import type { Deps } from '../ports.js';
 import { calendarForRequest, type Delivery } from './calendar.js';
+import { askApproverInChat } from './chat.js';
 
 /**
- * Time Off's own events, read back to reach outside it (TOF-110): an
- * approval, a change or a cancellation puts the request on the member's
- * calendar or takes it off. From the outbox, so a calendar call that fails
+ * Time Off's own events, read back to reach outside it (TOF-110, TOF-111):
+ * an approval, a change or a cancellation puts the request on the member's
+ * calendar or takes it off; a request sent asks its approver in the chat app. From the outbox, so a calendar call that fails
  * after the commit is retried with the event, never lost with a crash.
  *
  * Anything else is ignored; a malformed message too, since Kafka would
  * redeliver it forever.
  */
 
-type ReachEventDeps = Pick<Deps, 'uow' | 'clock' | 'reach'>;
+type ReachEventDeps = Pick<Deps, 'uow' | 'clock' | 'feedSecret' | 'reach'>;
 
 const NOTHING: Delivery = { sent: 0, failed: [] };
 
@@ -36,6 +43,7 @@ export const reachOnEvent =
       typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'requestId') : null,
     );
     if (!tenant.success || !request.success) return ok(NOTHING);
+    if (name === LeaveRequested.name) return askApproverInChat(deps)(tenant.data, request.data);
     const why = typeof name === 'string' ? WHY[name as keyof typeof WHY] : undefined;
     if (why === undefined) return ok(NOTHING);
     return calendarForRequest(deps)(tenant.data, request.data, why);

@@ -6,6 +6,7 @@ import { registerKiosk } from '../attendance/kiosk.js';
 import {
   completeIntegration,
   connectIntegration,
+  connectMyIntegration,
   disconnectIntegration,
   integrationsScreen,
 } from './integrations.js';
@@ -154,5 +155,45 @@ describe('integrations (T35, TOF-109)', () => {
     await connectIntegration(deps)(hr, 'google', BACK);
     expect((await disconnectIntegration(deps)(hr, 'google')).ok).toBe(true);
     expect(app.state(TENANT).integrations.has('google')).toBe(false);
+  });
+
+  it('lets a member grant their own chat status, keeping the company’s connection as it was', async () => {
+    const { app, deps } = setup();
+    const slack = {
+      provider: 'slack' as const,
+      configured: true,
+      connectUrl: (state: string, _r: string, forMember?: boolean) =>
+        `https://slack.example/authorize?state=${state}&member=${String(forMember)}`,
+      complete: () => Promise.resolve({ config: {}, secret: null, memberSecret: 'sealed-adam' }),
+      setStatus: () => Promise.resolve(),
+      askApproval: () => Promise.resolve(),
+      action: () => null,
+    };
+    const withSlack: Deps = {
+      ...deps,
+      reach: { calendars: [], chats: [slack], publicUrl: 'https://timeoff.example' },
+    };
+    const adam = caller(people.adam);
+    expect(await connectMyIntegration(withSlack)(adam, 'slack', BACK)).toMatchObject({
+      ok: false,
+      error: { code: 'NOT_CONNECTED' },
+    });
+    app.state(TENANT).integrations.set('slack', {
+      provider: 'slack',
+      config: { name: 'Acme' },
+      secret: 'sealed-bot',
+      connectedAt: '2026-09-01T00:00:00.000Z' as never,
+      connectedBy: hr.accountId,
+    });
+    const started = await connectMyIntegration(withSlack)(adam, 'slack', BACK);
+    const url = new URL(started.ok ? (started.value.url ?? '') : '');
+    expect(url.searchParams.get('member')).toBe('true');
+    const done = await completeIntegration(withSlack)('slack', {
+      state: url.searchParams.get('state') ?? '',
+      code: 'c-1',
+    });
+    expect(done).toEqual({ ok: true, value: { location: `${BACK}?connected=slack` } });
+    expect(app.state(TENANT).memberSecrets.get(`slack:${people.adam}`)).toBe('sealed-adam');
+    expect(app.state(TENANT).integrations.get('slack')?.secret).toBe('sealed-bot');
   });
 });

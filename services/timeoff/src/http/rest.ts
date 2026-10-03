@@ -61,9 +61,11 @@ import {
   setKioskCredential,
 } from '../application/attendance/kiosk.js';
 import { importMembers } from '../application/member/import.js';
+import { approveFromChat } from '../application/reach/chat.js';
 import {
   completeIntegration,
   connectIntegration,
+  connectMyIntegration,
   disconnectIntegration,
   integrationsScreen,
 } from '../application/reach/integrations.js';
@@ -233,6 +235,8 @@ export interface Route {
       readonly body: unknown;
       /** A public route's `Authorization: Bearer` token; `null` on every other. */
       readonly bearer: string | null;
+      /** A public route's request as it came: a provider signs its raw body. */
+      readonly raw: RawRequest;
     },
   ) => Promise<Result<unknown>>;
   /** The use case's answer as the route's; applied in the write's transaction too, for the key. */
@@ -240,6 +244,11 @@ export interface Route {
 }
 
 const NoParams = z.object({});
+
+interface RawRequest {
+  readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+  readonly body: string;
+}
 
 function route<P extends z.ZodObject, B extends z.ZodType | null, A extends z.ZodType, V>(def: {
   readonly name: string;
@@ -259,6 +268,7 @@ function route<P extends z.ZodObject, B extends z.ZodType | null, A extends z.Zo
       readonly params: z.output<P>;
       readonly body: B extends z.ZodType ? z.output<B> : undefined;
       readonly bearer: string | null;
+      readonly raw: RawRequest;
     },
   ) => Promise<Result<V>>;
   readonly shape: (value: V) => View<A>;
@@ -378,6 +388,9 @@ export const KioskCredentialSetBody = z.strictObject({
 });
 const KioskParams = z.object({ deviceId: z.uuid() });
 const ProviderParams = z.object({ provider: IntegrationProviderView });
+const ConnectAnswer = z
+  .object({ url: z.string().nullable() })
+  .meta({ title: 'TimeOffIntegrationConnect' });
 export const ConnectBody = z.strictObject({
   /** The integrations page to come back to once the provider has answered. */
   back: z.url({ protocol: /^https?$/u }),
@@ -1223,9 +1236,22 @@ export const ROUTES: readonly Route[] = [
       'The provider’s consent page, or the connection at once where access is granted in the company’s own admin console; HR',
     params: ProviderParams,
     body: ConnectBody,
-    answer: z.object({ url: z.string().nullable() }).meta({ title: 'TimeOffIntegrationConnect' }),
+    answer: ConnectAnswer,
     run: (deps, caller, { params, body }) =>
       connectIntegration(deps)(caller, params.provider, body.back),
+    shape: same,
+  }),
+  route({
+    name: 'connectMyTimeOffIntegration',
+    method: 'POST',
+    path: `${V1}/integrations/{provider}/connect-me`,
+    summary:
+      'A member’s own grant where the provider needs one (a chat status is the person’s to set); the caller, for themselves',
+    params: ProviderParams,
+    body: ConnectBody,
+    answer: ConnectAnswer,
+    run: (deps, caller, { params, body }) =>
+      connectMyIntegration(deps)(caller, params.provider, body.back),
     shape: same,
   }),
   route({
@@ -1237,6 +1263,19 @@ export const ROUTES: readonly Route[] = [
     answer: Done,
     run: (deps, caller, { params }) => disconnectIntegration(deps)(caller, params.provider),
     shape: done,
+  }),
+  route({
+    name: 'answerTimeOffChatAction',
+    method: 'POST',
+    path: `${V1}/integrations/{provider}/actions`,
+    summary:
+      'A press on Approve or Decline in a chat app’s message: the provider’s signature and Time Off’s checked, then decided as the approver it was sent to',
+    params: z.object({ provider: z.enum(['slack', 'teams']) }),
+    answer: z.object({ text: z.string() }).meta({ title: 'TimeOffChatAnswer' }),
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params, raw }) => approveFromChat(deps)(params.provider, raw),
+    shape: same,
   }),
   route({
     name: 'completeTimeOffIntegration',
@@ -1433,6 +1472,7 @@ const STATUS: Record<string, number> = {
   OVERLAP: 409,
   ALREADY_CLOSED: 409,
   BIRTH_ALREADY_RECORDED: 409,
+  INVALID_ACTION: 401,
   EARLIER_PERIOD_OPEN: 409,
   IDEMPOTENCY_KEY_REQUIRED: 400,
   IDEMPOTENCY_KEY_REUSED: 422,
@@ -1613,7 +1653,12 @@ export function restHandler(
       if (!body.ok) return refused(body.error);
       return answer(
         r,
-        await r.run(deps, anonymous, { params: params.value, body: body.value, bearer }),
+        await r.run(deps, anonymous, {
+          params: params.value,
+          body: body.value,
+          bearer,
+          raw: { headers: request.headers, body: request.body },
+        }),
       );
     }
     const caller = await rest.callerFrom(request);
@@ -1630,7 +1675,7 @@ export function restHandler(
     const parsedBody = bodyOf();
     if (!parsedBody.ok) return refused(parsedBody.error);
     const body = parsedBody.value;
-    const input = { params: params.value, body, bearer: null };
+    const input = { params: params.value, body, bearer: null, raw: { headers: {}, body: '' } };
     if (!writes || typeof key !== 'string')
       return answer(r, await r.run(deps, caller.value, input));
 

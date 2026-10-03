@@ -3,6 +3,8 @@ import { logger } from '@kithena/telemetry';
 import type { Reach } from '../../application/ports.js';
 import { googleCalendar } from './google.js';
 import { microsoftCalendar } from './microsoft.js';
+import { sealerFrom } from './seal.js';
+import { slackChat } from './slack.js';
 
 /**
  * Every calendar and chat adapter, from the environment (TOF-110, TOF-111).
@@ -13,7 +15,7 @@ import { microsoftCalendar } from './microsoft.js';
 export function reachFrom(env: NodeJS.ProcessEnv): Reach {
   const reach: Reach = {
     calendars: [googleCalendar(env), microsoftCalendar(env)],
-    chats: [],
+    chats: [slackChat(env, sealerFrom(env))],
     publicUrl: env['TIMEOFF_PUBLIC_URL'] ?? 'http://localhost:4002',
   };
   const ready = [...reach.calendars, ...reach.chats].filter((p) => p.configured);

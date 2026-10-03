@@ -15,6 +15,7 @@ import {
 import { parentalNotices } from '../application/parental/parental.js';
 import type { Deps, Notifier, Reach } from '../application/ports.js';
 import { calendarHolidays } from '../application/reach/calendar.js';
+import { chatStatuses } from '../application/reach/chat.js';
 import { knownTenants } from './drizzle-members.js';
 import { drizzleUnitOfWork, uuidv7 } from './unit-of-work.js';
 
@@ -36,6 +37,8 @@ import { drizzleUnitOfWork, uuidv7 } from './unit-of-work.js';
  * - **parental-notices**, hourly: a flexible block's notice falling due today.
  * - **calendar-holidays**, 03:00 UTC on the 1st: each member's holidays on their
  *   calendar, where one is connected (TOF-110).
+ * - **chat-status**, 05:00 UTC daily: who is away today says so in the chat app,
+ *   until their last day ends (TOF-111).
  */
 
 export const QUEUE_NAME = 'timeoff-jobs';
@@ -58,6 +61,7 @@ export function jobs(
     'clock-out-reminder': { pattern: '*/15 * * * *', run: clockOutReminder(deps) },
     'parental-notices': { pattern: '30 * * * *', run: parentalNotices(deps) },
     'calendar-holidays': { pattern: '0 3 1 * *', run: calendarHolidays(deps) },
+    'chat-status': { pattern: '0 5 * * *', run: chatStatuses(deps) },
   };
 }
 

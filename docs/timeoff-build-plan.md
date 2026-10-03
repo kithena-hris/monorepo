@@ -1649,8 +1649,8 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
   its token once: `kk_` and the tenant, the device and 32 random bytes, so it
   is found inside its tenant's RLS; only its SHA-256 is kept, and revoking
   stops it at once. A device reaches three public routes with
-  `Authorization: Bearer` and nothing else — its own name, *identify* (the
-  first name and what the tap would do, writing nothing) and *punches* (its
+  `Authorization: Bearer` and nothing else — its own name, _identify_ (the
+  first name and what the tap would do, writing nothing) and _punches_ (its
   queue) — none on the subgraph, none needing a session or a key. A badge
   (HR's to give) or PIN (the member's or HR's) is kept as an HMAC under
   `TIMEOFF_FEED_SECRET` in `kiosk_credential`, unique per tenant by
@@ -1766,11 +1766,47 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
     `TIMEOFF_MICROSOFT_CLIENT_ID`, `TIMEOFF_MICROSOFT_CLIENT_SECRET`.
   - `TIMEOFF_PUBLIC_URL` routed by the tunnel to Time Off's `/v1/timeoff/`.
 
-### [ ] TOF-111 — Chat integration (Slack, then Teams)
+### [x] TOF-111 — Chat integration (Slack, then Teams)
 
 - **Depends on** TOF-109
 - **Approach** Status while away; approve from a message. Named generically in
   the UI ("Chat apps").
+- **As built** `ChatPort` in `application/ports.ts`, provider-neutral, so
+  Teams is a second adapter and nothing else; `application/reach/chat.ts`.
+  A request sent (`timeoff.request.requested`, read back by `timeoff-reach`)
+  is a direct message to its approver — the manager at a manager step, or
+  whoever it was escalated to; an HR step asks nobody in particular — saying
+  who, what and when, with Approve and Decline. Each button carries a value
+  Time Off signs (tenant, request, the approver it was sent to, the
+  decision, two weeks' expiry); a press comes to the public
+  `POST /v1/timeoff/integrations/<provider>/actions`, is verified by the
+  adapter (the provider's signature) and by Time Off (its own), and is
+  decided through `decideRequest` as that approver, so every rule of the
+  screen holds; a refusal ("no longer waiting") is said in the
+  conversation. The daily `chat-status` job sets "Out of office" for
+  whoever is away today until midnight after their last day, for members
+  who granted their own status (the installer's grant comes with the
+  install; anyone else's through `POST …/integrations/<provider>/connect-me`,
+  which has no screen yet). **Slack** (`infrastructure/integrations/slack.ts`):
+  OAuth v2 install with bot scopes `chat:write, users:read,
+users:read.email, im:write` and user scope `users.profile:write`;
+  `users.lookupByEmail`, `chat.postMessage` to the user's id with Block Kit
+  buttons, `users.profile.set` with `status_expiration`; a press checked
+  against `x-slack-signature` within five minutes and answered through its
+  `response_url`. Tokens sealed with AES-256-GCM under
+  `TIMEOFF_INTEGRATION_KEY` before they are stored. Inert without any of its
+  credentials.
+- **Credentials a person must create** (none were created here):
+  - A Slack app (api.slack.com/apps), distributed publicly so companies can
+    install it: OAuth redirect URL
+    `<TIMEOFF_PUBLIC_URL>/v1/timeoff/integrations/slack/callback`, bot scopes
+    `chat:write`, `users:read`, `users:read.email`, `im:write`, user scope
+    `users.profile:write`, Interactivity on with the request URL
+    `<TIMEOFF_PUBLIC_URL>/v1/timeoff/integrations/slack/actions`, and App
+    Home's Messages tab on → `TIMEOFF_SLACK_CLIENT_ID`,
+    `TIMEOFF_SLACK_CLIENT_SECRET`, `TIMEOFF_SLACK_SIGNING_SECRET`.
+  - `TIMEOFF_INTEGRATION_KEY`: 32 random bytes, base64.
+  - Teams: a Bot Framework registration and an adapter, when it follows.
 
 ### [ ] TOF-112 — AI holiday drafts
 
