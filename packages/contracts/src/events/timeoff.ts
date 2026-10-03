@@ -409,8 +409,11 @@ export const ParentalBirthRecorded = defineEvent(
   z.object({
     planId: z.uuid().register(policy, asPublic()),
     personId: PersonId,
-    /** A child's date of birth: it identifies a minor. */
-    birthDate: CalendarDate.register(policy, asIdentity()),
+    /**
+     * A child's date of birth: it identifies a minor. Its own schema, because
+     * registering the shared `CalendarDate` would make every date identity.
+     */
+    birthDate: z.iso.date().brand<'CalendarDate'>().register(policy, asIdentity()),
     blocks: blocks(),
   }),
 );
