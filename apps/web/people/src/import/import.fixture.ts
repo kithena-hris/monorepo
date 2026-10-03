@@ -1,4 +1,5 @@
 import type { ImportStage, ProposedColumn } from './import-flow';
+import type { ImportRunStatus } from './import-run';
 import type { ImportDoneView, ImportPlanView, LeftEmptyRow } from './import-plan';
 import type { ColumnProposal, NewFieldsView } from './new-fields';
 import type { PlacesHere, WorkplaceValue } from './work-locations';
@@ -125,7 +126,13 @@ export const NEW_FIELDS: NewFieldsView = {
   setup: { country: 'US', countryName: 'United States' },
   proposals: [
     {
-      ...proposal({ column: 2, header: 'T-shirt size', key: 't_shirt_size' }),
+      ...proposal({
+        column: 2,
+        header: 'T-shirt size',
+        key: 't_shirt_size',
+        forExisting: { kind: 'ask' },
+        forExistingWhy: 'About them, not their job: the employee tells us.',
+      }),
       counts: {
         have: 17,
         missing: 4,
@@ -142,7 +149,7 @@ export const NEW_FIELDS: NewFieldsView = {
         shape: 'free text, up to 12 characters',
         confidence: 'medium',
         forExisting: { kind: 'hr' },
-        forExistingWhy: 'HR records it: it goes to HR’s completeness list.',
+        forExistingWhy: 'The company assigns it: HR fills it in.',
       }),
       field: {
         label: 'Laptop serial',
@@ -170,7 +177,7 @@ export const NEW_FIELDS: NewFieldsView = {
         key: 'dietary_requirements',
         include: true,
         why: 'Stored as special category, not encrypted, because it’s a list: HR’s alone, and a change waits for approval.',
-        forExistingWhy: 'Health information is volunteered, never chased.',
+        forExistingWhy: 'Volunteered, never chased: it can reveal health, religion or the like.',
       }),
       field: {
         label: 'Dietary requirements',
@@ -232,9 +239,15 @@ export const PLAN: ImportPlanView = {
         'Manager on those rows points at nobody in this company or this file. The rows import without it; each is listed under See rows.',
     },
     {
+      kind: 'ask',
+      title: 'Ask 4 people for 1 personal detail (T-shirt size)',
+      detail:
+        'One request each, listing everything asked of them, answered on their profile or in onboarding. The import emails nobody: anyone without an account yet finds it when they first sign in, and nobody who has left is asked.',
+    },
+    {
       kind: 'hr',
-      title: 'Give HR 4 laptop serial values to fill in',
-      detail: 'They’re in Data health, on HR’s list, until they’re filled in.',
+      title: 'HR fills 1 employment detail for 4 people',
+      detail: 'Laptop serial is in Data health, on HR’s list, until they’re filled in.',
     },
     {
       kind: 'skip',
@@ -243,7 +256,7 @@ export const PLAN: ImportPlanView = {
     },
   ],
   short:
-    'Set up the United States pack, create 2 fields, import 19 people, give HR 4 laptop serial values, and leave out Dietary requirements.',
+    'Set up the United States pack, create 2 fields, import 19 people, ask 4 people for 1 personal detail, have HR fill 1 employment detail for 4 people, and leave out Dietary requirements.',
   fields: [
     {
       key: 't_shirt_size',
@@ -252,7 +265,7 @@ export const PLAN: ImportPlanView = {
       dataType: 'select',
       section: 'Equipment',
       newSection: true,
-      forExisting: { kind: 'leave' },
+      forExisting: { kind: 'ask' },
       missing: 4,
     },
     {
@@ -267,10 +280,12 @@ export const PLAN: ImportPlanView = {
     },
   ],
   version: 1,
+  // Nothing published yet: the plan sets the company up.
+  basedOn: null,
   setup: { country: 'US', countryName: 'United States' },
   blocked: null,
   problems: [],
-  asked: 0,
+  asked: 4,
   forHr: 4,
   review: {
     file: FILE,
@@ -387,4 +402,45 @@ export const PLAN_WITH_OFFICE: ImportPlanView = {
     ...PLAN.review,
     dryRun: { ...PLAN.review.dryRun, workplaces: WORKPLACES, here: PLACES_HERE },
   },
+};
+
+/** An approved import a third of the way through its people, as People answers `importRun`. */
+export const RUN_GOING: ImportRunStatus = {
+  id: '01a0e1d1-0000-7000-8000-00000000a001',
+  status: 'running',
+  label: 'Importing',
+  phase: 'people',
+  step: 'Adding people',
+  people: { done: 312, total: 1000 },
+  fileName: 'meridian-people.xlsx',
+  startedBy: { name: 'Ada Lovelace', you: false },
+  approvedAt: '2026-10-01T14:02:00.000Z',
+  startedAt: '2026-10-01T14:02:03.000Z',
+  finishedAt: null,
+  now: '2026-10-01T14:06:15.000Z',
+  result: null,
+  failure: null,
+};
+
+/** The same import, over: what it did, as the done step says it. */
+export const RUN_DONE: ImportRunStatus = {
+  ...RUN_GOING,
+  status: 'succeeded',
+  label: 'Imported',
+  phase: 'finishing',
+  step: 'Finishing',
+  people: { done: 1000, total: 1000 },
+  finishedAt: '2026-10-01T14:08:00.000Z',
+  now: '2026-10-01T14:08:01.000Z',
+  result: (({ step: _step, ...rest }) => rest)(DONE),
+};
+
+/** The same import, stopped. */
+export const RUN_FAILED: ImportRunStatus = {
+  ...RUN_GOING,
+  status: 'failed',
+  label: 'Import failed',
+  finishedAt: '2026-10-01T14:07:00.000Z',
+  failure:
+    'Adding people stopped: the file could not be read again. 312 people were imported and stay. Upload the file again to import the rest.',
 };

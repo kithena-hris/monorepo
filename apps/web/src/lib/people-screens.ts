@@ -66,6 +66,15 @@ async function read(
 const notSetUp = (load: ScreenLoad): boolean =>
   load.status === 'error' && load.code === 'SCHEMA_NOT_PUBLISHED';
 
+/**
+ * The company's import running now, or null: none, not this viewer's to
+ * see, or a People that cannot say. Import waits while there is one.
+ */
+async function activeImport(): Promise<unknown> {
+  const answer = await read('ActiveImportRun', {}, json());
+  return answer.status === 'ready' ? answer.data : null;
+}
+
 /** Today in UTC, as a calendar date. The tenant's own calendar is People's to apply. */
 const today = (): string => new Date().toISOString().slice(0, 10);
 
@@ -141,12 +150,19 @@ export async function withArrived(load: ScreenLoad): Promise<ScreenLoad> {
 
 export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   switch (component) {
-    case 'Directory':
-      return orBare(directoryQuery(query.search), (asked) =>
-        read('Directory', asked, VIEWS.Directory),
-      );
+    case 'Directory': {
+      // Beside the people, the import running now: Import waits for it.
+      const [directory, running] = await Promise.all([
+        orBare(directoryQuery(query.search), (asked) => read('Directory', asked, VIEWS.Directory)),
+        activeImport(),
+      ]);
+      return directory.status === 'ready' && running !== null
+        ? { ...directory, data: { ...(directory.data as object), activeImport: running } }
+        : directory;
+    }
     case 'OrgChart':
-      return orgChart();
+      // Everybody, with their manager, in one read: People's, not forty directory pages.
+      return read('OrgChart');
     case 'Profile':
       return read('Profile', { personId: query.params['id'] ?? null }, VIEWS.Profile);
     case 'PersonHistory':
@@ -194,7 +210,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
       );
       // `Home` is the shell's own read of the roles (`shellData`), shared.
-      const [roles, template] = await Promise.all([read('Home'), read('ImportTemplate')]);
+      const [roles, template, running] = await Promise.all([
+        read('Home'),
+        read('ImportTemplate'),
+        activeImport(),
+      ]);
       if (roles.status !== 'ready') return roles;
       const { hr = false, admin = false } = roles.data as { hr?: boolean; admin?: boolean };
       return {
@@ -204,22 +224,38 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           setUp: !notSetUp(template),
           history: hr || admin ? history : null,
           now: new Date().toISOString(),
+          activeImport: running,
         },
       };
     }
     case 'ImportFlow': {
-      // Whether there is anything to import against yet, and who could set it up.
-      const [roles, template] = await Promise.all([read('Home'), read('ImportTemplate')]);
+      // Whether there is anything to import against yet, and who could set it up;
+      // and the run the address names (`?run=`), else the one that keeps a new upload waiting.
+      const runId = given(query.search['run']);
+      const [roles, template, run, running] = await Promise.all([
+        read('Home'),
+        read('ImportTemplate'),
+        runId === null ? null : read('ImportRun', { id: runId }, json()),
+        runId === null ? activeImport() : null,
+      ]);
+      if (run !== null && run.status !== 'ready') return run;
       return {
         status: 'ready',
         data: {
           setUp: !notSetUp(template),
           admin: roles.status === 'ready' && (roles.data as { admin?: boolean }).admin === true,
+          ...(run === null ? { activeImport: running } : { run: run.data }),
         },
       };
     }
     case 'FieldRegistry':
       return read('Registry');
+    case 'FieldChange':
+      return read(
+        'FieldChange',
+        { field: query.params['key'] ?? '', to: given(query.search['to']) },
+        json(),
+      );
     case 'Integrations': {
       // Chat apps beside the rest; a chat service that is down hides its section, not the page.
       const [integrations, chat] = await Promise.all([read('Integrations'), read('Chat')]);
@@ -412,61 +448,6 @@ async function exportExtras(
   };
 }
 
-/** How many directory pages the org chart reads: 40 of 50, two thousand people. */
-const CHART_PAGES = 40;
-
-type ChartRow = DirectoryRow & {
-  readonly people?: readonly { readonly key: string; readonly id: string; readonly name: string }[];
-};
-
-/**
- * Everybody this viewer may see, with their manager, for the org chart: the
- * directory, page after page, as People answers it (PEO-117). The manager is
- * the person column People resolves; a viewer who may not read it gets a
- * chart of roots, which says so by being flat rather than guessing.
- */
-async function orgChart(): Promise<ScreenLoad> {
-  const found: unknown[] = [];
-  let after: string | null = null;
-  for (let page = 0; page < CHART_PAGES; page += 1) {
-    // Each page needs the cursor of the one before.
-    const answer: PeopleAnswer<{ people: ChartRow[]; next: string | null }> = await people(
-      'Directory',
-      {
-        after,
-        sort: 'name:asc',
-      },
-    );
-    if (!answer.ok) {
-      if (page > 0) return { status: 'ready', data: { people: found, truncated: true } };
-      return answer.code === 'UNREACHABLE'
-        ? { status: 'error', message: answer.message, unreachable: true }
-        : { status: 'error', message: answer.message, code: answer.code };
-    }
-    const value = (p: ChartRow, key: string) => {
-      const v = p.values.find((x) => x.key === key)?.value;
-      return v === undefined || v === '' ? null : v;
-    };
-    for (const p of answer.data.people) {
-      const manager = p.people?.find((r) => r.key === 'manager_id');
-      found.push({
-        id: p.id,
-        name: p.name,
-        title: value(p, 'job_title'),
-        managerId: manager?.id ?? null,
-        managerName: manager?.name ?? null,
-        avatarUrl: p.avatarUrl,
-        status: value(p, 'status'),
-        team: value(p, 'department'),
-        location: value(p, 'location_id'),
-      });
-    }
-    after = answer.data.next;
-    if (after === null) return { status: 'ready', data: { people: found, truncated: false } };
-  }
-  return { status: 'ready', data: { people: found, truncated: true } };
-}
-
 /** A person on a directory page, as People answers one. */
 interface DirectoryRow {
   readonly id: string;
@@ -489,9 +470,12 @@ function hrFigures() {
       expiringIn90Days: number | null;
       joiners: { months: string[]; cells: { row: string; column: string; value: number }[] } | null;
     }>('Analytics', { segment: null }),
-    people<{ items: unknown[] }>('IdentifierReviews'),
-    people<{ items: unknown[] }>('Duplicates', { a: null, b: null }),
-    people<{ requests: { state: string }[] }>('FullValues'),
+    // The shell's own count of them (`shellData`), shared.
+    people<{
+      identifiers: number | null;
+      duplicates: number | null;
+      accessRequests: number | null;
+    }>('Waiting'),
     people<{ people: DirectoryRow[] }>('Directory', {
       conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }],
       sort: 'hire_date:asc',
@@ -516,7 +500,8 @@ async function overview(): Promise<ScreenLoad> {
   if (base.status !== 'ready') return base;
   const data = base.data as { roles?: { hr?: boolean } };
   if (data.roles?.hr !== true) return base;
-  const [analytics, ids, dupes, access, starting] = (await early) ?? (await hrFigures());
+  const [analytics, waiting, starting] = (await early) ?? (await hrFigures());
+  const counted = waiting.ok ? waiting.data : null;
   const a = analytics.ok ? analytics.data : null;
   const joiners =
     a?.joiners == null
@@ -536,11 +521,9 @@ async function overview(): Promise<ScreenLoad> {
         headcount: a?.headcount ?? null,
         complete: a?.complete ?? null,
         expiring: a?.expiringIn90Days ?? null,
-        identifiers: ids.ok ? ids.data.items.length : null,
-        duplicates: dupes.ok ? dupes.data.items.length : null,
-        accessRequests: access.ok
-          ? access.data.requests.filter((r) => r.state === 'pending').length
-          : null,
+        identifiers: counted?.identifiers ?? null,
+        duplicates: counted?.duplicates ?? null,
+        accessRequests: counted?.accessRequests ?? null,
         joiners,
         starting: (starting.ok ? starting.data.people : []).slice(0, 5).map((p) => ({
           id: p.id,

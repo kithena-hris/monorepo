@@ -807,10 +807,17 @@ export function NoticeList({ shell }: { readonly shell: ShellData }): JSX.Elemen
                     <icons.person aria-hidden />
                   ) : n.kind === 'viewed' ? (
                     <icons.visible aria-hidden />
+                  ) : n.kind === 'import' ? (
+                    <icons.upload aria-hidden />
                   ) : (
                     <icons.approve aria-hidden />
                   ),
-                tone: 'warning' as const,
+                tone:
+                  n.kind !== 'import'
+                    ? ('warning' as const)
+                    : n.failed === true
+                      ? ('danger' as const)
+                      : ('success' as const),
               }
             : { avatar: <Avatar name={n.person} size="lg" /> })}
         />

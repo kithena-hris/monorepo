@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
+import { RUN_GOING } from '../import/import.fixture';
 import { Directory, summaryOf, type DirectoryProps, type DirectoryState } from './directory';
 
 const state: DirectoryState = {
@@ -181,6 +182,72 @@ describe('Directory', () => {
     expect(screen.queryByRole('radio', { name: /Incomplete/ })).toBeNull();
   });
 
+  it('opens on the first person: their quick look, their row current, and nothing opened', async () => {
+    const user = fast();
+    const onOpen = vi.fn();
+    const { container } = render(<Directory {...props({ onOpen })} />);
+    const look = screen.getByRole('complementary', { name: 'Quick look' });
+    expect(within(look).getByRole('heading', { name: 'Adam Reyes' })).toBeInTheDocument();
+    expect(container.querySelector('tr[data-row-id="a"]')).toHaveAttribute('aria-current', 'true');
+    // The keyboard starts on them too: theirs is the row in the tab order.
+    expect(container.querySelector('tr[data-row-id="a"]')).toHaveAttribute('tabindex', '0');
+    expect(onOpen).not.toHaveBeenCalled();
+    // Closed, it stays closed.
+    await user.click(within(look).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('complementary', { name: 'Quick look' })).toBeNull();
+  });
+
+  it('moves the quick look with ↑ and ↓ from inside it, keeping focus there, and shows their row', async () => {
+    const user = fast();
+    const into = vi.spyOn(Element.prototype, 'scrollIntoView');
+    render(<Directory {...props()} />);
+    const look = screen.getByRole('complementary', { name: 'Quick look' });
+    within(look).getByRole('button', { name: 'Close' }).focus();
+    await user.keyboard('{ArrowDown}');
+    expect(within(look).getByRole('heading', { name: 'Lena Moreau' })).toBeInTheDocument();
+    expect(look).toContainElement(document.activeElement as HTMLElement);
+    // The same move the list makes: their row is the current one.
+    expect(document.querySelector('tr[data-row-id="l"]')).toHaveAttribute('aria-current', 'true');
+    await user.keyboard('{ArrowUp}');
+    expect(within(look).getByRole('heading', { name: 'Adam Reyes' })).toBeInTheDocument();
+    // "Show in list": the keyboard lands on their row.
+    await user.click(within(look).getByRole('button', { name: 'Show in list' }));
+    expect(document.querySelector('tr[data-row-id="a"]')).toHaveFocus();
+    into.mockRestore();
+  });
+
+  it('asks for the second page as soon as the first is drawn, and for each cursor once', async () => {
+    // Nothing nears the end: only the first page being drawn asks.
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observe(): void {}
+        disconnect(): void {}
+      },
+    );
+    const onLoadMore = vi.fn((after: string) =>
+      Promise.resolve({
+        people: [
+          {
+            id: `k${after}`,
+            name: 'Katherine Johnson',
+            email: null,
+            avatarUrl: null,
+            values: {},
+            missing: 0,
+          },
+        ],
+        next: 'cursor-2',
+      }),
+    );
+    render(<Directory {...props({ view: 'cards', onLoadMore, next: 'cursor-1' })} />);
+    expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
+    expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
+    // A page ahead: the third waits for the reader to be halfway down.
+    expect(onLoadMore).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+  });
+
   it('opens a quick look beside the list, then the person (W3b)', async () => {
     const user = fast();
     const onOpen = vi.fn();
@@ -246,6 +313,24 @@ describe('Directory', () => {
     rerender(<Directory {...props({ load: empty })} />);
     expect(screen.getByText('Nobody has been added to People yet.')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('keeps Import off while an import runs, saying whose and since when, with the way to it', async () => {
+    const onImport = vi.fn();
+    const empty = { status: 'ready', data: { ...state, people: [] } } as const;
+    const { container } = render(
+      <Directory {...props({ load: empty, onImport, running: RUN_GOING })} />,
+    );
+    const button = screen.getByRole('button', { name: 'Import' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(
+      /^An import is running\. Started by Ada Lovelace at \d\d:\d\d\.$/,
+    );
+    expect(screen.getByRole('link', { name: 'See the import' })).toHaveAttribute(
+      'href',
+      `/people/import?run=${RUN_GOING.id}`,
+    );
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('draws the view its route names, and asks the shell for another (V2, V3)', async () => {
@@ -406,8 +491,9 @@ describe('Directory', () => {
     await vi.waitFor(() => {
       expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Loading the next 50');
+    // The cards' own shape says a page is coming; the line under them holds still.
     expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(4);
+    expect(screen.getByRole('status')).toHaveTextContent('Results stream in 50 at a time.');
     expect(screen.queryByRole('button', { name: /more people/i })).toBeNull();
     arrive({
       people: [

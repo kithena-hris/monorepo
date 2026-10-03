@@ -1,0 +1,1 @@
+{"version":1,"body":"query OrgChart {\n    peopleOrgChart {\n      people { id name title managerId managerName avatarUrl status team location }\n      truncated\n    }\n  }"}

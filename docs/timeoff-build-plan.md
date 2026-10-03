@@ -601,7 +601,7 @@ no decline, cancel or change.
   jobs (the transports take `drizzleUnitOfWork(db)` the same way).
   `LeaveRequest`, `Policy` and `LeaveType` gained `rehydrate`, and
   `AggregateRoot` a protected `restoreVersion`, so a stored request's next
-  event numbers on from its version. `20261003120000_timeoff_repositories.sql`
+  event numbers on from its version. `20261003120040_timeoff_repositories.sql`
   adds what the ports hold and the tables did not: the member's zone, a
   deleted leave type, a request's routing, which layers a location observes,
   the two tenant settings, overtime decisions, feed versions, People's

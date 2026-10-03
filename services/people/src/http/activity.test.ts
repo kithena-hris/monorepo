@@ -3,30 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { settingsActivity } from './activity.js';
 
 describe('new fields from an import', () => {
-  it('is one entry, AI-assisted, naming the fields and never the file', () => {
+  it('is not logged on approval: the run logs them once it has added them (`import/run.ts`)', () => {
     const said = settingsActivity(
       'POST',
       '/v1/imports/run',
       JSON.stringify({
         uploadId: '00000000-0000-4000-8000-0000000000f1',
-        proposals: [
-          { include: true, field: { label: 'Cost centre' } },
-          { include: true, field: { label: 'T-shirt size' } },
-          { include: false, field: { label: 'Dietary requirements' } },
-        ],
+        proposals: [{ include: true, field: { label: 'Cost centre' } }],
       }),
     );
-    expect(said).toEqual({
-      action: 'Added 2 fields from an import, with the AI assistant',
-      detail: 'Cost centre, T-shirt size. Approved with the import’s plan.',
-      area: 'fields',
-    });
-  });
-
-  it('says nothing for an import that adds no field', () => {
-    expect(
-      settingsActivity('POST', '/v1/imports/run', JSON.stringify({ uploadId: 'x', proposals: [] })),
-    ).toBeNull();
+    expect(said).toBeNull();
   });
 });
 

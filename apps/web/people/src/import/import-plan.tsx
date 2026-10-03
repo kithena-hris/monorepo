@@ -118,6 +118,11 @@ export interface ImportPlanView {
   readonly short: string;
   readonly fields: readonly PlannedField[];
   readonly version: number;
+  /**
+   * The version the plan was made against, null with nothing published:
+   * handed back on approval, which People refuses once it was published again.
+   */
+  readonly basedOn?: number | null;
   readonly setup: { readonly country: string | null; readonly countryName: string | null } | null;
   readonly blocked: string | null;
   /** Fields the settings would refuse, by column and by the file's header. */
@@ -320,6 +325,8 @@ export interface PlanStepProps {
   readonly plan: ImportPlanView;
   readonly busy: boolean;
   readonly refused: string | null;
+  /** Where the refusal points: the import already running. */
+  readonly refusedLink?: string | null;
   readonly onApprove: () => void;
   readonly onChange: () => void;
   /** Leave a refused field's column out and work the plan out again. */
@@ -332,6 +339,7 @@ export function PlanStep({
   plan,
   busy,
   refused,
+  refusedLink = null,
   onApprove,
   onChange,
   onLeaveOut,
@@ -449,7 +457,17 @@ export function PlanStep({
             />
             <WhyNotYet id={whyId} reasons={notYet} onLeaveOut={onLeaveOut} />
             {refused === null ? null : (
-              <Alert tone="danger" title="That did not go through">
+              <Alert
+                tone="danger"
+                title="That did not go through"
+                action={
+                  refusedLink === null ? undefined : (
+                    <Button asChild size="sm">
+                      <a href={refusedLink}>See the import</a>
+                    </Button>
+                  )
+                }
+              >
                 {refused}
               </Alert>
             )}
@@ -460,7 +478,7 @@ export function PlanStep({
               disabled={notYet.length > 0}
               aria-describedby={notYet.length > 0 ? whyId : undefined}
               loading={busy}
-              loadingLabel="Running the import"
+              loadingLabel="Starting the import"
               onClick={onApprove}
             >
               Approve and run

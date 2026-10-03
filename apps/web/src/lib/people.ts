@@ -43,7 +43,13 @@ import { wakeWorkspace, workspaceConfig } from './workspace';
 
 export type PeopleAnswer<T> =
   | { readonly ok: true; readonly data: T }
-  | { readonly ok: false; readonly code: string; readonly message: string };
+  | {
+      readonly ok: false;
+      readonly code: string;
+      readonly message: string;
+      /** Where the refusal points, in the app: the import already running (`/people/import?run=`). */
+      readonly link?: string;
+    };
 
 const signedOut = { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again' } as const;
 const unreachable = { ok: false, code: 'UNREACHABLE', message: WAKING_MESSAGE } as const;
@@ -274,16 +280,21 @@ async function send(
     if (wakingStatus(response.status)) return wakeSoon();
     const answer = (await response.json().catch(() => null)) as {
       data?: Record<string, unknown> | null;
-      errors?: { message?: string; extensions?: { code?: unknown } }[];
+      errors?: { message?: string; extensions?: { code?: unknown; link?: unknown } }[];
     } | null;
     if (wakingErrors(answer?.errors)) return wakeSoon();
     const error = answer?.errors?.[0];
     if (error !== undefined || answer?.data === undefined || answer.data === null) {
       const code = error?.extensions?.code;
+      const link = error?.extensions?.link;
       return {
         ok: false,
         code: typeof code === 'string' ? code : 'UNAVAILABLE',
         message: error?.message ?? `${service} did not answer`,
+        // Only a path in this app: a refusal never sends the browser elsewhere.
+        ...(typeof link === 'string' && link.startsWith('/') && !link.startsWith('//')
+          ? { link }
+          : {}),
       };
     }
     if (keyed && name !== 'CompleteFileUpload') changed();

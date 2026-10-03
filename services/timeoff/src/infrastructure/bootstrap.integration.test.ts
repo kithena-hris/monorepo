@@ -22,7 +22,7 @@ import { outbox } from './tables.js';
 
 const TENANT_A = '00000000-0000-4000-8000-00000000000a';
 const TENANT_B = '00000000-0000-4000-8000-00000000000b';
-const MIGRATIONS = ['20261003100000_timeoff_bootstrap.sql', '20261003100100_timeoff_outbox.sql'];
+const MIGRATIONS = ['20261003120005_timeoff_bootstrap.sql', '20261003120010_timeoff_outbox.sql'];
 
 let stopPg: (() => Promise<void>) | undefined;
 let adminClient: ReturnType<typeof postgres> | undefined;

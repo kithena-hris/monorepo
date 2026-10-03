@@ -4,7 +4,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
 import { ImportFlow, type ImportFlowProps, type ImportStage } from './import-flow';
-import { DONE, MAPPING, NEW_FIELDS, PLAN, column } from './import.fixture';
+import { ExistingStep } from './new-fields';
+import {
+  DONE,
+  MAPPING,
+  NEW_FIELDS,
+  PLAN,
+  RUN_DONE,
+  RUN_FAILED,
+  RUN_GOING,
+  column,
+} from './import.fixture';
 
 function props(
   load: ImportFlowProps['load'],
@@ -206,11 +216,14 @@ describe('ImportFlow', () => {
     const choices = screen.getByRole('radiogroup', {
       name: 'What happens for the people without T-shirt size',
     });
-    expect(within(choices).getByRole('radio', { name: /Leave it empty/ })).toBeChecked();
+    // Their own detail: asked of them, not typed in by HR.
+    expect(within(choices).getByRole('radio', { name: /Ask the 4 people to fill it in/ })).toBeChecked();
     expect(within(choices).getByText('Suggested')).toBeInTheDocument();
     expect(
-      screen.getByText('Why this suggestion: Nice to have: nobody is chased for it.'),
+      screen.getByText('Why this suggestion: About them, not their job: the employee tells us.'),
     ).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /T-shirt size/ })).toHaveTextContent('Ask the 4 people');
+    expect(screen.getByRole('row', { name: /Laptop serial/ })).toHaveTextContent('HR fills it in');
     // Who has no value, by name, then who the file doesn't reach.
     const without = screen.getByRole('table', { name: 'People without T-shirt size' });
     expect(
@@ -224,17 +237,43 @@ describe('ImportFlow', () => {
     ).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
 
-    await user.click(
-      within(choices).getByRole('radio', { name: /Ask the 4 people to fill it in/ }),
-    );
+    // The suggestion is a starting point: one click changes it.
+    await user.click(within(choices).getByRole('radio', { name: /Leave it empty/ }));
     await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
     await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
     const [, proposals] = plan.mock.calls[0] as unknown as [
       unknown,
       { key: string; include: boolean; forExisting: unknown }[],
     ];
-    expect(proposals.find((p) => p.key === 't_shirt_size')?.forExisting).toEqual({ kind: 'ask' });
+    expect(proposals.find((p) => p.key === 't_shirt_size')?.forExisting).toEqual({
+      kind: 'leave',
+    });
+    expect(proposals.find((p) => p.key === 'laptop_serial')?.forExisting).toEqual({ kind: 'hr' });
     expect(proposals.find((p) => p.key === 'dietary_requirements')?.include).toBe(true);
+  });
+
+  it('suggests HR for an employment detail, with its reason (AI10)', () => {
+    const kept = NEW_FIELDS.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p);
+    render(
+      <ExistingStep
+        view={NEW_FIELDS}
+        kept={kept}
+        selected="laptop_serial"
+        onSelect={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+    const laptop = screen.getByRole('radiogroup', {
+      name: 'What happens for the people without Laptop serial',
+    });
+    expect(within(laptop).getByRole('radio', { name: /HR fills in the 4/ })).toBeChecked();
+    expect(within(laptop).getByText('Suggested')).toBeInTheDocument();
+    expect(
+      screen.getByText('Why this suggestion: The company assigns it: HR fills it in.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/their own details \(bank, documents, home, family\) are asked of them/u),
+    ).toBeInTheDocument();
   });
 
   it('says everything that will happen, and runs it on one approval (AI11)', async () => {
@@ -249,6 +288,11 @@ describe('ImportFlow', () => {
     await user.click(await screen.findByRole('button', { name: 'Next: review the plan' }));
     await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
     for (const s of PLAN.steps) expect(screen.getByText(s.title)).toBeInTheDocument();
+    // Who is asked, once each, and what HR fills in.
+    expect(
+      screen.getByText('Ask 4 people for 1 personal detail (T-shirt size)'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('HR fills 1 employment detail for 4 people')).toBeInTheDocument();
     expect(
       screen.getByText('Written from your choices. Nothing has happened yet.'),
     ).toBeInTheDocument();
@@ -275,7 +319,8 @@ describe('ImportFlow', () => {
     expect(run).toHaveBeenCalledWith(
       { 0: 'given_name', 1: 'work_email', 2: null, 3: null, 4: null },
       expect.arrayContaining([expect.objectContaining({ key: 't_shirt_size', include: true })]),
-      {},
+      // The version the plan was made against: none, as nothing is published yet.
+      { basedOn: null },
     );
   });
 
@@ -300,7 +345,7 @@ describe('ImportFlow', () => {
     await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
     await user.click(await screen.findByRole('button', { name: 'Approve and run' }));
     expect(screen.queryByLabelText('Apply sensitive values without approval')).toBeNull();
-    expect(run).toHaveBeenCalledWith({ 0: 'given_name', 1: 'work_email' }, [], {});
+    expect(run).toHaveBeenCalledWith({ 0: 'given_name', 1: 'work_email' }, [], { basedOn: null });
     expect(await screen.findByText('Another import is running')).toBeInTheDocument();
   });
 
@@ -353,6 +398,126 @@ describe('ImportFlow', () => {
       { key: string; include: boolean }[],
     ];
     expect(proposals.find((p) => p.key === 't_shirt_size')?.include).toBe(false);
+  });
+
+  it('says another import is running when approving is refused for it, with the way to it', async () => {
+    const user = fast();
+    const run = vi.fn(() =>
+      Promise.resolve({
+        ok: false as const,
+        message:
+          'An import is already running, started by Ada Lovelace. Only one import runs at a time.',
+        link: '/people/import?run=r1',
+      }),
+    );
+    const noNewColumns: ImportStage = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
+    const { container } = render(<ImportFlow {...props(ready(noNewColumns), { run })} />);
+    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+    await user.click(await screen.findByRole('button', { name: 'Approve and run' }));
+    expect(await screen.findByText(/started by Ada Lovelace/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See the import' })).toHaveAttribute(
+      'href',
+      '/people/import?run=r1',
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('shows an approved import as it runs: its step, how many people are in, the time so far', async () => {
+    const { container } = render(<ImportFlow {...props(ready({ step: 'run', run: RUN_GOING }))} />);
+    // The header and the stepper stay, on the last step.
+    expect(screen.getByRole('heading', { level: 1, name: 'Import' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Importing people' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Importing' })).toBeInTheDocument();
+    expect(screen.getByText('meridian-people.xlsx')).toBeInTheDocument();
+    const bar = screen.getByRole('progressbar', { name: 'Adding people' });
+    expect(bar).toHaveAttribute('aria-valuenow', '312');
+    expect(bar).toHaveAttribute('aria-valuetext', '312 of 1,000 people');
+    expect(screen.getByText('312 of 1,000 people')).toBeInTheDocument();
+    expect(screen.getByText('4 min 12 s so far')).toBeInTheDocument();
+    expect(screen.getByText(/It carries on if you close this page/)).toBeInTheDocument();
+    // Nothing to press while it runs: no Done, no approving a plan that has run.
+    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Approve and run' })).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('before the file is read, sweeps rather than promise a total', () => {
+    render(
+      <ImportFlow
+        {...props(
+          ready({
+            step: 'run',
+            run: {
+              ...RUN_GOING,
+              status: 'queued',
+              phase: 'setup',
+              step: 'Setting up the fields',
+              people: { done: 0, total: null },
+            },
+          }),
+        )}
+      />,
+    );
+    expect(screen.getByRole('progressbar', { name: 'Setting up the fields' })).not.toHaveAttribute(
+      'aria-valuenow',
+    );
+    expect(screen.getByText('0 people so far')).toBeInTheDocument();
+  });
+
+  it('keeps the last count while the server wakes, and says it catches up by itself', () => {
+    render(<ImportFlow {...props(ready({ step: 'run', run: RUN_GOING, waking: true }))} />);
+    expect(screen.getByText('Kithena is waking up')).toBeInTheDocument();
+    expect(screen.getByText('312 of 1,000 people')).toBeInTheDocument();
+  });
+
+  it('once it has run, shows what it did, as a reload of its address does', async () => {
+    const onDone = vi.fn();
+    const { container } = render(
+      <ImportFlow {...props(ready({ step: 'run', run: RUN_DONE }), { onDone })} />,
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Imported 19 people and created 2 fields' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'What the import did' })).toHaveTextContent(
+      'Created19Updated0Asked0For HR4',
+    );
+    expect(screen.queryByRole('progressbar', { name: 'Finishing' })).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+    await fast().click(screen.getByRole('button', { name: 'Done' }));
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it('says why an import stopped, what stays, and the way back', async () => {
+    const { container } = render(
+      <ImportFlow {...props(ready({ step: 'run', run: RUN_FAILED }))} />,
+    );
+    expect(screen.getByText('Import failed')).toBeInTheDocument();
+    expect(screen.getByText(/312 people were imported and stay/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Start again' })).toHaveAttribute(
+      'href',
+      '/people/import',
+    );
+    expect(screen.getByRole('link', { name: 'Import & export' })).toHaveAttribute(
+      'href',
+      '/people/import-export',
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('takes no file while another import runs, saying whose and since when, with the way to it', async () => {
+    const { container } = render(
+      <ImportFlow {...props(ready({ step: 'upload' }), { running: RUN_GOING })} />,
+    );
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(screen.getByText('An import is running')).toBeInTheDocument();
+    expect(
+      await screen.findByText(/^An import is running\. Started by Ada Lovelace at \d\d:\d\d\.$/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See the import' })).toHaveAttribute(
+      'href',
+      `/people/import?run=${RUN_GOING.id}`,
+    );
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('says what it did and which fields it created, with the way to each (AI12)', async () => {

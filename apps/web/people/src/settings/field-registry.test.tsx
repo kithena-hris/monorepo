@@ -486,6 +486,80 @@ describe('FieldRegistry', () => {
     expect(await axeViolations(sheet)).toEqual([]);
   });
 
+  it('changes a published field’s type, and goes on to review its values', async () => {
+    const user = fast();
+    const [hr] = draft.sections;
+    if (hr === undefined) throw new Error('fixture changed');
+    const start = field({ key: 'start_day', label: 'Start day', origin: 'tenant' });
+    const onSave = vi.fn(ok);
+    const onReview = vi.fn();
+    render(
+      <FieldEditor
+        open
+        onOpenChange={vi.fn()}
+        section={hr}
+        field={start}
+        takenKeys={[]}
+        choices={draft.choices}
+        fields={draft.fields}
+        sections={draft.sections}
+        advise={() =>
+          Promise.resolve({
+            kind: 'fallback',
+            classification: 'internal',
+            piiKind: 'none',
+            floor: 'public',
+          })
+        }
+        onSave={onSave}
+        onReview={onReview}
+      />,
+    );
+    const sheet = await screen.findByRole('dialog', { name: 'Edit Start day' });
+    await user.click(within(sheet).getByRole('combobox', { name: /Type of answer/ }));
+    await user.click(await screen.findByRole('option', { name: 'Date' }));
+    expect(within(sheet).getByText(/Short text → Date/)).toBeInTheDocument();
+    expect(await axeViolations(sheet)).toEqual([]);
+    await user.click(within(sheet).getByRole('button', { name: 'Save field' }));
+    await waitFor(() => {
+      expect(onReview).toHaveBeenCalledWith('start_day', 'date');
+    });
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ dataType: 'date', sectionKey: 'hr' }),
+    );
+  });
+
+  it('keeps a built-in field’s type, and points at a field whose values wait for review', async () => {
+    const onReview = vi.fn();
+    const user = fast();
+    render(
+      <FieldRegistry
+        {...props()}
+        load={{
+          status: 'ready',
+          data: {
+            ...draft,
+            fields: [
+              ...draft.fields,
+              field({
+                key: 'start_day',
+                label: 'Start day',
+                dataType: 'date',
+                origin: 'tenant',
+                pending: 'changed',
+                review: true,
+              }),
+            ],
+          },
+        }}
+        onReview={onReview}
+      />,
+    );
+    expect(screen.getByText('Start day changes type or format')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Review the values' }));
+    expect(onReview).toHaveBeenCalledWith('start_day', 'date');
+  });
+
   it('puts a field on sign-up from its row, and previews the sign-up with its steps', async () => {
     const user = fast();
     const onSignup = vi.fn(ok);

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { z } from 'zod';
 
 import { timed } from './timing';
@@ -343,7 +344,8 @@ export function matchPath(
     const fits = pattern.every((part, i) => {
       const actual = segments[i] ?? '';
       if (!part.startsWith(':')) return part === actual;
-      if (!/^[A-Za-z0-9-]{1,64}$/.test(actual)) return false;
+      // A field key is snake case (`first_day`); still one plain segment.
+      if (!/^[\w-]{1,64}$/u.test(actual)) return false;
       params[part.slice(1)] = actual;
       return true;
     });
@@ -427,25 +429,30 @@ export async function remoteRoute(path: string): Promise<RemoteRoute | null | un
   if (area === undefined) return undefined;
   const base = remoteBase(area);
   const manifest = await manifestOf(base);
-  if (manifest === null) return null;
+  if (manifest === undefined) return null;
   const matched = matchRoute(manifest, path);
   return matched == null
     ? matched
     : { entry: `${remotePath(area)}/remoteEntry.js`, base, area, ...matched };
 }
 
-/** A remote's `routes.json`, unparsed; `null` when it cannot be read. */
-async function manifestOf(base: string): Promise<unknown> {
+/**
+ * A remote's `routes.json`, unparsed, once per request: the screen and the
+ * shell around it both ask which routes there are, and each asking was a
+ * fetch. Never across requests, so a remote deploy is the next page's
+ * manifest. `undefined` when it cannot be read.
+ */
+const manifestOf = cache(async (base: string): Promise<unknown> => {
   try {
     const response = await timed(
       'remote.routes',
       fetch(`${base}/routes.json`, { cache: 'no-store', signal: AbortSignal.timeout(2000) }),
     );
-    return response.ok ? ((await response.json()) as unknown) : null;
+    return response.ok ? ((await response.json()) as unknown) : undefined;
   } catch {
-    return null;
+    return undefined;
   }
-}
+});
 
 /**
  * Everything an area's manifest offers, for the host's navigation: its

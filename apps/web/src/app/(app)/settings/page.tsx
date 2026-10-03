@@ -3,7 +3,8 @@ import type { JSX } from 'react';
 
 import { SettingsIndex } from '../../../components/settings-index';
 import { accessToken, people } from '../../../lib/people';
-import { settingsOverview } from '../../../lib/people-screens';
+import { settingsOverview, type ScreenLoad } from '../../../lib/people-screens';
+import { remoteRoute, placesFor } from '../../../lib/remotes';
 import { readPreference } from '../../../lib/preferences';
 import { settingsModules } from '../../../lib/settings-modules';
 import { prefsFrom } from '../../../lib/shortcuts';
@@ -115,14 +116,26 @@ function peopleAttention(data: {
   return out;
 }
 
+/** People's settings as they are now, for whoever may open any of them; null otherwise. */
+async function peopleSettings(): Promise<ScreenLoad | null> {
+  const [home, route] = await Promise.all([
+    people<Readonly<Record<string, boolean>>>('Home'),
+    remoteRoute('/people').catch(() => undefined),
+  ]);
+  if (!home.ok || route == null) return null;
+  return placesFor(route.nav, home.data).settings.length > 0 ? settingsOverview() : null;
+}
+
 export default async function Settings(): Promise<JSX.Element> {
   // The session, the token and this person's shortcuts at once: none waits on another.
   const shortcutsSaved = readPreference('shortcuts');
   const [person] = await Promise.all([currentPerson(), accessToken()]);
   if (person === null) redirect('/login');
 
-  const shell = await shellData(person.entitlements);
-  const overview = shell.settings.length > 0 ? await settingsOverview() : null;
+  // People's settings, read as soon as the roles and the routes say this person
+  // has any — beside the shell's overview, which takes longest, not after it.
+  const settings = person.entitlements.includes('module.people') ? peopleSettings() : null;
+  const [shell, overview] = await Promise.all([shellData(person.entitlements), settings]);
   const data =
     overview?.status === 'ready'
       ? (overview.data as Parameters<typeof peopleNow>[0])

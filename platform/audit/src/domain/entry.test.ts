@@ -183,6 +183,23 @@ describe('an entry from an event', () => {
     });
   });
 
+  it('says an import failed, in People’s words of what it left behind', () => {
+    const entry = entryFrom(
+      event('people.import.failed', {
+        importId: '00000000-0000-4000-8000-0000000000c2',
+        counts: { created: 312, updated: 0, unchanged: 0, blocked: 0, duplicate: 0, incomplete: 0 },
+        reason: 'The import stopped. 312 of 1,000 people were imported before it stopped; they stay.',
+        failedAt: '2026-09-29T10:00:00.000Z',
+      }),
+    );
+    expect(entry).toMatchObject({
+      area: 'imports_exports',
+      action: 'Import failed',
+      detail: 'The import stopped. 312 of 1,000 people were imported before it stopped; they stay.',
+      subject: { kind: 'import', id: '00000000-0000-4000-8000-0000000000c2', label: null },
+    });
+  });
+
   it('keeps an export’s stated reason and says what left, not what was in it', () => {
     const entry = entryFrom(
       event('people.export.completed', {

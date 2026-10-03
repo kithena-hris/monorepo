@@ -31,7 +31,7 @@ import type { Arrivals, Leavers, Scheduled } from '../application/person/start.j
 import type { GapFigures, GapTotals } from '../application/screens/record.js';
 import { reminderDueBefore } from '../domain/person/reminder-cadence.js';
 import type { PersonState } from '../domain/person/person.js';
-import type { PublishedVersion, SchemaDocument } from '../domain/schema/publish.js';
+import { deepFreeze, type PublishedVersion, type SchemaDocument } from '../domain/schema/publish.js';
 import { toEmployment, withEmployment } from './drizzle-person-repository.js';
 import { person, schemaVersion } from './tables.js';
 
@@ -367,6 +367,15 @@ export function drizzlePersonReader(): PersonReader {
       return row ? toRecord(row) : null;
     },
 
+    async records(tx, tenantId, personIds) {
+      if (personIds.length === 0) return [];
+      const rows = await tx
+        .select(withEmployment)
+        .from(person)
+        .where(and(eq(person.tenantId, tenantId), inArray(person.id, [...personIds])));
+      return rows.map(toRecord);
+    },
+
     async page(tx, tenantId, after, limit, where, search, gaps, leavers, gapsIn, refine) {
       const order = orderOf(refine);
       // ponytail: a sorted page reads by offset, so page n costs n pages; the
@@ -545,16 +554,51 @@ function toVersion(row: typeof schemaVersion.$inferSelect): PublishedVersion {
   };
 }
 
+/** How many published versions one process keeps read: every tenant's current one, and then some. */
+export const SCHEMA_VERSIONS_HELD = 512;
+
+/**
+ * Published versions, read through a cache keyed by tenant, number and
+ * checksum.
+ *
+ * A published version cannot change (`schema_version_is_immutable` refuses
+ * an UPDATE or a DELETE), so once read it is that version for good, in any
+ * process. Which version is current is still asked every time, from the
+ * index alone: a publish is served on the very next read, here or on any
+ * other instance, and only the document — every field, every rule, the
+ * largest thing a screen reads, and read several times a screen — is not
+ * read and parsed again. Frozen, because every request shares it.
+ */
 export function drizzleSchemaVersions(): SchemaVersions {
+  const held = new Map<string, PublishedVersion>();
+  const keyOf = (tenantId: string, version: number, checksum: string): string =>
+    `${tenantId}:${String(version)}:${checksum}`;
+  const keep = (tenantId: string, row: typeof schemaVersion.$inferSelect): PublishedVersion => {
+    const version = deepFreeze(toVersion(row));
+    // The oldest goes first: a Map iterates in insertion order.
+    if (held.size >= SCHEMA_VERSIONS_HELD) held.delete(held.keys().next().value ?? '');
+    held.set(keyOf(tenantId, row.version, row.checksum), version);
+    return version;
+  };
   return {
     async current(tx, tenantId) {
-      const rows = await tx
-        .select()
+      const [latest] = await tx
+        .select({ version: schemaVersion.version, checksum: schemaVersion.checksum })
         .from(schemaVersion)
         .where(eq(schemaVersion.tenantId, tenantId))
         .orderBy(desc(schemaVersion.version))
         .limit(1);
-      return rows[0] ? toVersion(rows[0]) : null;
+      if (latest === undefined) return null;
+      const known = held.get(keyOf(tenantId, latest.version, latest.checksum));
+      if (known !== undefined) return known;
+      const rows = await tx
+        .select()
+        .from(schemaVersion)
+        .where(
+          and(eq(schemaVersion.tenantId, tenantId), eq(schemaVersion.version, latest.version)),
+        )
+        .limit(1);
+      return rows[0] ? keep(tenantId, rows[0]) : null;
     },
 
     async byNumber(tx, tenantId, version) {

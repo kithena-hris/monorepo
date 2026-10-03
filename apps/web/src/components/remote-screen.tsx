@@ -1,7 +1,6 @@
 'use client';
 
 import { createInstance, type ModuleFederation } from '@module-federation/runtime';
-import * as Reach from '@reach/ui';
 import { Alert, Spinner } from '@reach/ui';
 import * as React from 'react';
 import {
@@ -33,9 +32,13 @@ import { WAITING, releaseEarlyPresses } from '../lib/early-presses';
  * federation's share scope. On the server a remote renders in a process of
  * its own, with the same React (`lib/remote-renderer.ts`).
  *
- * Importing the whole of `@reach/ui` puts the barrel in this chunk. It is the
- * price of one copy — a remote may use any component, and the shell cannot
- * know which.
+ * The whole of `@reach/ui` is the price of one copy — a remote may use any
+ * component, and the shell cannot know which — but only a page with a remote
+ * on it pays it: the barrel is imported when federation first asks for it.
+ * Imported statically here, it was in a chunk every page under the shell
+ * loaded (this file is behind every loading state), rich-text editor and all,
+ * on Home and Settings too. The same modules either way: the shell's own
+ * imports of single components resolve to the files the barrel re-exports.
  */
 const shareConfig = { singleton: true, requiredVersion: false } as const;
 let federation: ModuleFederation | undefined;
@@ -49,7 +52,11 @@ function runtime(): ModuleFederation {
     shared: {
       react: { version: React.version, lib: () => React, shareConfig },
       'react/jsx-runtime': { version: React.version, lib: () => jsxRuntime, shareConfig },
-      '@reach/ui': { version: '0.0.0', lib: () => Reach, shareConfig },
+      '@reach/ui': {
+        version: '0.0.0',
+        get: () => import('@reach/ui').then((reach) => () => reach),
+        shareConfig,
+      },
     },
   });
   return federation;

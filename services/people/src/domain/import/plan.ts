@@ -56,6 +56,12 @@ export interface PlanInput {
   };
   /** References the rows leave empty for HR, and the fields they are in. */
   readonly leftEmpty?: { readonly count: number; readonly labels: readonly string[] };
+  /**
+   * How many people are asked for anything, and how many HR fills something
+   * in for: each counted once, however many fields. Absent, the field
+   * missing the most people stands for each.
+   */
+  readonly who?: { readonly asked: number; readonly forHr: number };
   /** What the file's status and dates do to the people it brings in (`lifecycle.ts`). */
   readonly lifecycle?: {
     readonly left: number;
@@ -148,24 +154,54 @@ function peopleStep(rows: PlanInput['rows']): PlanStep {
   };
 }
 
+/**
+ * Who is asked, and what HR fills in, each said once over every field: one
+ * request per person lists everything asked of them, never one per field.
+ */
+function whoSteps(input: PlanInput): { steps: PlanStep[]; short: string[] } {
+  const of = (kind: 'ask' | 'hr') =>
+    input.fields.filter((f) => f.forExisting.kind === kind && f.missing > 0);
+  const most = (fs: readonly PlanField[]) => Math.max(0, ...fs.map((f) => f.missing));
+  const steps: PlanStep[] = [];
+  const short: string[] = [];
+  const asked = of('ask');
+  if (asked.length > 0) {
+    const people = plural(input.who?.asked ?? most(asked), 'person', 'people');
+    const details = plural(asked.length, 'personal detail', 'personal details');
+    const named = asked.map((f) => lowerFirst(f.label));
+    const some = named.length <= 2 ? listed(named) : `${named.slice(0, 2).join(', ')}, …`;
+    steps.push({
+      kind: 'ask',
+      title: `Ask ${people} for ${details} (${some})`,
+      detail:
+        'One request each, listing everything asked of them, answered on their profile or in onboarding. The import emails nobody: anyone without an account yet finds it when they first sign in, and nobody who has left is asked.',
+    });
+    short.push(`ask ${people} for ${details}`);
+  }
+  const hr = of('hr');
+  if (hr.length > 0) {
+    const people = plural(input.who?.forHr ?? most(hr), 'person', 'people');
+    const details = plural(hr.length, 'employment detail', 'employment details');
+    const labels = hr.map((f, i) => (i === 0 ? f.label : lowerFirst(f.label)));
+    steps.push({
+      kind: 'hr',
+      title: `HR fills ${details} for ${people}`,
+      detail: `${listed(labels)} ${hr.length === 1 ? 'is' : 'are'} in Data health, on HR’s list, until they’re filled in.`,
+    });
+    short.push(`have HR fill ${details} for ${people}`);
+  }
+  return { steps, short };
+}
+
 function forExistingStep(f: PlanField): PlanStep | null {
   const label = lowerFirst(f.label);
   const n = f.missing;
   if (n === 0) return null;
   switch (f.forExisting.kind) {
     case 'ask':
-      return {
-        kind: 'ask',
-        title: `Ask ${plural(n, 'person', 'people')} for their ${label}`,
-        detail:
-          'It’s theirs to fill in. It shows on their profile as missing, and the weekly reminder asks for it.',
-      };
     case 'hr':
-      return {
-        kind: 'hr',
-        title: `Give HR ${String(n)} ${label} ${n === 1 ? 'value' : 'values'} to fill in`,
-        detail: 'They’re in Data health, on HR’s list, until they’re filled in.',
-      };
+      // Said once over every field (`whoSteps`).
+      return null;
     case 'new':
       return {
         kind: 'new',
@@ -337,14 +373,12 @@ export function planOf(input: PlanInput): {
     });
     short.push(`leave ${String(empty.count)} for HR`);
   }
+  const who = whoSteps(input);
+  steps.push(...who.steps);
+  short.push(...who.short);
   for (const f of input.fields) {
     const step = forExistingStep(f);
-    if (step === null) continue;
-    steps.push(step);
-    const label = lowerFirst(f.label);
-    if (step.kind === 'ask') short.push(`ask ${String(f.missing)} for their ${label}`);
-    if (step.kind === 'hr')
-      short.push(`give HR ${String(f.missing)} ${label} ${f.missing === 1 ? 'value' : 'values'}`);
+    if (step !== null) steps.push(step);
   }
   if (input.leftOut.length > 0) {
     const one = input.leftOut.length === 1;

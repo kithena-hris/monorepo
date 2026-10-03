@@ -671,6 +671,7 @@ export {
 export { DataTable } from './components/table/data-table';
 export type {
   DataColumn,
+  DataTableHandle,
   DataTableProps,
   DataTableReorder,
   DataTableSort,

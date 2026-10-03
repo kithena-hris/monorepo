@@ -19,6 +19,7 @@ import type {
   DuplicatesView,
   MergedPair,
   OnboardingView,
+  OrgChartView,
   PickerView,
   ProfileView,
 } from '../application/screens/people.js';
@@ -31,6 +32,7 @@ import type {
   RecordSection,
 } from '../application/screens/model.js';
 import type { RolesView } from '../application/screens/roles.js';
+import type { WaitingView } from '../application/screens/waiting.js';
 import type { BulkEditView, BulkResult } from '../application/screens/bulk-edit.js';
 import type { PublishPreviewView, RegistryView, SetupView } from '../application/screens/schema.js';
 import type { ColumnMapping } from '../application/import/mapping.js';
@@ -928,6 +930,44 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
   });
 
+  const OrgChartPerson = builder
+    .objectRef<OrgChartView['people'][number]>('OrgChartPerson')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        name: t.exposeString('name'),
+        title: t.exposeString('title', { nullable: true }),
+        managerId: t.exposeID('managerId', {
+          nullable: true,
+          description: 'Null for nobody, and for a manager this viewer cannot read.',
+        }),
+        managerName: t.exposeString('managerName', { nullable: true }),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+        status: t.exposeString('status', { nullable: true, description: 'HR’s, in words.' }),
+        team: t.exposeString('team', { nullable: true }),
+        location: t.exposeString('location', { nullable: true }),
+      }),
+    });
+  const OrgChartRef = builder.objectRef<OrgChartView>('PeopleOrgChart').implement({
+    description: 'Everybody this viewer may list, with their manager: the directory as a tree.',
+    fields: (t) => ({
+      people: t.field({ type: [OrgChartPerson], resolve: (v) => list(v.people) }),
+      truncated: t.exposeBoolean('truncated', {
+        description: 'More people than one chart draws: it is not everybody.',
+      }),
+    }),
+  });
+
+  const WaitingRef = builder.objectRef<WaitingView>('PeopleWaiting').implement({
+    description:
+      'How many decisions wait for this viewer, counted; null where they have no such queue.',
+    fields: (t) => ({
+      identifiers: t.exposeInt('identifiers', { nullable: true }),
+      duplicates: t.exposeInt('duplicates', { nullable: true }),
+      accessRequests: t.exposeInt('accessRequests', { nullable: true }),
+    }),
+  });
+
   type Completeness = CompletenessView;
   const Waiting = builder.objectRef<Completeness['waiting']>('CompletenessWaiting').implement({
     fields: (t) => ({
@@ -1138,6 +1178,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           nullable: true,
           description: 'added, changed or archived since the published version; null for none.',
         }),
+        review: t.exposeBoolean('review', {
+          description:
+            'Its type or format changes in the draft: published only through the review of its values.',
+        }),
+        decimals: t.exposeInt('decimals', { nullable: true }),
+        currency: t.exposeString('currency', { nullable: true }),
       }),
     });
   const Registry = builder.objectRef<RegistryView>('PeopleRegistry').implement({
@@ -2009,6 +2055,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         );
       },
     }),
+    peopleWaiting: t.field({
+      type: WaitingRef,
+      resolve: view<WaitingView>(() => '/v1/views/waiting'),
+    }),
+    peopleOrgChart: t.field({
+      type: OrgChartRef,
+      resolve: view<OrgChartView>(() => '/v1/views/org-chart'),
+    }),
     peopleCompleteness: t.field({
       type: CompletenessRef,
       args: { after: t.arg.id() },
@@ -2210,6 +2264,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       encrypted: t.boolean({
         description:
           'Store it sealed: once on, never off. Existing values are sealed when it is published.',
+      }),
+      decimals: t.int({ description: 'A number’s decimal places; absent keeps them.' }),
+      currency: t.string({
+        description: 'Money in this currency only; null for the record’s own, absent keeps it.',
       }),
     }),
   });
@@ -2768,7 +2826,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       resolve: async (_root, args, ctx) => {
         await viaRest(ctx, 'POST', '/v1/schema/draft/attributes', {
           body: {
-            input: { ...args.input, description: args.input.description ?? null },
+            input: {
+              ...args.input,
+              description: args.input.description ?? null,
+              decimals: args.input.decimals ?? null,
+            },
             editing: args.editing ?? null,
           },
           key: args.idempotencyKey,
@@ -2812,6 +2874,24 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         );
         return done();
       },
+    }),
+    applyFieldChange: t.string({
+      description:
+        'Publish a field’s new type with every value it holds, in one transaction: conversions and edits as corrections, the rest cleared, asked of the employee or left for HR (JSON in and out).',
+      args: {
+        key: t.arg.string({ required: true }),
+        input: t.arg.string({ required: true, description: 'JSON: to, decisions, requiredFrom' }),
+        idempotencyKey: t.arg.string({ required: true }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(
+            ctx,
+            'POST',
+            `/v1/schema/draft/attributes/${encodeURIComponent(args.key)}/change`,
+            { body: JSON.parse(args.input) as unknown, key: args.idempotencyKey },
+          ),
+        ),
     }),
     publishDraft: t.field({
       type: Version,
@@ -3368,6 +3448,24 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         viaRest<Preview>(ctx, 'POST', '/v1/schema/draft/preview', {
           body: { requiredFrom: args.requiredFrom },
         }),
+    }),
+    peopleFieldChange: t.string({
+      description:
+        'A field’s new type, with every value it holds read again as that type and nothing written (JSON): what converts, with examples, and each value that does not, with whose it is and why.',
+      args: {
+        key: t.arg.string({ required: true }),
+        to: t.arg.string({ description: 'The new type, as the address names it.' }),
+      },
+      resolve: async (_root, args, ctx) =>
+        JSON.stringify(
+          await viaRest(
+            ctx,
+            'GET',
+            `/v1/views/registry/fields/${encodeURIComponent(args.key)}/change${
+              args.to == null ? '' : `?to=${encodeURIComponent(args.to)}`
+            }`,
+          ),
+        ),
     }),
     peopleClassificationAdvice: t.field({
       type: AdviceRef,

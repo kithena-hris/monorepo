@@ -46,6 +46,27 @@ export interface QuickLookProps extends Omit<ComponentPropsWithoutRef<'aside'>, 
   readonly label?: string;
 }
 
+/** What keeps ↑ and ↓ for itself: text, a choice, a value, a menu, tabs. */
+const ARROW_OWNERS = [
+  'input',
+  'textarea',
+  'select',
+  '[contenteditable]:not([contenteditable="false"])',
+  ...[
+    'textbox',
+    'combobox',
+    'listbox',
+    'menu',
+    'menubar',
+    'tablist',
+    'slider',
+    'spinbutton',
+    'radiogroup',
+    'tree',
+    'grid',
+  ].map((role) => `[role="${role}"]`),
+].join(', ');
+
 export function QuickLook({
   media,
   title,
@@ -77,6 +98,14 @@ export function QuickLook({
     const inControl =
       event.target instanceof Element &&
       event.target.closest('a[href], button, input, textarea, select') !== null;
+    // ↑ and ↓ are a field's, a menu's or a tab list's own where they are inside one.
+    if (
+      (event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
+      event.target instanceof Element &&
+      event.target.closest(ARROW_OWNERS) !== null
+    ) {
+      return;
+    }
     const handler =
       event.key === 'ArrowUp'
         ? onPrevious

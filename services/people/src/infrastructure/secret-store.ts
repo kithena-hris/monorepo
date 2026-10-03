@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { logger } from '@kithena/telemetry';
 
@@ -53,6 +53,13 @@ export interface SecretStore {
 
   /** What a profile screen shows: which attributes exist, and their last four. */
   list(tx: PostgresJsDatabase, tenantId: string, personId: string): Promise<readonly StoredSecret[]>;
+
+  /** `list` for a page of people, in one query, by person. */
+  listMany(
+    tx: PostgresJsDatabase,
+    tenantId: string,
+    personIds: readonly string[],
+  ): Promise<ReadonlyMap<string, readonly Omit<StoredSecret, 'keyId'>[]>>;
 
   /**
    * The plaintext, for the two things that legitimately need one: a payroll
@@ -138,6 +145,27 @@ export function drizzleSecretStore(ring: KeyRing, logger?: SecretLogger): Secret
         .where(and(eq(personSecret.tenantId, tenantId), eq(personSecret.personId, personId)));
 
       return rows;
+    },
+
+    async listMany(tx, tenantId, personIds) {
+      const out = new Map<string, { attributeKey: string; last4: string | null }[]>();
+      if (personIds.length === 0) return out;
+      const rows = await tx
+        .select({
+          personId: personSecret.personId,
+          attributeKey: personSecret.attributeKey,
+          last4: personSecret.last4,
+        })
+        .from(personSecret)
+        .where(
+          and(eq(personSecret.tenantId, tenantId), inArray(personSecret.personId, [...personIds])),
+        );
+      for (const { personId, ...secret } of rows) {
+        const held = out.get(personId);
+        if (held === undefined) out.set(personId, [secret]);
+        else held.push(secret);
+      }
+      return out;
     },
 
     async reveal(tx, where) {

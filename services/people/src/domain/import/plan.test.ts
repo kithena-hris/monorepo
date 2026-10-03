@@ -37,6 +37,7 @@ const ACME: PlanInput = {
   ],
   rows: ROWS,
   leftOut: ['Dietary requirements'],
+  who: { asked: 14, forHr: 32 },
 };
 
 describe('the plan', () => {
@@ -45,8 +46,8 @@ describe('the plan', () => {
     expect(steps.map((s) => [s.kind, s.title])).toEqual([
       ['fields', 'Create 3 fields in Settings › Employee fields'],
       ['people', 'Create 298 people and update 71'],
-      ['ask', 'Ask 14 people for their T-shirt size'],
-      ['hr', 'Give HR 32 laptop serial values to fill in'],
+      ['ask', 'Ask 14 people for 1 personal detail (T-shirt size)'],
+      ['hr', 'HR fills 1 employment detail for 32 people'],
       ['skip', 'Leave out Dietary requirements'],
     ]);
     expect(steps[0]?.detail).toBe(
@@ -60,9 +61,49 @@ describe('the plan', () => {
     );
   });
 
+  it('asks each person once for everything asked of them, and gives HR the employment details', () => {
+    const field = (label: string, kind: 'ask' | 'hr', missing: number) => ({
+      label,
+      section: kind === 'ask' ? 'Personal information' : 'Employment',
+      newSection: false,
+      forExisting: { kind },
+      missing,
+    });
+    const { steps, short } = planOf({
+      ...ACME,
+      fields: [
+        field('Bank account', 'ask', 400),
+        field('Emergency contact', 'ask', 120),
+        ...['Passport', 'Driving licence', 'IBAN', 'Home address', 'Marital status', 'Languages'].map(
+          (l) => field(l, 'ask', 300),
+        ),
+        field('T-shirt size', 'ask', 0),
+        field('Tax ID', 'ask', 12),
+        field('Cost centre', 'hr', 30),
+        field('Job level', 'hr', 2),
+        field('Badge number', 'hr', 32),
+      ],
+      leftOut: [],
+      who: { asked: 412, forHr: 32 },
+    });
+    expect(steps.filter((s) => s.kind === 'ask' || s.kind === 'hr').map((s) => s.title)).toEqual([
+      'Ask 412 people for 9 personal details (bank account, emergency contact, …)',
+      'HR fills 3 employment details for 32 people',
+    ]);
+    expect(steps.find((s) => s.kind === 'ask')?.detail).toBe(
+      'One request each, listing everything asked of them, answered on their profile or in onboarding. The import emails nobody: anyone without an account yet finds it when they first sign in, and nobody who has left is asked.',
+    );
+    expect(steps.find((s) => s.kind === 'hr')?.detail).toBe(
+      'Cost centre, job level and badge number are in Data health, on HR’s list, until they’re filled in.',
+    );
+    expect(short).toBe(
+      'Create 13 fields, import 369 people, ask 412 people for 9 personal details, and have HR fill 3 employment details for 32 people.',
+    );
+  });
+
   it('in one sentence, for a phone', () => {
     expect(planOf(ACME).short).toBe(
-      'Create 3 fields, import 369 people, ask 14 for their T-shirt size, give HR 32 laptop serial values, and leave out Dietary requirements.',
+      'Create 3 fields, import 369 people, ask 14 people for 1 personal detail, have HR fill 1 employment detail for 32 people, and leave out Dietary requirements.',
     );
   });
 

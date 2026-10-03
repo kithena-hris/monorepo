@@ -37,6 +37,7 @@ const rows: TransferRow[] = [
     expiresAt: '2026-09-23T08:10:00.000Z',
     checksum: null,
     reportExpiresAt: null,
+    run: null,
   },
   {
     kind: 'import',
@@ -52,6 +53,7 @@ const rows: TransferRow[] = [
     expiresAt: null,
     checksum: CHECKSUM,
     reportExpiresAt: '2026-09-28T14:02:00.000Z',
+    run: null,
   },
   {
     kind: 'export',
@@ -67,6 +69,7 @@ const rows: TransferRow[] = [
     expiresAt: '2026-09-21T09:02:00.000Z',
     checksum: null,
     reportExpiresAt: null,
+    run: null,
   },
 ];
 

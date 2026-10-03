@@ -230,6 +230,11 @@ export const OPERATIONS = {
     peopleHome { hr admin finance }
   }`,
 
+  /** How many decisions wait for this viewer, counted: the shell's bell and badges. */
+  Waiting: `query Waiting {
+    peopleWaiting { identifiers duplicates accessRequests }
+  }`,
+
   /** Where People starts: the viewer, their line, and what waits for them. */
   Overview: `query Overview {
     peopleOverview {
@@ -250,6 +255,7 @@ export const OPERATIONS = {
       team { waiting toFill }
       setup { photo fields { key sectionKey label description dataType required } }
       viewedAs { id by at endedAt specialCategory }
+      imports { id status finishedAt people fields fileName }
     }
   }`,
 
@@ -316,6 +322,14 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** The directory as a tree: everybody this viewer may list, with their manager, in one read. */
+  OrgChart: `query OrgChart {
+    peopleOrgChart {
+      people { id name title managerId managerName avatarUrl status team location }
+      truncated
+    }
+  }`,
+
   Completeness: `query Completeness($after: ID) {
     peopleCompleteness(after: $after) {
       since
@@ -359,6 +373,7 @@ export const OPERATIONS = {
       fields {
         key sectionKey label description dataType options requiredness ownership visibility
         collectAt classification piiKind requiresApproval signup signupAskable aiEligible aiShareable encrypted encryptable origin pending
+        review decimals currency
         requiredWhen { ...PredicateParts }
         visibilityRules { scopes when { ...PredicateParts } }
       }
@@ -429,6 +444,7 @@ export const OPERATIONS = {
         by { name avatarUrl }
         imported { created updated blocked }
         exported { rows format }
+        run { status label people { done total } }
       }
       next
     }
@@ -502,6 +518,11 @@ export const OPERATIONS = {
   }`,
   ShareSummary: `mutation ShareSummary($input: String!, $key: String!) {
     peopleShareSummary(input: $input, idempotencyKey: $key)
+  }`,
+
+  /** A field's new type, every value it holds read again as that type (JSON); nothing written. */
+  FieldChange: `query FieldChange($field: String!, $to: String) {
+    peopleFieldChange(key: $field, to: $to)
   }`,
 
   PublishPreview: `query PublishPreview($requiredFrom: String!) {
@@ -627,6 +648,11 @@ export const OPERATIONS = {
 
   SaveDraftField: `mutation SaveDraftField($input: DraftFieldInput!, $editing: String, $key: String!) {
     saveDraftField(input: $input, editing: $editing, idempotencyKey: $key) { ok }
+  }`,
+
+  /** Publish a field's new type with what HR decided for each value (JSON in and out). */
+  ApplyFieldChange: `mutation ApplyFieldChange($field: String!, $input: String!, $key: String!) {
+    applyFieldChange(key: $field, input: $input, idempotencyKey: $key)
   }`,
 
   PublishDraft: `mutation PublishDraft($requiredFrom: String!, $key: String!) {
@@ -966,6 +992,16 @@ export const OPERATIONS = {
 
   RunImport: `mutation RunImport($input: String!, $key: String!) {
     runImport(input: $input, idempotencyKey: $key)
+  }`,
+
+  /** An approved import as it runs, and what it did once it has (JSON); polled by its page. */
+  ImportRun: `query ImportRun($id: ID!) {
+    importRun(id: $id)
+  }`,
+
+  /** The company's import running now, or JSON null: another waits for it. */
+  ActiveImportRun: `query ActiveImportRun {
+    activeImportRun
   }`,
 
   // Search and export in words (docs/ai-settings.md). Plans cross as JSON; neither writes.

@@ -78,6 +78,7 @@ import {
   insideSharedUnit,
   isViewOnlyRefusal,
   readOnly,
+  sharing,
   tenantTransaction,
 } from '../infrastructure/unit-of-work.js';
 import { ViewOnly } from '../domain/access/view-as.js';
@@ -100,8 +101,11 @@ import {
   drizzleImportLedger,
   drizzleReportIndex,
   drizzleRowScope,
+  drizzleRunStore,
   drizzleUploadIntents,
 } from '../application/import/ledger.js';
+import { importNotices, importWork, type RunDeps } from '../application/import/run.js';
+import { startImportRuns, type ImportRunner } from '../infrastructure/temporal/import-run.js';
 import type { UploadStore } from '../application/import/upload.js';
 import { UPLOAD_LIFETIME_MS } from '../domain/import/upload.js';
 import { uploadStoreFrom } from '../infrastructure/s3-uploads.js';
@@ -131,7 +135,7 @@ import {
 } from '../infrastructure/report-mailer.js';
 import { drizzleSharedSummaries } from '../infrastructure/drizzle-shared-summaries.js';
 import { sendDueReports, type ScheduleAdminDeps } from '../application/reports/scheduled.js';
-import { BODY_LIMIT, screenRoutes, type ScreenRouteDeps } from './screens.js';
+import { BODY_LIMIT, importWorkDeps, screenRoutes, type ScreenRouteDeps } from './screens.js';
 import { shareRoutes } from './export-share.js';
 import type { ShareDeps } from '../application/export/share.js';
 import { drizzleShareStore } from '../application/export/share-store.js';
@@ -720,6 +724,8 @@ function screenDeps(
     service,
     viewAs: viewAsDeps(service),
     viewedAs: drizzleViewedAs,
+    importNotices: (tx, tenantId, accountId, now) =>
+      importNotices(drizzleRunStore(), tx, tenantId, accountId, now),
     scim: scimConnections({
       service,
       relations: relationsFrom(process.env),
@@ -750,6 +756,9 @@ function screenDeps(
     schedules: scheduleAdmin(),
     schema,
     draft: drizzleDraftWriter(),
+    // A field change reads every value, and opens a sealed one only to convert it.
+    records: reader,
+    reveal: (tx, where) => service.secrets.reveal(tx, where),
     publisher: publishSchema({
       schema,
       people: drizzlePeopleFacts(),
@@ -917,6 +926,58 @@ function sweepUploads(store: UploadStore | null): () => void {
  * `/v1/*` is REST and `/v1/openapi.json` its document; everything else goes
  * to whichever listener `main.ts` installed, which is Yoga.
  */
+/**
+ * Approved imports, run in the background (`application/import/run.ts`): the
+ * screens' import deps, each chunk one transaction its use cases join, and a
+ * worker on Temporal, or in this process without it. Every run still going is
+ * picked up at boot.
+ */
+function wireImportRuns(
+  service: ReturnType<typeof peopleService>,
+  screens: ScreenRouteDeps,
+): {
+  readonly deps: Pick<ScreenRouteDeps, 'importRuns' | 'activity'>;
+  readonly close: () => Promise<void>;
+} {
+  const store = drizzleRunStore();
+  const activity = drizzleActivity();
+  const deps: RunDeps = {
+    runs: store,
+    clock: systemClock,
+    newId: uuidv7,
+    sealed: screens.commit.reports.store,
+    atomically: (tenantId, fn) =>
+      inTenantResult(service.inTenant, tenantId, (tx) => sharing({ tx, tenantId }, () => fn(tx))),
+    work: importWork(importWorkDeps({ ...screens, activity })),
+    publish: (tx, events) => screens.commit.ledger.publish(tx, events),
+  };
+  const going = async () => {
+    const runs = [];
+    for (const tenantId of await service.tenants()) {
+      // eslint-disable-next-line no-await-in-loop -- one tenant at a time, once at boot
+      const active = await service.inTenant(tenantId, ({ tx }) => store.active(tx, tenantId));
+      if (active !== null) runs.push({ tenantId, runId: active.id });
+    }
+    return runs;
+  };
+  const runner: Promise<ImportRunner> = startImportRuns(process.env, deps, going);
+  runner.catch((cause: unknown) => {
+    logger.error({ err: cause }, 'import runs did not start');
+  });
+  return {
+    deps: {
+      importRuns: { store, kick: async (tenantId, runId) => (await runner).kick(tenantId, runId) },
+      activity,
+    },
+    close: async () => {
+      await runner.then(
+        (r) => r.close(),
+        () => undefined,
+      );
+    },
+  };
+}
+
 export function wirePeople(server: Server): void {
   const url = process.env['PEOPLE_DATABASE_URL'];
   if (!url) {
@@ -938,6 +999,8 @@ export function wirePeople(server: Server): void {
   const stopReports = startReports(service, exports.deps);
   const uploads = uploadStoreFrom(process.env);
   const stopSweep = sweepUploads(uploads);
+  const screens = screenDeps(service, exports.deps.store, uploads);
+  const imports = wireImportRuns(service, screens);
   const idempotency = drizzleIdempotency();
   const activitySchema = drizzleSchemaRepository();
   const activityOrg = drizzleOrgStore();
@@ -949,7 +1012,7 @@ export function wirePeople(server: Server): void {
     fullValues: exports.fullValues,
     segments: drizzleSegments(),
     screens: [
-      ...screenRoutes(screenDeps(service, exports.deps.store, uploads), idempotency),
+      ...screenRoutes({ ...screens, ...imports.deps }, idempotency),
       // An export sent to somebody else (design AI13, AI14, MA10).
       ...shareRoutes({ service, idempotency, share: shareDeps(exports.deps) }),
     ],
@@ -988,6 +1051,7 @@ export function wirePeople(server: Server): void {
     await drain(server);
     stopSweep();
     await stopReports();
+    await imports.close();
     await exports.close();
     await service.close();
   });

@@ -28,7 +28,9 @@ export interface ShellNotice {
   readonly href: string;
   /** Whose change it is, for the avatar. */
   readonly person: string | null;
-  readonly kind: 'approval' | 'missing' | 'viewed';
+  readonly kind: 'approval' | 'missing' | 'viewed' | 'import';
+  /** An import that failed: said as a failure, not as news. */
+  readonly failed?: boolean;
 }
 
 /** A People administrator viewed the app as this person: over, and told afterwards. */
@@ -203,6 +205,36 @@ export interface Overview {
   readonly team: { readonly waiting: number; readonly toFill: number } | null;
   /** Absent from a People that predates it. */
   readonly viewedAs?: readonly ViewedAs[];
+  /** The viewer's own approved imports that finished in the last two weeks, newest first. Absent from an older People. */
+  readonly imports?: readonly ImportNotice[];
+}
+
+/** An import the viewer approved, over: Imported or Import failed. */
+export interface ImportNotice {
+  readonly id: string;
+  readonly status: 'succeeded' | 'failed';
+  readonly finishedAt: string;
+  /** People created or updated. */
+  readonly people: number;
+  /** New fields it added. */
+  readonly fields: number;
+  readonly fileName: string | null;
+}
+
+const counted = (n: number, one: string, many: string): string =>
+  `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+
+/** "Import finished: 1,000 people, 95 new fields", or "Import failed"; the file under it. */
+export function importNotice(i: ImportNotice): Pick<ShellNotice, 'title' | 'detail'> {
+  return {
+    title:
+      i.status === 'failed'
+        ? 'Import failed'
+        : `Import finished: ${counted(i.people, 'person', 'people')}${
+            i.fields > 0 ? `, ${counted(i.fields, 'new field', 'new fields')}` : ''
+          }`,
+    detail: i.fileName ?? 'An imported file',
+  };
 }
 
 /** How long the bell tells somebody they were viewed as; the Inbox keeps it after. */
@@ -265,7 +297,16 @@ export function noticesOf(overview: Overview): ShellNotice[] {
       person: v.by,
       kind: 'viewed',
     }));
-  return [...viewed, ...approvals, ...missing];
+  const imports = (overview.imports ?? []).map((i): ShellNotice => ({
+    id: `import:${i.id}`,
+    ...importNotice(i),
+    at: i.finishedAt,
+    href: `/people/import?run=${encodeURIComponent(i.id)}`,
+    person: null,
+    kind: 'import',
+    ...(i.status === 'failed' ? { failed: true } : {}),
+  }));
+  return [...viewed, ...imports, ...approvals, ...missing];
 }
 
 /**

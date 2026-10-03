@@ -64,7 +64,7 @@ describe('with no model: People’s own proposal', () => {
     });
   });
 
-  it('a T-shirt size: a choice from the file, ordinary, left empty for people already here', () => {
+  it('a T-shirt size: a choice from the file, ordinary, and theirs to give: ask them', () => {
     expect(localProposal(FILE.shirt, SECTIONS)).toMatchObject({
       field: {
         dataType: 'select',
@@ -72,7 +72,8 @@ describe('with no model: People’s own proposal', () => {
         classification: 'internal',
         aiEligible: true,
       },
-      forExisting: { kind: 'leave' },
+      forExisting: { kind: 'ask' },
+      forExistingWhy: 'About them, not their job: the employee tells us.',
     });
   });
 
@@ -441,9 +442,10 @@ describe('what applying means for people already here', () => {
   });
 
   it('left empty: optional, or required of new people only', () => {
-    expect(asDefinition(shirt).requiredness).toEqual({ mode: 'never' });
+    const left = { ...shirt, forExisting: { kind: 'leave' as const } };
+    expect(asDefinition(left).requiredness).toEqual({ mode: 'never' });
     expect(
-      asDefinition({ ...shirt, field: { ...shirt.field, required: true } }).requiredness,
+      asDefinition({ ...left, field: { ...left.field, required: true } }).requiredness,
     ).toEqual({
       mode: 'always',
       appliesTo: 'new_records',

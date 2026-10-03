@@ -738,7 +738,7 @@ const CHOICE: Record<
   ask: {
     label: (n) => `Ask the ${n} to fill it in`,
     means: () =>
-      'It shows on their profile as missing, and the weekly reminder asks for it. Until they answer, they show as incomplete.',
+      'One request each, with everything else asked of them, on their profile or in onboarding. The import emails nobody, and nobody who has left is asked. Until they answer, they show as incomplete.',
     short: 'Ask them',
     shortMeans: 'They show as incomplete',
   },
@@ -1007,8 +1007,8 @@ export function ExistingStep({
           }
         >
           <p className="text-sm text-fg-muted">
-            For the people who don’t, I’ve picked the gentlest option that still gets the data.
-            Change any of them.
+            For the people who don’t, their own details (bank, documents, home, family) are asked
+            of them, and employment details go to HR. Change any of them.
           </p>
         </AssistantCard>
         {kept.length === 0 ? (

@@ -26,6 +26,8 @@ import { Profile } from '../profile/profile';
 import type { RecordField } from '../record/model';
 import { FieldEditor } from '../settings/field-editor';
 import { FieldRegistry } from '../settings/field-registry';
+import { FieldChange } from '../settings/field-change';
+import { START_DAY } from '../settings/field-change.fixture';
 import { Integrations } from '../settings/integrations/integrations';
 import { Organisation } from '../settings/organisation';
 import { WebhookLog } from '../settings/integrations/webhook-log';
@@ -910,6 +912,12 @@ describe('at 390×844, with a finger', () => {
         onUpdate={ok}
         onRotate={() => Promise.resolve({ ok: true, secret: 's' })}
       />,
+    );
+  });
+
+  it('a field’s change of type, every value reviewed', async () => {
+    await checked(
+      <FieldChange load={{ status: 'ready', data: START_DAY }} onApply={ok} onBack={vi.fn()} />,
     );
   });
 

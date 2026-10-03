@@ -6,11 +6,13 @@ import { fast } from '../test/user';
 import {
   ImportExport,
   filterHistory,
+  hrefOf,
   resultOf,
   whenOf,
   type ImportExportState,
   type TransferEntry,
 } from './import-export';
+import { RUN_GOING } from './import.fixture';
 
 const NOW = '2026-09-29T15:00:00.000Z';
 
@@ -77,6 +79,35 @@ describe('the wording of an entry', () => {
         text: '12 created · 2 skipped',
         tone: 'warning',
       },
+    );
+  });
+
+  it('says an import in the one set of words: Importing with how far, Imported, Import failed', () => {
+    const run = (status: 'importing' | 'imported' | 'failed', done = 312) => ({
+      status,
+      label: { importing: 'Importing', imported: 'Imported', failed: 'Import failed' }[status],
+      people: { done, total: 1000 },
+    });
+    expect(resultOf(entry({ id: 'r', imported: null, run: run('importing') }))).toEqual({
+      text: 'Importing… 312 of 1,000 people',
+      tone: 'neutral',
+    });
+    expect(resultOf(entry({ id: 'r', imported: null, run: run('failed') }))).toEqual({
+      text: 'Import failed',
+      tone: 'danger',
+    });
+    expect(
+      resultOf(
+        entry({
+          id: 'r',
+          imported: { created: 990, updated: 0, blocked: 10 },
+          run: run('imported', 1000),
+        }),
+      ),
+    ).toEqual({ text: 'Imported · 990 created · 10 skipped', tone: 'warning' });
+    // Running or stopped, the row opens the import's own page.
+    expect(hrefOf(entry({ id: 'r', imported: null, run: run('importing') }))).toBe(
+      '/people/import?run=r',
     );
   });
 
@@ -184,6 +215,45 @@ describe('ImportExport', () => {
     await user.click(screen.getByRole('radio', { name: 'All' }));
     await user.type(screen.getByRole('searchbox', { name: 'Search the history' }), 'zz');
     expect(screen.getByText('Nothing matches')).toBeInTheDocument();
+  });
+
+  it('keeps Import off while an import runs, with how far it is, whose it is and the way to it', async () => {
+    const going = entry({
+      id: RUN_GOING.id,
+      title: 'meridian-people.xlsx',
+      imported: null,
+      run: { status: 'importing', label: 'Importing', people: { done: 40, total: 1000 } },
+    });
+    const { container } = render(
+      <ImportExport
+        load={{
+          status: 'ready',
+          data: state({ history: { items: [going, ...items], next: null, paged: false } }),
+        }}
+        running={RUN_GOING}
+      />,
+    );
+    const start = screen.getByRole('button', { name: 'Start import' });
+    expect(start).toBeDisabled();
+    expect(start).toHaveAccessibleDescription(
+      /^An import is running\. Started by Ada Lovelace at \d\d:\d\d\.$/,
+    );
+    expect(screen.queryByRole('link', { name: 'Start import' })).toBeNull();
+    expect(screen.getAllByRole('link', { name: 'See the import' })[0]).toHaveAttribute(
+      'href',
+      `/people/import?run=${RUN_GOING.id}`,
+    );
+    expect(screen.getByRole('progressbar', { name: 'Importing… Adding people' })).toHaveAttribute(
+      'aria-valuetext',
+      '312 of 1,000 people',
+    );
+    // The history says it as the host follows it, not as the page was read.
+    const table = screen.getByRole('table', { name: 'Imports and exports' });
+    expect(within(table).getByText('Importing… 312 of 1,000 people')).toBeVisible();
+    expect(
+      within(table).getByRole('link', { name: 'Open the import of meridian-people.xlsx' }),
+    ).toHaveAttribute('href', `/people/import?run=${RUN_GOING.id}`);
+    expect(await axeViolations(container)).toEqual([]);
   });
 
   it('pages back through older entries, and returns to the newest', () => {

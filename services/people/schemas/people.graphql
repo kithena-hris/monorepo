@@ -510,7 +510,13 @@ input DraftFieldInput {
   classification: String!
   classificationSource: String!
   collectAt: String!
+  """
+  Money in this currency only; null for the record’s own, absent keeps it.
+  """
+  currency: String
   dataType: String!
+  """A number’s decimal places; absent keeps them."""
+  decimals: Int
   description: String
   """
   Store it sealed: once on, never off. Existing values are sealed when it is published.
@@ -1049,6 +1055,15 @@ type Mutation {
   addDraftSection(idempotencyKey: String!, label: String!): WriteOutcome
   """The requester answers a question about their change, once."""
   answerApprovalQuestion(answer: String!, id: ID!, idempotencyKey: String!): WriteOutcome
+  """
+  Publish a field’s new type with every value it holds, in one transaction: conversions and edits as corrections, the rest cleared, asked of the employee or left for HR (JSON in and out).
+  """
+  applyFieldChange(
+    idempotencyKey: String!
+    """JSON: to, decisions, requiredFrom"""
+    input: String!
+    key: String!
+  ): String
   """Whoever may decide a change asks the requester first (“Ask Nora”)."""
   askAboutPendingChange(id: ID!, idempotencyKey: String!, question: String!): WriteOutcome
   """
@@ -1297,7 +1312,7 @@ type Mutation {
   rotateScimToken(id: ID!, idempotencyKey: String!): ScimConnectionToken
   rotateWebhookSecret(id: ID!, idempotencyKey: String!): WebhookEndpointSecret
   """
-  Approve the plan and run it: set the company up if nothing is published, add and publish the new fields, write the defaults, then import (JSON). A People administrator’s when it adds fields.
+  Approve the plan and run it in the background: set the company up if nothing is published, add and publish the new fields, write the defaults, then import. Answers at once with the run (JSON: runId, status); `importRun` follows it. One run at a time per company. A People administrator’s when it adds fields.
   """
   runImport(idempotencyKey: String!, input: String!): String
   saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): GridSaved
@@ -1435,6 +1450,20 @@ type OnboardingSection {
   key: String
   label: String
   visibility: [String!]
+}
+
+type OrgChartPerson {
+  avatarUrl: String
+  id: ID
+  location: String
+  """Null for nobody, and for a manager this viewer cannot read."""
+  managerId: ID
+  managerName: String
+  name: String
+  """HR’s, in words."""
+  status: String
+  team: String
+  title: String
 }
 
 type OrgCountry {
@@ -1721,6 +1750,20 @@ type PeopleIdentifierReviews {
   items: [IdentifierReviewItem!]
 }
 
+"""An import the viewer approved, finished: Imported or Import failed."""
+type PeopleImportNotice {
+  """New fields it added."""
+  fields: Int
+  fileName: String
+  finishedAt: String
+  """The run: `importRun(id)` and `/people/import?run=`."""
+  id: ID
+  """People created or updated."""
+  people: Int
+  """succeeded or failed."""
+  status: String
+}
+
 type PeopleIntegrations {
   deliveries24h: Int
   endpoints: [WebhookEndpoint!]
@@ -1747,6 +1790,15 @@ type PeopleOnboarding {
   saved: [String!]
   sections: [OnboardingSection!]
   values: [FormEntry!]
+}
+
+"""
+Everybody this viewer may list, with their manager: the directory as a tree.
+"""
+type PeopleOrgChart {
+  people: [OrgChartPerson!]
+  """More people than one chart draws: it is not everybody."""
+  truncated: Boolean
 }
 
 type PeopleOrganisation {
@@ -1777,6 +1829,10 @@ Where People starts: the viewer, their reporting line, and what waits for them.
 """
 type PeopleOverview {
   approvals: PeopleOverviewApprovals
+  """
+  Imports the viewer approved that finished in the last two weeks, newest first.
+  """
+  imports: [PeopleImportNotice!]
   me: PeopleOverviewMe
   missing: [PeopleOverviewMissing!]
   """
@@ -2061,6 +2117,8 @@ type PeopleTransfer {
   kind: String
   """An import’s blocked-row report while it is kept: a link that expires."""
   reportUrl: String
+  """An import’s state, and its run’s id is this id; null for an export."""
+  run: PeopleTransferRun
   """An import’s file name; an export’s reason, else the file it made."""
   title: String
 }
@@ -2088,6 +2146,23 @@ type PeopleTransferImported {
   updated: Int
 }
 
+type PeopleTransferProgress {
+  done: Int
+  """Null until the file is read."""
+  total: Int
+}
+
+"""
+An import’s state: Importing with how many people are in, Imported, or Import failed.
+"""
+type PeopleTransferRun {
+  """Importing, Imported or Import failed."""
+  label: String
+  people: PeopleTransferProgress
+  """importing, imported or failed."""
+  status: String
+}
+
 type PeopleViewedAs {
   at: String
   """The administrator, by name."""
@@ -2096,6 +2171,15 @@ type PeopleViewedAs {
   id: ID
   """Special-category data of theirs, or that they may read, was visible."""
   specialCategory: Boolean
+}
+
+"""
+How many decisions wait for this viewer, counted; null where they have no such queue.
+"""
+type PeopleWaiting {
+  accessRequests: Int
+  duplicates: Int
+  identifiers: Int
 }
 
 type Person @key(fields: "id") {
@@ -2227,11 +2311,19 @@ type PublishedVersionNumber {
 type Query {
   _entities(representations: [_Any!]!): [_Entity]!
   _service: _Service!
+  """
+  The company’s import running now, as `importRun` says it (JSON), or JSON null: another import waits for it. HR and People administrators.
+  """
+  activeImportRun: String
   """Null for an entity that does not number its people."""
   employeeNumbering(legalEntityId: ID!): EmployeeNumbering
   """Every employment on a person, first first; HR only."""
   employmentPeriods(personId: ID!): [EmploymentPeriod!]
   fullValuesRequest(id: ID!): FullValuesRequest
+  """
+  An approved import as it runs and once it is over (JSON): Importing with its step and “312 of 1,000 people”, then Imported with what it did, or Import failed with why. HR, People administrators and whoever approved it.
+  """
+  importRun(id: ID!): String
   legalEntities: [LegalEntity!]
   locations: [Location!]
   people(after: String, asOf: String, first: Int): PersonPage
@@ -2317,6 +2409,14 @@ type Query {
     """JSON: choice, recipient, sentence"""
     input: String!
   ): String
+  """
+  A field’s new type, with every value it holds read again as that type and nothing written (JSON): what converts, with examples, and each value that does not, with whose it is and why.
+  """
+  peopleFieldChange(
+    key: String!
+    """The new type, as the address names it."""
+    to: String
+  ): String
   peopleFile(id: ID!): PeopleFile
   peopleFullValues: PeopleFullValues
   """
@@ -2346,6 +2446,7 @@ type Query {
   """
   peopleNames(accountIds: [ID!], personIds: [ID!]): PeopleNames
   peopleOnboarding: PeopleOnboarding
+  peopleOrgChart: PeopleOrgChart
   peopleOrganisation: PeopleOrganisation
   peopleOverview: PeopleOverview
   peoplePhoto(personId: ID!): PeoplePhoto
@@ -2382,6 +2483,7 @@ type Query {
   Imports and exports, newest first, 50 at a time; HR and People administrators.
   """
   peopleTransferHistory(before: ID): PeopleTransferHistory
+  peopleWaiting: PeopleWaiting
   """
   One endpoint’s delivery log, newest first, 50 at a time; people_admin only.
   """
@@ -2459,7 +2561,9 @@ type RegistryField {
   aiShareable: Boolean
   classification: String
   collectAt: String
+  currency: String
   dataType: String
+  decimals: Int
   description: String
   """
   It may be switched to encrypted: a sealable type, not a column People sorts by.
@@ -2482,6 +2586,10 @@ type RegistryField {
   Whether a change waits for HR approval: the tenant’s choice, else the default.
   """
   requiresApproval: Boolean
+  """
+  Its type or format changes in the draft: published only through the review of its values.
+  """
+  review: Boolean
   sectionKey: String
   """
   page: asked on the sign-up page; after: on the first screen after it; null: not at sign-up.

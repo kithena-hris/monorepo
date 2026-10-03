@@ -884,18 +884,44 @@ interface Answered {
   errors?: { message: string; extensions: { code: string } }[];
 }
 
-/** Approve and run: the import's outcome, or the test fails on its error. */
+/**
+ * Approve and run: answered at once with the run, which goes on in the
+ * background; followed until it is over. The import's outcome, or the test
+ * fails on its error.
+ */
 async function runToEnd<T>(
   graph: (query: string, variables?: Record<string, unknown>) => Promise<Answered>,
   input: unknown,
   key: string,
 ): Promise<T> {
+  const asked = Date.now();
   const ran = await graph(
     `mutation ($input: String!, $key: String!) { runImport(input: $input, idempotencyKey: $key) }`,
     { input: JSON.stringify(input), key },
   );
   expect(ran.errors?.[0]?.message).toBeUndefined();
-  return JSON.parse(ran.data?.['runImport'] as string) as T;
+  const approved = JSON.parse(ran.data?.['runImport'] as string) as { runId: string; status: string };
+  expect(approved.status).toBe('queued');
+  // Approving answers in a moment, whatever the size of the file.
+  expect(Date.now() - asked).toBeLessThan(2_000);
+  for (const deadline = Date.now() + 110_000; ; ) {
+    const seen = await graph(`query ($id: ID!) { importRun(id: $id) }`, { id: approved.runId });
+    expect(seen.errors?.[0]?.message).toBeUndefined();
+    const run = JSON.parse(seen.data?.['importRun'] as string) as {
+      status: string;
+      label: string;
+      result: T | null;
+      failure: string | null;
+    };
+    if (run.status === 'succeeded') {
+      expect(run.label).toBe('Imported');
+      return run.result as T;
+    }
+    if (run.status === 'failed') throw new Error(run.failure ?? 'the import failed');
+    expect(run.label).toBe('Importing');
+    if (Date.now() > deadline) throw new Error('the import did not finish');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
 }
 
 const company = (tenant: string, owner: string) => {
@@ -1180,6 +1206,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     key: string;
     include: boolean;
     why: string;
+    forExisting: { kind: string };
     field: {
       dataType: string;
       classification: string;
@@ -1375,6 +1402,46 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     }
     // A postal code keeps its digits.
     expect(of('Home Postal Code').field.dataType).toBe('text');
+    // Who fills in what the file leaves empty: the employee their own details,
+    // HR the employment ones, nobody special-category data.
+    const owner = (headers: readonly string[]) =>
+      headers.map((h) => [h, of(h).forExisting.kind]);
+    const personal = [
+      'Marital Status',
+      'Home State/Province',
+      'Tax ID / Steuer-ID',
+      'Passport Number',
+      'Work Permit Number',
+      'Driver License Number',
+      'IBAN',
+      'Bank Account Number',
+      'Routing / Sort / IFSC Code',
+      'Tax Filing Status',
+      'Highest Education',
+      'University',
+      'Certifications',
+      'T-Shirt Size',
+      'LinkedIn URL',
+    ];
+    expect(owner(personal)).toEqual(personal.map((h) => [h, 'ask']));
+    const employment = [
+      'Work Phone',
+      'Contract End Date',
+      'Shift',
+      'FLSA Status',
+      'Annual Base Salary',
+      'Hourly Rate',
+      'Equity Grant (Units)',
+      'Last Raise Date',
+      'Performance Rating',
+      'Retirement Plan',
+      'Laptop Serial',
+      'Parking Spot',
+    ];
+    expect(owner(employment)).toEqual(employment.map((h) => [h, 'hr']));
+    expect(owner(['Ethnicity', 'Religion', 'Dietary Requirements', 'Notes'])).toEqual(
+      ['Ethnicity', 'Religion', 'Dietary Requirements', 'Notes'].map((h) => [h, 'leave']),
+    );
     expect(proposals.filter((p) => /^(employment_type|work_model)/u.test(p.key))).toEqual([]);
     // The lifecycle is People's: the status and the termination columns are
     // mapped onto it, never fields. People keeps no leave record, so the leave
@@ -1423,6 +1490,14 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     };
     expect(plan.blocked).toBeNull();
     expect(plan.problems).toEqual([]);
+    // Each person asked once, for everything asked of them; the five who left, never.
+    const asking = (plan.steps as { kind: string; title: string }[]).filter(
+      (x) => x.kind === 'ask' || x.kind === 'hr',
+    );
+    expect(asking.map((x) => x.title)).toEqual([
+      expect.stringMatching(/^Ask 95 people for \d+ personal details \(.+, …\)$/u),
+      expect.stringMatching(/^HR fills \d+ employment details for \d+ people$/u),
+    ]);
     expect(plan.review.dryRun.counts).toMatchObject({ create: 100, blocked: 0, duplicate: 0 });
     // People's values under the file's spelling go to those; the rest are added.
     expect(plan.steps.map((s) => s.title)).toEqual(
@@ -1463,6 +1538,42 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     // 14 to People's own (employment type, work model and the four lifecycle
     // columns among them), 89 new, 2 ids.
     expect(done.columns).toEqual({ existing: 14, created: 89, kithena: 2, leftOut: 0 });
+
+    // The requests: one per person, listing every detail asked of them that
+    // the file left empty; none for anybody who has left, nor per field.
+    const asked = new Set(proposals.filter((p) => p.forExisting.kind === 'ask').map((p) => p.key));
+    const ask = postgres(pgUrl, { max: 1 });
+    try {
+      const requests = (await ask.unsafe(
+        `SELECT p.work_email AS email, p.status, array_agg(r.attribute_key ORDER BY r.attribute_key) AS keys,
+                count(DISTINCT r.requested_at)::int AS sent
+           FROM people.detail_request r JOIN people.person p ON p.id = r.person_id
+          WHERE r.tenant_id = $1::uuid GROUP BY 1, 2`,
+        [TENANT],
+      )) as unknown as { email: string; status: string; keys: string[]; sent: number }[];
+      expect(requests).toHaveLength(95);
+      expect(requests.filter((r) => r.status === 'terminated')).toEqual([]);
+      expect(requests.filter((r) => r.sent !== 1)).toEqual([]);
+      for (const r of requests) for (const k of r.keys) expect([k, asked.has(k)]).toEqual([k, true]);
+      // Whoever the file gave a passport is not asked for one; whoever it did not, is.
+      const passports = (await ask.unsafe(
+        `SELECT p.work_email AS email, s.person_id IS NOT NULL AS has
+           FROM people.person p
+           LEFT JOIN people.person_secret s
+             ON s.person_id = p.id AND s.attribute_key = $2
+          WHERE p.tenant_id = $1::uuid AND p.status <> 'terminated'`,
+        [TENANT, of('Passport Number').key],
+      )) as unknown as { email: string; has: boolean }[];
+      const keysOf = new Map(requests.map((r) => [r.email, r.keys]));
+      expect(passports.length).toBe(95);
+      for (const x of passports) {
+        expect([x.email, keysOf.get(x.email)?.includes(of('Passport Number').key) ?? false]).toEqual(
+          [x.email, !x.has],
+        );
+      }
+    } finally {
+      await ask.end();
+    }
 
     // What was written: a salary as money in the row's currency, an identifier sealed.
     const client = postgres(pgUrl, { max: 1 });
