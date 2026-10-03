@@ -15,11 +15,21 @@ import {
   Skeleton,
   Stat,
   icons,
+  useCoarsePointerAt,
   type IconName,
   type RangeBarSegment,
 } from '@reach/ui';
-import { createElement, useEffect, useState, useTransition, type JSX, type ReactNode } from 'react';
+import {
+  createElement,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
+import { ClockIn, ClockOutSheet } from '../clock/clock';
 import { Loaded, type Loadable, type Outcome } from '../load';
 
 /**
@@ -121,8 +131,15 @@ export interface OverviewData {
 
 export interface OverviewProps {
   readonly load: Loadable<OverviewData>;
-  /** Clock in, start or end a break, clock out. Absent, the clock has no buttons. */
-  readonly onPunch?: (kind: PunchKind, workModel: WorkModel) => Promise<Outcome>;
+  /**
+   * Clock in, start or end a break, clock out; `mobile` when under a finger
+   * (TOF-076). Absent, the clock has no buttons.
+   */
+  readonly onPunch?: (
+    kind: PunchKind,
+    workModel: WorkModel,
+    source?: 'web' | 'mobile',
+  ) => Promise<Outcome>;
 }
 
 export function Overview({ load, onPunch }: OverviewProps): JSX.Element {
@@ -234,11 +251,17 @@ function ClockCard({
   const workModel = clock.workModel ?? 'office';
   const [pending, start] = useTransition();
   const [failed, setFailed] = useState<string | null>(null);
-  const press = (kind: PunchKind): void => {
+  // Under a finger (TOF-076, MT3, MT4): clocking in is a slide, from where
+  // you say you are, and clocking out shows the day first.
+  const card = useRef<HTMLDivElement>(null);
+  const coarse = useCoarsePointerAt(card);
+  const [where, setWhere] = useState<WorkModel>(workModel);
+  const [closing, setClosing] = useState(false);
+  const press = (kind: PunchKind, model: WorkModel = workModel, mobile = false): void => {
     if (onPunch === undefined) return;
     setFailed(null);
     start(async () => {
-      const outcome = await onPunch(kind, workModel);
+      const outcome = await (mobile ? onPunch(kind, model, 'mobile') : onPunch(kind, model));
       if (!outcome.ok) setFailed(outcome.message);
     });
   };
@@ -248,8 +271,11 @@ function ClockCard({
       variant={primary ? 'primary' : 'secondary'}
       startIcon={createElement(icons[icon], { 'aria-hidden': true })}
       disabled={onPunch === undefined || pending}
+      // Under a finger the slide below clocks in.
+      className={kind === 'in' ? 'touch:hidden' : undefined}
       onClick={() => {
-        press(kind);
+        if (kind === 'out' && coarse) setClosing(true);
+        else press(kind);
       }}
     >
       {label}
@@ -286,7 +312,7 @@ function ClockCard({
           <LiveTimer workedMinutes={worked} running={state === 'in'} since={now} />
           <p className="mt-2 text-sm text-fg-muted">{sub}</p>
         </div>
-        <div className="flex gap-2">
+        <div ref={card} className="flex gap-2">
           {state === 'in'
             ? [
                 action('break_start', 'Start break', 'break', false),
@@ -309,6 +335,30 @@ function ClockCard({
           ...(SEGMENT[s.kind] ?? { label: s.kind }),
         }))}
       />
+      {state === 'out' ? (
+        <ClockIn
+          className="hidden touch:flex"
+          workModel={where}
+          onWorkModel={setWhere}
+          offices={[]}
+          disabled={onPunch === undefined || pending}
+          onClockIn={(model) => {
+            press('in', model, true);
+          }}
+        />
+      ) : state === 'in' ? (
+        <ClockOutSheet
+          open={closing}
+          onOpenChange={setClosing}
+          day={today}
+          minute={minuteOfDay(now, zone)}
+          disabled={onPunch === undefined || pending}
+          onClockOut={() => {
+            setClosing(false);
+            press('out', workModel, true);
+          }}
+        />
+      ) : null}
       {failed === null ? null : (
         <Alert tone="danger" title="The clock did not change">
           {failed}
