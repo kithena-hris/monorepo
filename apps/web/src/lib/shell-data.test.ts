@@ -61,7 +61,10 @@ describe('telling somebody they were viewed as', () => {
   it('is a notice for a fortnight after it ended, saying who, how long, and what showed', () => {
     const notices = noticesOf({
       ...overview(HR, 0),
-      viewedAs: [viewed('2026-09-29T08:00:00.000Z', true), viewed('2026-09-01T08:00:00.000Z', false)],
+      viewedAs: [
+        viewed('2026-09-29T08:00:00.000Z', true),
+        viewed('2026-09-01T08:00:00.000Z', false),
+      ],
     });
     expect(notices).toEqual([
       {
@@ -132,7 +135,15 @@ describe('Time Off for its approvers (TOF-058a)', () => {
   it('shows Marco, who approves with no admin role, the queue tabs and what waits', () => {
     expect(requests(viewer(true))).toEqual({
       section: 'Requests',
-      tabs: ['Waiting for me3', 'Coming up', 'Decided', 'Delegation', 'Upcoming', 'Past', 'Cancelled'],
+      tabs: [
+        'Waiting for me3',
+        'Coming up',
+        'Decided',
+        'Delegation',
+        'Upcoming',
+        'Past',
+        'Cancelled',
+      ],
     });
   });
 

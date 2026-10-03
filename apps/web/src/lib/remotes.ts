@@ -479,9 +479,7 @@ async function manifestOf(base: string): Promise<unknown> {
  * places and every route it lists, whichever path is asked for. `null` when
  * the remote is not configured, cannot be reached or is not a manifest.
  */
-export async function remoteNav(
-  area: Area,
-): Promise<{
+export async function remoteNav(area: Area): Promise<{
   readonly nav: RemoteRoute['nav'];
   readonly routes: readonly string[];
   readonly screens: RemoteRoute['screens'];

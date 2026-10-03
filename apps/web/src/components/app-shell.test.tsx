@@ -55,7 +55,10 @@ type Viewer = Parameters<typeof timeOffRoles>[1];
  * The shell as Time Off's manifest draws it for somebody with these roles,
  * and what Time Off says of them (`timeOffViewer`), as `shell.ts` cuts it.
  */
-function renderShell(roles: { hr: boolean; admin: boolean; finance: boolean }, viewer: Viewer = null) {
+function renderShell(
+  roles: { hr: boolean; admin: boolean; finance: boolean },
+  viewer: Viewer = null,
+) {
   const places = placesFor(nav, timeOffRoles(roles, viewer));
   const counts = timeOffCounts(viewer, places.sections);
   const shell = {
