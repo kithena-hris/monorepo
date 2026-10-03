@@ -114,6 +114,10 @@ import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests
 import { drizzleFiles } from '../infrastructure/drizzle-files.js';
 import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
 import { drizzleTransfers } from '../infrastructure/drizzle-transfers.js';
+import {
+  answer as capabilityAnswer,
+  catalogue as capabilityCatalogue,
+} from '../application/assistant/capabilities.js';
 import { askFromChat, type ChatDeps } from '../application/assistant/from-chat.js';
 import { chatModel, modelConfigFrom } from '../infrastructure/assistant/model.js';
 import { PlanBudget } from '../domain/import/new-fields.js';
@@ -140,6 +144,7 @@ import { shareRoutes } from './export-share.js';
 import type { ShareDeps } from '../application/export/share.js';
 import { drizzleShareStore } from '../application/export/share-store.js';
 import { callerWithEntitlements, viewingRequest, withTenantRoles } from './caller.js';
+import { capabilityRoutes, isCapabilityPath } from './capabilities.js';
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
@@ -986,15 +991,19 @@ export function wirePeople(server: Server): void {
   }
 
   const service = peopleService(url, process.env['PEOPLE_SECRET_KEYS']);
-  const headers = callerWithEntitlements(
-    process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
-    (tenantId) => service.inTenant(tenantId, ({ tx }) => recordedEntitlements(tx, tenantId)),
-  );
   const fga = openFgaFrom(process.env);
-  const callerFrom =
-    fga === null
+  // Whoever a token's caller forwards, entitled as recorded, with OpenFGA's roles.
+  const callerWith = (token: string) => {
+    const headers = callerWithEntitlements(token, (tenantId) =>
+      service.inTenant(tenantId, ({ tx }) => recordedEntitlements(tx, tenantId)),
+    );
+    return fga === null
       ? headers
       : withTenantRoles(headers, (tenantId, accountId) => fga.roles(tenantId, accountId));
+  };
+  const callerFrom = callerWith(
+    process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
+  );
   const exports = wireExports(service);
   const stopReports = startReports(service, exports.deps);
   const uploads = uploadStoreFrom(process.env);
@@ -1075,6 +1084,13 @@ export function wirePeople(server: Server): void {
     response: ServerResponse,
   ) => void)[];
   server.removeAllListeners('request');
+
+  // The assistant's questions, as the asker (AST-018): its own token, and these routes only.
+  const capabilities = capabilityRoutes({
+    callerFrom: callerWith(process.env['ASSISTANT_PEOPLE_TOKEN'] ?? ''),
+    catalogue: (asking) => capabilityCatalogue(screens, asking),
+    answer: (asking, name, input) => capabilityAnswer(screens, asking, name, input),
+  });
 
   const chatToken = process.env['SLACK_PEOPLE_TOKEN'] ?? '';
   const chatDeps: ChatDeps = {
@@ -1243,6 +1259,40 @@ export function wirePeople(server: Server): void {
               }),
             );
           }
+        }
+      })();
+      return;
+    }
+    // The assistant, as whoever it asks for; read-only, whatever the handler does.
+    if (isCapabilityPath(path)) {
+      void (async () => {
+        try {
+          const body = await bodyOf(request, BODY_LIMIT);
+          if (body === null) {
+            send(response, {
+              status: 413,
+              body: { error: { code: 'TOO_LARGE', message: 'Body too large' } },
+            });
+            return;
+          }
+          send(
+            response,
+            await readOnly(() =>
+              capabilities({
+                method: request.method ?? 'GET',
+                url: path,
+                headers: request.headers,
+                body,
+              }),
+            ),
+          );
+        } catch (cause) {
+          logger.error({ err: cause }, 'a capability request failed');
+          if (!response.headersSent)
+            send(response, {
+              status: 500,
+              body: { error: { code: 'INTERNAL', message: 'Something went wrong' } },
+            });
         }
       })();
       return;

@@ -29,7 +29,7 @@ import type { Condition } from '../person/ports.js';
 import { exportBuilderView, type ExportBuilderView } from '../screens/operations.js';
 import { requestDetailsOfMany } from '../screens/requests.js';
 import { nameOf, type ScreenDeps } from '../screens/record.js';
-import { describe, filterFields, metricsFor } from './ask.js';
+import { describe, filterFields, metricsFor } from './capabilities.js';
 import type { AssistantPort } from './assistant-port.js';
 
 /**

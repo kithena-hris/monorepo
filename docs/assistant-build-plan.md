@@ -383,7 +383,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 
 ## Phase 1 — People's capabilities
 
-### [ ] AST-018 — People serves the catalogue
+### [x] AST-018 — People serves the catalogue
 
 - **Spec** PRD §8.5, §10.2, §10.3
 - **Files** `services/people/src/http/capabilities.ts`,
@@ -399,6 +399,12 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** an integration test shows HR's and an employee's catalogues
   differ as their filterable fields do, the router's token is refused here, and
   the assistant's token is refused on `/graphql` and `/v1/`.
+- **As built** a field not for AI is left out of `people.find`'s fields rather
+  than named for "is empty" as smart search does: `CatalogueField` has no
+  `presence` kind, and its label is in `denied`. A principal claiming a support
+  session or a view-as is refused (401). `filterFields`, `metricsFor`,
+  `describe`, `personLine` and `onePerson` moved from `ask.ts` into
+  `capabilities.ts`; `ask.ts` imports them until AST-026.
 
 ### [ ] AST-019 — `people.find`
 
