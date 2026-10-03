@@ -16,6 +16,7 @@ const IDLE = {
   SESSIONS: '0',
   JOBS: '0',
   ACTIVITIES: '0',
+  IMPORTS: '0',
 };
 
 function run(args: string[], env: Record<string, string> = {}): { status: number | null; out: string } {
@@ -41,6 +42,7 @@ describe('idle-stop decide', () => {
     [{ SESSIONS: '1' }, 'stay: 1 login session(s)'],
     [{ JOBS: '2' }, 'stay: 2 export job(s) in flight'],
     [{ ACTIVITIES: '1' }, 'stay: 1 full-values activit(y/ies) pending'],
+    [{ IMPORTS: '1' }, 'stay: 1 import(s) running'],
   ])('stays for %o', (overrides, line) => {
     expect(decide(overrides)).toEqual({ status: 1, out: line });
   });
@@ -53,6 +55,7 @@ describe('idle-stop decide', () => {
   it('treats a probe that failed as a reason to stay up', () => {
     expect(decide({ JOBS: 'unknown' })).toEqual({ status: 1, out: 'stay: JOBS unknown (unknown)' });
     expect(decide({ ACTIVITIES: '' })).toEqual({ status: 1, out: 'stay: ACTIVITIES unknown (unset)' });
+    expect(decide({ IMPORTS: 'unknown' })).toEqual({ status: 1, out: 'stay: IMPORTS unknown (unknown)' });
   });
 });
 
