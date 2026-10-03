@@ -4,7 +4,7 @@ import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import { questionOf, type Envelope } from './events.js';
 import * as api from './slack-api.js';
-import { slackService, type Interaction, type People } from './service.js';
+import { slackService, type Interaction, type People, type TimeOff } from './service.js';
 import { tokenKeyFrom } from './secrets.js';
 import { memoryStore, postgresStore, type Store } from './store.js';
 
@@ -23,6 +23,10 @@ import { memoryStore, postgresStore, type Store } from './store.js';
  * - `SLACK_DATABASE_URL`, `SLACK_TOKEN_KEY` (32 bytes, base64) — where
  *   workspaces and their sealed tokens are kept.
  * - `PEOPLE_URL`, `SLACK_PEOPLE_TOKEN`, `SLACK_COMMAND`.
+ * - `TIMEOFF_URL`, `SLACK_TIMEOFF_TOKEN` — Time Off, the same way: it asks an
+ *   approver through this service, and the press comes back here over the
+ *   socket and is passed on to Time Off. Its token opens `/internal/timeoff/`
+ *   only, as People's opens everything else.
  *
  * Off production, `SLACK_BOT_TOKEN` and `SLACK_TENANT_ID` connect the
  * developer's own workspace to one company at start, since "Add to Slack"
@@ -38,6 +42,7 @@ const PORT = Number(env['PORT'] ?? 4102);
 const appToken = env['SLACK_APP_TOKEN'] ?? '';
 const peopleUrl = (env['PEOPLE_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
 const peopleToken = env['SLACK_PEOPLE_TOKEN'] ?? '';
+const timeOffToken = env['SLACK_TIMEOFF_TOKEN'] ?? '';
 const devToken = production ? '' : (env['SLACK_BOT_TOKEN'] ?? '');
 const devTenant = production ? '' : (env['SLACK_TENANT_ID'] ?? '');
 
@@ -77,6 +82,23 @@ const people: People = {
   },
 };
 
+const timeOffUrl = (env['TIMEOFF_URL'] ?? 'http://localhost:4002').replace(/\/$/, '');
+const timeOff: TimeOff = {
+  relay: async (tenantId, value) => {
+    const response = await fetch(`${timeOffUrl}/v1/timeoff/integrations/slack/relay`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-token': timeOffToken },
+      body: JSON.stringify({ tenantId, value }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      logger.error({ status: response.status }, 'time off refused a slack press');
+      throw new Error(`timeoff relay: ${String(response.status)}`);
+    }
+    return (await response.json()) as { text: string };
+  },
+};
+
 const clientId = env['SLACK_CLIENT_ID'] ?? '';
 const clientSecret = env['SLACK_CLIENT_SECRET'] ?? '';
 const authOrigin = env['AUTH_ORIGIN'] ?? '';
@@ -84,6 +106,7 @@ const store = storeFrom();
 const service = slackService({
   store,
   people,
+  timeOff,
   slack: api,
   command: env['SLACK_COMMAND'] ?? '/kithena',
   now: () => Date.now(),
@@ -110,7 +133,12 @@ let backoff = 1_000;
 async function onEnvelope(socket: WebSocket, envelope: Envelope): Promise<void> {
   const ack = (payload?: unknown) => {
     if (envelope.envelope_id !== undefined)
-      socket.send(JSON.stringify({ envelope_id: envelope.envelope_id, ...(payload === undefined ? {} : { payload }) }));
+      socket.send(
+        JSON.stringify({
+          envelope_id: envelope.envelope_id,
+          ...(payload === undefined ? {} : { payload }),
+        }),
+      );
   };
   if (envelope.type === 'interactive') {
     const payload = envelope.payload as Interaction;
@@ -185,11 +213,12 @@ function retryLater(): void {
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const NAME = /^[a-z][a-z0-9_]{0,63}$/;
 
-function presents(request: IncomingMessage): boolean {
+/** The pair's own secret: People's opens People's routes, Time Off's opens Time Off's, never each other's. */
+function presents(request: IncomingMessage, token: string): boolean {
   const given = request.headers['x-internal-token'];
-  if (peopleToken === '' || typeof given !== 'string') return false;
+  if (token === '' || typeof given !== 'string') return false;
   const a = createHash('sha256').update(given).digest();
-  const b = createHash('sha256').update(peopleToken).digest();
+  const b = createHash('sha256').update(token).digest();
   return timingSafeEqual(a, b);
 }
 
@@ -207,26 +236,66 @@ async function bodyOf(request: IncomingMessage): Promise<Record<string, unknown>
   }
 }
 
-const str = (v: unknown, max = 500) => (typeof v === 'string' && v.length > 0 && v.length <= max ? v : null);
+const str = (v: unknown, max = 500) =>
+  typeof v === 'string' && v.length > 0 && v.length <= max ? v : null;
+
+/** Time Off's routes: whether a company's workspace is connected, and asking an approver. */
+async function timeOffRoute(
+  request: IncomingMessage,
+  pathname: string,
+  body: Record<string, unknown>,
+): Promise<{ status: number; body: unknown }> {
+  if (pathname === '/internal/timeoff/approval' && request.method === 'POST') {
+    const tenantId = str(body['tenantId'], 36);
+    const email = str(body['email'], 320);
+    const text = str(body['text'], 2000);
+    // Slack keeps a button's value to 2,000 characters.
+    const approve = str(body['approve'], 2000);
+    const decline = str(body['decline'], 2000);
+    if (!tenantId || !email || !text || !approve || !decline) return { status: 400, body: {} };
+    const sent = await service.askTimeOff(tenantId, { email, text, approve, decline });
+    if (sent === 'not_connected')
+      return {
+        status: 409,
+        body: { sent, message: 'The company has not added Kithena to Slack.' },
+      };
+    if (sent === 'not_in_slack')
+      return { status: 404, body: { sent, message: 'Slack has nobody at that address.' } };
+    return { status: 202, body: { sent } };
+  }
+  const tenant = new RegExp(`^/internal/timeoff/tenants/(${UUID})/slack$`).exec(pathname);
+  if (tenant !== null && request.method === 'GET') {
+    return { status: 200, body: await service.status(tenant[1] ?? '') };
+  }
+  return { status: 404, body: {} };
+}
 
 async function route(request: IncomingMessage): Promise<{ status: number; body: unknown }> {
   // For the container's healthcheck and the deploy: up, and nothing more.
-  if (request.url === '/health' && request.method === 'GET') return { status: 200, body: { ok: true } };
-  if (!presents(request)) return { status: 401, body: { message: 'Not People' } };
+  if (request.url === '/health' && request.method === 'GET')
+    return { status: 200, body: { ok: true } };
   const path = new URL(request.url ?? '/', 'http://slack.internal');
+  const timeOff = path.pathname.startsWith('/internal/timeoff/');
+  if (!presents(request, timeOff ? timeOffToken : peopleToken)) {
+    return { status: 401, body: { message: timeOff ? 'Not Time Off' : 'Not People' } };
+  }
   const body = request.method === 'GET' ? {} : await bodyOf(request);
+  if (timeOff) return timeOffRoute(request, path.pathname, body);
 
   if (path.pathname === '/internal/notify' && request.method === 'POST') {
     const tenantId = str(body['tenantId'], 36);
     const email = str(body['email'], 320);
     const event = str(body['event'], 64);
     const url = str(body['url'], 2000);
-    if (!tenantId || !email || !event || !url || !NAME.test(event)) return { status: 400, body: {} };
+    if (!tenantId || !email || !event || !url || !NAME.test(event))
+      return { status: 400, body: {} };
     const sent = await service.notify(tenantId, {
       event: event as never,
       email,
       url,
-      ...(body['decision'] === 'approved' || body['decision'] === 'rejected' ? { decision: body['decision'] } : {}),
+      ...(body['decision'] === 'approved' || body['decision'] === 'rejected'
+        ? { decision: body['decision'] }
+        : {}),
       ...(typeof body['count'] === 'number' ? { count: body['count'] } : {}),
     });
     return { status: 202, body: { sent } };
@@ -244,14 +313,18 @@ async function route(request: IncomingMessage): Promise<{ status: number; body: 
     const origin = str(body['origin'], 300);
     if (!accountId || !origin) return { status: 400, body: {} };
     const url = service.authorizeUrl(tenantId, accountId, origin);
-    return url === null ? { status: 503, body: { message: 'Slack is not set up here.' } } : { status: 200, body: { url } };
+    return url === null
+      ? { status: 503, body: { message: 'Slack is not set up here.' } }
+      : { status: 200, body: { url } };
   }
   if (action === '/complete' && request.method === 'POST') {
     const code = str(body['code'], 500);
     const state = str(body['state'], 2000);
     if (!code || !state) return { status: 400, body: {} };
     const done = await service.complete(tenantId, code, state);
-    return done.ok ? { status: 200, body: done.body } : { status: 422, body: { message: done.message } };
+    return done.ok
+      ? { status: 200, body: done.body }
+      : { status: 422, body: { message: done.message } };
   }
   if (action === '/disconnect' && request.method === 'POST') {
     await service.disconnect(tenantId);

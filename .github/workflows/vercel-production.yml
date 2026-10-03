@@ -699,6 +699,8 @@ jobs:
           SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
           SLACK_TOKEN_KEY: ${{ secrets.SLACK_TOKEN_KEY }}
           SLACK_PEOPLE_TOKEN: ${{ secrets.SLACK_PEOPLE_TOKEN }}
+          # The Slack–Time Off pair's secret, written into both ends.
+          SLACK_TIMEOFF_TOKEN: ${{ secrets.SLACK_TIMEOFF_TOKEN }}
           # The router–audit pair's secret (`docs/audit.md`, "Deploying"),
           # written into both ends from the one secret, as PEOPLE_API_TOKEN is.
           AUDIT_API_TOKEN: ${{ secrets.AUDIT_API_TOKEN }}
@@ -714,10 +716,7 @@ jobs:
           TIMEOFF_GOOGLE_SERVICE_ACCOUNT: ${{ secrets.TIMEOFF_GOOGLE_SERVICE_ACCOUNT }}
           TIMEOFF_MICROSOFT_CLIENT_ID: ${{ secrets.TIMEOFF_MICROSOFT_CLIENT_ID }}
           TIMEOFF_MICROSOFT_CLIENT_SECRET: ${{ secrets.TIMEOFF_MICROSOFT_CLIENT_SECRET }}
-          # Slack for Time Off (TOF-111) and the key its tokens are sealed under.
-          TIMEOFF_SLACK_CLIENT_ID: ${{ secrets.TIMEOFF_SLACK_CLIENT_ID }}
-          TIMEOFF_SLACK_CLIENT_SECRET: ${{ secrets.TIMEOFF_SLACK_CLIENT_SECRET }}
-          TIMEOFF_SLACK_SIGNING_SECRET: ${{ secrets.TIMEOFF_SLACK_SIGNING_SECRET }}
+          # The key a provider's tokens are sealed under.
           TIMEOFF_INTEGRATION_KEY: ${{ secrets.TIMEOFF_INTEGRATION_KEY }}
           # Where a provider calls back: the tunnel routes Time Off's public
           # paths on this host to it (docs/environments.md, "Time Off's routes").
@@ -749,14 +748,13 @@ jobs:
               printf 'SLACK_URL=http://slack:4102\nSLACK_PEOPLE_TOKEN=%s\n' "$SLACK_PEOPLE_TOKEN"
             fi
           } | put people.env
-          printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nAUTH_ORIGIN=https://auth.app.kithena.com\nSLACK_COMMAND=/kithena\n' \
-            "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" | put slack.env
+          printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nSLACK_TIMEOFF_TOKEN=%s\nAUTH_ORIGIN=https://auth.app.kithena.com\nSLACK_COMMAND=/kithena\n' \
+            "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" "$SLACK_TIMEOFF_TOKEN" | put slack.env
           printf 'AUDIT_API_TOKEN=%s\n' "$AUDIT_API_TOKEN" | put audit.env
           {
             printf '%s\nTIMEOFF_API_TOKEN=%s\n' "$TIMEOFF_ENV" "$TIMEOFF_API_TOKEN"
             for name in TIMEOFF_PUBLIC_URL TIMEOFF_INTEGRATION_KEY TIMEOFF_GOOGLE_SERVICE_ACCOUNT \
-                        TIMEOFF_MICROSOFT_CLIENT_ID TIMEOFF_MICROSOFT_CLIENT_SECRET \
-                        TIMEOFF_SLACK_CLIENT_ID TIMEOFF_SLACK_CLIENT_SECRET TIMEOFF_SLACK_SIGNING_SECRET; do
+                        TIMEOFF_MICROSOFT_CLIENT_ID TIMEOFF_MICROSOFT_CLIENT_SECRET SLACK_TIMEOFF_TOKEN; do
               if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
             done
           } | put timeoff.env

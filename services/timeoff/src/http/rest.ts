@@ -1465,16 +1465,17 @@ export const ROUTES: readonly Route[] = [
     shape: done,
   }),
   route({
-    name: 'answerTimeOffChatAction',
+    name: 'relayTimeOffSlackAction',
     method: 'POST',
-    path: `${V1}/integrations/{provider}/actions`,
+    path: `${V1}/integrations/slack/relay`,
     summary:
-      'A press on Approve or Decline in a chat app’s message: the provider’s signature and Time Off’s checked, then decided as the approver it was sent to',
-    params: z.object({ provider: z.enum(['slack', 'teams']) }),
+      'A press on Approve or Decline in Slack, passed on by the Slack service with the pair’s secret (`x-internal-token`, not the router’s): Time Off’s signature checked, then decided as the approver it was sent to. Internal; never on the public tunnel',
+    body: z.object({ tenantId: z.uuid(), value: z.string().max(2000) }),
     answer: z.object({ text: z.string() }).meta({ title: 'TimeOffChatAnswer' }),
     graphql: false,
+    // Not the router's caller: the Slack service's own secret, checked by the adapter.
     public: true,
-    run: (deps, _caller, { params, raw }) => approveFromChat(deps)(params.provider, raw),
+    run: (deps, _caller, { raw }) => approveFromChat(deps)('slack', raw),
     shape: same,
   }),
   route({

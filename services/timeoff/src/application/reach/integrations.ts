@@ -244,6 +244,12 @@ export const connectMyIntegration =
           `${provider} cannot be connected until its credentials are set`,
         );
       }
+      if (port.memberGrant === false) {
+        return refuse(
+          'NOT_CONFIGURED',
+          `A ${provider} status while you are away is not available yet`,
+        );
+      }
       if ((await tx.integrations.get(provider)) === null) {
         return refuse('NOT_CONNECTED', `Your company has not connected ${provider}`);
       }

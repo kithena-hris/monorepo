@@ -327,6 +327,8 @@ export interface IntegrationPort {
    * a person's own grant only (a chat status), never the company's.
    */
   connectUrl(state: string, redirectUri: string, forMember?: boolean): string | null;
+  /** `false` where the provider offers no member's own grant (yet), so asking for one is refused. */
+  readonly memberGrant?: boolean;
   /** What the redirect brought, made into the company's connection; a member's own grant when one came too. */
   complete(
     answer: ProviderAnswer,
@@ -373,6 +375,7 @@ export interface ChatPort extends IntegrationPort {
   askApproval(
     integration: Integration,
     message: {
+      readonly tenantId: TenantId;
       readonly email: string;
       readonly text: string;
       readonly approve: string;
@@ -380,15 +383,20 @@ export interface ChatPort extends IntegrationPort {
     },
   ): Promise<void>;
   /**
-   * A button press, verified as the provider's own (its signing secret over
-   * the raw body): the value Time Off put on the button, and how to answer
-   * in the conversation it came from. `null` when the request is not the
-   * provider's, or not a press.
+   * A button press, verified as the provider's own — its signature over the
+   * raw body, or the secret Time Off shares with the Kithena service that
+   * relays it: the value Time Off put on the button, the company a relay
+   * says it came from, and how to answer in the conversation. `null` when
+   * the request is not the provider's, or not a press.
    */
   action(request: {
     readonly headers: Readonly<Record<string, string | string[] | undefined>>;
     readonly body: string;
-  }): { readonly value: string; readonly reply: (text: string) => Promise<void> } | null;
+  }): {
+    readonly value: string;
+    readonly tenantId?: string;
+    readonly reply: (text: string) => Promise<void>;
+  } | null;
 }
 
 /** Every adapter Time Off has, and where providers send people back to. */

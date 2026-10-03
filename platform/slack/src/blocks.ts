@@ -80,7 +80,12 @@ const day = (iso: string) => {
   const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    : d.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
 };
 
 /** The most a message lists before it says "and more". */
@@ -97,7 +102,9 @@ export function approvalBlocks(approval: Approval): readonly Block[] {
     {
       type: 'context',
       elements: [
-        mrkdwn(`Asked by ${escape(approval.requestedBy)} · takes effect ${day(approval.effectiveFrom)}`),
+        mrkdwn(
+          `Asked by ${escape(approval.requestedBy)} · takes effect ${day(approval.effectiveFrom)}`,
+        ),
       ],
     },
     {
@@ -154,7 +161,12 @@ export function approvalsMessage(
   blocks.push({ type: 'divider' });
   blocks.push({
     type: 'actions',
-    elements: [openButton(url, more > 0 ? `See all ${String(approvals.length)} in Kithena` : 'Open approvals')],
+    elements: [
+      openButton(
+        url,
+        more > 0 ? `See all ${String(approvals.length)} in Kithena` : 'Open approvals',
+      ),
+    ],
   });
   return { text: said === null ? text : `${said} ${text}`, blocks };
 }
@@ -184,6 +196,48 @@ function simple(text: string, url: string, button = 'Open in Kithena'): Message 
       { type: 'actions', elements: [openButton(url, button)] },
     ],
   };
+}
+
+/**
+ * Time Off's request, in its approver's direct messages: Time Off's sentence
+ * and its two values, which Time Off signed and alone can read. A press comes
+ * back here and is passed to Time Off as it is.
+ */
+export function timeOffApprovalMessage(m: {
+  readonly text: string;
+  readonly approve: string;
+  readonly decline: string;
+}): Message {
+  return {
+    text: m.text,
+    blocks: [
+      { type: 'section', text: mrkdwn(escape(m.text)) },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            action_id: 'timeoff_approve',
+            style: 'primary',
+            text: plain('Approve'),
+            value: m.approve,
+          },
+          {
+            type: 'button',
+            action_id: 'timeoff_decline',
+            style: 'danger',
+            text: plain('Decline'),
+            value: m.decline,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/** A sentence, alone: what a pressed message becomes. */
+export function textMessage(text: string): Message {
+  return { text, blocks: [{ type: 'section', text: mrkdwn(escape(text)) }] };
 }
 
 /** A notice as its message. An approval request is drawn from what waits, separately. */
@@ -230,7 +284,10 @@ export function noticeMessage(notice: Notice): Message {
 
 /* --------------------------------------------------------------- form -- */
 
-const option = (value: string, label: string) => ({ text: plain(label, 75), value: value.slice(0, 150) });
+const option = (value: string, label: string) => ({
+  text: plain(label, 75),
+  value: value.slice(0, 150),
+});
 
 function element(field: FormField): Block {
   const text = typeof field.value === 'string' ? field.value : null;
@@ -238,7 +295,13 @@ function element(field: FormField): Block {
   const base = { action_id: 'value' };
   switch (field.dataType) {
     case 'long_text':
-      return { ...base, type: 'plain_text_input', multiline: true, max_length: 2000, ...(text ? { initial_value: text } : {}) };
+      return {
+        ...base,
+        type: 'plain_text_input',
+        multiline: true,
+        max_length: 2000,
+        ...(text ? { initial_value: text } : {}),
+      };
     case 'number':
     case 'decimal':
     case 'percentage':
@@ -288,7 +351,12 @@ function element(field: FormField): Block {
       };
     }
     default:
-      return { ...base, type: 'plain_text_input', max_length: 500, ...(text ? { initial_value: text } : {}) };
+      return {
+        ...base,
+        type: 'plain_text_input',
+        max_length: 500,
+        ...(text ? { initial_value: text } : {}),
+      };
   }
 }
 
