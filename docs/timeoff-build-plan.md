@@ -252,7 +252,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 
 Test-first, all of it. No drivers, no I/O.
 
-### [ ] TOF-010 — Working days and days away
+### [x] TOF-010 — Working days and days away
 
 - **Spec** PRD §7.3
 - **Files** `services/timeoff/src/domain/calendar/working-days.ts`
