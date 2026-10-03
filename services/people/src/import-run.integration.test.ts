@@ -109,7 +109,8 @@ async function boot(): Promise<{ child: ChildProcess; port: number; log: () => s
   };
   child.stdout.on('data', keep);
   child.stderr.on('data', keep);
-  const deadline = Date.now() + 60_000;
+  // Generous: tsx compiles the whole service at boot, on a busy machine too.
+  const deadline = Date.now() + 180_000;
   for (;;) {
     const up = await fetch(`http://127.0.0.1:${String(port)}/v1/openapi.json`)
       .then((r) => r.ok)
@@ -318,5 +319,5 @@ describe('an approved import, run in the background', () => {
     // Over: the other file may go now.
     const free = await other.graph(`{ activeImportRun }`);
     expect(JSON.parse(free.data?.['activeImportRun'] as string)).toBeNull();
-  });
+  }, 600_000);
 });

@@ -31,7 +31,10 @@ export interface ImportRunActivities {
 
 export async function importRun(input: ImportRunInput): Promise<void> {
   const { step } = proxyActivities<ImportRunActivities>({
-    startToCloseTimeout: '15 minutes',
+    // A chunk of a 50,000-row file may take minutes; a worker that died is
+    // noticed by its silence (it heartbeats every 5 s), not by this.
+    startToCloseTimeout: '30 minutes',
+    heartbeatTimeout: '30 seconds',
     // A restart, a deploy or the database waking: minutes of retrying, then stop.
     retry: {
       initialInterval: '5 seconds',

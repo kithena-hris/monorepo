@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as z from 'zod';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { logger } from '@kithena/telemetry';
 import { RequirednessPredicate, VisibilityRule } from '@kithena/contracts';
 
 import {
@@ -1411,7 +1412,11 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
         const answered = await approve(asking, request, params, query);
         const runId = (answered.body as { runId?: unknown } | null)?.runId;
         if (answered.status < 300 && typeof runId === 'string' && runs !== undefined) {
-          await runs.kick(asking.tenantId, runId);
+          // Approved either way: a worker that cannot be started now is
+          // started by the next pick-up (`startImportRuns`).
+          await runs.kick(asking.tenantId, runId).catch((cause: unknown) => {
+            logger.warn({ err: cause, runId }, 'import run not started yet');
+          });
         }
         return answered;
       },

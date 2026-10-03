@@ -7,6 +7,7 @@ import {
   WorkflowIdConflictPolicy,
   WorkflowIdReusePolicy,
 } from '@temporalio/client';
+import { Context } from '@temporalio/activity';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import { logger } from '@kithena/telemetry';
 
@@ -65,17 +66,55 @@ export async function startImportRuns(
   const namespace = env['TEMPORAL_NAMESPACE'] ?? 'default';
   const acts = activities(deps);
   const runner = address ? await temporal(address, namespace, acts) : inProcess(acts, options);
-  // Whatever was going when the last process stopped.
-  void going().then(
-    async (runs) => {
-      // eslint-disable-next-line no-await-in-loop -- a handful, once at boot
-      for (const r of runs) await runner.kick(r.tenantId, r.runId);
+  // Whatever was going when the last process stopped, and then every few
+  // minutes whatever an approval could not start (Temporal unreachable at
+  // that moment): joining a running workflow is harmless.
+  const pickUp = (): void => {
+    void going()
+      .then(async (runs) => {
+        // eslint-disable-next-line no-await-in-loop -- a handful, one at a time
+        for (const r of runs) await runner.kick(r.tenantId, r.runId);
+      })
+      .catch((cause: unknown) => {
+        logger.error({ module: 'people', err: cause }, 'imports still going were not picked up');
+      });
+  };
+  pickUp();
+  const again = setInterval(pickUp, PICK_UP_MS);
+  again.unref();
+  return {
+    kick: (tenantId, runId) => runner.kick(tenantId, runId),
+    async close() {
+      clearInterval(again);
+      await runner.close();
     },
-    (cause: unknown) => {
-      logger.error({ module: 'people', err: cause }, 'imports still going were not picked up');
+  };
+}
+
+const PICK_UP_MS = 5 * 60_000;
+
+/**
+ * A chunk heartbeats while it works, so a worker that dies mid-chunk is
+ * noticed in half a minute (`heartbeatTimeout`) and the chunk retried on the
+ * next one, however long a chunk of a large file takes.
+ */
+const HEARTBEAT_MS = 5_000;
+
+function beating(acts: ImportRunActivities): ImportRunActivities {
+  return {
+    async step(input) {
+      const ctx = Context.current();
+      const beat = setInterval(() => {
+        ctx.heartbeat();
+      }, HEARTBEAT_MS);
+      try {
+        return await acts.step(input);
+      } finally {
+        clearInterval(beat);
+      }
     },
-  );
-  return runner;
+    stop: (input, why) => acts.stop(input, why),
+  };
 }
 
 async function temporal(
@@ -88,7 +127,7 @@ async function temporal(
     namespace,
     taskQueue: TASK_QUEUE,
     workflowsPath: workflowsPath(),
-    activities: acts,
+    activities: beating(acts),
   });
   const running = worker.run();
   running.catch((cause: unknown) => {
