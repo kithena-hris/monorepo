@@ -456,7 +456,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 
 ## Phase 1 — Time Off's capabilities
 
-### [ ] AST-022 — Time Off serves the catalogue
+### [x] AST-022 — Time Off serves the catalogue
 
 - **Spec** PRD §8.4, §8.5, §10.2
 - **Files** `services/timeoff/src/http/capabilities.ts`,
@@ -472,6 +472,18 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** a test shows the router's token refused here and the
   assistant's refused everywhere else, and the standalone suite (People absent)
   serves the catalogue.
+- **As built** `caller.ts` is unchanged: the assistant's caller is
+  `withMember(callerFromHeaders(ASSISTANT_TIMEOFF_TOKEN))`, the router's code
+  over the other token, and the listener sends only `/internal/capabilities*`
+  to it. The routes are their own small table in `http/capabilities.ts`, not
+  `ROUTES`, so they never reach OpenAPI, the subgraph or persisted operations;
+  every handler is a read, so there is no read-only unit of work to wrap.
+  Leave types carry `key`, `name`, `private` (lane 2's `CatalogueLeaveType`
+  has no category), and a private type is never a `leave_type` option by name,
+  only in `leaveTypes`, so a missed mask cannot show it to a model. No
+  location field: `timeoff.away` filters only by leave type and team, and a
+  row's location is in its `groups`. `DENIED` moved to
+  `application/assist/denied.ts` so the application layer can serve it.
 
 ### [ ] AST-023 — `timeoff.away`
 
