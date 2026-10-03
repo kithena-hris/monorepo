@@ -307,7 +307,7 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** MT20's ledger folds to 11.5 left with 10.5 used and 3 booked,
   and a superseded entry is excluded exactly once.
 
-### [ ] TOF-015 — Negative balance
+### [x] TOF-015 — Negative balance
 
 - **Spec** PRD §7.4
 - **Files** `services/timeoff/src/domain/balance/negative.ts`
@@ -318,6 +318,11 @@ Test-first, all of it. No drivers, no I/O.
 - **Done when** T5's numbers come out: 6.5 left, 8 requested, borrow 1.5,
   2027 starts at 23.5, approvers manager then HR; and 10 requested is refused
   at a limit of 3.
+- **As built** T5 labels the shorten option "14–21 Dec, 6.5 days", but 14–21
+  Dec is 6 working days. `goingBelowZero` returns 14–22 Dec ending on a half
+  day, which is what 6.5 actually covers, or 14–21 Dec at 6 when the policy
+  allows no half days. The function takes the working dates as input rather
+  than computing them, because TOF-010 owns working days.
 
 ### [ ] TOF-016 — The request aggregate, rewritten
 
