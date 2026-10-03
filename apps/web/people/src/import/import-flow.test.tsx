@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
 import { ImportFlow, type ImportFlowProps, type ImportStage } from './import-flow';
+import { ExistingStep } from './new-fields';
 import {
   DONE,
   MAPPING,
@@ -215,11 +216,14 @@ describe('ImportFlow', () => {
     const choices = screen.getByRole('radiogroup', {
       name: 'What happens for the people without T-shirt size',
     });
-    expect(within(choices).getByRole('radio', { name: /Leave it empty/ })).toBeChecked();
+    // Their own detail: asked of them, not typed in by HR.
+    expect(within(choices).getByRole('radio', { name: /Ask the 4 people to fill it in/ })).toBeChecked();
     expect(within(choices).getByText('Suggested')).toBeInTheDocument();
     expect(
-      screen.getByText('Why this suggestion: Nice to have: nobody is chased for it.'),
+      screen.getByText('Why this suggestion: About them, not their job: the employee tells us.'),
     ).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /T-shirt size/ })).toHaveTextContent('Ask the 4 people');
+    expect(screen.getByRole('row', { name: /Laptop serial/ })).toHaveTextContent('HR fills it in');
     // Who has no value, by name, then who the file doesn't reach.
     const without = screen.getByRole('table', { name: 'People without T-shirt size' });
     expect(
@@ -233,17 +237,43 @@ describe('ImportFlow', () => {
     ).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
 
-    await user.click(
-      within(choices).getByRole('radio', { name: /Ask the 4 people to fill it in/ }),
-    );
+    // The suggestion is a starting point: one click changes it.
+    await user.click(within(choices).getByRole('radio', { name: /Leave it empty/ }));
     await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
     await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
     const [, proposals] = plan.mock.calls[0] as unknown as [
       unknown,
       { key: string; include: boolean; forExisting: unknown }[],
     ];
-    expect(proposals.find((p) => p.key === 't_shirt_size')?.forExisting).toEqual({ kind: 'ask' });
+    expect(proposals.find((p) => p.key === 't_shirt_size')?.forExisting).toEqual({
+      kind: 'leave',
+    });
+    expect(proposals.find((p) => p.key === 'laptop_serial')?.forExisting).toEqual({ kind: 'hr' });
     expect(proposals.find((p) => p.key === 'dietary_requirements')?.include).toBe(true);
+  });
+
+  it('suggests HR for an employment detail, with its reason (AI10)', () => {
+    const kept = NEW_FIELDS.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p);
+    render(
+      <ExistingStep
+        view={NEW_FIELDS}
+        kept={kept}
+        selected="laptop_serial"
+        onSelect={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+    const laptop = screen.getByRole('radiogroup', {
+      name: 'What happens for the people without Laptop serial',
+    });
+    expect(within(laptop).getByRole('radio', { name: /HR fills in the 4/ })).toBeChecked();
+    expect(within(laptop).getByText('Suggested')).toBeInTheDocument();
+    expect(
+      screen.getByText('Why this suggestion: The company assigns it: HR fills it in.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/their own details \(bank, documents, home, family\) are asked of them/u),
+    ).toBeInTheDocument();
   });
 
   it('says everything that will happen, and runs it on one approval (AI11)', async () => {
@@ -258,6 +288,11 @@ describe('ImportFlow', () => {
     await user.click(await screen.findByRole('button', { name: 'Next: review the plan' }));
     await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
     for (const s of PLAN.steps) expect(screen.getByText(s.title)).toBeInTheDocument();
+    // Who is asked, once each, and what HR fills in.
+    expect(
+      screen.getByText('Ask 4 people for 1 personal detail (T-shirt size)'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('HR fills 1 employment detail for 4 people')).toBeInTheDocument();
     expect(
       screen.getByText('Written from your choices. Nothing has happened yet.'),
     ).toBeInTheDocument();
