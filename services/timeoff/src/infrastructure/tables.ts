@@ -40,6 +40,7 @@ export const member = timeoff.table(
     personId: uuid('person_id').notNull(),
     displayName: text('display_name').notNull(),
     firstName: text('first_name'),
+    workEmail: text('work_email'),
     managerPersonId: uuid('manager_person_id'),
     teamKey: text('team_key'),
     teamName: text('team_name'),

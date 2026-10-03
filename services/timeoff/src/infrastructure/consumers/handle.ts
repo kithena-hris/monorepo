@@ -198,6 +198,7 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
             accountId: p.identityAccountId ?? existing?.accountId ?? null,
             displayName: `${p.name.preferred ?? p.name.given} ${p.name.family}`,
             firstName: p.name.preferred ?? p.name.given,
+            workEmail: p.workEmail,
             managerPersonId: p.managerId,
             teamKey,
             teamName: existing !== null && existing.teamKey === teamKey ? existing.teamName : null,

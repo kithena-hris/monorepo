@@ -5,11 +5,12 @@ import { createYoga } from 'graphql-yoga';
 import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
 
-import type { UnitOfWork } from './application/ports.js';
+import type { Reach, UnitOfWork } from './application/ports.js';
 import { yogaOptions } from './graphql/schema.js';
 import { callerFromHeaders, withMember } from './http/caller.js';
 import { timeoffListener, timeoffServer } from './http/server.js';
 import { logNotifier } from './infrastructure/background.js';
+import { reachFrom } from './infrastructure/integrations/index.js';
 import {
   nobodyRelates,
   syncingTuples,
@@ -43,6 +44,8 @@ export interface Composed {
     readonly db: PostgresJsDatabase;
     readonly uow: UnitOfWork;
     readonly tuples?: MemberTuples;
+    /** Calendars and chat apps, for the consumer and the jobs that reach them. */
+    readonly reach: Reach;
   } | null;
 }
 
@@ -95,6 +98,7 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
   const timers = await startEscalation(env, { uow, newId: uuidv7, notifier: logNotifier });
   onShutdown('escalation worker', () => timers.close());
 
+  const reach = reachFrom(env);
   const { listener } = timeoffServer({
     uow,
     authz: fga?.authorizer ?? nobodyRelates,
@@ -102,9 +106,10 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
     callerFrom: withMember(callerFromHeaders(internalToken), uow),
     timers,
     notifier: logNotifier,
+    reach,
   });
   return {
     listener,
-    storage: { db, uow, ...(synced === null ? {} : { tuples: synced.tuples }) },
+    storage: { db, uow, reach, ...(synced === null ? {} : { tuples: synced.tuples }) },
   };
 }

@@ -60,6 +60,7 @@ export function member(personId: PersonId, name: string, over: Partial<Member> =
     accountId: personId.replace(/^00000000/u, '0000000a'),
     displayName: name,
     firstName: name.split(' ')[0] ?? name,
+    workEmail: `${(name.split(' ')[0] ?? name).toLowerCase()}@acme.example`,
     managerPersonId: personId === people.marco ? null : people.marco,
     teamKey: PLATFORM,
     teamName: 'Platform',

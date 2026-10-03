@@ -64,6 +64,12 @@ export const MemberFields = z.object({
   accountId: z.string().check(z.uuid()).nullable().default(null),
   displayName: z.string().trim().min(1).max(200),
   firstName: z.string().trim().min(1).max(100),
+  /**
+   * The member's work address: how a calendar or chat app knows whose
+   * calendar or status is theirs (TOF-110, TOF-111). Never shown on a screen
+   * Time Off draws, and never on an event it raises.
+   */
+  workEmail: z.string().trim().max(320).check(z.email()).nullable().default(null),
   managerPersonId: PersonId.nullable().default(null),
   teamKey: TeamKey.nullable().default(null),
   teamName: z.string().trim().max(200).nullable().default(null),

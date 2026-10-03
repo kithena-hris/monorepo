@@ -163,6 +163,7 @@ describe('the People consumer', () => {
       accountId: ADAM_ACCOUNT,
       displayName: 'Adam Novak',
       firstName: 'Adam',
+      workEmail: 'adam.novak@acme.example',
       managerPersonId: people.omar,
       teamKey: teamKeyOf(ORG),
       teamName: null,

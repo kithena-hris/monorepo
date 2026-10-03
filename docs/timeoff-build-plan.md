@@ -1725,11 +1725,46 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
   Benefits and Projects as "Kithena module", each with the events it would
   read. The design's "Browse more" has nothing to browse and is left out.
 
-### [ ] TOF-110 — Calendar integration (Google, Microsoft)
+### [x] TOF-110 — Calendar integration (Google, Microsoft)
 
 - **Depends on** TOF-109
 - **Approach** Behind a port; out-of-office on approval; holidays per location.
   Needs OAuth credentials a person must create.
+- **As built** `CalendarPort` in `application/ports.ts`;
+  `application/reach/calendar.ts` puts a request on its member's calendar
+  as it stands (approved: its spans, `request-<id>-<n>`; anything else: none),
+  titled "Out of office" and nothing more, from Time Off's own
+  `timeoff.request.approved|changed|cancelled` read back by a consumer group
+  of its own (`timeoff-reach`, new events only), so a failed call is retried
+  with the event; a provider's refusal is logged, never thrown. The monthly
+  `calendar-holidays` job puts each member's holidays for this year and next
+  (`holiday-<layer>-<date>`) from the layers their location observes. Both
+  need the member's work address: `member.work_email`, from People's
+  `hired`, an import or SCIM, never on an event or a screen. Adapters in
+  `infrastructure/integrations/`: **Google** (`google.ts`), a service account
+  with domain-wide delegation acting as each member — JWT bearer token, then
+  Calendar v3 update-then-insert with an id from the key's hash,
+  `eventType: outOfOffice` midnight to midnight, a holiday as an all-day free
+  day; connecting is recorded at once because consent is given in the
+  company's Google admin console. **Microsoft** (`microsoft.ts`), a
+  multi-tenant Entra app with application permissions — admin consent (the
+  directory id is all that is kept), client-credentials token per directory,
+  Graph `POST`/`PATCH`/`DELETE` on `/users/{email}/events`, found by a
+  single-value extended property holding the key, `showAs: oof`. Both are
+  inert without credentials. The handover's out-of-office switch (TOF-105)
+  still shows as waiting: what it promised now happens on approval.
+- **Credentials a person must create** (none were created here):
+  - Google: a Google Cloud project with the Calendar API enabled, a service
+    account with a JSON key → `TIMEOFF_GOOGLE_SERVICE_ACCOUNT`; each
+    customer's Workspace administrator then adds the service account's
+    client id under Security › API controls › Domain-wide delegation with
+    the scope `https://www.googleapis.com/auth/calendar.events`.
+  - Microsoft: a multi-tenant app registration in Microsoft Entra with the
+    application permission `Calendars.ReadWrite` (Microsoft Graph), a
+    client secret, and the redirect URI
+    `<TIMEOFF_PUBLIC_URL>/v1/timeoff/integrations/microsoft/callback` →
+    `TIMEOFF_MICROSOFT_CLIENT_ID`, `TIMEOFF_MICROSOFT_CLIENT_SECRET`.
+  - `TIMEOFF_PUBLIC_URL` routed by the tunnel to Time Off's `/v1/timeoff/`.
 
 ### [ ] TOF-111 — Chat integration (Slack, then Teams)
 
