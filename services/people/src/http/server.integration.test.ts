@@ -1798,7 +1798,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     try {
       const [direct] = (await client.unsafe(
         `SELECT count(*)::int AS n FROM people.person WHERE tenant_id = $1::uuid AND manager_id = $2::uuid`,
-        [TENANT, boss?.id],
+        [TENANT, boss?.id ?? ''],
       )) as unknown as { n: number }[];
       expect((reports.data?.['peopleDirectory'] as Listed).total).toBe(direct?.n);
       expect(direct?.n).toBeGreaterThan(1);

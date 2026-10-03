@@ -496,9 +496,12 @@ describe('rankings, counts and what was not understood', () => {
       { ...w.asking, viewer: { accountId: TOBY_ACCOUNT, roles: new Set<string>() } },
       { sentence: USER },
     );
-    expect(plan.ok && plan.value).toMatchObject({ sort: null, top: null });
+    expect(plan.ok && plan.value).toMatchObject({
+      sort: null,
+      top: null,
+      unused: ['highest', 'missing', 'fields'],
+    });
     expect(plan.ok && plan.value.notes).toEqual([
-      'Not understood: “highest”, “missing”, “fields”.',
       'None of it is a field or an order People knows, so this is everybody you can see.',
     ]);
   });
@@ -506,9 +509,14 @@ describe('rankings, counts and what was not understood', () => {
   it('a question it cannot read at all still answers: everybody, and what was not understood', async () => {
     const w = world({ model: false });
     const plan = await planDirectory(w.deps, w.asking, { sentence: 'who has the shiniest shoes' });
-    expect(plan.ok && plan.value).toMatchObject({ conditions: [], sort: null, by: 'rules' });
+    expect(plan.ok && plan.value).toMatchObject({
+      conditions: [],
+      sort: null,
+      unused: ['shiniest', 'shoes'],
+      by: 'rules',
+    });
+
     expect(plan.ok && plan.value.notes).toEqual([
-      'Not understood: “shiniest”, “shoes”.',
       'None of it is a field or an order People knows, so this is everybody you can see.',
     ]);
   });

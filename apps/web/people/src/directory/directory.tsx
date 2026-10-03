@@ -113,6 +113,22 @@ export interface DirectorySort {
   readonly direction: 'asc' | 'desc';
 }
 
+/**
+ * Something People works out about each person that the directory may be
+ * ordered by — missing details, tenure, direct reports — with the order in
+ * words both ways. One that is `filter` is in `fields` too.
+ */
+export interface DirectoryMetric {
+  readonly key: string;
+  readonly label: string;
+  readonly kind: string;
+  readonly filter: boolean;
+  /** Descending, in words: "most missing details". */
+  readonly most: string;
+  /** Ascending: "fewest missing details". */
+  readonly least: string;
+}
+
 export interface DirectoryPerson {
   readonly id: string;
   readonly name: string;
@@ -148,12 +164,16 @@ export interface DirectoryState {
   readonly columns: readonly DirectoryColumn[];
   /** Everything a condition may name. Absent: no advanced filters. */
   readonly fields?: readonly DirectoryField[];
+  /** What People works out that this viewer may order by (`?sort=missing_count:desc`). */
+  readonly metrics?: readonly DirectoryMetric[];
   /** The conditions and order this page answers. */
   readonly query?: {
     readonly conditions: readonly DirectoryCondition[];
     /** all or any. */
     readonly match: string;
     readonly sort: DirectorySort | null;
+    /** At most this many people (`?top=5`); null or absent for everybody found. */
+    readonly top?: number | null;
   };
   readonly filterable: readonly DirectoryFilter[];
   readonly people: readonly DirectoryPerson[];
@@ -265,6 +285,8 @@ export type DirectoryAsked =
       readonly by: 'search' | 'person' | 'assistant' | 'rules';
       /** Why the assistant did not read it, when it did not. */
       readonly note: string | null;
+      /** What was read and how, where the chips do not say it: a manager not found, a grouping. */
+      readonly notes?: readonly string[];
       /** Words nothing was made of. */
       readonly unused: readonly string[];
       /** How many conditions and orders it became; none, and names were searched for it. */
@@ -695,9 +717,17 @@ type Answered = Extract<DirectoryAsked, { ok: true }>;
 const peopleCount = (n: number): string =>
   `${n.toLocaleString('en-GB')} ${n === 1 ? 'person' : 'people'}`;
 
-/** "ordered by start date, latest first": an order in words. */
-function orderWords(sort: DirectorySort, fields: readonly DirectoryField[]): string {
+/** "ordered by start date, latest first", "sorted by most missing details": an order in words. */
+function orderWords(
+  sort: DirectorySort,
+  fields: readonly DirectoryField[],
+  metrics: readonly DirectoryMetric[] = [],
+): string {
   if (sort.key === 'name') return `sorted by name${sort.direction === 'desc' ? ', Z to A' : ''}`;
+  const metric = metrics.find((m) => m.key === sort.key);
+  if (metric !== undefined) {
+    return `sorted by ${sort.direction === 'desc' ? metric.most : metric.least}`;
+  }
   const field = fields.find((f) => f.key === sort.key);
   const label = (field?.label ?? sort.key).toLowerCase();
   const way =
@@ -705,11 +735,18 @@ function orderWords(sort: DirectorySort, fields: readonly DirectoryField[]): str
       ? sort.direction === 'desc'
         ? 'latest first'
         : 'earliest first'
-      : sort.direction === 'desc'
-        ? 'Z to A'
-        : 'A to Z';
+      : field?.kind === 'number'
+        ? sort.direction === 'desc'
+          ? 'highest first'
+          : 'lowest first'
+        : sort.direction === 'desc'
+          ? 'Z to A'
+          : 'A to Z';
   return `ordered by ${label}, ${way}`;
 }
+
+/** "Most missing details": an order as a menu offers it. */
+const capital = (s: string): string => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
 
 /** A whole year, a whole month, or the range as written. */
 function spanWords(from: string, to: string): string {
@@ -1056,6 +1093,8 @@ function Body({
   const conditions = state.query?.conditions ?? [];
   const match = state.query?.match === 'any' ? 'any' : 'all';
   const sort = state.query?.sort ?? null;
+  const top = state.query?.top ?? null;
+  const metrics = state.metrics ?? [];
   const kindOf = new Map(fields.map((f) => [f.key, f.kind]));
   // What people can be grouped by: a choice, a place, a manager, a status.
   const groupable = fields.filter(
@@ -1510,13 +1549,31 @@ function Body({
         );
       },
     })),
-    ...(sort === null || sort.key === 'name' || onSortChange === undefined
+    ...(grouping === null || onGroupChange === undefined
+      ? []
+      : [
+          {
+            key: 'group',
+            field: 'Grouped by',
+            text: grouping.label,
+            onRemove: () => {
+              onGroupChange(null);
+            },
+          },
+        ]),
+    ...(sort === null ||
+    (sort.key === 'name' && top === null) ||
+    grouping !== null ||
+    onSortChange === undefined
       ? []
       : [
           {
             key: 'sort',
-            field: 'Order',
-            text: orderWords(sort, fields).replace(/^ordered by /u, ''),
+            field: 'Sorted by',
+            // "most missing details · top 1"
+            text: `${orderWords(sort, fields, metrics).replace(/^(ordered|sorted) by /u, '')}${
+              top === null ? '' : ` · top ${String(top)}`
+            }`,
             onRemove: () => {
               onSortChange(null);
             },
@@ -1545,6 +1602,16 @@ function Body({
       ? null
       : `“${said.remembered.phrase}” read as you chose before: ${said.remembered.label}.`;
   const sayNote = [remembered, said?.note ?? null].filter((x) => x !== null).join(' ') || null;
+  // What was not understood, said in words beside the dashed chips; then anything else to say.
+  const notUnderstood =
+    (said?.unused ?? []).length === 0
+      ? null
+      : `Not understood: ${(said?.unused ?? []).map((u) => `“${u}”`).join(', ')}.`;
+  const sayNotes = [
+    ...(notUnderstood === null ? [] : [notUnderstood]),
+    ...(said?.notes ?? []),
+    ...(sayNote === null ? [] : [sayNote]),
+  ];
   const remindKeys = state.remind ?? null;
   const canRemind = onRemind !== undefined && remindKeys !== null && state.total > 0;
   const remindAll = (): void => {
@@ -1603,7 +1670,7 @@ function Body({
               {failed}
             </p>
           )}
-          {fromQuestion && understood.length + unusedParts.length > 0 ? (
+          {fromQuestion && understood.length + unusedParts.length + sayNotes.length > 0 ? (
             <Understood
               chips={understood}
               unused={unusedParts}
@@ -1614,7 +1681,7 @@ function Body({
                       setFiltersOpen(true);
                     },
                   })}
-              note={sayNote}
+              notes={sayNotes}
             />
           ) : null}
           {said?.ask == null || said.ask.readings.length === 0 ? null : (
@@ -1728,6 +1795,43 @@ function Body({
               {fromQuestion && saveable ? (
                 <SaveSegment onSave={onSaveSegment} label="Save as view" />
               ) : null}
+              {onSortChange === undefined || metrics.length === 0 || grouping !== null ? null : (
+                // What People works out, as orders a person can pick by hand.
+                <Select
+                  value={
+                    sort !== null && metrics.some((m) => m.key === sort.key)
+                      ? `${sort.key}:${sort.direction}`
+                      : ANY
+                  }
+                  onValueChange={(value) => {
+                    const [key = '', direction] = value.split(':');
+                    onSortChange(
+                      value === ANY
+                        ? null
+                        : { key, direction: direction === 'asc' ? 'asc' : 'desc' },
+                    );
+                  }}
+                >
+                  <SelectTrigger aria-label="Sort by" size="sm" className="w-auto min-w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ANY}>
+                      {sort === null || metrics.every((m) => m.key !== sort.key)
+                        ? 'Sort by…'
+                        : 'No ranking'}
+                    </SelectItem>
+                    {metrics.flatMap((m) => [
+                      <SelectItem key={`${m.key}:desc`} value={`${m.key}:desc`}>
+                        {capital(m.most)}
+                      </SelectItem>,
+                      <SelectItem key={`${m.key}:asc`} value={`${m.key}:asc`}>
+                        {capital(m.least)}
+                      </SelectItem>,
+                    ])}
+                  </SelectContent>
+                </Select>
+              )}
               {onGroupChange === undefined || groupable.length === 0 || view !== 'list' ? null : (
                 <Select
                   value={grouping?.key ?? ANY}
@@ -1907,7 +2011,7 @@ function Body({
           {loaded.added === null || loaded.loading ? null : (
             <span className="sr-only">{loaded.added} more loaded. </span>
           )}
-          {`Results stream in ${String(DIRECTORY_PAGE)} at a time${sort === null ? '' : `, ${orderWords(sort, fields)}`}.`}
+          {`Results stream in ${String(DIRECTORY_PAGE)} at a time${sort === null ? '' : `, ${orderWords(sort, fields, metrics)}`}.`}
         </p>
       )}
       {onLoadMore !== undefined ||

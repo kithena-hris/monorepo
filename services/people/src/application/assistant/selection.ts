@@ -279,13 +279,16 @@ export async function planDirectory(
   if (!loaded.ok) return loaded;
   const fields = { value: loaded.value.fields };
   const metrics = loaded.value.metrics;
-  if (isEmail(sentence) || isPlainSearch(sentence, fields.value)) {
-    // One match is that person; none or several, the names to choose from.
+  // One match is that person; none or several, the names to choose from.
+  const byName = async () => {
     const found = await run(deps.service, asking.tenantId, (tx) =>
       deps.service.access.list(tx, { ...asking, search: sentence, limit: 2 }),
     );
-    const one = found.ok && found.value.items.length === 1 ? found.value.items[0] : undefined;
-    return ok({
+    return found.ok ? found.value.items : [];
+  };
+  const asSearch = (found: readonly PersonView[]): DirectoryPlanView => {
+    const one = found.length === 1 ? found[0] : undefined;
+    return {
       search: sentence,
       conditions: [],
       match: 'all',
@@ -300,7 +303,10 @@ export async function planDirectory(
       ask: null,
       refused: [],
       remembered: null,
-    });
+    };
+  };
+  if (isEmail(sentence) || isPlainSearch(sentence, fields.value)) {
+    return ok(asSearch(await byName()));
   }
   const today = deps.clock.instant().slice(0, 10);
   const sifted = sift(sentence, fields.value, today, input.remembered ?? {});
@@ -370,7 +376,6 @@ export async function planDirectory(
             },
     });
   }
-  if (unused.length > 0) notes.push(`Not understood: ${unused.map((u) => `“${u}”`).join(', ')}.`);
   const understood =
     selection.conditions.length > 0 ||
     plan.sort !== null ||
@@ -380,6 +385,9 @@ export async function planDirectory(
     asked !== null ||
     refused.length > 0;
   if (!understood) {
+    // A long name is still a name: whoever it finds, as a search would.
+    const found = await byName();
+    if (found.length > 0) return ok(asSearch(found));
     notes.push('None of it is a field or an order People knows, so this is everybody you can see.');
   }
   return ok({

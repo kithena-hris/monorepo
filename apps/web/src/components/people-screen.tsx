@@ -818,14 +818,15 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           ) => {
             query({ conditions: conditionsKey(conditions), match: match === 'any' ? 'any' : null });
           },
+          // A new order is a new list: "top 5" of the old one goes with it.
           onSortChange: (sort: { key: string; direction: 'asc' | 'desc' } | null) => {
-            query({ sort: sort === null ? null : `${sort.key}:${sort.direction}` });
+            query({ sort: sort === null ? null : `${sort.key}:${sort.direction}`, top: null });
           },
           // Grouped, People orders by the same column, so a group is never split
           // across pages. The screen checks it is a column that groups.
           group: at('group'),
           onGroupChange: (key: string | null) => {
-            query({ group: key, sort: key === null ? null : `${key}:asc` });
+            query({ group: key, sort: key === null ? null : `${key}:asc`, top: null });
           },
           // Infinite scroll: the next page of the same query, appended in place.
           ...(next === null
@@ -874,7 +875,15 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onAsk: async (sentence: string, remembered: Readonly<Record<string, string>>) => {
             const nothing = { note: null, unused: [], filters: 0, search: null };
             if (sentence === '') {
-              query({ ask: null, q: null, conditions: null, match: null, sort: null });
+              query({
+                ask: null,
+                q: null,
+                conditions: null,
+                match: null,
+                sort: null,
+                top: null,
+                group: null,
+              });
               return { ok: true, by: 'search', ...nothing };
             }
             const planned = await actions.planDirectory(sentence, remembered);
@@ -884,6 +893,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               conditions: readonly { key: string; op: string; values: readonly string[] }[];
               match: 'all' | 'any';
               sort: string | null;
+              top: number | null;
+              group: string | null;
+              notes: readonly string[];
               unused: readonly string[];
               by: 'search' | 'assistant' | 'rules';
               note: string | null;
@@ -914,9 +926,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               go(`/people/${plan.person.id}`);
               return { ok: true, by: 'person', ...nothing };
             }
-            const filters = plan.conditions.length + (plan.sort === null ? 0 : 1);
-            const asking = plan.ask !== null || plan.refused.length > 0;
-            if (plan.by === 'search' || (filters === 0 && !asking)) {
+            const filters =
+              plan.conditions.length + (plan.sort === null ? 0 : 1) + (plan.group === null ? 0 : 1);
+            // A name People searched for. A question it could not read stays a
+            // question, with what was not understood said: never a blank search.
+            if (plan.by === 'search') {
               query({ q: plan.search ?? sentence, ask: null });
               return { ok: true, by: 'search', ...nothing };
             }
@@ -925,17 +939,23 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               q: plan.search,
               conditions: conditionsKey(plan.conditions),
               match: plan.match === 'any' ? 'any' : null,
-              // A question's results stream in by name unless it asked for an order.
-              sort: plan.sort ?? (plan.conditions.length > 0 ? 'name:asc' : null),
+              // Grouped, People orders by the group; otherwise a question's
+              // results stream in by name unless it asked for an order.
+              sort:
+                plan.group !== null
+                  ? `${plan.group}:asc`
+                  : (plan.sort ?? (plan.conditions.length > 0 ? 'name:asc' : null)),
+              top: plan.top === null ? null : String(plan.top),
               filter: null,
               segment: null,
               incomplete: null,
-              group: null,
+              group: plan.group,
             });
             return {
               ok: true,
               by: plan.by,
               note: plan.note,
+              notes: plan.notes,
               unused: plan.unused,
               filters,
               search: plan.search,

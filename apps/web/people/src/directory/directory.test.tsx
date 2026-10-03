@@ -642,6 +642,101 @@ describe('the directory’s search, in the address (smart search: AI1–AI4)', (
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('“person with the highest missing fields”: sorted by most missing details, top 1, and the same order by hand', async () => {
+    const user = fast();
+    const onSortChange = vi.fn();
+    const onAsk = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'rules' as const,
+        note: null,
+        notes: [],
+        unused: [],
+        filters: 1,
+        search: null,
+      }),
+    );
+    const ranked: DirectoryState = {
+      ...asked,
+      total: 1,
+      people: state.people.slice(1),
+      metrics: [
+        {
+          key: 'missing_count',
+          label: 'Missing details',
+          kind: 'number',
+          filter: true,
+          most: 'most missing details',
+          least: 'fewest missing details',
+        },
+      ],
+      query: {
+        conditions: [],
+        match: 'all',
+        sort: { key: 'missing_count', direction: 'desc' },
+        top: 1,
+      },
+    };
+    const sentence = 'person with the highest missing fields';
+    const { container, rerender } = render(<Directory {...props({ onAsk, onSortChange })} />);
+    await user.type(screen.getByRole('searchbox', { name: 'Search people' }), `${sentence}{Enter}`);
+    expect(onAsk).toHaveBeenCalledWith(sentence, {});
+    rerender(
+      <Directory
+        {...props({
+          onAsk,
+          onSortChange,
+          asked: sentence,
+          onConditionsChange: vi.fn(),
+          load: { status: 'ready', data: ranked },
+        })}
+      />,
+    );
+    const row = await screen.findByRole('group', { name: 'Understood as' });
+    expect(
+      within(row).getByRole('button', { name: 'Remove Sorted by most missing details · top 1' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/null/u)).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+    // The same metrics, as orders anybody can pick.
+    await user.click(screen.getByRole('combobox', { name: 'Sort by' }));
+    await user.click(await screen.findByRole('option', { name: 'Fewest missing details' }));
+    expect(onSortChange).toHaveBeenCalledWith({ key: 'missing_count', direction: 'asc' });
+  });
+
+  it('a question nothing could be read of still answers: what was not understood, said', async () => {
+    const user = fast();
+    const onAsk = vi.fn(() =>
+      Promise.resolve({
+        ok: true as const,
+        by: 'rules' as const,
+        note: null,
+        notes: [
+          'None of it is a field or an order People knows, so this is everybody you can see.',
+        ],
+        unused: ['shiniest', 'shoes'],
+        filters: 0,
+        search: null,
+      }),
+    );
+    const sentence = 'who has the shiniest shoes';
+    const everybody: DirectoryState = {
+      ...asked,
+      query: { conditions: [], match: 'all', sort: null },
+    };
+    const { rerender } = render(<Directory {...props({ onAsk })} />);
+    await user.type(screen.getByRole('searchbox', { name: 'Search people' }), `${sentence}{Enter}`);
+    rerender(
+      <Directory
+        {...props({ onAsk, asked: sentence, load: { status: 'ready', data: everybody } })}
+      />,
+    );
+    expect(await screen.findByText('Not understood: “shiniest”, “shoes”.')).toBeInTheDocument();
+    expect(screen.getByText(/so this is everybody you can see/u)).toBeInTheDocument();
+    // Everybody, not a blank page.
+    expect(screen.getAllByText('Lena Moreau').length).toBeGreaterThan(0);
+  });
+
   it('offers questions from the company’s own fields and recent searches; picking one asks it', async () => {
     const user = fast();
     window.localStorage.setItem('people.directory.recent', JSON.stringify(['Lena Moreau']));
