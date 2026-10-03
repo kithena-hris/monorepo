@@ -13,6 +13,7 @@ import { Overview as OverviewScreen } from './overview/overview';
 import { placeholder } from './placeholder';
 import { ApprovalSettings as ApprovalSettingsScreen } from './settings/approval-settings';
 import { AttendanceSettings as AttendanceSettingsScreen } from './settings/attendance-settings';
+import { HolidaySettings as HolidaySettingsScreen } from './settings/holiday-settings';
 import { LeaveType as LeaveTypeScreen } from './settings/leave-type';
 import { LeaveTypes as LeaveTypesScreen } from './settings/leave-types';
 import { NegativeBalance as NegativeBalanceScreen } from './settings/negative-balance';
@@ -36,5 +37,5 @@ export const DescribePolicy = framed(placeholder('Write a policy in plain words'
 export const NegativeBalance = framed(NegativeBalanceScreen);
 export const AttendanceSettings = framed(AttendanceSettingsScreen);
 export const ApprovalSettings = framed(ApprovalSettingsScreen);
-export const HolidaySettings = framed(placeholder('Holidays'));
+export const HolidaySettings = framed(HolidaySettingsScreen);
 export const Integrations = framed(placeholder('Integrations'));

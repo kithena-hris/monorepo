@@ -1197,10 +1197,20 @@ test passes, and it matches the design's screen on the seeded demo company.
   not added or removed, and "If nobody decides" waits for the escalation
   settings to be readable.
 
-### [ ] TOF-083 — Holiday calendars
+### [x] TOF-083 — Holiday calendars
 
 - **Screens** T36 (without the AI draft) · **Spec** PRD §10.2
 - **Depends on** TOF-078
+- **As built** `settings/holiday-settings.tsx`: the year in the path
+  (`/settings/time-off/holidays/2027`, this year without one) switched by a
+  `SegmentedControl`, the work locations as a `List` of links keeping
+  `?location=`, and the chosen location's resolved days with the layer each
+  comes from and any move. Spain's unreviewed pack is the same notice as on
+  leave types. Read-only: saving a layer and assigning layers to a location
+  have their operations, and need their forms.
+  `settings/settings.phone.test.tsx` draws every settings screen at 390×844
+  under the Settings frame: axe with contrast, the 44px floor (People's
+  measure, `test/floor.ts`) and no sideways scroll.
 
 ---
 

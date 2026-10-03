@@ -83,9 +83,6 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onYear: (year: number) => {
             go({}, `/settings/time-off/holidays/${String(year)}`);
           },
-          onLocation: (location: string) => {
-            go({ location });
-          },
         };
       default:
         return {};
