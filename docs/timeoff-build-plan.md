@@ -571,7 +571,7 @@ no decline, cancel or change.
 
 ### Application
 
-### [ ] TOF-035 — Member sync
+### [x] TOF-035 — Member sync
 
 - **Spec** PRD §5.2
 - **Files** `services/timeoff/src/application/member/`
@@ -580,15 +580,23 @@ no decline, cancel or change.
   events (TOF-045) or from an import (TOF-036). Hire grants the year's
   entitlement; termination settles a negative balance per policy.
 - **Done when** a hire produces a member and a grant entry.
+- **As built** The ports are in `application/ports.ts`; unlike People's, no
+  store takes the transaction — `UnitOfWork.run(tenantId, tx => …)` hands out
+  every store already bound to it, and the in-memory adapters
+  (`application/testing/in-memory.ts`) are what the application tests and the
+  standalone suite run on. The projection carries a `timeZone` beside §5.2's
+  fields, because "today" is the member's. A leaver's year is re-folded pro
+  rata to the last day; `final_pay` deducts for everyone, since the
+  projection does not know which contracts have the deduction clause.
 
-### [ ] TOF-036 — Member import when People is absent
+### [x] TOF-036 — Member import when People is absent
 
 - **Files** `services/timeoff/src/application/member/import.ts`
 - **Depends on** TOF-035
 - **Approach** CSV and JSON, dry run first, the same columns as PRD §5.2.
 - **Done when** the standalone suite imports seven members with People absent.
 
-### [ ] TOF-037 — Requesting, changing and cancelling
+### [x] TOF-037 — Requesting, changing and cancelling
 
 - **Files** `services/timeoff/src/application/request/`
 - **Depends on** TOF-016, TOF-034
@@ -597,8 +605,14 @@ no decline, cancel or change.
   after, coverage warnings, negative verdict) without saving for the panel.
 - **Done when** an application test sends, changes and cancels with in-memory
   ports.
+- **As built** Borrowing adds the negative-balance rule's approvers to the
+  chain the approval rules give (default manager then HR). The aggregate
+  stores no chain, so a `RequestRecord` carries the request with its routing
+  (chain, step, since, escalated to). The Drizzle repository (TOF-034) will
+  need a way to rebuild `LeaveRequest`, `Policy` and `LeaveType` from rows,
+  which the domain does not have yet.
 
-### [ ] TOF-038 — Deciding, counter-proposing and batch approval
+### [x] TOF-038 — Deciding, counter-proposing and batch approval
 
 - **Files** `services/timeoff/src/application/approval/`
 - **Depends on** TOF-019, TOF-021, TOF-037
@@ -607,7 +621,7 @@ no decline, cancel or change.
 - **Done when** a test proves batch refuses a look-closer request and a
   non-approver is refused in the application layer.
 
-### [ ] TOF-039 — Delegation and escalation workflow
+### [x] TOF-039 — Delegation and escalation workflow
 
 - **Files** `services/timeoff/src/application/approval/escalation.ts`,
   `services/timeoff/src/infrastructure/temporal/`
@@ -615,8 +629,12 @@ no decline, cancel or change.
 - **Approach** One Temporal workflow per pending request; reminder at 09:00;
   escalation after 3 working days.
 - **Done when** a Temporal test-environment test escalates with a skipped clock.
+- **As built** The workflow passes its own time to the activity, so the test
+  server's skipped days are the days `escalationTick` counts
+  (`escalation.integration.test.ts`, People's convention for Temporal tests).
+  Without `TEMPORAL_ADDRESS` nothing reminds or escalates, and boot says so.
 
-### [ ] TOF-040 — Calendar queries
+### [x] TOF-040 — Calendar queries
 
 - **Files** `services/timeoff/src/application/calendar/`
 - **Depends on** TOF-018, TOF-034
@@ -625,7 +643,7 @@ no decline, cancel or change.
   iCalendar feed with a signed, revocable token.
 - **Done when** a test proves a teammate's view of a sick day has no type.
 
-### [ ] TOF-041 — Holidays and policies admin
+### [x] TOF-041 — Holidays and policies admin
 
 - **Files** `services/timeoff/src/application/admin/`
 - **Depends on** TOF-013, TOF-011, TOF-034
@@ -634,16 +652,21 @@ no decline, cancel or change.
   attendance rules. `hr_admin` only.
 - **Done when** publishing a policy re-folds affected balances and emits
   `policy.published`.
+- **As built** A negative balance rule is part of the policy, so setting one
+  drafts the next version, published like any other.
 
-### [ ] TOF-042 — The clock and the timesheet
+### [x] TOF-042 — The clock and the timesheet
 
 - **Files** `services/timeoff/src/application/attendance/`
 - **Depends on** TOF-023 – TOF-026, TOF-034
 - **Approach** Punch, break, clock out, correct; my timesheet by week or month;
   team right now (manager); overtime approval.
 - **Done when** an application test runs a full day and a correction.
+- **As built** A member without a schedule gets 09:00–17:30 with half an
+  hour's break. Approved comp time is banked against the tenant's tracked
+  hour-unit leave type, when there is one.
 
-### [ ] TOF-043 — Nightly and morning jobs
+### [x] TOF-043 — Nightly and morning jobs
 
 - **Files** `services/timeoff/src/infrastructure/background.ts`
 - **Depends on** TOF-013, TOF-025
@@ -652,6 +675,11 @@ no decline, cancel or change.
   last day, the morning missed-punch check, the 20:00 reminder.
 - **Done when** a test with a fixed clock posts the October accrual once even if
   run twice.
+- **As built** Entitlement is posted as it falls due (hire, the 1st, the year
+  start), not a whole year ahead, so the ledger fold's `allowance` counts the
+  months credited so far; the balance card's yearly figure is the policy's.
+  `wireBackground` starts nothing until TOF-034 gives it a Drizzle unit of
+  work and a tenant list.
 
 ### Transports
 

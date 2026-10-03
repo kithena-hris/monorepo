@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import type { Clock, PendingEvent } from '@kithena/domain-kit';
+import { isTimeZone, type Clock, type PendingEvent } from '@kithena/domain-kit';
 import {
   CalendarDate,
   CountryCode,
@@ -66,10 +66,7 @@ export const MemberFields = z.object({
   /** The zone whose calendar decides the member's "today". */
   timeZone: z
     .string()
-    .refine(
-      (tz) => Intl.supportedValuesOf('timeZone').includes(tz) || tz === 'UTC',
-      'not a time zone',
-    )
+    .refine((tz) => tz === 'UTC' || isTimeZone(tz), 'not a time zone')
     .default('UTC'),
   hireDate: CalendarDate,
   terminationDate: CalendarDate.nullable().default(null),
