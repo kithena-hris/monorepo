@@ -92,7 +92,7 @@ Phase 1 is done when every box down to TOF-083 is ticked and
 
 ## Phase 0 — unblock
 
-### [ ] TOF-001 — `svc_timeoff` hardened and the schema bootstrap
+### [x] TOF-001 — `svc_timeoff` hardened and the schema bootstrap
 
 **Goal** `svc_timeoff` exists in `init-db.sql` without `NOBYPASSRLS`, unlike
 `svc_people`, and there is no `timeoff` migration at all.
@@ -105,8 +105,14 @@ Phase 1 is done when every box down to TOF-083 is ticked and
   usage. Fix the role in `init-db.sql`. Rehash `atlas.sum`.
 - **Done when** `pnpm db:migrate` applies clean twice and an integration test
   proves a `svc_timeoff` connection without `app.tenant_id` sees nothing.
+- **As built** One integration test covers this ticket and TOF-002
+  (`src/infrastructure/bootstrap.integration.test.ts`), with `timeoff.outbox`
+  as the tenant-scoped probe instead of a throwaway table. The bootstrap does
+  not `ALTER` a `svc_timeoff` that already exists: changing `BYPASSRLS` needs
+  privileges the migrator may lack, and `deploy/vm/deploy.sh` already creates
+  it `NOBYPASSRLS`.
 
-### [ ] TOF-002 — Outbox and Debezium
+### [x] TOF-002 — Outbox and Debezium
 
 - **Spec** PRD §17
 - **Files** `migrations/<ts>_timeoff_outbox.sql`, `docker-compose.yml`,
