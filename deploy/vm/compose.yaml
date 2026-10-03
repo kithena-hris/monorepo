@@ -1,4 +1,5 @@
-# The backends on one VM: People, the Cosmo Router and what they lean on.
+# The backends on one VM: People, Time Off, the Cosmo Router and what they
+# lean on.
 #
 # One Compose project per environment, started by `deploy.sh` from
 # `/etc/kithena/<env>/`, which holds this file, `secrets.env` and `state.env`
@@ -16,9 +17,10 @@
 #
 # Every image is pinned by the digest of its multi-arch index, which lists both
 # linux/amd64 and linux/arm64, so this file runs unchanged on either. The
-# limits are sized for one 4 GB VM: 2.6 GB between them, the rest for the OS,
-# Docker and the page cache. `docs/environments.md` "Hosting" has the measured
-# usage they were set from.
+# limits are sized for one 4 GB VM with swap behind it: 3.6 GB between them,
+# limits rather than reservations, as most sit far under theirs.
+# `docs/environments.md` "Memory budget" has the measured usage they were set
+# from.
 
 services:
   people:
@@ -140,6 +142,50 @@ services:
     deploy:
       resources:
         limits: { memory: 160m, cpus: '0.5' }
+
+  # Time Off (`services/timeoff`, TOF-050b), for People's reasons: consumer
+  # groups on People's and identity's topics, nightly jobs on Valkey, the
+  # escalation worker on Temporal and a SIGTERM drain. Its own schema in
+  # People's database, as `svc_timeoff`, and its own OpenFGA store beside
+  # People's, found by name or created. The router reaches it at
+  # `http://timeoff:4002/graphql` with `TIMEOFF_API_TOKEN`, which `timeoff.env`
+  # and `router.env` both get from the one secret. `timeoff.env` carries the
+  # rest (`TIMEOFF_FEED_SECRET`, without which it refuses to boot here).
+  timeoff:
+    image: ${TIMEOFF_IMAGE:?TIMEOFF_IMAGE is set by deploy.sh}
+    restart: unless-stopped
+    env_file: timeoff.env
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=192
+      KAFKA_BROKERS: redpanda:9092
+      TEMPORAL_ADDRESS: temporal:7233
+      OPENFGA_URL: http://openfga:8080
+      VALKEY_URL: redis://valkey:6379
+      TIMEOFF_DATABASE_URL: postgres://svc_timeoff:${TIMEOFF_DB_PASSWORD:?TIMEOFF_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4002/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      start_interval: 3s
+      retries: 3
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda: { condition: service_healthy }
+      temporal: { condition: service_healthy }
+      openfga: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+    deploy:
+      resources:
+        limits: { memory: 320m, cpus: '0.5' }
 
   # The outbox relay: Debezium Server, one per database, each tailing one
   # outbox and publishing its rows to Redpanda (`debezium.env` has the

@@ -721,6 +721,9 @@ MB**, `--max-old-space-size=96`) and the two outbox relays, `relay-people` and
 `relay-identity` (~175 MB each running, **224 MB** each; a 64 MB heap, the
 image's OpenTelemetry agent off). With them the limits are **3.3 GB**; the swap
 is what makes that fit, and `m7i-flex.large` is the step up if it stops fitting.
+`timeoff` (**320 MB**, `--max-old-space-size=192`; not yet measured) brings
+them to **3.6 GB**: measure it under the light load above after its first
+deploy, and lower the limit to what it needs.
 
 Nothing was OOM-killed and nothing restarted except `cloudflared`, which had
 a dummy token and no tunnel to reach, so its figure is the binary retrying, not
@@ -1114,13 +1117,16 @@ Docker rather than inside it.
 
 Same names in both environments, different values.
 
-| Secret                          | Holds                                                                                                                                    |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `VM_DEPLOY_SSH_KEY`             | The `deploy` user's ed25519 private key, OpenSSH format (checklist step 3). The same key in both environments while they share the VM.   |
-| `CLOUDFLARE_TUNNEL_TOKEN`       | That environment's tunnel token (step 5).                                                                                                |
-| `PEOPLE_API_TOKEN`              | The token the router sends People as `x-internal-token`. Written to both on every deploy, so the two cannot disagree. Random, 32+ bytes. |
-| `PEOPLE_ENV`                    | Every other People setting, as a dotenv file (below). Written to `/etc/kithena/<env>/people.env`, 0600, on every deploy.                 |
-| `PEOPLE_REMOTE_SSR_SIGNING_KEY` | The Ed25519 private key, base64 PKCS#8 DER. Never put in Vercel.                                                                         |
+| Secret                           | Holds                                                                                                                                    |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `VM_DEPLOY_SSH_KEY`              | The `deploy` user's ed25519 private key, OpenSSH format (checklist step 3). The same key in both environments while they share the VM.   |
+| `CLOUDFLARE_TUNNEL_TOKEN`        | That environment's tunnel token (step 5).                                                                                                |
+| `PEOPLE_API_TOKEN`               | The token the router sends People as `x-internal-token`. Written to both on every deploy, so the two cannot disagree. Random, 32+ bytes. |
+| `PEOPLE_ENV`                     | Every other People setting, as a dotenv file (below). Written to `/etc/kithena/<env>/people.env`, 0600, on every deploy.                 |
+| `PEOPLE_REMOTE_SSR_SIGNING_KEY`  | The Ed25519 private key, base64 PKCS#8 DER. Never put in Vercel.                                                                         |
+| `TIMEOFF_API_TOKEN`              | The token the router sends Time Off as `x-internal-token`. Written to both on every deploy, as `PEOPLE_API_TOKEN` is. Random, 32+ bytes. |
+| `TIMEOFF_ENV`                    | Every other Time Off setting, as a dotenv file ("Time Off's settings" below). Written to `/etc/kithena/<env>/timeoff.env`, 0600.         |
+| `TIMEOFF_REMOTE_SSR_SIGNING_KEY` | The Time Off remote's Ed25519 private key, base64 PKCS#8 DER, its own pair. Never put in Vercel.                                         |
 
 `PEOPLE_ENV` — one multi-line secret, so a setting People gains later (the
 Kafka SASL/TLS settings, the uploads bucket) is a secret edit, not a workflow
@@ -1164,12 +1170,32 @@ presigns a GET.
 
 #### Time Off's settings
 
-Time Off has no VM service yet (TOF-004), so none of these is a GitHub secret
-today and the deployed router's `TIMEOFF_API_TOKEN` is empty, which Time Off
-refuses. When it gets one, they follow People's pattern exactly: the token as
-an environment secret written to both the router's and Time Off's env files on
-every deploy, the rest in a `TIMEOFF_ENV` file, and the Compose addresses in
-`compose.yaml`.
+Time Off runs on the VM beside People (TOF-050b), deployed exactly as People
+is: its own image (`services/timeoff/Dockerfile`, `ghcr.io/<owner>/kithena-timeoff`),
+`deploy.sh <env> timeoff <image>` after audit and before the router, and the
+router's supergraph routing Time Off's fields to `http://timeoff:4002/graphql`.
+`TIMEOFF_API_TOKEN` is an environment secret written to both the router's and
+Time Off's env files on every deploy, the rest is the `TIMEOFF_ENV` secret
+written to `timeoff.env`, and the Compose addresses and `svc_timeoff`'s
+password (generated on the VM by `deploy.sh`, like People's) are in
+`compose.yaml`. `deploy.sh` checks that Time Off answers `/healthz`, holds a
+non-empty `TIMEOFF_API_TOKEN` and reaches `timeoff.member` as `svc_timeoff`.
+The VM job refuses to run while `TIMEOFF_API_TOKEN` or `TIMEOFF_ENV` is
+missing, as it does for People's two.
+
+`TIMEOFF_ENV`, one multi-line secret, as `PEOPLE_ENV` is:
+
+```dotenv
+TIMEOFF_FEED_SECRET=<openssl rand -base64 32>
+# Optional; unset, the store named "timeoff" is found or created.
+# TIMEOFF_OPENFGA_STORE_ID=
+# Kafka SASL/TLS, when Redpanda leaves the VM: the same KAFKA_* as PEOPLE_ENV.
+```
+
+Its outbox is not relayed yet: `relay-people` tails `people.outbox` only, and
+nothing on the VM reads Time Off's topic. Add `timeoff.outbox` to its
+`DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST` (the publication already holds it) when
+something does.
 
 | Setting                    | Holds                                                                                                                                                                                         |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1185,20 +1211,21 @@ office names as its administrator (`identity.tenant.administrator_named` for
 
 #### GitHub: repository variables (Settings → Secrets and variables → Actions → Variables)
 
-| Variable                                                                                | Holds                                                                                                                                                                                                                    |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `VM_PLATFORM`                                                                           | The VM's platform: `linux/amd64` (unset means this), which the EC2 `c7i-flex.large` is; `linux/arm64` only for a Graviton instance. Picks the native runner the images are built on; anything else fails the images job. |
-| `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`, `AWS_REGION`             | The EC2 instance id, the `kithena-workspace-wake` role and its region, all printed by `deploy/aws/provision.sh`. Passed to the shell, which then wakes the VM from the People pages. Any unset: waking is off.           |
-| `WORKSPACE_INSTANCE_ID_STAGING`                                                         | The instance staging deploys to, which is production's while they share it. Both ids are also the SSH target: the deploy connects to `deploy@<id>` through Session Manager.                                              |
-| `AWS_DEPLOY_ROLE_ARN`                                                                   | `kithena-deploy-wake`, the deploy role both deploys assume to start the VM, wait for its SSM agent and open the SSH tunnel. Required with `ROUTER_URL_*`.                                                                |
-| `ROUTER_URL_STAGING`, `ROUTER_URL_PRODUCTION`                                           | `https://api.staging.kithena.com`, `https://api.kithena.com`. Unset: People and the router are skipped for that environment. Also the shell's `ROUTER_URL`.                                                              |
-| `AUTH_TOKEN_AUDIENCE_STAGING`, `AUTH_TOKEN_AUDIENCE_PRODUCTION`                         | Exactly identity's `AUTH_TOKEN_AUDIENCE` in that environment (`kithena-router` locally). A mismatch refuses every token.                                                                                                 |
-| `KITHENA_ENTITLEMENTS_STAGING`, `KITHENA_ENTITLEMENTS_PRODUCTION`                       | Exactly identity's `KITHENA_ENTITLEMENTS`, a JSON array, e.g. `["module.people"]`.                                                                                                                                       |
-| `VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING`, `VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION` | The remote's Vercel project id (`prj_…`). Unset: the remote is skipped.                                                                                                                                                  |
-| `PEOPLE_REMOTE_URL_STAGING`, `PEOPLE_REMOTE_URL_PRODUCTION`                             | The remote's custom domain, `https://…`, no trailing slash.                                                                                                                                                              |
-| `PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`       | The Ed25519 public key, base64 SPKI DER.                                                                                                                                                                                 |
-| `TIMEOFF_REMOTE_URL_STAGING`, `TIMEOFF_REMOTE_URL_PRODUCTION`                           | The Time Off remote's custom domain, `https://…`, no trailing slash. Passed to the shell as `TIMEOFF_REMOTE_URL`. Unset: Time off is unavailable in the shell.                                                           |
-| `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING`, `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`     | The Time Off remote's Ed25519 public key, base64 SPKI DER. Passed to the shell as `TIMEOFF_REMOTE_SSR_PUBLIC_KEY`. Unset: its screens render in the browser only.                                                        |
+| Variable                                                                                  | Holds                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VM_PLATFORM`                                                                             | The VM's platform: `linux/amd64` (unset means this), which the EC2 `c7i-flex.large` is; `linux/arm64` only for a Graviton instance. Picks the native runner the images are built on; anything else fails the images job. |
+| `WORKSPACE_INSTANCE_ID_PRODUCTION`, `AWS_ROLE_ARN_PRODUCTION`, `AWS_REGION`               | The EC2 instance id, the `kithena-workspace-wake` role and its region, all printed by `deploy/aws/provision.sh`. Passed to the shell, which then wakes the VM from the People pages. Any unset: waking is off.           |
+| `WORKSPACE_INSTANCE_ID_STAGING`                                                           | The instance staging deploys to, which is production's while they share it. Both ids are also the SSH target: the deploy connects to `deploy@<id>` through Session Manager.                                              |
+| `AWS_DEPLOY_ROLE_ARN`                                                                     | `kithena-deploy-wake`, the deploy role both deploys assume to start the VM, wait for its SSM agent and open the SSH tunnel. Required with `ROUTER_URL_*`.                                                                |
+| `ROUTER_URL_STAGING`, `ROUTER_URL_PRODUCTION`                                             | `https://api.staging.kithena.com`, `https://api.kithena.com`. Unset: People and the router are skipped for that environment. Also the shell's `ROUTER_URL`.                                                              |
+| `AUTH_TOKEN_AUDIENCE_STAGING`, `AUTH_TOKEN_AUDIENCE_PRODUCTION`                           | Exactly identity's `AUTH_TOKEN_AUDIENCE` in that environment (`kithena-router` locally). A mismatch refuses every token.                                                                                                 |
+| `KITHENA_ENTITLEMENTS_STAGING`, `KITHENA_ENTITLEMENTS_PRODUCTION`                         | Exactly identity's `KITHENA_ENTITLEMENTS`, a JSON array, e.g. `["module.people"]`.                                                                                                                                       |
+| `VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING`, `VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION`   | The remote's Vercel project id (`prj_…`). Unset: the remote is skipped.                                                                                                                                                  |
+| `PEOPLE_REMOTE_URL_STAGING`, `PEOPLE_REMOTE_URL_PRODUCTION`                               | The remote's custom domain, `https://…`, no trailing slash.                                                                                                                                                              |
+| `PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`         | The Ed25519 public key, base64 SPKI DER.                                                                                                                                                                                 |
+| `VERCEL_PROJECT_ID_TIMEOFF_REMOTE_STAGING`, `VERCEL_PROJECT_ID_TIMEOFF_REMOTE_PRODUCTION` | The Time Off remote's Vercel project id (`prj_…`), a Hobby project like People's remote's. Unset: the remote is skipped with a warning.                                                                                  |
+| `TIMEOFF_REMOTE_URL_STAGING`, `TIMEOFF_REMOTE_URL_PRODUCTION`                             | The Time Off remote's custom domain, `https://…`, no trailing slash. Passed to the shell as `TIMEOFF_REMOTE_URL`, and smoke-tested after each remote deploy. Unset: Time off is unavailable in the shell.                |
+| `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING`, `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_PRODUCTION`       | The Time Off remote's Ed25519 public key, base64 SPKI DER. Passed to the shell as `TIMEOFF_REMOTE_SSR_PUBLIC_KEY`. Unset: its screens render in the browser only.                                                        |
 
 The router's `AUTH_JWKS_URL` is identity's own domain and is written in the
 workflow.
