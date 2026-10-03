@@ -1,11 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { fixedClock, localDate, type Clock } from '@kithena/domain-kit';
-import {
-  CalendarDate,
-  type AttributeDefinition,
-  type EmploymentType,
-  type WorkModel,
-} from '@kithena/contracts';
+import { CalendarDate, type AttributeDefinition } from '@kithena/contracts';
 
 import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import { assessCompleteness, notApplicable } from '../../domain/person/completeness.js';
@@ -95,8 +90,8 @@ export async function judge(
   const facts = {
     legalEntityId: record.legalEntityId,
     country: countryOf(values),
-    employmentType: record.employmentType as EmploymentType | null,
-    workModel: record.workModel as WorkModel | null,
+    employmentType: record.employmentType,
+    workModel: record.workModel,
     status: record.snapshot.status,
     values,
     knownAttributes: new Set(definitions.map((d) => d.key as string)),
