@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
@@ -47,7 +47,7 @@ describe('approval rules and team minimums', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('saves the rules and only the minimums that changed', async () => {
+  it('saves the rules and only the minimums that changed', () => {
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<ApprovalSettings load={ready} onSave={onSave} />);
     fireEvent.click(
@@ -56,9 +56,7 @@ describe('approval rules and team minimums', () => {
     fireEvent.keyDown(screen.getByRole('spinbutton', { name: 'Platform: at least (people in)' }), {
       key: 'ArrowUp',
     });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith(
       approvals().rules,
       { shortenOrCancel: true, sickUnderDays: 3, oneDayAboveMinimum: true },
@@ -66,14 +64,12 @@ describe('approval rules and team minimums', () => {
     );
   });
 
-  it('turns automatic sick approval off', async () => {
+  it('turns automatic sick approval off', () => {
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<ApprovalSettings load={ready} onSave={onSave} />);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Short sick leave' }));
     expect(screen.getByText('Off: every sick day goes to the manager')).toBeTruthy();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith(
       approvals().rules,
       expect.objectContaining({ sickUnderDays: null }),

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
@@ -71,12 +71,10 @@ describe('editing a policy', () => {
     expect(hana.getByText('28')).toBeTruthy();
   });
 
-  it('publishes the draft from the leave year’s first day', async () => {
+  it('publishes the draft from the leave year’s first day', () => {
     const onPublish = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<LeaveType load={ready(vacationWithDraft())} onPublish={onPublish} />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Publish changes' }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Publish changes' }));
     expect(onPublish).toHaveBeenCalledWith(VACATION_POLICY, '2026-01-01');
   });
 
@@ -98,9 +96,7 @@ describe('editing a policy', () => {
         'Save the draft to see who these changes would reach.',
       ),
     ).toBeTruthy();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
     expect(onSaveDraft).toHaveBeenCalledWith(
       VACATION_POLICY,
       expect.objectContaining({
@@ -108,7 +104,7 @@ describe('editing a policy', () => {
         carryOver: { maxDays: '3.000', useBy: { month: 3, day: 31 } },
       }),
     );
-    expect(screen.getByText('Tenure bands climb')).toBeTruthy();
+    expect(await screen.findByText('Tenure bands climb')).toBeTruthy();
   });
 
   it('adds a band a year after the last, at its allowance', () => {

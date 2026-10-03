@@ -171,6 +171,7 @@ function Ready({
       data={data}
       policyId={policy.id}
       versions={policy.versions}
+      latest={latest}
       {...{ onSaveDraft, onPublish, onPolicy, onPreviewAs }}
     />
   );
@@ -180,6 +181,7 @@ function Editor({
   data,
   policyId,
   versions,
+  latest,
   onSaveDraft,
   onPublish,
   onPolicy,
@@ -190,13 +192,13 @@ function Editor({
   readonly data: LeaveTypeData;
   readonly policyId: string;
   readonly versions: LeaveTypeData['policies'][number]['versions'];
+  readonly latest: LeaveTypeData['policies'][number]['versions'][number];
 }): JSX.Element {
   const type = data.leaveType.definition;
-  const latest = versions.at(-1);
   const inEffect = versions.findLast((v) => v.status === 'published');
-  const saved = latest?.definition ?? (inEffect?.definition as PolicyDefinition);
+  const saved = latest.definition;
   const form = useSaved<PolicyDefinition>(saved);
-  const draft = latest?.status === 'draft' ? latest : null;
+  const draft = latest.status === 'draft' ? latest : null;
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState<Outcome | null>(null);
   const preview = data.preview;

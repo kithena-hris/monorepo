@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
@@ -49,7 +49,7 @@ describe('negative balance rules', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('saves a change and publishes it, the preview following the form', async () => {
+  it('saves a change and publishes it, the preview following the form', () => {
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<NegativeBalance load={ready} onSave={onSave} />);
     fireEvent.click(
@@ -63,9 +63,7 @@ describe('negative balance rules', () => {
         /Any still below zero at the end of the year are written off\./,
       ),
     ).toBeTruthy();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith(
       VACATION_POLICY,
       {
@@ -88,14 +86,12 @@ describe('negative balance rules', () => {
         'A request for more vacation than someone has is refused, with what they have left.',
       ),
     ).toBeTruthy();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith(VACATION_POLICY, null, true);
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('keeps a rule in the draft of a policy that has one', async () => {
+  it('keeps a rule in the draft of a policy that has one', () => {
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     const data = negativeBalance();
     const drafted = {
@@ -104,9 +100,7 @@ describe('negative balance rules', () => {
     render(<NegativeBalance load={{ status: 'ready', data: drafted }} onSave={onSave} />);
     expect(screen.getByText('Vacation has a draft')).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'HR only' }));
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith(
       VACATION_POLICY,
       expect.objectContaining({ approvers: 'hr' }),

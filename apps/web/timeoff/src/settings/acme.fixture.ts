@@ -1,3 +1,9 @@
+import type { ApprovalSettingsData } from './approval-settings';
+import type { AttendanceSettingsData } from './attendance-settings';
+import type { HolidaySettingsData } from './holiday-settings';
+import type { LeaveTypeData, PolicyDefinition } from './leave-type';
+import type { LeaveTypesData } from './leave-types';
+import type { NegativeBalanceData } from './negative-balance';
 import type { ApprovalRule, LeaveTypeDefinition, LeaveTypeRow, Pack, Predicate } from './shared';
 
 /**
@@ -96,7 +102,7 @@ export const approvalRules = (): ApprovalRule[] => [
 ];
 
 /** T29. */
-export const leaveTypes = () => ({
+export const leaveTypes = (): LeaveTypesData => ({
   leaveTypes: leaveTypeRows(),
   packs: [spainPack],
   rules: approvalRules(),
@@ -104,7 +110,7 @@ export const leaveTypes = () => ({
 
 /* ---------------------------------------------------------------- T30 -- */
 
-export const vacationDefinition = (over: Record<string, unknown> = {}) => ({
+export const vacationDefinition = (over: Partial<PolicyDefinition> = {}): PolicyDefinition => ({
   leaveTypeKey: 'vacation',
   allowance: [
     { fromYears: 0, days: '25.000' },
@@ -132,7 +138,7 @@ export const vacationDefinition = (over: Record<string, unknown> = {}) => ({
 const pair = (current: string, draft: string) => ({ current, draft });
 
 /** T30 with a draft that lowers the carry-over to 3 and adds a 29-day band at 15 years. */
-export const vacationWithDraft = () => {
+export const vacationWithDraft = (): LeaveTypeData => {
   const [vacation] = leaveTypeRows();
   if (vacation === undefined) throw new Error('no vacation');
   return {
@@ -199,7 +205,7 @@ export const vacationWithDraft = () => {
 };
 
 /** T30 with nothing drafted: the published version, no preview. */
-export const vacationPublished = () => {
+export const vacationPublished = (): LeaveTypeData => {
   const data = vacationWithDraft();
   const [policy] = data.policies;
   if (policy === undefined) throw new Error('no policy');
@@ -212,7 +218,7 @@ export const vacationPublished = () => {
 
 /* ---------------------------------------------------------------- T31 -- */
 
-export const negativeBalance = () => ({
+export const negativeBalance = (): NegativeBalanceData => ({
   policies: [
     {
       policyId: VACATION_POLICY,
@@ -220,7 +226,12 @@ export const negativeBalance = () => ({
       leaveTypeName: 'Vacation',
       version: 1,
       status: 'published' as const,
-      rule: vacationDefinition().negativeBalance,
+      rule: {
+        limit: '3.000',
+        approvers: 'manager_then_hr',
+        atYearEnd: 'next_year',
+        onLeaving: 'final_pay',
+      },
     },
     {
       policyId: PERSONAL_POLICY,
@@ -235,7 +246,7 @@ export const negativeBalance = () => ({
 
 /* ---------------------------------------------------------------- T33 -- */
 
-export const attendance = () => ({
+export const attendance = (): AttendanceSettingsData => ({
   rules: {
     breakAfterMinutes: 360,
     breakMinutes: 30,
@@ -255,7 +266,7 @@ export const attendance = () => ({
 
 /* ---------------------------------------------------------------- T34 -- */
 
-export const approvals = () => ({
+export const approvals = (): ApprovalSettingsData => ({
   rules: approvalRules(),
   autoApproval: { shortenOrCancel: true, sickUnderDays: 3, oneDayAboveMinimum: false },
   teams: [
@@ -298,7 +309,7 @@ const madridDays: readonly (readonly [string, string, string])[] = [
   ['2026-12-25', 'Navidad', 'es'],
 ];
 
-export const holidays = () => ({
+export const holidays = (): HolidaySettingsData => ({
   year: 2026,
   thisYear: 2026,
   location: null as string | null,

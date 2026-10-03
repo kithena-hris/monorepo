@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
@@ -49,7 +49,7 @@ describe('attendance rules', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('saves the rules in minutes, as Time Off keeps them', async () => {
+  it('saves the rules in minutes, as Time Off keeps them', () => {
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<AttendanceSettings load={ready} onSave={onSave} />);
     fireEvent.keyDown(screen.getByRole('spinbutton', { name: 'Break after (hours)' }), {
@@ -58,9 +58,7 @@ describe('attendance rules', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Comp time' }));
     expect(screen.queryByRole('spinbutton', { name: 'Paid at (× the hourly rate)' })).toBeNull();
     expect(screen.getByText('Banked hour for hour as comp time.')).toBeTruthy();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith({
       breakAfterMinutes: 390,
       breakMinutes: 30,
@@ -76,10 +74,8 @@ describe('attendance rules', () => {
     );
     render(<AttendanceSettings load={ready} onSave={onSave} />);
     fireEvent.click(screen.getByRole('radio', { name: 'Paid' }));
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    });
-    expect(screen.getByText('Not saved')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Not saved')).toBeTruthy();
     expect(screen.getByText('Only HR can do that')).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Paid' })).toHaveProperty('ariaChecked', 'true');
   });

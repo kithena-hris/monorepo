@@ -1,7 +1,6 @@
 'use client';
 
 import { Skeleton } from '@reach/ui';
-import type { Route } from 'next';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTransition, type JSX } from 'react';
 
@@ -48,7 +47,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
   const go = (patch: Readonly<Record<string, string | null>>, path?: string): void => {
     startTransition(() => {
       const to = withQuery(path ?? window.location.pathname, window.location.search, patch);
-      router.push(to as Route, { scroll: false });
+      router.push(to, { scroll: false });
     });
   };
 
