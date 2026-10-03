@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ApproveTimeOffRequests($key: String!, $input: JSON!) {\n    approveTimeOffRequests(idempotencyKey: $key, input: $input) {\n      approved { next requestId status } refused { code reason { amount days rule } requestId }\n    }\n  }"}

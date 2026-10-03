@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PunchTimeOffClock($key: String!, $input: JSON!) {\n    punchTimeOffClock(idempotencyKey: $key, input: $input) {\n      punch { at id kind reason recordedAt source supersedes workModel } state\n    }\n  }"}

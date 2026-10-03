@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SuggestTimeOffDates($key: String!, $input: JSON!, $requestId: String!) {\n    suggestTimeOffDates(idempotencyKey: $key, input: $input, requestId: $requestId) {\n      status\n    }\n  }"}

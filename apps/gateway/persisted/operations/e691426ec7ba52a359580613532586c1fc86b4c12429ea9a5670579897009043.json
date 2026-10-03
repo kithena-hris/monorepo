@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RequestTimeOff($key: String!, $input: JSON!) {\n    requestTimeOff(idempotencyKey: $key, input: $input) {\n      noteRequired requestId status\n    }\n  }"}

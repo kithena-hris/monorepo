@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffViewer {\n    timeOffViewer {\n      approves counts { attendanceExceptions requestsWaiting } hrAdmin\n    }\n  }"}

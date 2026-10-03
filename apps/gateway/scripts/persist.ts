@@ -4,10 +4,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildASTSchema, parse, validate } from 'graphql';
 
-import { OPERATIONS } from '../../web/src/lib/people-operations.ts';
+import { OPERATIONS as PEOPLE } from '../../web/src/lib/people-operations.ts';
+import { OPERATIONS as TIMEOFF } from '../../web/src/lib/timeoff-operations.ts';
 
 /**
- * The router's safelist, generated from the tenant app's operations (PEO-113).
+ * The router's safelist, generated from the tenant app's operations (PEO-113):
+ * People's and Time Off's (TOF-060).
  *
  * One `persisted/operations/<sha256>.json` per operation, `{ version: 1, body }`,
  * which is what the router's file-system storage provider reads (`config.yaml`,
@@ -23,9 +25,10 @@ import { OPERATIONS } from '../../web/src/lib/people-operations.ts';
 const HERE = fileURLToPath(new URL('..', import.meta.url));
 const OUT = join(HERE, 'persisted/operations');
 // Every subgraph the tenant app reads: an operation is valid when one of them
-// answers it (none spans two yet), People's or the activity log's.
+// answers it (none spans two yet): People's, Time Off's or the activity log's.
 const SDLS = [
   join(HERE, '../../services/people/schemas/people.graphql'),
+  join(HERE, '../../services/timeoff/schemas/timeoff.graphql'),
   join(HERE, '../../platform/audit/schemas/audit.graphql'),
 ];
 
@@ -37,7 +40,7 @@ const schemas = await Promise.all(
 
 const wanted = new Map<string, string>();
 const problems: string[] = [];
-for (const [name, body] of Object.entries(OPERATIONS)) {
+for (const [name, body] of [...Object.entries(PEOPLE), ...Object.entries(TIMEOFF)]) {
   const each = schemas.map((schema) => validate(schema, parse(body)));
   const errors = each.find((e) => e.length === 0) ?? each[0] ?? [];
   if (errors.length > 0) problems.push(`${name}: ${errors.map((e) => e.message).join('; ')}`);

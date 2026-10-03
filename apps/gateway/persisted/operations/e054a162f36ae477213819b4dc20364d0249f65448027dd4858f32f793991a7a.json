@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation CloseTimeOffPayPeriod($key: String!, $month: String!) {\n    closeTimeOffPayPeriod(idempotencyKey: $key, month: $month) {\n      from members periodId to\n    }\n  }"}

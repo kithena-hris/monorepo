@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation PublishTimeOffPolicy($key: String!, $input: JSON!, $policyId: String!) {\n    publishTimeOffPolicy(idempotencyKey: $key, input: $input, policyId: $policyId) {\n      refolded version\n    }\n  }"}

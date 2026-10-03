@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SaveTimeOffHolidayCalendar($key: String!, $input: JSON!, $calendarKey: String!) {\n    saveTimeOffHolidayCalendar(idempotencyKey: $key, input: $input, key: $calendarKey) {\n      ok\n    }\n  }"}
