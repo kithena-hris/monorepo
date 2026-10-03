@@ -141,15 +141,22 @@ async function placeOf(tx: Tx, key: LocationKey, places: Map<string, string>): P
 /** Approved or taken. A request still waiting is not time off yet, nor is a counter-proposal. */
 const AWAY: readonly LeaveRequest['status'][] = ['approved', 'change_pending', 'taken'];
 
+const half = (yes: boolean): string => (yes ? ' (half day)' : '');
+
 /** "Tue 6", "Tue 6, half day", "Mon 12 to Wed 14", "Wed 30 Sep to Fri 2 Oct". */
 function runText(run: ReturnType<typeof runsIn>[number]): string {
   if (run.from === run.to) {
     return `${dayName(run.from)}${run.startsHalfDay || run.endsHalfDay ? ', half day' : ''}`;
   }
   const day = run.from.slice(0, 7) === run.to.slice(0, 7) ? dayName : shortDate;
-  const half = (yes: boolean) => (yes ? ' (half day)' : '');
   return `${day(run.from)}${half(run.startsHalfDay)} to ${day(run.to)}${half(run.endsHalfDay)}`;
 }
+
+/** A type or team by its key or its label, to say what was asked for. */
+const said = (key: string, label: string): [string, string][] => [
+  [fold(key), label],
+  [fold(label), label],
+];
 
 /** "on Tuesday 6 October", "from Monday 12 to Sunday 18 October". */
 function period(from: CalendarDate, to: CalendarDate): string {
@@ -313,11 +320,6 @@ export const away =
         notes.add(`${longDate(h.date)} is a public holiday in ${place}.`);
       }
 
-      // Each type and team by its key or its label, to say what was asked for.
-      const said = (key: string, label: string): [string, string][] => [
-        [fold(key), label],
-        [fold(label), label],
-      ];
       const names = {
         leave_type: new Map([...types.values()].flatMap((t) => said(t.key, t.name.default))),
         team: new Map(
@@ -380,11 +382,8 @@ export const managers =
       const rows: PeopleResult['rows'] = [];
       for (const m of matched.slice(0, input.limit ?? ASSISTANT_LIMITS.listed)) {
         // oxlint-disable-next-line no-await-in-loop -- a location's name once, then remembered
-        rows.push({
-          personId: m.personId,
-          name: m.displayName,
-          groups: await groupsOf(tx, m, places),
-        });
+        const groups = await groupsOf(tx, m, places);
+        rows.push({ personId: m.personId, name: m.displayName, groups });
       }
       return ok({
         kind: 'people',

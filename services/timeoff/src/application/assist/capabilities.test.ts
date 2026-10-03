@@ -8,7 +8,6 @@ import {
   TeamKey,
   TimeOffAway,
   TimeOffManagers,
-  type CapabilityInput,
 } from '@kithena/contracts';
 
 import { LeaveType } from '../../domain/policy/leave-type.js';
@@ -150,7 +149,7 @@ type App = Awaited<ReturnType<typeof october>>;
 async function ask(app: App, who: Caller, input: Record<string, unknown> = {}) {
   const answer = await away(app.deps)(
     who,
-    TimeOffAway.schemas.input.parse({ on: TUESDAY, limit: 25, ...input }) as CapabilityInput,
+    TimeOffAway.schemas.input.parse({ on: TUESDAY, limit: 25, ...input }),
   );
   if (!answer.ok) throw new Error(answer.error.message);
   return TimeOffAway.schemas.output.parse(answer.value);
@@ -159,6 +158,7 @@ async function ask(app: App, who: Caller, input: Record<string, unknown> = {}) {
 const lines = (result: Awaited<ReturnType<typeof ask>>) =>
   result.kind === 'people' ? result.rows.map((r) => [r.name, r.detail]) : result.kind;
 const sick = { filters: [{ key: 'leave_type', op: 'in', values: ['sick'] }] };
+const team = (values: string[]) => ({ filters: [{ key: 'team', op: 'in', values }] });
 
 describe('timeoff.away (AST-023)', () => {
   it('shows HR everyone away, a private type only as Away, and no request still waiting', async () => {
@@ -233,7 +233,6 @@ describe('timeoff.away (AST-023)', () => {
 
   it('narrows to a team, to an earlier step’s people, and never widens', async () => {
     const app = await october();
-    const team = (values: string[]) => ({ filters: [{ key: 'team', op: 'in', values }] });
     expect(await ask(app, hr, team(['platform']))).toMatchObject({
       total: 4,
       described: 'away in Platform on Tuesday 6 October',
@@ -288,6 +287,15 @@ describe('timeoff.away (AST-023)', () => {
 
 /* -------------------------------------------------------- timeoff.managers -- */
 
+async function managersOf(app: App, who: Caller, personIds: PersonId[], limit = 25) {
+  const answer = await managers(app.deps)(
+    who,
+    TimeOffManagers.schemas.input.parse({ personIds, limit, ids: true }),
+  );
+  if (!answer.ok) throw new Error(answer.error.message);
+  return TimeOffManagers.schemas.output.parse(answer.value);
+}
+
 describe('timeoff.managers (AST-024)', () => {
   const NIA = PersonId.parse('00000000-0000-7000-8000-000000000097');
 
@@ -305,15 +313,6 @@ describe('timeoff.managers (AST-024)', () => {
     );
     s.members.set(NIA, member(NIA, 'Nia Okafor', { managerPersonId: ZOE }));
     return app;
-  }
-
-  async function managersOf(app: App, who: Caller, personIds: PersonId[], limit = 25) {
-    const answer = await managers(app.deps)(
-      who,
-      TimeOffManagers.schemas.input.parse({ personIds, limit, ids: true }) as CapabilityInput,
-    );
-    if (!answer.ok) throw new Error(answer.error.message);
-    return TimeOffManagers.schemas.output.parse(answer.value);
   }
 
   it('lists a manager once, however many of their people were found, and with no count', async () => {
