@@ -1156,7 +1156,18 @@ describe('a dev export from another Kithena, into a company the back office just
 describe('a realistic 105-column HR export, into a company with nothing published', () => {
   // The user's file (`.claude/data/make_employees.py`, seeded): every tenth
   // of its 1,000 rows, all 105 columns, every country and currency in it.
-  const MERIDIAN = readFile(new URL('./meridian-freight.fixture.csv', import.meta.url));
+  // Nobody in the sample is serving notice, so two of its active people are,
+  // here: a resignation with a last day two months ahead.
+  const AHEAD = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
+  const MERIDIAN = readFile(new URL('./meridian-freight.fixture.csv', import.meta.url), 'utf8').then(
+    (csv) =>
+      new TextEncoder().encode(
+        csv.replaceAll(
+          /^(MF000(?:11|21),.*?),Active,,,,,,,/gmu,
+          `$1,Notice period,,,,${AHEAD},Resignation - new opportunity,Yes,`,
+        ),
+      ),
+  );
   const TENANT = '00000000-0000-4000-8000-0000000000c0';
   const OWNER = '00000000-0000-4000-8000-0000000000c9';
 
@@ -1280,7 +1291,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     ]) {
       expect([h, of(h).field.dataType]).toEqual([h, 'decimal']);
     }
-    for (const h of ['Passport Expiry', 'Last Raise Date', 'Termination Date', 'Date of Birth']) {
+    for (const h of ['Passport Expiry', 'Last Raise Date', 'Leave Start Date', 'Date of Birth']) {
       expect([h, of(h).field.dataType]).toEqual([h, 'date']);
     }
     // Pay: confidential, HR and finance, changes approved.
@@ -1355,6 +1366,27 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     // A postal code keeps its digits.
     expect(of('Home Postal Code').field.dataType).toBe('text');
     expect(proposals.filter((p) => /^(employment_type|work_model)/u.test(p.key))).toEqual([]);
+    // The lifecycle is People's: the status and the termination columns are
+    // mapped onto it, never fields. People keeps no leave record, so the leave
+    // columns are fields; nothing else is.
+    const lifecycleColumns = [
+      'Employment Status',
+      'Termination Date',
+      'Termination Reason',
+      'Eligible for Rehire',
+    ];
+    expect(
+      columns.filter((x) => lifecycleColumns.includes(x.header)).map((x) => [x.header, x.status, x.key]),
+    ).toEqual([
+      ['Employment Status', 'mapped', 'employment_status'],
+      ['Termination Date', 'mapped', 'last_working_day'],
+      ['Termination Reason', 'mapped', 'leaving_reason'],
+      ['Eligible for Rehire', 'mapped', 'eligible_for_rehire'],
+    ]);
+    expect(proposals.filter((p) => lifecycleColumns.includes(p.header))).toEqual([]);
+    for (const h of ['Leave Type', 'Leave Start Date', 'Expected Return Date']) {
+      expect([h, of(h).include]).toEqual([h, true]);
+    }
 
     // The plan: nothing refused, nothing blocked, so Approve and run is on.
     const planned = await c.graph(`mutation ($input: String!) { planImport(input: $input) }`, {
@@ -1373,6 +1405,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
             note: string | null;
             proposed: { kind: string; country?: string; timeZone?: string; legalEntityId?: string };
           }[];
+          lifecycle: { left: number; notice: number; onLeave: number; conflicts: object };
         };
       };
     };
@@ -1384,8 +1417,10 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       expect.arrayContaining([
         'Employment Type → Employment type; added Full-time and Part-time',
         'Work Arrangement → Work model',
+        '5 people already left (offboarded from their termination date); 2 are serving notice (offboarding scheduled); 3 are on leave',
       ]),
     );
+    expect(plan.review.dryRun.lifecycle).toEqual({ left: 5, notice: 2, onLeave: 3, conflicts: {} });
     // Each new office where the file says it is, in the company's one entity.
     const offices = Object.fromEntries(
       plan.review.dryRun.workplaces.map((w) => [
@@ -1413,8 +1448,9 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       columns: { existing: number; created: number; kithena: number; leftOut: number };
     }>(c.graph, { ...step, proposals }, 'meridian-run');
     expect(done).toMatchObject({ created: 100, blocked: 0, held: 0 });
-    // 10 to fields here (employment type and work model among them), 93 new, 2 ids.
-    expect(done.columns).toEqual({ existing: 10, created: 93, kithena: 2, leftOut: 0 });
+    // 14 to People's own (employment type, work model and the four lifecycle
+    // columns among them), 89 new, 2 ids.
+    expect(done.columns).toEqual({ existing: 14, created: 89, kithena: 2, leftOut: 0 });
 
     // What was written: a salary as money in the row's currency, an identifier sealed.
     const client = postgres(pgUrl, { max: 1 });
@@ -1470,6 +1506,87 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
         [TENANT],
       )) as unknown as { n: number }[];
       expect(second?.n).toBe(0);
+
+      // The leavers: offboarded from their termination date, with the reason
+      // People counts and the file's words beside it, never given access.
+      const leavers = (await client.unsafe(
+        `SELECT p.work_email AS email, p.status, p.last_working_day::text AS day,
+                p.identity_account_id AS account, p.access_ended_at IS NOT NULL AS ended,
+                e.leaving_reason AS reason, e.eligible_for_rehire AS rehire
+           FROM people.person p
+           JOIN people.employment_period e ON e.tenant_id = p.tenant_id AND e.person_id = p.id
+          WHERE p.tenant_id = $1::uuid AND p.status IN ('terminated', 'notice')
+          ORDER BY p.work_email`,
+        [TENANT],
+      )) as unknown as Record<string, unknown>[];
+      const m = (who: string) => `${who}@meridianfreight.example`;
+      const left = (email: string, day: string, reason: string) => ({
+        email: m(email),
+        status: 'terminated',
+        day,
+        account: null,
+        ended: true,
+        reason,
+        rehire: true,
+      });
+      const notice = (email: string) => ({
+        email: m(email),
+        status: 'notice',
+        day: AHEAD,
+        account: null,
+        ended: false,
+        // Notice carries its reason on the status change; the period takes
+        // one, and the rehire flag, when HR confirms the termination.
+        reason: null,
+        rehire: null,
+      });
+      expect(leavers).toEqual([
+        left('hunter.nelson', '2025-12-19', 'end_of_contract'),
+        left('jonas.fischer', '2010-11-05', 'resigned'),
+        left('joseph.robinson', '2009-03-15', 'resigned'),
+        left('karen.smith', '2022-10-27', 'resigned'),
+        left('linda.campbell', '2024-05-18', 'dismissed'),
+        notice('michelle.martin'),
+        notice('steven.rodriguez'),
+      ]);
+      // Effective from the dates, with HR's note the file's own words; access
+      // ended at the end of the last day, as the hourly job would have.
+      const [linda] = (await client.unsafe(
+        `SELECT o.envelope->>'effectiveFrom' AS "from", o.envelope->'payload'->>'reason' AS note,
+                (SELECT a.envelope->'payload'->>'trigger' FROM people.outbox a
+                  WHERE a.aggregate_id = o.aggregate_id AND a.event_name = 'people.person.access_ended') AS trigger
+           FROM people.outbox o JOIN people.person p ON p.id::text = o.aggregate_id
+          WHERE p.work_email = $1 AND o.event_name = 'people.person.terminated'`,
+        [m('linda.campbell')],
+      )) as unknown as { from: string; note: string; trigger: string }[];
+      expect(linda).toEqual({
+        from: '2024-05-18',
+        note: 'Involuntary - restructuring',
+        trigger: 'last_working_day_ended',
+      });
+      // On leave from the day their leave began; the leave's own columns are fields.
+      const away = (await client.unsafe(
+        `SELECT p.work_email AS email, p.status, o.envelope->>'effectiveFrom' AS "from",
+                p.custom ? 'leave_type' AS kept
+           FROM people.person p JOIN people.outbox o ON o.aggregate_id = p.id::text
+          WHERE p.tenant_id = $1::uuid AND o.event_name = 'people.person.status_changed'
+            AND o.envelope->'payload'->>'reason' = 'leave_started'
+          ORDER BY p.work_email`,
+        [TENANT],
+      )) as unknown as Record<string, unknown>[];
+      expect(away).toEqual([
+        { email: m('barbara.moore2'), status: 'on_leave', from: '2026-06-05', kept: true },
+        { email: m('keisha.harris'), status: 'on_leave', from: '2026-06-11', kept: true },
+        { email: m('maria.sanchez2'), status: 'on_leave', from: '2026-09-02', kept: true },
+      ]);
+      // Nothing of the lifecycle's became a field.
+      const [fieldsOf] = (await client.unsafe(
+        `SELECT count(*)::int AS n FROM people.attribute_definition
+          WHERE tenant_id = $1::uuid
+            AND key IN ('employment_status', 'termination_date', 'termination_reason', 'eligible_for_rehire')`,
+        [TENANT],
+      )) as unknown as { n: number }[];
+      expect(fieldsOf?.n).toBe(0);
     } finally {
       await client.end();
     }
