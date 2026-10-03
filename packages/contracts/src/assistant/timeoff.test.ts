@@ -97,4 +97,10 @@ describe('Time Off’s capabilities (AST-003)', () => {
     ).toBe(true);
     expect(CatalogueLeaveType.safeParse({ key: 'sick', name: 'Baja médica' }).success).toBe(false);
   });
+
+  it('carries a type’s category, so the assistant knows which words name it', () => {
+    const sick = { key: 'sick', name: 'Baja médica', private: true, category: 'sick_leave' };
+    expect(CatalogueLeaveType.safeParse(sick).success).toBe(true);
+    expect(CatalogueLeaveType.safeParse({ ...sick, category: 'flu' }).success).toBe(false);
+  });
 });

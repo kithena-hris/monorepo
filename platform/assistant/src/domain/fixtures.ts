@@ -64,7 +64,7 @@ export const TIMEOFF_CATALOGUE = RuntimeCatalogue.parse({
     { key: 'vacation', name: 'Vacation', private: false },
     { key: 'personal', name: 'Personal', private: false },
     { key: 'comp', name: 'Comp', private: false },
-    { key: 'sick', name: 'Baja médica', private: true },
-    { key: 'parental', name: 'Parental leave', private: true },
+    { key: 'sick', name: 'Baja médica', private: true, category: 'sick_leave' },
+    { key: 'parental', name: 'Parental leave', private: true, category: 'parental_leave' },
   ],
 });

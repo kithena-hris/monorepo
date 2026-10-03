@@ -258,7 +258,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   is not this one. No `Date` is constructed: days are `Date.UTC` arithmetic
   formatted with `Intl`. The answer's UTC sentence is AST-011's.
 
-### [ ] AST-009 — Masking and refusals
+### [x] AST-009 — Masking and refusals
 
 - **Spec** PRD §7.6, §12.2
 - **Files** `platform/assistant/src/domain/mask.ts` (+ test, first)
@@ -275,6 +275,17 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   type masks to "managers of people on L1 today"; the same question with no
   Time Off is refused as special-category; "who is pregnant" is refused either
   way; a masked prompt fixture never contains "sick".
+- **As built** `mask(question, leaveTypes)` gives `{ question, refs }`, each
+  `LeaveRef` a reference and the private types it stands for: one everyday
+  word names every private type of its category, so a reference can be
+  several keys, and `unmask(plan, refs)` expands it in `leave_type` filters.
+  `maskOffer(offer, leaveTypes, refs)` is the catalogue the model is shown and
+  the plan is read against (AST-007). The words need a type's category, so
+  `CatalogueLeaveType` gains an optional `category` (Time Off's catalogue,
+  AST-022, fills it); without one a private type is masked by name and key
+  only, and "off sick" is then refused rather than guessed. `refused()` is
+  People's performance, prediction and special-category refusals; skills is
+  left out, since it only offers a field.
 
 ### [ ] AST-010 — Join, count, group
 
