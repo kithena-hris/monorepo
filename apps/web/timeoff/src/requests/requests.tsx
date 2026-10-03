@@ -496,13 +496,16 @@ function ChangeDialog({
   const label = spanLabel(from, to);
   const approved = request.status === 'approved';
   const proceed = (): void => {
-    if (choice === 'cancel') return run(onCancel && (() => onCancel(id)));
-    if (!picking) return setPicking(true);
-    if (choice === 'move' && range.start !== null && range.end !== null) {
+    if (choice === 'cancel') {
+      run(onCancel && (() => onCancel(id)));
+    } else if (!picking) {
+      setPicking(true);
+    } else if (choice === 'move' && range.start !== null && range.end !== null) {
       const span = { from: range.start, to: range.end, startsHalfDay: false, endsHalfDay: false };
-      return run(onChange && (() => onChange(id, span)));
+      run(onChange && (() => onChange(id, span)));
+    } else if (choice === 'shorten' && last !== null) {
+      run(onShorten && (() => onShorten(id, last)));
     }
-    if (choice === 'shorten' && last !== null) return run(onShorten && (() => onShorten(id, last)));
   };
   const ready =
     choice === 'cancel' ||

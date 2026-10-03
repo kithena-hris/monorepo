@@ -258,7 +258,7 @@ function Panel({
   const ready = type !== null && preview !== null && asked.from !== null && asked.to !== null;
   const refused = preview !== null && (preview.blocked || preview.negative.kind === 'refused');
   const send = (): void => {
-    if (!ready || onSend === undefined || asked.from === null || asked.to === null) return;
+    if (!ready || onSend === undefined) return;
     setFailed(null);
     const span = {
       from: asked.from,
