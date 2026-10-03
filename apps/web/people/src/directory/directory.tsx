@@ -813,6 +813,8 @@ function usePlace({
       const top = index.get(id(seen[0])) ?? 0;
       const last = index.get(id(seen.at(-1))) ?? top;
       setAt((was) => (was.top === top && was.last === last ? was : { top, last }));
+      // ponytail: halfway through what is loaded keeps up to twice what was read
+      // loaded; a fixed lookahead (one page past the reader) if pages get expensive.
       if (seen.length > 0 && (last + 1) * 2 >= latest.current.length) more.current?.();
       clearTimeout(settle);
       // Noted once the scroll settles, rewriting this entry: a scroll is not a step Back undoes.
