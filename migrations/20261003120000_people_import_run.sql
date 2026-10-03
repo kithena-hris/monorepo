@@ -36,6 +36,8 @@ CREATE TABLE people.import_run (
   -- The people phase's tallies so far: created, updated, unchanged, blocked,
   -- duplicate, incomplete. Then, once finished, the import's counts.
   counts      jsonb NOT NULL DEFAULT '{}'::jsonb,
+  -- The new fields its setup added, once set up: the finished notice says so.
+  fields      int,
   -- Why it failed, in words. Never a value.
   failure     text,
   created_at  timestamptz NOT NULL DEFAULT now(),

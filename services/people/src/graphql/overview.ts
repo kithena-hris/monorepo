@@ -33,6 +33,20 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
       }),
     });
 
+  const ImportNoticeRef = builder
+    .objectRef<OverviewView['imports'][number]>('PeopleImportNotice')
+    .implement({
+      description: 'An import the viewer approved, finished: Imported or Import failed.',
+      fields: (t) => ({
+        id: t.exposeID('id', { description: 'The run: `importRun(id)` and `/people/import?run=`.' }),
+        status: t.exposeString('status', { description: 'succeeded or failed.' }),
+        finishedAt: t.exposeString('finishedAt'),
+        people: t.exposeInt('people', { description: 'People created or updated.' }),
+        fields: t.exposeInt('fields', { description: 'New fields it added.' }),
+        fileName: t.exposeString('fileName', { nullable: true }),
+      }),
+    });
+
   const Roles = builder.objectRef<OverviewView['roles']>('PeopleOverviewRoles').implement({
     fields: (t) => ({
       hr: t.exposeBoolean('hr'),
@@ -184,6 +198,11 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
         resolve: (o) => list(o.viewedAs),
       }),
       setup: t.field({ type: SetupRef, nullable: true, resolve: (o) => o.setup }),
+      imports: t.field({
+        type: [ImportNoticeRef],
+        description: 'Imports the viewer approved that finished in the last two weeks, newest first.',
+        resolve: (o) => list(o.imports),
+      }),
     }),
   });
 

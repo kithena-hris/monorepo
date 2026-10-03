@@ -9,6 +9,7 @@ import { avatarsOf } from './photo.js';
 import { actors, ownRecord } from './people.js';
 import { nameOf, NOBODY, type ScreenDeps, type Tx } from './record.js';
 import type { ViewedAs } from '../person/view-as.js';
+import type { ImportNotice } from '../import/run-store.js';
 
 /**
  * Where People starts: the signed-in person, where they sit, and what is
@@ -105,6 +106,8 @@ export interface OverviewView {
    * whether special-category data was visible. Never the reason.
    */
   readonly viewedAs: readonly ViewedAs[];
+  /** The imports they approved that finished in the last two weeks, newest first: the bell's. */
+  readonly imports: readonly ImportNotice[];
   /**
    * What signing up still asks of them, on the first screen they land on: a
    * photo when the company asks for one and they have none, and the image and
@@ -148,6 +151,15 @@ export async function overviewView(
       deps.viewedAs === undefined
         ? []
         : await deps.viewedAs(tx, asking.tenantId, asking.viewer.accountId, deps.clock.instant());
+    const imports =
+      deps.importNotices === undefined
+        ? []
+        : await deps.importNotices(
+            tx,
+            asking.tenantId,
+            asking.viewer.accountId,
+            deps.clock.instant(),
+          );
     const personId = await deps.personOf(tx, asking.tenantId, asking.viewer.accountId);
     const record =
       personId === null ? null : await ownRecord(deps, tx, asking, personId, () => true);
@@ -162,6 +174,7 @@ export async function overviewView(
         team,
         setup: null,
         viewedAs,
+        imports,
       });
     }
     const { view, sections } = record.value;
@@ -237,6 +250,7 @@ export async function overviewView(
           ? null
           : { photo: asked === 'off' ? null : asked, fields: setupFields },
       viewedAs,
+      imports,
     });
   });
 }

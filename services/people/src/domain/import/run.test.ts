@@ -6,6 +6,7 @@ import {
   begun,
   failRun,
   isActive,
+  labelOf,
   nextChunk,
   peopleDone,
   queuedRun,
@@ -151,6 +152,13 @@ describe('an import run', () => {
     expect(stepLabel('managers')).toBe('Linking managers');
     expect(stepLabel('lifecycle')).toBe('Setting employment status');
     expect(stepLabel('finishing')).toBe('Finishing');
+    // One word for each state, wherever a run is shown.
+    expect(['queued', 'running', 'succeeded', 'failed'].map((s) => labelOf(s as never))).toEqual([
+      'Importing',
+      'Importing',
+      'Imported',
+      'Import failed',
+    ]);
   });
 
   it('says what a failure leaves behind and what to do', () => {

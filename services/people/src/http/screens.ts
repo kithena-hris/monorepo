@@ -89,9 +89,16 @@ import {
   planImport,
   proposeNewFields,
   RunInput as ImportRunInput,
-  runImport,
   type NewFieldsDeps,
 } from '../application/assistant/import-fields.js';
+import {
+  activeImportRunView,
+  approveImport,
+  importRunView,
+  type RunStore,
+  type WorkDeps,
+} from '../application/import/run.js';
+import type { ActivityStore } from '../application/settings/activity-store.js';
 import { writeSameValue } from '../application/screens/bulk-edit.js';
 import { PlanBudget } from '../domain/import/new-fields.js';
 import {
@@ -226,7 +233,50 @@ export type ScreenRouteDeps = SchemaScreenDeps &
       readonly search: PlanBudget;
       readonly export: PlanBudget;
     };
+    /** Approved imports, run in the background (`import/run.ts`). Absent, "Approve and run" is UNAVAILABLE. */
+    readonly importRuns?: {
+      readonly store: RunStore;
+      /** Start the run's worker, after the approval commits. */
+      readonly kick: (tenantId: string, runId: string) => Promise<void>;
+    };
+    /** The settings log, for the fields an import adds. */
+    readonly activity?: ActivityStore;
   };
+
+/** New fields from an import: its file, and one value for many, in this process. */
+export function newFieldsDeps(deps: ScreenRouteDeps): NewFieldsDeps {
+  return {
+    ...deps,
+    ...(deps.newFields?.planner === undefined ? {} : { fieldPlanner: deps.newFields.planner }),
+    // No model configured means no budget to spend either.
+    planBudget: deps.newFields?.budget ?? new PlanBudget(0, 3_600_000),
+    importFile: (asking, step) => newFieldsFile(deps, asking, importStep(step)),
+    writeSame: (tx, asking, ids, values, from) =>
+      writeSameValue(deps, tx, asking, ids, values, from),
+    importReview: async (asking, step, version) => {
+      const review = await dryRunImport(deps, asking, importStep(step), version);
+      if (!review.ok) return review;
+      return review.value.step === 'review'
+        ? ok(review.value)
+        : err(failure('UNAVAILABLE', 'The dry run did not answer with a review'));
+    },
+    importCommit: async (asking, step) => {
+      const done = await commitImportView(deps, asking, importStep(step));
+      if (!done.ok) return done;
+      return done.value.step === 'done'
+        ? ok(done.value)
+        : err(failure('UNAVAILABLE', 'The import did not answer with its outcome'));
+    },
+  };
+}
+
+/** What an approved import's chunks run with (`importWork`). */
+export const importWorkDeps = (deps: ScreenRouteDeps): WorkDeps => ({
+  ...deps,
+  ...newFieldsDeps(deps),
+  sealed: deps.commit.reports.store,
+  ...(deps.activity === undefined ? {} : { activity: deps.activity }),
+});
 
 export const ChatConnect = z.strictObject({ origin: z.url().max(300) });
 export const ChatComplete = z.strictObject({
@@ -624,30 +674,27 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
   // A photo's upload needs the bucket and the upload ledger, and nothing else of import's.
   const photoDeps: PhotoDeps = { ...deps, newId: () => deps.commit.newId() };
   const fileDeps: FileDeps = { ...deps, newId: () => deps.commit.newId() };
-  // New fields from an import: its file, and one value for many, in this process.
-  const newFields: NewFieldsDeps = {
+  const newFields = newFieldsDeps(deps);
+  const runs = deps.importRuns;
+  const noRuns = () => err(failure('UNAVAILABLE', 'Imports cannot run here'));
+  const runDeps = (store: RunStore) => ({
     ...deps,
-    ...(deps.newFields?.planner === undefined ? {} : { fieldPlanner: deps.newFields.planner }),
-    // No model configured means no budget to spend either.
-    planBudget: deps.newFields?.budget ?? new PlanBudget(0, 3_600_000),
-    importFile: (asking, step) => newFieldsFile(deps, asking, importStep(step)),
-    writeSame: (tx, asking, ids, values, from) =>
-      writeSameValue(deps, tx, asking, ids, values, from),
-    importReview: async (asking, step, version) => {
-      const review = await dryRunImport(deps, asking, importStep(step), version);
-      if (!review.ok) return review;
-      return review.value.step === 'review'
-        ? ok(review.value)
-        : err(failure('UNAVAILABLE', 'The dry run did not answer with a review'));
+    runs: store,
+    sealed: deps.commit.reports.store,
+    newId: deps.commit.newId,
+  });
+  const approve = write(
+    ImportRunInput,
+    (asking, input) =>
+      runs === undefined ? Promise.resolve(noRuns()) : approveImport(runDeps(runs.store), asking, input),
+    {
+      status: 202,
+      resource: (_asking, _id, approved) => approved.runId,
+      // A retry of the same approval is that run, not a second one.
+      again: (_asking, runId) =>
+        Promise.resolve({ status: 202, body: { runId, status: 'queued' } }),
     },
-    importCommit: async (asking, step) => {
-      const done = await commitImportView(deps, asking, importStep(step));
-      if (!done.ok) return done;
-      return done.value.step === 'done'
-        ? ok(done.value)
-        : err(failure('UNAVAILABLE', 'The import did not answer with its outcome'));
-    },
-  };
+  );
   // Search and export in words: no model configured means no budget to spend.
   const selection: SelectionDeps = {
     ...deps,
@@ -1359,15 +1406,37 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       // Approve and run: setup if nothing is published, the fields, the defaults, the import.
       method: 'POST',
       pattern: /^\/v1\/imports\/run$/,
-      handle: write(ImportRunInput, (asking, input) => runImport(newFields, asking, input), {
-        status: 201,
-        again: () =>
-          Promise.resolve(
-            refused(
-              failure('ALREADY_IMPORTED', 'This import went through on the first request with this key'),
-            ),
-          ),
-      }),
+      // Checked now, run in the background: the run's id at once, its worker after the commit.
+      handle: async (asking, request, params, query) => {
+        const answered = await approve(asking, request, params, query);
+        const runId = (answered.body as { runId?: unknown } | null)?.runId;
+        if (answered.status < 300 && typeof runId === 'string' && runs !== undefined) {
+          await runs.kick(asking.tenantId, runId);
+        }
+        return answered;
+      },
+    },
+    {
+      // The company's run going now, or null: Import & export and the Directory say so.
+      method: 'GET',
+      pattern: /^\/v1\/imports\/runs\/active$/,
+      handle: async (asking) =>
+        answer(
+          runs === undefined
+            ? ok(null)
+            : await activeImportRunView(runDeps(runs.store), asking),
+        ),
+    },
+    {
+      // One run, as its page shows it while it goes and once it is over.
+      method: 'GET',
+      pattern: new RegExp(`^/v1/imports/runs/${UUID}$`),
+      handle: async (asking, _request, params) =>
+        answer(
+          runs === undefined
+            ? noRuns()
+            : await importRunView(runDeps(runs.store), asking, params['id'] ?? ''),
+        ),
     },
     {
       method: 'POST',

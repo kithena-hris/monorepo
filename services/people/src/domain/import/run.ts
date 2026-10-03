@@ -39,6 +39,8 @@ export interface ImportRun {
   /** Rows in the file, once it is read. */
   readonly total: number | null;
   readonly counts: RunCounts;
+  /** The new fields setup added, once it has run. */
+  readonly fields: number | null;
   readonly failure: string | null;
   readonly startedAt: string | null;
   readonly finishedAt: string | null;
@@ -72,6 +74,7 @@ export const queuedRun = (id: string): ImportRun => ({
   done: 0,
   total: null,
   counts: NO_COUNTS,
+  fields: null,
   failure: null,
   startedAt: null,
   finishedAt: null,
@@ -113,14 +116,18 @@ const add = (a: RunCounts, b: Partial<RunCounts>): RunCounts => ({
 });
 
 /**
- * The run once `chunk` has been done: `total` from reading the file, `tally`
- * from a batch of people. Refused unless `chunk` is the run's next one.
+ * The run once `chunk` has been done: `fields` from setup, `total` from
+ * reading the file, `tally` from a batch of people. Refused unless `chunk` is the run's next one.
  */
 export function afterChunk(
   run: ImportRun,
   chunk: Chunk,
   at: string,
-  outcome: { readonly total?: number; readonly tally?: Partial<RunCounts> } = {},
+  outcome: {
+    readonly total?: number;
+    readonly tally?: Partial<RunCounts>;
+    readonly fields?: number;
+  } = {},
 ): Result<ImportRun> {
   const expected = nextChunk(run, chunk.kind === 'rows' ? chunk.to - chunk.from : BATCH);
   if (expected === null || !same(expected, chunk)) {
@@ -128,7 +135,7 @@ export function afterChunk(
   }
   switch (chunk.kind) {
     case 'setup':
-      return ok({ ...run, phase: 'people', done: 0 });
+      return ok({ ...run, phase: 'people', done: 0, fields: outcome.fields ?? 0 });
     case 'read': {
       const total = Math.max(0, outcome.total ?? 0);
       return ok({ ...run, total, ...onward('people', 0, total) });
@@ -164,6 +171,12 @@ const STEPS: Readonly<Record<RunPhase, string>> = {
   lifecycle: 'Setting employment status',
   finishing: 'Finishing',
 };
+
+export type RunLabel = 'Importing' | 'Imported' | 'Import failed';
+
+/** The one word for a run, everywhere it is shown: the page, the history, the bell, the log. */
+export const labelOf = (status: RunStatus): RunLabel =>
+  status === 'succeeded' ? 'Imported' : status === 'failed' ? 'Import failed' : 'Importing';
 
 /** Where a run stands, as the progress line says it. */
 export const stepLabel = (phase: RunPhase): string => STEPS[phase];

@@ -43,6 +43,22 @@ export function defineTransfers(builder: PeopleBuilder, viaRest: ViaRest): void 
         }),
       }),
     });
+  const Progress = builder
+    .objectRef<NonNullable<TransferView['run']>['people']>('PeopleTransferProgress')
+    .implement({
+      fields: (t) => ({
+        done: t.exposeInt('done'),
+        total: t.exposeInt('total', { nullable: true, description: 'Null until the file is read.' }),
+      }),
+    });
+  const Run = builder.objectRef<NonNullable<TransferView['run']>>('PeopleTransferRun').implement({
+    description: 'An import’s state: Importing with how many people are in, Imported, or Import failed.',
+    fields: (t) => ({
+      status: t.exposeString('status', { description: 'importing, imported or failed.' }),
+      label: t.exposeString('label', { description: 'Importing, Imported or Import failed.' }),
+      people: t.field({ type: Progress, resolve: (v) => v.people }),
+    }),
+  });
   const Transfer = builder.objectRef<TransferView>('PeopleTransfer').implement({
     description: 'One import or export, as its ledger keeps it. Never a value, never a stored link.',
     fields: (t) => ({
@@ -62,6 +78,12 @@ export function defineTransfers(builder: PeopleBuilder, viaRest: ViaRest): void 
       reportUrl: t.exposeString('reportUrl', {
         nullable: true,
         description: 'An import’s blocked-row report while it is kept: a link that expires.',
+      }),
+      run: t.field({
+        type: Run,
+        nullable: true,
+        description: 'An import’s state, and its run’s id is this id; null for an export.',
+        resolve: (v) => v.run,
       }),
     }),
   });

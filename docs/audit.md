@@ -71,6 +71,7 @@ rules out.
 | --------------------------------------------- | ----------------- | --------------------------------------------- |
 | `people.settings.activity_recorded`           | the row's own     | the settings log's own words                  |
 | `people.import.completed`                     | imports & exports | Imported people, with the counts              |
+| `people.import.failed`                        | imports & exports | Import failed, the reason and what was done   |
 | `people.export.completed`                     | imports & exports | Exported people, the format and the reason    |
 | `people.export.full_values_*` (five)          | sensitive access  | Asked for, decided, issued, downloaded, lapsed |
 | `people.person.identifier_revealed`           | sensitive access  | Read an identifier in full, whose             |

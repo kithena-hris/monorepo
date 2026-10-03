@@ -143,6 +143,13 @@ export const REPORT_LINK_MS = 24 * 60 * 60 * 1000;
 export const reportKey = (tenantId: string, checksum: string): string =>
   `imports/${tenantId}/${checksum}/blocked-rows.csv`;
 
+/**
+ * What a background run did (`import/run.ts`), beside its report and gone
+ * with it: it names the people its rows left something empty for.
+ */
+export const resultKey = (tenantId: string, checksum: string): string =>
+  `imports/${tenantId}/${checksum}/result.json`;
+
 /** A link to the stored report, or null once it has expired or been erased. */
 async function reportLink(
   tx: PostgresJsDatabase,
@@ -183,6 +190,8 @@ export async function forgetImportReports(
   for (const checksum of checksums) {
     // eslint-disable-next-line no-await-in-loop -- a handful of reports, one delete each
     await reports.store.remove(reportKey(tenantId, checksum));
+    // eslint-disable-next-line no-await-in-loop -- and what its run did, beside it
+    await reports.store.remove(resultKey(tenantId, checksum));
   }
   await reports.index.remove(tx, tenantId, checksums);
   return checksums.length;
@@ -378,6 +387,8 @@ export async function recordImport(
             .filter((o) => o.written === 'blocked' || o.written === 'duplicate')
             .map((o) => o.row.personId),
           ...plan.blockedItems.map((i) => i.personId),
+          // Named in what a run did, by the references left empty for them.
+          ...leftEmpty.map((l) => outcomes.find((o) => o.row.row === l.row)?.personId ?? null),
         ].filter((id): id is string => id !== null),
       ),
     ],

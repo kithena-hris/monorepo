@@ -1297,7 +1297,7 @@ type Mutation {
   rotateScimToken(id: ID!, idempotencyKey: String!): ScimConnectionToken
   rotateWebhookSecret(id: ID!, idempotencyKey: String!): WebhookEndpointSecret
   """
-  Approve the plan and run it: set the company up if nothing is published, add and publish the new fields, write the defaults, then import (JSON). A People administrator’s when it adds fields.
+  Approve the plan and run it in the background: set the company up if nothing is published, add and publish the new fields, write the defaults, then import. Answers at once with the run (JSON: runId, status); `importRun` follows it. One run at a time per company. A People administrator’s when it adds fields.
   """
   runImport(idempotencyKey: String!, input: String!): String
   saveCompletenessGrid(changes: [GridChangeInput!]!, idempotencyKey: String!): GridSaved
@@ -1721,6 +1721,20 @@ type PeopleIdentifierReviews {
   items: [IdentifierReviewItem!]
 }
 
+"""An import the viewer approved, finished: Imported or Import failed."""
+type PeopleImportNotice {
+  """New fields it added."""
+  fields: Int
+  fileName: String
+  finishedAt: String
+  """The run: `importRun(id)` and `/people/import?run=`."""
+  id: ID
+  """People created or updated."""
+  people: Int
+  """succeeded or failed."""
+  status: String
+}
+
 type PeopleIntegrations {
   deliveries24h: Int
   endpoints: [WebhookEndpoint!]
@@ -1777,6 +1791,10 @@ Where People starts: the viewer, their reporting line, and what waits for them.
 """
 type PeopleOverview {
   approvals: PeopleOverviewApprovals
+  """
+  Imports the viewer approved that finished in the last two weeks, newest first.
+  """
+  imports: [PeopleImportNotice!]
   me: PeopleOverviewMe
   missing: [PeopleOverviewMissing!]
   """
@@ -2061,6 +2079,8 @@ type PeopleTransfer {
   kind: String
   """An import’s blocked-row report while it is kept: a link that expires."""
   reportUrl: String
+  """An import’s state, and its run’s id is this id; null for an export."""
+  run: PeopleTransferRun
   """An import’s file name; an export’s reason, else the file it made."""
   title: String
 }
@@ -2086,6 +2106,23 @@ type PeopleTransferImported {
   blocked: Int
   created: Int
   updated: Int
+}
+
+type PeopleTransferProgress {
+  done: Int
+  """Null until the file is read."""
+  total: Int
+}
+
+"""
+An import’s state: Importing with how many people are in, Imported, or Import failed.
+"""
+type PeopleTransferRun {
+  """Importing, Imported or Import failed."""
+  label: String
+  people: PeopleTransferProgress
+  """importing, imported or failed."""
+  status: String
 }
 
 type PeopleViewedAs {
@@ -2227,11 +2264,19 @@ type PublishedVersionNumber {
 type Query {
   _entities(representations: [_Any!]!): [_Entity]!
   _service: _Service!
+  """
+  The company’s import running now, as `importRun` says it (JSON), or JSON null: another import waits for it. HR and People administrators.
+  """
+  activeImportRun: String
   """Null for an entity that does not number its people."""
   employeeNumbering(legalEntityId: ID!): EmployeeNumbering
   """Every employment on a person, first first; HR only."""
   employmentPeriods(personId: ID!): [EmploymentPeriod!]
   fullValuesRequest(id: ID!): FullValuesRequest
+  """
+  An approved import as it runs and once it is over (JSON): Importing with its step and “312 of 1,000 people”, then Imported with what it did, or Import failed with why. HR, People administrators and whoever approved it.
+  """
+  importRun(id: ID!): String
   legalEntities: [LegalEntity!]
   locations: [Location!]
   people(after: String, asOf: String, first: Int): PersonPage

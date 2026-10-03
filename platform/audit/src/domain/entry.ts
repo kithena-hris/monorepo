@@ -6,6 +6,7 @@ import type {
   FullValuesIssued,
   FullValuesRequested,
   ImportCompleted,
+  ImportFailed,
   PersonIdentifierRevealed,
   SettingsActivityRecorded,
   SupportSessionStarted,
@@ -139,6 +140,14 @@ const SAYS: Readonly<Record<string, (payload: never) => Said>> = {
       subject: { kind: 'import', id: p.importId, label: null },
     };
   },
+
+  'people.import.failed': (p: Payload<typeof ImportFailed>) => ({
+    module: 'people',
+    area: 'imports_exports',
+    action: 'Import failed',
+    detail: p.reason,
+    subject: { kind: 'import', id: p.importId, label: null },
+  }),
 
   'people.export.completed': (p: Payload<typeof ExportCompleted>) => ({
     module: 'people',
