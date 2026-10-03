@@ -85,3 +85,24 @@ describe('Policy', () => {
     expect(policy.inEffectOn(date('2026-07-01'))?.version).toBe(2);
   });
 });
+
+describe('Policy.rehydrate', () => {
+  it('comes back with its versions, and the next publish carries on from them', () => {
+    const policy = published();
+    policy.drainEvents();
+    policy.revise(v2);
+
+    const back = Policy.rehydrate({ id, tenantId: TENANT, versions: policy.versions });
+    expect(back.versions).toEqual(policy.versions);
+    expect(back.latest.status).toBe('draft');
+
+    expect(back.publish(date('2026-07-01'), context()).ok).toBe(true);
+    const [event] = back.drainEvents();
+    expect(event?.aggregate.version).toBe(2);
+    expect(event?.payload).toMatchObject({ version: 2 });
+  });
+
+  it('refuses no versions at all', () => {
+    expect(() => Policy.rehydrate({ id, tenantId: TENANT, versions: [] })).toThrow();
+  });
+});
