@@ -4,7 +4,7 @@ import { presentsInternalToken, type HeaderCarrier } from '@kithena/auth-kit';
 import { PersonId, TenantId } from '@kithena/contracts';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
-import type { Caller } from '../application/ports.js';
+import type { Caller, UnitOfWork } from '../application/ports.js';
 
 /**
  * Who is calling, for every transport, from the request: People's rule
@@ -18,8 +18,13 @@ import type { Caller } from '../application/ports.js';
  * transport.
  *
  * `personId` is the member the account signs in as. Identity's token does not
- * carry one yet, so without it the caller is an account and nothing more —
- * which is HR's shape, and refused on every screen that is somebody's own.
+ * carry one, and the router forwards none, so `withMember` finds it in the
+ * projection. A forwarded one is still honoured, beside the internal token.
+ *
+ * A support session (`impersonatedBy`) or an administrator viewing as an
+ * employee (`viewedBy`) is refused: People makes the first an administrator
+ * and the second read-only, and Time Off has neither rule yet. Closed rather
+ * than treating either as the employee, who may approve and request.
  */
 
 const Forwarded = z.object({
@@ -27,6 +32,8 @@ const Forwarded = z.object({
   tenantId: TenantId,
   personId: PersonId.nullable().optional(),
   entitlements: z.array(z.string()).default([]),
+  impersonatedBy: z.uuid().nullable().optional(),
+  viewedBy: z.uuid().nullable().optional(),
 });
 
 export type CallerFrom = (request: HeaderCarrier) => Result<Caller> | Promise<Result<Caller>>;
@@ -44,6 +51,9 @@ export function callerFromHeaders(internalToken: string): CallerFrom {
       return err(failure('UNAUTHENTICATED', 'The forwarded principal is not JSON'));
     }
     if (!parsed.success) return err(failure('UNAUTHENTICATED', 'No principal was forwarded'));
+    if ((parsed.data.impersonatedBy ?? parsed.data.viewedBy ?? null) !== null) {
+      return err(failure('FORBIDDEN', 'Time Off cannot be used in a support or view-as session'));
+    }
     if (!parsed.data.entitlements.includes('module.timeoff')) {
       return err(failure('NOT_ENTITLED', 'This workspace does not include Time Off'));
     }
@@ -57,5 +67,25 @@ export function callerFromHeaders(internalToken: string): CallerFrom {
           ? correlation
           : randomUUID(),
     });
+  };
+}
+
+/**
+ * The member the caller's account signs in as, from Time Off's own
+ * projection (TOF-050a): People's `hired` and `identity_linked` put the
+ * account on the member, and an import may. Once per request, for every
+ * transport, the way People resolves a caller's roles (`withTenantRoles`).
+ *
+ * Nobody, when no member holds the account or more than one does: the caller
+ * is then an account and nothing more — HR's shape, refused on every screen
+ * that is somebody's own.
+ */
+export function withMember(callerFrom: CallerFrom, uow: UnitOfWork): CallerFrom {
+  return async (request) => {
+    const asking = await callerFrom(request);
+    if (!asking.ok || asking.value.personId !== null) return asking;
+    const { tenantId, accountId } = asking.value;
+    const member = await uow.run(tenantId, (tx) => tx.members.byAccount(accountId));
+    return ok({ ...asking.value, personId: member?.personId ?? null });
   };
 }

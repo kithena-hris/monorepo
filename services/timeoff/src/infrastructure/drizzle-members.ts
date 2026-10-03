@@ -25,6 +25,7 @@ type MemberRow = typeof member.$inferSelect;
 function toMember(r: MemberRow): Member {
   return {
     personId: r.personId as PersonId,
+    accountId: r.accountId,
     displayName: r.displayName,
     firstName: r.firstName ?? r.displayName,
     managerPersonId: r.managerPersonId as PersonId | null,
@@ -62,8 +63,15 @@ export function drizzleMembers(tx: PostgresJsDatabase, tenantId: TenantId): Memb
       return rows.map(toMember);
     },
 
+    async byAccount(accountId) {
+      const rows = await tx.select().from(member).where(eq(member.accountId, accountId)).limit(2);
+      const [only] = rows;
+      return rows.length === 1 && only !== undefined ? toMember(only) : null;
+    },
+
     async save(m) {
       const values = {
+        accountId: m.accountId,
         displayName: m.displayName,
         firstName: m.firstName,
         managerPersonId: m.managerPersonId,

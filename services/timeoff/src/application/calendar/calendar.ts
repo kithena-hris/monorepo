@@ -40,6 +40,7 @@ export interface CalendarView {
     readonly personId: PersonId;
     readonly displayName: string;
     readonly teamKey: TeamKey | null;
+    readonly teamName: string | null;
   }[];
   /** One per run of days: a swapped request is several. Shaped as a teammate sees one. */
   readonly entries: readonly TeammateRequestView[];
@@ -172,6 +173,7 @@ export async function calendarIn(
       personId: m.personId,
       displayName: m.displayName,
       teamKey: m.teamKey,
+      teamName: m.teamName,
     })),
     entries,
     holidays,

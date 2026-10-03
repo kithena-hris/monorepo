@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffDelegation {\n    timeOffDelegation {\n      approverId candidates { displayName personId } coveringFor { approverId approverName automatic range { from to } } delegation { automatic delegateId delegateName range { from to } salaryRelated } escalatesTo { displayName personId }\n    }\n  }"}

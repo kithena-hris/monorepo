@@ -22,7 +22,7 @@ const SCREENS: Partial<
   Record<
     Area['name'],
     {
-      readonly load: (component: string, query: ScreenQuery) => Promise<ScreenLoad>;
+      readonly load: (component: string, query: ScreenQuery, path: string) => Promise<ScreenLoad>;
       readonly Screen: typeof TimeOffScreen;
     }
   >
@@ -77,7 +77,7 @@ export async function RemoteArea({
   const screens = SCREENS[area.name];
   const [ssr, load] = await Promise.all([
     prepareRemoteSsr(route.base, route.area),
-    screens?.load(route.component, { params: route.params, search }) ??
+    screens?.load(route.component, { params: route.params, search }, route.path) ??
       ({ status: 'none' } as const),
   ]);
   const drawn = {

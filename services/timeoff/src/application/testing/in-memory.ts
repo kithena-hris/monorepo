@@ -142,6 +142,10 @@ function stores(tenantId: TenantId, s: State): Tx {
         [...s.members.values()].filter(
           (m) => filter?.teamKey === undefined || m.teamKey === filter.teamKey,
         ),
+      byAccount: (accountId) => {
+        const found = [...s.members.values()].filter((m) => m.accountId === accountId);
+        return found.length === 1 ? (found[0] ?? null) : null;
+      },
       save: (member) => {
         s.members.set(member.personId, member);
       },
