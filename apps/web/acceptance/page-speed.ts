@@ -61,7 +61,10 @@ function graphAs(stack: Stack, tenantId: string, account: string) {
 }
 
 /** The file, through People's own import: upload, map, propose, approve, wait. */
-async function importFile(graph: ReturnType<typeof graphAs>, file: Uint8Array): Promise<void> {
+async function importFile(
+  graph: ReturnType<typeof graphAs>,
+  file: Uint8Array<ArrayBuffer>,
+): Promise<void> {
   await graph(
     `mutation { confirmSetupEntity(name: "Meridian Freight", country: "US", idempotencyKey: "speed-entity") { __typename } }`,
   );
@@ -151,7 +154,11 @@ const logSize = (): number => (existsSync(SHELL_LOG) ? statSync(SHELL_LOG).size 
  * functions: tsx names every function it compiles, with a helper the page
  * does not have.
  */
+const OBSERVED_HYDRATED =
+  "document.querySelector('[data-remote]') !== null && document.querySelector('[data-remote][data-hydrating]') === null";
+
 const OBSERVE = `
+  performance.setResourceTimingBufferSize(10000);
   window.speed = { lcp: -1, interactive: -1 };
   new PerformanceObserver((list) => {
     for (const e of list.getEntries()) window.speed.lcp = e.startTime;
@@ -169,7 +176,7 @@ const READ = `(() => {
   const nav = performance.getEntriesByType('navigation')[0];
   const resources = performance.getEntriesByType('resource');
   const sum = (test) => resources.filter((r) => test(r.name)).reduce((n, r) => n + r.decodedBodySize, 0);
-  const flight = window.__next_f ?? [];
+  // The flight data Next inlines, as the scripts that pushed it: it empties its own buffer.
   const hasRemote = document.querySelector('[data-remote]') !== null;
   return {
     ttfb: nav.responseStart,
@@ -177,7 +184,7 @@ const READ = `(() => {
     lcp: window.speed.lcp,
     interactive: hasRemote ? window.speed.interactive : nav.loadEventEnd,
     html: nav.decodedBodySize,
-    rsc: flight.reduce((n, f) => n + (typeof f[1] === 'string' ? f[1].length : 0), 0),
+    rsc: [...document.scripts].filter((s) => s.textContent.startsWith('self.__next_f.push')).reduce((n, s) => n + s.textContent.length, 0),
     remoteJs: sum((n) => n.includes('/_people/') && /\\.m?js(\\?|$)/.test(n)),
     remoteCss: sum((n) => n.includes('/_people/') && /\\.css(\\?|$)/.test(n)),
     shellJs: sum((n) => n.includes('/_next/static/') && /\\.js(\\?|$)/.test(n)),
@@ -342,9 +349,12 @@ async function main(): Promise<void> {
     const page = await context.newPage();
     await page.goto(`${made.shell}${profile}`);
     await page.waitForLoadState('networkidle');
+    await page.waitForFunction(OBSERVED_HYDRATED, undefined, { timeout: 30_000 });
     const tabs: string[] = [];
     for (const tab of await page.getByRole('tab').all()) {
       await tab.click();
+      // The address follows the tab once the router has moved.
+      await page.waitForURL(/[?&]tab=/, { timeout: 5_000 }).catch(() => undefined);
       const t = new URL(page.url()).searchParams.get('tab');
       if (t !== null && t !== 'overview' && !tabs.includes(`${profile}?tab=${t}`)) {
         tabs.push(`${profile}?tab=${t}`);
@@ -359,6 +369,12 @@ async function main(): Promise<void> {
       );
       appendFileSync(OUT, `${JSON.stringify(row)}\n`);
       console.log(JSON.stringify(row).slice(0, 300));
+    }
+    // `PAGE_SPEED_HOLD=<path>`: the stack stays up, for People to be asked directly, until that file exists.
+    const hold = process.env['PAGE_SPEED_HOLD'];
+    if (hold !== undefined && hold !== '') {
+      console.log(`holding: People at ${stack.peopleUrl}, tenant ${made.tenantId}, account ${made.account}`);
+      while (!existsSync(hold)) await new Promise((resolve) => setTimeout(resolve, 2_000));
     }
   } finally {
     await browser.close();
