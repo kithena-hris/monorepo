@@ -63,6 +63,13 @@ describe('recordSick', () => {
     expect(result.value.request.status).toBe('pending');
   });
 
+  it('counts the note threshold in calendar days, the weekend included (EFZG §5, SSP fit note)', () => {
+    // Thursday to Monday: three working days, five in a row.
+    const result = record('2026-10-01', '2026-10-05', '3.000');
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.noteRequired).toBe(true);
+  });
+
   it('asks for nothing more once the note is attached, and the note never leaves', () => {
     const fileId = '0189ffff-0000-7000-8000-00000000f11e';
     const result = record('2026-10-01', '2026-10-06', '4.000', { sickNoteFileId: fileId });

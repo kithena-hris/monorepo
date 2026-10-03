@@ -10,9 +10,13 @@ import { holidayLayer, statutoryType, type TimeOffCountryPack } from './pack.js'
  * - Entgeltfortzahlungsgesetz (EFZG) §3: six weeks' sick pay from the
  *   employer; §5(1): a doctor's certificate when an illness lasts more than
  *   three calendar days.
- * - Mutterschutzgesetz (MuSchG) §3: six weeks before the expected birth and
- *   eight after (twelve after a premature or multiple birth); paid as
- *   Mutterschaftsgeld by the health insurer and topped up by the employer (§20).
+ * - Mutterschutzgesetz (MuSchG) §3: six weeks before the expected birth, which
+ *   the woman may waive, and eight after — twelve after a premature or
+ *   multiple birth or a disability found within eight weeks, with any weeks
+ *   an early birth cut from before added after; since 1 June 2025 also two,
+ *   six or eight weeks after a miscarriage from the 13th, 17th or 20th week
+ *   (§3(5)). Paid as Mutterschaftsgeld by the health insurer and topped up by
+ *   the employer (§20). The pack's 98 days is the ordinary case only.
  * - Bundeselterngeld- und Elternzeitgesetz (BEEG) §15, §16: Elternzeit up to
  *   three years per parent before the child turns eight, unpaid by the
  *   employer (Elterngeld comes from the state); notice of seven weeks before
@@ -21,8 +25,10 @@ import { holidayLayer, statutoryType, type TimeOffCountryPack } from './pack.js'
  *   for a close relative in an acute case.
  * - BGB §616: a short paid absence for a personal reason (a wedding, a
  *   funeral), which a contract or collective agreement may narrow or exclude.
- * - SGB V §45: a child's sickness, paid by the health insurer (Kinderkrankengeld);
- *   the number of days has changed year to year, so the pack states none.
+ * - SGB V §45: a child's sickness, paid by the health insurer (Kinderkrankengeld).
+ *   For 2026, 15 working days per child (30 for a single parent), capped at
+ *   35 (70); from 2027 back to 10 (20), capped at 25 (50), unless extended
+ *   again — so the pack states no number.
  * - Arbeitszeitgesetz (ArbZG) §5: eleven hours' rest; §16(2): the record of
  *   hours kept two years.
  * - Holidays: the federal days (Neujahr, Karfreitag, Ostermontag, Tag der
@@ -163,16 +169,21 @@ const national = holidayLayer('de', 'Germany', 'national', 'none', [
   ['2027-12-26', '2. Weihnachtstag'],
 ]);
 
-// Mariä Himmelfahrt only where the population is mainly Catholic (FTG Art. 1(1) Nr. 2), Munich among them.
 const bayern = holidayLayer('de_by', 'Bavaria', 'regional', 'none', [
   ['2026-01-06', 'Heilige Drei Könige'],
   ['2026-06-04', 'Fronleichnam'],
-  ['2026-08-15', 'Mariä Himmelfahrt'],
   ['2026-11-01', 'Allerheiligen'],
   ['2027-01-06', 'Heilige Drei Könige'],
   ['2027-05-27', 'Fronleichnam'],
-  ['2027-08-15', 'Mariä Himmelfahrt'],
   ['2027-11-01', 'Allerheiligen'],
+]);
+
+// Mariä Himmelfahrt is a municipality's day, not Bavaria's: only where the
+// population is mainly Catholic (FTG Art. 1(1) Nr. 2, (3)). Munich keeps it;
+// Nuremberg, for one, does not.
+const munich = holidayLayer('munich', 'Munich city', 'city', 'none', [
+  ['2026-08-15', 'Mariä Himmelfahrt'],
+  ['2027-08-15', 'Mariä Himmelfahrt'],
 ]);
 
 const berlin = holidayLayer('de_be', 'Berlin', 'regional', 'none', [
@@ -186,9 +197,9 @@ export const de = {
   reviewed: false,
   leaveTypes,
   entitlements,
-  holidayLayers: [national, bayern, berlin],
+  holidayLayers: [national, bayern, munich, berlin],
   calendars: {
-    munich: [national, bayern],
+    munich: [national, bayern, munich],
     berlin: [national, berlin],
   },
   // ArbZG §5(1): eleven hours' rest. §16(2): the record of hours kept two years.

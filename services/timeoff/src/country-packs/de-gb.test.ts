@@ -15,7 +15,7 @@ describe('the Germany and UK country packs (PRD §12.3, TOF-113)', () => {
   });
 
   describe('Germany', () => {
-    it('Munich 2026: the nine federal days and Bavaria’s four', () => {
+    it('Munich 2026: the nine federal days, Bavaria’s three and Munich’s Mariä Himmelfahrt', () => {
       expect(dates(holidayDates(de.calendars.munich, 2026))).toEqual(
         [
           '2026-01-01',
@@ -74,9 +74,9 @@ describe('the Germany and UK country packs (PRD §12.3, TOF-113)', () => {
       expect(days).toHaveLength(8);
     });
 
-    it('Scotland keeps 2 January and St Andrew’s Day, not Easter Monday, and August’s first Monday', () => {
+    it('Scotland keeps 2 January, St Andrew’s Day, August’s first Monday and the 2026 World Cup day, not Easter Monday', () => {
       const edinburgh = holidayDates(gb.calendars.edinburgh, 2026);
-      for (const day of ['2026-01-02', '2026-08-03', '2026-11-30'])
+      for (const day of ['2026-01-02', '2026-06-15', '2026-08-03', '2026-11-30'])
         expect(edinburgh.has(d(day)), day).toBe(true);
       for (const day of ['2026-04-06', '2026-08-31'])
         expect(edinburgh.has(d(day)), day).toBe(false);

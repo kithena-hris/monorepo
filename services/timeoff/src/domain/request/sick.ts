@@ -3,7 +3,7 @@ import type { LeaveTypeDefinition, PersonId, TenantId } from '@kithena/contracts
 
 import type { LedgerEntry } from '../balance/ledger.js';
 import type { EventContext } from '../context.js';
-import { days } from '../days.js';
+import { days, daysBetween } from '../days.js';
 import {
   LeaveRequest,
   type LeaveRequestId,
@@ -16,7 +16,9 @@ import {
  *
  * Recorded on the day and informing the manager, approved on creation under
  * the threshold (default under 3 days), and asking for a note once it runs
- * past the leave type's `requiresNote`. The note is health data: the
+ * past the leave type's `requiresNote`, counted in calendar days because the
+ * law counts them so (EFZG §5: more than three calendar days; the UK fit
+ * note: more than seven days in a row). The note is health data: the
  * aggregate holds its file id, and every event says only `notePresent`.
  */
 
@@ -68,6 +70,8 @@ export function recordSick(
   }
   const afterDays = args.leaveType.requiresNote?.afterDays;
   const noteRequired =
-    afterDays !== undefined && cost.gt(afterDays) && args.sickNoteFileId === null;
+    afterDays !== undefined &&
+    daysBetween(args.span.from, args.span.to) > afterDays &&
+    args.sickNoteFileId === null;
   return ok({ request, entries, noteRequired });
 }
