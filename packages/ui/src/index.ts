@@ -106,7 +106,14 @@ export {
   formatIsoDate,
   parseIsoDate,
 } from './components/calendar/calendar';
-export type { CalendarProps, DateRange, IsoDate } from './components/calendar/calendar';
+export type {
+  CalendarDayStyle,
+  CalendarMarker,
+  CalendarProps,
+  CalendarTone,
+  DateRange,
+  IsoDate,
+} from './components/calendar/calendar';
 
 export {
   ChatComposer,

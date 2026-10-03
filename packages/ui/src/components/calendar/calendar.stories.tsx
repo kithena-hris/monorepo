@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { Badge } from '../badge/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../card/card';
-import { Calendar, addDays, type DateRange, type IsoDate } from './calendar';
+import { Calendar, addDays, type CalendarMarker, type DateRange, type IsoDate } from './calendar';
 
 const TODAY = '2026-08-09';
 
@@ -91,10 +91,25 @@ const meta = {
     },
     markers: {
       description:
-        'Dots under specific days: existing leave, a public holiday, a cut-off. A map keyed by ISO date.',
+        'Dots under specific days: existing leave, a public holiday, a cut-off. A map keyed by ISO date, to one marker or several (three fit). A marker’s `label` is read after the date.',
       control: 'object',
       table: {
-        type: { summary: "Record<IsoDate, { tone: 'accent' | 'success' | 'warning' | 'danger' }>" },
+        type: { summary: 'Record<IsoDate, CalendarMarker | readonly CalendarMarker[]>' },
+        category: 'Content',
+      },
+    },
+    dayStyles: {
+      description:
+        '`struck` mutes and crosses out a day that stays selectable (a day that does not count); `danger` draws the number in the danger colour (a day with a problem). `label` is read after the date.',
+      control: 'object',
+      table: { type: { summary: 'Record<IsoDate, CalendarDayStyle>' }, category: 'Content' },
+    },
+    highlight: {
+      description:
+        'A period drawn like a range selection, ends filled and a band between, without being the selection. In `range` mode a selection under way replaces it.',
+      control: 'object',
+      table: {
+        type: { summary: '{ start: IsoDate; end: IsoDate; label?: string } | null' },
         category: 'Content',
       },
     },
@@ -336,5 +351,58 @@ export const Localised: Story = {
         </div>
       ))}
     </div>
+  ),
+};
+
+const away: CalendarMarker = { tone: 'chart-2', label: 'A teammate is away' };
+const booked: CalendarMarker = { tone: 'chart-1', label: 'Already booked' };
+
+export const HighlightedRange: Story = {
+  name: 'Highlighted range, struck and clashing days',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A period chosen elsewhere, shown for reference with `highlight`; several dots per day with `markers`; a day that does not count crossed out and one with a problem in the danger colour with `dayStyles`. Every one of them carries a `label`, read after the date, because a dot, a strike and a colour say nothing to a screen reader.',
+      },
+    },
+  },
+  render: () => (
+    <Card className="w-fit">
+      <CardContent className="pt-5">
+        <Calendar
+          mode="single"
+          label="Choose dates"
+          today="2026-10-01"
+          month="2026-10-01"
+          highlight={{ start: '2026-10-19', end: '2026-10-23', label: 'In the chosen period' }}
+          markers={{
+            '2026-10-06': booked,
+            '2026-10-20': away,
+            '2026-10-21': [away, { tone: 'chart-4', label: 'Another teammate is away' }],
+            '2026-10-28': [booked, away],
+          }}
+          dayStyles={{
+            '2026-10-12': { appearance: 'struck', label: 'Public holiday' },
+            '2026-10-21': { appearance: 'danger', label: 'Below the team minimum' },
+          }}
+        />
+        <ul className="mt-3 space-y-1 text-xs text-fg-muted">
+          <li className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-chart-1" aria-hidden />
+            Already booked
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-chart-2" aria-hidden />A teammate is away
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="line-through" aria-hidden>
+              12
+            </span>
+            Public holiday
+          </li>
+        </ul>
+      </CardContent>
+    </Card>
   ),
 };
