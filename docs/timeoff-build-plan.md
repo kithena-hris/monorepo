@@ -517,7 +517,7 @@ no decline, cancel or change.
 
 ### Storage
 
-### [ ] TOF-029 — Member projection table
+### [x] TOF-029 — Member projection table
 
 - **Spec** PRD §5.2, §17
 - **Files** `migrations/<ts>_timeoff_member.sql`,
@@ -526,8 +526,13 @@ no decline, cancel or change.
 - **Approach** RLS as in TOF-001; `last_event_id` and `last_effective_from` for
   idempotent, ordered application.
 - **Done when** an integration test applies the same event twice and sees one row.
+- **As built** `src/infrastructure/storage.integration.test.ts` covers TOF-029 to
+  TOF-033, one section per ticket. The guard — write only when
+  `(last_effective_from, last_event_id)` moves forward — is spelled in the test
+  as TOF-035's consumer will spell it; both columns are `NOT NULL` because a
+  null never compares less. No time zone column: §5.2 does not list one.
 
-### [ ] TOF-030 — Policy, leave type and ledger tables
+### [x] TOF-030 — Policy, leave type and ledger tables
 
 - **Files** `migrations/<ts>_timeoff_policy_ledger.sql`
 - **Depends on** TOF-029
@@ -535,8 +540,12 @@ no decline, cancel or change.
   (`REVOKE UPDATE, DELETE` from `svc_timeoff`).
 - **Done when** an integration test proves `svc_timeoff` cannot update or delete
   a ledger row.
+- **As built** A published `policy_version` refuses any change by trigger, and
+  a policy has one draft at a time (a partial unique index). An entry is
+  corrected once (a partial unique index on `supersedes`); a correction of a
+  correction names the correction.
 
-### [ ] TOF-031 — Requests with the overlap constraint
+### [x] TOF-031 — Requests with the overlap constraint
 
 - **Files** `migrations/<ts>_timeoff_request.sql`
 - **Depends on** TOF-030
@@ -544,22 +553,40 @@ no decline, cancel or change.
   states per member.
 - **Done when** two concurrent inserts of overlapping live requests leave
   exactly one, in an integration test.
+- **As built** `days` is a `datemultirange` rather than a `daterange`: an
+  accepted counter-proposal books runs with a gap (T18), and a range would
+  claim the day in between. Live is `pending`, `approved`, `change_pending`,
+  `counter_proposed` and `taken`. A morning and an afternoon off on one date
+  still overlap, until the domain has morning and afternoon. `btree_gist` is
+  created `IF NOT EXISTS`, a trusted extension like `btree_gin`.
+  `ledger_entry.request_id` gets its foreign key here.
 
-### [ ] TOF-032 — Approval, delegation, minimum and holiday tables
+### [x] TOF-032 — Approval, delegation, minimum and holiday tables
 
 - **Files** `migrations/<ts>_timeoff_approval_holiday.sql`
 - **Depends on** TOF-030
 - **Done when** migrations apply clean twice.
+- **As built** Checked with `atlas migrate apply` twice against a fresh
+  Postgres 18 initialised by `init-db.sql`: 93 migrations, then "No migration
+  files to execute". A holiday layer carries `country`, `region` and `city`,
+  which is how a member's location picks its layers. One delegation per
+  approver, the shape `routeTo` takes. `leave_type.approval_rule_key` gets its
+  foreign key here.
 
-### [ ] TOF-033 — Attendance tables
+### [x] TOF-033 — Attendance tables
 
 - **Files** `migrations/<ts>_timeoff_attendance.sql`
 - **Depends on** TOF-030
 - **Approach** `punch` insert-only, `schedule`, `pay_period`, `pay_period_line`;
   no coordinate column anywhere.
 - **Done when** an integration test asserts the `punch` column list.
+- **As built** `kiosk_device` is here too (the token's SHA-256 only), because a
+  punch names its device. `member_schedule` is effective dated. A closed
+  `pay_period` refuses changes, and a line posted into one is refused under
+  `FOR SHARE`, so a close and a post racing cannot both win. `punch` and
+  `pay_period_line` are insert-only for `svc_timeoff`.
 
-### [ ] TOF-034 — Drizzle repositories and the unit of work
+### [x] TOF-034 — Drizzle repositories and the unit of work
 
 - **Files** `services/timeoff/src/infrastructure/drizzle-*.ts`,
   `unit-of-work.ts`
@@ -568,10 +595,30 @@ no decline, cancel or change.
   publish their events to the outbox in one transaction.
 - **Done when** integration tests round-trip every aggregate and see its events
   in the outbox.
+- **As built** `drizzleUnitOfWork(db)` is `withTenant` handing out every store
+  bound to the transaction; `timeoffDatabase(env)` opens the pool from
+  `TIMEOFF_DATABASE_URL`, and `main.ts` passes it to the consumers and the
+  jobs (the transports take `drizzleUnitOfWork(db)` the same way).
+  `LeaveRequest`, `Policy` and `LeaveType` gained `rehydrate`, and
+  `AggregateRoot` a protected `restoreVersion`, so a stored request's next
+  event numbers on from its version. `20261003120000_timeoff_repositories.sql`
+  adds what the ports hold and the tables did not: the member's zone, a
+  deleted leave type, a request's routing, which layers a location observes,
+  the two tenant settings, overtime decisions, feed versions, People's
+  locations (TOF-045) and `timeoff.tenant`, the job's tenant list on People's
+  pattern. Relaxed, each saying why: a holiday layer's place (assigned per
+  location instead) and "closed by" (the domain does not carry it yet). An
+  import's member is stored as the nil event and `-infinity`, read back as
+  null, and the upsert never moves a member backwards. `persist` now saves the
+  request before its ledger rows, which name it by foreign key; the Spain
+  pack's region keys are `es_md` and `es_ct`, the key shape the table holds.
+  The application tests stay on the in-memory ports: People has no shared
+  port contract, and `repositories.integration.test.ts` drives a hire and a
+  request through the use cases over Drizzle instead.
 
 ### Application
 
-### [ ] TOF-035 — Member sync
+### [x] TOF-035 — Member sync
 
 - **Spec** PRD §5.2
 - **Files** `services/timeoff/src/application/member/`
@@ -580,15 +627,23 @@ no decline, cancel or change.
   events (TOF-045) or from an import (TOF-036). Hire grants the year's
   entitlement; termination settles a negative balance per policy.
 - **Done when** a hire produces a member and a grant entry.
+- **As built** The ports are in `application/ports.ts`; unlike People's, no
+  store takes the transaction — `UnitOfWork.run(tenantId, tx => …)` hands out
+  every store already bound to it, and the in-memory adapters
+  (`application/testing/in-memory.ts`) are what the application tests and the
+  standalone suite run on. The projection carries a `timeZone` beside §5.2's
+  fields, because "today" is the member's. A leaver's year is re-folded pro
+  rata to the last day; `final_pay` deducts for everyone, since the
+  projection does not know which contracts have the deduction clause.
 
-### [ ] TOF-036 — Member import when People is absent
+### [x] TOF-036 — Member import when People is absent
 
 - **Files** `services/timeoff/src/application/member/import.ts`
 - **Depends on** TOF-035
 - **Approach** CSV and JSON, dry run first, the same columns as PRD §5.2.
 - **Done when** the standalone suite imports seven members with People absent.
 
-### [ ] TOF-037 — Requesting, changing and cancelling
+### [x] TOF-037 — Requesting, changing and cancelling
 
 - **Files** `services/timeoff/src/application/request/`
 - **Depends on** TOF-016, TOF-034
@@ -597,8 +652,14 @@ no decline, cancel or change.
   after, coverage warnings, negative verdict) without saving for the panel.
 - **Done when** an application test sends, changes and cancels with in-memory
   ports.
+- **As built** Borrowing adds the negative-balance rule's approvers to the
+  chain the approval rules give (default manager then HR). The aggregate
+  stores no chain, so a `RequestRecord` carries the request with its routing
+  (chain, step, since, escalated to). The Drizzle repository (TOF-034) will
+  need a way to rebuild `LeaveRequest`, `Policy` and `LeaveType` from rows,
+  which the domain does not have yet.
 
-### [ ] TOF-038 — Deciding, counter-proposing and batch approval
+### [x] TOF-038 — Deciding, counter-proposing and batch approval
 
 - **Files** `services/timeoff/src/application/approval/`
 - **Depends on** TOF-019, TOF-021, TOF-037
@@ -607,7 +668,7 @@ no decline, cancel or change.
 - **Done when** a test proves batch refuses a look-closer request and a
   non-approver is refused in the application layer.
 
-### [ ] TOF-039 — Delegation and escalation workflow
+### [x] TOF-039 — Delegation and escalation workflow
 
 - **Files** `services/timeoff/src/application/approval/escalation.ts`,
   `services/timeoff/src/infrastructure/temporal/`
@@ -615,8 +676,12 @@ no decline, cancel or change.
 - **Approach** One Temporal workflow per pending request; reminder at 09:00;
   escalation after 3 working days.
 - **Done when** a Temporal test-environment test escalates with a skipped clock.
+- **As built** The workflow passes its own time to the activity, so the test
+  server's skipped days are the days `escalationTick` counts
+  (`escalation.integration.test.ts`, People's convention for Temporal tests).
+  Without `TEMPORAL_ADDRESS` nothing reminds or escalates, and boot says so.
 
-### [ ] TOF-040 — Calendar queries
+### [x] TOF-040 — Calendar queries
 
 - **Files** `services/timeoff/src/application/calendar/`
 - **Depends on** TOF-018, TOF-034
@@ -625,7 +690,7 @@ no decline, cancel or change.
   iCalendar feed with a signed, revocable token.
 - **Done when** a test proves a teammate's view of a sick day has no type.
 
-### [ ] TOF-041 — Holidays and policies admin
+### [x] TOF-041 — Holidays and policies admin
 
 - **Files** `services/timeoff/src/application/admin/`
 - **Depends on** TOF-013, TOF-011, TOF-034
@@ -634,16 +699,21 @@ no decline, cancel or change.
   attendance rules. `hr_admin` only.
 - **Done when** publishing a policy re-folds affected balances and emits
   `policy.published`.
+- **As built** A negative balance rule is part of the policy, so setting one
+  drafts the next version, published like any other.
 
-### [ ] TOF-042 — The clock and the timesheet
+### [x] TOF-042 — The clock and the timesheet
 
 - **Files** `services/timeoff/src/application/attendance/`
 - **Depends on** TOF-023 – TOF-026, TOF-034
 - **Approach** Punch, break, clock out, correct; my timesheet by week or month;
   team right now (manager); overtime approval.
 - **Done when** an application test runs a full day and a correction.
+- **As built** A member without a schedule gets 09:00–17:30 with half an
+  hour's break. Approved comp time is banked against the tenant's tracked
+  hour-unit leave type, when there is one.
 
-### [ ] TOF-043 — Nightly and morning jobs
+### [x] TOF-043 — Nightly and morning jobs
 
 - **Files** `services/timeoff/src/infrastructure/background.ts`
 - **Depends on** TOF-013, TOF-025
@@ -652,10 +722,15 @@ no decline, cancel or change.
   last day, the morning missed-punch check, the 20:00 reminder.
 - **Done when** a test with a fixed clock posts the October accrual once even if
   run twice.
+- **As built** Entitlement is posted as it falls due (hire, the 1st, the year
+  start), not a whole year ahead, so the ledger fold's `allowance` counts the
+  months credited so far; the balance card's yearly figure is the policy's.
+  `wireBackground` starts nothing until TOF-034 gives it a Drizzle unit of
+  work and a tenant list.
 
 ### Transports
 
-### [ ] TOF-044 — The subgraph
+### [x] TOF-044 — The subgraph
 
 - **Spec** PRD §18
 - **Files** `services/timeoff/src/graphql/`, `services/timeoff/schemas/timeoff.graphql`
@@ -665,8 +740,26 @@ no decline, cancel or change.
   `screens` do); mutations for every command. Extend `Person` with balances.
   Regenerate SDL with `just codegen`; `just supergraph` must compose.
 - **Done when** `just supergraph` composes and the schema snapshot test passes.
+- **As built** Every field is one of REST's routes (`http/rest.ts`, `ROUTES`),
+  reached in-process as the request's caller, as People's `viaRest`: a
+  mutation is the route's write with its `Idempotency-Key`. Output types are
+  generated from the routes' Zod answers (`graphql/zod.ts`), and a write's
+  `input` is the route's JSON body, parsed by the route's schema. The reads
+  live in `application/screens/` (Zod views in `views.ts`). Queries:
+  `timeOffOverview`, `timeOffRequestPanel`, `timeOffMyRequests`,
+  `timeOffRequest`, `timeOffApprovals`, `timeOffRequestDecision`,
+  `timeOffDelegation`, `timeOffCalendarMonth`, `…Timeline`, `…Year`, `…Day`,
+  `timeOffTimesheet`, `timeOffTeamRightNow`, `timeOffBalance`,
+  `timeOffHolidays`, the six settings pages and `timeOffViewer`.
+  `Person.timeOffBalances` replaces `leaveBalanceDays`. The snapshot is the
+  committed SDL (`graphql/schema.test.ts`). **TOF-058a's server half is here**:
+  `timeOffViewer` answers `approves`, `hrAdmin` and `counts`
+  (`requestsWaiting`, `attendanceExceptions`); the shell half comes with the
+  screens. Closing a month (`closePayPeriod`) was added to the application
+  for TOF-050; it posts the month's days that have no line, then locks the
+  period.
 
-### [ ] TOF-045 — People event consumers
+### [x] TOF-045 — People event consumers
 
 - **Files** `services/timeoff/src/infrastructure/consumers/`
 - **Depends on** TOF-035
@@ -676,38 +769,87 @@ no decline, cancel or change.
   by `effectiveFrom`. Update the manifest's `consumes`.
 - **Done when** a consumer test applies out-of-order events and ends in the right
   state.
+- **As built** `handle.ts` is transport-free like People's; `wire.ts` consumes
+  `kithena.people.v1` as group `timeoff` when `TIMEOFF_DATABASE_URL` and
+  `KAFKA_BROKERS` are both set. Each person event reads, merges and calls
+  `upsertIn` in one transaction, so the fields it does not carry stay as
+  stored; an event about somebody unknown is ignored (People keys a person's
+  events to one partition, so `hired` comes first). People names org units
+  and locations by id, so the keys are `u_<hex>` and `l_<hex>`, and no People
+  event names an org unit: a team's name stays the import's, or none.
+  Locations are a small projection (`LocationStore`, a new port) that turns a
+  member's location into country and zone; a zone change rewrites the
+  members there without an event id, so it never holds back their own events.
+  `profile_updated` applies a name only when given and family name both
+  carry values, and a start date; `synced_from_external` carries field names
+  only and is ignored, its values arriving on the events People raises beside
+  it. A zone change applies on arrival, not from its date.
 
-### [ ] TOF-046 — REST and OpenAPI
+### [x] TOF-046 — REST and OpenAPI
 
 - **Files** `services/timeoff/src/http/rest.ts`, `openapi.ts`
 - **Depends on** TOF-044
 - **Approach** `/v1/timeoff/...` generated from Zod; idempotency keys as People.
 - **Done when** the OpenAPI document validates and a REST test sends a request.
+- **As built** One route table serves REST, the document
+  (`/v1/timeoff/openapi.json`) and the subgraph. The key, the request's hash
+  and the answer are saved in the write's own transaction
+  (`Tx.idempotency`, `timeoff.idempotency_key`): the answer rather than
+  People's resource id, because a Time Off answer is a status or an id. The
+  Drizzle unit of work hands out `drizzleIdempotency(tx, tenantId)`
+  (`infrastructure/idempotency.ts`). The calendar feed is
+  `GET /v1/timeoff/calendar/feed.ics?token=`, with no caller. The caller is
+  read from the router's principal (`http/caller.ts`); identity's token does
+  not carry a person yet, so `personId` is forwarded when there is one, and
+  the router does not forward to Time Off yet.
 
-### [ ] TOF-047 — Webhooks
+### [x] TOF-047 — Webhooks
 
 - **Files** `services/timeoff/src/infrastructure/webhooks/`
 - **Depends on** TOF-046
 - **Approach** Signed, per published event, reusing People's signer.
 - **Done when** a test verifies a signature.
+- **As built** People's signer copied, not shared — no package holds it — so
+  one function verifies both modules. Delivery is one attempt per
+  subscribed endpoint; People's durable schedule comes with Time Off's
+  endpoint tables.
 
-### [ ] TOF-048 — OpenFGA model
+### [x] TOF-048 — OpenFGA model
 
 - **Files** the FGA model file People uses, `services/timeoff/src/infrastructure/openfga.ts`
 - **Depends on** TOF-038
 - **Approach** `approver`, `delegate`, `hr_admin`, `teammate` on a member.
 - **Done when** model tests cover manager, delegate during range only, HR, and a
   teammate who may see "Off" but not the type.
+- **As built** Time Off's own store and model (`infrastructure/openfga.ts`),
+  not People's file: a module is sold alone. `delegate` is `covered_by from
+approver`, a conditional tuple whose ranges are checked against `today`;
+  `teammate` is `member from team but not subject` (`self` is reserved).
+  Ids carry the tenant, since team keys are the tenant's words. `syncMember`
+  and `syncCover` write the tuples; calling them from the member consumers
+  and `setDelegation` comes with TOF-045 and the Drizzle wiring.
 
-### [ ] TOF-049 — Seed for the demo company
+### [x] TOF-049 — Seed for the demo company
 
 - **Files** `services/timeoff/src/seed/`, `docs/demo-company.md`
 - **Depends on** TOF-044
 - **Approach** Acme's Platform team, Adam, Marco, Ada and the design's October
   2026 data, so screens match the design on `just dev`.
 - **Done when** `just dev` shows T1 with 11.5 days left for Adam.
+- **As built** `pnpm db:seed` ends with `pnpm --filter @kithena/timeoff seed`,
+  which finds Acme by slug and runs `seedAcme` over the Drizzle unit of work:
+  one transaction, as of 1 October 2026 12:33 in Madrid, through the import's
+  `upsertIn`, the aggregates' own transitions at the dates they happened and
+  `persist`; skipped whole once Adam exists. T1 is not built yet (TOF-051 on),
+  so the "done when" is held by `acme.test.ts` and `acme.integration.test.ts`:
+  Adam's vacation folds to 11.5 left, 10.5 used, 3 booked, personal 2, comp
+  6h. With monthly accrual those need 4.167 carried in, and five days taken
+  in February so the carry does not expire. Adam's own 19–23 October is left
+  out: it is T3's request, whose 11.5 → 6.5 preview and 21 October clash only
+  hold while it is unsent (`docs/demo-company.md`). Ravi's comp day books 1
+  hour, the application having no day-to-hours rule for hour-unit leave.
 
-### [ ] TOF-050 — Standalone acceptance
+### [x] TOF-050 — Standalone acceptance
 
 - **Spec** PRD §3 Validation
 - **Files** `services/timeoff/src/standalone/acceptance.standalone.test.ts`
@@ -717,6 +859,57 @@ no decline, cancel or change.
   request, approve, borrow within the limit, clash warning, clock a day,
   correct it, close the month.
 - **Done when** `just standalone timeoff` is green with and without the AI keys.
+- **As built** `timeoffServer` over the in-memory ports; `fetch` answers
+  nothing and the suite asserts nothing asked, with `TYPESAFE_API_KEY` set or
+  not. A day's worked time with no break taken is the time clocked, flagged.
+
+### [x] TOF-050a — The composition root
+
+- **Files** `services/timeoff/src/composition.ts`, `main.ts`, `http/caller.ts`,
+  `infrastructure/openfga.ts`, `infrastructure/consumers/`,
+  `apps/gateway/config.yaml`
+- **Depends on** TOF-034, TOF-045 – TOF-048
+- **Approach** `main.ts` booted Yoga alone, so production had no REST and no
+  database behind GraphQL, no tuple was ever written, and no caller was ever
+  a member. Make `main.ts` a composition root, as People's `wirePeople` is.
+- **Done when** an integration test boots the root against Postgres and
+  OpenFGA and answers `/healthz`, a REST read and a GraphQL query as a seeded
+  member named only by account.
+- **As built** `composeTimeOff(env)` builds `timeoffServer` over
+  `drizzleUnitOfWork(timeoffDatabase(env))`, Time Off's OpenFGA authorizer
+  (`OPENFGA_URL`, its own store by `TIMEOFF_OPENFGA_STORE_ID` or by name),
+  the router's principal checked with `TIMEOFF_API_TOKEN` (falling back to
+  `INTERNAL_API_TOKEN`, People's pattern), `TIMEOFF_FEED_SECRET` (required in
+  production, throwaway elsewhere) and Temporal's escalation clock when
+  `TEMPORAL_ADDRESS` is set; `main.ts` hands its unit of work to the
+  consumers and its pool to the jobs. Without `TIMEOFF_DATABASE_URL`, People's
+  rule: the schema only, every field UNAVAILABLE. Without `OPENFGA_URL`
+  nobody holds a relation (`nobodyRelates`), so only a member's own screens
+  answer — closed, as audit is. Notices stay `logNotifier`: messaging's notice
+  endpoint wants an address and a template Time Off has neither of.
+  **Caller → member**: `timeoff.member.account_id`
+  (`20261003130000_timeoff_member_account.sql`, nullable, not unique) is
+  filled from `people.person.hired` and `identity_linked`, or an import's
+  `accountId` column; `withMember` resolves the router's account to the one
+  member holding it, per request, as People resolves roles. Two holders, or
+  none, is an account and nothing more. A support or view-as session is
+  refused: Time Off has neither of People's rules for them yet. The router
+  forwards Time Off People's principal under its own secret
+  (`headers.subgraphs.timeoff`); `just dev`'s entitlements now include
+  `module.timeoff`. **Tuples**: `syncingTuples` wraps the unit of work, so
+  every member saved — People's events, the import, a zone change — has its
+  `subject`, `team` and `approver` tuples resynced from the row after the
+  commit, and a redelivered event that changes nothing resyncs again (People's
+  "the row is the truth"). `hr_admin` is whoever identity's
+  `tenant.administrator_named` names for `module.timeoff`, until
+  `administrator_removed`; the consumer now reads identity's topic too.
+  **Still open**: `syncCover` is not called — a delegate's `covered_by` needs
+  the delegation's range and the approver's approved time off, re-synced on
+  `setDelegation` and on each decision of the approver's own requests — so
+  delegates cannot act through OpenFGA yet; Time Off has no VM service, so
+  `TIMEOFF_API_TOKEN` is in no deploy workflow (`docs/environments.md`, "Time
+  Off's settings"); the Acme seed's members carry no account, so `just dev`
+  signs nobody in as Adam until the seed maps identity's accounts.
 
 ### Web shell and Reach
 

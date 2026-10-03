@@ -2,16 +2,997 @@
 
 schema @link(url: "https://specs.apollo.dev/federation/v2.6", import: ["@extends", "@external", "@key"]) {
   query: Query
+  mutation: Mutation
+}
+
+"""
+A JSON value, shaped as the matching REST schema in the OpenAPI document says.
+"""
+scalar JSON
+
+type Mutation {
+  """Take one of the suggested dates, which approves them, or keep your own"""
+  answerSuggestedTimeOffDates(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    requestId: String!
+  ): TimeOffRequestStatus!
+  """
+  Approve several; only the ones triage calls clear, the rest are refused with why
+  """
+  approveTimeOffRequests(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffBatch!
+  """The layers a work location observes, most general first; HR"""
+  assignTimeOffHolidayCalendars(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    locationKey: String!
+  ): TimeOffDone!
+  """A schedule for some members: fixed, flexible, seasonal or rotating; HR"""
+  assignTimeOffSchedule(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffDone!
+  """Cancel an approved request, or withdraw one nobody has decided"""
+  cancelTimeOffRequest(idempotencyKey: String!, requestId: String!): TimeOffRequestStatus!
+  """
+  Change, hide, show or delete a leave type; a statutory one is only hidden; HR
+  """
+  changeTimeOffLeaveType(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    key: String!
+  ): TimeOffDone!
+  """
+  Move approved dates; the old ones stay booked until the new ones are approved
+  """
+  changeTimeOffRequest(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    requestId: String!
+  ): TimeOffRequestStatus!
+  """
+  Send a month to Payroll: post its days, lock it, publish timeoff.period.closed; HR
+  """
+  closeTimeOffPayPeriod(idempotencyKey: String!, month: String!): TimeOffPayPeriodClosed!
+  """
+  A punch made afterwards: replacing one, or one never made; the member’s own or HR’s
+  """
+  correctTimeOffPunch(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffPunchCorrected!
+  """Approve a day’s overtime as comp time or pay, or decline it"""
+  decideTimeOffOvertime(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffOvertimeDecided!
+  """Approve or decline at the step waiting on the caller"""
+  decideTimeOffRequest(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    requestId: String!
+  ): TimeOffDecided!
+  """A new leave type; its key never changes; HR"""
+  defineTimeOffLeaveType(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffLeaveTypeDefined!
+  """A policy for a leave type, as a draft; HR"""
+  draftTimeOffPolicy(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffPolicyDrafted!
+  """
+  Members from CSV or JSON when People is absent: a dry run, then all rows or none; HR
+  """
+  importTimeOffMembers(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffImportReport!
+  """A signed, revocable iCalendar feed token for a scope"""
+  issueTimeOffCalendarFeed(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffCalendarFeed!
+  """
+  Publish the draft from a date: balances re-fold and timeoff.policy.published goes out; HR
+  """
+  publishTimeOffPolicy(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    policyId: String!
+  ): TimeOffPolicyPublished!
+  """Clock in, start or end a break, clock out — no location is ever stored"""
+  punchTimeOffClock(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffPunched!
+  """Nobody covers for an approver any more"""
+  removeTimeOffDelegation(approverId: String!, idempotencyKey: String!): TimeOffDone!
+  """Remove a holiday layer; HR"""
+  removeTimeOffHolidayCalendar(idempotencyKey: String!, key: String!): TimeOffDone!
+  """
+  Send a request; sick leave under the threshold is approved as it is recorded
+  """
+  requestTimeOff(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffRequestSent!
+  """Replace the draft, or start the next version’s; HR"""
+  reviseTimeOffPolicy(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    policyId: String!
+  ): TimeOffPolicyVersionNumber!
+  """Every feed the caller issued stops working"""
+  revokeTimeOffCalendarFeeds(idempotencyKey: String!): TimeOffDone!
+  """A layer of holidays: national, regional or city; HR"""
+  saveTimeOffHolidayCalendar(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    key: String!
+  ): TimeOffDone!
+  """T34: who approves what, and what is approved automatically; HR"""
+  setTimeOffApprovalRules(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffDone!
+  """T33: breaks, rest, the weekly limit and what overtime becomes; HR"""
+  setTimeOffAttendanceRules(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffDone!
+  """Who covers for an approver: they set it, or HR does"""
+  setTimeOffDelegation(
+    approverId: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffDone!
+  """
+  T31: going below zero, as a revision of the policy, published like any other; HR
+  """
+  setTimeOffNegativeBalanceRule(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    policyId: String!
+  ): TimeOffPolicyVersionNumber!
+  """How many of a team must be in, or none; HR"""
+  setTimeOffTeamMinimum(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    teamKey: String!
+  ): TimeOffDone!
+  """Give the tail back; approved automatically"""
+  shortenTimeOffRequest(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    requestId: String!
+  ): TimeOffShortened!
+  """Suggest other dates instead of declining"""
+  suggestTimeOffDates(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    requestId: String!
+  ): TimeOffRequestStatus!
 }
 
 type Person @key(fields: "id") @extends {
   id: ID @external
-  leaveBalanceDays: Float
+  """
+  Balances per tracked leave type; null when the viewer may not see them.
+  """
+  timeOffBalances: [TimeOffBalance!]
 }
 
 type Query {
   _entities(representations: [_Any!]!): [_Entity]!
   _service: _Service!
+  """T34: approval rules, automatic approval and team minimums; HR"""
+  timeOffApprovalSettings: TimeOffSettingsApprovals!
+  """
+  T16: waiting for the caller (clear and look closer), coming up, or decided
+  """
+  timeOffApprovals(tab: String): TimeOffApprovals!
+  """T33: breaks, limits, overtime and the default schedule; HR"""
+  timeOffAttendanceSettings: TimeOffSettingsAttendance!
+  """MT20: where the days of one leave type went this leave year"""
+  timeOffBalance(leaveTypeKey: String!, personId: String): TimeOffBalanceLedger!
+  """T14: one day — who is off, holidays and coverage"""
+  timeOffCalendarDay(date: String!, scope: String, teamKey: String): TimeOffCalendar!
+  """T12: a month of the team’s, the company’s or the caller’s time off"""
+  timeOffCalendarMonth(month: String!, scope: String, teamKey: String): TimeOffCalendar!
+  """T13: people by days over a range, with the coverage row"""
+  timeOffCalendarTimeline(from: String!, scope: String, teamKey: String, to: String!): TimeOffCalendar!
+  """The year: how many people are off each day"""
+  timeOffCalendarYear(scope: String, teamKey: String, year: Int!): TimeOffCalendarYear!
+  """
+  T19: who covers for the caller, whom they may choose, and whom they cover for
+  """
+  timeOffDelegation: TimeOffDelegation!
+  """
+  T36: holiday calendars, and what each work location observes in a year; HR
+  """
+  timeOffHolidaySettings(year: Int!): TimeOffSettingsHolidays!
+  """MT21: the holidays the caller’s work location observes"""
+  timeOffHolidays(year: Int!): TimeOffHolidays!
+  """T30: one leave type and every version of its policies; HR"""
+  timeOffLeaveTypeSetting(key: String!): TimeOffSettingsLeaveType!
+  """T29: every leave type; HR"""
+  timeOffLeaveTypeSettings: TimeOffSettingsLeaveTypes!
+  """T6: the caller’s requests, upcoming, past or cancelled"""
+  timeOffMyRequests(tab: String): TimeOffMyRequests!
+  """T31: each policy’s negative balance rule; HR"""
+  timeOffNegativeBalanceSettings: TimeOffSettingsNegativeBalance!
+  """T1: the clock, the balances, what is coming up and who is off today"""
+  timeOffOverview: TimeOffOverview!
+  """One request, for its member, an approver or HR"""
+  timeOffRequest(requestId: String!): TimeOffRequestDetail!
+  """
+  T17: one request with the balance, the team and the rule an approver weighs
+  """
+  timeOffRequestDecision(requestId: String!): TimeOffRequestDecision!
+  """
+  T3, T5: the types the caller may ask for and, given dates, what the request would mean; nothing is saved
+  """
+  timeOffRequestPanel(endsHalfDay: Boolean, from: String, leaveTypeKey: String, startsHalfDay: Boolean, to: String): TimeOffRequestPanel!
+  """T22: the caller’s reports, live, and what needs them"""
+  timeOffTeamRightNow: TimeOffTeamRightNow!
+  """
+  T20: a timesheet by week or month, the caller’s own unless a member is named
+  """
+  timeOffTimesheet(from: String!, personId: String, to: String!): TimeOffTimesheet!
+  """
+  Whether the caller approves anyone, is HR, and the counts on Requests and Attendance (TOF-058a)
+  """
+  timeOffViewer: TimeOffViewer!
+}
+
+type TimeOffApprovalRule {
+  approvers: [String!]!
+  leaveTypes: [String!]
+  subject: String!
+  when: String!
+}
+
+type TimeOffApprovals {
+  clear: [TimeOffRequestItem!]!
+  items: [TimeOffRequestItem!]!
+  lookCloser: [TimeOffLookCloserItem!]!
+  tab: String!
+}
+
+type TimeOffAttendanceRules {
+  breakAfterMinutes: Int!
+  breakMinutes: Int!
+  overtime: TimeOffAttendanceRulesOvertime!
+  restMinutes: Int!
+  weeklyMaxMinutes: Int!
+}
+
+type TimeOffAttendanceRulesOvertime {
+  becomes: String!
+  multiplier: String!
+}
+
+type TimeOffAutoApproval {
+  oneDayAboveMinimum: Boolean!
+  shortenOrCancel: Boolean!
+  sickUnderDays: Int
+}
+
+type TimeOffBalance {
+  allowance: String!
+  booked: String!
+  colorToken: String!
+  icon: String!
+  leaveTypeKey: String!
+  left: String!
+  name: String!
+  unit: String!
+  used: String!
+  yearly: String
+}
+
+type TimeOffBalanceLedger {
+  balance: TimeOffBalance!
+  entries: [TimeOffLedgerEntry!]!
+}
+
+type TimeOffBatch {
+  approved: [TimeOffDecided!]!
+  refused: [TimeOffBatchRefusal!]!
+}
+
+type TimeOffBatchRefusal {
+  code: String!
+  reason: TimeOffLookCloser
+  requestId: String!
+}
+
+type TimeOffCalendar {
+  coverage: [TimeOffCoverageDay!]!
+  entries: [TimeOffCalendarEntry!]!
+  from: String!
+  holidays: [TimeOffCalendarHoliday!]!
+  people: [TimeOffCalendarPerson!]!
+  to: String!
+}
+
+type TimeOffCalendarEntry {
+  leaveTypeKey: String
+  personId: String!
+  requestId: String!
+  span: TimeOffSpan!
+  status: String!
+}
+
+type TimeOffCalendarFeed {
+  token: String!
+}
+
+type TimeOffCalendarHoliday {
+  date: String!
+  locationKey: String!
+  name: String!
+}
+
+type TimeOffCalendarPerson {
+  displayName: String!
+  personId: String!
+  teamKey: String
+}
+
+type TimeOffCalendarYear {
+  days: [TimeOffDayOff!]!
+  year: Int!
+}
+
+type TimeOffCorrection {
+  needsManager: Boolean!
+  punch: TimeOffPunch!
+}
+
+type TimeOffCover {
+  approverId: String!
+  approverName: String!
+  automatic: Boolean!
+  range: TimeOffRange
+}
+
+type TimeOffCoverageDay {
+  below: Boolean!
+  checked: Boolean!
+  date: String!
+  in: Int!
+  of: Int!
+  required: Int!
+}
+
+type TimeOffDay {
+  breakMinutes: Int!
+  date: String!
+  flags: [String!]!
+  overtimeMinutes: Int!
+  plannedMinutes: Int!
+  segments: [TimeOffDaySegment!]!
+  status: String!
+  workedMinutes: Int
+}
+
+type TimeOffDayOff {
+  date: String!
+  off: Int!
+}
+
+type TimeOffDaySegment {
+  from: Int!
+  kind: String!
+  to: Int!
+}
+
+type TimeOffDecided {
+  next: String
+  requestId: String!
+  status: String!
+}
+
+type TimeOffDelegation {
+  candidates: [TimeOffPersonRef!]!
+  coveringFor: [TimeOffCover!]!
+  delegation: TimeOffDelegationDelegation
+}
+
+type TimeOffDelegationDelegation {
+  automatic: Boolean!
+  delegateId: String!
+  delegateName: String!
+  range: TimeOffRange
+  salaryRelated: Boolean!
+}
+
+type TimeOffDone {
+  ok: Boolean!
+}
+
+type TimeOffHoliday {
+  date: String!
+  layer: String!
+  movedFrom: String
+  name: String!
+}
+
+type TimeOffHolidayLayer {
+  holidays: [TimeOffHolidayLayerDay!]!
+  key: String!
+  level: String!
+  name: String!
+  weekendRule: String!
+}
+
+type TimeOffHolidayLayerDay {
+  date: String!
+  name: String!
+}
+
+type TimeOffHolidays {
+  holidays: [TimeOffHoliday!]!
+  locationKey: String
+  year: Int!
+}
+
+type TimeOffImportError {
+  field: String!
+  message: String!
+  row: Int!
+}
+
+type TimeOffImportReport {
+  created: Int!
+  dryRun: Boolean!
+  errors: [TimeOffImportError!]!
+  rows: Int!
+  updated: Int!
+}
+
+type TimeOffLeaveTypeDefined {
+  key: String!
+}
+
+type TimeOffLeaveTypeDefinition {
+  appliesTo: TimeOffLeaveTypeDefinitionAppliesTo
+  approvalRuleKey: String
+  category: String!
+  colorToken: String!
+  icon: String!
+  key: String!
+  name: TimeOffLeaveTypeDefinitionName!
+  paid: String!
+  requiresNote: TimeOffLeaveTypeDefinitionRequiresNote
+  statutory: Boolean!
+  tracked: Boolean!
+  unit: String!
+  visibility: String!
+}
+
+type TimeOffLeaveTypeDefinitionAppliesTo {
+  clauses: [JSON!]!
+  combine: String!
+}
+
+type TimeOffLeaveTypeDefinitionName {
+  default: String!
+  translations: JSON!
+}
+
+type TimeOffLeaveTypeDefinitionRequiresNote {
+  afterDays: Int!
+}
+
+type TimeOffLeaveTypeSetting {
+  definition: TimeOffLeaveTypeDefinition!
+  deleted: Boolean!
+  hidden: Boolean!
+  policyIds: [String!]!
+}
+
+type TimeOffLedgerEntry {
+  amount: String!
+  effectiveOn: String!
+  entryId: String!
+  kind: String!
+  leaveTypeKey: String!
+  occurredAt: String!
+  personId: String!
+  policyVersion: Int
+  reason: String
+  requestId: String
+  supersedes: String
+  unit: String!
+}
+
+type TimeOffLocationHolidays {
+  holidays: [TimeOffResolvedHoliday!]!
+  layerKeys: [String!]!
+  locationKey: String!
+}
+
+type TimeOffLookCloser {
+  amount: String
+  days: [String!]!
+  rule: String!
+}
+
+type TimeOffLookCloserItem {
+  item: TimeOffRequestItem!
+  reason: TimeOffLookCloser!
+}
+
+type TimeOffMember {
+  displayName: String!
+  firstName: String!
+  locationKey: String
+  managerPersonId: String
+  personId: String!
+  teamKey: String
+  teamName: String
+  timeZone: String!
+}
+
+type TimeOffMyRequests {
+  items: [TimeOffRequestItem!]!
+  tab: String!
+}
+
+type TimeOffNeedsYou {
+  date: String!
+  displayName: String!
+  kind: String!
+  minutes: Int
+  personId: String!
+  punch: TimeOffPunch
+}
+
+type TimeOffNegativeBalancePolicy {
+  leaveTypeKey: String!
+  leaveTypeName: String!
+  policyId: String!
+  rule: TimeOffNegativeBalanceRule
+  status: String!
+  version: Int!
+}
+
+type TimeOffNegativeBalanceRule {
+  approvers: String!
+  atYearEnd: String!
+  limit: String!
+  onLeaving: String!
+}
+
+type TimeOffOpenDay {
+  date: String!
+  lastPunchAt: String!
+}
+
+type TimeOffOtherOff {
+  displayName: String!
+  leaveTypeKey: String
+  personId: String!
+  span: TimeOffSpan!
+}
+
+type TimeOffOvertimeDecided {
+  date: String!
+  minutes: Int!
+  outcome: String!
+  personId: String!
+}
+
+type TimeOffOvertimeDecision {
+  date: String!
+  minutes: Int!
+  outcome: String!
+}
+
+type TimeOffOverview {
+  balances: [TimeOffBalance!]!
+  clock: TimeOffOverviewClock
+  comingUp: [TimeOffRequestItem!]!
+  member: TimeOffMember
+  teamToday: [TimeOffWhoIsOff!]!
+}
+
+type TimeOffOverviewClock {
+  state: String!
+  today: TimeOffDay!
+  workModel: String
+}
+
+type TimeOffPayPeriodClosed {
+  from: String!
+  members: Int!
+  periodId: String!
+  to: String!
+}
+
+type TimeOffPersonRef {
+  displayName: String!
+  personId: String!
+}
+
+type TimeOffPolicy {
+  id: String!
+  versions: [TimeOffPolicyVersion!]!
+}
+
+type TimeOffPolicyDefinition {
+  allowance: [TimeOffPolicyDefinitionAllowance!]!
+  appliesTo: TimeOffLeaveTypeDefinitionAppliesTo
+  carryOver: TimeOffPolicyDefinitionCarryOver
+  earning: String!
+  keepEarningOnParental: Boolean!
+  leaveTypeKey: String!
+  negativeBalance: TimeOffPolicyDefinitionNegativeBalance
+  proRata: Boolean!
+  probationMonths: Int!
+  requests: TimeOffPolicyDefinitionRequests!
+  year: TimeOffPolicyDefinitionYear!
+}
+
+type TimeOffPolicyDefinitionAllowance {
+  days: String!
+  fromYears: Int!
+}
+
+type TimeOffPolicyDefinitionCarryOver {
+  maxDays: String!
+  useBy: TimeOffPolicyDefinitionYear!
+}
+
+type TimeOffPolicyDefinitionNegativeBalance {
+  approvers: String!
+  atYearEnd: String!
+  limit: String!
+  onLeaving: String!
+}
+
+type TimeOffPolicyDefinitionRequests {
+  blockBelowMinimum: Boolean!
+  halfDays: Boolean!
+  showWhoIsOff: Boolean!
+}
+
+type TimeOffPolicyDefinitionYear {
+  day: Int!
+  month: Int!
+}
+
+type TimeOffPolicyDrafted {
+  policyId: String!
+}
+
+type TimeOffPolicyPublished {
+  refolded: Int!
+  version: Int!
+}
+
+type TimeOffPolicyVersion {
+  definition: TimeOffPolicyDefinition!
+  effectiveFrom: String
+  status: String!
+  version: Int!
+}
+
+type TimeOffPolicyVersionNumber {
+  version: Int!
+}
+
+type TimeOffProposal {
+  index: Int!
+  spans: [TimeOffRange!]!
+  workingDays: String!
+}
+
+type TimeOffPunch {
+  at: String!
+  id: String!
+  kind: String!
+  reason: String
+  recordedAt: String!
+  source: String!
+  supersedes: String
+  workModel: String!
+}
+
+type TimeOffPunchCorrected {
+  needsManager: Boolean!
+  punch: TimeOffPunch!
+}
+
+type TimeOffPunched {
+  punch: TimeOffPunch!
+  state: String!
+}
+
+type TimeOffRange {
+  from: String!
+  to: String!
+}
+
+type TimeOffRequestDecision {
+  balance: TimeOffRequestDecisionBalance
+  belowMinimum: [TimeOffCoverageDay!]!
+  canDecide: Boolean!
+  member: TimeOffMember!
+  note: String
+  othersOff: [TimeOffOtherOff!]!
+  request: TimeOffRequestItem!
+  triage: TimeOffRequestDecisionTriage!
+}
+
+type TimeOffRequestDecisionBalance {
+  after: String!
+  before: String!
+}
+
+type TimeOffRequestDecisionTriage {
+  group: String!
+  reason: TimeOffLookCloser
+}
+
+type TimeOffRequestDetail {
+  canAnswer: Boolean!
+  canCancel: Boolean!
+  canChange: Boolean!
+  canDecide: Boolean!
+  chain: [String!]!
+  escalated: Boolean!
+  mine: Boolean!
+  note: String
+  notePresent: Boolean!
+  pendingChange: TimeOffSpan
+  proposals: [TimeOffProposal!]!
+  request: TimeOffRequestItem!
+  sickNoteFileId: String
+  step: Int!
+}
+
+type TimeOffRequestItem {
+  category: String!
+  displayName: String!
+  leaveTypeKey: String!
+  leaveTypeName: String!
+  personId: String!
+  requestId: String!
+  requestedAt: String!
+  span: TimeOffSpan!
+  spans: [TimeOffRange!]!
+  status: String!
+  waitingOn: String
+  workingDays: String!
+}
+
+type TimeOffRequestPanel {
+  leaveTypes: [TimeOffRequestableType!]!
+  preview: TimeOffRequestPreview
+}
+
+type TimeOffRequestPreview {
+  approver: TimeOffRequestPreviewApprover
+  approvers: [String!]!
+  balance: TimeOffRequestPreviewBalance
+  belowMinimum: [TimeOffCoverageDay!]!
+  blocked: Boolean!
+  daysAway: TimeOffRequestPreviewDaysAway!
+  negative: TimeOffRequestPreviewNegative!
+  span: TimeOffRequestPreviewSpan!
+}
+
+type TimeOffRequestPreviewApprover {
+  displayName: String!
+  personId: String!
+}
+
+type TimeOffRequestPreviewBalance {
+  after: String!
+  before: String!
+}
+
+type TimeOffRequestPreviewDaysAway {
+  days: String!
+  from: String!
+  to: String!
+}
+
+type TimeOffRequestPreviewNegative {
+  approvers: [String!]!
+  days: String
+  kind: String!
+  limit: String
+  nextYearStartsAt: String
+  shorten: TimeOffRequestPreviewNegativeShorten
+  unpaid: TimeOffRequestPreviewNegativeUnpaid
+}
+
+type TimeOffRequestPreviewNegativeShorten {
+  days: String!
+  endsHalfDay: Boolean!
+  to: String!
+}
+
+type TimeOffRequestPreviewNegativeUnpaid {
+  days: String!
+}
+
+type TimeOffRequestPreviewSpan {
+  endsHalfDay: Boolean!
+  from: String!
+  startsHalfDay: Boolean!
+  to: String!
+  workingDays: String!
+}
+
+type TimeOffRequestSent {
+  noteRequired: Boolean!
+  requestId: String!
+  status: String!
+}
+
+type TimeOffRequestStatus {
+  status: String!
+}
+
+type TimeOffRequestableType {
+  category: String!
+  colorToken: String!
+  icon: String!
+  key: String!
+  left: String
+  name: String!
+  requiresNoteAfterDays: Int
+  tracked: Boolean!
+  unit: String!
+}
+
+type TimeOffResolvedHoliday {
+  date: String!
+  layer: String!
+  movedFrom: String
+  name: String!
+}
+
+type TimeOffRestBreach {
+  date: String!
+  restMinutes: Int!
+}
+
+type TimeOffRightNowPerson {
+  displayName: String!
+  personId: String!
+  state: String!
+  today: TimeOffDay!
+  workModel: String
+}
+
+type TimeOffSettingsApprovals {
+  autoApproval: TimeOffAutoApproval!
+  rules: [TimeOffApprovalRule!]!
+  teams: [TimeOffTeamSetting!]!
+}
+
+type TimeOffSettingsAttendance {
+  defaultSchedule: JSON!
+  rules: TimeOffAttendanceRules!
+}
+
+type TimeOffSettingsHolidays {
+  layers: [TimeOffHolidayLayer!]!
+  locations: [TimeOffLocationHolidays!]!
+  year: Int!
+}
+
+type TimeOffSettingsLeaveType {
+  leaveType: TimeOffLeaveTypeSetting!
+  policies: [TimeOffPolicy!]!
+}
+
+type TimeOffSettingsLeaveTypes {
+  leaveTypes: [TimeOffLeaveTypeSetting!]!
+}
+
+type TimeOffSettingsNegativeBalance {
+  policies: [TimeOffNegativeBalancePolicy!]!
+}
+
+type TimeOffShortened {
+  releasedDays: String!
+}
+
+type TimeOffSpan {
+  endsHalfDay: Boolean!
+  from: String!
+  startsHalfDay: Boolean!
+  to: String!
+}
+
+type TimeOffTeamMinimum {
+  atLeast: Int!
+  unit: String!
+}
+
+type TimeOffTeamRightNow {
+  needsYou: [TimeOffNeedsYou!]!
+  people: [TimeOffRightNowPerson!]!
+}
+
+type TimeOffTeamSetting {
+  minimum: TimeOffTeamMinimum
+  teamKey: String!
+  teamName: String
+}
+
+type TimeOffTimesheet {
+  corrections: [TimeOffCorrection!]!
+  days: [TimeOffDay!]!
+  member: TimeOffMember!
+  open: [TimeOffOpenDay!]!
+  overtime: [TimeOffOvertimeDecision!]!
+  punches: [TimeOffPunch!]!
+  restBreaches: [TimeOffRestBreach!]!
+  weeks: [TimeOffWeek!]!
+}
+
+type TimeOffViewer {
+  approves: Boolean!
+  counts: TimeOffViewerCounts!
+  hrAdmin: Boolean!
+}
+
+type TimeOffViewerCounts {
+  attendanceExceptions: Int!
+  requestsWaiting: Int!
+}
+
+type TimeOffWeek {
+  flags: [String!]!
+  monday: String!
+  overtimeMinutes: Int!
+  plannedMinutes: Int!
+  workedMinutes: Int!
+}
+
+type TimeOffWhoIsOff {
+  displayName: String!
+  leaveTypeKey: String
+  personId: String!
+  span: TimeOffSpan!
 }
 
 scalar _Any

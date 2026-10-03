@@ -110,3 +110,22 @@ describe('LeaveType', () => {
     if (!result.ok) expect(result.error.code).toBe('DELETED');
   });
 });
+
+describe('LeaveType.rehydrate', () => {
+  it('comes back hidden or deleted as it was stored', () => {
+    const type = LeaveType.rehydrate({ definition: vacation, hidden: true, deleted: true });
+    expect(type.definition).toEqual(vacation);
+    expect(type.hidden).toBe(true);
+    expect(type.deleted).toBe(true);
+  });
+
+  it('still refuses a stored private type that shows its reason', () => {
+    expect(() =>
+      LeaveType.rehydrate({
+        definition: { ...sickWithoutVisibility, visibility: 'type' },
+        hidden: false,
+        deleted: false,
+      }),
+    ).toThrow(/Off/u);
+  });
+});

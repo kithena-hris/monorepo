@@ -591,3 +591,50 @@ describe('refused transitions', () => {
     expect(request.drainEvents()).toEqual([]);
   });
 });
+
+describe('LeaveRequest.rehydrate', () => {
+  it('comes back from its snapshot as it was, and carries on from its version', () => {
+    const { request } = requested();
+    must(
+      request.counterPropose(
+        {
+          by: MARCO_ACCOUNT,
+          proposals: [option('4.000', ['2026-10-19', '2026-10-20'], ['2026-10-22', '2026-10-23'])],
+        },
+        ctx,
+      ),
+    );
+    request.drainEvents();
+
+    const back = LeaveRequest.rehydrate(request.snapshot);
+    expect(back.snapshot).toEqual(request.snapshot);
+    expect(back.version).toBe(2);
+    expect(back.drainEvents()).toEqual([]);
+
+    must(back.acceptCounter({ index: 0, approvedBy: MARCO_ACCOUNT, jurisdiction: 'ES' }, ctx));
+    expect(back.spans).toEqual([
+      { from: date('2026-10-19'), to: date('2026-10-20') },
+      { from: date('2026-10-22'), to: date('2026-10-23') },
+    ]);
+    const events = back.drainEvents();
+    expect(events.map((e) => [e.eventName, e.aggregate.version])).toEqual([
+      [LeaveChanged.name, 3],
+      [LeaveApproved.name, 4],
+    ]);
+    // The change supersedes the event that set the dates before it.
+    const changed = events[0]?.payload as { supersedes: string } | undefined;
+    expect(changed?.supersedes).toBe(request.snapshot.datesEventId);
+  });
+
+  it('keeps a pending change and the sick note reference', () => {
+    const { request } = requested({ sickNoteFileId: 'f0000000-0000-4000-8000-000000000001' });
+    must(request.approve({ by: MARCO_ACCOUNT, jurisdiction: 'ES' }, ctx));
+    must(request.requestChange({ span: span('2026-11-02', '2026-11-06', '5.000') }, ctx));
+    const back = LeaveRequest.rehydrate(request.snapshot);
+    expect(back.status).toBe('change_pending');
+    expect(back.pendingChange).toEqual(span('2026-11-02', '2026-11-06', '5.000'));
+    expect(back.sickNoteFileId).toBe('f0000000-0000-4000-8000-000000000001');
+    expect(must(back.declineChange(ctx))).toEqual([]);
+    expect(back.status).toBe('approved');
+  });
+});

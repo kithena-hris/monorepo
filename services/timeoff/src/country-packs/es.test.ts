@@ -76,7 +76,7 @@ describe('the Spain country pack (PRD §12.3)', () => {
     it('says which layer each day comes from, as T36’s "Applies to" does', () => {
       expect([layerOf('2026-10-12'), layerOf('2026-04-02'), layerOf('2026-05-15')]).toEqual([
         'es',
-        'es-md',
+        'es_md',
         'madrid',
       ]);
     });

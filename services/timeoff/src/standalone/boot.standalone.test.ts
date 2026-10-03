@@ -69,7 +69,7 @@ describe('the module boots with no siblings present', () => {
 describe('it contributes to the People Graph without owning it', () => {
   it('adds its field to Person', async () => {
     const schema = await loadSchema();
-    expect(fieldNamesOf(schema.getType('Person'), 'Person')).toContain('leaveBalanceDays');
+    expect(fieldNamesOf(schema.getType('Person'), 'Person')).toContain('timeOffBalances');
   });
 
   it('resolves Person through federation rather than from a local table', async () => {
@@ -94,12 +94,20 @@ describe('it contributes to the People Graph without owning it', () => {
     const info = { schema } as never;
 
     const service: unknown = await fields['_service']?.resolve?.(undefined, {}, {}, info);
-    const sdl = service !== null && typeof service === 'object' && 'sdl' in service ? String(service.sdl) : '';
+    const sdl =
+      service !== null && typeof service === 'object' && 'sdl' in service
+        ? String(service.sdl)
+        : '';
     expect(sdl).toContain('@key(fields: "id")');
     expect(sdl).not.toContain('@0(');
 
     const representations = [{ __typename: 'Person', id: 'person-1' }];
-    const entities: unknown = await fields['_entities']?.resolve?.(undefined, { representations }, {}, info);
+    const entities: unknown = await fields['_entities']?.resolve?.(
+      undefined,
+      { representations },
+      {},
+      info,
+    );
     expect(Array.isArray(entities)).toBe(true);
     await expect(Promise.all(entities as unknown[])).resolves.toEqual([
       { __typename: 'Person', id: 'person-1' },
@@ -109,7 +117,7 @@ describe('it contributes to the People Graph without owning it', () => {
   it('does not own the Person key', async () => {
     const schema = await loadSchema();
     // Owning `Person` would mean defining the fields People owns. Time Off
-    // contributes exactly one field and knows nothing else about a person.
+    // contributes its balances and knows nothing else about a person.
     const person = fieldNamesOf(schema.getType('Person'), 'Person');
     expect(person).not.toContain('workEmail');
     expect(person).not.toContain('legalName');

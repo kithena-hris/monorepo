@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import * as z from 'zod';
-import { EVENT_NAMESPACE, peopleEvents, timeoffEvents, type DefinedEvent } from '@kithena/contracts';
+import {
+  EVENT_NAMESPACE,
+  identityEvents,
+  peopleEvents,
+  timeoffEvents,
+  type DefinedEvent,
+} from '@kithena/contracts';
 import { classifiedFieldsOf } from '@kithena/testing';
 
 import manifest from '../../module.manifest.js';
@@ -15,8 +21,12 @@ import manifest from '../../module.manifest.js';
  */
 
 const OWN = timeoffEvents as readonly DefinedEvent[];
-/** Every event any module defines, which is what the registry is for. */
-const REGISTRY: readonly DefinedEvent[] = [...peopleEvents, ...timeoffEvents];
+/** Every event any module or platform service defines, which is what the registry is for. */
+const REGISTRY: readonly DefinedEvent[] = [
+  ...(identityEvents as readonly DefinedEvent[]),
+  ...peopleEvents,
+  ...timeoffEvents,
+];
 const nameOf = (event: DefinedEvent): string => event.name;
 
 describe('what the manifest declares matches the registry', () => {
@@ -64,9 +74,11 @@ describe('the module stays sellable alone', () => {
     expect(manifest.requiresPeopleSource).toBe('either');
     // Everything consumed comes from the People Graph, which an external
     // provider fills through the anti-corruption layer. An event no external
-    // source could produce would make `either` a false claim.
+    // source could produce would make `either` a false claim. Identity is a
+    // platform service every deployment has, not a module, so its events are
+    // the other thing a module may hear.
     for (const name of manifest.consumes) {
-      expect(name.startsWith('people.')).toBe(true);
+      expect(name.startsWith('people.') || name.startsWith('identity.')).toBe(true);
     }
   });
 });

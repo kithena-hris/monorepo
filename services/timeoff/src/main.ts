@@ -1,25 +1,17 @@
-import { createYoga } from 'graphql-yoga';
 import { createServer } from 'node:http';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
-import { schema } from './graphql/schema.js';
 import manifest from '../module.manifest.js';
-import { timeoffListener } from './http/server.js';
+import { composeTimeOff } from './composition.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
 import { wireBackground } from './infrastructure/background.js';
 
 startTelemetry(`kithena-${manifest.key}`);
-wireConsumers();
-wireBackground();
+// REST, the subgraph and what they stand on (`composition.ts`).
+const { listener, storage } = await composeTimeOff(process.env);
+wireConsumers(process.env, storage?.uow ?? null, storage?.tuples);
+wireBackground(process.env, storage?.db ?? null);
 
-const yoga = createYoga({ schema, graphqlEndpoint: '/graphql' });
-
-// Yoga's handler is async; a Node request listener is not. `void` says the
-// rejection is handled inside Yoga, which it is, rather than hiding it.
-const server = createServer(
-  timeoffListener((request, response) => {
-    void yoga(request, response);
-  }),
-);
+const server = createServer(listener);
 
 // SIGTERM drains it, then the process exits (PEO-118).
 onShutdown('http server', () => drain(server));

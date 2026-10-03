@@ -49,6 +49,25 @@ export class Policy extends AggregateRoot<PolicyId> {
     ]);
   }
 
+  /**
+   * A policy as it was stored, oldest version first. Each publish raised one
+   * event, so the published count is the aggregate's version.
+   */
+  static rehydrate(args: {
+    id: PolicyId;
+    tenantId: TenantId;
+    versions: readonly PolicyVersion[];
+  }): Policy {
+    if (args.versions.length === 0) throw new Error(`Policy ${args.id} has no versions`);
+    const policy = new Policy(
+      args.id,
+      args.tenantId,
+      args.versions.map((v) => ({ ...v, definition: frozen(v.definition) })),
+    );
+    policy.restoreVersion(args.versions.filter((v) => v.status === 'published').length);
+    return policy;
+  }
+
   get versions(): readonly PolicyVersion[] {
     return this.#versions;
   }
