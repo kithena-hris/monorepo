@@ -456,7 +456,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 
 ## Phase 1 — Time Off's capabilities
 
-### [ ] AST-022 — Time Off serves the catalogue
+### [x] AST-022 — Time Off serves the catalogue
 
 - **Spec** PRD §8.4, §8.5, §10.2
 - **Files** `services/timeoff/src/http/capabilities.ts`,
@@ -472,8 +472,20 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** a test shows the router's token refused here and the
   assistant's refused everywhere else, and the standalone suite (People absent)
   serves the catalogue.
+- **As built** `caller.ts` is unchanged: the assistant's caller is
+  `withMember(callerFromHeaders(ASSISTANT_TIMEOFF_TOKEN))`, the router's code
+  over the other token, and the listener sends only `/internal/capabilities*`
+  to it. The routes are their own small table in `http/capabilities.ts`, not
+  `ROUTES`, so they never reach OpenAPI, the subgraph or persisted operations;
+  every handler is a read, so there is no read-only unit of work to wrap.
+  Leave types carry `key`, `name`, `private` (lane 2's `CatalogueLeaveType`
+  has no category), and a private type is never a `leave_type` option by name,
+  only in `leaveTypes`, so a missed mask cannot show it to a model. No
+  location field: `timeoff.away` filters only by leave type and team, and a
+  row's location is in its `groups`. `DENIED` moved to
+  `application/assist/denied.ts` so the application layer can serve it.
 
-### [ ] AST-023 — `timeoff.away`
+### [x] AST-023 — `timeoff.away`
 
 - **Spec** PRD §7.1, §7.2, §7.3, §7.7, §14
 - **Files** `services/timeoff/src/application/calendar/calendar.ts`,
@@ -490,8 +502,21 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   request for a private type returns a byte-identical response whether two
   teammates are on that leave or none are**; and the standalone suite answers
   with People absent.
+- **As built** `calendar.ts` exports `sightOf`, `seesType` (the visibility
+  rule) and `runsIn` (a request's runs with their half days), and
+  `calendarIn` uses all three. Away is `approved`, `change_pending` and
+  `taken`; a pending request is never included, because the contract has no
+  input to ask for one. A `name` is matched word by word against the members
+  the asker has sight of (sight checked only for the names that match),
+  accents and case aside, a single exact match winning. Filters take `is`,
+  `in` and `not_in`, by key or label. A row is one person, every run in the
+  range joined ("Mon 5 to Wed 7 · Vacation", "Tue 6, half day · Away");
+  `groups` holds `team` and `location`. Holiday `notes` come from where the
+  people found work and where the asker does, so they never vary with anybody
+  hidden. No integration test: no new query, only the repositories the
+  calendar already uses.
 
-### [ ] AST-024 — `timeoff.managers`
+### [x] AST-024 — `timeoff.managers`
 
 - **Spec** PRD §7.5, §8.4
 - **Files** `services/timeoff/src/application/assist/capabilities.ts` (+ tests)
@@ -500,6 +525,10 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `displayName`, for the given `personIds`, distinct, leaving out members the
   asker may not see. No per-manager count.
 - **Done when** tests pass in the standalone suite.
+- **As built** "May not see" is the calendar's sight, applied twice: a
+  person the asker has no sight of is left out, and so is a manager they have
+  no sight of, as `people.managers` leaves out a manager the asker cannot
+  read.
 
 ---
 

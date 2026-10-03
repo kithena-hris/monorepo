@@ -125,6 +125,8 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
     authz: fga?.authorizer ?? nobodyRelates,
     feedSecret,
     callerFrom: withMember(callerFromHeaders(internalToken), uow),
+    // The assistant's secret for its pair (assistant PRD §15.3); empty refuses it.
+    assistantCallerFrom: withMember(callerFromHeaders(env['ASSISTANT_TIMEOFF_TOKEN'] ?? ''), uow),
     timers,
     notifier: logNotifier,
     reach,
