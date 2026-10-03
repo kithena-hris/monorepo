@@ -2,9 +2,9 @@ import { render } from '@testing-library/react';
 import axe from 'axe-core';
 import { expect, it } from 'vitest';
 
-import { Attendance, Overview, ParentalCase, ParentalPlan } from '../index';
+import { Attendance, Overview, ParentalCase, ParentalCases, ParentalPlan } from '../index';
 import { adam } from '../overview/acme.fixture';
-import { adamCase, parental } from '../parental/acme.fixture';
+import { adaCases, adamCase, parental } from '../parental/acme.fixture';
 import { underFloor } from './floor';
 
 /**
@@ -134,6 +134,16 @@ it('draws HR’s case on a phone, every target reachable', async () => {
       frame={{ section: 'Requests' }}
     />,
   );
+  const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
+  expect(result.violations.map((v) => v.id)).toEqual([]);
+  expect(underFloor(document.body)).toEqual([]);
+});
+
+it('draws HR’s list of parental cases on a phone (TOF-099c)', async () => {
+  render(
+    <ParentalCases load={{ status: 'ready', data: adaCases() }} frame={{ section: 'Requests' }} />,
+  );
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390);
   const result = await axe.run(document.body, { rules: { region: { enabled: false } } });
   expect(result.violations.map((v) => v.id)).toEqual([]);
   expect(underFloor(document.body)).toEqual([]);

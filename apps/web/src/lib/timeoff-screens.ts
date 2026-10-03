@@ -43,6 +43,8 @@ export async function loadScreen(
       return parental(query.params['step'] ?? 'plan');
     case 'ParentalCase':
       return read('TimeOffParentalCase', { planId: query.params['id'] ?? null });
+    case 'ParentalCases':
+      return read('TimeOffParentalCases');
     // The manager's (TOF-068 to TOF-073).
     case 'Approvals':
       return approvals(path, query);

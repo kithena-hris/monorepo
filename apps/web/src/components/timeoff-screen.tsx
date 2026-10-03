@@ -140,6 +140,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return { load: loadable, onCorrect: actions.correctPunch };
       case 'TeamNow':
       case 'Exceptions':
+      case 'ParentalCases':
         return { load: loadable };
       // What the nudge includes and whether it is open are the address.
       case 'Insights':

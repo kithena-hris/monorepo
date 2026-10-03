@@ -19,6 +19,7 @@ import {
 } from '../../domain/parental/plan.js';
 import { memberView } from '../screens/employee.js';
 import type {
+  ParentalCasesView,
   ParentalCaseView,
   ParentalEntitlementView,
   ParentalPlanView,
@@ -542,6 +543,46 @@ export const parentalScreen =
  * links what belongs to modules this one is not (Payroll, Benefits) rather
  * than doing it; the birth certificate is asked for 3 days after the due date.
  */
+/**
+ * HR's list of cases (TOF-099c): every sent plan, waiting for HR first then
+ * approved, newest first in each, with who it is and when they are away. A
+ * draft is the parent's own and never listed. HR only.
+ */
+export const parentalCases =
+  (deps: ReadDeps) =>
+  (caller: Caller): Promise<Result<ParentalCasesView>> =>
+    transact<ParentalCasesView>(deps, caller.tenantId, async (tx) => {
+      if (!(await isHrAdmin(deps, caller))) return forbidden();
+      const plans = await tx.parental.list({ statuses: ['submitted', 'approved'] });
+      const cases: ParentalCasesView['cases'][number][] = [];
+      for (const p of plans) {
+        const member = await tx.members.get(p.personId);
+        if (member === null) continue;
+        const booked = p.blocks.filter((b) => b.kind !== 'later');
+        cases.push({
+          planId: p.id,
+          personId: p.personId,
+          displayName: member.displayName,
+          teamName: member.teamName,
+          status: p.status === 'approved' ? 'approved' : 'submitted',
+          sentAt: p.sentAt,
+          from: booked.map((b) => b.from).toSorted()[0] ?? null,
+          to:
+            booked
+              .map((b) => b.to)
+              .toSorted()
+              .at(-1) ?? null,
+        });
+      }
+      return ok({
+        cases: cases.toSorted(
+          (a, b) =>
+            (a.status === 'submitted' ? 0 : 1) - (b.status === 'submitted' ? 0 : 1) ||
+            (b.sentAt ?? '').localeCompare(a.sentAt ?? ''),
+        ),
+      });
+    });
+
 export const parentalCase =
   (deps: ReadDeps) =>
   (caller: Caller, planId: ParentalPlanId): Promise<Result<ParentalCaseView>> =>

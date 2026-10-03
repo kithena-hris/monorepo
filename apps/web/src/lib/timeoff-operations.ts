@@ -171,6 +171,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** HR’s list of sent parental plans, waiting first, then approved; HR */
+  TimeOffParentalCases: `query TimeOffParentalCases {
+    timeOffParentalCases {
+      cases { displayName from personId planId sentAt status teamName to }
+    }
+  }`,
+
   /** T8–T10: the caller’s parental plan, and the entitlement the answers asked about would give; nothing is saved */
   TimeOffParentalPlan: `query TimeOffParentalPlan($childDate: String, $children: Int, $role: String, $singleParent: Boolean) {
     timeOffParentalPlan(childDate: $childDate, children: $children, role: $role, singleParent: $singleParent) {

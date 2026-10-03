@@ -1095,6 +1095,29 @@ export const ParentalCaseView = named(
   }),
 );
 
+/** HR's list of sent parental plans (TOF-099c): waiting for HR first, then approved. */
+export const ParentalCasesView = named(
+  'TimeOffParentalCases',
+  z.object({
+    cases: z.array(
+      named(
+        'TimeOffParentalCaseRow',
+        z.object({
+          planId: z.uuid(),
+          personId: PersonId,
+          displayName: z.string(),
+          teamName: z.string().nullable(),
+          status: z.enum(['submitted', 'approved']),
+          sentAt: Instant.nullable(),
+          /** The first and last day booked; the weeks kept for later are not. */
+          from: CalendarDate.nullable(),
+          to: CalendarDate.nullable(),
+        }),
+      ),
+    ),
+  }),
+);
+
 /** A view as a use case builds it: readonly all the way down, as the domain's values are. */
 type DeepReadonly<T> = T extends readonly (infer U)[]
   ? readonly DeepReadonly<U>[]
@@ -1136,3 +1159,4 @@ export type ParentalEntitlementView = View<typeof ParentalEntitlementView>;
 export type ParentalPlanView = View<typeof ParentalPlanView>;
 export type ParentalScreenView = View<typeof ParentalScreenView>;
 export type ParentalCaseView = View<typeof ParentalCaseView>;
+export type ParentalCasesView = View<typeof ParentalCasesView>;

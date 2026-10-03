@@ -26,6 +26,7 @@
     { "path": "/time-off/balances/:type", "component": "Balance" },
     { "path": "/time-off/holidays/:year", "component": "Holidays" },
     { "path": "/time-off/parental/:step", "component": "ParentalPlan" },
+    { "path": "/time-off/parental/cases", "component": "ParentalCases" },
     { "path": "/time-off/parental/cases/:id", "component": "ParentalCase" },
     { "path": "/time-off/insights/what-changed", "component": "Insights" },
     { "path": "/time-off/insights/time-off", "component": "Insights" },
@@ -104,6 +105,13 @@
           "path": "/time-off/approvals/delegation",
           "label": "Delegation",
           "for": ["manager", "hr"]
+        },
+        {
+          "path": "/time-off/parental/cases",
+          "label": "Parental leave",
+          "short": "Parental",
+          "for": ["hr"],
+          "owns": ["/time-off/parental/cases/:id"]
         },
         { "path": "/time-off/requests/upcoming", "label": "Upcoming" },
         { "path": "/time-off/requests/past", "label": "Past" },

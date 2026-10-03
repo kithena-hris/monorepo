@@ -1647,11 +1647,17 @@ test passes, and it matches the design's screen on the seeded demo company.
   drafted or the approver typed (no more "copy it"), and the member's
   suggestion card on T6 shows it while the suggestion waits.
 
-### [ ] TOF-099c — HR's list of parental cases
+### [x] TOF-099c — HR's list of parental cases
 
 - **Screens** T11's way in · **Depends on** TOF-106
 - **Approach** Sent plans, waiting for HR and approved, as a list that opens
   each case, so HR reaches a case without its link.
+- **As built** `timeOffParentalCases` (HR): every submitted or approved
+  plan, waiting first and newest first within each, with the member, team,
+  when it was sent and the first and last day booked (the weeks kept for
+  later left out). Drafts are never listed. `parental/cases.tsx` at
+  `/time-off/parental/cases`, a "Parental leave" tab of Requests for HR,
+  each row opening T11.
 
 ---
 
