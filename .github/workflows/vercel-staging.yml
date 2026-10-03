@@ -527,6 +527,13 @@ jobs:
           # Time Off's settings, `TIMEOFF_FEED_SECRET` among them.
           TIMEOFF_API_TOKEN: ${{ secrets.TIMEOFF_API_TOKEN }}
           TIMEOFF_ENV: ${{ secrets.TIMEOFF_ENV }}
+          # The calendar integrations' credentials (TOF-110), each its own
+          # secret so adding one never means rewriting TIMEOFF_ENV. Unset, the
+          # integration is not offered. The Google key is the service
+          # account's JSON on one line (`jq -c`).
+          TIMEOFF_GOOGLE_SERVICE_ACCOUNT: ${{ secrets.TIMEOFF_GOOGLE_SERVICE_ACCOUNT }}
+          TIMEOFF_MICROSOFT_CLIENT_ID: ${{ secrets.TIMEOFF_MICROSOFT_CLIENT_ID }}
+          TIMEOFF_MICROSOFT_CLIENT_SECRET: ${{ secrets.TIMEOFF_MICROSOFT_CLIENT_SECRET }}
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
@@ -566,7 +573,12 @@ jobs:
           printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nAUTH_ORIGIN=https://auth.staging.app.kithena.com\nSLACK_COMMAND=/kithena-staging\n' \
             "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" | put slack.env
           printf 'AUDIT_API_TOKEN=%s\n' "$AUDIT_API_TOKEN" | put audit.env
-          printf '%s\nTIMEOFF_API_TOKEN=%s\n' "$TIMEOFF_ENV" "$TIMEOFF_API_TOKEN" | put timeoff.env
+          {
+            printf '%s\nTIMEOFF_API_TOKEN=%s\n' "$TIMEOFF_ENV" "$TIMEOFF_API_TOKEN"
+            for name in TIMEOFF_GOOGLE_SERVICE_ACCOUNT TIMEOFF_MICROSOFT_CLIENT_ID TIMEOFF_MICROSOFT_CLIENT_SECRET; do
+              if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
+            done
+          } | put timeoff.env
           printf 'PEOPLE_API_TOKEN=%s\nAUDIT_API_TOKEN=%s\nTIMEOFF_API_TOKEN=%s\nAUTH_JWKS_URL=%s\nAUTH_TOKEN_AUDIENCE=%s\nKITHENA_ENTITLEMENTS=%s\n' \
             "$PEOPLE_API_TOKEN" "$AUDIT_API_TOKEN" "$TIMEOFF_API_TOKEN" \
             https://identity.staging.kithena.com/.well-known/jwks.json \
