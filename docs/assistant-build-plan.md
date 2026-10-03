@@ -40,19 +40,19 @@ lanes (1 to 7) have landed, `assistant` goes to `main` as one pull request, so
 People, Time Off, the assistant and Slack change in one deploy. Phase 2 and 3
 lanes then branch from `main` again, one pull request each.
 
-| PR  | Lane                                                                                     | Tickets           |
-| --- | ---------------------------------------------------------------------------------------- | ----------------- |
-| 1   | `assistant/docs` — this plan, the PRD, the `CLAUDE.md` paragraph                         | —                 |
-| 2   | `assistant/contracts` — capability and plan contracts, codegen                           | AST-001 – AST-005 |
-| 3   | `assistant/domain` — the service skeleton and its pure core                              | AST-006 – AST-011 |
-| 4   | `assistant/service` — the use case, clients, identity's route, planner, eval gate, route | AST-012 – AST-017 |
-| 5   | `assistant/people` — People's capabilities                                               | AST-018 – AST-021 |
-| 6   | `assistant/timeoff` — Time Off's capabilities                                            | AST-022 – AST-024 |
+| PR  | Lane                                                                                     | Tickets            |
+| --- | ---------------------------------------------------------------------------------------- | ------------------ |
+| 1   | `assistant/docs` — this plan, the PRD, the `CLAUDE.md` paragraph                         | —                  |
+| 2   | `assistant/contracts` — capability and plan contracts, codegen                           | AST-001 – AST-005  |
+| 3   | `assistant/domain` — the service skeleton and its pure core                              | AST-006 – AST-011  |
+| 4   | `assistant/service` — the use case, clients, identity's route, planner, eval gate, route | AST-012 – AST-017  |
+| 5   | `assistant/people` — People's capabilities                                               | AST-018 – AST-021  |
+| 6   | `assistant/timeoff` — Time Off's capabilities                                            | AST-022 – AST-024  |
 | 7   | `assistant/slack-and-deploy` — Slack rerouted, People's old route gone, deploy, docs     | AST-025 – AST-029a |
-| 8   | `assistant/timeoff-more` — balances, pending, the union of items                         | AST-030 – AST-032 |
-| 9   | `assistant/follow-ups` — earlier questions in a conversation                             | AST-033           |
-| 10  | `assistant/teams` — the Teams adapter                                                    | AST-034           |
-| 11  | `assistant/web` — the subgraph and the search box                                        | AST-035 – AST-036 |
+| 8   | `assistant/timeoff-more` — balances, pending, the union of items                         | AST-030 – AST-032  |
+| 9   | `assistant/follow-ups` — earlier questions in a conversation                             | AST-033            |
+| 10  | `assistant/teams` — the Teams adapter                                                    | AST-034            |
+| 11  | `assistant/web` — the subgraph and the search box                                        | AST-035 – AST-036  |
 
 PRs 3, 5 and 6 run in parallel once PR 2 is in. PR 4 needs PR 3. PR 7 needs
 PRs 4, 5 and 6. PRs 8 to 11 need `assistant` merged to `main`.
@@ -213,7 +213,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   available" to any caller, which says nothing. The layer folders appear with
   their first files; the existing boundary rules already cover `platform/*`.
 
-### [ ] AST-007 — Plan validation
+### [x] AST-007 — Plan validation
 
 - **Spec** PRD §9.2, §9.3
 - **Files** `platform/assistant/src/domain/plan.ts` (+ test, first)
@@ -228,6 +228,16 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `intent.ts`). Refusal is whole and carries a reason code for telemetry.
 - **Done when** one test per rule, each refusing; a valid plan for every PRD §7
   example accepted.
+- **As built** the catalogue is an `Offer` (capability name → `Offered`:
+  the pinned `Capability`, its runtime fields, its module's metrics), built by
+  `offer(catalogues)`, which also pins versions, checks the module, and drops
+  what yields (§8.4). `readPlan` reads the plan against the offer the model was
+  shown, masked references included, so AST-012 validates and then unmasks.
+  Three refusals the PRD implies but does not list: `within` an earlier step
+  whose output is not people, a count or list of something that is not people
+  (`ANSWER_KIND`), and a `sort` or `groupBy` the capability does not offer.
+  An `unclear` with an empty reply carries none, so the template's sentence
+  stands.
 
 ### [ ] AST-008 — Dates in the asker's zone
 
