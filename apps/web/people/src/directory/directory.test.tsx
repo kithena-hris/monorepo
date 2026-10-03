@@ -292,10 +292,17 @@ describe('Directory', () => {
     expect(onOpen).not.toHaveBeenCalled();
     await user.keyboard('e');
     expect(onOpen).toHaveBeenCalledWith('a');
-    // The keys are said once, under the list, not on the card.
+    // The keys are said once, at the list's head, not on the card: under a
+    // list that keeps loading they were only reached at its end.
     const hint = screen.getByText(/to open the card/);
     expect(look).not.toContainElement(hint);
     expect(hint).toHaveTextContent(/to move.*to open the card.*E for the profile/);
+    expect(
+      hint.compareDocumentPosition(screen.getByRole('region', { name: 'People' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Plain rows: no stripes.
+    expect(container.querySelector('tr[data-striped]')).toBeNull();
     expect(within(look).queryByText(/next record/)).toBeNull();
     setShortcutKeys({ keys: {}, characterKeys: true });
   });

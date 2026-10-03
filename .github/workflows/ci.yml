@@ -632,9 +632,9 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - name: install
         run: pnpm install --frozen-lockfile
-      - name: chromium
+      - name: chromium and webkit
         uses: ./.github/actions/chromium
-        with: { package: '@reach/storybook' }
+        with: { package: '@reach/storybook', browsers: 'chromium webkit' }
       - name: axe over every story, one shard
         run: pnpm turbo run test:stories -- --shard=${{ matrix.shard }}/5 --passWithNoTests
 

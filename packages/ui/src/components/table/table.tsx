@@ -49,6 +49,17 @@ export interface TableProps extends ComponentPropsWithoutRef<'table'> {
    * implementation detail everywhere else.
    */
   containerRef?: Ref<HTMLDivElement>;
+  /**
+   * How tall everything the box scrolls is, in px, when the caller knows it
+   * better than the table's layout does: a virtualized body. The box's scroll
+   * extent is then pinned to it rather than taken from the table alone.
+   *
+   * WebKit lays a table out again after a long run of its rows is swapped, and
+   * clamps the box's scroll position to the extent of the pass in between: a
+   * fling that rendered the last rows in one go sent the list back to the top.
+   * Chromium waits for the final layout to clamp, which is why it never showed.
+   */
+  contentHeight?: number;
 }
 
 export function Table({
@@ -58,6 +69,7 @@ export function Table({
   stickyHeader = false,
   bare = false,
   dense = false,
+  contentHeight,
   ...props
 }: TableProps): JSX.Element {
   return (
@@ -84,9 +96,17 @@ export function Table({
         // and the table itself by its shadow, the same as every other card.
         !bare && 'rounded-lg bg-surface shadow-sm',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+        contentHeight !== undefined && 'relative',
         containerClassName,
       )}
     >
+      {contentHeight === undefined ? null : (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute start-0 top-0 w-px"
+          style={{ height: contentHeight }}
+        />
+      )}
       <table
         data-sticky-header={stickyHeader || undefined}
         data-dense={dense || undefined}

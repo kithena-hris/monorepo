@@ -11,8 +11,8 @@ import { defineConfig } from 'vitest/config';
  * coarse pointer and the real stylesheet, and measures what jsdom cannot: tap
  * targets against the 44px floor, and whether "Save" is still reachable with
  * the keyboard up. `desk` renders the `*.browser.test` files again at desk
- * sizes with a mouse. Both are what `just test-stories` runs, beside Reach's
- * own stories.
+ * sizes with a mouse, and `desk-webkit` renders them in WebKit too. All three
+ * are what `just test-stories` runs, beside Reach's own stories.
  *
  * Not Storybook: Reach's Storybook is the design system's public
  * documentation and must not learn this product exists. These do the same two
@@ -95,6 +95,29 @@ export default defineConfig({
             viewport: { width: 1280, height: 800 },
             api: { host: '127.0.0.1' },
             instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
+      {
+        extends: true,
+        cacheDir: 'node_modules/.vite/desk-webkit',
+        plugins: [tailwindcss()],
+        test: {
+          // The desk again in WebKit, Safari's engine: it lays out and clamps
+          // a scroll box differently from Chromium, and a list that kept its
+          // place in one lost it in the other.
+          name: 'desk-webkit',
+          // Not the import flow's: it scrolls through Chromium's own protocol (CDP).
+          include: ['src/**/*.browser.test.{ts,tsx}'],
+          exclude: ['src/import/import-flow.browser.test.tsx'],
+          setupFiles: ['./src/test/phone-setup.ts'],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({ contextOptions: { viewport: { width: 1440, height: 900 } } }),
+            viewport: { width: 1280, height: 800 },
+            api: { host: '127.0.0.1' },
+            instances: [{ browser: 'webkit' }],
           },
         },
       },

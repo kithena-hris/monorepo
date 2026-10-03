@@ -1536,7 +1536,6 @@ function Body({
             ),
           })}
       stickyHeader
-      striped
       empty={empty}
     />
   );
@@ -1810,6 +1809,22 @@ function Body({
         actions={
           coarse ? undefined : (
             <span className="flex flex-wrap items-center gap-2">
+              {view === 'list' && rows.length > 0 ? (
+                // The list's keys, in its toolbar: under a list that keeps
+                // loading they were only reached once the last page had.
+                <span className="me-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-fg-muted">
+                  <Kbd keyName="up" />
+                  <Kbd keyName="down" /> to move
+                  <span aria-hidden>·</span>
+                  <Kbd keyName="enter" /> to open the card
+                  {profileKeys.length === 0 ? null : (
+                    <>
+                      <span aria-hidden>·</span>
+                      <KbdShortcut keys={profileKeys} /> for the profile
+                    </>
+                  )}
+                </span>
+              ) : null}
               {fromQuestion ? remindButton : null}
               {fromQuestion && saveable ? (
                 <SaveSegment onSave={onSaveSegment} label="Save as view" />
@@ -2003,21 +2018,6 @@ function Body({
           </>
         )}
       </div>
-      {view === 'list' && !coarse && rows.length > 0 ? (
-        // The list's keys, under the list rather than on the card they move.
-        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-fg-muted">
-          <Kbd keyName="up" />
-          <Kbd keyName="down" /> to move
-          <span aria-hidden>·</span>
-          <Kbd keyName="enter" /> to open the card
-          {profileKeys.length === 0 ? null : (
-            <>
-              <span aria-hidden>·</span>
-              <KbdShortcut keys={profileKeys} /> for the profile
-            </>
-          )}
-        </p>
-      ) : null}
       {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
         <div ref={endOfPage} aria-hidden className="h-px" />
       ) : null}

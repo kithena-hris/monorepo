@@ -51,17 +51,22 @@ function pages() {
 }
 
 function directory(over: { onLoadMore: (after: string) => Promise<unknown>; onOpen?: () => void }) {
+  // In the page's own query container, as Reach's `PageLayout` puts every
+  // screen: WebKit lays a container's contents out twice, and that is where
+  // it lost the table's place.
   return render(
-    <Directory
-      load={{ status: 'ready', data: state }}
-      search=""
-      onSearchChange={vi.fn()}
-      filters={{}}
-      onFiltersChange={vi.fn()}
-      onOpen={over.onOpen ?? vi.fn()}
-      onLoadMore={over.onLoadMore as never}
-      next={String(PAGE)}
-    />,
+    <div className="@container/page">
+      <Directory
+        load={{ status: 'ready', data: state }}
+        search=""
+        onSearchChange={vi.fn()}
+        filters={{}}
+        onFiltersChange={vi.fn()}
+        onOpen={over.onOpen ?? vi.fn()}
+        onLoadMore={over.onLoadMore as never}
+        next={String(PAGE)}
+      />
+    </div>,
   );
 }
 
@@ -273,6 +278,46 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     },
   );
 
+  // WebKit, inside the page's container: a fling that rendered the last rows
+  // in one go laid the table out short for a pass, and the box clamped its
+  // place to that, back to the top. Chromium waits for the final layout.
+  it('keeps its place when a fling lands on the last rows at once', async () => {
+    const { onLoadMore } = pages();
+    directory({ onLoadMore });
+    const box = screen.getByRole('region', { name: 'People' });
+    await vi.waitFor(() => {
+      expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+    });
+    const end = box.scrollHeight - box.clientHeight;
+    for (const to of [end, 300, 70 * ROW]) {
+      box.scrollTop = to;
+      await frame();
+      await frame();
+      expect(box.scrollTop).toBeGreaterThanOrEqual(Math.min(to, end) - 1);
+    }
+  });
+
+  it('says its keys above the list, in view without a scroll, on plain rows', async () => {
+    const { onLoadMore } = pages();
+    directory({ onLoadMore });
+    const box = screen.getByRole('region', { name: 'People' });
+    const hint = screen.getByText(/to open the card/);
+    const r = hint.getBoundingClientRect();
+    expect(r.bottom).toBeLessThanOrEqual(box.getBoundingClientRect().top);
+    expect(r.top).toBeGreaterThanOrEqual(0);
+    expect(r.bottom).toBeLessThanOrEqual(window.innerHeight);
+    // No stripes: every row the same surface, until hovered, picked or open.
+    await vi.waitFor(() => {
+      expect(box.querySelectorAll('tr[data-row-id]').length).toBeGreaterThan(10);
+    });
+    const fills = new Set(
+      [...box.querySelectorAll<HTMLElement>('tr[data-row-id]:not([data-active])')].map(
+        (row) => getComputedStyle(row).backgroundColor,
+      ),
+    );
+    expect(fills.size).toBe(1);
+  });
+
   it('keeps the place and Back to top at the list’s top corner, off the quick look', async () => {
     const { onLoadMore } = pages();
     directory({ onLoadMore });
@@ -323,6 +368,13 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
 });
 
 describe.runIf(coarse)('the directory’s list, under a finger', () => {
+  it('has no keyboard hint', () => {
+    const { onLoadMore } = pages();
+    directory({ onLoadMore });
+    expect(screen.queryByText(/to open the card/)).toBeNull();
+    expect(screen.queryByText(/to move/)).toBeNull();
+  });
+
   it('opens with the first person selected, without opening them, and a page ahead', async () => {
     const { asked, onLoadMore } = pages();
     const onOpen = vi.fn();

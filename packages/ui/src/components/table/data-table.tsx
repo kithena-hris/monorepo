@@ -766,6 +766,13 @@ export function DataTable<T extends TableRow>({
     overscan: 20,
   });
 
+  // The pinned header's height: with every row counted at its height, the
+  // box's whole extent, which `Table` holds the box to (`contentHeight`).
+  const [headHeight, setHeadHeight] = useState(0);
+  useLayoutEffect(() => {
+    if (virtualized) setHeadHeight(scrollRef.current?.querySelector('thead')?.offsetHeight ?? 0);
+  }, [virtualized, fitKey, dense]);
+
   const virtualRows = virtualized ? virtualizer.getVirtualItems() : [];
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
   // Until the virtualizer has measured its box it names no rows at all: the
@@ -1015,7 +1022,19 @@ export function DataTable<T extends TableRow>({
             },
           }
         : {})}
-      {...(containerClassName === undefined ? {} : { containerClassName })}
+      // While more is on its way, the wheel stays with the table at the end
+      // of what has loaded: WebKit handed it to the page, which slid away
+      // under the reader until the next page arrived.
+      containerClassName={cn(
+        onEndReached !== undefined && 'overscroll-y-contain',
+        containerClassName,
+      )}
+      {...(virtualized
+        ? {
+            contentHeight:
+              headHeight + virtualizer.getTotalSize() + (loadingMore ? estimateRowHeight : 0),
+          }
+        : {})}
     >
       {caption === undefined ? null : (
         <caption className="mt-3 text-xs text-fg-muted">{caption}</caption>
