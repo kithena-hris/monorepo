@@ -550,6 +550,56 @@ export const ExceptionsView = named(
   }),
 );
 
+/**
+ * T24 (TOF-096): a month per team and in total, and who is late for
+ * Payroll. Hours as minutes; no punch time and no location.
+ */
+export const PayPeriodView = named(
+  'TimeOffPayPeriod',
+  z.object({
+    from: CalendarDate,
+    to: CalendarDate,
+    closedAt: Instant.nullable(),
+    teams: z.array(
+      named(
+        'TimeOffPayPeriodTeam',
+        z.object({
+          team: TeamKey,
+          teamName: z.string().nullable(),
+          people: z.int(),
+          waiting: z.int(),
+          paidMinutes: z.int(),
+          compMinutes: z.int(),
+          paidAs: z.enum(['comp', 'paid', 'mixed']).nullable(),
+        }),
+      ),
+    ),
+    totals: named(
+      'TimeOffPayPeriodTotals',
+      z.object({
+        paidMinutes: z.int(),
+        compMinutes: z.int(),
+        unpaidDays: DayAmount,
+        unpaidPeople: z.int(),
+        negativePeople: z.int(),
+        negativeBalanceDays: DayAmount,
+      }),
+    ),
+    late: z.array(
+      named(
+        'TimeOffLateForPayroll',
+        z.object({
+          personId: PersonId,
+          displayName: z.string(),
+          team: TeamKey,
+          openDays: z.int(),
+          overtimeWaitingMinutes: z.int(),
+        }),
+      ),
+    ),
+  }),
+);
+
 /** A file to download, as base64: the inspector's record as CSV or PDF. */
 export const FileView = named(
   'TimeOffFile',

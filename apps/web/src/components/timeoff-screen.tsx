@@ -141,6 +141,12 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       case 'TeamNow':
       case 'Exceptions':
         return { load: loadable };
+      case 'PayPeriod':
+        return {
+          load: loadable,
+          onClose: actions.closePayPeriod,
+          onRemind: actions.remindPayPeriod,
+        };
       // Settings (TOF-078 to TOF-083).
       case 'LeaveTypes':
         return { load: loadable };

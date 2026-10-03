@@ -125,6 +125,20 @@ export async function correctPunch(input: {
   return a.ok ? { ok: true } : { ok: false, message: a.message };
 }
 
+/* ---------------------------------------- HR operations, TOF-096 onwards -- */
+
+/** T24: send a month (`2026-09`) to Payroll; it locks, and later fixes go to the next. */
+export async function closePayPeriod(month: string): Promise<Outcome> {
+  const a = await timeOff('CloseTimeOffPayPeriod', { month });
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
+/** T24: ask a team's late members (everyone's, without one) and their managers. */
+export async function remindPayPeriod(month: string, teamKey: string | null): Promise<Outcome> {
+  const a = await timeOff('RemindTimeOffPayPeriod', { month, input: { teamKey } });
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
 /* ------------------------------------------- the manager's, TOF-068 to TOF-073 -- */
 
 const outcome = (a: { ok: true } | { ok: false; message: string }): Outcome =>

@@ -50,7 +50,9 @@ import {
   closePayPeriod,
   correctPunch,
   decideOvertime,
+  payPeriodScreen,
   punch,
+  remindPayPeriod,
 } from '../application/attendance/attendance.js';
 import { inspectorExport } from '../application/attendance/inspector-files.js';
 import { calendarFeed, issueFeedToken, revokeFeeds } from '../application/calendar/ical.js';
@@ -130,6 +132,7 @@ import {
   ParentalCaseView,
   ParentalScreenView,
   ParentRoleView,
+  PayPeriodView,
   PolicyPreviewView,
   PunchView,
   RequestDetailView,
@@ -628,6 +631,17 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffPayPeriod',
+    method: 'GET',
+    path: `${V1}/pay-periods/{month}`,
+    summary: 'T24: a month per team and in total, and who is late for Payroll; HR',
+    params: z.object({ month: Month }),
+    answer: PayPeriodView,
+    run: (deps, caller, { params }) =>
+      payPeriodScreen(deps)(caller, { from: firstOf(params.month) }),
+    shape: same,
+  }),
+  route({
     name: 'timeOffBalance',
     method: 'GET',
     path: `${V1}/balances/{leaveTypeKey}`,
@@ -966,6 +980,19 @@ export const ROUTES: readonly Route[] = [
       .meta({ title: 'TimeOffPayPeriodClosed' }),
     run: (deps, caller, { params }) =>
       closePayPeriod(deps)(caller, { from: firstOf(params.month) }),
+    shape: same,
+  }),
+  route({
+    name: 'remindTimeOffPayPeriod',
+    method: 'POST',
+    path: `${V1}/pay-periods/{month}/reminders`,
+    summary:
+      'Ask a team’s late members for their clock-outs, and their managers for the overtime waiting; HR',
+    params: z.object({ month: Month }),
+    body: z.strictObject({ teamKey: TeamKey.nullable().default(null) }),
+    answer: z.object({ told: z.int() }).meta({ title: 'TimeOffReminded' }),
+    run: (deps, caller, { params, body }) =>
+      remindPayPeriod(deps)(caller, { from: firstOf(params.month), teamKey: body.teamKey }),
     shape: same,
   }),
 

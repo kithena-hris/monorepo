@@ -27,7 +27,15 @@ import {
   type DailyRecord,
   type Exception,
 } from '../../domain/attendance/exceptions.js';
-import { close, hours, post as postLine } from '../../domain/attendance/pay-period.js';
+import {
+  close,
+  hours,
+  monthSummary,
+  post as postLine,
+  totals,
+  type MemberMonth,
+} from '../../domain/attendance/pay-period.js';
+import type { LeaveType } from '../../domain/policy/leave-type.js';
 import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
 import { hm, weekdays, type Schedule } from '../../domain/attendance/schedule.js';
 import { entry } from '../../domain/balance/ledger.js';
@@ -557,6 +565,42 @@ export const inspectorRecord =
       return ok({ from: input.from, to: input.to, people });
     });
 
+/**
+ * A member's unpaid days and how far below zero they are, for a period.
+ *
+ * ponytail: unpaid days count a whole unpaid request that starts in the
+ * month; split it across months when an unpaid absence spanning a month end
+ * matters to Payroll.
+ */
+async function leaveFacts(
+  tx: Tx,
+  m: Member,
+  period: { readonly from: CalendarDate; readonly to: CalendarDate },
+  tracked: readonly LeaveType[],
+): Promise<{ unpaidDays: DayAmount; negativeBalanceDays: DayAmount }> {
+  let negative = dayCount('0.000');
+  for (const t of tracked) {
+    const left = dayCount((await balanceFor(tx, m, t.definition.key, period.to)).left);
+    if (left.lt(0)) negative = negative.plus(left.neg());
+  }
+  const unpaid = sum(
+    (await tx.requests.list({ personIds: [m.personId], statuses: ['approved', 'taken'] }))
+      .filter(
+        (r) =>
+          r.request.leaveType.paid === 'unpaid' &&
+          r.request.span.from >= period.from &&
+          r.request.span.from <= period.to,
+      )
+      .map((r) => dayCount(r.request.span.workingDays)),
+  );
+  return { unpaidDays: amount(unpaid), negativeBalanceDays: amount(negative) };
+}
+
+const trackedDays = async (tx: Tx): Promise<LeaveType[]> =>
+  (await tx.leaveTypes.list()).filter(
+    (t) => t.definition.tracked && t.definition.unit === 'day' && !t.deleted,
+  );
+
 /** The month's pay period, opened when the first line needs it. */
 async function ensurePeriod(tx: Tx, deps: Pick<Deps, 'newId'>, date: CalendarDate): Promise<void> {
   const periods = await tx.attendance.periods();
@@ -583,10 +627,6 @@ export interface ClosedPeriod {
  * not had a line for is posted first — overtime decisions post their own —
  * then the period locks and `timeoff.period.closed` goes out with hours and
  * days, never punch times. HR only.
- *
- * ponytail: unpaid days count a whole unpaid request that starts in the
- * month; split it across months when an unpaid absence spanning a month end
- * matters to Payroll.
  */
 export const closePayPeriod =
   (deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'newId'>) =>
@@ -605,9 +645,7 @@ export const closePayPeriod =
       const rules = await tx.attendance.rules();
       const now = deps.clock.instant();
       const members = (await tx.members.list()).filter((m) => m.status !== 'left');
-      const tracked = (await tx.leaveTypes.list()).filter(
-        (t) => t.definition.tracked && t.definition.unit === 'day' && !t.deleted,
-      );
+      const tracked = await trackedDays(tx);
       const balances = new Map<
         PersonId,
         { unpaidDays: DayAmount; negativeBalanceDays: DayAmount }
@@ -643,26 +681,9 @@ export const closePayPeriod =
           await tx.attendance.appendLine(line.value);
         }
 
-        let negative = dayCount('0.000');
-        for (const t of tracked) {
-          const left = dayCount((await balanceFor(tx, m, t.definition.key, period.to)).left);
-          if (left.lt(0)) negative = negative.plus(left.neg());
-        }
-        const unpaid = sum(
-          (await tx.requests.list({ personIds: [m.personId], statuses: ['approved', 'taken'] }))
-            .filter(
-              (r) =>
-                r.request.leaveType.paid === 'unpaid' &&
-                r.request.span.from >= period.from &&
-                r.request.span.from <= period.to,
-            )
-            .map((r) => dayCount(r.request.span.workingDays)),
-        );
-        if (!negative.isZero() || !unpaid.isZero()) {
-          balances.set(m.personId, {
-            unpaidDays: amount(unpaid),
-            negativeBalanceDays: amount(negative),
-          });
+        const facts = await leaveFacts(tx, m, period, tracked);
+        if (facts.unpaidDays !== '0.000' || facts.negativeBalanceDays !== '0.000') {
+          balances.set(m.personId, facts);
         }
       }
 
@@ -671,6 +692,10 @@ export const closePayPeriod =
         periodId: period.id,
         lines: await tx.attendance.lines(),
         balances,
+        // ponytail: no module tells Time Off a pay rate yet, so Payroll gets
+        // hours alone; Compensation's rate event fills this map when it exists.
+        rates: new Map(),
+        multiplier: rules.overtime.multiplier,
         eventId: deps.newId(),
         tenantId: caller.tenantId,
         actor: userActor(caller),
@@ -688,4 +713,167 @@ export const closePayPeriod =
         to: period.to,
         members: payload.members.length,
       });
+    });
+
+/* ------------------------------------------------- the month, TOF-096 -- */
+
+/** Who is late for Payroll, and with what. */
+interface Late extends MemberMonth {
+  readonly displayName: string;
+  readonly managerPersonId: PersonId | null;
+  readonly openDates: readonly CalendarDate[];
+  readonly overtimeDates: readonly CalendarDate[];
+}
+
+/** Each member's month so far: open days, overtime waiting and decided, and their leave. */
+async function monthOf(
+  tx: Tx,
+  deps: Pick<Deps, 'clock'>,
+  tenantId: Caller['tenantId'],
+  from: CalendarDate,
+  to: CalendarDate,
+): Promise<Late[]> {
+  const rules = await tx.attendance.rules();
+  const tracked = await trackedDays(tx);
+  const now = deps.clock.instant();
+  const out: Late[] = [];
+  for (const m of await tx.members.list()) {
+    if (m.status === 'left') continue;
+    const today = deps.clock.date(m.timeZone);
+    const last = to < today ? to : addDays(today, -1);
+    const clock = await clockOf(tx, m, tenantId);
+    const schedule = await scheduleOf(tx, m);
+    const days =
+      last < from
+        ? []
+        : datesIn(from, last).map((date) =>
+            dayOf({ date, schedule, shifts: clock.shifts, now, timeZone: m.timeZone, rules }),
+          );
+    const decisions = (await tx.attendance.overtime(m.personId)).filter(
+      (o) => o.date >= from && o.date <= to,
+    );
+    const decided = new Set(decisions.map((o) => o.date));
+    const waiting = days.filter(
+      (d) => d.status === 'complete' && d.overtimeMinutes > 0 && !decided.has(d.date),
+    );
+    const minutesOf = (outcome: OvertimeDecision['outcome']) =>
+      decisions.filter((o) => o.outcome === outcome).reduce((n, o) => n + o.minutes, 0);
+    const openDates = days.filter((d) => d.status === 'open').map((d) => d.date);
+    out.push({
+      personId: m.personId,
+      displayName: m.displayName,
+      managerPersonId: m.managerPersonId,
+      team: m.teamKey ?? NO_TEAM,
+      teamName: m.teamName,
+      openDays: openDates.length,
+      openDates,
+      overtimeWaitingMinutes: waiting.reduce((n, d) => n + d.overtimeMinutes, 0),
+      overtimeDates: waiting.map((d) => d.date),
+      paidMinutes: minutesOf('paid'),
+      compMinutes: minutesOf('comp'),
+      ...(await leaveFacts(tx, m, { from, to }, tracked)),
+    });
+  }
+  return out;
+}
+
+const monthEnd = (from: CalendarDate): CalendarDate => addDays(addMonths(from, 1), -1);
+
+export interface PayPeriodView extends ReturnType<typeof monthSummary> {
+  readonly from: CalendarDate;
+  readonly to: CalendarDate;
+  /** When it was sent to Payroll; `null` while open. */
+  readonly closedAt: Instant | null;
+  readonly late: readonly {
+    readonly personId: PersonId;
+    readonly displayName: string;
+    readonly team: TeamKey;
+    readonly openDays: number;
+    readonly overtimeWaitingMinutes: number;
+  }[];
+}
+
+/**
+ * T24 (§11.8): the month per team and in total, and who is late for Payroll.
+ * A closed month is what Payroll was sent, from its lines; an open one is
+ * counted live. HR only.
+ */
+export const payPeriodScreen =
+  (deps: Pick<Deps, 'uow' | 'authz' | 'clock'>) =>
+  (caller: Caller, input: { readonly from: CalendarDate }): Promise<Result<PayPeriodView>> =>
+    transact<PayPeriodView>(deps, caller.tenantId, async (tx) => {
+      if (!(await isHrAdmin(deps, caller))) return forbidden();
+      const from = CalendarDate.parse(`${input.from.slice(0, 8)}01`);
+      const to = monthEnd(from);
+      const period = (await tx.attendance.periods()).find((p) => p.from <= from && from <= p.to);
+      const members = await monthOf(tx, deps, caller.tenantId, from, to);
+      if (period !== undefined && period.closedAt !== null) {
+        // What Payroll was sent: the period's lines, nobody late.
+        const sent = new Map(
+          totals(period, await tx.attendance.lines()).members.map((t) => [t.personId, t]),
+        );
+        const asSent = members.map((m) => ({
+          ...m,
+          openDays: 0,
+          overtimeWaitingMinutes: 0,
+          paidMinutes: sent.get(m.personId)?.paidMinutes ?? 0,
+          compMinutes: sent.get(m.personId)?.compMinutes ?? 0,
+        }));
+        return ok({ from, to, closedAt: period.closedAt, ...monthSummary(asSent), late: [] });
+      }
+      return ok({
+        from,
+        to,
+        closedAt: null,
+        ...monthSummary(members),
+        late: members
+          .filter((m) => m.openDays > 0 || m.overtimeWaitingMinutes > 0)
+          .map(({ personId, displayName, team, openDays, overtimeWaitingMinutes }) => ({
+            personId,
+            displayName,
+            team,
+            openDays,
+            overtimeWaitingMinutes,
+          })),
+      });
+    });
+
+/**
+ * T24's "Remind": each late member of a team (every team without one) is
+ * asked for their missing clock-outs, and their manager for the overtime
+ * waiting. Once a day each, whoever presses it. HR only.
+ */
+export const remindPayPeriod =
+  (deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'notifier'>) =>
+  (
+    caller: Caller,
+    input: { readonly from: CalendarDate; readonly teamKey: TeamKey | null },
+  ): Promise<Result<{ told: number }>> =>
+    transact(deps, caller.tenantId, async (tx) => {
+      if (!(await isHrAdmin(deps, caller))) return forbidden();
+      const from = CalendarDate.parse(`${input.from.slice(0, 8)}01`);
+      const today = deps.clock.date('UTC');
+      let told = 0;
+      for (const m of await monthOf(tx, deps, caller.tenantId, from, monthEnd(from))) {
+        if (input.teamKey !== null && m.team !== input.teamKey) continue;
+        for (const date of m.openDates) {
+          await deps.notifier.notify(
+            caller.tenantId,
+            m.personId,
+            { kind: 'missed_clock_out', date },
+            `period-reminder/${m.personId}/${date}/${today}`,
+          );
+          told++;
+        }
+        for (const date of m.overtimeDates) {
+          await deps.notifier.notify(
+            caller.tenantId,
+            m.managerPersonId ?? 'hr',
+            { kind: 'overtime_waiting', personId: m.personId, date },
+            `period-reminder/overtime/${m.personId}/${date}/${today}`,
+          );
+          told++;
+        }
+      }
+      return ok({ told });
     });

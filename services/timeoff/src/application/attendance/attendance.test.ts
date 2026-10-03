@@ -5,9 +5,12 @@ import { LeaveType } from '../../domain/policy/leave-type.js';
 import { caller, d, hr, people, TENANT, world } from '../testing/world.js';
 import {
   attendanceExceptions,
+  closePayPeriod,
   correctPunch,
   decideOvertime,
+  payPeriodScreen,
   punch,
+  remindPayPeriod,
   teamRightNow,
   timesheet,
 } from './attendance.js';
@@ -192,6 +195,55 @@ describe('HR’s exceptions and the inspector’s record (TOF-095)', () => {
     expect(
       await attendanceExceptions(app.deps)(hr, { from: d('2026-01-01'), to: d('2027-06-01') }),
     ).toMatchObject({ ok: false, error: { code: 'PERIOD_TOO_LONG' } });
+  });
+
+  it('counts the month for Payroll, reminds whoever is late, and shows what was sent (TOF-096)', async () => {
+    const app = await adamsWeek();
+    const screen = payPeriodScreen(app.deps);
+    const open = await screen(hr, { from: d('2026-10-01') });
+    if (!open.ok) throw new Error(open.error.message);
+    expect(open.value).toMatchObject({
+      from: '2026-10-01',
+      to: '2026-10-31',
+      closedAt: null,
+      teams: [{ team: 'platform', people: 7, waiting: 1, paidMinutes: 0, paidAs: null }],
+      late: [{ personId: people.adam, openDays: 1, overtimeWaitingMinutes: 60 }],
+    });
+    expect(await screen(marco, { from: d('2026-10-01') })).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+
+    expect(await remindPayPeriod(app.deps)(hr, { from: d('2026-10-01'), teamKey: null })).toEqual({
+      ok: true,
+      value: { told: 2 },
+    });
+    expect(app.notices.map((n) => [n.to, n.notice.kind])).toEqual([
+      [people.adam, 'missed_clock_out'],
+      [people.marco, 'overtime_waiting'],
+    ]);
+
+    await decideOvertime(app.deps)(marco, {
+      personId: people.adam,
+      date: d('2026-10-05'),
+      approve: true,
+      choice: 'paid',
+    });
+    await closePayPeriod(app.deps)(hr, { from: d('2026-10-01') });
+    const sent = await screen(hr, { from: d('2026-10-01') });
+    expect(sent).toMatchObject({
+      ok: true,
+      value: {
+        closedAt: '2026-10-08T07:00:00.000Z',
+        teams: [{ team: 'platform', paidMinutes: 60, paidAs: 'paid', waiting: 0 }],
+        totals: { paidMinutes: 60 },
+        late: [],
+      },
+    });
+    const event = app.state(TENANT).events.find((e) => e.eventName === 'timeoff.period.closed');
+    expect(event?.payload).toMatchObject({
+      members: [{ personId: people.adam, overtimeHours: '1.000', overtimeAmount: null }],
+    });
   });
 
   it('gives the inspector each day’s start, end and breaks, as CSV and as PDF', async () => {

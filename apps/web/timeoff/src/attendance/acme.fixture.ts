@@ -1,5 +1,6 @@
 import type { ClockData } from '../clock/clock';
 import type { ExceptionsData } from './exceptions';
+import type { PayPeriodData } from './pay-period';
 import type { TeamNowData } from './team-now';
 import type { Punch } from './time';
 import type { TimesheetData } from './timesheet';
@@ -320,6 +321,80 @@ export const adaExceptions = (): ExceptionsData => ({
       personId: ADAM,
       displayName: 'Adam Novak',
       teamName: 'Platform',
+    },
+  ],
+});
+
+/**
+ * T24 for Ada on 1 October: September, over and not yet sent. Support has
+ * two people late — Diego's Friday without a clock-out and Lucía's overtime.
+ */
+export const adaSeptember = (): PayPeriodData => ({
+  month: '2026-09',
+  from: '2026-09-01',
+  to: '2026-09-30',
+  today: '2026-10-01',
+  closedAt: null,
+  teams: [
+    {
+      team: 'design',
+      teamName: 'Design',
+      people: 22,
+      waiting: 0,
+      paidMinutes: 0,
+      compMinutes: 240,
+      paidAs: 'comp',
+    },
+    {
+      team: 'engineering',
+      teamName: 'Engineering',
+      people: 148,
+      waiting: 0,
+      paidMinutes: 0,
+      compMinutes: 3720,
+      paidAs: 'comp',
+    },
+    {
+      team: 'finance',
+      teamName: 'Finance',
+      people: 19,
+      waiting: 0,
+      paidMinutes: 0,
+      compMinutes: 0,
+      paidAs: null,
+    },
+    {
+      team: 'support',
+      teamName: 'Support',
+      people: 41,
+      waiting: 2,
+      paidMinutes: 1860,
+      compMinutes: 0,
+      paidAs: 'paid',
+    },
+  ],
+  totals: {
+    paidMinutes: 2940,
+    compMinutes: 3960,
+    unpaidDays: '3.000',
+    unpaidPeople: 2,
+    negativePeople: 2,
+    negativeBalanceDays: '1.500',
+  },
+  late: [
+    {
+      personId: 'p-diego',
+      displayName: 'Diego Alvarez',
+      team: 'support',
+      openDays: 1,
+      overtimeWaitingMinutes: 0,
+    },
+    {
+      personId: 'p-lucia',
+      displayName: 'Lucía Romero',
+      team: 'support',
+      openDays: 0,
+      overtimeWaitingMinutes: 75,
     },
   ],
 });

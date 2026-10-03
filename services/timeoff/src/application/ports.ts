@@ -393,6 +393,7 @@ export type Notice =
       readonly carries: string;
     }
   | { readonly kind: 'missed_clock_out'; readonly date: CalendarDate }
+  | { readonly kind: 'overtime_waiting'; readonly personId: PersonId; readonly date: CalendarDate }
   | { readonly kind: 'still_clocked_in' }
   | { readonly kind: 'parental_plan_sent'; readonly planId: string }
   | {

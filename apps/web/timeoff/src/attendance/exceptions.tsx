@@ -12,7 +12,8 @@ import {
 import { createElement, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable } from '../load';
-import { duration, shortDate } from './time';
+import { MonthNav } from './month-nav';
+import { duration, monthName, shortDate } from './time';
 
 /**
  * Exceptions for HR (T23, PRD §11.7): only what needs action in a month —
@@ -70,15 +71,7 @@ const ICON: Record<
 };
 
 const icon = (name: IconName): ReactNode => createElement(icons[name], { 'aria-hidden': true });
-const monthLabel = (month: string): string =>
-  new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-    new Date(`${month}-01T00:00:00Z`),
-  );
-const shiftMonth = (month: string, by: number): string => {
-  const d = new Date(`${month}-01T00:00:00Z`);
-  d.setUTCMonth(d.getUTCMonth() + by);
-  return d.toISOString().slice(0, 7);
-};
+const monthLabel = (month: string): string => monthName(`${month}-01`);
 const people = (n: number): string => (n === 1 ? '1 person' : `${String(n)} people`);
 
 type Item = ExceptionsData['items'][number];
@@ -151,18 +144,7 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
           </>
         }
       />
-      <nav aria-label="Month" className="flex items-center gap-2">
-        <Button asChild size="sm" variant="ghost" startIcon={<icons.previous aria-hidden />}>
-          <a href={at(`month=${shiftMonth(data.month, -1)}`)}>
-            {monthLabel(shiftMonth(data.month, -1))}
-          </a>
-        </Button>
-        <Button asChild size="sm" variant="ghost" endIcon={<icons.next aria-hidden />}>
-          <a href={at(`month=${shiftMonth(data.month, 1)}`)}>
-            {monthLabel(shiftMonth(data.month, 1))}
-          </a>
-        </Button>
-      </nav>
+      <MonthNav month={data.month} path="/time-off/attendance/exceptions" />
       {data.items.length === 0 ? (
         <p className="text-sm text-fg-muted">{`Nothing needs you in ${monthLabel(data.month)}.`}</p>
       ) : (

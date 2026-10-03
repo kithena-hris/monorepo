@@ -22,7 +22,7 @@
     { "path": "/time-off/attendance/now", "component": "TeamNow" },
     { "path": "/time-off/attendance/timesheets", "component": "Attendance" },
     { "path": "/time-off/attendance/exceptions", "component": "Exceptions" },
-    { "path": "/time-off/attendance/pay-period", "component": "Attendance" },
+    { "path": "/time-off/attendance/pay-period", "component": "PayPeriod" },
     { "path": "/time-off/balances/:type", "component": "Balance" },
     { "path": "/time-off/holidays/:year", "component": "Holidays" },
     { "path": "/time-off/parental/:step", "component": "ParentalPlan" },

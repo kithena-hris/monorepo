@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RemindTimeOffPayPeriod($key: String!, $input: JSON!, $month: String!) {\n    remindTimeOffPayPeriod(idempotencyKey: $key, input: $input, month: $month) {\n      told\n    }\n  }"}

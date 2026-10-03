@@ -1546,12 +1546,26 @@ test passes, and it matches the design's screen on the seeded demo company.
   matters, the open kind's people beside them (`?kind=`). The design's "What
   changed in September" card is TOF-097's.
 
-### [ ] TOF-096 — Close the month for Payroll
+### [x] TOF-096 — Close the month for Payroll
 
 - **Screens** T24 · **Spec** PRD §11.8
 - **Depends on** TOF-027, TOF-095
 - **Approach** Publishes `timeoff.period.closed` with hours and amounts, never
   punch times or locations.
+- **As built** `timeoff.period.closed` members gained `overtimeAmount`
+  (`Money`, minor units, `null` by default, the array now classified
+  financial): `close` prices paid overtime at the T33 multiplier with
+  decimal.js when it is handed an hourly rate. No module tells Time Off a
+  rate yet, so it passes none and Payroll gets hours (ponytail in
+  `closePayPeriod`). `monthSummary` counts each team's people, who is late
+  (a day without a clock-out or overtime undecided), overtime and how it is
+  paid, and the totals; `timeOffPayPeriod` reads a month live, or as its
+  lines once closed. `remindTimeOffPayPeriod` asks the late for their
+  clock-outs and their managers for the overtime (the new `overtime_waiting`
+  notice), once a day each. `attendance/pay-period.tsx` at
+  `/time-off/attendance/pay-period`, last month by default: the teams'
+  table, the totals, the late flagged with "Remind them", and "Send
+  September to Payroll", held until the month is over.
 
 ### [ ] TOF-097 — Insights
 

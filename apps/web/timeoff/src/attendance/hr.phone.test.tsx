@@ -3,9 +3,9 @@ import axe from 'axe-core';
 import type { JSX } from 'react';
 import { expect, it } from 'vitest';
 
-import { Exceptions } from '../index';
+import { Exceptions, PayPeriod } from '../index';
 import { underFloor } from '../test/floor';
-import { adaExceptions } from './acme.fixture';
+import { adaExceptions, adaSeptember } from './acme.fixture';
 
 /**
  * HR's and the managers' attendance pages at 390×844 with a coarse pointer
@@ -15,10 +15,13 @@ import { adaExceptions } from './acme.fixture';
  */
 
 const ready = <T,>(data: T) => ({ status: 'ready' as const, data });
+const ok = (): Promise<{ ok: true }> => Promise.resolve({ ok: true });
 
 const screens: readonly (readonly [string, () => JSX.Element])[] = [
   ['exceptions', () => <Exceptions load={ready(adaExceptions())} />],
   ['exceptions, loading', () => <Exceptions load={{ status: 'loading' }} />],
+  ['the pay period', () => <PayPeriod load={ready(adaSeptember())} onClose={ok} onRemind={ok} />],
+  ['the pay period, loading', () => <PayPeriod load={{ status: 'loading' }} />],
 ];
 
 for (const [name, draw] of screens) {

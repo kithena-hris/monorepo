@@ -149,4 +149,14 @@ describe('HR’s attendance pages (TOF-095 onwards)', () => {
       notice: '“soon” is not a month',
     });
   });
+
+  it('opens the pay period on last month, the one month end closes', async () => {
+    answering({ TimeOffPayPeriod: () => ({ ok: true, data: { teams: [] } }) });
+    const load = await loadScreen('PayPeriod', { params: {}, search: {} });
+    expect(asked('TimeOffPayPeriod')).toEqual([{ month: '2026-09' }]);
+    expect(load).toMatchObject({
+      status: 'ready',
+      data: { month: '2026-09', today: '2026-10-01' },
+    });
+  });
 });

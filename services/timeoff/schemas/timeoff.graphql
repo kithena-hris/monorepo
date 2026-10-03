@@ -153,6 +153,15 @@ type Mutation {
     input: JSON!
     planId: String!
   ): TimeOffDone!
+  """
+  Ask a team’s late members for their clock-outs, and their managers for the overtime waiting; HR
+  """
+  remindTimeOffPayPeriod(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    month: String!
+  ): TimeOffReminded!
   """Nobody covers for an approver any more"""
   removeTimeOffDelegation(approverId: String!, idempotencyKey: String!): TimeOffDone!
   """Remove a holiday layer; HR"""
@@ -314,6 +323,8 @@ type Query {
   T8–T10: the caller’s parental plan, and the entitlement the answers asked about would give; nothing is saved
   """
   timeOffParentalPlan(childDate: String, children: Int, role: String, singleParent: Boolean): TimeOffParentalScreen!
+  """T24: a month per team and in total, and who is late for Payroll; HR"""
+  timeOffPayPeriod(month: String!): TimeOffPayPeriod!
   """
   T30: what publishing the draft would do to each member this leave year, folded; nothing is saved; HR
   """
@@ -612,6 +623,14 @@ type TimeOffImportReport {
   updated: Int!
 }
 
+type TimeOffLateForPayroll {
+  displayName: String!
+  openDays: Int!
+  overtimeWaitingMinutes: Int!
+  personId: String!
+  team: String!
+}
+
 type TimeOffLeaveTypeDefined {
   key: String!
 }
@@ -859,11 +878,39 @@ type TimeOffParentalScreen {
   supported: Boolean!
 }
 
+type TimeOffPayPeriod {
+  closedAt: String
+  from: String!
+  late: [TimeOffLateForPayroll!]!
+  teams: [TimeOffPayPeriodTeam!]!
+  to: String!
+  totals: TimeOffPayPeriodTotals!
+}
+
 type TimeOffPayPeriodClosed {
   from: String!
   members: Int!
   periodId: String!
   to: String!
+}
+
+type TimeOffPayPeriodTeam {
+  compMinutes: Int!
+  paidAs: String
+  paidMinutes: Int!
+  people: Int!
+  team: String!
+  teamName: String
+  waiting: Int!
+}
+
+type TimeOffPayPeriodTotals {
+  compMinutes: Int!
+  negativeBalanceDays: String!
+  negativePeople: Int!
+  paidMinutes: Int!
+  unpaidDays: String!
+  unpaidPeople: Int!
 }
 
 type TimeOffPersonRef {
@@ -986,6 +1033,10 @@ type TimeOffPunched {
 type TimeOffRange {
   from: String!
   to: String!
+}
+
+type TimeOffReminded {
+  told: Int!
 }
 
 type TimeOffRequestDecision {

@@ -157,6 +157,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T24: a month per team and in total, and who is late for Payroll; HR */
+  TimeOffPayPeriod: `query TimeOffPayPeriod($month: String!) {
+    timeOffPayPeriod(month: $month) {
+      closedAt from late { displayName openDays overtimeWaitingMinutes personId team } teams { compMinutes paidAs paidMinutes people team teamName waiting } to totals { compMinutes negativeBalanceDays negativePeople paidMinutes unpaidDays unpaidPeople }
+    }
+  }`,
+
   /** T30: what publishing a policy's draft would do to each member, folded; HR */
   TimeOffPolicyPreview: `query TimeOffPolicyPreview($policyId: String!) {
     timeOffPolicyPreview(policyId: $policyId) {
@@ -350,6 +357,13 @@ export const OPERATIONS = {
   RecordTimeOffParentalBirth: `mutation RecordTimeOffParentalBirth($key: String!, $input: JSON!, $planId: String!) {
     recordTimeOffParentalBirth(idempotencyKey: $key, input: $input, planId: $planId) {
       ok
+    }
+  }`,
+
+  /** Ask a team’s late members for their clock-outs, and their managers for the overtime waiting; HR */
+  RemindTimeOffPayPeriod: `mutation RemindTimeOffPayPeriod($key: String!, $input: JSON!, $month: String!) {
+    remindTimeOffPayPeriod(idempotencyKey: $key, input: $input, month: $month) {
+      told
     }
   }`,
 

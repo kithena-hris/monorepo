@@ -75,6 +75,8 @@ export async function loadScreen(
     // HR operations (TOF-095 onwards).
     case 'Exceptions':
       return exceptions(query.search);
+    case 'PayPeriod':
+      return payPeriod(query.search);
     // Settings (TOF-078 to TOF-083), HR only: Time Off refuses anyone else.
     case 'LeaveTypes':
       return leaveTypeSettings();
@@ -258,6 +260,23 @@ async function exceptions(search: Readonly<Record<string, string>>): Promise<Scr
   return {
     status: 'ready',
     data: { ...(answer.data as object), month, kind: search['kind'] ?? null },
+    ...(refused ? { notice: `“${search['month'] ?? ''}” is not a month` } : {}),
+  };
+}
+
+/**
+ * T24: a month for Payroll (`?month=`), last month by default — the one
+ * month end asks to close. `today` says whether the month is over yet.
+ */
+async function payPeriod(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+  const today = new Date().toISOString().slice(0, 10);
+  const last = addDays(`${today.slice(0, 7)}-01`, -1).slice(0, 7);
+  const { month, refused } = monthIn({ month: search['month'] ?? last });
+  const answer = await read('TimeOffPayPeriod', { month });
+  if (answer.status !== 'ready') return answer;
+  return {
+    status: 'ready',
+    data: { ...(answer.data as object), month, today },
     ...(refused ? { notice: `“${search['month'] ?? ''}” is not a month` } : {}),
   };
 }
