@@ -80,12 +80,10 @@ async function named(
   asking: Asking,
   ids: Iterable<string>,
 ): Promise<{ value: string; label: string }[]> {
-  const options: { value: string; label: string }[] = [];
-  for (const personId of new Set(ids)) {
-    const read = await deps.service.access.read(tx, { ...asking, personId });
-    if (read.ok) options.push(...pickable([read.value]));
-  }
-  return options;
+  const wanted = [...new Set(ids)];
+  const read = await deps.service.access.readMany(tx, { ...asking, personIds: wanted });
+  // In the order the record names them.
+  return read.ok ? pickable(wanted.flatMap((id) => read.value.get(id) ?? [])) : [];
 }
 
 /** The ids a record's person fields hold. */
@@ -1545,10 +1543,12 @@ async function nameEach(
   ids: Iterable<string>,
   names: Map<string, string>,
 ): Promise<void> {
-  for (const personId of ids) {
-    if (names.has(personId)) continue;
-    const read = await deps.service.access.read(tx, { ...asking, personId });
-    const name = read.ok ? nameOf(read.value.attributes) : null;
+  const unnamed = [...new Set(ids)].filter((id) => !names.has(id));
+  if (unnamed.length === 0) return;
+  const read = await deps.service.access.readMany(tx, { ...asking, personIds: unnamed });
+  if (!read.ok) return;
+  for (const [personId, view] of read.value) {
+    const name = nameOf(view.attributes);
     if (name !== null) names.set(personId, name);
   }
 }

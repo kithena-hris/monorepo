@@ -1077,6 +1077,16 @@ describe('history and completeness', () => {
         expect(many.value.get(personId)).toEqual(one.ok ? one.value : undefined);
       }
     }
+    // And reads them as `read` does, each as this viewer may.
+    for (const who of [hr, marco, ada]) {
+      const many = await people.readMany(tx, { ...asking(who), personIds: [ADA, MARCO, ADA] });
+      if (!many.ok) throw new Error(many.error.message);
+      expect([...many.value.keys()].toSorted()).toEqual([ADA, MARCO].toSorted());
+      for (const personId of [ADA, MARCO]) {
+        const one = await people.read(tx, { ...asking(who), personId });
+        expect(many.value.get(personId)).toEqual(one.ok ? one.value : undefined);
+      }
+    }
     // Nobody by that id is left out, not an error.
     const none = await people.completenessOf(tx, {
       ...asking(hr),

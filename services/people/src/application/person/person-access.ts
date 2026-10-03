@@ -269,6 +269,15 @@ export interface PersonAccess {
   ): Promise<Result<CorrectedEntry | { readonly held: HeldChange }>>;
   completeness(tx: Tx, asking: On<object>): Promise<Result<CompletenessVerdict>>;
   /**
+   * `read` for many people at once, by person: the records, who the viewer
+   * is to each and their sealed values read for all of them, not per person.
+   * Somebody not found is left out.
+   */
+  readMany(
+    tx: Tx,
+    asking: Asking & { readonly personIds: readonly string[] },
+  ): Promise<Result<ReadonlyMap<string, PersonView>>>;
+  /**
    * `completeness` for many people at once, by person: the schema, the org
    * calendar and who the viewer is to each read once for all of them, rather
    * than once a person. Somebody not found is left out.
@@ -2381,6 +2390,62 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!person) return err(PersonNotFound());
       const relations = await relationsOf(tx, asking, asking.personId);
       return ok(await view(tx, asking, person, version, relations, asking.asOf));
+    },
+
+    async readMany(tx, asking) {
+      const out = new Map<string, PersonView>();
+      const wanted = [...new Set(asking.personIds)];
+      // A system or an integration reads as itself, person by person.
+      if (systemOf(asking) !== undefined || integrationOf(asking) !== undefined) {
+        for (const personId of wanted) {
+          const read = await this.read(tx, { ...asking, personId });
+          if (read.ok) out.set(personId, read.value);
+          else if (read.error.code === 'SCHEMA_NOT_PUBLISHED') return read;
+        }
+        return ok(out);
+      }
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      if (wanted.length === 0) return ok(out);
+      const records: PersonRecord[] = [];
+      if (deps.reader.records !== undefined) {
+        records.push(...(await deps.reader.records(tx, asking.tenantId, wanted)));
+      } else {
+        for (const personId of wanted) {
+          const person = await deps.reader.record(tx, asking.tenantId, personId);
+          if (person) records.push(person);
+        }
+      }
+      const ids = records.map((r) => r.snapshot.id);
+      const related = await relationsToMany(
+        deps.relations,
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        ids,
+        new Map(records.map((r) => [r.snapshot.id, factsOf(r)])),
+      );
+      const sealed = version.document.attributes.some((d) => d.encrypted)
+        ? await deps.secrets.listMany?.(tx, asking.tenantId, ids)
+        : undefined;
+      for (const person of records) {
+        const id = person.snapshot.id;
+        const relations = related.get(id);
+        if (relations === undefined) continue;
+        out.set(
+          id,
+          await view(
+            tx,
+            asking,
+            person,
+            version,
+            relations,
+            undefined,
+            sealed === undefined ? undefined : (sealed.get(id) ?? []),
+          ),
+        );
+      }
+      return ok(out);
     },
 
     /**
