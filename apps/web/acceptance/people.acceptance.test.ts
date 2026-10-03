@@ -2444,6 +2444,8 @@ describe('A company the back office has just created, with nothing published', (
       ),
     ].join('\n');
     await page.goto(`${made.shell}/people/import`);
+    // Hydrated first: a file chosen before the remote's handlers are on goes nowhere.
+    await page.waitForLoadState('networkidle');
     await upload(page, 'cascade.csv', csv);
     await page.getByRole('button', { name: 'Next: review the plan' }).click({ timeout: 120_000 });
     await page.waitForURL(/\?step=review$/);
