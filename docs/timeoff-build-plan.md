@@ -1108,7 +1108,7 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 - **Depends on** TOF-101, TOF-034
 
-### [ ] TOF-103 — Reach: draggable lane track
+### [x] TOF-103 — Reach: draggable lane track
 
 - **Spec** PRD §15.3 · **Depends on** nothing
 - **Approach** `TimelineChart` lanes with segments draggable by pointer and

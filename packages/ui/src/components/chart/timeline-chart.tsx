@@ -13,6 +13,18 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useDraggable,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type KeyboardCoordinateGetter,
+  type Modifier,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
 import { cn } from '../../lib/cn';
 import { springEasing, springSettleTime, springs } from '../../lib/spring';
@@ -26,7 +38,7 @@ import {
   useChartWindow,
   useDragZoom,
 } from './chart-window';
-import type { ChartInteractionProps, ChartTone } from './chart';
+import { bgTone, type ChartInteractionProps, type ChartTone } from './chart';
 
 /**
  * A schedule drawn against a date axis: onboarding plans, leave cover,
@@ -171,6 +183,20 @@ export type TimelineUnit = 'day' | 'week' | 'month';
  */
 export type TimelineSeparator = 'none' | 'line' | 'banded' | 'both';
 
+/**
+ * `gantt` fits the axis to the items and stacks bars with their labels inside.
+ * `track` is a plan laid over a fixed axis: thin bars with the label under
+ * them, tentative segments hatched, dates called out below the axis, and
+ * segments that slide along the axis only, in steps of `snapDays`.
+ */
+export type TimelineVariant = 'gantt' | 'track';
+
+/** A date called out under the axis: a due date, a deadline. */
+export interface TimelineMarker {
+  date: IsoDate;
+  label: string;
+}
+
 export interface TimelineChartProps extends ChartInteractionProps {
   rows: readonly TimelineRow[];
   label: string;
@@ -225,6 +251,13 @@ export interface TimelineChartProps extends ChartInteractionProps {
   emptyRow?: ReactNode;
   /** Shown in a lane whose items are all outside the visible window. */
   emptyWindow?: ReactNode;
+  variant?: TimelineVariant;
+  /** `track` only: the axis, fixed rather than fitted, so it holds still while a segment moves. */
+  domain?: { start: IsoDate; end: IsoDate };
+  /** `track` only: the days one drag or arrow step moves a segment by, 7 for whole weeks. */
+  snapDays?: number;
+  /** `track` only: dates called out under the axis. */
+  markers?: readonly TimelineMarker[];
   className?: string;
 }
 
@@ -475,7 +508,11 @@ function packLanes(items: readonly TimelineEntry[]): { placed: PlacedItem[]; lan
   return { placed, lanes: Math.max(laneFreeFrom.length, 1) };
 }
 
-export function TimelineChart({
+export function TimelineChart(props: TimelineChartProps): JSX.Element {
+  return props.variant === 'track' ? <TimelineTrack {...props} /> : <TimelineGantt {...props} />;
+}
+
+function TimelineGantt({
   rows,
   label,
   unit = 'week',
@@ -1329,5 +1366,443 @@ function TimelineMark({
         </div>
       )}
     </Tooltip>
+  );
+}
+
+/** A track lane: an 18px bar, its label under it, and the gap to the next lane. */
+const TRACK_LANE_HEIGHT = 50;
+
+/**
+ * The `track` variant: a plan over a fixed axis.
+ *
+ * ### Dragged through dnd-kit, along the axis only
+ *
+ * A segment slides sideways and never changes lane: a lane here is a kind of
+ * thing, not a person, and a segment dropped into another kind would change
+ * what it is rather than when. The pointer and the keyboard go through the
+ * same `DndContext`, so Space or Enter picks a segment up, the arrows move it
+ * by `snapDays`, and dnd-kit's live region says where it is at every step.
+ *
+ * The bar snaps under the finger rather than gliding to the result, the
+ * opposite of the gantt: a step is a week, and a bar that floated between
+ * weeks would hide which one it will land on.
+ *
+ * ### Clamped to the axis
+ *
+ * The axis is the `domain`, fixed, so a segment cannot be dragged past its
+ * ends: an axis that grew under a drag would move every other segment too.
+ */
+function TimelineTrack({
+  rows,
+  label,
+  unit = 'month',
+  separator = 'line',
+  labelWidth = 148,
+  formatTick = defaultTickFormat,
+  formatDate = defaultDateFormat,
+  editable = false,
+  canMove,
+  onItemMove,
+  onDraggingChange,
+  onDrop,
+  domain,
+  snapDays = 1,
+  markers = [],
+  empty = 'Nothing scheduled.',
+  emptyRow = 'Nothing scheduled',
+  menuItems,
+  className,
+}: TimelineChartProps): JSX.Element {
+  // Where a dropped segment landed, until the caller's `rows` say otherwise (see the gantt).
+  const [dropped, setDropped] = useState<ReadonlyMap<string, { start: IsoDate; end?: IsoDate }>>(
+    new Map(),
+  );
+  const lastRows = useRef(rows);
+  useEffect(() => {
+    if (lastRows.current === rows) return;
+    lastRows.current = rows;
+    setDropped(new Map());
+  }, [rows]);
+
+  const plot = useRef<HTMLDivElement | null>(null);
+  /** Pixels per day, measured when a drag starts. */
+  const pxPerDay = useRef(0);
+  /** Days the active segment has moved, as last drawn. */
+  const shift = useRef(0);
+  const announced = useRef(0);
+  const outcome = useRef('');
+
+  const sensors = useSensors(
+    // A click is not a drag: 4px before anything moves.
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: trackKeys(pxPerDay, snapDays) }),
+  );
+
+  const effectiveRows = rows.map((row) => ({
+    ...row,
+    items: row.items.map((item) => {
+      const moved = dropped.get(item.id);
+      return moved === undefined ? item : { ...item, ...moved };
+    }),
+  }));
+  const entries = effectiveRows.flatMap((row) => row.items.map((item) => ({ row, item })));
+  const days = entries.flatMap(({ item }) => [toDay(item.start), toDay(item.end ?? item.start)]);
+
+  if (domain === undefined && days.length === 0) {
+    return (
+      <p
+        className={cn('rounded-md border border-dashed border-border p-6 text-fg-muted', className)}
+      >
+        {empty}
+      </p>
+    );
+  }
+
+  const ticks = buildTicks(
+    domain === undefined ? Math.min(...days) : toDay(domain.start),
+    domain === undefined ? Math.max(...days) : toDay(domain.end),
+    unit,
+    formatTick,
+  );
+  const domainStart = ticks[0]?.from ?? 0;
+  const domainEnd = ticks.at(-1)?.to ?? domainStart + 1;
+  const span = Math.max(domainEnd - domainStart, 1);
+  const fraction = (day: number): number => (day - domainStart) / span;
+  const lanes = effectiveRows.map((row) => ({ row, ...packLanes(row.items) }));
+
+  const find = (id: string | number) => entries.find(({ item }) => item.id === String(id));
+  const allowed = (item: TimelineEntry, row: TimelineRow): boolean =>
+    editable && item.locked !== true && (canMove?.(item, row, row) ?? true);
+
+  /** The days a drag of `x` pixels moves a segment: whole steps, never off the axis. */
+  const shiftFor = (x: number, item: TimelineEntry): number => {
+    if (pxPerDay.current === 0) return 0;
+    const steps = Math.round(x / pxPerDay.current / snapDays) * snapDays;
+    const from = toDay(item.start);
+    const to = toDay(item.end ?? item.start) + 1;
+    return Math.min(Math.max(steps, domainStart - from), domainEnd - to);
+  };
+
+  const dates = (item: TimelineEntry, by: number): string => {
+    const start = formatDate(toIso(toDay(item.start) + by));
+    return item.end === undefined
+      ? start
+      : `${start} to ${formatDate(toIso(toDay(item.end) + by))}`;
+  };
+  const describe = (row: TimelineRow, item: TimelineEntry): string =>
+    `${row.label}, ${item.label}: ${dates(item, 0)}${notes(item)}`;
+
+  const snap: Modifier = ({ transform, active }) => {
+    const entry = active === null ? undefined : find(active.id);
+    if (!entry) return { ...transform, y: 0 };
+    shift.current = shiftFor(transform.x, entry.item);
+    return { ...transform, x: shift.current * pxPerDay.current, y: 0 };
+  };
+
+  const step = snapDays === 7 ? 'a week' : snapDays === 1 ? 'a day' : `${String(snapDays)} days`;
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => {
+      const entry = find(active.id);
+      return entry ? `Picked up ${entry.item.label}, ${dates(entry.item, 0)}.` : undefined;
+    },
+    onDragMove: ({ active }) => {
+      const entry = find(active.id);
+      if (!entry || shift.current === announced.current) return undefined;
+      announced.current = shift.current;
+      return `${entry.item.label}, ${dates(entry.item, shift.current)}.`;
+    },
+    onDragOver: () => undefined,
+    onDragEnd: () => outcome.current,
+    onDragCancel: ({ active }) =>
+      `Moving ${find(active.id)?.item.label ?? 'the segment'} was cancelled. It is back where it started.`,
+  };
+
+  const finish = (id: string | number): void => {
+    const entry = find(id);
+    onDraggingChange?.(null);
+    if (!entry) return;
+    const { item, row } = entry;
+    const by = shift.current;
+    const move: TimelineMove = {
+      id: item.id,
+      fromRow: row.label,
+      toRow: row.label,
+      from: { start: item.start, ...(item.end === undefined ? {} : { end: item.end }) },
+      to: {
+        start: toIso(toDay(item.start) + by),
+        ...(item.end === undefined ? {} : { end: toIso(toDay(item.end) + by) }),
+      },
+      mode: 'move',
+    };
+    const applied = by !== 0 && allowed(item, row);
+    onDrop?.(move, applied);
+    outcome.current = applied
+      ? `${item.label} moved to ${dates(item, by)}.`
+      : `${item.label} was dropped where it started.`;
+    if (!applied) return;
+    setDropped((current) => new Map(current).set(item.id, move.to));
+    onItemMove?.(move);
+  };
+
+  const laneEdge = (index: number): string =>
+    cn(
+      (separator === 'line' || separator === 'both') &&
+        index < lanes.length - 1 &&
+        'border-b border-border/70',
+      (separator === 'banded' || separator === 'both') && index % 2 === 1 && 'bg-fg/[0.035]',
+    );
+  const shownMarkers = markers.filter(
+    (m) => toDay(m.date) >= domainStart && toDay(m.date) < domainEnd,
+  );
+
+  return (
+    <ChartFrame
+      label={label}
+      rows={entries.map(({ row, item }) => ({
+        label: `${row.label} · ${item.label} (${item.start}${item.end ? ` – ${item.end}` : ''})`,
+        value: toDay(item.end ?? item.start) - toDay(item.start) + 1,
+      }))}
+      {...(menuItems ? { menuItems } : {})}
+      className={cn('w-full', className)}
+    >
+      <DndContext
+        sensors={sensors}
+        modifiers={[snap]}
+        accessibility={{
+          announcements,
+          screenReaderInstructions: {
+            draggable: `To move a segment, press Space or Enter, then Left or Right to move it ${step} at a time. Press Space or Enter again to drop it, or Escape to put it back.`,
+          },
+        }}
+        onDragStart={({ active }) => {
+          pxPerDay.current = (plot.current?.getBoundingClientRect().width ?? 0) / span;
+          shift.current = 0;
+          announced.current = 0;
+          const entry = find(active.id);
+          if (entry) onDraggingChange?.(entry.item);
+        }}
+        onDragEnd={({ active }) => {
+          finish(active.id);
+        }}
+        onDragCancel={() => {
+          shift.current = 0;
+          onDraggingChange?.(null);
+        }}
+      >
+        <div className="flex min-w-0">
+          {/* Hidden from assistive tech, as in the gantt: every segment's name carries its lane. */}
+          <div
+            aria-hidden
+            className="shrink-0"
+            style={{ width: `clamp(5.5rem, 30%, ${String(labelWidth)}px)` }}
+          >
+            <div style={{ height: HEADER_HEIGHT }} />
+            {lanes.map(({ row, lanes: count }, index) => (
+              <div
+                key={row.label}
+                className={cn('flex flex-col justify-center pe-3', laneEdge(index))}
+                style={{ height: TRACK_LANE_HEIGHT * count }}
+              >
+                <span className="truncate text-sm font-medium text-fg-muted" title={row.label}>
+                  {row.label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div ref={plot} className="relative">
+              <div aria-hidden className="pointer-events-none absolute inset-0 flex">
+                {ticks.map((tick) => (
+                  <div
+                    key={tick.key}
+                    className="border-e border-border/60"
+                    style={{ width: percent((tick.to - tick.from) / span) }}
+                  />
+                ))}
+              </div>
+              <div
+                aria-hidden
+                className="flex items-end border-b border-border"
+                style={{ height: HEADER_HEIGHT }}
+              >
+                {ticks.map((tick) => (
+                  <span
+                    key={tick.key}
+                    className="min-w-0 truncate pb-1 text-[11px] font-semibold text-fg-subtle"
+                    style={{ width: percent((tick.to - tick.from) / span) }}
+                  >
+                    {tick.label}
+                  </span>
+                ))}
+              </div>
+              {lanes.map(({ row, placed, lanes: count }, index) => (
+                <div
+                  key={row.label}
+                  className={cn('relative', laneEdge(index))}
+                  style={{ height: TRACK_LANE_HEIGHT * count }}
+                >
+                  {placed.every(({ from, to }) => to <= domainStart || from >= domainEnd) ? (
+                    <div
+                      aria-hidden
+                      className="absolute inset-x-2 top-1/2 flex h-5 -translate-y-1/2 items-center justify-center rounded-sm border border-dashed border-border text-2xs text-fg-subtle"
+                    >
+                      {emptyRow}
+                    </div>
+                  ) : null}
+                  {placed.map(({ item, from, to, lane }) => {
+                    if (to <= domainStart || from >= domainEnd) return null;
+                    const left = fraction(Math.max(from, domainStart));
+                    return (
+                      <TrackSegment
+                        key={item.id}
+                        item={item}
+                        description={describe(row, item)}
+                        draggable={allowed(item, row)}
+                        // A label starting late on the axis hangs from the bar's end, or it runs off the chart.
+                        alignEnd={left > 0.7}
+                        style={{
+                          insetInlineStart: percent(left),
+                          width: percent(fraction(Math.min(to, domainEnd)) - left),
+                          top: lane * TRACK_LANE_HEIGHT + 6,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            {shownMarkers.length > 0 ? (
+              <div aria-hidden className="relative h-6">
+                {shownMarkers.map((marker) => (
+                  <span
+                    key={`${marker.date}|${marker.label}`}
+                    className="absolute top-1.5 flex -translate-x-1/2 items-center gap-1 text-[11px] leading-none font-semibold whitespace-nowrap text-fg-muted"
+                    style={{ insetInlineStart: percent(fraction(toDay(marker.date) + 0.5)) }}
+                  >
+                    <svg viewBox="0 0 10 10" className="size-2.5 fill-current">
+                      <path d="M5 1 9.5 9h-9z" />
+                    </svg>
+                    {marker.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </DndContext>
+
+      <div className="sr-only">
+        <table>
+          <caption>{label}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Lane</th>
+              <th scope="col">Item</th>
+              <th scope="col">Start</th>
+              <th scope="col">End</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map(({ row, item }) => (
+              <tr key={`${row.label}|${item.id}`}>
+                <th scope="row">{row.label}</th>
+                <td>
+                  {item.label}
+                  {notes(item)}
+                </td>
+                <td>{formatDate(item.start)}</td>
+                <td>{item.end === undefined ? 'Milestone' : formatDate(item.end)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {shownMarkers.length > 0 ? (
+          <ul>
+            {shownMarkers.map((marker) => (
+              <li key={`${marker.date}|${marker.label}`}>
+                {marker.label}: {formatDate(marker.date)}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </ChartFrame>
+  );
+}
+
+/**
+ * Left and right move the picked-up segment by one step; nothing else does.
+ * dnd-kit hands over where the segment is drawn, after the clamp, so presses
+ * against an end of the axis are not banked and owed back on the way out.
+ */
+function trackKeys(
+  pxPerDay: { readonly current: number },
+  snapDays: number,
+): KeyboardCoordinateGetter {
+  return (event, { currentCoordinates }) => {
+    const direction = event.code === 'ArrowRight' ? 1 : event.code === 'ArrowLeft' ? -1 : 0;
+    if (direction === 0) return undefined;
+    return {
+      ...currentCoordinates,
+      x: currentCoordinates.x + direction * snapDays * pxPerDay.current,
+    };
+  };
+}
+
+/** One segment of a track lane: the bar and the label under it, dragged as one. */
+function TrackSegment({
+  item,
+  description,
+  draggable,
+  alignEnd,
+  style,
+}: {
+  item: TimelineEntry;
+  description: string;
+  draggable: boolean;
+  alignEnd: boolean;
+  style: CSSProperties;
+}): JSX.Element {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: item.id,
+    disabled: !draggable,
+  });
+  const tone = item.tone ?? 'chart-1';
+  return (
+    <div
+      ref={setNodeRef}
+      {...(draggable ? { ...attributes, ...listeners } : { role: 'img' })}
+      aria-label={description}
+      className={cn(
+        'group/segment tap-target absolute h-9.5 outline-none',
+        draggable && 'cursor-grab touch-none active:cursor-grabbing',
+        isDragging && 'z-30',
+      )}
+      style={{ ...style, transform: CSS.Translate.toString(transform) }}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'block h-4.5 rounded-[6px]',
+          bgTone[tone],
+          // Not booked yet: the same hatch as every other "not final" in the system.
+          item.tentative === true && 'pattern-hatched',
+          item.clash === true && 'ring-2 ring-danger',
+          'group-focus-visible/segment:outline-2 group-focus-visible/segment:outline-offset-2 group-focus-visible/segment:outline-border-focus',
+          isDragging && 'shadow-md',
+        )}
+      />
+      <span
+        aria-hidden
+        className={cn(
+          'absolute top-6 text-xs leading-none font-semibold whitespace-nowrap text-fg-muted',
+          alignEnd ? 'end-0' : 'start-0',
+        )}
+      >
+        {item.label}
+      </span>
+    </div>
   );
 }
