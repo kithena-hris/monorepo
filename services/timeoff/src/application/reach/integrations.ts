@@ -14,6 +14,7 @@ import {
 import { de } from '../../country-packs/de.js';
 import { es } from '../../country-packs/es.js';
 import { gb } from '../../country-packs/gb.js';
+import type { ChatAnswers } from '../../domain/settings/chat.js';
 import { kioskDevices, type KioskSummary } from '../attendance/kiosk.js';
 import type {
   Caller,
@@ -22,6 +23,7 @@ import type {
   IntegrationProvider,
   ProviderAnswer,
 } from '../ports.js';
+import { chatAnswersOf } from '../settings/chat.js';
 import { forbidden, isHrAdmin, refuse, transact } from '../shared.js';
 
 /**
@@ -82,6 +84,8 @@ export interface IntegrationsScreen {
     readonly inUse: boolean;
   }[];
   readonly modules: readonly { readonly key: string; readonly events: readonly string[] }[];
+  /** What a chat answer may say about private leave (AST-029a). */
+  readonly chatAnswers: ChatAnswers;
 }
 
 const portOf = (deps: Pick<Deps, 'reach'>, provider: IntegrationProvider): IntegrationPort | null =>
@@ -130,6 +134,7 @@ export const integrationsScreen =
           inUse: p.holidayLayers.some((l) => layers.has(l.key)),
         })),
         modules: MODULES.map((m) => ({ key: m.key, events: [...new Set(m.events)] })),
+        chatAnswers: await chatAnswersOf(tx),
       });
     });
   };
@@ -242,6 +247,12 @@ export const connectMyIntegration =
         return refuse(
           'NOT_CONFIGURED',
           `${provider} cannot be connected until its credentials are set`,
+        );
+      }
+      if (port.memberGrant === false) {
+        return refuse(
+          'NOT_CONFIGURED',
+          `A ${provider} status while you are away is not available yet`,
         );
       }
       if ((await tx.integrations.get(provider)) === null) {

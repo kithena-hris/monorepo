@@ -27,6 +27,7 @@ export default ModuleManifest.parse({
     'timeoff.parental.plan_submitted',
     'timeoff.parental.plan_approved',
     'timeoff.parental.birth_recorded',
+    'timeoff.settings.changed',
   ],
   consumes: [
     'people.person.hired',

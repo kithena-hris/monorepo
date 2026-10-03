@@ -660,7 +660,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
 
 ## Phase 1 — Slack, deploy, docs
 
-### [ ] AST-025 — Slack asks the assistant
+### [x] AST-025 — Slack asks the assistant
 
 - **Spec** PRD §5, §16
 - **Files** `platform/slack/src/{main.ts,service.ts,slack-api.ts}` (+ tests)
@@ -671,8 +671,14 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   and DMs as today. `People.ask` goes; `People.act` stays.
 - **Done when** service tests show each reply path, and a mention's answer is
   ephemeral.
+- **As built** `Assistant` is its own port beside `People` and `TimeOff`, and
+  the Time Off button relay (#257, merged in from `main` first) is untouched.
+  The body says `channel: 'slack'` because the contract asks for one; the
+  assistant takes the channel from the token regardless. With no
+  `SLACK_ASSISTANT_TOKEN` a question is answered "The assistant isn't
+  available right now." without a call.
 
-### [ ] AST-026 — People's old chat route is deleted
+### [x] AST-026 — People's old chat route is deleted
 
 - **Spec** PRD §16
 - **Files** `services/people/src/http/server.ts`,
@@ -684,8 +690,14 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   the import keep `AssistantPort`. `/internal/chat/act` stays.
 - **Done when** `just check-strict`, `just lint` and `just test` pass and
   nothing references `/internal/assistant/ask`.
+- **As built** `/internal/assistant/ask`, `answerChat`, `ChatQuestion`,
+  `from-chat.ts` (`askFromChat`, `ChatDeps`) and its test are gone; the
+  work-email lookup stays as `accountByEmail` for `/internal/chat/act`.
+  **`ask()` stays**: the web overview's `peopleAsk` (`POST /v1/assistant/ask`)
+  still calls it, and it goes when the web search box asks the assistant
+  (AST-036).
 
-### [ ] AST-027 — Deploy the assistant
+### [x] AST-027 — Deploy the assistant
 
 - **Spec** PRD §15
 - **Files** `deploy/vm/{compose.yaml,compose.staging.yaml,deploy.sh}`,
@@ -700,8 +712,22 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   Local `just dev` and `just admin-dev` start it.
 - **Done when** a staging deploy answers a Slack question that needs both
   modules.
+- **As built** `assistant` is a deploy target of its own
+  (`affected-targets.ts`, production and staging), deployed after People and
+  before Slack. No `ASSISTANT_ENV` secret: `assistant.env` is the existing
+  `ASSISTANT_API_KEY`, `TENANT_APP_BASE_<ENV>`, the four pair tokens and
+  `IDENTITY_URL`, which the VM job writes rather than Compose because
+  identity's public address differs by environment; the model and its address
+  default as People's do. Identity's end of its pair, and
+  `KITHENA_ENTITLEMENTS`, reach identity's Vercel deploy as `--env`, and its
+  Vercel entry (`api/gateway.ts`) now reads `KITHENA_ENTITLEMENTS` and
+  `PEOPLE_IDENTITY_TOKEN` as `main.ts` does. Every missing piece is a
+  warning, never a red deploy. `deploy-production.yml` gains an "assistant and
+  Slack" checkbox. `docker-compose.yml` runs no application service, so it is
+  unchanged; `just dev` starts the assistant through its `dev` script.
+  **Not yet proven on staging**: the staging VM is off.
 
-### [ ] AST-028 — Questions keep the VM awake
+### [x] AST-028 — Questions keep the VM awake
 
 - **Spec** PRD §10.4
 - **Files** `deploy/vm/idle-stop.sh`, `docs/environments.md`
@@ -710,8 +736,14 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   the window as activity, beside the router's `/graphql` lines.
 - **Done when** a question within the window shows as activity in
   `journalctl -u kithena-idle-stop`.
+- **As built** a `QUESTIONS` input beside `REQUESTS`: `docker logs --since`
+  of each environment's assistant container, counting
+  `"msg":"assistant question"`. `decide` stays for one ("stay: 2 question(s)
+  to the assistant in the last 30 min") and treats an unknown count as a
+  reason to stay, as for every probe (`tools/scripts/src/idle-stop.test.ts`).
+  **Not yet seen in the VM's journal.**
 
-### [ ] AST-029 — Docs
+### [x] AST-029 — Docs
 
 - **Spec** PRD §15.2, §15.3
 - **Files** `docs/environments.md` (memory budget row and total, "The
@@ -720,8 +752,13 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   platform service; capabilities in contracts; the model only plans), this file
 - **Depends on** AST-027
 - **Done when** `pnpm docs:brand-leak` passes and the memory table adds up.
+- **As built** the memory budget now reads 3.75 GB, not §15.2's 3.76: the
+  limits sum to 3.748 (2.66 + slack 0.16 + two relays 0.448 + timeoff 0.32 +
+  assistant 0.16). "The assistant's settings" is a table of every setting,
+  where it is written and who reads it, and says identity's Vercel deploy now
+  gets `KITHENA_ENTITLEMENTS`.
 
-### [ ] AST-029a — A company's choice to name private leave in chat
+### [x] AST-029a — A company's choice to name private leave in chat
 
 - **Spec** PRD §11.4
 - **Files** `services/timeoff/src/{domain,application}/settings/*`, Time Off's
@@ -738,6 +775,22 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   and a link; on, it names the people the asker may see as sick; on, an asker
   who may only see "Away" still gets "Away"; and the change appears in the
   audit trail.
+- **As built** the setting is the `chat_answers` document in
+  `timeoff.setting` (`{ namesPrivateLeave }`, migration
+  `20261004010000_timeoff_chat_answers_setting.sql` widens the key list).
+  `domain/settings/chat.ts` switches it and raises `timeoff.settings.changed`
+  (`{ setting: 'chat_names_private_leave', value }`; who and when are the
+  envelope's actor and `occurredAt`), nothing when already that way;
+  `application/settings/chat.ts` is HR only and writes setting and event in
+  one transaction. The switch is on Integrations, under "Chat apps"
+  (`PUT /v1/timeoff/integrations/chat-answers`, `setTimeOffChatAnswers`), with
+  the warning as the field's description. The catalogue carries
+  `chatNamesPrivateLeave`. **Both** places lift the rules: Time Off writes a
+  private type's name in `timeoff.away`'s `detail` only where `seesType`
+  already shows it to the asker (it used to write "Away" for everybody), and
+  the assistant's `answerOf` drops the count-and-link answer and the "Away"
+  rewrite. The audit trail is the outbox event: `platform/audit` does not
+  consume Time Off's topic yet (`docs/environments.md`).
 
 ---
 

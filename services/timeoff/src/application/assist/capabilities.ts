@@ -20,6 +20,7 @@ import {
 import type { LeaveRequest } from '../../domain/request/leave-request.js';
 import { holidaysFor, runsIn, seesType, sightOf, type Sight } from '../calendar/calendar.js';
 import type { Caller, Deps, Member, Tx } from '../ports.js';
+import { chatAnswersOf } from '../settings/chat.js';
 import { isHrAdmin, refuse, transact } from '../shared.js';
 import { DENIED } from './denied.js';
 import { dayName, longDate, longDay, shortDate } from './words.js';
@@ -82,6 +83,8 @@ export const capabilityCatalogue =
           category: t.category,
         })),
         denied: DENIED.map((d) => ({ key: d.key, labels: [...(d.labels ?? [])] })),
+        // Read on every question, so HR switching it off takes effect on the next one.
+        chatNamesPrivateLeave: (await chatAnswersOf(tx)).namesPrivateLeave,
       });
     });
 
@@ -198,8 +201,8 @@ function describe(
  *
  * A private type (sick, parental, or any shown as "Off") is written "Away" in
  * a row's `detail` whoever asks, HR included, because the text goes to a chat
- * app (§11.4). A company's choice to name it (AST-029a) is the one place that
- * rule would change, and only where the type is already seen.
+ * app (§11.4) — unless the company chose to name it (AST-029a), and then only
+ * where the sight rule already shows the asker the type.
  */
 export const away =
   (deps: Pick<Deps, 'uow' | 'authz'>) =>
@@ -218,6 +221,7 @@ export const away =
       }
 
       const hr = await isHrAdmin(deps, caller);
+      const naming = (await chatAnswersOf(tx)).namesPrivateLeave;
       const sights = new Map<PersonId, Sight | null>();
       const sight = async (m: Member): Promise<Sight | null> => {
         if (!sights.has(m.personId)) sights.set(m.personId, await sightOf(deps, caller, m, hr));
@@ -285,7 +289,8 @@ export const away =
         const name = type?.name.default ?? request.leaveType.key;
         const shown = seesType(s, type?.visibility);
         if (!tests.leave_type.every((t) => shown && t(request.leaveType.key, name))) continue;
-        const label = shown && type !== undefined && !isPrivateLeaveType(type) ? name : 'Away';
+        const label =
+          shown && type !== undefined && (naming || !isPrivateLeaveType(type)) ? name : 'Away';
         const entry = found.get(m.personId) ?? { member: m, runs: [] };
         for (const run of runsIn(request, on.from, on.to)) {
           entry.runs.push({ from: run.from, text: `${runText(run)} · ${label}` });

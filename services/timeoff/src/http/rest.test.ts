@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { ok } from '@kithena/domain-kit';
+import { DateSpan, LeaveTypeKey } from '@kithena/contracts';
 
 import type { Caller } from '../application/ports.js';
+import { askApproverInChat } from '../application/reach/chat.js';
+import { sendRequest } from '../application/request/request.js';
 import { ADA_ACCOUNT, caller, people, TENANT, world } from '../application/testing/world.js';
+import { slackThroughService } from '../infrastructure/integrations/slack.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, ROUTES, type RestRequest } from './rest.js';
 
@@ -283,6 +287,53 @@ describe('a provider’s callback (TOF-109)', () => {
       headers: {
         location: 'https://acme.example/settings/time-off/integrations?connected=microsoft',
       },
+    });
+  });
+});
+
+describe('a Slack press, relayed by the Slack service (TOF-111)', () => {
+  it('is decided with the pair’s secret, and refused without it', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
+    const sent: string[] = [];
+    const http = (_url: string, init: RequestInit = {}) => {
+      sent.push(typeof init.body === 'string' ? init.body : '');
+      return Promise.resolve(new Response('{"sent":"sent"}', { status: 202 }));
+    };
+    const slack = slackThroughService(
+      { SLACK_URL: 'http://slack:4102', SLACK_TIMEOFF_TOKEN: 'pair-value' },
+      { fetch: http as unknown as typeof fetch },
+    );
+    const deps = {
+      ...app.deps,
+      reach: { calendars: [], chats: [slack], publicUrl: 'https://to.example' },
+    };
+    app.state(TENANT).integrations.set('slack', {
+      provider: 'slack',
+      config: {},
+      secret: null,
+      connectedAt: '2026-09-01T00:00:00.000Z' as never,
+      connectedBy: ADA_ACCOUNT,
+    });
+    const requested = await sendRequest(deps)(caller(people.adam), {
+      leaveTypeKey: LeaveTypeKey.parse('vacation'),
+      span: DateSpan.parse({ from: '2026-10-19', to: '2026-10-23' }),
+    });
+    if (!requested.ok) throw new Error(requested.error.message);
+    await askApproverInChat(deps)(TENANT, requested.value.requestId);
+    const { approve } = JSON.parse(sent[0] ?? '{}') as { approve: string };
+
+    const rest = restHandler({ deps, callerFrom: () => ok(caller(people.adam)) });
+    const relay = (token: string) =>
+      rest({
+        method: 'POST',
+        url: '/v1/timeoff/integrations/slack/relay',
+        headers: { 'x-internal-token': token },
+        body: JSON.stringify({ tenantId: TENANT, value: approve }),
+      });
+    expect((await relay('the-routers-token'))?.status).toBe(401);
+    expect(await relay('pair-value')).toEqual({
+      status: 200,
+      body: { text: 'Approved: Adam Novak, 19–23 Oct.' },
     });
   });
 });

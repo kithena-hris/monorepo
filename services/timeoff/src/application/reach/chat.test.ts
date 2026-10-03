@@ -10,9 +10,16 @@ import { reachOnEvent } from './events.js';
 
 /** A chat app that records what it was asked, and presses a button when told to. */
 function recording() {
-  const asked: { email: string; text: string; approve: string; decline: string }[] = [];
+  const asked: {
+    tenantId: string;
+    email: string;
+    text: string;
+    approve: string;
+    decline: string;
+  }[] = [];
   const statuses: { secret: string; text: string; until: string }[] = [];
   let pressed: string | null = null;
+  let from: string | undefined;
   const replies: string[] = [];
   const port: ChatPort = {
     provider: 'slack',
@@ -32,6 +39,7 @@ function recording() {
         ? null
         : {
             value: pressed,
+            ...(from === undefined ? {} : { tenantId: from }),
             reply: (text) => {
               replies.push(text);
               return Promise.resolve();
@@ -43,8 +51,10 @@ function recording() {
     asked,
     statuses,
     replies,
-    press: (value: string | null) => {
+    /** `tenantId`: the company a relaying service says the press came from. */
+    press: (value: string | null, tenantId?: string) => {
       pressed = value;
+      from = tenantId;
     },
   };
 }
@@ -87,6 +97,7 @@ describe('chat apps (TOF-111)', () => {
     expect(done).toMatchObject({ ok: true, value: { sent: 1 } });
     expect(chat.asked).toHaveLength(1);
     const [message] = chat.asked;
+    expect(message?.tenantId).toBe(TENANT);
     expect(message?.email).toBe('marco@acme.example');
     expect(message?.text).toBe('Adam Novak asks for Vacation, 19–23 Oct.');
     expect(message?.approve).not.toBe(message?.decline);
@@ -121,6 +132,21 @@ describe('chat apps (TOF-111)', () => {
       ok: false,
       error: { code: 'INVALID_ACTION' },
     });
+  });
+
+  it('refuses a press relayed from another company’s workspace', async () => {
+    const { app, deps, chat, ask } = setup();
+    const id = await ask('2026-10-19', '2026-10-23');
+    await askApproverInChat(deps)(TENANT, id);
+    chat.press(chat.asked[0]?.approve ?? null, '99999999-9999-4999-8999-999999999999');
+    expect(await approveFromChat(deps)('slack', RAW)).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ACTION' },
+    });
+    expect(app.state(TENANT).requests.get(id)?.request.status).toBe('pending');
+
+    chat.press(chat.asked[0]?.approve ?? null, TENANT);
+    expect(await approveFromChat(deps)('slack', RAW)).toMatchObject({ ok: true });
   });
 
   it('declines from the message too', async () => {

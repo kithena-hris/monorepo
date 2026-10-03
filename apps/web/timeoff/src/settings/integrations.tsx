@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Field,
   FieldControl,
+  FieldDescription,
   FieldLabel,
   Input,
   List,
@@ -23,6 +24,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
   icons,
   type IconName,
 } from '@reach/ui';
@@ -69,6 +71,8 @@ export interface IntegrationsData {
     readonly inUse: boolean;
   }[];
   readonly modules: readonly { readonly key: string; readonly events: readonly string[] }[];
+  /** Whether a chat answer may name people on private leave (assistant PRD §11.4). */
+  readonly chatAnswers: { readonly namesPrivateLeave: boolean };
 }
 
 export interface IntegrationsProps {
@@ -91,6 +95,8 @@ export interface IntegrationsProps {
     | { readonly ok: false; readonly message: string }
   >;
   readonly onRevokeKiosk?: (deviceId: string) => Promise<Outcome>;
+  /** HR's switch for naming people on private leave in chat answers. */
+  readonly onChatAnswers?: (input: { readonly namesPrivateLeave: boolean }) => Promise<Outcome>;
   /** Where the browser goes for a consent page. */
   readonly onLeave?: (url: string) => void;
 }
@@ -160,12 +166,15 @@ function Ready({
   onDisconnect,
   onRegisterKiosk,
   onRevokeKiosk,
+  onChatAnswers,
   onLeave = (url) => {
     window.location.assign(url);
   },
 }: IntegrationsProps & { readonly data: IntegrationsData }): JSX.Element {
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Shown at once, put back if Time Off refuses it.
+  const [naming, setNaming] = useState(data.chatAnswers.namesPrivateLeave);
   const connected = query['connected'];
   const refused = query['refused'];
 
@@ -276,6 +285,32 @@ function Ready({
             description="A status while someone is away, and approving a request from the message that asks."
           >
             <List aria-label="Chat apps">{chats.map(providerRow)}</List>
+            <Field orientation="horizontal" className="items-start justify-between gap-4">
+              <div>
+                <FieldLabel>Name people on private leave in chat answers</FieldLabel>
+                <FieldDescription>
+                  Off, a chat answer about sick or parental leave gives a count and a link to the
+                  calendar. On, it names the people, and so health data is stored by your chat
+                  provider under your company’s own retention, not Kithena’s. Nobody sees more than
+                  the calendar already shows them.
+                </FieldDescription>
+              </div>
+              <FieldControl>
+                <Switch
+                  checked={naming}
+                  disabled={busy === 'chat-answers'}
+                  onCheckedChange={(on) => {
+                    setNaming(on);
+                    void act('chat-answers', async () => {
+                      const done = await (onChatAnswers?.({ namesPrivateLeave: on }) ??
+                        Promise.resolve({ ok: true as const }));
+                      if (!done.ok) setNaming(!on);
+                      return done;
+                    });
+                  }}
+                />
+              </FieldControl>
+            </Field>
           </PageSection>
           <Kiosks
             data={data}

@@ -46,6 +46,7 @@ import {
   decideRequest,
 } from '../application/approval/decide.js';
 import { setDelegation } from '../application/approval/escalation.js';
+import { setChatAnswers } from '../application/settings/chat.js';
 import { describeRequest } from '../application/assist/describe.js';
 import { holidayDraft } from '../application/assist/holiday-draft.js';
 import { readPolicyProse } from '../application/assist/policy-prose.js';
@@ -139,6 +140,7 @@ import {
   AttendanceRulesBody,
   AttendanceSettingsView,
   AutoApprovalBody,
+  ChatAnswersBody,
   BalanceLedgerView,
   BalanceView,
   BlockKindView,
@@ -1426,7 +1428,19 @@ export const ROUTES: readonly Route[] = [
       locations: [...v.locations],
       packs: [...v.packs],
       modules: v.modules.map((m) => ({ key: m.key, events: [...m.events] })),
+      chatAnswers: { ...v.chatAnswers },
     }),
+  }),
+  route({
+    name: 'setTimeOffChatAnswers',
+    method: 'PUT',
+    path: `${V1}/integrations/chat-answers`,
+    summary:
+      'Whether a chat answer may name people on private leave (sick, parental): off by default, recorded with who and when; HR',
+    body: ChatAnswersBody,
+    answer: Done,
+    run: (deps, caller, { body }) => setChatAnswers(deps)(caller, body),
+    shape: done,
   }),
   route({
     name: 'connectTimeOffIntegration',
@@ -1465,16 +1479,17 @@ export const ROUTES: readonly Route[] = [
     shape: done,
   }),
   route({
-    name: 'answerTimeOffChatAction',
+    name: 'relayTimeOffSlackAction',
     method: 'POST',
-    path: `${V1}/integrations/{provider}/actions`,
+    path: `${V1}/integrations/slack/relay`,
     summary:
-      'A press on Approve or Decline in a chat app’s message: the provider’s signature and Time Off’s checked, then decided as the approver it was sent to',
-    params: z.object({ provider: z.enum(['slack', 'teams']) }),
+      'A press on Approve or Decline in Slack, passed on by the Slack service with the pair’s secret (`x-internal-token`, not the router’s): Time Off’s signature checked, then decided as the approver it was sent to. Internal; never on the public tunnel',
+    body: z.object({ tenantId: z.uuid(), value: z.string().max(2000) }),
     answer: z.object({ text: z.string() }).meta({ title: 'TimeOffChatAnswer' }),
     graphql: false,
+    // Not the router's caller: the Slack service's own secret, checked by the adapter.
     public: true,
-    run: (deps, _caller, { params, raw }) => approveFromChat(deps)(params.provider, raw),
+    run: (deps, _caller, { raw }) => approveFromChat(deps)('slack', raw),
     shape: same,
   }),
   route({

@@ -409,9 +409,28 @@ export const ParentalBirthRecorded = defineEvent(
   z.object({
     planId: z.uuid().register(policy, asPublic()),
     personId: PersonId,
-    /** A child's date of birth: it identifies a minor. */
-    birthDate: CalendarDate.register(policy, asIdentity()),
+    /**
+     * A child's date of birth: it identifies a minor. Its own schema, because
+     * registering the shared `CalendarDate` would make every date identity.
+     */
+    birthDate: z.iso.date().brand<'CalendarDate'>().register(policy, asIdentity()),
     blocks: blocks(),
+  }),
+);
+
+/**
+ * A company setting HR changed: which, and to what. Who and when are the
+ * envelope's actor and `occurredAt`, so the audit trail has all three.
+ *
+ * `chat_names_private_leave` (assistant PRD §11.4): whether a chat answer may
+ * name people on a private leave type. Off by default.
+ */
+export const SettingsChanged = defineEvent(
+  'timeoff.settings.changed',
+  1,
+  z.object({
+    setting: z.enum(['chat_names_private_leave']).register(policy, asPublic()),
+    value: z.boolean().register(policy, asPublic()),
   }),
 );
 
@@ -432,4 +451,5 @@ export const timeoffEvents = [
   ParentalPlanSubmitted,
   ParentalPlanApproved,
   ParentalBirthRecorded,
+  SettingsChanged,
 ] as const;

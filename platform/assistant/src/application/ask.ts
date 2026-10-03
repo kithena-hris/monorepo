@@ -233,6 +233,8 @@ export function asker(
       offered,
       leaveTypes,
       origin: deps.originOf?.(asking.slug) ?? null,
+      // Time Off's, read with this question's catalogue: switched off, the next question obeys.
+      namesPrivateLeave: catalogues.some((c) => c.module === 'timeoff' && c.chatNamesPrivateLeave),
     });
     return { answer: written, outcome: 'answered', called, ...shape };
   }

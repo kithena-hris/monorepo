@@ -7,7 +7,6 @@ import { personAccess } from '../person/person-access.js';
 import type { PeopleService } from '../person/service.js';
 import type { ScreenDeps } from '../screens/record.js';
 import { ask } from './ask.js';
-import { askFromChat } from './from-chat.js';
 
 /**
  * A question in words, answered as the asker: the model is shown the question
@@ -128,7 +127,9 @@ describe('asking People in words', () => {
       conditions: [{ key: 'department', op: 'in', values: ['sales'] }],
       match: 'all',
     });
-    expect(answered.ok && answered.value.text).toMatch(/^I found \d+ (person|people) whose department is Sales\./);
+    expect(answered.ok && answered.value.text).toMatch(
+      /^I found \d+ (person|people) whose department is Sales\./,
+    );
     const sent = JSON.stringify(w.prompts);
     expect(sent).toContain('Who is in sales?');
     expect(sent).not.toContain('Schrute');
@@ -144,10 +145,16 @@ describe('asking People in words', () => {
 
   it('opens with the model’s own words, and fills in the count itself', async () => {
     const w = world(() =>
-      JSON.stringify({ kind: 'reports', name: 'Michael', say: 'Sure! Here are the {n} people on Michael’s team.' }),
+      JSON.stringify({
+        kind: 'reports',
+        name: 'Michael',
+        say: 'Sure! Here are the {n} people on Michael’s team.',
+      }),
     );
     const answered = await ask(w.deps, w.asking, 'Who reports to Michael?', ['Who is in sales?']);
-    expect(answered.ok && answered.value.text).toMatch(/^Sure! Here are the 2 people on Michael’s team\.\n•/);
+    expect(answered.ok && answered.value.text).toMatch(
+      /^Sure! Here are the 2 people on Michael’s team\.\n•/,
+    );
     // A follow-up is read with the earlier question, never an earlier answer.
     expect(JSON.stringify(w.prompts)).toContain('"earlier":["Who is in sales?"]');
   });
@@ -157,7 +164,9 @@ describe('asking People in words', () => {
       JSON.stringify({ kind: 'count', conditions: [], say: 'Here’s the count for the company:' }),
     );
     const answered = await ask(w.deps, w.asking, 'How many people work here?');
-    expect(answered.ok && answered.value.text).toMatch(/^There (is|are) \d+ (person|people) across the company\.$/);
+    expect(answered.ok && answered.value.text).toMatch(
+      /^There (is|are) \d+ (person|people) across the company\.$/,
+    );
   });
 
   it('reads "me" as whoever is asking, and never sends their name to the model', async () => {
@@ -184,29 +193,5 @@ describe('asking People in words', () => {
     const { assistant: _none, ...bare } = w.deps;
     const answered = await ask(bare, w.asking, 'Who is in sales?');
     expect(!answered.ok && answered.error.code).toBe('UNAVAILABLE');
-  });
-
-  it('answers a question from Slack as whoever’s work email it carries, and nobody else', async () => {
-    const w = world(() => JSON.stringify({ kind: 'reports', name: 'Michael' }));
-    const chat = {
-      ...w.deps,
-      accountByEmail: (_tx: unknown, _tenant: string, email: string) =>
-        Promise.resolve(email === 'toby@dunder.example' ? TOBY_ACCOUNT : null),
-    };
-    const answered = await askFromChat(chat, {
-      tenantId: TENANT,
-      email: ' Toby@Dunder.example ',
-      question: 'Who reports to Michael?',
-      correlationId: '00000000-0000-4000-8000-0000000000c2',
-    });
-    expect(answered.ok && answered.value.text).toMatch(/Michael Scott has 2 direct reports/);
-
-    const stranger = await askFromChat(chat, {
-      tenantId: TENANT,
-      email: 'someone@elsewhere.example',
-      question: 'Who reports to Michael?',
-      correlationId: '00000000-0000-4000-8000-0000000000c3',
-    });
-    expect(!stranger.ok && stranger.error.code).toBe('NOT_A_KITHENA_USER');
   });
 });

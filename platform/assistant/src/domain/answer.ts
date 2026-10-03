@@ -26,7 +26,8 @@ import type { Offer, ValidPlan, ValidStep } from './plan.js';
  * Never more than the asker may see (§11.3): nothing is added about a person,
  * nothing says a result was filtered or how many were hidden. In a chat app
  * (§11.4) a private leave type is never written beside a name, and a list
- * filtered by one is given as its count and a link to Time Off's calendar.
+ * filtered by one is given as its count and a link to Time Off's calendar —
+ * unless the company chose otherwise in Time Off (`namesPrivateLeave`).
  *
  * What a capability's `described` holds: a phrase that ends a sentence about
  * people — "whose department is Sales", "away on Tuesday 6 October" — except
@@ -46,6 +47,13 @@ export interface Setting {
   readonly leaveTypes: readonly CatalogueLeaveType[];
   /** The company's own app origin, `https://acme.app.kithena.com`, for links; null where unknown. */
   readonly origin: string | null;
+  /**
+   * The company chose, in Time Off, to let chat answers name people on private
+   * leave (§11.4, AST-029a). It lifts the two chat rules and nothing else: the
+   * rows are Time Off's, written after its sight rule, so a type the asker may
+   * not see is already "Away".
+   */
+  readonly namesPrivateLeave: boolean;
 }
 
 /* ------------------------------------------------------------ sentences -- */
@@ -337,7 +345,8 @@ function peopleAnswer(
   })
     ? PRIVATE_SIGHT
     : null;
-  const chat = setting.channel !== 'web';
+  // The chat rules for private leave, unless the company lifted them.
+  const chat = setting.channel !== 'web' && !setting.namesPrivateLeave;
   // One sentence about what the asker sees: the private-type one says it for a leave type.
   const part = visible && privateSight === null ? PART : null;
 

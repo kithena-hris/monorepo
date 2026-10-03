@@ -575,20 +575,22 @@ configuration, set by an operator rather than by a deploy:
 
 **Time Off's routes.** Time Off answers a few paths that a browser, a
 provider or a device opens without a Kithena token: the calendar feed a person
-subscribes to, the kiosk, the chat app's buttons and the providers' OAuth
-callbacks, and its own SCIM. Each authenticates itself (a signed feed URL, a
-device credential, Slack's signing secret, the OAuth state); everything else
-under `/v1/timeoff/` refuses a request without the router's
-`x-internal-token`. `TIMEOFF_PUBLIC_URL` is `https://api.kithena.com`, set by
-the deploy.
+subscribes to, the kiosk, the providers' OAuth callbacks, and its own SCIM.
+Each authenticates itself (a signed feed URL, a device credential, the OAuth
+state); everything else under `/v1/timeoff/` refuses a request without the
+router's `x-internal-token`. Slack's buttons are not among them: a press
+reaches the Slack service over its socket and is passed to Time Off's internal
+`integrations/slack/relay` with `SLACK_TIMEOFF_TOKEN`, which the tunnel never
+routes. `TIMEOFF_PUBLIC_URL` is `https://api.kithena.com`, set by the deploy.
 
 - [ ] Add the public hostname rule `api.kithena.com`, path
       `^/v1/timeoff/(calendar/feed\.ics|kiosk/|integrations/[a-z]+/(actions|callback)|scim/v2/)`
       → `http://timeoff:4002`, **above** the router's catch-all, on
       `kithena-production` (and `api.staging.kithena.com` on
       `kithena-staging`), the same way as SCIM's above.
-- [ ] Check it: `curl -i -X POST https://api.kithena.com/v1/timeoff/integrations/slack/actions`
-      answers Time Off's refusal of an unsigned request, not the router's 404.
+- [ ] Check it: `curl -i https://api.kithena.com/v1/timeoff/integrations/google/callback`
+      answers Time Off's refusal of a missing state, not the router's 404.
+      (`actions` in the rule no longer answers anything; it can go.)
 
 Companies without a recorded module list (PEO-114) are refused SCIM unless
 People's own environment carries `KITHENA_ENTITLEMENTS` (the same JSON array
@@ -740,7 +742,11 @@ image's OpenTelemetry agent off). With them the limits are **3.3 GB**; the swap
 is what makes that fit, and `m7i-flex.large` is the step up if it stops fitting.
 `timeoff` (**320 MB**, `--max-old-space-size=192`; not yet measured) brings
 them to **3.6 GB**: measure it under the light load above after its first
-deploy, and lower the limit to what it needs.
+deploy, and lower the limit to what it needs. `assistant` (**160 MB**,
+`--max-old-space-size=96`; not yet measured, assistant PRD §15.2) brings them
+to **3.75 GB**, to be measured the same way after its first deploy. If the sum
+stops fitting, folding the assistant into Slack's process comes before
+`m7i-flex.large`.
 
 Nothing was OOM-killed and nothing restarted except `cloudflared`, which had
 a dummy token and no tunnel to reach, so its figure is the binary retrying, not
@@ -887,7 +893,10 @@ storage" below has the buckets' rules.
 for `IDLE_STOP_MINUTES` (30 by default) no authenticated `/graphql` request in
 the router's access log — the router logs only `/graphql`, never `/health`,
 and a request without a valid token is a 401, which is the internet knocking,
-not a person — no kithena container started and nothing deployed, nobody
+not a person — **no question to the assistant** (its one `"assistant question"`
+log line per question, never its words: a Slack question never passes the
+router, so without this a morning of questions would not keep the VM up), no
+kithena container started and nothing deployed, nobody
 logged in and no Session Manager session open, no export job queued, running or retrying in BullMQ, no pending
 Temporal activity on `people-full-values`, **no approved import running** (a
 running workflow on `people-imports`, counted with `temporal workflow count`:
@@ -1220,22 +1229,55 @@ nothing on the VM reads Time Off's topic. Add `timeoff.outbox` to its
 `DEBEZIUM_SOURCE_TABLE_INCLUDE_LIST` (the publication already holds it) when
 something does.
 
-| Setting                                                                                  | Holds                                                                                                                                                                                                                                                                                                                     |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TIMEOFF_DATABASE_URL`                                                                   | `svc_timeoff`'s connection. Unset: the subgraph serves its schema, every field answers UNAVAILABLE, no REST, no consumer, no job. A Compose address, like People's.                                                                                                                                                       |
-| `TIMEOFF_API_TOKEN`                                                                      | What the router sends Time Off as `x-internal-token` (`apps/gateway/config.yaml`), the pair's own secret. Falls back to `INTERNAL_API_TOKEN`; empty refuses every request. Random, 32+ bytes.                                                                                                                             |
-| `TIMEOFF_FEED_SECRET`                                                                    | Signs calendar feed links, kiosk QR codes and integration consent states, and keys kiosk badges and PINs. Required in production (the process refuses to boot without it); rotating it revokes every subscribed feed and means setting every badge and PIN again. Random, 32+ bytes.                                      |
-| `TIMEOFF_OPENFGA_STORE_ID`                                                               | Time Off's own store on the shared `OPENFGA_URL`, never People's `OPENFGA_STORE_ID`. Unset: found by name (`timeoff`) or created. Without `OPENFGA_URL` nobody approves or is HR in Time Off.                                                                                                                             |
-| `TIMEOFF_PUBLIC_URL`                                                                     | Where Time Off's public routes are reached: the calendar feed, the kiosks (through the web app's `/kiosk/<id>/api/*`) and a provider's redirect, `<url>/v1/timeoff/integrations/<provider>/callback`. Default `http://localhost:4002`; the tunnel must route `/v1/timeoff/` before any of them works outside development. |
-| `TIMEOFF_INTEGRATION_KEY`                                                                | Seals a chat app's tokens before they are stored (AES-256-GCM). 32 random bytes, base64. Unset: no chat app can be connected. Rotating it means connecting again.                                                                                                                                                         |
-| `TIMEOFF_GOOGLE_SERVICE_ACCOUNT`                                                         | The JSON key of the Google service account that writes to members' calendars through domain-wide delegation (TOF-110). Unset: Google Calendar says it needs credentials.                                                                                                                                                  |
-| `TIMEOFF_MICROSOFT_CLIENT_ID`, `TIMEOFF_MICROSOFT_CLIENT_SECRET`                         | The multi-tenant Microsoft Entra app that writes to members' Outlook calendars through Graph (TOF-110). Unset: Outlook says it needs credentials.                                                                                                                                                                         |
-| `TIMEOFF_SLACK_CLIENT_ID`, `TIMEOFF_SLACK_CLIENT_SECRET`, `TIMEOFF_SLACK_SIGNING_SECRET` | The Slack app each company installs to its workspace: statuses while away and approving from a message (TOF-111). Needs `TIMEOFF_INTEGRATION_KEY` too. Unset: Slack says it needs credentials.                                                                                                                            |
+| Setting                                                          | Holds                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TIMEOFF_DATABASE_URL`                                           | `svc_timeoff`'s connection. Unset: the subgraph serves its schema, every field answers UNAVAILABLE, no REST, no consumer, no job. A Compose address, like People's.                                                                                                                                                       |
+| `TIMEOFF_API_TOKEN`                                              | What the router sends Time Off as `x-internal-token` (`apps/gateway/config.yaml`), the pair's own secret. Falls back to `INTERNAL_API_TOKEN`; empty refuses every request. Random, 32+ bytes.                                                                                                                             |
+| `TIMEOFF_FEED_SECRET`                                            | Signs calendar feed links, kiosk QR codes and integration consent states, and keys kiosk badges and PINs. Required in production (the process refuses to boot without it); rotating it revokes every subscribed feed and means setting every badge and PIN again. Random, 32+ bytes.                                      |
+| `TIMEOFF_OPENFGA_STORE_ID`                                       | Time Off's own store on the shared `OPENFGA_URL`, never People's `OPENFGA_STORE_ID`. Unset: found by name (`timeoff`) or created. Without `OPENFGA_URL` nobody approves or is HR in Time Off.                                                                                                                             |
+| `TIMEOFF_PUBLIC_URL`                                             | Where Time Off's public routes are reached: the calendar feed, the kiosks (through the web app's `/kiosk/<id>/api/*`) and a provider's redirect, `<url>/v1/timeoff/integrations/<provider>/callback`. Default `http://localhost:4002`; the tunnel must route `/v1/timeoff/` before any of them works outside development. |
+| `TIMEOFF_INTEGRATION_KEY`                                        | Seals a provider's tokens before they are stored (AES-256-GCM). 32 random bytes, base64. No adapter stores one since Slack moved to Kithena's one Slack app.                                                                                                                                                              |
+| `TIMEOFF_GOOGLE_SERVICE_ACCOUNT`                                 | The JSON key of the Google service account that writes to members' calendars through domain-wide delegation (TOF-110). Unset: Google Calendar says it needs credentials.                                                                                                                                                  |
+| `TIMEOFF_MICROSOFT_CLIENT_ID`, `TIMEOFF_MICROSOFT_CLIENT_SECRET` | The multi-tenant Microsoft Entra app that writes to members' Outlook calendars through Graph (TOF-110). Unset: Outlook says it needs credentials.                                                                                                                                                                         |
+| `SLACK_URL`, `SLACK_TIMEOFF_TOKEN`                               | Kithena's one Slack app, owned by `platform/slack` (TOF-111): where Time Off reaches the Slack service (`http://slack:4102` on the VM), and the secret the pair shares, which the Slack service also holds and sends back with each press. Unset: Slack says it needs credentials.                                        |
 
 `OPENFGA_URL`, `KAFKA_BROKERS`, `VALKEY_URL` and `TEMPORAL_ADDRESS` are the
 same Compose addresses People reads. Who is HR in Time Off is whoever the back
 office names as its administrator (`identity.tenant.administrator_named` for
 `module.timeoff`), so Time Off consumes identity's topic as well as People's.
+
+#### The assistant's settings
+
+The assistant (`platform/assistant`, `docs/assistant-prd.md` §15) runs on the
+VM beside Slack, deployed as Slack is: its own image
+(`platform/assistant/Dockerfile`, `ghcr.io/<owner>/kithena-assistant`),
+`deploy.sh <env> assistant <image>` after People and before Slack, a Compose
+service at `http://assistant:4104`, and a `/health` check. No database, no
+Kafka, nothing at rest. Slack asks it every question; it asks identity who is
+asking and each module as that person, one secret per pair. Each pair's
+secret is one environment secret the VM job writes into both ends on every
+deploy, as `SLACK_PEOPLE_TOKEN` is, so the two cannot disagree. Every one is
+optional: unset, that pair is refused, the module is left out of the answer
+(or, for Slack's and the model's, every question is "The assistant isn't
+available right now."), and the deploy warns rather than fails.
+
+| Setting                                      | Written to                                          | Holds                                                                                                                                                                       |
+| -------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SLACK_ASSISTANT_TOKEN`                      | `slack.env`, `assistant.env`                        | Slack → the assistant's `/internal/ask`. The token, not the body, says the channel. Random, 32+ bytes.                                                                      |
+| `ASSISTANT_PEOPLE_TOKEN`                     | `people.env`, `assistant.env`                       | The assistant → People's `/internal/capabilities*`, and nothing else of People's. Random, 32+ bytes.                                                                        |
+| `ASSISTANT_TIMEOFF_TOKEN`                    | `timeoff.env`, `assistant.env`                      | The assistant → Time Off's `/internal/capabilities*`, likewise.                                                                                                             |
+| `ASSISTANT_IDENTITY_TOKEN`                   | identity's Vercel deploy (`--env`), `assistant.env` | The assistant → identity's `POST /api/internal/tenants/<id>/assistant/asker`. Identity has no fallback for it.                                                              |
+| `ASSISTANT_API_KEY`                          | `people.env`, `assistant.env`                       | The model's key (Groq by default), the one People's own words already use. `ASSISTANT_BASE_URL` and `ASSISTANT_MODEL` default as People's.                                  |
+| `TENANT_APP_BASE_<ENV>`                      | `assistant.env` (`TENANT_APP_BASE`)                 | A repository variable, messaging's: where an answer's link goes, `https://{slug}.app.kithena.com`.                                                                          |
+| `IDENTITY_URL`                               | `assistant.env`, by the VM job                      | Identity's public address, `https://identity.kithena.com` (staging's `identity.staging`): identity is on Vercel, so it differs by environment and is not a Compose address. |
+| `PEOPLE_URL`, `TIMEOFF_URL`, `ASSISTANT_URL` | `compose.yaml`                                      | Compose addresses, the same in every environment; `ASSISTANT_URL` is Slack's.                                                                                               |
+
+Identity's Vercel deploy also gets `KITHENA_ENTITLEMENTS` from
+`KITHENA_ENTITLEMENTS_<ENV>`, the router's value, so a company with no modules
+recorded holds the deployment's rather than none — without it the assistant
+would tell that company it does not use People. `PEOPLE_IDENTITY_TOKEN` stays
+a variable of identity's Vercel project, beside `IDENTITY_DATABASE_URL`, with
+the same value as in `PEOPLE_ENV`.
 
 #### GitHub: repository variables (Settings → Secrets and variables → Actions → Variables)
 

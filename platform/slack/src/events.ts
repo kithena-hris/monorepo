@@ -6,7 +6,9 @@
  *
  * - The slash command (`/kithena …`): answered to the asker alone, in the
  *   channel they typed it in, through the command's response URL.
- * - A mention (`@Kithena …`) in a channel: answered in a thread under it.
+ * - A mention (`@Kithena …`) in a channel: answered in a thread under it,
+ *   visible to the asker alone — the answer is authorized for them, not for
+ *   everyone in the channel.
  * - A direct message to the app: answered in the conversation.
  *
  * The bot's own messages, edits and joins are not questions.
@@ -90,10 +92,10 @@ export function questionOf(envelope: Envelope): Question | null {
 /** What the command says when asked nothing. */
 export function helpText(command: string): string {
   return [
-    `Ask me about the people in your company, as you: I only show what you could see in Kithena yourself.`,
+    `Ask me about the people in your company and who is away, as you: I only show what you could see in Kithena yourself.`,
     `• \`${command} who reports to Michael?\``,
     `• \`${command} how many people are in Scranton, by department?\``,
-    `• \`${command} who started after 2020?\``,
+    `• \`${command} who in my team is off next week?\``,
     `• \`${command} what is waiting for my approval?\``,
   ].join('\n');
 }

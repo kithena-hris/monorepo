@@ -241,6 +241,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onDisconnect: settings.disconnectIntegration,
           onRegisterKiosk: settings.registerKiosk,
           onRevokeKiosk: settings.revokeKiosk,
+          onChatAnswers: settings.setChatAnswers,
         };
       default:
         return {};

@@ -56,6 +56,24 @@ export async function postMessage(
   });
 }
 
+/** A message only `user` sees, in the channel's thread: a mention's answer. */
+export async function postEphemeral(
+  botToken: string,
+  message: {
+    readonly channel: string;
+    readonly user: string;
+    readonly text: string;
+    readonly threadTs: string;
+  },
+): Promise<void> {
+  await call('chat.postEphemeral', botToken, {
+    channel: message.channel,
+    user: message.user,
+    text: message.text,
+    thread_ts: message.threadTs,
+  });
+}
+
 /** Answer a slash command to its asker alone, where they typed it. */
 export async function respond(url: string, text: string): Promise<void> {
   await fetch(url, {
@@ -72,7 +90,10 @@ export async function userByEmail(botToken: string, email: string): Promise<stri
     headers: { authorization: `Bearer ${botToken}` },
     signal: AbortSignal.timeout(10_000),
   });
-  const answer = (await response.json()) as { ok?: boolean; user?: { id?: string; deleted?: boolean } };
+  const answer = (await response.json()) as {
+    ok?: boolean;
+    user?: { id?: string; deleted?: boolean };
+  };
   if (answer.ok !== true || answer.user?.deleted === true) return null;
   return answer.user?.id ?? null;
 }
@@ -98,7 +119,11 @@ export async function replaceMessage(
   });
 }
 
-export async function openView(botToken: string, triggerId: string, view: unknown): Promise<string> {
+export async function openView(
+  botToken: string,
+  triggerId: string,
+  view: unknown,
+): Promise<string> {
   const answer = await call('views.open', botToken, { trigger_id: triggerId, view });
   return (answer['view'] as { id?: string } | undefined)?.id ?? '';
 }

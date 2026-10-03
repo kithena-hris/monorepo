@@ -146,6 +146,9 @@ admin-dev postgres_port=env_var_or_default("POSTGRES_PORT", "5432") valkey_port=
     WEBAUTHN_RP_ID=localhost \
     ADMIN_RP_ID=localhost ADMIN_ORIGIN=http://localhost:3001 \
       npx tsx platform/identity/src/main.ts &
+    # The assistant, so a Slack question reaches identity's asker route; People
+    # and Time Off are `just dev`'s, and one not running is left out.
+    npx tsx platform/assistant/src/main.ts &
     trap 'kill 0' EXIT
     (cd apps/auth/shell && npx modern dev) &
     cd apps/admin && npx next dev -p 3001

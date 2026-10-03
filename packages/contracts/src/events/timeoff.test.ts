@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import * as z from 'zod';
 
+import { policy } from '../classification.js';
+import { CalendarDate } from '../primitives.js';
+
 import {
   AttendancePunched,
   LeaveCounterProposed,
@@ -194,5 +197,13 @@ describe('a counter-proposal', () => {
     ['empty', []],
   ])('refuses runs that are %s', (_what, spans) => {
     expect(LeaveCounterProposed.payload.safeParse(option(spans)).success).toBe(false);
+  });
+});
+
+describe('a child’s date of birth', () => {
+  it('is identity on its own field without making every calendar date identity', () => {
+    // Registering the shared `CalendarDate` would redact and AI-deny every
+    // date in every payload, `effectiveFrom` included.
+    expect(policy.get(CalendarDate)?.classification).toBe('internal');
   });
 });
