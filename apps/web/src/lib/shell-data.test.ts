@@ -53,7 +53,10 @@ describe('telling somebody they were viewed as', () => {
   it('is a notice for a fortnight after it ended, saying who, how long, and what showed', () => {
     const notices = noticesOf({
       ...overview(HR, 0),
-      viewedAs: [viewed('2026-09-29T08:00:00.000Z', true), viewed('2026-09-01T08:00:00.000Z', false)],
+      viewedAs: [
+        viewed('2026-09-29T08:00:00.000Z', true),
+        viewed('2026-09-01T08:00:00.000Z', false),
+      ],
     });
     expect(notices).toEqual([
       {
@@ -94,5 +97,54 @@ describe('a question about one’s own change (AI7)', () => {
       detail: 'Tom Fischer · answer it to move it on',
       href: '/people/approvals?tab=asked&change=c1',
     });
+  });
+});
+
+describe('an import one approved, over', () => {
+  it('becomes a notice that opens it: Import finished with how many, or Import failed', () => {
+    const notices = noticesOf({
+      ...overview(HR, 0),
+      imports: [
+        {
+          id: 'r1',
+          status: 'succeeded',
+          finishedAt: '2026-09-29T08:00:00Z',
+          people: 1000,
+          fields: 95,
+          fileName: 'meridian-people.xlsx',
+        },
+        {
+          id: 'r2',
+          status: 'succeeded',
+          finishedAt: '2026-09-28T08:00:00Z',
+          people: 1,
+          fields: 0,
+          fileName: null,
+        },
+        {
+          id: 'r3',
+          status: 'failed',
+          finishedAt: '2026-09-27T08:00:00Z',
+          people: 312,
+          fields: 0,
+          fileName: 'again.csv',
+        },
+      ],
+    });
+    expect(notices.map((n) => [n.title, n.detail, n.href, n.kind, n.failed ?? false])).toEqual([
+      [
+        'Import finished: 1,000 people, 95 new fields',
+        'meridian-people.xlsx',
+        '/people/import?run=r1',
+        'import',
+        false,
+      ],
+      ['Import finished: 1 person', 'An imported file', '/people/import?run=r2', 'import', false],
+      ['Import failed', 'again.csv', '/people/import?run=r3', 'import', true],
+    ]);
+  });
+
+  it('is none from a People that does not say', () => {
+    expect(noticesOf(overview(HR, 0))).toEqual([]);
   });
 });

@@ -1,0 +1,1 @@
+{"version":1,"body":"query TransferHistory($before: ID) {\n    peopleTransferHistory(before: $before) {\n      items {\n        id kind title at downloadable reportUrl\n        by { name avatarUrl }\n        imported { created updated blocked }\n        exported { rows format }\n        run { status label people { done total } }\n      }\n      next\n    }\n  }"}

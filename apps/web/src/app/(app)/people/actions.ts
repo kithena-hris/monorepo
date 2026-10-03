@@ -5,6 +5,7 @@ import { people, type PeopleAnswer } from '../../../lib/people';
 import { VIEWS } from '../../../lib/people-views';
 import { loadScreen } from '../../../lib/people-screens';
 import { startViewing } from '../../../lib/view-as';
+import { isWaking } from '../../../lib/waking';
 
 /**
  * What the People screens' buttons do: server actions, each one operation
@@ -437,8 +438,11 @@ export async function planImport(
 }
 
 /**
- * Approve the plan and run it: setup if nothing is published, the new fields,
- * their defaults, then the import. What it did comes back.
+ * Approve the plan and run it, in the background: setup if nothing is
+ * published, the new fields, their defaults, then the import. Answers at once
+ * with the run (`runId`), which `importRun` follows. `basedOn` is the version
+ * the plan was made against: published again since, People refuses it. A
+ * refusal may point somewhere, as one import already running does (`link`).
  */
 export async function runImport(
   uploadId: string,
@@ -446,17 +450,48 @@ export async function runImport(
   proposals: readonly unknown[],
   applySensitiveWithoutApproval: boolean,
   places?: Readonly<Record<string, unknown>>,
-): Promise<Parsed> {
-  return parsed(
-    people<string>('RunImport', {
-      input: JSON.stringify({
-        ...stepOf(uploadId, mapping),
-        proposals,
-        ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
-        ...(places === undefined ? {} : { places }),
-      }),
+  basedOn?: number | null,
+): Promise<
+  | { readonly ok: true; readonly runId: string }
+  | { readonly ok: false; readonly message: string; readonly link?: string }
+> {
+  const answer = await people<string>('RunImport', {
+    input: JSON.stringify({
+      ...stepOf(uploadId, mapping),
+      proposals,
+      ...(applySensitiveWithoutApproval ? { applySensitiveWithoutApproval: true } : {}),
+      ...(places === undefined ? {} : { places }),
+      ...(basedOn === undefined ? {} : { basedOn }),
     }),
-  );
+  });
+  if (!answer.ok) {
+    return {
+      ok: false,
+      message: answer.message,
+      ...(answer.link === undefined ? {} : { link: answer.link }),
+    };
+  }
+  const read = await parsed(Promise.resolve(answer));
+  const runId = read.ok ? (read.data as { runId?: unknown } | null)?.runId : undefined;
+  return typeof runId === 'string'
+    ? { ok: true, runId }
+    : { ok: false, message: 'People answered in a way this page cannot read' };
+}
+
+/**
+ * An approved import as it runs, for its page to follow. `waking`: the VM is
+ * still waking, so the page asks again by itself rather than saying so as an error.
+ */
+export async function importRun(
+  id: string,
+): Promise<
+  | { readonly ok: true; readonly data: unknown }
+  | { readonly ok: false; readonly message: string; readonly waking: boolean }
+> {
+  const answer = await people<string>('ImportRun', { id });
+  if (!answer.ok) return { ok: false, message: answer.message, waking: isWaking(answer) };
+  const read = await parsed(Promise.resolve(answer));
+  return read.ok ? read : { ...read, waking: false };
 }
 
 /* -------------------------------------------------------- integrations -- */

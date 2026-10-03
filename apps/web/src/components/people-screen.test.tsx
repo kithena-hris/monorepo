@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /*
@@ -14,8 +14,15 @@ vi.mock('next/navigation', () => ({
   usePathname: () => window.location.pathname,
   useSearchParams: () => new URLSearchParams(window.location.search),
 }));
-// Server actions: none is called by these tests.
+// Server actions: only the import's are called, each as a test says.
+const imports = vi.hoisted(() => ({
+  startImportUpload: vi.fn(),
+  completeImportUpload: vi.fn(),
+  runImport: vi.fn(),
+  importRun: vi.fn(),
+}));
 vi.mock('../app/(app)/people/actions', () => ({
+  ...imports,
   decidePendingChange: vi.fn(),
   withdrawPendingChange: vi.fn(),
   approveAlone: vi.fn(),
@@ -286,5 +293,162 @@ describe('what a loading state shows of a page before it arrives', () => {
     // A write draws the shell again: everything seen before it is stale.
     shell.current = { ...shell.current };
     expect(heldFor('/people/insights/headcount', {}, now())).toBeNull();
+  });
+});
+
+describe('an approved import, which runs on without the page', () => {
+  const run = (over: Record<string, unknown> = {}) => ({
+    id: 'r1',
+    status: 'running',
+    label: 'Importing',
+    phase: 'people',
+    step: 'Adding people',
+    people: { done: 312, total: 1000 },
+    fileName: 'meridian-people.xlsx',
+    startedBy: { name: 'Ada Lovelace', you: false },
+    approvedAt: '2026-10-01T14:02:00.000Z',
+    startedAt: '2026-10-01T14:02:03.000Z',
+    finishedAt: null,
+    now: '2026-10-01T14:06:15.000Z',
+    result: null,
+    failure: null,
+    ...over,
+  });
+  const done = run({
+    status: 'succeeded',
+    label: 'Imported',
+    people: { done: 1000, total: 1000 },
+    result: {
+      file: { name: 'meridian-people.xlsx', rows: 1000 },
+      created: 1000,
+      updated: 0,
+      blocked: 0,
+    },
+  });
+  const stage = (props: Record<string, unknown>) =>
+    (props['load'] as { data: Record<string, unknown> }).data;
+  const tick = (ms: number) =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('is approved, and the page moves to its own address, following it', async () => {
+    vi.useFakeTimers();
+    // The file goes straight to storage: a stand-in that takes it.
+    vi.stubGlobal(
+      'XMLHttpRequest',
+      class {
+        status = 200;
+        upload = {};
+        onload: () => void = () => undefined;
+        open(): void {}
+        setRequestHeader(): void {}
+        send(): void {
+          this.onload();
+        }
+      },
+    );
+    imports.startImportUpload.mockResolvedValue({
+      ok: true,
+      uploadId: 'u1',
+      url: 'https://store.test/u1',
+      method: 'PUT',
+      headers: {},
+    });
+    imports.completeImportUpload.mockResolvedValue({
+      ok: true,
+      stage: { step: 'map', file: { name: 'meridian-people.xlsx', rows: 1000, sheet: null } },
+    });
+    imports.runImport.mockResolvedValue({ ok: true, runId: 'r9' });
+    imports.importRun.mockResolvedValue({ ok: true, data: { ...done, id: 'r9' } });
+    let props = open('/people/import', 'ImportFlow', { setUp: true, admin: true });
+    await act(async () => {
+      await (props['onUpload'] as (f: File, p: () => void) => Promise<unknown>)(
+        new File(['a'], 'meridian-people.xlsx'),
+        () => undefined,
+      );
+    });
+    props = shown;
+    await act(async () => {
+      expect(
+        await (props['run'] as (...a: unknown[]) => Promise<unknown>)({ 0: 'given_name' }, [], {
+          basedOn: 4,
+        }),
+      ).toEqual({ ok: true });
+    });
+    expect(imports.runImport).toHaveBeenCalledWith(
+      'u1',
+      { 0: 'given_name' },
+      [],
+      true,
+      undefined,
+      4,
+    );
+    // The plan is replaced: Back never offers a run that has happened.
+    expect(here()).toBe('/people/import?run=r9');
+    expect(stage(shown)).toMatchObject({
+      step: 'run',
+      run: { id: 'r9', status: 'queued', label: 'Importing', fileName: 'meridian-people.xlsx' },
+    });
+    expect(imports.importRun).not.toHaveBeenCalled();
+    await tick(2_000);
+    expect(imports.importRun).toHaveBeenCalledWith('r9');
+    expect(stage(shown)).toMatchObject({ step: 'run', run: { status: 'succeeded' } });
+    // Over: the page, the history and the bell are read again; nothing more is asked.
+    expect(router.refresh).toHaveBeenCalled();
+    await tick(10_000);
+    expect(imports.importRun).toHaveBeenCalledOnce();
+  });
+
+  it('opens at its address as the server read it, and once over is not asked about again', async () => {
+    vi.useFakeTimers();
+    const props = open('/people/import?run=r1', 'ImportFlow', { setUp: true, run: done });
+    expect(stage(props)).toMatchObject({ step: 'run', run: { id: 'r1', status: 'succeeded' } });
+    await tick(10_000);
+    expect(imports.importRun).not.toHaveBeenCalled();
+  });
+
+  it('is asked about every two seconds while it runs, and keeps its last count while the VM wakes', async () => {
+    vi.useFakeTimers();
+    imports.importRun
+      .mockResolvedValueOnce({ ok: true, data: run({ people: { done: 400, total: 1000 } }) })
+      .mockResolvedValueOnce({ ok: false, message: 'Kithena is waking up', waking: true })
+      .mockResolvedValueOnce({ ok: true, data: run({ people: { done: 500, total: 1000 } }) });
+    open('/people/import?run=r1', 'ImportFlow', { setUp: true, run: run() });
+    expect(stage(shown)).toMatchObject({ run: { people: { done: 312 } }, waking: false });
+    await tick(2_000);
+    expect(stage(shown)).toMatchObject({ run: { people: { done: 400 } }, waking: false });
+    await tick(2_000);
+    // Waking is not an error: the count stays, and it is asked again by itself.
+    expect(stage(shown)).toMatchObject({ run: { people: { done: 400 } }, waking: true });
+    await tick(2_000);
+    expect(stage(shown)).toMatchObject({ run: { people: { done: 500 } }, waking: false });
+    expect(imports.importRun).toHaveBeenCalledTimes(3);
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it('keeps Import waiting on Import & export, the Directory and the upload while it runs', () => {
+    expect(
+      open('/people/import-export', 'ImportExport', { activeImport: run() })['running'],
+    ).toMatchObject({ id: 'r1' });
+    cleanup();
+    expect(
+      open('/people/directory/list', 'Directory', { can: { import: true }, activeImport: run() })[
+        'running'
+      ],
+    ).toMatchObject({ id: 'r1' });
+    cleanup();
+    expect(
+      open('/people/import', 'ImportFlow', { setUp: true, activeImport: run() })['running'],
+    ).toMatchObject({ id: 'r1' });
+    cleanup();
+    expect(
+      open('/people/import-export', 'ImportExport', { activeImport: null })['running'],
+    ).toBeNull();
   });
 });
