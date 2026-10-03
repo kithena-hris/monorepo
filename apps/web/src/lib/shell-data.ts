@@ -53,6 +53,20 @@ export interface ShellData {
   readonly viewedAs: readonly ViewedAs[];
   /** When People answered, for "12m ago". */
   readonly now: string | null;
+  /**
+   * Every other area this company has (Time Off), by its name in `AREAS`: the
+   * places its own manifest offers, cut to this viewer's roles, and its routes.
+   * An area whose remote cannot be reached is absent.
+   */
+  readonly remotes?: Readonly<Record<string, AreaPlaces>>;
+}
+
+/** An area's places for one viewer (`placesFor`), and every route its manifest lists. */
+export interface AreaPlaces {
+  readonly sections: readonly Place[];
+  readonly actions: readonly Place[];
+  readonly settings: readonly Place[];
+  readonly routes: readonly string[];
 }
 
 export const EMPTY_SHELL: ShellData = {

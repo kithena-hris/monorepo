@@ -117,7 +117,7 @@ function screenOf(name: string, route: RemoteRoute): Screen {
  * asks the renderer process for the screen's HTML (`lib/remote-render.ts`).
  * The shell's own process never evaluates the remote's code, so on the server
  * the remote's host is outside the shell's trust boundary.
- * `PEOPLE_REMOTE_SSR=off` still turns server rendering off.
+ * `<env>_REMOTE_SSR=off` (`PEOPLE_REMOTE_SSR=off`) still turns server rendering off.
  *
  * The props cross as JSON. A function cannot, and a render never calls one,
  * so each becomes a marker the renderer turns back into a function that does

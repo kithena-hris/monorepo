@@ -1,0 +1,8 @@
+/*
+ * The page a phone test renders into: Reach's whole stylesheet, as the shell
+ * serves it, plus this remote's utilities. Compiled for the test only; the
+ * remote itself never ships Reach's tokens or preflight (see `styles.css`).
+ */
+@import '@reach/ui/styles.css';
+@source '../../../../../packages/ui/src';
+@source '../';

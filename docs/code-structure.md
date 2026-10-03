@@ -69,6 +69,7 @@ packages:
 | ---------------- | ------------------ | ---------------------- |
 | Host             | `apps/web/shell`   | `@kithena/web-shell`   |
 | Remote           | `apps/web/people`  | `@kithena/web-people`  |
+| Remote           | `apps/web/timeoff` | `@kithena/web-timeoff` |
 | Auth host        | `apps/auth/shell`  | `@kithena/auth-shell`  |
 | Back-office host | `apps/admin/shell` | `@kithena/admin-shell` |
 

@@ -7,8 +7,9 @@ import { join } from 'node:path';
  * The shell never evaluates a remote's code in its own process: that process
  * holds the internal token, the session secrets and every other module's
  * data. `remote-renderer.ts` says what the renderer process is denied. This
- * file keeps one of them per build — a new build gets a new process, so
- * nothing an old build left behind survives it — and gives up on a render
+ * file keeps one of them per remote, running that remote's current build — a
+ * new build gets a new process, so nothing an old build left behind survives
+ * it, and one remote's deploy never stops another's renders — and gives up on a render
  * that takes too long, killing the process when it has gone quiet.
  *
  * Every failure is a rejection, and every rejection means the same thing to
@@ -33,18 +34,21 @@ interface Pending {
 export interface Renderer {
   readonly child: ChildProcess;
   readonly sha: string;
+  /** Whose renderer it is: the id prefix the remote's screens render under. */
+  readonly slot: string;
   readonly pending: Map<number, Pending>;
   ready: Promise<void>;
   heard: number;
 }
 
-let current: Renderer | undefined;
+/** The renderer running for each remote, by slot. */
+const running = new Map<string, Renderer>();
 let nextId = 0;
 /** Builds the renderer would not evaluate: not tried again until they change. */
 const refused = new Set<string>();
 
 function stop(renderer: Renderer, why: string): void {
-  if (current === renderer) current = undefined;
+  if (running.get(renderer.slot) === renderer) running.delete(renderer.slot);
   renderer.child.kill('SIGKILL');
   for (const [id, pending] of renderer.pending) {
     clearTimeout(pending.timer);
@@ -53,7 +57,7 @@ function stop(renderer: Renderer, why: string): void {
   }
 }
 
-function spawn(code: string, sha: string, path: string): Renderer {
+function spawn(code: string, sha: string, slot: string, path: string): Renderer {
   const child = fork(path, [String(CPU_MS)], {
     // Nothing from this process: not the token, not a URL, not a key.
     env: { NODE_ENV: 'production' },
@@ -74,6 +78,7 @@ function spawn(code: string, sha: string, path: string): Renderer {
   const renderer: Renderer = {
     child,
     sha,
+    slot,
     pending: new Map(),
     ready: new Promise<void>((resolve, reject) => {
       settle = { resolve, reject };
@@ -93,7 +98,7 @@ function spawn(code: string, sha: string, path: string): Renderer {
       settle?.reject(
         new Error(`the build was refused: ${typeof m.error === 'string' ? m.error : 'unknown'}`),
       );
-      if (current === renderer) current = undefined;
+      if (running.get(slot) === renderer) running.delete(slot);
       child.kill('SIGKILL');
       return;
     }
@@ -120,14 +125,21 @@ function spawn(code: string, sha: string, path: string): Renderer {
 }
 
 /**
- * The renderer for this build, started now if it is not running: the page
- * calls this as soon as a build verifies, so the process starts while the
- * page's data is still being fetched.
+ * The renderer for this build of the remote `slot` names, started now if it
+ * is not running: the page calls this as soon as a build verifies, so the
+ * process starts while the page's data is still being fetched.
  */
-export function warmRenderer(code: string, sha: string, path: string = RENDERER): Renderer {
+export function warmRenderer(
+  code: string,
+  sha: string,
+  slot: string,
+  path: string = RENDERER,
+): Renderer {
+  let current = running.get(slot);
   if (current?.sha !== sha) {
     if (current !== undefined) stop(current, 'a newer build replaced it');
-    current = spawn(code, sha, path);
+    current = spawn(code, sha, slot, path);
+    running.set(slot, current);
   }
   return current;
 }
@@ -147,7 +159,8 @@ export async function renderRemote(
   wallMs: number = WALL_MS,
 ): Promise<string> {
   if (refused.has(sha)) throw new Error('the build was refused');
-  const renderer = warmRenderer(code, sha, path);
+  // `prefix` is the remote's own (`<name>-`), so it names the remote's renderer too.
+  const renderer = warmRenderer(code, sha, prefix, path);
   return new Promise<string>((resolve, reject) => {
     const id = ++nextId;
     const timer = setTimeout(() => {
@@ -177,5 +190,5 @@ export async function renderRemote(
 
 /** For tests, and for a process shutting down. */
 export function stopRenderer(): void {
-  if (current !== undefined) stop(current, 'stopped');
+  for (const renderer of running.values()) stop(renderer, 'stopped');
 }
