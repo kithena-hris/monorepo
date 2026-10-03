@@ -4,7 +4,7 @@ import { DateSpan, LeaveTypeKey, type PersonId } from '@kithena/contracts';
 import { decideRequest } from '../approval/decide.js';
 import { sendRequest } from '../request/request.js';
 import { caller, people, world } from '../testing/world.js';
-import { calendar, requestDecision } from './manager.js';
+import { calendar, delegation, requestDecision } from './manager.js';
 
 const vacation = LeaveTypeKey.parse('vacation');
 
@@ -42,7 +42,7 @@ describe('deciding one request (T17)', () => {
   it('carries the domain’s ranked fixes for the clash, and the last time off taken', async () => {
     const { app, adam } = await october();
     const view = await requestDecision(app.deps)(caller(people.marco), {
-      requestId: adam as never,
+      requestId: adam,
     });
     if (!view.ok) throw new Error(view.error.message);
     expect(view.value.lastTaken).toEqual({ from: '2026-08-03', to: '2026-08-14' });
@@ -81,11 +81,11 @@ describe('deciding one request (T17)', () => {
   it('offers nothing to fix once the request is decided', async () => {
     const { app, adam } = await october();
     await decideRequest(app.deps)(caller(people.marco), {
-      requestId: adam as never,
+      requestId: adam,
       decision: 'approve',
     });
     const view = await requestDecision(app.deps)(caller(people.marco), {
-      requestId: adam as never,
+      requestId: adam,
     });
     expect(view.ok && view.value.alternatives).toEqual([]);
   });
@@ -102,6 +102,18 @@ describe('the calendar (T12)', () => {
     expect(view.ok && view.value.people[0]).toMatchObject({
       teamKey: 'platform',
       teamName: 'Platform',
+    });
+  });
+});
+
+describe('delegation (T19)', () => {
+  it('says whose delegate it is and where an undecided request goes', async () => {
+    const app = world();
+    const view = await delegation(app.deps)(caller(people.adam));
+    expect(view.ok && view.value).toMatchObject({
+      approverId: people.adam,
+      escalatesTo: { personId: people.marco, displayName: 'Marco Ruiz' },
+      delegation: null,
     });
   });
 });

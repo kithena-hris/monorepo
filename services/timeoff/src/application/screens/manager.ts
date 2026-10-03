@@ -247,7 +247,10 @@ export const delegation =
           });
         }
       }
+      const manager = everyone.find((m) => m.personId === me)?.managerPersonId ?? null;
       return ok({
+        approverId: me,
+        escalatesTo: manager === null ? null : { personId: manager, displayName: name(manager) },
         delegation:
           mine === null
             ? null

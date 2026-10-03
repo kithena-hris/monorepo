@@ -380,6 +380,10 @@ export const DecisionView = named(
 export const DelegationView = named(
   'TimeOffDelegation',
   z.object({
+    /** The caller, whose delegate this is: the approver a change is for. */
+    approverId: PersonId,
+    /** Where a request nobody decides goes after three working days: the caller's manager. */
+    escalatesTo: PersonRef.nullable(),
     delegation: z
       .object({
         delegateId: PersonId,

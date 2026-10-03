@@ -76,7 +76,7 @@ export const OPERATIONS = {
   /** T19: who covers for the caller, whom they may choose, and whom they cover for */
   TimeOffDelegation: `query TimeOffDelegation {
     timeOffDelegation {
-      candidates { displayName personId } coveringFor { approverId approverName automatic range { from to } } delegation { automatic delegateId delegateName range { from to } salaryRelated }
+      approverId candidates { displayName personId } coveringFor { approverId approverName automatic range { from to } } delegation { automatic delegateId delegateName range { from to } salaryRelated } escalatesTo { displayName personId }
     }
   }`,
 

@@ -442,9 +442,11 @@ type TimeOffDecided {
 }
 
 type TimeOffDelegation {
+  approverId: String!
   candidates: [TimeOffPersonRef!]!
   coveringFor: [TimeOffCover!]!
   delegation: TimeOffDelegationDelegation
+  escalatesTo: TimeOffPersonRef
 }
 
 type TimeOffDelegationDelegation {
