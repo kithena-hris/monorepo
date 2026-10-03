@@ -21,6 +21,7 @@ import { emailAll, recordOne, type Recorded } from './requests.js';
 import {
   applyRequiredFrom,
   asAdmin,
+  pendingOf,
   publishRequest,
   toReview,
   type SchemaScreenDeps,
@@ -311,10 +312,10 @@ async function load(
     after = page.at(-1)?.snapshot.id ?? null;
   }
   const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
-  const alsoPublished = draft.attributes.filter((a) => {
-    const p = published?.document.attributes.find((x) => x.key === a.key);
-    return a.key !== key && JSON.stringify(p ?? null) !== JSON.stringify(a);
-  }).length;
+  // Compared as the registry compares them: key order is not a difference.
+  const alsoPublished = draft.attributes.filter(
+    (a) => a.key !== key && pendingOf(a, published) !== null,
+  ).length;
   return ok({
     was,
     to: next,

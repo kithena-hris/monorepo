@@ -199,6 +199,7 @@ describe('changing a text field to a date', () => {
       unchanged: 1,
       defaultAction: 'request',
       hidden: false,
+      alsoPublished: 0,
     });
     expect(
       (review.body['unfit'] as { name: string; before: string }[]).map((u) => [u.name, u.before]),
