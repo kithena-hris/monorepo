@@ -710,7 +710,7 @@ no decline, cancel or change.
 
 ### Transports
 
-### [ ] TOF-044 — The subgraph
+### [x] TOF-044 — The subgraph
 
 - **Spec** PRD §18
 - **Files** `services/timeoff/src/graphql/`, `services/timeoff/schemas/timeoff.graphql`
@@ -720,6 +720,24 @@ no decline, cancel or change.
   `screens` do); mutations for every command. Extend `Person` with balances.
   Regenerate SDL with `just codegen`; `just supergraph` must compose.
 - **Done when** `just supergraph` composes and the schema snapshot test passes.
+- **As built** Every field is one of REST's routes (`http/rest.ts`, `ROUTES`),
+  reached in-process as the request's caller, as People's `viaRest`: a
+  mutation is the route's write with its `Idempotency-Key`. Output types are
+  generated from the routes' Zod answers (`graphql/zod.ts`), and a write's
+  `input` is the route's JSON body, parsed by the route's schema. The reads
+  live in `application/screens/` (Zod views in `views.ts`). Queries:
+  `timeOffOverview`, `timeOffRequestPanel`, `timeOffMyRequests`,
+  `timeOffRequest`, `timeOffApprovals`, `timeOffRequestDecision`,
+  `timeOffDelegation`, `timeOffCalendarMonth`, `…Timeline`, `…Year`, `…Day`,
+  `timeOffTimesheet`, `timeOffTeamRightNow`, `timeOffBalance`,
+  `timeOffHolidays`, the six settings pages and `timeOffViewer`.
+  `Person.timeOffBalances` replaces `leaveBalanceDays`. The snapshot is the
+  committed SDL (`graphql/schema.test.ts`). **TOF-058a's server half is here**:
+  `timeOffViewer` answers `approves`, `hrAdmin` and `counts`
+  (`requestsWaiting`, `attendanceExceptions`); the shell half comes with the
+  screens. Closing a month (`closePayPeriod`) was added to the application
+  for TOF-050; it posts the month's days that have no line, then locks the
+  period.
 
 ### [ ] TOF-045 — People event consumers
 
@@ -732,27 +750,49 @@ no decline, cancel or change.
 - **Done when** a consumer test applies out-of-order events and ends in the right
   state.
 
-### [ ] TOF-046 — REST and OpenAPI
+### [x] TOF-046 — REST and OpenAPI
 
 - **Files** `services/timeoff/src/http/rest.ts`, `openapi.ts`
 - **Depends on** TOF-044
 - **Approach** `/v1/timeoff/...` generated from Zod; idempotency keys as People.
 - **Done when** the OpenAPI document validates and a REST test sends a request.
+- **As built** One route table serves REST, the document
+  (`/v1/timeoff/openapi.json`) and the subgraph. The key, the request's hash
+  and the answer are saved in the write's own transaction
+  (`Tx.idempotency`, `timeoff.idempotency_key`): the answer rather than
+  People's resource id, because a Time Off answer is a status or an id. The
+  Drizzle unit of work hands out `drizzleIdempotency(tx, tenantId)`
+  (`infrastructure/idempotency.ts`). The calendar feed is
+  `GET /v1/timeoff/calendar/feed.ics?token=`, with no caller. The caller is
+  read from the router's principal (`http/caller.ts`); identity's token does
+  not carry a person yet, so `personId` is forwarded when there is one, and
+  the router does not forward to Time Off yet.
 
-### [ ] TOF-047 — Webhooks
+### [x] TOF-047 — Webhooks
 
 - **Files** `services/timeoff/src/infrastructure/webhooks/`
 - **Depends on** TOF-046
 - **Approach** Signed, per published event, reusing People's signer.
 - **Done when** a test verifies a signature.
+- **As built** People's signer copied, not shared — no package holds it — so
+  one function verifies both modules. Delivery is one attempt per
+  subscribed endpoint; People's durable schedule comes with Time Off's
+  endpoint tables.
 
-### [ ] TOF-048 — OpenFGA model
+### [x] TOF-048 — OpenFGA model
 
 - **Files** the FGA model file People uses, `services/timeoff/src/infrastructure/openfga.ts`
 - **Depends on** TOF-038
 - **Approach** `approver`, `delegate`, `hr_admin`, `teammate` on a member.
 - **Done when** model tests cover manager, delegate during range only, HR, and a
   teammate who may see "Off" but not the type.
+- **As built** Time Off's own store and model (`infrastructure/openfga.ts`),
+  not People's file: a module is sold alone. `delegate` is `covered_by from
+approver`, a conditional tuple whose ranges are checked against `today`;
+  `teammate` is `member from team but not subject` (`self` is reserved).
+  Ids carry the tenant, since team keys are the tenant's words. `syncMember`
+  and `syncCover` write the tuples; calling them from the member consumers
+  and `setDelegation` comes with TOF-045 and the Drizzle wiring.
 
 ### [ ] TOF-049 — Seed for the demo company
 
@@ -762,7 +802,7 @@ no decline, cancel or change.
   2026 data, so screens match the design on `just dev`.
 - **Done when** `just dev` shows T1 with 11.5 days left for Adam.
 
-### [ ] TOF-050 — Standalone acceptance
+### [x] TOF-050 — Standalone acceptance
 
 - **Spec** PRD §3 Validation
 - **Files** `services/timeoff/src/standalone/acceptance.standalone.test.ts`
@@ -772,6 +812,9 @@ no decline, cancel or change.
   request, approve, borrow within the limit, clash warning, clock a day,
   correct it, close the month.
 - **Done when** `just standalone timeoff` is green with and without the AI keys.
+- **As built** `timeoffServer` over the in-memory ports; `fetch` answers
+  nothing and the suite asserts nothing asked, with `TYPESAFE_API_KEY` set or
+  not. A day's worked time with no break taken is the time clocked, flagged.
 
 ### Web shell and Reach
 
