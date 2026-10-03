@@ -1153,8 +1153,6 @@ describe('Employee fields: a text field becomes a date, its values reviewed', ()
          AND given_name IS NOT NULL AND status = 'active'
        ORDER BY id LIMIT 1`;
     if (other === undefined) throw new Error('nobody else to give a value to');
-    const [employee] = await stack.sql<{ given_name: string; family_name: string }[]>`
-      SELECT given_name, family_name FROM people.person WHERE id = ${EMPLOYEE.person}`;
     for (const [id, value] of [
       [ADMIN.person, '12/03/2024'],
       [EMPLOYEE.person, 'the Monday after Easter'],
@@ -1182,10 +1180,15 @@ describe('Employee fields: a text field becomes a date, its values reviewed', ()
     await page.getByRole('heading', { name: 'Change First day to date' }).waitFor();
     await page.getByText('1 converts', { exact: true }).waitFor();
     await page.getByText('12 Mar 2024').waitFor();
-    for (const name of [
-      `${employee?.given_name ?? ''} ${employee?.family_name ?? ''}`,
-      `${other.given_name} ${other.family_name}`,
-    ]) {
+    // The two values that do not fit, by the names the review shows for them:
+    // a record's name is whatever People displays, not a column of its own.
+    const selects = page.getByRole('checkbox', { name: /^Select / });
+    await expect.poll(() => selects.count(), { timeout: 30_000 }).toBe(2);
+    const names = (
+      await selects.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
+    ).map((label) => (label ?? '').replace(/^Select /, ''));
+    expect(names.every((n) => n.trim() !== '')).toBe(true);
+    for (const name of names) {
       await page.getByRole('combobox', { name: `What to do with ${name}’s value` }).click();
       await page.getByRole('option', { name: 'Type the right value' }).click();
       await page.getByRole('button', { name: new RegExp(`New First day for ${name}`) }).click();
