@@ -1,11 +1,12 @@
 'use client';
 
 import { TriangleAlert } from 'lucide-react';
-import { useState, type CSSProperties, type JSX, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
 import { parseIsoDate } from '../calendar/calendar';
+import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
 import { formatMinutes, layoutEvents, type Minutes } from './scheduler-model';
 
 /**
@@ -51,6 +52,14 @@ import { formatMinutes, layoutEvents, type Minutes } from './scheduler-model';
  * are the days of a month (`dayColumns(first, 31)`). Each day shows its events
  * as chips, as many as `maxChips` and then "+N more", and with `onSelect` a
  * day can be picked.
+ *
+ * ### About one day
+ *
+ * In a month or in rows, `onSelect` makes each day a button (in rows, the
+ * day's heading), and `detail` is what to say about the `selected` one: it
+ * opens from that day as a popover, a sheet under a finger, and `onDismiss`
+ * is asked to clear the selection when it closes. What the detail says is
+ * the caller's; the grid only gives it a place.
  */
 
 export type SchedulerTone =
@@ -149,8 +158,15 @@ export interface SchedulerProps {
   summaryRow?: SchedulerSummaryRow;
   /** Month: the selected day, outlined in the accent. */
   selected?: string;
-  /** Month: makes each day a button. */
+  /** Month and rows: makes each day a button. */
   onSelect?: (column: string) => void;
+  /**
+   * Month and rows: about the `selected` day, in a popover from it (a sheet
+   * under a finger). Named by the day.
+   */
+  detail?: ReactNode;
+  /** Month and rows: the detail was closed. Clear `selected` here. */
+  onDismiss?: () => void;
   /** Month: chips shown in a day before "+N more". */
   maxChips?: number;
   /** First hour shown, 0 to 23. */
@@ -247,6 +263,8 @@ export function Scheduler({
   summaryRow,
   selected,
   onSelect,
+  detail,
+  onDismiss,
   maxChips = 3,
   className,
 }: SchedulerProps): JSX.Element {
@@ -272,6 +290,8 @@ export function Scheduler({
         today={today}
         selected={selected}
         onSelect={onSelect}
+        detail={detail}
+        onDismiss={onDismiss}
         maxChips={maxChips}
         className={className}
       />
@@ -286,6 +306,10 @@ export function Scheduler({
         label={label}
         today={today}
         summaryRow={summaryRow}
+        selected={selected}
+        onSelect={onSelect}
+        detail={detail}
+        onDismiss={onDismiss}
         className={className}
       />
     );
@@ -505,6 +529,47 @@ function spoken(event: SchedulerEvent, columns: readonly SchedulerColumn[]): str
   return [days, event.title, event.detail].filter(Boolean).join(', ');
 }
 
+/**
+ * The selected day's detail, opening from its day. Closing it hands focus
+ * back to the day's button, which Radix cannot find for an anchor that is
+ * not a trigger.
+ */
+function DayDetail({
+  name,
+  detail,
+  onDismiss,
+  returnTo,
+  children,
+}: {
+  name: string;
+  detail: ReactNode;
+  onDismiss: (() => void) | undefined;
+  returnTo: { readonly current: HTMLButtonElement | null };
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <Popover
+      open
+      onOpenChange={(open) => {
+        if (!open) onDismiss?.();
+      }}
+    >
+      <PopoverAnchor asChild>{children}</PopoverAnchor>
+      <PopoverContent
+        aria-label={name}
+        side="bottom"
+        className="w-95"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          returnTo.current?.focus();
+        }}
+      >
+        {detail}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function Rows({
   columns,
   rows,
@@ -512,6 +577,10 @@ function Rows({
   label,
   today,
   summaryRow,
+  selected,
+  onSelect,
+  detail,
+  onDismiss,
   className,
 }: {
   columns: readonly SchedulerColumn[];
@@ -520,9 +589,14 @@ function Rows({
   label: string;
   today: string | undefined;
   summaryRow: SchedulerSummaryRow | undefined;
+  selected: string | undefined;
+  onSelect: ((column: string) => void) | undefined;
+  detail: ReactNode;
+  onDismiss: (() => void) | undefined;
   className: string | undefined;
 }): JSX.Element {
   const order = new Map(columns.map((entry, index) => [entry.id, index]));
+  const opener = useRef<HTMLButtonElement | null>(null);
   // One template for every line, so the header, the rows and the summary share
   // their columns without being one grid.
   const line =
@@ -548,30 +622,76 @@ function Rows({
       className={cn('overflow-hidden rounded-lg bg-surface shadow-sm', className)}
       style={{ '--reach-columns': columns.length } as CSSProperties}
     >
-      <div aria-hidden className={cn(line, 'h-11.5 items-center touch:h-9.5')}>
+      <div
+        aria-hidden={onSelect ? undefined : true}
+        className={cn(line, 'h-11.5 items-center touch:h-9.5')}
+      >
         <span />
         {columns.map((entry) => {
           const isToday = entry.id === today;
-          return (
-            <span
-              key={entry.id}
-              className={cn(
-                'flex flex-col items-center gap-1 text-2xs leading-none font-semibold',
-                isToday ? 'text-accent-fg' : entry.shade ? 'text-fg-subtle' : 'text-fg-muted',
-              )}
-            >
-              <span className="text-[0.5625rem] font-medium">
+          const isSelected = entry.id === selected;
+          const name = entry.fullLabel ?? entry.label;
+          const face = (
+            <>
+              <span aria-hidden className="text-[0.5625rem] font-medium">
                 {(entry.weekday ?? entry.label).slice(0, 1)}
               </span>
               <span
+                aria-hidden
                 className={cn(
                   'grid size-5 place-items-center rounded-full',
                   isToday && 'bg-accent-solid text-fg-on-accent',
+                  isSelected && !isToday && 'ring-2 ring-accent',
                 )}
               >
                 {entry.day ?? entry.label}
               </span>
-            </span>
+            </>
+          );
+          const cell = cn(
+            'flex flex-col items-center gap-1 text-2xs leading-none font-semibold',
+            isToday ? 'text-accent-fg' : entry.shade ? 'text-fg-subtle' : 'text-fg-muted',
+          );
+          if (!onSelect) {
+            return (
+              <span key={entry.id} className={cell}>
+                {face}
+              </span>
+            );
+          }
+          const button = (
+            <button
+              key={entry.id}
+              type="button"
+              ref={isSelected ? opener : undefined}
+              aria-pressed={isSelected}
+              aria-label={[name, entry.note].filter(Boolean).join(', ')}
+              aria-current={isToday ? 'date' : undefined}
+              onClick={() => {
+                onSelect(entry.id);
+              }}
+              className={cn(
+                cell,
+                // The whole column head is the target; a finger's is 44px tall.
+                'relative h-full justify-center rounded-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+                'touch:before:absolute touch:before:inset-x-0 touch:before:top-1/2 touch:before:h-11 touch:before:-translate-y-1/2',
+              )}
+            >
+              {face}
+            </button>
+          );
+          return isSelected && detail !== undefined ? (
+            <DayDetail
+              key={entry.id}
+              name={name}
+              detail={detail}
+              onDismiss={onDismiss}
+              returnTo={opener}
+            >
+              {button}
+            </DayDetail>
+          ) : (
+            button
           );
         })}
       </div>
@@ -692,6 +812,8 @@ function Month({
   today,
   selected,
   onSelect,
+  detail,
+  onDismiss,
   maxChips,
   className,
 }: {
@@ -701,10 +823,13 @@ function Month({
   today: string | undefined;
   selected: string | undefined;
   onSelect: ((column: string) => void) | undefined;
+  detail: ReactNode;
+  onDismiss: (() => void) | undefined;
   maxChips: number;
   className: string | undefined;
 }): JSX.Element {
   const order = new Map(columns.map((entry, index) => [entry.id, index]));
+  const opener = useRef<HTMLButtonElement | null>(null);
   const lead = columns[0] ? weekday(columns[0].id) : 0;
   const cells: (SchedulerColumn | null)[] = [...Array<null>(lead).fill(null), ...columns];
   while (cells.length % 7 !== 0) cells.push(null);
@@ -735,7 +860,7 @@ function Month({
           const isSelected = entry.id === selected;
           const isToday = entry.id === today;
           const name = entry.fullLabel ?? entry.label;
-          return (
+          const day = (
             <li
               key={entry.id}
               className={cn(
@@ -754,6 +879,7 @@ function Month({
                 {onSelect ? (
                   <button
                     type="button"
+                    ref={isSelected ? opener : undefined}
                     aria-pressed={isSelected}
                     aria-label={[name, entry.note].filter(Boolean).join(', ')}
                     aria-current={isToday ? 'date' : undefined}
@@ -825,6 +951,19 @@ function Month({
                 </span>
               ) : null}
             </li>
+          );
+          return isSelected && detail !== undefined ? (
+            <DayDetail
+              key={entry.id}
+              name={name}
+              detail={detail}
+              onDismiss={onDismiss}
+              returnTo={opener}
+            >
+              {day}
+            </DayDetail>
+          ) : (
+            day
           );
         })}
       </ol>
