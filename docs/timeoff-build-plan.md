@@ -573,13 +573,18 @@ no decline, cancel or change.
   approver, the shape `routeTo` takes. `leave_type.approval_rule_key` gets its
   foreign key here.
 
-### [ ] TOF-033 — Attendance tables
+### [x] TOF-033 — Attendance tables
 
 - **Files** `migrations/<ts>_timeoff_attendance.sql`
 - **Depends on** TOF-030
 - **Approach** `punch` insert-only, `schedule`, `pay_period`, `pay_period_line`;
   no coordinate column anywhere.
 - **Done when** an integration test asserts the `punch` column list.
+- **As built** `kiosk_device` is here too (the token's SHA-256 only), because a
+  punch names its device. `member_schedule` is effective dated. A closed
+  `pay_period` refuses changes, and a line posted into one is refused under
+  `FOR SHARE`, so a close and a post racing cannot both win. `punch` and
+  `pay_period_line` are insert-only for `svc_timeoff`.
 
 ### [ ] TOF-034 — Drizzle repositories and the unit of work
 

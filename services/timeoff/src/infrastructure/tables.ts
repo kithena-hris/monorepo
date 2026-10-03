@@ -262,3 +262,109 @@ export const holiday = timeoff.table(
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.calendarKey, t.day] })],
 );
+
+/* ------------------------------------------------------------- TOF-033 -- */
+
+/** A SHA-256: `bytea` in the database, hex here. */
+const sha256 = customType<{ data: string; driverData: Buffer }>({
+  dataType: () => 'bytea',
+  toDriver: (hex: string) => Buffer.from(hex, 'hex'),
+  fromDriver: (value: Buffer) => value.toString('hex'),
+});
+
+export const kioskDevice = timeoff.table(
+  'kiosk_device',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    locationKey: text('location_key').notNull(),
+    name: text('name').notNull(),
+    /** The token's SHA-256, never the token. */
+    tokenHash: sha256('token_hash').notNull(),
+    lastSeenAt: instant('last_seen_at'),
+    revokedAt: instant('revoked_at'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+/** Insert-only, and no coordinate column: the integration test holds the list. */
+export const punch = timeoff.table(
+  'punch',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    personId: uuid('person_id').notNull(),
+    at: instant('at').notNull(),
+    recordedAt: instant('recorded_at').notNull(),
+    kind: text('kind').notNull(),
+    source: text('source').notNull(),
+    workModel: text('work_model').notNull(),
+    deviceId: uuid('device_id'),
+    insideOfficeArea: boolean('inside_office_area'),
+    supersedes: uuid('supersedes'),
+    reason: text('reason'),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+export const schedule = timeoff.table(
+  'schedule',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    kind: text('kind').notNull(),
+    /** The domain's `Schedule`, whole. */
+    definition: jsonb('definition').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
+);
+
+export const memberSchedule = timeoff.table(
+  'member_schedule',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    effectiveFrom: calendarDate('effective_from').notNull(),
+    scheduleKey: text('schedule_key').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId, t.effectiveFrom] })],
+);
+
+export const payPeriod = timeoff.table(
+  'pay_period',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    startsOn: calendarDate('starts_on').notNull(),
+    endsOn: calendarDate('ends_on').notNull(),
+    closedAt: instant('closed_at'),
+    closedBy: uuid('closed_by'),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+/** Insert-only; nothing posts into a closed period (a trigger). */
+export const payPeriodLine = timeoff.table(
+  'pay_period_line',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    periodId: uuid('period_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    teamKey: text('team_key').notNull(),
+    day: calendarDate('day').notNull(),
+    workedMinutes: integer('worked_minutes').notNull(),
+    compMinutes: integer('comp_minutes').notNull().default(0),
+    paidMinutes: integer('paid_minutes').notNull().default(0),
+    supersedes: uuid('supersedes'),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);

@@ -332,6 +332,116 @@ seeds.push(async (tx) => {
     .values({ tenantId, calendarKey: 'es', day: '2026-10-12', name: 'Fiesta Nacional' });
 });
 
+/* ------------------------------------------------------------- TOF-033 -- */
+
+TABLES.push(
+  'kiosk_device',
+  'punch',
+  'schedule',
+  'member_schedule',
+  'pay_period',
+  'pay_period_line',
+);
+seeds.push(async (tx) => {
+  await tx.insert(t.kioskDevice).values({
+    tenantId,
+    id: id(40),
+    locationKey: 'madrid',
+    name: 'Entrance',
+    tokenHash: 'ab'.repeat(32),
+  });
+  await tx.insert(t.punch).values({
+    tenantId,
+    id: id(41),
+    personId: ADAM,
+    at: '2026-10-05T06:52:00Z',
+    recordedAt: '2026-10-05T06:52:01Z',
+    kind: 'in',
+    source: 'kiosk',
+    workModel: 'office',
+    deviceId: id(40),
+  });
+  await tx.insert(t.schedule).values({
+    tenantId,
+    key: 'office_hours',
+    name: 'Office hours',
+    kind: 'fixed',
+    definition: { kind: 'fixed', name: 'Office hours', week: {} },
+  });
+  await tx
+    .insert(t.memberSchedule)
+    .values({ tenantId, personId: ADAM, effectiveFrom: '2026-01-01', scheduleKey: 'office_hours' });
+  await tx.insert(t.payPeriod).values([
+    {
+      tenantId,
+      id: id(50),
+      startsOn: '2026-09-01',
+      endsOn: '2026-09-30',
+      closedAt: '2026-10-01T09:00:00Z',
+      closedBy: MARCO,
+    },
+    { tenantId, id: id(51), startsOn: '2026-10-01', endsOn: '2026-10-31' },
+  ]);
+  await tx.insert(t.payPeriodLine).values({
+    tenantId,
+    id: id(52),
+    periodId: id(51),
+    personId: ADAM,
+    teamKey: 'platform',
+    day: '2026-10-05',
+    workedMinutes: 480,
+  });
+});
+
+describe('attendance', () => {
+  it('stores a punch without a coordinate column', async () => {
+    const rows = await admin.execute(sql`
+      SELECT column_name::text AS c FROM information_schema.columns
+       WHERE table_schema = 'timeoff' AND table_name = 'punch'
+       ORDER BY ordinal_position`);
+    expect([...rows].map((r) => r['c'])).toEqual([
+      'tenant_id',
+      'id',
+      'person_id',
+      'at',
+      'recorded_at',
+      'kind',
+      'source',
+      'work_model',
+      'device_id',
+      'inside_office_area',
+      'supersedes',
+      'reason',
+    ]);
+  });
+
+  it('cannot have a punch changed by svc_timeoff', async () => {
+    expect(
+      await sqlState(
+        inTenant(TENANT_A, (tx) => tx.execute(sql`UPDATE timeoff.punch SET kind = 'out'`)),
+      ),
+    ).toBe(INSUFFICIENT_PRIVILEGE);
+  });
+
+  it('refuses a line posted into a closed period', async () => {
+    expect(
+      await sqlState(
+        inTenant(TENANT_A, (tx) =>
+          tx.insert(t.payPeriodLine).values({
+            tenantId,
+            id: id(53),
+            periodId: id(50),
+            personId: ADAM,
+            teamKey: 'platform',
+            day: '2026-09-30',
+            workedMinutes: 30,
+          }),
+        ),
+      ),
+    ).toBe(RESTRICT_VIOLATION);
+  });
+});
+
 /* -------------------------------------------------------- every table -- */
 
 describe('every Time Off table', () => {
