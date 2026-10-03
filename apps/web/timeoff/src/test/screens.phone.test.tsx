@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import axe from 'axe-core';
 import { expect, it } from 'vitest';
 
-import { Approvals, Overview } from '../index';
+import { Insights, Overview } from '../index';
 import { adam } from '../overview/acme.fixture';
 
 /**
@@ -34,21 +34,21 @@ function underFloor(root: Element): string[] {
 
 it('draws a placeholder under a phone’s bar, its tabs as pills, every target reachable', async () => {
   render(
-    <Approvals
+    <Insights
       frame={{
-        section: 'Requests',
+        section: 'Insights',
         siblings: [
           {
             label: 'Time off',
             items: [
               { href: '/time-off/overview', label: 'Overview', icon: 'overview' },
-              { href: '/time-off/approvals/waiting', label: 'Requests', current: true },
+              { href: '/time-off/insights/what-changed', label: 'Insights', current: true },
             ],
           },
         ],
         tabs: [
-          { href: '/time-off/approvals/waiting', label: 'Waiting for me', current: true },
-          { href: '/time-off/approvals/decided', label: 'Decided', current: false },
+          { href: '/time-off/insights/what-changed', label: 'What changed', current: true },
+          { href: '/time-off/insights/balances', label: 'Balances', current: false },
         ],
         actions: [{ href: '/time-off/request', label: 'Request time off', icon: 'add' }],
       }}

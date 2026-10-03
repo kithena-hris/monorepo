@@ -34,24 +34,24 @@ describe('routes.json', () => {
 describe('a placeholder screen', () => {
   it('opens with the host’s trail, its title and the section’s tabs, over a skeleton', async () => {
     const { container } = render(
-      <screens.Approvals
+      <screens.Insights
         frame={{
-          section: 'Requests',
+          section: 'Insights',
           tabs: [
-            { href: '/time-off/approvals/waiting', label: 'Waiting for me', current: true },
-            { href: '/time-off/approvals/decided', label: 'Decided', current: false },
+            { href: '/time-off/insights/what-changed', label: 'What changed', current: true },
+            { href: '/time-off/insights/balances', label: 'Balances', current: false },
           ],
         }}
       />,
     );
     const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
     expect(trail.getByRole('link', { name: 'Time off' }).getAttribute('href')).toBe('/time-off');
-    expect(screen.getByRole('heading', { level: 1, name: 'Requests' })).toBeTruthy();
-    const tabs = within(screen.getByRole('navigation', { name: 'Requests tabs' }));
-    expect(tabs.getByRole('link', { name: 'Decided' }).getAttribute('href')).toBe(
-      '/time-off/approvals/decided',
+    expect(screen.getByRole('heading', { level: 1, name: 'Insights' })).toBeTruthy();
+    const tabs = within(screen.getByRole('navigation', { name: 'Insights tabs' }));
+    expect(tabs.getByRole('link', { name: 'Balances' }).getAttribute('href')).toBe(
+      '/time-off/insights/balances',
     );
-    expect(screen.getByRole('status').textContent).toContain('Loading Requests');
+    expect(screen.getByRole('status').textContent).toContain('Loading Insights');
     expect(await axeViolations(container)).toEqual([]);
   });
 });
