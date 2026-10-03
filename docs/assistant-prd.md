@@ -912,8 +912,16 @@ retention, not Kithena's. So, in any chat channel:
   leave, without per-manager counts.
 - **Answers are only ever seen by the asker** (§5).
 
-Whether a company may choose to allow names in chat is the one open question
-(§20).
+**A company may opt in to names in chat** (decided 2026-10-03). It is off by
+default. HR switches it on in Time Off's settings ("Name people on private
+leave in chat answers"), behind a warning that the names, and so health data,
+are then stored by the chat provider under the company's own retention. The
+switch is an audited setting change (who, when, on or off), and the assistant
+reads it per question from Time Off with the catalogue, so turning it off
+takes effect on the next question. With it on, the first two rules above are
+lifted for that company. A row still reads "Away" to anyone whom Time Off
+would not show the type, because the module's sight rule is applied before
+the answer is written and the switch never widens it.
 
 ---
 
@@ -1228,16 +1236,13 @@ module's flow for them to confirm.
 
 ---
 
-## 20. Open question
+## 20. Decided questions
 
-**May a company let chat answers name people on private leave?** v1 never
-does (§11.4): HR asking "who is on sick leave today?" in Slack gets a count and
-a link to Time Off. A company could reasonably want the names in a DM to HR,
-since HR sees them on the calendar anyway. Allowing it would be a Time Off
-setting, off by default, read by the capability and passed to the assistant;
-it sends special-category data to Slack's servers under the company's
-retention, which is the company's call as controller but also a statement in
-Kithena's privacy notice. Until someone decides, the safe default stands.
+**May a company let chat answers name people on private leave?** Yes, by its
+own choice (decided 2026-10-03): a Time Off setting, off by default, switched
+by HR behind a warning and audited (§11.4, AST-029a). It sends
+special-category data to the chat provider under the company's retention,
+which is the company's call as controller; Kithena's privacy notice says so.
 
 ---
 

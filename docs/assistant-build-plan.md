@@ -48,7 +48,7 @@ lanes then branch from `main` again, one pull request each.
 | 4   | `assistant/service` — the use case, clients, identity's route, planner, eval gate, route | AST-012 – AST-017 |
 | 5   | `assistant/people` — People's capabilities                                               | AST-018 – AST-021 |
 | 6   | `assistant/timeoff` — Time Off's capabilities                                            | AST-022 – AST-024 |
-| 7   | `assistant/slack-and-deploy` — Slack rerouted, People's old route gone, deploy, docs     | AST-025 – AST-029 |
+| 7   | `assistant/slack-and-deploy` — Slack rerouted, People's old route gone, deploy, docs     | AST-025 – AST-029a |
 | 8   | `assistant/timeoff-more` — balances, pending, the union of items                         | AST-030 – AST-032 |
 | 9   | `assistant/follow-ups` — earlier questions in a conversation                             | AST-033           |
 | 10  | `assistant/teams` — the Teams adapter                                                    | AST-034           |
@@ -551,6 +551,24 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   platform service; capabilities in contracts; the model only plans), this file
 - **Depends on** AST-027
 - **Done when** `pnpm docs:brand-leak` passes and the memory table adds up.
+
+### [ ] AST-029a — A company's choice to name private leave in chat
+
+- **Spec** PRD §11.4
+- **Files** `services/timeoff/src/{domain,application}/settings/*`, Time Off's
+  settings screen and its operations, the `timeoff.away` capability's
+  catalogue answer, `platform/assistant/src/domain/answer*`
+- **Depends on** AST-023, AST-011
+- **Approach** A tenant setting `chatNamesPrivateLeave` (default false) in
+  Time Off, changed only by HR, recorded as a settings event with who, when
+  and the new value. The settings screen shows it with the warning text from
+  the PRD. Time Off returns it with its capability catalogue; the assistant's
+  answer policy lifts the two private-leave rules only when it is true, after
+  Time Off's sight rule has already been applied.
+- **Done when** a test proves: off, a sick-leave filter answers with a count
+  and a link; on, it names the people the asker may see as sick; on, an asker
+  who may only see "Away" still gets "Away"; and the change appears in the
+  audit trail.
 
 ---
 
