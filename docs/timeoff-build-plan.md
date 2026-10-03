@@ -393,7 +393,7 @@ no decline, cancel or change.
 - **Done when** Marco away 13–16 Oct routes Adam's request to Omar, and a
   request untouched for 3 working days escalates.
 
-### [ ] TOF-021 — Queue grouping
+### [x] TOF-021 — Queue grouping
 
 - **Spec** PRD §9.2
 - **Files** `services/timeoff/src/domain/approval/triage.ts`
@@ -402,6 +402,11 @@ no decline, cancel or change.
   sick under threshold, comp within banked hours; otherwise look closer with
   the first failing rule as a typed reason.
 - **Done when** T16's five requests split 3 and 2 with the reasons drawn.
+- **As built** Coverage comes in as `daysBelowMinimum` rather than being
+  computed here, so this landed before TOF-018 and imports nothing from it.
+  Adam's T16 line names the release on the 22nd too; the reason is the
+  first rule that fails, `below_minimum` on the 21st, and the release is
+  only the next one (`protected_period`).
 
 ### [ ] TOF-022 — Clash fixes and counter-proposals
 
