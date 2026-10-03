@@ -46,6 +46,7 @@ import {
   decideRequest,
 } from '../application/approval/decide.js';
 import { setDelegation } from '../application/approval/escalation.js';
+import { setChatAnswers } from '../application/settings/chat.js';
 import { describeRequest } from '../application/assist/describe.js';
 import { holidayDraft } from '../application/assist/holiday-draft.js';
 import { readPolicyProse } from '../application/assist/policy-prose.js';
@@ -139,6 +140,7 @@ import {
   AttendanceRulesBody,
   AttendanceSettingsView,
   AutoApprovalBody,
+  ChatAnswersBody,
   BalanceLedgerView,
   BalanceView,
   BlockKindView,
@@ -1426,7 +1428,19 @@ export const ROUTES: readonly Route[] = [
       locations: [...v.locations],
       packs: [...v.packs],
       modules: v.modules.map((m) => ({ key: m.key, events: [...m.events] })),
+      chatAnswers: { ...v.chatAnswers },
     }),
+  }),
+  route({
+    name: 'setTimeOffChatAnswers',
+    method: 'PUT',
+    path: `${V1}/integrations/chat-answers`,
+    summary:
+      'Whether a chat answer may name people on private leave (sick, parental): off by default, recorded with who and when; HR',
+    body: ChatAnswersBody,
+    answer: Done,
+    run: (deps, caller, { body }) => setChatAnswers(deps)(caller, body),
+    shape: done,
   }),
   route({
     name: 'connectTimeOffIntegration',

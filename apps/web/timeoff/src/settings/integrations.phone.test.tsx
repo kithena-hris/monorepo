@@ -37,6 +37,7 @@ it('lists the integrations on a phone, with nothing to scroll sideways', async (
           locations: [{ locationKey: 'madrid', name: null }],
           packs: [{ country: 'ES', reviewed: false, inUse: true }],
           modules: [{ key: 'payroll', events: ['timeoff.period.closed'] }],
+          chatAnswers: { namesPrivateLeave: false },
         },
       }}
     />,

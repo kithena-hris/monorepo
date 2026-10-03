@@ -33,6 +33,9 @@ describe('the runtime catalogue (AST-004)', () => {
     expect(timeoff.fields).toEqual({});
     expect(timeoff.metrics).toEqual([]);
     expect(timeoff.denied).toEqual([]);
+    // Off unless Time Off says the company switched it on (AST-029a).
+    expect(timeoff.chatNamesPrivateLeave).toBe(false);
+    expect(RuntimeCatalogue.parse(people).chatNamesPrivateLeave).toBe(false);
   });
 
   it('refuses an extra key at every level, and a value where a field is', () => {

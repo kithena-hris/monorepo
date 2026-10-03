@@ -47,6 +47,12 @@ export const RuntimeCatalogue = z.strictObject({
   metrics: z.array(z.strictObject({ key: FieldKey, label })).default([]),
   /** Time Off's leave types, private ones marked. */
   leaveTypes: z.array(CatalogueLeaveType).default([]),
+  /**
+   * Time Off's: the company lets a chat answer name people on a private leave
+   * type (§11.4), switched by HR and off by default. It lifts the chat rules
+   * only; a row still says "Away" wherever Time Off did not show the type.
+   */
+  chatNamesPrivateLeave: z.boolean().default(false).register(policy, asPublic()),
   /** This tenant's not-for-AI keys and the words for them, for the AI gateway. */
   denied: z
     .array(z.strictObject({ key: FieldKey, labels: z.array(label).register(policy, asPublic()) }))

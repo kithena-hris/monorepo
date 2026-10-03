@@ -14,6 +14,7 @@ import { LeaveType } from '../../domain/policy/leave-type.js';
 import { decideRequest } from '../approval/decide.js';
 import type { Caller } from '../ports.js';
 import { sendRequest } from '../request/request.js';
+import { setChatAnswers } from '../settings/chat.js';
 import {
   caller,
   hr,
@@ -50,6 +51,8 @@ describe('Time Off’s capability catalogue (AST-022)', () => {
     expect(fields[0]?.options).toEqual([{ value: 'vacation', label: 'Vacation' }]);
     expect(fields[1]?.options).toEqual([{ value: 'platform', label: 'Platform' }]);
     expect(catalogue.denied.find((d) => d.key === 'sick_note')?.labels).toContain('sick leave');
+    // Nobody chose to name private leave in chat, so the assistant does not (AST-029a).
+    expect(catalogue.chatNamesPrivateLeave).toBe(false);
   });
 
   it('is configuration only, so HR and an employee are offered the same', async () => {
@@ -230,6 +233,30 @@ describe('timeoff.away (AST-023)', () => {
     const notVacation = { filters: [{ key: 'leave_type', op: 'not_in', values: ['vacation'] }] };
     expect(await ask(app, caller(people.omar), notVacation)).toMatchObject({ total: 0 });
     expect(await ask(app, hr, notVacation)).toMatchObject({ total: 2 });
+  });
+
+  it('names a private type where the company chose to and the asker sees it, and nowhere else (AST-029a)', async () => {
+    const app = await october();
+    expect(await setChatAnswers(app.deps)(hr, { namesPrivateLeave: true })).toMatchObject({
+      ok: true,
+    });
+    for (const who of [hr, caller(people.marco)]) {
+      // oxlint-disable-next-line no-await-in-loop -- two askers who see the type
+      expect(lines(await ask(app, who, sick))).toEqual([
+        ['Adam Novak', 'Tue 6 · Sick'],
+        ['Yuki Tanaka', 'Tue 6 to Wed 7 · Sick'],
+      ]);
+    }
+    // A teammate sees the day, never the type: the switch does not widen sight.
+    expect(lines(await ask(app, caller(people.omar)))).toEqual([
+      ['Adam Novak', 'Tue 6 · Away'],
+      ['Leo Martin', 'Tue 6, half day · Vacation'],
+      ['Omar Haddad', 'Mon 5 to Wed 7 · Vacation'],
+      ['Yuki Tanaka', 'Tue 6 to Wed 7 · Away'],
+    ]);
+    expect(await ask(app, caller(people.omar), sick)).toMatchObject({ rows: [], total: 0 });
+    const catalogue = await capabilityCatalogue(app.deps)(caller(people.omar));
+    expect(catalogue.ok && catalogue.value.chatNamesPrivateLeave).toBe(true);
   });
 
   it('answers a teammate byte for byte the same whether two teammates are off sick or none are', async () => {

@@ -139,7 +139,7 @@ export const OPERATIONS = {
   /** T35: calendars, chat apps, kiosks, country packs, and the modules that would read Time Off; HR */
   TimeOffIntegrations: `query TimeOffIntegrations {
     timeOffIntegrations {
-      integrations { account available configured connected connectedAt kind provider } kiosks { id lastSeenAt locationKey name revokedAt } locations { locationKey name } modules { events key } packs { country inUse reviewed }
+      chatAnswers { namesPrivateLeave } integrations { account available configured connected connectedAt kind provider } kiosks { id lastSeenAt locationKey name revokedAt } locations { locationKey name } modules { events key } packs { country inUse reviewed }
     }
   }`,
 
@@ -531,6 +531,13 @@ export const OPERATIONS = {
   /** T33: breaks, rest, the weekly limit and what overtime becomes; HR */
   SetTimeOffAttendanceRules: `mutation SetTimeOffAttendanceRules($key: String!, $input: JSON!) {
     setTimeOffAttendanceRules(idempotencyKey: $key, input: $input) {
+      ok
+    }
+  }`,
+
+  /** Whether a chat answer may name people on private leave (sick, parental): off by default, recorded with who and when; HR */
+  SetTimeOffChatAnswers: `mutation SetTimeOffChatAnswers($key: String!, $input: JSON!) {
+    setTimeOffChatAnswers(idempotencyKey: $key, input: $input) {
       ok
     }
   }`,

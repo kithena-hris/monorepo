@@ -32,6 +32,7 @@ const SETTING: Setting = {
   offered: offer([PEOPLE_CATALOGUE, TIMEOFF_CATALOGUE]),
   leaveTypes: TIMEOFF_CATALOGUE.leaveTypes,
   origin: 'https://acme.app.kithena.com',
+  namesPrivateLeave: false,
 };
 
 interface Row {
@@ -419,6 +420,69 @@ describe('the worked examples', () => {
     expect(a.text).toBe(
       'I found 1 person away on sick leave.\n• Toby Flenderson — Tue 6 · Baja médica',
     );
+  });
+
+  describe('a company that chose to name private leave in chat (§11.4, AST-029a)', () => {
+    const sickToday = (rows: Row[], extra = {}) => ({
+      s1: people(rows.length, 'away on sick leave on Tuesday 6 October', rows, extra),
+    });
+
+    it('off: a sick-leave filter answers with a count and a link', async () => {
+      const a = await answer(
+        one('timeoff.away', ON_SICK_LEAVE),
+        sickToday([{ name: 'Toby Flenderson', detail: 'Tue 6 · Baja médica' }]),
+        { namesPrivateLeave: false },
+      );
+      expect(a.text).toBe(
+        'There is 1 person away on sick leave on Tuesday 6 October. I don’t name people on sick or parental leave in Slack — see who in Time Off: https://acme.app.kithena.com/time-off/calendar/month?day=2026-10-06&types=sick',
+      );
+      expect(a.people).toEqual([]);
+    });
+
+    it('on: names the people the asker may see as sick, with the type Time Off showed them', async () => {
+      const a = await answer(
+        one('timeoff.away', ON_SICK_LEAVE),
+        sickToday([
+          { name: 'Toby Flenderson', detail: 'Tue 6 · Baja médica' },
+          { name: 'Yuki Tanaka', detail: 'Tue 6 to Wed 7 · Baja médica' },
+        ]),
+        { namesPrivateLeave: true },
+      );
+      expect(a.text).toBe(
+        'I found 2 people away on sick leave on Tuesday 6 October.\n• Toby Flenderson — Tue 6 · Baja médica\n• Yuki Tanaka — Tue 6 to Wed 7 · Baja médica',
+      );
+      expect(a.people.map((p) => p.name)).toEqual(['Toby Flenderson', 'Yuki Tanaka']);
+    });
+
+    it('on: an asker who may only see "Away" still gets "Away"', async () => {
+      // Time Off's sight rule ran first: a type the asker may not see is "Away" in its rows,
+      // and a type filter finds nobody for them. The switch widens neither.
+      const away = await answer(
+        one('timeoff.away', TODAY),
+        {
+          s1: people(
+            2,
+            'away on Tuesday 6 October',
+            [
+              { name: 'Adam Novak', detail: 'Tue 6 · Away' },
+              { name: 'Leo Martin', detail: 'Tue 6, half day · Vacation' },
+            ],
+            { scope: 'visible' },
+          ),
+        },
+        { namesPrivateLeave: true },
+      );
+      expect(away.text).toContain('• Adam Novak — Tue 6 · Away');
+      const filtered = await answer(
+        one('timeoff.away', ON_SICK_LEAVE),
+        sickToday([], { scope: 'visible' }),
+        { namesPrivateLeave: true },
+      );
+      expect(filtered.text).toBe(
+        'I couldn’t find anyone you can see away on sick leave on Tuesday 6 October. Teammates’ sick and parental leave shows to you only as Away.',
+      );
+      expect(filtered.people).toEqual([]);
+    });
   });
 
   it('§7.9 a module that does not answer', () => {

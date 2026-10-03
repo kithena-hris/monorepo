@@ -1,4 +1,4 @@
-h1:qeLT+5/fgCFmg1GVcuPTZWy0fUutqfqsxhv4+gy/MqA=
+h1:yvkAaJc0zWPmpwq8FSge15I9bILppNFKybOIU6Us9a8=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -106,3 +106,4 @@ h1:qeLT+5/fgCFmg1GVcuPTZWy0fUutqfqsxhv4+gy/MqA=
 20261003170000_timeoff_kiosk.sql h1:Z0WBC6ZQSQsGWwskTbL63M3gAjBRDE6yixwmsGVbDM8=
 20261003171000_timeoff_integrations.sql h1:s9FOwgvxZRF+rCup0kwtNxFR1bHfa77zIzNLmvjssAQ=
 20261003173000_timeoff_scim.sql h1:/n02zwuFxFPqf6IvRJ/Li8JNRhxBxt7suE5tHFeyFF0=
+20261004010000_timeoff_chat_answers_setting.sql h1:2fLIPg/FJgZtL2d4AUF2nT/FNlFax+8MOBVpylxQwKo=

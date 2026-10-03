@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffIntegrations {\n    timeOffIntegrations {\n      chatAnswers { namesPrivateLeave } integrations { account available configured connected connectedAt kind provider } kiosks { id lastSeenAt locationKey name revokedAt } locations { locationKey name } modules { events key } packs { country inUse reviewed }\n    }\n  }"}

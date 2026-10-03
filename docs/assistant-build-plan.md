@@ -758,7 +758,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   where it is written and who reads it, and says identity's Vercel deploy now
   gets `KITHENA_ENTITLEMENTS`.
 
-### [ ] AST-029a — A company's choice to name private leave in chat
+### [x] AST-029a — A company's choice to name private leave in chat
 
 - **Spec** PRD §11.4
 - **Files** `services/timeoff/src/{domain,application}/settings/*`, Time Off's
@@ -775,6 +775,22 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   and a link; on, it names the people the asker may see as sick; on, an asker
   who may only see "Away" still gets "Away"; and the change appears in the
   audit trail.
+- **As built** the setting is the `chat_answers` document in
+  `timeoff.setting` (`{ namesPrivateLeave }`, migration
+  `20261004010000_timeoff_chat_answers_setting.sql` widens the key list).
+  `domain/settings/chat.ts` switches it and raises `timeoff.settings.changed`
+  (`{ setting: 'chat_names_private_leave', value }`; who and when are the
+  envelope's actor and `occurredAt`), nothing when already that way;
+  `application/settings/chat.ts` is HR only and writes setting and event in
+  one transaction. The switch is on Integrations, under "Chat apps"
+  (`PUT /v1/timeoff/integrations/chat-answers`, `setTimeOffChatAnswers`), with
+  the warning as the field's description. The catalogue carries
+  `chatNamesPrivateLeave`. **Both** places lift the rules: Time Off writes a
+  private type's name in `timeoff.away`'s `detail` only where `seesType`
+  already shows it to the asker (it used to write "Away" for everybody), and
+  the assistant's `answerOf` drops the count-and-link answer and the "Away"
+  rewrite. The audit trail is the outbox event: `platform/audit` does not
+  consume Time Off's topic yet (`docs/environments.md`).
 
 ---
 

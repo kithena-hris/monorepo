@@ -501,6 +501,25 @@ describe('§7.7 and §7.8 private leave', () => {
     expect(asked.answer.text).not.toContain('Somebody');
     expect(asked.answer.people).toEqual([]);
   });
+
+  it('Ada, where the company chose names in chat: Time Off says so with its catalogue (AST-029a)', async () => {
+    const { modules } = fakeModules(
+      { ...BOTH_MODULES, timeoff: { ...TIMEOFF_CATALOGUE, chatNamesPrivateLeave: true } },
+      {
+        'timeoff.away': returns(
+          people(1, 'away on Baja médica on Tuesday 6 October', [
+            { name: 'Somebody', detail: 'Tue 6 · Baja médica' },
+          ]),
+        ),
+      },
+    );
+    const asked = await ask({ modules, planner: fakePlanner(plan).planner })(
+      question('who is on sick leave today?'),
+      'c',
+    );
+    expect(asked.answer.text).toContain('• Somebody — Tue 6 · Baja médica');
+    expect(asked.answer.text).not.toContain('/time-off/calendar/');
+  });
 });
 
 describe('when something does not answer', () => {
