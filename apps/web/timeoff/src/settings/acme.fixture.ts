@@ -243,7 +243,14 @@ export const attendance = () => ({
     weeklyMaxMinutes: 2520,
     overtime: { becomes: 'choose' as const, multiplier: '1.25' },
   },
-  defaultSchedule: { kind: 'fixed', name: 'Standard' },
+  // 09:00–17:30 Monday to Friday, half an hour's break: Time Off's DEFAULT_SCHEDULE.
+  defaultSchedule: {
+    kind: 'fixed',
+    name: 'Standard',
+    week: Object.fromEntries(
+      ['1', '2', '3', '4', '5'].map((d) => [d, { start: 540, end: 1050, breakMinutes: 30 }]),
+    ),
+  },
 });
 
 /* ---------------------------------------------------------------- T34 -- */

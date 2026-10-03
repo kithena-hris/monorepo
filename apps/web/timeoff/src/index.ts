@@ -13,6 +13,7 @@ import { Overview as OverviewScreen } from './overview/overview';
 import { placeholder } from './placeholder';
 import { LeaveType as LeaveTypeScreen } from './settings/leave-type';
 import { LeaveTypes as LeaveTypesScreen } from './settings/leave-types';
+import { NegativeBalance as NegativeBalanceScreen } from './settings/negative-balance';
 
 export const Overview = framed(OverviewScreen);
 export const RequestTimeOff = framed(placeholder('Request time off'));
@@ -30,7 +31,7 @@ export const Insights = framed(placeholder('Insights'));
 export const LeaveTypes = framed(LeaveTypesScreen);
 export const LeaveType = framed(LeaveTypeScreen);
 export const DescribePolicy = framed(placeholder('Write a policy in plain words'));
-export const NegativeBalance = framed(placeholder('Negative balance'));
+export const NegativeBalance = framed(NegativeBalanceScreen);
 export const AttendanceSettings = framed(placeholder('Attendance'));
 export const ApprovalSettings = framed(placeholder('Approvals'));
 export const HolidaySettings = framed(placeholder('Holidays'));

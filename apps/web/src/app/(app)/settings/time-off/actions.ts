@@ -31,19 +31,20 @@ export async function publishPolicy(policyId: string, effectiveFrom: string): Pr
 }
 
 /**
- * T31: going below zero, as a revision of the policy. A policy whose latest
- * version is published is published again from `publishFrom`, so the rule
- * holds at once; one with a draft keeps it in the draft, to go out with the
- * rest of it.
+ * T31: going below zero, as a revision of the policy. With `publish` (the
+ * policy's latest version is published) it is published again from today, so
+ * the rule holds at once; a policy with a draft keeps it in the draft, to go
+ * out with the rest of it. Going below zero changes no entitlement, so the
+ * re-fold from today changes no amount.
  */
 export async function saveNegativeBalance(
   policyId: string,
   rule: unknown,
-  publishFrom: string | null,
+  publish: boolean,
 ): Promise<Outcome> {
   const set = await timeOff('SetTimeOffNegativeBalanceRule', { policyId, input: { rule } });
-  if (!set.ok || publishFrom === null) return outcome(set);
-  return publishPolicy(policyId, publishFrom);
+  if (!set.ok || !publish) return outcome(set);
+  return publishPolicy(policyId, new Date().toISOString().slice(0, 10));
 }
 
 /** T33: breaks, rest, the weekly limit and what overtime becomes. */

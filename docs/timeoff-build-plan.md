@@ -1157,10 +1157,19 @@ test passes, and it matches the design's screen on the seeded demo company.
   balance as `Stat from`, which leaves TOF-093 its shadow runs. Who a
   policy applies to is shown, not edited.
 
-### [ ] TOF-080 — Negative balance rules
+### [x] TOF-080 — Negative balance rules
 
 - **Screens** T31 · **Spec** PRD §7.4
 - **Depends on** TOF-078
+- **As built** `settings/negative-balance.tsx`: the rule of the policy chosen
+  under "For", as a `Toggle`, a `NumberField`, a `SegmentedControl` for who
+  approves and two `RadioCard` groups, behind `FormSaveBar`. Saving revises
+  the policy and publishes it from today, or joins the policy's draft when
+  it has one (said above the form). "What people see" is the sentence a
+  request that crosses zero shows (`negativeSentence`). The design's "Right
+  now" figures and the count of contracts without a final-pay clause need
+  data Time Off does not have (balances by sign; contracts), so the page
+  says what to check instead.
 
 ### [ ] TOF-081 — Attendance rules
 

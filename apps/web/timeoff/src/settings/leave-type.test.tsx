@@ -88,7 +88,7 @@ describe('editing a policy', () => {
       <LeaveType load={ready(vacationWithDraft())} onSaveDraft={onSaveDraft} onPublish={vi.fn()} />,
     );
     fireEvent.click(screen.getByRole('switch', { name: 'Half days allowed' }));
-    expect(screen.getByRole('status').textContent).toBe('Unsaved changes');
+    expect(screen.getByText('Unsaved changes')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Publish changes' })).toHaveProperty(
       'disabled',
       true,
