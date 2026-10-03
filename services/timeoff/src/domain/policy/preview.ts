@@ -1,4 +1,4 @@
-import type { DayAmount, PersonId, PolicyDefinition } from '@kithena/contracts';
+import type { CalendarDate, DayAmount, PersonId, PolicyDefinition } from '@kithena/contracts';
 
 import { entitlement, type Member } from '../balance/entitlement.js';
 import type { EventContext } from '../context.js';
@@ -41,21 +41,29 @@ export interface MemberPreview {
   readonly lostAtYearEnd: Pair;
 }
 
+/** What a version credits the member in the leave year, by `asOf` when given. */
+function credited(
+  definition: PolicyDefinition | null,
+  input: PreviewInput,
+  year: number,
+  ctx: Pick<EventContext, 'newId' | 'clock'>,
+  asOf?: CalendarDate,
+): Decimal {
+  if (definition === null) return new Decimal(0);
+  return sum(
+    entitlement({ policy: definition, policyVersion: 1, member: input.member, year }, ctx)
+      .filter((e) => asOf === undefined || e.effectiveOn <= asOf)
+      .map((e) => days(e.amount)),
+  );
+}
+
 function under(
   definition: PolicyDefinition | null,
   input: PreviewInput,
   year: number,
   ctx: Pick<EventContext, 'newId' | 'clock'>,
 ): { allowance: Decimal; left: Decimal; lost: Decimal } {
-  const granted =
-    definition === null
-      ? new Decimal(0)
-      : sum(
-          entitlement(
-            { policy: definition, policyVersion: 1, member: input.member, year },
-            ctx,
-          ).map((e) => days(e.amount)),
-        );
+  const granted = credited(definition, input, year, ctx);
   const left = days(input.carried).plus(granted).minus(input.spent);
   const cap = definition?.carryOver?.maxDays;
   const lost = Decimal.max(0, cap === undefined ? left : left.minus(cap));
@@ -75,6 +83,38 @@ export function previewChange(
       allowance: { current: amount(now.allowance), draft: amount(next.allowance) },
       left: { current: amount(now.left), draft: amount(next.left) },
       lostAtYearEnd: { current: amount(now.lost), draft: amount(next.lost) },
+    };
+  });
+}
+
+export interface MemberShadow {
+  readonly personId: PersonId;
+  /** Credited so far this leave year. */
+  readonly credited: Pair;
+  /** Carried in, plus credited, less taken and booked. */
+  readonly balance: Pair;
+}
+
+/**
+ * A shadow run (PRD §6.3): the draft running beside the version in effect,
+ * each folded to the same day, so HR can compare balances as the month goes
+ * by. The same fold as the ledger's, cut at `asOf`; nothing is posted and
+ * nobody but HR reads it.
+ */
+export function shadowBalances(
+  inputs: readonly PreviewInput[],
+  year: number,
+  asOf: CalendarDate,
+  ctx: Pick<EventContext, 'newId' | 'clock'>,
+): MemberShadow[] {
+  return inputs.map((input) => {
+    const now = credited(input.current, input, year, ctx, asOf);
+    const next = credited(input.draft, input, year, ctx, asOf);
+    const balance = (c: Decimal) => amount(days(input.carried).plus(c).minus(input.spent));
+    return {
+      personId: input.member.personId,
+      credited: { current: amount(now), draft: amount(next) },
+      balance: { current: balance(now), draft: balance(next) },
     };
   });
 }

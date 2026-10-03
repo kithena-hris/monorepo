@@ -17,15 +17,17 @@
     { "path": "/time-off/calendar/timeline", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/year", "component": "TeamCalendar" },
     { "path": "/time-off/attendance/timesheet", "component": "Timesheet" },
-    { "path": "/time-off/attendance/requests", "component": "Attendance" },
+    { "path": "/time-off/attendance/kiosk-code", "component": "KioskCode" },
+    { "path": "/time-off/attendance/requests", "component": "AttendanceRequests" },
     { "path": "/time-off/attendance/schedule", "component": "Attendance" },
     { "path": "/time-off/attendance/now", "component": "TeamNow" },
     { "path": "/time-off/attendance/timesheets", "component": "Attendance" },
-    { "path": "/time-off/attendance/exceptions", "component": "Attendance" },
-    { "path": "/time-off/attendance/pay-period", "component": "Attendance" },
+    { "path": "/time-off/attendance/exceptions", "component": "Exceptions" },
+    { "path": "/time-off/attendance/pay-period", "component": "PayPeriod" },
     { "path": "/time-off/balances/:type", "component": "Balance" },
     { "path": "/time-off/holidays/:year", "component": "Holidays" },
     { "path": "/time-off/parental/:step", "component": "ParentalPlan" },
+    { "path": "/time-off/parental/cases", "component": "ParentalCases" },
     { "path": "/time-off/parental/cases/:id", "component": "ParentalCase" },
     { "path": "/time-off/insights/what-changed", "component": "Insights" },
     { "path": "/time-off/insights/time-off", "component": "Insights" },
@@ -105,6 +107,13 @@
           "label": "Delegation",
           "for": ["manager", "hr"]
         },
+        {
+          "path": "/time-off/parental/cases",
+          "label": "Parental leave",
+          "short": "Parental",
+          "for": ["hr"],
+          "owns": ["/time-off/parental/cases/:id"]
+        },
         { "path": "/time-off/requests/upcoming", "label": "Upcoming" },
         { "path": "/time-off/requests/past", "label": "Past" },
         { "path": "/time-off/requests/cancelled", "label": "Cancelled" }
@@ -120,6 +129,7 @@
       "tabs": [
         { "path": "/time-off/attendance/now", "label": "Right now", "for": ["manager", "hr"] },
         { "path": "/time-off/attendance/timesheet", "label": "My timesheet", "short": "Mine" },
+        { "path": "/time-off/attendance/kiosk-code", "label": "Kiosk code", "short": "Kiosk" },
         {
           "path": "/time-off/attendance/timesheets",
           "label": "Timesheets",

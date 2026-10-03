@@ -13,7 +13,9 @@ import {
   yearEnd,
 } from '../application/jobs.js';
 import { parentalNotices } from '../application/parental/parental.js';
-import type { Deps, Notifier } from '../application/ports.js';
+import type { Deps, Notifier, Reach } from '../application/ports.js';
+import { calendarHolidays } from '../application/reach/calendar.js';
+import { chatStatuses } from '../application/reach/chat.js';
 import { knownTenants } from './drizzle-members.js';
 import { drizzleUnitOfWork, uuidv7 } from './unit-of-work.js';
 
@@ -33,11 +35,15 @@ import { drizzleUnitOfWork, uuidv7 } from './unit-of-work.js';
  * - **missed-punch**, hourly: the morning check for clock-outs nobody made.
  * - **clock-out-reminder**, every 15 minutes: still in at 20:00, where they are.
  * - **parental-notices**, hourly: a flexible block's notice falling due today.
+ * - **calendar-holidays**, 03:00 UTC on the 1st: each member's holidays on their
+ *   calendar, where one is connected (TOF-110).
+ * - **chat-status**, 05:00 UTC daily: who is away today says so in the chat app,
+ *   until their last day ends (TOF-111).
  */
 
 export const QUEUE_NAME = 'timeoff-jobs';
 
-type JobDeps = Pick<Deps, 'uow' | 'clock' | 'newId' | 'notifier'>;
+type JobDeps = Pick<Deps, 'uow' | 'clock' | 'newId' | 'notifier' | 'reach'>;
 
 /** Each job by name, with when it runs. */
 export function jobs(
@@ -54,6 +60,8 @@ export function jobs(
     'missed-punch': { pattern: '0 * * * *', run: missedPunchCheck(deps) },
     'clock-out-reminder': { pattern: '*/15 * * * *', run: clockOutReminder(deps) },
     'parental-notices': { pattern: '30 * * * *', run: parentalNotices(deps) },
+    'calendar-holidays': { pattern: '0 3 1 * *', run: calendarHolidays(deps) },
+    'chat-status': { pattern: '0 5 * * *', run: chatStatuses(deps) },
   };
 }
 
@@ -134,7 +142,11 @@ export const logNotifier: Notifier = {
  * nothing durable to run them against, and this says so rather than running
  * them over memory.
  */
-export function wireBackground(env: NodeJS.ProcessEnv, db: PostgresJsDatabase | null): void {
+export function wireBackground(
+  env: NodeJS.ProcessEnv,
+  db: PostgresJsDatabase | null,
+  reach?: Reach,
+): void {
   if (db === null) {
     logger.info({ module: 'timeoff' }, 'no Time Off database; no background jobs');
     return;
@@ -145,6 +157,7 @@ export function wireBackground(env: NodeJS.ProcessEnv, db: PostgresJsDatabase | 
     newId: uuidv7,
     notifier: logNotifier,
     tenants: () => knownTenants(db),
+    ...(reach === undefined ? {} : { reach }),
   };
   const started = startBackground(env, deps);
   started.catch((error: unknown) => {

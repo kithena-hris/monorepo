@@ -29,3 +29,17 @@ export function msUntilLocal(at: Date, timeZone: string, minuteOfDay: number): n
   const minutes = (((minuteOfDay - now) % 1440) + 1440) % 1440 || 1440;
   return minutes * 60_000 - at.getUTCSeconds() * 1000 - at.getUTCMilliseconds();
 }
+
+/**
+ * The instant a calendar date begins in `zone`: midnight there. The zone's
+ * offset is read at UTC midnight and the guess corrected by it.
+ *
+ * ponytail: on the one night a year the clocks change at midnight this is an
+ * hour off, which a status clearing an hour early or late survives.
+ */
+export function startOfDay(date: string, timeZone: string): Date {
+  const guess = Date.parse(`${date}T00:00:00Z`);
+  const local = localMinutes(new Date(guess), timeZone);
+  const offset = local > 720 ? local - 1440 : local;
+  return new Date(guess - offset * 60_000);
+}

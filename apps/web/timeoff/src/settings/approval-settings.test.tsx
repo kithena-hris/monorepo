@@ -61,7 +61,51 @@ describe('approval rules and team minimums', () => {
       approvals().rules,
       { shortenOrCancel: true, sickUnderDays: 3, oneDayAboveMinimum: true },
       [{ teamKey: 'platform', minimum: { atLeast: 6, unit: 'people' } }],
+      approvals().escalation,
     );
+  });
+
+  it('adds a rule and removes one (TOF-099a)', () => {
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(<ApprovalSettings load={ready} onSave={onSave} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove the rule for Any request below zero' }),
+    );
+    expect(screen.queryByRole('combobox', { name: 'Any request below zero' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Add rule' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const [rules] = onSave.mock.calls[0] as unknown as [readonly unknown[]];
+    expect(rules).toHaveLength(approvals().rules.length);
+    expect(rules.at(-1)).toEqual({
+      subject: 'request',
+      leaveTypes: null,
+      when: 'always',
+      approvers: ['manager'],
+    });
+  });
+
+  it('says what happens if nobody decides, and sends HR’s change (TOF-099a)', () => {
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(<ApprovalSettings load={ready} onSave={onSave} />);
+    const section = within(
+      screen.getByRole('heading', { name: 'If nobody decides' }).closest('section') as HTMLElement,
+    );
+    expect(section.getByRole('spinbutton', { name: 'After (working days)' })).toHaveProperty(
+      'value',
+      '3',
+    );
+    expect(section.getByRole('combobox', { name: 'Goes to' }).textContent).toBe(
+      'The manager’s manager',
+    );
+    fireEvent.keyDown(section.getByRole('spinbutton', { name: 'After (working days)' }), {
+      key: 'ArrowDown',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledWith(expect.anything(), expect.anything(), [], {
+      afterWorkingDays: 2,
+      to: 'manager',
+      remindAt: 540,
+    });
   });
 
   it('turns automatic sick approval off', () => {
@@ -74,6 +118,7 @@ describe('approval rules and team minimums', () => {
       approvals().rules,
       expect.objectContaining({ sickUnderDays: null }),
       [],
+      approvals().escalation,
     );
   });
 

@@ -35,6 +35,9 @@ import {
   setTeamMinimum,
   setAttendanceRules,
   assignSchedule,
+  setParentalCompany,
+  startShadowRun,
+  stopShadowRun,
 } from '../application/admin/admin.js';
 import {
   answerCounter,
@@ -43,19 +46,48 @@ import {
   decideRequest,
 } from '../application/approval/decide.js';
 import { setDelegation } from '../application/approval/escalation.js';
+import { describeRequest } from '../application/assist/describe.js';
+import { holidayDraft } from '../application/assist/holiday-draft.js';
+import { readPolicyProse } from '../application/assist/policy-prose.js';
 import {
+  attendanceExceptions,
   closePayPeriod,
   correctPunch,
   decideOvertime,
+  payPeriodScreen,
   punch,
+  remindPayPeriod,
 } from '../application/attendance/attendance.js';
+import { inspectorExport } from '../application/attendance/inspector-files.js';
+import { insights } from '../application/insights/insights.js';
+import { nudgePreview, sendNudges } from '../application/insights/nudge.js';
 import { calendarFeed, issueFeedToken, revokeFeeds } from '../application/calendar/ical.js';
+import {
+  issueKioskQr,
+  kioskDevices,
+  kioskIdentify,
+  kioskPunches,
+  kioskStatus,
+  registerKiosk,
+  revokeKiosk,
+  setKioskCredential,
+} from '../application/attendance/kiosk.js';
 import { importMembers } from '../application/member/import.js';
+import { issueScimConnection, revokeScimConnection } from '../application/member/scim.js';
+import { approveFromChat } from '../application/reach/chat.js';
+import {
+  completeIntegration,
+  connectIntegration,
+  connectMyIntegration,
+  disconnectIntegration,
+  integrationsScreen,
+} from '../application/reach/integrations.js';
 import {
   answerParental,
   approveParentalPlan,
   editParentalBlocks,
   parentalCase,
+  parentalCases,
   parentalScreen,
   recordParentalBirth,
   saveParentalHandover,
@@ -79,6 +111,7 @@ import {
 } from '../application/screens/employee.js';
 import {
   approvals,
+  attendanceRequestsScreen,
   calendar,
   calendarYear,
   delegation,
@@ -102,6 +135,7 @@ import {
   ApprovalRuleBody,
   ApprovalsSettingsView,
   ApprovalsView,
+  AttendanceRequestsView,
   AttendanceRulesBody,
   AttendanceSettingsView,
   AutoApprovalBody,
@@ -111,20 +145,39 @@ import {
   CalendarView,
   DecisionView,
   DelegationView,
+  DescribedView,
+  EscalationBody,
+  ExceptionsView,
+  FileView,
+  HolidayDraftView,
   HolidayLayerBody,
   HolidaySettingsView,
   HolidaysView,
   HandoverView,
+  InsightsView,
+  IntegrationProviderView,
+  IntegrationsView,
+  KioskIdentityView,
+  KioskQrView,
+  KioskRegisteredView,
+  KioskStatusView,
+  KioskSyncView,
+  KioskView,
   LeaveTypeSettingView,
   LeaveTypesView,
   LookCloserReason,
   MyRequestsView,
   NegativeBalanceView,
+  NudgeView,
   OverviewView,
+  ParentalCasesView,
   ParentalCaseView,
+  ParentalCompanyBody,
   ParentalScreenView,
   ParentRoleView,
+  PayPeriodView,
   PolicyPreviewView,
+  PolicyReadView,
   PunchView,
   RequestDetailView,
   RequestPanelView,
@@ -204,13 +257,25 @@ export interface Route {
   readonly run: (
     deps: Deps,
     caller: Caller,
-    input: { readonly params: unknown; readonly body: unknown },
+    input: {
+      readonly params: unknown;
+      readonly body: unknown;
+      /** A public route's `Authorization: Bearer` token; `null` on every other. */
+      readonly bearer: string | null;
+      /** A public route's request as it came: a provider signs its raw body. */
+      readonly raw: RawRequest;
+    },
   ) => Promise<Result<unknown>>;
   /** The use case's answer as the route's; applied in the write's transaction too, for the key. */
   readonly shape: (value: unknown) => unknown;
 }
 
 const NoParams = z.object({});
+
+interface RawRequest {
+  readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+  readonly body: string;
+}
 
 function route<P extends z.ZodObject, B extends z.ZodType | null, A extends z.ZodType, V>(def: {
   readonly name: string;
@@ -229,6 +294,8 @@ function route<P extends z.ZodObject, B extends z.ZodType | null, A extends z.Zo
     input: {
       readonly params: z.output<P>;
       readonly body: B extends z.ZodType ? z.output<B> : undefined;
+      readonly bearer: string | null;
+      readonly raw: RawRequest;
     },
   ) => Promise<Result<V>>;
   readonly shape: (value: V) => View<A>;
@@ -280,6 +347,8 @@ export const CounterBody = z.strictObject({
     .array(z.strictObject({ spans: z.array(Range).min(1).max(10) }))
     .min(1)
     .max(3),
+  /** What the manager writes with the dates (T18, TOF-099b). */
+  message: z.string().max(1000).nullable().default(null),
 });
 export const AnswerBody = z.strictObject({
   /** Which suggestion to take; `null` keeps the member's own dates. */
@@ -308,6 +377,53 @@ export const OvertimeBody = z.strictObject({
   approve: z.boolean(),
   choice: z.enum(['comp', 'paid']).nullable().default(null),
 });
+/** What a member taps a kiosk with: a badge number, a PIN, or the QR their phone shows. */
+export const KioskCredentialBody = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('badge'),
+    value: z
+      .string()
+      .trim()
+      .regex(/^[\x21-\x7e]{1,64}$/u, 'a badge number'),
+  }),
+  z.strictObject({
+    kind: z.literal('pin'),
+    value: z.string().regex(/^\d{6}$/u, '6 digits'),
+  }),
+  z.strictObject({ kind: z.literal('qr'), value: z.string().min(1).max(1000) }),
+]);
+export const KioskIdentifyBody = z.strictObject({ credential: KioskCredentialBody });
+export const KioskPunchesBody = z.strictObject({
+  /** The kiosk's clock when it sends, which its skew is read from. */
+  sentAt: Instant,
+  punches: z
+    .array(
+      z.strictObject({
+        sequence: z.int().min(1),
+        at: Instant,
+        credential: KioskCredentialBody,
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+export const KioskBody = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+  locationKey: LocationKey,
+});
+export const KioskCredentialSetBody = z.strictObject({
+  /** `null` takes it away. A badge is any printable code; a PIN 6 digits. */
+  value: z.string().trim().min(1).max(64).nullable(),
+});
+const KioskParams = z.object({ deviceId: z.uuid() });
+const ProviderParams = z.object({ provider: IntegrationProviderView });
+const ConnectAnswer = z
+  .object({ url: z.string().nullable() })
+  .meta({ title: 'TimeOffIntegrationConnect' });
+export const ConnectBody = z.strictObject({
+  /** The integrations page to come back to once the provider has answered. */
+  back: z.url({ protocol: /^https?$/u }),
+});
 export const ImportBody = z.strictObject({
   format: z.enum(['csv', 'json']),
   content: z.string().max(5_000_000),
@@ -328,6 +444,7 @@ export const AssignBody = z.strictObject({ layerKeys: z.array(z.string()).max(10
 export const ApprovalRulesBody = z.strictObject({
   rules: z.array(ApprovalRuleBody).max(50),
   autoApproval: AutoApprovalBody.optional(),
+  escalation: EscalationBody.optional(),
 });
 export const MinimumBody = z.strictObject({ minimum: TeamMinimumBody.nullable() });
 const Children = z.int().min(1).max(9);
@@ -435,6 +552,9 @@ function present<T extends object>(value: T): { [K in keyof T]?: Exclude<T[K], u
 
 const firstOf = (month: string) => CalendarDate.parse(`${month}-01`);
 
+/** A number of days from the address: "28", "2.5". */
+const DayText = z.string().regex(/^\d{1,3}(\.\d{1,3})?$/u, 'a number of days, such as 28 or 2.5');
+
 /* --------------------------------------------------------------- routes -- */
 
 const V1 = '/v1/timeoff';
@@ -476,6 +596,27 @@ export const ROUTES: readonly Route[] = [
     }),
     answer: RequestPanelView,
     run: (deps, caller, { params }) => requestPanel(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffDescribe',
+    method: 'GET',
+    path: `${V1}/describe`,
+    summary:
+      'T4, MT8: a sentence read as choices the caller can change, and the best dates for them; nothing is saved',
+    params: z.object({
+      sentence: z.string().max(300).optional(),
+      leaveTypeKey: LeaveTypeKey.optional(),
+      days: z.int().min(1).max(30).optional(),
+      month: z
+        .string()
+        .regex(/^(\d{4}-(0[1-9]|1[0-2]))?$/u, 'a month, such as 2026-10, or nothing')
+        .optional(),
+      nextToHoliday: z.boolean().optional(),
+      avoidShort: z.boolean().optional(),
+    }),
+    answer: DescribedView,
+    run: (deps, caller, { params }) => describeRequest(deps)(caller, params),
     shape: same,
   }),
   route({
@@ -600,6 +741,74 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffAttendanceExceptions',
+    method: 'GET',
+    path: `${V1}/attendance/exceptions`,
+    summary:
+      'T23: missed clock-outs, short rest, overtime waiting and holidays worked over a period; HR',
+    params: z.object({ from: CalendarDate, to: CalendarDate }),
+    answer: ExceptionsView,
+    run: (deps, caller, { params }) => attendanceExceptions(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffInspectorRecord',
+    method: 'GET',
+    path: `${V1}/attendance/inspector-record`,
+    summary:
+      'The labour inspector’s daily record (start, end, breaks) per person for a period, as CSV or PDF in base64; HR',
+    params: z.object({ from: CalendarDate, to: CalendarDate, format: z.enum(['csv', 'pdf']) }),
+    answer: FileView,
+    run: (deps, caller, { params }) => inspectorExport(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffAttendanceRequests',
+    method: 'GET',
+    path: `${V1}/attendance/requests`,
+    summary:
+      'The attendance Requests tab: overtime and late corrections the caller’s reports need from them, and the caller’s own overtime',
+    answer: AttendanceRequestsView,
+    run: (deps, caller) => attendanceRequestsScreen(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffInsights',
+    method: 'GET',
+    path: `${V1}/insights`,
+    summary:
+      'T27: the month in points, six months of trends, the teams large enough to describe and the people behind each point; HR or a manager',
+    answer: InsightsView,
+    run: (deps, caller) => insights(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffNudge',
+    method: 'GET',
+    path: `${V1}/insights/nudge`,
+    summary:
+      'T28: who has had no break, and the first one’s message as it would be sent; HR or a manager',
+    params: z.object({
+      balance: z.boolean().default(true),
+      bridge: z.boolean().default(true),
+      losing: z.boolean().default(false),
+    }),
+    answer: NudgeView,
+    run: (deps, caller, { params }) => nudgePreview(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffPayPeriod',
+    method: 'GET',
+    path: `${V1}/pay-periods/{month}`,
+    summary: 'T24: a month per team and in total, and who is late for Payroll; HR',
+    params: z.object({ month: Month }),
+    answer: PayPeriodView,
+    run: (deps, caller, { params }) =>
+      payPeriodScreen(deps)(caller, { from: firstOf(params.month) }),
+    shape: same,
+  }),
+  route({
     name: 'timeOffBalance',
     method: 'GET',
     path: `${V1}/balances/{leaveTypeKey}`,
@@ -650,6 +859,26 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffPolicyRead',
+    method: 'GET',
+    path: `${V1}/settings/policies/read`,
+    summary:
+      'T32: a policy written in plain words, read into the ordinary form, with the one question it leaves open; nothing is saved; HR',
+    params: z.object({
+      text: z.string().max(2000).optional(),
+      leaveTypeKey: LeaveTypeKey.optional(),
+      dayKind: z.enum(['working', 'calendar']).optional(),
+      earning: z.enum(['upfront', 'monthly']).optional(),
+      allowance: DayText.optional(),
+      carryOver: DayText.optional(),
+      negative: DayText.optional(),
+      probationMonths: z.int().min(0).max(24).optional(),
+    }),
+    answer: PolicyReadView,
+    run: (deps, caller, { params }) => readPolicyProse(deps)(caller, params),
+    shape: same,
+  }),
+  route({
     name: 'timeOffNegativeBalanceSettings',
     method: 'GET',
     path: `${V1}/settings/negative-balance`,
@@ -687,6 +916,21 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffHolidayDraft',
+    method: 'GET',
+    path: `${V1}/settings/holidays/{year}/draft`,
+    summary:
+      'T36: a year of one calendar drafted from a list HR supplies; the unconfirmed days are marked; nothing is saved; HR',
+    params: z.object({
+      year: Year,
+      layerKey: HolidayLayerBody.shape.key,
+      source: z.string().min(1).max(4000),
+    }),
+    answer: HolidayDraftView,
+    run: (deps, caller, { params }) => holidayDraft(deps)(caller, params),
+    shape: same,
+  }),
+  route({
     name: 'timeOffParentalPlan',
     method: 'GET',
     path: `${V1}/parental`,
@@ -700,6 +944,15 @@ export const ROUTES: readonly Route[] = [
     }),
     answer: ParentalScreenView,
     run: (deps, caller, { params }) => parentalScreen(deps)(caller, present(params)),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffParentalCases',
+    method: 'GET',
+    path: `${V1}/parental/cases`,
+    summary: 'HR’s list of sent parental plans, waiting first, then approved; HR',
+    answer: ParentalCasesView,
+    run: (deps, caller) => parentalCases(deps)(caller),
     shape: same,
   }),
   route({
@@ -789,12 +1042,16 @@ export const ROUTES: readonly Route[] = [
     name: 'suggestTimeOffDates',
     method: 'POST',
     path: `${V1}/requests/{requestId}/counter-proposal`,
-    summary: 'Suggest other dates instead of declining',
+    summary: 'Suggest other dates instead of declining, with a message for the member',
     params: RequestParams,
     body: CounterBody,
     answer: StatusAnswer,
     run: (deps, caller, { params, body }) =>
-      counterPropose(deps)(caller, { requestId: params.requestId, proposals: body.proposals }),
+      counterPropose(deps)(caller, {
+        requestId: params.requestId,
+        proposals: body.proposals,
+        message: body.message,
+      }),
     shape: same,
   }),
   route({
@@ -940,6 +1197,36 @@ export const ROUTES: readonly Route[] = [
       closePayPeriod(deps)(caller, { from: firstOf(params.month) }),
     shape: same,
   }),
+  route({
+    name: 'sendTimeOffNudges',
+    method: 'POST',
+    path: `${V1}/insights/nudge`,
+    summary:
+      'T28: send each person without a break their own message through messaging, once a day; HR or a manager',
+    body: z.strictObject({
+      include: z.strictObject({ balance: z.boolean(), bridge: z.boolean(), losing: z.boolean() }),
+      companyName: z.string().trim().min(1).max(120),
+      appOrigin: z.string().max(300),
+    }),
+    answer: z
+      .object({ sent: z.int(), unreachable: z.int(), failed: z.int() })
+      .meta({ title: 'TimeOffNudgesSent' }),
+    run: (deps, caller, { body }) => sendNudges(deps)(caller, body),
+    shape: same,
+  }),
+  route({
+    name: 'remindTimeOffPayPeriod',
+    method: 'POST',
+    path: `${V1}/pay-periods/{month}/reminders`,
+    summary:
+      'Ask a team’s late members for their clock-outs, and their managers for the overtime waiting; HR',
+    params: z.object({ month: Month }),
+    body: z.strictObject({ teamKey: TeamKey.nullable().default(null) }),
+    answer: z.object({ told: z.int() }).meta({ title: 'TimeOffReminded' }),
+    run: (deps, caller, { params, body }) =>
+      remindPayPeriod(deps)(caller, { from: firstOf(params.month), teamKey: body.teamKey }),
+    shape: same,
+  }),
 
   /* --------------------------------------------------------- parental -- */
   route({
@@ -1027,6 +1314,214 @@ export const ROUTES: readonly Route[] = [
     shape: (v) => ({ ...v, errors: [...v.errors] }),
   }),
 
+  /* ------------------------------------------------------------ kiosk -- */
+  route({
+    name: 'timeOffKiosks',
+    method: 'GET',
+    path: `${V1}/kiosks`,
+    summary: 'Every kiosk and when it was last seen; never a token; HR',
+    answer: z.array(KioskView),
+    run: (deps, caller) => kioskDevices(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'registerTimeOffKiosk',
+    method: 'POST',
+    path: `${V1}/kiosks`,
+    summary: 'A kiosk for a location, and its token, shown this once; HR',
+    body: KioskBody,
+    answer: KioskRegisteredView,
+    status: 201,
+    run: (deps, caller, { body }) => registerKiosk(deps)(caller, body),
+    shape: same,
+  }),
+  route({
+    name: 'revokeTimeOffKiosk',
+    method: 'POST',
+    path: `${V1}/kiosks/{deviceId}/revoke`,
+    summary: 'The kiosk’s token stops working at once; HR',
+    params: KioskParams,
+    answer: Done,
+    run: (deps, caller, { params }) => revokeKiosk(deps)(caller, params.deviceId),
+    shape: done,
+  }),
+  route({
+    name: 'setTimeOffKioskCredential',
+    method: 'PUT',
+    path: `${V1}/members/{personId}/kiosk-credentials/{kind}`,
+    summary: 'A member’s badge (HR) or PIN (theirs or HR’s), kept as a keyed hash; null removes it',
+    params: z.object({ personId: PersonId, kind: z.enum(['badge', 'pin']) }),
+    body: KioskCredentialSetBody,
+    answer: Done,
+    run: (deps, caller, { params, body }) => {
+      if (params.kind === 'pin' && body.value !== null && !/^\d{6}$/u.test(body.value))
+        return Promise.resolve(err(failure('BAD_REQUEST', 'A PIN is 6 digits', ['value'])));
+      return setKioskCredential(deps)(caller, params.personId, params.kind, body.value);
+    },
+    shape: done,
+  }),
+  route({
+    name: 'timeOffKioskQr',
+    method: 'GET',
+    path: `${V1}/kiosk-qr`,
+    summary: 'The QR the caller’s phone shows a kiosk, good for a minute',
+    answer: KioskQrView,
+    run: (deps, caller) => issueKioskQr(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffKioskStatus',
+    method: 'GET',
+    path: `${V1}/kiosk/{deviceId}`,
+    summary: 'The kiosk’s own name and location; its device token, never a person’s',
+    params: KioskParams,
+    answer: KioskStatusView,
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params, bearer }) => kioskStatus(deps)(bearer ?? '', params.deviceId),
+    shape: same,
+  }),
+  route({
+    name: 'identifyAtTimeOffKiosk',
+    method: 'POST',
+    path: `${V1}/kiosk/{deviceId}/identify`,
+    summary: 'Who tapped, by first name, and what the tap would do; writes nothing; device token',
+    params: KioskParams,
+    body: KioskIdentifyBody,
+    answer: KioskIdentityView,
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params, body, bearer }) =>
+      kioskIdentify(deps)(bearer ?? '', params.deviceId, body.credential),
+    shape: same,
+  }),
+  route({
+    name: 'syncTimeOffKioskPunches',
+    method: 'POST',
+    path: `${V1}/kiosk/{deviceId}/punches`,
+    summary:
+      'The kiosk’s queue: each tap at its own instant, a replayed sequence punched once, skew flagged; device token',
+    params: KioskParams,
+    body: KioskPunchesBody,
+    answer: KioskSyncView,
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params, body, bearer }) =>
+      kioskPunches(deps)(bearer ?? '', params.deviceId, body),
+    shape: (v) => ({ results: [...v.results] }),
+  }),
+
+  /* ----------------------------------------------------- integrations -- */
+  route({
+    name: 'timeOffIntegrations',
+    method: 'GET',
+    path: `${V1}/integrations`,
+    summary:
+      'T35: calendars, chat apps, kiosks, country packs, and the modules that would read Time Off; HR',
+    answer: IntegrationsView,
+    run: (deps, caller) => integrationsScreen(deps)(caller),
+    shape: (v) => ({
+      integrations: [...v.integrations],
+      kiosks: [...v.kiosks],
+      locations: [...v.locations],
+      packs: [...v.packs],
+      modules: v.modules.map((m) => ({ key: m.key, events: [...m.events] })),
+    }),
+  }),
+  route({
+    name: 'connectTimeOffIntegration',
+    method: 'POST',
+    path: `${V1}/integrations/{provider}/connect`,
+    summary:
+      'The provider’s consent page, or the connection at once where access is granted in the company’s own admin console; HR',
+    params: ProviderParams,
+    body: ConnectBody,
+    answer: ConnectAnswer,
+    run: (deps, caller, { params, body }) =>
+      connectIntegration(deps)(caller, params.provider, body.back),
+    shape: same,
+  }),
+  route({
+    name: 'connectMyTimeOffIntegration',
+    method: 'POST',
+    path: `${V1}/integrations/{provider}/connect-me`,
+    summary:
+      'A member’s own grant where the provider needs one (a chat status is the person’s to set); the caller, for themselves',
+    params: ProviderParams,
+    body: ConnectBody,
+    answer: ConnectAnswer,
+    run: (deps, caller, { params, body }) =>
+      connectMyIntegration(deps)(caller, params.provider, body.back),
+    shape: same,
+  }),
+  route({
+    name: 'disconnectTimeOffIntegration',
+    method: 'DELETE',
+    path: `${V1}/integrations/{provider}`,
+    summary: 'Forgets the company’s connection and every member’s grant; HR',
+    params: ProviderParams,
+    answer: Done,
+    run: (deps, caller, { params }) => disconnectIntegration(deps)(caller, params.provider),
+    shape: done,
+  }),
+  route({
+    name: 'answerTimeOffChatAction',
+    method: 'POST',
+    path: `${V1}/integrations/{provider}/actions`,
+    summary:
+      'A press on Approve or Decline in a chat app’s message: the provider’s signature and Time Off’s checked, then decided as the approver it was sent to',
+    params: z.object({ provider: z.enum(['slack', 'teams']) }),
+    answer: z.object({ text: z.string() }).meta({ title: 'TimeOffChatAnswer' }),
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params, raw }) => approveFromChat(deps)(params.provider, raw),
+    shape: same,
+  }),
+  route({
+    name: 'completeTimeOffIntegration',
+    method: 'GET',
+    path: `${V1}/integrations/{provider}/callback`,
+    summary:
+      'Where a provider sends the browser back: checked against the state Time Off signed, stored, and redirected to the page HR came from',
+    params: z.looseObject({ provider: IntegrationProviderView, state: z.string().max(4000) }),
+    answer: z.object({ location: z.string() }),
+    status: 302,
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params }) => {
+      const { provider, ...answer } = params;
+      return completeIntegration(deps)(
+        provider,
+        Object.fromEntries(
+          Object.entries(answer).filter((e): e is [string, string] => typeof e[1] === 'string'),
+        ),
+      );
+    },
+    shape: same,
+  }),
+
+  route({
+    name: 'issueTimeOffScimConnection',
+    method: 'POST',
+    path: `${V1}/scim/connections`,
+    summary:
+      'A bearer token for an identity provider to provision members over SCIM 2.0 at /v1/timeoff/scim/v2, shown once; HR',
+    answer: z.object({ id: z.uuid(), token: z.string() }).meta({ title: 'TimeOffScimConnection' }),
+    status: 201,
+    run: (deps, caller) => issueScimConnection(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'revokeTimeOffScimConnection',
+    method: 'POST',
+    path: `${V1}/scim/connections/{connectionId}/revoke`,
+    summary: 'The identity provider’s token stops working at once; HR',
+    params: z.object({ connectionId: z.uuid() }),
+    answer: Done,
+    run: (deps, caller, { params }) => revokeScimConnection(deps)(caller, params.connectionId),
+    shape: done,
+  }),
+
   /* --------------------------------------------------------- settings -- */
   route({
     name: 'defineTimeOffLeaveType',
@@ -1108,6 +1603,26 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'startTimeOffShadowRun',
+    method: 'PUT',
+    path: `${V1}/policies/{policyId}/shadow`,
+    summary: 'Run the draft beside the policy in effect for a month, to compare balances; HR',
+    params: z.object({ policyId: PolicyId }),
+    answer: z.object({ from: CalendarDate, to: CalendarDate }).meta({ title: 'TimeOffShadow' }),
+    run: (deps, caller, { params }) => startShadowRun(deps)(caller, params.policyId),
+    shape: same,
+  }),
+  route({
+    name: 'stopTimeOffShadowRun',
+    method: 'DELETE',
+    path: `${V1}/policies/{policyId}/shadow`,
+    summary: 'Stop running the draft beside the policy in effect; HR',
+    params: z.object({ policyId: PolicyId }),
+    answer: Done,
+    run: (deps, caller, { params }) => stopShadowRun(deps)(caller, params.policyId),
+    shape: done,
+  }),
+  route({
     name: 'saveTimeOffHolidayCalendar',
     method: 'PUT',
     path: `${V1}/holiday-calendars/{key}`,
@@ -1145,10 +1660,23 @@ export const ROUTES: readonly Route[] = [
     name: 'setTimeOffApprovalRules',
     method: 'PUT',
     path: `${V1}/approval-rules`,
-    summary: 'T34: who approves what, and what is approved automatically; HR',
+    summary:
+      'T34: who approves what, what is approved automatically, and what happens if nobody decides; HR',
     body: ApprovalRulesBody,
     answer: Done,
-    run: (deps, caller, { body }) => setApprovalRules(deps)(caller, body.rules, body.autoApproval),
+    run: (deps, caller, { body }) =>
+      setApprovalRules(deps)(caller, body.rules, body.autoApproval, body.escalation),
+    shape: done,
+  }),
+  route({
+    name: 'setTimeOffParentalCompany',
+    method: 'PUT',
+    path: `${V1}/settings/parental-company`,
+    summary:
+      'The company’s own parental weeks, after how many years, and the leave type they are booked as; 0 weeks for none; HR',
+    body: ParentalCompanyBody,
+    answer: Done,
+    run: (deps, caller, { body }) => setParentalCompany(deps)(caller, body),
     shape: done,
   }),
   route({
@@ -1199,6 +1727,7 @@ const STATUS: Record<string, number> = {
   OVERLAP: 409,
   ALREADY_CLOSED: 409,
   BIRTH_ALREADY_RECORDED: 409,
+  INVALID_ACTION: 401,
   EARLIER_PERIOD_OPEN: 409,
   IDEMPOTENCY_KEY_REQUIRED: 400,
   IDEMPOTENCY_KEY_REUSED: 422,
@@ -1315,6 +1844,14 @@ export function restHandler(
   const answer = (r: Route, result: Result<unknown>): RestResponse => {
     if (!result.ok) return refused(result.error);
     const body = r.shape(result.value);
+    // A provider's callback sends the browser back where it came from.
+    if (r.status === 302) {
+      return {
+        status: 302,
+        body: '',
+        headers: { location: (body as { location: string }).location },
+      };
+    }
     return typeof body === 'string'
       ? { status: r.status, body, headers: { 'content-type': 'text/calendar; charset=utf-8' } }
       : { status: r.status, body };
@@ -1342,14 +1879,42 @@ export function restHandler(
     const params = parse(r.params, coerce(r.params, raw));
     if (!params.ok) return refused(params.error);
 
+    /** The body, parsed by the route's schema; checked after who is asking and the key. */
+    const bodyOf = (): Result<unknown> => {
+      if (r.body === null) return ok(undefined);
+      let json: unknown;
+      try {
+        json = request.body === '' ? {} : JSON.parse(request.body);
+      } catch {
+        return err(failure('BAD_REQUEST', 'The body is not JSON'));
+      }
+      return parse(r.body, json);
+    };
+
     if (r.public) {
+      // Reached with a token of its own (a feed's, a kiosk's), not through the router.
       const anonymous: Caller = {
         tenantId: '' as Caller['tenantId'],
         accountId: '',
         personId: null,
         correlationId: '',
       };
-      return answer(r, await r.run(deps, anonymous, { params: params.value, body: undefined }));
+      const authorization = request.headers['authorization'];
+      const bearer =
+        typeof authorization === 'string' && authorization.startsWith('Bearer ')
+          ? authorization.slice('Bearer '.length).trim()
+          : null;
+      const body = bodyOf();
+      if (!body.ok) return refused(body.error);
+      return answer(
+        r,
+        await r.run(deps, anonymous, {
+          params: params.value,
+          body: body.value,
+          bearer,
+          raw: { headers: request.headers, body: request.body },
+        }),
+      );
     }
     const caller = await rest.callerFrom(request);
     if (!caller.ok) return refused(caller.error);
@@ -1362,19 +1927,10 @@ export function restHandler(
         failure('IDEMPOTENCY_KEY_REQUIRED', 'Every write carries an Idempotency-Key header'),
       );
     }
-    let body: unknown;
-    if (r.body !== null) {
-      let json: unknown;
-      try {
-        json = request.body === '' ? {} : JSON.parse(request.body);
-      } catch {
-        return refused(failure('BAD_REQUEST', 'The body is not JSON'));
-      }
-      const parsed = parse(r.body, json);
-      if (!parsed.ok) return refused(parsed.error);
-      body = parsed.value;
-    }
-    const input = { params: params.value, body };
+    const parsedBody = bodyOf();
+    if (!parsedBody.ok) return refused(parsedBody.error);
+    const body = parsedBody.value;
+    const input = { params: params.value, body, bearer: null, raw: { headers: {}, body: '' } };
     if (!writes || typeof key !== 'string')
       return answer(r, await r.run(deps, caller.value, input));
 

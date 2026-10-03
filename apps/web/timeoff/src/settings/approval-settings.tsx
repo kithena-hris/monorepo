@@ -1,5 +1,6 @@
 import {
   Alert,
+  Button,
   Field,
   FieldControl,
   FieldDescription,
@@ -14,8 +15,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  TimePicker,
+  icons,
 } from '@reach/ui';
-import type { JSX } from 'react';
+import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 import {
@@ -46,9 +49,18 @@ export interface TeamMinimum {
   readonly unit: 'people' | 'percent';
 }
 
+/** "If nobody decides" (§9.7): after how many working days, to whom, reminded when. */
+export interface Escalation {
+  readonly afterWorkingDays: number;
+  readonly to: 'manager' | 'hr';
+  /** Minutes after midnight. */
+  readonly remindAt: number;
+}
+
 export interface ApprovalSettingsData {
   readonly rules: readonly ApprovalRule[];
   readonly autoApproval: AutoApproval;
+  readonly escalation: Escalation;
   readonly teams: readonly {
     readonly teamKey: string;
     readonly teamName: string | null;
@@ -64,6 +76,7 @@ export interface ApprovalSettingsProps {
     rules: readonly ApprovalRule[],
     autoApproval: AutoApproval,
     minimums: readonly { readonly teamKey: string; readonly minimum: TeamMinimum | null }[],
+    escalation: Escalation,
   ) => Promise<Outcome>;
 }
 
@@ -114,6 +127,104 @@ interface Form {
   readonly rules: readonly ApprovalRule[];
   readonly autoApproval: AutoApproval;
   readonly minimums: Readonly<Record<string, TeamMinimum | null>>;
+  readonly escalation: Escalation;
+}
+
+const ANY = 'any';
+const clock = (minutes: number): string =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+
+/** A new rule's three choices, and the button that adds it to the list. */
+function AddRule({
+  types,
+  onAdd,
+}: {
+  readonly types: readonly LeaveTypeRow[];
+  readonly onAdd: (rule: ApprovalRule) => void;
+}): JSX.Element {
+  const [subject, setSubject] = useState<ApprovalRule['subject']>('request');
+  const [type, setType] = useState<string>(ANY);
+  const [when, setWhen] = useState<ApprovalRule['when']>('always');
+  const pick = (
+    label: string,
+    value: string,
+    onChange: (v: string) => void,
+    items: readonly (readonly [string, string])[],
+  ): JSX.Element => (
+    <Field className="min-w-0 flex-1">
+      <FieldLabel>{label}</FieldLabel>
+      <Select value={value} onValueChange={onChange}>
+        <FieldControl>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+        </FieldControl>
+        <SelectContent>
+          {items.map(([v, l]) => (
+            <SelectItem key={v} value={v}>
+              {l}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-3">
+      <legend className="mb-1 text-sm font-medium">Add a rule</legend>
+      <div className="flex flex-col gap-3 @min-[36rem]/approvals:flex-row">
+        {pick(
+          'Covers',
+          subject,
+          (v) => {
+            setSubject(v as ApprovalRule['subject']);
+          },
+          [
+            ['request', 'A request'],
+            ['plan', 'A parental plan'],
+            ['timesheet', 'Overtime and timesheets'],
+          ],
+        )}
+        {subject === 'timesheet'
+          ? null
+          : pick('Leave type', type, setType, [
+              [ANY, 'Any'],
+              ...types.map((t) => [t.definition.key, t.definition.name.default] as const),
+            ])}
+        {subject === 'request'
+          ? pick(
+              'When',
+              when,
+              (v) => {
+                setWhen(v as ApprovalRule['when']);
+              },
+              [
+                ['always', 'Always'],
+                ['below_zero', 'Below zero'],
+                ['unpaid', 'Unpaid'],
+              ],
+            )
+          : null}
+      </div>
+      <div>
+        <Button
+          size="sm"
+          variant="secondary"
+          startIcon={<icons.add aria-hidden />}
+          onClick={() => {
+            onAdd({
+              subject,
+              leaveTypes: subject === 'timesheet' || type === ANY ? null : [type],
+              when: subject === 'request' ? when : 'always',
+              approvers: ['manager'],
+            });
+          }}
+        >
+          Add rule
+        </Button>
+      </div>
+    </fieldset>
+  );
 }
 
 function Ready({
@@ -127,9 +238,10 @@ function Ready({
     rules: data.rules,
     autoApproval: data.autoApproval,
     minimums: Object.fromEntries(data.teams.map((t) => [t.teamKey, t.minimum])),
+    escalation: data.escalation,
   };
   const form = useSaved(saved);
-  const { rules, autoApproval: auto, minimums } = form.draft;
+  const { rules, autoApproval: auto, minimums, escalation } = form.draft;
   const set = (patch: Partial<Form>): void => {
     form.set({ ...form.draft, ...patch });
   };
@@ -179,9 +291,23 @@ function Ready({
                       ))}
                     </SelectContent>
                   </Select>
+                  <Button
+                    variant="ghost"
+                    aria-label={`Remove the rule for ${ruleTitle(rule, names)}`}
+                    startIcon={<icons.delete aria-hidden />}
+                    onClick={() => {
+                      set({ rules: rules.filter((_, j) => j !== i) });
+                    }}
+                  />
                 </Field>
               ))
             )}
+            <AddRule
+              types={data.leaveTypes.filter((t) => !t.deleted)}
+              onAdd={(rule) => {
+                set({ rules: [...rules, rule] });
+              }}
+            />
           </FormSection>
           <FormSection
             title="Approved automatically"
@@ -299,6 +425,63 @@ function Ready({
           <Alert tone="info" title="Minimums warn, they don’t block">
             People can still send a request. The manager sees the clash and decides.
           </Alert>
+          <PageSection
+            title="If nobody decides"
+            description="Nothing waits for ever: it moves on, and whoever decides is reminded daily."
+            surface
+          >
+            <div className="flex flex-col gap-4">
+              <NumberField
+                label="After (working days)"
+                value={escalation.afterWorkingDays}
+                min={1}
+                max={20}
+                step={1}
+                onChange={(n) => {
+                  set({ escalation: { ...escalation, afterWorkingDays: Math.max(1, n ?? 1) } });
+                }}
+              />
+              <Field>
+                <FieldLabel>Goes to</FieldLabel>
+                <Select
+                  value={escalation.to}
+                  onValueChange={(to) => {
+                    if (to === 'manager' || to === 'hr') set({ escalation: { ...escalation, to } });
+                  }}
+                >
+                  <FieldControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FieldControl>
+                  <SelectContent>
+                    <SelectItem value="manager">The manager’s manager</SelectItem>
+                    <SelectItem value="hr">HR</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  {escalation.to === 'manager'
+                    ? 'HR, when the manager has nobody above them.'
+                    : 'Straight to HR, whoever the manager reports to.'}
+                </FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel>Reminder, every day at</FieldLabel>
+                <FieldControl>
+                  <TimePicker
+                    label="Reminder, every day at"
+                    value={clock(escalation.remindAt)}
+                    step={15}
+                    onChange={(time) => {
+                      if (time === null) return;
+                      const [h = 9, m = 0] = time.split(':').map(Number);
+                      set({ escalation: { ...escalation, remindAt: h * 60 + m } });
+                    }}
+                  />
+                </FieldControl>
+              </Field>
+            </div>
+          </PageSection>
         </div>
       </div>
       {onSave === undefined
@@ -313,6 +496,7 @@ function Ready({
                     JSON.stringify(next.minimums[t.teamKey] ?? null) !== JSON.stringify(t.minimum),
                 )
                 .map((t) => ({ teamKey: t.teamKey, minimum: next.minimums[t.teamKey] ?? null })),
+              next.escalation,
             ),
           )}
     </>

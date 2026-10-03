@@ -87,6 +87,8 @@ export interface Config {
    * the notice endpoint refuses everything.
    */
   readonly noticeToken?: string | undefined;
+  /** Time Off's own secret for its notices (a nudge, TOF-098), apart from People's. */
+  readonly timeOffNoticeToken?: string | undefined;
   readonly tenantAppBase?: string | undefined;
   /**
    * Whether this deployment is allowed to fall back to the log transport.
@@ -328,7 +330,7 @@ export function compose(config: Config): RequestHandler {
         logger.info({ reason, transport: transport.name, ...detail }, 'notice refused');
       },
     }),
-    internalToken: config.noticeToken ?? '',
+    internalToken: [config.noticeToken ?? '', config.timeOffNoticeToken ?? ''],
   });
 
   return async (request, response) =>

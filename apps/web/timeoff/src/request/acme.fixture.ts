@@ -1,4 +1,5 @@
 import { adam } from '../overview/acme.fixture';
+import type { DescribeData } from './describe';
 import type { RequestData } from './request';
 
 /**
@@ -182,4 +183,65 @@ export const december = (): RequestData => ({
       shorten: { to: '2026-12-22', endsHalfDay: true, days: '6.500' },
     },
   },
+});
+
+/**
+ * T4, MT8: "a week off in October, ideally next to a holiday, but not when
+ * the team is short", as Time Off read it and the dates it found: 13–16 Oct
+ * after Monday's Fiesta Nacional, 26–30 Oct, and 19–23 Oct with Wednesday
+ * short. The lines are Time Off's templates.
+ */
+export const described = (): DescribeData => ({
+  overview: adam(),
+  sentence: 'a week off in October, ideally next to a holiday, but not when the team is short',
+  understood: {
+    leaveTypeKey: 'vacation',
+    leaveTypeName: 'Vacation',
+    days: 5,
+    month: '2026-10',
+    nextToHoliday: true,
+    avoidShort: true,
+    ai: false,
+  },
+  leaveTypes: [{ key: 'vacation', name: 'Vacation' }],
+  left: '11.500',
+  options: [
+    {
+      from: '2026-10-13',
+      to: '2026-10-16',
+      used: 4,
+      away: { from: '2026-10-10', to: '2026-10-18', days: 9 },
+      holidays: [{ date: '2026-10-12', name: 'Fiesta Nacional' }],
+      short: [],
+      fewest: { in: 5, of: 7 },
+      fits: true,
+      leftAfter: '7.500',
+      line: { text: '4 days for 9 days away, with Fiesta Nacional.', ai: false },
+    },
+    {
+      from: '2026-10-26',
+      to: '2026-10-30',
+      used: 5,
+      away: { from: '2026-10-24', to: '2026-11-01', days: 9 },
+      holidays: [],
+      short: [],
+      fewest: { in: 5, of: 7 },
+      fits: true,
+      leftAfter: '6.500',
+      line: { text: '5 days for 9 days away.', ai: false },
+    },
+    {
+      from: '2026-10-19',
+      to: '2026-10-23',
+      used: 5,
+      away: { from: '2026-10-17', to: '2026-10-25', days: 9 },
+      holidays: [],
+      short: [{ date: '2026-10-21', in: 4, of: 7, required: 5 }],
+      fewest: { in: 4, of: 7 },
+      fits: true,
+      leftAfter: '6.500',
+      line: { text: '5 days for 9 days away.', ai: false },
+    },
+  ],
+  today: '2026-10-01',
 });

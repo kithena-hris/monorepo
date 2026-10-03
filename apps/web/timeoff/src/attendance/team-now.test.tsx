@@ -54,7 +54,29 @@ describe('team, right now', () => {
     expect(needs.getByText('Omar Haddad · 1h 30m overtime')).toBeTruthy();
     expect(
       needs.getByRole('link', { name: 'Review Omar Haddad’s overtime' }).getAttribute('href'),
-    ).toBe('/time-off/attendance/timesheets?person=p-omar&week=2026-09-29');
+    ).toBe('/time-off/attendance/requests');
+  });
+
+  it('says what is normal in a sentence, tagged AI only when a model wrote it', () => {
+    const { rerender } = render(<TeamNow load={ready()} />);
+    const card = () =>
+      within(
+        screen
+          .getByRole('heading', { name: 'Today, in a sentence' })
+          .closest('.flex-col') as HTMLElement,
+      );
+    expect(card().getByText(/Ravi started at 10:12, inside the team’s hours/)).toBeTruthy();
+    expect(card().queryByText('AI')).toBeNull();
+    rerender(
+      <TeamNow
+        load={{
+          status: 'ready',
+          data: { ...marcoBoard(), sentence: { text: 'All in, as usual.', ai: true } },
+        }}
+      />,
+    );
+    expect(card().getByText('All in, as usual.')).toBeTruthy();
+    expect(card().getByText('AI')).toBeTruthy();
   });
 
   it('draws its loading state in the page’s shape', async () => {

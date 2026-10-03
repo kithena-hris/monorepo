@@ -1,13 +1,20 @@
 import { ok, type Result } from '@kithena/domain-kit';
-import type { CalendarDate, LeaveTypeKey, PersonId, PolicyDefinition } from '@kithena/contracts';
+import {
+  CalendarDate,
+  type LeaveTypeKey,
+  type PersonId,
+  type PolicyDefinition,
+} from '@kithena/contracts';
 
+import { bridgesFor, writeBridges, yearAhead, type BridgeFacts } from '../assist/bridges.js';
+import type { Writer } from '../assist/ports.js';
 import { mayDecide } from '../approval/decide.js';
 import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
 import { calendarIn } from '../calendar/calendar.js';
 import { AttendanceClock, standing } from '../../domain/attendance/clock.js';
 import { dayOf } from '../../domain/attendance/day.js';
 import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
-import { daysBetween } from '../../domain/days.js';
+import { addDays, daysBetween } from '../../domain/days.js';
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import type { LeaveRequest } from '../../domain/request/leave-request.js';
 import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
@@ -28,6 +35,7 @@ import {
 import type {
   BalanceLedgerView,
   BalanceView,
+  BridgeView,
   HolidaysView,
   MemberView,
   MyRequestsView,
@@ -49,7 +57,7 @@ import type {
  * calendar's own visibility (`calendarIn`).
  */
 
-type ReadDeps = Pick<Deps, 'uow' | 'authz' | 'clock'>;
+type ReadDeps = Pick<Deps, 'uow' | 'authz' | 'clock' | 'writer'>;
 
 /* ---------------------------------------------------------------- shapes -- */
 
@@ -155,63 +163,90 @@ export async function approves(
 
 /* --------------------------------------------------------------- screens -- */
 
-/** T1: the clock, the balances, what is coming up and who is off today. */
+type Unwritten<V> = Omit<V, 'bridges'> & { readonly bridges: readonly BridgeFacts[] };
+
+/** A read with bridge days, and their lines written once its transaction has closed. */
+async function withBridges<V extends { readonly bridges: readonly BridgeView[] }>(
+  writer: Writer | undefined,
+  tenantId: Caller['tenantId'],
+  read: Result<Unwritten<V>>,
+): Promise<Result<V>> {
+  if (!read.ok) return read;
+  return ok({
+    ...read.value,
+    bridges: await writeBridges(writer, tenantId, read.value.bridges),
+  } as unknown as V);
+}
+
+/** T1: the clock, the balances, what is coming up, who is off today and the best bridge days. */
 export const overview =
   (deps: ReadDeps) =>
-  (caller: Caller): Promise<Result<OverviewView>> =>
-    transact<OverviewView>(deps, caller.tenantId, async (tx) => {
-      const me = caller.personId === null ? null : await tx.members.get(caller.personId);
-      if (me === null) {
-        return ok({ member: null, clock: null, balances: [], comingUp: [], teamToday: [] });
-      }
-      const today = deps.clock.date(me.timeZone);
-      const clock = AttendanceClock.of({
-        tenantId: caller.tenantId,
-        personId: me.personId,
-        timeZone: me.timeZone,
-        punches: await tx.attendance.punches(me.personId),
-      });
-      const day = dayOf({
-        date: today,
-        schedule: (await tx.attendance.schedule(me.personId)) ?? DEFAULT_SCHEDULE,
-        shifts: clock.shifts,
-        now: deps.clock.instant(),
-        timeZone: me.timeZone,
-        rules: await tx.attendance.rules(),
-      });
-      const types = await typesOf(tx);
-      const comingUp = (
-        await tx.requests.list({ personIds: [me.personId], statuses: LIVE, from: today })
-      )
-        .toSorted((a, b) => a.request.span.from.localeCompare(b.request.span.from))
-        .slice(0, 5)
-        .map((r) => requestItem(r, me, types));
+  async (caller: Caller): Promise<Result<OverviewView>> =>
+    withBridges<OverviewView>(
+      deps.writer,
+      caller.tenantId,
+      await transact<Unwritten<OverviewView>>(deps, caller.tenantId, async (tx) => {
+        const me = caller.personId === null ? null : await tx.members.get(caller.personId);
+        if (me === null) {
+          return ok({
+            member: null,
+            clock: null,
+            balances: [],
+            comingUp: [],
+            teamToday: [],
+            bridges: [],
+          });
+        }
+        const today = deps.clock.date(me.timeZone);
+        const clock = AttendanceClock.of({
+          tenantId: caller.tenantId,
+          personId: me.personId,
+          timeZone: me.timeZone,
+          punches: await tx.attendance.punches(me.personId),
+        });
+        const day = dayOf({
+          date: today,
+          schedule: (await tx.attendance.schedule(me.personId)) ?? DEFAULT_SCHEDULE,
+          shifts: clock.shifts,
+          now: deps.clock.instant(),
+          timeZone: me.timeZone,
+          rules: await tx.attendance.rules(),
+        });
+        const types = await typesOf(tx);
+        const comingUp = (
+          await tx.requests.list({ personIds: [me.personId], statuses: LIVE, from: today })
+        )
+          .toSorted((a, b) => a.request.span.from.localeCompare(b.request.span.from))
+          .slice(0, 5)
+          .map((r) => requestItem(r, me, types));
 
-      const team = await calendarIn(tx, deps, caller, { scope: 'team', from: today, to: today });
-      const names = new Map(
-        team.ok ? team.value.people.map((p) => [p.personId, p.displayName]) : [],
-      );
-      const teamToday = (team.ok ? team.value.entries : [])
-        .filter((e) => e.personId !== me.personId)
-        .map((e) => ({
-          personId: e.personId,
-          displayName: names.get(e.personId) ?? '',
-          leaveTypeKey: e.shows === 'type' ? e.leaveTypeKey : null,
-          span: e.span,
-        }));
+        const team = await calendarIn(tx, deps, caller, { scope: 'team', from: today, to: today });
+        const names = new Map(
+          team.ok ? team.value.people.map((p) => [p.personId, p.displayName]) : [],
+        );
+        const teamToday = (team.ok ? team.value.entries : [])
+          .filter((e) => e.personId !== me.personId)
+          .map((e) => ({
+            personId: e.personId,
+            displayName: names.get(e.personId) ?? '',
+            leaveTypeKey: e.shows === 'type' ? e.leaveTypeKey : null,
+            span: e.span,
+          }));
 
-      return ok({
-        member: memberView(me),
-        clock: {
-          state: clock.state,
-          workModel: standing(clock.punches).at(-1)?.workModel ?? null,
-          today: day,
-        },
-        balances: await balancesIn(tx, me, today),
-        comingUp,
-        teamToday,
-      });
-    });
+        return ok({
+          member: memberView(me),
+          clock: {
+            state: clock.state,
+            workModel: standing(clock.punches).at(-1)?.workModel ?? null,
+            today: day,
+          },
+          balances: await balancesIn(tx, me, today),
+          comingUp,
+          teamToday,
+          bridges: (await bridgesFor(tx, me, yearAhead(today))).slice(0, 2),
+        });
+      }),
+    );
 
 /** The panel's consequences, flattened for a screen to read. */
 export async function previewView(tx: Tx, a: Assessment): Promise<PreviewView> {
@@ -360,6 +395,7 @@ export const requestDetail =
           spans: p.spans.map((r) => ({ from: r.from, to: r.to })),
           workingDays: p.workingDays,
         })),
+        proposalMessage: request.status === 'counter_proposed' ? record.proposalMessage : null,
         chain: [...routing.chain],
         step: routing.step,
         escalated: routing.escalatedTo !== null,
@@ -400,23 +436,43 @@ export const balanceLedger =
       return ok({ balance: await balanceView(tx, member, leaveType, today), entries });
     });
 
-/** MT21: the holidays the caller's work location observes in a year. */
+/**
+ * MT21: the holidays the caller's work location observes in a year, and the
+ * bridge days still ahead in it, in date order. Their lines are templates:
+ * a list of every holiday is not worth a model call per visit.
+ */
 export const holidays =
   (deps: ReadDeps) =>
-  (caller: Caller, query: { readonly year: number }): Promise<Result<HolidaysView>> =>
-    transact<HolidaysView>(deps, caller.tenantId, async (tx) => {
-      const me = caller.personId === null ? null : await tx.members.get(caller.personId);
-      if (me?.locationKey == null) return ok({ year: query.year, locationKey: null, holidays: [] });
-      const keys = await tx.holidays.assigned(me.locationKey);
-      const layers = (await tx.holidays.layers())
-        .filter((l) => keys.includes(l.key))
-        .toSorted((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
-      return ok({
-        year: query.year,
-        locationKey: me.locationKey,
-        holidays: resolveHolidays(layers, query.year),
-      });
-    });
+  async (caller: Caller, query: { readonly year: number }): Promise<Result<HolidaysView>> =>
+    withBridges<HolidaysView>(
+      undefined,
+      caller.tenantId,
+      await transact<Unwritten<HolidaysView>>(deps, caller.tenantId, async (tx) => {
+        const me = caller.personId === null ? null : await tx.members.get(caller.personId);
+        if (me?.locationKey == null) {
+          return ok({ year: query.year, locationKey: null, holidays: [], bridges: [] });
+        }
+        const keys = await tx.holidays.assigned(me.locationKey);
+        const layers = (await tx.holidays.layers())
+          .filter((l) => keys.includes(l.key))
+          .toSorted((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
+        const today = deps.clock.date(me.timeZone);
+        const first = CalendarDate.parse(`${String(query.year)}-01-01`);
+        const last = CalendarDate.parse(`${String(query.year)}-12-31`);
+        const from = addDays(today, 1) > first ? addDays(today, 1) : first;
+        return ok({
+          year: query.year,
+          locationKey: me.locationKey,
+          holidays: resolveHolidays(layers, query.year),
+          bridges:
+            from > last
+              ? []
+              : (await bridgesFor(tx, me, { from, to: last })).toSorted((a, b) =>
+                  a.from.localeCompare(b.from),
+                ),
+        });
+      }),
+    );
 
 /**
  * A person's balances on the People Graph (`Person.timeOffBalances`, §18):

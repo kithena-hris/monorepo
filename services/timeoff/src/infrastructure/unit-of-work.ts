@@ -6,7 +6,7 @@ import type { TenantId } from '@kithena/contracts';
 import { logger, onShutdown } from '@kithena/telemetry';
 
 import type { Tx, UnitOfWork } from '../application/ports.js';
-import { drizzleAttendance } from './drizzle-attendance.js';
+import { drizzleAttendance, drizzleKiosks } from './drizzle-attendance.js';
 import {
   drizzleLeaveTypes,
   drizzleLedger,
@@ -14,9 +14,15 @@ import {
   drizzleRequests,
 } from './drizzle-leave.js';
 import { drizzleIdempotency } from './idempotency.js';
-import { drizzleLocations, drizzleMembers } from './drizzle-members.js';
+import { drizzleLocations, drizzleMembers, drizzleScim } from './drizzle-members.js';
 import { drizzleParental } from './drizzle-parental.js';
-import { drizzleApprovals, drizzleFeeds, drizzleHolidays } from './drizzle-settings.js';
+import {
+  drizzleApprovals,
+  drizzleFeeds,
+  drizzleHolidays,
+  drizzleIntegrations,
+  drizzleSettings,
+} from './drizzle-settings.js';
 import { outbox } from './tables.js';
 
 /**
@@ -50,6 +56,10 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
     attendance: drizzleAttendance(tx, tenantId),
     feeds: drizzleFeeds(tx, tenantId),
     parental: drizzleParental(tx, tenantId),
+    kiosks: drizzleKiosks(tx, tenantId),
+    integrations: drizzleIntegrations(tx, tenantId),
+    scim: drizzleScim(tx, tenantId),
+    settings: drizzleSettings(tx, tenantId),
     idempotency: drizzleIdempotency(tx, tenantId),
     outbox: { publish: (events) => publish(tx, outbox, events) },
   };

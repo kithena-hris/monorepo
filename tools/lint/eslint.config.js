@@ -40,6 +40,10 @@ export default tseslint.config(
       // signed manifest).
       'apps/*/scripts/*.mjs',
       'apps/*/*/scripts/*.mjs',
+      // Same case: the kiosk's service worker, served as written from
+      // `public/` because a worker is fetched by URL and Next compiles nothing
+      // there. `apps/web/src/lib/kiosk-sw.test.ts` runs it.
+      'apps/web/public/kiosk-sw.js',
       // Conflict copies from whatever syncs this directory — `foo 2.ts` beside
       // `foo.ts`. Git ignores them; ESLint does not read `.gitignore`, so it
       // was reporting a parse error for a file nothing is meant to see.

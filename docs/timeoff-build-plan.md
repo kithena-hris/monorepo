@@ -1458,7 +1458,7 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### Assistance
 
-### [ ] TOF-084 — AI ports and the gateway
+### [x] TOF-084 — AI ports and the gateway
 
 - **Spec** PRD §14.1
 - **Files** `services/timeoff/src/application/assist/`,
@@ -1469,85 +1469,324 @@ test passes, and it matches the design's screen on the seeded demo company.
   nothing on failure; template fallbacks for every caller.
 - **Done when** the standalone suite is green with the keys unset and with them
   set and `fetch` mocked.
+- **As built** `Judge.choose` asks choice questions over one state in one
+  TypeSafe call (`TYPESAFE_API_KEY`) and keeps only options it offered;
+  `Writer.write` asks People's OpenAI-compatible model (`ASSISTANT_*`, copied,
+  not shared) for one JSON object of lines. Both are optional on `Deps`, both
+  go through `timeOffGateway`, which loads the same denied keys and words for
+  every tenant (sick note, due and birth dates, a person's name or id), and
+  both remember answers per tenant and ask (500, per process). `written()` is
+  the one way a feature gets text: the template without a writer, else the
+  model's line, refused back to the template when it is not one line, leaves
+  a placeholder unfilled or carries a number the facts do not. People are
+  placeholders (`{who}`) filled in after the answer, so no name reaches a
+  model. The standalone suite builds the ports from the environment; CI sets
+  both keys on its second run and the suite answers the two model addresses
+  with a 503.
 
-### [ ] TOF-085 — Bridge days
+### [x] TOF-085 — Bridge days
 
 - **Screens** T1, MT1 AI card · **Depends on** TOF-084, TOF-061
+- **As built** `domain/calendar/bridges.ts` replaces the shell's Monday-to-
+  Friday guess: a run of working days in the member's own week with days off
+  on both sides, one of them a holiday, at most 4 long and buying at least
+  two and a half times its length (a Monday for 4, four days for 10; three
+  for 6 is dropped), never past or already asked for, best value first.
+  Madrid's real 2026 moves the Constitution to Monday 7 December, so the
+  design's "Take Mon 7 Dec" is already a holiday and the demo's best days are
+  9–11 December and Easter 2027. `timeOffOverview` carries the best two with a
+  written line (the model's from the days and holiday names alone, else
+  "9 days off, 5–13 Dec, with …"); `timeOffHolidays` carries the year's still
+  ahead, templated. The card shows `used → away` and the AI tag only when a
+  line was the model's.
 
-### [ ] TOF-086 — Reasons in the approvals queue
+### [x] TOF-086 — Reasons in the approvals queue
 
 - **Screens** T16, MT15 · **Depends on** TOF-084, TOF-068
+- **As built** `timeOffApprovals` carries `why`, one line per waiting request,
+  clear or not (`assist/reasons.ts`): the rule's numbers — what is left
+  after, the team's worst day (`teamCoverage`, split out of `teamBelow`), the
+  days below the minimum — in the model's words, each requester a
+  placeholder, or the template ("Wed 21 Oct: 4 of 7 in, below the 5 the team
+  needs."). Sick leave is never shown to a model. The screen's own templates
+  are gone; a row is tagged AI only when its line was the model's.
 
-### [ ] TOF-087 — What to know
+### [x] TOF-087 — What to know
 
 - **Screens** T17, MT16 · **Depends on** TOF-084, TOF-069
+- **As built** The card's facts stay the domain's, drawn by the screen; its
+  closing line is `whatToKnow` on `timeOffRequestDecision`
+  (`assist/decision.ts`), from the worst day, the balance after and the last
+  break, the requester `{who}`, teammates only a count, the note never sent.
 
-### [ ] TOF-088 — Counter-proposal message and clash explanation
+### [x] TOF-088 — Counter-proposal message and clash explanation
 
 - **Screens** T15, T18 · **Depends on** TOF-084, TOF-070, TOF-073
+- **As built** In the same call as TOF-087: `clash` (why it matters and how
+  many fixes keep the minimum) and a `message` on each of the requester's own
+  alternatives. Dates picked by hand in T18 keep the screen's template, since
+  Time Off never saw them. Committed with TOF-086 and TOF-087, which share
+  the decision view.
 
-### [ ] TOF-089 — Missed clock-out suggestion
+### [x] TOF-089 — Missed clock-out suggestion
 
 - **Screens** T21, MT18 · **Depends on** TOF-084, TOF-075
 - **Approach** Evidence is only calendar event end times (when a calendar is
   connected) and Kithena activity timestamps. Shown with the evidence.
+- **As built** `Deps.calendar` (`CalendarEvidence`) is the calendar's port,
+  with no adapter until TOF-110; Kithena's activity is what Time Off itself
+  saw the person do that day (requests sent). `domain/attendance/suggestion.ts`
+  turns the evidence after the last punch into candidate times rounded up to
+  five minutes; TypeSafe picks the likeliest from times and kinds alone (no
+  event title, no name), otherwise the latest. Each `timeOffTimesheet` open
+  day carries `suggestion`, only for the person themselves, `null` without
+  evidence. The fix dialog fills the time in and lists the evidence; the AI
+  tag shows when the model chose.
 
-### [ ] TOF-090 — Describe it, get the best dates
+### [x] TOF-090 — Describe it, get the best dates
 
 - **Screens** T4, MT8 · **Spec** PRD §14.2
 - **Depends on** TOF-084, TOF-062
 - **Approach** The sentence becomes editable chips (Judge); the domain generates
   and scores date options; the Writer writes each option's line.
+- **As built** `timeOffDescribe` (`assist/describe.ts`): five choices — type,
+  about how many days, month, next to a holiday, not when the team is short —
+  read by TypeSafe from options the code offered (sick leave never among
+  them, and a sentence mentioning health never sent), by Time Off's own
+  rules without a key, and overridden by anything the person changed.
+  `domain/request/options.ts` scores every run of N−1 to N+1 working days in
+  the window by days away per day used, a holiday when wanted, a short day
+  when to be avoided, and keeps the best three that do not overlap; the
+  balance after each is Time Off's. `/time-off/request/describe` is a dialog
+  over the overview (a sheet on a phone): the composer, "Understood as"
+  chips (remove, or Change for selects and switches), each change the
+  address; "Request 13–16 Oct" opens the ordinary panel with those dates, so
+  nothing is sent from here. The panel links to it ("Describe it instead").
 
-### [ ] TOF-091 — Today in a sentence
+### [x] TOF-091 — Today in a sentence
 
 - **Screens** T22 · **Depends on** TOF-084, TOF-077
+- **As built** `timeOffTeamRightNow` carries `sentence` (`assist/today.ts`):
+  the counts in, on a break, not in yet and away (approved time off today,
+  never why), the latest start and whether it was inside the team's hours,
+  the open fixes and overtime waiting, each person a placeholder for the
+  model; the template reads "Everyone expected is in. Ravi started at 10:12,
+  inside the team's hours." The board shows it in an assistant card above
+  Needs you.
 
-### [ ] TOF-092 — Plan explanation
+### [x] TOF-092 — Plan explanation
 
 - **Screens** T9, T11, MT11 · **Depends on** TOF-084, TOF-101
+- **As built** Every `TimeOffParentalPlan` carries `explanation`
+  (`assist/plan.ts`), written once the read's transaction closes, by the
+  model from week counts alone — each block as weeks after the child
+  arrives and how long, the entitlement's weeks, the notice — because the
+  child's date is health data and no date reaches a model; the template
+  says how many flexible weeks follow the mandatory ones, what is kept for
+  later and the notice. T9 and MT11 lead "Why this plan" with it, T11 shows
+  it beside the rules check; the domain's facts below it are unchanged.
 
 ### HR operations
 
-### [ ] TOF-093 — Policy preview, preview as a person, shadow runs
+### [x] TOF-093 — Policy preview, preview as a person, shadow runs
 
 - **Screens** T30 · **Spec** PRD §6.3
 - **Depends on** TOF-079
+- **As built** Preview and preview-as were TOF-079's. A shadow run is
+  `startTimeOffShadowRun` (PUT `/policies/{id}/shadow`, HR, a draft only):
+  the draft runs beside the version in effect for a month from today, kept
+  in the `policy_shadows` setting and ended by publishing or
+  `stopTimeOffShadowRun`. `timeOffPolicyPreview` carries `shadow`: each
+  member's credited allowance and balance under both, folded to today (or
+  the run's last day once over) by `shadowBalances`, the preview's fold cut
+  at a date. Nothing is posted and only HR's settings read it. T30's "Shadow
+  run" section starts and stops it and lists whose balance differs.
 
-### [ ] TOF-094 — Write a policy in plain words
+### [x] TOF-094 — Write a policy in plain words
 
 - **Screens** T32 · **Spec** PRD §6.4
 - **Depends on** TOF-084, TOF-093
+- **As built** `timeOffPolicyRead` (`assist/policy-prose.ts`), HR only: the
+  code finds every number of days, weeks or months in the text and the
+  month a carry-over must be used by; TypeSafe says what each figure sets
+  (allowance, carry-over, below zero, probation, none) and whether days are
+  given up front, which days and who approves going negative, or Time Off's
+  own rules read the words around them. HR's changes and answers win. The
+  reading becomes an ordinary `PolicyDefinition`, parsed by its own schema,
+  with calendar days counted as working days by the domain
+  (`domain/policy/calendar-days.ts`, 28 → 20). The one question is the first
+  the text leaves open: which days, then up front or monthly; the writer may
+  word it. `/settings/time-off/leave-types/new/describe` shows "Understood
+  as" with a change button per rule and the question; "Create draft" is
+  disabled while anything is open, sends the definition to
+  `draftTimeOffPolicy` (the domain validates it) and opens the draft on its
+  leave type, where T30's preview tests it. TOF-093 is not ticked: the
+  shadow run and preview-as are its own, and the test on real people here is
+  T30's existing preview, reached after the draft exists. Leave types links
+  to the page.
 
-### [ ] TOF-095 — Exceptions for HR and the inspector export
+### [x] TOF-095 — Exceptions for HR and the inspector export
 
 - **Screens** T23 · **Spec** PRD §11.7
 - **Depends on** TOF-042
+- **As built** `domain/attendance/exceptions.ts`: `exceptionsOf` (a day
+  never clocked out, rest under the rules' minimum, overtime nobody decided,
+  a holiday worked where the member works) and `dailyRecord` (each shift's
+  start, end and breaks as wall times in the member's zone, from the
+  punches that stand). `timeOffAttendanceExceptions` (HR, a year at most)
+  answers every member's over a period; `timeOffInspectorRecord` answers the
+  record as CSV (formula-safe) or a landscape A4 PDF (pdfkit, Noto Sans
+  vendored in `services/timeoff/assets/fonts`, as People's exports), base64,
+  which `apps/web/src/app/time-off/downloads/inspector` turns into a
+  download. `attendance/exceptions.tsx` at `/time-off/attendance/exceptions`:
+  the month in `?month=`, the four kinds with their count and why each
+  matters, the open kind's people beside them (`?kind=`). The design's "What
+  changed in September" card is TOF-097's.
 
-### [ ] TOF-096 — Close the month for Payroll
+### [x] TOF-096 — Close the month for Payroll
 
 - **Screens** T24 · **Spec** PRD §11.8
 - **Depends on** TOF-027, TOF-095
 - **Approach** Publishes `timeoff.period.closed` with hours and amounts, never
   punch times or locations.
+- **As built** `timeoff.period.closed` members gained `overtimeAmount`
+  (`Money`, minor units, `null` by default, the array now classified
+  financial): `close` prices paid overtime at the T33 multiplier with
+  decimal.js when it is handed an hourly rate. No module tells Time Off a
+  rate yet, so it passes none and Payroll gets hours (ponytail in
+  `closePayPeriod`). `monthSummary` counts each team's people, who is late
+  (a day without a clock-out or overtime undecided), overtime and how it is
+  paid, and the totals; `timeOffPayPeriod` reads a month live, or as its
+  lines once closed. `remindTimeOffPayPeriod` asks the late for their
+  clock-outs and their managers for the overtime (the new `overtime_waiting`
+  notice), once a day each. `attendance/pay-period.tsx` at
+  `/time-off/attendance/pay-period`, last month by default: the teams'
+  table, the totals, the late flagged with "Remind them", and "Send
+  September to Payroll", held until the month is over.
 
-### [ ] TOF-097 — Insights
+### [x] TOF-097 — Insights
 
 - **Screens** T27 · **Spec** PRD §14.2
 - **Depends on** TOF-084
 - **Approach** Tabs What changed, Time off, Attendance, Balances as routes;
   every point links to the people behind it; small groups hidden as People's
   cohort minimum.
+- **As built** Built before TOF-084 with a seam rather than waiting for it:
+  `domain/insights` computes every number (`whatChanged`: unbooked days and
+  who would lose some, nobody off since four months back with the team named
+  only when that many reach the minimum, missed clock-outs and overtime
+  month on month; `describable` drops small groups), and
+  `application/insights` asks an `InsightWriter` for each sentence —
+  `templatedInsight` now, the assistant's writer later, falling back to it.
+  `timeOffInsights` is HR's company or a manager's reports: points, six
+  months of days taken, missed clock-outs and overtime (sick a total only
+  for a scope at the minimum), the describable teams and the people behind
+  each point. The minimum is People's `people.settings.changed`, kept as the
+  `cohort_minimum` setting (only ever rising; 10 without People).
+  `insights/insights.tsx`, one component for the four tabs; `?point=` opens
+  a point's people beside it. The design's follow-up question box and the
+  unbooked value in euros wait for the assistant and for pay rates.
+  Wired to the assistant once the stack merged: `writeInsights` is the
+  `InsightWriter`, one `Writer` call for all of a month's points through
+  assist's `written()` guard, `templatedInsight` for any line that is
+  missing, too long or carries a number the facts do not. The model sees
+  each point's counts, months and hours, never a person or an id, and the
+  team only as `{team}`; the test asserts the prompt. Written after the
+  transaction closes; each point carries `ai`, and the card's tag says AI
+  rather than Templated when a model wrote any of them.
 
-### [ ] TOF-098 — Nudges
+### [x] TOF-098 — Nudges
 
 - **Screens** T28 · **Depends on** TOF-097
 - **Approach** Each message carries only its recipient's data; sent through
   `platform/messaging`.
+- **As built** The people are the insight's "no day off since": `whatChanged`
+  picks them, `nextBridge` (domain) finds each one's bridge day within the
+  leave year, and a `NudgeWriter` words their own figures (balance, bridge,
+  what the year end would take) — `templatedNudge` until the assistant's
+  writer, which falls back to it. `timeOffNudge` previews the first
+  person's message exactly; `sendTimeOffNudges` sends each through
+  `platform/messaging` over internal HTTP (`infrastructure/messaging.ts`,
+  `MESSAGING_URL` and Time Off's own `MESSAGING_TIMEOFF_TOKEN`), once a day
+  each, linking to the company's own origin, which the web's server action
+  takes from the request and messaging checks again. Messaging gained the
+  `rest_nudge` notice: the module's words, bounded, one-line heading,
+  escaped, outcome recorded and never the words. The member projection
+  gained `workEmail` (from `people.person.hired`, a profile update or an
+  import); somebody without one is counted, not guessed at. The dialog opens
+  over What changed at `?nudge=no_break`, its includes in the address.
+  Deviations: managers are not written to (their message would carry other
+  people's figures), and it sends now rather than "Monday 09:00".
+  Wired to the assistant once the stack merged: `writeNudge` is the
+  `NudgeWriter`, one `Writer` call per recipient through `written()`, with
+  `templatedNudge` as each line's fallback. Its facts are the recipient's
+  own and only what HR included (days left, the bridge day and its holiday,
+  what the year end takes), the name as `{who}` filled in afterwards; the
+  test asserts every prompt names nobody and carries no id or address. The
+  closing "Nobody else sees this message" is the code's, never the model's.
+  The preview carries `ai` and the dialog tags it.
 
-### [ ] TOF-099 — Overtime approvals for managers
+### [x] TOF-099 — Overtime approvals for managers
 
 - **Screens** T22 "Needs you", attendance Requests tab · **Depends on** TOF-077
+- **As built** `timeOffAttendanceRequests` answers the Requests tab: the
+  board's "needs you" (overtime undecided and corrections made late) with
+  the rules' overtime policy, and the caller's own overtime of the last
+  month with where each day stands. `attendance/requests.tsx` at
+  `/time-off/attendance/requests`: each overtime day's "Decide" opens a
+  dialog offering what T33 allows (comp time, pay at the multiplier, or
+  both when the person chooses, and decline), sent through
+  `decideTimeOffOvertime`; a late correction links to the timesheet beside
+  the original. T22's "Needs you" now sends overtime there.
+
+### [x] TOF-099a — Settings you can edit, not only read
+
+- **Screens** T29, T30, T34, T36, T8's company weeks · **Depends on** TOF-078 – TOF-083, TOF-106
+- **Approach** The gaps the "As built" notes of TOF-078 to TOF-083 and
+  TOF-106 left: add a leave type; edit who a policy applies to; add and
+  remove approval rules and set "If nobody decides"; add a holiday calendar,
+  its days, and which calendars a location keeps; the company's own parental
+  weeks.
+- **As built** T29: "Add leave type" opens a dialog at `?add=1` (name, its
+  key derived and shown, kind, pay, balance, hours, what teammates see)
+  sent through `defineTimeOffLeaveType`, then the new type's page, where a
+  tracked type without a policy offers "Start a policy"
+  (`draftTimeOffPolicy`, nothing granted until edited). The company's own
+  parental weeks are a section of the page (`setTimeOffParentalCompany`,
+  read back on `timeOffLeaveTypeSettings`). T30: "Applies to" ticks the
+  countries and work locations members are in (`places` on the setting
+  view), part of the draft, so the preview says who it reaches; clauses Time
+  Off cannot hold are kept. T34: rules are removed per row and added from
+  three choices; "If nobody decides" (working days, the manager's manager or
+  HR, the reminder's time) is the new `escalation` setting, saved with the
+  rules and read by `escalationTick`. T36: "Add calendar" and each calendar
+  open a dialog at `?calendar=` (name, level, Sunday-to-Monday, the year's
+  days added and removed, other years kept; removable), and a location's
+  calendars are ticked and saved most general first.
+
+### [x] TOF-099b — A counter-proposal carries a message
+
+- **Screens** T18, T6 · **Depends on** TOF-070
+- **Approach** The message T18 drafts reaches the member: a contract field,
+  storage, the API, the dialog sends it, the employee reads it.
+- **As built** `timeoff.request.counter_proposed` gained `message` (free
+  text, `null` by default); `counterPropose` trims it into the event, and
+  the request keeps it as `proposal_message` beside who suggested the
+  dates. `CounterBody.message` carries it; T18's dialog sends what it
+  drafted or the approver typed (no more "copy it"), and the member's
+  suggestion card on T6 shows it while the suggestion waits.
+
+### [x] TOF-099c — HR's list of parental cases
+
+- **Screens** T11's way in · **Depends on** TOF-106
+- **Approach** Sent plans, waiting for HR and approved, as a list that opens
+  each case, so HR reaches a case without its link.
+- **As built** `timeOffParentalCases` (HR): every submitted or approved
+  plan, waiting first and newest first within each, with the member, team,
+  when it was sent and the first and last day booked (the weeks kept for
+  later left out). Drafts are never listed. `parental/cases.tsx` at
+  `/time-off/parental/cases`, a "Parental leave" tab of Requests for HR,
+  each row opening T11.
 
 ---
 
@@ -1639,50 +1878,234 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
 
 ### Kiosk, integrations, reach
 
-### [ ] TOF-107 — Kiosk devices
+### [x] TOF-107 — Kiosk devices
 
 - **Spec** PRD §11.9 · **Depends on** TOF-042
 - **Approach** Device registration per location, revocable token hash, scope
   punch-only; badge (keyboard wedge), PIN and personal QR.
+- **As built** `application/attendance/kiosk.ts`, `domain/attendance/kiosk.ts`.
+  HR registers a kiosk for a location (`POST /v1/timeoff/kiosks`) and is shown
+  its token once: `kk_` and the tenant, the device and 32 random bytes, so it
+  is found inside its tenant's RLS; only its SHA-256 is kept, and revoking
+  stops it at once. A device reaches three public routes with
+  `Authorization: Bearer` and nothing else — its own name, _identify_ (the
+  first name and what the tap would do, writing nothing) and _punches_ (its
+  queue) — none on the subgraph, none needing a session or a key. A badge
+  (HR's to give) or PIN (the member's or HR's) is kept as an HMAC under
+  `TIMEOFF_FEED_SECRET` in `kiosk_credential`, unique per tenant by
+  constraint; the personal QR is `GET /v1/timeoff/kiosk-qr`, signed and good
+  for 60 seconds, checked against the tap's instant. A tap is the next thing
+  the clock allows at that instant (out → in, in → out, on a break → back),
+  `source: kiosk`, `workModel: office`, actor `integration/kiosk`. The queue
+  carries a sequence per tap and the kiosk's time of sending: a sequence at
+  or below `kiosk_device.last_sequence` is a replay and punches nothing; a
+  clock more than 120 s off keeps its instants, writes the skew on each punch
+  (`punch.clock_skew_seconds`, on `TimeOffPunch` for the exceptions list) and
+  tells HR once a day per kiosk (`kiosk_clock_skew`). One refused tap does
+  not stop the batch. ponytail: rotating the feed secret means setting every
+  badge and PIN again.
 
-### [ ] TOF-108 — Kiosk screens, offline
+### [x] TOF-108 — Kiosk screens, offline
 
 - **Screens** T25, T26 · **Depends on** TOF-107
 - **Approach** `/kiosk/:deviceId` with its own minimal shell; a service worker
   queues punches offline with the device instant and a sequence; first name
   only; Undo for 5 seconds.
+- **As built** `apps/web/src/app/kiosk/[deviceId]/` outside `(app)`: no
+  sidebar, no session (`proxy.ts` lets `/kiosk/` and `/kiosk-sw.js`
+  through), the remote's unframed `Kiosk` (`apps/web/timeoff/src/kiosk/`)
+  drawn by `components/kiosk-shell.tsx`. HR's link carries the token once
+  (`#token=kk_…`); it moves to the tablet's storage and out of the address,
+  and without one the page asks for it. A keyboard-wedge reader's keystrokes
+  are a badge, or a QR when they start `kq_`; a PIN is six digits on
+  `PinInput`; "Show my QR code" reads the camera where `BarcodeDetector`
+  exists and otherwise says to hold the phone to the reader. The kiosk asks
+  who tapped, shows the first name, the time and "Not you? Undo · 5", and
+  sends nothing until the five seconds pass; offline it says the tap is kept.
+  Each tap then goes to `/kiosk/<id>/api/punches` with its instant and a
+  sequence (`max(last + 1, now in ms)`, so a wiped tablet stays ahead), which
+  `public/kiosk-sw.js` queues in Cache Storage and sends whole, in order,
+  with the tablet's time of sending — at once, when the page sees the
+  network return, every 30 s, and on a background sync; it also serves the
+  kiosk's pages offline. The route handler checks the token names the host's
+  tenant and forwards to Time Off at `TIMEOFF_PUBLIC_URL`, which the tunnel
+  must route as for the calendar feed. The member's side is
+  `/time-off/attendance/kiosk-code` (Attendance's "Kiosk code" tab): the QR,
+  refreshed before its minute is up, and their own PIN. The QR is drawn from
+  `uqr`'s matrix, a dependency of this module rather than of Reach (encoding
+  a QR is nothing to hand-roll, and Reach stays at two dependencies beyond
+  Radix). Reach gained four icons: `tap`, `scanCode`, `online`, `offline`.
+  The design's "Visitor" button is left out: visitors are not members, and
+  Time Off has nowhere to keep them. Badges are given through the API
+  (`PUT …/kiosk-credentials/badge`); there is no screen for it yet.
 
-### [ ] TOF-109 — Integrations page
+### [x] TOF-109 — Integrations page
 
 - **Screens** T35 · **Depends on** TOF-078
 - **Approach** Lists connected integrations and the Kithena modules that would
   consume Time Off events, marked "Kithena module".
+- **As built** `apps/web/timeoff/src/settings/integrations.tsx` at
+  `/settings/time-off/integrations`, from `timeOffIntegrations`
+  (`application/reach/integrations.ts`). Groups are named by what they are —
+  Calendar, Chat apps — and a vendor's name is only on its own row (Google
+  Calendar, Microsoft Outlook, Slack, Microsoft Teams, which "Follows
+  Slack"). Each row says where it stands: Connected, Not connected, Needs
+  credentials (no app created at the provider, so no button), Not available
+  yet (no adapter). Connecting goes to the provider's consent page with a
+  state Time Off signs (tenant, HR account, the page to return to, 15
+  minutes) and comes back to Time Off's public
+  `/v1/timeoff/integrations/<provider>/callback`, which checks it, stores
+  what was granted (`timeoff.integration`, secrets sealed by the adapter;
+  `integration_member` for a person's own grant) and redirects to the page
+  with `?connected=` or `?refused=`. Where access is granted in the
+  company's own admin console (Google), connecting is recorded at once. The
+  page also lists the kiosks with Add (the link with its token, shown once)
+  and Revoke, the country packs with "Not reviewed yet", and Payroll,
+  Benefits and Projects as "Kithena module", each with the events it would
+  read. The design's "Browse more" has nothing to browse and is left out.
 
-### [ ] TOF-110 — Calendar integration (Google, Microsoft)
+### [x] TOF-110 — Calendar integration (Google, Microsoft)
 
 - **Depends on** TOF-109
 - **Approach** Behind a port; out-of-office on approval; holidays per location.
   Needs OAuth credentials a person must create.
+- **As built** `CalendarPort` in `application/ports.ts`;
+  `application/reach/calendar.ts` puts a request on its member's calendar
+  as it stands (approved: its spans, `request-<id>-<n>`; anything else: none),
+  titled "Out of office" and nothing more, from Time Off's own
+  `timeoff.request.approved|changed|cancelled` read back by a consumer group
+  of its own (`timeoff-reach`, new events only), so a failed call is retried
+  with the event; a provider's refusal is logged, never thrown. The monthly
+  `calendar-holidays` job puts each member's holidays for this year and next
+  (`holiday-<layer>-<date>`) from the layers their location observes. Both
+  need the member's work address: `member.work_email`, the column TOF-098
+  added for nudges (one column, one migration), from People's `hired`, a
+  profile update, an import or SCIM, never on an event or a screen. Adapters in
+  `infrastructure/integrations/`: **Google** (`google.ts`), a service account
+  with domain-wide delegation acting as each member — JWT bearer token, then
+  Calendar v3 update-then-insert with an id from the key's hash,
+  `eventType: outOfOffice` midnight to midnight, a holiday as an all-day free
+  day; connecting is recorded at once because consent is given in the
+  company's Google admin console. **Microsoft** (`microsoft.ts`), a
+  multi-tenant Entra app with application permissions — admin consent (the
+  directory id is all that is kept), client-credentials token per directory,
+  Graph `POST`/`PATCH`/`DELETE` on `/users/{email}/events`, found by a
+  single-value extended property holding the key, `showAs: oof`. Both are
+  inert without credentials. The handover's out-of-office switch (TOF-105)
+  still shows as waiting: what it promised now happens on approval.
+- **Credentials a person must create** (none were created here):
+  - Google: a Google Cloud project with the Calendar API enabled, a service
+    account with a JSON key → `TIMEOFF_GOOGLE_SERVICE_ACCOUNT`; each
+    customer's Workspace administrator then adds the service account's
+    client id under Security › API controls › Domain-wide delegation with
+    the scope `https://www.googleapis.com/auth/calendar.events`.
+  - Microsoft: a multi-tenant app registration in Microsoft Entra with the
+    application permission `Calendars.ReadWrite` (Microsoft Graph), a
+    client secret, and the redirect URI
+    `<TIMEOFF_PUBLIC_URL>/v1/timeoff/integrations/microsoft/callback` →
+    `TIMEOFF_MICROSOFT_CLIENT_ID`, `TIMEOFF_MICROSOFT_CLIENT_SECRET`.
+  - `TIMEOFF_PUBLIC_URL` routed by the tunnel to Time Off's `/v1/timeoff/`.
 
-### [ ] TOF-111 — Chat integration (Slack, then Teams)
+### [x] TOF-111 — Chat integration (Slack, then Teams)
 
 - **Depends on** TOF-109
 - **Approach** Status while away; approve from a message. Named generically in
   the UI ("Chat apps").
+- **As built** `ChatPort` in `application/ports.ts`, provider-neutral, so
+  Teams is a second adapter and nothing else; `application/reach/chat.ts`.
+  A request sent (`timeoff.request.requested`, read back by `timeoff-reach`)
+  is a direct message to its approver — the manager at a manager step, or
+  whoever it was escalated to; an HR step asks nobody in particular — saying
+  who, what and when, with Approve and Decline. Each button carries a value
+  Time Off signs (tenant, request, the approver it was sent to, the
+  decision, two weeks' expiry); a press comes to the public
+  `POST /v1/timeoff/integrations/<provider>/actions`, is verified by the
+  adapter (the provider's signature) and by Time Off (its own), and is
+  decided through `decideRequest` as that approver, so every rule of the
+  screen holds; a refusal ("no longer waiting") is said in the
+  conversation. The daily `chat-status` job sets "Out of office" for
+  whoever is away today until midnight after their last day, for members
+  who granted their own status (the installer's grant comes with the
+  install; anyone else's through `POST …/integrations/<provider>/connect-me`,
+  which has no screen yet). **Slack** (`infrastructure/integrations/slack.ts`):
+  OAuth v2 install with bot scopes `chat:write, users:read,
+users:read.email, im:write` and user scope `users.profile:write`;
+  `users.lookupByEmail`, `chat.postMessage` to the user's id with Block Kit
+  buttons, `users.profile.set` with `status_expiration`; a press checked
+  against `x-slack-signature` within five minutes and answered through its
+  `response_url`. Tokens sealed with AES-256-GCM under
+  `TIMEOFF_INTEGRATION_KEY` before they are stored. Inert without any of its
+  credentials.
+- **Credentials a person must create** (none were created here):
+  - A Slack app (api.slack.com/apps), distributed publicly so companies can
+    install it: OAuth redirect URL
+    `<TIMEOFF_PUBLIC_URL>/v1/timeoff/integrations/slack/callback`, bot scopes
+    `chat:write`, `users:read`, `users:read.email`, `im:write`, user scope
+    `users.profile:write`, Interactivity on with the request URL
+    `<TIMEOFF_PUBLIC_URL>/v1/timeoff/integrations/slack/actions`, and App
+    Home's Messages tab on → `TIMEOFF_SLACK_CLIENT_ID`,
+    `TIMEOFF_SLACK_CLIENT_SECRET`, `TIMEOFF_SLACK_SIGNING_SECRET`.
+  - `TIMEOFF_INTEGRATION_KEY`: 32 random bytes, base64.
+  - Teams: a Bot Framework registration and an adapter, when it follows.
 
-### [ ] TOF-112 — AI holiday drafts
+### [x] TOF-112 — AI holiday drafts
 
 - **Screens** T36 AI card · **Depends on** TOF-084, TOF-083
 - **Approach** Drafts from data HR supplies or a licensed dataset; never
   publishes; unconfirmed days left for HR.
+- **As built** `timeOffHolidayDraft` (`assist/holiday-draft.ts`), HR only,
+  saves nothing: the code reads each pasted line's date (ISO, D/M/Y, "15 de
+  mayo", "November 9, 2028") and name for the year asked; TypeSafe says
+  whether each line is a confirmed holiday, one not confirmed yet or not a
+  holiday, else the words "provisional", "to be confirmed", "?" do. Lines
+  with no date in the year are listed as not read. T36 has the card: pick a
+  calendar, paste the list (`?draft=` and `?source=`), then the draft with
+  "To confirm" on what is not; HR's own Save adds only the confirmed days to
+  the calendar through the ordinary save, keeping what it held, and the rest
+  stay with HR. No licensed dataset is wired: data HR supplies only.
 
-### [ ] TOF-113 — Germany and UK country packs
+### [x] TOF-113 — Germany and UK country packs
 
 - **Depends on** TOF-028
+- **As built** `country-packs/de.ts` and `gb.ts`, `reviewed: false`, each
+  citing its statutes and the official holiday sources in its header; the
+  shape moved to `country-packs/pack.ts`. Germany: Munich (federal + Bavaria)
+  and Berlin (federal + Women's Day), nothing moved off a weekend. The UK:
+  London (England and Wales) and Edinburgh (Scotland), substitute days by the
+  layer's `move_to_monday` rule rather than listed. Settings names every pack
+  in use, matched by a holiday layer or a statutory type no other pack has
+  (`vacation` says nothing about the country). `parental` is `null` for both:
+  the planner's rules are Spain's equal weeks per parent, and Germany's
+  Mutterschutz and the UK's maternity and paternity leave differ by role, so
+  planning them needs a per-role shape first; their leave types and weeks are
+  in the pack as data.
 
-### [ ] TOF-114 — SCIM member provisioning
+### [x] TOF-114 — SCIM member provisioning
 
 - **Spec** PRD §18 · **Depends on** TOF-036
+- **As built** People's approach in Time Off's own copy:
+  `application/member/scim.ts` and `http/scim.ts` at `/v1/timeoff/scim/v2/*`
+  on Time Off's port (under `/v1/timeoff/`, so the tunnel route that serves
+  the feed serves it too), ahead of REST in the listener. An identity
+  provider presents a connection token HR issues
+  (`POST /v1/timeoff/scim/connections`, shown once; `…/{id}/revoke`): `kts_`
+  and the tenant, the connection and 32 random bytes, only its SHA-256 kept
+  (`scim_connection`). Users only — a member has a fixed handful of fields,
+  so no groups and no attribute mapping: `userName` (unique per company
+  whatever its case, `scim_user`), `externalId`, `name`, `displayName`,
+  `emails` (the work address), `active`; the enterprise extension's
+  `department` (team, keyed `t_<slug>`) and `manager`; and Time Off's own
+  `urn:kithena:params:scim:schemas:extension:timeoff:2.0:User` for
+  `hireDate` (today when absent), `locationKey`, `country`, `timeZone`. A
+  User becomes `MemberFields` through `upsertIn`, the import's and People's
+  command, so a hire posts its entitlement. PATCH takes `add`, `replace` and
+  `remove` on those paths, Entra's `emails[type eq "work"].value` and string
+  booleans included, or a value object. Deprovisioning (`active: false` or
+  DELETE) ends the member through `endMember`; the member stays as a leaver.
+  Filters are `userName eq` and `externalId eq`, what providers send to
+  match before creating; anything else is `invalidFilter`. Like the import,
+  nothing stops it running beside People — choosing the source is HR's.
+  There is no settings screen for the token yet.
 
 ---
 

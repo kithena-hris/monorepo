@@ -1,4 +1,5 @@
 import type { ParentalCaseData } from './case';
+import type { ParentalCasesData } from './cases';
 import type { ParentalData } from './plan';
 import type { Entitlement, Plan } from './shared';
 
@@ -69,6 +70,10 @@ export const draftPlan = (over: Partial<Plan> = {}): Plan => ({
   entitlement,
   sentAt: null,
   approvedAt: null,
+  explanation: {
+    text: '8 of your 11 flexible weeks follow the mandatory 6, so most of your time is at the start. 2 weeks are kept for later.',
+    ai: false,
+  },
   ...over,
 });
 
@@ -107,4 +112,30 @@ export const adamCase = (over: Partial<ParentalCaseData> = {}): ParentalCaseData
   ],
   canApprove: true,
   ...over,
+});
+
+/** HR's list (TOF-099c): Adam's plan waiting, and Hana's from the spring, approved. */
+export const adaCases = (): ParentalCasesData => ({
+  cases: [
+    {
+      planId: '0199a000-0000-7000-8000-0000000000f1',
+      personId: '0199a000-0000-7000-8000-000000000002',
+      displayName: 'Adam Novak',
+      teamName: 'Platform',
+      status: 'submitted',
+      sentAt: '2026-10-01T09:12:00.000Z',
+      from: '2027-01-14',
+      to: '2027-05-09',
+    },
+    {
+      planId: '0199a000-0000-7000-8000-0000000000f2',
+      personId: '0199a000-0000-7000-8000-000000000006',
+      displayName: 'Hana Kim',
+      teamName: 'Platform',
+      status: 'approved',
+      sentAt: '2026-03-02T10:00:00.000Z',
+      from: '2026-06-01',
+      to: '2026-10-18',
+    },
+  ],
 });

@@ -17,8 +17,18 @@ import type { HolidayLayer } from '../../domain/calendar/holiday-calendar.js';
 import type { TeamMinimum } from '../../domain/coverage/coverage.js';
 import { LeaveType, type LeaveTypeInput } from '../../domain/policy/leave-type.js';
 import { Policy, policyId, type PolicyId } from '../../domain/policy/policy.js';
+import { addDays, addMonths } from '../../domain/days.js';
 import { refold } from '../entitlement.js';
-import { contextFor, userActor, type Caller, type Deps, type Tx } from '../ports.js';
+import {
+  contextFor,
+  userActor,
+  type Caller,
+  type CompanyParentalWeeks,
+  type Deps,
+  type Escalation,
+  type PolicyShadow,
+  type Tx,
+} from '../ports.js';
 import { applies, forbidden, isHrAdmin, notFound, refuse, transact } from '../shared.js';
 
 /**
@@ -171,7 +181,42 @@ export const publishPolicy =
         if (!done.ok) return done;
         refolded += done.value.length;
       }
+      // Published, the draft is the policy: there is nothing left to run beside it.
+      await setShadow(tx, id, null);
       return ok({ version: policy.latest.version, refolded });
+    });
+
+async function setShadow(tx: Tx, id: PolicyId, shadow: PolicyShadow | null): Promise<void> {
+  const { [id]: _was, ...rest } = (await tx.settings.get('policy_shadows')) ?? {};
+  await tx.settings.set('policy_shadows', shadow === null ? rest : { ...rest, [id]: shadow });
+}
+
+/**
+ * A shadow run (§6.3, TOF-093): the draft runs beside the version in effect
+ * for a month from today, so HR can compare balances day by day before
+ * publishing. Nothing is posted; only HR's settings read it.
+ */
+export const startShadowRun =
+  (deps: AdminDeps & Pick<Deps, 'clock'>) =>
+  (caller: Caller, id: PolicyId): Promise<Result<PolicyShadow>> =>
+    asHr(deps, caller, async (tx) => {
+      const policy = await tx.policies.get(id);
+      if (policy === null) return notFound('Policy');
+      if (policy.latest.status !== 'draft') {
+        return refuse('NO_DRAFT', 'Only a draft can run beside the policy in effect');
+      }
+      const from = deps.clock.date('UTC');
+      const shadow = { from, to: addDays(addMonths(from, 1), -1) };
+      await setShadow(tx, id, shadow);
+      return ok(shadow);
+    });
+
+export const stopShadowRun =
+  (deps: AdminDeps) =>
+  (caller: Caller, id: PolicyId): Promise<Result<void>> =>
+    asHr(deps, caller, async (tx) => {
+      await setShadow(tx, id, null);
+      return ok(undefined);
     });
 
 /* ------------------------------------------------------------- calendars -- */
@@ -211,7 +256,12 @@ export const assignHolidayCalendars =
 
 export const setApprovalRules =
   (deps: AdminDeps) =>
-  (caller: Caller, rules: readonly ApprovalRule[], auto?: AutoApproval): Promise<Result<void>> =>
+  (
+    caller: Caller,
+    rules: readonly ApprovalRule[],
+    auto?: AutoApproval,
+    escalation?: Escalation,
+  ): Promise<Result<void>> =>
     asHr(deps, caller, async (tx) => {
       if (rules.some((r) => r.leaveTypes !== null && r.leaveTypes.length === 0)) {
         return refuse('EMPTY_RULE', 'A rule names at least one leave type, or all of them', [
@@ -220,6 +270,22 @@ export const setApprovalRules =
       }
       await tx.approvals.setRules(rules);
       if (auto !== undefined) await tx.approvals.setAutoApproval(auto);
+      if (escalation !== undefined) await tx.settings.set('escalation', escalation);
+      return ok(undefined);
+    });
+
+/**
+ * The company's own parental weeks (T8: "Acme adds 2 paid weeks after a
+ * year"), booked as one of its leave types; 0 weeks for none. A plan already
+ * answered keeps the weeks it was answered with.
+ */
+export const setParentalCompany =
+  (deps: AdminDeps) =>
+  (caller: Caller, weeks: CompanyParentalWeeks): Promise<Result<void>> =>
+    asHr(deps, caller, async (tx) => {
+      const type = await tx.leaveTypes.get(weeks.leaveTypeKey);
+      if (type === null || type.deleted) return notFound('Leave type');
+      await tx.parental.setCompany(weeks);
       return ok(undefined);
     });
 

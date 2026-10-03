@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffAttendanceRequests {\n    timeOffAttendanceRequests {\n      mine { date minutes status } needsYou { date displayName kind minutes personId punch { at id kind reason recordedAt source supersedes workModel } } overtime { becomes multiplier }\n    }\n  }"}

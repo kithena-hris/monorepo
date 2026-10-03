@@ -1,6 +1,7 @@
 import { CalendarDate, LeaveTypeDefinition } from '@kithena/contracts';
 
 import type { HolidayLayer } from '../domain/calendar/holiday-calendar.js';
+import type { TimeOffCountryPack } from './pack.js';
 
 /**
  * Spain (PRD §12.3): what a Spanish tenant starts with.
@@ -20,29 +21,6 @@ import type { HolidayLayer } from '../domain/calendar/holiday-calendar.js';
  * Catalonia's Ordre EMT/66/2025 (2026) and its 2027 order; the Madrid and
  * Barcelona city councils' local days for 2026 and 2027.
  */
-
-export interface TimeOffCountryPack {
-  readonly country: 'ES';
-  readonly version: number;
-  readonly reviewed: boolean;
-  readonly leaveTypes: readonly LeaveTypeDefinition[];
-  /** How much of a statutory type the law grants. Read by the policy fold and the request rules. */
-  readonly entitlements: Readonly<
-    Record<
-      string,
-      {
-        readonly days: number;
-        readonly counted: 'calendar' | 'working';
-        readonly per: 'year' | 'event';
-      }
-    >
-  >;
-  readonly holidayLayers: readonly HolidayLayer[];
-  /** Layers by work location, most general first (§10.2). */
-  readonly calendars: Readonly<Record<'madrid' | 'barcelona', readonly HolidayLayer[]>>;
-  readonly attendance: { readonly minimumRestHours: number; readonly retentionYears: number };
-  readonly parental: typeof parental;
-}
 
 const type = (
   key: string,
@@ -247,7 +225,7 @@ const parental = {
   unpaidWeeks: 8,
 } as const;
 
-export const es: TimeOffCountryPack = {
+export const es = {
   country: 'ES',
   version: 1,
   reviewed: false,
@@ -262,4 +240,4 @@ export const es: TimeOffCountryPack = {
   // Art. 34.9: the daily record of hours is kept for four years.
   attendance: { minimumRestHours: 12, retentionYears: 4 },
   parental,
-};
+} satisfies TimeOffCountryPack;

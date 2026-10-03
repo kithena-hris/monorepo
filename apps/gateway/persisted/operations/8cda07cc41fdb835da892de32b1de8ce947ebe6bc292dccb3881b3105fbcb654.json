@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffHolidayDraft($layerKey: String!, $source: String!, $year: Int!) {\n    timeOffHolidayDraft(layerKey: $layerKey, source: $source, year: $year) {\n      ai days { confirmed date known name } layerKey layerName skipped summary { ai text } year\n    }\n  }"}

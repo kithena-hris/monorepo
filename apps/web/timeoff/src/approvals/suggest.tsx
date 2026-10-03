@@ -2,7 +2,6 @@ import {
   Alert,
   Badge,
   Button,
-  CopyButton,
   DatePicker,
   Dialog,
   DialogBody,
@@ -22,15 +21,17 @@ import {
 import { useState, useTransition, type JSX } from 'react';
 
 import type { Outcome } from '../load';
-import { swapWords, type Alternative, type DecisionData } from './decision';
+import { AiTag, swapWords, type Alternative, type DecisionData } from './decision';
 import { daysLabel, firstName, listOf, spanLabel, type CoverageDay, type Range } from './words';
 
 /**
  * Suggesting other dates (T18, §9.5): instead of declining, the approver
  * offers dates the domain worked out, the same days with the clash swapped
  * or the next clean week, each with the coverage it keeps, or picks their
- * own. The message is drafted from the choice and editable (templated until
- * TOF-088). The member accepts in one tap and is approved as they do.
+ * own. The message for the domain's dates is Time Off's (TOF-088), the
+ * model's or its template; for dates picked by hand it is drafted here. It
+ * is editable either way. The member accepts in one tap and is approved as
+ * they do.
  */
 export function SuggestDates({
   data,
@@ -40,14 +41,18 @@ export function SuggestDates({
   readonly data: DecisionData;
   readonly onClose: () => void;
   readonly onSend?:
-    ((proposals: readonly { readonly spans: readonly Range[] }[]) => Promise<Outcome>) | undefined;
+    | ((
+        proposals: readonly { readonly spans: readonly Range[] }[],
+        message: string | null,
+      ) => Promise<Outcome>)
+    | undefined;
 }): JSX.Element {
   const who = firstName(data.member.displayName);
   const options = data.alternatives.filter((a) => a.affects === 'requester');
   const [choice, setChoice] = useState<string>(options.length > 0 ? '0' : 'own');
   const [own, setOwn] = useState<{ from: string; to: string } | null>(null);
   const picked = choice === 'own' ? null : (options[Number(choice)] ?? null);
-  const drafted = draft(who, data, picked, own);
+  const drafted = picked?.message?.text ?? draft(who, data, picked, own);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [failed, setFailed] = useState<string | null>(null);
@@ -56,7 +61,7 @@ export function SuggestDates({
     if (onSend === undefined || spans.length === 0) return;
     setFailed(null);
     start(async () => {
-      const outcome = await onSend([{ spans }]);
+      const outcome = await onSend([{ spans }], text.trim() === '' ? null : text.trim());
       if (!outcome.ok) setFailed(outcome.message);
     });
   };
@@ -128,6 +133,7 @@ export function SuggestDates({
               <Textarea
                 autoResize
                 rows={3}
+                maxLength={1000}
                 value={text}
                 onChange={(event) => {
                   setMessage(event.target.value);
@@ -135,12 +141,14 @@ export function SuggestDates({
               />
             </FieldControl>
             <FieldDescription>
-              {`Written by Kithena from your choice. Time Off sends ${who} the dates, not the message yet: copy it to ${who} if you want to say more.`}
+              {`Written by Kithena from your choice; change it as you like. ${who} reads it with the dates.`}
             </FieldDescription>
           </Field>
-          <div className="flex justify-end">
-            <CopyButton value={text} label="Copy the message" />
-          </div>
+          {message === null && picked?.message?.ai === true ? (
+            <div className="flex justify-end">
+              <AiTag />
+            </div>
+          ) : null}
           <Alert tone="info" title={`${who} can accept in one tap`}>
             If they accept, it is approved with no second step. If not, the original request comes
             back to you.
@@ -187,7 +195,7 @@ export function impactOf(coverage: readonly CoverageDay[]): string {
     : `${String(worst.in)} of ${String(worst.of)} in on ${String(short)} ${short === 1 ? 'day' : 'days'}`;
 }
 
-/** The message, templated from the choice: what changes, and why. */
+/** The message for dates Time Off sent none for: what changes, and why. */
 function draft(
   who: string,
   data: DecisionData,

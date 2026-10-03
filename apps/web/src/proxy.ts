@@ -22,9 +22,13 @@ const HOST_SUFFIX = process.env['TENANT_HOST_SUFFIX'] ?? '';
  *
  * Sign-in itself, the callback that lands them here afterwards, the page that
  * explains a sign-in which did not finish, and sign-out — which has to work
- * *because* it is how a stale cookie gets cleared. Anything else redirects.
+ * *because* it is how a stale cookie gets cleared. And a wall kiosk
+ * (`/kiosk/<id>` and its service worker), which has no session at all: it
+ * presents its own device token, which Time Off checks. Anything else
+ * redirects.
  */
-const PUBLIC_PATH = /^\/(login|recover|signed-out|auth\/|api\/(session|recover))/;
+const PUBLIC_PATH =
+  /^\/(login|recover|signed-out|auth\/|api\/(session|recover)|kiosk\/|kiosk-sw\.js$)/;
 
 /**
  * Resolved tenants, briefly.

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ConnectTimeOffIntegration($key: String!, $input: JSON!, $provider: String!) {\n    connectTimeOffIntegration(idempotencyKey: $key, input: $input, provider: $provider) {\n      url\n    }\n  }"}

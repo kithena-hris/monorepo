@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Approvals as Framed } from '../index';
 import { axeViolations } from '../test/axe';
-import { adam, comingUp, deciding, leo, waiting } from './acme.fixture';
+import { adam, adamsDecision, comingUp, deciding, leo, waiting, written } from './acme.fixture';
 import { Approvals, type ApprovalsData } from './approvals';
 
 /**
@@ -42,6 +42,53 @@ describe('waiting for me (T16)', () => {
     expect(screen.getByText(/The order never decides for you/)).toBeTruthy();
     expect(screen.getByText('Today 08:10')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('tags a line AI only where a model wrote it', () => {
+    const data = waiting();
+    render(
+      <Approvals
+        load={ready({
+          ...data,
+          why: data.why.map((w) =>
+            w.requestId === leo.requestId
+              ? { ...w, text: written('Leo is fine: 5 of 7 stay in.', true) }
+              : w,
+          ),
+        })}
+        path="/time-off/approvals/waiting"
+      />,
+    );
+    const rows = group(/Clear to approve/).getAllByRole('listitem');
+    expect(within(rows[0] as HTMLElement).getByText('AI')).toBeTruthy();
+    expect(within(rows[1] as HTMLElement).queryByText('AI')).toBeNull();
+    expect(group(/Look closer/).queryByText('AI')).toBeNull();
+  });
+
+  it('tags What to know AI when a model wrote its closing line, and not otherwise', () => {
+    const decision = adamsDecision();
+    const { rerender } = render(
+      <Approvals
+        load={ready({ ...deciding(), decision })}
+        path={`/time-off/approvals/waiting/${adam.requestId}`}
+      />,
+    );
+    const card = () =>
+      within(
+        screen.getByRole('heading', { name: 'What to know' }).closest('.flex-col') as HTMLElement,
+      );
+    expect(card().queryByText('AI')).toBeNull();
+    rerender(
+      <Approvals
+        load={ready({
+          ...deciding(),
+          decision: { ...decision, whatToKnow: written('Likely fine: Leo can ship both.', true) },
+        })}
+        path={`/time-off/approvals/waiting/${adam.requestId}`}
+      />,
+    );
+    expect(card().getByText('Likely fine: Leo can ship both.')).toBeTruthy();
+    expect(card().getByText('AI')).toBeTruthy();
   });
 
   it('approves all the clear ones and none of the rest, or the ones still ticked', async () => {
@@ -165,9 +212,11 @@ describe('suggesting other dates (T18)', () => {
       'Hi Adam, could you take 26–30 Oct instead? Omar and Yuki are out on the day you asked. Happy to approve straight away if that works.',
     );
     fireEvent.click(dialog.getByRole('button', { name: 'Send suggestion' }));
-    expect(onSuggest).toHaveBeenCalledWith(adam.requestId, [
-      { spans: [{ from: '2026-10-26', to: '2026-10-30' }] },
-    ]);
+    expect(onSuggest).toHaveBeenCalledWith(
+      adam.requestId,
+      [{ spans: [{ from: '2026-10-26', to: '2026-10-30' }] }],
+      'Hi Adam, could you take 26–30 Oct instead? Omar and Yuki are out on the day you asked. Happy to approve straight away if that works.',
+    );
     await vi.waitFor(() => {
       expect(onNavigate).toHaveBeenCalledWith('/time-off/approvals/waiting');
     });

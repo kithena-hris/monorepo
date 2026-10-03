@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffKioskQr {\n    timeOffKioskQr {\n      expiresAt personId token\n    }\n  }"}

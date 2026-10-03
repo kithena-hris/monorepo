@@ -1,5 +1,6 @@
 import type { ApprovalSettingsData } from './approval-settings';
 import type { AttendanceSettingsData } from './attendance-settings';
+import type { PolicyReadData } from './describe-policy';
 import type { HolidaySettingsData } from './holiday-settings';
 import type { LeaveTypeData, PolicyDefinition } from './leave-type';
 import type { LeaveTypesData } from './leave-types';
@@ -106,6 +107,9 @@ export const leaveTypes = (): LeaveTypesData => ({
   leaveTypes: leaveTypeRows(),
   packs: [spainPack],
   rules: approvalRules(),
+  // Acme's 2 paid weeks after a year, booked as parental leave (T8).
+  parentalCompany: { extraWeeks: 2, afterServiceYears: 1, leaveTypeKey: 'parental' },
+  adding: false,
 });
 
 /* ---------------------------------------------------------------- T30 -- */
@@ -199,8 +203,47 @@ export const vacationWithDraft = (): LeaveTypeData => {
           lostAtYearEnd: pair('0.000', '0.000'),
         },
       ],
+      shadow: null,
     },
     as: null as string | null,
+    places: { countries: ['DE', 'ES'], locations: ['barcelona', 'berlin', 'madrid'] },
+  };
+};
+
+/** T30's draft two weeks into its shadow run (TOF-093): Hana's 15-year band is a day ahead. */
+export const vacationShadowing = (): LeaveTypeData => {
+  const data = vacationWithDraft();
+  if (data.preview === null) throw new Error('no preview');
+  return {
+    ...data,
+    preview: {
+      ...data.preview,
+      shadow: {
+        from: '2026-10-01',
+        to: '2026-10-31',
+        asOf: '2026-10-15',
+        members: [
+          {
+            personId: ADAM,
+            displayName: 'Adam Novak',
+            credited: pair('25.000', '25.000'),
+            balance: pair('14.500', '14.500'),
+          },
+          {
+            personId: HANA,
+            displayName: 'Hana Kim',
+            credited: pair('28.000', '29.000'),
+            balance: pair('8.000', '9.000'),
+          },
+          {
+            personId: MARCO,
+            displayName: 'Marco Ruiz',
+            credited: pair('27.000', '27.000'),
+            balance: pair('2.000', '2.000'),
+          },
+        ],
+      },
+    },
   };
 };
 
@@ -269,6 +312,7 @@ export const attendance = (): AttendanceSettingsData => ({
 export const approvals = (): ApprovalSettingsData => ({
   rules: approvalRules(),
   autoApproval: { shortenOrCancel: true, sickUnderDays: 3, oneDayAboveMinimum: false },
+  escalation: { afterWorkingDays: 3, to: 'manager', remindAt: 540 },
   teams: [
     { teamKey: 'platform', teamName: 'Platform', minimum: { atLeast: 5, unit: 'people' as const } },
     { teamKey: 'support', teamName: 'Support', minimum: { atLeast: 60, unit: 'percent' as const } },
@@ -357,4 +401,49 @@ export const holidays = (): HolidaySettingsData => ({
       holidays: madridDays.map(([date, name, l]) => ({ date, name, layer: l, movedFrom: null })),
     },
   ],
+});
+
+/** T32: Ada's paragraph for Berlin, as Time Off read it, still asking which days. */
+export const BERLIN_TEXT =
+  'Everyone in Berlin gets 28 days a year. They can carry 5 days into the next year if they use them before April. People can go up to 2 days negative if their manager and HR agree.';
+
+export const berlinRead = (over: Partial<PolicyReadData> = {}): PolicyReadData => ({
+  text: BERLIN_TEXT,
+  leaveTypeKey: 'vacation',
+  leaveTypes: [
+    { key: 'vacation', name: 'Vacation' },
+    { key: 'personal', name: 'Personal days' },
+  ],
+  ai: false,
+  rules: [
+    {
+      key: 'allowance',
+      label: 'Allowance',
+      value: '28 days a year, given up front',
+      amount: '28.000',
+    },
+    { key: 'probation', label: 'Starts', value: 'From the first day', amount: '0' },
+    {
+      key: 'carry_over',
+      label: 'Carry-over',
+      value: 'Up to 5 days, used by 31 Mar',
+      amount: '5.000',
+    },
+    { key: 'negative', label: 'Negative', value: 'Up to 2 days, manager then HR', amount: '2.000' },
+  ],
+  question: {
+    key: 'day_kind',
+    title: '“28 days”, but which days?',
+    body: {
+      text: 'The text doesn’t say. I’ve assumed 28 working days on a five-day week. Is that right?',
+      ai: false,
+    },
+    options: [
+      { value: 'working', label: 'Yes, working days' },
+      { value: 'calendar', label: 'Calendar days' },
+    ],
+  },
+  definition: vacationDefinition({ allowance: [{ fromYears: 0, days: '28.000' }] }),
+  problems: [],
+  ...over,
 });

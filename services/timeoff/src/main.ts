@@ -8,8 +8,14 @@ import { wireBackground } from './infrastructure/background.js';
 startTelemetry(`kithena-${manifest.key}`);
 // REST, the subgraph and what they stand on (`composition.ts`).
 const { listener, storage } = await composeTimeOff(process.env);
-wireConsumers(process.env, storage?.uow ?? null, storage?.tuples);
-wireBackground(process.env, storage?.db ?? null);
+wireConsumers(
+  process.env,
+  storage?.uow ?? null,
+  storage?.tuples,
+  storage?.reach,
+  storage?.feedSecret,
+);
+wireBackground(process.env, storage?.db ?? null, storage?.reach);
 
 const server = createServer(listener);
 

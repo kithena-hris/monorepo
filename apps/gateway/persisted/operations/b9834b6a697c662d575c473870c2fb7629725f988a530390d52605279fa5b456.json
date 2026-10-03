@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DisconnectTimeOffIntegration($key: String!, $provider: String!) {\n    disconnectTimeOffIntegration(idempotencyKey: $key, provider: $provider) {\n      ok\n    }\n  }"}

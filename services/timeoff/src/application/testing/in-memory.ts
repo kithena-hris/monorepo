@@ -25,6 +25,13 @@ import type {
   FeedStore,
   HolidayStore,
   IdempotencyStore,
+  Integration,
+  IntegrationStore,
+  ScimConnection,
+  ScimStore,
+  ScimUser,
+  KioskDevice,
+  KioskStore,
   LeaveTypeStore,
   LedgerStore,
   Location,
@@ -39,6 +46,7 @@ import type {
   PolicyStore,
   RequestRecord,
   RequestStore,
+  Settings,
   StoredKey,
   StoredPlan,
   Tx,
@@ -74,6 +82,15 @@ interface State {
   feeds: Map<string, number>;
   plans: Map<string, StoredPlan>;
   parentalCompany: CompanyParentalWeeks | null;
+  kiosks: Map<string, KioskDevice>;
+  /** `${kind}:${hash}` to the member holding it. */
+  credentials: Map<string, PersonId>;
+  integrations: Map<string, Integration>;
+  /** `${provider}:${personId}` to the member's sealed grant. */
+  memberSecrets: Map<string, string>;
+  scimConnections: Map<string, ScimConnection>;
+  scimUsers: Map<string, ScimUser>;
+  settings: Map<keyof Settings, Settings[keyof Settings]>;
   events: PendingEvent[];
   keys: Map<string, StoredKey>;
 }
@@ -100,6 +117,13 @@ const empty = (): State => ({
   feeds: new Map(),
   plans: new Map(),
   parentalCompany: null,
+  kiosks: new Map(),
+  credentials: new Map(),
+  integrations: new Map(),
+  memberSecrets: new Map(),
+  scimConnections: new Map(),
+  scimUsers: new Map(),
+  settings: new Map(),
   events: [],
   keys: new Map(),
 });
@@ -289,6 +313,68 @@ function stores(tenantId: TenantId, s: State): Tx {
         s.parentalCompany = weeks;
       },
     }),
+    kiosks: promised<KioskStore>({
+      device: (id) => s.kiosks.get(id) ?? null,
+      devices: () => [...s.kiosks.values()],
+      saveDevice: (device) => {
+        s.kiosks.set(device.id, device);
+      },
+      holder: (kind, hash) => s.credentials.get(`${kind}:${hash}`) ?? null,
+      setCredential: (personId, kind, hash) => {
+        for (const [key, holder] of s.credentials)
+          if (holder === personId && key.startsWith(`${kind}:`)) s.credentials.delete(key);
+        if (hash === null) return;
+        // The partial unique index's refusal, as Postgres would raise it.
+        if (s.credentials.has(`${kind}:${hash}`)) throw new Error('kiosk_credential unique');
+        s.credentials.set(`${kind}:${hash}`, personId);
+      },
+    }),
+    integrations: promised<IntegrationStore>({
+      list: () => [...s.integrations.values()],
+      get: (provider) => s.integrations.get(provider) ?? null,
+      save: (integration) => {
+        s.integrations.set(integration.provider, integration);
+      },
+      remove: (provider) => {
+        s.integrations.delete(provider);
+        for (const key of s.memberSecrets.keys())
+          if (key.startsWith(`${provider}:`)) s.memberSecrets.delete(key);
+      },
+      memberSecret: (provider, personId) => s.memberSecrets.get(`${provider}:${personId}`) ?? null,
+      setMemberSecret: (provider, personId, sealed) => {
+        if (sealed === null) s.memberSecrets.delete(`${provider}:${personId}`);
+        else s.memberSecrets.set(`${provider}:${personId}`, sealed);
+      },
+    }),
+    scim: promised<ScimStore>({
+      connection: (id) => s.scimConnections.get(id) ?? null,
+      saveConnection: (connection) => {
+        s.scimConnections.set(connection.id, connection);
+      },
+      user: (personId) => s.scimUsers.get(personId) ?? null,
+      byUserName: (userName) =>
+        [...s.scimUsers.values()].find(
+          (u) => u.userName.toLowerCase() === userName.toLowerCase(),
+        ) ?? null,
+      users: () => [...s.scimUsers.values()],
+      saveUser: (user) => {
+        // The unique index's refusal, as Postgres would raise it.
+        const clash = [...s.scimUsers.values()].find(
+          (u) =>
+            u.personId !== user.personId &&
+            u.userName.toLowerCase() === user.userName.toLowerCase(),
+        );
+        if (clash !== undefined) throw new Error('scim_user_user_name_key');
+        s.scimUsers.set(user.personId, user);
+      },
+    }),
+    settings: {
+      get: (key) => Promise.resolve((s.settings.get(key) ?? null) as never),
+      set: (key, value) => {
+        s.settings.set(key, value);
+        return Promise.resolve();
+      },
+    },
     outbox: promised<Outbox>({
       publish: (events) => {
         s.events.push(...events);

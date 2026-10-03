@@ -298,6 +298,7 @@ describe('requests', () => {
       note: 'Family visit',
       requestedAt: '2026-10-01T09:00:00.000Z' as never,
       proposedBy: null,
+      proposalMessage: null,
     };
     await run(async (tx) => {
       await tx.requests.save(record);
@@ -514,6 +515,123 @@ describe('attendance', () => {
         },
       ]);
     });
+  });
+});
+
+describe('kiosks (TOF-107)', () => {
+  it('keeps a device, its sequence and revocation, a skewed punch and credentials by hash', async () => {
+    const deviceId = ids();
+    const device = {
+      id: deviceId,
+      name: 'Main entrance',
+      locationKey: MADRID,
+      tokenHash: 'ab'.repeat(32),
+      lastSeenAt: null,
+      revokedAt: null,
+      lastSequence: 0,
+    };
+    const pin = 'cd'.repeat(32);
+    const [first] = week;
+    if (first === undefined) throw new Error('the week has punches');
+    const skewed = {
+      ...first,
+      id: ids(),
+      source: 'kiosk' as const,
+      deviceId,
+      clockSkewSeconds: 300,
+    };
+    await run(async (tx) => {
+      await tx.kiosks.saveDevice(device);
+      await tx.kiosks.saveDevice({
+        ...device,
+        lastSequence: 7,
+        lastSeenAt: '2026-10-01T09:00:00.000Z' as never,
+      });
+      await tx.kiosks.setCredential(people.adam, 'pin', pin);
+      await tx.attendance.appendPunch(people.omar, skewed);
+    });
+    await run(async (tx) => {
+      expect(await tx.kiosks.device(deviceId)).toMatchObject({ lastSequence: 7, revokedAt: null });
+      expect(await tx.kiosks.holder('pin', pin)).toBe(people.adam);
+      expect(await tx.kiosks.holder('badge', pin)).toBeNull();
+      expect((await tx.attendance.punches(people.omar)).at(-1)?.clockSkewSeconds).toBe(300);
+      await tx.kiosks.setCredential(people.adam, 'pin', null);
+      expect(await tx.kiosks.holder('pin', pin)).toBeNull();
+    });
+    // No two members hold one PIN, whatever the application forgot to check.
+    await run((tx) => tx.kiosks.setCredential(people.adam, 'pin', pin));
+    await expect(run((tx) => tx.kiosks.setCredential(people.omar, 'pin', pin))).rejects.toThrow();
+  });
+});
+
+describe('integrations (TOF-109)', () => {
+  it('keeps a connection and a member’s grant, and forgets both on disconnecting', async () => {
+    const slack = {
+      provider: 'slack' as const,
+      config: { name: 'Acme' },
+      secret: 'sealed-bot-token',
+      connectedAt: '2026-10-01T09:00:00.000Z' as never,
+      connectedBy: MARCO_ACCOUNT,
+    };
+    await run(async (tx) => {
+      await tx.integrations.save(slack);
+      await tx.integrations.save({ ...slack, config: { name: 'Acme Inc' } });
+      await tx.integrations.setMemberSecret('slack', people.adam, 'sealed-user-token');
+    });
+    await run(async (tx) => {
+      expect(await tx.integrations.get('slack')).toEqual({
+        ...slack,
+        config: { name: 'Acme Inc' },
+      });
+      expect(await tx.integrations.memberSecret('slack', people.adam)).toBe('sealed-user-token');
+      await tx.integrations.remove('slack');
+      expect(await tx.integrations.list()).toEqual([]);
+      expect(await tx.integrations.memberSecret('slack', people.adam)).toBeNull();
+    });
+  });
+});
+
+describe('SCIM (TOF-114)', () => {
+  it('keeps a connection and its revocation, and finds a user by userName whatever its case', async () => {
+    const id = ids();
+    await run(async (tx) => {
+      await tx.scim.saveConnection({
+        id,
+        tokenHash: 'ef'.repeat(32),
+        createdBy: MARCO_ACCOUNT,
+        revokedAt: null,
+      });
+      await tx.scim.saveUser({
+        personId: people.adam,
+        userName: 'Adam.Novak@acme.example',
+        externalId: 'entra-adam',
+        createdAt: '2026-10-01T09:00:00.000Z' as never,
+        updatedAt: '2026-10-01T09:00:00.000Z' as never,
+      });
+      await tx.scim.saveConnection({
+        id,
+        tokenHash: 'ef'.repeat(32),
+        createdBy: MARCO_ACCOUNT,
+        revokedAt: '2026-10-02T09:00:00.000Z' as never,
+      });
+    });
+    await run(async (tx) => {
+      expect((await tx.scim.connection(id))?.revokedAt).not.toBeNull();
+      expect((await tx.scim.byUserName('adam.novak@ACME.example'))?.personId).toBe(people.adam);
+      expect((await tx.scim.users()).map((u) => u.externalId)).toEqual(['entra-adam']);
+    });
+    // One userName per company, whatever its case.
+    await expect(
+      run((tx) =>
+        tx.scim.saveUser({
+          personId: people.omar,
+          userName: 'ADAM.NOVAK@acme.example',
+          externalId: null,
+          createdAt: '2026-10-01T09:00:00.000Z' as never,
+          updatedAt: '2026-10-01T09:00:00.000Z' as never,
+        }),
+      ),
+    ).rejects.toThrow();
   });
 });
 

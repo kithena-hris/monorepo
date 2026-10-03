@@ -2,14 +2,23 @@ import { ok, type Result } from '@kithena/domain-kit';
 import type { LeaveTypeKey, LocationKey, TeamKey } from '@kithena/contracts';
 
 import { DEFAULT_SCHEDULE } from '../attendance/attendance.js';
+import { de } from '../../country-packs/de.js';
 import { es } from '../../country-packs/es.js';
+import { gb } from '../../country-packs/gb.js';
 import { balanceOn } from '../../domain/balance/ledger.js';
 import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
 import { amount, days, sum } from '../../domain/days.js';
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import type { PolicyId } from '../../domain/policy/policy.js';
-import { previewChange, type PreviewInput } from '../../domain/policy/preview.js';
-import { contextFor, userActor, type Caller, type Deps, type Tx } from '../ports.js';
+import { previewChange, shadowBalances, type PreviewInput } from '../../domain/policy/preview.js';
+import {
+  contextFor,
+  DEFAULT_ESCALATION,
+  userActor,
+  type Caller,
+  type Deps,
+  type Tx,
+} from '../ports.js';
 import { applies, forbidden, isHrAdmin, leaveYear, live, notFound, transact } from '../shared.js';
 import type {
   ApprovalsSettingsView,
@@ -50,9 +59,13 @@ async function row(tx: Tx, t: LeaveType): Promise<LeaveTypesView['leaveTypes'][n
 /**
  * The country packs a tenant's statutory types or holidays came from (§12.3),
  * so settings can say when one is not yet signed off by a lawyer. A pack is in
- * use when one of its statutory types, or one of its holiday layers, is.
+ * use when one of its holiday layers is, or a statutory type only it has:
+ * every pack has a `vacation`, which says nothing about which country.
  */
-const PACKS = [es];
+const PACKS = [es, de, gb];
+const typeKeyCount = new Map<string, number>();
+for (const p of PACKS)
+  for (const t of p.leaveTypes) typeKeyCount.set(t.key, (typeKeyCount.get(t.key) ?? 0) + 1);
 function packsIn(
   leaveTypes: readonly LeaveType[],
   layerKeys: readonly string[],
@@ -62,7 +75,7 @@ function packsIn(
   );
   return PACKS.filter(
     (p) =>
-      p.leaveTypes.some((t) => statutory.has(t.key)) ||
+      p.leaveTypes.some((t) => typeKeyCount.get(t.key) === 1 && statutory.has(t.key)) ||
       p.holidayLayers.some((l) => layerKeys.includes(l.key)),
   ).map((p) => ({ country: p.country, version: p.version, reviewed: p.reviewed }));
 }
@@ -75,7 +88,19 @@ export const leaveTypesSettings =
       const all = await tx.leaveTypes.list();
       const rows: LeaveTypesView['leaveTypes'][number][] = [];
       for (const t of all) if (!t.deleted) rows.push(await row(tx, t));
-      return ok({ leaveTypes: rows, packs: packsIn(all, []) });
+      const company = await tx.parental.company();
+      return ok({
+        leaveTypes: rows,
+        packs: packsIn(all, []),
+        parentalCompany:
+          company === null
+            ? null
+            : {
+                extraWeeks: company.extraWeeks,
+                afterServiceYears: company.afterServiceYears,
+                leaveTypeKey: company.leaveTypeKey,
+              },
+      });
     });
 
 /** T30: one leave type and its policies, every version. */
@@ -85,12 +110,19 @@ export const leaveTypeSetting =
     asHr(deps, caller, async (tx) => {
       const t = await tx.leaveTypes.get(query.key);
       if (t === null || t.deleted) return notFound('Leave type');
+      const members = (await tx.members.list()).filter((m) => m.status !== 'left');
+      const distinct = <T>(xs: readonly (T | null)[]): T[] =>
+        [...new Set(xs.filter((x) => x !== null))].toSorted();
       return ok({
         leaveType: await row(tx, t),
         policies: (await tx.policies.forLeaveType(query.key)).map((p) => ({
           id: p.id,
           versions: p.versions.map((v) => ({ ...v, definition: v.definition })),
         })),
+        places: {
+          countries: distinct(members.map((m) => m.country)),
+          locations: distinct(members.map((m) => m.locationKey)),
+        },
       });
     });
 
@@ -113,7 +145,8 @@ export const policyPreview =
       const current = policy.inEffectOn(today)?.definition ?? null;
       const { year, start, end } = leaveYear(draft?.definition ?? current, today);
       const base = { effectiveFrom: start, yearEnd: end };
-      if (draft === null) return ok({ ...base, draftVersion: null, members: [] });
+      if (draft === null) return ok({ ...base, draftVersion: null, members: [], shadow: null });
+      const running = (await tx.settings.get('policy_shadows'))?.[policy.id] ?? null;
       const key = draft.definition.leaveTypeKey;
       const inputs: PreviewInput[] = [];
       const names = new Map<string, string>();
@@ -138,12 +171,20 @@ export const policyPreview =
         });
       }
       const ctx = contextFor(deps, userActor(caller), caller.correlationId, 'UTC');
+      const named = <T extends { personId: string }>(rows: readonly T[]) =>
+        rows
+          .map((p) => ({ ...p, displayName: names.get(p.personId) ?? '' }))
+          .toSorted((a, b) => a.displayName.localeCompare(b.displayName));
+      // The run is over a month later, and shows where it stood on its last day.
+      const asOf = running === null ? null : today < running.to ? today : running.to;
       return ok({
         ...base,
         draftVersion: draft.version,
-        members: previewChange(inputs, year, ctx)
-          .map((p) => ({ ...p, displayName: names.get(p.personId) ?? '' }))
-          .toSorted((a, b) => a.displayName.localeCompare(b.displayName)),
+        members: named(previewChange(inputs, year, ctx)),
+        shadow:
+          running === null || asOf === null
+            ? null
+            : { ...running, asOf, members: named(shadowBalances(inputs, year, asOf, ctx)) },
       });
     });
 
@@ -196,6 +237,7 @@ export const approvalsSettings =
           approvers: [...r.approvers],
         })),
         autoApproval: await tx.approvals.autoApproval(),
+        escalation: (await tx.settings.get('escalation')) ?? DEFAULT_ESCALATION,
         teams: rows.toSorted((a, b) => a.teamKey.localeCompare(b.teamKey)),
       });
     });

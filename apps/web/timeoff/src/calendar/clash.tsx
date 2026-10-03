@@ -2,7 +2,7 @@ import { Alert, AssistantCard, Badge, Button, RadioCard, RadioGroup, icons } fro
 import { useState, useTransition, type JSX } from 'react';
 
 import type { Outcome } from '../load';
-import { swapWords, type Alternative, type DecisionData } from '../approvals/decision';
+import { AiTag, swapWords, type Alternative, type DecisionData } from '../approvals/decision';
 import { impactOf } from '../approvals/suggest';
 import { dayCount, dayName, firstName, shortDate, spanLabel, type Range } from '../approvals/words';
 
@@ -11,8 +11,8 @@ import { dayCount, dayName, firstName, shortDate, spanLabel, type Range } from '
  * team below its minimum, and the fixes the domain ranked by whom they
  * inconvenience: the requester changing their own dates, then approving as
  * asked (said honestly when that is fine), then asking a teammate whose
- * time off was approved first, which only works if they offer. The words are
- * templated until TOF-088; the order is never the screen's.
+ * time off was approved first, which only works if they offer. Why it
+ * matters is Time Off's line (TOF-088); the order is never the screen's.
  */
 export function ClashCard({
   data,
@@ -45,7 +45,6 @@ export function ClashCard({
       setSaid(outcome.ok ? { ok: true, text: done } : { ok: false, text: outcome.message });
     });
   };
-  const fixes = options.filter((o) => o.kind !== 'approve_as_asked').length;
   const suggest = (option: Alternative): void => {
     if (onSuggest !== undefined) {
       run(() => onSuggest(id, [{ spans: option.spans }]), `Sent to ${who}`);
@@ -57,15 +56,10 @@ export function ClashCard({
   return (
     <AssistantCard
       title={`${shortDate(worst.date)} is below the team minimum`}
+      action={data.clash?.ai === true ? <AiTag /> : undefined}
       note="Approved time off is never moved without the person agreeing."
     >
-      <p className="text-sm text-fg-muted">
-        {`${who}’s request would leave ${String(worst.in)} of ${String(worst.of)} in. ${
-          fixes === 0
-            ? 'Nothing keeps the minimum without changing it.'
-            : `Here ${fixes === 1 ? 'is one way' : `are ${String(fixes)} ways`} to keep ${String(worst.required)}, with what each one costs.`
-        }`}
-      </p>
+      {data.clash === null ? null : <p className="text-sm text-fg-muted">{data.clash.text}</p>}
       <RadioGroup
         aria-label="Ways to solve it"
         value={choice}

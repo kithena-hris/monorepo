@@ -27,6 +27,57 @@ beforeEach(() => {
   vi.useFakeTimers({ now: Date.parse('2026-10-01T10:33:00.000Z'), toFake: ['Date'] });
 });
 
+describe('describe it', () => {
+  it('asks Time Off to read the sentence, with what the person changed and nothing it cannot read', async () => {
+    answering({ TimeOffDescribe: () => ({ ok: true, data: { options: [] } }) });
+    const load = await loadScreen('DescribeRequest', {
+      params: {},
+      search: {
+        q: 'a week in October',
+        days: '10',
+        month: 'none',
+        holiday: '0',
+        team: 'x',
+        type: '',
+      },
+    });
+    expect(asked('TimeOffDescribe')).toEqual([
+      { sentence: 'a week in October', days: 10, month: '', nextToHoliday: false },
+    ]);
+    expect(load).toMatchObject({
+      status: 'ready',
+      data: { options: [], overview: null, today: '2026-10-01' },
+    });
+  });
+});
+
+describe('a policy in plain words', () => {
+  it('asks Time Off to read the text with what HR answered or changed, leaving out what it cannot take', async () => {
+    answering({ TimeOffPolicyRead: () => ({ ok: true, data: { rules: [] } }) });
+    await loadScreen('DescribePolicy', {
+      params: {},
+      search: {
+        text: 'Everyone gets 28 days a year.',
+        type: 'vacation',
+        days: 'calendar',
+        earning: 'sometimes',
+        carry: '5',
+        negative: 'lots',
+        probation: '3',
+      },
+    });
+    expect(asked('TimeOffPolicyRead')).toEqual([
+      {
+        text: 'Everyone gets 28 days a year.',
+        leaveTypeKey: 'vacation',
+        dayKind: 'calendar',
+        carryOver: '5',
+        probationMonths: 3,
+      },
+    ]);
+  });
+});
+
 describe('the request panel', () => {
   it('asks the preview for what the address says, and the team’s month on show', async () => {
     answering({ TimeOffRequestPanel: () => ({ ok: true, data: { leaveTypes: [], preview: {} } }) });
@@ -113,12 +164,14 @@ describe('my requests', () => {
 });
 
 describe('holidays', () => {
-  it('reads the year in the address, this year for one it cannot read, with the bridge days', async () => {
+  it('reads the year in the address, this year for one it cannot read, with Time Off’s bridge days', async () => {
+    const bridges = [{ from: '2026-12-07', to: '2026-12-07', used: 1 }];
     answering({
       TimeOffHolidays: () => ({
         ok: true,
         data: {
           holidays: [{ date: '2026-12-08', name: 'Inmaculada Concepción', layer: 'national' }],
+          bridges,
         },
       }),
     });
@@ -126,7 +179,63 @@ describe('holidays', () => {
     expect(asked('TimeOffHolidays')).toEqual([{ year: 2026 }]);
     expect(load).toMatchObject({
       status: 'ready',
-      data: { bridges: [{ take: '2026-12-07', holiday: 'Inmaculada Concepción', days: 4 }] },
+      data: { bridges },
+    });
+  });
+});
+
+describe('HR’s attendance pages (TOF-095 onwards)', () => {
+  it('asks for the month in the address, this month without one, and says when it was not one', async () => {
+    answering({ TimeOffAttendanceExceptions: () => ({ ok: true, data: { items: [] } }) });
+    await loadScreen('Exceptions', {
+      params: {},
+      search: { month: '2026-02', kind: 'short_rest' },
+    });
+    const odd = await loadScreen('Exceptions', { params: {}, search: { month: 'soon' } });
+    expect(asked('TimeOffAttendanceExceptions')).toEqual([
+      { from: '2026-02-01', to: '2026-02-28' },
+      { from: '2026-10-01', to: '2026-10-31' },
+    ]);
+    expect(odd).toMatchObject({
+      status: 'ready',
+      data: { month: '2026-10', kind: null },
+      notice: '“soon” is not a month',
+    });
+  });
+
+  it('reads the insights, the tab and point from the address, and the nudge only when open', async () => {
+    answering({
+      TimeOffInsights: () => ({ ok: true, data: { points: [] } }),
+      TimeOffNudge: () => ({ ok: true, data: { recipients: [] } }),
+    });
+    const load = await loadScreen(
+      'Insights',
+      { params: {}, search: { point: 'no_break' } },
+      '/time-off/insights/balances',
+    );
+    expect(load).toMatchObject({ status: 'ready', data: { tab: 'balances', nudge: null } });
+    const open = await loadScreen(
+      'Insights',
+      { params: {}, search: { point: 'no_break', nudge: 'no_break', bridge: '0', losing: '1' } },
+      '/time-off/insights/what-changed',
+    );
+    expect(asked('TimeOffNudge')).toEqual([{ balance: true, bridge: false, losing: true }]);
+    expect(open).toMatchObject({
+      status: 'ready',
+      data: {
+        point: 'no_break',
+        nudge: { recipients: [], include: { balance: true, bridge: false, losing: true } },
+      },
+    });
+  });
+
+  it('opens the pay period on last month, the one month end closes', async () => {
+    answering({ TimeOffPayPeriod: () => ({ ok: true, data: { teams: [] } }) });
+    const load = await loadScreen('PayPeriod', { params: {}, search: {} });
+    expect(asked('TimeOffPayPeriod')).toEqual([{ month: '2026-09' }]);
+    expect(load).toMatchObject({
+      status: 'ready',
+      data: { month: '2026-09', today: '2026-10-01' },
     });
   });
 });

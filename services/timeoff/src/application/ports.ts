@@ -13,6 +13,7 @@ import {
   type TenantId,
 } from '@kithena/contracts';
 
+import type { CalendarEvidence, Judge, Writer } from './assist/ports.js';
 import type { ApprovalRule, ApproverRole, AutoApproval } from '../domain/approval/approval-rule.js';
 import type { Delegation } from '../domain/approval/delegation.js';
 import type { Punch } from '../domain/attendance/clock.js';
@@ -64,6 +65,14 @@ export const MemberFields = z.object({
   accountId: z.string().check(z.uuid()).nullable().default(null),
   displayName: z.string().trim().min(1).max(200),
   firstName: z.string().trim().min(1).max(100),
+  /**
+   * The member's work address: where messaging reaches them (a nudge,
+   * TOF-098) and how a calendar or chat app knows whose calendar or status
+   * is theirs (TOF-110, TOF-111). `null` until People, an import or SCIM
+   * says. Never shown on a screen Time Off draws, and never on an event it
+   * raises. Checked as the account id is, for TS 7's sake.
+   */
+  workEmail: z.string().trim().max(320).check(z.email()).nullable().default(null),
   managerPersonId: PersonId.nullable().default(null),
   teamKey: TeamKey.nullable().default(null),
   teamName: z.string().trim().max(200).nullable().default(null),
@@ -158,6 +167,8 @@ export interface RequestRecord {
   readonly requestedAt: Instant;
   /** The account that suggested other dates, which approves them when accepted. */
   readonly proposedBy: string | null;
+  /** What they wrote with the dates (TOF-099b); `null` for nothing. */
+  readonly proposalMessage: string | null;
 }
 
 export interface RequestStore {
@@ -226,6 +237,197 @@ export interface AttendanceStore {
   decideOvertime(decision: OvertimeDecision): Promise<void>;
 }
 
+/* ----------------------------------------------------------------- kiosk -- */
+
+/**
+ * A wall kiosk at a location (§11.9). Only its token's SHA-256 is kept; the
+ * token is shown once, when HR registers it.
+ */
+export interface KioskDevice {
+  readonly id: string;
+  readonly locationKey: LocationKey;
+  readonly name: string;
+  /** Hex SHA-256 of the token. */
+  readonly tokenHash: string;
+  readonly lastSeenAt: Instant | null;
+  readonly revokedAt: Instant | null;
+  /** The highest punch sequence synced from it; a replay at or below this is nothing new. */
+  readonly lastSequence: number;
+}
+
+/** What a member taps a kiosk with. Only keyed hashes are kept (`credentialHash`). */
+export type KioskCredentialKind = 'badge' | 'pin';
+
+export interface KioskStore {
+  device(id: string): Promise<KioskDevice | null>;
+  devices(): Promise<readonly KioskDevice[]>;
+  saveDevice(device: KioskDevice): Promise<void>;
+  /** The member a badge or PIN hash belongs to. */
+  holder(kind: KioskCredentialKind, hash: string): Promise<PersonId | null>;
+  /** Replaces one kind of credential; `null` removes it. */
+  setCredential(personId: PersonId, kind: KioskCredentialKind, hash: string | null): Promise<void>;
+}
+
+/* ---------------------------------------------------------- integrations -- */
+
+/**
+ * Where time off shows up outside Time Off (PRD §5.3, T35): a calendar and a
+ * chat app. Named by what they are; the vendor only names its own adapter.
+ */
+export type CalendarProvider = 'google' | 'microsoft';
+export type ChatProvider = 'slack' | 'teams';
+export type IntegrationProvider = CalendarProvider | ChatProvider;
+
+/**
+ * A company's connection to one provider. `secret` is sealed by the adapter
+ * that made it (a bot token, say) and opened only by that adapter: the
+ * application stores and hands it back, and never reads it.
+ */
+export interface Integration {
+  readonly provider: IntegrationProvider;
+  /** What the provider said about the company: a directory id, a workspace's name. Never a secret. */
+  readonly config: Readonly<Record<string, string>>;
+  readonly secret: string | null;
+  readonly connectedAt: Instant;
+  /** The HR account that connected it. */
+  readonly connectedBy: string;
+}
+
+export interface IntegrationStore {
+  list(): Promise<readonly Integration[]>;
+  get(provider: IntegrationProvider): Promise<Integration | null>;
+  save(integration: Integration): Promise<void>;
+  /** Disconnecting forgets the company's connection and every member's. */
+  remove(provider: IntegrationProvider): Promise<void>;
+  /** A member's own sealed grant, where a provider needs one (a chat status is the person's to set). */
+  memberSecret(provider: IntegrationProvider, personId: PersonId): Promise<string | null>;
+  setMemberSecret(
+    provider: IntegrationProvider,
+    personId: PersonId,
+    sealed: string | null,
+  ): Promise<void>;
+}
+
+/** What the provider sent back to the redirect: `code`, `tenant`, `admin_consent` and the like. */
+export type ProviderAnswer = Readonly<Record<string, string>>;
+
+/**
+ * One provider's adapter, as connecting sees it. **Inert without
+ * credentials**: `configured` is false until a person has created the app at
+ * the provider and given Time Off its client id and secret, and nothing is
+ * then offered or called.
+ */
+export interface IntegrationPort {
+  readonly provider: IntegrationProvider;
+  readonly configured: boolean;
+  /**
+   * Where HR grants access, carrying `state` and coming back to
+   * `redirectUri`; `null` when access is granted outside Kithena (Google's
+   * admin console), so connecting is recorded at once. `forMember` asks for
+   * a person's own grant only (a chat status), never the company's.
+   */
+  connectUrl(state: string, redirectUri: string, forMember?: boolean): string | null;
+  /** What the redirect brought, made into the company's connection; a member's own grant when one came too. */
+  complete(
+    answer: ProviderAnswer,
+    redirectUri: string,
+  ): Promise<{
+    readonly config: Readonly<Record<string, string>>;
+    readonly secret: string | null;
+    readonly memberSecret?: string | null;
+  }>;
+}
+
+/** An all-day entry on somebody's calendar, idempotent by `key`: put twice is one entry. */
+export interface CalendarEntry {
+  readonly key: string;
+  /** The calendar's owner, by their work address. */
+  readonly email: string;
+  readonly title: string;
+  readonly from: CalendarDate;
+  /** Inclusive. */
+  readonly to: CalendarDate;
+  /** Out of office blocks the time and declines meetings; a holiday only marks it. */
+  readonly kind: 'out_of_office' | 'holiday';
+  readonly timeZone: string;
+}
+
+export interface CalendarPort extends IntegrationPort {
+  readonly provider: CalendarProvider;
+  put(integration: Integration, entry: CalendarEntry): Promise<void>;
+  remove(integration: Integration, entry: Pick<CalendarEntry, 'key' | 'email'>): Promise<void>;
+}
+
+export interface ChatPort extends IntegrationPort {
+  readonly provider: ChatProvider;
+  /** The member's status while they are away, cleared by the provider at `until`. */
+  setStatus(
+    integration: Integration,
+    memberSecret: string,
+    status: { readonly text: string; readonly until: Instant },
+  ): Promise<void>;
+  /**
+   * A direct message to an approver with Approve and Decline, each carrying
+   * a value Time Off signed; pressing one comes back through `action`.
+   */
+  askApproval(
+    integration: Integration,
+    message: {
+      readonly email: string;
+      readonly text: string;
+      readonly approve: string;
+      readonly decline: string;
+    },
+  ): Promise<void>;
+  /**
+   * A button press, verified as the provider's own (its signing secret over
+   * the raw body): the value Time Off put on the button, and how to answer
+   * in the conversation it came from. `null` when the request is not the
+   * provider's, or not a press.
+   */
+  action(request: {
+    readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+    readonly body: string;
+  }): { readonly value: string; readonly reply: (text: string) => Promise<void> } | null;
+}
+
+/** Every adapter Time Off has, and where providers send people back to. */
+export interface Reach {
+  readonly calendars: readonly CalendarPort[];
+  readonly chats: readonly ChatPort[];
+  /** `TIMEOFF_PUBLIC_URL`: the redirect is `${publicUrl}/v1/timeoff/integrations/<provider>/callback`. */
+  readonly publicUrl: string;
+}
+
+/* ------------------------------------------------------------------ scim -- */
+
+/** An identity provider's connection (TOF-114): only its token's SHA-256, hex. */
+export interface ScimConnection {
+  readonly id: string;
+  readonly tokenHash: string;
+  readonly createdBy: string;
+  readonly revokedAt: Instant | null;
+}
+
+/** What an identity provider calls a member. */
+export interface ScimUser {
+  readonly personId: PersonId;
+  readonly userName: string;
+  readonly externalId: string | null;
+  readonly createdAt: Instant;
+  readonly updatedAt: Instant;
+}
+
+export interface ScimStore {
+  connection(id: string): Promise<ScimConnection | null>;
+  saveConnection(connection: ScimConnection): Promise<void>;
+  user(personId: PersonId): Promise<ScimUser | null>;
+  /** Whatever its case. */
+  byUserName(userName: string): Promise<ScimUser | null>;
+  users(): Promise<readonly ScimUser[]>;
+  saveUser(user: ScimUser): Promise<void>;
+}
+
 /* -------------------------------------------------------------- parental -- */
 
 /** Who covers one piece of the parent's work while they are away (T10, manual for now). */
@@ -281,6 +483,42 @@ export interface ParentalStore {
   setCompany(weeks: CompanyParentalWeeks): Promise<void>;
 }
 
+/** A policy's draft running beside the version in effect, for a month (PRD §6.3, TOF-093). */
+export interface PolicyShadow {
+  readonly from: CalendarDate;
+  readonly to: CalendarDate;
+}
+
+/** The small tenant settings kept as one document each, by key. */
+export interface Settings {
+  /** Shadow runs, by policy id. */
+  readonly policy_shadows: Readonly<Record<string, PolicyShadow>>;
+  /** The smallest group a report may describe, as People last said (`people.settings.changed`). */
+  readonly cohort_minimum: { readonly value: number };
+  /** T34's "If nobody decides" (§9.7). */
+  readonly escalation: Escalation;
+}
+
+/** How long a request waits before it moves on, to whom, and when the daily reminder goes. */
+export interface Escalation {
+  readonly afterWorkingDays: number;
+  /** The approver's own manager (HR when they have none), or HR straight away. */
+  readonly to: 'manager' | 'hr';
+  /** Minutes after midnight in the member's zone. */
+  readonly remindAt: number;
+}
+
+export const DEFAULT_ESCALATION: Escalation = {
+  afterWorkingDays: 3,
+  to: 'manager',
+  remindAt: 9 * 60,
+};
+
+export interface SettingStore {
+  get<K extends keyof Settings>(key: K): Promise<Settings[K] | null>;
+  set<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void>;
+}
+
 /** The revocation counter behind a calendar feed token (§10.1). */
 export interface FeedStore {
   version(personId: PersonId): Promise<number>;
@@ -324,6 +562,10 @@ export interface Tx {
   readonly attendance: AttendanceStore;
   readonly feeds: FeedStore;
   readonly parental: ParentalStore;
+  readonly kiosks: KioskStore;
+  readonly integrations: IntegrationStore;
+  readonly scim: ScimStore;
+  readonly settings: SettingStore;
   readonly outbox: Outbox;
   readonly idempotency: IdempotencyStore;
 }
@@ -375,6 +617,7 @@ export type Notice =
       readonly carries: string;
     }
   | { readonly kind: 'missed_clock_out'; readonly date: CalendarDate }
+  | { readonly kind: 'overtime_waiting'; readonly personId: PersonId; readonly date: CalendarDate }
   | { readonly kind: 'still_clocked_in' }
   | { readonly kind: 'parental_plan_sent'; readonly planId: string }
   | {
@@ -382,11 +625,32 @@ export type Notice =
       readonly planId: string;
       readonly blockFrom: CalendarDate;
     }
+  | { readonly kind: 'kiosk_clock_skew'; readonly deviceId: string; readonly seconds: number }
   | {
       readonly kind: 'negative_on_leaving';
       readonly leaveTypeKey: LeaveTypeKey;
       readonly days: string;
     };
+
+/**
+ * A nudge to rest (T28, TOF-098), through `platform/messaging` over internal
+ * HTTP as identity's invitation is: the recipient's address, a link on their
+ * company's own origin, and words carrying only their own figures. Rejects
+ * when messaging refuses it.
+ */
+export interface NudgeMailer {
+  send(
+    tenantId: TenantId,
+    message: {
+      readonly email: string;
+      readonly url: string;
+      readonly companyName: string;
+      readonly dedupeKey: string;
+      readonly heading: string;
+      readonly lede: string;
+    },
+  ): Promise<void>;
+}
 
 export interface Notifier {
   /** At most once per `dedupeKey`, so a job run twice tells nobody twice. */
@@ -406,6 +670,16 @@ export interface Deps {
   readonly notifier: Notifier;
   /** Signs calendar feed tokens. */
   readonly feedSecret: string;
+  /** Calendars and chat apps; none at all without credentials, which changes nothing else. */
+  readonly reach?: Reach;
+  /** Messaging's door for nudges; absent, nudges are refused as unavailable. */
+  readonly mailer?: NudgeMailer;
+  /** TypeSafe's judgments (`TYPESAFE_API_KEY`); absent, every caller uses its own rule (§14.1). */
+  readonly judge?: Judge;
+  /** The assistant's lines (`ASSISTANT_*`); absent, every line is its template (§14.1). */
+  readonly writer?: Writer;
+  /** A connected calendar's event end times, evidence for a missed clock-out (§11.4). */
+  readonly calendar?: CalendarEvidence;
 }
 
 export const userActor = (caller: Caller): Actor => ({ kind: 'user', userId: caller.accountId });

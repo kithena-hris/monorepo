@@ -284,7 +284,10 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   }
 
   /** Other dates instead of a decline (§9.5). The asked-for dates stay booked meanwhile. */
-  counterPropose(args: { by: string; proposals: readonly Proposal[] }, ctx: EventContext): Entries {
+  counterPropose(
+    args: { by: string; proposals: readonly Proposal[]; message?: string | null },
+    ctx: EventContext,
+  ): Entries {
     if (this.#status !== 'pending') return refuse(this.#status, 'answered with other dates');
     if (args.proposals.length < 1 || args.proposals.length > 3) {
       return err(
@@ -308,6 +311,7 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
         spans: p.spans.map((r) => ({ ...r })),
         workingDays: p.workingDays,
       })),
+      message: args.message?.trim() || null,
     });
     return ok([]);
   }

@@ -95,6 +95,8 @@ export const suggested = (): RequestsData => {
       proposals: [
         { index: 0, spans: [{ from: '2026-10-26', to: '2026-10-30' }], workingDays: '5.000' },
       ],
+      proposalMessage:
+        'Hi Adam, could you take 26–30 Oct instead? Omar and Yuki are out on the day you asked. Happy to approve straight away if that works.',
     },
   };
 };

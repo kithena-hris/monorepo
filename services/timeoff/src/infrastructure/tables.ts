@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   char,
   customType,
@@ -39,6 +40,7 @@ export const member = timeoff.table(
     personId: uuid('person_id').notNull(),
     displayName: text('display_name').notNull(),
     firstName: text('first_name'),
+    workEmail: text('work_email'),
     managerPersonId: uuid('manager_person_id'),
     teamKey: text('team_key'),
     teamName: text('team_name'),
@@ -174,6 +176,7 @@ export const request = timeoff.table(
     /** A person's id, or `hr`. */
     escalatedTo: text('escalated_to'),
     proposedBy: text('proposed_by'),
+    proposalMessage: text('proposal_message'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -293,10 +296,24 @@ export const kioskDevice = timeoff.table(
     tokenHash: sha256('token_hash').notNull(),
     lastSeenAt: instant('last_seen_at'),
     revokedAt: instant('revoked_at'),
+    lastSequence: bigint('last_sequence', { mode: 'number' }).notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+/** A member's badge or PIN, as an HMAC (TOF-107). */
+export const kioskCredential = timeoff.table(
+  'kiosk_credential',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    kind: text('kind').notNull(),
+    hash: sha256('hash').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId, t.kind] })],
 );
 
 /** Insert-only, and no coordinate column: the integration test holds the list. */
@@ -315,6 +332,7 @@ export const punch = timeoff.table(
     insideOfficeArea: boolean('inside_office_area'),
     supersedes: uuid('supersedes'),
     reason: text('reason'),
+    clockSkewSeconds: integer('clock_skew_seconds'),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
 );
@@ -493,3 +511,61 @@ export const tenant = timeoff.table('tenant', {
   tenantId: uuid('tenant_id').primaryKey(),
   firstSeenAt: instant('first_seen_at').notNull().defaultNow(),
 });
+
+/* ------------------------------------------------------------- TOF-109 -- */
+
+/** A company's connection to a calendar or chat provider; `secret` sealed by its adapter. */
+export const integration = timeoff.table(
+  'integration',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    provider: text('provider').notNull(),
+    config: jsonb('config').notNull(),
+    secret: text('secret'),
+    connectedAt: instant('connected_at').notNull(),
+    connectedBy: uuid('connected_by').notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.provider] })],
+);
+
+/** A member's own sealed grant for a provider. */
+export const integrationMember = timeoff.table(
+  'integration_member',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    provider: text('provider').notNull(),
+    personId: uuid('person_id').notNull(),
+    secret: text('secret').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.provider, t.personId] })],
+);
+
+/* ------------------------------------------------------------- TOF-114 -- */
+
+export const scimConnection = timeoff.table(
+  'scim_connection',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    tokenHash: sha256('token_hash').notNull(),
+    createdBy: uuid('created_by').notNull(),
+    createdAt: createdAt(),
+    revokedAt: instant('revoked_at'),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+export const scimUser = timeoff.table(
+  'scim_user',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    userName: text('user_name').notNull(),
+    externalId: text('external_id'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId] })],
+);

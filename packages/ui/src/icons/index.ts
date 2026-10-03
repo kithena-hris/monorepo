@@ -90,12 +90,14 @@ import {
   Moon,
   MoonStar,
   MoveRight,
+  Nfc,
   Paperclip,
   Pause,
   Pencil,
   Phone,
   Play,
   Plus,
+  QrCode,
   RefreshCw,
   RotateCcw,
   RotateCcwClock,
@@ -146,6 +148,8 @@ import {
   Square,
   Thermometer,
   Timer,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 
 /**
@@ -188,6 +192,10 @@ export const iconGroups = {
     stop: Square,
     pause: Pause,
     signOut: LogOut,
+    /** Holding a card or a phone to a reader. */
+    tap: Nfc,
+    /** Showing or reading a code with a camera. */
+    scanCode: QrCode,
   },
   /** How a record stands. Always paired with the word. */
   status: {
@@ -199,6 +207,9 @@ export const iconGroups = {
     pending: Clock,
     blocked: Ban,
     loading: LoaderCircle,
+    /** A device that can reach the network, and one working without it. */
+    online: Wifi,
+    offline: WifiOff,
     up: TrendingUp,
     down: TrendingDown,
     flagged: Flag,

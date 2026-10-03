@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SendTimeOffNudges($key: String!, $input: JSON!) {\n    sendTimeOffNudges(idempotencyKey: $key, input: $input) {\n      failed sent unreachable\n    }\n  }"}

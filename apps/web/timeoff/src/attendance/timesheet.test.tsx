@@ -121,6 +121,52 @@ describe('fixing a missed clock-out', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('fills in Time Off’s suggestion with the evidence it used, tagged AI only when a model chose it', async () => {
+    const onCorrect = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const suggestion = {
+      at: '2026-09-30T16:05:00.000Z',
+      time: '18:05',
+      ai: true,
+      evidence: [
+        {
+          source: 'kithena' as const,
+          at: '2026-09-30T16:04:00.000Z',
+          what: 'You sent a time-off request',
+        },
+        {
+          source: 'calendar' as const,
+          at: '2026-09-30T15:30:00.000Z',
+          what: 'Billing v2 sync, Google Calendar',
+        },
+      ],
+    };
+    const week = adamWeek();
+    render(
+      <Timesheet
+        load={ready({
+          ...week,
+          fix: '2026-09-30',
+          open: week.open.map((o) => ({ ...o, suggestion })),
+        })}
+        onCorrect={onCorrect}
+      />,
+    );
+    const dialog = within(
+      screen.getByRole('dialog', { name: 'When did you finish on Wednesday?' }),
+    );
+    expect(dialog.getByRole('heading', { name: 'Around 18:05' })).toBeTruthy();
+    expect(dialog.getByText('Your last action in Kithena was at 18:04')).toBeTruthy();
+    expect(dialog.getByText('Your meeting ended at 17:30')).toBeTruthy();
+    expect(dialog.getByText('Billing v2 sync, Google Calendar')).toBeTruthy();
+    expect(dialog.getByText('AI')).toBeTruthy();
+    expect(dialog.getByText('8h 28m worked, 28m overtime')).toBeTruthy();
+    expect(await axeViolations(document.body)).toEqual([]);
+    fireEvent.click(dialog.getByRole('button', { name: 'Save 18:05' }));
+    expect(onCorrect).toHaveBeenCalledWith(
+      expect.objectContaining({ at: '2026-09-30T16:05:00.000Z', kind: 'out' }),
+    );
+  });
+
   it('opens from the morning notification’s link, and says so when Time Off refuses', async () => {
     const onCorrect = vi.fn(() =>
       Promise.resolve({ ok: false as const, message: 'The time is before your last punch' }),

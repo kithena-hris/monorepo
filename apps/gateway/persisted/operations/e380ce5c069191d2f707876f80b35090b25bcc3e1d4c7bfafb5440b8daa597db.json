@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation RevokeTimeOffKiosk($deviceId: String!, $key: String!) {\n    revokeTimeOffKiosk(deviceId: $deviceId, idempotencyKey: $key) {\n      ok\n    }\n  }"}

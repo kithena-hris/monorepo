@@ -340,6 +340,7 @@ function toRecord(tenantId: TenantId, { row: r, ...type }: RequestRow): RequestR
     note: r.note,
     requestedAt: instantOf(r.requestedAt),
     proposedBy: r.proposedBy,
+    proposalMessage: r.proposalMessage,
   };
 }
 
@@ -397,6 +398,7 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
         waitingSince: record.routing.since,
         escalatedTo: record.routing.escalatedTo,
         proposedBy: record.proposedBy,
+        proposalMessage: record.proposalMessage,
       };
       await tx
         .insert(request)

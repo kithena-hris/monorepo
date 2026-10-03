@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetTimeOffKioskCredential($key: String!, $input: JSON!, $kind: String!, $personId: String!) {\n    setTimeOffKioskCredential(idempotencyKey: $key, input: $input, kind: $kind, personId: $personId) {\n      ok\n    }\n  }"}

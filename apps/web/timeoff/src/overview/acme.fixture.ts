@@ -91,11 +91,12 @@ export const adam = (): OverviewData => ({
   ],
   bridges: [
     {
-      take: '2026-12-07',
-      from: '2026-12-05',
-      to: '2026-12-08',
-      holiday: 'Inmaculada Concepción',
-      days: 4,
+      from: '2026-12-07',
+      to: '2026-12-07',
+      used: 1,
+      away: { from: '2026-12-05', to: '2026-12-08', days: 4 },
+      holidays: [{ date: '2026-12-08', name: 'Inmaculada Concepción' }],
+      text: { text: '4 days off, 5–8 Dec, with Inmaculada Concepción.', ai: false },
     },
   ],
   now: '2026-10-01T10:33:00.000Z',

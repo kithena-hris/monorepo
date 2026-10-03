@@ -1,1 +1,0 @@
-{"version":1,"body":"query TimeOffPolicyPreview($policyId: String!) {\n    timeOffPolicyPreview(policyId: $policyId) {\n      draftVersion effectiveFrom members { allowance { current draft } displayName left { current draft } lostAtYearEnd { current draft } personId } yearEnd\n    }\n  }"}

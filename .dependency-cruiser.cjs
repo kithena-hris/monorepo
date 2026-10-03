@@ -139,6 +139,8 @@ module.exports = {
            */
           '(^|/)modern\\.config\\.ts$',
           '(^|/)postcss\\.config\\.mjs$',
+          // A service worker is fetched by URL, never imported (TOF-108).
+          '^apps/web/public/kiosk-sw\\.js$',
           /*
            * A module's ports: the interfaces an external provider is adapted
            * *to*, with no implementation in the tree yet.

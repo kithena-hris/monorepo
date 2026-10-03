@@ -3,10 +3,9 @@ import { createElement, type ReactNode } from 'react';
 
 /**
  * The words and looks the manager's screens share (approvals, delegation,
- * the calendar): dates as people say them, a leave type's colour and icon,
- * and the templated sentences that stand in for the assistant's (§14.1)
- * until TOF-086 to TOF-088 write them. Every number in a sentence comes
- * from Time Off; the template only says it.
+ * the calendar): dates as people say them and a leave type's colour and
+ * icon. The sentences themselves are Time Off's (`Written`), the model's or
+ * its template's (§14.1).
  */
 
 /* --------------------------------------------------------------- types -- */
@@ -38,6 +37,12 @@ export interface RequestItem {
   readonly workingDays: string;
   readonly requestedAt: string;
   readonly waitingOn: 'manager' | 'hr' | null;
+}
+
+/** A line Time Off sends: `ai` only when a model wrote it (`TimeOffWritten`). */
+export interface Written {
+  readonly text: string;
+  readonly ai: boolean;
 }
 
 /** "4 of 7 in" on one day (`TimeOffCoverageDay`). */
@@ -244,30 +249,6 @@ export function workingDaysAfter(date: string, n: number): string {
 
 /** The first name, for a sentence about someone. */
 export const firstName = (displayName: string): string => displayName.split(' ')[0] ?? displayName;
-
-/** Look closer's one line, templated from the rule that fired (TOF-086 writes it). */
-export function lookCloserLine(reason: LookCloser, item: RequestItem): string {
-  const who = firstName(item.displayName);
-  const days = reason.days.map(shortDate);
-  switch (reason.rule) {
-    case 'below_minimum':
-      return `Below the team minimum on ${listOf(days)}.`;
-    case 'below_zero':
-      return `Would take ${who} to −${amount(reason.amount ?? '0')} days. Needs HR after you.`;
-    case 'over_banked':
-      return `${amount(reason.amount ?? '0')}h more than ${who} has banked.`;
-    case 'protected_period':
-      return `Falls in a protected period on ${listOf(days)}.`;
-    case 'sick_over_threshold':
-      return `${dayCount(reason.amount ?? item.workingDays)} off sick, so a note is needed.`;
-  }
-}
-
-/** Clear to approve's one line: why nothing needs a second look. */
-export function clearLine(item: RequestItem): string {
-  if (item.category === 'sick') return 'Self-certified, under the days that need a note.';
-  return 'Within balance, and the team stays at or above its minimum.';
-}
 
 export function listOf(parts: readonly string[]): string {
   return parts.length <= 1

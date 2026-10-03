@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
 import { leaveTypes } from './acme.fixture';
@@ -30,6 +30,65 @@ describe('leave types', () => {
     ).toBeTruthy();
     expect(list.getAllByRole('link')).toHaveLength(8);
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('adds a leave type from its name and opens its page (TOF-099a)', async () => {
+    const onAdd = vi.fn(() => Promise.resolve({ ok: true as const, key: 'moving_day' }));
+    const onNavigate = vi.fn();
+    render(
+      <LeaveTypes
+        load={{ status: 'ready', data: { ...leaveTypes(), adding: true } }}
+        onAdd={onAdd}
+        onNavigate={onNavigate}
+        onAsk={vi.fn()}
+      />,
+    );
+    expect(
+      // Behind the open dialog, so hidden from the accessibility tree.
+      screen.getByRole('link', { name: 'Add leave type', hidden: true }).getAttribute('href'),
+    ).toBe('/settings/time-off/leave-types?add=1');
+    const dialog = within(screen.getByRole('dialog', { name: 'Add a leave type' }));
+    fireEvent.change(dialog.getByRole('textbox', { name: /^Name/ }), {
+      target: { value: 'Moving day' },
+    });
+    expect(dialog.getByText('Kept as “moving_day” for exports and integrations.')).toBeTruthy();
+    fireEvent.click(dialog.getByRole('button', { name: 'Add leave type' }));
+    expect(onAdd).toHaveBeenCalledWith({
+      key: 'moving_day',
+      name: { default: 'Moving day' },
+      category: 'other',
+      colorToken: 'chart-4',
+      icon: 'flag',
+      unit: 'day',
+      tracked: true,
+      paid: 'paid',
+      visibility: 'type',
+    });
+    await vi.waitFor(() => {
+      expect(onNavigate).toHaveBeenCalledWith('/settings/time-off/leave-types/moving_day');
+    });
+    expect(await axeViolations(document.body)).toEqual([]);
+  });
+
+  it('keeps the company’s own parental weeks (TOF-099a)', () => {
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(
+      <LeaveTypes load={{ status: 'ready', data: leaveTypes() }} onSaveParentalCompany={onSave} />,
+    );
+    const weeks = within(
+      screen
+        .getByRole('heading', { name: 'Your own parental weeks' })
+        .closest('section') as HTMLElement,
+    );
+    expect(weeks.getByRole('spinbutton', { name: 'Extra weeks' })).toHaveProperty('value', '2');
+    expect(weeks.getByRole('combobox', { name: 'Booked as' }).textContent).toBe('Parental leave');
+    fireEvent.keyDown(weeks.getByRole('spinbutton', { name: 'Extra weeks' }), { key: 'ArrowUp' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledWith({
+      extraWeeks: 3,
+      afterServiceYears: 1,
+      leaveTypeKey: 'parental',
+    });
   });
 
   it('says Spain’s pack is not reviewed yet, and says nothing once it is', () => {

@@ -53,6 +53,12 @@ export interface Punch {
   /** The punch this one replaces; `null` for a punch, or for one that was never made. */
   readonly supersedes: string | null;
   readonly reason: string | null;
+  /**
+   * How far a kiosk's clock was from ours when it sent this punch, in
+   * seconds, when beyond `CLOCK_SKEW_SECONDS`: the recorded instant is kept
+   * and the punch is an exception for HR (§11.9). Absent or `null` otherwise.
+   */
+  readonly clockSkewSeconds?: number | null;
 }
 
 /** From a clock-in to its clock-out. Belongs to the day it started. */
@@ -194,6 +200,7 @@ export class AttendanceClock extends AggregateRoot<PersonId> {
     actor: Actor;
     correlationId: string;
     clock: Clock;
+    clockSkewSeconds?: number | null;
   }): Result<Punch> {
     const now = args.clock.instant();
     const p: Punch = {
@@ -207,6 +214,9 @@ export class AttendanceClock extends AggregateRoot<PersonId> {
       insideOfficeArea: args.input.insideOfficeArea,
       supersedes: null,
       reason: null,
+      ...((args.clockSkewSeconds ?? null) === null
+        ? {}
+        : { clockSkewSeconds: args.clockSkewSeconds }),
     };
     const applied = this.#apply(p);
     if (!applied.ok) return applied;
