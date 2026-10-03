@@ -202,6 +202,9 @@ export type { BinOptions, HistogramBin } from './components/chart/geometry';
 export { CohortChart } from './components/chart/cohort-chart';
 export type { CohortChartProps, CohortRow } from './components/chart/cohort-chart';
 
+export { RangeBar } from './components/chart/range-bar';
+export type { RangeBarProps, RangeBarSegment } from './components/chart/range-bar';
+
 export { BulletChart } from './components/chart/bullet-chart';
 export type { BulletChartProps, BulletMeasure } from './components/chart/bullet-chart';
 
