@@ -395,7 +395,7 @@ describe('the Time Off manifest', () => {
       component: 'RequestDetail',
       params: { id: 'r-1' },
     });
-    expect(matchRoute(timeOff, '/time-off/requests/past')?.component).toBe('MyRequests');
+    expect(matchRoute(timeOff, '/time-off/requests/past')?.component).toBe('MyRequestsPast');
     expect(matchRoute(timeOff, '/time-off')).toBeUndefined();
   });
 
