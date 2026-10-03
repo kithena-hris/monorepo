@@ -269,6 +269,24 @@ export interface PersonAccess {
   ): Promise<Result<CorrectedEntry | { readonly held: HeldChange }>>;
   completeness(tx: Tx, asking: On<object>): Promise<Result<CompletenessVerdict>>;
   /**
+   * `read` for many people at once, by person: the records, who the viewer
+   * is to each and their sealed values read for all of them, not per person.
+   * Somebody not found is left out.
+   */
+  readMany(
+    tx: Tx,
+    asking: Asking & { readonly personIds: readonly string[] },
+  ): Promise<Result<ReadonlyMap<string, PersonView>>>;
+  /**
+   * `completeness` for many people at once, by person: the schema, the org
+   * calendar and who the viewer is to each read once for all of them, rather
+   * than once a person. Somebody not found is left out.
+   */
+  completenessOf(
+    tx: Tx,
+    asking: Asking & { readonly personIds: readonly string[] },
+  ): Promise<Result<ReadonlyMap<string, CompletenessVerdict>>>;
+  /**
    * Confirm a provisional record as an employee, from a start date. The one
    * hire path: every transport and the import come through here.
    */
@@ -689,6 +707,53 @@ export async function relationsToMany(
   return out;
 }
 
+/**
+ * One person's verdict from what was read about them: what is missing,
+ * limited to what this viewer may know exists, and what HR sent back for
+ * them to correct (PEO-125), which needs attention rather than being missing.
+ * A sealed value counts as given.
+ */
+function verdictOf(
+  version: PublishedVersion,
+  person: PersonRecord,
+  relations: ViewerRelations,
+  sealed: readonly { readonly attributeKey: string }[],
+  open: readonly { readonly state: string; readonly attributeKey: string }[],
+  zone: string,
+  clock: Clock,
+): CompletenessVerdict {
+  const definitions = version.document.attributes;
+  const values: Record<string, unknown> = { ...person.values };
+  if (definitions.some((d) => d.encrypted)) {
+    for (const s of sealed) values[s.attributeKey] = true;
+  }
+  const verdict = assessCompleteness(
+    definitions,
+    {
+      legalEntityId: person.legalEntityId,
+      country: countryOf(values),
+      employmentType: person.employmentType,
+      workModel: person.workModel,
+      status: person.snapshot.status,
+      values,
+      knownAttributes: new Set(definitions.map((d) => d.key as string)),
+    },
+    clock,
+    zone,
+  );
+  const byKey = new Map(definitions.map((d) => [d.key as string, d]));
+  const visible = (key: string): boolean => {
+    const definition = byKey.get(key);
+    return definition !== undefined && visibleTo(definition, relations);
+  };
+  const missing = verdict.missing.filter((m) => visible(m.key));
+  const attention = open
+    .filter((r) => r.state === 'sent_back')
+    .map((r) => r.attributeKey)
+    .filter(visible);
+  return { ...verdict, missing, unevaluable: [], attention };
+}
+
 const SEARCHED = ['given_name', 'family_name', 'preferred_name', 'work_email'] as const;
 
 /**
@@ -741,6 +806,24 @@ const APPROVED_RELATIONS: ViewerRelations = {
   isFinance: true,
   isAdmin: true,
 };
+
+/**
+ * A field's values rewritten because its type changed (Settings › Employee
+ * fields › Change): the administrator reviewed every value and published the
+ * change, so each write is theirs, made with every role's reach — whoever
+ * normally fills the field in — and never held for approval, recorded on the
+ * event as applied without it. A symbol, so no transport can claim it.
+ */
+const AS_SCHEMA_CHANGE = Symbol('people.schema-change');
+type SchemaChangeAsking = Asking & { readonly [AS_SCHEMA_CHANGE]?: true };
+const schemaChangeOf = (asking: Asking): boolean =>
+  (asking as SchemaChangeAsking)[AS_SCHEMA_CHANGE] === true;
+
+/** The asking of a field change's writes. Only the publish of a reviewed change builds one. */
+export function asSchemaChange(asking: Asking): Asking {
+  const changing: SchemaChangeAsking = { ...asking, [AS_SCHEMA_CHANGE]: true };
+  return changing;
+}
 
 /**
  * An integration writing (PEO-072, PEO-073): a SCIM connection whose token
@@ -865,6 +948,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
    */
   async function relationsOf(tx: Tx, asking: Asking, personId: string): Promise<ViewerRelations> {
     if (systemOf(asking) !== undefined) return SYSTEM_RELATIONS;
+    if (schemaChangeOf(asking)) return APPROVED_RELATIONS;
     const integration = integrationOf(asking);
     if (integration !== undefined) {
       return {
@@ -907,6 +991,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     asking: Asking,
     relations: ViewerRelations,
   ): Result<'hold' | 'bypass' | 'write'> {
+    if (schemaChangeOf(asking)) return ok(deps.approvals === undefined ? 'write' : 'bypass');
     if (asking.applySensitiveWithoutApproval === true && !relations.isHr) {
       return err(
         failure('FORBIDDEN', 'Only HR applies a value that needs approval without it', [
@@ -997,6 +1082,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     version: PublishedVersion,
     relations: ViewerRelations,
     asOf?: string,
+    /** This person's sealed values, read already with the rest of a page's (`listMany`). */
+    held?: readonly { readonly attributeKey: string; readonly last4: string | null }[],
   ): Promise<PersonView> {
     const definitions = version.document.attributes;
     const values = new Map(Object.entries(person.values));
@@ -1005,7 +1092,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     const sealed = definitions.filter((d) => d.encrypted);
     if (sealed.length > 0) {
       for (const d of sealed) values.delete(d.key);
-      for (const s of await deps.secrets.list(tx, asking.tenantId, person.snapshot.id)) {
+      for (const s of held ?? (await deps.secrets.list(tx, asking.tenantId, person.snapshot.id))) {
         values.set(s.attributeKey, { last4: s.last4 } satisfies SealedValue);
       }
     }
@@ -2325,6 +2412,62 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       return ok(await view(tx, asking, person, version, relations, asking.asOf));
     },
 
+    async readMany(tx, asking) {
+      const out = new Map<string, PersonView>();
+      const wanted = [...new Set(asking.personIds)];
+      // A system or an integration reads as itself, person by person.
+      if (systemOf(asking) !== undefined || integrationOf(asking) !== undefined) {
+        for (const personId of wanted) {
+          const read = await this.read(tx, { ...asking, personId });
+          if (read.ok) out.set(personId, read.value);
+          else if (read.error.code === 'SCHEMA_NOT_PUBLISHED') return read;
+        }
+        return ok(out);
+      }
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      if (wanted.length === 0) return ok(out);
+      const records: PersonRecord[] = [];
+      if (deps.reader.records !== undefined) {
+        records.push(...(await deps.reader.records(tx, asking.tenantId, wanted)));
+      } else {
+        for (const personId of wanted) {
+          const person = await deps.reader.record(tx, asking.tenantId, personId);
+          if (person) records.push(person);
+        }
+      }
+      const ids = records.map((r) => r.snapshot.id);
+      const related = await relationsToMany(
+        deps.relations,
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        ids,
+        new Map(records.map((r) => [r.snapshot.id, factsOf(r)])),
+      );
+      const sealed = version.document.attributes.some((d) => d.encrypted)
+        ? await deps.secrets.listMany?.(tx, asking.tenantId, ids)
+        : undefined;
+      for (const person of records) {
+        const id = person.snapshot.id;
+        const relations = related.get(id);
+        if (relations === undefined) continue;
+        out.set(
+          id,
+          await view(
+            tx,
+            asking,
+            person,
+            version,
+            relations,
+            undefined,
+            sealed === undefined ? undefined : (sealed.get(id) ?? []),
+          ),
+        );
+      }
+      return ok(out);
+    },
+
     /**
      * A page of people, each filtered for this viewer: who the viewer is to
      * each comes from `relationsToMany`, a handful of questions for the page.
@@ -2372,11 +2515,29 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         rows.map((r) => r.snapshot.id),
         new Map(rows.map((r) => [r.snapshot.id, factsOf(r)])),
       );
+      // Every sealed value on the page in one read, not one per person.
+      const sealed = version.document.attributes.some((d) => d.encrypted)
+        ? await deps.secrets.listMany?.(
+            tx,
+            asking.tenantId,
+            rows.map((r) => r.snapshot.id),
+          )
+        : undefined;
       const items: PersonView[] = [];
       for (const row of rows) {
         const relations = related.get(row.snapshot.id);
         if (relations === undefined) continue;
-        items.push(await view(tx, asking, row, version, relations, asking.asOf));
+        items.push(
+          await view(
+            tx,
+            asking,
+            row,
+            version,
+            relations,
+            asking.asOf,
+            sealed === undefined ? undefined : (sealed.get(row.snapshot.id) ?? []),
+          ),
+        );
       }
       // A sorted list's next page is its offset; an unsorted one's, the last id.
       const next =
@@ -2729,47 +2890,79 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.viewer,
         asking.personId,
       );
-
-      const definitions = version.document.attributes;
-      const values: Record<string, unknown> = { ...person.values };
-      if (definitions.some((d) => d.encrypted)) {
-        for (const s of await deps.secrets.list(tx, asking.tenantId, person.snapshot.id))
-          values[s.attributeKey] = true;
-      }
-
-      const verdict = assessCompleteness(
-        definitions,
-        {
-          legalEntityId: person.legalEntityId,
-          country: countryOf(values),
-          employmentType: person.employmentType,
-          workModel: person.workModel,
-          status: person.snapshot.status,
-          values,
-          knownAttributes: new Set(definitions.map((d) => d.key as string)),
-        },
-        deps.clock,
-        (await calendarOf(tx, asking.tenantId, person.values)).zone,
-      );
-
-      const byKey = new Map(definitions.map((d) => [d.key as string, d]));
-      const missing = verdict.missing.filter((m) => {
-        const definition = byKey.get(m.key);
-        return definition !== undefined && visibleTo(definition, relations);
-      });
-      // A value HR sent back is the employee's to correct: needing attention,
-      // not missing (PEO-125).
+      const sealed = version.document.attributes.some((d) => d.encrypted)
+        ? await deps.secrets.list(tx, asking.tenantId, person.snapshot.id)
+        : [];
       const open = deps.reviews
         ? await deps.reviews.open(tx, asking.tenantId, asking.personId)
         : [];
-      const attention = open
-        .filter((r) => r.state === 'sent_back')
-        .map((r) => r.attributeKey)
-        .filter((key) => {
-          const definition = byKey.get(key);
-          return definition !== undefined && visibleTo(definition, relations);
-        });
-      return ok({ ...verdict, missing, unevaluable: [], attention });
+      return ok(
+        verdictOf(
+          version,
+          person,
+          relations,
+          sealed,
+          open,
+          (await calendarOf(tx, asking.tenantId, person.values)).zone,
+          deps.clock,
+        ),
+      );
+    },
+
+    async completenessOf(tx, asking) {
+      const version = await deps.schemas.current(tx, asking.tenantId);
+      if (!version) return err(NotPublished());
+      const out = new Map<string, CompletenessVerdict>();
+      const wanted = [...new Set(asking.personIds)];
+      const records: PersonRecord[] = [];
+      if (deps.reader.records !== undefined) {
+        records.push(...(await deps.reader.records(tx, asking.tenantId, wanted)));
+      } else {
+        for (const personId of wanted) {
+          const person = await deps.reader.record(tx, asking.tenantId, personId);
+          if (person) records.push(person);
+        }
+      }
+      if (records.length === 0) return ok(out);
+      const ids = records.map((r) => r.snapshot.id);
+      const related = await relationsToMany(
+        deps.relations,
+        tx,
+        asking.tenantId,
+        asking.viewer,
+        ids,
+        new Map(records.map((r) => [r.snapshot.id, factsOf(r)])),
+      );
+      const encrypted = version.document.attributes.some((d) => d.encrypted);
+      const sealed = encrypted
+        ? await deps.secrets.listMany?.(tx, asking.tenantId, ids)
+        : undefined;
+      const calendar = await calendars.load(tx, asking.tenantId);
+      const at = deps.clock.instant();
+      for (const person of records) {
+        const id = person.snapshot.id;
+        const relations = related.get(id);
+        if (relations === undefined) continue;
+        const open = deps.reviews ? await deps.reviews.open(tx, asking.tenantId, id) : [];
+        const held = !encrypted
+          ? []
+          : sealed !== undefined
+            ? (sealed.get(id) ?? [])
+            : await deps.secrets.list(tx, asking.tenantId, id);
+        out.set(
+          id,
+          verdictOf(
+            version,
+            person,
+            relations,
+            held,
+            open,
+            personZone(calendar, placementOf(person.values), at),
+            deps.clock,
+          ),
+        );
+      }
+      return ok(out);
     },
 
     async checkIdentifiers(tx, asking) {

@@ -126,7 +126,13 @@ export const NEW_FIELDS: NewFieldsView = {
   setup: { country: 'US', countryName: 'United States' },
   proposals: [
     {
-      ...proposal({ column: 2, header: 'T-shirt size', key: 't_shirt_size' }),
+      ...proposal({
+        column: 2,
+        header: 'T-shirt size',
+        key: 't_shirt_size',
+        forExisting: { kind: 'ask' },
+        forExistingWhy: 'About them, not their job: the employee tells us.',
+      }),
       counts: {
         have: 17,
         missing: 4,
@@ -143,7 +149,7 @@ export const NEW_FIELDS: NewFieldsView = {
         shape: 'free text, up to 12 characters',
         confidence: 'medium',
         forExisting: { kind: 'hr' },
-        forExistingWhy: 'HR records it: it goes to HR’s completeness list.',
+        forExistingWhy: 'The company assigns it: HR fills it in.',
       }),
       field: {
         label: 'Laptop serial',
@@ -171,7 +177,7 @@ export const NEW_FIELDS: NewFieldsView = {
         key: 'dietary_requirements',
         include: true,
         why: 'Stored as special category, not encrypted, because it’s a list: HR’s alone, and a change waits for approval.',
-        forExistingWhy: 'Health information is volunteered, never chased.',
+        forExistingWhy: 'Volunteered, never chased: it can reveal health, religion or the like.',
       }),
       field: {
         label: 'Dietary requirements',
@@ -233,9 +239,15 @@ export const PLAN: ImportPlanView = {
         'Manager on those rows points at nobody in this company or this file. The rows import without it; each is listed under See rows.',
     },
     {
+      kind: 'ask',
+      title: 'Ask 4 people for 1 personal detail (T-shirt size)',
+      detail:
+        'One request each, listing everything asked of them, answered on their profile or in onboarding. The import emails nobody: anyone without an account yet finds it when they first sign in, and nobody who has left is asked.',
+    },
+    {
       kind: 'hr',
-      title: 'Give HR 4 laptop serial values to fill in',
-      detail: 'They’re in Data health, on HR’s list, until they’re filled in.',
+      title: 'HR fills 1 employment detail for 4 people',
+      detail: 'Laptop serial is in Data health, on HR’s list, until they’re filled in.',
     },
     {
       kind: 'skip',
@@ -244,7 +256,7 @@ export const PLAN: ImportPlanView = {
     },
   ],
   short:
-    'Set up the United States pack, create 2 fields, import 19 people, give HR 4 laptop serial values, and leave out Dietary requirements.',
+    'Set up the United States pack, create 2 fields, import 19 people, ask 4 people for 1 personal detail, have HR fill 1 employment detail for 4 people, and leave out Dietary requirements.',
   fields: [
     {
       key: 't_shirt_size',
@@ -253,7 +265,7 @@ export const PLAN: ImportPlanView = {
       dataType: 'select',
       section: 'Equipment',
       newSection: true,
-      forExisting: { kind: 'leave' },
+      forExisting: { kind: 'ask' },
       missing: 4,
     },
     {
@@ -273,7 +285,7 @@ export const PLAN: ImportPlanView = {
   setup: { country: 'US', countryName: 'United States' },
   blocked: null,
   problems: [],
-  asked: 0,
+  asked: 4,
   forHr: 4,
   review: {
     file: FILE,

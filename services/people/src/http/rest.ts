@@ -19,6 +19,7 @@ import {
   type FullValuesDeps,
 } from '../application/export/full-values.js';
 import type { Asking } from '../application/person/person-access.js';
+import { waitingView } from '../application/screens/waiting.js';
 import {
   approvalsInbox,
   decidePendingChange,
@@ -1088,6 +1089,26 @@ export function restRoutes(deps: RestDeps): Route[] {
         }
         return answer;
       },
+    },
+    // What waits for this viewer's decision, counted: the shell's bell and badges.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/waiting$/,
+      handle: async (asking) =>
+        respond(
+          await run(service, asking.tenantId, (tx) =>
+            waitingView(
+              tx,
+              {
+                access: service.access,
+                ...(deps.fullValues === undefined ? {} : { fullValues: deps.fullValues.deps }),
+              },
+              asking,
+            ),
+          ),
+          200,
+          (waiting) => waiting,
+        ),
     },
     {
       method: 'GET',

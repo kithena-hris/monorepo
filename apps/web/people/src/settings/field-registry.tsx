@@ -55,6 +55,7 @@ import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type {
   ClassificationAdvice,
+  DataType,
   FieldDescription,
   FieldInput,
   PublishPreview,
@@ -102,6 +103,12 @@ export interface FieldRegistryProps {
   /** The section open on the left (`?section=<key>`); null for the first. */
   readonly section?: string | null;
   readonly onSectionChange?: (section: string | null) => void;
+  /**
+   * Open the review of a field whose type or format changes
+   * (`/settings/people/fields/<key>/change?to=<type>`): every value it holds,
+   * checked before it is published.
+   */
+  readonly onReview?: (key: string, to: DataType) => void;
 }
 
 /**
@@ -145,8 +152,10 @@ function Registry({
   onPublish,
   onSignup,
   onAssistant,
+  onReview,
   ...held
 }: FieldRegistryProps & { readonly draft: RegistryDraft }): JSX.Element {
+  const reviewing = draft.fields.filter((f) => f.review === true);
   const [previewing, setPreviewing] = useState(false);
   // The order as the admin last left it, shown until the shell hands back a
   // draft that agrees — the list does not jump back while the save is in flight.
@@ -232,6 +241,37 @@ function Registry({
           Your edits are saved as a draft. Nobody’s forms change until you publish version {next},
           and the publish step shows exactly what changes and who is affected first. Fields marked
           Added, Changed or Archived below are the ones in the draft.
+        </Alert>
+      )}
+
+      {reviewing.length === 0 ? null : (
+        <Alert
+          tone="warning"
+          title={
+            reviewing.length === 1
+              ? `${reviewing[0]?.label ?? ''} changes type or format`
+              : `${String(reviewing.length)} fields change type or format`
+          }
+          action={
+            onReview === undefined ? undefined : (
+              <div className="flex flex-wrap gap-2">
+                {reviewing.map((f) => (
+                  <Button
+                    key={f.key}
+                    size="sm"
+                    onClick={() => {
+                      onReview(f.key, f.dataType);
+                    }}
+                  >
+                    {reviewing.length === 1 ? 'Review the values' : `Review ${f.label}`}
+                  </Button>
+                ))}
+              </div>
+            )
+          }
+        >
+          Every value it holds is checked against the new format before it’s published, and you
+          decide what happens to any that don’t fit.
         </Alert>
       )}
 
@@ -389,8 +429,10 @@ function Registry({
           takenKeys={draft.fields.map((f) => f.key)}
           choices={draft.choices}
           fields={draft.fields}
+          sections={draft.sections}
           advise={advise}
           onSave={(input) => onSaveField(input, editing?.field?.key ?? null)}
+          {...(onReview === undefined ? {} : { onReview })}
         />
       )}
       <AddSection open={adding} onOpenChange={setAdding} onAdd={onAddSection} />
@@ -687,6 +729,11 @@ function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
           {pending.text}
         </Badge>
       )}
+      {field.review === true ? (
+        <Badge tone="warning" size="sm">
+          Values to review
+        </Badge>
+      ) : null}
       {field.requiredness === 'never' ? null : (
         <Badge tone="accent" size="sm">
           {REQUIREDNESS_LABEL[field.requiredness]}

@@ -138,6 +138,15 @@ export interface RegistryField {
   readonly origin: Origin;
   /** Changed since the last published version, and how. */
   readonly pending: 'added' | 'changed' | 'archived' | null;
+  /**
+   * Its type or format changes in the draft: published only through the
+   * review of every value it holds (`…/fields/<key>/change`).
+   */
+  readonly review?: boolean;
+  /** A number's decimal places; null or absent for a type without them. */
+  readonly decimals?: number | null;
+  /** Money in one currency only; null or absent for the record's own. */
+  readonly currency?: string | null;
 }
 
 export interface RegistryDraft {
@@ -177,6 +186,10 @@ export interface FieldInput {
   readonly requiresApproval: boolean | null;
   /** Store it sealed; once on, never off. */
   readonly encrypted?: boolean;
+  /** A number's decimal places; null keeps them. */
+  readonly decimals?: number | null;
+  /** Money in this currency only; null for the record's own. */
+  readonly currency?: string | null;
 }
 
 /**

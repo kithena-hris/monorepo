@@ -1114,6 +1114,111 @@ describe('Employee fields: a field from a template, explained, then published', 
   });
 });
 
+describe('Employee fields: a text field becomes a date, its values reviewed', () => {
+  it('converts what it can, fixes two bad values on the spot, and publishes them together', async () => {
+    // A text field, published, with one date-like value and two that are not.
+    const registry = (await stack.asPeople(ADMIN.account, '/v1/views/registry')) as {
+      sections: { key: string }[];
+    };
+    const sectionKey = registry.sections[0]?.key ?? 'hr_information';
+    const input = {
+      key: 'first_day',
+      sectionKey,
+      label: 'First day',
+      description: null,
+      dataType: 'text',
+      options: [],
+      requiredness: 'never',
+      requiredWhen: null,
+      ownership: ['hr'],
+      collectAt: 'hr_only',
+      visibility: ['self', 'hr'],
+      visibilityRules: [],
+      classification: 'internal',
+      piiKind: 'none',
+      classificationSource: 'human',
+      requiresApproval: null,
+    };
+    await stack.asPeople(ADMIN.account, '/v1/schema/draft/attributes', {
+      method: 'POST',
+      body: { input, editing: null },
+    });
+    await stack.asPeople(ADMIN.account, '/v1/schema/draft/publish', {
+      method: 'POST',
+      body: { requiredFrom: '2026-01-01' },
+    });
+    const [other] = await stack.sql<{ id: string; given_name: string; family_name: string }[]>`
+      SELECT id, given_name, family_name FROM people.person
+       WHERE tenant_id = ${TENANT} AND id NOT IN (${ADMIN.person}, ${EMPLOYEE.person})
+         AND given_name IS NOT NULL AND status = 'active'
+       ORDER BY id LIMIT 1`;
+    if (other === undefined) throw new Error('nobody else to give a value to');
+    for (const [id, value] of [
+      [ADMIN.person, '12/03/2024'],
+      [EMPLOYEE.person, 'the Monday after Easter'],
+      [other.id, 'n/a'],
+    ] as const) {
+      await stack.asPeople(ADMIN.account, `/v1/people/${id}`, {
+        method: 'PATCH',
+        body: { attributes: { first_day: value } },
+      });
+    }
+
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/settings/people/fields?q=First%20day`);
+    await page.getByRole('button', { name: 'Edit First day' }).click({ timeout: 30_000 });
+    const sheet = page.getByRole('dialog', { name: 'Edit First day' });
+    await sheet.getByRole('combobox', { name: /Type of answer/ }).click();
+    await page.getByRole('option', { name: 'Date', exact: true }).click();
+    await sheet.getByRole('button', { name: 'Save field' }).click({ timeout: 30_000 });
+
+    // The review, at its own address: nothing is written until it is published.
+    await page.waitForURL(/\/settings\/people\/fields\/first_day\/change\?to=date$/, {
+      timeout: 30_000,
+    });
+    await page.getByRole('heading', { name: 'Change First day to date' }).waitFor();
+    await page.getByText('1 converts', { exact: true }).waitFor();
+    await page.getByText('12 Mar 2024').waitFor();
+    // The two values that do not fit, by the names the review shows for them:
+    // a record's name is whatever People displays, not a column of its own.
+    const selects = page.getByRole('checkbox', { name: /^Select / });
+    await expect.poll(() => selects.count(), { timeout: 30_000 }).toBe(2);
+    const names = (
+      await selects.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
+    ).map((label) => (label ?? '').replace(/^Select /, ''));
+    expect(names.every((n) => n.trim() !== '')).toBe(true);
+    for (const name of names) {
+      await page.getByRole('combobox', { name: `What to do with ${name}’s value` }).click();
+      await page.getByRole('option', { name: 'Type the right value' }).click();
+      await page.getByRole('button', { name: new RegExp(`New First day for ${name}`) }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /\b15\b/ })
+        .first()
+        .click();
+    }
+    await page.getByRole('button', { name: 'Publish the change' }).click();
+    await page.waitForURL(/\/settings\/people\/fields$/, { timeout: 30_000 });
+
+    const values = await eventually(
+      'the converted and corrected values',
+      () => stack.sql<{ id: string; v: string | null }[]>`
+        SELECT id, custom->>'first_day' AS v FROM people.person
+         WHERE id IN (${ADMIN.person}, ${EMPLOYEE.person}, ${other.id})`,
+      (rows) => rows.every((r) => r.v !== null && /^\d{4}-\d{2}-\d{2}$/.test(r.v)),
+    );
+    expect(values.find((r) => r.id === ADMIN.person)?.v).toBe('2024-03-12');
+    expect(values.filter((r) => r.v?.endsWith('-15') === true)).toHaveLength(2);
+    const [corrections] = await stack.sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM people.outbox
+       WHERE event_name = 'people.person.attribute_corrected'
+         AND envelope->'payload'->'attribute'->>'key' = 'first_day'`;
+    expect(corrections?.n).toBe(3);
+    await context.close();
+  });
+});
+
 // Last: it adds two people, which the counts in the tests above would see.
 describe('PEO-122: what is about to expire, to whom', () => {
   it('shows HR a permit expiring in 30 days; a manager outside the chain does not see it', async () => {

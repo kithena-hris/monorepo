@@ -1,7 +1,13 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DataTable, describeSorts, stretchOverflowing, type DataColumn } from './data-table';
+import {
+  DataTable,
+  describeSorts,
+  stretchOverflowing,
+  type DataColumn,
+  type DataTableHandle,
+} from './data-table';
 
 interface Person {
   id: string;
@@ -261,5 +267,107 @@ describe('stretchOverflowing', () => {
   it('moves nothing when nothing overflows or nothing is spare', () => {
     expect(stretchOverflowing(500, { name: 0 })).toEqual({});
     expect(stretchOverflowing(0, { name: 40 })).toEqual({});
+  });
+});
+
+describe('<DataTable> that keeps loading', () => {
+  const more = (n: number): Person[] =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `m${String(i)}`,
+      name: `Person ${String(i)} with a name long enough to overflow its column`,
+      team: 'Engineering',
+      start: '2024-01-01',
+      salary: 1,
+    }));
+
+  it('is virtualized from its first page, so the rows on screen never remount at the threshold', () => {
+    const { rerender } = render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        onEndReached={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('table')).toHaveAttribute('aria-rowcount', '5');
+    const first = document.querySelector('tr[data-row-id="1"]');
+    rerender(
+      <DataTable
+        label="People"
+        rows={[...people, ...more(150)]}
+        columns={columns}
+        rowId={(p) => p.id}
+        onEndReached={vi.fn()}
+      />,
+    );
+    expect(document.querySelector('tr[data-row-id="1"]')).toBe(first);
+  });
+
+  it('keeps fixed column widths as rows arrive', () => {
+    const widths = (): string[] =>
+      [...document.querySelectorAll<HTMLElement>('thead th')].map((th) => th.style.width);
+    const { rerender } = render(
+      <DataTable
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        columnSizing="fixed"
+      />,
+    );
+    const before = widths();
+    expect(before.every((w) => w.endsWith('px'))).toBe(true);
+    // The widths add up to the table's, so the browser has nothing to share out.
+    expect(screen.getByRole('table').style.width).toBe(`${String(176 * 4)}px`);
+    rerender(
+      <DataTable
+        label="People"
+        rows={[...people, ...more(60)]}
+        columns={columns}
+        rowId={(p) => p.id}
+        columnSizing="fixed"
+      />,
+    );
+    expect(widths()).toEqual(before);
+  });
+
+  it('reveals a row from outside: a jump under reduced motion, and the keyboard lands on it', () => {
+    const into = vi.fn();
+    Element.prototype.scrollIntoView = into;
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(
+        (query: string) =>
+          ({
+            matches: query.includes('reduce'),
+            media: query,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+          }) as unknown as MediaQueryList,
+      ),
+    );
+    const handle: { current: DataTableHandle | null } = { current: null };
+    render(
+      <DataTable
+        ref={handle}
+        label="People"
+        rows={people}
+        columns={columns}
+        rowId={(p) => p.id}
+        onRowClick={vi.fn()}
+      />,
+    );
+    const row = document.querySelector<HTMLElement>('tr[data-row-id="3"]');
+    if (row === null) throw new Error('No row');
+    // Below the box: jsdom lays nothing out, so say where it is.
+    vi.spyOn(row, 'getBoundingClientRect').mockReturnValue({ top: 2000, bottom: 2057 } as DOMRect);
+    act(() => {
+      handle.current?.revealRow('3', { focus: true });
+    });
+    expect(into).toHaveBeenCalledWith({ block: 'center', behavior: 'auto' });
+    expect(row).toHaveFocus();
+    expect(row).toHaveAttribute('tabindex', '0');
+    vi.unstubAllGlobals();
   });
 });

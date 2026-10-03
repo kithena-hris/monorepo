@@ -386,6 +386,15 @@ export async function previewPublish(requiredFrom: string): Promise<unknown> {
   return answer.data;
 }
 
+/** Publish a field's new type or format with HR's decision for each value that does not fit. */
+export async function applyFieldChange(
+  field: string,
+  to: string | null,
+  decisions: readonly Values[],
+): Promise<Outcome> {
+  return outcome(people('ApplyFieldChange', { field, input: JSON.stringify({ to, decisions }) }));
+}
+
 export async function publishDraft(requiredFrom: string): Promise<Outcome> {
   return outcome(people('PublishDraft', { requiredFrom }));
 }

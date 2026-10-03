@@ -85,6 +85,10 @@
       "component": "FieldRegistry"
     },
     {
+      "path": "/settings/people/fields/:key/change",
+      "component": "FieldChange"
+    },
+    {
       "path": "/settings/people/integrations",
       "component": "Integrations"
     },
