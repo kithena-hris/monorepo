@@ -4,6 +4,7 @@ import {
   TeamKey,
   type AttendanceWorkModel,
   type ClockState,
+  type DayAmount,
   type Instant,
   type PersonId,
   type PunchInput,
@@ -20,11 +21,11 @@ import {
   type Day,
   type WeekTotal,
 } from '../../domain/attendance/day.js';
-import { hours, post as postLine } from '../../domain/attendance/pay-period.js';
+import { close, hours, post as postLine } from '../../domain/attendance/pay-period.js';
 import { hm, weekdays, type Schedule } from '../../domain/attendance/schedule.js';
 import { entry } from '../../domain/balance/ledger.js';
 import { datesIn, weekday } from '../../domain/calendar/working-days.js';
-import { addDays, addMonths } from '../../domain/days.js';
+import { addDays, addMonths, amount, days as dayCount, sum } from '../../domain/days.js';
 import {
   contextFor,
   userActor,
@@ -34,7 +35,16 @@ import {
   type OvertimeDecision,
   type Tx,
 } from '../ports.js';
-import { forbidden, isHrAdmin, notFound, post, refuse, relates, transact } from '../shared.js';
+import {
+  balanceFor,
+  forbidden,
+  isHrAdmin,
+  notFound,
+  post,
+  refuse,
+  relates,
+  transact,
+} from '../shared.js';
 
 /**
  * The clock and the timesheet (PRD §11, TOF-042): punch, break, clock out
@@ -416,3 +426,123 @@ async function ensurePeriod(tx: Tx, deps: Pick<Deps, 'newId'>, date: CalendarDat
     closedAt: null,
   });
 }
+
+export interface ClosedPeriod {
+  readonly periodId: string;
+  readonly from: CalendarDate;
+  readonly to: CalendarDate;
+  /** Members on the event Payroll reads. */
+  readonly members: number;
+}
+
+/**
+ * "Send October to Payroll" (§11.8, T24): every complete day the month has
+ * not had a line for is posted first — overtime decisions post their own —
+ * then the period locks and `timeoff.period.closed` goes out with hours and
+ * days, never punch times. HR only.
+ *
+ * ponytail: unpaid days count a whole unpaid request that starts in the
+ * month; split it across months when an unpaid absence spanning a month end
+ * matters to Payroll.
+ */
+export const closePayPeriod =
+  (deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'newId'>) =>
+  (caller: Caller, input: { readonly from: CalendarDate }): Promise<Result<ClosedPeriod>> =>
+    transact(deps, caller.tenantId, async (tx) => {
+      if (!(await isHrAdmin(deps, caller))) return forbidden();
+      await ensurePeriod(tx, deps, input.from);
+      const period = (await tx.attendance.periods()).find(
+        (p) => p.from <= input.from && input.from <= p.to,
+      );
+      if (period === undefined) return notFound('Pay period');
+      if (period.closedAt !== null) {
+        return refuse('ALREADY_CLOSED', `${period.from} to ${period.to} is already closed`);
+      }
+
+      const rules = await tx.attendance.rules();
+      const now = deps.clock.instant();
+      const members = (await tx.members.list()).filter((m) => m.status !== 'left');
+      const tracked = (await tx.leaveTypes.list()).filter(
+        (t) => t.definition.tracked && t.definition.unit === 'day' && !t.deleted,
+      );
+      const balances = new Map<
+        PersonId,
+        { unpaidDays: DayAmount; negativeBalanceDays: DayAmount }
+      >();
+      for (const m of members) {
+        const posted = new Set(
+          (await tx.attendance.lines()).filter((l) => l.personId === m.personId).map((l) => l.date),
+        );
+        const clock = await clockOf(tx, m, caller.tenantId);
+        const schedule = await scheduleOf(tx, m);
+        for (const date of datesIn(period.from, period.to)) {
+          if (posted.has(date)) continue;
+          const day = dayOf({
+            date,
+            schedule,
+            shifts: clock.shifts,
+            now,
+            timeZone: m.timeZone,
+            rules,
+          });
+          if (day.status !== 'complete' || day.workedMinutes === null) continue;
+          const line = postLine(await tx.attendance.periods(), await tx.attendance.lines(), {
+            id: deps.newId(),
+            personId: m.personId,
+            team: m.teamKey ?? NO_TEAM,
+            date,
+            workedMinutes: day.workedMinutes,
+            compMinutes: 0,
+            paidMinutes: 0,
+            supersedes: null,
+          });
+          if (!line.ok) return line;
+          await tx.attendance.appendLine(line.value);
+        }
+
+        let negative = dayCount('0.000');
+        for (const t of tracked) {
+          const left = dayCount((await balanceFor(tx, m, t.definition.key, period.to)).left);
+          if (left.lt(0)) negative = negative.plus(left.neg());
+        }
+        const unpaid = sum(
+          (await tx.requests.list({ personIds: [m.personId], statuses: ['approved', 'taken'] }))
+            .filter(
+              (r) =>
+                r.request.leaveType.paid === 'unpaid' &&
+                r.request.span.from >= period.from &&
+                r.request.span.from <= period.to,
+            )
+            .map((r) => dayCount(r.request.span.workingDays)),
+        );
+        if (!negative.isZero() || !unpaid.isZero()) {
+          balances.set(m.personId, {
+            unpaidDays: amount(unpaid),
+            negativeBalanceDays: amount(negative),
+          });
+        }
+      }
+
+      const closed = close({
+        periods: await tx.attendance.periods(),
+        periodId: period.id,
+        lines: await tx.attendance.lines(),
+        balances,
+        eventId: deps.newId(),
+        tenantId: caller.tenantId,
+        actor: userActor(caller),
+        correlationId: caller.correlationId,
+        clock: deps.clock,
+      });
+      if (!closed.ok) return closed;
+      const locked = closed.value.periods.find((p) => p.id === period.id);
+      if (locked !== undefined) await tx.attendance.savePeriod(locked);
+      await tx.outbox.publish([closed.value.event]);
+      const payload = closed.value.event.payload as { members: readonly unknown[] };
+      return ok({
+        periodId: period.id,
+        from: period.from,
+        to: period.to,
+        members: payload.members.length,
+      });
+    });

@@ -246,7 +246,7 @@ export interface QueueItem {
 }
 
 /** Triage one request as the queue sees it: balance before it, coverage with it. */
-async function triageOf(
+export async function triageOf(
   tx: Tx,
   deps: Pick<Deps, 'clock'>,
   record: RequestRecord,

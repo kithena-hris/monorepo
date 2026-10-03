@@ -1061,6 +1061,9 @@ importers:
       '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
+      '@openfga/sdk':
+        specifier: ^0.9.7
+        version: 0.9.7
       '@temporalio/client':
         specifier: ^1.24.0
         version: 1.24.0
