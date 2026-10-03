@@ -1,8 +1,22 @@
+import { PageLayout, TooltipProvider } from '@reach/ui';
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 
-import { Directory, type DirectoryPerson, type DirectoryState } from './directory';
+import { framed } from '../frame';
+import { Directory as Screen, type DirectoryPerson, type DirectoryState } from './directory';
+
+/** The screen as the host mounts it: its trail, its action and its tabs above it. */
+const Directory = framed(Screen);
+const FRAME = {
+  section: 'Directory',
+  actions: [{ href: '/people/new', label: 'Add employee', icon: 'hire' }],
+  tabs: [
+    { href: '/people/directory/list', label: 'List', current: true },
+    { href: '/people/directory/cards', label: 'Cards', current: false },
+    { href: '/people/directory/org-chart', label: 'Org chart', current: false },
+  ],
+};
 
 /**
  * The directory as it scrolls, in Chromium: the phone project (a finger, the
@@ -51,22 +65,40 @@ function pages() {
 }
 
 function directory(over: { onLoadMore: (after: string) => Promise<unknown>; onOpen?: () => void }) {
-  // In the page's own query container, as Reach's `PageLayout` puts every
-  // screen: WebKit lays a container's contents out twice, and that is where
-  // it lost the table's place.
+  // Inside what the shell puts around it (`apps/web`'s `app-shell.tsx` and
+  // `people-area.tsx`, and the remote's mount): Reach's `PageLayout`, whose
+  // query container WebKit lays out twice — where it lost the table's place —
+  // and whose height is what the table's box fills.
   return render(
-    <div className="@container/page">
-      <Directory
-        load={{ status: 'ready', data: state }}
-        search=""
-        onSearchChange={vi.fn()}
-        filters={{}}
-        onFiltersChange={vi.fn()}
-        onOpen={over.onOpen ?? vi.fn()}
-        onLoadMore={over.onLoadMore as never}
-        next={String(PAGE)}
-      />
-    </div>,
+    <TooltipProvider>
+      <PageLayout
+        preset="sidebar"
+        sidebarCollapse={{ mode: 'rail', defaultCollapsed: false }}
+        sidebar={<div className="h-full w-62" />}
+        bottomBar={<div className="h-14" />}
+        bottomBarVariant="floating"
+        bottomBarClassName="@min-[40rem]/page:hidden"
+        contentClassName="relative px-4 pt-3 pb-28 @min-[40rem]/page:px-10 @min-[40rem]/page:pt-8 @min-[40rem]/page:pb-12"
+      >
+        <div className="flex flex-col gap-6">
+          <div className="min-w-0">
+            <div data-remote="people">
+              <Directory
+                load={{ status: 'ready', data: state }}
+                search=""
+                onSearchChange={vi.fn()}
+                filters={{}}
+                onFiltersChange={vi.fn()}
+                onOpen={over.onOpen ?? vi.fn()}
+                onLoadMore={over.onLoadMore as never}
+                next={String(PAGE)}
+                frame={FRAME}
+              />
+            </div>
+          </div>
+        </div>
+      </PageLayout>
+    </TooltipProvider>,
   );
 }
 
@@ -364,6 +396,49 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
       expect(document.querySelector('tr[data-row-id="p0"]')).toHaveFocus();
     });
     expect(inView('p0')).toBe(true);
+  });
+});
+
+describe.runIf(!coarse)('the directory’s table, in the window', () => {
+  afterEach(async () => {
+    await page.viewport(1280, 800);
+  });
+
+  // One scroll: the table's box ends where the window does, so the page
+  // itself has nothing to scroll, with the quick look open and without it.
+  it.each([
+    { width: 1440, height: 900 },
+    { width: 1280, height: 720 },
+  ])('fills the window at $width×$height, and the page does not scroll', async (size) => {
+    await page.viewport(size.width, size.height);
+    const { onLoadMore } = pages();
+    directory({ onLoadMore });
+    const box = screen.getByRole('region', { name: 'People' });
+    await vi.waitFor(() => {
+      expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+    });
+    // Asked for afresh: closing the card draws the table in a new place.
+    const fits = (): void => {
+      const now = screen.getByRole('region', { name: 'People' });
+      const r = now.getBoundingClientRect();
+      expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight);
+      expect(r.bottom).toBeLessThanOrEqual(window.innerHeight);
+      // Filling it, not merely inside it: the page's content, the status line
+      // under the box last, ends at the window's bottom less the page's padding.
+      const main = screen.getByRole('main');
+      const end = screen.getByText(/^Results stream in/).getBoundingClientRect().bottom;
+      const padding = Number.parseFloat(getComputedStyle(main).paddingBottom);
+      expect(Math.abs(window.innerHeight - padding - end)).toBeLessThanOrEqual(2);
+      expect(now.scrollHeight).toBeGreaterThan(now.clientHeight);
+    };
+    fits();
+    const look = screen.getByRole('complementary', { name: 'Quick look' });
+    expect(look.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight);
+    await userEvent.click(within(look).getByRole('button', { name: 'Close' }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('complementary', { name: 'Quick look' })).toBeNull();
+    });
+    fits();
   });
 });
 
