@@ -11,8 +11,10 @@ import {
   matchPath,
   matchRoute,
   placesFor,
+  remoteNav,
   remoteRoute,
 } from './remotes';
+import timeOff from '../../timeoff/public/routes.json';
 
 describe('matchRoute', () => {
   const manifest = {
@@ -356,15 +358,60 @@ describe('remoteRoute', () => {
     expect(asked).toEqual(['http://localhost:3002/routes.json']);
   });
 
-  it('is unavailable, without asking anybody, for a remote that is not configured', async () => {
+  it('finds the Time Off remote on its local port when its URL is unset', async () => {
     vi.stubEnv('TIMEOFF_REMOTE_URL', undefined);
-    expect(await remoteRoute('/time-off/overview')).toBeNull();
-    expect(asked).toEqual([]);
+    await remoteRoute('/time-off/overview');
+    expect(asked).toEqual(['http://localhost:3003/routes.json']);
+  });
+
+  it('reads an area’s places whichever path is asked, and nothing from a remote that is down', async () => {
+    expect(await remoteNav(AREAS.timeoff)).toMatchObject({
+      routes: ['/time-off/overview', '/settings/time-off/leave-types'],
+      nav: { sections: [], actions: [], settings: [] },
+    });
+    vi.stubEnv('TIMEOFF_REMOTE_URL', 'https://down.example');
+    expect(await remoteNav(AREAS.timeoff)).toBeNull();
   });
 
   it('is no screen for a path no remote owns', async () => {
     expect(areaOf('/time-offer')).toBeUndefined();
     expect(await remoteRoute('/settings/shortcuts')).toBeUndefined();
     expect(asked).toEqual([]);
+  });
+});
+
+describe('the Time Off manifest', () => {
+  const nav = matchRoute(timeOff, '/time-off/overview')?.nav ?? {
+    sections: [],
+    actions: [],
+    settings: [],
+  };
+  const employee = placesFor(nav, { hr: false, admin: false, finance: false });
+  const hr = placesFor(nav, { hr: true, admin: false, finance: false });
+
+  it('is a manifest the shell reads, every route its own screen', () => {
+    expect(matchRoute(timeOff, '/time-off/overview')).toMatchObject({ component: 'Overview' });
+    expect(matchRoute(timeOff, '/time-off/requests/r-1')).toMatchObject({
+      component: 'RequestDetail',
+      params: { id: 'r-1' },
+    });
+    expect(matchRoute(timeOff, '/time-off/requests/past')?.component).toBe('MyRequests');
+    expect(matchRoute(timeOff, '/time-off')).toBeUndefined();
+  });
+
+  it('sends a bare /time-off to the overview, and a bare section to its first tab for the viewer', () => {
+    expect(firstUnder(employee.sections, '/time-off')).toBe('/time-off/overview');
+    expect(firstUnder(employee.sections, '/time-off/attendance')).toBe(
+      '/time-off/attendance/timesheet',
+    );
+    expect(firstUnder(hr.sections, '/time-off/attendance')).toBe('/time-off/attendance/now');
+    expect(firstUnder(employee.sections, '/time-off/insights')).toBeUndefined();
+  });
+
+  it('frames a screen as Time off › section, with the section’s tabs', () => {
+    const frame = headerFrame(hr, '/time-off/approvals/decided', '/time-off', {}, 'Time off');
+    expect(frame).toMatchObject({ section: 'Requests', siblingsLabel: 'Time off sections' });
+    expect(frame.tabs?.find((t) => t.current)?.label).toBe('Decided');
+    expect(frame.siblings[0]?.label).toBe('Time off');
   });
 });

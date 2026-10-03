@@ -2,7 +2,7 @@ import 'server-only';
 
 import { cache } from 'react';
 import { people } from './people';
-import { placesFor, remoteRoute } from './remotes';
+import { AREAS, placesFor, remoteNav, remoteRoute } from './remotes';
 import {
   countsOf,
   EMPTY_SHELL,
@@ -48,6 +48,27 @@ export function shellData(entitlements: readonly string[]): Promise<ShellData> {
 
 const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
   const entitlements = key === '' ? [] : key.split('\n');
+  // Every other area's manifest, asked beside People rather than after it;
+  // cut to the roles People answers with, none where there is no People.
+  const others = Object.values(AREAS).filter(
+    (a) => a !== AREAS.people && entitlements.includes(a.entitlement),
+  );
+  const [base, navs] = await Promise.all([
+    peopleShell(entitlements),
+    Promise.all(others.map(async (a) => [a.name, await remoteNav(a)] as const)),
+  ]);
+  const remotes = Object.fromEntries(
+    navs.flatMap(([name, found]) =>
+      found === null
+        ? []
+        : [[name, { ...placesFor(found.nav, base.roles), routes: found.routes }]],
+    ),
+  );
+  return { ...base, remotes };
+});
+
+/** People's part of the shell: its places, counts and notices, for a company that has it. */
+async function peopleShell(entitlements: readonly string[]): Promise<ShellData> {
   if (!entitlements.includes('module.people')) return EMPTY_SHELL;
   // The roles on their own: People answers this whether or not anything is
   // published yet, which the overview does not.
@@ -81,4 +102,4 @@ const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
     viewedAs: data?.viewedAs ?? [],
     now: data?.now ?? null,
   };
-});
+}

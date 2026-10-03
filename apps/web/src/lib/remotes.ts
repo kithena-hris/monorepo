@@ -170,6 +170,8 @@ export function headerFrame(
   route: string | null,
   _home: string,
   counts: PlaceCounts = {},
+  /** The area's name, for what a screen reader calls the sections: "Time off sections". */
+  area = 'People',
 ): HeaderFrame {
   const section = currentPlace(places.sections, route);
   const here = section ?? currentPlace(places.actions, route);
@@ -179,7 +181,7 @@ export function headerFrame(
     // its siblings a click away, as every other People screen opens.
     section: here === undefined ? null : here.label,
     siblings: siblingsOf(places.sections, here, counts.sections),
-    siblingsLabel: 'People sections',
+    siblingsLabel: `${area} sections`,
     ...(section?.tabs === undefined
       ? {}
       : {
@@ -338,7 +340,7 @@ export function matchPath(
  *
  * `name` is the federation name the remote is built with, and names its
  * server build (`ssr/<name>.cjs`). `dev` is where it runs locally when its URL
- * is unset; without one, an unset URL is an area that is not available.
+ * is unset.
  */
 export const AREAS = {
   people: {
@@ -357,7 +359,7 @@ export const AREAS = {
     settings: '/settings/time-off',
     entitlement: 'module.timeoff',
     env: 'TIMEOFF',
-    dev: undefined,
+    dev: 'http://localhost:3003',
   },
 } as const;
 export type Area = (typeof AREAS)[keyof typeof AREAS];
@@ -370,9 +372,9 @@ export const areaOf = (path: string): Area | undefined =>
   Object.values(AREAS).find((a) => under(path, a.home) || under(path, a.settings));
 
 /** Where an area's remote is deployed: what the server fetches, and what `remotePath` forwards to. */
-export function remoteBase(area: Area): string | undefined {
+export function remoteBase(area: Area): string {
   const url = process.env[`${area.env}_REMOTE_URL`];
-  return (url === undefined || url === '' ? area.dev : url)?.replace(/\/$/, '');
+  return (url === undefined || url === '' ? area.dev : url).replace(/\/$/, '');
 }
 
 /**
@@ -403,20 +405,37 @@ export async function remoteRoute(path: string): Promise<RemoteRoute | null | un
   const area = areaOf(path);
   if (area === undefined) return undefined;
   const base = remoteBase(area);
-  if (base === undefined) return null;
-  let manifest: unknown;
+  const manifest = await manifestOf(base);
+  if (manifest === null) return null;
+  const matched = matchRoute(manifest, path);
+  return matched == null
+    ? matched
+    : { entry: `${remotePath(area)}/remoteEntry.js`, base, area, ...matched };
+}
+
+/** A remote's `routes.json`, unparsed; `null` when it cannot be read. */
+async function manifestOf(base: string): Promise<unknown> {
   try {
     const response = await timed(
       'remote.routes',
       fetch(`${base}/routes.json`, { cache: 'no-store', signal: AbortSignal.timeout(2000) }),
     );
-    if (!response.ok) return null;
-    manifest = await response.json();
+    return response.ok ? ((await response.json()) as unknown) : null;
   } catch {
     return null;
   }
-  const matched = matchRoute(manifest, path);
-  return matched == null
-    ? matched
-    : { entry: `${remotePath(area)}/remoteEntry.js`, base, area, ...matched };
+}
+
+/**
+ * Everything an area's manifest offers, for the host's navigation: its
+ * places and every route it lists, whichever path is asked for. `null` when
+ * the remote is not configured, cannot be reached or is not a manifest.
+ */
+export async function remoteNav(
+  area: Area,
+): Promise<{ readonly nav: RemoteRoute['nav']; readonly routes: readonly string[] } | null> {
+  const parsed = RouteManifest.safeParse(await manifestOf(remoteBase(area)));
+  if (!parsed.success) return null;
+  const { routes, sections, actions, settings } = parsed.data;
+  return { nav: { sections, actions, settings }, routes: routes.map((r) => r.path) };
 }

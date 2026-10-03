@@ -84,7 +84,6 @@ function isTenant(value: unknown): value is Tenant {
  */
 function remoteFile(request: NextRequest, area: Area): NextResponse {
   const remote = remoteBase(area);
-  if (remote === undefined) return new NextResponse(null, { status: 404 });
   const base = new URL(remote);
   const to = new URL(
     `${remote}${request.nextUrl.pathname.slice(remotePath(area).length)}${request.nextUrl.search}`,

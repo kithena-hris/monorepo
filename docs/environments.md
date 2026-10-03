@@ -677,8 +677,9 @@ the router has); a SCIM request carries no forwarded list to fall back on.
   browser only). The browser loads it from `/_<name>/*` on the company's host.
   People is `PEOPLE` and `/_people`, and runs on `http://localhost:3002` when
   its URL is unset. Time Off is `TIMEOFF` and `/_timeoff`, for `/time-off` and
-  `/settings/time-off`, and has no default: while `TIMEOFF_REMOTE_URL` is
-  unset, those pages say Time off is unavailable and `/_timeoff/*` is a 404.
+  `/settings/time-off`, and runs on `http://localhost:3003` (`apps/web/timeoff`)
+  when its URL is unset; while it cannot be reached, those pages say Time off
+  is unavailable.
   Each remote has a renderer process of its own, so one remote's deploy never
   interrupts another's server rendering.
 

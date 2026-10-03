@@ -686,7 +686,7 @@ SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
 - **Done when** People's tests pass and a test resolves a `/time-off` path to
   the Time Off remote.
 
-### [ ] TOF-057 — The Time Off remote
+### [x] TOF-057 — The Time Off remote
 
 - **Files** `apps/web/timeoff/` (new, mirroring `apps/web/people`)
 - **Depends on** TOF-056
