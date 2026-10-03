@@ -1159,14 +1159,16 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
   // Nobody in the sample is serving notice, so two of its active people are,
   // here: a resignation with a last day two months ahead.
   const AHEAD = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
-  const MERIDIAN = readFile(new URL('./meridian-freight.fixture.csv', import.meta.url), 'utf8').then(
-    (csv) =>
-      new TextEncoder().encode(
-        csv.replaceAll(
-          /^(MF000(?:11|21),.*?),Active,,,,,,,/gmu,
-          `$1,Notice period,,,,${AHEAD},Resignation - new opportunity,Yes,`,
-        ),
+  const MERIDIAN = readFile(
+    new URL('./meridian-freight.fixture.csv', import.meta.url),
+    'utf8',
+  ).then((csv) =>
+    new TextEncoder().encode(
+      csv.replaceAll(
+        /^(MF000(?:11|21),.*?),Active,,,,,,,/gmu,
+        `$1,Notice period,,,,${AHEAD},Resignation - new opportunity,Yes,`,
       ),
+    ),
   );
   const TENANT = '00000000-0000-4000-8000-0000000000c0';
   const OWNER = '00000000-0000-4000-8000-0000000000c9';
@@ -1376,7 +1378,9 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       'Eligible for Rehire',
     ];
     expect(
-      columns.filter((x) => lifecycleColumns.includes(x.header)).map((x) => [x.header, x.status, x.key]),
+      columns
+        .filter((x) => lifecycleColumns.includes(x.header))
+        .map((x) => [x.header, x.status, x.key]),
     ).toEqual([
       ['Employment Status', 'mapped', 'employment_status'],
       ['Termination Date', 'mapped', 'last_working_day'],

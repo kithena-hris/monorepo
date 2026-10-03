@@ -707,8 +707,11 @@ function rowClassifier(
   return (parsed: ParsedRow): ClassifiedRow => {
     const cell = (m: ColumnMapping) => parsed.cells[m.index] ?? '';
     // An amount with no currency code is in the row's own currency, when a column says it.
-    const currencyAt = mapped.find((m) => byKey.get(m.key as string)?.typeConfig.kind === 'currency');
-    const currency = currencyAt === undefined ? null : cell(currencyAt).trim().toUpperCase() || null;
+    const currencyAt = mapped.find(
+      (m) => byKey.get(m.key as string)?.typeConfig.kind === 'currency',
+    );
+    const currency =
+      currencyAt === undefined ? null : cell(currencyAt).trim().toUpperCase() || null;
     const coerceRow = (today: string) => {
       const found: CellProblem[] = [];
       const coerced: Record<string, unknown> = {};

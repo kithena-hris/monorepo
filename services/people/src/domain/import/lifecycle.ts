@@ -47,7 +47,8 @@ const STATUS_BY_NAME = new Map(
 );
 
 /** The status a cell says, or null for an empty or unknown one. */
-export const statusOf = (cell: string): FileStatus | null => STATUS_BY_NAME.get(normal(cell)) ?? null;
+export const statusOf = (cell: string): FileStatus | null =>
+  STATUS_BY_NAME.get(normal(cell)) ?? null;
 
 const ENDED_CONTRACT = /contract|fixed term|temporary assignment/u;
 const BY_EMPLOYER =
@@ -60,7 +61,8 @@ const BY_EMPLOYER =
  */
 export function leavingReasonOf(cell: string): LeavingReason {
   const said = normal(cell);
-  if (ENDED_CONTRACT.test(said) && /end|expir|complet|ran out/u.test(said)) return 'end_of_contract';
+  if (ENDED_CONTRACT.test(said) && /end|expir|complet|ran out/u.test(said))
+    return 'end_of_contract';
   if (BY_EMPLOYER.test(said)) return 'dismissed';
   return 'resigned';
 }
@@ -141,7 +143,8 @@ export function lifecycleOf(input: {
   const none = (conflict: LifecycleConflict | null): LifecycleRead => ({ move: null, conflict });
 
   if (hireDate === null) return none(moving ? 'no_start' : null);
-  if (hireDate > today) return none(moving || (status !== null && status !== 'pre_hire') ? 'starts_later' : null);
+  if (hireDate > today)
+    return none(moving || (status !== null && status !== 'pre_hire') ? 'starts_later' : null);
 
   if (lastWorkingDay !== null) {
     if (lastWorkingDay < hireDate) return none('last_day_before_hire');

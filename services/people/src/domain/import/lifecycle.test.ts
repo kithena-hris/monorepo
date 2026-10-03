@@ -183,9 +183,7 @@ describe('what the row does to the person', () => {
 
     it('“Notice period” with a termination date behind: left', () => {
       expect(row({ status: 'notice', lastWorkingDay: '2026-09-30' }).move?.kind).toBe('left');
-      expect(row({ status: 'notice', lastWorkingDay: '2026-09-30' }).conflict).toBe(
-        'left_by_date',
-      );
+      expect(row({ status: 'notice', lastWorkingDay: '2026-09-30' }).conflict).toBe('left_by_date');
     });
 
     it('“Terminated” with a termination date ahead: serving notice', () => {
@@ -220,21 +218,42 @@ describe('what the row does to the person', () => {
     });
 
     it('no start date at all: nothing moves, whatever the status', () => {
-      expect(row({ status: 'terminated', hireDate: null, lastWorkingDay: '2024-01-01' })).toEqual(
-        { move: null, conflict: 'no_start' },
-      );
+      expect(row({ status: 'terminated', hireDate: null, lastWorkingDay: '2024-01-01' })).toEqual({
+        move: null,
+        conflict: 'no_start',
+      });
     });
   });
 });
 
 describe('a conflict, in one line of the plan', () => {
   it.each([
-    ['starts_later', 2, '2 people with a start date ahead are pre-hire until then, whatever the status says.'],
+    [
+      'starts_later',
+      2,
+      '2 people with a start date ahead are pre-hire until then, whatever the status says.',
+    ],
     ['started', 1, '1 person marked pre-hire has started: active from their start date.'],
-    ['left_by_date', 3, '3 people with a termination date behind them are offboarded from it, whatever the status says.'],
-    ['notice_by_date', 1, '1 person marked terminated leaves on a day ahead, so is serving notice until then.'],
-    ['no_last_day', 2, '2 people marked as leaving have no termination date: active, for HR to offboard from their record.'],
-    ['last_day_before_hire', 1, '1 person has a termination date before their start date: active, for HR to check.'],
+    [
+      'left_by_date',
+      3,
+      '3 people with a termination date behind them are offboarded from it, whatever the status says.',
+    ],
+    [
+      'notice_by_date',
+      1,
+      '1 person marked terminated leaves on a day ahead, so is serving notice until then.',
+    ],
+    [
+      'no_last_day',
+      2,
+      '2 people marked as leaving have no termination date: active, for HR to offboard from their record.',
+    ],
+    [
+      'last_day_before_hire',
+      1,
+      '1 person has a termination date before their start date: active, for HR to check.',
+    ],
     ['leave_later', 1, '1 person’s leave starts later: active until then.'],
     ['no_start', 1, '1 person has no start date, so their status waits until HR hires them.'],
   ] as const)('%s', (code, n, line) => {

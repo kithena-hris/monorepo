@@ -189,11 +189,17 @@ function forExistingStep(f: PlanField): PlanStep | null {
 
 function lifecycleStep(l: NonNullable<PlanInput['lifecycle']>): PlanStep | null {
   const notes = Object.entries(l.conflicts).flatMap(([code, n]) =>
-    n === undefined || n === 0 ? [] : [lifecycleNote(code as LifecycleConflict, n)],
+    n === 0 ? [] : [lifecycleNote(code as LifecycleConflict, n)],
   );
   const said = [
     l.left > 0 ? [l.left, 'already left (offboarded from their termination date)', null] : null,
-    l.notice > 0 ? [l.notice, 'is serving notice (offboarding scheduled)', 'are serving notice (offboarding scheduled)'] : null,
+    l.notice > 0
+      ? [
+          l.notice,
+          'is serving notice (offboarding scheduled)',
+          'are serving notice (offboarding scheduled)',
+        ]
+      : null,
     l.onLeave > 0 ? [l.onLeave, 'is on leave', 'are on leave'] : null,
   ].filter((x) => x !== null) as [number, string, string | null][];
   if (said.length === 0 && notes.length === 0) return null;

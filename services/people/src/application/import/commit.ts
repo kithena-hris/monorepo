@@ -557,7 +557,8 @@ async function link(
       const target = byRow.get(l.row) ?? null;
       const empty = (reason: string) =>
         left.push({ row: o.row.row, column: l.column, key: l.key, value: l.value, reason });
-      if (target === null) empty(`row ${String(l.row)} of the file, whom this points at, did not import`);
+      if (target === null)
+        empty(`row ${String(l.row)} of the file, whom this points at, did not import`);
       else if (target === o.personId) empty('a person cannot point at themselves');
       else changes[l.key] = target;
     }
@@ -615,7 +616,11 @@ async function settle(
   for (const o of outcomes) {
     const move = o.row.lifecycle;
     const personId = o.personId;
-    if (move === null || personId === null || (o.written !== 'created' && o.written !== 'updated')) {
+    if (
+      move === null ||
+      personId === null ||
+      (o.written !== 'created' && o.written !== 'updated')
+    ) {
       continue;
     }
     const on = { ...asking, personId };

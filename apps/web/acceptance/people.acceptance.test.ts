@@ -2399,15 +2399,24 @@ describe('A company the back office has just created, with nothing published', (
       page,
       'harbour.csv',
       [
-        'given_name,family_name,work_email,hire_date',
-        'Maya,Chen,maya@harbour.example,2025-01-06',
-        'Luis,Ortega,luis@harbour.example,2025-02-03',
+        'given_name,family_name,work_email,hire_date,Employment Status,Termination Date,Termination Reason',
+        'Maya,Chen,maya@harbour.example,2025-01-06,Active,,',
+        'Luis,Ortega,luis@harbour.example,2025-02-03,Active,,',
+        'Ana,Ruiz,ana@harbour.example,2019-04-01,Terminated,2023-06-30,Resignation - personal',
       ].join('\n'),
     );
     await page.getByRole('button', { name: 'Next: review the plan' }).click({ timeout: 30_000 });
     await page.waitForURL(/\?step=review$/);
+    // The lifecycle columns are People's own: the plan says what they do, in one line.
+    await page
+      .getByText('1 person already left (offboarded from their termination date)', { exact: true })
+      .waitFor({ timeout: 30_000 });
     await page.getByRole('button', { name: 'Approve and run' }).click();
-    await page.getByRole('heading', { name: /^Imported 2 people/ }).waitFor({ timeout: 30_000 });
+    await page.getByRole('heading', { name: /^Imported 3 people/ }).waitFor({ timeout: 30_000 });
+    const ana = await stack.sql<{ status: string; day: string; account: string | null }[]>`
+      SELECT status, last_working_day::text AS day, identity_account_id AS account
+        FROM people.person WHERE tenant_id = ${made.tenantId} AND work_email = 'ana@harbour.example'`;
+    expect(ana).toEqual([{ status: 'terminated', day: '2023-06-30', account: null }]);
 
     // Approving the plan published version 1, so People opens on the directory.
     const versions = await stack.sql<{ version: number }[]>`

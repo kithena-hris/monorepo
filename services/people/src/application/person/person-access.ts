@@ -72,14 +72,7 @@ import {
   holds,
   type Holding,
 } from './pending-changes.js';
-import type {
-  Asking,
-  ConditionOp,
-  GapsIn,
-  PersonCount,
-  Refine,
-  SealedValue,
-} from './ports.js';
+import type { Asking, ConditionOp, GapsIn, PersonCount, Refine, SealedValue } from './ports.js';
 
 export type { Asking, SealedValue } from './ports.js';
 import { countryOf, factsOf } from './subject.js';

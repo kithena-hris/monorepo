@@ -49,12 +49,9 @@ describe('the usual names for the core fields', () => {
     'Leave Type',
     'Leave Start Date',
     'Expected Return Date',
-  ])(
-    '%s is nobody’s alias',
-    (header) => {
-      expect(aliasOf(header)).toBeNull();
-    },
-  );
+  ])('%s is nobody’s alias', (header) => {
+    expect(aliasOf(header)).toBeNull();
+  });
 });
 
 /**
