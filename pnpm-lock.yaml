@@ -967,6 +967,9 @@ importers:
 
   platform/slack:
     dependencies:
+      '@kithena/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry

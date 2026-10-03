@@ -660,7 +660,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
 
 ## Phase 1 — Slack, deploy, docs
 
-### [ ] AST-025 — Slack asks the assistant
+### [x] AST-025 — Slack asks the assistant
 
 - **Spec** PRD §5, §16
 - **Files** `platform/slack/src/{main.ts,service.ts,slack-api.ts}` (+ tests)
@@ -671,6 +671,12 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   and DMs as today. `People.ask` goes; `People.act` stays.
 - **Done when** service tests show each reply path, and a mention's answer is
   ephemeral.
+- **As built** `Assistant` is its own port beside `People` and `TimeOff`, and
+  the Time Off button relay (#257, merged in from `main` first) is untouched.
+  The body says `channel: 'slack'` because the contract asks for one; the
+  assistant takes the channel from the token regardless. With no
+  `SLACK_ASSISTANT_TOKEN` a question is answered "The assistant isn't
+  available right now." without a call.
 
 ### [ ] AST-026 — People's old chat route is deleted
 

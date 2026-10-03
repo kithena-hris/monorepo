@@ -1,10 +1,17 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { AssistantAnswer } from '@kithena/contracts';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import { questionOf, type Envelope } from './events.js';
 import * as api from './slack-api.js';
-import { slackService, type Interaction, type People, type TimeOff } from './service.js';
+import {
+  slackService,
+  type Assistant,
+  type Interaction,
+  type People,
+  type TimeOff,
+} from './service.js';
 import { tokenKeyFrom } from './secrets.js';
 import { memoryStore, postgresStore, type Store } from './store.js';
 
@@ -23,6 +30,9 @@ import { memoryStore, postgresStore, type Store } from './store.js';
  * - `SLACK_DATABASE_URL`, `SLACK_TOKEN_KEY` (32 bytes, base64) — where
  *   workspaces and their sealed tokens are kept.
  * - `PEOPLE_URL`, `SLACK_PEOPLE_TOKEN`, `SLACK_COMMAND`.
+ * - `ASSISTANT_URL`, `SLACK_ASSISTANT_TOKEN` — where a question goes: the
+ *   assistant answers it across every module the company has. Without the
+ *   token every question is answered "not available".
  * - `TIMEOFF_URL`, `SLACK_TIMEOFF_TOKEN` — Time Off, the same way: it asks an
  *   approver through this service, and the press comes back here over the
  *   socket and is passed on to Time Off. Its token opens `/internal/timeoff/`
@@ -67,11 +77,6 @@ const peopleCall = async (path: string, body: unknown): Promise<unknown> => {
 };
 
 const people: People = {
-  ask: async (tenantId, email, question) =>
-    (await peopleCall('/internal/assistant/ask', { tenantId, email, question })) as {
-      text: string;
-      understood: string;
-    },
   act: async (tenantId, email, action) => {
     try {
       return (await peopleCall('/internal/chat/act', { tenantId, email, ...action })) as never;
@@ -79,6 +84,27 @@ const people: People = {
       logger.error({ err: error }, 'slack action failed');
       return { ok: false, message: 'Kithena could not do that just now. Try again in a moment.' };
     }
+  },
+};
+
+const assistantUrl = (env['ASSISTANT_URL'] ?? 'http://localhost:4104').replace(/\/$/, '');
+const assistantToken = env['SLACK_ASSISTANT_TOKEN'] ?? '';
+const NOT_AVAILABLE = "The assistant isn't available right now.";
+const assistant: Assistant = {
+  ask: async (tenantId, email, question) => {
+    if (assistantToken === '') return { text: NOT_AVAILABLE, understood: '' };
+    const response = await fetch(`${assistantUrl}/internal/ask`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-token': assistantToken },
+      // The token, not this body, tells the assistant which channel is asking.
+      body: JSON.stringify({ tenantId, email, question, channel: 'slack' }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) {
+      logger.error({ status: response.status }, 'the assistant refused a question');
+      throw new Error(`assistant: ${String(response.status)}`);
+    }
+    return AssistantAnswer.parse(await response.json());
   },
 };
 
@@ -106,6 +132,7 @@ const store = storeFrom();
 const service = slackService({
   store,
   people,
+  assistant,
   timeOff,
   slack: api,
   command: env['SLACK_COMMAND'] ?? '/kithena',
@@ -373,6 +400,8 @@ onShutdown('slack', async () => {
 if (appToken === '' || peopleToken === '') {
   logger.info('SLACK_APP_TOKEN or SLACK_PEOPLE_TOKEN unset; Slack is off');
 } else {
+  if (assistantToken === '')
+    logger.info("SLACK_ASSISTANT_TOKEN unset; questions are answered 'not available'");
   void connectDevWorkspace()
     .catch((error: unknown) => {
       logger.error({ err: error }, 'slack dev workspace not connected');

@@ -43,13 +43,21 @@ export type Outcome<T> =
   | { readonly ok: true; readonly body: T }
   | { readonly ok: false; readonly message: string; readonly field?: string };
 
+/** People, over internal HTTP: what a button or a form does, as whoever pressed it. */
 export interface People {
+  act<T>(tenantId: string, email: string, action: Record<string, unknown>): Promise<Outcome<T>>;
+}
+
+/**
+ * The assistant (`platform/assistant`), over internal HTTP: a question in
+ * words, answered across every module the company has, as the asker.
+ */
+export interface Assistant {
   ask(
     tenantId: string,
     email: string,
     question: string,
-  ): Promise<{ text: string; understood: string } | null>;
-  act<T>(tenantId: string, email: string, action: Record<string, unknown>): Promise<Outcome<T>>;
+  ): Promise<{ readonly text: string; readonly understood: string }>;
 }
 
 /** Time Off, over internal HTTP: a press on one of its buttons, answered with what the message becomes. */
@@ -67,6 +75,11 @@ export interface Slack {
   postMessage(
     token: string,
     m: { channel: string; text: string; threadTs?: string },
+  ): Promise<void>;
+  /** Seen by `user` alone, in `channel` (and its thread). */
+  postEphemeral(
+    token: string,
+    m: { channel: string; user: string; text: string; threadTs: string },
   ): Promise<void>;
   respond(url: string, text: string): Promise<void>;
   replaceMessage(url: string, m: { text: string; blocks: readonly unknown[] }): Promise<void>;
@@ -97,6 +110,7 @@ export interface OAuth {
 export interface Deps {
   readonly store: Store;
   readonly people: People;
+  readonly assistant: Assistant;
   readonly timeOff: TimeOff;
   readonly slack: Slack;
   readonly command: string;
@@ -192,7 +206,7 @@ export function slackService(deps: Deps): SlackService {
         const answer =
           email === null
             ? null
-            : await deps.people.ask(where.tenantId, email, q.text).catch(() => null);
+            : await deps.assistant.ask(where.tenantId, email, q.text).catch(() => null);
         text =
           email === null
             ? 'I could not read your email from Slack, so I cannot tell who you are in Kithena.'
@@ -202,9 +216,11 @@ export function slackService(deps: Deps): SlackService {
       }
       const to = q.reply;
       if (to.via === 'response_url') await deps.slack.respond(to.url, text);
+      // A mention's answer is for the asker, not the channel (assistant PRD §5).
       else if (to.via === 'thread')
-        await deps.slack.postMessage(where.token, {
+        await deps.slack.postEphemeral(where.token, {
           channel: to.channel,
+          user: q.user,
           text,
           threadTs: to.threadTs,
         });
