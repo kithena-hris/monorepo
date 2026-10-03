@@ -19,6 +19,7 @@ import type {
   DuplicatesView,
   MergedPair,
   OnboardingView,
+  OrgChartView,
   PickerView,
   ProfileView,
 } from '../application/screens/people.js';
@@ -924,6 +925,34 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description:
           'The details the conditions find empty that this viewer may ask everybody found for; null for none.',
         resolve: (v) => (v.remind === null ? null : [...v.remind]),
+      }),
+    }),
+  });
+
+  const OrgChartPerson = builder
+    .objectRef<OrgChartView['people'][number]>('OrgChartPerson')
+    .implement({
+      fields: (t) => ({
+        id: t.exposeID('id'),
+        name: t.exposeString('name'),
+        title: t.exposeString('title', { nullable: true }),
+        managerId: t.exposeID('managerId', {
+          nullable: true,
+          description: 'Null for nobody, and for a manager this viewer cannot read.',
+        }),
+        managerName: t.exposeString('managerName', { nullable: true }),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+        status: t.exposeString('status', { nullable: true, description: 'HR’s, in words.' }),
+        team: t.exposeString('team', { nullable: true }),
+        location: t.exposeString('location', { nullable: true }),
+      }),
+    });
+  const OrgChartRef = builder.objectRef<OrgChartView>('PeopleOrgChart').implement({
+    description: 'Everybody this viewer may list, with their manager: the directory as a tree.',
+    fields: (t) => ({
+      people: t.field({ type: [OrgChartPerson], resolve: (v) => list(v.people) }),
+      truncated: t.exposeBoolean('truncated', {
+        description: 'More people than one chart draws: it is not everybody.',
       }),
     }),
   });
@@ -2008,6 +2037,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           `/v1/views/directory${qs === '' ? '' : `?${qs}`}`,
         );
       },
+    }),
+    peopleOrgChart: t.field({
+      type: OrgChartRef,
+      resolve: view<OrgChartView>(() => '/v1/views/org-chart'),
     }),
     peopleCompleteness: t.field({
       type: CompletenessRef,

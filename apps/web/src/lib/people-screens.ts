@@ -161,7 +161,8 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         : directory;
     }
     case 'OrgChart':
-      return orgChart();
+      // Everybody, with their manager, in one read: People's, not forty directory pages.
+      return read('OrgChart');
     case 'Profile':
       return read('Profile', { personId: query.params['id'] ?? null }, VIEWS.Profile);
     case 'PersonHistory':
@@ -439,61 +440,6 @@ async function exportExtras(
     ...(record === null ? {} : { record: jsonOf(record) ?? { status: 'missing' } }),
     ...(share === null ? {} : { share: jsonOf(share) ?? { state: 'missing' } }),
   };
-}
-
-/** How many directory pages the org chart reads: 40 of 50, two thousand people. */
-const CHART_PAGES = 40;
-
-type ChartRow = DirectoryRow & {
-  readonly people?: readonly { readonly key: string; readonly id: string; readonly name: string }[];
-};
-
-/**
- * Everybody this viewer may see, with their manager, for the org chart: the
- * directory, page after page, as People answers it (PEO-117). The manager is
- * the person column People resolves; a viewer who may not read it gets a
- * chart of roots, which says so by being flat rather than guessing.
- */
-async function orgChart(): Promise<ScreenLoad> {
-  const found: unknown[] = [];
-  let after: string | null = null;
-  for (let page = 0; page < CHART_PAGES; page += 1) {
-    // Each page needs the cursor of the one before.
-    const answer: PeopleAnswer<{ people: ChartRow[]; next: string | null }> = await people(
-      'Directory',
-      {
-        after,
-        sort: 'name:asc',
-      },
-    );
-    if (!answer.ok) {
-      if (page > 0) return { status: 'ready', data: { people: found, truncated: true } };
-      return answer.code === 'UNREACHABLE'
-        ? { status: 'error', message: answer.message, unreachable: true }
-        : { status: 'error', message: answer.message, code: answer.code };
-    }
-    const value = (p: ChartRow, key: string) => {
-      const v = p.values.find((x) => x.key === key)?.value;
-      return v === undefined || v === '' ? null : v;
-    };
-    for (const p of answer.data.people) {
-      const manager = p.people?.find((r) => r.key === 'manager_id');
-      found.push({
-        id: p.id,
-        name: p.name,
-        title: value(p, 'job_title'),
-        managerId: manager?.id ?? null,
-        managerName: manager?.name ?? null,
-        avatarUrl: p.avatarUrl,
-        status: value(p, 'status'),
-        team: value(p, 'department'),
-        location: value(p, 'location_id'),
-      });
-    }
-    after = answer.data.next;
-    if (after === null) return { status: 'ready', data: { people: found, truncated: false } };
-  }
-  return { status: 'ready', data: { people: found, truncated: true } };
 }
 
 /** A person on a directory page, as People answers one. */

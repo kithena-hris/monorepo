@@ -317,6 +317,14 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** The directory as a tree: everybody this viewer may list, with their manager, in one read. */
+  OrgChart: `query OrgChart {
+    peopleOrgChart {
+      people { id name title managerId managerName avatarUrl status team location }
+      truncated
+    }
+  }`,
+
   Completeness: `query Completeness($after: ID) {
     peopleCompleteness(after: $after) {
       since

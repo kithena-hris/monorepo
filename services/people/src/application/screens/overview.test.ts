@@ -12,7 +12,7 @@ import { inMemoryPendingChangeStore } from '../person/pending-store.js';
 import type { PeopleService } from '../person/service.js';
 import { overviewView } from './overview.js';
 import { completePhotoUpload, photoView, startPhotoUpload, type PhotoDeps } from './photo.js';
-import { directoryView, peopleHeadcount, profileView } from './people.js';
+import { directoryView, orgChartView, peopleHeadcount, profileView } from './people.js';
 
 /**
  * The overview, through the application layer: the viewer's own record, the
@@ -349,5 +349,83 @@ describe('the headcount a phone searches (MV1)', () => {
       ok: true,
       value: { count: 6 },
     });
+  });
+});
+
+describe('the org chart', () => {
+  const chart = async (
+    w: ReturnType<typeof world>,
+    asking: ReturnType<ReturnType<typeof world>['as']>,
+  ) => {
+    const read = await orgChartView(w.deps, asking);
+    if (!read.ok) throw new Error(read.error.message);
+    return read.value;
+  };
+
+  it('is everybody the viewer may list, with their manager, in one read', async () => {
+    const w = world();
+    const { people, truncated } = await chart(w, w.as(TIM_ACCOUNT));
+    expect(truncated).toBe(false);
+    // A leaver is HR's to see, as in the directory.
+    expect(people.map((p) => p.id).toSorted()).toEqual(
+      [GRACE, ALAN, ADA, KATE, TIM, EDSGER].toSorted(),
+    );
+    expect(people.find((p) => p.id === ADA)).toEqual({
+      id: ADA,
+      name: 'Ada Lovelace',
+      title: 'Engineer',
+      managerId: ALAN,
+      managerName: 'Alan Turing',
+      avatarUrl: null,
+      // A status is HR's.
+      status: null,
+      team: null,
+      location: null,
+    });
+    expect(people.find((p) => p.id === GRACE)).toMatchObject({
+      managerId: null,
+      managerName: null,
+    });
+  });
+
+  it('draws what the directory shows, and for HR the status and the leavers', async () => {
+    const w = world();
+    const asking = w.as(HR_ACCOUNT, 'hr');
+    const { people } = await chart(w, asking);
+    expect(people.find((p) => p.id === GONE)).toMatchObject({
+      status: 'Left',
+      managerName: 'Ada Lovelace',
+    });
+    const directory = await directoryView(w.deps, asking, { search: '', filters: {} });
+    if (!directory.ok) throw new Error(directory.error.message);
+    expect(directory.value.people.length).toBe(people.length);
+    for (const row of directory.value.people) {
+      const drawn = people.find((p) => p.id === row.id);
+      expect(drawn?.title ?? undefined).toBe(row.values['job_title']);
+      expect(drawn?.managerName ?? undefined).toBe(row.values['manager_id']);
+    }
+  });
+
+  it('leaves out a field the viewer cannot read on everybody, for everybody', async () => {
+    const w = world();
+    // A title only its holder and HR read: no column, so nobody's on the chart.
+    const store = inMemoryPeople([
+      versionOf(
+        1,
+        attributes.map((a) =>
+          a.key === 'job_title' ? { ...a, visibility: ['self', 'hr'] as typeof a.visibility } : a,
+        ),
+      ),
+    ]);
+    for (const [id, row] of w.store.rows) store.rows.set(id, row);
+    const service: PeopleService = {
+      access: personAccess(store.deps),
+      schemas: store.deps.schemas,
+      inTenant: (_tenant, fn) => fn({ tx: {} as never }),
+    };
+    const read = await orgChartView({ ...w.deps, service }, w.as(ADA_ACCOUNT));
+    if (!read.ok) throw new Error(read.error.message);
+    expect(read.value.people.length).toBeGreaterThan(0);
+    expect(read.value.people.map((p) => p.title)).toEqual(read.value.people.map(() => null));
   });
 });

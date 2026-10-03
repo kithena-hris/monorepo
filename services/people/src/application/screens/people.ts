@@ -3,7 +3,7 @@ import { requiresApproval, type Actor, type AttributeDefinition } from '@kithena
 
 import type { EmploymentPeriodRow } from '../../domain/person/person.js';
 
-import { visibleTo } from '../../domain/access/field-access.js';
+import { visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import { filterable, REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
 import { mayChangePhoto } from '../../domain/person/photo.js';
 import { matchBand, type MatchBand } from '../../domain/person/merge.js';
@@ -1482,6 +1482,77 @@ function optionLabel(definition: AttributeDefinition, value: string): string | u
     : undefined;
 }
 
+/**
+ * Every column this viewer may read on everybody; the directory's own set
+ * shown by default, the rest a choice away. Location and legal entity are
+ * named, the manager too, the start date and (HR's) status read as is.
+ */
+function directoryColumns(
+  definitions: readonly AttributeDefinition[],
+  everyone: ViewerRelations,
+): AttributeDefinition[] {
+  return definitions.filter(
+    (d) =>
+      !COLUMN_SKIP.has(d.key) &&
+      !d.encrypted &&
+      visibleTo(d, everyone) &&
+      (d.includeInDirectory || COLUMN_CHOICES.has(d.key) || !isCoreKey(d.key)),
+  );
+}
+
+/** Legal entities and locations by id, to name a place a record points at. */
+function placeNames(
+  org: Awaited<ReturnType<ScreenDeps['calendars']['load']>>,
+): Map<string, string> {
+  return new Map<string, string>([
+    ...[...org.entities.values()].map((e) => [e.id, e.name] as const),
+    ...[...org.locations.values()].map((l) => [l.id, l.name] as const),
+  ]);
+}
+
+/** One cell as the directory shows it: a person or a place by name, a choice by its label. */
+function cellOf(
+  column: AttributeDefinition,
+  value: unknown,
+  names: ReadonlyMap<string, string>,
+  places: ReadonlyMap<string, string>,
+): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  const kind = column.typeConfig.kind;
+  const shown =
+    kind === 'person_ref'
+      ? typeof value === 'string'
+        ? names.get(value)
+        : undefined
+      : kind === 'location_ref' || kind === 'legal_entity_ref'
+        ? typeof value === 'string'
+          ? places.get(value)
+          : undefined
+        : kind === 'select' && typeof value === 'string'
+          ? (optionLabel(column, value) ?? value)
+          : toForm(value);
+  return typeof shown === 'string' ? shown : undefined;
+}
+
+/**
+ * A person column (a manager) names somebody who may not be on the page:
+ * each one is read as this viewer may read them, and named where they may.
+ */
+async function nameEach(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  ids: Iterable<string>,
+  names: Map<string, string>,
+): Promise<void> {
+  for (const personId of ids) {
+    if (names.has(personId)) continue;
+    const read = await deps.service.access.read(tx, { ...asking, personId });
+    const name = read.ok ? nameOf(read.value.attributes) : null;
+    if (name !== null) names.set(personId, name);
+  }
+}
+
 /** A directory page. Keyset, so the last page of 50,000 costs what the first does. */
 export const DIRECTORY_PAGE = 50;
 
@@ -1572,16 +1643,7 @@ export async function directoryView(
     if (!counted.ok) return counted;
     const page = listed.value.items;
 
-    // Every column this viewer may read on everybody; the directory's own set
-    // shown by default, the rest a choice away. Location and legal entity are
-    // named, the manager too, the start date and (HR's) status read as is.
-    const columns = definitions.filter(
-      (d) =>
-        !COLUMN_SKIP.has(d.key) &&
-        !d.encrypted &&
-        visibleTo(d, everyone) &&
-        (d.includeInDirectory || COLUMN_CHOICES.has(d.key) || !isCoreKey(d.key)),
-    );
+    const columns = directoryColumns(definitions, everyone);
     const shownDefault = new Set(
       columns
         .filter(shownByDefault)
@@ -1589,10 +1651,7 @@ export async function directoryView(
         .map((c) => c.key as string),
     );
     const org = await deps.calendars.load(tx, asking.tenantId);
-    const placeName = new Map<string, string>([
-      ...[...org.entities.values()].map((e) => [e.id, e.name] as const),
-      ...[...org.locations.values()].map((l) => [l.id, l.name] as const),
-    ]);
+    const placeName = placeNames(org);
     const selects = definitions.filter(
       (d) => d.typeConfig.kind === 'select' && filterable(definitions, [d.key], everyone).ok,
     );
@@ -1606,11 +1665,7 @@ export async function directoryView(
         .flatMap((c) => page.map((p) => p.attributes[c.key]))
         .filter((v): v is string => typeof v === 'string' && !names.has(v)),
     );
-    for (const personId of refs) {
-      const read = await deps.service.access.read(tx, { ...asking, personId });
-      const name = read.ok ? nameOf(read.value.attributes) : null;
-      if (name !== null) names.set(personId, name);
-    }
+    await nameEach(deps, tx, asking, refs, names);
     // Who reports to whom, when the directory is narrowed by it: named, so
     // the filter shows as one the viewer can clear.
     const reportsTo = query.filters[REPORTS_TO];
@@ -1740,22 +1795,8 @@ export async function directoryView(
             p.status,
             Object.fromEntries(
               columns.flatMap((c) => {
-                const value = p.attributes[c.key];
-                if (value === undefined || value === null) return [];
-                const kind = c.typeConfig.kind;
-                const shown =
-                  kind === 'person_ref'
-                    ? typeof value === 'string'
-                      ? names.get(value)
-                      : undefined
-                    : kind === 'location_ref' || kind === 'legal_entity_ref'
-                      ? typeof value === 'string'
-                        ? placeName.get(value)
-                        : undefined
-                      : kind === 'select' && typeof value === 'string'
-                        ? (optionLabel(c, value) ?? value)
-                        : toForm(value);
-                return typeof shown === 'string' ? [[c.key, shown]] : [];
+                const shown = cellOf(c, p.attributes[c.key], names, placeName);
+                return shown === undefined ? [] : [[c.key, shown]];
               }),
             ),
           ),
@@ -1787,6 +1828,104 @@ export async function directoryView(
         everyone.isHr && empties.length > 0 && empties.every((k) => askableKeys.has(k))
           ? empties
           : null,
+    });
+  });
+}
+
+/* ----------------------------------------------------------- org chart -- */
+
+/** The most people an org chart draws; past it the chart says it is cut short. */
+export const ORG_CHART_MAX = 2000;
+
+export interface OrgChartView {
+  readonly people: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly title: string | null;
+    readonly managerId: string | null;
+    readonly managerName: string | null;
+    readonly avatarUrl: string | null;
+    /** HR's: the status in words. */
+    readonly status: string | null;
+    readonly team: string | null;
+    readonly location: string | null;
+  }[];
+  /** More people than `ORG_CHART_MAX`: the chart is not everybody. */
+  readonly truncated: boolean;
+}
+
+/**
+ * Everybody this viewer may list, with their manager, for the org chart: one
+ * read, where the shell once paged the directory twenty times over — each
+ * page a round trip, and for HR each row a completeness verdict the chart
+ * never shows. The cells are the directory's (`directoryColumns`, `cellOf`),
+ * so the chart shows what the list would: a column the viewer cannot read on
+ * everybody is null for everybody, and a manager they cannot read is nobody,
+ * which draws the person as a root.
+ */
+export async function orgChartView(
+  deps: ScreenDeps,
+  asking: Asking,
+): Promise<Result<OrgChartView>> {
+  return run(deps.service, asking.tenantId, async (tx) => {
+    const version = await deps.service.schemas.current(tx, asking.tenantId);
+    if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
+    const definitions = version.document.attributes.filter((d) => d.deprecatedAt === null);
+    const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
+    const columns = new Map(
+      directoryColumns(definitions, everyone).map((c) => [c.key as string, c]),
+    );
+    const listed = await deps.service.access.list(tx, {
+      ...asking,
+      after: null,
+      limit: ORG_CHART_MAX + 1,
+      refine: { conditions: [], match: 'all', sort: { key: 'name', direction: 'asc' }, offset: 0 },
+    });
+    if (!listed.ok) return listed;
+    const page = listed.value.items.slice(0, ORG_CHART_MAX);
+    const manager = columns.get('manager_id');
+    const names = new Map(pickable(page).map((p) => [p.value, p.label]));
+    if (manager !== undefined) {
+      const ids = page
+        .map((p) => p.attributes['manager_id'])
+        .filter((v): v is string => typeof v === 'string');
+      await nameEach(deps, tx, asking, new Set(ids), names);
+    }
+    const places = placeNames(await deps.calendars.load(tx, asking.tenantId));
+    const avatars = await avatarsOf(
+      deps,
+      tx,
+      asking.tenantId,
+      page.map((p) => p.id),
+    );
+    const cell = (p: PersonView, key: string): string | null => {
+      const column = columns.get(key);
+      const shown =
+        column === undefined ? undefined : cellOf(column, p.attributes[key], names, places);
+      return shown === undefined || shown === '' ? null : shown;
+    };
+    return ok({
+      people: page.map((p) => {
+        const managerId = manager === undefined ? undefined : p.attributes['manager_id'];
+        const managerName = typeof managerId === 'string' ? names.get(managerId) : undefined;
+        const email = p.attributes['work_email'];
+        return {
+          id: p.id,
+          name: nameOf(p.attributes) ?? (typeof email === 'string' ? email : 'Unnamed'),
+          title: cell(p, 'job_title'),
+          // Named or nobody, as the directory's person cell is.
+          managerId: typeof managerId === 'string' && managerName !== undefined ? managerId : null,
+          managerName: managerName ?? null,
+          avatarUrl: avatars.get(p.id) ?? null,
+          status:
+            everyone.isHr && p.status !== undefined
+              ? (STATUS_OPTIONS.find((o) => o.value === p.status)?.label ?? p.status)
+              : null,
+          team: cell(p, 'department'),
+          location: cell(p, 'location_id'),
+        };
+      }),
+      truncated: listed.value.items.length > ORG_CHART_MAX,
     });
   });
 }

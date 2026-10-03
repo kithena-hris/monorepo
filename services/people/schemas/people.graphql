@@ -1437,6 +1437,20 @@ type OnboardingSection {
   visibility: [String!]
 }
 
+type OrgChartPerson {
+  avatarUrl: String
+  id: ID
+  location: String
+  """Null for nobody, and for a manager this viewer cannot read."""
+  managerId: ID
+  managerName: String
+  name: String
+  """HR’s, in words."""
+  status: String
+  team: String
+  title: String
+}
+
 type OrgCountry {
   code: String
   name: String
@@ -1761,6 +1775,15 @@ type PeopleOnboarding {
   saved: [String!]
   sections: [OnboardingSection!]
   values: [FormEntry!]
+}
+
+"""
+Everybody this viewer may list, with their manager: the directory as a tree.
+"""
+type PeopleOrgChart {
+  people: [OrgChartPerson!]
+  """More people than one chart draws: it is not everybody."""
+  truncated: Boolean
 }
 
 type PeopleOrganisation {
@@ -2391,6 +2414,7 @@ type Query {
   """
   peopleNames(accountIds: [ID!], personIds: [ID!]): PeopleNames
   peopleOnboarding: PeopleOnboarding
+  peopleOrgChart: PeopleOrgChart
   peopleOrganisation: PeopleOrganisation
   peopleOverview: PeopleOverview
   peoplePhoto(personId: ID!): PeoplePhoto

@@ -45,6 +45,7 @@ import {
   approvalsView,
   duplicatesView,
   onboardingView,
+  orgChartView,
   pickerView,
   profileView,
   saveGrid,
@@ -997,6 +998,12 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
           }),
         );
       },
+    },
+    // The directory as a tree: everybody, with their manager, in one read.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/org-chart$/,
+      handle: async (asking) => answer(await orgChartView(deps, asking)),
     },
     {
       method: 'GET',
