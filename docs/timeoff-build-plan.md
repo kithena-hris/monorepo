@@ -1574,9 +1574,17 @@ test passes, and it matches the design's screen on the seeded demo company.
   inside the team's hours." The board shows it in an assistant card above
   Needs you.
 
-### [ ] TOF-092 — Plan explanation
+### [x] TOF-092 — Plan explanation
 
 - **Screens** T9, T11, MT11 · **Depends on** TOF-084, TOF-101
+- **As built** Every `TimeOffParentalPlan` carries `explanation`
+  (`assist/plan.ts`), written once the read's transaction closes, by the
+  model from week counts alone — each block as weeks after the child
+  arrives and how long, the entitlement's weeks, the notice — because the
+  child's date is health data and no date reaches a model; the template
+  says how many flexible weeks follow the mandatory ones, what is kept for
+  later and the notice. T9 and MT11 lead "Why this plan" with it, T11 shows
+  it beside the rules check; the domain's facts below it are unchanged.
 
 ### HR operations
 

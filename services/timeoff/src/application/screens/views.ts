@@ -935,6 +935,8 @@ export const ParentalPlanView = named(
     entitlement: ParentalEntitlementView,
     sentAt: Instant.nullable(),
     approvedAt: Instant.nullable(),
+    /** Why the plan has this shape (TOF-092), from week counts only. */
+    explanation: WrittenView,
   }),
 );
 

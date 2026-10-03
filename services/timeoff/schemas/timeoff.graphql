@@ -870,6 +870,7 @@ type TimeOffParentalPlan {
   children: Int!
   dueDate: String
   entitlement: TimeOffParentalEntitlement!
+  explanation: TimeOffWritten!
   handover: [TimeOffHandoverItem!]!
   keptWeeks: Float!
   planId: String!

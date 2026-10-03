@@ -139,14 +139,14 @@ export const OPERATIONS = {
   /** T11: a sent plan with its checklist and rules check; HR and the manager */
   TimeOffParentalCase: `query TimeOffParentalCase($planId: String!) {
     timeOffParentalCase(planId: $planId) {
-      canApprove checklist { key module on status } managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees }
+      canApprove checklist { key module on status } managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } explanation { ai text } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees }
     }
   }`,
 
   /** T8–T10: the caller’s parental plan, and the entitlement the answers asked about would give; nothing is saved */
   TimeOffParentalPlan: `query TimeOffParentalPlan($childDate: String, $children: Int, $role: String, $singleParent: Boolean) {
     timeOffParentalPlan(childDate: $childDate, children: $children, role: $role, singleParent: $singleParent) {
-      managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees } preview { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } supported
+      managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } explanation { ai text } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees } preview { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } supported
     }
   }`,
 

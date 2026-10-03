@@ -47,6 +47,24 @@ describe('HR’s view of the case', () => {
     expect(rules.getByText('Adam is reminded on 18 Jul. Nothing to do now.')).toBeTruthy();
   });
 
+  it('says why the plan has its shape, with the AI tag only on a model’s words', () => {
+    const { rerender } = render(<ParentalCase load={ready(adamCase())} />);
+    const card = () =>
+      within(
+        screen.getByRole('heading', { name: 'Why this plan' }).closest('.flex-col') as HTMLElement,
+      );
+    expect(card().getByText(/so most of your time is at the start/)).toBeTruthy();
+    expect(card().queryByText('AI')).toBeNull();
+    rerender(
+      <ParentalCase
+        load={ready(
+          adamCase({ plan: sentPlan({ explanation: { text: 'Mostly at the start.', ai: true } }) }),
+        )}
+      />,
+    );
+    expect(card().getByText('AI')).toBeTruthy();
+  });
+
   it('names a broken rule in the domain’s words', () => {
     render(
       <ParentalCase

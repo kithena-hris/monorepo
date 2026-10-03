@@ -17,6 +17,8 @@ import {
   type ParentalPlanId,
   type PlanBlock,
 } from '../../domain/parental/plan.js';
+import { explainPlan, planTemplate } from '../assist/plan.js';
+import { templated } from '../assist/written.js';
 import { memberView } from '../screens/employee.js';
 import type {
   ParentalCaseView,
@@ -56,7 +58,7 @@ import {
  * (§12.4): nobody but the parent reads it, HR included, until it is sent.
  */
 
-type ReadDeps = Pick<Deps, 'uow' | 'authz' | 'clock'>;
+type ReadDeps = Pick<Deps, 'uow' | 'authz' | 'clock' | 'writer'>;
 type WriteDeps = Pick<Deps, 'uow' | 'authz' | 'clock' | 'newId' | 'notifier'>;
 
 /** The parental rules of each country with a pack. A second country is a second entry. */
@@ -453,6 +455,27 @@ function entitlementView(
 }
 
 function planView(l: Loaded): ParentalPlanView {
+  const shaped = planShape(l);
+  return { ...shaped, explanation: templated(planTemplate(shaped)) };
+}
+
+/** The plan's explanation in the model's words, once the read's transaction has closed. */
+async function explained<V extends { readonly plan: ParentalPlanView | null }>(
+  deps: ReadDeps,
+  tenantId: Caller['tenantId'],
+  read: Result<V>,
+): Promise<Result<V>> {
+  if (!read.ok || read.value.plan === null || deps.writer === undefined) return read;
+  return ok({
+    ...read.value,
+    plan: {
+      ...read.value.plan,
+      explanation: await explainPlan(deps.writer, tenantId, read.value.plan),
+    },
+  });
+}
+
+function planShape(l: Loaded): Omit<ParentalPlanView, 'explanation'> {
   const { plan, stored, calendar } = l;
   const e = plan.entitlement;
   return {
@@ -503,39 +526,49 @@ const managerOf = async (tx: Tx, member: Member): Promise<string | null> =>
  */
 export const parentalScreen =
   (deps: ReadDeps) =>
-  (caller: Caller, ask: Partial<ParentalAnswers>): Promise<Result<ParentalScreenView>> =>
-    transact<ParentalScreenView>(deps, caller.tenantId, async (tx) => {
-      const member = caller.personId === null ? null : await tx.members.get(caller.personId);
-      if (member === null) {
-        return ok({ member: null, managerName: null, supported: false, plan: null, preview: null });
-      }
-      const pack = member.country === null ? undefined : PACKS[member.country];
-      const [latest] = await tx.parental.list({ personId: member.personId });
-      const loaded = latest === undefined ? null : await load(tx, latest);
-      let preview: ParentalEntitlementView | null = null;
-      if (pack !== undefined && ask.role !== undefined && ask.childDate !== undefined) {
-        const company = await tx.parental.company();
-        const answers = answersOf(
-          {
-            role: ask.role,
-            childDate: ask.childDate,
-            singleParent: ask.singleParent ?? false,
-            children: ask.children ?? 1,
-            company,
-          },
-          pack,
-          member,
-        );
-        preview = entitlementView(parentalEntitlement(answers), company);
-      }
-      return ok({
-        member: memberView(member),
-        managerName: await managerOf(tx, member),
-        supported: pack !== undefined,
-        plan: loaded?.ok === true ? planView(loaded.value) : null,
-        preview,
-      });
-    });
+  async (caller: Caller, ask: Partial<ParentalAnswers>): Promise<Result<ParentalScreenView>> =>
+    explained(
+      deps,
+      caller.tenantId,
+      await transact<ParentalScreenView>(deps, caller.tenantId, async (tx) => {
+        const member = caller.personId === null ? null : await tx.members.get(caller.personId);
+        if (member === null) {
+          return ok({
+            member: null,
+            managerName: null,
+            supported: false,
+            plan: null,
+            preview: null,
+          });
+        }
+        const pack = member.country === null ? undefined : PACKS[member.country];
+        const [latest] = await tx.parental.list({ personId: member.personId });
+        const loaded = latest === undefined ? null : await load(tx, latest);
+        let preview: ParentalEntitlementView | null = null;
+        if (pack !== undefined && ask.role !== undefined && ask.childDate !== undefined) {
+          const company = await tx.parental.company();
+          const answers = answersOf(
+            {
+              role: ask.role,
+              childDate: ask.childDate,
+              singleParent: ask.singleParent ?? false,
+              children: ask.children ?? 1,
+              company,
+            },
+            pack,
+            member,
+          );
+          preview = entitlementView(parentalEntitlement(answers), company);
+        }
+        return ok({
+          member: memberView(member),
+          managerName: await managerOf(tx, member),
+          supported: pack !== undefined,
+          plan: loaded?.ok === true ? planView(loaded.value) : null,
+          preview,
+        });
+      }),
+    );
 
 /**
  * T11: the case for HR, and for the manager, once it is sent. The checklist
@@ -544,39 +577,43 @@ export const parentalScreen =
  */
 export const parentalCase =
   (deps: ReadDeps) =>
-  (caller: Caller, planId: ParentalPlanId): Promise<Result<ParentalCaseView>> =>
-    transact<ParentalCaseView>(deps, caller.tenantId, async (tx) => {
-      const found = await reachable(deps, tx, caller, planId);
-      if (!found.ok) return found;
-      const { mine: _mine, hr, ...stored } = found.value;
-      const loaded = await load(tx, stored);
-      if (!loaded.ok) return loaded;
-      const { plan, member } = loaded.value;
-      const sent = plan.status !== 'draft';
-      const rulesHold = plan.check().length === 0;
-      const birthStep: ParentalCaseView['checklist'][number][] =
-        stored.role === 'adopting'
-          ? []
-          : [
-              {
-                key: 'birth_certificate',
-                status: plan.birth === null ? 'scheduled' : 'todo',
-                module: null,
-                on: plan.dueDate === null ? null : addDays(plan.dueDate, 3),
-              },
-            ];
-      return ok({
-        member: memberView(member),
-        managerName: await managerOf(tx, member),
-        plan: planView(loaded.value),
-        checklist: [
-          { key: 'entitlement', status: rulesHold ? 'done' : 'todo', module: null, on: null },
-          { key: 'manager_told', status: sent ? 'done' : 'todo', module: null, on: null },
-          { key: 'certificate', status: 'todo', module: null, on: null },
-          { key: 'payroll', status: 'elsewhere', module: 'payroll', on: null },
-          { key: 'benefits', status: 'elsewhere', module: 'benefits', on: null },
-          ...birthStep,
-        ],
-        canApprove: hr && plan.status === 'submitted' && rulesHold,
-      });
-    });
+  async (caller: Caller, planId: ParentalPlanId): Promise<Result<ParentalCaseView>> =>
+    explained(
+      deps,
+      caller.tenantId,
+      await transact<ParentalCaseView>(deps, caller.tenantId, async (tx) => {
+        const found = await reachable(deps, tx, caller, planId);
+        if (!found.ok) return found;
+        const { mine: _mine, hr, ...stored } = found.value;
+        const loaded = await load(tx, stored);
+        if (!loaded.ok) return loaded;
+        const { plan, member } = loaded.value;
+        const sent = plan.status !== 'draft';
+        const rulesHold = plan.check().length === 0;
+        const birthStep: ParentalCaseView['checklist'][number][] =
+          stored.role === 'adopting'
+            ? []
+            : [
+                {
+                  key: 'birth_certificate',
+                  status: plan.birth === null ? 'scheduled' : 'todo',
+                  module: null,
+                  on: plan.dueDate === null ? null : addDays(plan.dueDate, 3),
+                },
+              ];
+        return ok({
+          member: memberView(member),
+          managerName: await managerOf(tx, member),
+          plan: planView(loaded.value),
+          checklist: [
+            { key: 'entitlement', status: rulesHold ? 'done' : 'todo', module: null, on: null },
+            { key: 'manager_told', status: sent ? 'done' : 'todo', module: null, on: null },
+            { key: 'certificate', status: 'todo', module: null, on: null },
+            { key: 'payroll', status: 'elsewhere', module: 'payroll', on: null },
+            { key: 'benefits', status: 'elsewhere', module: 'benefits', on: null },
+            ...birthStep,
+          ],
+          canApprove: hr && plan.status === 'submitted' && rulesHold,
+        });
+      }),
+    );
