@@ -20,6 +20,14 @@ export type Outcome = { readonly ok: true } | { readonly ok: false; readonly mes
 const outcome = (a: { ok: true } | { ok: false; message: string }): Outcome =>
   a.ok ? { ok: true } : { ok: false, message: a.message };
 
+/** T32: an ordinary draft from what the plain words were read as; Time Off validates it. */
+export async function createPolicyDraft(
+  definition: unknown,
+): Promise<{ ok: true; policyId: string } | { ok: false; message: string }> {
+  const a = await timeOff<{ policyId: string }>('DraftTimeOffPolicy', { input: definition });
+  return a.ok ? { ok: true, policyId: a.data.policyId } : { ok: false, message: a.message };
+}
+
 /** T30: replace the policy's draft, or start the next version's, with this definition. */
 export async function savePolicyDraft(policyId: string, definition: unknown): Promise<Outcome> {
   return outcome(await timeOff('ReviseTimeOffPolicy', { policyId, input: definition }));

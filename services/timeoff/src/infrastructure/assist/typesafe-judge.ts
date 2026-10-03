@@ -46,7 +46,7 @@ export function typesafeJudge(config: TypeSafeConfig): Judge {
         state: prompt.context['state'],
         questions: prompt.context['questions'],
       }),
-      signal: AbortSignal.timeout(config.timeoutMs ?? 4_000),
+      signal: AbortSignal.timeout(config.timeoutMs ?? 3_000),
     });
     if (!response.ok) throw new Error(`TypeSafe answered ${String(response.status)}`);
     return JSON.stringify(await response.json());

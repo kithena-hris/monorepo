@@ -1593,10 +1593,28 @@ test passes, and it matches the design's screen on the seeded demo company.
 - **Screens** T30 · **Spec** PRD §6.3
 - **Depends on** TOF-079
 
-### [ ] TOF-094 — Write a policy in plain words
+### [x] TOF-094 — Write a policy in plain words
 
 - **Screens** T32 · **Spec** PRD §6.4
 - **Depends on** TOF-084, TOF-093
+- **As built** `timeOffPolicyRead` (`assist/policy-prose.ts`), HR only: the
+  code finds every number of days, weeks or months in the text and the
+  month a carry-over must be used by; TypeSafe says what each figure sets
+  (allowance, carry-over, below zero, probation, none) and whether days are
+  given up front, which days and who approves going negative, or Time Off's
+  own rules read the words around them. HR's changes and answers win. The
+  reading becomes an ordinary `PolicyDefinition`, parsed by its own schema,
+  with calendar days counted as working days by the domain
+  (`domain/policy/calendar-days.ts`, 28 → 20). The one question is the first
+  the text leaves open: which days, then up front or monthly; the writer may
+  word it. `/settings/time-off/leave-types/new/describe` shows "Understood
+  as" with a change button per rule and the question; "Create draft" is
+  disabled while anything is open, sends the definition to
+  `draftTimeOffPolicy` (the domain validates it) and opens the draft on its
+  leave type, where T30's preview tests it. TOF-093 is not ticked: the
+  shadow run and preview-as are its own, and the test on real people here is
+  T30's existing preview, reached after the draft exists. Leave types links
+  to the page.
 
 ### [ ] TOF-095 — Exceptions for HR and the inspector export
 

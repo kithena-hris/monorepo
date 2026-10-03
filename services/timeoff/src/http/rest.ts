@@ -44,6 +44,7 @@ import {
 } from '../application/approval/decide.js';
 import { setDelegation } from '../application/approval/escalation.js';
 import { describeRequest } from '../application/assist/describe.js';
+import { readPolicyProse } from '../application/assist/policy-prose.js';
 import {
   closePayPeriod,
   correctPunch,
@@ -127,6 +128,7 @@ import {
   ParentalScreenView,
   ParentRoleView,
   PolicyPreviewView,
+  PolicyReadView,
   PunchView,
   RequestDetailView,
   RequestPanelView,
@@ -437,6 +439,9 @@ function present<T extends object>(value: T): { [K in keyof T]?: Exclude<T[K], u
 
 const firstOf = (month: string) => CalendarDate.parse(`${month}-01`);
 
+/** A number of days from the address: "28", "2.5". */
+const DayText = z.string().regex(/^\d{1,3}(\.\d{1,3})?$/u, 'a number of days, such as 28 or 2.5');
+
 /* --------------------------------------------------------------- routes -- */
 
 const V1 = '/v1/timeoff';
@@ -670,6 +675,26 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ policyId: PolicyId }),
     answer: PolicyPreviewView,
     run: (deps, caller, { params }) => policyPreview(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffPolicyRead',
+    method: 'GET',
+    path: `${V1}/settings/policies/read`,
+    summary:
+      'T32: a policy written in plain words, read into the ordinary form, with the one question it leaves open; nothing is saved; HR',
+    params: z.object({
+      text: z.string().max(2000).optional(),
+      leaveTypeKey: LeaveTypeKey.optional(),
+      dayKind: z.enum(['working', 'calendar']).optional(),
+      earning: z.enum(['upfront', 'monthly']).optional(),
+      allowance: DayText.optional(),
+      carryOver: DayText.optional(),
+      negative: DayText.optional(),
+      probationMonths: z.int().min(0).max(24).optional(),
+    }),
+    answer: PolicyReadView,
+    run: (deps, caller, { params }) => readPolicyProse(deps)(caller, params),
     shape: same,
   }),
   route({

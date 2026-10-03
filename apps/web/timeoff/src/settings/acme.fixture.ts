@@ -1,5 +1,6 @@
 import type { ApprovalSettingsData } from './approval-settings';
 import type { AttendanceSettingsData } from './attendance-settings';
+import type { PolicyReadData } from './describe-policy';
 import type { HolidaySettingsData } from './holiday-settings';
 import type { LeaveTypeData, PolicyDefinition } from './leave-type';
 import type { LeaveTypesData } from './leave-types';
@@ -357,4 +358,49 @@ export const holidays = (): HolidaySettingsData => ({
       holidays: madridDays.map(([date, name, l]) => ({ date, name, layer: l, movedFrom: null })),
     },
   ],
+});
+
+/** T32: Ada's paragraph for Berlin, as Time Off read it, still asking which days. */
+export const BERLIN_TEXT =
+  'Everyone in Berlin gets 28 days a year. They can carry 5 days into the next year if they use them before April. People can go up to 2 days negative if their manager and HR agree.';
+
+export const berlinRead = (over: Partial<PolicyReadData> = {}): PolicyReadData => ({
+  text: BERLIN_TEXT,
+  leaveTypeKey: 'vacation',
+  leaveTypes: [
+    { key: 'vacation', name: 'Vacation' },
+    { key: 'personal', name: 'Personal days' },
+  ],
+  ai: false,
+  rules: [
+    {
+      key: 'allowance',
+      label: 'Allowance',
+      value: '28 days a year, given up front',
+      amount: '28.000',
+    },
+    { key: 'probation', label: 'Starts', value: 'From the first day', amount: '0' },
+    {
+      key: 'carry_over',
+      label: 'Carry-over',
+      value: 'Up to 5 days, used by 31 Mar',
+      amount: '5.000',
+    },
+    { key: 'negative', label: 'Negative', value: 'Up to 2 days, manager then HR', amount: '2.000' },
+  ],
+  question: {
+    key: 'day_kind',
+    title: '“28 days”, but which days?',
+    body: {
+      text: 'The text doesn’t say. I’ve assumed 28 working days on a five-day week. Is that right?',
+      ai: false,
+    },
+    options: [
+      { value: 'working', label: 'Yes, working days' },
+      { value: 'calendar', label: 'Calendar days' },
+    ],
+  },
+  definition: vacationDefinition({ allowance: [{ fromYears: 0, days: '28.000' }] }),
+  problems: [],
+  ...over,
 });

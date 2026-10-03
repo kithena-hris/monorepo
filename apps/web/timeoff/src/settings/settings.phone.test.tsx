@@ -7,6 +7,7 @@ import type { Frame } from '../frame';
 import {
   ApprovalSettings,
   AttendanceSettings,
+  DescribePolicy,
   HolidaySettings,
   LeaveType,
   LeaveTypes,
@@ -16,6 +17,7 @@ import { underFloor } from '../test/floor';
 import {
   approvals,
   attendance,
+  berlinRead,
   holidays,
   leaveTypes,
   negativeBalance,
@@ -70,6 +72,15 @@ const screens: readonly (readonly [string, () => JSX.Element])[] = [
         onSaveDraft={noop}
         onPublish={noop}
         onPreviewAs={() => undefined}
+        frame={frame('Leave types', '/settings/time-off/leave-types')}
+      />
+    ),
+  ],
+  [
+    'a policy in plain words',
+    () => (
+      <DescribePolicy
+        load={ready(berlinRead())}
         frame={frame('Leave types', '/settings/time-off/leave-types')}
       />
     ),

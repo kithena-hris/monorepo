@@ -79,6 +79,8 @@ export async function loadScreen(
       return leaveTypeSettings();
     case 'LeaveType':
       return leaveType(query);
+    case 'DescribePolicy':
+      return policyRead(query.search);
     case 'NegativeBalance':
       return read('TimeOffNegativeBalanceSettings');
     case 'AttendanceSettings':
@@ -518,6 +520,36 @@ async function leaveTypeSettings(): Promise<ScreenLoad> {
     read('TimeOffApprovalSettings'),
   ]);
   return both(types, approvals, (t, a) => ({ ...t, rules: a['rules'] }));
+}
+
+/**
+ * T32: the policy's text in the address (`text`), the leave type it is for,
+ * and whatever HR answered or changed of what it was read as, as Time Off
+ * read them. Anything the address holds that Time Off could not take is left
+ * out rather than refused.
+ */
+async function policyRead(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+  const daysText = (v: string | undefined) =>
+    /^\d{1,3}(\.\d{1,3})?$/.test(v ?? '') ? v : undefined;
+  const months = Number(search['probation']);
+  const asked = Object.fromEntries(
+    Object.entries({
+      text: search['text']?.slice(0, 2000) || undefined,
+      leaveTypeKey: search['type'] || undefined,
+      dayKind: ['working', 'calendar'].includes(search['days'] ?? '') ? search['days'] : undefined,
+      earning: ['upfront', 'monthly'].includes(search['earning'] ?? '')
+        ? search['earning']
+        : undefined,
+      allowance: daysText(search['allowance']),
+      carryOver: daysText(search['carry']),
+      negative: daysText(search['negative']),
+      probationMonths:
+        Number.isInteger(months) && months >= 0 && months <= 24 && search['probation'] !== undefined
+          ? months
+          : undefined,
+    }).filter(([, v]) => v !== undefined),
+  );
+  return read('TimeOffPolicyRead', asked);
 }
 
 /**

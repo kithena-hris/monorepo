@@ -164,6 +164,16 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
             goTo({ as });
           },
         };
+      case 'DescribePolicy':
+        return {
+          load: loadable,
+          // The text, every rule changed and every answer are the address; Time Off reads them again.
+          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
+            go(withQuery(window.location.pathname, window.location.search, patch), mode);
+          },
+          onCreate: settings.createPolicyDraft,
+          onNavigate: go,
+        };
       case 'NegativeBalance':
         return { load: loadable, onSave: settings.saveNegativeBalance };
       case 'AttendanceSettings':

@@ -157,6 +157,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T32: a policy written in plain words, read into the ordinary form, with the one question it leaves open; nothing is saved; HR */
+  TimeOffPolicyRead: `query TimeOffPolicyRead($allowance: String, $carryOver: String, $dayKind: String, $earning: String, $leaveTypeKey: String, $negative: String, $probationMonths: Int, $text: String) {
+    timeOffPolicyRead(allowance: $allowance, carryOver: $carryOver, dayKind: $dayKind, earning: $earning, leaveTypeKey: $leaveTypeKey, negative: $negative, probationMonths: $probationMonths, text: $text) {
+      ai definition { allowance { days fromYears } appliesTo { clauses combine } carryOver { maxDays useBy { day month } } earning keepEarningOnParental leaveTypeKey negativeBalance { approvers atYearEnd limit onLeaving } proRata probationMonths requests { blockBelowMinimum halfDays showWhoIsOff } year { day month } } leaveTypeKey leaveTypes { key name } problems { message path } question { body { ai text } key options { label value } title } rules { amount key label value } text
+    }
+  }`,
+
   /** One request, for its member, an approver or HR */
   TimeOffRequest: `query TimeOffRequest($requestId: String!) {
     timeOffRequest(requestId: $requestId) {

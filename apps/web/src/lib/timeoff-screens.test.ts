@@ -51,6 +51,33 @@ describe('describe it', () => {
   });
 });
 
+describe('a policy in plain words', () => {
+  it('asks Time Off to read the text with what HR answered or changed, leaving out what it cannot take', async () => {
+    answering({ TimeOffPolicyRead: () => ({ ok: true, data: { rules: [] } }) });
+    await loadScreen('DescribePolicy', {
+      params: {},
+      search: {
+        text: 'Everyone gets 28 days a year.',
+        type: 'vacation',
+        days: 'calendar',
+        earning: 'sometimes',
+        carry: '5',
+        negative: 'lots',
+        probation: '3',
+      },
+    });
+    expect(asked('TimeOffPolicyRead')).toEqual([
+      {
+        text: 'Everyone gets 28 days a year.',
+        leaveTypeKey: 'vacation',
+        dayKind: 'calendar',
+        carryOver: '5',
+        probationMonths: 3,
+      },
+    ]);
+  });
+});
+
 describe('the request panel', () => {
   it('asks the preview for what the address says, and the team’s month on show', async () => {
     answering({ TimeOffRequestPanel: () => ({ ok: true, data: { leaveTypes: [], preview: {} } }) });

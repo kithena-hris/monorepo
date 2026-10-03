@@ -1,4 +1,4 @@
-import { Badge, List, ListItem, PageHeader, Skeleton } from '@reach/ui';
+import { Badge, Button, List, ListItem, PageHeader, Skeleton, icons } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
@@ -42,7 +42,15 @@ export function LeaveTypes({ load }: LeaveTypesProps): JSX.Element {
   if (load.status === 'loading') return <LeaveTypesSkeleton />;
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={TITLE} description={DESCRIPTION} />
+      <PageHeader
+        title={TITLE}
+        description={DESCRIPTION}
+        actions={
+          <Button variant="secondary" startIcon={<icons.assistant aria-hidden />} asChild>
+            <a href="/settings/time-off/leave-types/new/describe">Write a policy in plain words</a>
+          </Button>
+        }
+      />
       <Loaded load={load} what="the leave types">
         {(data) => <Ready data={data} />}
       </Loaded>

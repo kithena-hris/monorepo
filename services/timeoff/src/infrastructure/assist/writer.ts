@@ -12,7 +12,8 @@ import { remembered } from './remembered.js';
  * no module imports another, and the dozen lines are not worth a package.
  *
  * Reached only through the AI gateway (`gateway.ts`). Short calls: somebody is
- * waiting for the page, so five seconds, then the template.
+ * waiting for the page, and the shell gives a read ten seconds, so four, then
+ * the template.
  */
 
 const GROQ = 'https://api.groq.com/openai/v1';
@@ -57,7 +58,7 @@ export function chatModel(config: ModelConfig): ModelTransport {
           { role: 'user', content: JSON.stringify(prompt.context) },
         ],
       }),
-      signal: AbortSignal.timeout(config.timeoutMs ?? 5_000),
+      signal: AbortSignal.timeout(config.timeoutMs ?? 4_000),
     });
     if (!response.ok) throw new Error(`the model answered ${String(response.status)}`);
     const body = (await response.json()) as { choices?: { message?: { content?: string } }[] };

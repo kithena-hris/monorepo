@@ -308,6 +308,10 @@ type Query {
   T30: what publishing the draft would do to each member this leave year, folded; nothing is saved; HR
   """
   timeOffPolicyPreview(policyId: String!): TimeOffPolicyPreview!
+  """
+  T32: a policy written in plain words, read into the ordinary form, with the one question it leaves open; nothing is saved; HR
+  """
+  timeOffPolicyRead(allowance: String, carryOver: String, dayKind: String, earning: String, leaveTypeKey: String, negative: String, probationMonths: Int, text: String): TimeOffPolicyRead!
   """One request, for its member, an approver or HR"""
   timeOffRequest(requestId: String!): TimeOffRequestDetail!
   """
@@ -350,6 +354,11 @@ type TimeOffAlternativeSwapped {
 type TimeOffAmountChange {
   current: String!
   draft: String!
+}
+
+type TimeOffAnswer {
+  label: String!
+  value: String!
 }
 
 type TimeOffApprovalRule {
@@ -774,6 +783,13 @@ type TimeOffOpenDay {
   suggestion: TimeOffFinishSuggestion
 }
 
+type TimeOffOpenQuestion {
+  body: TimeOffWritten!
+  key: String!
+  options: [TimeOffAnswer!]!
+  title: String!
+}
+
 type TimeOffOptionBreak {
   days: Int!
   from: String!
@@ -980,6 +996,22 @@ type TimeOffPolicyPublished {
   version: Int!
 }
 
+type TimeOffPolicyRead {
+  ai: Boolean!
+  definition: TimeOffPolicyDefinition
+  leaveTypeKey: String
+  leaveTypes: [TimeOffPolicyTypeChoice!]!
+  problems: [TimeOffReadProblem!]!
+  question: TimeOffOpenQuestion
+  rules: [TimeOffUnderstoodRule!]!
+  text: String
+}
+
+type TimeOffPolicyTypeChoice {
+  key: String!
+  name: String!
+}
+
 type TimeOffPolicyVersion {
   definition: TimeOffPolicyDefinition!
   effectiveFrom: String
@@ -1021,6 +1053,11 @@ type TimeOffPunched {
 type TimeOffRange {
   from: String!
   to: String!
+}
+
+type TimeOffReadProblem {
+  message: String!
+  path: String!
 }
 
 type TimeOffRequestDecision {
@@ -1266,6 +1303,13 @@ type TimeOffUnderstood {
   leaveTypeName: String
   month: String
   nextToHoliday: Boolean!
+}
+
+type TimeOffUnderstoodRule {
+  amount: String!
+  key: String!
+  label: String!
+  value: String!
 }
 
 type TimeOffViewer {

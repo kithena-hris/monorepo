@@ -662,13 +662,58 @@ export const LeaveTypesView = named(
   z.object({ leaveTypes: z.array(LeaveTypeRow), packs: z.array(PackView) }),
 );
 
+const PolicyDefinitionView = PolicyDefinition.meta({ title: 'TimeOffPolicyDefinition' });
+
 const PolicyVersionView = named(
   'TimeOffPolicyVersion',
   z.object({
     version: z.int(),
     status: z.enum(['draft', 'published']),
     effectiveFrom: CalendarDate.nullable(),
-    definition: PolicyDefinition.meta({ title: 'TimeOffPolicyDefinition' }),
+    definition: PolicyDefinitionView,
+  }),
+);
+
+/** T32: a policy written in plain words, read into the ordinary form (TOF-094). */
+export const PolicyReadView = named(
+  'TimeOffPolicyRead',
+  z.object({
+    text: z.string().nullable(),
+    leaveTypeKey: LeaveTypeKey.nullable(),
+    leaveTypes: z.array(
+      named('TimeOffPolicyTypeChoice', z.object({ key: LeaveTypeKey, name: z.string() })),
+    ),
+    /** Whether a model read the text; the rules did otherwise. */
+    ai: z.boolean(),
+    /** "Understood as": each rule of the form, said, with the amount HR can change. */
+    rules: z.array(
+      named(
+        'TimeOffUnderstoodRule',
+        z.object({
+          key: z.enum(['allowance', 'probation', 'carry_over', 'negative']),
+          label: z.string(),
+          value: z.string(),
+          amount: z.string(),
+        }),
+      ),
+    ),
+    /** The one question the text cannot answer; `null` when it answers everything. */
+    question: named(
+      'TimeOffOpenQuestion',
+      z.object({
+        key: z.enum(['day_kind', 'earning']),
+        title: z.string(),
+        body: WrittenView,
+        options: z.array(
+          named('TimeOffAnswer', z.object({ value: z.string(), label: z.string() })),
+        ),
+      }),
+    ).nullable(),
+    /** The ordinary draft it would create, `null` until the text says enough. */
+    definition: PolicyDefinitionView.nullable(),
+    problems: z.array(
+      named('TimeOffReadProblem', z.object({ path: z.string(), message: z.string() })),
+    ),
   }),
 );
 
@@ -997,6 +1042,7 @@ export type View<S extends z.ZodType> = DeepReadonly<z.output<S>>;
 export type SpanView = View<typeof SpanView>;
 export type WrittenView = View<typeof WrittenView>;
 export type DescribedView = View<typeof DescribedView>;
+export type PolicyReadView = View<typeof PolicyReadView>;
 export type BridgeView = View<typeof BridgeView>;
 export type MemberView = View<typeof MemberView>;
 export type BalanceView = View<typeof BalanceView>;
