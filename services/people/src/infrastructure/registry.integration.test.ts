@@ -68,6 +68,10 @@ beforeAll(async () => {
   ]) {
     await admin.execute(sql.raw(await migration(file)));
   }
+  // The one statement of `20260923110000_people_completeness.sql` the schema
+  // versions' reader needs (it selects every column); the rest of that
+  // migration needs `people.person`, which this suite does not create.
+  await admin.execute(sql`ALTER TABLE people.schema_version ADD COLUMN evaluated_on date`);
 
   await admin.execute(sql`ALTER ROLE svc_people LOGIN PASSWORD 'svc_people'`);
 
