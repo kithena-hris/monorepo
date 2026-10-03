@@ -5,6 +5,8 @@ import postgres from 'postgres';
 import { readFile } from 'node:fs/promises';
 import { startPostgres } from '@kithena/testing';
 
+import { drizzleSchemaVersions } from './drizzle-person-reader.js';
+
 /**
  * A `text[]` literal, built rather than parameterised.
  *
@@ -377,6 +379,24 @@ describe('a published version', () => {
       ...(await tx.execute(sql`SELECT version FROM people.schema_version`)),
     ]);
     expect(seen).toEqual([]);
+  });
+
+  it('is read once, and the next one is current the moment it is published', async () => {
+    // One reader, as a process holds one: what it read is kept by tenant,
+    // number and checksum, and only which number is current is asked again.
+    const versions = drizzleSchemaVersions();
+    const current = (tenantId: string) => inTenant(tenantId, (tx) => versions.current(tx, tenantId));
+    await publish(1);
+    const first = await current(ACME);
+    expect(first?.version).toBe(1);
+    expect(await current(ACME)).toBe(first);
+    // Shared by every request, so nobody may edit it.
+    expect(Object.isFrozen(first?.document.attributes)).toBe(true);
+
+    await publish(2, 'b'.repeat(64));
+    expect((await current(ACME))?.version).toBe(2);
+    // Kept for ACME, never handed to anybody else.
+    expect(await current(GLOBEX)).toBeNull();
   });
 });
 

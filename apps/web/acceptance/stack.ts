@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { createServer as httpServer, request as httpRequest } from 'node:http';
+import { appendFileSync } from 'node:fs';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as httpsServer, type Server as HttpsServer } from 'node:https';
 import { connect, createServer as netServer, type Socket } from 'node:net';
@@ -187,9 +188,12 @@ function freePort(): Promise<number> {
 /**
  * `target` again, `ms` further away each way: what the shell meets in
  * production, where People is a network hop from the function asking. For a
- * timing run (`ACCEPTANCE_ROUTER_LATENCY_MS`); nothing else uses it.
+ * timing run (`ACCEPTANCE_ROUTER_LATENCY_MS` in front of the router alone,
+ * `ACCEPTANCE_LATENCY_MS` in front of identity, the router and People);
+ * nothing else uses it. `host` is where it listens: People's has to be
+ * reachable from the router's container.
  */
-async function distant(target: string, ms: number): Promise<string> {
+async function distant(target: string, ms: number, host = '127.0.0.1'): Promise<string> {
   const { hostname, port } = new URL(target);
   // `ACCEPTANCE_SLOW_OPERATION=TransferHistory:400`: that operation takes
   // longer still, as one doing more work in People would.
@@ -213,7 +217,7 @@ async function distant(target: string, ms: number): Promise<string> {
     }
   });
   server.unref();
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise<void>((resolve) => server.listen(0, host, resolve));
   const address = server.address();
   if (address === null || typeof address === 'string') throw new Error('no port');
   return `http://127.0.0.1:${String(address.port)}${new URL(target).pathname.replace(/\/$/, '')}`;
@@ -716,7 +720,8 @@ export async function startStack(): Promise<Stack> {
         );
         child.stdout.on('data', (chunk: Buffer) => log.push(chunk.toString()));
         child.stderr.on('data', (chunk: Buffer) => log.push(chunk.toString()));
-        const timer = setTimeout(() => child.kill('SIGKILL'), 60_000);
+        // Generous: tsx compiles People's consumer first, on a busy machine too.
+        const timer = setTimeout(() => child.kill('SIGKILL'), 180_000);
         child.once('exit', (code) => {
           clearTimeout(timer);
           logs['people']?.push(...log);
@@ -806,13 +811,16 @@ export async function startStack(): Promise<Stack> {
     // turned off by an override; the persisted-operation safelist stays on,
     // with the shell's operations as `apps/gateway` generates them.
     dir = await mkdtemp(join(tmpdir(), 'kithena-acceptance-'));
+    const far = Number(process.env['ACCEPTANCE_LATENCY_MS'] ?? '0');
+    const peopleHop =
+      far > 0 ? new URL(await distant(peopleUrl, far, '0.0.0.0')).port : String(peoplePort);
     await writeFile(
       join(dir, 'graph.yaml'),
       [
         'version: 1',
         'subgraphs:',
         '  - name: people',
-        `    routing_url: http://host.docker.internal:${String(peoplePort)}/graphql`,
+        `    routing_url: http://host.docker.internal:${peopleHop}/graphql`,
         '    schema:',
         `      file: ${join(ROOT, 'services/people/schemas/people.graphql')}`,
       ].join('\n'),
@@ -886,13 +894,10 @@ export async function startStack(): Promise<Stack> {
     await until('the remote', 30_000, async () => (await fetch(`${preview}/routes.json`)).ok);
     const remote = await asDeployed(preview);
 
-    const gate = await gated(
-      process.env['ACCEPTANCE_ROUTER_LATENCY_MS'] === undefined
-        ? router.url
-        : await distant(router.url, Number(process.env['ACCEPTANCE_ROUTER_LATENCY_MS'])),
-    );
+    const routerMs = Number(process.env['ACCEPTANCE_ROUTER_LATENCY_MS'] ?? far);
+    const gate = await gated(routerMs > 0 ? await distant(router.url, routerMs) : router.url);
     const env = {
-      INTERNAL_API_URL: identityUrl,
+      INTERNAL_API_URL: far > 0 ? await distant(identityUrl, far) : identityUrl,
       INTERNAL_API_TOKEN: SHELL_TOKEN,
       ROUTER_URL: gate.url,
       TENANT_HOST_SUFFIX: 'app.localhost',
@@ -920,15 +925,21 @@ export async function startStack(): Promise<Stack> {
         await writeFile(nextEnv, committed);
       }
     }
-    children.push(
-      start(
-        join(ROOT, 'apps/web/node_modules/.bin/next'),
-        ['start', '-p', String(shellPort)],
-        join(ROOT, 'apps/web'),
-        env,
-        logs['shell'] ?? [],
-      ),
+    const shellProcess = start(
+      join(ROOT, 'apps/web/node_modules/.bin/next'),
+      ['start', '-p', String(shellPort)],
+      join(ROOT, 'apps/web'),
+      env,
+      logs['shell'] ?? [],
     );
+    children.push(shellProcess);
+    // A path: every line the shell writes, whole, for a timing run (`KITHENA_TIMING=1`) to read.
+    const shellLog = process.env['ACCEPTANCE_SHELL_LOG'];
+    if (shellLog !== undefined && shellLog !== '') {
+      shellProcess.stdout?.on('data', (chunk: Buffer) => {
+        appendFileSync(shellLog, chunk);
+      });
+    }
     const shell = `http://acme.app.localhost:${String(shellPort)}`;
     await until('the shell', 60_000, async () => {
       const r = await fetch(`http://127.0.0.1:${String(shellPort)}/login`, {

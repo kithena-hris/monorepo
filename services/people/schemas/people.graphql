@@ -1452,6 +1452,20 @@ type OnboardingSection {
   visibility: [String!]
 }
 
+type OrgChartPerson {
+  avatarUrl: String
+  id: ID
+  location: String
+  """Null for nobody, and for a manager this viewer cannot read."""
+  managerId: ID
+  managerName: String
+  name: String
+  """HR’s, in words."""
+  status: String
+  team: String
+  title: String
+}
+
 type OrgCountry {
   code: String
   name: String
@@ -1776,6 +1790,15 @@ type PeopleOnboarding {
   saved: [String!]
   sections: [OnboardingSection!]
   values: [FormEntry!]
+}
+
+"""
+Everybody this viewer may list, with their manager: the directory as a tree.
+"""
+type PeopleOrgChart {
+  people: [OrgChartPerson!]
+  """More people than one chart draws: it is not everybody."""
+  truncated: Boolean
 }
 
 type PeopleOrganisation {
@@ -2150,6 +2173,15 @@ type PeopleViewedAs {
   specialCategory: Boolean
 }
 
+"""
+How many decisions wait for this viewer, counted; null where they have no such queue.
+"""
+type PeopleWaiting {
+  accessRequests: Int
+  duplicates: Int
+  identifiers: Int
+}
+
 type Person @key(fields: "id") {
   attributes: [Attribute!]
   id: ID
@@ -2414,6 +2446,7 @@ type Query {
   """
   peopleNames(accountIds: [ID!], personIds: [ID!]): PeopleNames
   peopleOnboarding: PeopleOnboarding
+  peopleOrgChart: PeopleOrgChart
   peopleOrganisation: PeopleOrganisation
   peopleOverview: PeopleOverview
   peoplePhoto(personId: ID!): PeoplePhoto
@@ -2450,6 +2483,7 @@ type Query {
   Imports and exports, newest first, 50 at a time; HR and People administrators.
   """
   peopleTransferHistory(before: ID): PeopleTransferHistory
+  peopleWaiting: PeopleWaiting
   """
   One endpoint’s delivery log, newest first, 50 at a time; people_admin only.
   """

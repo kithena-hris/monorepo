@@ -230,6 +230,11 @@ export const OPERATIONS = {
     peopleHome { hr admin finance }
   }`,
 
+  /** How many decisions wait for this viewer, counted: the shell's bell and badges. */
+  Waiting: `query Waiting {
+    peopleWaiting { identifiers duplicates accessRequests }
+  }`,
+
   /** Where People starts: the viewer, their line, and what waits for them. */
   Overview: `query Overview {
     peopleOverview {
@@ -314,6 +319,14 @@ export const OPERATIONS = {
       next
       can { import export bulkEdit }
       suggestions remind
+    }
+  }`,
+
+  /** The directory as a tree: everybody this viewer may list, with their manager, in one read. */
+  OrgChart: `query OrgChart {
+    peopleOrgChart {
+      people { id name title managerId managerName avatarUrl status team location }
+      truncated
     }
   }`,
 
