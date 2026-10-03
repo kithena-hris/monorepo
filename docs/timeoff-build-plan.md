@@ -1484,9 +1484,21 @@ test passes, and it matches the design's screen on the seeded demo company.
   both keys on its second run and the suite answers the two model addresses
   with a 503.
 
-### [ ] TOF-085 — Bridge days
+### [x] TOF-085 — Bridge days
 
 - **Screens** T1, MT1 AI card · **Depends on** TOF-084, TOF-061
+- **As built** `domain/calendar/bridges.ts` replaces the shell's Monday-to-
+  Friday guess: a run of working days in the member's own week with days off
+  on both sides, one of them a holiday, at most 4 long and buying at least
+  two and a half times its length (a Monday for 4, four days for 10; three
+  for 6 is dropped), never past or already asked for, best value first.
+  Madrid's real 2026 moves the Constitution to Monday 7 December, so the
+  design's "Take Mon 7 Dec" is already a holiday and the demo's best days are
+  9–11 December and Easter 2027. `timeOffOverview` carries the best two with a
+  written line (the model's from the days and holiday names alone, else
+  "9 days off, 5–13 Dec, with …"); `timeOffHolidays` carries the year's still
+  ahead, templated. The card shows `used → away` and the AI tag only when a
+  line was the model's.
 
 ### [ ] TOF-086 — Reasons in the approvals queue
 

@@ -409,6 +409,26 @@ type TimeOffBatchRefusal {
   requestId: String!
 }
 
+type TimeOffBreak {
+  days: Int!
+  from: String!
+  to: String!
+}
+
+type TimeOffBridge {
+  away: TimeOffBreak!
+  from: String!
+  holidays: [TimeOffBridgedHoliday!]!
+  text: TimeOffWritten!
+  to: String!
+  used: Int!
+}
+
+type TimeOffBridgedHoliday {
+  date: String!
+  name: String!
+}
+
 type TimeOffCalendar {
   coverage: [TimeOffCoverageDay!]!
   entries: [TimeOffCalendarEntry!]!
@@ -556,6 +576,7 @@ type TimeOffHolidayLayerDay {
 }
 
 type TimeOffHolidays {
+  bridges: [TimeOffBridge!]!
   holidays: [TimeOffHoliday!]!
   locationKey: String
   year: Int!
@@ -729,6 +750,7 @@ type TimeOffOvertimeDecision {
 
 type TimeOffOverview {
   balances: [TimeOffBalance!]!
+  bridges: [TimeOffBridge!]!
   clock: TimeOffOverviewClock
   comingUp: [TimeOffRequestItem!]!
   member: TimeOffMember
@@ -1194,6 +1216,11 @@ type TimeOffWhoIsOff {
   leaveTypeKey: String
   personId: String!
   span: TimeOffSpan!
+}
+
+type TimeOffWritten {
+  ai: Boolean!
+  text: String!
 }
 
 scalar _Any

@@ -50,6 +50,25 @@ export const SpanView = named(
 
 export const RangeView = named('TimeOffRange', z.object({ from: CalendarDate, to: CalendarDate }));
 
+/** A line of text and who wrote it: `ai` only when a model did (PRD §14.1, `assist/written.ts`). */
+export const WrittenView = named('TimeOffWritten', z.object({ text: z.string(), ai: z.boolean() }));
+
+/** Days that join a holiday to the days off around it (T1, MT1, MT21), and the line about them. */
+export const BridgeView = named(
+  'TimeOffBridge',
+  z.object({
+    /** The working days to ask for. */
+    from: CalendarDate,
+    to: CalendarDate,
+    used: z.int(),
+    away: named('TimeOffBreak', z.object({ from: CalendarDate, to: CalendarDate, days: z.int() })),
+    holidays: z.array(
+      named('TimeOffBridgedHoliday', z.object({ date: CalendarDate, name: z.string() })),
+    ),
+    text: WrittenView,
+  }),
+);
+
 export const MemberView = named(
   'TimeOffMember',
   z.object({
@@ -204,6 +223,8 @@ export const OverviewView = named(
         }),
       ),
     ),
+    /** The best bridge days ahead, two at most (TOF-085). */
+    bridges: z.array(BridgeView),
   }),
 );
 
@@ -285,6 +306,8 @@ export const HolidaysView = named(
         }),
       ),
     ),
+    /** The year's bridge days still ahead, in date order (TOF-085). */
+    bridges: z.array(BridgeView),
   }),
 );
 
@@ -878,6 +901,8 @@ type DeepReadonly<T> = T extends readonly (infer U)[]
 export type View<S extends z.ZodType> = DeepReadonly<z.output<S>>;
 
 export type SpanView = View<typeof SpanView>;
+export type WrittenView = View<typeof WrittenView>;
+export type BridgeView = View<typeof BridgeView>;
 export type MemberView = View<typeof MemberView>;
 export type BalanceView = View<typeof BalanceView>;
 export type RequestItem = View<typeof RequestItem>;

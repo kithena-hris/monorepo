@@ -33,6 +33,7 @@ import { ClockIn, ClockOutSheet } from '../clock/clock';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import {
   amount,
+  bridgeDays,
   chartTone,
   daysBetween,
   leaveIcon,
@@ -130,15 +131,22 @@ export interface OverviewData {
     readonly name: string;
     readonly layer: string;
   }[];
-  readonly bridges: readonly {
-    readonly take: string;
-    readonly from: string;
-    readonly to: string;
-    readonly holiday: string;
-    readonly days: number;
-  }[];
+  /** Time Off's best bridge days ahead (TOF-085), each with its line. */
+  readonly bridges: readonly Bridge[];
   /** When the server asked, ISO: the clock's timer starts from it. */
   readonly now: string;
+}
+
+/** Working days that join a holiday to the days off around it, as Time Off found them. */
+export interface Bridge {
+  /** The days to ask for. */
+  readonly from: string;
+  readonly to: string;
+  readonly used: number;
+  readonly away: { readonly from: string; readonly to: string; readonly days: number };
+  readonly holidays: readonly { readonly date: string; readonly name: string }[];
+  /** `ai` when a model wrote it; a template otherwise. */
+  readonly text: { readonly text: string; readonly ai: boolean };
 }
 
 export interface OverviewProps {
@@ -582,32 +590,39 @@ function Bridges({
     <AssistantCard
       title={`Make the most of your ${left} days`}
       className={'@max-[40rem]/overview:order-3'}
-      note="Uses your balance and the holidays where you work. Nothing is booked until you send it."
+      action={
+        bridges.some((b) => b.text.ai) ? (
+          <Badge tone="assistant" size="sm">
+            AI
+          </Badge>
+        ) : undefined
+      }
+      note="Uses your working week and the holidays where you work. Nothing is booked until you send it."
     >
       <List>
         {bridges.map((b, index) => (
           <ListItem
-            key={b.take}
+            key={b.from}
             className={index > 0 ? '@max-[40rem]/overview:hidden' : undefined}
             leading={
               <Badge tone="accent" size="lg">
-                {`1 → ${String(b.days)}`}
+                {`${String(b.used)} → ${String(b.away.days)}`}
                 <span className="sr-only"> days off</span>
               </Badge>
             }
-            supporting={`${String(b.days)} days off, ${spanLabel(b.from, b.to)}, with ${b.holiday}`}
+            supporting={b.text.text}
             trailing={
               <Button variant="secondary" size="xs" asChild>
                 <a
-                  href={`/time-off/request?type=${type.leaveTypeKey}&from=${b.take}&to=${b.take}`}
-                  aria-label={`Request ${shortDate(b.take)}`}
+                  href={`/time-off/request?type=${type.leaveTypeKey}&from=${b.from}&to=${b.to}`}
+                  aria-label={`Request ${bridgeDays(b)}`}
                 >
                   Request
                 </a>
               </Button>
             }
           >
-            {`Take ${shortDate(b.take)}`}
+            {`Take ${bridgeDays(b)}`}
           </ListItem>
         ))}
       </List>

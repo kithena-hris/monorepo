@@ -113,12 +113,14 @@ describe('my requests', () => {
 });
 
 describe('holidays', () => {
-  it('reads the year in the address, this year for one it cannot read, with the bridge days', async () => {
+  it('reads the year in the address, this year for one it cannot read, with Time Off’s bridge days', async () => {
+    const bridges = [{ from: '2026-12-07', to: '2026-12-07', used: 1 }];
     answering({
       TimeOffHolidays: () => ({
         ok: true,
         data: {
           holidays: [{ date: '2026-12-08', name: 'Inmaculada Concepción', layer: 'national' }],
+          bridges,
         },
       }),
     });
@@ -126,7 +128,7 @@ describe('holidays', () => {
     expect(asked('TimeOffHolidays')).toEqual([{ year: 2026 }]);
     expect(load).toMatchObject({
       status: 'ready',
-      data: { bridges: [{ take: '2026-12-07', holiday: 'Inmaculada Concepción', days: 4 }] },
+      data: { bridges },
     });
   });
 });

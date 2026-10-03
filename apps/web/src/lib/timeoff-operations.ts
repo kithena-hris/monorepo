@@ -90,7 +90,7 @@ export const OPERATIONS = {
   /** MT21: the holidays the caller’s work location observes */
   TimeOffHolidays: `query TimeOffHolidays($year: Int!) {
     timeOffHolidays(year: $year) {
-      holidays { date layer movedFrom name } locationKey year
+      bridges { away { days from to } from holidays { date name } text { ai text } to used } holidays { date layer movedFrom name } locationKey year
     }
   }`,
 
@@ -125,7 +125,7 @@ export const OPERATIONS = {
   /** T1: the clock, the balances, what is coming up and who is off today */
   TimeOffOverview: `query TimeOffOverview {
     timeOffOverview {
-      balances { allowance booked colorToken icon leaveTypeKey left name unit used yearly } clock { state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel } comingUp { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } teamToday { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } }
+      balances { allowance booked colorToken icon leaveTypeKey left name unit used yearly } bridges { away { days from to } from holidays { date name } text { ai text } to used } clock { state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel } comingUp { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } teamToday { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } }
     }
   }`,
 

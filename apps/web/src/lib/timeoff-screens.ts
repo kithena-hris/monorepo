@@ -4,7 +4,7 @@ import { timeOff } from './people';
 import type { ScreenLoad, ScreenQuery } from './people-screens';
 import { aroundRequest, calendarWindow, clashOf } from './timeoff-calendar-views';
 import type { OperationName } from './timeoff-operations';
-import { bridgeDays, upcomingHolidays, type Holiday } from './timeoff-views';
+import { upcomingHolidays, type Holiday } from './timeoff-views';
 
 /**
  * The data each Time Off screen is drawn from, fetched on the server before
@@ -102,11 +102,11 @@ async function parental(step: string): Promise<ScreenLoad> {
 }
 
 /**
- * T1, MT1: the overview, and beside it the holidays where the person works,
- * this year's and next (Coming up crosses New Year in December), for what is
- * coming up and the days that bridge a holiday to a weekend. `now` is when
- * it was asked, so the clock card's timer starts from the server's minute.
- * A holiday read Time Off refuses leaves the holidays out, not the page.
+ * T1, MT1: the overview, with its bridge days (Time Off's, TOF-085), and
+ * beside it the holidays where the person works, this year's and next
+ * (Coming up crosses New Year in December). `now` is when it was asked, so
+ * the clock card's timer starts from the server's minute. A holiday read
+ * Time Off refuses leaves the holidays out, not the page.
  */
 async function overview(): Promise<ScreenLoad> {
   const now = new Date();
@@ -119,17 +119,11 @@ async function overview(): Promise<ScreenLoad> {
   ]);
   if (base.status !== 'ready') return base;
   const holidays = years.flatMap((a) => (a.ok ? a.data.holidays : []));
-  const data = base.data as { comingUp: readonly { span: { from: string; to: string } }[] };
   return {
     status: 'ready',
     data: {
-      ...data,
+      ...(base.data as object),
       holidays: upcomingHolidays(holidays, today),
-      bridges: bridgeDays(
-        holidays,
-        today,
-        data.comingUp.map((r) => r.span),
-      ),
       now: now.toISOString(),
     },
   };
@@ -461,25 +455,15 @@ async function requestDetail(requestId: string): Promise<ScreenLoad> {
 
 /**
  * MT21: the holidays where the caller works in a year (this year when the
- * address names none it can read), with the days that bridge one to a
- * weekend, never one already booked.
+ * address names none it can read), with the bridge days Time Off found.
  */
 async function holidaysWhereYouWork(param: string | undefined): Promise<ScreenLoad> {
   const today = todayUtc();
   const year = /^\d{4}$/.test(param ?? '') ? Number(param) : Number(today.slice(0, 4));
-  const [answer, upcoming] = await Promise.all([
-    read('TimeOffHolidays', { year }),
-    timeOff<{ items: readonly { span: { from: string; to: string } }[] }>('TimeOffMyRequests', {
-      tab: 'upcoming',
-    }),
-  ]);
-  if (answer.status !== 'ready') return answer;
-  const data = answer.data as { holidays: Holiday[] };
-  const booked = upcoming.ok ? upcoming.data.items.map((r) => r.span) : [];
-  return {
-    status: 'ready',
-    data: { ...data, bridges: bridgeDays(data.holidays, today, booked, Infinity), today },
-  };
+  const answer = await read('TimeOffHolidays', { year });
+  return answer.status === 'ready'
+    ? { status: 'ready', data: { ...(answer.data as object), today } }
+    : answer;
 }
 
 /* ------------------------------------------------------------- settings -- */
