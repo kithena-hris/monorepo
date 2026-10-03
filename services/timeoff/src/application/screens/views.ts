@@ -536,9 +536,15 @@ const LeaveTypeRow = named(
   }),
 );
 
+/** A country pack the tenant's statutory types or holidays came from, and whether a lawyer signed it off. */
+const PackView = named(
+  'TimeOffCountryPack',
+  z.object({ country: z.string(), version: z.int(), reviewed: z.boolean() }),
+);
+
 export const LeaveTypesView = named(
   'TimeOffSettingsLeaveTypes',
-  z.object({ leaveTypes: z.array(LeaveTypeRow) }),
+  z.object({ leaveTypes: z.array(LeaveTypeRow), packs: z.array(PackView) }),
 );
 
 const PolicyVersionView = named(
@@ -557,6 +563,40 @@ export const LeaveTypeSettingView = named(
     leaveType: LeaveTypeRow,
     policies: z.array(
       named('TimeOffPolicy', z.object({ id: z.uuid(), versions: z.array(PolicyVersionView) })),
+    ),
+  }),
+);
+
+/** One amount now and under the draft. */
+const AmountChange = named(
+  'TimeOffAmountChange',
+  z.object({ current: DayAmount, draft: DayAmount }),
+);
+
+/**
+ * T30: what publishing the draft would do to each member the draft or the
+ * version in effect reaches, folded over this leave year
+ * (`domain/policy/preview.ts`). `effectiveFrom` is the leave year's first
+ * day, the date to publish from for the whole year to follow the draft.
+ * `draftVersion` is `null` when there is no draft, and `members` empty.
+ */
+export const PolicyPreviewView = named(
+  'TimeOffPolicyPreview',
+  z.object({
+    draftVersion: z.int().nullable(),
+    effectiveFrom: CalendarDate,
+    yearEnd: CalendarDate,
+    members: z.array(
+      named(
+        'TimeOffMemberPreview',
+        z.object({
+          personId: PersonId,
+          displayName: z.string(),
+          allowance: AmountChange,
+          left: AmountChange,
+          lostAtYearEnd: AmountChange,
+        }),
+      ),
     ),
   }),
 );
@@ -665,6 +705,7 @@ export const HolidaySettingsView = named(
   'TimeOffSettingsHolidays',
   z.object({
     year: z.int(),
+    packs: z.array(PackView),
     layers: z.array(HolidayLayerBody),
     locations: z.array(
       named(
@@ -735,6 +776,7 @@ export type TimesheetView = View<typeof TimesheetView>;
 export type RightNowView = View<typeof RightNowView>;
 export type LeaveTypesView = View<typeof LeaveTypesView>;
 export type LeaveTypeSettingView = View<typeof LeaveTypeSettingView>;
+export type PolicyPreviewView = View<typeof PolicyPreviewView>;
 export type NegativeBalanceView = View<typeof NegativeBalanceView>;
 export type AttendanceSettingsView = View<typeof AttendanceSettingsView>;
 export type ApprovalsSettingsView = View<typeof ApprovalsSettingsView>;

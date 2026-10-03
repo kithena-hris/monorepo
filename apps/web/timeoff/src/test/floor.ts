@@ -1,20 +1,26 @@
-/** WCAG 2.5.8 and the iOS HIG: nothing a finger has to hit is smaller. */
+/**
+ * WCAG 2.5.8 and the iOS HIG: nothing a finger has to hit is smaller than
+ * 44px. People's phone suite's measure (`apps/web/people/src/test`), which
+ * counts every kind of control and what a finger actually hits.
+ */
 export const FLOOR = 44;
 
-/**
- * Targets under the floor, by name and size, in a real browser. A `::before`
- * hit area counts, as Reach draws one; what is hidden from everyone
- * (`aria-hidden`, a modal's inert page) is not a target.
- */
+const TARGETS =
+  'button, a[href], input:not([type="hidden"]), select, textarea, [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"], [role="tab"]';
+
+/** Targets under the floor, by name and size. A `::before` hit area counts, as Reach draws one. */
 export function underFloor(root: Element): string[] {
-  return [...root.querySelectorAll<HTMLElement>('button, a[href]')].flatMap((el) => {
+  return [...root.querySelectorAll<HTMLElement>(TARGETS)].flatMap((el) => {
     if (el.closest('[aria-hidden="true"]') !== null) return [];
-    // A control inside a label is hit through the label: a radio card's
-    // radio is visually hidden and the whole card is the target.
-    const target = el.closest('label') ?? el;
-    const box = target.getBoundingClientRect();
+    // What a finger actually hits: a field's whole shell (the input fills it),
+    // or the card-sized label a `RadioCard` wraps its radio in.
+    const surface =
+      el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+        ? (el.parentElement ?? el)
+        : (el.closest('label') ?? el);
+    const box = surface.getBoundingClientRect();
     if (box.width === 0 || box.height === 0) return [];
-    const hit = getComputedStyle(target, '::before');
+    const hit = getComputedStyle(el, '::before');
     const width = Math.max(box.width, Number.parseFloat(hit.width) || 0);
     const height = Math.max(box.height, Number.parseFloat(hit.height) || 0);
     if (width >= FLOOR - 0.5 && height >= FLOOR - 0.5) return [];

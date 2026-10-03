@@ -4,6 +4,7 @@ import { Skeleton } from '@reach/ui';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTransition, type JSX } from 'react';
 
+import * as settings from '../app/(app)/settings/time-off/actions';
 import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS, matchPath, remotePath } from '../lib/remotes';
@@ -49,6 +50,13 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       : load.status === 'error'
         ? { status: 'error' as const, message: load.message, retry: refresh }
         : { status: 'loading' as const };
+  /** Another view in the address (a path, a query patch), followed client-side so the server reads it. */
+  const goTo = (patch: Readonly<Record<string, string | null>>, path?: string): void => {
+    startTransition(() => {
+      const to = withQuery(path ?? window.location.pathname, window.location.search, patch);
+      router.push(to, { scroll: false });
+    });
+  };
 
   const props = ((): Record<string, unknown> => {
     switch (route?.component) {
@@ -116,6 +124,34 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return { load: loadable, onCorrect: actions.correctPunch };
       case 'TeamNow':
         return { load: loadable };
+      // Settings (TOF-078 to TOF-083).
+      case 'LeaveTypes':
+        return { load: loadable };
+      case 'LeaveType':
+        return {
+          load: loadable,
+          onSaveDraft: settings.savePolicyDraft,
+          onPublish: settings.publishPolicy,
+          onPolicy: (policy: string) => {
+            goTo({ policy, as: null });
+          },
+          onPreviewAs: (as: string) => {
+            goTo({ as });
+          },
+        };
+      case 'NegativeBalance':
+        return { load: loadable, onSave: settings.saveNegativeBalance };
+      case 'AttendanceSettings':
+        return { load: loadable, onSave: settings.saveAttendanceRules };
+      case 'ApprovalSettings':
+        return { load: loadable, onSave: settings.saveApprovals };
+      case 'HolidaySettings':
+        return {
+          load: loadable,
+          onYear: (year: number) => {
+            goTo({}, `/settings/time-off/holidays/${String(year)}`);
+          },
+        };
       default:
         return {};
     }

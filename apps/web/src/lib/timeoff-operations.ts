@@ -83,7 +83,7 @@ export const OPERATIONS = {
   /** T36: holiday calendars, and what each work location observes in a year; HR */
   TimeOffHolidaySettings: `query TimeOffHolidaySettings($year: Int!) {
     timeOffHolidaySettings(year: $year) {
-      layers { holidays { date name } key level name weekendRule } locations { holidays { date layer movedFrom name } layerKeys locationKey } year
+      layers { holidays { date name } key level name weekendRule } locations { holidays { date layer movedFrom name } layerKeys locationKey } packs { country reviewed version } year
     }
   }`,
 
@@ -104,7 +104,7 @@ export const OPERATIONS = {
   /** T29: every leave type; HR */
   TimeOffLeaveTypeSettings: `query TimeOffLeaveTypeSettings {
     timeOffLeaveTypeSettings {
-      leaveTypes { definition { appliesTo { clauses combine } approvalRuleKey category colorToken icon key name { default translations } paid requiresNote { afterDays } statutory tracked unit visibility } deleted hidden policyIds }
+      leaveTypes { definition { appliesTo { clauses combine } approvalRuleKey category colorToken icon key name { default translations } paid requiresNote { afterDays } statutory tracked unit visibility } deleted hidden policyIds } packs { country reviewed version }
     }
   }`,
 
@@ -126,6 +126,13 @@ export const OPERATIONS = {
   TimeOffOverview: `query TimeOffOverview {
     timeOffOverview {
       balances { allowance booked colorToken icon leaveTypeKey left name unit used yearly } clock { state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel } comingUp { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } teamToday { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } }
+    }
+  }`,
+
+  /** T30: what publishing a policy's draft would do to each member, folded; HR */
+  TimeOffPolicyPreview: `query TimeOffPolicyPreview($policyId: String!) {
+    timeOffPolicyPreview(policyId: $policyId) {
+      draftVersion effectiveFrom members { allowance { current draft } displayName left { current draft } lostAtYearEnd { current draft } personId } yearEnd
     }
   }`,
 

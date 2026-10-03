@@ -1309,36 +1309,88 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### Screens — settings
 
-### [ ] TOF-078 — Leave types
+### [x] TOF-078 — Leave types
 
 - **Screens** T29 · **Spec** PRD §6.1
 - **Depends on** TOF-041, TOF-058
+- **As built** `apps/web/timeoff/src/settings/leave-types.tsx`: one `List` at
+  every width, a row per type with its terms, who it reaches and who
+  approves it (the approval rules, read beside it), each opening its
+  policy. The settings views now carry `packs` (country, version,
+  `reviewed`), so Spain's unreviewed pack is an `Alert` above the list and
+  above the holidays. "Add leave type" and "Write a policy" are not here
+  yet: the first needs its form, the second is T32 (TOF-094).
 
-### [ ] TOF-079 — Editing a policy
+### [x] TOF-079 — Editing a policy
 
 - **Screens** T30 · **Spec** PRD §6.2, §6.3
 - **Depends on** TOF-078
 - **Approach** The change preview is computed (TOF-093 adds shadow runs).
+- **As built** `settings/leave-type.tsx` edits the policy chosen by
+  `?policy=` (the type's first by default) as a draft behind `FormSaveBar`,
+  and publishes it from the leave year's first day. The preview is
+  `timeOffPolicyPreview`: `domain/policy/preview.ts` runs the entitlement
+  fold over the draft and the version in effect for each member either
+  reaches, and the screen groups who gets more, who fewer and who would
+  lose days at the year end above the carry-over cap. "Preview as" is a
+  `Select` kept in `?as=`, showing that member's allowance and year-end
+  balance as `Stat from`, which leaves TOF-093 its shadow runs. Who a
+  policy applies to is shown, not edited.
 
-### [ ] TOF-080 — Negative balance rules
+### [x] TOF-080 — Negative balance rules
 
 - **Screens** T31 · **Spec** PRD §7.4
 - **Depends on** TOF-078
+- **As built** `settings/negative-balance.tsx`: the rule of the policy chosen
+  under "For", as a `Toggle`, a `NumberField`, a `SegmentedControl` for who
+  approves and two `RadioCard` groups, behind `FormSaveBar`. Saving revises
+  the policy and publishes it from today, or joins the policy's draft when
+  it has one (said above the form). "What people see" is the sentence a
+  request that crosses zero shows (`negativeSentence`). The design's "Right
+  now" figures and the count of contracts without a final-pay clause need
+  data Time Off does not have (balances by sign; contracts), so the page
+  says what to check instead.
 
-### [ ] TOF-081 — Attendance rules
+### [x] TOF-081 — Attendance rules
 
 - **Screens** T33 · **Spec** PRD §11.5
 - **Depends on** TOF-078
+- **As built** `settings/attendance-settings.tsx`: breaks, rest and the
+  weekly maximum in the hours a form asks for (saved in minutes), and what
+  overtime becomes with its rate, behind `FormSaveBar`. "What Kithena never
+  records" is an `Alert` on the page. Ways to clock in lists the two Phase 1
+  has (web, mobile) and the office-area check as off, without switches:
+  readers and the kiosk are TOF-107 onwards, and reminders, automatic
+  clock-out and schedules other than the default have no rule in Time Off
+  yet, so the page shows the default schedule rather than a list to edit.
 
-### [ ] TOF-082 — Approval rules and team minimums
+### [x] TOF-082 — Approval rules and team minimums
 
 - **Screens** T34 · **Spec** PRD §9.1, §9.3
 - **Depends on** TOF-078
+- **As built** `settings/approval-settings.tsx`: each rule as a field named
+  for what it covers ("Any request below zero", "Parental leave plans"),
+  its chain read as "Request → Manager → HR" and chosen from a `Select`;
+  automatic approval as checkboxes, the sick threshold a `NumberField`;
+  each team's minimum as none, people or a share. One save sends the rules
+  and only the minimums that changed (`saveApprovals`). Rules are edited,
+  not added or removed, and "If nobody decides" waits for the escalation
+  settings to be readable.
 
-### [ ] TOF-083 — Holiday calendars
+### [x] TOF-083 — Holiday calendars
 
 - **Screens** T36 (without the AI draft) · **Spec** PRD §10.2
 - **Depends on** TOF-078
+- **As built** `settings/holiday-settings.tsx`: the year in the path
+  (`/settings/time-off/holidays/2027`, this year without one) switched by a
+  `SegmentedControl`, the work locations as a `List` of links keeping
+  `?location=`, and the chosen location's resolved days with the layer each
+  comes from and any move. Spain's unreviewed pack is the same notice as on
+  leave types. Read-only: saving a layer and assigning layers to a location
+  have their operations, and need their forms.
+  `settings/settings.phone.test.tsx` draws every settings screen at 390×844
+  under the Settings frame: axe with contrast, the 44px floor (People's
+  measure, `test/floor.ts`) and no sideways scroll.
 
 ---
 

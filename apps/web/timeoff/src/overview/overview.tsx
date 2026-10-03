@@ -695,6 +695,8 @@ export function OverviewSkeleton(): JSX.Element {
 
 /* -------------------------------------------------------------- words -- */
 
+// The settings screens draw leave types the way the overview does.
+export { amount, chartTone, leaveIcon };
 const clockTime = (minutes: number): string =>
   `${pad(Math.floor(minutes / 60) % 24)}:${pad(minutes % 60)}`;
 function duration(minutes: number): string {
