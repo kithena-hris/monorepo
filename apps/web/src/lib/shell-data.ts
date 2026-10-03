@@ -5,6 +5,7 @@ import {
   type Area,
   type HeaderFrame,
   type Place,
+  type SlotName,
 } from './remotes';
 
 /**
@@ -80,6 +81,28 @@ export interface AreaPlaces {
   readonly counts?: Readonly<Record<string, number>>;
   /** By a tab's path, the same. */
   readonly tabCounts?: Readonly<Record<string, number>>;
+  /** The places in the shell's chrome its remote fills, and with which export (`lib/slots.ts`). */
+  readonly slots?: Readonly<Partial<Record<SlotName, string>>>;
+}
+
+/**
+ * A place in the shell's chrome a remote fills (`slots` in its manifest), as
+ * the layout fetched it (`lib/slots.ts`): its export, where its code is, and
+ * the data it is drawn from.
+ */
+export interface ShellSlot {
+  readonly area: Area['name'];
+  readonly slot: SlotName;
+  readonly route: {
+    readonly entry: string;
+    readonly component: string;
+    readonly ssr?: string;
+    readonly stylesheet?: { readonly href: string; readonly integrity: string };
+  };
+  readonly load:
+    | { readonly status: 'ready'; readonly data: unknown }
+    | { readonly status: 'error'; readonly message: string }
+    | { readonly status: 'none' };
 }
 
 /**

@@ -3,7 +3,7 @@
  * 44px. People's phone suite's measure (`apps/web/people/src/test`), which
  * counts every kind of control and what a finger actually hits.
  */
-const FLOOR = 44;
+export const FLOOR = 44;
 
 const TARGETS =
   'button, a[href], input:not([type="hidden"]), select, textarea, [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"], [role="tab"]';

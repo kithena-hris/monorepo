@@ -12,7 +12,7 @@ exec docker run --rm --name kithena-router-dev -p 4000:4000 \
   -e CONFIG_PATH=/etc/router/config.yaml,/etc/router/deploy.yaml \
   -e AUTH_JWKS_URL="${AUTH_JWKS_URL_DOCKER:-http://host.docker.internal:4100/.well-known/jwks.json}" \
   -e AUTH_TOKEN_AUDIENCE="${AUTH_TOKEN_AUDIENCE:-kithena-router}" \
-  -e KITHENA_ENTITLEMENTS="${KITHENA_ENTITLEMENTS:-[\"module.people\"]}" \
+  -e KITHENA_ENTITLEMENTS="${KITHENA_ENTITLEMENTS:-[\"module.people\",\"module.timeoff\"]}" \
   -e PEOPLE_API_TOKEN="${PEOPLE_API_TOKEN:-${INTERNAL_API_TOKEN:-dev-only-key}}" \
   -e AUDIT_API_TOKEN="${AUDIT_API_TOKEN:-${INTERNAL_API_TOKEN:-dev-only-key}}" \
   -e TIMEOFF_API_TOKEN="${TIMEOFF_API_TOKEN:-${INTERNAL_API_TOKEN:-dev-only-key}}" \

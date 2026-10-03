@@ -17,6 +17,29 @@ vi.mock('../app/(app)/settings/shortcuts/actions', () => ({
   saveShortcuts: vi.fn(() => Promise.resolve({ ok: true })),
 }));
 vi.mock('../app/assistant/actions', () => ({ askAssistant: vi.fn() }));
+const punch = vi.fn((..._args: unknown[]) => Promise.resolve({ ok: true }));
+vi.mock('../app/(app)/time-off/actions', () => ({ punch, correctPunch: vi.fn() }));
+/*
+ * The remote's code is the remote's to test (`apps/web/timeoff/src/clock/`);
+ * here a stand-in shows what the shell hands a place in its chrome, and
+ * presses the pill as the clock would.
+ */
+vi.mock('./remote-screen', () => ({
+  RemoteScreen: (props: {
+    name: string;
+    slot?: string;
+    route: { component: string };
+    props: { load: { status: string }; onPunch: (...a: unknown[]) => unknown };
+  }) => (
+    <button
+      type="button"
+      data-slot={props.slot}
+      onClick={() => void props.props.onPunch('in', 'office', 'web')}
+    >
+      {`${props.name} ${props.route.component} ${props.props.load.status}`}
+    </button>
+  ),
+}));
 
 const { AppShell } = await import('./app-shell');
 const { matchRoute, placesFor } = await import('../lib/remotes');
@@ -159,5 +182,47 @@ describe('Time off in the shell', () => {
     expect(tabs.getByRole('link', { name: 'Time off' }).getAttribute('href')).toBe(
       '/time-off/overview',
     );
+  });
+});
+
+describe('the clock in the top bar (TOF-059)', () => {
+  const slot = {
+    area: 'timeoff' as const,
+    slot: 'topBar' as const,
+    route: { entry: '/_timeoff/remoteEntry.js', component: 'TopBarClock' },
+    load: { status: 'ready' as const, data: {} },
+  };
+
+  it('is drawn on a People page for a company with Time Off, and punches through the shell', () => {
+    pathname = '/people/directory';
+    render(
+      <AppShell
+        person={{ name: 'Adam Novak', email: 'adam@acme.example' }}
+        companyName="Acme"
+        entitlements={['module.people', 'module.timeoff']}
+        shell={EMPTY_SHELL}
+        slots={[slot]}
+      >
+        <p>Directory</p>
+      </AppShell>,
+    );
+    const pill = screen.getByRole('button', { name: 'timeoff TopBarClock ready' });
+    expect(pill.getAttribute('data-slot')).toBe('topBar');
+    pill.click();
+    expect(punch).toHaveBeenCalledWith('in', 'office', 'web');
+  });
+
+  it('draws nothing there for a company without it', () => {
+    render(
+      <AppShell
+        person={{ name: 'Adam Novak', email: 'adam@acme.example' }}
+        companyName="Acme"
+        entitlements={['module.people']}
+        shell={EMPTY_SHELL}
+      >
+        <p>Directory</p>
+      </AppShell>,
+    );
+    expect(screen.queryByRole('button', { name: /TopBarClock/ })).toBeNull();
   });
 });

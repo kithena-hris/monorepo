@@ -1,7 +1,7 @@
 'use client';
 
 import { Skeleton } from '@reach/ui';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTransition, type JSX } from 'react';
 
 import * as settings from '../app/(app)/settings/time-off/actions';
@@ -9,7 +9,7 @@ import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS, matchPath, remotePath } from '../lib/remotes';
 import { areaFrame } from '../lib/shell-data';
-import { withQuery } from '../lib/url-state';
+import { noteInAddress, withQuery, type HistoryMode } from '../lib/url-state';
 import { useShellData } from './app-shell';
 import { RemoteScreen, remoteLoaded, type RemoteRoute } from './remote-screen';
 
@@ -31,11 +31,18 @@ export interface TimeOffScreenProps {
 
 export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.Element {
   const router = useRouter();
+  const pathname = usePathname();
+  const live = useSearchParams();
   const [, startTransition] = useTransition();
   const refresh = (): void => {
     startTransition(() => {
       router.refresh();
     });
+  };
+  /** A navigation the screen asks for: client-side, the page where it was. */
+  const go = (to: string, mode: HistoryMode = 'push'): void => {
+    if (mode === 'push') router.push(to, { scroll: false });
+    else router.replace(to, { scroll: false });
   };
   const loadable =
     load.status === 'ready'
@@ -44,7 +51,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         ? { status: 'error' as const, message: load.message, retry: refresh }
         : { status: 'loading' as const };
   /** Another view in the address (a path, a query patch), followed client-side so the server reads it. */
-  const go = (patch: Readonly<Record<string, string | null>>, path?: string): void => {
+  const goTo = (patch: Readonly<Record<string, string | null>>, path?: string): void => {
     startTransition(() => {
       const to = withQuery(path ?? window.location.pathname, window.location.search, patch);
       router.push(to, { scroll: false });
@@ -55,6 +62,68 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
     switch (route?.component) {
       case 'Overview':
         return { load: loadable, onPunch: actions.punch };
+      // The manager's (TOF-068 to TOF-073). Which tab, request or view is the
+      // address; a month, a scope or a clash is a navigation Time Off answers,
+      // and the types, holidays and day open are noted in the address only.
+      case 'Approvals':
+        return {
+          load: loadable,
+          path: pathname,
+          onApprove: actions.approveRequests,
+          onDecide: actions.decideRequest,
+          onSuggest: actions.suggestDates,
+          onNavigate: go,
+        };
+      case 'Delegation':
+        return {
+          load: loadable,
+          onSave: actions.setDelegation,
+          onRemove: actions.removeDelegation,
+        };
+      case 'TeamCalendar':
+        return {
+          load: loadable,
+          path: pathname,
+          query: Object.fromEntries(live),
+          onNavigate: go,
+          onFilter: (patch: Readonly<Record<string, string | null>>) => {
+            noteInAddress(patch, 'push');
+          },
+          onSubscribe: actions.subscribeCalendar,
+          onSuggest: actions.suggestDates,
+          onDecide: actions.decideRequest,
+        };
+      // The employee's screens (TOF-062 to TOF-067).
+      case 'RequestTimeOff':
+        return {
+          load: loadable,
+          // What is asked lives in the address; the server asks Time Off again.
+          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
+            go(withQuery(window.location.pathname, window.location.search, patch), mode);
+          },
+          onSend: actions.sendRequest,
+          onNavigate: go,
+        };
+      case 'MyRequestsUpcoming':
+      case 'MyRequestsPast':
+      case 'MyRequestsCancelled':
+      case 'RequestDetail':
+        return {
+          load: loadable,
+          onCancel: actions.cancelRequest,
+          onChange: actions.changeRequest,
+          onShorten: actions.shortenRequest,
+          onAnswer: actions.answerSuggestion,
+        };
+      case 'Balance':
+        return { load: loadable };
+      case 'Holidays':
+        return { load: loadable, onNavigate: go, onSubscribe: actions.subscribeToCalendar };
+      // TOF-074 to TOF-077: attendance.
+      case 'Timesheet':
+        return { load: loadable, onCorrect: actions.correctPunch };
+      case 'TeamNow':
+        return { load: loadable };
       // Settings (TOF-078 to TOF-083).
       case 'LeaveTypes':
         return { load: loadable };
@@ -64,10 +133,10 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onSaveDraft: settings.savePolicyDraft,
           onPublish: settings.publishPolicy,
           onPolicy: (policy: string) => {
-            go({ policy, as: null });
+            goTo({ policy, as: null });
           },
           onPreviewAs: (as: string) => {
-            go({ as });
+            goTo({ as });
           },
         };
       case 'NegativeBalance':
@@ -80,7 +149,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return {
           load: loadable,
           onYear: (year: number) => {
-            go({}, `/settings/time-off/holidays/${String(year)}`);
+            goTo({}, `/settings/time-off/holidays/${String(year)}`);
           },
         };
       default:
@@ -93,7 +162,14 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       name={AREAS.timeoff.name}
       area={AREAS.timeoff.label}
       route={route}
-      props={{ ...props, frame }}
+      props={{
+        ...props,
+        // What the address asked for and Time Off refused, said above the page.
+        frame:
+          load.status === 'ready' && load.notice !== undefined
+            ? { ...frame, notice: load.notice }
+            : frame,
+      }}
       // Drawn in the browser, the screen is its header's shape until it is.
       fallback={
         <Skeleton

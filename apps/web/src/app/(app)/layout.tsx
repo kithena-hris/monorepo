@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from 'react';
 
 import { AppShell } from '../../components/app-shell';
 import { signedIn } from '../../lib/signed-in';
+import { slotsOf } from '../../lib/slots';
 
 /**
  * The signed-in shell, once, around every screen inside it.
@@ -25,6 +26,8 @@ export default async function SignedInLayout({
 }): Promise<JSX.Element> {
   const { person, entitlements, company, logoUrl, shell, sidebarCollapsed, shortcuts } =
     await signedIn();
+  // What the company's remotes draw in the chrome: Time Off's clock (TOF-059).
+  const slots = await slotsOf(shell);
   return (
     <AppShell
       person={person}
@@ -34,6 +37,7 @@ export default async function SignedInLayout({
       shell={shell}
       sidebarCollapsed={sidebarCollapsed}
       shortcuts={shortcuts}
+      slots={slots}
     >
       {children}
     </AppShell>

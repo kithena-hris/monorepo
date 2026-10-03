@@ -15,12 +15,34 @@ import {
   Skeleton,
   Stat,
   icons,
+  useCoarsePointerAt,
   type IconName,
   type RangeBarSegment,
 } from '@reach/ui';
-import { createElement, useEffect, useState, useTransition, type JSX, type ReactNode } from 'react';
+import {
+  createElement,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
+import { ClockIn, ClockOutSheet } from '../clock/clock';
 import { Loaded, type Loadable, type Outcome } from '../load';
+import {
+  amount,
+  chartTone,
+  daysBetween,
+  leaveIcon,
+  longDate,
+  nextWorkingDay,
+  pad,
+  shortDate,
+  spanLabel,
+  statusOf,
+} from '../words';
 
 /**
  * The overview (T1, MT1): the day and the year on one page. The live clock,
@@ -121,8 +143,15 @@ export interface OverviewData {
 
 export interface OverviewProps {
   readonly load: Loadable<OverviewData>;
-  /** Clock in, start or end a break, clock out. Absent, the clock has no buttons. */
-  readonly onPunch?: (kind: PunchKind, workModel: WorkModel) => Promise<Outcome>;
+  /**
+   * Clock in, start or end a break, clock out; `mobile` when under a finger
+   * (TOF-076). Absent, the clock has no buttons.
+   */
+  readonly onPunch?: (
+    kind: PunchKind,
+    workModel: WorkModel,
+    source?: 'web' | 'mobile',
+  ) => Promise<Outcome>;
 }
 
 export function Overview({ load, onPunch }: OverviewProps): JSX.Element {
@@ -234,11 +263,17 @@ function ClockCard({
   const workModel = clock.workModel ?? 'office';
   const [pending, start] = useTransition();
   const [failed, setFailed] = useState<string | null>(null);
-  const press = (kind: PunchKind): void => {
+  // Under a finger (TOF-076, MT3, MT4): clocking in is a slide, from where
+  // you say you are, and clocking out shows the day first.
+  const card = useRef<HTMLDivElement>(null);
+  const coarse = useCoarsePointerAt(card);
+  const [where, setWhere] = useState<WorkModel>(workModel);
+  const [closing, setClosing] = useState(false);
+  const press = (kind: PunchKind, model: WorkModel = workModel, mobile = false): void => {
     if (onPunch === undefined) return;
     setFailed(null);
     start(async () => {
-      const outcome = await onPunch(kind, workModel);
+      const outcome = await (mobile ? onPunch(kind, model, 'mobile') : onPunch(kind, model));
       if (!outcome.ok) setFailed(outcome.message);
     });
   };
@@ -248,8 +283,11 @@ function ClockCard({
       variant={primary ? 'primary' : 'secondary'}
       startIcon={createElement(icons[icon], { 'aria-hidden': true })}
       disabled={onPunch === undefined || pending}
+      // Under a finger the slide below clocks in.
+      className={kind === 'in' ? 'touch:hidden' : undefined}
       onClick={() => {
-        press(kind);
+        if (kind === 'out' && coarse) setClosing(true);
+        else press(kind);
       }}
     >
       {label}
@@ -286,7 +324,7 @@ function ClockCard({
           <LiveTimer workedMinutes={worked} running={state === 'in'} since={now} />
           <p className="mt-2 text-sm text-fg-muted">{sub}</p>
         </div>
-        <div className="flex gap-2">
+        <div ref={card} className="flex gap-2">
           {state === 'in'
             ? [
                 action('break_start', 'Start break', 'break', false),
@@ -309,6 +347,30 @@ function ClockCard({
           ...(SEGMENT[s.kind] ?? { label: s.kind }),
         }))}
       />
+      {state === 'out' ? (
+        <ClockIn
+          className="hidden touch:flex"
+          workModel={where}
+          onWorkModel={setWhere}
+          offices={[]}
+          disabled={onPunch === undefined || pending}
+          onClockIn={(model) => {
+            press('in', model, true);
+          }}
+        />
+      ) : state === 'in' ? (
+        <ClockOutSheet
+          open={closing}
+          onOpenChange={setClosing}
+          day={today}
+          minute={minuteOfDay(now, zone)}
+          disabled={onPunch === undefined || pending}
+          onClockOut={() => {
+            setClosing(false);
+            press('out', workModel, true);
+          }}
+        />
+      ) : null}
       {failed === null ? null : (
         <Alert tone="danger" title="The clock did not change">
           {failed}
@@ -386,6 +448,16 @@ function Balances({
             icon={leaveIcon(b.icon)}
             value={hours ? `${amount(b.left)}h` : amount(b.left)}
             unit={hours ? 'banked' : 'days left'}
+            description={
+              <Button variant="link" size="xs" asChild>
+                <a
+                  href={`/time-off/balances/${b.leaveTypeKey}`}
+                  aria-label={`${b.name}: where the days went`}
+                >
+                  Where the days went
+                </a>
+              </Button>
+            }
           >
             {b.yearly === null ? null : (
               <Progress
@@ -416,13 +488,6 @@ function Balances({
 }
 
 /* ---------------------------------------------------------- coming up -- */
-
-const STATUS: Record<string, { label: string; tone: 'success' | 'warning' | 'neutral' | 'info' }> =
-  {
-    pending: { label: 'Waiting for approval', tone: 'warning' },
-    approved: { label: 'Approved', tone: 'success' },
-    proposed: { label: 'New dates suggested', tone: 'info' },
-  };
 
 function ComingUp({
   data,
@@ -474,10 +539,7 @@ function ComingUp({
               );
             }
             const type = data.balances.find((b) => b.leaveTypeKey === request.leaveTypeKey);
-            const status = STATUS[request.status] ?? {
-              label: request.status,
-              tone: 'neutral' as const,
-            };
+            const status = statusOf(request.status);
             const days = amount(request.workingDays);
             return (
               <ListItem
@@ -633,34 +695,8 @@ export function OverviewSkeleton(): JSX.Element {
 
 /* -------------------------------------------------------------- words -- */
 
-/** Time Off's icon names for leave types, as Reach's words for them. */
-const LEAVE_ICONS: Record<string, IconName> = {
-  sun: 'vacation',
-  coffee: 'break',
-  thermometer: 'sick',
-  baby: 'parental',
-  timer: 'overtime',
-  'circle-slash': 'unpaid',
-  plane: 'travel',
-  flag: 'flagged',
-};
-
-export function leaveIcon(name: string | undefined): ReactNode {
-  return createElement(icons[LEAVE_ICONS[name ?? ''] ?? 'leave'], { 'aria-hidden': true });
-}
-
-type Tone = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4' | 'chart-5' | 'chart-6' | 'neutral';
-
-/** A leave type's colour as a series tone; the calendar's two greys are neutral. */
-export function chartTone(token: string | undefined): Tone {
-  return token !== undefined && /^chart-[1-6]$/.test(token) ? (token as Tone) : 'neutral';
-}
-
-/** "11.500" as "11.5": a decimal string, never through a float for anything but display. */
-export const amount = (value: string): string =>
-  value.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
-
-const pad = (n: number): string => String(n).padStart(2, '0');
+// The settings screens draw leave types the way the overview does.
+export { amount, chartTone, leaveIcon };
 const clockTime = (minutes: number): string =>
   `${pad(Math.floor(minutes / 60) % 24)}:${pad(minutes % 60)}`;
 function duration(minutes: number): string {
@@ -695,30 +731,4 @@ const minuteOfDay = (at: string, zone: string): number => {
 function partOfDay(at: string, zone: string): string {
   const hour = Math.floor(minuteOfDay(at, zone) / 60);
   return hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
-}
-
-/** Calendar dates are dates: read and written in UTC, so no zone moves them a day. */
-const dateFormat = (options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' });
-const asDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
-const longDate = (date: string): string =>
-  dateFormat({ weekday: 'long', day: 'numeric', month: 'long' }).format(asDate(date));
-const shortDate = (date: string): string =>
-  dateFormat({ weekday: 'short', day: 'numeric', month: 'short' }).format(asDate(date));
-function spanLabel(from: string, to: string): string {
-  const day = dateFormat({ day: 'numeric' });
-  const dayMonth = dateFormat({ day: 'numeric', month: 'short' });
-  if (from === to) return dayMonth.format(asDate(from));
-  return from.slice(0, 7) === to.slice(0, 7)
-    ? `${day.format(asDate(from))}–${dayMonth.format(asDate(to))}`
-    : `${dayMonth.format(asDate(from))} – ${dayMonth.format(asDate(to))}`;
-}
-const daysBetween = (from: string, to: string): number =>
-  Math.round((asDate(to).getTime() - asDate(from).getTime()) / 86_400_000);
-/** The weekday after `date`. ponytail: Monday to Friday, until the member's own pattern crosses. */
-function nextWorkingDay(date: string): string {
-  const next = asDate(date);
-  do next.setUTCDate(next.getUTCDate() + 1);
-  while (next.getUTCDay() === 0 || next.getUTCDay() === 6);
-  return next.toISOString().slice(0, 10);
 }

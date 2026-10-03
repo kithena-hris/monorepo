@@ -101,12 +101,18 @@ export function Kbd({ className, keyName, children, ...props }: KbdProps): JSX.E
  * named where it changes what the key means — a letter (Shift+J is not J), or
  * a key that types nothing (Shift+Enter) — and not where the character
  * already carries it: `?` is `'?'`, not Shift+/. `event.key` rather than
- * `code`, so a Dvorak or AZERTY layout gets the letter it is looking at.
+ * `code`, so a Dvorak or AZERTY layout gets the letter it is looking at —
+ * except under Alt, where a Mac types a character instead (⌥T is `†`), so
+ * the key's own letter is read from `code`.
  */
 export function chordOf(
-  event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>,
+  event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'> & {
+    readonly code?: string;
+  },
 ): string | null {
-  const { key } = event;
+  const letter =
+    event.altKey && !/^[a-z]$/i.test(event.key) ? /^Key([A-Z])$/.exec(event.code ?? '') : null;
+  const key = letter?.[1] ?? event.key;
   if (key === 'Shift' || key === 'Control' || key === 'Meta' || key === 'Alt' || key === '') {
     return null;
   }

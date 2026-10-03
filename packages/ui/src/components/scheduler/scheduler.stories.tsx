@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
+import { useState, type JSX } from 'react';
 
 import { Avatar } from '../avatar/avatar';
 import {
@@ -391,6 +391,68 @@ export const Month: Story = {
           {...args}
           {...(selected === undefined ? {} : { selected })}
           onSelect={setSelected}
+        />
+      </div>
+    );
+  },
+};
+
+/** What a day's detail might say: who is away that day. */
+function WhoIsAway({ day }: { day: string }): JSX.Element {
+  const off = away.filter(
+    (event) => event.column <= day && day <= (event.endColumn ?? event.column),
+  );
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-md font-semibold">
+        {october.find((entry) => entry.id === day)?.fullLabel}
+      </p>
+      {off.length === 0 ? (
+        <p className="text-sm text-fg-muted">Everybody is in.</p>
+      ) : (
+        <ul className="flex flex-col gap-2 text-sm">
+          {off.map((event) => (
+            <li key={event.id}>
+              {people.find((person) => person.id === event.row)?.label}, {event.title}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export const DayDetail: Story = {
+  name: 'About one day',
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        story:
+          'With `onSelect`, a day in a month, or a day’s heading in rows, is a button; `detail` opens from the `selected` day as a popover, a sheet under a finger, named by the day, and `onDismiss` clears the selection when it closes. Focus goes back to the day.',
+      },
+    },
+  },
+  args: {
+    variant: 'rows',
+    label: 'Team A, 19 to 23 October',
+    columns: october.slice(18, 23),
+    rows: people,
+    events: away,
+    selected: CLASH,
+  },
+  render: function DayDetailStory(args) {
+    const [selected, setSelected] = useState<string | undefined>(args.selected);
+    return (
+      <div className="p-4">
+        <Scheduler
+          {...args}
+          {...(selected === undefined ? {} : { selected })}
+          onSelect={setSelected}
+          detail={selected === undefined ? undefined : <WhoIsAway day={selected} />}
+          onDismiss={() => {
+            setSelected(undefined);
+          }}
         />
       </div>
     );

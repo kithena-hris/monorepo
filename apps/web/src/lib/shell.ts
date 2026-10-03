@@ -90,6 +90,7 @@ async function areaPlaces(area: Area, base: Promise<ShellData>): Promise<AreaPla
     screens: found.screens,
     counts: counts.sections,
     tabCounts: counts.tabs,
+    slots: found.slots,
   };
 }
 
