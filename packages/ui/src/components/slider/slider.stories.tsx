@@ -345,3 +345,32 @@ export const Disabled: Story = {
     </div>
   ),
 };
+
+export const Confirm: Story = {
+  name: 'Slide to confirm',
+  args: { label: 'Slide to confirm', variant: 'confirm' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`variant="confirm"`: drag the knob to the end to confirm an action a stray tap must not trigger. Let go short of the end and it slides back (instantly under reduced motion). From a keyboard, Enter, Space, End or a forward arrow confirms: a focused control and a key press are deliberate already. The control heights come from the density tokens, so it is taller under a finger.',
+      },
+    },
+  },
+  render: function ConfirmStory(args) {
+    const [count, setCount] = useState(0);
+    return (
+      <div className="max-w-sm space-y-3">
+        <Slider
+          {...args}
+          onConfirm={() => {
+            setCount((value) => value + 1);
+          }}
+        />
+        <p className="text-sm text-fg-muted" aria-live="polite">
+          Confirmed {count} {count === 1 ? 'time' : 'times'}
+        </p>
+      </div>
+    );
+  },
+};

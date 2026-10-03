@@ -663,9 +663,10 @@
       transform: translateX(300%) scaleX(0.35);
     }
   }
+  /* `--pulse-color` lets a mark ring in its own tone; the accent wash otherwise. */
   @keyframes pulse-ring {
     0% {
-      box-shadow: 0 0 0 0 var(--reach-color-accent-subtle);
+      box-shadow: 0 0 0 0 var(--pulse-color, var(--reach-color-accent-subtle));
     }
     70%,
     100% {
