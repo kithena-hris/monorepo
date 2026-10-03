@@ -79,7 +79,9 @@ function world(options: { published?: number | null; hr?: boolean } = {}) {
   });
   let ids = 0;
   const approve: ApproveDeps = {
-    service: { inTenant: (_t: string, fn: (s: { tx: never }) => unknown) => fn({ tx: {} as never }) } as never,
+    service: {
+      inTenant: (_t: string, fn: (s: { tx: never }) => unknown) => fn({ tx: {} as never }),
+    } as never,
     relations: {
       relations: () =>
         Promise.resolve({
@@ -90,7 +92,7 @@ function world(options: { published?: number | null; hr?: boolean } = {}) {
           isFinance: false,
           isAdmin: false,
         }),
-    } as never,
+    },
     schema: {
       currentVersion: () =>
         Promise.resolve(options.published === null ? null : { version: options.published ?? 3 }),
@@ -128,14 +130,18 @@ function world(options: { published?: number | null; hr?: boolean } = {}) {
     asked.push(what);
     const how = script(what);
     if (how === 'throw') return Promise.reject(new Error('the database went away'));
-    if (how === 'refuse') return Promise.resolve(err(failure('DEFINITION_INVALID', 'Shoe size: refused')));
+    if (how === 'refuse')
+      return Promise.resolve(err(failure('DEFINITION_INVALID', 'Shoe size: refused')));
     return Promise.resolve(ok(value));
   };
   const work: RunWork = {
     setup: () => answer('setup', { fields: 2 }),
     read: () => answer('read', { total: 120 }),
     rows: (_tx, _ctx, phase, from, to) =>
-      answer(`${phase} ${String(from)}-${String(to)}`, phase === 'people' ? { created: to - from } : {}),
+      answer(
+        `${phase} ${String(from)}-${String(to)}`,
+        phase === 'people' ? { created: to - from } : {},
+      ),
     finish: () => answer('finish', null),
     over: (_ctx, run) => {
       over.push(run.status);
@@ -307,9 +313,9 @@ describe('running it, chunk by chunk', () => {
       failure:
         'Shoe size: refused. 100 of 120 people were imported before it stopped; they stay. Upload the file again to import the rest: people already imported are matched, never added twice.',
     });
-    expect(w.events.map((e) => [e.eventName, (e.payload as { importId: string }).importId])).toEqual([
-      ['people.import.failed', id],
-    ]);
+    expect(
+      w.events.map((e) => [e.eventName, (e.payload as { importId: string }).importId]),
+    ).toEqual([['people.import.failed', id]]);
     expect(w.over).toEqual(['failed']);
     // Over is over: nothing more runs.
     expect(await stepRun(w.run, TENANT, id)).toBe('done');

@@ -68,6 +68,7 @@ export async function startImportRuns(
   // Whatever was going when the last process stopped.
   void going().then(
     async (runs) => {
+      // eslint-disable-next-line no-await-in-loop -- a handful, once at boot
       for (const r of runs) await runner.kick(r.tenantId, r.runId);
     },
     (cause: unknown) => {
@@ -129,7 +130,9 @@ function inProcess(
   const driving = new Map<string, Promise<void>>();
   let closed = false;
   const drive = async (input: ImportRunInput): Promise<void> => {
-    for (let failures = 0; !closed; ) {
+    // `closed` is set by `close`, between chunks.
+    // eslint-disable-next-line no-unmodified-loop-condition -- see above
+    for (let failures = 0; !closed;) {
       try {
         // eslint-disable-next-line no-await-in-loop -- one chunk after another
         if ((await acts.step(input)) === 'done') return;

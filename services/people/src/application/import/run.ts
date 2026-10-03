@@ -130,7 +130,10 @@ export interface RunDeps {
    * One tenant transaction that every unit of work opened inside it joins
    * (`sharing`), so a chunk's writes and the run's progress commit together.
    */
-  readonly atomically: <T>(tenantId: string, fn: (tx: Tx) => Promise<Result<T>>) => Promise<Result<T>>;
+  readonly atomically: <T>(
+    tenantId: string,
+    fn: (tx: Tx) => Promise<Result<T>>,
+  ) => Promise<Result<T>>;
   readonly work: RunWork;
   /** Into the outbox, in the caller's transaction: `people.import.failed`. */
   readonly publish: (tx: Tx, events: readonly PendingEvent[]) => Promise<void>;
@@ -150,7 +153,11 @@ export async function putSealed(store: ObjectStore, key: string, value: unknown)
 }
 
 /** A sealed object, or null when it is not there. The store opens only by link, so one is made. */
-export async function getSealed<T>(store: ObjectStore, clock: Clock, key: string): Promise<T | null> {
+export async function getSealed<T>(
+  store: ObjectStore,
+  clock: Clock,
+  key: string,
+): Promise<T | null> {
   const link = await store.sign(key, new Date(Date.parse(clock.instant()) + 60_000).toISOString());
   const opened = await store.open(link);
   return opened.ok ? (JSON.parse(decoder.decode(opened.value.bytes)) as T) : null;
@@ -199,7 +206,11 @@ export async function approveImport(
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     if (!everyone.isHr) return ONLY_HR();
     const intent = await deps.uploads.intents.find(tx, asking.tenantId, input.uploadId);
-    if (intent === null || intent.actorId !== asking.viewer.accountId || intent.purpose !== 'import') {
+    if (
+      intent === null ||
+      intent.actorId !== asking.viewer.accountId ||
+      intent.purpose !== 'import'
+    ) {
       return err(failure('UPLOAD_NOT_FOUND', 'No such upload; upload the file again'));
     }
     if (intent.checksum === null) {
@@ -337,7 +348,11 @@ async function contextOf(
     ok(await deps.runs.find(tx, tenantId, runId)),
   );
   if (!found.ok || found.value === null || !isActive(found.value.status)) return null;
-  const approved = await getSealed<Approved>(deps.sealed, deps.clock, runKey(tenantId, runId, 'input'));
+  const approved = await getSealed<Approved>(
+    deps.sealed,
+    deps.clock,
+    runKey(tenantId, runId, 'input'),
+  );
   if (approved === null) return 'lost';
   return {
     run: found.value,
@@ -474,7 +489,6 @@ export interface ImportRunStatusView {
   readonly failure: string | null;
 }
 
-
 export interface ViewDeps {
   readonly service: ImportDeps['service'];
   readonly relations: ImportDeps['relations'];
@@ -522,7 +536,11 @@ async function statusView(
 ): Promise<ImportRunStatusView> {
   const result =
     found.status === 'succeeded' && found.checksum !== null
-      ? await getSealed<ImportRunView>(deps.sealed, deps.clock, resultKey(asking.tenantId, found.checksum))
+      ? await getSealed<ImportRunView>(
+          deps.sealed,
+          deps.clock,
+          resultKey(asking.tenantId, found.checksum),
+        )
       : null;
   return {
     id: found.id,
@@ -575,7 +593,14 @@ interface Classified {
   readonly input: Omit<CommitInput, 'tenantId' | 'viewer' | 'correlationId'>;
   readonly plan: Pick<
     DryRun,
-    'rows' | 'leftEmpty' | 'ignoredColumns' | 'effectiveFrom' | 'findings' | 'blockedItems' | 'sheets' | 'rowsRead'
+    | 'rows'
+    | 'leftEmpty'
+    | 'ignoredColumns'
+    | 'effectiveFrom'
+    | 'findings'
+    | 'blockedItems'
+    | 'sheets'
+    | 'rowsRead'
   >;
 }
 
@@ -611,20 +636,23 @@ export function importWork(deps: WorkDeps): RunWork {
     await putSealed(deps.sealed, key(ctx, name), value);
     if (cache?.runId === ctx.run.id) cache.items.set(name, value);
   };
-  const gone = (what: string) =>
-    err(failure('RUN_LOST', `The import's ${what} is no longer held`));
+  const gone = (what: string) => err(failure('RUN_LOST', `The import's ${what} is no longer held`));
 
   const classified = async (ctx: RunContext) => {
     const c = await get<Classified>(ctx, 'rows');
     return c === null ? null : { ...c, input: { ...c.input, ...ctx.asking } as CommitInput };
   };
   /** Every row's outcome so far, in the file's order. */
-  const outcomes = async (ctx: RunContext, c: NonNullable<Awaited<ReturnType<typeof classified>>>) => {
+  const outcomes = async (
+    ctx: RunContext,
+    c: NonNullable<Awaited<ReturnType<typeof classified>>>,
+  ) => {
     const total = c.plan.rows.length;
     const written = new Map<number, Written>();
     for (let from = 0; from < total; from += BATCH) {
       // eslint-disable-next-line no-await-in-loop -- one batch file at a time, cached
-      for (const w of (await get<Written[]>(ctx, `people-${String(from)}`)) ?? []) written.set(w.row, w);
+      for (const w of (await get<Written[]>(ctx, `people-${String(from)}`)) ?? [])
+        written.set(w.row, w);
     }
     return c.plan.rows.map((row): Outcome => {
       const w = written.get(row.row);
@@ -658,7 +686,10 @@ export function importWork(deps: WorkDeps): RunWork {
           actor: ctx.asking.viewer.accountId,
           action: `Added ${String(added.length)} ${added.length === 1 ? 'field' : 'fields'} from an import, with the AI assistant`,
           subject: null,
-          detail: `${added.map((f) => f.label).join(', ')}. Approved with the import’s plan.`.slice(0, 500),
+          detail: `${added.map((f) => f.label).join(', ')}. Approved with the import’s plan.`.slice(
+            0,
+            500,
+          ),
           area: 'fields',
           onBehalfOf: ctx.asking.viewer.support?.operatorId ?? null,
           reason: ctx.asking.viewer.support?.reason ?? null,
@@ -700,7 +731,9 @@ export function importWork(deps: WorkDeps): RunWork {
           rowsRead: plan.rowsRead,
         },
       } satisfies Classified);
-      await deps.commit.ledger.publish(tx, [importStarted(importDeps(deps), input, ctx.run.id, plan)]);
+      await deps.commit.ledger.publish(tx, [
+        importStarted(importDeps(deps), input, ctx.run.id, plan),
+      ]);
       return ok({ total: plan.rows.length });
     },
 
@@ -718,7 +751,12 @@ export function importWork(deps: WorkDeps): RunWork {
         await put(
           ctx,
           `people-${String(from)}`,
-          done.map((o): Written => ({ row: o.row.row, written: o.written, reason: o.reason, personId: o.personId })),
+          done.map((o): Written => ({
+            row: o.row.row,
+            written: o.written,
+            reason: o.reason,
+            personId: o.personId,
+          })),
         );
         return ok(countsOf(done));
       }
@@ -752,7 +790,9 @@ export function importWork(deps: WorkDeps): RunWork {
         name: ctx.run.name,
       });
       if (!claim.claimed && claim.importId !== ctx.run.id) {
-        return err(failure('ALREADY_IMPORTED', 'This exact file was imported while this import ran'));
+        return err(
+          failure('ALREADY_IMPORTED', 'This exact file was imported while this import ran'),
+        );
       }
       const committed = await recordImport(tx, cdeps, c.input, ctx.run.id, c.plan, all, leftEmpty);
       const done = await doneViewOf(deps, ctx.asking, ctx.run.name ?? '', c.input, committed);
@@ -788,4 +828,3 @@ export function importWork(deps: WorkDeps): RunWork {
     },
   };
 }
-

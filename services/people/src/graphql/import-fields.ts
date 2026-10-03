@@ -66,7 +66,7 @@ export function defineImportFields(builder: PeopleBuilder, viaRest: ViaRest): vo
         'An approved import as it runs and once it is over (JSON): Importing with its step and “312 of 1,000 people”, then Imported with what it did, or Import failed with why. HR, People administrators and whoever approved it.',
       args: { id: t.arg.id({ required: true }) },
       resolve: (_root, args, ctx) =>
-        json(viaRest(ctx, 'GET', `/v1/imports/runs/${encodeURIComponent(String(args.id))}`)),
+        json(viaRest(ctx, 'GET', `/v1/imports/runs/${encodeURIComponent(args.id)}`)),
     }),
     activeImportRun: t.string({
       description:

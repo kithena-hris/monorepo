@@ -30,7 +30,11 @@ function toEnd(total: number, batch = 50): { run: ImportRun; chunks: string[] } 
   let run = begun(run0, AT);
   const chunks: string[] = [];
   for (let chunk = nextChunk(run, batch); chunk !== null; chunk = nextChunk(run, batch)) {
-    chunks.push(chunk.kind === 'rows' ? `${chunk.phase} ${String(chunk.from)}-${String(chunk.to)}` : chunk.kind);
+    chunks.push(
+      chunk.kind === 'rows'
+        ? `${chunk.phase} ${String(chunk.from)}-${String(chunk.to)}`
+        : chunk.kind,
+    );
     const next = afterChunk(run, chunk, AT, chunk.kind === 'read' ? { total } : {});
     if (!next.ok) throw new Error(next.error.message);
     run = next.value;

@@ -107,8 +107,8 @@ async function boot(): Promise<{ child: ChildProcess; port: number; log: () => s
   const keep = (chunk: Buffer): void => {
     log = (log + chunk.toString()).slice(-6000);
   };
-  child.stdout?.on('data', keep);
-  child.stderr?.on('data', keep);
+  child.stdout.on('data', keep);
+  child.stderr.on('data', keep);
   const deadline = Date.now() + 60_000;
   for (;;) {
     const up = await fetch(`http://127.0.0.1:${String(port)}/v1/openapi.json`)
@@ -175,9 +175,10 @@ const as = (port: () => number, account: string) => {
       { id: target.uploadId },
     );
     expect(completed.errors?.[0]?.message).toBeUndefined();
-    const { columns } = completed.data?.['completeImportUpload'] as {
+    const stage = completed.data?.['completeImportUpload'] as {
       columns: { index: number; status: string; key: string | null }[];
     };
+    const columns = stage.columns;
     const mapping = Object.fromEntries(
       columns.map((c) => [c.index, c.status === 'mapped' ? c.key : null]),
     );
@@ -253,7 +254,7 @@ describe('an approved import, run in the background', () => {
     });
 
     // Half-way through the people: killed, as a crash or the VM's stop would.
-    for (const deadline = Date.now() + 90_000; ; ) {
+    for (const deadline = Date.now() + 90_000; ;) {
       const seen = await owner.run(runId);
       expect(seen.status).not.toBe('failed');
       if (seen.phase === 'people' && seen.people.done > 0) {
@@ -271,7 +272,7 @@ describe('an approved import, run in the background', () => {
     a = await boot();
     port = a.port;
     let done: Awaited<ReturnType<typeof owner.run>> | undefined;
-    for (const deadline = Date.now() + 120_000; ; ) {
+    for (const deadline = Date.now() + 120_000; ;) {
       const seen = await owner.run(runId);
       if (seen.status === 'succeeded' || seen.status === 'failed') {
         done = seen;

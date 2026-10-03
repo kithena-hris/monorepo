@@ -33,7 +33,6 @@ export interface RunStore {
   imported(tx: Tx, tenantId: string, checksum: string): Promise<boolean>;
 }
 
-
 /** What the bell says of a person's finished runs: two weeks of them. */
 export interface ImportNotice {
   readonly id: string;

@@ -64,8 +64,7 @@ export const NO_COUNTS: RunCounts = {
   incomplete: 0,
 };
 
-export const isActive = (status: RunStatus): boolean =>
-  status === 'queued' || status === 'running';
+export const isActive = (status: RunStatus): boolean => status === 'queued' || status === 'running';
 
 export const queuedRun = (id: string): ImportRun => ({
   id,
@@ -92,12 +91,18 @@ export function nextChunk(run: ImportRun, batch: number = BATCH): Chunk | null {
   if (run.phase === 'setup') return { kind: 'setup' };
   if (run.phase === 'finishing') return { kind: 'finish' };
   if (run.total === null) return { kind: 'read' };
-  return { kind: 'rows', phase: run.phase, from: run.done, to: Math.min(run.total, run.done + batch) };
+  return {
+    kind: 'rows',
+    phase: run.phase,
+    from: run.done,
+    to: Math.min(run.total, run.done + batch),
+  };
 }
 
 const same = (a: Chunk, b: Chunk): boolean =>
   a.kind === b.kind &&
-  (a.kind !== 'rows' || (b.kind === 'rows' && a.phase === b.phase && a.from === b.from && a.to === b.to));
+  (a.kind !== 'rows' ||
+    (b.kind === 'rows' && a.phase === b.phase && a.from === b.from && a.to === b.to));
 
 /** The first phase from `phase` on with rows left to do: an empty file goes straight to finishing. */
 function onward(phase: RunPhase, done: number, total: number): Pick<ImportRun, 'phase' | 'done'> {
@@ -153,12 +158,16 @@ export function afterChunk(
 
 /** Stopped, with its reason; what it finished stays done. */
 export function failRun(run: ImportRun, reason: string, at: string): Result<ImportRun> {
-  if (!isActive(run.status)) return err(failure('RUN_FINISHED', 'This import has already finished'));
+  if (!isActive(run.status))
+    return err(failure('RUN_FINISHED', 'This import has already finished'));
   return ok({ ...run, status: 'failed', failure: reason, finishedAt: at });
 }
 
 /** How many people are in, of how many: the people phase's rows, all of them once past it. */
-export function peopleDone(run: ImportRun): { readonly done: number; readonly total: number | null } {
+export function peopleDone(run: ImportRun): {
+  readonly done: number;
+  readonly total: number | null;
+} {
   const total = run.total;
   if (total === null || run.phase === 'setup') return { done: 0, total };
   return { done: run.phase === 'people' ? run.done : total, total };
