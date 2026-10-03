@@ -6,7 +6,8 @@ import { useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
-import { AREAS, areaFrame, matchPath, remotePath } from '../lib/remotes';
+import { AREAS, matchPath, remotePath } from '../lib/remotes';
+import { areaFrame } from '../lib/shell-data';
 import { useShellData } from './app-shell';
 import { RemoteScreen, remoteLoaded, type RemoteRoute } from './remote-screen';
 

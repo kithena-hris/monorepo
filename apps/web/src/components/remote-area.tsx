@@ -6,9 +6,10 @@ import { RemoteScreen } from './remote-screen';
 import { TimeOffScreen } from './timeoff-screen';
 import type { ScreenLoad, ScreenQuery } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
-import { areaFrame, areaOf, firstUnder, remoteRoute, type Area } from '../lib/remotes';
+import { areaOf, firstUnder, remoteRoute, type Area } from '../lib/remotes';
 import { currentPerson } from '../lib/session';
 import { shellData } from '../lib/shell';
+import { areaFrame } from '../lib/shell-data';
 import { loadScreen as loadTimeOffScreen } from '../lib/timeoff-screens';
 
 /**

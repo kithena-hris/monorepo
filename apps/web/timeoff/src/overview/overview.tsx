@@ -473,7 +473,6 @@ function ComingUp({
                 </ListItem>
               );
             }
-            if (request === null) return null;
             const type = data.balances.find((b) => b.leaveTypeKey === request.leaveTypeKey);
             const status = STATUS[request.status] ?? {
               label: request.status,

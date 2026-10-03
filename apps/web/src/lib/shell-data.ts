@@ -1,4 +1,11 @@
-import type { Place } from './remotes';
+import {
+  currentPlace,
+  headerFrame,
+  siblingsOf,
+  type Area,
+  type HeaderFrame,
+  type Place,
+} from './remotes';
 
 /**
  * What the shell draws around every screen, beyond the person: People's
@@ -294,4 +301,42 @@ export function countsOf(
     if (n > 0) counts[section.path] = n;
   }
   return { sections: counts, tabs };
+}
+
+/**
+ * A screen's header among an area's places (`AREAS`): "Time off › Requests ›
+ * Decided" among its sections, with their counts, "Settings › Time off ›
+ * Leave types" among its settings, each crumb a switcher to its siblings. No
+ * actions on a setting. The page and its loading state draw the same one.
+ */
+export function areaFrame(
+  area: Area,
+  route: string | null,
+  places: AreaPlaces | undefined,
+): HeaderFrame & { readonly trail: readonly { readonly href: string; readonly label: string }[] } {
+  const own = places ?? { sections: [], actions: [], settings: [] };
+  if (route?.startsWith(`${area.settings}/`) !== true) {
+    return {
+      ...headerFrame(
+        own,
+        route,
+        area.home,
+        { sections: places?.counts ?? {}, tabs: places?.tabCounts ?? {} },
+        area.label,
+      ),
+      trail: [{ href: area.home, label: area.label }],
+    };
+  }
+  const settings = own.settings.map((p) => ({ ...p, group: `${area.label} settings` }));
+  const here = currentPlace(settings, route);
+  return {
+    section: here?.label ?? null,
+    trail: [
+      { href: '/settings', label: 'Settings' },
+      { href: '/settings', label: area.label },
+    ],
+    actions: [],
+    siblings: siblingsOf(settings, here),
+    siblingsLabel: `${area.label} settings`,
+  };
 }

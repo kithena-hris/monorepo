@@ -949,7 +949,7 @@ SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
   role that does not exist yet. Counts and the "My requests" label for
   employees wait for Time Off data. TOF-058a closes the gap.
 
-### [ ] TOF-058a — Manager is a capability, not a shell role
+### [x] TOF-058a — Manager is a capability, not a shell role
 
 **Goal** Whether someone approves time off is a fact about the org graph Time
 Off projects, not a role an admin grants. The shell cannot see it today.
@@ -965,6 +965,13 @@ Off projects, not a role an admin grants. The shell cannot see it today.
   answer. Employees see "My requests".
 - **Done when** a shell test shows Marco (approves, no admin role) the Requests
   queue tabs and Adam none of them.
+- **As built** `shell.ts` asks `timeOffViewer` beside Time Off's manifest
+  once per page; `timeOffRoles` adds `manager` (and `hr` for Time Off's HR)
+  for this area only, and `timeOffCounts` keys Requests and Attendance and
+  the Waiting for me and Exceptions tabs. A manifest place may carry
+  `labelFor` (role → label), so the section is "My requests" by default and
+  "Requests" for managers and HR. Tests in `shell-data.test.ts` and
+  `app-shell.test.tsx`.
 
 ### [ ] TOF-059 — The clock in the top bar
 
@@ -979,7 +986,7 @@ Off projects, not a role an admin grants. The shell cannot see it today.
 - **Done when** a test punches in from the pill on a People page and sees the
   timer, and the shell renders without the slot when the module is off.
 
-### [ ] TOF-060 — Persisted operations for Time Off
+### [x] TOF-060 — Persisted operations for Time Off
 
 - **Files** `apps/web/src/lib/timeoff-operations.ts`, `apps/gateway/persisted/`
 - **Depends on** TOF-044, TOF-056
@@ -987,6 +994,16 @@ Off projects, not a role an admin grants. The shell cannot see it today.
   `pnpm --filter @kithena/gateway persist`. Writes go through server actions.
 - **Done when** the router accepts every Time Off operation and refuses an
   unlisted one.
+- **As built** One query per screen and one mutation per write, each asking
+  for its whole answer; `$key` is always the idempotency key (a thing's own
+  `key` argument is `$leaveTypeKey` or `$calendarKey`). `persist` reads
+  People's and Time Off's lists and validates each against its subgraph.
+  `lib/people.ts` runs either list by area (`timeOff()`); the router forwards
+  the principal to Time Off with `TIMEOFF_API_TOKEN`, which the VM's
+  `router.env` needs before Time Off is deployed. A screen's data is
+  `lib/timeoff-screens.ts` (one case per screen), handed over by
+  `components/timeoff-screen.tsx` with the server actions in
+  `app/(app)/time-off/actions.ts`; `remote-area.tsx` picks both by area.
 
 ### Screens — employee
 
@@ -994,12 +1011,22 @@ Each screen ticket builds the web screen and its phone layout in the same
 component, at the same URL, and is done when its stories pass axe, its screen
 test passes, and it matches the design's screen on the seeded demo company.
 
-### [ ] TOF-061 — Overview
+### [x] TOF-061 — Overview
 
 - **Screens** T1, MT1 · **Spec** PRD §7.2, §15
 - **Depends on** TOF-058, TOF-059
 - **Approach** Clock card, balance cards, coming up, team today. The AI card
   shows deterministic bridge days with templated text until TOF-085.
+- **As built** `apps/web/timeoff/src/overview/`. The shell finds the bridge
+  days (`lib/timeoff-views.ts`, Monday to Friday) and passes the year's
+  holidays and when it asked, so the timer starts from the server's minute
+  and ticks in its own component. Balance cards have no context line yet
+  (the view carries no next accrual or carry-over), and team today lists
+  who is away without the In and Remote counts, which only the manager's
+  right-now view has. Reach gained `ListItem iconTone`, `Stat` children and
+  icons for time away. A Time Off page in flight draws its screen with
+  `load: loading` under the real header (`TimeOffLoading`), once the
+  remote's code is in the page.
 
 ### [ ] TOF-062 — Request time off
 

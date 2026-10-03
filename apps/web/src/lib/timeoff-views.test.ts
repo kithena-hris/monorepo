@@ -45,7 +45,7 @@ describe('bridgeDays', () => {
 
 describe('upcomingHolidays', () => {
   it('keeps today and later, soonest first', () => {
-    expect(upcomingHolidays([...madrid].reverse(), '2026-10-12', 2).map((h) => h.date)).toEqual([
+    expect(upcomingHolidays(madrid.toReversed(), '2026-10-12', 2).map((h) => h.date)).toEqual([
       '2026-10-12',
       '2026-11-09',
     ]);

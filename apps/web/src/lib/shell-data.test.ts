@@ -129,7 +129,10 @@ describe('Time Off for its approvers (TOF-058a)', () => {
       { tabs: timeOffCounts(v, places.sections).tabs },
       'Time off',
     );
-    return { section: frame.section, tabs: frame.tabs?.map((t) => t.label + (t.count ?? '')) };
+    return {
+      section: frame.section,
+      tabs: frame.tabs?.map((t) => `${t.label}${String(t.count ?? '')}`),
+    };
   };
 
   it('shows Marco, who approves with no admin role, the queue tabs and what waits', () => {
