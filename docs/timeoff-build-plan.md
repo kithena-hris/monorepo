@@ -1276,9 +1276,31 @@ test passes, and it matches the design's screen on the seeded demo company.
   past the deadline is refused, and notice reminders fall 15 days before each
   flexible block.
 
-### [ ] TOF-102 — Parental application, storage and events
+### [x] TOF-102 — Parental application, storage and events
 
 - **Depends on** TOF-101, TOF-034
+- **As built** `application/parental/parental.ts`. Four answers start a
+  private draft laid out from the entitlement (mandatory at the child's
+  date, every flexible week straight after, then the company's); answers
+  that change nothing the entitlement reads keep the dragged blocks. A
+  draft's blocks are replaced whole and kept even when a rule breaks
+  (`problems` on every read); sending refuses it. Nobody but the parent
+  reads a draft, HR included. Sending tells the manager and HR
+  (`parental_plan_sent`); HR approves; the parent or HR records the birth,
+  which raises the new `timeoff.parental.birth_recorded` (birth date
+  `asIdentity`) for a sent plan only. The `parental-notices` job tells the
+  parent on the day a flexible block's notice falls due. `parental_plan`
+  keeps the answers, the company's weeks as they were, the country whose
+  pack decided the law, what the team sees and the handover; one open plan
+  per member is a partial unique index. The company's weeks are the
+  `parental_company` setting (Acme: 2 after a year, booked as its own
+  `company_parental` type); there is no settings screen for it yet. The
+  checklist is computed: the entitlement step is done when the rules hold,
+  the manager step once sent, the certificate is to do, Payroll and Benefits
+  are `elsewhere` with their module, the birth certificate is scheduled for
+  3 days after the due date. Routes: `timeOffParentalPlan` (with answers in
+  the query, the entitlement unsaved), `timeOffParentalCase`, and
+  answer, blocks, handover, send, approve, birth.
 
 ### [x] TOF-103 — Reach: draggable lane track
 
@@ -1286,17 +1308,42 @@ test passes, and it matches the design's screen on the seeded demo company.
 - **Approach** `TimelineChart` lanes with segments draggable by pointer and
   keyboard through `@dnd-kit`, with the live-region announcements.
 
-### [ ] TOF-104 — Plan parental leave and your plan
+### [x] TOF-104 — Plan parental leave and your plan
 
 - **Screens** T8, T9, MT11 · **Depends on** TOF-102, TOF-103
+- **As built** `apps/web/timeoff/src/parental/plan.tsx`, one step per
+  address: `about` (T8), `plan` (T9), `handover` and `send` (T10, split so
+  each of the Stepper's four steps is its own URL). `/plan` before there is
+  a plan asks the four questions, so Overview's link still lands. T8's
+  entitlement is Time Off's, asked through a server action as the answers
+  change and saved nowhere. T9 drags whole weeks on `TimelineChart
+  variant="track"` (mandatory pinned, unbooked later weeks hatched) and
+  saves the blocks on drop; under 40rem it is MT11's vertical list. "Why
+  this plan" is templated from Time Off's numbers until TOF-092; pay is per
+  payer and period, without Payroll's "Synced" badge.
 
-### [ ] TOF-105 — Handover and send
+### [x] TOF-105 — Handover and send
 
 - **Screens** T10, MT12 · **Depends on** TOF-104
+- **As built** The handover is typed by hand (work, who covers it) until
+  Projects exists; out-of-office, chat status and meetings are shown off
+  and disabled, each naming the integration it waits for (TOF-110, TOF-111).
+  What the team sees is chosen on T8 and again here. `send` holds the
+  summary, "The dates follow the birth" and "Private until you send it";
+  Send is disabled while a rule breaks. A sent plan is shown as sent at
+  every step, with the birth to record.
 
-### [ ] TOF-106 — HR's view of the case
+### [x] TOF-106 — HR's view of the case
 
 - **Screens** T11 · **Depends on** TOF-105
+- **As built** `apps/web/timeoff/src/parental/case.tsx` at
+  `/time-off/parental/cases/:id`: the track read-only, the checklist with
+  Payroll and Benefits named as their modules, the rules check as the
+  domain's `problems` (each rule passed or broken, and each block's notice),
+  who can see it and the handover. HR and the manager read it once sent;
+  only HR approves, and only while the rules hold. "Message Adam" and an HR
+  list of cases wait for messaging and an HR queue; a case is reached by
+  its link.
 
 ### Kiosk, integrations, reach
 

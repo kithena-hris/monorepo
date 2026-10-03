@@ -4,12 +4,15 @@
  *
  * Each is `framed`: the host's breadcrumb, tabs and actions join the screen's
  * own header (`./frame.tsx`). A screen is a placeholder until its ticket
- * lands (`docs/timeoff-build-plan.md`); the overview is TOF-061's.
+ * lands (`docs/timeoff-build-plan.md`); the overview is TOF-061's, the
+ * parental steps and case TOF-104 to TOF-106's.
  */
 import './styles.css';
 
 import { framed } from './frame';
 import { Overview as OverviewScreen } from './overview/overview';
+import { ParentalCase as ParentalCaseScreen } from './parental/case';
+import { ParentalPlan as ParentalPlanScreen } from './parental/plan';
 import { placeholder } from './placeholder';
 
 export const Overview = framed(OverviewScreen);
@@ -22,8 +25,8 @@ export const TeamCalendar = framed(placeholder('Calendar'));
 export const Attendance = framed(placeholder('Attendance'));
 export const Balance = framed(placeholder('Balance'));
 export const Holidays = framed(placeholder('Holidays'));
-export const ParentalPlan = framed(placeholder('Plan parental leave'));
-export const ParentalCase = framed(placeholder('Parental leave'));
+export const ParentalPlan = framed(ParentalPlanScreen);
+export const ParentalCase = framed(ParentalCaseScreen);
 export const Insights = framed(placeholder('Insights'));
 export const LeaveTypes = framed(placeholder('Leave types'));
 export const LeaveType = framed(placeholder('Leave type'));
