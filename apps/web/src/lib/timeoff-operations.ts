@@ -108,6 +108,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T27: the month in points, six months of trends, the teams large enough to describe and the people behind each point; HR or a manager */
+  TimeOffInsights: `query TimeOffInsights {
+    timeOffInsights {
+      asOf cohortMinimum hiddenTeams months { missedClockOuts month overtimeMinutes personal sick vacation } people { displayName lastDayOff left losesAtYearEnd personId teamName } points { figure kind personIds sources text } scope teams { daysTaken left overtimeMinutes people team teamName }
+    }
+  }`,
+
   /** The labour inspector’s daily record (start, end, breaks) per person for a period, as CSV or PDF in base64; HR */
   TimeOffInspectorRecord: `query TimeOffInspectorRecord($format: String!, $from: String!, $to: String!) {
     timeOffInspectorRecord(format: $format, from: $from, to: $to) {

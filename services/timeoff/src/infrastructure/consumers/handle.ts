@@ -16,6 +16,7 @@ import {
   TeamKey,
   TenantAdministratorNamed,
   TenantAdministratorRemoved,
+  TenantSettingsChanged,
   type CalendarDate,
   type EventDefinition,
   type EventEnvelope,
@@ -371,6 +372,24 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
           return 'ignored';
         }
         await deps.tuples.setHrAdmin(event.tenantId, event.payload.accountId, named);
+        return 'applied';
+      }
+
+      /*
+       * The smallest group People lets a report describe (TOF-097): Time Off's
+       * insights hide the same groups. It only ever rises, so an older
+       * message never lowers it.
+       */
+      case TenantSettingsChanged.name: {
+        const event = parse(TenantSettingsChanged, raw);
+        if (!event) return 'rejected';
+        await transact(deps, event.tenantId, async (tx) => {
+          const was = (await tx.settings.get('cohort_minimum'))?.value ?? 0;
+          if (event.payload.cohortMinimum > was) {
+            await tx.settings.set('cohort_minimum', { value: event.payload.cohortMinimum });
+          }
+          return ok(undefined);
+        });
         return 'applied';
       }
 

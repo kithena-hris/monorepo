@@ -306,6 +306,10 @@ type Query {
   """MT21: the holidays the caller’s work location observes"""
   timeOffHolidays(year: Int!): TimeOffHolidays!
   """
+  T27: the month in points, six months of trends, the teams large enough to describe and the people behind each point; HR or a manager
+  """
+  timeOffInsights: TimeOffInsights!
+  """
   The labour inspector’s daily record (start, end, breaks) per person for a period, as CSV or PDF in base64; HR
   """
   timeOffInspectorRecord(format: String!, from: String!, to: String!): TimeOffFile!
@@ -631,6 +635,52 @@ type TimeOffImportReport {
   errors: [TimeOffImportError!]!
   rows: Int!
   updated: Int!
+}
+
+type TimeOffInsightMonth {
+  missedClockOuts: Int!
+  month: String!
+  overtimeMinutes: Int!
+  personal: String!
+  sick: String
+  vacation: String!
+}
+
+type TimeOffInsightPerson {
+  displayName: String!
+  lastDayOff: String
+  left: String!
+  losesAtYearEnd: String!
+  personId: String!
+  teamName: String
+}
+
+type TimeOffInsightPoint {
+  figure: String!
+  kind: String!
+  personIds: [String!]!
+  sources: [String!]!
+  text: String!
+}
+
+type TimeOffInsightTeam {
+  daysTaken: String!
+  left: String!
+  overtimeMinutes: Int!
+  people: Int!
+  team: String!
+  teamName: String
+}
+
+type TimeOffInsights {
+  asOf: String!
+  cohortMinimum: Int!
+  hiddenTeams: Int!
+  months: [TimeOffInsightMonth!]!
+  people: [TimeOffInsightPerson!]!
+  points: [TimeOffInsightPoint!]!
+  scope: String!
+  teams: [TimeOffInsightTeam!]!
 }
 
 type TimeOffLateForPayroll {

@@ -79,6 +79,8 @@ export async function loadScreen(
       return exceptions(query.search);
     case 'PayPeriod':
       return payPeriod(query.search);
+    case 'Insights':
+      return insights(path, query.search);
     // Settings (TOF-078 to TOF-083), HR only: Time Off refuses anyone else.
     case 'LeaveTypes':
       return leaveTypeSettings();
@@ -280,6 +282,32 @@ async function payPeriod(search: Readonly<Record<string, string>>): Promise<Scre
     status: 'ready',
     data: { ...(answer.data as object), month, today },
     ...(refused ? { notice: `“${search['month'] ?? ''}” is not a month` } : {}),
+  };
+}
+
+const INSIGHT_TABS = new Set(['what-changed', 'time-off', 'attendance', 'balances']);
+
+/**
+ * T27, T28: the tab the address names, the point whose people are open
+ * beside it (`?point=`) and, on What changed, the nudge being written
+ * (`?nudge=`): the screen's to apply.
+ */
+async function insights(
+  path: string,
+  search: Readonly<Record<string, string>>,
+): Promise<ScreenLoad> {
+  const last = path.split('/').at(-1) ?? '';
+  const tab = INSIGHT_TABS.has(last) ? last : 'what-changed';
+  const answer = await read('TimeOffInsights');
+  if (answer.status !== 'ready') return answer;
+  return {
+    status: 'ready',
+    data: {
+      ...(answer.data as object),
+      tab,
+      point: search['point'] ?? null,
+      nudge: search['nudge'] ?? null,
+    },
   };
 }
 

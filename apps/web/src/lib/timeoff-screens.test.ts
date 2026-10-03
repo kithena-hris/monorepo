@@ -150,6 +150,19 @@ describe('HR’s attendance pages (TOF-095 onwards)', () => {
     });
   });
 
+  it('reads the insights once, and the tab, point and nudge from the address', async () => {
+    answering({ TimeOffInsights: () => ({ ok: true, data: { points: [] } }) });
+    const load = await loadScreen(
+      'Insights',
+      { params: {}, search: { point: 'no_break', nudge: 'no_break' } },
+      '/time-off/insights/balances',
+    );
+    expect(load).toMatchObject({
+      status: 'ready',
+      data: { tab: 'balances', point: 'no_break', nudge: 'no_break' },
+    });
+  });
+
   it('opens the pay period on last month, the one month end closes', async () => {
     answering({ TimeOffPayPeriod: () => ({ ok: true, data: { teams: [] } }) });
     const load = await loadScreen('PayPeriod', { params: {}, search: {} });

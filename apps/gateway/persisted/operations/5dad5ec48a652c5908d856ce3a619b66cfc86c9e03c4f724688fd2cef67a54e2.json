@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffInsights {\n    timeOffInsights {\n      asOf cohortMinimum hiddenTeams months { missedClockOuts month overtimeMinutes personal sick vacation } people { displayName lastDayOff left losesAtYearEnd personId teamName } points { figure kind personIds sources text } scope teams { daysTaken left overtimeMinutes people team teamName }\n    }\n  }"}

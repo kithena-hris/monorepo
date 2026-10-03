@@ -1567,13 +1567,28 @@ test passes, and it matches the design's screen on the seeded demo company.
   table, the totals, the late flagged with "Remind them", and "Send
   September to Payroll", held until the month is over.
 
-### [ ] TOF-097 — Insights
+### [x] TOF-097 — Insights
 
 - **Screens** T27 · **Spec** PRD §14.2
 - **Depends on** TOF-084
 - **Approach** Tabs What changed, Time off, Attendance, Balances as routes;
   every point links to the people behind it; small groups hidden as People's
   cohort minimum.
+- **As built** Built before TOF-084 with a seam rather than waiting for it:
+  `domain/insights` computes every number (`whatChanged`: unbooked days and
+  who would lose some, nobody off since four months back with the team named
+  only when that many reach the minimum, missed clock-outs and overtime
+  month on month; `describable` drops small groups), and
+  `application/insights` asks an `InsightWriter` for each sentence —
+  `templatedInsight` now, the assistant's writer later, falling back to it.
+  `timeOffInsights` is HR's company or a manager's reports: points, six
+  months of days taken, missed clock-outs and overtime (sick a total only
+  for a scope at the minimum), the describable teams and the people behind
+  each point. The minimum is People's `people.settings.changed`, kept as the
+  `cohort_minimum` setting (only ever rising; 10 without People).
+  `insights/insights.tsx`, one component for the four tabs; `?point=` opens
+  a point's people beside it. The design's follow-up question box and the
+  unbooked value in euros wait for the assistant and for pay rates.
 
 ### [ ] TOF-098 — Nudges
 

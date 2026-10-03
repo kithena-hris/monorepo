@@ -55,6 +55,7 @@ import {
   remindPayPeriod,
 } from '../application/attendance/attendance.js';
 import { inspectorExport } from '../application/attendance/inspector-files.js';
+import { insights } from '../application/insights/insights.js';
 import { calendarFeed, issueFeedToken, revokeFeeds } from '../application/calendar/ical.js';
 import { importMembers } from '../application/member/import.js';
 import {
@@ -125,6 +126,7 @@ import {
   HolidaySettingsView,
   HolidaysView,
   HandoverView,
+  InsightsView,
   LeaveTypeSettingView,
   LeaveTypesView,
   LookCloserReason,
@@ -640,6 +642,16 @@ export const ROUTES: readonly Route[] = [
       'The attendance Requests tab: overtime and late corrections the caller’s reports need from them, and the caller’s own overtime',
     answer: AttendanceRequestsView,
     run: (deps, caller) => attendanceRequestsScreen(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffInsights',
+    method: 'GET',
+    path: `${V1}/insights`,
+    summary:
+      'T27: the month in points, six months of trends, the teams large enough to describe and the people behind each point; HR or a manager',
+    answer: InsightsView,
+    run: (deps, caller) => insights(deps)(caller),
     shape: same,
   }),
   route({

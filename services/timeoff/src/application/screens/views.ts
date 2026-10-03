@@ -600,6 +600,73 @@ export const PayPeriodView = named(
   }),
 );
 
+/**
+ * T27, T28 (TOF-097): the month in points, written from the domain's
+ * numbers; six months of trends (sick leave a total only for a scope at or
+ * above the cohort minimum); the teams large enough to describe; and the
+ * people behind every point.
+ */
+export const InsightsView = named(
+  'TimeOffInsights',
+  z.object({
+    asOf: CalendarDate,
+    scope: z.enum(['company', 'team']),
+    cohortMinimum: z.int(),
+    points: z.array(
+      named(
+        'TimeOffInsightPoint',
+        z.object({
+          kind: z.enum(['unbooked', 'no_break', 'missed_clock_outs', 'overtime']),
+          figure: z.string(),
+          text: z.string(),
+          sources: z.array(z.string()),
+          personIds: z.array(PersonId),
+        }),
+      ),
+    ),
+    months: z.array(
+      named(
+        'TimeOffInsightMonth',
+        z.object({
+          month: z.string(),
+          vacation: DayAmount,
+          personal: DayAmount,
+          sick: DayAmount.nullable(),
+          missedClockOuts: z.int(),
+          overtimeMinutes: z.int(),
+        }),
+      ),
+    ),
+    teams: z.array(
+      named(
+        'TimeOffInsightTeam',
+        z.object({
+          team: TeamKey,
+          teamName: z.string().nullable(),
+          people: z.int(),
+          daysTaken: DayAmount,
+          overtimeMinutes: z.int(),
+          left: DayAmount,
+        }),
+      ),
+    ),
+    hiddenTeams: z.int(),
+    people: z.array(
+      named(
+        'TimeOffInsightPerson',
+        z.object({
+          personId: PersonId,
+          displayName: z.string(),
+          teamName: z.string().nullable(),
+          left: DayAmount,
+          losesAtYearEnd: DayAmount,
+          lastDayOff: CalendarDate.nullable(),
+        }),
+      ),
+    ),
+  }),
+);
+
 /** A file to download, as base64: the inspector's record as CSV or PDF. */
 export const FileView = named(
   'TimeOffFile',

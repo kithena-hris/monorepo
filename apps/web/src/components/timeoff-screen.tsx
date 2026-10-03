@@ -140,6 +140,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return { load: loadable, onCorrect: actions.correctPunch };
       case 'TeamNow':
       case 'Exceptions':
+      case 'Insights':
         return { load: loadable };
       case 'AttendanceRequests':
         return { load: loadable, onDecide: actions.decideOvertime };

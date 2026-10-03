@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import axe from 'axe-core';
 import { expect, it } from 'vitest';
 
-import { Insights, Overview, ParentalCase, ParentalPlan } from '../index';
+import { Attendance, Overview, ParentalCase, ParentalPlan } from '../index';
 import { adam } from '../overview/acme.fixture';
 import { adamCase, parental } from '../parental/acme.fixture';
 import { underFloor } from './floor';
@@ -16,21 +16,21 @@ import { underFloor } from './floor';
 
 it('draws a placeholder under a phone’s bar, its tabs as pills, every target reachable', async () => {
   render(
-    <Insights
+    <Attendance
       frame={{
-        section: 'Insights',
+        section: 'Attendance',
         siblings: [
           {
             label: 'Time off',
             items: [
               { href: '/time-off/overview', label: 'Overview', icon: 'overview' },
-              { href: '/time-off/insights/what-changed', label: 'Insights', current: true },
+              { href: '/time-off/attendance/now', label: 'Attendance', current: true },
             ],
           },
         ],
         tabs: [
-          { href: '/time-off/insights/what-changed', label: 'What changed', current: true },
-          { href: '/time-off/insights/balances', label: 'Balances', current: false },
+          { href: '/time-off/attendance/timesheets', label: 'Timesheets', current: true },
+          { href: '/time-off/attendance/schedule', label: 'Schedule', current: false },
         ],
         actions: [{ href: '/time-off/request', label: 'Request time off', icon: 'add' }],
       }}

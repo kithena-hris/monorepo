@@ -291,6 +291,8 @@ export interface PolicyShadow {
 export interface Settings {
   /** Shadow runs, by policy id. */
   readonly policy_shadows: Readonly<Record<string, PolicyShadow>>;
+  /** The smallest group a report may describe, as People last said (`people.settings.changed`). */
+  readonly cohort_minimum: { readonly value: number };
 }
 
 export interface SettingStore {
