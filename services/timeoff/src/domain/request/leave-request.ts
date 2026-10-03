@@ -48,7 +48,10 @@ export type LeaveRequestId = z.infer<typeof LeaveRequestId>;
 export const leaveRequestId = (value: string): LeaveRequestId => LeaveRequestId.parse(value);
 
 /** What the request needs to know about its leave type. */
-export type RequestLeaveType = Pick<LeaveTypeDefinition, 'key' | 'category' | 'tracked' | 'paid' | 'unit'>;
+export type RequestLeaveType = Pick<
+  LeaveTypeDefinition,
+  'key' | 'category' | 'tracked' | 'paid' | 'unit'
+>;
 
 /** Dates, half days and their cost in working days (§7.3, computed by the caller). */
 export interface Span {
@@ -72,7 +75,8 @@ type Entries = Result<readonly LedgerEntry[]>;
 
 /** In order, each ending on or after it starts, none touching the one before. */
 const ordered = (runs: readonly DateRange[]): boolean =>
-  runs.length > 0 && runs.every((r, i) => r.from <= r.to && (i === 0 || r.from > (runs[i - 1]?.to ?? r.from)));
+  runs.length > 0 &&
+  runs.every((r, i) => r.from <= r.to && (i === 0 || r.from > (runs[i - 1]?.to ?? r.from)));
 
 const refuse = (status: RequestStatus, action: string) =>
   err(failure('INVALID_TRANSITION', `A ${status.replace('_', ' ')} request cannot be ${action}`));
@@ -96,7 +100,14 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
 
   private constructor(
     id: LeaveRequestId,
-    props: { tenantId: TenantId; personId: PersonId; leaveType: RequestLeaveType; span: Span; belowZero: boolean; sickNoteFileId: string | null },
+    props: {
+      tenantId: TenantId;
+      personId: PersonId;
+      leaveType: RequestLeaveType;
+      span: Span;
+      belowZero: boolean;
+      sickNoteFileId: string | null;
+    },
   ) {
     super(id);
     this.#tenantId = props.tenantId;
@@ -125,7 +136,11 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
     }
     if (args.verdict.kind === 'refused') {
       return err(
-        failure('BEYOND_NEGATIVE_LIMIT', `This goes further below zero than the ${args.verdict.limit} days allowed`, ['to']),
+        failure(
+          'BEYOND_NEGATIVE_LIMIT',
+          `This goes further below zero than the ${args.verdict.limit} days allowed`,
+          ['to'],
+        ),
       );
     }
     const request = new LeaveRequest(args.id, {
@@ -150,7 +165,8 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
       notePresent: request.#sickNoteFileId !== null,
     });
     const entries = request.#book(args.span, ctx);
-    if (args.verdict.kind === 'borrow') entries.push(request.#post(ctx, 'borrow', args.verdict.days, today(ctx)));
+    if (args.verdict.kind === 'borrow')
+      entries.push(request.#post(ctx, 'borrow', args.verdict.days, today(ctx)));
     return ok({ request, entries });
   }
 
@@ -205,7 +221,8 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
 
   /** The member takes it back before anyone decided, or instead of answering a counter-proposal. */
   withdraw(ctx: EventContext): Entries {
-    if (this.#status !== 'pending' && this.#status !== 'counter_proposed') return refuse(this.#status, 'withdrawn');
+    if (this.#status !== 'pending' && this.#status !== 'counter_proposed')
+      return refuse(this.#status, 'withdrawn');
     this.#status = 'withdrawn';
     this.#proposals = [];
     this.#raiseCancelled(this.#span.from, this.#span.workingDays, false, ctx);
@@ -216,10 +233,16 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   counterPropose(args: { by: string; proposals: readonly Proposal[] }, ctx: EventContext): Entries {
     if (this.#status !== 'pending') return refuse(this.#status, 'answered with other dates');
     if (args.proposals.length < 1 || args.proposals.length > 3) {
-      return err(failure('PROPOSALS', 'Suggest between one and three sets of dates', ['proposals']));
+      return err(
+        failure('PROPOSALS', 'Suggest between one and three sets of dates', ['proposals']),
+      );
     }
     if (!args.proposals.every((p) => ordered(p.spans))) {
-      return err(failure('INVALID_PERIOD', 'Each suggestion is runs of days in order, none overlapping', ['proposals']));
+      return err(
+        failure('INVALID_PERIOD', 'Each suggestion is runs of days in order, none overlapping', [
+          'proposals',
+        ]),
+      );
     }
     this.#status = 'counter_proposed';
     this.#proposals = args.proposals;
@@ -227,13 +250,19 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
       requestId: this.id,
       personId: this.#personId,
       proposedBy: args.by,
-      proposals: args.proposals.map((p) => ({ spans: p.spans.map((r) => ({ ...r })), workingDays: p.workingDays })),
+      proposals: args.proposals.map((p) => ({
+        spans: p.spans.map((r) => ({ ...r })),
+        workingDays: p.workingDays,
+      })),
     });
     return ok([]);
   }
 
   /** One tap, and approved the moment it is (§9.5). */
-  acceptCounter(args: { index: number; approvedBy: string; jurisdiction: string }, ctx: EventContext): Entries {
+  acceptCounter(
+    args: { index: number; approvedBy: string; jurisdiction: string },
+    ctx: EventContext,
+  ): Entries {
     if (this.#status !== 'counter_proposed') return refuse(this.#status, 'accepted');
     const chosen = this.#proposals[args.index];
     const first = chosen?.spans[0];
@@ -241,7 +270,13 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
     if (chosen === undefined || first === undefined || last === undefined) {
       return err(failure('UNKNOWN_PROPOSAL', 'That suggestion was not made', ['index']));
     }
-    const span: Span = { from: first.from, to: last.to, startsHalfDay: false, endsHalfDay: false, workingDays: chosen.workingDays };
+    const span: Span = {
+      from: first.from,
+      to: last.to,
+      startsHalfDay: false,
+      endsHalfDay: false,
+      workingDays: chosen.workingDays,
+    };
     const entries = this.#move(span, ctx, chosen.spans);
     this.#proposals = [];
     this.#approved(args.approvedBy, args.jurisdiction, ctx);
@@ -259,7 +294,8 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   /** Move approved dates. The old ones stay booked until the new ones are approved (§8.4). */
   requestChange(args: { span: Span }, _ctx: EventContext): Entries {
     if (this.#status !== 'approved') return refuse(this.#status, 'changed');
-    if (args.span.to < args.span.from) return err(failure('INVALID_PERIOD', 'Leave cannot end before it starts', ['to']));
+    if (args.span.to < args.span.from)
+      return err(failure('INVALID_PERIOD', 'Leave cannot end before it starts', ['to']));
     this.#status = 'change_pending';
     this.#pendingChange = args.span;
     return ok([]);
@@ -267,7 +303,8 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
 
   approveChange(ctx: EventContext): Entries {
     const change = this.#pendingChange;
-    if (this.#status !== 'change_pending' || change === null) return refuse(this.#status, 'changed');
+    if (this.#status !== 'change_pending' || change === null)
+      return refuse(this.#status, 'changed');
     const entries = this.#move(change, ctx);
     this.#status = 'approved';
     this.#pendingChange = null;
@@ -283,7 +320,10 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   }
 
   /** Give the tail back. Approved automatically, because it only returns time (§8.4). */
-  shorten(args: { to: CalendarDate; endsHalfDay: boolean; workingDays: DayAmount }, ctx: EventContext): Entries {
+  shorten(
+    args: { to: CalendarDate; endsHalfDay: boolean; workingDays: DayAmount },
+    ctx: EventContext,
+  ): Entries {
     if (this.#status !== 'approved') return refuse(this.#status, 'shortened');
     const released = days(this.#span.workingDays).minus(args.workingDays);
     if (args.to < this.#span.from || args.to > this.#span.to || released.lte(0)) {
@@ -291,7 +331,11 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
     }
     const releasedFrom = args.endsHalfDay ? args.to : addDays(args.to, 1);
     if (releasedFrom < today(ctx)) {
-      return err(failure('ALREADY_PASSED', 'Days already passed cannot be given back; HR can adjust them', ['to']));
+      return err(
+        failure('ALREADY_PASSED', 'Days already passed cannot be given back; HR can adjust them', [
+          'to',
+        ]),
+      );
     }
     const oldTo = this.#span.to;
     // Runs after the new end go; the one it falls in ends there. An end in a
@@ -300,7 +344,12 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
       .filter((r) => r.from <= args.to)
       .map((r) => (r.to > args.to ? { from: r.from, to: args.to } : r));
     const to = this.#runs.at(-1)?.to ?? args.to;
-    this.#span = { ...this.#span, to, endsHalfDay: args.endsHalfDay, workingDays: args.workingDays };
+    this.#span = {
+      ...this.#span,
+      to,
+      endsHalfDay: args.endsHalfDay,
+      workingDays: args.workingDays,
+    };
     this.#raise(ctx, LeaveCancelled, releasedFrom, {
       requestId: this.id,
       personId: this.#personId,
@@ -314,7 +363,8 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
 
   /** Approved automatically; the days return at once (§8.4). */
   cancel(ctx: EventContext): Entries {
-    if (this.#status !== 'approved' && this.#status !== 'change_pending') return refuse(this.#status, 'cancelled');
+    if (this.#status !== 'approved' && this.#status !== 'change_pending')
+      return refuse(this.#status, 'cancelled');
     if (this.#span.from < today(ctx)) {
       return err(failure('ALREADY_PASSED', 'This leave has started; shorten it instead', ['from']));
     }
@@ -330,7 +380,8 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
    */
   markTaken(ctx: EventContext): Entries {
     if (this.#status !== 'approved') return refuse(this.#status, 'taken');
-    if (this.#span.to >= today(ctx)) return err(failure('NOT_YET_TAKEN', 'The last day has not passed yet'));
+    if (this.#span.to >= today(ctx))
+      return err(failure('NOT_YET_TAKEN', 'The last day has not passed yet'));
     this.#status = 'taken';
     if (!this.#leaveType.tracked) return ok([]);
     const cost = this.#span.workingDays;
@@ -358,7 +409,11 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   }
 
   /** New dates replace the current ones: a changed event, and the booking moved. */
-  #move(to: Span, ctx: EventContext, runs: readonly DateRange[] = [{ from: to.from, to: to.to }]): LedgerEntry[] {
+  #move(
+    to: Span,
+    ctx: EventContext,
+    runs: readonly DateRange[] = [{ from: to.from, to: to.to }],
+  ): LedgerEntry[] {
     const old = this.#span;
     this.#span = to;
     this.#runs = runs;
@@ -372,7 +427,12 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
     return [...this.#release(old.workingDays, ctx), ...this.#book(to, ctx)];
   }
 
-  #raiseCancelled(from: CalendarDate, released: DayAmount, shortened: boolean, ctx: EventContext): void {
+  #raiseCancelled(
+    from: CalendarDate,
+    released: DayAmount,
+    shortened: boolean,
+    ctx: EventContext,
+  ): void {
     this.#raise(ctx, LeaveCancelled, from, {
       requestId: this.id,
       personId: this.#personId,
@@ -384,14 +444,21 @@ export class LeaveRequest extends AggregateRoot<LeaveRequestId> {
   }
 
   #book(span: Span, ctx: EventContext): LedgerEntry[] {
-    return this.#leaveType.tracked ? [this.#post(ctx, 'booking', days(span.workingDays).neg(), today(ctx))] : [];
+    return this.#leaveType.tracked
+      ? [this.#post(ctx, 'booking', days(span.workingDays).neg(), today(ctx))]
+      : [];
   }
 
   #release(value: DayAmount, ctx: EventContext): LedgerEntry[] {
     return this.#leaveType.tracked ? [this.#post(ctx, 'release', value, today(ctx))] : [];
   }
 
-  #post(ctx: EventContext, kind: LedgerEntry['kind'], value: Parameters<typeof amount>[0], effectiveOn: CalendarDate): LedgerEntry {
+  #post(
+    ctx: EventContext,
+    kind: LedgerEntry['kind'],
+    value: Parameters<typeof amount>[0],
+    effectiveOn: CalendarDate,
+  ): LedgerEntry {
     return entry(
       {
         personId: this.#personId,

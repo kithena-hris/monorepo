@@ -348,7 +348,11 @@ no decline, cancel or change.
   `changed` then `approved`. A booking settles as a `release` and a `taken`
   of the same amount, so `left` stays the plain sum of the ledger. Approval is
   one step; a manager-then-HR chain is the application walking the chain
-  TOF-019 returns.
+  TOF-019 returns. A counter-proposal is runs of days, not one range,
+  because TOF-022's swap (19, 20, 22, 23 and 26 Oct) is not continuous:
+  `counter_proposed.proposals` is `{ spans, workingDays }[]` and `changed`
+  carries the `spans` inside its `from`–`to`, both widened in place at v1
+  since neither has been published.
 
 ### [x] TOF-017 — Sick leave
 

@@ -30,7 +30,11 @@ export interface Alternatives {
   /** Book what fits and take the rest unpaid. */
   readonly unpaid: { readonly days: DayAmount } | null;
   /** End the request on the last day the balance covers. */
-  readonly shorten: { readonly to: CalendarDate; readonly endsHalfDay: boolean; readonly days: DayAmount } | null;
+  readonly shorten: {
+    readonly to: CalendarDate;
+    readonly endsHalfDay: boolean;
+    readonly days: DayAmount;
+  } | null;
 }
 
 const APPROVERS: Record<NegativeBalanceRule['approvers'], readonly Approver[]> = {
@@ -51,7 +55,8 @@ export function goingBelowZero(args: {
 }): { verdict: NegativeVerdict; alternatives: Alternatives } {
   const left = days(args.left);
   const after = left.minus(args.cost);
-  if (after.gte(0)) return { verdict: { kind: 'fits' }, alternatives: { unpaid: null, shorten: null } };
+  if (after.gte(0))
+    return { verdict: { kind: 'fits' }, alternatives: { unpaid: null, shorten: null } };
 
   const covered = Decimal.max(left, 0);
   const alternatives: Alternatives = {
@@ -67,14 +72,21 @@ export function goingBelowZero(args: {
     verdict: {
       kind: 'borrow',
       days: amount(days(args.cost).minus(covered)),
-      nextYearStartsAt: args.rule.atYearEnd === 'next_year' ? amount(days(args.nextYearAllowance).plus(after)) : null,
+      nextYearStartsAt:
+        args.rule.atYearEnd === 'next_year'
+          ? amount(days(args.nextYearAllowance).plus(after))
+          : null,
       approvers: APPROVERS[args.rule.approvers],
     },
     alternatives,
   };
 }
 
-function shorten(covered: Decimal, dates: readonly CalendarDate[], halfDays: boolean): Alternatives['shorten'] {
+function shorten(
+  covered: Decimal,
+  dates: readonly CalendarDate[],
+  halfDays: boolean,
+): Alternatives['shorten'] {
   const whole = covered.floor().toNumber();
   const half = halfDays && covered.minus(whole).gte(0.5);
   const to = half ? dates[whole] : dates[whole - 1];

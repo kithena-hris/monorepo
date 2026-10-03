@@ -4,8 +4,14 @@ import { PolicyDefinition, PolicyPublished } from '@kithena/contracts';
 import { context, date, TENANT } from '../fixtures.js';
 import { Policy, policyId } from './policy.js';
 
-const v1 = PolicyDefinition.parse({ leaveTypeKey: 'vacation', allowance: [{ fromYears: 0, days: '25.000' }] });
-const v2 = PolicyDefinition.parse({ leaveTypeKey: 'vacation', allowance: [{ fromYears: 0, days: '26.000' }] });
+const v1 = PolicyDefinition.parse({
+  leaveTypeKey: 'vacation',
+  allowance: [{ fromYears: 0, days: '25.000' }],
+});
+const v2 = PolicyDefinition.parse({
+  leaveTypeKey: 'vacation',
+  allowance: [{ fromYears: 0, days: '26.000' }],
+});
 const id = policyId('0189aaaa-0000-7000-8000-000000000001');
 
 const published = (): Policy => {
@@ -28,7 +34,12 @@ describe('Policy', () => {
     const [event] = policy.drainEvents();
     expect(event?.eventName).toBe(PolicyPublished.name);
     expect(event?.effectiveFrom).toBe('2026-01-01');
-    expect(event?.payload).toEqual({ policyId: id, version: 1, leaveTypeKey: 'vacation', effectiveFrom: '2026-01-01' });
+    expect(event?.payload).toEqual({
+      policyId: id,
+      version: 1,
+      leaveTypeKey: 'vacation',
+      effectiveFrom: '2026-01-01',
+    });
   });
 
   it('never changes a published version: a revision becomes the next draft', () => {
@@ -57,7 +68,10 @@ describe('Policy', () => {
   });
 
   it('refuses to move a policy to another leave type', () => {
-    const result = published().revise({ ...v2, leaveTypeKey: 'personal' as typeof v2.leaveTypeKey });
+    const result = published().revise({
+      ...v2,
+      leaveTypeKey: 'personal' as typeof v2.leaveTypeKey,
+    });
     if (result.ok) throw new Error('expected a refusal');
     expect(result.error.code).toBe('LEAVE_TYPE_FIXED');
   });

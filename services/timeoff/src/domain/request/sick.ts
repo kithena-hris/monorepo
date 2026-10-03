@@ -4,7 +4,12 @@ import type { LeaveTypeDefinition, PersonId, TenantId } from '@kithena/contracts
 import type { LedgerEntry } from '../balance/ledger.js';
 import type { EventContext } from '../context.js';
 import { days } from '../days.js';
-import { LeaveRequest, type LeaveRequestId, type RequestLeaveType, type Span } from './leave-request.js';
+import {
+  LeaveRequest,
+  type LeaveRequestId,
+  type RequestLeaveType,
+  type Span,
+} from './leave-request.js';
 
 /**
  * Sick leave: tell, don't ask (PRD §8.5).
@@ -34,7 +39,11 @@ export function recordSick(
   ctx: EventContext,
 ): Result<{ request: LeaveRequest; entries: readonly LedgerEntry[]; noteRequired: boolean }> {
   if (args.leaveType.category !== 'sick_leave') {
-    return err(failure('NOT_SICK_LEAVE', 'Only sick leave is recorded rather than requested', ['leaveTypeKey']));
+    return err(
+      failure('NOT_SICK_LEAVE', 'Only sick leave is recorded rather than requested', [
+        'leaveTypeKey',
+      ]),
+    );
   }
   const created = LeaveRequest.request(
     {
@@ -58,6 +67,7 @@ export function recordSick(
     if (!approved.ok) return approved;
   }
   const afterDays = args.leaveType.requiresNote?.afterDays;
-  const noteRequired = afterDays !== undefined && cost.gt(afterDays) && args.sickNoteFileId === null;
+  const noteRequired =
+    afterDays !== undefined && cost.gt(afterDays) && args.sickNoteFileId === null;
   return ok({ request, entries, noteRequired });
 }

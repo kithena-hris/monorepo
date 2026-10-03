@@ -27,14 +27,29 @@ const build = (entries: readonly LedgerEntry[]): readonly LedgerEntry[] =>
  * counts both is the bug this file exists to prevent.
  */
 function mt20(): { ledger: readonly LedgerEntry[]; wrongExpiry: LedgerEntry } {
-  const august = post({ kind: 'booking', amount: '-10.000', effectiveOn: date('2026-07-20'), requestId: null });
+  const august = post({
+    kind: 'booking',
+    amount: '-10.000',
+    effectiveOn: date('2026-07-20'),
+    requestId: null,
+  });
   const september = post({ kind: 'booking', amount: '-0.500', effectiveOn: date('2026-09-01') });
   const wrongExpiry = post({ kind: 'expiry', amount: '-3.500', effectiveOn: date('2026-03-31') });
   const ledger = build([
     post({ kind: 'grant', amount: '25.000', effectiveOn: date('2026-01-01'), policyVersion: 1 }),
-    post({ kind: 'carry_over', amount: '3.000', effectiveOn: date('2026-01-01'), policyVersion: 1 }),
+    post({
+      kind: 'carry_over',
+      amount: '3.000',
+      effectiveOn: date('2026-01-01'),
+      policyVersion: 1,
+    }),
     wrongExpiry,
-    post({ kind: 'expiry', amount: '-3.000', effectiveOn: date('2026-03-31'), supersedes: wrongExpiry.entryId }),
+    post({
+      kind: 'expiry',
+      amount: '-3.000',
+      effectiveOn: date('2026-03-31'),
+      supersedes: wrongExpiry.entryId,
+    }),
     august,
     post({ kind: 'release', amount: '10.000', effectiveOn: date('2026-08-14') }),
     post({ kind: 'taken', amount: '-10.000', effectiveOn: date('2026-08-14') }),
@@ -74,7 +89,12 @@ describe('balanceOn', () => {
   });
 
   it('keeps a superseded entry while its correction is not yet effective', () => {
-    const original = post({ kind: 'adjustment', amount: '1.000', effectiveOn: date('2026-01-10'), reason: 'Moved from the old system' });
+    const original = post({
+      kind: 'adjustment',
+      amount: '1.000',
+      effectiveOn: date('2026-01-10'),
+      reason: 'Moved from the old system',
+    });
     const correction = post({
       kind: 'adjustment',
       amount: '2.000',
@@ -113,7 +133,10 @@ describe('append', () => {
 
   it('never edits an entry: the ledger it was given is unchanged', () => {
     const ledger = build([grant]);
-    const result = append(ledger, post({ kind: 'accrual', amount: '2.083', effectiveOn: date('2026-02-01') }));
+    const result = append(
+      ledger,
+      post({ kind: 'accrual', amount: '2.083', effectiveOn: date('2026-02-01') }),
+    );
     expect(result.ok).toBe(true);
     expect(ledger).toHaveLength(1);
     expect(Object.isFrozen(ledger)).toBe(true);
@@ -128,22 +151,40 @@ describe('append', () => {
   it('refuses to supersede an entry it does not hold', () => {
     const result = append(
       build([grant]),
-      post({ kind: 'grant', amount: '26.000', effectiveOn: date('2026-01-01'), supersedes: '01890000-0000-7000-8000-999999999999' }),
+      post({
+        kind: 'grant',
+        amount: '26.000',
+        effectiveOn: date('2026-01-01'),
+        supersedes: '01890000-0000-7000-8000-999999999999',
+      }),
     );
     if (result.ok) throw new Error('expected a refusal');
     expect(result.error.code).toBe('UNKNOWN_ENTRY');
   });
 
   it('refuses to supersede an entry twice, so it is excluded exactly once', () => {
-    const first = post({ kind: 'grant', amount: '26.000', effectiveOn: date('2026-01-01'), supersedes: grant.entryId });
-    const second = post({ kind: 'grant', amount: '27.000', effectiveOn: date('2026-01-01'), supersedes: grant.entryId });
+    const first = post({
+      kind: 'grant',
+      amount: '26.000',
+      effectiveOn: date('2026-01-01'),
+      supersedes: grant.entryId,
+    });
+    const second = post({
+      kind: 'grant',
+      amount: '27.000',
+      effectiveOn: date('2026-01-01'),
+      supersedes: grant.entryId,
+    });
     const result = append(build([grant, first]), second);
     if (result.ok) throw new Error('expected a refusal');
     expect(result.error.code).toBe('ALREADY_SUPERSEDED');
   });
 
   it('refuses an adjustment without a reason', () => {
-    const result = append([], post({ kind: 'adjustment', amount: '1.000', effectiveOn: date('2026-01-01') }));
+    const result = append(
+      [],
+      post({ kind: 'adjustment', amount: '1.000', effectiveOn: date('2026-01-01') }),
+    );
     if (result.ok) throw new Error('expected a refusal');
     expect(result.error.code).toBe('REASON_REQUIRED');
   });

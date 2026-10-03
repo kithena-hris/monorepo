@@ -70,8 +70,11 @@ describe('LeaveType', () => {
   it('shows teammates only "Off" for sick and parental unless told otherwise', () => {
     expect(define(sickWithoutVisibility).definition.visibility).toBe('off_only');
     expect(
-      define({ ...sickWithoutVisibility, key: 'parental' as typeof vacation.key, category: 'parental_leave' })
-        .definition.visibility,
+      define({
+        ...sickWithoutVisibility,
+        key: 'parental' as typeof vacation.key,
+        category: 'parental_leave',
+      }).definition.visibility,
     ).toBe('off_only');
     const { visibility: _v, ...vacationWithoutVisibility } = vacation;
     expect(define(vacationWithoutVisibility).definition.visibility).toBe('type');

@@ -1,6 +1,11 @@
 import * as z from 'zod';
 import { AggregateRoot, err, failure, ok, type Result } from '@kithena/domain-kit';
-import { PolicyPublished, type CalendarDate, type PolicyDefinition, type TenantId } from '@kithena/contracts';
+import {
+  PolicyPublished,
+  type CalendarDate,
+  type PolicyDefinition,
+  type TenantId,
+} from '@kithena/contracts';
 
 import { envelope, type EventContext } from '../context.js';
 
@@ -25,7 +30,8 @@ export interface PolicyVersion {
   readonly effectiveFrom: CalendarDate | null;
 }
 
-const frozen = (definition: PolicyDefinition): Readonly<PolicyDefinition> => Object.freeze(structuredClone(definition));
+const frozen = (definition: PolicyDefinition): Readonly<PolicyDefinition> =>
+  Object.freeze(structuredClone(definition));
 
 export class Policy extends AggregateRoot<PolicyId> {
   readonly #tenantId: TenantId;
@@ -57,14 +63,20 @@ export class Policy extends AggregateRoot<PolicyId> {
 
   /** The published version in effect on a date, or `null` before the first. */
   inEffectOn(on: CalendarDate): PolicyVersion | null {
-    return this.#versions.findLast((v) => v.effectiveFrom !== null && v.effectiveFrom <= on) ?? null;
+    return (
+      this.#versions.findLast((v) => v.effectiveFrom !== null && v.effectiveFrom <= on) ?? null
+    );
   }
 
   /** Replace the draft, or start the next one when the latest is published. */
   revise(definition: PolicyDefinition): Result<void> {
     const latest = this.latest;
     if (definition.leaveTypeKey !== latest.definition.leaveTypeKey) {
-      return err(failure('LEAVE_TYPE_FIXED', 'A policy stays with the leave type it was made for', ['leaveTypeKey']));
+      return err(
+        failure('LEAVE_TYPE_FIXED', 'A policy stays with the leave type it was made for', [
+          'leaveTypeKey',
+        ]),
+      );
     }
     const draft: PolicyVersion = {
       version: latest.status === 'draft' ? latest.version : latest.version + 1,
@@ -73,22 +85,30 @@ export class Policy extends AggregateRoot<PolicyId> {
       effectiveFrom: null,
     };
     this.#versions =
-      latest.status === 'draft' ? [...this.#versions.slice(0, -1), draft] : [...this.#versions, draft];
+      latest.status === 'draft'
+        ? [...this.#versions.slice(0, -1), draft]
+        : [...this.#versions, draft];
     return ok(undefined);
   }
 
   publish(effectiveFrom: CalendarDate, ctx: EventContext): Result<void> {
     const latest = this.latest;
-    if (latest.status !== 'draft') return err(failure('NOTHING_TO_PUBLISH', 'There is no draft to publish'));
+    if (latest.status !== 'draft')
+      return err(failure('NOTHING_TO_PUBLISH', 'There is no draft to publish'));
     const previous = this.#versions.findLast((v) => v.status === 'published');
     if (previous?.effectiveFrom && effectiveFrom < previous.effectiveFrom) {
       return err(
-        failure('EFFECTIVE_BEFORE_PREVIOUS', `Version ${String(previous.version)} is in effect from ${previous.effectiveFrom}`, [
-          'effectiveFrom',
-        ]),
+        failure(
+          'EFFECTIVE_BEFORE_PREVIOUS',
+          `Version ${String(previous.version)} is in effect from ${previous.effectiveFrom}`,
+          ['effectiveFrom'],
+        ),
       );
     }
-    this.#versions = [...this.#versions.slice(0, -1), { ...latest, status: 'published', effectiveFrom }];
+    this.#versions = [
+      ...this.#versions.slice(0, -1),
+      { ...latest, status: 'published', effectiveFrom },
+    ];
     this.raise(
       envelope(ctx, {
         tenantId: this.#tenantId,

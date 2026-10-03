@@ -58,7 +58,8 @@ const yearStart = (policy: PolicyDefinition, year: number): CalendarDate =>
 function months(policy: PolicyDefinition, member: Member, year: number): Month[] {
   const start = yearStart(policy, year);
   const end = addDays(addMonths(start, 12), -1);
-  const lastDay = member.terminationDate !== null && member.terminationDate < end ? member.terminationDate : end;
+  const lastDay =
+    member.terminationDate !== null && member.terminationDate < end ? member.terminationDate : end;
   const firstDay = member.hireDate > start ? member.hireDate : start;
   if (firstDay > lastDay) return [];
   const clamp = (d: CalendarDate) => (d < firstDay ? firstDay : d > lastDay ? lastDay : d);
@@ -69,7 +70,9 @@ function months(policy: PolicyDefinition, member: Member, year: number): Month[]
     const to = clamp(ends);
     const employed = starts <= lastDay && ends >= firstDay ? daysBetween(from, to) : 0;
     // Without pro-rata, every month of a year someone works in counts whole.
-    const fraction = policy.proRata ? new Decimal(employed).div(daysBetween(starts, ends)) : new Decimal(1);
+    const fraction = policy.proRata
+      ? new Decimal(employed).div(daysBetween(starts, ends))
+      : new Decimal(1);
     return { starts, credited: from, fraction, band: bandOn(policy, member.hireDate, from) };
   }).filter((m) => m.fraction.gt(0));
 }
@@ -130,7 +133,8 @@ export function entitlement(
     const grant = round(earned(ms, first.band));
     entries.push(post('grant', grant, first.credited));
     const boundary = ms.find((m) => !m.band.eq(first.band));
-    if (boundary && yearTotal.gt(grant)) entries.push(post('grant', yearTotal.minus(grant), boundary.starts));
+    if (boundary && yearTotal.gt(grant))
+      entries.push(post('grant', yearTotal.minus(grant), boundary.starts));
     return entries;
   }
 
@@ -151,7 +155,11 @@ export function entitlement(
  * taken by that date, or `null` when nothing is left to lose.
  */
 export function carryOverExpiry(
-  args: { readonly ledger: readonly LedgerEntry[]; readonly policy: PolicyDefinition; readonly year: number },
+  args: {
+    readonly ledger: readonly LedgerEntry[];
+    readonly policy: PolicyDefinition;
+    readonly year: number;
+  },
   ctx: Pick<EventContext, 'newId' | 'clock'>,
 ): LedgerEntry | null {
   const rule = args.policy.carryOver;
@@ -162,7 +170,9 @@ export function carryOverExpiry(
     `${String(args.year)}-${String(rule.useBy.month).padStart(2, '0')}-${String(rule.useBy.day).padStart(2, '0')}`,
   );
   const taken = sum(
-    args.ledger.filter((e) => e.kind === 'taken' && e.effectiveOn <= useBy).map((e) => days(e.amount)),
+    args.ledger
+      .filter((e) => e.kind === 'taken' && e.effectiveOn <= useBy)
+      .map((e) => days(e.amount)),
   ).neg();
   const unused = sum(carried.map((e) => days(e.amount))).minus(taken);
   if (unused.lte(0)) return null;

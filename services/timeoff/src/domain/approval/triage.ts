@@ -1,4 +1,10 @@
-import { HourAmount, type CalendarDate, type DayAmount, type LeaveCategory, type LeaveUnit } from '@kithena/contracts';
+import {
+  HourAmount,
+  type CalendarDate,
+  type DayAmount,
+  type LeaveCategory,
+  type LeaveUnit,
+} from '@kithena/contracts';
 
 import { amount, days } from '../days.js';
 
@@ -33,11 +39,15 @@ export type LookCloser =
   | { readonly rule: 'protected_period'; readonly days: readonly CalendarDate[] }
   | { readonly rule: 'sick_over_threshold'; readonly days: DayAmount };
 
-export type Triage = { readonly group: 'clear' } | { readonly group: 'look_closer'; readonly reason: LookCloser };
+export type Triage =
+  { readonly group: 'clear' } | { readonly group: 'look_closer'; readonly reason: LookCloser };
 
 const closer = (reason: LookCloser): Triage => ({ group: 'look_closer', reason });
 
-export function triage(item: TriageItem, rules: { readonly sickUnderDays: number } = { sickUnderDays: 3 }): Triage {
+export function triage(
+  item: TriageItem,
+  rules: { readonly sickUnderDays: number } = { sickUnderDays: 3 },
+): Triage {
   if (item.left !== null) {
     const short = days(item.cost).minus(item.left);
     if (short.gt(0)) {
@@ -46,7 +56,8 @@ export function triage(item: TriageItem, rules: { readonly sickUnderDays: number
         : closer({ rule: 'below_zero', by: amount(short) });
     }
   }
-  if (item.daysBelowMinimum.length > 0) return closer({ rule: 'below_minimum', days: item.daysBelowMinimum });
+  if (item.daysBelowMinimum.length > 0)
+    return closer({ rule: 'below_minimum', days: item.daysBelowMinimum });
   const protectedDays = item.protectedDays ?? [];
   if (protectedDays.length > 0) return closer({ rule: 'protected_period', days: protectedDays });
   if (item.category === 'sick_leave' && days(item.cost).gte(rules.sickUnderDays)) {

@@ -82,10 +82,16 @@ export function append(
   }
   if (next.supersedes !== null) {
     if (!ledger.some((e) => e.entryId === next.supersedes)) {
-      return err(failure('UNKNOWN_ENTRY', 'A correction must name an entry in this ledger', ['supersedes']));
+      return err(
+        failure('UNKNOWN_ENTRY', 'A correction must name an entry in this ledger', ['supersedes']),
+      );
     }
     if (ledger.some((e) => e.supersedes === next.supersedes)) {
-      return err(failure('ALREADY_SUPERSEDED', 'That entry was already corrected; correct the correction', ['supersedes']));
+      return err(
+        failure('ALREADY_SUPERSEDED', 'That entry was already corrected; correct the correction', [
+          'supersedes',
+        ]),
+      );
     }
   }
   const sign = SIGN[next.kind];

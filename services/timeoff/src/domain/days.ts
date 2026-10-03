@@ -42,7 +42,9 @@ const DAY_MS = 86_400_000;
  * no zone and no daylight-saving night can move it.
  */
 export function addDays(date: CalendarDate, n: number): CalendarDate {
-  return CalendarDate.parse(new Date(Date.parse(`${date}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10));
+  return CalendarDate.parse(
+    new Date(Date.parse(`${date}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10),
+  );
 }
 
 /** The same day `n` months on. A leave year's months start on its own start day. */
@@ -50,7 +52,9 @@ export function addMonths(date: CalendarDate, n: number): CalendarDate {
   const year = Number(date.slice(0, 4));
   const month = Number(date.slice(5, 7));
   const day = Number(date.slice(8, 10));
-  return CalendarDate.parse(new Date(Date.UTC(year, month - 1 + n, day)).toISOString().slice(0, 10));
+  return CalendarDate.parse(
+    new Date(Date.UTC(year, month - 1 + n, day)).toISOString().slice(0, 10),
+  );
 }
 
 /** Calendar days from `from` to `to`, counting both. */

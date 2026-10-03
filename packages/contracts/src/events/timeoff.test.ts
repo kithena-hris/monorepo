@@ -161,7 +161,10 @@ describe('a counter-proposal', () => {
     personId: '0189aaaa-0000-7000-8000-000000000002',
     proposedBy: '0189aaaa-0000-7000-8000-000000000003',
   };
-  const option = (spans: { from: string; to: string }[]) => ({ ...base, proposals: [{ spans, workingDays: '5.000' }] });
+  const option = (spans: { from: string; to: string }[]) => ({
+    ...base,
+    proposals: [{ spans, workingDays: '5.000' }],
+  });
 
   it('carries a swap, which is not one range: 19, 20, 22, 23 and 26 Oct (T15, T18)', () => {
     const swap = option([
@@ -173,8 +176,20 @@ describe('a counter-proposal', () => {
   });
 
   it.each([
-    ['out of order', [{ from: '2026-10-22', to: '2026-10-23' }, { from: '2026-10-19', to: '2026-10-20' }]],
-    ['overlapping', [{ from: '2026-10-19', to: '2026-10-22' }, { from: '2026-10-22', to: '2026-10-23' }]],
+    [
+      'out of order',
+      [
+        { from: '2026-10-22', to: '2026-10-23' },
+        { from: '2026-10-19', to: '2026-10-20' },
+      ],
+    ],
+    [
+      'overlapping',
+      [
+        { from: '2026-10-19', to: '2026-10-22' },
+        { from: '2026-10-22', to: '2026-10-23' },
+      ],
+    ],
     ['backwards', [{ from: '2026-10-23', to: '2026-10-19' }]],
     ['empty', []],
   ])('refuses runs that are %s', (_what, spans) => {

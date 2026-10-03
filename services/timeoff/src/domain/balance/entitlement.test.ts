@@ -25,7 +25,8 @@ const tenure = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   });
 
-const total = (entries: readonly LedgerEntry[]): string => sum(entries.map((e) => days(e.amount))).toFixed(3);
+const total = (entries: readonly LedgerEntry[]): string =>
+  sum(entries.map((e) => days(e.amount))).toFixed(3);
 
 const run = (args: Partial<Parameters<typeof entitlement>[0]> & { policy: PolicyDefinition }) =>
   entitlement(
@@ -51,7 +52,9 @@ describe('entitlement', () => {
       policy: flat(),
       member: { personId: ADAM, hireDate: date('2026-07-01'), terminationDate: null },
     });
-    expect(entries.map((e) => [e.kind, e.amount, e.effectiveOn])).toEqual([['grant', '12.500', '2026-07-01']]);
+    expect(entries.map((e) => [e.kind, e.amount, e.effectiveOn])).toEqual([
+      ['grant', '12.500', '2026-07-01'],
+    ]);
   });
 
   it('rounds a pro-rata grant up to the half day', () => {
@@ -117,21 +120,34 @@ describe('entitlement', () => {
 
   it('carries over up to the cap on the first day of the year', () => {
     const policy = flat({ carryOver: { maxDays: '5.000', useBy: { month: 3, day: 31 } } });
-    const capped = run({ policy, carriedIn: DayAmount.parse('7.500') }).find((e) => e.kind === 'carry_over');
+    const capped = run({ policy, carriedIn: DayAmount.parse('7.500') }).find(
+      (e) => e.kind === 'carry_over',
+    );
     expect([capped?.amount, capped?.effectiveOn]).toEqual(['5.000', '2026-01-01']);
-    const under = run({ policy, carriedIn: DayAmount.parse('3.000') }).find((e) => e.kind === 'carry_over');
+    const under = run({ policy, carriedIn: DayAmount.parse('3.000') }).find(
+      (e) => e.kind === 'carry_over',
+    );
     expect(under?.amount).toBe('3.000');
   });
 
   it('carries nothing without a carry-over rule, or from a negative close', () => {
-    expect(run({ policy: flat(), carriedIn: DayAmount.parse('4.000') }).some((e) => e.kind === 'carry_over')).toBe(false);
+    expect(
+      run({ policy: flat(), carriedIn: DayAmount.parse('4.000') }).some(
+        (e) => e.kind === 'carry_over',
+      ),
+    ).toBe(false);
     const policy = flat({ carryOver: { maxDays: '5.000', useBy: { month: 3, day: 31 } } });
-    expect(run({ policy, carriedIn: DayAmount.parse('-1.500') }).some((e) => e.kind === 'carry_over')).toBe(false);
+    expect(
+      run({ policy, carriedIn: DayAmount.parse('-1.500') }).some((e) => e.kind === 'carry_over'),
+    ).toBe(false);
   });
 
   it('produces nothing for a year the member was not employed in', () => {
     expect(
-      run({ policy: flat(), member: { personId: ADAM, hireDate: date('2027-02-01'), terminationDate: null } }),
+      run({
+        policy: flat(),
+        member: { personId: ADAM, hireDate: date('2027-02-01'), terminationDate: null },
+      }),
     ).toEqual([]);
   });
 });
@@ -140,12 +156,30 @@ describe('carryOverExpiry', () => {
   const ctx = context();
   const policy = flat({ carryOver: { maxDays: '5.000', useBy: { month: 3, day: 31 } } });
   const row = (kind: LedgerEntry['kind'], amount: string, on: string) =>
-    entry({ personId: ADAM, leaveTypeKey: policy.leaveTypeKey, unit: 'day', kind, amount, effectiveOn: date(on) }, ctx);
+    entry(
+      {
+        personId: ADAM,
+        leaveTypeKey: policy.leaveTypeKey,
+        unit: 'day',
+        kind,
+        amount,
+        effectiveOn: date(on),
+      },
+      ctx,
+    );
 
   it('expires carried days not taken by the use-by date, carried days going first', () => {
-    const ledger = [row('carry_over', '3.000', '2026-01-01'), row('taken', '-1.500', '2026-02-13'), row('taken', '-2.000', '2026-04-10')];
+    const ledger = [
+      row('carry_over', '3.000', '2026-01-01'),
+      row('taken', '-1.500', '2026-02-13'),
+      row('taken', '-2.000', '2026-04-10'),
+    ];
     const expiry = carryOverExpiry({ ledger, policy, year: 2026 }, ctx);
-    expect([expiry?.kind, expiry?.amount, expiry?.effectiveOn]).toEqual(['expiry', '-1.500', '2026-03-31']);
+    expect([expiry?.kind, expiry?.amount, expiry?.effectiveOn]).toEqual([
+      'expiry',
+      '-1.500',
+      '2026-03-31',
+    ]);
   });
 
   it('expires nothing when the carried days were used', () => {

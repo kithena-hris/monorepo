@@ -1,4 +1,9 @@
-import type { DayAmount, LeaveCategory, LeaveTypeDefinition, LeaveTypeKey } from '@kithena/contracts';
+import type {
+  DayAmount,
+  LeaveCategory,
+  LeaveTypeDefinition,
+  LeaveTypeKey,
+} from '@kithena/contracts';
 
 import { days } from '../days.js';
 
@@ -54,7 +59,11 @@ const DEFAULT_CHAIN: readonly ApproverRole[] = ['manager'];
 
 function matches(rule: ApprovalRule, c: ApprovalCase): boolean {
   if (rule.subject !== c.subject) return false;
-  if (rule.leaveTypes !== null && (c.leaveTypeKey === null || !rule.leaveTypes.includes(c.leaveTypeKey))) return false;
+  if (
+    rule.leaveTypes !== null &&
+    (c.leaveTypeKey === null || !rule.leaveTypes.includes(c.leaveTypeKey))
+  )
+    return false;
   if (rule.when === 'below_zero') return c.belowZero;
   if (rule.when === 'unpaid') return c.paid === 'unpaid';
   return true;
@@ -65,9 +74,14 @@ function automatic(auto: AutoApproval, c: ApprovalCase): boolean {
   if ((c.action === 'shorten' || c.action === 'cancel') && auto.shortenOrCancel) return true;
   if (c.action !== 'request') return false;
   const cost = days(c.workingDays);
-  if (c.category === 'sick_leave' && auto.sickUnderDays !== null && cost.lt(auto.sickUnderDays)) return true;
+  if (c.category === 'sick_leave' && auto.sickUnderDays !== null && cost.lt(auto.sickUnderDays))
+    return true;
   return (
-    auto.oneDayAboveMinimum && c.category === 'annual_leave' && !c.belowZero && cost.lte(1) && c.teamAboveMinimum
+    auto.oneDayAboveMinimum &&
+    c.category === 'annual_leave' &&
+    !c.belowZero &&
+    cost.lte(1) &&
+    c.teamAboveMinimum
   );
 }
 

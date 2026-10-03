@@ -15,14 +15,25 @@ const sick: SickLeaveType = {
   requiresNote: { afterDays: 3 },
 };
 
-const record = (from: string, to: string, workingDays: string, over: Partial<Parameters<typeof recordSick>[0]> = {}) =>
+const record = (
+  from: string,
+  to: string,
+  workingDays: string,
+  over: Partial<Parameters<typeof recordSick>[0]> = {},
+) =>
   recordSick(
     {
       id: leaveRequestId('b3f1c2d4-0000-7000-8000-000000000001'),
       tenantId: TENANT,
       personId: ADAM,
       leaveType: sick,
-      span: { from: date(from), to: date(to), startsHalfDay: false, endsHalfDay: false, workingDays: DayAmount.parse(workingDays) },
+      span: {
+        from: date(from),
+        to: date(to),
+        startsHalfDay: false,
+        endsHalfDay: false,
+        workingDays: DayAmount.parse(workingDays),
+      },
       sickNoteFileId: null,
       recordedBy: HANA_ACCOUNT,
       jurisdiction: 'ES',
@@ -39,7 +50,10 @@ describe('recordSick', () => {
     expect(request.status).toBe('approved');
     expect(noteRequired).toBe(false);
     expect(entries).toEqual([]);
-    expect(request.drainEvents().map((e) => e.eventName)).toEqual([LeaveRequested.name, LeaveApproved.name]);
+    expect(request.drainEvents().map((e) => e.eventName)).toEqual([
+      LeaveRequested.name,
+      LeaveApproved.name,
+    ]);
   });
 
   it('asks for a note on a 4-day record, and leaves it for the manager', () => {
@@ -62,8 +76,13 @@ describe('recordSick', () => {
   it('pays statutory sick leave as statutory', () => {
     const result = record('2026-10-01', '2026-10-01', '1.000');
     if (!result.ok) throw new Error(result.error.message);
-    const approved = result.value.request.drainEvents().find((e) => e.eventName === LeaveApproved.name);
-    expect(approved?.payload).toMatchObject({ approvedBy: HANA_ACCOUNT, payroll: { paid: true, statutory: true } });
+    const approved = result.value.request
+      .drainEvents()
+      .find((e) => e.eventName === LeaveApproved.name);
+    expect(approved?.payload).toMatchObject({
+      approvedBy: HANA_ACCOUNT,
+      payroll: { paid: true, statutory: true },
+    });
   });
 
   it('approves nothing automatically when the tenant switched that off', () => {

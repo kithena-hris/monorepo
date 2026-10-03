@@ -16,7 +16,7 @@ import type { LeaveCategory, LeaveTypeDefinition, LeaveTypeKey } from '@kithena/
  */
 
 /** The categories whose reason stays with the manager and HR. */
-const PRIVATE: readonly LeaveCategory[] = ['sick_leave', 'parental_leave'];
+const PRIVATE: ReadonlySet<LeaveCategory> = new Set(['sick_leave', 'parental_leave']);
 
 /** A definition whose visibility the domain may choose. */
 export type LeaveTypeInput = Omit<LeaveTypeDefinition, 'visibility'> & {
@@ -31,7 +31,7 @@ const locked = (category: LeaveCategory) =>
   );
 
 function check(def: LeaveTypeDefinition): Result<LeaveTypeDefinition> {
-  return PRIVATE.includes(def.category) && def.visibility !== 'off_only'
+  return PRIVATE.has(def.category) && def.visibility !== 'off_only'
     ? err(locked(def.category))
     : ok(def);
 }
@@ -48,7 +48,7 @@ export class LeaveType extends AggregateRoot<LeaveTypeKey> {
 
   /** Sick and parental default to `off_only`; everything else to showing the type. */
   static define(input: LeaveTypeInput): Result<LeaveType> {
-    const visibility = input.visibility ?? (PRIVATE.includes(input.category) ? 'off_only' : 'type');
+    const visibility = input.visibility ?? (PRIVATE.has(input.category) ? 'off_only' : 'type');
     const checked = check({ ...input, visibility });
     return checked.ok ? ok(new LeaveType(checked.value)) : checked;
   }
@@ -69,7 +69,9 @@ export class LeaveType extends AggregateRoot<LeaveTypeKey> {
   update(changes: Partial<LeaveTypeDefinition>): Result<void> {
     if (this.#deleted) return err(failure('DELETED', 'This leave type was deleted'));
     if (changes.key !== undefined && changes.key !== this.#definition.key) {
-      return err(failure('KEY_IMMUTABLE', 'A leave type keeps the key it was created with', ['key']));
+      return err(
+        failure('KEY_IMMUTABLE', 'A leave type keeps the key it was created with', ['key']),
+      );
     }
     const checked = check({ ...this.#definition, ...changes });
     if (!checked.ok) return checked;

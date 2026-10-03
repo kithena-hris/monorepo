@@ -47,7 +47,8 @@ export function routeTo(args: {
   const covering =
     d !== null &&
     d.approverId === args.approverId &&
-    ((d.range !== null && within(args.on, d.range)) || (d.automatic && args.approverAway.some((r) => within(args.on, r))));
+    ((d.range !== null && within(args.on, d.range)) ||
+      (d.automatic && args.approverAway.some((r) => within(args.on, r))));
   if (!covering) return { kind: 'approver', personId: args.approverId };
   if (args.salaryRelated && !d.salaryRelated) return { kind: 'hr', onBehalfOf: args.approverId };
   return { kind: 'delegate', personId: d.delegateId, onBehalfOf: args.approverId };
@@ -73,6 +74,9 @@ export function escalation(args: {
   }
   return {
     on,
-    to: args.approverManagerId === null ? { kind: 'hr' } : { kind: 'person', personId: args.approverManagerId },
+    to:
+      args.approverManagerId === null
+        ? { kind: 'hr' }
+        : { kind: 'person', personId: args.approverManagerId },
   };
 }
