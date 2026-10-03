@@ -86,11 +86,16 @@ export function LeaveTypes(props: LeaveTypesProps): JSX.Element {
         title={TITLE}
         description={DESCRIPTION}
         actions={
-          onAdd === undefined ? undefined : (
-            <Button asChild variant="primary" startIcon={<icons.add aria-hidden />}>
-              <a href="/settings/time-off/leave-types?add=1">Add leave type</a>
+          <>
+            <Button variant="secondary" startIcon={<icons.assistant aria-hidden />} asChild>
+              <a href="/settings/time-off/leave-types/new/describe">Write a policy in plain words</a>
             </Button>
-          )
+            {onAdd === undefined ? null : (
+              <Button asChild variant="primary" startIcon={<icons.add aria-hidden />}>
+                <a href="/settings/time-off/leave-types?add=1">Add leave type</a>
+              </Button>
+            )}
+          </>
         }
       />
       <Loaded load={load} what="the leave types">

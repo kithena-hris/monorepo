@@ -57,6 +57,28 @@ describe('team, right now', () => {
     ).toBe('/time-off/attendance/requests');
   });
 
+  it('says what is normal in a sentence, tagged AI only when a model wrote it', () => {
+    const { rerender } = render(<TeamNow load={ready()} />);
+    const card = () =>
+      within(
+        screen
+          .getByRole('heading', { name: 'Today, in a sentence' })
+          .closest('.flex-col') as HTMLElement,
+      );
+    expect(card().getByText(/Ravi started at 10:12, inside the team’s hours/)).toBeTruthy();
+    expect(card().queryByText('AI')).toBeNull();
+    rerender(
+      <TeamNow
+        load={{
+          status: 'ready',
+          data: { ...marcoBoard(), sentence: { text: 'All in, as usual.', ai: true } },
+        }}
+      />,
+    );
+    expect(card().getByText('All in, as usual.')).toBeTruthy();
+    expect(card().getByText('AI')).toBeTruthy();
+  });
+
   it('draws its loading state in the page’s shape', async () => {
     const { container } = render(<TeamNow load={{ status: 'loading' }} />);
     expect(screen.getByRole('status').textContent).toBe('Loading your team right now');

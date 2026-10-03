@@ -70,6 +70,10 @@ export const draftPlan = (over: Partial<Plan> = {}): Plan => ({
   entitlement,
   sentAt: null,
   approvedAt: null,
+  explanation: {
+    text: '8 of your 11 flexible weeks follow the mandatory 6, so most of your time is at the start. 2 weeks are kept for later.',
+    ai: false,
+  },
   ...over,
 });
 

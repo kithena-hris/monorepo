@@ -667,8 +667,18 @@ function Laid({
         </PageSection>
         <AssistantCard
           title="Why this plan"
+          action={
+            plan.explanation?.ai === true ? (
+              <Badge tone="assistant" size="sm">
+                AI
+              </Badge>
+            ) : undefined
+          }
           note="Drag any block on the timeline. The rules are checked as you go."
         >
+          {plan.explanation === undefined ? null : (
+            <p className="text-sm text-fg-muted">{plan.explanation.text}</p>
+          )}
           <List>
             {reasons(plan).map((r) => (
               <ListItem key={r.title} icon={r.icon} iconTone="neutral" description={r.detail}>

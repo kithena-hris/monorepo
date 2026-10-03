@@ -13,7 +13,8 @@ import {
 import { useState, useTransition, type JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
-import { relativeDay, shortDate } from '../words';
+import type { Bridge } from '../overview/overview';
+import { bridgeDays, relativeDay, shortDate } from '../words';
 
 /**
  * Holidays where you work (MT21, PRD §10.2): the public holidays the
@@ -33,12 +34,8 @@ export interface HolidaysData {
     readonly layer: string;
     readonly movedFrom: string | null;
   }[];
-  /** The days off that bridge a holiday to a weekend, from the shell (`timeoff-views.ts`). */
-  readonly bridges: readonly {
-    readonly take: string;
-    readonly holiday: string;
-    readonly days: number;
-  }[];
+  /** The year's bridge days still ahead, as Time Off found them (TOF-085). */
+  readonly bridges: readonly Pick<Bridge, 'from' | 'to' | 'away' | 'holidays'>[];
   readonly today: string;
 }
 
@@ -104,10 +101,10 @@ function Ready({
         ) : (
           <List>
             {data.holidays.map((h) => {
-              const bridge = data.bridges.find((b) => b.holiday === h.name);
+              const bridge = data.bridges.find((b) => b.holidays[0]?.date === h.date);
               const note =
                 bridge !== undefined
-                  ? `Take ${shortDate(bridge.take)} → ${String(bridge.days)} days off`
+                  ? `Take ${bridgeDays(bridge)} → ${String(bridge.away.days)} days off`
                   : h.movedFrom !== null
                     ? `Moved from ${shortDate(h.movedFrom)}`
                     : h.date >= data.today

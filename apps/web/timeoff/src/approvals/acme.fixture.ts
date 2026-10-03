@@ -8,6 +8,7 @@ import {
   type CalendarView,
   type LeaveTypeLook,
   type RequestItem,
+  type Written,
 } from './words';
 
 /**
@@ -131,6 +132,9 @@ export const omar = item(
   '2026-09-29T11:00:00.000Z',
 );
 
+/** A line as Time Off's template wrote it; `ai` for one a model wrote. */
+export const written = (text: string, ai = false): Written => ({ text, ai });
+
 /** T16: Marco's Waiting for me. */
 export const waiting = (): ApprovalsData => ({
   tab: 'waiting',
@@ -140,6 +144,19 @@ export const waiting = (): ApprovalsData => ({
     { item: omar, reason: { rule: 'below_zero', amount: '1.500', days: [] } },
   ],
   items: [],
+  why: [
+    { requestId: leo.requestId, text: written('Team stays at 5 of 7. Leo has 14 days left.') },
+    { requestId: ravi.requestId, text: written('Uses 8h of the 11h Ravi has banked.') },
+    {
+      requestId: hana.requestId,
+      text: written('Self-certified, under the days that need a note.'),
+    },
+    { requestId: adam.requestId, text: written('Below the team minimum on Wed 21 Oct.') },
+    {
+      requestId: omar.requestId,
+      text: written('Would take Omar to −1.5 days. Needs HR after you.'),
+    },
+  ],
   types,
   now: NOW,
   decision: null,
@@ -256,6 +273,9 @@ export const adamsDecision = (): DecisionData => ({
       swapped: { out: ['2026-10-21'], in: ['2026-10-26'] },
       teammate: null,
       absence: null,
+      message: written(
+        'Hi Adam, could you swap Wed 21 for Mon 26? Omar and Yuki are out on the day you asked. Happy to approve straight away if that works.',
+      ),
     },
     {
       kind: 'next_clean_week',
@@ -268,6 +288,9 @@ export const adamsDecision = (): DecisionData => ({
       swapped: null,
       teammate: null,
       absence: null,
+      message: written(
+        'Hi Adam, could you take 26–30 Oct instead? Omar and Yuki are out on the day you asked. Happy to approve straight away if that works.',
+      ),
     },
     {
       kind: 'approve_as_asked',
@@ -278,6 +301,7 @@ export const adamsDecision = (): DecisionData => ({
       swapped: null,
       teammate: null,
       absence: null,
+      message: null,
     },
     {
       kind: 'ask_teammate',
@@ -290,8 +314,13 @@ export const adamsDecision = (): DecisionData => ({
       swapped: null,
       teammate: { personId: acme.yuki, displayName: 'Yuki Sato' },
       absence: { from: '2026-10-21', to: '2026-10-21' },
+      message: null,
     },
   ],
+  whatToKnow: written('This might be fine if 4 people can cover on Wed 21.'),
+  clash: written(
+    'Adam’s request would leave 4 of 7 in. Here are 3 ways to keep 5, with what each one costs.',
+  ),
   team: platform('2026-10-12', '2026-10-26'),
 });
 

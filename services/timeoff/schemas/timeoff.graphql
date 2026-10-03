@@ -320,6 +320,14 @@ type Query {
   """
   timeOffDelegation: TimeOffDelegation!
   """
+  T4, MT8: a sentence read as choices the caller can change, and the best dates for them; nothing is saved
+  """
+  timeOffDescribe(avoidShort: Boolean, days: Int, leaveTypeKey: String, month: String, nextToHoliday: Boolean, sentence: String): TimeOffDescribed!
+  """
+  T36: a year of one calendar drafted from a list HR supplies; the unconfirmed days are marked; nothing is saved; HR
+  """
+  timeOffHolidayDraft(layerKey: String!, source: String!, year: Int!): TimeOffHolidayDraft!
+  """
   T36: holiday calendars, and what each work location observes in a year; HR
   """
   timeOffHolidaySettings(year: Int!): TimeOffSettingsHolidays!
@@ -363,6 +371,10 @@ type Query {
   T30: what publishing the draft would do to each member this leave year, folded; nothing is saved; HR
   """
   timeOffPolicyPreview(policyId: String!): TimeOffPolicyPreview!
+  """
+  T32: a policy written in plain words, read into the ordinary form, with the one question it leaves open; nothing is saved; HR
+  """
+  timeOffPolicyRead(allowance: String, carryOver: String, dayKind: String, earning: String, leaveTypeKey: String, negative: String, probationMonths: Int, text: String): TimeOffPolicyRead!
   """One request, for its member, an approver or HR"""
   timeOffRequest(requestId: String!): TimeOffRequestDetail!
   """
@@ -391,6 +403,7 @@ type TimeOffAlternative {
   coverage: [TimeOffCoverageDay!]!
   dates: [String!]!
   kind: String!
+  message: TimeOffWritten
   spans: [TimeOffRange!]!
   swapped: TimeOffAlternativeSwapped
   teammate: TimeOffPersonRef
@@ -406,6 +419,11 @@ type TimeOffAmountChange {
   draft: String!
 }
 
+type TimeOffAnswer {
+  label: String!
+  value: String!
+}
+
 type TimeOffApprovalRule {
   approvers: [String!]!
   leaveTypes: [String!]
@@ -418,6 +436,7 @@ type TimeOffApprovals {
   items: [TimeOffRequestItem!]!
   lookCloser: [TimeOffLookCloserItem!]!
   tab: String!
+  why: [TimeOffWhy!]!
 }
 
 type TimeOffAttendanceException {
@@ -489,6 +508,26 @@ type TimeOffBatchRefusal {
   code: String!
   reason: TimeOffLookCloser
   requestId: String!
+}
+
+type TimeOffBreak {
+  days: Int!
+  from: String!
+  to: String!
+}
+
+type TimeOffBridge {
+  away: TimeOffBreak!
+  from: String!
+  holidays: [TimeOffBridgedHoliday!]!
+  text: TimeOffWritten!
+  to: String!
+  used: Int!
+}
+
+type TimeOffBridgedHoliday {
+  date: String!
+  name: String!
 }
 
 type TimeOffCalendar {
@@ -564,6 +603,19 @@ type TimeOffCoverageDay {
   required: Int!
 }
 
+type TimeOffDateOption {
+  away: TimeOffOptionBreak!
+  fewest: TimeOffFewest
+  fits: Boolean!
+  from: String!
+  holidays: [TimeOffOptionHoliday!]!
+  leftAfter: String
+  line: TimeOffWritten!
+  short: [TimeOffCoverageDay!]!
+  to: String!
+  used: Int!
+}
+
 type TimeOffDay {
   breakMinutes: Int!
   date: String!
@@ -608,8 +660,23 @@ type TimeOffDelegationDelegation {
   salaryRelated: Boolean!
 }
 
+type TimeOffDescribed {
+  leaveTypes: [TimeOffTypeChoice!]!
+  left: String
+  options: [TimeOffDateOption!]!
+  sentence: String
+  understood: TimeOffUnderstood!
+}
+
 type TimeOffDone {
   ok: Boolean!
+}
+
+type TimeOffDraftedHoliday {
+  confirmed: Boolean!
+  date: String!
+  known: Boolean!
+  name: String!
 }
 
 type TimeOffEscalation {
@@ -618,10 +685,28 @@ type TimeOffEscalation {
   to: String!
 }
 
+type TimeOffEvidence {
+  at: String!
+  source: String!
+  what: String!
+}
+
+type TimeOffFewest {
+  in: Int!
+  of: Int!
+}
+
 type TimeOffFile {
   base64: String!
   contentType: String!
   name: String!
+}
+
+type TimeOffFinishSuggestion {
+  ai: Boolean!
+  at: String!
+  evidence: [TimeOffEvidence!]!
+  time: String!
 }
 
 type TimeOffHandoverItem {
@@ -634,6 +719,16 @@ type TimeOffHoliday {
   layer: String!
   movedFrom: String
   name: String!
+}
+
+type TimeOffHolidayDraft {
+  ai: Boolean!
+  days: [TimeOffDraftedHoliday!]!
+  layerKey: String!
+  layerName: String!
+  skipped: [String!]!
+  summary: TimeOffWritten!
+  year: Int!
 }
 
 type TimeOffHolidayLayer {
@@ -650,6 +745,7 @@ type TimeOffHolidayLayerDay {
 }
 
 type TimeOffHolidays {
+  bridges: [TimeOffBridge!]!
   holidays: [TimeOffHoliday!]!
   locationKey: String
   year: Int!
@@ -891,6 +987,25 @@ type TimeOffNudgesSent {
 type TimeOffOpenDay {
   date: String!
   lastPunchAt: String!
+  suggestion: TimeOffFinishSuggestion
+}
+
+type TimeOffOpenQuestion {
+  body: TimeOffWritten!
+  key: String!
+  options: [TimeOffAnswer!]!
+  title: String!
+}
+
+type TimeOffOptionBreak {
+  days: Int!
+  from: String!
+  to: String!
+}
+
+type TimeOffOptionHoliday {
+  date: String!
+  name: String!
 }
 
 type TimeOffOtherOff {
@@ -920,6 +1035,7 @@ type TimeOffOvertimePolicy {
 
 type TimeOffOverview {
   balances: [TimeOffBalance!]!
+  bridges: [TimeOffBridge!]!
   clock: TimeOffOverviewClock
   comingUp: [TimeOffRequestItem!]!
   member: TimeOffMember
@@ -1003,6 +1119,7 @@ type TimeOffParentalPlan {
   children: Int!
   dueDate: String
   entitlement: TimeOffParentalEntitlement!
+  explanation: TimeOffWritten!
   handover: [TimeOffHandoverItem!]!
   keptWeeks: Float!
   planId: String!
@@ -1146,6 +1263,22 @@ type TimeOffPolicyPublished {
   version: Int!
 }
 
+type TimeOffPolicyRead {
+  ai: Boolean!
+  definition: TimeOffPolicyDefinition
+  leaveTypeKey: String
+  leaveTypes: [TimeOffPolicyTypeChoice!]!
+  problems: [TimeOffReadProblem!]!
+  question: TimeOffOpenQuestion
+  rules: [TimeOffUnderstoodRule!]!
+  text: String
+}
+
+type TimeOffPolicyTypeChoice {
+  key: String!
+  name: String!
+}
+
 type TimeOffPolicyVersion {
   definition: TimeOffPolicyDefinition!
   effectiveFrom: String
@@ -1189,6 +1322,11 @@ type TimeOffRange {
   to: String!
 }
 
+type TimeOffReadProblem {
+  message: String!
+  path: String!
+}
+
 type TimeOffReminded {
   told: Int!
 }
@@ -1198,12 +1336,14 @@ type TimeOffRequestDecision {
   balance: TimeOffRequestDecisionBalance
   belowMinimum: [TimeOffCoverageDay!]!
   canDecide: Boolean!
+  clash: TimeOffWritten
   lastTaken: TimeOffRange
   member: TimeOffMember!
   note: String
   othersOff: [TimeOffOtherOff!]!
   request: TimeOffRequestItem!
   triage: TimeOffRequestDecisionTriage!
+  whatToKnow: TimeOffWritten!
 }
 
 type TimeOffRequestDecisionBalance {
@@ -1417,6 +1557,7 @@ type TimeOffTeamMinimum {
 type TimeOffTeamRightNow {
   needsYou: [TimeOffNeedsYou!]!
   people: [TimeOffRightNowPerson!]!
+  sentence: TimeOffWritten!
 }
 
 type TimeOffTeamSetting {
@@ -1434,6 +1575,28 @@ type TimeOffTimesheet {
   punches: [TimeOffPunch!]!
   restBreaches: [TimeOffRestBreach!]!
   weeks: [TimeOffWeek!]!
+}
+
+type TimeOffTypeChoice {
+  key: String!
+  name: String!
+}
+
+type TimeOffUnderstood {
+  ai: Boolean!
+  avoidShort: Boolean!
+  days: Int!
+  leaveTypeKey: String
+  leaveTypeName: String
+  month: String
+  nextToHoliday: Boolean!
+}
+
+type TimeOffUnderstoodRule {
+  amount: String!
+  key: String!
+  label: String!
+  value: String!
 }
 
 type TimeOffViewer {
@@ -1460,6 +1623,16 @@ type TimeOffWhoIsOff {
   leaveTypeKey: String
   personId: String!
   span: TimeOffSpan!
+}
+
+type TimeOffWhy {
+  requestId: String!
+  text: TimeOffWritten!
+}
+
+type TimeOffWritten {
+  ai: Boolean!
+  text: String!
 }
 
 scalar _Any

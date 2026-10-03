@@ -1458,7 +1458,7 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### Assistance
 
-### [ ] TOF-084 — AI ports and the gateway
+### [x] TOF-084 — AI ports and the gateway
 
 - **Spec** PRD §14.1
 - **Files** `services/timeoff/src/application/assist/`,
@@ -1469,43 +1469,122 @@ test passes, and it matches the design's screen on the seeded demo company.
   nothing on failure; template fallbacks for every caller.
 - **Done when** the standalone suite is green with the keys unset and with them
   set and `fetch` mocked.
+- **As built** `Judge.choose` asks choice questions over one state in one
+  TypeSafe call (`TYPESAFE_API_KEY`) and keeps only options it offered;
+  `Writer.write` asks People's OpenAI-compatible model (`ASSISTANT_*`, copied,
+  not shared) for one JSON object of lines. Both are optional on `Deps`, both
+  go through `timeOffGateway`, which loads the same denied keys and words for
+  every tenant (sick note, due and birth dates, a person's name or id), and
+  both remember answers per tenant and ask (500, per process). `written()` is
+  the one way a feature gets text: the template without a writer, else the
+  model's line, refused back to the template when it is not one line, leaves
+  a placeholder unfilled or carries a number the facts do not. People are
+  placeholders (`{who}`) filled in after the answer, so no name reaches a
+  model. The standalone suite builds the ports from the environment; CI sets
+  both keys on its second run and the suite answers the two model addresses
+  with a 503.
 
-### [ ] TOF-085 — Bridge days
+### [x] TOF-085 — Bridge days
 
 - **Screens** T1, MT1 AI card · **Depends on** TOF-084, TOF-061
+- **As built** `domain/calendar/bridges.ts` replaces the shell's Monday-to-
+  Friday guess: a run of working days in the member's own week with days off
+  on both sides, one of them a holiday, at most 4 long and buying at least
+  two and a half times its length (a Monday for 4, four days for 10; three
+  for 6 is dropped), never past or already asked for, best value first.
+  Madrid's real 2026 moves the Constitution to Monday 7 December, so the
+  design's "Take Mon 7 Dec" is already a holiday and the demo's best days are
+  9–11 December and Easter 2027. `timeOffOverview` carries the best two with a
+  written line (the model's from the days and holiday names alone, else
+  "9 days off, 5–13 Dec, with …"); `timeOffHolidays` carries the year's still
+  ahead, templated. The card shows `used → away` and the AI tag only when a
+  line was the model's.
 
-### [ ] TOF-086 — Reasons in the approvals queue
+### [x] TOF-086 — Reasons in the approvals queue
 
 - **Screens** T16, MT15 · **Depends on** TOF-084, TOF-068
+- **As built** `timeOffApprovals` carries `why`, one line per waiting request,
+  clear or not (`assist/reasons.ts`): the rule's numbers — what is left
+  after, the team's worst day (`teamCoverage`, split out of `teamBelow`), the
+  days below the minimum — in the model's words, each requester a
+  placeholder, or the template ("Wed 21 Oct: 4 of 7 in, below the 5 the team
+  needs."). Sick leave is never shown to a model. The screen's own templates
+  are gone; a row is tagged AI only when its line was the model's.
 
-### [ ] TOF-087 — What to know
+### [x] TOF-087 — What to know
 
 - **Screens** T17, MT16 · **Depends on** TOF-084, TOF-069
+- **As built** The card's facts stay the domain's, drawn by the screen; its
+  closing line is `whatToKnow` on `timeOffRequestDecision`
+  (`assist/decision.ts`), from the worst day, the balance after and the last
+  break, the requester `{who}`, teammates only a count, the note never sent.
 
-### [ ] TOF-088 — Counter-proposal message and clash explanation
+### [x] TOF-088 — Counter-proposal message and clash explanation
 
 - **Screens** T15, T18 · **Depends on** TOF-084, TOF-070, TOF-073
+- **As built** In the same call as TOF-087: `clash` (why it matters and how
+  many fixes keep the minimum) and a `message` on each of the requester's own
+  alternatives. Dates picked by hand in T18 keep the screen's template, since
+  Time Off never saw them. Committed with TOF-086 and TOF-087, which share
+  the decision view.
 
-### [ ] TOF-089 — Missed clock-out suggestion
+### [x] TOF-089 — Missed clock-out suggestion
 
 - **Screens** T21, MT18 · **Depends on** TOF-084, TOF-075
 - **Approach** Evidence is only calendar event end times (when a calendar is
   connected) and Kithena activity timestamps. Shown with the evidence.
+- **As built** `Deps.calendar` (`CalendarEvidence`) is the calendar's port,
+  with no adapter until TOF-110; Kithena's activity is what Time Off itself
+  saw the person do that day (requests sent). `domain/attendance/suggestion.ts`
+  turns the evidence after the last punch into candidate times rounded up to
+  five minutes; TypeSafe picks the likeliest from times and kinds alone (no
+  event title, no name), otherwise the latest. Each `timeOffTimesheet` open
+  day carries `suggestion`, only for the person themselves, `null` without
+  evidence. The fix dialog fills the time in and lists the evidence; the AI
+  tag shows when the model chose.
 
-### [ ] TOF-090 — Describe it, get the best dates
+### [x] TOF-090 — Describe it, get the best dates
 
 - **Screens** T4, MT8 · **Spec** PRD §14.2
 - **Depends on** TOF-084, TOF-062
 - **Approach** The sentence becomes editable chips (Judge); the domain generates
   and scores date options; the Writer writes each option's line.
+- **As built** `timeOffDescribe` (`assist/describe.ts`): five choices — type,
+  about how many days, month, next to a holiday, not when the team is short —
+  read by TypeSafe from options the code offered (sick leave never among
+  them, and a sentence mentioning health never sent), by Time Off's own
+  rules without a key, and overridden by anything the person changed.
+  `domain/request/options.ts` scores every run of N−1 to N+1 working days in
+  the window by days away per day used, a holiday when wanted, a short day
+  when to be avoided, and keeps the best three that do not overlap; the
+  balance after each is Time Off's. `/time-off/request/describe` is a dialog
+  over the overview (a sheet on a phone): the composer, "Understood as"
+  chips (remove, or Change for selects and switches), each change the
+  address; "Request 13–16 Oct" opens the ordinary panel with those dates, so
+  nothing is sent from here. The panel links to it ("Describe it instead").
 
-### [ ] TOF-091 — Today in a sentence
+### [x] TOF-091 — Today in a sentence
 
 - **Screens** T22 · **Depends on** TOF-084, TOF-077
+- **As built** `timeOffTeamRightNow` carries `sentence` (`assist/today.ts`):
+  the counts in, on a break, not in yet and away (approved time off today,
+  never why), the latest start and whether it was inside the team's hours,
+  the open fixes and overtime waiting, each person a placeholder for the
+  model; the template reads "Everyone expected is in. Ravi started at 10:12,
+  inside the team's hours." The board shows it in an assistant card above
+  Needs you.
 
-### [ ] TOF-092 — Plan explanation
+### [x] TOF-092 — Plan explanation
 
 - **Screens** T9, T11, MT11 · **Depends on** TOF-084, TOF-101
+- **As built** Every `TimeOffParentalPlan` carries `explanation`
+  (`assist/plan.ts`), written once the read's transaction closes, by the
+  model from week counts alone — each block as weeks after the child
+  arrives and how long, the entitlement's weeks, the notice — because the
+  child's date is health data and no date reaches a model; the template
+  says how many flexible weeks follow the mandatory ones, what is kept for
+  later and the notice. T9 and MT11 lead "Why this plan" with it, T11 shows
+  it beside the rules check; the domain's facts below it are unchanged.
 
 ### HR operations
 
@@ -1523,10 +1602,28 @@ test passes, and it matches the design's screen on the seeded demo company.
   at a date. Nothing is posted and only HR's settings read it. T30's "Shadow
   run" section starts and stops it and lists whose balance differs.
 
-### [ ] TOF-094 — Write a policy in plain words
+### [x] TOF-094 — Write a policy in plain words
 
 - **Screens** T32 · **Spec** PRD §6.4
 - **Depends on** TOF-084, TOF-093
+- **As built** `timeOffPolicyRead` (`assist/policy-prose.ts`), HR only: the
+  code finds every number of days, weeks or months in the text and the
+  month a carry-over must be used by; TypeSafe says what each figure sets
+  (allowance, carry-over, below zero, probation, none) and whether days are
+  given up front, which days and who approves going negative, or Time Off's
+  own rules read the words around them. HR's changes and answers win. The
+  reading becomes an ordinary `PolicyDefinition`, parsed by its own schema,
+  with calendar days counted as working days by the domain
+  (`domain/policy/calendar-days.ts`, 28 → 20). The one question is the first
+  the text leaves open: which days, then up front or monthly; the writer may
+  word it. `/settings/time-off/leave-types/new/describe` shows "Understood
+  as" with a change button per rule and the question; "Create draft" is
+  disabled while anything is open, sends the definition to
+  `draftTimeOffPolicy` (the domain validates it) and opens the draft on its
+  leave type, where T30's preview tests it. TOF-093 is not ticked: the
+  shadow run and preview-as are its own, and the test on real people here is
+  T30's existing preview, reached after the draft exists. Leave types links
+  to the page.
 
 ### [x] TOF-095 — Exceptions for HR and the inspector export
 
@@ -1796,11 +1893,21 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
 - **Approach** Status while away; approve from a message. Named generically in
   the UI ("Chat apps").
 
-### [ ] TOF-112 — AI holiday drafts
+### [x] TOF-112 — AI holiday drafts
 
 - **Screens** T36 AI card · **Depends on** TOF-084, TOF-083
 - **Approach** Drafts from data HR supplies or a licensed dataset; never
   publishes; unconfirmed days left for HR.
+- **As built** `timeOffHolidayDraft` (`assist/holiday-draft.ts`), HR only,
+  saves nothing: the code reads each pasted line's date (ISO, D/M/Y, "15 de
+  mayo", "November 9, 2028") and name for the year asked; TypeSafe says
+  whether each line is a confirmed holiday, one not confirmed yet or not a
+  holiday, else the words "provisional", "to be confirmed", "?" do. Lines
+  with no date in the year are listed as not read. T36 has the card: pick a
+  calendar, paste the list (`?draft=` and `?source=`), then the draft with
+  "To confirm" on what is not; HR's own Save adds only the confirmed days to
+  the calendar through the ordinary save, keeping what it held, and the rest
+  stay with HR. No licensed dataset is wired: data HR supplies only.
 
 ### [ ] TOF-113 — Germany and UK country packs
 

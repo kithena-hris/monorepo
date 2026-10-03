@@ -1,4 +1,5 @@
 import {
+  AssistantCard,
   Avatar,
   Badge,
   Button,
@@ -54,6 +55,8 @@ export interface TeamNowData {
     readonly minutes: number | null;
     readonly punch: { readonly kind: string } | null;
   }[];
+  /** Today, in a sentence: Time Off's, the model's or its template (TOF-091). */
+  readonly sentence?: { readonly text: string; readonly ai: boolean };
   /** Today's calendar entries for the team: who is away, and until when. */
   readonly away: readonly {
     readonly personId: string;
@@ -204,44 +207,61 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
             Only the punches people make. No location trail and no screen tracking.
           </p>
         </div>
-        <PageSection title="Needs you">
-          {data.needsYou.length === 0 ? (
-            <p className="text-sm text-fg-muted">Nothing waiting for you.</p>
-          ) : (
-            <List>
-              {data.needsYou.map((n) => (
-                <ListItem
-                  key={`${n.kind} ${n.personId} ${n.date}`}
-                  icon={icon(n.kind === 'correction' ? 'history' : 'overtime')}
-                  iconTone={n.kind === 'correction' ? 'danger' : 'info'}
-                  description={
-                    n.kind === 'correction'
-                      ? `${shortDate(n.date)} · added afterwards`
-                      : shortDate(n.date)
-                  }
-                  trailing={
-                    <Button size="xs" asChild>
-                      <a
-                        href={
-                          n.kind === 'overtime'
-                            ? '/time-off/attendance/requests'
-                            : `/time-off/attendance/timesheets?person=${n.personId}&week=${n.date}`
-                        }
-                        aria-label={`Review ${n.displayName}’s ${n.kind === 'correction' ? 'correction' : 'overtime'}`}
-                      >
-                        Review
-                      </a>
-                    </Button>
-                  }
-                >
-                  {n.kind === 'correction'
-                    ? `${n.displayName} · ${weekdayName(n.date)} ${n.punch?.kind === 'in' ? 'clock-in' : 'clock-out'}`
-                    : `${n.displayName} · ${duration(n.minutes ?? 0)} overtime`}
-                </ListItem>
-              ))}
-            </List>
+        <div className="flex min-w-0 flex-col gap-5">
+          {data.sentence === undefined ? null : (
+            <AssistantCard
+              level={2}
+              title="Today, in a sentence"
+              action={
+                data.sentence.ai ? (
+                  <Badge tone="assistant" size="sm">
+                    AI
+                  </Badge>
+                ) : undefined
+              }
+            >
+              <p className="text-sm text-fg-muted">{data.sentence.text}</p>
+            </AssistantCard>
           )}
-        </PageSection>
+          <PageSection title="Needs you">
+            {data.needsYou.length === 0 ? (
+              <p className="text-sm text-fg-muted">Nothing waiting for you.</p>
+            ) : (
+              <List>
+                {data.needsYou.map((n) => (
+                  <ListItem
+                    key={`${n.kind} ${n.personId} ${n.date}`}
+                    icon={icon(n.kind === 'correction' ? 'history' : 'overtime')}
+                    iconTone={n.kind === 'correction' ? 'danger' : 'info'}
+                    description={
+                      n.kind === 'correction'
+                        ? `${shortDate(n.date)} · added afterwards`
+                        : shortDate(n.date)
+                    }
+                    trailing={
+                      <Button size="xs" asChild>
+                        <a
+                          href={
+                            n.kind === 'overtime'
+                              ? '/time-off/attendance/requests'
+                              : `/time-off/attendance/timesheets?person=${n.personId}&week=${n.date}`
+                          }
+                          aria-label={`Review ${n.displayName}’s ${n.kind === 'correction' ? 'correction' : 'overtime'}`}
+                        >
+                          Review
+                        </a>
+                      </Button>
+                    }
+                  >
+                    {n.kind === 'correction'
+                      ? `${n.displayName} · ${weekdayName(n.date)} ${n.punch?.kind === 'in' ? 'clock-in' : 'clock-out'}`
+                      : `${n.displayName} · ${duration(n.minutes ?? 0)} overtime`}
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </PageSection>
+        </div>
       </div>
     </>
   );

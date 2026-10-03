@@ -50,6 +50,25 @@ export const SpanView = named(
 
 export const RangeView = named('TimeOffRange', z.object({ from: CalendarDate, to: CalendarDate }));
 
+/** A line of text and who wrote it: `ai` only when a model did (PRD §14.1, `assist/written.ts`). */
+export const WrittenView = named('TimeOffWritten', z.object({ text: z.string(), ai: z.boolean() }));
+
+/** Days that join a holiday to the days off around it (T1, MT1, MT21), and the line about them. */
+export const BridgeView = named(
+  'TimeOffBridge',
+  z.object({
+    /** The working days to ask for. */
+    from: CalendarDate,
+    to: CalendarDate,
+    used: z.int(),
+    away: named('TimeOffBreak', z.object({ from: CalendarDate, to: CalendarDate, days: z.int() })),
+    holidays: z.array(
+      named('TimeOffBridgedHoliday', z.object({ date: CalendarDate, name: z.string() })),
+    ),
+    text: WrittenView,
+  }),
+);
+
 export const MemberView = named(
   'TimeOffMember',
   z.object({
@@ -204,6 +223,8 @@ export const OverviewView = named(
         }),
       ),
     ),
+    /** The best bridge days ahead, two at most (TOF-085). */
+    bridges: z.array(BridgeView),
   }),
 );
 
@@ -287,6 +308,62 @@ export const HolidaysView = named(
         }),
       ),
     ),
+    /** The year's bridge days still ahead, in date order (TOF-085). */
+    bridges: z.array(BridgeView),
+  }),
+);
+
+/** T4, MT8: a sentence read as choices, and the dates the domain found for them (TOF-090). */
+export const DescribedView = named(
+  'TimeOffDescribed',
+  z.object({
+    sentence: z.string().nullable(),
+    understood: named(
+      'TimeOffUnderstood',
+      z.object({
+        leaveTypeKey: LeaveTypeKey.nullable(),
+        leaveTypeName: z.string().nullable(),
+        days: z.int(),
+        /** `YYYY-MM`, or `null` for the next three months. */
+        month: z.string().nullable(),
+        nextToHoliday: z.boolean(),
+        avoidShort: z.boolean(),
+        /** Whether a model read the sentence; the rules did otherwise. */
+        ai: z.boolean(),
+      }),
+    ),
+    leaveTypes: z.array(
+      named('TimeOffTypeChoice', z.object({ key: LeaveTypeKey, name: z.string() })),
+    ),
+    /** What is left of the type, `null` when it is not tracked. */
+    left: DayAmount.nullable(),
+    options: z.array(
+      named(
+        'TimeOffDateOption',
+        z.object({
+          from: CalendarDate,
+          to: CalendarDate,
+          used: z.int(),
+          away: z.object({ from: CalendarDate, to: CalendarDate, days: z.int() }).meta({
+            title: 'TimeOffOptionBreak',
+          }),
+          holidays: z.array(
+            z
+              .object({ date: CalendarDate, name: z.string() })
+              .meta({ title: 'TimeOffOptionHoliday' }),
+          ),
+          short: z.array(CoverageDay),
+          fewest: z
+            .object({ in: z.int(), of: z.int() })
+            .meta({ title: 'TimeOffFewest' })
+            .nullable(),
+          /** Whether the balance covers it, and what it would leave. */
+          fits: z.boolean(),
+          leftAfter: DayAmount.nullable(),
+          line: WrittenView,
+        }),
+      ),
+    ),
   }),
 );
 
@@ -322,6 +399,8 @@ export const ApprovalsView = named(
       named('TimeOffLookCloserItem', z.object({ item: RequestItem, reason: LookCloserReason })),
     ),
     items: z.array(RequestItem),
+    /** Waiting for me: each request's one line, clear or not (TOF-086). */
+    why: z.array(named('TimeOffWhy', z.object({ requestId: z.uuid(), text: WrittenView }))),
   }),
 );
 
@@ -373,9 +452,15 @@ export const DecisionView = named(
           /** `ask_teammate`: whose approved time off would move, and which. */
           teammate: PersonRef.nullable(),
           absence: RangeView.nullable(),
+          /** The requester's own options: the message to send with them, editable (TOF-088). */
+          message: WrittenView.nullable(),
         }),
       ),
     ),
+    /** What to know's closing line: whether it might be fine, and on what (TOF-087). */
+    whatToKnow: WrittenView,
+    /** Why a clash matters and what fixing it costs (T15, TOF-088); `null` with nothing to fix. */
+    clash: WrittenView.nullable(),
   }),
 );
 
@@ -474,7 +559,35 @@ export const TimesheetView = named(
         }),
       ),
     ),
-    open: z.array(named('TimeOffOpenDay', z.object({ date: CalendarDate, lastPunchAt: Instant }))),
+    open: z.array(
+      named(
+        'TimeOffOpenDay',
+        z.object({
+          date: CalendarDate,
+          lastPunchAt: Instant,
+          /** When they probably finished, from their own evidence; only for themselves (TOF-089). */
+          suggestion: named(
+            'TimeOffFinishSuggestion',
+            z.object({
+              at: Instant,
+              time: z.string(),
+              /** Whether a model chose it among the domain's candidates. */
+              ai: z.boolean(),
+              evidence: z.array(
+                named(
+                  'TimeOffEvidence',
+                  z.object({
+                    source: z.enum(['calendar', 'kithena']),
+                    at: Instant,
+                    what: z.string(),
+                  }),
+                ),
+              ),
+            }),
+          ).nullable(),
+        }),
+      ),
+    ),
     restBreaches: z.array(
       named('TimeOffRestBreach', z.object({ date: CalendarDate, restMinutes: z.int() })),
     ),
@@ -523,6 +636,8 @@ export const RightNowView = named(
         }),
       ),
     ),
+    /** Today, in a sentence: what is normal and what needs the manager (TOF-091). */
+    sentence: WrittenView,
   }),
 );
 
@@ -763,13 +878,58 @@ export const LeaveTypesView = named(
   }),
 );
 
+const PolicyDefinitionView = PolicyDefinition.meta({ title: 'TimeOffPolicyDefinition' });
+
 const PolicyVersionView = named(
   'TimeOffPolicyVersion',
   z.object({
     version: z.int(),
     status: z.enum(['draft', 'published']),
     effectiveFrom: CalendarDate.nullable(),
-    definition: PolicyDefinition.meta({ title: 'TimeOffPolicyDefinition' }),
+    definition: PolicyDefinitionView,
+  }),
+);
+
+/** T32: a policy written in plain words, read into the ordinary form (TOF-094). */
+export const PolicyReadView = named(
+  'TimeOffPolicyRead',
+  z.object({
+    text: z.string().nullable(),
+    leaveTypeKey: LeaveTypeKey.nullable(),
+    leaveTypes: z.array(
+      named('TimeOffPolicyTypeChoice', z.object({ key: LeaveTypeKey, name: z.string() })),
+    ),
+    /** Whether a model read the text; the rules did otherwise. */
+    ai: z.boolean(),
+    /** "Understood as": each rule of the form, said, with the amount HR can change. */
+    rules: z.array(
+      named(
+        'TimeOffUnderstoodRule',
+        z.object({
+          key: z.enum(['allowance', 'probation', 'carry_over', 'negative']),
+          label: z.string(),
+          value: z.string(),
+          amount: z.string(),
+        }),
+      ),
+    ),
+    /** The one question the text cannot answer; `null` when it answers everything. */
+    question: named(
+      'TimeOffOpenQuestion',
+      z.object({
+        key: z.enum(['day_kind', 'earning']),
+        title: z.string(),
+        body: WrittenView,
+        options: z.array(
+          named('TimeOffAnswer', z.object({ value: z.string(), label: z.string() })),
+        ),
+      }),
+    ).nullable(),
+    /** The ordinary draft it would create, `null` until the text says enough. */
+    definition: PolicyDefinitionView.nullable(),
+    problems: z.array(
+      named('TimeOffReadProblem', z.object({ path: z.string(), message: z.string() })),
+    ),
   }),
 );
 
@@ -989,6 +1149,34 @@ export const HolidaySettingsView = named(
   }),
 );
 
+/** T36's assistant card: a year drafted from a list HR supplied, never saved by itself (TOF-112). */
+export const HolidayDraftView = named(
+  'TimeOffHolidayDraft',
+  z.object({
+    layerKey: z.string(),
+    layerName: z.string(),
+    year: z.int(),
+    days: z.array(
+      named(
+        'TimeOffDraftedHoliday',
+        z.object({
+          date: CalendarDate,
+          name: z.string(),
+          /** Not confirmed yet: left for HR, never saved with the rest. */
+          confirmed: z.boolean(),
+          /** The calendar already has a holiday that day. */
+          known: z.boolean(),
+        }),
+      ),
+    ),
+    /** Lines with no date in the year: shown, not guessed at. */
+    skipped: z.array(z.string()),
+    summary: WrittenView,
+    /** Whether a model said which lines are confirmed. */
+    ai: z.boolean(),
+  }),
+);
+
 /* ---------------------------------------------------------------- viewer -- */
 
 /**
@@ -1080,6 +1268,8 @@ export const ParentalPlanView = named(
     entitlement: ParentalEntitlementView,
     sentAt: Instant.nullable(),
     approvedAt: Instant.nullable(),
+    /** Why the plan has this shape (TOF-092), from week counts only. */
+    explanation: WrittenView,
   }),
 );
 
@@ -1161,6 +1351,11 @@ type DeepReadonly<T> = T extends readonly (infer U)[]
 export type View<S extends z.ZodType> = DeepReadonly<z.output<S>>;
 
 export type SpanView = View<typeof SpanView>;
+export type WrittenView = View<typeof WrittenView>;
+export type DescribedView = View<typeof DescribedView>;
+export type PolicyReadView = View<typeof PolicyReadView>;
+export type HolidayDraftView = View<typeof HolidayDraftView>;
+export type BridgeView = View<typeof BridgeView>;
 export type MemberView = View<typeof MemberView>;
 export type BalanceView = View<typeof BalanceView>;
 export type RequestItem = View<typeof RequestItem>;

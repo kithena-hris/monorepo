@@ -120,6 +120,15 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onSend: actions.sendRequest,
           onNavigate: go,
         };
+      case 'DescribeRequest':
+        return {
+          load: loadable,
+          // The sentence and every choice changed are the address; Time Off reads them again.
+          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
+            go(withQuery(window.location.pathname, window.location.search, patch), mode);
+          },
+          onNavigate: go,
+        };
       case 'MyRequestsUpcoming':
       case 'MyRequestsPast':
       case 'MyRequestsCancelled':
@@ -184,6 +193,16 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
             goTo({ as });
           },
         };
+      case 'DescribePolicy':
+        return {
+          load: loadable,
+          // The text, every rule changed and every answer are the address; Time Off reads them again.
+          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
+            go(withQuery(window.location.pathname, window.location.search, patch), mode);
+          },
+          onCreate: settings.createPolicyDraft,
+          onNavigate: go,
+        };
       case 'NegativeBalance':
         return { load: loadable, onSave: settings.saveNegativeBalance };
       case 'AttendanceSettings':
@@ -194,7 +213,15 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return {
           load: loadable,
           onYear: (year: number) => {
-            goTo({}, `/settings/time-off/holidays/${String(year)}`);
+            goTo({ draft: null, source: null }, `/settings/time-off/holidays/${String(year)}`);
+          },
+          // The draft is the address, so Time Off reads the list again on the server.
+          onDraft: (draft: { readonly layerKey: string; readonly source: string } | null) => {
+            goTo(
+              draft === null
+                ? { draft: null, source: null }
+                : { draft: draft.layerKey, source: draft.source },
+            );
           },
           onAsk: (patch: Readonly<Record<string, string | null>>) => {
             goTo(patch);

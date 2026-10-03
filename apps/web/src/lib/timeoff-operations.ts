@@ -27,7 +27,7 @@ export const OPERATIONS = {
   /** T16: waiting for the caller (clear and look closer), coming up, or decided */
   TimeOffApprovals: `query TimeOffApprovals($tab: String) {
     timeOffApprovals(tab: $tab) {
-      clear { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } items { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } lookCloser { item { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } reason { amount days rule } } tab
+      clear { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } items { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } lookCloser { item { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } reason { amount days rule } } tab why { requestId text { ai text } }
     }
   }`,
 
@@ -94,6 +94,20 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T4, MT8: a sentence read as choices the caller can change, and the best dates for them; nothing is saved */
+  TimeOffDescribe: `query TimeOffDescribe($avoidShort: Boolean, $days: Int, $leaveTypeKey: String, $month: String, $nextToHoliday: Boolean, $sentence: String) {
+    timeOffDescribe(avoidShort: $avoidShort, days: $days, leaveTypeKey: $leaveTypeKey, month: $month, nextToHoliday: $nextToHoliday, sentence: $sentence) {
+      leaveTypes { key name } left options { away { days from to } fewest { in of } fits from holidays { date name } leftAfter line { ai text } short { below checked date in of required } to used } sentence understood { ai avoidShort days leaveTypeKey leaveTypeName month nextToHoliday }
+    }
+  }`,
+
+  /** T36: a year of one calendar drafted from a list HR supplies; the unconfirmed days are marked; nothing is saved; HR */
+  TimeOffHolidayDraft: `query TimeOffHolidayDraft($layerKey: String!, $source: String!, $year: Int!) {
+    timeOffHolidayDraft(layerKey: $layerKey, source: $source, year: $year) {
+      ai days { confirmed date known name } layerKey layerName skipped summary { ai text } year
+    }
+  }`,
+
   /** T36: holiday calendars, and what each work location observes in a year; HR */
   TimeOffHolidaySettings: `query TimeOffHolidaySettings($year: Int!) {
     timeOffHolidaySettings(year: $year) {
@@ -104,7 +118,7 @@ export const OPERATIONS = {
   /** MT21: the holidays the caller’s work location observes */
   TimeOffHolidays: `query TimeOffHolidays($year: Int!) {
     timeOffHolidays(year: $year) {
-      holidays { date layer movedFrom name } locationKey year
+      bridges { away { days from to } from holidays { date name } text { ai text } to used } holidays { date layer movedFrom name } locationKey year
     }
   }`,
 
@@ -160,14 +174,14 @@ export const OPERATIONS = {
   /** T1: the clock, the balances, what is coming up and who is off today */
   TimeOffOverview: `query TimeOffOverview {
     timeOffOverview {
-      balances { allowance booked colorToken icon leaveTypeKey left name unit used yearly } clock { state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel } comingUp { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } teamToday { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } }
+      balances { allowance booked colorToken icon leaveTypeKey left name unit used yearly } bridges { away { days from to } from holidays { date name } text { ai text } to used } clock { state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel } comingUp { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } teamToday { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } }
     }
   }`,
 
   /** T11: a sent plan with its checklist and rules check; HR and the manager */
   TimeOffParentalCase: `query TimeOffParentalCase($planId: String!) {
     timeOffParentalCase(planId: $planId) {
-      canApprove checklist { key module on status } managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees }
+      canApprove checklist { key module on status } managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } explanation { ai text } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees }
     }
   }`,
 
@@ -181,7 +195,7 @@ export const OPERATIONS = {
   /** T8–T10: the caller’s parental plan, and the entitlement the answers asked about would give; nothing is saved */
   TimeOffParentalPlan: `query TimeOffParentalPlan($childDate: String, $children: Int, $role: String, $singleParent: Boolean) {
     timeOffParentalPlan(childDate: $childDate, children: $children, role: $role, singleParent: $singleParent) {
-      managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees } preview { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } supported
+      managerName member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } plan { approvedAt birth blocks { from kind leaveTypeKey paidBy payPercent to workingDays } explanation { ai text } childDate children dueDate entitlement { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } handover { coveredBy work } keptWeeks planId problems { code message } reminders { blockFrom remindOn } role sentAt singleParent status teamSees } preview { companyAfterYears companyWeeks flexibleBefore flexibleWeeks law laterBefore laterWeeks mandatoryWeeks noticeDays paidBy payPercent startsFrom vacationAccrues } supported
     }
   }`,
 
@@ -199,6 +213,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** T32: a policy written in plain words, read into the ordinary form, with the one question it leaves open; nothing is saved; HR */
+  TimeOffPolicyRead: `query TimeOffPolicyRead($allowance: String, $carryOver: String, $dayKind: String, $earning: String, $leaveTypeKey: String, $negative: String, $probationMonths: Int, $text: String) {
+    timeOffPolicyRead(allowance: $allowance, carryOver: $carryOver, dayKind: $dayKind, earning: $earning, leaveTypeKey: $leaveTypeKey, negative: $negative, probationMonths: $probationMonths, text: $text) {
+      ai definition { allowance { days fromYears } appliesTo { clauses combine } carryOver { maxDays useBy { day month } } earning keepEarningOnParental leaveTypeKey negativeBalance { approvers atYearEnd limit onLeaving } proRata probationMonths requests { blockBelowMinimum halfDays showWhoIsOff } year { day month } } leaveTypeKey leaveTypes { key name } problems { message path } question { body { ai text } key options { label value } title } rules { amount key label value } text
+    }
+  }`,
+
   /** One request, for its member, an approver or HR */
   TimeOffRequest: `query TimeOffRequest($requestId: String!) {
     timeOffRequest(requestId: $requestId) {
@@ -209,7 +230,7 @@ export const OPERATIONS = {
   /** T17: one request with the balance, the team and the rule an approver weighs */
   TimeOffRequestDecision: `query TimeOffRequestDecision($requestId: String!) {
     timeOffRequestDecision(requestId: $requestId) {
-      alternatives { absence { from to } affects coverage { below checked date in of required } dates kind spans { from to } swapped { in out } teammate { displayName personId } } balance { after before } belowMinimum { below checked date in of required } canDecide lastTaken { from to } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } note othersOff { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } triage { group reason { amount days rule } }
+      alternatives { absence { from to } affects coverage { below checked date in of required } dates kind message { ai text } spans { from to } swapped { in out } teammate { displayName personId } } balance { after before } belowMinimum { below checked date in of required } canDecide clash { ai text } lastTaken { from to } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } note othersOff { displayName leaveTypeKey personId span { endsHalfDay from startsHalfDay to } } request { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } triage { group reason { amount days rule } } whatToKnow { ai text }
     }
   }`,
 
@@ -223,14 +244,14 @@ export const OPERATIONS = {
   /** T22: the caller’s reports, live, and what needs them */
   TimeOffTeamRightNow: `query TimeOffTeamRightNow {
     timeOffTeamRightNow {
-      needsYou { date displayName kind minutes personId punch { at id kind reason recordedAt source supersedes workModel } } people { displayName personId state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel }
+      needsYou { date displayName kind minutes personId punch { at id kind reason recordedAt source supersedes workModel } } people { displayName personId state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel } sentence { ai text }
     }
   }`,
 
   /** T20: a timesheet by week or month, the caller’s own unless a member is named */
   TimeOffTimesheet: `query TimeOffTimesheet($from: String!, $personId: String, $to: String!) {
     timeOffTimesheet(from: $from, personId: $personId, to: $to) {
-      corrections { needsManager punch { at id kind reason recordedAt source supersedes workModel } } days { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } open { date lastPunchAt } overtime { date minutes outcome } punches { at id kind reason recordedAt source supersedes workModel } restBreaches { date restMinutes } weeks { flags monday overtimeMinutes plannedMinutes workedMinutes }
+      corrections { needsManager punch { at id kind reason recordedAt source supersedes workModel } } days { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } member { displayName firstName locationKey managerPersonId personId teamKey teamName timeZone } open { date lastPunchAt suggestion { ai at evidence { at source what } time } } overtime { date minutes outcome } punches { at id kind reason recordedAt source supersedes workModel } restBreaches { date restMinutes } weeks { flags monday overtimeMinutes plannedMinutes workedMinutes }
     }
   }`,
 

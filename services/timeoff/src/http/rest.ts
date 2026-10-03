@@ -46,6 +46,9 @@ import {
   decideRequest,
 } from '../application/approval/decide.js';
 import { setDelegation } from '../application/approval/escalation.js';
+import { describeRequest } from '../application/assist/describe.js';
+import { holidayDraft } from '../application/assist/holiday-draft.js';
+import { readPolicyProse } from '../application/assist/policy-prose.js';
 import {
   attendanceExceptions,
   closePayPeriod,
@@ -123,9 +126,11 @@ import {
   CalendarView,
   DecisionView,
   DelegationView,
+  DescribedView,
   EscalationBody,
   ExceptionsView,
   FileView,
+  HolidayDraftView,
   HolidayLayerBody,
   HolidaySettingsView,
   HolidaysView,
@@ -145,6 +150,7 @@ import {
   ParentRoleView,
   PayPeriodView,
   PolicyPreviewView,
+  PolicyReadView,
   PunchView,
   RequestDetailView,
   RequestPanelView,
@@ -458,6 +464,9 @@ function present<T extends object>(value: T): { [K in keyof T]?: Exclude<T[K], u
 
 const firstOf = (month: string) => CalendarDate.parse(`${month}-01`);
 
+/** A number of days from the address: "28", "2.5". */
+const DayText = z.string().regex(/^\d{1,3}(\.\d{1,3})?$/u, 'a number of days, such as 28 or 2.5');
+
 /* --------------------------------------------------------------- routes -- */
 
 const V1 = '/v1/timeoff';
@@ -499,6 +508,27 @@ export const ROUTES: readonly Route[] = [
     }),
     answer: RequestPanelView,
     run: (deps, caller, { params }) => requestPanel(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffDescribe',
+    method: 'GET',
+    path: `${V1}/describe`,
+    summary:
+      'T4, MT8: a sentence read as choices the caller can change, and the best dates for them; nothing is saved',
+    params: z.object({
+      sentence: z.string().max(300).optional(),
+      leaveTypeKey: LeaveTypeKey.optional(),
+      days: z.int().min(1).max(30).optional(),
+      month: z
+        .string()
+        .regex(/^(\d{4}-(0[1-9]|1[0-2]))?$/u, 'a month, such as 2026-10, or nothing')
+        .optional(),
+      nextToHoliday: z.boolean().optional(),
+      avoidShort: z.boolean().optional(),
+    }),
+    answer: DescribedView,
+    run: (deps, caller, { params }) => describeRequest(deps)(caller, params),
     shape: same,
   }),
   route({
@@ -741,6 +771,26 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffPolicyRead',
+    method: 'GET',
+    path: `${V1}/settings/policies/read`,
+    summary:
+      'T32: a policy written in plain words, read into the ordinary form, with the one question it leaves open; nothing is saved; HR',
+    params: z.object({
+      text: z.string().max(2000).optional(),
+      leaveTypeKey: LeaveTypeKey.optional(),
+      dayKind: z.enum(['working', 'calendar']).optional(),
+      earning: z.enum(['upfront', 'monthly']).optional(),
+      allowance: DayText.optional(),
+      carryOver: DayText.optional(),
+      negative: DayText.optional(),
+      probationMonths: z.int().min(0).max(24).optional(),
+    }),
+    answer: PolicyReadView,
+    run: (deps, caller, { params }) => readPolicyProse(deps)(caller, params),
+    shape: same,
+  }),
+  route({
     name: 'timeOffNegativeBalanceSettings',
     method: 'GET',
     path: `${V1}/settings/negative-balance`,
@@ -775,6 +825,21 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ year: Year }),
     answer: HolidaySettingsView,
     run: (deps, caller, { params }) => holidaySettings(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffHolidayDraft',
+    method: 'GET',
+    path: `${V1}/settings/holidays/{year}/draft`,
+    summary:
+      'T36: a year of one calendar drafted from a list HR supplies; the unconfirmed days are marked; nothing is saved; HR',
+    params: z.object({
+      year: Year,
+      layerKey: HolidayLayerBody.shape.key,
+      source: z.string().min(1).max(4000),
+    }),
+    answer: HolidayDraftView,
+    run: (deps, caller, { params }) => holidayDraft(deps)(caller, params),
     shape: same,
   }),
   route({

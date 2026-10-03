@@ -55,6 +55,8 @@ export interface Plan {
   readonly entitlement: Entitlement;
   readonly sentAt: string | null;
   readonly approvedAt: string | null;
+  /** Why the plan has this shape (TOF-092): the model's words, or Time Off's template. */
+  readonly explanation?: { readonly text: string; readonly ai: boolean };
 }
 
 export interface Member {

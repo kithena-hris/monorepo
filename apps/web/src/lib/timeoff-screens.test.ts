@@ -27,6 +27,57 @@ beforeEach(() => {
   vi.useFakeTimers({ now: Date.parse('2026-10-01T10:33:00.000Z'), toFake: ['Date'] });
 });
 
+describe('describe it', () => {
+  it('asks Time Off to read the sentence, with what the person changed and nothing it cannot read', async () => {
+    answering({ TimeOffDescribe: () => ({ ok: true, data: { options: [] } }) });
+    const load = await loadScreen('DescribeRequest', {
+      params: {},
+      search: {
+        q: 'a week in October',
+        days: '10',
+        month: 'none',
+        holiday: '0',
+        team: 'x',
+        type: '',
+      },
+    });
+    expect(asked('TimeOffDescribe')).toEqual([
+      { sentence: 'a week in October', days: 10, month: '', nextToHoliday: false },
+    ]);
+    expect(load).toMatchObject({
+      status: 'ready',
+      data: { options: [], overview: null, today: '2026-10-01' },
+    });
+  });
+});
+
+describe('a policy in plain words', () => {
+  it('asks Time Off to read the text with what HR answered or changed, leaving out what it cannot take', async () => {
+    answering({ TimeOffPolicyRead: () => ({ ok: true, data: { rules: [] } }) });
+    await loadScreen('DescribePolicy', {
+      params: {},
+      search: {
+        text: 'Everyone gets 28 days a year.',
+        type: 'vacation',
+        days: 'calendar',
+        earning: 'sometimes',
+        carry: '5',
+        negative: 'lots',
+        probation: '3',
+      },
+    });
+    expect(asked('TimeOffPolicyRead')).toEqual([
+      {
+        text: 'Everyone gets 28 days a year.',
+        leaveTypeKey: 'vacation',
+        dayKind: 'calendar',
+        carryOver: '5',
+        probationMonths: 3,
+      },
+    ]);
+  });
+});
+
 describe('the request panel', () => {
   it('asks the preview for what the address says, and the team’s month on show', async () => {
     answering({ TimeOffRequestPanel: () => ({ ok: true, data: { leaveTypes: [], preview: {} } }) });
@@ -113,12 +164,14 @@ describe('my requests', () => {
 });
 
 describe('holidays', () => {
-  it('reads the year in the address, this year for one it cannot read, with the bridge days', async () => {
+  it('reads the year in the address, this year for one it cannot read, with Time Off’s bridge days', async () => {
+    const bridges = [{ from: '2026-12-07', to: '2026-12-07', used: 1 }];
     answering({
       TimeOffHolidays: () => ({
         ok: true,
         data: {
           holidays: [{ date: '2026-12-08', name: 'Inmaculada Concepción', layer: 'national' }],
+          bridges,
         },
       }),
     });
@@ -126,7 +179,7 @@ describe('holidays', () => {
     expect(asked('TimeOffHolidays')).toEqual([{ year: 2026 }]);
     expect(load).toMatchObject({
       status: 'ready',
-      data: { bridges: [{ take: '2026-12-07', holiday: 'Inmaculada Concepción', days: 4 }] },
+      data: { bridges },
     });
   });
 });

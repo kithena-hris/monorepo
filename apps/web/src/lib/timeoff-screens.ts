@@ -4,7 +4,7 @@ import { timeOff } from './people';
 import type { ScreenLoad, ScreenQuery } from './people-screens';
 import { aroundRequest, calendarWindow, clashOf } from './timeoff-calendar-views';
 import type { OperationName } from './timeoff-operations';
-import { bridgeDays, upcomingHolidays, type Holiday } from './timeoff-views';
+import { upcomingHolidays, type Holiday } from './timeoff-views';
 
 /**
  * The data each Time Off screen is drawn from, fetched on the server before
@@ -55,6 +55,8 @@ export async function loadScreen(
     // The employee's screens (TOF-062 to TOF-067).
     case 'RequestTimeOff':
       return requestPanel(query.search);
+    case 'DescribeRequest':
+      return describeRequest(query.search);
     case 'MyRequestsUpcoming':
       return myRequests('upcoming');
     case 'MyRequestsPast':
@@ -88,6 +90,8 @@ export async function loadScreen(
       return leaveTypeSettings(query.search);
     case 'LeaveType':
       return leaveType(query);
+    case 'DescribePolicy':
+      return policyRead(query.search);
     case 'NegativeBalance':
       return read('TimeOffNegativeBalanceSettings');
     case 'AttendanceSettings':
@@ -113,11 +117,11 @@ async function parental(step: string): Promise<ScreenLoad> {
 }
 
 /**
- * T1, MT1: the overview, and beside it the holidays where the person works,
- * this year's and next (Coming up crosses New Year in December), for what is
- * coming up and the days that bridge a holiday to a weekend. `now` is when
- * it was asked, so the clock card's timer starts from the server's minute.
- * A holiday read Time Off refuses leaves the holidays out, not the page.
+ * T1, MT1: the overview, with its bridge days (Time Off's, TOF-085), and
+ * beside it the holidays where the person works, this year's and next
+ * (Coming up crosses New Year in December). `now` is when it was asked, so
+ * the clock card's timer starts from the server's minute. A holiday read
+ * Time Off refuses leaves the holidays out, not the page.
  */
 async function overview(): Promise<ScreenLoad> {
   const now = new Date();
@@ -130,18 +134,44 @@ async function overview(): Promise<ScreenLoad> {
   ]);
   if (base.status !== 'ready') return base;
   const holidays = years.flatMap((a) => (a.ok ? a.data.holidays : []));
-  const data = base.data as { comingUp: readonly { span: { from: string; to: string } }[] };
   return {
     status: 'ready',
     data: {
-      ...data,
+      ...(base.data as object),
       holidays: upcomingHolidays(holidays, today),
-      bridges: bridgeDays(
-        holidays,
-        today,
-        data.comingUp.map((r) => r.span),
-      ),
       now: now.toISOString(),
+    },
+  };
+}
+
+/**
+ * T4, MT8: the sentence in the address (`q`) and whatever the person changed
+ * of what it was understood as (`type`, `days`, `month`, `holiday`, `team`),
+ * as Time Off read them, over the overview. `month=none` is "no month".
+ */
+async function describeRequest(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+  const flag = (value: string | undefined): boolean | undefined =>
+    value === '1' ? true : value === '0' ? false : undefined;
+  const days = Number(search['days']);
+  const month = search['month'];
+  const asked = Object.fromEntries(
+    Object.entries({
+      sentence: search['q']?.slice(0, 300) || undefined,
+      leaveTypeKey: search['type'] || undefined,
+      days: Number.isInteger(days) && days >= 1 && days <= 30 ? days : undefined,
+      month: month === 'none' ? '' : MONTH.test(month ?? '') ? month : undefined,
+      nextToHoliday: flag(search['holiday']),
+      avoidShort: flag(search['team']),
+    }).filter(([, v]) => v !== undefined),
+  );
+  const [behind, answer] = await Promise.all([overview(), read('TimeOffDescribe', asked)]);
+  if (answer.status !== 'ready') return answer;
+  return {
+    status: 'ready',
+    data: {
+      ...(answer.data as object),
+      overview: behind.status === 'ready' ? behind.data : null,
+      today: todayUtc(),
     },
   };
 }
@@ -559,25 +589,15 @@ async function requestDetail(requestId: string): Promise<ScreenLoad> {
 
 /**
  * MT21: the holidays where the caller works in a year (this year when the
- * address names none it can read), with the days that bridge one to a
- * weekend, never one already booked.
+ * address names none it can read), with the bridge days Time Off found.
  */
 async function holidaysWhereYouWork(param: string | undefined): Promise<ScreenLoad> {
   const today = todayUtc();
   const year = /^\d{4}$/.test(param ?? '') ? Number(param) : Number(today.slice(0, 4));
-  const [answer, upcoming] = await Promise.all([
-    read('TimeOffHolidays', { year }),
-    timeOff<{ items: readonly { span: { from: string; to: string } }[] }>('TimeOffMyRequests', {
-      tab: 'upcoming',
-    }),
-  ]);
-  if (answer.status !== 'ready') return answer;
-  const data = answer.data as { holidays: Holiday[] };
-  const booked = upcoming.ok ? upcoming.data.items.map((r) => r.span) : [];
-  return {
-    status: 'ready',
-    data: { ...data, bridges: bridgeDays(data.holidays, today, booked, Infinity), today },
-  };
+  const answer = await read('TimeOffHolidays', { year });
+  return answer.status === 'ready'
+    ? { status: 'ready', data: { ...(answer.data as object), today } }
+    : answer;
 }
 
 /* ------------------------------------------------------------- settings -- */
@@ -605,6 +625,36 @@ async function leaveTypeSettings(search: Readonly<Record<string, string>>): Prom
     rules: a['rules'],
     adding: search['add'] === '1',
   }));
+}
+
+/**
+ * T32: the policy's text in the address (`text`), the leave type it is for,
+ * and whatever HR answered or changed of what it was read as, as Time Off
+ * read them. Anything the address holds that Time Off could not take is left
+ * out rather than refused.
+ */
+async function policyRead(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+  const daysText = (v: string | undefined) =>
+    /^\d{1,3}(\.\d{1,3})?$/.test(v ?? '') ? v : undefined;
+  const months = Number(search['probation']);
+  const asked = Object.fromEntries(
+    Object.entries({
+      text: search['text']?.slice(0, 2000) || undefined,
+      leaveTypeKey: search['type'] || undefined,
+      dayKind: ['working', 'calendar'].includes(search['days'] ?? '') ? search['days'] : undefined,
+      earning: ['upfront', 'monthly'].includes(search['earning'] ?? '')
+        ? search['earning']
+        : undefined,
+      allowance: daysText(search['allowance']),
+      carryOver: daysText(search['carry']),
+      negative: daysText(search['negative']),
+      probationMonths:
+        Number.isInteger(months) && months >= 0 && months <= 24 && search['probation'] !== undefined
+          ? months
+          : undefined,
+    }).filter(([, v]) => v !== undefined),
+  );
+  return read('TimeOffPolicyRead', asked);
 }
 
 /**
@@ -644,11 +694,22 @@ async function approvalSettings(): Promise<ScreenLoad> {
   return both(approvals, types, (a, t) => ({ ...a, leaveTypes: t['leaveTypes'] }));
 }
 
-/** T36: the year in the address (this year without one) and the location in `?location=`. */
+/**
+ * T36: the year in the address (this year without one), the location in
+ * `?location=`, and with `?draft=` and `?source=` the year Time Off drafts for
+ * that calendar from the list HR pasted (TOF-112); a draft it refuses is said,
+ * and the page is drawn without it.
+ */
 async function holidaySettings({ params, search }: ScreenQuery): Promise<ScreenLoad> {
   const thisYear = new Date().getUTCFullYear();
   const year = /^\d{4}$/.test(params['year'] ?? '') ? Number(params['year']) : thisYear;
-  const answer = await read('TimeOffHolidaySettings', { year });
+  const layerKey = search['draft'] ?? '';
+  const source = (search['source'] ?? '').slice(0, 4000);
+  const drafting = layerKey !== '' && source.trim() !== '';
+  const [answer, draft] = await Promise.all([
+    read('TimeOffHolidaySettings', { year }),
+    drafting ? read('TimeOffHolidayDraft', { year, layerKey, source }) : null,
+  ]);
   if (answer.status !== 'ready') return answer;
   return {
     status: 'ready',
@@ -657,6 +718,8 @@ async function holidaySettings({ params, search }: ScreenQuery): Promise<ScreenL
       thisYear,
       location: search['location'] ?? null,
       calendar: search['calendar'] ?? null,
+      draft: draft?.status === 'ready' ? draft.data : null,
+      draftProblem: draft?.status === 'error' ? draft.message : null,
     },
   };
 }

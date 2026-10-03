@@ -30,16 +30,18 @@ import { ParentalPlan as ParentalPlanScreen } from './parental/plan';
 import { placeholder } from './placeholder';
 import { ApprovalSettings as ApprovalSettingsScreen } from './settings/approval-settings';
 import { AttendanceSettings as AttendanceSettingsScreen } from './settings/attendance-settings';
+import { DescribePolicy as DescribePolicyScreen } from './settings/describe-policy';
 import { HolidaySettings as HolidaySettingsScreen } from './settings/holiday-settings';
 import { LeaveType as LeaveTypeScreen } from './settings/leave-type';
 import { LeaveTypes as LeaveTypesScreen } from './settings/leave-types';
 import { NegativeBalance as NegativeBalanceScreen } from './settings/negative-balance';
+import { DescribeRequest as DescribeScreen } from './request/describe';
 import { RequestTimeOff as RequestScreen } from './request/request';
 import { MyRequests as RequestsScreen } from './requests/requests';
 
 export const Overview = framed(OverviewScreen);
 export const RequestTimeOff = framed(RequestScreen);
-export const DescribeRequest = framed(placeholder('Describe it'));
+export const DescribeRequest = framed(DescribeScreen);
 // One screen, three tabs and a request's own address: each name is what the
 // shell's loader reads to know which (`lib/timeoff-screens.ts`).
 export const MyRequestsUpcoming = framed(RequestsScreen);
@@ -67,7 +69,7 @@ export const ParentalCases = framed(ParentalCasesScreen);
 export const Insights = framed(InsightsScreen);
 export const LeaveTypes = framed(LeaveTypesScreen);
 export const LeaveType = framed(LeaveTypeScreen);
-export const DescribePolicy = framed(placeholder('Write a policy in plain words'));
+export const DescribePolicy = framed(DescribePolicyScreen);
 export const NegativeBalance = framed(NegativeBalanceScreen);
 export const AttendanceSettings = framed(AttendanceSettingsScreen);
 export const ApprovalSettings = framed(ApprovalSettingsScreen);

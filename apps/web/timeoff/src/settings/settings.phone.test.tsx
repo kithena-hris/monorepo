@@ -7,6 +7,7 @@ import type { Frame } from '../frame';
 import {
   ApprovalSettings,
   AttendanceSettings,
+  DescribePolicy,
   HolidaySettings,
   LeaveType,
   LeaveTypes,
@@ -16,6 +17,7 @@ import { underFloor } from '../test/floor';
 import {
   approvals,
   attendance,
+  berlinRead,
   holidays,
   leaveTypes,
   negativeBalance,
@@ -88,6 +90,15 @@ const screens: readonly (readonly [string, () => JSX.Element])[] = [
     ),
   ],
   [
+    'a policy in plain words',
+    () => (
+      <DescribePolicy
+        load={ready(berlinRead())}
+        frame={frame('Leave types', '/settings/time-off/leave-types')}
+      />
+    ),
+  ],
+  [
     'negative balance',
     () => (
       <NegativeBalance
@@ -114,6 +125,33 @@ const screens: readonly (readonly [string, () => JSX.Element])[] = [
         load={ready(approvals())}
         onSave={noop}
         frame={frame('Approvals', '/settings/time-off/approvals')}
+      />
+    ),
+  ],
+  [
+    'holidays, a year drafted from a list',
+    () => (
+      <HolidaySettings
+        load={ready({
+          ...holidays(),
+          year: 2027,
+          location: 'madrid',
+          draft: {
+            layerKey: 'madrid',
+            layerName: 'Madrid city',
+            year: 2027,
+            days: [
+              { date: '2027-05-15', name: 'San Isidro', confirmed: true, known: false },
+              { date: '2027-11-09', name: 'La Almudena', confirmed: false, known: false },
+            ],
+            skipped: [],
+            summary: { text: 'Read 2 days for Madrid city in 2027.', ai: true },
+            ai: true,
+          },
+        })}
+        onYear={() => undefined}
+        onSaveCalendar={noop}
+        frame={frame('Holidays', '/settings/time-off/holidays')}
       />
     ),
   ],
