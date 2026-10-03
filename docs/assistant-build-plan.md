@@ -98,7 +98,7 @@ green with their capability routes.
 
 ## Phase 1 — contracts
 
-### [ ] AST-001 — The shared capability shapes
+### [x] AST-001 — The shared capability shapes
 
 **Goal** One vocabulary every module's capabilities are built from, so the
 assistant can validate and join any of them without knowing the module.
@@ -121,6 +121,11 @@ answered }`, today's shape from `ask.ts`), which Slack and the assistant
   both parse.
 - **Done when** the contract tests pass and `just codegen` reports no
   unclassified field once AST-005 walks it.
+- **As built** each descriptor carries `schemas.step` (what a plan may write:
+  date references, no `personIds`/`limit`) and `schemas.input` (what the module
+  receives: resolved `{ from, to }`, `limit` up to 5,000 for §9.6's count by
+  group, `ids`, `personIds`); every result has a `kind`; generic names are
+  prefixed (`CapabilityFilter`, `NameAsTyped`, `ASSISTANT_LIMITS`).
 
 ### [ ] AST-002 — People's capability contracts
 

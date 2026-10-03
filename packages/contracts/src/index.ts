@@ -25,3 +25,4 @@ export * from './timeoff/attendance.js';
 export * from './account-directory.js';
 export * from './module-roles.js';
 export * from './signup-questions.js';
+export * from './assistant/capability.js';
