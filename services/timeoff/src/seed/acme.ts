@@ -523,6 +523,7 @@ async function request(
       note: null,
       requestedAt: asked.clock.instant(),
       proposedBy: null,
+      proposalMessage: null,
     },
     entries,
   );

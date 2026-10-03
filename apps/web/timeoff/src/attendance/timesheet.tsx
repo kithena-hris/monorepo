@@ -1,5 +1,6 @@
 import {
   Alert,
+  AssistantCard,
   Badge,
   Button,
   ChartLegend,
@@ -14,6 +15,8 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  IconList,
+  IconListItem,
   KeyValues,
   PageHeader,
   PageSection,
@@ -80,7 +83,12 @@ export interface TimesheetData {
     readonly overtimeMinutes: number;
   }[];
   /** Days without a clock-out, waiting for one. */
-  readonly open: readonly { readonly date: string; readonly lastPunchAt: string }[];
+  readonly open: readonly {
+    readonly date: string;
+    readonly lastPunchAt: string;
+    /** When they probably finished, from their own evidence (TOF-089); `null` without any. */
+    readonly suggestion?: FinishSuggestion | null;
+  }[];
   readonly overtime: readonly {
     readonly date: string;
     readonly minutes: number;
@@ -94,6 +102,20 @@ export interface TimesheetData {
   /** A day whose missed clock-out the address opens (`?fix=`), as a morning notification links. */
   readonly fix: string | null;
   readonly now: string;
+}
+
+/** Time Off's guess at a missed clock-out, with what it was guessed from. */
+export interface FinishSuggestion {
+  readonly at: string;
+  /** "18:05", where the person is. */
+  readonly time: string;
+  /** Whether a model chose it among the domain's candidates. */
+  readonly ai: boolean;
+  readonly evidence: readonly {
+    readonly source: 'calendar' | 'kithena';
+    readonly at: string;
+    readonly what: string;
+  }[];
 }
 
 export interface CorrectionInput {
@@ -241,6 +263,7 @@ function Ready({
           key={fixingDay.date}
           day={fixingDay}
           lastPunchAt={fixingOpen.lastPunchAt}
+          suggestion={fixingOpen.suggestion ?? null}
           punches={data.punches}
           personId={data.member.personId}
           zone={zone}
@@ -440,11 +463,13 @@ function Kept(): JSX.Element {
 /**
  * When did you finish (T21, MT18)? A time after the last punch, and what it
  * would make of the day, then a new clock-out beside the record. Under a
- * finger the dialog is a sheet.
+ * finger the dialog is a sheet. Time Off's suggestion, when it had evidence,
+ * is filled in and shown with that evidence; it is only ever a starting point.
  */
 function FixClockOut({
   day,
   lastPunchAt,
+  suggestion,
   punches,
   personId,
   zone,
@@ -453,13 +478,14 @@ function FixClockOut({
 }: {
   readonly day: Day;
   readonly lastPunchAt: string;
+  readonly suggestion: FinishSuggestion | null;
   readonly punches: readonly Punch[];
   readonly personId: string;
   readonly zone: string;
   readonly onCorrect: NonNullable<TimesheetProps['onCorrect']>;
   readonly onClose: () => void;
 }): JSX.Element {
-  const [time, setTime] = useState<string | null>(null);
+  const [time, setTime] = useState<string | null>(suggestion?.time ?? null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
@@ -514,6 +540,35 @@ function FixClockOut({
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <DayBar label={shortDate(day.date)} segments={segments} />
+          {suggestion === null ? null : (
+            <AssistantCard
+              level={3}
+              title={`Around ${suggestion.time}`}
+              action={
+                suggestion.ai ? (
+                  <Badge tone="assistant" size="sm">
+                    AI
+                  </Badge>
+                ) : undefined
+              }
+              note="Only your calendar and what you did in Kithena. Never screen time or where you were."
+            >
+              <IconList>
+                {suggestion.evidence.map((e) => (
+                  <IconListItem
+                    key={`${e.source}:${e.at}`}
+                    icon={e.source === 'calendar' ? <icons.calendar /> : <icons.history />}
+                    tone="neutral"
+                    description={e.what}
+                  >
+                    {e.source === 'calendar'
+                      ? `Your meeting ended at ${clockTime(minuteOfDay(e.at, zone))}`
+                      : `Your last action in Kithena was at ${clockTime(minuteOfDay(e.at, zone))}`}
+                  </IconListItem>
+                ))}
+              </IconList>
+            </AssistantCard>
+          )}
           <Field required>
             <FieldLabel>Finished at</FieldLabel>
             <FieldControl>

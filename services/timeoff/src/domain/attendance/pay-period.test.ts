@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { fixedClock, unwrap } from '@kithena/domain-kit';
 import { CalendarDate, DayAmount, PeriodClosed, PersonId, TeamKey } from '@kithena/contracts';
 
-import { close, hours, post, totals, type PayPeriod, type TimeLine } from './pay-period.js';
+import {
+  close,
+  hours,
+  monthSummary,
+  post,
+  totals,
+  type MemberMonth,
+  type PayPeriod,
+  type TimeLine,
+} from './pay-period.js';
 import { nextId, personId as adam, tenantId } from './t20.fixture.js';
 
 const d = (s: string) => CalendarDate.parse(s);
@@ -194,6 +203,98 @@ describe('closing September', () => {
     );
     expect(event.payload).toMatchObject({
       members: [{ unpaidDays: '1.000', negativeBalanceDays: '0.500' }],
+    });
+  });
+});
+
+describe('overtime money (TOF-096)', () => {
+  const omarsOvertime = () =>
+    [line({ personId: omar, workedMinutes: 570, paidMinutes: 90 })].map((l) =>
+      unwrap(post([september, october], [], l)),
+    );
+  const closed = (rates: ReadonlyMap<PersonId, { amountMinor: number; currency: string }>) =>
+    unwrap(
+      close({
+        periods: [september, october],
+        periodId: september.id,
+        lines: omarsOvertime(),
+        balances: new Map(),
+        rates,
+        multiplier: '1.25',
+        eventId: nextId(),
+        actor,
+        correlationId,
+        tenantId,
+        clock: fixedClock('2026-10-05T10:00:00+02:00'),
+      }),
+    ).event.payload as { members: { overtimeAmount: unknown }[] };
+
+  it('prices paid overtime at the multiplier when the hourly rate is known, in minor units', () => {
+    // 1.5h × 1.25 × €20.00 = €37.50.
+    const payload = closed(new Map([[omar, { amountMinor: 2000, currency: 'EUR' }]]));
+    expect(payload.members[0]?.overtimeAmount).toEqual({ amountMinor: 3750, currency: 'EUR' });
+    expect(PeriodClosed.payload.safeParse(payload).success).toBe(true);
+  });
+
+  it('sends hours alone when nobody told Time Off a rate', () => {
+    expect(closed(new Map()).members[0]?.overtimeAmount).toBeNull();
+  });
+});
+
+describe('monthSummary (T24)', () => {
+  const member = (over: Partial<MemberMonth>): MemberMonth => ({
+    personId: adam,
+    team: platform,
+    teamName: 'Platform',
+    openDays: 0,
+    overtimeWaitingMinutes: 0,
+    paidMinutes: 0,
+    compMinutes: 0,
+    unpaidDays: DayAmount.parse('0.000'),
+    negativeBalanceDays: DayAmount.parse('0.000'),
+    ...over,
+  });
+
+  it('counts each team’s people, who is late, and how its overtime is paid', () => {
+    const summary = monthSummary([
+      member({ compMinutes: 65 }),
+      member({ personId: omar, paidMinutes: 90, openDays: 1 }),
+      member({
+        personId: PersonId.parse('66666666-6666-7666-8666-666666666666'),
+        team: support,
+        teamName: 'Support',
+        overtimeWaitingMinutes: 30,
+        unpaidDays: DayAmount.parse('2.000'),
+        negativeBalanceDays: DayAmount.parse('1.500'),
+      }),
+    ]);
+    expect(summary.teams).toEqual([
+      {
+        team: platform,
+        teamName: 'Platform',
+        people: 2,
+        waiting: 1,
+        paidMinutes: 90,
+        compMinutes: 65,
+        paidAs: 'mixed',
+      },
+      {
+        team: support,
+        teamName: 'Support',
+        people: 1,
+        waiting: 1,
+        paidMinutes: 0,
+        compMinutes: 0,
+        paidAs: null,
+      },
+    ]);
+    expect(summary.totals).toEqual({
+      paidMinutes: 90,
+      compMinutes: 65,
+      unpaidDays: '2.000',
+      unpaidPeople: 1,
+      negativePeople: 1,
+      negativeBalanceDays: '1.500',
     });
   });
 });

@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffHolidays($year: Int!) {\n    timeOffHolidays(year: $year) {\n      bridges { away { days from to } from holidays { date name } text { ai text } to used } holidays { date layer movedFrom name } locationKey year\n    }\n  }"}

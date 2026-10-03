@@ -109,6 +109,27 @@ describe('plan parental leave', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('T9: says why the plan has its shape, tagged AI only when a model wrote it', () => {
+    const card = () =>
+      within(
+        screen.getByRole('heading', { name: 'Why this plan' }).closest('.flex-col') as HTMLElement,
+      );
+    const { rerender } = render(<ParentalPlan load={ready(parental())} />);
+    expect(card().getByText(/so most of your time is at the start/)).toBeTruthy();
+    expect(card().queryByText('AI')).toBeNull();
+    rerender(
+      <ParentalPlan
+        load={ready(
+          parental({
+            plan: draftPlan({ explanation: { text: 'Home for the first months.', ai: true } }),
+          }),
+        )}
+      />,
+    );
+    expect(card().getByText('Home for the first months.')).toBeTruthy();
+    expect(card().getByText('AI')).toBeTruthy();
+  });
+
   it('T9: a block dragged a week along the track is saved with every other block as it was', async () => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
       DOMRect.fromRect({ x: 0, y: 0, width: 790, height: 40 }),

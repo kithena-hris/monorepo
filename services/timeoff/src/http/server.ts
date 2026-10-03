@@ -92,7 +92,10 @@ export function timeoffListener(
   };
 }
 
-export interface TimeOffServerOptions extends Pick<Deps, 'uow' | 'authz' | 'feedSecret'> {
+export interface TimeOffServerOptions extends Pick<
+  Deps,
+  'uow' | 'authz' | 'feedSecret' | 'judge' | 'writer'
+> {
   readonly callerFrom: CallerFrom;
   readonly clock?: Deps['clock'];
   readonly newId?: Deps['newId'];
@@ -101,6 +104,8 @@ export interface TimeOffServerOptions extends Pick<Deps, 'uow' | 'authz' | 'feed
   readonly notifier?: Deps['notifier'];
   /** Calendars and chat apps, as their credentials allow. */
   readonly reach?: Deps['reach'];
+  /** Messaging's, when `MESSAGING_URL` and `MESSAGING_TIMEOFF_TOKEN` are set; without it no nudge is sent. */
+  readonly mailer?: Deps['mailer'];
 }
 
 /**
@@ -124,6 +129,9 @@ export function timeoffServer(options: TimeOffServerOptions): {
     timers: options.timers ?? { started: async () => {}, closed: async () => {} },
     notifier: options.notifier ?? { notify: async () => {} },
     ...(options.reach === undefined ? {} : { reach: options.reach }),
+    ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
+    ...(options.judge === undefined ? {} : { judge: options.judge }),
+    ...(options.writer === undefined ? {} : { writer: options.writer }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
   const publicUrl = (options.reach?.publicUrl ?? 'http://localhost:4002').replace(/\/$/u, '');

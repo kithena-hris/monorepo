@@ -1,4 +1,7 @@
 import type { ClockData } from '../clock/clock';
+import type { ExceptionsData } from './exceptions';
+import type { PayPeriodData } from './pay-period';
+import type { AttendanceRequestsData } from './requests';
 import type { TeamNowData } from './team-now';
 import type { Punch } from './time';
 import type { TimesheetData } from './timesheet';
@@ -251,4 +254,177 @@ export const marcoBoard = (): TeamNowData => ({
     { personId: 'p-hana', status: 'approved', span: { from: '2026-09-30', to: '2026-10-02' } },
   ],
   now: NOW,
+  sentence: {
+    text: 'Everyone expected is in. Ravi started at 10:12, inside the team’s hours. Adam has an open fix from Wed 30.',
+    ai: false,
+  },
+});
+
+/**
+ * The attendance Requests tab for Marco: Omar's and Adam's overtime from the
+ * release on Tuesday, Adam's late Wednesday clock-out, and his own week with
+ * Monday paid and Tuesday waiting on his manager.
+ */
+export const marcoRequests = (): AttendanceRequestsData => ({
+  overtime: { becomes: 'choose', multiplier: '1.25' },
+  needsYou: [
+    ...marcoBoard().needsYou.filter((n) => n.kind === 'overtime'),
+    {
+      kind: 'overtime',
+      personId: ADAM,
+      displayName: 'Adam Novak',
+      date: '2026-09-29',
+      minutes: 65,
+      punch: null,
+    },
+    ...marcoBoard().needsYou.filter((n) => n.kind === 'correction'),
+  ],
+  mine: [
+    { date: '2026-09-29', minutes: 40, status: 'waiting' },
+    { date: '2026-09-28', minutes: 30, status: 'paid' },
+  ],
+});
+
+/**
+ * T23 for Ada, September 2026: Adam's Wednesday and Leo's Friday without a
+ * clock-out, two short nights after the 29 Sep release, Omar's and Yuki's
+ * overtime waiting, and Diego on the 15 August holiday — kept to the month
+ * on show, so Diego's is in August's.
+ */
+export const adaExceptions = (): ExceptionsData => ({
+  from: '2026-09-01',
+  to: '2026-09-30',
+  month: '2026-09',
+  restMinutes: 720,
+  kind: null,
+  items: [
+    {
+      kind: 'missed_clock_out',
+      date: '2026-09-25',
+      minutes: null,
+      holiday: null,
+      personId: 'p-leo',
+      displayName: 'Leo Rossi',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'overtime_waiting',
+      date: '2026-09-29',
+      minutes: 90,
+      holiday: null,
+      personId: 'p-omar',
+      displayName: 'Omar Haddad',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'overtime_waiting',
+      date: '2026-09-29',
+      minutes: 65,
+      holiday: null,
+      personId: ADAM,
+      displayName: 'Adam Novak',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'short_rest',
+      date: '2026-09-30',
+      minutes: 610,
+      holiday: null,
+      personId: 'p-omar',
+      displayName: 'Omar Haddad',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'short_rest',
+      date: '2026-09-30',
+      minutes: 655,
+      holiday: null,
+      personId: 'p-yuki',
+      displayName: 'Yuki Sato',
+      teamName: 'Platform',
+    },
+    {
+      kind: 'missed_clock_out',
+      date: '2026-09-30',
+      minutes: null,
+      holiday: null,
+      personId: ADAM,
+      displayName: 'Adam Novak',
+      teamName: 'Platform',
+    },
+  ],
+});
+
+/**
+ * T24 for Ada on 1 October: September, over and not yet sent. Support has
+ * two people late — Diego's Friday without a clock-out and Lucía's overtime.
+ */
+export const adaSeptember = (): PayPeriodData => ({
+  month: '2026-09',
+  from: '2026-09-01',
+  to: '2026-09-30',
+  today: '2026-10-01',
+  closedAt: null,
+  teams: [
+    {
+      team: 'design',
+      teamName: 'Design',
+      people: 22,
+      waiting: 0,
+      paidMinutes: 0,
+      compMinutes: 240,
+      paidAs: 'comp',
+    },
+    {
+      team: 'engineering',
+      teamName: 'Engineering',
+      people: 148,
+      waiting: 0,
+      paidMinutes: 0,
+      compMinutes: 3720,
+      paidAs: 'comp',
+    },
+    {
+      team: 'finance',
+      teamName: 'Finance',
+      people: 19,
+      waiting: 0,
+      paidMinutes: 0,
+      compMinutes: 0,
+      paidAs: null,
+    },
+    {
+      team: 'support',
+      teamName: 'Support',
+      people: 41,
+      waiting: 2,
+      paidMinutes: 1860,
+      compMinutes: 0,
+      paidAs: 'paid',
+    },
+  ],
+  totals: {
+    paidMinutes: 2940,
+    compMinutes: 3960,
+    unpaidDays: '3.000',
+    unpaidPeople: 2,
+    negativePeople: 2,
+    negativeBalanceDays: '1.500',
+  },
+  late: [
+    {
+      personId: 'p-diego',
+      displayName: 'Diego Alvarez',
+      team: 'support',
+      openDays: 1,
+      overtimeWaitingMinutes: 0,
+    },
+    {
+      personId: 'p-lucia',
+      displayName: 'Lucía Romero',
+      team: 'support',
+      openDays: 0,
+      overtimeWaitingMinutes: 75,
+    },
+  ],
 });

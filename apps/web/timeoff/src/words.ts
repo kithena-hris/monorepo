@@ -120,3 +120,7 @@ const STATUS: Record<string, { readonly label: string; readonly tone: StatusTone
 
 export const statusOf = (status: string): { readonly label: string; readonly tone: StatusTone } =>
   STATUS[status] ?? { label: status, tone: 'neutral' };
+
+/** A bridge's days to ask for: "Mon 7 Dec", or "9–11 Dec" for more than one. */
+export const bridgeDays = (b: { readonly from: string; readonly to: string }): string =>
+  b.from === b.to ? shortDate(b.from) : spanLabel(b.from, b.to);

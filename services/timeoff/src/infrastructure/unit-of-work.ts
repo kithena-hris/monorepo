@@ -21,6 +21,7 @@ import {
   drizzleFeeds,
   drizzleHolidays,
   drizzleIntegrations,
+  drizzleSettings,
 } from './drizzle-settings.js';
 import { outbox } from './tables.js';
 
@@ -58,6 +59,7 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
     kiosks: drizzleKiosks(tx, tenantId),
     integrations: drizzleIntegrations(tx, tenantId),
     scim: drizzleScim(tx, tenantId),
+    settings: drizzleSettings(tx, tenantId),
     idempotency: drizzleIdempotency(tx, tenantId),
     outbox: { publish: (events) => publish(tx, outbox, events) },
   };

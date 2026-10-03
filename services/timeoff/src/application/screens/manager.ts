@@ -6,7 +6,11 @@ import { DEFAULT_SCHEDULE, teamRightNow, timesheet } from '../attendance/attenda
 import { calendarIn, type CalendarQuery } from '../calendar/calendar.js';
 import { AttendanceClock, standing, type Punch } from '../../domain/attendance/clock.js';
 import { openDays } from '../../domain/attendance/correction.js';
-import type { LookCloser } from '../../domain/approval/triage.js';
+import type { LookCloser, Triage } from '../../domain/approval/triage.js';
+import { kithenaActivity, suggestFinish, type Evidence } from '../assist/clock-out.js';
+import { writeDecision } from '../assist/decision.js';
+import { writeToday } from '../assist/today.js';
+import { reasonFacts, writeReasons, type ReasonFacts } from '../assist/reasons.js';
 import { addDays, amount, days } from '../../domain/days.js';
 import type { LeaveRequest, LeaveRequestId } from '../../domain/request/leave-request.js';
 import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
@@ -15,6 +19,7 @@ import { balanceFor, forbidden, isHrAdmin, notFound, transact } from '../shared.
 import { approves, memberView, requestItem, typesOf } from './employee.js';
 import type {
   ApprovalsView,
+  AttendanceRequestsView,
   CalendarView,
   DecisionView,
   DelegationView,
@@ -34,7 +39,7 @@ import type {
  * (T12–T14), and what the shell asks about the viewer (TOF-058a).
  */
 
-type ReadDeps = Pick<Deps, 'uow' | 'authz' | 'clock'>;
+type ReadDeps = Pick<Deps, 'uow' | 'authz' | 'clock' | 'writer' | 'judge' | 'calendar'>;
 
 export const reasonView = (reason: LookCloser): View<typeof LookCloserReason> => ({
   rule: reason.rule,
@@ -88,24 +93,40 @@ export const approvals =
     if (query.tab === 'waiting') {
       const queue = await approvalQueue(deps)(caller);
       if (!queue.ok) return queue;
-      return transact<ApprovalsView>(deps, caller.tenantId, async (tx) => {
-        const types = await typesOf(tx);
-        const item = async (requestId: LeaveRequestId): Promise<RequestItem | null> => {
-          const record = await tx.requests.get(requestId);
-          const member = record === null ? null : await tx.members.get(record.request.personId);
-          return record === null || member === null ? null : requestItem(record, member, types);
-        };
-        const clear: RequestItem[] = [];
-        for (const q of queue.value.clear) {
-          const found = await item(q.requestId);
-          if (found !== null) clear.push(found);
-        }
-        const lookCloser: ApprovalsView['lookCloser'][number][] = [];
-        for (const q of queue.value.lookCloser) {
-          const found = await item(q.item.requestId);
-          if (found !== null) lookCloser.push({ item: found, reason: reasonView(q.reason) });
-        }
-        return ok({ tab: query.tab, clear, lookCloser, items: [] });
+      const read = await transact<{ view: Omit<ApprovalsView, 'why'>; facts: ReasonFacts[] }>(
+        deps,
+        caller.tenantId,
+        async (tx) => {
+          const types = await typesOf(tx);
+          const facts: ReasonFacts[] = [];
+          const item = async (
+            requestId: LeaveRequestId,
+            triage: Triage,
+          ): Promise<RequestItem | null> => {
+            const record = await tx.requests.get(requestId);
+            const member = record === null ? null : await tx.members.get(record.request.personId);
+            if (record === null || member === null) return null;
+            const today = deps.clock.date(member.timeZone);
+            facts.push(await reasonFacts(tx, record, member, triage, today));
+            return requestItem(record, member, types);
+          };
+          const clear: RequestItem[] = [];
+          for (const q of queue.value.clear) {
+            const found = await item(q.requestId, { group: 'clear' });
+            if (found !== null) clear.push(found);
+          }
+          const lookCloser: ApprovalsView['lookCloser'][number][] = [];
+          for (const q of queue.value.lookCloser) {
+            const found = await item(q.item.requestId, { group: 'look_closer', reason: q.reason });
+            if (found !== null) lookCloser.push({ item: found, reason: reasonView(q.reason) });
+          }
+          return ok({ view: { tab: query.tab, clear, lookCloser, items: [] }, facts });
+        },
+      );
+      if (!read.ok) return read;
+      return ok({
+        ...read.value.view,
+        why: await writeReasons(deps.writer, caller.tenantId, read.value.facts),
       });
     }
     return transact<ApprovalsView>(deps, caller.tenantId, async (tx) => {
@@ -122,107 +143,128 @@ export const approvals =
       const shown = (await decidedFor(tx, deps, caller, records))
         .slice(0, query.tab === 'decided' ? DECIDED_SHOWN : undefined)
         .map(({ record, member }) => requestItem(record, member, types));
-      return ok({ tab: query.tab, clear: [], lookCloser: [], items: shown });
+      return ok({ tab: query.tab, clear: [], lookCloser: [], items: shown, why: [] });
     });
   };
 
 /** T17: one request with what the approver weighs — the balance, the team, the rule. */
 export const requestDecision =
   (deps: ReadDeps) =>
-  (caller: Caller, query: { readonly requestId: LeaveRequestId }): Promise<Result<DecisionView>> =>
-    transact<DecisionView>(deps, caller.tenantId, async (tx) => {
-      const record = await tx.requests.get(query.requestId);
-      if (record === null) return notFound('Request');
-      const { request } = record;
-      const canDecide = await mayDecide(deps, caller, record);
-      if (
-        !canDecide &&
-        !(await isHrAdmin(deps, caller)) &&
-        !(await approves(deps, caller, request.personId))
-      ) {
-        return forbidden();
-      }
-      const member = await tx.members.get(request.personId);
-      if (member === null) return notFound('Member');
-      const span = request.pendingChange ?? request.span;
-      const today = deps.clock.date(member.timeZone);
-      let balance: DecisionView['balance'] = null;
-      if (request.leaveType.tracked) {
-        const before = (await balanceFor(tx, member, request.leaveType.key, today, request.id))
-          .left;
-        balance = { before, after: amount(days(before).minus(span.workingDays)) };
-      }
-      const below = await teamBelow(
-        tx,
-        member,
-        span.from,
-        span.to,
-        [{ personId: member.personId, span, status: 'pending' }],
-        request.id,
-      );
-      const verdict = await triageOf(tx, deps, record, member);
-      const others = await calendarIn(tx, deps, caller, {
-        scope: 'team',
-        teamKey: member.teamKey,
-        from: span.from,
-        to: span.to,
-      });
-      const names = new Map(
-        others.ok ? others.value.people.map((p) => [p.personId, p.displayName]) : [],
-      );
-      const waiting = request.status === 'pending' || request.status === 'change_pending';
-      const options = waiting ? await teamAlternatives(tx, member, span, request.id) : [];
-      const before = (
-        await tx.requests.list({
-          personIds: [member.personId],
-          statuses: ['approved', 'taken'],
-          to: addDays(span.from, -1),
-        })
-      )
-        .map((r) => r.request.span)
-        .filter((s) => s.to < span.from)
-        .toSorted((a, b) => b.to.localeCompare(a.to))[0];
-      return ok({
-        request: requestItem(record, member, await typesOf(tx)),
-        member: memberView(member),
-        note: record.note,
-        balance,
-        belowMinimum: below,
-        triage: {
-          group: verdict.group,
-          reason: verdict.group === 'look_closer' ? reasonView(verdict.reason) : null,
-        },
-        othersOff: (others.ok ? others.value.entries : [])
-          .filter((e) => e.personId !== member.personId)
-          .map((e) => ({
-            personId: e.personId,
-            displayName: names.get(e.personId) ?? '',
-            leaveTypeKey: e.shows === 'type' ? e.leaveTypeKey : null,
-            span: e.span,
-          })),
-        canDecide,
-        lastTaken: before === undefined ? null : { from: before.from, to: before.to },
-        alternatives: await Promise.all(
-          options.map(async (o) => ({
-            kind: o.kind,
-            affects: o.affects,
-            dates: [...o.dates],
-            spans: o.spans.map((s) => ({ from: s.from, to: s.to })),
-            coverage: [...o.coverage],
-            swapped:
-              o.kind === 'swap_days' ? { out: [...o.swapped.out], in: [...o.swapped.in] } : null,
-            teammate:
-              o.kind === 'ask_teammate'
-                ? {
-                    personId: o.teammate,
-                    displayName: (await tx.members.get(o.teammate))?.displayName ?? '',
-                  }
-                : null,
-            absence: o.kind === 'ask_teammate' ? { from: o.absence.from, to: o.absence.to } : null,
-          })),
-        ),
-      });
+  async (
+    caller: Caller,
+    query: { readonly requestId: LeaveRequestId },
+  ): Promise<Result<DecisionView>> => {
+    const read = await transact<Omit<DecisionView, 'whatToKnow' | 'clash'>>(
+      deps,
+      caller.tenantId,
+      async (tx) => {
+        const record = await tx.requests.get(query.requestId);
+        if (record === null) return notFound('Request');
+        const { request } = record;
+        const canDecide = await mayDecide(deps, caller, record);
+        if (
+          !canDecide &&
+          !(await isHrAdmin(deps, caller)) &&
+          !(await approves(deps, caller, request.personId))
+        ) {
+          return forbidden();
+        }
+        const member = await tx.members.get(request.personId);
+        if (member === null) return notFound('Member');
+        const span = request.pendingChange ?? request.span;
+        const today = deps.clock.date(member.timeZone);
+        let balance: DecisionView['balance'] = null;
+        if (request.leaveType.tracked) {
+          const before = (await balanceFor(tx, member, request.leaveType.key, today, request.id))
+            .left;
+          balance = { before, after: amount(days(before).minus(span.workingDays)) };
+        }
+        const below = await teamBelow(
+          tx,
+          member,
+          span.from,
+          span.to,
+          [{ personId: member.personId, span, status: 'pending' }],
+          request.id,
+        );
+        const verdict = await triageOf(tx, deps, record, member);
+        const others = await calendarIn(tx, deps, caller, {
+          scope: 'team',
+          teamKey: member.teamKey,
+          from: span.from,
+          to: span.to,
+        });
+        const names = new Map(
+          others.ok ? others.value.people.map((p) => [p.personId, p.displayName]) : [],
+        );
+        const waiting = request.status === 'pending' || request.status === 'change_pending';
+        const options = waiting ? await teamAlternatives(tx, member, span, request.id) : [];
+        const before = (
+          await tx.requests.list({
+            personIds: [member.personId],
+            statuses: ['approved', 'taken'],
+            to: addDays(span.from, -1),
+          })
+        )
+          .map((r) => r.request.span)
+          .filter((s) => s.to < span.from)
+          .toSorted((a, b) => b.to.localeCompare(a.to))[0];
+        return ok({
+          request: requestItem(record, member, await typesOf(tx)),
+          member: memberView(member),
+          note: record.note,
+          balance,
+          belowMinimum: below,
+          triage: {
+            group: verdict.group,
+            reason: verdict.group === 'look_closer' ? reasonView(verdict.reason) : null,
+          },
+          othersOff: (others.ok ? others.value.entries : [])
+            .filter((e) => e.personId !== member.personId)
+            .map((e) => ({
+              personId: e.personId,
+              displayName: names.get(e.personId) ?? '',
+              leaveTypeKey: e.shows === 'type' ? e.leaveTypeKey : null,
+              span: e.span,
+            })),
+          canDecide,
+          lastTaken: before === undefined ? null : { from: before.from, to: before.to },
+          alternatives: await Promise.all(
+            options.map(async (o) => ({
+              kind: o.kind,
+              affects: o.affects,
+              dates: [...o.dates],
+              spans: o.spans.map((s) => ({ from: s.from, to: s.to })),
+              coverage: [...o.coverage],
+              swapped:
+                o.kind === 'swap_days' ? { out: [...o.swapped.out], in: [...o.swapped.in] } : null,
+              teammate:
+                o.kind === 'ask_teammate'
+                  ? {
+                      personId: o.teammate,
+                      displayName: (await tx.members.get(o.teammate))?.displayName ?? '',
+                    }
+                  : null,
+              absence:
+                o.kind === 'ask_teammate' ? { from: o.absence.from, to: o.absence.to } : null,
+              message: null,
+            })),
+          ),
+        });
+      },
+    );
+    if (!read.ok) return read;
+    const words = await writeDecision(deps.writer, caller.tenantId, read.value);
+    return ok({
+      ...read.value,
+      alternatives: read.value.alternatives.map((a, i) => ({
+        ...a,
+        message: words.messages.get(i) ?? null,
+      })),
+      whatToKnow: words.whatToKnow,
+      clash: words.clash,
     });
+  };
 
 /** T19: who covers for me, who I may choose, and whom I cover for. */
 export const delegation =
@@ -350,28 +392,62 @@ export const timesheetScreen =
     if (personId === null) return forbidden();
     const sheet = await timesheet(deps)(caller, { personId, from: query.from, to: query.to });
     if (!sheet.ok) return sheet;
-    return transact<TimesheetView>(deps, caller.tenantId, async (tx) => {
-      const member = await tx.members.get(personId);
-      if (member === null) return notFound('Member');
-      // A night shift's clock-out lands the morning after the range.
-      const inRange = (at: string) =>
-        at.slice(0, 10) >= query.from && at.slice(0, 10) <= addDays(query.to, 1);
-      const s = sheet.value;
-      return ok({
-        member: memberView(member),
-        days: [...s.days],
-        weeks: s.weeks.map((w) => ({ ...w, flags: [...w.flags] })),
-        open: [...s.open],
-        restBreaches: [...s.restBreaches],
-        overtime: s.overtime.map((o) => ({ date: o.date, minutes: o.minutes, outcome: o.outcome })),
-        punches: standing(await tx.attendance.punches(personId))
-          .filter((p) => inRange(p.at))
-          .map(punchView),
-        corrections: s.corrections.map((c) => ({
-          punch: punchView(c.punch),
-          needsManager: c.needsManager,
+    const mine = caller.personId === personId;
+    const read = await transact<{ view: TimesheetView; activity: Evidence[][] }>(
+      deps,
+      caller.tenantId,
+      async (tx) => {
+        const member = await tx.members.get(personId);
+        if (member === null) return notFound('Member');
+        const activity = mine
+          ? await Promise.all(
+              sheet.value.open.map((o) => kithenaActivity(tx, personId, o.date, member.timeZone)),
+            )
+          : [];
+        // A night shift's clock-out lands the morning after the range.
+        const inRange = (at: string) =>
+          at.slice(0, 10) >= query.from && at.slice(0, 10) <= addDays(query.to, 1);
+        const s = sheet.value;
+        return ok({
+          activity,
+          view: {
+            member: memberView(member),
+            days: [...s.days],
+            weeks: s.weeks.map((w) => ({ ...w, flags: [...w.flags] })),
+            open: s.open.map((o) => ({ ...o, suggestion: null })),
+            restBreaches: [...s.restBreaches],
+            overtime: s.overtime.map((o) => ({
+              date: o.date,
+              minutes: o.minutes,
+              outcome: o.outcome,
+            })),
+            punches: standing(await tx.attendance.punches(personId))
+              .filter((p) => inRange(p.at))
+              .map(punchView),
+            corrections: s.corrections.map((c) => ({
+              punch: punchView(c.punch),
+              needsManager: c.needsManager,
+            })),
+          },
+        });
+      },
+    );
+    if (!read.ok || !mine) return read.ok ? ok(read.value.view) : read;
+    const { view, activity } = read.value;
+    return ok({
+      ...view,
+      open: await Promise.all(
+        view.open.map(async (o, i) => ({
+          ...o,
+          suggestion: await suggestFinish(
+            deps,
+            caller.tenantId,
+            { personId, timeZone: view.member.timeZone },
+            o,
+            activity[i] ?? [],
+          ),
         })),
-      });
+      ),
     });
   };
 
@@ -382,7 +458,22 @@ export const rightNowScreen =
     const board = await teamRightNow(deps)(caller);
     if (!board.ok) return board;
     const names = new Map(board.value.people.map((p) => [p.personId, p.displayName]));
-    return ok({
+    const away = await transact<Set<string>>(deps, caller.tenantId, async (tx) => {
+      const today = await todayOf(tx, deps, caller);
+      const ids = board.value.people.map((p) => p.personId);
+      const off =
+        ids.length === 0
+          ? []
+          : await tx.requests.list({
+              personIds: ids,
+              statuses: ['approved', 'taken'],
+              from: today,
+              to: today,
+            });
+      return ok(new Set(off.map((r) => r.request.personId)));
+    });
+    if (!away.ok) return away;
+    const view = {
       people: [...board.value.people],
       needsYou: board.value.needsYou.map((n) =>
         n.kind === 'correction'
@@ -403,6 +494,59 @@ export const rightNowScreen =
               minutes: n.minutes,
             },
       ),
+    };
+    return ok({
+      ...view,
+      sentence: await writeToday(
+        deps.writer,
+        caller.tenantId,
+        view.people,
+        view.needsYou,
+        away.value,
+      ),
+    });
+  };
+
+/**
+ * The attendance Requests tab (TOF-099): what the caller's reports need from
+ * them — overtime to decide and corrections made late — and the caller's
+ * own overtime of the last month with where each day stands, beside what
+ * overtime becomes here (T33).
+ */
+export const attendanceRequestsScreen =
+  (deps: ReadDeps) =>
+  async (caller: Caller): Promise<Result<AttendanceRequestsView>> => {
+    const board = await rightNowScreen(deps)(caller);
+    if (!board.ok) return board;
+    const own =
+      caller.personId === null
+        ? null
+        : await transact(deps, caller.tenantId, async (tx) => ok(await todayOf(tx, deps, caller)));
+    const today = own?.ok === true ? own.value : null;
+    const sheet =
+      caller.personId === null || today === null
+        ? null
+        : await timesheet(deps)(caller, {
+            personId: caller.personId,
+            from: addDays(today, -EXCEPTIONS_DAYS),
+            to: addDays(today, -1),
+          });
+    if (sheet !== null && !sheet.ok) return sheet;
+    return transact<AttendanceRequestsView>(deps, caller.tenantId, async (tx) => {
+      const rules = await tx.attendance.rules();
+      const decided = new Map((sheet?.value.overtime ?? []).map((o) => [o.date, o.outcome]));
+      return ok({
+        overtime: rules.overtime,
+        needsYou: [...board.value.needsYou],
+        mine: (sheet?.value.days ?? [])
+          .filter((d) => d.status === 'complete' && d.overtimeMinutes > 0)
+          .map((d) => ({
+            date: d.date,
+            minutes: d.overtimeMinutes,
+            status: decided.get(d.date) ?? ('waiting' as const),
+          }))
+          .toReversed(),
+      });
     });
   };
 

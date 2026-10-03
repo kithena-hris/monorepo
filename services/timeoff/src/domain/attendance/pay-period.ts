@@ -6,10 +6,13 @@ import {
   type Actor,
   type CalendarDate,
   type Instant,
+  type Money,
   type PersonId,
   type TeamKey,
   type TenantId,
 } from '@kithena/contracts';
+
+import { amount, Decimal, sum } from '../days.js';
 
 /**
  * The pay period: a month of attendance, closed and sent to Payroll (PRD
@@ -133,6 +136,10 @@ export function close(args: {
   lines: readonly TimeLine[];
   /** From the ledger (TOF-014). A member missing here had neither. */
   balances: ReadonlyMap<PersonId, { unpaidDays: DayAmount; negativeBalanceDays: DayAmount }>;
+  /** Hourly rates, where known; a member missing here is sent hours only. */
+  rates?: ReadonlyMap<PersonId, Money>;
+  /** Paid overtime's multiplier (T33), as a decimal string. */
+  multiplier?: string;
   /** UUIDv7, minted by the application. */
   eventId: string;
   tenantId: TenantId;
@@ -157,6 +164,7 @@ export function close(args: {
     compHours: hours(m.compMinutes),
     unpaidDays: args.balances.get(m.personId)?.unpaidDays ?? zero,
     negativeBalanceDays: args.balances.get(m.personId)?.negativeBalanceDays ?? zero,
+    overtimeAmount: priced(m.paidMinutes, args.rates?.get(m.personId), args.multiplier ?? '1'),
   }));
 
   return ok({
@@ -175,6 +183,100 @@ export function close(args: {
       payload: { periodId: period.id, from: period.from, to: period.to, members },
     },
   });
+}
+
+/** Paid overtime at the multiplier, rounded half up to the minor unit; `null` without a rate. */
+function priced(minutes: number, rate: Money | undefined, multiplier: string): Money | null {
+  if (rate === undefined) return null;
+  const amountMinor = new Decimal(minutes)
+    .div(60)
+    .times(multiplier)
+    .times(rate.amountMinor)
+    .toDecimalPlaces(0, Decimal.ROUND_HALF_UP)
+    .toNumber();
+  return { amountMinor, currency: rate.currency };
+}
+
+/** One member's month as T24 counts it, before anything is sent. */
+export interface MemberMonth {
+  readonly personId: PersonId;
+  readonly team: TeamKey;
+  readonly teamName: string | null;
+  /** Days without a clock-out. */
+  readonly openDays: number;
+  /** Overtime nobody has decided. */
+  readonly overtimeWaitingMinutes: number;
+  readonly paidMinutes: number;
+  readonly compMinutes: number;
+  readonly unpaidDays: DayAmount;
+  readonly negativeBalanceDays: DayAmount;
+}
+
+export interface TeamMonth {
+  readonly team: TeamKey;
+  readonly teamName: string | null;
+  readonly people: number;
+  /** People with a day to fix or overtime to decide: late for Payroll. */
+  readonly waiting: number;
+  readonly paidMinutes: number;
+  readonly compMinutes: number;
+  /** How the team's decided overtime goes to Payroll; `null` with none. */
+  readonly paidAs: 'comp' | 'paid' | 'mixed' | null;
+}
+
+/**
+ * T24, §11.8: the month per team and in total — overtime paid and banked,
+ * unpaid leave and negative balances — and who is late. Teams in key order.
+ */
+export function monthSummary(members: readonly MemberMonth[]): {
+  teams: TeamMonth[];
+  totals: {
+    paidMinutes: number;
+    compMinutes: number;
+    unpaidDays: DayAmount;
+    unpaidPeople: number;
+    negativePeople: number;
+    negativeBalanceDays: DayAmount;
+  };
+} {
+  const teams = new Map<string, MemberMonth[]>();
+  for (const m of members) teams.set(m.team, [...(teams.get(m.team) ?? []), m]);
+  const add = (ms: readonly MemberMonth[], f: (m: MemberMonth) => number) =>
+    ms.reduce((n, m) => n + f(m), 0);
+  const sumDays = (ms: readonly MemberMonth[], f: (m: MemberMonth) => DayAmount) =>
+    amount(sum(ms.map(f)));
+  return {
+    teams: [...teams.entries()]
+      .toSorted(([a], [b]) => a.localeCompare(b))
+      .map(([team, ms]) => {
+        const paidMinutes = add(ms, (m) => m.paidMinutes);
+        const compMinutes = add(ms, (m) => m.compMinutes);
+        return {
+          team: team as TeamKey,
+          teamName: ms[0]?.teamName ?? null,
+          people: ms.length,
+          waiting: ms.filter((m) => m.openDays > 0 || m.overtimeWaitingMinutes > 0).length,
+          paidMinutes,
+          compMinutes,
+          paidAs:
+            paidMinutes > 0 && compMinutes > 0
+              ? 'mixed'
+              : paidMinutes > 0
+                ? 'paid'
+                : compMinutes > 0
+                  ? 'comp'
+                  : null,
+        };
+      }),
+    totals: {
+      paidMinutes: add(members, (m) => m.paidMinutes),
+      compMinutes: add(members, (m) => m.compMinutes),
+      unpaidDays: sumDays(members, (m) => m.unpaidDays),
+      unpaidPeople: members.filter((m) => new Decimal(m.unpaidDays).gt(0)).length,
+      negativePeople: members.filter((m) => new Decimal(m.negativeBalanceDays).gt(0)).length,
+      negativeBalanceDays: sumDays(members, (m) => m.negativeBalanceDays),
+    },
+  };
 }
 
 /**

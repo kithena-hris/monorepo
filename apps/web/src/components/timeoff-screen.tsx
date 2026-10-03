@@ -120,6 +120,15 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onSend: actions.sendRequest,
           onNavigate: go,
         };
+      case 'DescribeRequest':
+        return {
+          load: loadable,
+          // The sentence and every choice changed are the address; Time Off reads them again.
+          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
+            go(withQuery(window.location.pathname, window.location.search, patch), mode);
+          },
+          onNavigate: go,
+        };
       case 'MyRequestsUpcoming':
       case 'MyRequestsPast':
       case 'MyRequestsCancelled':
@@ -139,24 +148,63 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       case 'Timesheet':
         return { load: loadable, onCorrect: actions.correctPunch };
       case 'TeamNow':
+      case 'Exceptions':
+      case 'ParentalCases':
         return { load: loadable };
       // TOF-108: the code expires in a minute, so the screen asks for the page again.
       case 'KioskCode':
         return { load: loadable, onRefresh: refresh, onSavePin: actions.setKioskPin };
+      // What the nudge includes and whether it is open are the address.
+      case 'Insights':
+        return {
+          load: loadable,
+          onAsk: (patch: Readonly<Record<string, string | null>>) => {
+            goTo(patch);
+          },
+          onSendNudges: actions.sendNudges,
+        };
+      case 'AttendanceRequests':
+        return { load: loadable, onDecide: actions.decideOvertime };
+      case 'PayPeriod':
+        return {
+          load: loadable,
+          onClose: actions.closePayPeriod,
+          onRemind: actions.remindPayPeriod,
+        };
       // Settings (TOF-078 to TOF-083).
       case 'LeaveTypes':
-        return { load: loadable };
+        return {
+          load: loadable,
+          onAsk: (patch: Readonly<Record<string, string | null>>) => {
+            goTo(patch);
+          },
+          onAdd: settings.addLeaveType,
+          onNavigate: go,
+          onSaveParentalCompany: settings.saveParentalCompany,
+        };
       case 'LeaveType':
         return {
           load: loadable,
           onSaveDraft: settings.savePolicyDraft,
           onPublish: settings.publishPolicy,
+          onShadow: settings.shadowRun,
+          onStartPolicy: settings.startPolicy,
           onPolicy: (policy: string) => {
             goTo({ policy, as: null });
           },
           onPreviewAs: (as: string) => {
             goTo({ as });
           },
+        };
+      case 'DescribePolicy':
+        return {
+          load: loadable,
+          // The text, every rule changed and every answer are the address; Time Off reads them again.
+          onAsk: (patch: Readonly<Record<string, string | null>>, mode: HistoryMode) => {
+            go(withQuery(window.location.pathname, window.location.search, patch), mode);
+          },
+          onCreate: settings.createPolicyDraft,
+          onNavigate: go,
         };
       case 'NegativeBalance':
         return { load: loadable, onSave: settings.saveNegativeBalance };
@@ -168,8 +216,22 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
         return {
           load: loadable,
           onYear: (year: number) => {
-            goTo({}, `/settings/time-off/holidays/${String(year)}`);
+            goTo({ draft: null, source: null }, `/settings/time-off/holidays/${String(year)}`);
           },
+          // The draft is the address, so Time Off reads the list again on the server.
+          onDraft: (draft: { readonly layerKey: string; readonly source: string } | null) => {
+            goTo(
+              draft === null
+                ? { draft: null, source: null }
+                : { draft: draft.layerKey, source: draft.source },
+            );
+          },
+          onAsk: (patch: Readonly<Record<string, string | null>>) => {
+            goTo(patch);
+          },
+          onSaveCalendar: settings.saveHolidayCalendar,
+          onRemoveCalendar: settings.removeHolidayCalendar,
+          onAssign: settings.assignHolidayCalendars,
         };
       case 'Integrations':
         return {

@@ -46,6 +46,7 @@ import type {
   PolicyStore,
   RequestRecord,
   RequestStore,
+  Settings,
   StoredKey,
   StoredPlan,
   Tx,
@@ -89,6 +90,7 @@ interface State {
   memberSecrets: Map<string, string>;
   scimConnections: Map<string, ScimConnection>;
   scimUsers: Map<string, ScimUser>;
+  settings: Map<keyof Settings, Settings[keyof Settings]>;
   events: PendingEvent[];
   keys: Map<string, StoredKey>;
 }
@@ -121,6 +123,7 @@ const empty = (): State => ({
   memberSecrets: new Map(),
   scimConnections: new Map(),
   scimUsers: new Map(),
+  settings: new Map(),
   events: [],
   keys: new Map(),
 });
@@ -365,6 +368,13 @@ function stores(tenantId: TenantId, s: State): Tx {
         s.scimUsers.set(user.personId, user);
       },
     }),
+    settings: {
+      get: (key) => Promise.resolve((s.settings.get(key) ?? null) as never),
+      set: (key, value) => {
+        s.settings.set(key, value);
+        return Promise.resolve();
+      },
+    },
     outbox: promised<Outbox>({
       publish: (events) => {
         s.events.push(...events);

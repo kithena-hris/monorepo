@@ -13,6 +13,7 @@ import {
   approveParentalPlan,
   editParentalBlocks,
   parentalCase,
+  parentalCases,
   parentalNotices,
   parentalScreen,
   recordParentalBirth,
@@ -200,6 +201,25 @@ describe('parental leave (TOF-102)', () => {
     expect(events.at(-1)?.eventName).toBe(ParentalPlanApproved.name);
     expect(ParentalPlanApproved.payload.parse(events.at(-1)?.payload).approvedBy).toBe(ADA_ACCOUNT);
     expect(unwrap(await parentalCase(app.deps)(hr, planId)).canApprove).toBe(false);
+  });
+
+  it('lists sent plans for HR only, never a draft, waiting before approved (TOF-099c)', async () => {
+    const { app, planId } = await started();
+    expect(unwrap(await parentalCases(app.deps)(hr)).cases).toEqual([]);
+    unwrap(await sendParentalPlan(app.deps)(adam, planId));
+    const listed = unwrap(await parentalCases(app.deps)(hr)).cases;
+    expect(listed).toEqual([
+      expect.objectContaining({
+        planId,
+        personId: people.adam,
+        displayName: 'Adam Novak',
+        status: 'submitted',
+        from: '2027-01-14',
+      }),
+    ]);
+    expect(listed[0]?.to).not.toBeNull();
+    const refused = await parentalCases(app.deps)(marco);
+    expect(refused.ok ? null : refused.error.code).toBe('FORBIDDEN');
   });
 
   it('records the birth: the mandatory weeks move with it, and HR is told', async () => {

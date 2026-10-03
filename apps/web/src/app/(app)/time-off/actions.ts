@@ -1,5 +1,8 @@
 'use server';
 
+import { headers } from 'next/headers';
+
+import { currentTenant } from '../../../lib/branding';
 import { timeOff } from '../../../lib/people';
 
 /**
@@ -138,6 +141,70 @@ export async function correctPunch(input: {
   return a.ok ? { ok: true } : { ok: false, message: a.message };
 }
 
+/**
+ * The attendance Requests tab (TOF-099): a report's overtime on a day, as
+ * comp time or pay (what the rules allow; Time Off refuses anything else),
+ * or declined.
+ */
+export async function decideOvertime(input: {
+  readonly personId: string;
+  readonly date: string;
+  readonly approve: boolean;
+  readonly choice: 'comp' | 'paid' | null;
+}): Promise<Outcome> {
+  const a = await timeOff('DecideTimeOffOvertime', { input });
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
+/**
+ * T28: send each person without a break their own message. The company's
+ * name and its own origin come from this request, never the browser: Time
+ * Off puts the origin in the link, and messaging checks it is the company's.
+ */
+export async function sendNudges(include: {
+  readonly balance: boolean;
+  readonly bridge: boolean;
+  readonly losing: boolean;
+}): Promise<
+  | {
+      readonly ok: true;
+      readonly sent: number;
+      readonly unreachable: number;
+      readonly failed: number;
+    }
+  | { readonly ok: false; readonly message: string }
+> {
+  const inbound = await headers();
+  const host = inbound.get('x-forwarded-host') ?? inbound.get('host') ?? '';
+  const proto = inbound.get('x-forwarded-proto') ?? 'https';
+  const tenant = await currentTenant();
+  const a = await timeOff<{ sent: number; unreachable: number; failed: number }>(
+    'SendTimeOffNudges',
+    {
+      input: {
+        include,
+        companyName: tenant?.branding.displayName ?? tenant?.slug ?? host,
+        appOrigin: `${proto}://${host}`,
+      },
+    },
+  );
+  return a.ok ? { ok: true, ...a.data } : { ok: false, message: a.message };
+}
+
+/* ---------------------------------------- HR operations, TOF-096 onwards -- */
+
+/** T24: send a month (`2026-09`) to Payroll; it locks, and later fixes go to the next. */
+export async function closePayPeriod(month: string): Promise<Outcome> {
+  const a = await timeOff('CloseTimeOffPayPeriod', { month });
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
+/** T24: ask a team's late members (everyone's, without one) and their managers. */
+export async function remindPayPeriod(month: string, teamKey: string | null): Promise<Outcome> {
+  const a = await timeOff('RemindTimeOffPayPeriod', { month, input: { teamKey } });
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
 /* ------------------------------------------- the manager's, TOF-068 to TOF-073 -- */
 
 const outcome = (a: { ok: true } | { ok: false; message: string }): Outcome =>
@@ -170,12 +237,18 @@ export async function decideRequest(
   return outcome(await timeOff('DecideTimeOffRequest', { requestId, input: { decision } }));
 }
 
-/** Other dates instead of a decline (T18, T15): up to three suggestions, each runs of days. */
+/**
+ * Other dates instead of a decline (T18, T15): up to three suggestions, each
+ * runs of days, and what the approver wrote with them, which the member reads.
+ */
 export async function suggestDates(
   requestId: string,
   proposals: readonly { readonly spans: readonly { from: string; to: string }[] }[],
+  message: string | null = null,
 ): Promise<Outcome> {
-  return outcome(await timeOff('SuggestTimeOffDates', { requestId, input: { proposals } }));
+  return outcome(
+    await timeOff('SuggestTimeOffDates', { requestId, input: { proposals, message } }),
+  );
 }
 
 /** Who decides for the caller while they are away (T19). */

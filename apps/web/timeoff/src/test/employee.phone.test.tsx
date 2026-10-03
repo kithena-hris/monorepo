@@ -3,8 +3,8 @@ import axe from 'axe-core';
 import { describe, expect, it } from 'vitest';
 
 import { madrid, vacation } from '../balance/acme.fixture';
-import { Balance, Holidays, RequestDetail, RequestTimeOff } from '../index';
-import { december, october, opening } from '../request/acme.fixture';
+import { Balance, DescribeRequest, Holidays, RequestDetail, RequestTimeOff } from '../index';
+import { december, described, october, opening } from '../request/acme.fixture';
 import type { RequestData } from '../request/request';
 import { approved } from '../requests/acme.fixture';
 import { underFloor } from './floor';
@@ -36,6 +36,15 @@ async function clean(): Promise<void> {
 const at = (data: RequestData, step: 'type' | 'dates' | 'review'): RequestData => ({
   ...data,
   asked: { ...data.asked, step },
+});
+
+describe('describing it on a phone (MT8)', () => {
+  it('stacks the sentence, what it was read as and the dates, each a finger’s width', async () => {
+    render(<DescribeRequest load={ready(described())} />);
+    expect(shown('4 days for 9 days away, with Fiesta Nacional.')).toBe(true);
+    expect(screen.getByRole('link', { name: 'Request 13–16 Oct' }).checkVisibility()).toBe(true);
+    await clean();
+  });
 });
 
 describe('requesting on a phone', () => {

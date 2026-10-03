@@ -1,8 +1,9 @@
 import * as z from 'zod';
 import { defineEvent, EventEnvelope } from '../event.js';
-import { CalendarDate, Instant, PersonId } from '../primitives.js';
+import { CalendarDate, Instant, Money, PersonId } from '../primitives.js';
 import {
   policy,
+  asFinancial,
   asFreeText,
   asIdentity,
   asInternal,
@@ -226,6 +227,11 @@ export const LeaveCounterProposed = defineEvent(
       .min(1)
       .max(3)
       .register(policy, asInternal()),
+    /**
+     * What the manager wrote with the dates (TOF-099b), typed by a person:
+     * free text. `null` when they wrote nothing, and on messages before it.
+     */
+    message: z.string().max(1000).nullable().default(null).register(policy, asFreeText()),
   }),
 );
 
@@ -342,9 +348,16 @@ export const PeriodClosed = defineEvent(
           compHours: HourAmount,
           unpaidDays: DayAmount,
           negativeBalanceDays: DayAmount,
+          /**
+           * Paid overtime priced at the multiplier, in minor units, when Time
+           * Off knows the member's hourly rate; `null` otherwise, and absent
+           * on messages written before it existed.
+           */
+          overtimeAmount: Money.nullable().default(null),
         }),
       )
-      .register(policy, asInternal()),
+      // Amounts of pay: financial, classified whole as the walk does not descend arrays.
+      .register(policy, asFinancial()),
   }),
 );
 

@@ -18,15 +18,14 @@ import { Loaded, type Loadable, type Outcome } from '../load';
 import { Decision, DecisionSkeleton, type DecisionData } from './decision';
 import { SuggestDates } from './suggest';
 import {
-  clearLine,
   dayCount,
-  lookCloserLine,
   lookOf,
   sentLabel,
   spanLabel,
   type LeaveTypeLook,
   type LookCloser,
   type RequestItem,
+  type Written,
 } from './words';
 
 /**
@@ -52,6 +51,8 @@ export interface ApprovalsData {
   readonly lookCloser: readonly { readonly item: RequestItem; readonly reason: LookCloser }[];
   /** Coming up and Decided. */
   readonly items: readonly RequestItem[];
+  /** Waiting for me: each request's one line, the model's or Time Off's template (TOF-086). */
+  readonly why: readonly { readonly requestId: string; readonly text: Written }[];
   /** How each leave type looks. */
   readonly types: readonly LeaveTypeLook[];
   /** When the server asked, ISO. */
@@ -70,6 +71,8 @@ export interface ApprovalsProps {
   readonly onSuggest?: (
     requestId: string,
     proposals: readonly { readonly spans: readonly { from: string; to: string }[] }[],
+    /** What the approver wrote with the dates (TOF-099b). */
+    message?: string | null,
   ) => Promise<Outcome>;
   /** Go to an address of this screen; a plain link does the same. */
   readonly onNavigate?: (href: string) => void;
@@ -167,8 +170,9 @@ function Waiting({
       </Card>
     );
   }
-  const row = (item: RequestItem, line: string, clear: boolean): JSX.Element => {
+  const row = (item: RequestItem, clear: boolean): JSX.Element => {
     const look = lookOf(data.types, item.leaveTypeKey);
+    const line = data.why.find((w) => w.requestId === item.requestId)?.text;
     const who = item.displayName;
     return (
       <ListItem
@@ -202,7 +206,12 @@ function Waiting({
             ) : (
               <icons.warning aria-hidden className="mt-0.5 size-3.5 shrink-0 text-warning-fg" />
             )}
-            <span>{line}</span>
+            <span>{line?.text}</span>
+            {line?.ai === true ? (
+              <Badge tone="assistant" size="sm">
+                AI
+              </Badge>
+            ) : null}
           </span>
         }
         meta={<span className={deskOnly}>{sentLabel(item.requestedAt, data.now)}</span>}
@@ -270,7 +279,7 @@ function Waiting({
                 : `Approve ${String(chosen.length)}`}
             </Button>
           </div>
-          <List>{data.clear.map((item) => row(item, clearLine(item), true))}</List>
+          <List>{data.clear.map((item) => row(item, true))}</List>
         </section>
       )}
       {data.lookCloser.length === 0 ? null : (
@@ -283,11 +292,7 @@ function Waiting({
             Look closer
             <span className="text-fg-subtle">{data.lookCloser.length}</span>
           </h2>
-          <List>
-            {data.lookCloser.map(({ item, reason }) =>
-              row(item, lookCloserLine(reason, item), false),
-            )}
-          </List>
+          <List>{data.lookCloser.map(({ item }) => row(item, false))}</List>
         </section>
       )}
       <p className="flex items-center gap-1.5 text-xs text-fg-subtle">
@@ -395,8 +400,8 @@ function Opened({
           onSend={
             onSuggest === undefined
               ? undefined
-              : async (proposals) => {
-                  const outcome = await onSuggest(decision.request.requestId, proposals);
+              : async (proposals, message) => {
+                  const outcome = await onSuggest(decision.request.requestId, proposals, message);
                   if (outcome.ok) onNavigate?.(WAITING);
                   return outcome;
                 }

@@ -2,8 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { Instant, LeaveTypeDefinition, PunchInput, type PunchKind } from '@kithena/contracts';
 
 import { LeaveType } from '../../domain/policy/leave-type.js';
-import { caller, d, people, TENANT, world } from '../testing/world.js';
-import { correctPunch, decideOvertime, punch, teamRightNow, timesheet } from './attendance.js';
+import { caller, d, hr, people, TENANT, world } from '../testing/world.js';
+import {
+  attendanceExceptions,
+  closePayPeriod,
+  correctPunch,
+  decideOvertime,
+  payPeriodScreen,
+  punch,
+  remindPayPeriod,
+  teamRightNow,
+  timesheet,
+} from './attendance.js';
+import { inspectorExport } from './inspector-files.js';
 
 const adam = caller(people.adam);
 const marco = caller(people.marco);
@@ -154,5 +165,105 @@ describe('the clock and the timesheet (TOF-042)', () => {
     expect([...s.periods.values()]).toEqual([
       expect.objectContaining({ from: '2026-10-01', to: '2026-10-31', closedAt: null }),
     ]);
+  });
+});
+
+describe('HR’s exceptions and the inspector’s record (TOF-095)', () => {
+  async function adamsWeek() {
+    const { app, at } = setup();
+    // Monday 09:00–18:00, an hour over; Tuesday in at 09:00 and never out.
+    await at('2026-10-05T07:00:00.000Z', 'in');
+    await at('2026-10-05T16:00:00.000Z', 'out');
+    await at('2026-10-06T07:00:00.000Z', 'in');
+    app.clock.set('2026-10-08T07:00:00.000Z');
+    return app;
+  }
+  const october = { from: d('2026-10-01'), to: d('2026-10-31') };
+
+  it('lists only what needs HR, oldest first, and nobody else may ask', async () => {
+    const app = await adamsWeek();
+    const found = await attendanceExceptions(app.deps)(hr, october);
+    if (!found.ok) throw new Error(found.error.message);
+    expect(found.value.items.map((e) => [e.kind, e.date, e.minutes, e.displayName])).toEqual([
+      ['overtime_waiting', '2026-10-05', 60, 'Adam Novak'],
+      ['missed_clock_out', '2026-10-06', null, 'Adam Novak'],
+    ]);
+    expect(await attendanceExceptions(app.deps)(marco, october)).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+    expect(
+      await attendanceExceptions(app.deps)(hr, { from: d('2026-01-01'), to: d('2027-06-01') }),
+    ).toMatchObject({ ok: false, error: { code: 'PERIOD_TOO_LONG' } });
+  });
+
+  it('counts the month for Payroll, reminds whoever is late, and shows what was sent (TOF-096)', async () => {
+    const app = await adamsWeek();
+    const screen = payPeriodScreen(app.deps);
+    const open = await screen(hr, { from: d('2026-10-01') });
+    if (!open.ok) throw new Error(open.error.message);
+    expect(open.value).toMatchObject({
+      from: '2026-10-01',
+      to: '2026-10-31',
+      closedAt: null,
+      teams: [{ team: 'platform', people: 7, waiting: 1, paidMinutes: 0, paidAs: null }],
+      late: [{ personId: people.adam, openDays: 1, overtimeWaitingMinutes: 60 }],
+    });
+    expect(await screen(marco, { from: d('2026-10-01') })).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+
+    expect(await remindPayPeriod(app.deps)(hr, { from: d('2026-10-01'), teamKey: null })).toEqual({
+      ok: true,
+      value: { told: 2 },
+    });
+    expect(app.notices.map((n) => [n.to, n.notice.kind])).toEqual([
+      [people.adam, 'missed_clock_out'],
+      [people.marco, 'overtime_waiting'],
+    ]);
+
+    await decideOvertime(app.deps)(marco, {
+      personId: people.adam,
+      date: d('2026-10-05'),
+      approve: true,
+      choice: 'paid',
+    });
+    await closePayPeriod(app.deps)(hr, { from: d('2026-10-01') });
+    const sent = await screen(hr, { from: d('2026-10-01') });
+    expect(sent).toMatchObject({
+      ok: true,
+      value: {
+        closedAt: '2026-10-08T07:00:00.000Z',
+        teams: [{ team: 'platform', paidMinutes: 60, paidAs: 'paid', waiting: 0 }],
+        totals: { paidMinutes: 60 },
+        late: [],
+      },
+    });
+    const event = app.state(TENANT).events.find((e) => e.eventName === 'timeoff.period.closed');
+    expect(event?.payload).toMatchObject({
+      members: [{ personId: people.adam, overtimeHours: '1.000', overtimeAmount: null }],
+    });
+  });
+
+  it('gives the inspector each day’s start, end and breaks, as CSV and as PDF', async () => {
+    const app = await adamsWeek();
+    const csv = await inspectorExport(app.deps)(hr, { ...october, format: 'csv' });
+    if (!csv.ok) throw new Error(csv.error.message);
+    expect(csv.value.name).toBe('working-time-2026-10-01-to-2026-10-31.csv');
+    expect(Buffer.from(csv.value.base64, 'base64').toString('utf8').split('\r\n')).toEqual([
+      'Person,Date,Start,End,Breaks,Break minutes,Worked',
+      'Adam Novak,2026-10-05,09:00,18:00,,0,9:00',
+      'Adam Novak,2026-10-06,09:00,,,0,',
+      '',
+    ]);
+    const pdf = await inspectorExport(app.deps)(hr, { ...october, format: 'pdf' });
+    if (!pdf.ok) throw new Error(pdf.error.message);
+    expect(pdf.value.contentType).toBe('application/pdf');
+    expect(Buffer.from(pdf.value.base64, 'base64').subarray(0, 5).toString()).toBe('%PDF-');
+    expect(await inspectorExport(app.deps)(adam, { ...october, format: 'csv' })).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
   });
 });

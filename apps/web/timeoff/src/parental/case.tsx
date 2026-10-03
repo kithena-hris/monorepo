@@ -1,5 +1,6 @@
 import {
   Alert,
+  AssistantCard,
   Avatar,
   Badge,
   Button,
@@ -285,6 +286,21 @@ function Ready({
           </Card>
         </PageSection>
         <div className="flex flex-col gap-5">
+          {plan.explanation === undefined ? null : (
+            <AssistantCard
+              level={2}
+              title="Why this plan"
+              action={
+                plan.explanation.ai ? (
+                  <Badge tone="assistant" size="sm">
+                    AI
+                  </Badge>
+                ) : undefined
+              }
+            >
+              <p className="text-sm text-fg-muted">{plan.explanation.text}</p>
+            </AssistantCard>
+          )}
           <PageSection title="Checked against the rules">
             <Card padded>
               <List>

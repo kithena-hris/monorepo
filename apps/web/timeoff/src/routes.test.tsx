@@ -39,24 +39,24 @@ describe('routes.json', () => {
 describe('a placeholder screen', () => {
   it('opens with the host’s trail, its title and the section’s tabs, over a skeleton', async () => {
     const { container } = render(
-      <screens.Insights
+      <screens.Attendance
         frame={{
-          section: 'Insights',
+          section: 'Attendance',
           tabs: [
-            { href: '/time-off/insights/what-changed', label: 'What changed', current: true },
-            { href: '/time-off/insights/balances', label: 'Balances', current: false },
+            { href: '/time-off/attendance/timesheets', label: 'Timesheets', current: true },
+            { href: '/time-off/attendance/schedule', label: 'Schedule', current: false },
           ],
         }}
       />,
     );
     const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
     expect(trail.getByRole('link', { name: 'Time off' }).getAttribute('href')).toBe('/time-off');
-    expect(screen.getByRole('heading', { level: 1, name: 'Insights' })).toBeTruthy();
-    const tabs = within(screen.getByRole('navigation', { name: 'Insights tabs' }));
-    expect(tabs.getByRole('link', { name: 'Balances' }).getAttribute('href')).toBe(
-      '/time-off/insights/balances',
+    expect(screen.getByRole('heading', { level: 1, name: 'Attendance' })).toBeTruthy();
+    const tabs = within(screen.getByRole('navigation', { name: 'Attendance tabs' }));
+    expect(tabs.getByRole('link', { name: 'Schedule' }).getAttribute('href')).toBe(
+      '/time-off/attendance/schedule',
     );
-    expect(screen.getByRole('status').textContent).toContain('Loading Insights');
+    expect(screen.getByRole('status').textContent).toContain('Loading Attendance');
     expect(await axeViolations(container)).toEqual([]);
   });
 });

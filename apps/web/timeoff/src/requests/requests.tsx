@@ -87,6 +87,8 @@ export interface RequestDetailData {
     readonly spans: readonly { readonly from: string; readonly to: string }[];
     readonly workingDays: string;
   }[];
+  /** What the approver wrote with the dates they suggested (TOF-099b). */
+  readonly proposalMessage?: string | null;
   /** Who approves, in order: `manager`, `hr`. */
   readonly chain: readonly string[];
   /** The step it waits on, or the last one decided. */
@@ -416,6 +418,9 @@ function Suggestions({
           Taking one approves it. Keeping yours sends it back.
         </p>
       </div>
+      {detail.proposalMessage === null || detail.proposalMessage === undefined ? null : (
+        <blockquote className="text-sm whitespace-pre-line">{detail.proposalMessage}</blockquote>
+      )}
       <div className="flex flex-wrap gap-2 touch:flex-col">
         {detail.proposals.map((p) => {
           const label = p.spans.map((r) => spanLabel(r.from, r.to)).join(' and ');

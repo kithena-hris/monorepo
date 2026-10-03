@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffPayPeriod($month: String!) {\n    timeOffPayPeriod(month: $month) {\n      closedAt from late { displayName openDays overtimeWaitingMinutes personId team } teams { compMinutes paidAs paidMinutes people team teamName waiting } to totals { compMinutes negativeBalanceDays negativePeople paidMinutes unpaidDays unpaidPeople }\n    }\n  }"}

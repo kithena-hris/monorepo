@@ -21,9 +21,16 @@ import {
   publishPolicy,
   revisePolicy,
   setNegativeBalanceRule,
+  setParentalCompany,
   setTeamMinimum,
+  startShadowRun,
 } from './admin.js';
-import { holidaySettings, policyPreview } from '../screens/settings.js';
+import {
+  holidaySettings,
+  leaveTypeSetting,
+  leaveTypesSettings,
+  policyPreview,
+} from '../screens/settings.js';
 
 describe('settings (TOF-041)', () => {
   it('publishing a policy re-folds the balances it affects and emits policy.published', async () => {
@@ -114,6 +121,69 @@ describe('the policy preview and the pack flag (TOF-079, TOF-083)', () => {
     expect(
       await policyPreview(app.deps)(caller(people.marco), { policyId: VACATION_POLICY }),
     ).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+  });
+
+  it('runs a draft beside the policy for a month, for HR only, until it is published (TOF-093)', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
+    expect(await startShadowRun(app.deps)(hr, VACATION_POLICY)).toMatchObject({
+      ok: false,
+      error: { code: 'NO_DRAFT' },
+    });
+    await revisePolicy(app.deps)(hr, VACATION_POLICY, vacationPolicy({ earning: 'monthly' }));
+    expect(await startShadowRun(app.deps)(caller(people.marco), VACATION_POLICY)).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+    expect(await startShadowRun(app.deps)(hr, VACATION_POLICY)).toEqual({
+      ok: true,
+      value: { from: '2026-10-01', to: '2026-10-31' },
+    });
+
+    // Two weeks in, ten months of a monthly 25 are credited beside the upfront 25.
+    app.clock.set('2026-10-15T07:00:00.000Z');
+    const during = await policyPreview(app.deps)(hr, { policyId: VACATION_POLICY });
+    if (!during.ok) throw new Error(during.error.message);
+    expect(during.value.shadow).toMatchObject({ from: '2026-10-01', asOf: '2026-10-15' });
+    expect(during.value.shadow?.members.find((m) => m.personId === people.adam)).toMatchObject({
+      balance: { current: '25.000', draft: '20.833' },
+    });
+
+    // Over, it holds where it stood on its last day.
+    app.clock.set('2026-11-20T07:00:00.000Z');
+    const after = await policyPreview(app.deps)(hr, { policyId: VACATION_POLICY });
+    expect(after.ok && after.value.shadow?.asOf).toBe('2026-10-31');
+
+    await publishPolicy(app.deps)(hr, VACATION_POLICY, d('2026-01-01'));
+    await revisePolicy(app.deps)(hr, VACATION_POLICY, vacationPolicy());
+    const next = await policyPreview(app.deps)(hr, { policyId: VACATION_POLICY });
+    expect(next.ok && next.value.shadow).toBeNull();
+  });
+
+  it('keeps the company’s parental weeks, booked as a type that exists (TOF-099a)', async () => {
+    const app = world();
+    const weeks = {
+      extraWeeks: 2,
+      afterServiceYears: 1,
+      leaveTypeKey: LeaveTypeKey.parse('vacation'),
+    };
+    expect(await setParentalCompany(app.deps)(caller(people.marco), weeks)).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+    expect(
+      await setParentalCompany(app.deps)(hr, {
+        ...weeks,
+        leaveTypeKey: LeaveTypeKey.parse('nope'),
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } });
+    expect(await setParentalCompany(app.deps)(hr, weeks)).toEqual({ ok: true, value: undefined });
+    const listed = await leaveTypesSettings(app.deps)(hr);
+    expect(listed.ok && listed.value.parentalCompany).toEqual(weeks);
+    const setting = await leaveTypeSetting(app.deps)(hr, { key: LeaveTypeKey.parse('vacation') });
+    expect(setting.ok && setting.value.places).toEqual({
+      countries: ['ES'],
+      locations: ['madrid'],
+    });
   });
 
   it('has nobody to show without a draft', async () => {

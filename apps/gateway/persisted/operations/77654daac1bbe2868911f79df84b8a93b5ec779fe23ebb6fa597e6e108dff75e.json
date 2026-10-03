@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffInspectorRecord($format: String!, $from: String!, $to: String!) {\n    timeOffInspectorRecord(format: $format, from: $from, to: $to) {\n      base64 contentType name\n    }\n  }"}

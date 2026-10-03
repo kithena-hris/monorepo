@@ -298,6 +298,7 @@ describe('requests', () => {
       note: 'Family visit',
       requestedAt: '2026-10-01T09:00:00.000Z' as never,
       proposedBy: null,
+      proposalMessage: null,
     };
     await run(async (tx) => {
       await tx.requests.save(record);

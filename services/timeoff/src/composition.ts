@@ -5,12 +5,15 @@ import { createYoga } from 'graphql-yoga';
 import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
 
-import type { Reach, UnitOfWork } from './application/ports.js';
+import type { Deps, Reach, UnitOfWork } from './application/ports.js';
 import { yogaOptions } from './graphql/schema.js';
 import { callerFromHeaders, withMember } from './http/caller.js';
 import { timeoffListener, timeoffServer } from './http/server.js';
+import { typesafeJudgeFromEnv } from './infrastructure/assist/typesafe-judge.js';
+import { writerFromEnv } from './infrastructure/assist/writer.js';
 import { logNotifier } from './infrastructure/background.js';
 import { reachFrom } from './infrastructure/integrations/index.js';
+import { nudgeMailerFrom } from './infrastructure/messaging.js';
 import {
   nobodyRelates,
   syncingTuples,
@@ -69,6 +72,20 @@ export function feedSecretFrom(env: NodeJS.ProcessEnv): string {
   return randomBytes(32).toString('base64url');
 }
 
+/**
+ * The two model ports (PRD §14.1): TypeSafe's judgments with
+ * `TYPESAFE_API_KEY`, the assistant's lines with `ASSISTANT_*`. Either may be
+ * missing; every feature then shows its rule's answer and its template's words.
+ */
+export function assistFrom(env: NodeJS.ProcessEnv): Pick<Deps, 'judge' | 'writer'> {
+  const judge = typesafeJudgeFromEnv(env);
+  const writer = writerFromEnv(env);
+  return {
+    ...(judge === undefined ? {} : { judge }),
+    ...(writer === undefined ? {} : { writer }),
+  };
+}
+
 export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Promise<Composed> {
   const db = timeoffDatabase(env);
   if (db === null) {
@@ -98,6 +115,7 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
   // The router's secret for this pair, as People's `PEOPLE_API_TOKEN`; empty refuses everybody.
   const internalToken = env['TIMEOFF_API_TOKEN'] ?? env['INTERNAL_API_TOKEN'] ?? '';
   const timers = await startEscalation(env, { uow, newId: uuidv7, notifier: logNotifier });
+  const mailer = nudgeMailerFrom(env);
   onShutdown('escalation worker', () => timers.close());
 
   const reach = reachFrom(env);
@@ -110,6 +128,8 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
     timers,
     notifier: logNotifier,
     reach,
+    ...(mailer === undefined ? {} : { mailer }),
+    ...assistFrom(env),
   });
   return {
     listener,

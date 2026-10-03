@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation SetTimeOffParentalCompany($key: String!, $input: JSON!) {\n    setTimeOffParentalCompany(idempotencyKey: $key, input: $input) {\n      ok\n    }\n  }"}

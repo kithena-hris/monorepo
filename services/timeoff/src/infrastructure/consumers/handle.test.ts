@@ -11,6 +11,7 @@ import {
   PersonTerminated,
   TenantAdministratorNamed,
   TenantAdministratorRemoved,
+  TenantSettingsChanged,
   type DefinedEvent,
 } from '@kithena/contracts';
 
@@ -163,6 +164,7 @@ describe('the People consumer', () => {
       accountId: ADAM_ACCOUNT,
       displayName: 'Adam Novak',
       firstName: 'Adam',
+      // From the hire: where messaging, calendars and chat apps reach him.
       workEmail: 'adam.novak@acme.example',
       managerPersonId: people.omar,
       teamKey: teamKeyOf(ORG),
@@ -259,5 +261,19 @@ describe('the graph beside the projection', () => {
     const app = world('2026-10-01T07:00:00.000Z', { members: false });
     const handle = timeoffConsumer(app.deps);
     expect(await handle(naming(TenantAdministratorNamed, 1, 'module.timeoff'))).toBe('ignored');
+  });
+
+  it('keeps People’s cohort minimum for the insights, which only ever rises (TOF-097)', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { members: false });
+    const handle = timeoffConsumer(app.deps);
+    const settings = (n: number, cohortMinimum: number) =>
+      envelope(TenantSettingsChanged, n, '2026-10-01', {
+        defaultTimeZone: 'Europe/Madrid',
+        cohortMinimum,
+        fieldsChanged: ['cohortMinimum'],
+      });
+    expect(await handle(settings(1, 15))).toBe('applied');
+    expect(await handle(settings(2, 12))).toBe('applied');
+    expect(app.state(TENANT).settings.get('cohort_minimum')).toEqual({ value: 15 });
   });
 });

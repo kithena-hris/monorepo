@@ -35,6 +35,9 @@ import {
   setTeamMinimum,
   setAttendanceRules,
   assignSchedule,
+  setParentalCompany,
+  startShadowRun,
+  stopShadowRun,
 } from '../application/admin/admin.js';
 import {
   answerCounter,
@@ -43,12 +46,21 @@ import {
   decideRequest,
 } from '../application/approval/decide.js';
 import { setDelegation } from '../application/approval/escalation.js';
+import { describeRequest } from '../application/assist/describe.js';
+import { holidayDraft } from '../application/assist/holiday-draft.js';
+import { readPolicyProse } from '../application/assist/policy-prose.js';
 import {
+  attendanceExceptions,
   closePayPeriod,
   correctPunch,
   decideOvertime,
+  payPeriodScreen,
   punch,
+  remindPayPeriod,
 } from '../application/attendance/attendance.js';
+import { inspectorExport } from '../application/attendance/inspector-files.js';
+import { insights } from '../application/insights/insights.js';
+import { nudgePreview, sendNudges } from '../application/insights/nudge.js';
 import { calendarFeed, issueFeedToken, revokeFeeds } from '../application/calendar/ical.js';
 import {
   issueKioskQr,
@@ -75,6 +87,7 @@ import {
   approveParentalPlan,
   editParentalBlocks,
   parentalCase,
+  parentalCases,
   parentalScreen,
   recordParentalBirth,
   saveParentalHandover,
@@ -98,6 +111,7 @@ import {
 } from '../application/screens/employee.js';
 import {
   approvals,
+  attendanceRequestsScreen,
   calendar,
   calendarYear,
   delegation,
@@ -121,6 +135,7 @@ import {
   ApprovalRuleBody,
   ApprovalsSettingsView,
   ApprovalsView,
+  AttendanceRequestsView,
   AttendanceRulesBody,
   AttendanceSettingsView,
   AutoApprovalBody,
@@ -130,10 +145,16 @@ import {
   CalendarView,
   DecisionView,
   DelegationView,
+  DescribedView,
+  EscalationBody,
+  ExceptionsView,
+  FileView,
+  HolidayDraftView,
   HolidayLayerBody,
   HolidaySettingsView,
   HolidaysView,
   HandoverView,
+  InsightsView,
   IntegrationProviderView,
   IntegrationsView,
   KioskIdentityView,
@@ -147,11 +168,16 @@ import {
   LookCloserReason,
   MyRequestsView,
   NegativeBalanceView,
+  NudgeView,
   OverviewView,
+  ParentalCasesView,
   ParentalCaseView,
+  ParentalCompanyBody,
   ParentalScreenView,
   ParentRoleView,
+  PayPeriodView,
   PolicyPreviewView,
+  PolicyReadView,
   PunchView,
   RequestDetailView,
   RequestPanelView,
@@ -321,6 +347,8 @@ export const CounterBody = z.strictObject({
     .array(z.strictObject({ spans: z.array(Range).min(1).max(10) }))
     .min(1)
     .max(3),
+  /** What the manager writes with the dates (T18, TOF-099b). */
+  message: z.string().max(1000).nullable().default(null),
 });
 export const AnswerBody = z.strictObject({
   /** Which suggestion to take; `null` keeps the member's own dates. */
@@ -416,6 +444,7 @@ export const AssignBody = z.strictObject({ layerKeys: z.array(z.string()).max(10
 export const ApprovalRulesBody = z.strictObject({
   rules: z.array(ApprovalRuleBody).max(50),
   autoApproval: AutoApprovalBody.optional(),
+  escalation: EscalationBody.optional(),
 });
 export const MinimumBody = z.strictObject({ minimum: TeamMinimumBody.nullable() });
 const Children = z.int().min(1).max(9);
@@ -523,6 +552,9 @@ function present<T extends object>(value: T): { [K in keyof T]?: Exclude<T[K], u
 
 const firstOf = (month: string) => CalendarDate.parse(`${month}-01`);
 
+/** A number of days from the address: "28", "2.5". */
+const DayText = z.string().regex(/^\d{1,3}(\.\d{1,3})?$/u, 'a number of days, such as 28 or 2.5');
+
 /* --------------------------------------------------------------- routes -- */
 
 const V1 = '/v1/timeoff';
@@ -564,6 +596,27 @@ export const ROUTES: readonly Route[] = [
     }),
     answer: RequestPanelView,
     run: (deps, caller, { params }) => requestPanel(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffDescribe',
+    method: 'GET',
+    path: `${V1}/describe`,
+    summary:
+      'T4, MT8: a sentence read as choices the caller can change, and the best dates for them; nothing is saved',
+    params: z.object({
+      sentence: z.string().max(300).optional(),
+      leaveTypeKey: LeaveTypeKey.optional(),
+      days: z.int().min(1).max(30).optional(),
+      month: z
+        .string()
+        .regex(/^(\d{4}-(0[1-9]|1[0-2]))?$/u, 'a month, such as 2026-10, or nothing')
+        .optional(),
+      nextToHoliday: z.boolean().optional(),
+      avoidShort: z.boolean().optional(),
+    }),
+    answer: DescribedView,
+    run: (deps, caller, { params }) => describeRequest(deps)(caller, params),
     shape: same,
   }),
   route({
@@ -688,6 +741,74 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffAttendanceExceptions',
+    method: 'GET',
+    path: `${V1}/attendance/exceptions`,
+    summary:
+      'T23: missed clock-outs, short rest, overtime waiting and holidays worked over a period; HR',
+    params: z.object({ from: CalendarDate, to: CalendarDate }),
+    answer: ExceptionsView,
+    run: (deps, caller, { params }) => attendanceExceptions(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffInspectorRecord',
+    method: 'GET',
+    path: `${V1}/attendance/inspector-record`,
+    summary:
+      'The labour inspector’s daily record (start, end, breaks) per person for a period, as CSV or PDF in base64; HR',
+    params: z.object({ from: CalendarDate, to: CalendarDate, format: z.enum(['csv', 'pdf']) }),
+    answer: FileView,
+    run: (deps, caller, { params }) => inspectorExport(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffAttendanceRequests',
+    method: 'GET',
+    path: `${V1}/attendance/requests`,
+    summary:
+      'The attendance Requests tab: overtime and late corrections the caller’s reports need from them, and the caller’s own overtime',
+    answer: AttendanceRequestsView,
+    run: (deps, caller) => attendanceRequestsScreen(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffInsights',
+    method: 'GET',
+    path: `${V1}/insights`,
+    summary:
+      'T27: the month in points, six months of trends, the teams large enough to describe and the people behind each point; HR or a manager',
+    answer: InsightsView,
+    run: (deps, caller) => insights(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffNudge',
+    method: 'GET',
+    path: `${V1}/insights/nudge`,
+    summary:
+      'T28: who has had no break, and the first one’s message as it would be sent; HR or a manager',
+    params: z.object({
+      balance: z.boolean().default(true),
+      bridge: z.boolean().default(true),
+      losing: z.boolean().default(false),
+    }),
+    answer: NudgeView,
+    run: (deps, caller, { params }) => nudgePreview(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffPayPeriod',
+    method: 'GET',
+    path: `${V1}/pay-periods/{month}`,
+    summary: 'T24: a month per team and in total, and who is late for Payroll; HR',
+    params: z.object({ month: Month }),
+    answer: PayPeriodView,
+    run: (deps, caller, { params }) =>
+      payPeriodScreen(deps)(caller, { from: firstOf(params.month) }),
+    shape: same,
+  }),
+  route({
     name: 'timeOffBalance',
     method: 'GET',
     path: `${V1}/balances/{leaveTypeKey}`,
@@ -738,6 +859,26 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffPolicyRead',
+    method: 'GET',
+    path: `${V1}/settings/policies/read`,
+    summary:
+      'T32: a policy written in plain words, read into the ordinary form, with the one question it leaves open; nothing is saved; HR',
+    params: z.object({
+      text: z.string().max(2000).optional(),
+      leaveTypeKey: LeaveTypeKey.optional(),
+      dayKind: z.enum(['working', 'calendar']).optional(),
+      earning: z.enum(['upfront', 'monthly']).optional(),
+      allowance: DayText.optional(),
+      carryOver: DayText.optional(),
+      negative: DayText.optional(),
+      probationMonths: z.int().min(0).max(24).optional(),
+    }),
+    answer: PolicyReadView,
+    run: (deps, caller, { params }) => readPolicyProse(deps)(caller, params),
+    shape: same,
+  }),
+  route({
     name: 'timeOffNegativeBalanceSettings',
     method: 'GET',
     path: `${V1}/settings/negative-balance`,
@@ -775,6 +916,21 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffHolidayDraft',
+    method: 'GET',
+    path: `${V1}/settings/holidays/{year}/draft`,
+    summary:
+      'T36: a year of one calendar drafted from a list HR supplies; the unconfirmed days are marked; nothing is saved; HR',
+    params: z.object({
+      year: Year,
+      layerKey: HolidayLayerBody.shape.key,
+      source: z.string().min(1).max(4000),
+    }),
+    answer: HolidayDraftView,
+    run: (deps, caller, { params }) => holidayDraft(deps)(caller, params),
+    shape: same,
+  }),
+  route({
     name: 'timeOffParentalPlan',
     method: 'GET',
     path: `${V1}/parental`,
@@ -788,6 +944,15 @@ export const ROUTES: readonly Route[] = [
     }),
     answer: ParentalScreenView,
     run: (deps, caller, { params }) => parentalScreen(deps)(caller, present(params)),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffParentalCases',
+    method: 'GET',
+    path: `${V1}/parental/cases`,
+    summary: 'HR’s list of sent parental plans, waiting first, then approved; HR',
+    answer: ParentalCasesView,
+    run: (deps, caller) => parentalCases(deps)(caller),
     shape: same,
   }),
   route({
@@ -877,12 +1042,16 @@ export const ROUTES: readonly Route[] = [
     name: 'suggestTimeOffDates',
     method: 'POST',
     path: `${V1}/requests/{requestId}/counter-proposal`,
-    summary: 'Suggest other dates instead of declining',
+    summary: 'Suggest other dates instead of declining, with a message for the member',
     params: RequestParams,
     body: CounterBody,
     answer: StatusAnswer,
     run: (deps, caller, { params, body }) =>
-      counterPropose(deps)(caller, { requestId: params.requestId, proposals: body.proposals }),
+      counterPropose(deps)(caller, {
+        requestId: params.requestId,
+        proposals: body.proposals,
+        message: body.message,
+      }),
     shape: same,
   }),
   route({
@@ -1026,6 +1195,36 @@ export const ROUTES: readonly Route[] = [
       .meta({ title: 'TimeOffPayPeriodClosed' }),
     run: (deps, caller, { params }) =>
       closePayPeriod(deps)(caller, { from: firstOf(params.month) }),
+    shape: same,
+  }),
+  route({
+    name: 'sendTimeOffNudges',
+    method: 'POST',
+    path: `${V1}/insights/nudge`,
+    summary:
+      'T28: send each person without a break their own message through messaging, once a day; HR or a manager',
+    body: z.strictObject({
+      include: z.strictObject({ balance: z.boolean(), bridge: z.boolean(), losing: z.boolean() }),
+      companyName: z.string().trim().min(1).max(120),
+      appOrigin: z.string().max(300),
+    }),
+    answer: z
+      .object({ sent: z.int(), unreachable: z.int(), failed: z.int() })
+      .meta({ title: 'TimeOffNudgesSent' }),
+    run: (deps, caller, { body }) => sendNudges(deps)(caller, body),
+    shape: same,
+  }),
+  route({
+    name: 'remindTimeOffPayPeriod',
+    method: 'POST',
+    path: `${V1}/pay-periods/{month}/reminders`,
+    summary:
+      'Ask a team’s late members for their clock-outs, and their managers for the overtime waiting; HR',
+    params: z.object({ month: Month }),
+    body: z.strictObject({ teamKey: TeamKey.nullable().default(null) }),
+    answer: z.object({ told: z.int() }).meta({ title: 'TimeOffReminded' }),
+    run: (deps, caller, { params, body }) =>
+      remindPayPeriod(deps)(caller, { from: firstOf(params.month), teamKey: body.teamKey }),
     shape: same,
   }),
 
@@ -1404,6 +1603,26 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'startTimeOffShadowRun',
+    method: 'PUT',
+    path: `${V1}/policies/{policyId}/shadow`,
+    summary: 'Run the draft beside the policy in effect for a month, to compare balances; HR',
+    params: z.object({ policyId: PolicyId }),
+    answer: z.object({ from: CalendarDate, to: CalendarDate }).meta({ title: 'TimeOffShadow' }),
+    run: (deps, caller, { params }) => startShadowRun(deps)(caller, params.policyId),
+    shape: same,
+  }),
+  route({
+    name: 'stopTimeOffShadowRun',
+    method: 'DELETE',
+    path: `${V1}/policies/{policyId}/shadow`,
+    summary: 'Stop running the draft beside the policy in effect; HR',
+    params: z.object({ policyId: PolicyId }),
+    answer: Done,
+    run: (deps, caller, { params }) => stopShadowRun(deps)(caller, params.policyId),
+    shape: done,
+  }),
+  route({
     name: 'saveTimeOffHolidayCalendar',
     method: 'PUT',
     path: `${V1}/holiday-calendars/{key}`,
@@ -1441,10 +1660,23 @@ export const ROUTES: readonly Route[] = [
     name: 'setTimeOffApprovalRules',
     method: 'PUT',
     path: `${V1}/approval-rules`,
-    summary: 'T34: who approves what, and what is approved automatically; HR',
+    summary:
+      'T34: who approves what, what is approved automatically, and what happens if nobody decides; HR',
     body: ApprovalRulesBody,
     answer: Done,
-    run: (deps, caller, { body }) => setApprovalRules(deps)(caller, body.rules, body.autoApproval),
+    run: (deps, caller, { body }) =>
+      setApprovalRules(deps)(caller, body.rules, body.autoApproval, body.escalation),
+    shape: done,
+  }),
+  route({
+    name: 'setTimeOffParentalCompany',
+    method: 'PUT',
+    path: `${V1}/settings/parental-company`,
+    summary:
+      'The company’s own parental weeks, after how many years, and the leave type they are booked as; 0 weeks for none; HR',
+    body: ParentalCompanyBody,
+    answer: Done,
+    run: (deps, caller, { body }) => setParentalCompany(deps)(caller, body),
     shape: done,
   }),
   route({

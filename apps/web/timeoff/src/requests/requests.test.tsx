@@ -56,6 +56,8 @@ describe('my requests', () => {
     const onAnswer = vi.fn(ok);
     render(<MyRequests load={ready(suggested())} onAnswer={onAnswer} />);
     expect(screen.getAllByText('Your manager suggested other dates')).toHaveLength(2);
+    // What Marco wrote with them (TOF-099b).
+    expect(screen.getByText(/could you take 26–30 Oct instead\? Omar and Yuki/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Take 26–30 Oct · 5 days' }));
     expect(onAnswer).toHaveBeenCalledWith('0199a000-0000-7000-8000-000000000020', 0);
     await vi.waitFor(() => {

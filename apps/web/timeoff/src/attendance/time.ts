@@ -121,6 +121,13 @@ export const monthName = (date: string): string =>
 export const addDays = (date: string, days: number): string =>
   new Date(asDate(date).getTime() + days * 86_400_000).toISOString().slice(0, 10);
 
+/** The month (`YYYY-MM`) `by` months from `month`. */
+export function shiftMonth(month: string, by: number): string {
+  const d = asDate(`${month}-01`);
+  d.setUTCMonth(d.getUTCMonth() + by);
+  return d.toISOString().slice(0, 7);
+}
+
 /** What the last punch left the clock at: one clock, whichever source punched. */
 export function stateAfter(punches: readonly Punch[]): ClockState {
   const last = punches.toSorted((a, b) => a.at.localeCompare(b.at)).at(-1);

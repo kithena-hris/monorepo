@@ -85,8 +85,20 @@ export async function absencesIn(
     );
 }
 
-/** The team's coverage over a range, with one more absence, or `[]` with no minimum. */
+/** The days the team would fall below its minimum, with one more absence. */
 export async function teamBelow(
+  tx: Tx,
+  member: Member,
+  from: CalendarDate,
+  to: CalendarDate,
+  extra: readonly Absence[],
+  excluding: string | null,
+): Promise<DayCoverage[]> {
+  return (await teamCoverage(tx, member, from, to, extra, excluding)).filter((day) => day.below);
+}
+
+/** The team's coverage over a range, with one more absence, or `[]` with no minimum. */
+export async function teamCoverage(
   tx: Tx,
   member: Member,
   from: CalendarDate,
@@ -113,7 +125,7 @@ export async function teamBelow(
     )),
     ...extra,
   ];
-  return coverage({ members, absences, minimum, from, to }).days.filter((day) => day.below);
+  return coverage({ members, absences, minimum, from, to }).days;
 }
 
 /**

@@ -1,0 +1,1 @@
+{"version":1,"body":"query TimeOffAttendanceExceptions($from: String!, $to: String!) {\n    timeOffAttendanceExceptions(from: $from, to: $to) {\n      from items { date displayName holiday kind minutes personId teamName } restMinutes to\n    }\n  }"}

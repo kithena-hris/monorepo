@@ -73,6 +73,13 @@ export const madrid = (): HolidaysData => ({
     { date: '2026-12-08', name: 'Inmaculada Concepción', layer: 'national', movedFrom: null },
     { date: '2026-12-25', name: 'Navidad', layer: 'national', movedFrom: null },
   ],
-  bridges: [{ take: '2026-12-07', holiday: 'Inmaculada Concepción', days: 4 }],
+  bridges: [
+    {
+      from: '2026-12-07',
+      to: '2026-12-07',
+      away: { from: '2026-12-05', to: '2026-12-08', days: 4 },
+      holidays: [{ date: '2026-12-08', name: 'Inmaculada Concepción' }],
+    },
+  ],
   today: '2026-10-01',
 });

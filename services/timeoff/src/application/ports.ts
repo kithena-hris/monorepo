@@ -13,6 +13,7 @@ import {
   type TenantId,
 } from '@kithena/contracts';
 
+import type { CalendarEvidence, Judge, Writer } from './assist/ports.js';
 import type { ApprovalRule, ApproverRole, AutoApproval } from '../domain/approval/approval-rule.js';
 import type { Delegation } from '../domain/approval/delegation.js';
 import type { Punch } from '../domain/attendance/clock.js';
@@ -65,9 +66,11 @@ export const MemberFields = z.object({
   displayName: z.string().trim().min(1).max(200),
   firstName: z.string().trim().min(1).max(100),
   /**
-   * The member's work address: how a calendar or chat app knows whose
-   * calendar or status is theirs (TOF-110, TOF-111). Never shown on a screen
-   * Time Off draws, and never on an event it raises.
+   * The member's work address: where messaging reaches them (a nudge,
+   * TOF-098) and how a calendar or chat app knows whose calendar or status
+   * is theirs (TOF-110, TOF-111). `null` until People, an import or SCIM
+   * says. Never shown on a screen Time Off draws, and never on an event it
+   * raises. Checked as the account id is, for TS 7's sake.
    */
   workEmail: z.string().trim().max(320).check(z.email()).nullable().default(null),
   managerPersonId: PersonId.nullable().default(null),
@@ -164,6 +167,8 @@ export interface RequestRecord {
   readonly requestedAt: Instant;
   /** The account that suggested other dates, which approves them when accepted. */
   readonly proposedBy: string | null;
+  /** What they wrote with the dates (TOF-099b); `null` for nothing. */
+  readonly proposalMessage: string | null;
 }
 
 export interface RequestStore {
@@ -478,6 +483,42 @@ export interface ParentalStore {
   setCompany(weeks: CompanyParentalWeeks): Promise<void>;
 }
 
+/** A policy's draft running beside the version in effect, for a month (PRD §6.3, TOF-093). */
+export interface PolicyShadow {
+  readonly from: CalendarDate;
+  readonly to: CalendarDate;
+}
+
+/** The small tenant settings kept as one document each, by key. */
+export interface Settings {
+  /** Shadow runs, by policy id. */
+  readonly policy_shadows: Readonly<Record<string, PolicyShadow>>;
+  /** The smallest group a report may describe, as People last said (`people.settings.changed`). */
+  readonly cohort_minimum: { readonly value: number };
+  /** T34's "If nobody decides" (§9.7). */
+  readonly escalation: Escalation;
+}
+
+/** How long a request waits before it moves on, to whom, and when the daily reminder goes. */
+export interface Escalation {
+  readonly afterWorkingDays: number;
+  /** The approver's own manager (HR when they have none), or HR straight away. */
+  readonly to: 'manager' | 'hr';
+  /** Minutes after midnight in the member's zone. */
+  readonly remindAt: number;
+}
+
+export const DEFAULT_ESCALATION: Escalation = {
+  afterWorkingDays: 3,
+  to: 'manager',
+  remindAt: 9 * 60,
+};
+
+export interface SettingStore {
+  get<K extends keyof Settings>(key: K): Promise<Settings[K] | null>;
+  set<K extends keyof Settings>(key: K, value: Settings[K]): Promise<void>;
+}
+
 /** The revocation counter behind a calendar feed token (§10.1). */
 export interface FeedStore {
   version(personId: PersonId): Promise<number>;
@@ -524,6 +565,7 @@ export interface Tx {
   readonly kiosks: KioskStore;
   readonly integrations: IntegrationStore;
   readonly scim: ScimStore;
+  readonly settings: SettingStore;
   readonly outbox: Outbox;
   readonly idempotency: IdempotencyStore;
 }
@@ -575,6 +617,7 @@ export type Notice =
       readonly carries: string;
     }
   | { readonly kind: 'missed_clock_out'; readonly date: CalendarDate }
+  | { readonly kind: 'overtime_waiting'; readonly personId: PersonId; readonly date: CalendarDate }
   | { readonly kind: 'still_clocked_in' }
   | { readonly kind: 'parental_plan_sent'; readonly planId: string }
   | {
@@ -588,6 +631,26 @@ export type Notice =
       readonly leaveTypeKey: LeaveTypeKey;
       readonly days: string;
     };
+
+/**
+ * A nudge to rest (T28, TOF-098), through `platform/messaging` over internal
+ * HTTP as identity's invitation is: the recipient's address, a link on their
+ * company's own origin, and words carrying only their own figures. Rejects
+ * when messaging refuses it.
+ */
+export interface NudgeMailer {
+  send(
+    tenantId: TenantId,
+    message: {
+      readonly email: string;
+      readonly url: string;
+      readonly companyName: string;
+      readonly dedupeKey: string;
+      readonly heading: string;
+      readonly lede: string;
+    },
+  ): Promise<void>;
+}
 
 export interface Notifier {
   /** At most once per `dedupeKey`, so a job run twice tells nobody twice. */
@@ -609,6 +672,14 @@ export interface Deps {
   readonly feedSecret: string;
   /** Calendars and chat apps; none at all without credentials, which changes nothing else. */
   readonly reach?: Reach;
+  /** Messaging's door for nudges; absent, nudges are refused as unavailable. */
+  readonly mailer?: NudgeMailer;
+  /** TypeSafe's judgments (`TYPESAFE_API_KEY`); absent, every caller uses its own rule (§14.1). */
+  readonly judge?: Judge;
+  /** The assistant's lines (`ASSISTANT_*`); absent, every line is its template (§14.1). */
+  readonly writer?: Writer;
+  /** A connected calendar's event end times, evidence for a missed clock-out (§11.4). */
+  readonly calendar?: CalendarEvidence;
 }
 
 export const userActor = (caller: Caller): Actor => ({ kind: 'user', userId: caller.accountId });

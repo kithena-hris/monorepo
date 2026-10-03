@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DateSpan, LeaveTypeKey, type PersonId } from '@kithena/contracts';
+import { DateSpan, LeaveTypeKey, PunchInput, type PersonId } from '@kithena/contracts';
 
 import { decideRequest } from '../approval/decide.js';
+import { decideOvertime, punch } from '../attendance/attendance.js';
 import { sendRequest } from '../request/request.js';
-import { caller, people, world } from '../testing/world.js';
-import { calendar, delegation, requestDecision } from './manager.js';
+import { caller, d, people, world } from '../testing/world.js';
+import { attendanceRequestsScreen, calendar, delegation, requestDecision } from './manager.js';
 
 const vacation = LeaveTypeKey.parse('vacation');
 
@@ -115,5 +116,47 @@ describe('delegation (T19)', () => {
       escalatesTo: { personId: people.marco, displayName: 'Marco Ruiz' },
       delegation: null,
     });
+  });
+});
+
+describe('the attendance Requests tab (TOF-099)', () => {
+  it('gives Marco his reports’ overtime to decide, and Adam his own and where it stands', async () => {
+    const app = world('2026-10-05T07:00:00.000Z');
+    const adam = caller(people.adam);
+    const at = async (iso: string, kind: 'in' | 'out') => {
+      app.clock.set(iso);
+      await punch(app.deps)(adam, PunchInput.parse({ kind, source: 'web', workModel: 'office' }));
+    };
+    // Monday and Tuesday, 09:00–18:00: an hour over each.
+    await at('2026-10-05T07:00:00.000Z', 'in');
+    await at('2026-10-05T16:00:00.000Z', 'out');
+    await at('2026-10-06T07:00:00.000Z', 'in');
+    await at('2026-10-06T16:00:00.000Z', 'out');
+    app.clock.set('2026-10-07T07:00:00.000Z');
+    await decideOvertime(app.deps)(caller(people.marco), {
+      personId: people.adam,
+      date: d('2026-10-05'),
+      approve: true,
+      choice: 'paid',
+    });
+
+    const marco = await attendanceRequestsScreen(app.deps)(caller(people.marco));
+    if (!marco.ok) throw new Error(marco.error.message);
+    expect(marco.value.overtime).toEqual({ becomes: 'choose', multiplier: '1.25' });
+    expect(marco.value.needsYou).toEqual([
+      expect.objectContaining({
+        kind: 'overtime',
+        personId: people.adam,
+        displayName: 'Adam Novak',
+        date: '2026-10-06',
+        minutes: 60,
+      }),
+    ]);
+
+    const mine = await attendanceRequestsScreen(app.deps)(adam);
+    expect(mine.ok && mine.value.mine).toEqual([
+      { date: '2026-10-06', minutes: 60, status: 'waiting' },
+      { date: '2026-10-05', minutes: 60, status: 'paid' },
+    ]);
   });
 });
