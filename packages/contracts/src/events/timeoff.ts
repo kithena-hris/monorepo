@@ -298,14 +298,20 @@ export const AttendancePunched = defineEvent(
   }),
 );
 
-/** A punch corrected, as a new punch naming the one it replaces (§11.4). */
+/**
+ * A punch corrected, as a new punch naming the one it replaces (§11.4).
+ *
+ * `supersedes` is `null` when the punch was never made at all — a forgotten
+ * clock-out has no original to name, and is still a correction: made late,
+ * with a reason, and shown to the manager after 24 hours.
+ */
 export const AttendanceCorrected = defineEvent(
   'timeoff.attendance.corrected',
   1,
   z.object({
     punchId: z.uuid().register(policy, asPublic()),
     personId: PersonId,
-    supersedes: supersedes(),
+    supersedes: z.uuidv7().nullable().register(policy, asPublic()),
     at: Instant,
     kind: PunchKind,
     reason: z.string().max(1000).nullable().register(policy, asFreeText()),
