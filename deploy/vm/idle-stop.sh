@@ -88,7 +88,7 @@ compose() { # <env> <compose args…>
   [ "$env" = staging ] && files+=(-f "$dir/compose.staging.yaml")
   # Every image Compose interpolates; one never deployed (Time Off before its
   # first deploy) would otherwise fail the whole command, and the VM never sleep.
-  for key in PEOPLE ROUTER SLACK AUDIT TIMEOFF; do
+  for key in PEOPLE ROUTER SLACK AUDIT TIMEOFF ASSISTANT; do
     value="$(sed -n "s/^${key}_IMAGE=//p" "$dir/state.env" | tail -n 1)"
     export "${key}_IMAGE=${value:-not-deployed-yet}"
   done

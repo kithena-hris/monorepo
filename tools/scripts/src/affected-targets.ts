@@ -54,6 +54,9 @@ export const TARGETS = {
   // Time Off (TOF-050b): a container beside People on the VM, for People's
   // reasons — consumer groups, jobs, a drain.
   timeoff: { packages: ['@kithena/timeoff'], paths: [/^deploy\/vm\//u] },
+  // The assistant (assistant PRD §15): a container beside Slack on the VM,
+  // which asks it every question.
+  assistant: { packages: ['@kithena/assistant'], paths: [/^deploy\/vm\//u] },
   // The router image bakes in the supergraph, composed from People's, Time
   // Off's and the activity log's schemas, and `apps/gateway` holds its config
   // and the persisted operations.
@@ -83,6 +86,7 @@ export const ENV_TARGETS: Record<Env, readonly Target[]> = {
     'slack',
     'audit',
     'timeoff',
+    'assistant',
     'people-remote',
     'timeoff-remote',
     'shell',
@@ -258,6 +262,7 @@ function main(argv: string[]): void {
       t === 'slack' ||
       t === 'audit' ||
       t === 'timeoff' ||
+      t === 'assistant' ||
       t === 'migrations',
   );
   lines.push(`vm=${String(vm)}`, `any=${String(chosen.length > 0)}`, `targets=${chosen.join(',')}`);

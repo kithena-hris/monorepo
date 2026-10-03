@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { deploymentEntitlements } from '@kithena/contracts';
 
 import { compose, type RequestHandler } from '../src/composition.js';
 
@@ -65,7 +66,8 @@ function routes(): Promise<RequestHandler> {
      */
     ...(process.env['IDENTITY_IMAGE_HOSTS']
       ? {
-          imageHosts: process.env['IDENTITY_IMAGE_HOSTS'].split(',')
+          imageHosts: process.env['IDENTITY_IMAGE_HOSTS']
+            .split(',')
             .map((host) => host.trim())
             .filter((host) => host !== ''),
         }
@@ -86,6 +88,13 @@ function routes(): Promise<RequestHandler> {
     ...(process.env['MESSAGING_API_TOKEN']
       ? { messagingToken: process.env['MESSAGING_API_TOKEN'] }
       : {}),
+    // The same, for People reading a tenant's accounts. See `Config.peopleToken`.
+    ...(process.env['PEOPLE_IDENTITY_TOKEN']
+      ? { peopleToken: process.env['PEOPLE_IDENTITY_TOKEN'] }
+      : {}),
+    // What a company with no modules recorded holds (PEO-114). Without it such
+    // a company looks as if it had none, and the assistant would say so.
+    defaultEntitlements: deploymentEntitlements(process.env['KITHENA_ENTITLEMENTS']),
   });
   return routesPromise;
 }

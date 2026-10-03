@@ -77,6 +77,7 @@ jobs:
       slack: ${{ steps.plan.outputs.slack }}
       audit: ${{ steps.plan.outputs.audit }}
       timeoff: ${{ steps.plan.outputs.timeoff }}
+      assistant: ${{ steps.plan.outputs.assistant }}
       migrations: ${{ steps.plan.outputs.migrations }}
       vm: ${{ steps.plan.outputs.vm }}
       any: ${{ steps.plan.outputs.any }}
@@ -120,7 +121,7 @@ jobs:
     needs: plan
     if: >
       vars.ROUTER_URL_STAGING != '' &&
-      (needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true' || needs.plan.outputs.timeoff == 'true')
+      (needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true' || needs.plan.outputs.timeoff == 'true' || needs.plan.outputs.assistant == 'true')
     # A native runner for the VM's architecture, both free for a public
     # repository. Under QEMU the People build takes an order of magnitude
     # longer, so there is no cross-build: `--platform` below only makes a
@@ -136,6 +137,7 @@ jobs:
       slack: ${{ steps.names.outputs.slack }}
       audit: ${{ steps.names.outputs.audit }}
       timeoff: ${{ steps.names.outputs.timeoff }}
+      assistant: ${{ steps.names.outputs.assistant }}
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -160,6 +162,7 @@ jobs:
           echo "slack=ghcr.io/${OWNER,,}/kithena-slack:${SHA}" >> "$GITHUB_OUTPUT"
           echo "audit=ghcr.io/${OWNER,,}/kithena-audit:${SHA}" >> "$GITHUB_OUTPUT"
           echo "timeoff=ghcr.io/${OWNER,,}/kithena-timeoff:${SHA}" >> "$GITHUB_OUTPUT"
+          echo "assistant=ghcr.io/${OWNER,,}/kithena-assistant:${SHA}" >> "$GITHUB_OUTPUT"
 
       - name: platform
         env:
@@ -269,6 +272,23 @@ jobs:
           fi
           docker rm --force "$container"
 
+      # With no settings the assistant boots and answers "not available".
+      - name: build and test the assistant image
+        if: needs.plan.outputs.assistant == 'true'
+        env:
+          IMAGE: ${{ steps.names.outputs.assistant }}
+          SOURCE: https://github.com/${{ github.repository }}
+        run: |
+          docker build --file platform/assistant/Dockerfile --tag "$IMAGE" \
+            --label "org.opencontainers.image.source=$SOURCE" .
+          container="$(docker run --detach --publish 127.0.0.1:4104:4104 "$IMAGE")"
+          if ! curl --fail --silent --show-error --retry 20 --retry-delay 2 --retry-all-errors \
+            http://127.0.0.1:4104/health >/dev/null; then
+            docker logs "$container"
+            exit 1
+          fi
+          docker rm --force "$container"
+
       - name: push
         env:
           GH_TOKEN: ${{ github.token }}
@@ -283,6 +303,8 @@ jobs:
           AUDIT_BUILT: ${{ needs.plan.outputs.audit }}
           TIMEOFF: ${{ steps.names.outputs.timeoff }}
           TIMEOFF_BUILT: ${{ needs.plan.outputs.timeoff }}
+          ASSISTANT: ${{ steps.names.outputs.assistant }}
+          ASSISTANT_BUILT: ${{ needs.plan.outputs.assistant }}
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
           if [ "$PEOPLE_BUILT" = true ]; then docker push --quiet "$PEOPLE"; fi
@@ -290,6 +312,7 @@ jobs:
           if [ "$SLACK_BUILT" = true ]; then docker push --quiet "$SLACK"; fi
           if [ "$AUDIT_BUILT" = true ]; then docker push --quiet "$AUDIT"; fi
           if [ "$TIMEOFF_BUILT" = true ]; then docker push --quiet "$TIMEOFF"; fi
+          if [ "$ASSISTANT_BUILT" = true ]; then docker push --quiet "$ASSISTANT"; fi
           docker logout ghcr.io
 
       # The registry is transport, not history: the VM keeps the image each
@@ -324,6 +347,13 @@ jobs:
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
           package-name: kithena-timeoff
+          package-type: container
+          min-versions-to-keep: 5
+      - name: prune assistant images
+        if: needs.plan.outputs.assistant == 'true'
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+        with:
+          package-name: kithena-assistant
           package-type: container
           min-versions-to-keep: 5
 
@@ -430,7 +460,7 @@ jobs:
           AUTH_TOKEN_AUDIENCE: ${{ vars.AUTH_TOKEN_AUDIENCE_STAGING }}
           KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
           IMAGES: ${{ needs.images.result }}
-          NEED_IMAGES: ${{ needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true' || needs.plan.outputs.timeoff == 'true' }}
+          NEED_IMAGES: ${{ needs.plan.outputs.people == 'true' || needs.plan.outputs.router == 'true' || needs.plan.outputs.slack == 'true' || needs.plan.outputs.audit == 'true' || needs.plan.outputs.timeoff == 'true' || needs.plan.outputs.assistant == 'true' }}
         run: |
           missing=
           for name in INSTANCE AWS_DEPLOY_ROLE_ARN AWS_REGION VM_DEPLOY_SSH_KEY PEOPLE_API_TOKEN AUDIT_API_TOKEN PEOPLE_ENV \
@@ -512,6 +542,16 @@ jobs:
           PEOPLE_ENV: ${{ secrets.PEOPLE_ENV }}
           # The assistant's model key. Optional: absent, the assistant is off.
           ASSISTANT_API_KEY: ${{ secrets.ASSISTANT_API_KEY }}
+          # The assistant's four pair tokens (assistant PRD §15.3), each written
+          # into both ends from the one secret, as SLACK_PEOPLE_TOKEN is; the
+          # identity end is identity's Vercel deploy. Each optional: one unset
+          # leaves that pair refused, and the deploy warns rather than fails.
+          SLACK_ASSISTANT_TOKEN: ${{ secrets.SLACK_ASSISTANT_TOKEN }}
+          ASSISTANT_PEOPLE_TOKEN: ${{ secrets.ASSISTANT_PEOPLE_TOKEN }}
+          ASSISTANT_TIMEOFF_TOKEN: ${{ secrets.ASSISTANT_TIMEOFF_TOKEN }}
+          ASSISTANT_IDENTITY_TOKEN: ${{ secrets.ASSISTANT_IDENTITY_TOKEN }}
+          # Where the assistant's links go (`https://{slug}.…`), as messaging's.
+          TENANT_APP_BASE: ${{ vars.TENANT_APP_BASE_STAGING }}
           # Slack (`platform/slack`). Optional: without the app token and the
           # pair's token, the service starts and stays off.
           SLACK_APP_TOKEN: ${{ secrets.SLACK_APP_TOKEN }}
@@ -576,14 +616,28 @@ jobs:
             if [ -n "$SLACK_PEOPLE_TOKEN" ]; then
               printf 'SLACK_URL=http://slack:4102\nSLACK_PEOPLE_TOKEN=%s\n' "$SLACK_PEOPLE_TOKEN"
             fi
+            if [ -n "$ASSISTANT_PEOPLE_TOKEN" ]; then printf 'ASSISTANT_PEOPLE_TOKEN=%s\n' "$ASSISTANT_PEOPLE_TOKEN"; fi
           } | put people.env
-          printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nSLACK_TIMEOFF_TOKEN=%s\nAUTH_ORIGIN=https://auth.staging.app.kithena.com\nSLACK_COMMAND=/kithena-staging\n' \
-            "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" "$SLACK_TIMEOFF_TOKEN" | put slack.env
+          printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nSLACK_TIMEOFF_TOKEN=%s\nSLACK_ASSISTANT_TOKEN=%s\nAUTH_ORIGIN=https://auth.staging.app.kithena.com\nSLACK_COMMAND=/kithena-staging\n' \
+            "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" "$SLACK_TIMEOFF_TOKEN" "$SLACK_ASSISTANT_TOKEN" | put slack.env
+          # Each unset piece leaves the assistant answering less, never the deploy red.
+          assistant=(ASSISTANT_API_KEY TENANT_APP_BASE SLACK_ASSISTANT_TOKEN ASSISTANT_PEOPLE_TOKEN
+                     ASSISTANT_TIMEOFF_TOKEN ASSISTANT_IDENTITY_TOKEN)
+          for name in "${assistant[@]}"; do
+            [ -n "${!name}" ] || echo "::warning::$name is unset: the assistant answers less, or not at all (docs/environments.md, \"The assistant's settings\")"
+          done
+          {
+            printf 'IDENTITY_URL=%s\n' https://identity.staging.kithena.com
+            for name in "${assistant[@]}"; do
+              if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
+            done
+          } | put assistant.env
           printf 'AUDIT_API_TOKEN=%s\n' "$AUDIT_API_TOKEN" | put audit.env
           {
             printf '%s\nTIMEOFF_API_TOKEN=%s\n' "$TIMEOFF_ENV" "$TIMEOFF_API_TOKEN"
             for name in TIMEOFF_PUBLIC_URL TIMEOFF_INTEGRATION_KEY TIMEOFF_GOOGLE_SERVICE_ACCOUNT \
-                        TIMEOFF_MICROSOFT_CLIENT_ID TIMEOFF_MICROSOFT_CLIENT_SECRET SLACK_TIMEOFF_TOKEN; do
+                        TIMEOFF_MICROSOFT_CLIENT_ID TIMEOFF_MICROSOFT_CLIENT_SECRET SLACK_TIMEOFF_TOKEN \
+                        ASSISTANT_TIMEOFF_TOKEN; do
               if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
             done
           } | put timeoff.env
@@ -616,6 +670,20 @@ jobs:
           set -o pipefail
           # shellcheck disable=SC2029 # the image is meant to expand here
           ssh vm sudo bash kithena/deploy.sh staging people "$IMAGE" | tee deploy.out
+          grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
+
+      # After People, which it asks, and before Slack, which asks it. Pulled,
+      # started, healthy and answering `/health` from inside the project's
+      # network.
+      - name: deploy assistant
+        id: assistant
+        if: vars.ROUTER_URL_STAGING != '' && needs.plan.outputs.assistant == 'true'
+        env:
+          IMAGE: ${{ needs.images.outputs.assistant }}
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2029 # the image is meant to expand here
+          ssh vm sudo bash kithena/deploy.sh staging assistant "$IMAGE" | tee deploy.out
           grep '^previous=' deploy.out >> "$GITHUB_OUTPUT"
 
       # After People, which it asks, and after the migration, which made its
@@ -938,14 +1006,29 @@ jobs:
       # domain went on serving whatever it served before and the smoke test
       # below passed against it. A deploy step that cannot change what the
       # domain serves is a deploy step that does nothing, and it passes.
+      #
+      # Two settings come from here rather than the project's own variables,
+      # so each matches its other side by construction: the assistant's pair
+      # token, also written into `assistant.env` above, and the deployment's
+      # modules, the router's `KITHENA_ENTITLEMENTS` too. Either unset is a
+      # warning, never a failure.
       - name: deploy identity
         id: identity
         if: needs.plan.outputs.identity == 'true'
         env:
           VERCEL_PROJECT_ID: prj_lpS5Um8fsfD6TUuEwE8PfctaiJPD
+          ASSISTANT_IDENTITY_TOKEN: ${{ secrets.ASSISTANT_IDENTITY_TOKEN }}
+          KITHENA_ENTITLEMENTS: ${{ vars.KITHENA_ENTITLEMENTS_STAGING }}
         run: |
-          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy --prod \
-            --yes --archive=tgz --token "$VERCEL_TOKEN"
+          args=(--prod --yes --archive=tgz --token "$VERCEL_TOKEN")
+          for name in ASSISTANT_IDENTITY_TOKEN KITHENA_ENTITLEMENTS; do
+            if [ -n "${!name}" ]; then
+              args+=(--env "$name=${!name}")
+            else
+              echo "::warning::$name is unset for identity (docs/environments.md, \"The assistant's settings\")"
+            fi
+          done
+          npx --yes vercel@${{ env.VERCEL_CLI_VERSION }} deploy "${args[@]}"
 
       # The custom domain, not the deployment URL. `ssoProtection` is set to
       # `all_except_custom_domains`, so a `.vercel.app` host answers 302 to a
@@ -1126,6 +1209,7 @@ jobs:
             slack=${{ steps.slack.outcome }}
             audit=${{ steps.audit.outcome }}
             timeoff=${{ steps.timeoff.outcome }}
+            assistant=${{ steps.assistant.outcome }}
             people-remote=${{ steps.remote.outcome }}
             timeoff-remote=${{ steps.timeoff-remote.outcome }}
             shell=${{ steps.deploy.outcome }}

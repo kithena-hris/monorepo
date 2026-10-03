@@ -697,7 +697,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   still calls it, and it goes when the web search box asks the assistant
   (AST-036).
 
-### [ ] AST-027 — Deploy the assistant
+### [x] AST-027 — Deploy the assistant
 
 - **Spec** PRD §15
 - **Files** `deploy/vm/{compose.yaml,compose.staging.yaml,deploy.sh}`,
@@ -712,6 +712,20 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   Local `just dev` and `just admin-dev` start it.
 - **Done when** a staging deploy answers a Slack question that needs both
   modules.
+- **As built** `assistant` is a deploy target of its own
+  (`affected-targets.ts`, production and staging), deployed after People and
+  before Slack. No `ASSISTANT_ENV` secret: `assistant.env` is the existing
+  `ASSISTANT_API_KEY`, `TENANT_APP_BASE_<ENV>`, the four pair tokens and
+  `IDENTITY_URL`, which the VM job writes rather than Compose because
+  identity's public address differs by environment; the model and its address
+  default as People's do. Identity's end of its pair, and
+  `KITHENA_ENTITLEMENTS`, reach identity's Vercel deploy as `--env`, and its
+  Vercel entry (`api/gateway.ts`) now reads `KITHENA_ENTITLEMENTS` and
+  `PEOPLE_IDENTITY_TOKEN` as `main.ts` does. Every missing piece is a
+  warning, never a red deploy. `deploy-production.yml` gains an "assistant and
+  Slack" checkbox. `docker-compose.yml` runs no application service, so it is
+  unchanged; `just dev` starts the assistant through its `dev` script.
+  **Not yet proven on staging**: the staging VM is off.
 
 ### [ ] AST-028 — Questions keep the VM awake
 

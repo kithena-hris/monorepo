@@ -20,6 +20,10 @@ on:
         description: 'Time Off: the service, its screens, the router and database migrations'
         type: boolean
         default: false
+      assistant:
+        description: 'The assistant and Slack: questions answered in chat'
+        type: boolean
+        default: false
       tenant_app:
         description: 'Tenant app (the shell companies sign in to)'
         type: boolean
@@ -62,6 +66,7 @@ jobs:
           EVERYTHING: ${{ inputs.everything }}
           PEOPLE: ${{ inputs.people }}
           TIME_OFF: ${{ inputs.time_off }}
+          ASSISTANT: ${{ inputs.assistant }}
           TENANT_APP: ${{ inputs.tenant_app }}
           BACK_OFFICE: ${{ inputs.back_office }}
           IDENTITY: ${{ inputs.identity }}
@@ -75,6 +80,7 @@ jobs:
           else
             [ "$PEOPLE" = true ] && t+=(migrations people router people-remote)
             [ "$TIME_OFF" = true ] && t+=(migrations timeoff router timeoff-remote)
+            [ "$ASSISTANT" = true ] && t+=(assistant slack)
             [ "$TENANT_APP" = true ] && t+=(shell)
             [ "$BACK_OFFICE" = true ] && t+=(admin)
             [ "$IDENTITY" = true ] && t+=(identity auth)
