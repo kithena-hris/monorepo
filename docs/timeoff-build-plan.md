@@ -1129,16 +1129,33 @@ test passes, and it matches the design's screen on the seeded demo company.
 
 ### Screens — settings
 
-### [ ] TOF-078 — Leave types
+### [x] TOF-078 — Leave types
 
 - **Screens** T29 · **Spec** PRD §6.1
 - **Depends on** TOF-041, TOF-058
+- **As built** `apps/web/timeoff/src/settings/leave-types.tsx`: one `List` at
+  every width, a row per type with its terms, who it reaches and who
+  approves it (the approval rules, read beside it), each opening its
+  policy. The settings views now carry `packs` (country, version,
+  `reviewed`), so Spain's unreviewed pack is an `Alert` above the list and
+  above the holidays. "Add leave type" and "Write a policy" are not here
+  yet: the first needs its form, the second is T32 (TOF-094).
 
-### [ ] TOF-079 — Editing a policy
+### [x] TOF-079 — Editing a policy
 
 - **Screens** T30 · **Spec** PRD §6.2, §6.3
 - **Depends on** TOF-078
 - **Approach** The change preview is computed (TOF-093 adds shadow runs).
+- **As built** `settings/leave-type.tsx` edits the policy chosen by
+  `?policy=` (the type's first by default) as a draft behind `FormSaveBar`,
+  and publishes it from the leave year's first day. The preview is
+  `timeOffPolicyPreview`: `domain/policy/preview.ts` runs the entitlement
+  fold over the draft and the version in effect for each member either
+  reaches, and the screen groups who gets more, who fewer and who would
+  lose days at the year end above the carry-over cap. "Preview as" is a
+  `Select` kept in `?as=`, showing that member's allowance and year-end
+  balance as `Stat from`, which leaves TOF-093 its shadow runs. Who a
+  policy applies to is shown, not edited.
 
 ### [ ] TOF-080 — Negative balance rules
 
