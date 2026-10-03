@@ -13,7 +13,6 @@ import {
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { presentsInternalToken } from '@kithena/auth-kit';
 import { sql } from 'drizzle-orm';
-import * as z from 'zod';
 
 import { recomputePerson } from '../application/completeness/recompute.js';
 import { sweepReminders } from '../application/completeness/reminders.js';

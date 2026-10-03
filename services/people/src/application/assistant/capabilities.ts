@@ -499,6 +499,7 @@ export function catalogue(deps: ScreenDeps, asking: Asking): Promise<Result<Runt
       },
       metrics: metrics.map((m) => ({ key: m.key, label: m.label })),
       leaveTypes: [],
+      chatNamesPrivateLeave: false,
       denied: (version?.document.attributes ?? [])
         .filter((a) => !a.classification.aiEligible)
         .map((a) => ({
