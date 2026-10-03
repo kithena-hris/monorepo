@@ -19,14 +19,14 @@ export type { DetailRequest, DetailRequestStore } from './record.js';
  * button pressed twice is not two emails.
  */
 
-type Recorded = {
+export type Recorded = {
   readonly personId: string;
   readonly fresh: readonly string[];
   readonly email: string | null;
 };
 
 /** One person's request, recorded as the viewer may make it; refused as it is refused. */
-async function recordOne(
+export async function recordOne(
   deps: ScreenDeps,
   tx: Tx,
   asking: Asking,
@@ -59,7 +59,7 @@ async function recordOne(
 }
 
 /** The emails, after the commit, ten at a time: a lost email loses the nudge, never the request. */
-async function emailAll(
+export async function emailAll(
   deps: ScreenDeps,
   tenantId: string,
   company: Awaited<ReturnType<NonNullable<NonNullable<ScreenDeps['requests']>['company']>>>,

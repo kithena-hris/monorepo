@@ -11,6 +11,7 @@ import { framed } from './frame';
 
 import { PeopleHome as PeopleHomeScreen } from './home/people-home';
 import { FieldRegistry as FieldRegistryScreen } from './settings/field-registry';
+import { FieldChange as FieldChangeScreen } from './settings/field-change';
 import { PeopleSetup as PeopleSetupScreen } from './setup/people-setup';
 import { Onboarding as OnboardingScreen } from './onboarding/onboarding';
 import { AddPerson as AddPersonScreen } from './onboarding/add-person';
@@ -41,6 +42,7 @@ import { ReportRuns as ReportRunsScreen } from './reports/report-runs';
 
 export const PeopleHome = framed(PeopleHomeScreen);
 export const FieldRegistry = framed(FieldRegistryScreen);
+export const FieldChange = framed(FieldChangeScreen);
 export const PeopleSetup = framed(PeopleSetupScreen);
 export const Onboarding = framed(OnboardingScreen);
 export const AddPerson = framed(AddPersonScreen);

@@ -1065,7 +1065,27 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onSectionChange: (section: string | null) => {
             note({ section }, 'push');
           },
+          onReview: (key: string, to: string) => {
+            go(
+              `/settings/people/fields/${encodeURIComponent(key)}/change?to=${encodeURIComponent(to)}`,
+            );
+          },
         };
+      // A field's new type, every value reviewed, then published with it.
+      case 'FieldChange': {
+        const key = params['key'] ?? '';
+        return {
+          load: loadable,
+          onApply: async (decisions: readonly Readonly<Record<string, unknown>>[]) => {
+            const done = await actions.applyFieldChange(key, at('to'), decisions);
+            if (done.ok) go('/settings/people/fields');
+            return done;
+          },
+          onBack: () => {
+            go('/settings/people/fields');
+          },
+        };
+      }
       case 'Integrations':
         return {
           load: loadable,

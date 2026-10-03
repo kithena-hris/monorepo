@@ -19,6 +19,7 @@ import {
   FieldLabel,
   Input,
   KeyValues,
+  NumberField,
   RadioCard,
   RadioGroup,
   Select,
@@ -162,11 +163,19 @@ const TEMPLATES: readonly Pick<
   },
 ];
 const WITH_OPTIONS: ReadonlySet<DataType> = new Set(['select', 'multi_select']);
+/** The types that keep a number of decimal places. */
+const WITH_DECIMALS: ReadonlySet<DataType> = new Set(['number', 'decimal', 'percentage']);
 const KEY = /^[a-z][a-z0-9_]{0,62}$/;
 
 interface Draft {
   label: string;
   key: string;
+  /** Where it sits: moved by choosing another section. */
+  sectionKey: string;
+  /** A number's decimal places. */
+  decimals: number | null;
+  /** Money in one currency only (ISO 4217), or '' for the record's own. */
+  currency: string;
   description: string;
   dataType: DataType;
   options: readonly string[];
@@ -190,6 +199,9 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
     return {
       label: field.label,
       key: field.key,
+      sectionKey: field.sectionKey,
+      decimals: field.decimals ?? null,
+      currency: field.currency ?? '',
       description: field.description ?? '',
       dataType: field.dataType,
       options: field.options,
@@ -208,6 +220,9 @@ function draftFrom(section: RegistrySection, field: RegistryField | null): Draft
   return {
     label: '',
     key: '',
+    sectionKey: section.key,
+    decimals: null,
+    currency: '',
     description: '',
     dataType: 'text',
     options: [],
@@ -286,12 +301,16 @@ function problemsIn(
       | 'visibility'
       | 'rules'
       | 'kind'
-      | 'unseen',
+      | 'unseen'
+      | 'currency',
       string
     >
   > = {};
   if (step === 0) {
     if (draft.label.trim() === '') problems.label = 'Give the field a name.';
+    if (draft.dataType === 'money' && draft.currency !== '' && !/^[A-Z]{3}$/.test(draft.currency)) {
+      problems.currency = 'A three-letter currency code, like EUR.';
+    }
     if (!KEY.test(draft.key)) {
       problems.key = 'Lower-case letters, digits and underscores, starting with a letter.';
     } else if (keyTaken(draft.key)) {
@@ -356,6 +375,13 @@ export interface FieldEditorProps {
   readonly choices: RegistryDraft['choices'];
   /** The fields a condition may name. The one being edited is left out here. */
   readonly fields: readonly PredicateField[];
+  /** Every section, so a field can be moved to another; absent, it stays where it is. */
+  readonly sections?: readonly RegistrySection[];
+  /**
+   * After a save that changed the type or a format setting of a published
+   * field: review every value it holds before it is published.
+   */
+  readonly onReview?: (key: string, to: DataType) => void;
   /** The classification judgment, from metadata only. Never a value (§12.3). */
   readonly advise: (field: Described) => Promise<ClassificationAdvice>;
   readonly onSave: (input: FieldInput) => Promise<Outcome>;
@@ -377,8 +403,10 @@ export function FieldEditor({
   takenKeys,
   choices,
   fields,
+  sections = [],
   advise,
   onSave,
+  onReview,
 }: FieldEditorProps): JSX.Element {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(section, field));
   const [keyEdited, setKeyEdited] = useState(false);
@@ -464,7 +492,7 @@ export function FieldEditor({
     setRefused(null);
     const outcome = await onSave({
       key: draft.key,
-      sectionKey: section.key,
+      sectionKey: draft.sectionKey,
       label: draft.label.trim(),
       description: draft.description.trim() === '' ? null : draft.description.trim(),
       dataType: draft.dataType,
@@ -480,10 +508,23 @@ export function FieldEditor({
       classificationSource: suggested === draft.classification ? 'suggested' : 'human',
       requiresApproval: draft.requiresApproval,
       encrypted: sealed,
+      ...(WITH_DECIMALS.has(draft.dataType) && draft.decimals !== null
+        ? { decimals: draft.decimals }
+        : {}),
+      ...(draft.dataType === 'money'
+        ? { currency: draft.currency === '' ? null : draft.currency }
+        : {}),
     });
     setSaving(false);
-    if (outcome.ok) onOpenChange(false);
-    else setRefused(outcome.message);
+    if (!outcome.ok) {
+      setRefused(outcome.message);
+      return;
+    }
+    onOpenChange(false);
+    // A published field whose values may no longer fit goes to their review.
+    if (field !== null && field.pending !== 'added' && reformatted(field, draft)) {
+      onReview?.(field.key, draft.dataType);
+    }
   };
 
   // The judgment for the sensitivity part, asked as the field is described: on
@@ -627,12 +668,39 @@ export function FieldEditor({
                   <FieldDescription>What people see above the field on a form.</FieldDescription>
                   <FieldError>{show.label}</FieldError>
                 </Field>
+                {editing && sections.length > 1 ? (
+                  <Field>
+                    <FieldLabel>Section</FieldLabel>
+                    <Select
+                      value={draft.sectionKey}
+                      onValueChange={(sectionKey) => {
+                        set({ sectionKey });
+                      }}
+                    >
+                      <FieldControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FieldControl>
+                      <SelectContent>
+                        {sections
+                          .filter((s) => !s.fixed || s.key === draft.sectionKey)
+                          .map((s) => (
+                            <SelectItem key={s.key} value={s.key}>
+                              {s.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>Where it sits on the profile and on forms.</FieldDescription>
+                  </Field>
+                ) : null}
                 {editing ? (
-                  <Field disabled>
+                  <Field disabled={field.origin !== 'tenant'}>
                     <FieldLabel>Type of answer</FieldLabel>
                     <Select
                       value={draft.dataType}
-                      disabled={editing}
+                      disabled={field.origin !== 'tenant'}
                       onValueChange={(value) => {
                         set({ dataType: value as DataType });
                       }}
@@ -656,7 +724,12 @@ export function FieldEditor({
                       </SelectContent>
                     </Select>
                     <FieldDescription>
-                      {DATA_TYPE_HINT[draft.dataType]} The type cannot change once the field exists.
+                      {DATA_TYPE_HINT[draft.dataType]}{' '}
+                      {field.origin !== 'tenant'
+                        ? 'A built-in field keeps its type.'
+                        : draft.dataType === field.dataType
+                          ? 'You can change it: every value it holds is checked first, and you decide what happens to any that don’t fit.'
+                          : `Changed from ${DATA_TYPE_LABEL[field.dataType]}. After saving, you review every value before it’s published.`}
                     </FieldDescription>
                   </Field>
                 ) : (
@@ -684,12 +757,49 @@ export function FieldEditor({
                     </p>
                   </fieldset>
                 )}
+                {WITH_DECIMALS.has(draft.dataType) ? (
+                  <NumberField
+                    label="Decimal places"
+                    min={0}
+                    max={6}
+                    value={draft.decimals ?? 0}
+                    onChange={(decimals) => {
+                      set({ decimals: decimals === null ? 0 : Math.round(decimals) });
+                    }}
+                    hint="How many digits after the point a value keeps."
+                  />
+                ) : null}
+                {draft.dataType === 'money' ? (
+                  <Field invalid={show.currency !== undefined}>
+                    <FieldLabel>Currency</FieldLabel>
+                    <FieldControl>
+                      <Input
+                        value={draft.currency}
+                        placeholder="Each person’s own"
+                        maxLength={3}
+                        onChange={(e) => {
+                          set({ currency: e.target.value.toUpperCase() });
+                        }}
+                      />
+                    </FieldControl>
+                    <FieldDescription>
+                      A three-letter code, like EUR, when every amount is in one currency. Leave it
+                      empty to use each person’s own.
+                    </FieldDescription>
+                    <FieldError>{show.currency}</FieldError>
+                  </Field>
+                ) : null}
                 {WITH_OPTIONS.has(draft.dataType) ? (
                   <TagsInput
                     label="Options"
                     value={draft.options}
                     invalid={show.options !== undefined}
-                    hint={show.options ?? 'Type one, then press Enter. Add as many as you need.'}
+                    hint={
+                      show.options ??
+                      (editing
+                        ? 'Type one, then press Enter. A removed option is retired: records holding it are reviewed when you publish.'
+                        : 'Type one, then press Enter. Add as many as you need.')
+                    }
                     onChange={(options) => {
                       set({ options });
                     }}
@@ -1260,6 +1370,20 @@ function StageNote({ draft }: { readonly draft: Draft }): JSX.Element | null {
   return null;
 }
 
+/**
+ * Whether a save changed what a value may be: its type, an option taken off
+ * the list, its decimals or its currency. People decides for certain
+ * (`needsReview`); this only chooses whether to open the review after saving.
+ */
+function reformatted(field: RegistryField, draft: Draft): boolean {
+  return (
+    draft.dataType !== field.dataType ||
+    field.options.some((o) => !draft.options.includes(o)) ||
+    (WITH_DECIMALS.has(draft.dataType) && (draft.decimals ?? 0) !== (field.decimals ?? 0)) ||
+    (draft.dataType === 'money' && draft.currency !== (field.currency ?? ''))
+  );
+}
+
 const sameSet = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((x) => b.includes(x));
 
@@ -1277,6 +1401,11 @@ function Changes({
   readonly approval: boolean;
 }): JSX.Element {
   const lines: string[] = [];
+  if (draft.dataType !== field.dataType) {
+    lines.push(
+      `Type: ${DATA_TYPE_LABEL[field.dataType]} → ${DATA_TYPE_LABEL[draft.dataType]}. You review every value before it’s published`,
+    );
+  }
   if (draft.label.trim() !== field.label)
     lines.push(`Name: ${field.label} → ${draft.label.trim()}`);
   if (draft.description.trim() !== (field.description ?? '')) lines.push('Help text reworded');
