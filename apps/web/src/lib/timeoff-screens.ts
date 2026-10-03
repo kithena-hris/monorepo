@@ -29,10 +29,23 @@ async function read(
       : { status: 'error', message: answer.message, code: answer.code };
 }
 
-export async function loadScreen(component: string, _query: ScreenQuery): Promise<ScreenLoad> {
+export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   switch (component) {
     case 'Overview':
       return overview();
+    // Settings (TOF-078 to TOF-083), HR only: Time Off refuses anyone else.
+    case 'LeaveTypes':
+      return leaveTypes();
+    case 'LeaveType':
+      return leaveType(query);
+    case 'NegativeBalance':
+      return read('TimeOffNegativeBalanceSettings');
+    case 'AttendanceSettings':
+      return read('TimeOffAttendanceSettings');
+    case 'ApprovalSettings':
+      return approvalSettings();
+    case 'HolidaySettings':
+      return holidaySettings(query);
     default:
       return { status: 'none' };
   }
@@ -69,5 +82,74 @@ async function overview(): Promise<ScreenLoad> {
       ),
       now: now.toISOString(),
     },
+  };
+}
+
+/* ------------------------------------------------------------- settings -- */
+
+type Data = Record<string, unknown>;
+
+/** Both reads' data joined, or the first answer that was not ready. */
+function both(a: ScreenLoad, b: ScreenLoad, join: (a: Data, b: Data) => Data): ScreenLoad {
+  if (a.status !== 'ready') return a;
+  if (b.status !== 'ready') return b;
+  return { status: 'ready', data: join(a.data as Data, b.data as Data) };
+}
+
+/** T29: every leave type, and the approval rules that say who approves each. */
+async function leaveTypes(): Promise<ScreenLoad> {
+  const [types, approvals] = await Promise.all([
+    read('TimeOffLeaveTypeSettings'),
+    read('TimeOffApprovalSettings'),
+  ]);
+  return both(types, approvals, (t, a) => ({ ...t, rules: a['rules'] }));
+}
+
+/**
+ * T30: one leave type, the policy chosen in the address (`?policy=`, else its
+ * first), and when that policy has a draft, what publishing it would do,
+ * folded by Time Off. `?as=` is whose view of it to show.
+ */
+async function leaveType({ params, search }: ScreenQuery): Promise<ScreenLoad> {
+  const setting = await read('TimeOffLeaveTypeSetting', { leaveTypeKey: params['id'] ?? '' });
+  if (setting.status !== 'ready') return setting;
+  const data = setting.data as {
+    policies: readonly { id: string; versions: readonly { status: string }[] }[];
+  };
+  const policy = data.policies.find((p) => p.id === search['policy']) ?? data.policies[0];
+  const preview =
+    policy?.versions.at(-1)?.status === 'draft'
+      ? await read('TimeOffPolicyPreview', { policyId: policy.id })
+      : null;
+  return {
+    status: 'ready',
+    data: {
+      ...data,
+      policyId: policy?.id ?? null,
+      // A preview Time Off refused leaves the preview out, not the page.
+      preview: preview?.status === 'ready' ? preview.data : null,
+      as: search['as'] ?? null,
+    },
+  };
+}
+
+/** T34: the rules and minimums, and the leave types they name. */
+async function approvalSettings(): Promise<ScreenLoad> {
+  const [approvals, types] = await Promise.all([
+    read('TimeOffApprovalSettings'),
+    read('TimeOffLeaveTypeSettings'),
+  ]);
+  return both(approvals, types, (a, t) => ({ ...a, leaveTypes: t['leaveTypes'] }));
+}
+
+/** T36: the year in the address (this year without one) and the location in `?location=`. */
+async function holidaySettings({ params, search }: ScreenQuery): Promise<ScreenLoad> {
+  const thisYear = new Date().getUTCFullYear();
+  const year = /^\d{4}$/.test(params['year'] ?? '') ? Number(params['year']) : thisYear;
+  const answer = await read('TimeOffHolidaySettings', { year });
+  if (answer.status !== 'ready') return answer;
+  return {
+    status: 'ready',
+    data: { ...(answer.data as Data), thisYear, location: search['location'] ?? null },
   };
 }

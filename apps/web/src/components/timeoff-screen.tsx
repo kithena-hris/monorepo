@@ -1,13 +1,16 @@
 'use client';
 
 import { Skeleton } from '@reach/ui';
+import type { Route } from 'next';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTransition, type JSX } from 'react';
 
+import * as settings from '../app/(app)/settings/time-off/actions';
 import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS, matchPath, remotePath } from '../lib/remotes';
 import { areaFrame } from '../lib/shell-data';
+import { withQuery } from '../lib/url-state';
 import { useShellData } from './app-shell';
 import { RemoteScreen, remoteLoaded, type RemoteRoute } from './remote-screen';
 
@@ -41,11 +44,49 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       : load.status === 'error'
         ? { status: 'error' as const, message: load.message, retry: refresh }
         : { status: 'loading' as const };
+  /** Another view in the address (a path, a query patch), followed client-side so the server reads it. */
+  const go = (patch: Readonly<Record<string, string | null>>, path?: string): void => {
+    startTransition(() => {
+      const to = withQuery(path ?? window.location.pathname, window.location.search, patch);
+      router.push(to as Route, { scroll: false });
+    });
+  };
 
   const props = ((): Record<string, unknown> => {
     switch (route?.component) {
       case 'Overview':
         return { load: loadable, onPunch: actions.punch };
+      // Settings (TOF-078 to TOF-083).
+      case 'LeaveTypes':
+        return { load: loadable };
+      case 'LeaveType':
+        return {
+          load: loadable,
+          onSaveDraft: settings.savePolicyDraft,
+          onPublish: settings.publishPolicy,
+          onPolicy: (policy: string) => {
+            go({ policy, as: null });
+          },
+          onPreviewAs: (as: string) => {
+            go({ as });
+          },
+        };
+      case 'NegativeBalance':
+        return { load: loadable, onSave: settings.saveNegativeBalance };
+      case 'AttendanceSettings':
+        return { load: loadable, onSave: settings.saveAttendanceRules };
+      case 'ApprovalSettings':
+        return { load: loadable, onSave: settings.saveApprovals };
+      case 'HolidaySettings':
+        return {
+          load: loadable,
+          onYear: (year: number) => {
+            go({}, `/settings/time-off/holidays/${String(year)}`);
+          },
+          onLocation: (location: string) => {
+            go({ location });
+          },
+        };
       default:
         return {};
     }

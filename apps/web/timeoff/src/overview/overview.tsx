@@ -645,19 +645,20 @@ const LEAVE_ICONS: Record<string, IconName> = {
   flag: 'flagged',
 };
 
-function leaveIcon(name: string | undefined): ReactNode {
+export function leaveIcon(name: string | undefined): ReactNode {
   return createElement(icons[LEAVE_ICONS[name ?? ''] ?? 'leave'], { 'aria-hidden': true });
 }
 
 type Tone = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4' | 'chart-5' | 'chart-6' | 'neutral';
 
 /** A leave type's colour as a series tone; the calendar's two greys are neutral. */
-function chartTone(token: string | undefined): Tone {
+export function chartTone(token: string | undefined): Tone {
   return token !== undefined && /^chart-[1-6]$/.test(token) ? (token as Tone) : 'neutral';
 }
 
 /** "11.500" as "11.5": a decimal string, never through a float for anything but display. */
-const amount = (value: string): string => value.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+export const amount = (value: string): string =>
+  value.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 const clockTime = (minutes: number): string =>
