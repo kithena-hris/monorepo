@@ -606,6 +606,34 @@ export const FileView = named(
   z.object({ name: z.string(), contentType: z.string(), base64: z.string() }),
 );
 
+/**
+ * The attendance Requests tab (TOF-099): what the caller's reports need from
+ * them, and the caller's own overtime of the last month, newest first.
+ */
+export const AttendanceRequestsView = named(
+  'TimeOffAttendanceRequests',
+  z.object({
+    overtime: named(
+      'TimeOffOvertimePolicy',
+      z.object({
+        becomes: z.enum(['comp', 'paid', 'choose']),
+        multiplier: z.string(),
+      }),
+    ),
+    needsYou: z.array(RightNowView.shape.needsYou.element),
+    mine: z.array(
+      named(
+        'TimeOffMyOvertime',
+        z.object({
+          date: CalendarDate,
+          minutes: z.int(),
+          status: z.enum(['waiting', 'comp', 'paid', 'declined']),
+        }),
+      ),
+    ),
+  }),
+);
+
 /* -------------------------------------------------------------- settings -- */
 
 const LeaveTypeRow = named(
@@ -1003,6 +1031,7 @@ export type CalendarView = View<typeof CalendarView>;
 export type YearView = View<typeof YearView>;
 export type TimesheetView = View<typeof TimesheetView>;
 export type RightNowView = View<typeof RightNowView>;
+export type AttendanceRequestsView = View<typeof AttendanceRequestsView>;
 export type LeaveTypesView = View<typeof LeaveTypesView>;
 export type LeaveTypeSettingView = View<typeof LeaveTypeSettingView>;
 export type PolicyPreviewView = View<typeof PolicyPreviewView>;

@@ -12,6 +12,7 @@
 import './styles.css';
 
 import { Exceptions as ExceptionsScreen } from './attendance/exceptions';
+import { AttendanceRequests as AttendanceRequestsScreen } from './attendance/requests';
 import { PayPeriod as PayPeriodScreen } from './attendance/pay-period';
 import { TeamNow as TeamNowScreen } from './attendance/team-now';
 import { Timesheet as TimesheetScreen } from './attendance/timesheet';
@@ -53,6 +54,7 @@ export { TopBarClock } from './clock/clock';
 export const Timesheet = framed(TimesheetScreen);
 export const TeamNow = framed(TeamNowScreen);
 // HR operations (TOF-095 onwards).
+export const AttendanceRequests = framed(AttendanceRequestsScreen);
 export const Exceptions = framed(ExceptionsScreen);
 export const PayPeriod = framed(PayPeriodScreen);
 export const Balance = framed(BalanceScreen);

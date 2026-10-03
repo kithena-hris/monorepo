@@ -85,6 +85,7 @@ import {
 } from '../application/screens/employee.js';
 import {
   approvals,
+  attendanceRequestsScreen,
   calendar,
   calendarYear,
   delegation,
@@ -108,6 +109,7 @@ import {
   ApprovalRuleBody,
   ApprovalsSettingsView,
   ApprovalsView,
+  AttendanceRequestsView,
   AttendanceRulesBody,
   AttendanceSettingsView,
   AutoApprovalBody,
@@ -628,6 +630,16 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ from: CalendarDate, to: CalendarDate, format: z.enum(['csv', 'pdf']) }),
     answer: FileView,
     run: (deps, caller, { params }) => inspectorExport(deps)(caller, params),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffAttendanceRequests',
+    method: 'GET',
+    path: `${V1}/attendance/requests`,
+    summary:
+      'The attendance Requests tab: overtime and late corrections the caller’s reports need from them, and the caller’s own overtime',
+    answer: AttendanceRequestsView,
+    run: (deps, caller) => attendanceRequestsScreen(deps)(caller),
     shape: same,
   }),
   route({

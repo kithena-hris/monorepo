@@ -222,7 +222,11 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
                   trailing={
                     <Button size="xs" asChild>
                       <a
-                        href={`/time-off/attendance/timesheets?person=${n.personId}&week=${n.date}`}
+                        href={
+                          n.kind === 'overtime'
+                            ? '/time-off/attendance/requests'
+                            : `/time-off/attendance/timesheets?person=${n.personId}&week=${n.date}`
+                        }
                         aria-label={`Review ${n.displayName}’s ${n.kind === 'correction' ? 'correction' : 'overtime'}`}
                       >
                         Review

@@ -17,7 +17,7 @@
     { "path": "/time-off/calendar/timeline", "component": "TeamCalendar" },
     { "path": "/time-off/calendar/year", "component": "TeamCalendar" },
     { "path": "/time-off/attendance/timesheet", "component": "Timesheet" },
-    { "path": "/time-off/attendance/requests", "component": "Attendance" },
+    { "path": "/time-off/attendance/requests", "component": "AttendanceRequests" },
     { "path": "/time-off/attendance/schedule", "component": "Attendance" },
     { "path": "/time-off/attendance/now", "component": "TeamNow" },
     { "path": "/time-off/attendance/timesheets", "component": "Attendance" },

@@ -38,6 +38,13 @@ export const OPERATIONS = {
     }
   }`,
 
+  /** The attendance Requests tab: overtime and late corrections the caller’s reports need from them, and the caller’s own overtime */
+  TimeOffAttendanceRequests: `query TimeOffAttendanceRequests {
+    timeOffAttendanceRequests {
+      mine { date minutes status } needsYou { date displayName kind minutes personId punch { at id kind reason recordedAt source supersedes workModel } } overtime { becomes multiplier }
+    }
+  }`,
+
   /** T33: breaks, limits, overtime and the default schedule; HR */
   TimeOffAttendanceSettings: `query TimeOffAttendanceSettings {
     timeOffAttendanceSettings {

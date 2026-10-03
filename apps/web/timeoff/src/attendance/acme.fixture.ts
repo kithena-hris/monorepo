@@ -1,6 +1,7 @@
 import type { ClockData } from '../clock/clock';
 import type { ExceptionsData } from './exceptions';
 import type { PayPeriodData } from './pay-period';
+import type { AttendanceRequestsData } from './requests';
 import type { TeamNowData } from './team-now';
 import type { Punch } from './time';
 import type { TimesheetData } from './timesheet';
@@ -253,6 +254,31 @@ export const marcoBoard = (): TeamNowData => ({
     { personId: 'p-hana', status: 'approved', span: { from: '2026-09-30', to: '2026-10-02' } },
   ],
   now: NOW,
+});
+
+/**
+ * The attendance Requests tab for Marco: Omar's and Adam's overtime from the
+ * release on Tuesday, Adam's late Wednesday clock-out, and his own week with
+ * Monday paid and Tuesday waiting on his manager.
+ */
+export const marcoRequests = (): AttendanceRequestsData => ({
+  overtime: { becomes: 'choose', multiplier: '1.25' },
+  needsYou: [
+    ...marcoBoard().needsYou.filter((n) => n.kind === 'overtime'),
+    {
+      kind: 'overtime',
+      personId: ADAM,
+      displayName: 'Adam Novak',
+      date: '2026-09-29',
+      minutes: 65,
+      punch: null,
+    },
+    ...marcoBoard().needsYou.filter((n) => n.kind === 'correction'),
+  ],
+  mine: [
+    { date: '2026-09-29', minutes: 40, status: 'waiting' },
+    { date: '2026-09-28', minutes: 30, status: 'paid' },
+  ],
 });
 
 /**

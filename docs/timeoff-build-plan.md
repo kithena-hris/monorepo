@@ -1581,9 +1581,18 @@ test passes, and it matches the design's screen on the seeded demo company.
 - **Approach** Each message carries only its recipient's data; sent through
   `platform/messaging`.
 
-### [ ] TOF-099 — Overtime approvals for managers
+### [x] TOF-099 — Overtime approvals for managers
 
 - **Screens** T22 "Needs you", attendance Requests tab · **Depends on** TOF-077
+- **As built** `timeOffAttendanceRequests` answers the Requests tab: the
+  board's "needs you" (overtime undecided and corrections made late) with
+  the rules' overtime policy, and the caller's own overtime of the last
+  month with where each day stands. `attendance/requests.tsx` at
+  `/time-off/attendance/requests`: each overtime day's "Decide" opens a
+  dialog offering what T33 allows (comp time, pay at the multiplier, or
+  both when the person chooses, and decline), sent through
+  `decideTimeOffOvertime`; a late correction links to the timesheet beside
+  the original. T22's "Needs you" now sends overtime there.
 
 ---
 

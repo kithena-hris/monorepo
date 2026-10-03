@@ -73,6 +73,8 @@ export async function loadScreen(
     case 'TeamNow':
       return teamNow();
     // HR operations (TOF-095 onwards).
+    case 'AttendanceRequests':
+      return read('TimeOffAttendanceRequests');
     case 'Exceptions':
       return exceptions(query.search);
     case 'PayPeriod':

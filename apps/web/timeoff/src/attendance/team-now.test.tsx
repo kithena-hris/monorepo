@@ -54,7 +54,7 @@ describe('team, right now', () => {
     expect(needs.getByText('Omar Haddad · 1h 30m overtime')).toBeTruthy();
     expect(
       needs.getByRole('link', { name: 'Review Omar Haddad’s overtime' }).getAttribute('href'),
-    ).toBe('/time-off/attendance/timesheets?person=p-omar&week=2026-09-29');
+    ).toBe('/time-off/attendance/requests');
   });
 
   it('draws its loading state in the page’s shape', async () => {

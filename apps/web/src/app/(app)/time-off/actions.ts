@@ -125,6 +125,21 @@ export async function correctPunch(input: {
   return a.ok ? { ok: true } : { ok: false, message: a.message };
 }
 
+/**
+ * The attendance Requests tab (TOF-099): a report's overtime on a day, as
+ * comp time or pay (what the rules allow; Time Off refuses anything else),
+ * or declined.
+ */
+export async function decideOvertime(input: {
+  readonly personId: string;
+  readonly date: string;
+  readonly approve: boolean;
+  readonly choice: 'comp' | 'paid' | null;
+}): Promise<Outcome> {
+  const a = await timeOff('DecideTimeOffOvertime', { input });
+  return a.ok ? { ok: true } : { ok: false, message: a.message };
+}
+
 /* ---------------------------------------- HR operations, TOF-096 onwards -- */
 
 /** T24: send a month (`2026-09`) to Payroll; it locks, and later fixes go to the next. */

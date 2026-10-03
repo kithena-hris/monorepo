@@ -15,6 +15,7 @@ import { balanceFor, forbidden, isHrAdmin, notFound, transact } from '../shared.
 import { approves, memberView, requestItem, typesOf } from './employee.js';
 import type {
   ApprovalsView,
+  AttendanceRequestsView,
   CalendarView,
   DecisionView,
   DelegationView,
@@ -402,6 +403,49 @@ export const rightNowScreen =
               minutes: n.minutes,
             },
       ),
+    });
+  };
+
+/**
+ * The attendance Requests tab (TOF-099): what the caller's reports need from
+ * them — overtime to decide and corrections made late — and the caller's
+ * own overtime of the last month with where each day stands, beside what
+ * overtime becomes here (T33).
+ */
+export const attendanceRequestsScreen =
+  (deps: ReadDeps) =>
+  async (caller: Caller): Promise<Result<AttendanceRequestsView>> => {
+    const board = await rightNowScreen(deps)(caller);
+    if (!board.ok) return board;
+    const own =
+      caller.personId === null
+        ? null
+        : await transact(deps, caller.tenantId, async (tx) => ok(await todayOf(tx, deps, caller)));
+    const today = own?.ok === true ? own.value : null;
+    const sheet =
+      caller.personId === null || today === null
+        ? null
+        : await timesheet(deps)(caller, {
+            personId: caller.personId,
+            from: addDays(today, -EXCEPTIONS_DAYS),
+            to: addDays(today, -1),
+          });
+    if (sheet !== null && !sheet.ok) return sheet;
+    return transact<AttendanceRequestsView>(deps, caller.tenantId, async (tx) => {
+      const rules = await tx.attendance.rules();
+      const decided = new Map((sheet?.value.overtime ?? []).map((o) => [o.date, o.outcome]));
+      return ok({
+        overtime: rules.overtime,
+        needsYou: [...board.value.needsYou],
+        mine: (sheet?.value.days ?? [])
+          .filter((d) => d.status === 'complete' && d.overtimeMinutes > 0)
+          .map((d) => ({
+            date: d.date,
+            minutes: d.overtimeMinutes,
+            status: decided.get(d.date) ?? ('waiting' as const),
+          }))
+          .toReversed(),
+      });
     });
   };
 

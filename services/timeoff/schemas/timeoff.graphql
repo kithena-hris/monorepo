@@ -279,6 +279,10 @@ type Query {
   T23: missed clock-outs, short rest, overtime waiting and holidays worked over a period; HR
   """
   timeOffAttendanceExceptions(from: String!, to: String!): TimeOffAttendanceExceptions!
+  """
+  The attendance Requests tab: overtime and late corrections the caller’s reports need from them, and the caller’s own overtime
+  """
+  timeOffAttendanceRequests: TimeOffAttendanceRequests!
   """T33: breaks, limits, overtime and the default schedule; HR"""
   timeOffAttendanceSettings: TimeOffSettingsAttendance!
   """MT20: where the days of one leave type went this leave year"""
@@ -401,6 +405,12 @@ type TimeOffAttendanceExceptions {
   items: [TimeOffAttendanceException!]!
   restMinutes: Int!
   to: String!
+}
+
+type TimeOffAttendanceRequests {
+  mine: [TimeOffMyOvertime!]!
+  needsYou: [TimeOffNeedsYou!]!
+  overtime: TimeOffOvertimePolicy!
 }
 
 type TimeOffAttendanceRules {
@@ -730,6 +740,12 @@ type TimeOffMemberShadow {
   personId: String!
 }
 
+type TimeOffMyOvertime {
+  date: String!
+  minutes: Int!
+  status: String!
+}
+
 type TimeOffMyRequests {
   items: [TimeOffRequestItem!]!
   tab: String!
@@ -788,6 +804,11 @@ type TimeOffOvertimeDecision {
   date: String!
   minutes: Int!
   outcome: String!
+}
+
+type TimeOffOvertimePolicy {
+  becomes: String!
+  multiplier: String!
 }
 
 type TimeOffOverview {
