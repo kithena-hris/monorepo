@@ -372,7 +372,12 @@ function useShortcutsFor({
         return true;
       }
       if (id === 'page.previous' || id === 'page.next') {
-        const to = adjacentPage(shell.sections, route, window.location, id === 'page.next' ? 1 : -1);
+        const to = adjacentPage(
+          shell.sections,
+          route,
+          window.location,
+          id === 'page.next' ? 1 : -1,
+        );
         if (to === null) return false;
         router.push(to);
         return true;
@@ -515,24 +520,24 @@ export function AppShell({
    */
   return (
     <ShellContext value={shellView}>
-    <Shortcuts value={keys}>
-    <TooltipProvider>
-      <PageLayout
-        preset="sidebar"
-        // Collapsed or not is remembered on this device, in a cookie the
-        // server reads; with nothing remembered, a layout under 1024px starts
-        // as the rail.
-        sidebarCollapse={{
-          mode: 'rail',
-          ...(sidebarCollapsed === undefined ? {} : { defaultCollapsed: sidebarCollapsed }),
-          onCollapsedChange: rememberSidebar,
-        }}
-        bottomBar={<MobileTabs areas={areas} inbox={shell.notices.length} />}
-        bottomBarVariant="floating"
-        // Where the sidebar is (a 40rem container), the tab bar is not.
-        bottomBarClassName="@min-[40rem]/page:hidden"
-        contentClassName="relative px-4 pt-3 pb-28 @min-[40rem]/page:px-10 @min-[40rem]/page:pt-8 @min-[40rem]/page:pb-12"
-        /*
+      <Shortcuts value={keys}>
+        <TooltipProvider>
+          <PageLayout
+            preset="sidebar"
+            // Collapsed or not is remembered on this device, in a cookie the
+            // server reads; with nothing remembered, a layout under 1024px starts
+            // as the rail.
+            sidebarCollapse={{
+              mode: 'rail',
+              ...(sidebarCollapsed === undefined ? {} : { defaultCollapsed: sidebarCollapsed }),
+              onCollapsedChange: rememberSidebar,
+            }}
+            bottomBar={<MobileTabs areas={areas} inbox={shell.notices.length} />}
+            bottomBarVariant="floating"
+            // Where the sidebar is (a 40rem container), the tab bar is not.
+            bottomBarClassName="@min-[40rem]/page:hidden"
+            contentClassName="relative px-4 pt-3 pb-28 @min-[40rem]/page:px-10 @min-[40rem]/page:pt-8 @min-[40rem]/page:pb-12"
+            /*
           The company's own, never ours: its logo where it has uploaded one,
           its initials where it has not.
 
@@ -542,150 +547,150 @@ export function AppShell({
           mark is decoration beside a name that says whose it is, and in the
           rail, where the name is hidden, the link's label still does.
         */
-        sidebarHeader={
-          <Link
-            href="/"
-            aria-label={`${companyName}, home`}
-            className="flex min-w-0 items-center gap-2.5"
-          >
-            <Avatar
-              size="md"
-              shape="rounded"
-              // A designed mark is never cropped; initials take the company's
-              // own tone rather than a grey square.
-              fit={logoUrl === null ? 'cover' : 'contain'}
-              src={logoUrl ?? undefined}
-              name={companyName}
-              aria-hidden
-            />
-            <span
-              data-rail-label=""
-              className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
-            >
-              {companyName}
-            </span>
-          </Link>
-        }
-        sidebar={
-          <div className="flex h-full min-h-0 w-62 flex-col gap-1 px-3.5 pt-2 pb-4 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2">
-            <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
-              <NavList>
-                {areas.map((area) =>
-                  area.built ? (
-                    <NavItem
-                      key={area.label}
-                      asChild
-                      icon={area.icon}
-                      current={isCurrent(area.href, pathname)}
-                      shortcut={hint(area.href)}
-                      {...(area.href === '/people' && shell.sections.length > 0
-                        ? {
-                            // Inline while you are in People (V2); from the
-                            // collapsed rail, the same six as a flyout (V8).
-                            subnav: (
-                              <PeopleSubnav
-                                sections={shell.sections}
-                                route={route}
-                                counts={shell.counts}
-                              />
-                            ),
-                            expanded: isCurrent(area.href, pathname),
-                            flyout: (
-                              <PeopleSections
-                                sections={shell.sections}
-                                route={route}
-                                counts={shell.counts}
-                              />
-                            ),
-                            flyoutSize: 'compact' as const,
-                          }
-                        : area.href === '/time-off' && timeOff !== undefined
-                          ? {
-                              // Its five sections inline while you are in it, as People's.
-                              subnav: (
-                                <PeopleSubnav
-                                  sections={timeOff.sections}
-                                  route={timeOffRoute}
-                                  counts={timeOff.counts ?? {}}
-                                  label="Time off sections"
-                                />
-                              ),
-                              expanded: isCurrent(area.href, pathname),
-                            }
-                          : {})}
-                    >
-                      <Link href={area.href as Route}>{area.label}</Link>
-                    </NavItem>
-                  ) : (
-                    <NavItem
-                      key={area.label}
-                      icon={area.icon}
-                      // Not yet built. Disabled rather than absent, and not a
-                      // link at all — no `href` — as the account menu's item
-                      // and `g t` are not: a link that 404s is worse than one
-                      // that says "not yet".
-                      aria-disabled
-                      tabIndex={-1}
-                      className="opacity-60"
-                    >
-                      {area.label}
-                    </NavItem>
-                  ),
-                )}
-              </NavList>
-            </Nav>
+            sidebarHeader={
+              <Link
+                href="/"
+                aria-label={`${companyName}, home`}
+                className="flex min-w-0 items-center gap-2.5"
+              >
+                <Avatar
+                  size="md"
+                  shape="rounded"
+                  // A designed mark is never cropped; initials take the company's
+                  // own tone rather than a grey square.
+                  fit={logoUrl === null ? 'cover' : 'contain'}
+                  src={logoUrl ?? undefined}
+                  name={companyName}
+                  aria-hidden
+                />
+                <span
+                  data-rail-label=""
+                  className="truncate text-sm font-semibold group-data-[collapsed]/sidebar:hidden"
+                >
+                  {companyName}
+                </span>
+              </Link>
+            }
+            sidebar={
+              <div className="flex h-full min-h-0 w-62 flex-col gap-1 px-3.5 pt-2 pb-4 group-data-[collapsed]/sidebar:w-auto group-data-[collapsed]/sidebar:p-2">
+                <Nav label="Areas" className="min-h-0 flex-1 overflow-y-auto">
+                  <NavList>
+                    {areas.map((area) =>
+                      area.built ? (
+                        <NavItem
+                          key={area.label}
+                          asChild
+                          icon={area.icon}
+                          current={isCurrent(area.href, pathname)}
+                          shortcut={hint(area.href)}
+                          {...(area.href === '/people' && shell.sections.length > 0
+                            ? {
+                                // Inline while you are in People (V2); from the
+                                // collapsed rail, the same six as a flyout (V8).
+                                subnav: (
+                                  <PeopleSubnav
+                                    sections={shell.sections}
+                                    route={route}
+                                    counts={shell.counts}
+                                  />
+                                ),
+                                expanded: isCurrent(area.href, pathname),
+                                flyout: (
+                                  <PeopleSections
+                                    sections={shell.sections}
+                                    route={route}
+                                    counts={shell.counts}
+                                  />
+                                ),
+                                flyoutSize: 'compact' as const,
+                              }
+                            : area.href === '/time-off' && timeOff !== undefined
+                              ? {
+                                  // Its five sections inline while you are in it, as People's.
+                                  subnav: (
+                                    <PeopleSubnav
+                                      sections={timeOff.sections}
+                                      route={timeOffRoute}
+                                      counts={timeOff.counts ?? {}}
+                                      label="Time off sections"
+                                    />
+                                  ),
+                                  expanded: isCurrent(area.href, pathname),
+                                }
+                              : {})}
+                        >
+                          <Link href={area.href as Route}>{area.label}</Link>
+                        </NavItem>
+                      ) : (
+                        <NavItem
+                          key={area.label}
+                          icon={area.icon}
+                          // Not yet built. Disabled rather than absent, and not a
+                          // link at all — no `href` — as the account menu's item
+                          // and `g t` are not: a link that 404s is worse than one
+                          // that says "not yet".
+                          aria-disabled
+                          tabIndex={-1}
+                          className="opacity-60"
+                        >
+                          {area.label}
+                        </NavItem>
+                      ),
+                    )}
+                  </NavList>
+                </Nav>
 
-            {/* Pinned: settings and the person stay reachable however long the list above grows. */}
-            <div className="mt-auto flex shrink-0 flex-col gap-2">
-              <Separator className="mx-1.5 my-1 group-data-[collapsed]/sidebar:hidden" />
-              <Nav label="Account">
-                <NavList>
-                  <NavItem
-                    asChild
-                    icon={<Settings />}
-                    current={isCurrent('/settings', pathname)}
-                    shortcut={hint('/settings')}
-                  >
-                    <Link href="/settings">Settings</Link>
-                  </NavItem>
-                </NavList>
-              </Nav>
-              <PersonMenu
-                person={person}
-                subtitle={
-                  person.viewing == null
-                    ? [role, companyName].filter((x) => x !== null).join(' · ')
-                    : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`
-                }
-                companyName={companyName}
-                timeOff={areas.some((a) => a.href === '/time-off' && a.built)}
-                dark={dark}
-                onTheme={setTheme}
-              />
-            </div>
-          </div>
-        }
-      >
-        <TopCorner
-          shell={shell}
-          open={paletteOpen}
-          onOpenChange={setPaletteOpen}
-          dark={dark}
-          onTheme={setTheme}
-          viewing={person.viewing == null ? null : person.name}
-          slots={slots}
-        />
-        {/*
+                {/* Pinned: settings and the person stay reachable however long the list above grows. */}
+                <div className="mt-auto flex shrink-0 flex-col gap-2">
+                  <Separator className="mx-1.5 my-1 group-data-[collapsed]/sidebar:hidden" />
+                  <Nav label="Account">
+                    <NavList>
+                      <NavItem
+                        asChild
+                        icon={<Settings />}
+                        current={isCurrent('/settings', pathname)}
+                        shortcut={hint('/settings')}
+                      >
+                        <Link href="/settings">Settings</Link>
+                      </NavItem>
+                    </NavList>
+                  </Nav>
+                  <PersonMenu
+                    person={person}
+                    subtitle={
+                      person.viewing == null
+                        ? [role, companyName].filter((x) => x !== null).join(' · ')
+                        : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`
+                    }
+                    companyName={companyName}
+                    timeOff={areas.some((a) => a.href === '/time-off' && a.built)}
+                    dark={dark}
+                    onTheme={setTheme}
+                  />
+                </div>
+              </div>
+            }
+          >
+            <TopCorner
+              shell={shell}
+              open={paletteOpen}
+              onOpenChange={setPaletteOpen}
+              dark={dark}
+              onTheme={setTheme}
+              viewing={person.viewing == null ? null : person.name}
+              slots={slots}
+            />
+            {/*
           The page's own `loading.tsx` stands in for it while it is fetched: a
           prefetched link shows that skeleton on the frame after the click,
           in the page's shape, rather than leaving the last page frozen.
         */}
-        {children}
-      </PageLayout>
-      <Assistant />
-      <ShortcutsHelp open={helpOpen} onOpenChange={setHelpOpen} />
-    </TooltipProvider>
-    </Shortcuts>
+            {children}
+          </PageLayout>
+          <Assistant />
+          <ShortcutsHelp open={helpOpen} onOpenChange={setHelpOpen} />
+        </TooltipProvider>
+      </Shortcuts>
     </ShellContext>
   );
 }
@@ -738,11 +743,9 @@ function TopCorner({
         onTheme={onTheme}
         viewing={viewing}
       />
-      {slots
-        .filter((s) => s.slot === 'topBar')
-        .map((s) => (
-          <RemoteSlot key={s.area} slot={s} />
-        ))}
+      {slots.map((s) => (
+        <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
+      ))}
       <Notices shell={shell} />
     </div>
   );

@@ -370,7 +370,8 @@ function WorkingOn(): JSX.Element {
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          save(new FormData(e.currentTarget).get('working-on')?.toString().trim() ?? '');
+          const value = new FormData(e.currentTarget).get('working-on');
+          save(typeof value === 'string' ? value.trim() : '');
         }}
       >
         <Input

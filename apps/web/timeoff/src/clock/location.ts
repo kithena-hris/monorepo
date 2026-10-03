@@ -44,11 +44,14 @@ export function officeAt(
  */
 export function checkOnce(
   offices: readonly Office[],
-  geolocation: Geolocation | undefined = globalThis.navigator?.geolocation,
+  geolocation?: Geolocation,
 ): Promise<Office | null> {
-  if (offices.length === 0 || geolocation === undefined) return Promise.resolve(null);
+  // No navigator on the server, nor geolocation in every browser.
+  const geo =
+    geolocation ?? (globalThis as { navigator?: Partial<Navigator> }).navigator?.geolocation;
+  if (offices.length === 0 || geo === undefined) return Promise.resolve(null);
   return new Promise((resolve) => {
-    geolocation.getCurrentPosition(
+    geo.getCurrentPosition(
       (position) => {
         resolve(officeAt(position.coords, offices));
       },

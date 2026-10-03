@@ -43,7 +43,9 @@ it('draws my week as MT17: the total first, then each day with what was worked a
     '+1h 05m overtime',
   ]);
   const [day, , bar] = cells;
-  expect(bar!.getBoundingClientRect().top).toBeGreaterThan(day!.getBoundingClientRect().bottom - 1);
+  expect(bar?.getBoundingClientRect().top).toBeGreaterThan(
+    (day?.getBoundingClientRect().bottom ?? Infinity) - 1,
+  );
   // The week's total leads, above the days.
   const total = screen.getByText('20h 44m');
   expect(total.getBoundingClientRect().top).toBeLessThan(table.getBoundingClientRect().top);
@@ -78,6 +80,7 @@ it('draws the team as MT19: the counts, and one row each without the bar', async
 it('clocks in on the overview with a slide, as MT3, from where you say you are', async () => {
   const onPunch = ok();
   const data = adam();
+  if (data.clock === null) throw new Error('Adam has a clock');
   render(
     <Overview
       load={{
@@ -87,7 +90,7 @@ it('clocks in on the overview with a slide, as MT3, from where you say you are',
           clock: {
             state: 'out',
             workModel: null,
-            today: { ...data.clock!.today, workedMinutes: 0, segments: [] },
+            today: { ...data.clock.today, workedMinutes: 0, segments: [] },
           },
         },
       }}
