@@ -48,6 +48,11 @@ import { Tooltip } from '../tooltip/tooltip';
  *
  * - Exactly one scroll container. `main`. A page with two scrollbars is a
  *   page where the user cannot find the bottom.
+ * - A page whose content scrolls a region of its own — a long table — marks
+ *   that region `page-fill`. The layout then holds to the window's height and
+ *   the region takes exactly what is left (`base.css`), so the region is the
+ *   one scroll rather than a second one inside the page's. Nothing else
+ *   changes for a page that does not.
  * - `header` and `bottomBar` are sticky and do not scroll away.
  * - Safe-area insets are applied where each edge actually needs them.
  * - Landmarks: one `<header>`, one `<nav>`, one `<main>`, one
@@ -68,7 +73,7 @@ import { Tooltip } from '../tooltip/tooltip';
  * Explicit rows cost nothing and cannot be arranged wrongly by an absent
  * sibling.
  */
-const layout = cva('grid min-h-dvh bg-canvas', {
+const layout = cva('grid min-h-dvh bg-canvas has-[.page-fill]:h-dvh', {
   variants: {
     preset: {
       /** Header over content. Settings, a wizard, a detail page. */
@@ -559,6 +564,8 @@ export function PageLayout({
 
         <main
           aria-label={contentLabel}
+          // Where a `page-fill` region's column starts (`base.css`).
+          data-page-content=""
           className={cn(
             'row-start-3 min-w-0',
             /*

@@ -277,4 +277,27 @@
     -webkit-appearance: none;
     appearance: none;
   }
+
+  /*
+   * A page that fills the window (`PageLayout`'s `page-fill`).
+   *
+   * The element marked `page-fill` takes whatever height is left once
+   * everything above and below it has its own, and every box between it and
+   * the layout's `main` becomes a column that can shrink so that it can. The
+   * chain is found rather than written: the boxes in between belong to
+   * whoever mounted the screen, and a wrapper nobody knew to mark would break
+   * a chain of classes silently. Here in `base`, not as a utility, so a box
+   * that says what it is — a `grid`, `contents` — keeps saying it.
+   */
+  [data-page-content]:has(.page-fill),
+  [data-page-content] :has(.page-fill) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  [data-page-content] :has(.page-fill),
+  [data-page-content] .page-fill {
+    flex: 1 1 0%;
+    min-height: 0;
+  }
 }
