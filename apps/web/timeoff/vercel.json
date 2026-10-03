@@ -1,0 +1,64 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "npx --yes turbo-ignore @kithena/web-timeoff",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @kithena/web-timeoff build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "headers": [
+    {
+      "source": "/(remoteEntry\\.js|routes\\.json|ssr/timeoff\\.cjs|ssr/timeoff\\.css|ssr/manifest\\.json|ssr/manifest\\.json\\.sig)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Vary",
+          "value": "Origin"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Vary",
+          "value": "Origin"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "origin",
+          "value": "(?<origin>https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.(?:staging\\.)?app\\.kithena\\.com)"
+        }
+      ],
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": ":origin"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, HEAD, OPTIONS"
+        },
+        {
+          "key": "Vary",
+          "value": "Origin"
+        }
+      ]
+    }
+  ]
+}
