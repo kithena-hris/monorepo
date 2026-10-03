@@ -309,6 +309,7 @@ describe('remoteRoute', () => {
           { path: '/time-off/overview', component: 'Overview' },
           { path: '/settings/time-off/leave-types', component: 'LeaveTypes' },
         ],
+        slots: { topBar: 'TopBarClock', sideBar: 'NotYet' },
       },
     };
     vi.stubGlobal('fetch', (url: string) => {
@@ -369,6 +370,8 @@ describe('remoteRoute', () => {
       routes: ['/time-off/overview', '/settings/time-off/leave-types'],
       nav: { sections: [], actions: [], settings: [] },
     });
+    // The places in the chrome it fills; one this shell does not draw is left out.
+    expect((await remoteNav(AREAS.timeoff))?.slots).toEqual({ topBar: 'TopBarClock' });
     vi.stubEnv('TIMEOFF_REMOTE_URL', 'https://down.example');
     expect(await remoteNav(AREAS.timeoff)).toBeNull();
   });

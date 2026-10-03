@@ -63,7 +63,7 @@ import {
 
 import { searchPeople } from '../app/(app)/people/actions';
 import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
-import { EMPTY_SHELL, type ShellData } from '../lib/shell-data';
+import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
 import { useInAppLinks } from '../lib/links';
 import { matchPath } from '../lib/remotes';
 import {
@@ -79,6 +79,7 @@ import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
 import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
+import { RemoteSlot } from './remote-slot';
 import {
   Shortcuts,
   ShortcutsHelp,
@@ -154,6 +155,8 @@ export interface AppShellProps {
   readonly sidebarCollapsed?: boolean | undefined;
   /** This person's keyboard shortcuts, as identity keeps them (`ShortcutPrefs`). */
   readonly shortcuts?: ShortcutPrefs;
+  /** What the company's remotes draw in the chrome (`lib/slots.ts`): Time Off's clock. */
+  readonly slots?: readonly ShellSlot[];
   readonly children: ReactNode;
 }
 
@@ -375,7 +378,8 @@ function useShortcutsFor({
         return true;
       }
       const to = destinations.get(id);
-      if (to === undefined) return false;
+      // Not somewhere to go: what a screen on the page offers under the id (⌥T, the clock).
+      if (to === undefined) return runScreenCommand(id);
       router.push(to);
       return true;
     };
@@ -451,6 +455,7 @@ export function AppShell({
   shell = EMPTY_SHELL,
   sidebarCollapsed,
   shortcuts = DEFAULT_PREFS,
+  slots = [],
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
@@ -668,6 +673,7 @@ export function AppShell({
           dark={dark}
           onTheme={setTheme}
           viewing={person.viewing == null ? null : person.name}
+          slots={slots}
         />
         {/*
           The page's own `loading.tsx` stands in for it while it is fetched: a
@@ -699,6 +705,7 @@ function TopCorner({
   dark,
   onTheme,
   viewing,
+  slots,
 }: {
   readonly shell: ShellData;
   readonly open: boolean;
@@ -707,6 +714,8 @@ function TopCorner({
   readonly onTheme: (dark: boolean) => void;
   /** Whose view this is, while an administrator views as them; null otherwise. */
   readonly viewing: string | null;
+  /** What the remotes draw here, between search and the bell: Time Off's clock. */
+  readonly slots: readonly ShellSlot[];
 }): JSX.Element {
   return (
     <div className="absolute end-6 top-5 z-20 hidden items-center gap-2 @min-[40rem]/page:flex">
@@ -729,6 +738,11 @@ function TopCorner({
         onTheme={onTheme}
         viewing={viewing}
       />
+      {slots
+        .filter((s) => s.slot === 'topBar')
+        .map((s) => (
+          <RemoteSlot key={s.area} slot={s} />
+        ))}
       <Notices shell={shell} />
     </div>
   );
