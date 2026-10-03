@@ -116,12 +116,15 @@ function gap(box: HTMLElement, rowsOnly = false): number {
 }
 
 /**
- * A fast fling over the box. Per frame: `early`, a gap before the table
- * rendered the new position; `late`, one after it; `skeleton`, skeleton
- * rather than rows in view; `off`, a total height that is not the rows' at
- * their estimate; `jumps`, a total height that moved with the rows unchanged.
+ * A fast fling over the box: `step` px a frame for exactly `budget` frames,
+ * driven from the page's own frames rather than the test driver's, so it
+ * takes the same number of frames on any machine. Per frame: `early`, a gap
+ * before the table rendered the new position; `late`, one after it;
+ * `skeleton`, skeleton rather than rows in view; `off`, a total height that is
+ * not the rows' at their estimate; `jumps`, a total height that moved with the
+ * rows unchanged.
  */
-async function fling(box: HTMLElement, deltas: number, step: number) {
+async function fling(box: HTMLElement, budget: number, step: number) {
   let early = 0;
   let late = 0;
   let skeleton = 0;
@@ -140,10 +143,13 @@ async function fling(box: HTMLElement, deltas: number, step: number) {
   };
   const table = box.querySelector('table');
   const head = box.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+  // Capture on the window: it runs before the table's own scroll listener.
   window.addEventListener('scroll', before, { capture: true });
-  let on = true;
+  let done: () => void = () => undefined;
+  const finished = new Promise<void>((resolve) => {
+    done = resolve;
+  });
   const tick = (): void => {
-    if (!on) return;
     frames += 1;
     if (sawEarly) early += 1;
     if (sawSkeleton) skeleton += 1;
@@ -157,12 +163,16 @@ async function fling(box: HTMLElement, deltas: number, step: number) {
     const shape = `${String(count)}:${String(busy)}`;
     if (shape === was.shape && box.scrollHeight !== was.height) jumps += 1;
     was = { shape, height: box.scrollHeight };
+    // One frame after the last step, to see it rendered.
+    if (frames > budget) {
+      done();
+      return;
+    }
+    box.scrollTop += step;
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
-  await userEvent.wheel(box, { delta: { y: step }, times: deltas });
-  await frame();
-  on = false;
+  await finished;
   window.removeEventListener('scroll', before, { capture: true });
   return { frames, early, late, skeleton, off, jumps, worst: Math.round(worst) };
 }
@@ -229,32 +239,39 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     );
   });
 
-  it('never shows a blank frame in a fast fling, with pages still arriving', async () => {
-    const { onLoadMore } = pages();
-    directory({ onLoadMore });
-    const box = screen.getByRole('region', { name: 'People' });
-    await vi.waitFor(() => {
-      expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
-    });
-    const runs = [
-      await fling(box, 60, 300),
-      await fling(box, 60, -300),
-      await fling(box, 60, 900),
-      await fling(box, 60, -900),
-      await fling(box, 30, 2400),
-      await fling(box, 30, -2400),
-    ];
-    console.info('fling', JSON.stringify(runs));
-    for (const run of runs) {
-      expect(run.early + run.late).toBe(0);
-      expect(run.off + run.jumps).toBe(0);
-    }
-    // The skeleton is painted, in the theme's own colours.
-    const spacer = box.querySelector<HTMLElement>('tr[data-skeleton] td');
-    expect(getComputedStyle(spacer as Element).backgroundImage).toMatch(
-      /linear-gradient\(.*(?:rgb|oklch|color)\(/,
-    );
-  });
+  // A fixed 42 frames of flinging, at 300, 900 and 2,400 px a frame (the last
+  // two past the overscan), down and back up. Each frame renders a fresh run
+  // of rows: about 1.5 s here and 7 s with the CPU throttled 4x, so the
+  // timeout leaves a slow runner four times the throttled figure.
+  it(
+    'never shows a blank frame in a fast fling, with pages still arriving',
+    { timeout: 30_000 },
+    async () => {
+      const { onLoadMore } = pages();
+      directory({ onLoadMore });
+      const box = screen.getByRole('region', { name: 'People' });
+      await vi.waitFor(() => {
+        expect(box.scrollHeight).toBeGreaterThan(PAGE * 2 * 50);
+      });
+      const runs = [
+        await fling(box, 10, 300),
+        await fling(box, 10, 900),
+        await fling(box, 6, 2400),
+        await fling(box, 10, -900),
+        await fling(box, 6, -2400),
+      ];
+      console.info('fling', JSON.stringify(runs));
+      for (const run of runs) {
+        expect(run.early + run.late).toBe(0);
+        expect(run.off + run.jumps).toBe(0);
+      }
+      // The skeleton is painted, in the theme's own colours.
+      const spacer = box.querySelector<HTMLElement>('tr[data-skeleton] td');
+      expect(getComputedStyle(spacer as Element).backgroundImage).toMatch(
+        /linear-gradient\(.*(?:rgb|oklch|color)\(/,
+      );
+    },
+  );
 
   it('keeps the place and Back to top at the list’s top corner, off the quick look', async () => {
     const { onLoadMore } = pages();

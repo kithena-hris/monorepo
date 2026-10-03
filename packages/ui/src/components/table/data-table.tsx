@@ -479,7 +479,11 @@ export interface DataTableProps<T extends TableRow> {
   virtualize?: boolean | 'auto';
   /** Row count past which `'auto'` starts virtualizing. */
   virtualizeThreshold?: number;
-  /** Estimated row height in px, used before a row has been measured. */
+  /**
+   * A row's height in px: a virtualized desk row is drawn exactly this tall,
+   * and the rows not yet drawn are counted at it. The default is a row of the
+   * table's density, a `TableCell` and its hairline.
+   */
   estimateRowHeight?: number;
 }
 
@@ -529,7 +533,7 @@ export function DataTable<T extends TableRow>({
   className,
   virtualize = 'auto',
   virtualizeThreshold = 100,
-  estimateRowHeight = 44,
+  estimateRowHeight = dense ? 41 : 57,
 }: DataTableProps<T>): JSX.Element {
   const base = useId();
   const [openRows, setOpenRows] = useState<readonly string[]>(defaultExpanded ?? []);
@@ -764,10 +768,14 @@ export function DataTable<T extends TableRow>({
 
   const virtualRows = virtualized ? virtualizer.getVirtualItems() : [];
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
+  // Until the virtualizer has measured its box it names no rows at all: the
+  // body is then one skeleton as tall as every row, not an empty table, which
+  // flashed blank and read as "at the end" to `onEndReached`, loading pages
+  // nobody had scrolled to.
   const paddingBottom =
     virtualRows.length > 0
       ? virtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end ?? 0)
-      : 0;
+      : virtualizer.getTotalSize();
 
   /** The items to render, paired with the 0-based index a reader should hear. */
   const visible: { item: (typeof items)[number]; index: number }[] = virtualized
