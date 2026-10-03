@@ -377,7 +377,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   "Sorry, I couldn't take that question just now". `AssistantAsker` (identity's
   answer) is in contracts beside `AssistantQuestion`.
 
-### [ ] AST-013 — The module client
+### [x] AST-013 — The module client
 
 - **Spec** PRD §6.5, §8.6, §10.2
 - **Files** `platform/assistant/src/infrastructure/modules.ts` (+ test)
@@ -393,6 +393,11 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   account, module). A capability version the assistant does not pin is absent.
 - **Done when** tests with a mocked `fetch` cover the headers, a timeout, a
   malformed response and an unknown version.
+- **As built** a 403 is the module's refusal in its own words (`REFUSED`);
+  every other status, a body outside the contract, a timeout or the
+  question's abort is `UNREACHABLE`, logged with the module, capability and
+  status only. A catalogue naming another module is outside its contract. Only
+  a catalogue that parsed is cached.
 
 ### [ ] AST-014 — Identity says who is asking
 
