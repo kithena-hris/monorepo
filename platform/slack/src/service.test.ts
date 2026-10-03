@@ -28,7 +28,8 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
     },
     openView: () => Promise.resolve('V1'),
     updateView: () => Promise.resolve(),
-    exchangeCode: () => Promise.resolve({ botToken: 'xoxb-new', teamId: 'T2', teamName: 'Acme', botUserId: 'B1' }),
+    exchangeCode: () =>
+      Promise.resolve({ botToken: 'xoxb-new', teamId: 'T2', teamName: 'Acme', botUserId: 'B1' }),
     revoke: () => Promise.resolve(),
   };
   const people: People = {
@@ -46,7 +47,12 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
     slack,
     command: '/kithena',
     now: () => 1_000,
-    oauth: { clientId: 'c', clientSecret: 's', redirectUri: 'https://auth/slack/done', stateSecret: secret },
+    oauth: {
+      clientId: 'c',
+      clientSecret: 's',
+      redirectUri: 'https://auth/slack/done',
+      stateSecret: secret,
+    },
   });
   return { store, service, posted, replaced, acted, secret };
 }
@@ -65,20 +71,65 @@ const connect = (store: ReturnType<typeof memoryStore>, tenantId = TENANT, teamI
 describe('notify', () => {
   it('sends to the person in the company’s own workspace, and says why when it cannot', async () => {
     const w = world();
-    const notice = { event: 'profile_reminder' as const, email: 'pam@acme.example', url: 'https://acme/people', count: 2 };
+    const notice = {
+      event: 'profile_reminder' as const,
+      email: 'pam@acme.example',
+      url: 'https://acme/people',
+      count: 2,
+    };
     expect(await w.service.notify(TENANT, notice)).toBe('not_connected');
     await connect(w.store);
     expect(await w.service.notify(TENANT, notice)).toBe('sent');
     expect(w.posted[0]?.channel).toBe('U1');
-    expect(await w.service.notify(TENANT, { ...notice, email: 'nobody@acme.example' })).toBe('not_in_slack');
+    expect(await w.service.notify(TENANT, { ...notice, email: 'nobody@acme.example' })).toBe(
+      'not_in_slack',
+    );
     expect(await w.service.notify(OTHER, notice)).toBe('not_connected');
+  });
+
+  it('asks Time Off’s approver with Time Off’s own values on the buttons', async () => {
+    const w = world();
+    const ask = {
+      email: 'pam@acme.example',
+      text: 'Adam asks for Vacation, 19–23 Oct.',
+      approve: 'ca_a',
+      decline: 'ca_d',
+    };
+    expect(await w.service.askTimeOff(TENANT, ask)).toBe('not_connected');
+    await connect(w.store);
+    expect(await w.service.askTimeOff(TENANT, { ...ask, email: 'nobody@acme.example' })).toBe(
+      'not_in_slack',
+    );
+    expect(await w.service.askTimeOff(TENANT, ask)).toBe('sent');
+    const sent = JSON.stringify(w.posted[0]);
+    expect(w.posted[0]?.channel).toBe('U1');
+    expect(sent).toContain('"action_id":"timeoff_approve","style":"primary"');
+    expect(sent).toContain('"value":"ca_a"');
+    expect(sent).toContain('"action_id":"timeoff_decline","style":"danger"');
+    expect(sent).toContain('"value":"ca_d"');
   });
 });
 
 describe('a button', () => {
   it('approves as whoever pressed it, and redraws what is left', async () => {
     const w = world({
-      approvals: { ok: true, body: { items: [{ id: 'c1', name: 'Pam', label: 'Phone', from: 'a', to: 'b', requestedBy: 'Jim', reason: null, effectiveFrom: '2026-10-01' }] } },
+      approvals: {
+        ok: true,
+        body: {
+          items: [
+            {
+              id: 'c1',
+              name: 'Pam',
+              label: 'Phone',
+              from: 'a',
+              to: 'b',
+              requestedBy: 'Jim',
+              reason: null,
+              effectiveFrom: '2026-10-01',
+            },
+          ],
+        },
+      },
       decide: { ok: true, body: {} },
     });
     await connect(w.store);
@@ -88,7 +139,11 @@ describe('a button', () => {
       user: { id: 'U1' },
       response_url: 'https://hooks/r',
       actions: [{ action_id: 'approve', value: 'c1' }],
-      message: { blocks: [{ type: 'actions', elements: [{ action_id: 'open', url: 'https://acme/approvals' }] }] },
+      message: {
+        blocks: [
+          { type: 'actions', elements: [{ action_id: 'open', url: 'https://acme/approvals' }] },
+        ],
+      },
     });
     expect(w.acted).toContainEqual({ action: 'decide', id: 'c1', approve: true });
     expect(w.replaced[0]?.text).toMatch(/^:white_check_mark: You approved Pam’s Phone\./);
@@ -96,7 +151,12 @@ describe('a button', () => {
 
   it('does nothing for a workspace no company connected', async () => {
     const w = world();
-    await w.service.interact({ type: 'block_actions', team: { id: 'T9' }, user: { id: 'U1' }, actions: [{ action_id: 'approve', value: 'c1' }] });
+    await w.service.interact({
+      type: 'block_actions',
+      team: { id: 'T9' },
+      user: { id: 'U1' },
+      actions: [{ action_id: 'approve', value: 'c1' }],
+    });
     expect(w.acted).toEqual([]);
   });
 });
@@ -109,7 +169,10 @@ describe('a form', () => {
       type: 'view_submission',
       team: { id: 'T1' },
       user: { id: 'U1' },
-      view: { callback_id: 'fill', state: { values: { phone: { value: { value: 'x' } as never } } } },
+      view: {
+        callback_id: 'fill',
+        state: { values: { phone: { value: { value: 'x' } as never } } },
+      },
     });
     expect(answer).toEqual({ response_action: 'errors', errors: { phone: 'Not a phone number' } });
   });
@@ -131,7 +194,9 @@ describe('connecting', () => {
 
   it('asks Slack for exactly the scopes the manifest lists', async () => {
     const { readFile } = await import('node:fs/promises');
-    const manifest = JSON.parse(await readFile(new URL('../manifest.json', import.meta.url), 'utf8')) as {
+    const manifest = JSON.parse(
+      await readFile(new URL('../manifest.json', import.meta.url), 'utf8'),
+    ) as {
       oauth_config: { scopes: { bot: string[] } };
     };
     const url = new URL(world().service.authorizeUrl(TENANT, 'a', 'https://acme') ?? '');
