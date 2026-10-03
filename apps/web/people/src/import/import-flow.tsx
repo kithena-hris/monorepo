@@ -33,6 +33,7 @@ import {
   type ImportPlanView,
   type NotYet,
 } from './import-plan';
+import { ImportBusy, ImportRunning, isRunning, type ImportRunStatus } from './import-run';
 import {
   WorkLocationsStep,
   placesReady,
@@ -91,7 +92,16 @@ export type ImportStage =
         readonly sensitive?: boolean;
       }[];
     }
-  | ImportDoneView;
+  | ImportDoneView
+  /**
+   * An approved import, as People runs it (`?run=`): Importing, then what it
+   * did, or why it stopped. `waking`: the server is waking, and the page catches up.
+   */
+  | { readonly step: 'run'; readonly run: ImportRunStatus; readonly waking?: boolean };
+
+/** What approving answers: the run started, or why not and, where there is one, where to look. */
+export type Started =
+  { readonly ok: true } | { readonly ok: false; readonly message: string; readonly link?: string };
 
 /** The steps after the upload that live in the address (`?step=`). */
 export type FlowStep = 'map' | 'places' | 'fields' | 'existing' | 'review';
@@ -125,8 +135,14 @@ export interface ImportFlowProps {
   readonly run: (
     mapping: Mapping,
     proposals: readonly ColumnProposal[],
-    options: { readonly places?: PlaceChoices },
-  ) => Promise<Outcome>;
+    options: {
+      readonly places?: PlaceChoices;
+      /** The version the plan was made against, as the plan said it. */
+      readonly basedOn?: number | null;
+    },
+  ) => Promise<Started>;
+  /** The company's import running now: no other file is taken until it is over. */
+  readonly running?: ImportRunStatus | null;
   /** The blocked rows as a file that imports once fixed: a signed link. */
   readonly onDownloadBlocked: (url: string) => void;
   /** From the mapping back to the upload. */
@@ -188,10 +204,12 @@ const NO_FILE: Extract<ImportStage, { step: 'map' }> = {
 
 function Header({
   current,
+  description = 'Nothing is written until you approve the plan.',
   actions,
   phoneBar,
 }: {
   readonly current: number;
+  readonly description?: string;
   readonly actions?: ReactNode;
   /**
    * Under a finger, on the new fields and the plan (MA8, MA9): the phone's
@@ -206,7 +224,7 @@ function Header({
       <PageHeader
         title={bar === null ? 'Import' : <span className="sr-only">Import</span>}
         {...(bar === null
-          ? { description: 'Nothing is written until you approve the plan.' }
+          ? { description }
           : {
               breadcrumb: (
                 <nav
@@ -301,6 +319,8 @@ function Steps({
   const [plan, setPlan] = useState<ImportPlanView | null>(null);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
+  // Where the last refusal points: the import already running.
+  const [refusedLink, setRefusedLink] = useState<string | null>(null);
   const [card, setCard] = useState(0);
   // The file's work locations (right after Map columns), and what is chosen for each.
   const [places, setPlaces] = useState<{
@@ -429,13 +449,15 @@ function Steps({
   };
 
   const approve = (): void => {
+    setRefusedLink(null);
     void attempt(async () => {
-      const ran = await props.run(
-        mapping,
-        proposals,
-        placesArg === undefined ? {} : { places: placesArg },
-      );
-      return ran.ok ? null : ran.message;
+      const ran = await props.run(mapping, proposals, {
+        ...(placesArg === undefined ? {} : { places: placesArg }),
+        ...(plan?.basedOn === undefined ? {} : { basedOn: plan.basedOn }),
+      });
+      if (ran.ok) return null;
+      setRefusedLink(ran.link ?? null);
+      return ran.message;
     });
   };
 
@@ -548,7 +570,17 @@ function Steps({
 
   const refusedAlert =
     refused === null ? null : (
-      <Alert tone="danger" title="That did not go through">
+      <Alert
+        tone="danger"
+        title="That did not go through"
+        action={
+          refusedLink === null ? undefined : (
+            <Button asChild size="sm">
+              <a href={refusedLink}>See the import</a>
+            </Button>
+          )
+        }
+      >
         {refused}
       </Alert>
     );
@@ -660,12 +692,30 @@ function Steps({
     review: back(view === null ? beforeFields : kept.length === 0 ? 'fields' : 'existing'),
   };
   if (given.step !== 'map') {
+    const run = given.step === 'run' ? given.run : null;
+    const done =
+      given.step === 'done'
+        ? given
+        : run?.result == null
+          ? null
+          : { ...run.result, step: 'done' as const };
+    const busyId = `${whyId}-busy`;
+    const running = props.running != null && isRunning(props.running) ? props.running : null;
     return (
       <Stack gap={5}>
         <Header
           current={given.step === 'upload' ? 0 : 4}
+          {...(run === null
+            ? {}
+            : {
+                description: isRunning(run)
+                  ? 'Approved. Kithena is importing the file.'
+                  : run.status === 'failed'
+                    ? 'The import stopped before it finished.'
+                    : 'Approved and imported.',
+              })}
           actions={
-            given.step === 'done' && props.onDone !== undefined ? (
+            done !== null && props.onDone !== undefined ? (
               <Button variant="primary" onClick={props.onDone}>
                 Done
               </Button>
@@ -673,7 +723,14 @@ function Steps({
           }
         />
         {given.step === 'upload' ? (
-          props.setup === undefined ? (
+          running !== null ? (
+            <div className="flex flex-col gap-3">
+              <Alert tone="info" title="An import is running">
+                Only one import runs at a time. This file can be imported once it has finished.
+              </Alert>
+              <ImportBusy id={busyId} run={running} />
+            </div>
+          ) : props.setup === undefined ? (
             <Upload onUpload={props.onUpload} />
           ) : (
             <Alert tone="info" title="An administrator imports the first file">
@@ -682,8 +739,44 @@ function Steps({
               your file brings. Then HR imports here.
             </Alert>
           )
+        ) : done !== null ? (
+          <DoneStep done={done} />
+        ) : run !== null && isRunning(run) ? (
+          <ImportRunning run={run} waking={given.step === 'run' && given.waking === true} />
+        ) : run !== null && run.status === 'failed' ? (
+          <Alert
+            tone="danger"
+            title="Import failed"
+            className="max-w-180"
+            action={
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm">
+                  <a href="/people/import">Start again</a>
+                </Button>
+                <Button asChild size="sm" variant="ghost">
+                  <a href="/people/import-export">Import & export</a>
+                </Button>
+              </div>
+            }
+          >
+            {run.failure ?? 'The import stopped before it finished.'}
+          </Alert>
         ) : (
-          <DoneStep done={given} />
+          // Imported longer ago than its report is kept: what it did, in a line.
+          <Alert
+            tone="success"
+            title="Imported"
+            className="max-w-180"
+            action={
+              <Button asChild size="sm">
+                <a href="/people/import-export">Import & export</a>
+              </Button>
+            }
+          >
+            Imported {(run?.people.done ?? 0).toLocaleString('en-GB')}{' '}
+            {run?.people.done === 1 ? 'person' : 'people'}. Its full report is kept for a week after
+            it finishes.
+          </Alert>
         )}
       </Stack>
     );
@@ -821,6 +914,7 @@ function Steps({
           plan={plan}
           busy={busy}
           refused={refused}
+          refusedLink={refusedLink}
           onApprove={approve}
           onChange={() => {
             goTo(view === null ? 'map' : 'fields');
@@ -895,7 +989,7 @@ function Steps({
             disabled={plan === null || phoneNotYet.length > 0}
             aria-describedby={phoneNotYet.length > 0 ? whyId : undefined}
             loading={busy}
-            loadingLabel={plan === null ? 'Working out the plan' : 'Running the import'}
+            loadingLabel={plan === null ? 'Working out the plan' : 'Starting the import'}
             onClick={approve}
           >
             Approve and run

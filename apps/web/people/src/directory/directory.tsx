@@ -47,9 +47,10 @@ import {
   type FilterGroup,
   type FilterOperator,
 } from '@reach/ui';
-import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { useTyped } from '../held';
+import { ImportBusy, isRunning, type ImportRunStatus } from '../import/import-run';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { longDate } from '../record/display';
 import { MissingMark } from '../record/missing';
@@ -196,6 +197,8 @@ export interface DirectoryProps {
    */
   readonly onExport?: () => void;
   readonly onImport?: () => void;
+  /** The company's import running now: Import waits for it, saying why. */
+  readonly running?: ImportRunStatus | null;
   /** HR's: edit the people chosen on this page together (PEO-071). Rows are selectable only with it. */
   readonly onBulkEdit?: (personIds: readonly string[]) => void;
   /**
@@ -851,6 +854,7 @@ function Body({
   onOpen,
   onExport,
   onImport,
+  running = null,
   onBulkEdit,
   onNextPage,
   onFirstPage,
@@ -867,6 +871,7 @@ function Body({
   onPlaceChange,
 }: DirectoryProps & { readonly state: DirectoryState }): JSX.Element {
   const coarse = useCoarsePointer();
+  const busyId = useId();
   const smart = onAsk !== undefined;
   // Without smart search the field searches names as they are typed; with it, Enter asks.
   const [typed, type] = useTyped(search, smart ? undefined : onSearchChange);
@@ -985,7 +990,14 @@ function Body({
         }
         // Import lives in Import & export; an empty directory is where it is wanted first.
         action={
-          onImport === undefined ? undefined : (
+          onImport === undefined ? undefined : running !== null && isRunning(running) ? (
+            <div className="flex flex-col items-center gap-2">
+              <Button startIcon={<icons.upload aria-hidden />} disabled aria-describedby={busyId}>
+                Import
+              </Button>
+              <ImportBusy id={busyId} run={running} />
+            </div>
+          ) : (
             <Button startIcon={<icons.upload aria-hidden />} onClick={onImport}>
               Import
             </Button>
