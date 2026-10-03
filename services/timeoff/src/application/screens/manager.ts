@@ -9,6 +9,7 @@ import { openDays } from '../../domain/attendance/correction.js';
 import type { LookCloser, Triage } from '../../domain/approval/triage.js';
 import { kithenaActivity, suggestFinish, type Evidence } from '../assist/clock-out.js';
 import { writeDecision } from '../assist/decision.js';
+import { writeToday } from '../assist/today.js';
 import { reasonFacts, writeReasons, type ReasonFacts } from '../assist/reasons.js';
 import { addDays, amount, days } from '../../domain/days.js';
 import type { LeaveRequest, LeaveRequestId } from '../../domain/request/leave-request.js';
@@ -455,7 +456,22 @@ export const rightNowScreen =
     const board = await teamRightNow(deps)(caller);
     if (!board.ok) return board;
     const names = new Map(board.value.people.map((p) => [p.personId, p.displayName]));
-    return ok({
+    const away = await transact<Set<string>>(deps, caller.tenantId, async (tx) => {
+      const today = await todayOf(tx, deps, caller);
+      const ids = board.value.people.map((p) => p.personId);
+      const off =
+        ids.length === 0
+          ? []
+          : await tx.requests.list({
+              personIds: ids,
+              statuses: ['approved', 'taken'],
+              from: today,
+              to: today,
+            });
+      return ok(new Set(off.map((r) => r.request.personId)));
+    });
+    if (!away.ok) return away;
+    const view = {
       people: [...board.value.people],
       needsYou: board.value.needsYou.map((n) =>
         n.kind === 'correction'
@@ -475,6 +491,16 @@ export const rightNowScreen =
               date: n.date,
               minutes: n.minutes,
             },
+      ),
+    };
+    return ok({
+      ...view,
+      sentence: await writeToday(
+        deps.writer,
+        caller.tenantId,
+        view.people,
+        view.needsYou,
+        away.value,
       ),
     });
   };

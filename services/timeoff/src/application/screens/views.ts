@@ -634,6 +634,8 @@ export const RightNowView = named(
         }),
       ),
     ),
+    /** Today, in a sentence: what is normal and what needs the manager (TOF-091). */
+    sentence: WrittenView,
   }),
 );
 

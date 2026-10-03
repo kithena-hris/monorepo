@@ -1232,6 +1232,7 @@ type TimeOffTeamMinimum {
 type TimeOffTeamRightNow {
   needsYou: [TimeOffNeedsYou!]!
   people: [TimeOffRightNowPerson!]!
+  sentence: TimeOffWritten!
 }
 
 type TimeOffTeamSetting {

@@ -181,7 +181,7 @@ export const OPERATIONS = {
   /** T22: the caller’s reports, live, and what needs them */
   TimeOffTeamRightNow: `query TimeOffTeamRightNow {
     timeOffTeamRightNow {
-      needsYou { date displayName kind minutes personId punch { at id kind reason recordedAt source supersedes workModel } } people { displayName personId state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel }
+      needsYou { date displayName kind minutes personId punch { at id kind reason recordedAt source supersedes workModel } } people { displayName personId state today { breakMinutes date flags overtimeMinutes plannedMinutes segments { from kind to } status workedMinutes } workModel } sentence { ai text }
     }
   }`,
 

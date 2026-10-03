@@ -1563,9 +1563,16 @@ test passes, and it matches the design's screen on the seeded demo company.
   address; "Request 13–16 Oct" opens the ordinary panel with those dates, so
   nothing is sent from here. The panel links to it ("Describe it instead").
 
-### [ ] TOF-091 — Today in a sentence
+### [x] TOF-091 — Today in a sentence
 
 - **Screens** T22 · **Depends on** TOF-084, TOF-077
+- **As built** `timeOffTeamRightNow` carries `sentence` (`assist/today.ts`):
+  the counts in, on a break, not in yet and away (approved time off today,
+  never why), the latest start and whether it was inside the team's hours,
+  the open fixes and overtime waiting, each person a placeholder for the
+  model; the template reads "Everyone expected is in. Ravi started at 10:12,
+  inside the team's hours." The board shows it in an assistant card above
+  Needs you.
 
 ### [ ] TOF-092 — Plan explanation
 

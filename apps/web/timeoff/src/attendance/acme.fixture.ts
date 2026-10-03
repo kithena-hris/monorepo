@@ -251,4 +251,8 @@ export const marcoBoard = (): TeamNowData => ({
     { personId: 'p-hana', status: 'approved', span: { from: '2026-09-30', to: '2026-10-02' } },
   ],
   now: NOW,
+  sentence: {
+    text: 'Everyone expected is in. Ravi started at 10:12, inside the team’s hours. Adam has an open fix from Wed 30.',
+    ai: false,
+  },
 });
