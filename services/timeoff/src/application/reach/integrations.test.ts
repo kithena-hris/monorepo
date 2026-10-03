@@ -212,7 +212,10 @@ describe('integrations (T35, TOF-109)', () => {
     expect(await connectMyIntegration(withSlack)(caller(people.adam), 'slack', BACK)).toMatchObject(
       {
         ok: false,
-        error: { code: 'NOT_CONFIGURED', message: expect.stringMatching(/not available yet/u) },
+        error: {
+          code: 'NOT_CONFIGURED',
+          message: 'A slack status while you are away is not available yet',
+        },
       },
     );
   });
