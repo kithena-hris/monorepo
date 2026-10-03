@@ -63,6 +63,14 @@ describe('a clause', () => {
     expect(parsed.combine).toBe('all');
   });
 
+  it("takes a company's own employment type, in a key's shape only", () => {
+    const of = (value: string) =>
+      RequirednessPredicate.safeParse({ clauses: [{ operand: 'employmentType', in: [value] }] })
+        .success;
+    expect(of('full_time')).toBe(true);
+    expect(of('Full-Time')).toBe(false);
+  });
+
   it('refuses an equals clause with nothing to equal', () => {
     expect(
       RequirednessPredicate.safeParse({

@@ -11,6 +11,7 @@ import {
 } from '@kithena/contracts';
 import * as z from 'zod';
 
+import { builtInChoices } from '../import/aliases.js';
 import { specialCategoryReads } from './requiredness.js';
 
 /**
@@ -200,6 +201,31 @@ function readsUnseen(
 }
 
 /**
+ * An employment type or work model a rule names that the company does not
+ * have. The list is the company's: its field's options, retired ones too
+ * (records still hold them), and People's own values, which every rule
+ * written before the company had a list of its own may name.
+ */
+function unknownChoice(
+  rule: Requiredness,
+  attributes: readonly Attribute[],
+): { readonly operand: 'employmentType' | 'workModel'; readonly value: string } | null {
+  if (rule.mode !== 'conditional') return null;
+  for (const clause of rule.when.clauses) {
+    if (clause.operand !== 'employmentType' && clause.operand !== 'workModel') continue;
+    const [key] = PLACEMENT_SOURCES[clause.operand];
+    const field = attributes.find((a) => a.key === key);
+    const known = new Set([
+      ...builtInChoices(key).map((c) => c.value),
+      ...(field?.typeConfig.kind === 'select' ? field.typeConfig.options.map((o) => o.value) : []),
+    ]);
+    const value = clause.in.find((v) => !known.has(v));
+    if (value !== undefined) return { operand: clause.operand, value };
+  }
+  return null;
+}
+
+/**
  * A requiredness predicate may not name special-category data (PEO-065): a
  * gap it opens is shown to managers and HR, and "workplace adjustment
  * missing" tells them the disability field is filled in. Checked on save and
@@ -209,6 +235,16 @@ export function checkRequirednessPredicate(
   attribute: Pick<Attribute, 'key' | 'requiredness'>,
   attributes: readonly Attribute[],
 ): Result<void> {
+  const unknown = unknownChoice(attribute.requiredness, attributes);
+  if (unknown !== null) {
+    return err(
+      failure(
+        'PREDICATE_UNKNOWN_VALUE',
+        `${attribute.key} is required on a condition over ${FACT_WORDS[unknown.operand]} ${unknown.value}, which is not one of its options, so it would never hold`,
+        ['requiredness'],
+      ),
+    );
+  }
   const [named] = specialCategoryReads(attribute.requiredness, attributes);
   if (named === undefined) return ok(undefined);
   return err(
@@ -220,17 +256,7 @@ export function checkRequirednessPredicate(
   );
 }
 
-/** A key from a label: `Cost centre` → `cost_centre`. */
-export function keyFrom(label: string): string {
-  const key = label
-    .normalize('NFKD')
-    .replaceAll(/[̀-ͯ]/gu, '')
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/gu, '_')
-    .replaceAll(/^_+|_+$/gu, '')
-    .slice(0, 60);
-  return /^[a-z]/u.test(key) ? key : `f_${key}`.slice(0, 60);
-}
+export { keyFrom } from './key.js';
 
 const DuplicateKey = (what: string, key: string) =>
   failure('DUPLICATE_KEY', `A ${what} called ${key} already exists`, ['key']);

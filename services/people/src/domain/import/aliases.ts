@@ -13,7 +13,7 @@
  * is not the work email. Pure.
  */
 
-import { keyFrom } from '../schema/draft.js';
+import { keyFrom } from '../schema/key.js';
 
 const ALIASES: Readonly<Record<string, readonly string[]>> = {
   given_name: ['first name', 'firstname', 'forename', 'given name', 'legal first name'],
