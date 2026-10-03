@@ -38,6 +38,11 @@ export async function loadScreen(
   switch (component) {
     case 'Overview':
       return overview();
+    // Parental leave (TOF-104 to TOF-106).
+    case 'ParentalPlan':
+      return parental(query.params['step'] ?? 'plan');
+    case 'ParentalCase':
+      return read('TimeOffParentalCase', { planId: query.params['id'] ?? null });
     // The manager's (TOF-068 to TOF-073).
     case 'Approvals':
       return approvals(path, query);
@@ -83,6 +88,17 @@ export async function loadScreen(
     default:
       return { status: 'none' };
   }
+}
+
+/**
+ * T8–T10, MT11, MT12: the person's plan, with the step the address names
+ * (`about`, `plan`, `handover`, `send`), so the screen draws that step.
+ */
+async function parental(step: string): Promise<ScreenLoad> {
+  const base = await read('TimeOffParentalPlan');
+  return base.status === 'ready'
+    ? { status: 'ready', data: { ...(base.data as object), step } }
+    : base;
 }
 
 /**

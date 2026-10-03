@@ -51,6 +51,16 @@ import {
 } from '../application/attendance/attendance.js';
 import { calendarFeed, issueFeedToken, revokeFeeds } from '../application/calendar/ical.js';
 import { importMembers } from '../application/member/import.js';
+import {
+  answerParental,
+  approveParentalPlan,
+  editParentalBlocks,
+  parentalCase,
+  parentalScreen,
+  recordParentalBirth,
+  saveParentalHandover,
+  sendParentalPlan,
+} from '../application/parental/parental.js';
 import type { Caller, Deps, StoredKey, UnitOfWork } from '../application/ports.js';
 import {
   cancelRequest,
@@ -97,24 +107,30 @@ import {
   AutoApprovalBody,
   BalanceLedgerView,
   BalanceView,
+  BlockKindView,
   CalendarView,
   DecisionView,
   DelegationView,
   HolidayLayerBody,
   HolidaySettingsView,
   HolidaysView,
+  HandoverView,
   LeaveTypeSettingView,
   LeaveTypesView,
   LookCloserReason,
   MyRequestsView,
   NegativeBalanceView,
   OverviewView,
+  ParentalCaseView,
+  ParentalScreenView,
+  ParentRoleView,
   PolicyPreviewView,
   PunchView,
   RequestDetailView,
   RequestPanelView,
   RightNowView,
   TeamMinimumBody,
+  TeamSeesView,
   TimesheetView,
   ViewerView,
   YearView,
@@ -122,6 +138,7 @@ import {
 } from '../application/screens/views.js';
 import type { Schedule } from '../domain/attendance/schedule.js';
 import { addDays, addMonths } from '../domain/days.js';
+import { ParentalPlanId } from '../domain/parental/plan.js';
 import { LeaveRequestId } from '../domain/request/leave-request.js';
 import { PolicyId } from '../domain/policy/policy.js';
 import type { CallerFrom } from './caller.js';
@@ -313,6 +330,25 @@ export const ApprovalRulesBody = z.strictObject({
   autoApproval: AutoApprovalBody.optional(),
 });
 export const MinimumBody = z.strictObject({ minimum: TeamMinimumBody.nullable() });
+const Children = z.int().min(1).max(9);
+export const ParentalAnswersBody = z.strictObject({
+  role: ParentRoleView,
+  childDate: CalendarDate,
+  singleParent: z.boolean().default(false),
+  children: Children.default(1),
+  teamSees: TeamSeesView.default('type'),
+});
+export const ParentalBlocksBody = z.strictObject({
+  blocks: z
+    .array(z.strictObject({ kind: BlockKindView, from: CalendarDate, to: CalendarDate }))
+    .max(20),
+});
+export const ParentalHandoverBody = z.strictObject({
+  handover: z.array(HandoverView).max(30),
+  teamSees: TeamSeesView,
+});
+export const BirthBody = z.strictObject({ birth: CalendarDate });
+const PlanParams = z.object({ planId: ParentalPlanId });
 
 const Minute = z
   .int()
@@ -385,6 +421,9 @@ const ImportAnswer = z
     updated: z.int(),
   })
   .meta({ title: 'TimeOffImportReport' });
+const PlanStatusAnswer = z
+  .object({ status: z.enum(['submitted', 'approved']) })
+  .meta({ title: 'TimeOffParentalPlanStatus' });
 const VersionAnswer = z.object({ version: z.int() }).meta({ title: 'TimeOffPolicyVersionNumber' });
 
 /** The keys a caller sent, without the ones Zod left `undefined` (`exactOptionalPropertyTypes`). */
@@ -648,6 +687,32 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
   route({
+    name: 'timeOffParentalPlan',
+    method: 'GET',
+    path: `${V1}/parental`,
+    summary:
+      'T8–T10: the caller’s parental plan, and the entitlement the answers asked about would give; nothing is saved',
+    params: z.object({
+      role: ParentRoleView.optional(),
+      childDate: CalendarDate.optional(),
+      singleParent: z.boolean().optional(),
+      children: Children.optional(),
+    }),
+    answer: ParentalScreenView,
+    run: (deps, caller, { params }) => parentalScreen(deps)(caller, present(params)),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffParentalCase',
+    method: 'GET',
+    path: `${V1}/parental/{planId}/case`,
+    summary: 'T11: a sent plan with its checklist and rules check; HR and the manager',
+    params: PlanParams,
+    answer: ParentalCaseView,
+    run: (deps, caller, { params }) => parentalCase(deps)(caller, params.planId),
+    shape: same,
+  }),
+  route({
     name: 'timeOffPersonBalances',
     method: 'GET',
     path: `${V1}/people/{personId}/balances`,
@@ -876,6 +941,80 @@ export const ROUTES: readonly Route[] = [
     shape: same,
   }),
 
+  /* --------------------------------------------------------- parental -- */
+  route({
+    name: 'answerTimeOffParental',
+    method: 'POST',
+    path: `${V1}/parental`,
+    summary: 'T8: the four answers and what teammates see; starts or re-answers a private draft',
+    body: ParentalAnswersBody,
+    answer: z.object({ planId: z.uuid() }).meta({ title: 'TimeOffParentalAnswered' }),
+    run: (deps, caller, { body }) => answerParental(deps)(caller, body),
+    shape: same,
+  }),
+  route({
+    name: 'editTimeOffParentalBlocks',
+    method: 'PUT',
+    path: `${V1}/parental/{planId}/blocks`,
+    summary: 'T9: the draft’s blocks as the parent left them, and every rule they break',
+    params: PlanParams,
+    body: ParentalBlocksBody,
+    answer: z
+      .object({
+        problems: z.array(
+          z.object({ code: z.string(), message: z.string() }).meta({ title: 'TimeOffPlanRule' }),
+        ),
+      })
+      .meta({ title: 'TimeOffParentalBlocksSaved' }),
+    run: (deps, caller, { params, body }) =>
+      editParentalBlocks(deps)(caller, { planId: params.planId, blocks: body.blocks }),
+    shape: (v) => ({ problems: v.problems.map((p) => ({ code: p.code, message: p.message })) }),
+  }),
+  route({
+    name: 'saveTimeOffParentalHandover',
+    method: 'PUT',
+    path: `${V1}/parental/{planId}/handover`,
+    summary: 'T10: who covers what while the parent is away, and what teammates see',
+    params: PlanParams,
+    body: ParentalHandoverBody,
+    answer: Done,
+    run: (deps, caller, { params, body }) =>
+      saveParentalHandover(deps)(caller, { planId: params.planId, ...body }),
+    shape: done,
+  }),
+  route({
+    name: 'sendTimeOffParentalPlan',
+    method: 'POST',
+    path: `${V1}/parental/{planId}/send`,
+    summary: 'T10: send the plan to HR and the manager; refused while a rule is broken',
+    params: PlanParams,
+    answer: PlanStatusAnswer,
+    run: (deps, caller, { params }) => sendParentalPlan(deps)(caller, params.planId),
+    shape: same,
+  }),
+  route({
+    name: 'approveTimeOffParentalPlan',
+    method: 'POST',
+    path: `${V1}/parental/{planId}/approve`,
+    summary: 'T11: approve a sent plan after the rules check; HR',
+    params: PlanParams,
+    answer: PlanStatusAnswer,
+    run: (deps, caller, { params }) => approveParentalPlan(deps)(caller, params.planId),
+    shape: same,
+  }),
+  route({
+    name: 'recordTimeOffParentalBirth',
+    method: 'POST',
+    path: `${V1}/parental/{planId}/birth`,
+    summary: 'The baby arrived: the mandatory weeks move to the birth; the parent or HR',
+    params: PlanParams,
+    body: BirthBody,
+    answer: Done,
+    run: (deps, caller, { params, body }) =>
+      recordParentalBirth(deps)(caller, { planId: params.planId, birth: body.birth }),
+    shape: done,
+  }),
+
   /* ---------------------------------------------------------- members -- */
   route({
     name: 'importTimeOffMembers',
@@ -1059,6 +1198,7 @@ const STATUS: Record<string, number> = {
   INVALID_TRANSITION: 409,
   OVERLAP: 409,
   ALREADY_CLOSED: 409,
+  BIRTH_ALREADY_RECORDED: 409,
   EARLIER_PERIOD_OPEN: 409,
   IDEMPOTENCY_KEY_REQUIRED: 400,
   IDEMPOTENCY_KEY_REUSED: 422,

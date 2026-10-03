@@ -746,6 +746,129 @@ export const ViewerView = named(
   }),
 );
 
+/* -------------------------------------------------------------- parental -- */
+
+export const ParentRoleView = z.enum(['birth_parent', 'other_parent', 'adopting']);
+export const TeamSeesView = z.enum(['type', 'away']);
+export const BlockKindView = z.enum(['mandatory', 'flexible', 'vacation', 'company', 'later']);
+
+/** What a parent is entitled to (T8), every number the domain's. */
+export const ParentalEntitlementView = named(
+  'TimeOffParentalEntitlement',
+  z.object({
+    law: z.string(),
+    mandatoryWeeks: z.int(),
+    flexibleWeeks: z.int(),
+    flexibleBefore: CalendarDate,
+    laterWeeks: z.int(),
+    laterBefore: CalendarDate,
+    startsFrom: CalendarDate,
+    /** Who pays the statutory weeks: `social_security` in Spain. */
+    paidBy: z.string(),
+    payPercent: z.int(),
+    companyWeeks: z.int(),
+    /** The service the company asks before adding its weeks; `null` when it adds none. */
+    companyAfterYears: z.int().nullable(),
+    vacationAccrues: z.boolean(),
+    noticeDays: z.int(),
+  }),
+);
+
+export const HandoverView = named(
+  'TimeOffHandoverItem',
+  z.object({ work: z.string().min(1).max(200), coveredBy: z.string().min(1).max(200) }),
+);
+
+/** A parental plan as its screens read it (T9–T11, MT11, MT12). */
+export const ParentalPlanView = named(
+  'TimeOffParentalPlan',
+  z.object({
+    planId: z.uuid(),
+    status: z.enum(['draft', 'submitted', 'approved']),
+    role: ParentRoleView,
+    childDate: CalendarDate,
+    dueDate: CalendarDate.nullable(),
+    birth: CalendarDate.nullable(),
+    singleParent: z.boolean(),
+    children: z.int(),
+    teamSees: TeamSeesView,
+    handover: z.array(HandoverView),
+    blocks: z.array(
+      named(
+        'TimeOffParentalBlock',
+        z.object({
+          kind: BlockKindView,
+          leaveTypeKey: LeaveTypeKey,
+          from: CalendarDate,
+          to: CalendarDate,
+          workingDays: DayAmount,
+          /** Who pays while away: the pack's payer for statutory weeks, the employer otherwise. */
+          paidBy: z.string(),
+          payPercent: z.int(),
+        }),
+      ),
+    ),
+    /** Later weeks not booked: "kept for later". */
+    keptWeeks: z.number(),
+    reminders: z.array(
+      named('TimeOffNoticeReminder', z.object({ blockFrom: CalendarDate, remindOn: CalendarDate })),
+    ),
+    /** Every rule the plan breaks, from the domain; none means it can be sent. */
+    problems: z.array(
+      named('TimeOffPlanProblem', z.object({ code: z.string(), message: z.string() })),
+    ),
+    entitlement: ParentalEntitlementView,
+    sentAt: Instant.nullable(),
+    approvedAt: Instant.nullable(),
+  }),
+);
+
+/**
+ * The parent's own steps (T8–T10): their plan, if they have one, and the
+ * entitlement for the answers asked about, worked out without saving.
+ */
+export const ParentalScreenView = named(
+  'TimeOffParentalScreen',
+  z.object({
+    member: MemberView.nullable(),
+    managerName: z.string().nullable(),
+    /** Whether the member's country has a pack to plan from. */
+    supported: z.boolean(),
+    plan: ParentalPlanView.nullable(),
+    preview: ParentalEntitlementView.nullable(),
+  }),
+);
+
+/** HR's view of the case (T11): the plan, its checklist, its rules check and its audience. */
+export const ParentalCaseView = named(
+  'TimeOffParentalCase',
+  z.object({
+    member: MemberView,
+    managerName: z.string().nullable(),
+    plan: ParentalPlanView,
+    checklist: z.array(
+      named(
+        'TimeOffCaseStep',
+        z.object({
+          key: z.enum([
+            'entitlement',
+            'manager_told',
+            'certificate',
+            'payroll',
+            'benefits',
+            'birth_certificate',
+          ]),
+          status: z.enum(['done', 'todo', 'scheduled', 'elsewhere']),
+          /** The module a step belongs to, linked rather than done here. */
+          module: z.enum(['payroll', 'benefits']).nullable(),
+          on: CalendarDate.nullable(),
+        }),
+      ),
+    ),
+    canApprove: z.boolean(),
+  }),
+);
+
 /** A view as a use case builds it: readonly all the way down, as the domain's values are. */
 type DeepReadonly<T> = T extends readonly (infer U)[]
   ? readonly DeepReadonly<U>[]
@@ -782,3 +905,7 @@ export type AttendanceSettingsView = View<typeof AttendanceSettingsView>;
 export type ApprovalsSettingsView = View<typeof ApprovalsSettingsView>;
 export type HolidaySettingsView = View<typeof HolidaySettingsView>;
 export type ViewerView = View<typeof ViewerView>;
+export type ParentalEntitlementView = View<typeof ParentalEntitlementView>;
+export type ParentalPlanView = View<typeof ParentalPlanView>;
+export type ParentalScreenView = View<typeof ParentalScreenView>;
+export type ParentalCaseView = View<typeof ParentalCaseView>;

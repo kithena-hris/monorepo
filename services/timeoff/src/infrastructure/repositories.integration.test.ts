@@ -11,6 +11,9 @@ import {
   LeaveChanged,
   LeaveCounterProposed,
   LeaveRequested,
+  LeaveTypeKey,
+  ParentalBirthRecorded,
+  ParentalPlanSubmitted,
   PersonId,
   PolicyPublished,
   TenantId,
@@ -18,6 +21,13 @@ import {
 import { startPostgres } from '@kithena/testing';
 
 import { upsertMember } from '../application/member/sync.js';
+import {
+  answerParental,
+  editParentalBlocks,
+  parentalScreen,
+  recordParentalBirth,
+  sendParentalPlan,
+} from '../application/parental/parental.js';
 import { MemberFields, type Tx, type UnitOfWork } from '../application/ports.js';
 import { sendRequest } from '../application/request/request.js';
 import { sequentialIds } from '../application/testing/in-memory.js';
@@ -543,6 +553,74 @@ describe('the use cases, over Drizzle', () => {
   });
 });
 
+describe('parental plans', () => {
+  it('keeps a plan and its blocks through answers, edits, sending and a birth', async () => {
+    const deps = {
+      uow,
+      clock: fixedClock('2026-10-01T07:00:00.000Z'),
+      newId: ids,
+      authz: { check: () => Promise.resolve(false) },
+      notifier: { notify: () => Promise.resolve() },
+    };
+    await run((tx) =>
+      tx.parental.setCompany({
+        extraWeeks: 2,
+        afterServiceYears: 1,
+        leaveTypeKey: LeaveTypeKey.parse('company_parental'),
+      }),
+    );
+    const adam = caller(people.adam);
+    const { planId } = must(
+      await answerParental(deps)(adam, {
+        role: 'other_parent',
+        childDate: '2027-01-14' as never,
+        singleParent: false,
+        children: 1,
+        teamSees: 'away',
+      }),
+    );
+    must(
+      await editParentalBlocks(deps)(adam, {
+        planId,
+        blocks: [
+          { kind: 'mandatory', from: '2027-01-14' as never, to: '2027-02-24' as never },
+          { kind: 'flexible', from: '2027-08-02' as never, to: '2027-08-22' as never },
+        ],
+      }),
+    );
+    must(await sendParentalPlan(deps)(adam, planId));
+    must(await recordParentalBirth(deps)(adam, { planId, birth: '2027-01-12' as never }));
+
+    const stored = await run((tx) => tx.parental.get(planId));
+    expect(stored).toMatchObject({
+      status: 'submitted',
+      country: 'ES',
+      dueDate: '2027-01-14',
+      birth: '2027-01-12',
+      childDate: '2027-01-12',
+      teamSees: 'away',
+      version: 2,
+      company: { extraWeeks: 2, afterServiceYears: 1, leaveTypeKey: 'company_parental' },
+    });
+    expect(stored?.blocks.map((b) => [b.kind, b.leaveTypeKey, b.from, b.to])).toEqual([
+      ['mandatory', 'parental', '2027-01-12', '2027-02-22'],
+      ['flexible', 'parental', '2027-08-02', '2027-08-22'],
+    ]);
+    expect(await outboxNames(planId)).toEqual([
+      ParentalPlanSubmitted.name,
+      ParentalBirthRecorded.name,
+    ]);
+    const screen = must(await parentalScreen(deps)(adam, {}));
+    expect(screen.plan?.planId).toBe(planId);
+  });
+
+  it('holds one open plan per member', async () => {
+    const [open] = await run((tx) => tx.parental.list({ personId: people.adam }));
+    if (open === undefined) throw new Error('no plan');
+    await expect(run((tx) => tx.parental.save({ ...open, id: ids() as never }))).rejects.toThrow();
+  });
+});
+
 describe('the unit of work', () => {
   it('rolls back the write and its events together when it throws', async () => {
     const id = policyId(ids());
@@ -566,6 +644,8 @@ describe('the unit of work', () => {
       expect(await tx.requests.list({})).toEqual([]);
       expect(await tx.holidays.layers()).toEqual([]);
       expect(await tx.attendance.punches(people.adam)).toEqual([]);
+      expect(await tx.parental.list({})).toEqual([]);
+      expect(await tx.parental.company()).toBeNull();
     });
   });
 });

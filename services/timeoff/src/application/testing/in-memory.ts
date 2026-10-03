@@ -20,6 +20,7 @@ import type {
   ApprovalTimers,
   AttendanceStore,
   Authorizer,
+  CompanyParentalWeeks,
   Deps,
   FeedStore,
   HolidayStore,
@@ -34,10 +35,12 @@ import type {
   Notifier,
   Outbox,
   OvertimeDecision,
+  ParentalStore,
   PolicyStore,
   RequestRecord,
   RequestStore,
   StoredKey,
+  StoredPlan,
   Tx,
   UnitOfWork,
 } from '../ports.js';
@@ -69,6 +72,8 @@ interface State {
   lines: TimeLine[];
   overtime: OvertimeDecision[];
   feeds: Map<string, number>;
+  plans: Map<string, StoredPlan>;
+  parentalCompany: CompanyParentalWeeks | null;
   events: PendingEvent[];
   keys: Map<string, StoredKey>;
 }
@@ -93,6 +98,8 @@ const empty = (): State => ({
   lines: [],
   overtime: [],
   feeds: new Map(),
+  plans: new Map(),
+  parentalCompany: null,
   events: [],
   keys: new Map(),
 });
@@ -262,6 +269,24 @@ function stores(tenantId: TenantId, s: State): Tx {
         const next = (s.feeds.get(personId) ?? 0) + 1;
         s.feeds.set(personId, next);
         return next;
+      },
+    }),
+    parental: promised<ParentalStore>({
+      get: (id) => s.plans.get(id) ?? null,
+      list: (f) =>
+        [...s.plans.values()]
+          .filter(
+            (p) =>
+              (f.personId === undefined || p.personId === f.personId) &&
+              (f.statuses === undefined || f.statuses.includes(p.status)),
+          )
+          .toSorted((a, b) => b.id.localeCompare(a.id)),
+      save: (plan) => {
+        s.plans.set(plan.id, plan);
+      },
+      company: () => s.parentalCompany,
+      setCompany: (weeks) => {
+        s.parentalCompany = weeks;
       },
     }),
     outbox: promised<Outbox>({

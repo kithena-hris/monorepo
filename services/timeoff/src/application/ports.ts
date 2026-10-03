@@ -25,6 +25,8 @@ import type { TeamMinimum } from '../domain/coverage/coverage.js';
 import type { LeaveType } from '../domain/policy/leave-type.js';
 import type { Policy, PolicyId } from '../domain/policy/policy.js';
 import type { LeaveRequest, LeaveRequestId } from '../domain/request/leave-request.js';
+import type { CompanyParentalPolicy, ParentRole } from '../domain/parental/entitlement.js';
+import type { ParentalPlanId, PlanBlock, PlanStatus } from '../domain/parental/plan.js';
 
 /**
  * What the Time Off use cases read and write through, and nothing wider.
@@ -224,6 +226,61 @@ export interface AttendanceStore {
   decideOvertime(decision: OvertimeDecision): Promise<void>;
 }
 
+/* -------------------------------------------------------------- parental -- */
+
+/** Who covers one piece of the parent's work while they are away (T10, manual for now). */
+export interface HandoverItem {
+  readonly work: string;
+  readonly coveredBy: string;
+}
+
+/**
+ * A parental plan as stored (PRD §12): the aggregate's state, plus what only
+ * the application holds — what teammates see, the handover, and when it was
+ * sent and approved. The answers keep the company's policy as it was when
+ * they were given, and the country whose pack decided the law; the member's
+ * hire date and calendar are read again when the plan is loaded.
+ */
+export interface StoredPlan {
+  readonly id: ParentalPlanId;
+  readonly personId: PersonId;
+  readonly status: PlanStatus;
+  readonly country: NonNullable<MemberFields['country']>;
+  readonly role: ParentRole;
+  /** The due date, the decision, or the birth once recorded. */
+  readonly childDate: CalendarDate;
+  readonly dueDate: CalendarDate | null;
+  readonly birth: CalendarDate | null;
+  readonly singleParent: boolean;
+  readonly children: number;
+  readonly company: CompanyParentalWeeks | null;
+  readonly blocks: readonly PlanBlock[];
+  readonly version: number;
+  /** Teammates see "Parental leave", or just "Away"; HR and the manager always see the type. */
+  readonly teamSees: 'type' | 'away';
+  readonly handover: readonly HandoverItem[];
+  readonly sentAt: Instant | null;
+  readonly approvedAt: Instant | null;
+  readonly approvedBy: string | null;
+}
+
+/** The company's own parental weeks (T8: "Acme adds 2 paid weeks"), booked as one leave type. */
+export interface CompanyParentalWeeks extends CompanyParentalPolicy {
+  readonly leaveTypeKey: LeaveTypeKey;
+}
+
+export interface ParentalStore {
+  get(id: ParentalPlanId): Promise<StoredPlan | null>;
+  /** Newest first. */
+  list(filter: {
+    readonly personId?: PersonId;
+    readonly statuses?: readonly PlanStatus[];
+  }): Promise<readonly StoredPlan[]>;
+  save(plan: StoredPlan): Promise<void>;
+  company(): Promise<CompanyParentalWeeks | null>;
+  setCompany(weeks: CompanyParentalWeeks): Promise<void>;
+}
+
 /** The revocation counter behind a calendar feed token (§10.1). */
 export interface FeedStore {
   version(personId: PersonId): Promise<number>;
@@ -266,6 +323,7 @@ export interface Tx {
   readonly holidays: HolidayStore;
   readonly attendance: AttendanceStore;
   readonly feeds: FeedStore;
+  readonly parental: ParentalStore;
   readonly outbox: Outbox;
   readonly idempotency: IdempotencyStore;
 }
@@ -318,6 +376,12 @@ export type Notice =
     }
   | { readonly kind: 'missed_clock_out'; readonly date: CalendarDate }
   | { readonly kind: 'still_clocked_in' }
+  | { readonly kind: 'parental_plan_sent'; readonly planId: string }
+  | {
+      readonly kind: 'parental_notice_due';
+      readonly planId: string;
+      readonly blockFrom: CalendarDate;
+    }
   | {
       readonly kind: 'negative_on_leaving';
       readonly leaveTypeKey: LeaveTypeKey;

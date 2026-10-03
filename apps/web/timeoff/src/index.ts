@@ -5,8 +5,9 @@
  * Each is `framed`: the host's breadcrumb, tabs and actions join the screen's
  * own header (`./frame.tsx`). A screen is a placeholder until its ticket
  * lands (`docs/timeoff-build-plan.md`); the overview is TOF-061's, the
- * employee's screens TOF-062 to TOF-067's, and the approvals, delegation and
- * calendar TOF-068 to TOF-073's.
+ * employee's screens TOF-062 to TOF-067's, the approvals, delegation and
+ * calendar TOF-068 to TOF-073's, and the parental steps and case TOF-104 to
+ * TOF-106's.
  */
 import './styles.css';
 
@@ -19,6 +20,8 @@ import { Balance as BalanceScreen } from './balance/balance';
 import { framed } from './frame';
 import { Holidays as HolidaysScreen } from './holidays/holidays';
 import { Overview as OverviewScreen } from './overview/overview';
+import { ParentalCase as ParentalCaseScreen } from './parental/case';
+import { ParentalPlan as ParentalPlanScreen } from './parental/plan';
 import { placeholder } from './placeholder';
 import { ApprovalSettings as ApprovalSettingsScreen } from './settings/approval-settings';
 import { AttendanceSettings as AttendanceSettingsScreen } from './settings/attendance-settings';
@@ -49,8 +52,8 @@ export const Timesheet = framed(TimesheetScreen);
 export const TeamNow = framed(TeamNowScreen);
 export const Balance = framed(BalanceScreen);
 export const Holidays = framed(HolidaysScreen);
-export const ParentalPlan = framed(placeholder('Plan parental leave'));
-export const ParentalCase = framed(placeholder('Parental leave'));
+export const ParentalPlan = framed(ParentalPlanScreen);
+export const ParentalCase = framed(ParentalCaseScreen);
 export const Insights = framed(placeholder('Insights'));
 export const LeaveTypes = framed(LeaveTypesScreen);
 export const LeaveType = framed(LeaveTypeScreen);

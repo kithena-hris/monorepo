@@ -444,6 +444,50 @@ export const location = timeoff.table(
   (t) => [primaryKey({ columns: [t.tenantId, t.locationKey] })],
 );
 
+/* ------------------------------------------------------------- TOF-102 -- */
+
+export const parentalPlan = timeoff.table(
+  'parental_plan',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    personId: uuid('person_id').notNull(),
+    status: text('status').notNull().default('draft'),
+    country: char('country', { length: 2 }).notNull(),
+    role: text('role').notNull(),
+    childDate: calendarDate('child_date').notNull(),
+    /** Special-category health data: it says a pregnancy exists. */
+    dueDate: calendarDate('due_date'),
+    birthDate: calendarDate('birth_date'),
+    singleParent: boolean('single_parent').notNull().default(false),
+    children: smallint('children').notNull().default(1),
+    company: jsonb('company'),
+    teamSees: text('team_sees').notNull().default('type'),
+    handover: jsonb('handover').notNull().default([]),
+    version: integer('version').notNull().default(0),
+    sentAt: instant('sent_at'),
+    approvedAt: instant('approved_at'),
+    approvedBy: uuid('approved_by'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+export const parentalBlock = timeoff.table(
+  'parental_block',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    planId: uuid('plan_id').notNull(),
+    position: smallint('position').notNull(),
+    kind: text('kind').notNull(),
+    leaveTypeKey: text('leave_type_key').notNull(),
+    fromOn: calendarDate('from_on').notNull(),
+    toOn: calendarDate('to_on').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.planId, t.position] })],
+);
+
 /** Readable without a tenant: the list background jobs run over. */
 export const tenant = timeoff.table('tenant', {
   tenantId: uuid('tenant_id').primaryKey(),

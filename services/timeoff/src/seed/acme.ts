@@ -89,7 +89,9 @@ const PERSONAL = key('personal');
 const COMP = key('comp');
 const SICK = key('sick');
 
-/** Acme's own two types beside Spain's statutory ones. */
+const COMPANY_PARENTAL = key('company_parental');
+
+/** Acme's own types beside Spain's statutory ones. */
 const ownTypes = [
   LeaveTypeDefinition.parse({
     key: PERSONAL,
@@ -111,6 +113,17 @@ const ownTypes = [
     tracked: true,
     paid: 'paid',
     visibility: 'type',
+  }),
+  // The 2 paid weeks Acme adds to parental leave after a year (T8), booked from the plan.
+  LeaveTypeDefinition.parse({
+    key: COMPANY_PARENTAL,
+    name: { default: 'Acme parental weeks', translations: { es: 'Semanas de Acme' } },
+    category: 'parental_leave',
+    colorToken: 'chart-2',
+    icon: 'baby',
+    tracked: false,
+    paid: 'paid',
+    visibility: 'off_only',
   }),
 ];
 
@@ -440,6 +453,11 @@ async function settings(tx: Tx, tenantId: TenantId, ctx: EventContext): Promise<
     { subject: 'request', leaveTypes: null, when: 'below_zero', approvers: ['manager', 'hr'] },
   ]);
   await tx.approvals.setTeamMinimum(PLATFORM, { atLeast: 5, unit: 'people' });
+  await tx.parental.setCompany({
+    extraWeeks: 2,
+    afterServiceYears: 1,
+    leaveTypeKey: COMPANY_PARENTAL,
+  });
   for (const layer of es.calendars.madrid) {
     // oxlint-disable-next-line no-await-in-loop -- three layers
     await tx.holidays.saveLayer(layer);

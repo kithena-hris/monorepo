@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ApproveTimeOffParentalPlan($key: String!, $planId: String!) {\n    approveTimeOffParentalPlan(idempotencyKey: $key, planId: $planId) {\n      status\n    }\n  }"}
