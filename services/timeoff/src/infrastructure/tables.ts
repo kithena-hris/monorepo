@@ -1,6 +1,7 @@
 import {
   boolean,
   char,
+  customType,
   integer,
   jsonb,
   numeric,
@@ -132,6 +133,56 @@ export const ledgerEntry = timeoff.table(
     supersedes: uuid('supersedes'),
     requestId: uuid('request_id'),
     reason: text('reason'),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+/* ------------------------------------------------------------- TOF-031 -- */
+
+/** `{[2026-10-19,2026-10-21),[2026-10-22,2026-10-24)}`, as Postgres prints it. */
+const datemultirange = customType<{ data: string }>({ dataType: () => 'datemultirange' });
+
+export const request = timeoff.table(
+  'request',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    personId: uuid('person_id').notNull(),
+    leaveTypeKey: text('leave_type_key').notNull(),
+    status: text('status').notNull().default('pending'),
+    /** No two live requests of one member share a day: an exclusion constraint. */
+    days: datemultirange('days').notNull(),
+    startsHalfDay: boolean('starts_half_day').notNull().default(false),
+    endsHalfDay: boolean('ends_half_day').notNull().default(false),
+    workingDays: amount('working_days').notNull(),
+    belowZero: boolean('below_zero').notNull().default(false),
+    note: text('note'),
+    /** Special-category health data: a file reference, never the content. */
+    sickNoteFileId: uuid('sick_note_file_id'),
+    proposals: jsonb('proposals').notNull().default([]),
+    pendingChange: jsonb('pending_change'),
+    datesEventId: uuid('dates_event_id'),
+    version: integer('version').notNull().default(0),
+    requestedAt: instant('requested_at').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+export const requestDecision = timeoff.table(
+  'request_decision',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    id: uuid('id').notNull(),
+    requestId: uuid('request_id').notNull(),
+    outcome: text('outcome').notNull(),
+    role: text('role').notNull(),
+    decidedBy: uuid('decided_by').notNull(),
+    onBehalfOf: uuid('on_behalf_of'),
+    reason: text('reason'),
+    decidedAt: instant('decided_at').notNull(),
+    eventId: uuid('event_id'),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
 );

@@ -213,6 +213,100 @@ describe('a published policy version', () => {
   });
 });
 
+/* ------------------------------------------------------------- TOF-031 -- */
+
+const EXCLUSION_VIOLATION = '23P01';
+
+/** A request for Adam over `days`, a multirange literal. */
+const requestRow = (n: number, days: string, status = 'pending') => ({
+  tenantId,
+  id: id(n),
+  personId: ADAM,
+  leaveTypeKey: 'vacation',
+  status,
+  days,
+  workingDays: '1.000',
+  requestedAt: '2026-10-03T09:00:00Z',
+});
+
+TABLES.push('request', 'request_decision');
+seeds.push(async (tx) => {
+  await tx
+    .insert(t.request)
+    .values({ ...requestRow(20, '{[2026-10-19,2026-10-23]}', 'approved'), workingDays: '5.000' });
+  await tx.insert(t.requestDecision).values({
+    tenantId,
+    id: id(21),
+    requestId: id(20),
+    outcome: 'approved',
+    role: 'manager',
+    decidedBy: MARCO,
+    decidedAt: '2026-10-02T09:00:00Z',
+  });
+  await tx.insert(t.ledgerEntry).values({
+    tenantId,
+    id: id(22),
+    personId: ADAM,
+    leaveTypeKey: 'vacation',
+    kind: 'booking',
+    amount: '-5.000',
+    unit: 'day',
+    effectiveOn: '2026-10-19',
+    occurredAt: '2026-10-01T09:00:00Z',
+    requestId: id(20),
+  });
+});
+
+describe('requests', () => {
+  it('keeps exactly one of two overlapping live requests sent at once', async () => {
+    const first = inTenant(TENANT_A, async (tx) => {
+      await tx.insert(t.request).values(requestRow(300, '{[2026-11-02,2026-11-06]}'));
+      // Hold the row uncommitted while the second arrives.
+      await tx.execute(sql`SELECT pg_sleep(0.5)`);
+    });
+    const second = (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      return sqlState(
+        inTenant(TENANT_A, (tx) =>
+          tx.insert(t.request).values(requestRow(301, '{[2026-11-05,2026-11-09]}')),
+        ),
+      );
+    })();
+
+    const [, refused] = await Promise.all([first, second]);
+    expect(refused).toBe(EXCLUSION_VIOLATION);
+    const rows = await inTenant(TENANT_A, (tx) =>
+      tx.execute(sql`SELECT id FROM timeoff.request WHERE id IN (${id(300)}, ${id(301)})`),
+    );
+    expect([...rows]).toEqual([{ id: id(300) }]);
+  });
+
+  it('lets a declined request share days with a live one', async () => {
+    expect(
+      await sqlState(
+        inTenant(TENANT_A, (tx) =>
+          tx.insert(t.request).values(requestRow(302, '{[2026-10-21,2026-10-21]}', 'declined')),
+        ),
+      ),
+    ).toBe('resolved');
+  });
+
+  it('leaves the day between two runs of a swapped request bookable', async () => {
+    await inTenant(TENANT_A, (tx) =>
+      tx
+        .insert(t.request)
+        .values(requestRow(303, '{[2026-12-07,2026-12-08],[2026-12-10,2026-12-11]}')),
+    );
+    expect(
+      await sqlState(
+        inTenant(TENANT_A, (tx) =>
+          tx.insert(t.request).values(requestRow(304, '{[2026-12-09,2026-12-09]}')),
+        ),
+      ),
+    ).toBe('resolved');
+  });
+});
+
 /* -------------------------------------------------------- every table -- */
 
 describe('every Time Off table', () => {

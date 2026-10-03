@@ -545,7 +545,7 @@ no decline, cancel or change.
   corrected once (a partial unique index on `supersedes`); a correction of a
   correction names the correction.
 
-### [ ] TOF-031 — Requests with the overlap constraint
+### [x] TOF-031 — Requests with the overlap constraint
 
 - **Files** `migrations/<ts>_timeoff_request.sql`
 - **Depends on** TOF-030
@@ -553,6 +553,13 @@ no decline, cancel or change.
   states per member.
 - **Done when** two concurrent inserts of overlapping live requests leave
   exactly one, in an integration test.
+- **As built** `days` is a `datemultirange` rather than a `daterange`: an
+  accepted counter-proposal books runs with a gap (T18), and a range would
+  claim the day in between. Live is `pending`, `approved`, `change_pending`,
+  `counter_proposed` and `taken`. A morning and an afternoon off on one date
+  still overlap, until the domain has morning and afternoon. `btree_gist` is
+  created `IF NOT EXISTS`, a trusted extension like `btree_gin`.
+  `ledger_entry.request_id` gets its foreign key here.
 
 ### [ ] TOF-032 — Approval, delegation, minimum and holiday tables
 
