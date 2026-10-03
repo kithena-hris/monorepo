@@ -129,6 +129,11 @@ export function asker(
     signal: AbortSignal,
     called: string[],
   ): Promise<Asked> {
+    // No model, nothing to plan with: said before anybody is looked up.
+    if (deps.planner === null) {
+      return { answer: said(UNAVAILABLE), outcome: 'failed', reason: 'NO_MODEL', called };
+    }
+    const { planner } = deps;
     const who = await deps.identity.asker(q.tenantId, q.email);
     if (!who.ok) {
       return {
@@ -166,16 +171,13 @@ export function asker(
     if (refusal !== null) {
       return { answer: refusedAnswer(refusal), outcome: 'refused', reason: refusal.kind, called };
     }
-    if (deps.planner === null) {
-      return { answer: said(UNAVAILABLE), outcome: 'failed', reason: 'NO_MODEL', called };
-    }
     if (!budget(q.tenantId)) {
       return { answer: said(UNAVAILABLE), outcome: 'failed', reason: 'BUDGET', called };
     }
 
     const shown = maskOffer(offered, leaveTypes, masked.refs);
     const today = todayIn(asking.timeZone, deps.clock);
-    const planned = await deps.planner.plan(q.tenantId, {
+    const planned = await planner.plan(q.tenantId, {
       question: masked.question,
       today,
       offer: shown,

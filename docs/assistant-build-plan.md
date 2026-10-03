@@ -478,7 +478,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   offered, nothing only Kithena sets, no digit in `say`, no private word in a
   masked prompt) run over every recorded answer.
 
-### [ ] AST-017 — The internal route
+### [x] AST-017 — The internal route
 
 - **Spec** PRD §5, §12.4, §13.1
 - **Files** `platform/assistant/src/http/server.ts` (+ test)
@@ -491,6 +491,16 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   counters in PRD §13.1.
 - **Done when** a test posts a question through the route against fake modules
   and a fake model, and a log-capture test finds no word of the question.
+- **As built** the token, not the body, says the channel. `compose(settings,
+  wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
+  calendar link); the test swaps `fetch`, the logger and the clock and runs
+  the whole service against fake HTTP services. With no model the answer is
+  "not available" before identity is asked. One span per question
+  (`assistant.ask`), whose children are the HTTP instrumentation's spans for
+  each call; one counter (`assistant.questions` by channel, outcome and
+  reason — a plan refusal's code and a failure's are the reason) and one
+  histogram of the whole question. No hand-made child spans or
+  per-capability histogram: the HTTP spans carry those durations.
 
 ---
 

@@ -506,9 +506,10 @@ describe('§7.7 and §7.8 private leave', () => {
 describe('when something does not answer', () => {
   it('identity: nobody by that email, or identity unreachable', async () => {
     const { modules } = fakeModules(BOTH_MODULES);
-    const nobody = await ask({ modules }, err('NOT_FOUND'))(question('Who is off?'), 'c');
+    const { planner } = fakePlanner({ kind: 'unclear', reply: '' });
+    const nobody = await ask({ modules, planner }, err('NOT_FOUND'))(question('Who is off?'), 'c');
     expect(nobody).toMatchObject({ answer: { text: NOT_IN_KITHENA }, reason: 'NOT_IN_KITHENA' });
-    const down = await ask({ modules }, err('UNREACHABLE'))(question('Who is off?'), 'c');
+    const down = await ask({ modules, planner }, err('UNREACHABLE'))(question('Who is off?'), 'c');
     expect(down.answer.text).toBe(WHO_ARE_YOU);
   });
 
