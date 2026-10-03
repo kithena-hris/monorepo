@@ -33,9 +33,10 @@ describe('who is asking, from identity', () => {
     expect(sent[0]?.url).toBe(
       `http://identity:4100/api/internal/tenants/${TENANT}/assistant/asker`,
     );
-    expect(sent[0]?.init.method).toBe('POST');
-    expect(JSON.parse(sent[0]?.init.body as string)).toEqual({ email: 'Ada@acme.example' });
-    expect((sent[0]?.init.headers as Record<string, string>)['x-internal-token']).toBe('pair');
+    const init = sent[0]?.init ?? {};
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ email: 'Ada@acme.example' });
+    expect((init.headers as Record<string, string>)['x-internal-token']).toBe('pair');
     at = 59_000;
     await identity.asker(TENANT, 'ada@acme.example');
     expect(sent).toHaveLength(1);

@@ -422,7 +422,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   the route refuses everyone. It is read in `main.ts` and the Vercel entry
   (`api/gateway.ts`). The response is `AssistantAsker` in contracts.
 
-### [ ] AST-015 — The planner, through the AI gateway
+### [x] AST-015 — The planner, through the AI gateway
 
 - **Spec** PRD §12.1, §12.3, §14
 - **Files** `platform/assistant/src/infrastructure/planner.ts`,
@@ -441,6 +441,15 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
 - **Done when** a test asserts the prompt for each PRD §7 example holds no
   value, no `personId` and no private word, and a prompt naming "sick leave"
   unmasked is refused by the gateway.
+- **As built** the instruction is fixed text (`INSTRUCTION`), so its hash is
+  the eval gate's; each capability's `about`, inputs, fields, metrics and
+  groups go in the prompt's context beside the masked question, today in words
+  and the `unavailable` lines. Every catalogue's `denied` is loaded into the
+  planner's registry for each question (key and labels, as not for AI).
+  `people.person`'s `about` no longer says "work email": People's core fields
+  not for AI include it, and the gateway refused every prompt in a company
+  with People. `AI_FIELD_NAMED` and `AI_VALUE_DENIED` are "not allowed to
+  see"; any other refusal or a failed model is "couldn't take that question".
 
 ### [ ] AST-016 — The eval set and its gate
 
