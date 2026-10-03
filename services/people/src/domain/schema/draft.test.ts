@@ -538,6 +538,53 @@ describe('a predicate on employment type or work model', () => {
     const remote = draft().addAttribute(requiredFor('workModel', ['four_day_week']));
     expect(!remote.ok && remote.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
   });
+
+  const shownFor = (clause: Record<string, unknown>) => ({
+    ...attribute,
+    key: 'bonus_band',
+    origin: 'tenant' as const,
+    requiredness: { mode: 'never' as const },
+    visibility: ['hr' as const],
+    visibilityRules: [
+      { scopes: ['manager' as const], when: { combine: 'all' as const, clauses: [clause as never] } },
+    ],
+  });
+
+  it('holds a visibility rule to the same list', () => {
+    const d = withTypes();
+    expect(d.addAttribute(shownFor({ operand: 'employmentType', in: ['full_time'] })).ok).toBe(true);
+    const refused = withTypes().addAttribute(
+      shownFor({ operand: 'employmentType', in: ['part_time'] }),
+    );
+    expect(!refused.ok && refused.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
+    expect(!refused.ok && refused.error.path).toEqual(['visibilityRules']);
+    expect(!refused.ok && refused.error.message).toContain('part_time');
+  });
+
+  it('holds a rule on any choice field to its options, whichever rule it is', () => {
+    const level = choiceField('level', { sectionKey: 'hr_information', order: 2 }, [
+      { value: 'senior', label: 'Senior' },
+      { value: 'junior', label: 'Junior' },
+    ]);
+    const on = (equals: string) => ({ operand: 'attribute', key: 'level', is: 'equals', equals });
+    const withLevel = (): SchemaDraft => {
+      const d = draft();
+      expect(d.addAttribute({ ...level, key: 'level', origin: 'tenant' }).ok).toBe(true);
+      return d;
+    };
+    expect(withLevel().addAttribute(shownFor(on('senior'))).ok).toBe(true);
+    const shown = withLevel().addAttribute(shownFor(on('principal')));
+    expect(!shown.ok && shown.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
+    const required = withLevel().addAttribute({
+      ...requiredFor('workModel', ['remote']),
+      requiredness: {
+        mode: 'conditional',
+        when: { combine: 'all', clauses: [on('principal') as never] },
+      },
+    });
+    expect(!required.ok && required.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
+    expect(!required.ok && required.error.path).toEqual(['requiredness']);
+  });
 });
 
 describe('encrypting a field', () => {

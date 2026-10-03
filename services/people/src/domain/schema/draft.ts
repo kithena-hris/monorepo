@@ -7,6 +7,7 @@ import {
   type AttributeDefinitionInput,
   type FieldPolicyInput,
   type Requiredness,
+  type RequirednessPredicate,
   type WriterRole,
 } from '@kithena/contracts';
 import * as z from 'zod';
@@ -131,6 +132,14 @@ export function checkVisibilityRules(
 ): Result<void> {
   const byKey = new Map(attributes.map((a) => [a.key as string, a]));
   for (const rule of attribute.visibilityRules ?? []) {
+    const choices = checkChoices(
+      rule.when,
+      attributes,
+      (named, value) =>
+        `${attribute.key} is shown by a rule on ${named} ${value}, which is not one of its options, so it would never hold`,
+      'visibilityRules',
+    );
+    if (!choices.ok) return choices;
     for (const clause of rule.when.clauses) {
       const discloses =
         clause.operand === 'status'
@@ -201,28 +210,42 @@ function readsUnseen(
 }
 
 /**
- * An employment type or work model a rule names that the company does not
- * have. The list is the company's: its field's options, retired ones too
- * (records still hold them), and People's own values, which every rule
- * written before the company had a list of its own may name.
+ * A choice a rule names that the company does not have: an employment type,
+ * a work model, or another choice field's option. The list is the field's
+ * options, retired ones too (records still hold them), and People's own
+ * values for its own fields, which every rule written before the company had
+ * a list may name. One check for a requiredness rule and a visibility rule,
+ * on save and at publish; a published version is never re-read through it.
  */
-function unknownChoice(
-  rule: Requiredness,
+function checkChoices(
+  predicate: RequirednessPredicate,
   attributes: readonly Attribute[],
-): { readonly operand: 'employmentType' | 'workModel'; readonly value: string } | null {
-  if (rule.mode !== 'conditional') return null;
-  for (const clause of rule.when.clauses) {
-    if (clause.operand !== 'employmentType' && clause.operand !== 'workModel') continue;
-    const [key] = PLACEMENT_SOURCES[clause.operand];
-    const field = attributes.find((a) => a.key === key);
-    const known = new Set([
+  refusal: (named: string, value: string) => string,
+  path: string,
+): Result<void> {
+  for (const clause of predicate.clauses) {
+    const [named, key, values] =
+      clause.operand === 'employmentType' || clause.operand === 'workModel'
+        ? [FACT_WORDS[clause.operand], PLACEMENT_SOURCES[clause.operand][0], clause.in]
+        : clause.operand === 'attribute' && clause.is === 'equals' && clause.equals !== null
+          ? [clause.key as string, clause.key as string, [clause.equals]]
+          : [null, null, []];
+    if (named === null || key === null) continue;
+    const config = attributes.find((a) => a.key === key)?.typeConfig;
+    const options =
+      config?.kind === 'select' || config?.kind === 'multi_select' ? config.options : null;
+    // Another field that is not a choice (text, a number) has no list to hold it to.
+    if (clause.operand === 'attribute' && options === null) continue;
+    const list = new Set<string>([
       ...builtInChoices(key).map((c) => c.value),
-      ...(field?.typeConfig.kind === 'select' ? field.typeConfig.options.map((o) => o.value) : []),
+      ...(options ?? []).map((o) => o.value),
     ]);
-    const value = clause.in.find((v) => !known.has(v));
-    if (value !== undefined) return { operand: clause.operand, value };
+    const value = values.find((v) => !list.has(v));
+    if (value !== undefined) {
+      return err(failure('PREDICATE_UNKNOWN_VALUE', refusal(named, value), [path]));
+    }
   }
-  return null;
+  return ok(undefined);
 }
 
 /**
@@ -235,15 +258,15 @@ export function checkRequirednessPredicate(
   attribute: Pick<Attribute, 'key' | 'requiredness'>,
   attributes: readonly Attribute[],
 ): Result<void> {
-  const unknown = unknownChoice(attribute.requiredness, attributes);
-  if (unknown !== null) {
-    return err(
-      failure(
-        'PREDICATE_UNKNOWN_VALUE',
-        `${attribute.key} is required on a condition over ${FACT_WORDS[unknown.operand]} ${unknown.value}, which is not one of its options, so it would never hold`,
-        ['requiredness'],
-      ),
+  if (attribute.requiredness.mode === 'conditional') {
+    const choices = checkChoices(
+      attribute.requiredness.when,
+      attributes,
+      (named, value) =>
+        `${attribute.key} is required on a condition over ${named} ${value}, which is not one of its options, so it would never hold`,
+      'requiredness',
     );
+    if (!choices.ok) return choices;
   }
   const [named] = specialCategoryReads(attribute.requiredness, attributes);
   if (named === undefined) return ok(undefined);

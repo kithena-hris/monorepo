@@ -4,6 +4,7 @@ import type { AttributeDefinitionInput } from '@kithena/contracts';
 
 import { SchemaDraft, type SectionInput } from './draft.js';
 import { diff, publish, rollbackTo } from './publish.js';
+import { choiceField } from '../../country-packs/core.js';
 
 /**
  * Publishing, which is what makes a draft real.
@@ -297,6 +298,40 @@ describe('rolling back', () => {
     expect(pointless.ok).toBe(false);
     if (pointless.ok) return;
     expect(pointless.error.code).toBe('ALREADY_IN_FORCE');
+  });
+});
+
+describe('publishing a rule on a choice', () => {
+  it('refuses once the option a rule names has been taken out of the list', () => {
+    const d = draft();
+    const level = choiceField('level', { sectionKey: attribute.sectionKey, order: 5 }, [
+      { value: 'senior', label: 'Senior' },
+      { value: 'junior', label: 'Junior' },
+    ]);
+    expect(d.addAttribute({ ...level, origin: 'tenant' }).ok).toBe(true);
+    const shown = d.addAttribute({
+      ...attribute,
+      key: 'bonus_band',
+      origin: 'tenant',
+      requiredness: { mode: 'never' },
+      visibility: ['hr'],
+      visibilityRules: [
+        {
+          scopes: ['hr'],
+          when: {
+            combine: 'all',
+            clauses: [{ operand: 'attribute', key: 'level', is: 'equals', equals: 'senior' }],
+          },
+        },
+      ],
+    });
+    expect(shown.ok).toBe(true);
+    const narrowed = d.updateAttribute('level', {
+      typeConfig: { kind: 'select', options: [{ value: 'junior', label: { default: 'Junior' } }] },
+    });
+    expect(narrowed.ok).toBe(true);
+    const refused = publish(d, null, { clock, actor });
+    expect(!refused.ok && refused.error.code).toBe('PREDICATE_UNKNOWN_VALUE');
   });
 });
 
