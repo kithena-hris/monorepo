@@ -448,8 +448,15 @@ const OPERATORS: Record<string, readonly FilterOperator[]> = {
     { id: 'is', label: 'is exactly', value: 'text' },
     ...EMPTY,
   ],
-  select: [{ id: 'in', label: 'is any of', value: 'options' }, ...EMPTY],
-  status: [{ id: 'in', label: 'is any of', value: 'options' }],
+  select: [
+    { id: 'in', label: 'is any of', value: 'options' },
+    { id: 'not_in', label: 'is none of', value: 'options' },
+    ...EMPTY,
+  ],
+  status: [
+    { id: 'in', label: 'is any of', value: 'options' },
+    { id: 'not_in', label: 'is none of', value: 'options' },
+  ],
   date: [
     { id: 'between', label: 'is between', value: 'date-range' },
     { id: 'before', label: 'is before', value: 'date' },
@@ -786,10 +793,22 @@ export function chipOf(
       return { field: 'Has', text: label };
     case 'between':
       return { field: label, text: spanWords(first, second) };
+    // A number's bounds are included: "4 or more" missing details.
     case 'before':
-      return { field: label, text: `before ${shown(first)}` };
+      return {
+        field: label,
+        text: field?.kind === 'number' ? `${first} or fewer` : `before ${shown(first)}`,
+      };
     case 'after':
-      return { field: label, text: `after ${shown(first)}` };
+      return {
+        field: label,
+        text: field?.kind === 'number' ? `${first} or more` : `after ${shown(first)}`,
+      };
+    case 'not_in':
+      return { field: label, text: `not ${condition.values.map(shown).join(' or ')}` };
+    // Everybody below a manager, however deep: "Marco's team".
+    case 'under':
+      return { field: 'Team of', text: condition.values.map(shown).join(' or ') };
     case 'contains':
       return { field: label, text: `mentions “${first}”` };
     default:

@@ -1733,6 +1733,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     people: { id: string; name: string; missing: number | null }[];
     query: { sort: { key: string; direction: string } | null; top: number | null };
   }
+  const dir = (answered: Answered): Listed => answered.data?.['peopleDirectory'] as Listed;
   const plan = async (c: ReturnType<typeof company>, sentence: string) => {
     const asked = await c.graph(`query ($s: String!) { peopleDirectoryPlan(sentence: $s) }`, {
       s: sentence,
@@ -1789,7 +1790,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     const c = company(TENANT, OWNER);
     const biggest = await c.graph(DIRECTORY, { sort: 'direct_reports:desc', top: 1 });
     expect(biggest.errors?.[0]?.message).toBeUndefined();
-    const [boss] = (biggest.data?.['peopleDirectory'] as Listed).people;
+    const [boss] = dir(biggest).people;
     expect(boss).toBeDefined();
     const asked = await plan(c, `reports of ${boss?.name ?? ''}`);
     expect(asked.conditions).toEqual([{ key: 'manager_id', op: 'is', values: [boss?.id] }]);
@@ -1800,7 +1801,7 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
         `SELECT count(*)::int AS n FROM people.person WHERE tenant_id = $1::uuid AND manager_id = $2::uuid`,
         [TENANT, boss?.id ?? ''],
       )) as unknown as { n: number }[];
-      expect((reports.data?.['peopleDirectory'] as Listed).total).toBe(direct?.n);
+      expect(dir(reports).total).toBe(direct?.n);
       expect(direct?.n).toBeGreaterThan(1);
     } finally {
       await client.end();
@@ -1809,8 +1810,6 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     const team = await plan(c, `${boss?.name ?? ''}'s team`);
     expect(team.conditions).toEqual([{ key: 'manager_id', op: 'under', values: [boss?.id] }]);
     const below = await c.graph(DIRECTORY, { conditions: team.conditions });
-    expect((below.data?.['peopleDirectory'] as Listed).total).toBeGreaterThanOrEqual(
-      (reports.data?.['peopleDirectory'] as Listed).total,
-    );
+    expect(dir(below).total).toBeGreaterThanOrEqual(dir(reports).total);
   });
 });
