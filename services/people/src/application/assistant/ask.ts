@@ -10,13 +10,7 @@ import { REPORTS_TO, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { approvalsView } from '../screens/people.js';
 import { nameOf, type ScreenDeps, type Tx } from '../screens/record.js';
-import {
-  describe,
-  filterFields,
-  onePerson,
-  personLine,
-  spokenDate,
-} from './capabilities.js';
+import { describe, filterFields, onePerson, personLine, spokenDate } from './capabilities.js';
 
 /**
  * Ask People a question in words: from Slack, or anywhere else that carries

@@ -40,19 +40,19 @@ lanes (1 to 7) have landed, `assistant` goes to `main` as one pull request, so
 People, Time Off, the assistant and Slack change in one deploy. Phase 2 and 3
 lanes then branch from `main` again, one pull request each.
 
-| PR  | Lane                                                                                     | Tickets           |
-| --- | ---------------------------------------------------------------------------------------- | ----------------- |
-| 1   | `assistant/docs` — this plan, the PRD, the `CLAUDE.md` paragraph                         | —                 |
-| 2   | `assistant/contracts` — capability and plan contracts, codegen                           | AST-001 – AST-005 |
-| 3   | `assistant/domain` — the service skeleton and its pure core                              | AST-006 – AST-011 |
-| 4   | `assistant/service` — the use case, clients, identity's route, planner, eval gate, route | AST-012 – AST-017 |
-| 5   | `assistant/people` — People's capabilities                                               | AST-018 – AST-021 |
-| 6   | `assistant/timeoff` — Time Off's capabilities                                            | AST-022 – AST-024 |
+| PR  | Lane                                                                                     | Tickets            |
+| --- | ---------------------------------------------------------------------------------------- | ------------------ |
+| 1   | `assistant/docs` — this plan, the PRD, the `CLAUDE.md` paragraph                         | —                  |
+| 2   | `assistant/contracts` — capability and plan contracts, codegen                           | AST-001 – AST-005  |
+| 3   | `assistant/domain` — the service skeleton and its pure core                              | AST-006 – AST-011  |
+| 4   | `assistant/service` — the use case, clients, identity's route, planner, eval gate, route | AST-012 – AST-017  |
+| 5   | `assistant/people` — People's capabilities                                               | AST-018 – AST-021  |
+| 6   | `assistant/timeoff` — Time Off's capabilities                                            | AST-022 – AST-024  |
 | 7   | `assistant/slack-and-deploy` — Slack rerouted, People's old route gone, deploy, docs     | AST-025 – AST-029a |
-| 8   | `assistant/timeoff-more` — balances, pending, the union of items                         | AST-030 – AST-032 |
-| 9   | `assistant/follow-ups` — earlier questions in a conversation                             | AST-033           |
-| 10  | `assistant/teams` — the Teams adapter                                                    | AST-034           |
-| 11  | `assistant/web` — the subgraph and the search box                                        | AST-035 – AST-036 |
+| 8   | `assistant/timeoff-more` — balances, pending, the union of items                         | AST-030 – AST-032  |
+| 9   | `assistant/follow-ups` — earlier questions in a conversation                             | AST-033            |
+| 10  | `assistant/teams` — the Teams adapter                                                    | AST-034            |
+| 11  | `assistant/web` — the subgraph and the search box                                        | AST-035 – AST-036  |
 
 PRs 3, 5 and 6 run in parallel once PR 2 is in. PR 4 needs PR 3. PR 7 needs
 PRs 4, 5 and 6. PRs 8 to 11 need `assistant` merged to `main`.
@@ -406,7 +406,7 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `describe`, `personLine` and `onePerson` moved from `ask.ts` into
   `capabilities.ts`; `ask.ts` imports them until AST-026.
 
-### [ ] AST-019 — `people.find`
+### [x] AST-019 — `people.find`
 
 - **Spec** PRD §7.3, §7.4, §9.5, §16
 - **Files** `services/people/src/application/assistant/capabilities.ts`,
@@ -421,6 +421,14 @@ boolean` (category `sick_leave` or `parental_leave`, or visibility
   `people` and `count` cases here.
 - **Done when** the ported tests pass, and a test shows `personIds` never
   returns a person the asker cannot list without it.
+- **As built** the restriction is `Refine.personIds`, which `access.list` and
+  `access.count` already take and authorize; the Drizzle reader and the
+  in-memory one honour it. Smart search's reader is `readDirectoryPlan`, the
+  parsed-JSON half of `readDirectoryAnswer`. A name is the manager's whole team
+  (`under`), or `@me`'s; `scope` is always `everyone` (the directory is every
+  current colleague to anybody). A group must have options to name, and "any
+  of" several filters cannot be combined with a team: both refused. Ids are
+  left out when the total is over 5,000.
 
 ### [ ] AST-020 — `people.person`, `people.reports`, `people.approvals`
 

@@ -7,7 +7,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { createYoga } from 'graphql-yoga';
-import { RuntimeCatalogue } from '@kithena/contracts';
+import { PeopleFind, RuntimeCatalogue } from '@kithena/contracts';
 import { startPostgres } from '@kithena/testing';
 
 import { define, versionOf } from '../application/person/in-memory.js';
@@ -255,5 +255,42 @@ describe('the assistant’s token', () => {
     const viewing = headers(ASSISTANT, MARCO_ACCOUNT, [], { viewedBy: ADA_ACCOUNT });
     expect((await catalogue(support)).status).toBe(401);
     expect((await catalogue(viewing)).status).toBe(401);
+  });
+});
+
+describe('people.find, in Postgres', () => {
+  const find = async (h: Record<string, string>, input: unknown) => {
+    const response = await call(h, 'people.find', input);
+    expect(response.status).toBe(200);
+    const out = PeopleFind.schemas.output.parse(await response.json());
+    if (out.kind !== 'people') throw new Error(out.kind);
+    return out;
+  };
+
+  it('runs the filters as the directory does', async () => {
+    const out = await find(asEmployee(), {
+      filters: [{ key: 'department', op: 'in', values: ['Engineering'] }],
+      limit: 25,
+    });
+    expect(out.rows.map((r) => r.name)).toEqual(['Marco Ruiz']);
+    expect(out.total).toBe(1);
+  });
+
+  it('narrowed to personIds, never returns somebody the asker could not list without them', async () => {
+    const employee = await find(asEmployee(), {
+      personIds: [ADA, MARCO, LEFT],
+      limit: 25,
+      ids: true,
+    });
+    expect(employee.ids?.toSorted()).toEqual([ADA, MARCO].toSorted());
+    expect(employee.total).toBe(2);
+    // HR's directory holds leavers, with or without the join.
+    const hr = await find(asHr(), {
+      personIds: [LEFT, ADA],
+      filters: [{ key: 'department', op: 'in', values: ['engineering'] }],
+      limit: 25,
+    });
+    expect(hr.rows.map((r) => r.personId)).toEqual([LEFT]);
+    expect((await find(asHr(), { personIds: [], limit: 0 })).total).toBe(0);
   });
 });

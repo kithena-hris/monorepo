@@ -1,20 +1,35 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import {
+  ASSISTANT_LIMITS,
   peopleCapabilities,
   PeopleFind,
+  type AmbiguousResult,
   type Capability,
   type CapabilityInput,
   type CapabilityOutput,
   type CatalogueField,
+  type NotFoundResult,
+  type PersonRow,
   type RuntimeCatalogue,
 } from '@kithena/contracts';
 
 import { visibleTo } from '../../domain/access/field-access.js';
 import type { CatalogueField as IntentField } from '../../domain/assistant/intent.js';
-import { forModel, type PlannedField } from '../../domain/assistant/selection.js';
+import {
+  forModel,
+  readDirectoryPlan,
+  type DirectoryPlan,
+  type PlannedField,
+} from '../../domain/assistant/selection.js';
 import type { Metric } from '../../domain/person/metrics.js';
-import { refinable, usableMetrics, type Asking, type PersonView } from '../person/person-access.js';
-import type { Condition } from '../person/ports.js';
+import {
+  refinable,
+  REPORTS_TO,
+  usableMetrics,
+  type Asking,
+  type PersonView,
+} from '../person/person-access.js';
+import type { Condition, Refine } from '../person/ports.js';
 import { run } from '../person/service.js';
 import { fieldKind, STATUS_OPTIONS } from '../screens/people.js';
 import { nameOf, NOBODY, type ScreenDeps, type Tx } from '../screens/record.js';
@@ -195,8 +210,145 @@ type Handler = (
   input: CapabilityInput,
 ) => Promise<Result<CapabilityOutput>>;
 
+type PersonId = PersonRow['personId'];
+
+/** One person in a result, as the asker may name them. */
+function row(p: PersonView, groups: PersonRow['groups'] = {}): PersonRow {
+  const line = personLine(p);
+  return {
+    personId: line.id as PersonId,
+    name: line.name,
+    ...(line.title === null ? {} : { title: line.title }),
+    groups,
+  };
+}
+
+/** Somebody named in a question, as the asker may find them: one, several to choose from, or nobody. */
+async function named(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  name: string,
+): Promise<{ readonly person: PersonView } | AmbiguousResult | NotFoundResult> {
+  const { person, several, self } = await onePerson(deps, tx, asking, name);
+  if (self === 'none') return { kind: 'not_found', self: true };
+  if (person !== null) return { person };
+  if (several.length === 0) return { kind: 'not_found', name };
+  return {
+    kind: 'ambiguous',
+    name,
+    candidates: several.map((p) => {
+      const { groups: _, ...candidate } = row(p);
+      return candidate;
+    }),
+  };
+}
+
+const refusedSelection = () =>
+  err(failure('BAD_REQUEST', 'People cannot run that selection', ['filters']));
+
+/**
+ * `people.find`: smart search's selection, run as the asker (PRD §7.3, §9.5).
+ *
+ * The filters, order and group are read by smart search's own reader
+ * (`readDirectoryPlan`) against the fields and metrics this asker may use; a
+ * manager by name is their whole team, found as the asker may search, or
+ * `@me`'s. Then the directory's `count` and `list`, narrowed to `personIds`
+ * when the assistant joins, authorized exactly as without them.
+ */
+const find: Handler = async (deps, tx, asking, input) => {
+  const fields = await filterFields(deps, tx, asking);
+  const metrics = await metricsFor(deps, tx, asking);
+  const filters = input.filters ?? [];
+  const match = input.match ?? 'all';
+  const self = input.name !== undefined && SELF.test(input.name.trim());
+  let plan: DirectoryPlan | null = null;
+  if (
+    filters.length > 0 ||
+    input.sort !== undefined ||
+    input.groupBy !== undefined ||
+    (input.name !== undefined && !self)
+  ) {
+    plan = readDirectoryPlan(
+      {
+        conditions: filters,
+        match,
+        sort: input.sort ?? null,
+        groupBy: input.groupBy ?? null,
+        manager: input.name === undefined || self ? null : { name: input.name, scope: 'all' },
+      },
+      forModel(fields),
+      metrics,
+    );
+    if (plan === null) return refusedSelection();
+  }
+  // A group is counted by its options' names: a field without options has none to give.
+  const group = fields.find((f) => f.key === plan?.group);
+  if (input.groupBy !== undefined && (group === undefined || group.options.length === 0)) {
+    return refusedSelection();
+  }
+
+  const conditions: Condition[] = [...(plan?.conditions ?? [])];
+  let team: string | null = null;
+  if (input.name !== undefined) {
+    const found = await named(deps, tx, asking, input.name);
+    if (!('person' in found)) return ok(found);
+    conditions.push({ key: REPORTS_TO, op: 'under', values: [found.person.id] });
+    team = personLine(found.person).name;
+  }
+  // "Engineering or Sales, in Marco's team" is not one list of conditions.
+  if (team !== null && match === 'any' && conditions.length > 2) return refusedSelection();
+  const refine: Refine = {
+    conditions,
+    match: team === null ? match : 'all',
+    ...(plan === null || plan.sort === null ? {} : { sort: plan.sort }),
+    ...(input.personIds === undefined ? {} : { personIds: input.personIds }),
+  };
+
+  const counted = await deps.service.access.count(tx, { ...asking, refine });
+  if (!counted.ok) return counted;
+  const total = counted.value.all;
+  const limit = input.limit ?? 0;
+  // Ids only when a later step needs them, and never a truncated list: the
+  // assistant reads a total over the limit as too broad to join (§9.3).
+  // ponytail: up to 5,000 people read as views to take their ids; an id-only
+  // read through the same authorization if a join is ever felt.
+  const ids = input.ids === true && total <= ASSISTANT_LIMITS.ids;
+  const wanted = Math.max(limit, ids ? ASSISTANT_LIMITS.ids : 0);
+  const listed =
+    wanted === 0
+      ? ok({ items: [] as readonly PersonView[], next: null })
+      : await deps.service.access.list(tx, { ...asking, refine, limit: wanted });
+  if (!listed.ok) return listed;
+  const items = listed.value.items;
+
+  const groupOf = (p: PersonView): PersonRow['groups'] => {
+    if (group === undefined) return {};
+    const value = group.key === 'status' ? p.status : p.attributes[group.key];
+    const label = group.options.find((o) => o.value === value)?.label;
+    return label === undefined ? {} : { [group.key]: label };
+  };
+  const what =
+    plan === null || plan.conditions.length === 0 ? null : describe(plan.conditions, fields, match);
+  const described =
+    [team === null ? null : `in ${team}’s team`, what].filter((x) => x !== null).join(' ') ||
+    'across the company';
+  return ok({
+    kind: 'people',
+    rows: items.slice(0, limit).map((p) => row(p, groupOf(p))),
+    ...(ids ? { ids: items.map((p) => p.id as PersonId) } : {}),
+    total,
+    // The directory: every current colleague to anybody, and leavers too to HR.
+    scope: 'everyone',
+    described: described.slice(0, 240),
+    notes: [],
+  });
+};
+
 /** Each capability People answers, by name. */
-const handlers: Readonly<Record<string, Handler>> = {};
+const handlers: Readonly<Record<string, Handler>> = {
+  [PeopleFind.name]: find,
+};
 
 const served = (): readonly Capability[] => peopleCapabilities.filter((c) => c.name in handlers);
 

@@ -7,6 +7,7 @@ import {
   forModel,
   isPlainSearch,
   readDirectoryAnswer,
+  readDirectoryPlan,
   readExportAnswer,
   type ExportCatalogue,
   type PlannedField,
@@ -241,6 +242,35 @@ describe('reading the model’s answer for the directory, strictly', () => {
     expect(sorted('hire_date')).toEqual({ key: 'hire_date', direction: 'desc' });
     expect(sorted('name')).toEqual({ key: 'name', direction: 'desc' });
     expect(sorted('salary')).toBeNull();
+  });
+});
+
+describe('a selection already read from JSON, for the assistant’s people.find', () => {
+  const model: readonly CatalogueField[] = forModel(fields);
+
+  it('is read as the model’s answer is: an option by its label, a manager by name', () => {
+    expect(
+      readDirectoryPlan(
+        {
+          conditions: [{ key: 'department', op: 'is', values: ['Engineering'] }],
+          sort: { key: 'hire_date', direction: 'desc' },
+          manager: { name: 'Marco Ruiz', scope: 'all' },
+        },
+        model,
+      ),
+    ).toMatchObject({
+      conditions: [{ key: 'department', op: 'in', values: ['eng'] }],
+      sort: { key: 'hire_date', direction: 'desc' },
+      manager: { name: 'Marco Ruiz', scope: 'all' },
+    });
+  });
+
+  it('refuses what the model’s answer would be refused for', () => {
+    expect(
+      readDirectoryPlan({ conditions: [{ key: 'salary', op: 'after', values: ['1'] }] }, model),
+    ).toBeNull();
+    expect(readDirectoryPlan({ groupBy: 'job_title' }, model)).toBeNull();
+    expect(readDirectoryPlan(null, model)).toBeNull();
   });
 });
 

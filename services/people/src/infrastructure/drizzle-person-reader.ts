@@ -32,7 +32,11 @@ import type { GapFigures, GapTotals } from '../application/screens/record.js';
 import { EXPIRY_KEYS } from '../domain/person/metrics.js';
 import { reminderDueBefore } from '../domain/person/reminder-cadence.js';
 import type { PersonState } from '../domain/person/person.js';
-import { deepFreeze, type PublishedVersion, type SchemaDocument } from '../domain/schema/publish.js';
+import {
+  deepFreeze,
+  type PublishedVersion,
+  type SchemaDocument,
+} from '../domain/schema/publish.js';
 import { toEmployment, withEmployment } from './drizzle-person-repository.js';
 import { person, schemaVersion } from './tables.js';
 
@@ -263,6 +267,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * (`refinable`) and only ever name a column or a JSON key.
  */
 function refined(tenantId: string, refine: Refine | undefined): SQL | undefined {
+  const ids = refine?.personIds;
+  const within =
+    ids === undefined ? undefined : ids.length === 0 ? sql`false` : inArray(person.id, [...ids]);
+  return and(within, conditioned(tenantId, refine));
+}
+
+function conditioned(tenantId: string, refine: Refine | undefined): SQL | undefined {
   const conditions = refine?.conditions ?? [];
   if (conditions.length === 0) return undefined;
   const parts = conditions.map((c): SQL => {
@@ -377,7 +388,11 @@ export function drizzleGapFigures() {
   return async (
     tx: PostgresJsDatabase,
     tenantId: string,
-    ask: { readonly payroll: readonly string[]; readonly now: Date; readonly people: readonly string[] },
+    ask: {
+      readonly payroll: readonly string[];
+      readonly now: Date;
+      readonly people: readonly string[];
+    },
   ): Promise<GapFigures> => {
     const payroll = sql`ARRAY[${sql.join(
       ask.payroll.map((k) => sql`${k}`),
@@ -669,9 +684,7 @@ export function drizzleSchemaVersions(): SchemaVersions {
       const rows = await tx
         .select()
         .from(schemaVersion)
-        .where(
-          and(eq(schemaVersion.tenantId, tenantId), eq(schemaVersion.version, latest.version)),
-        )
+        .where(and(eq(schemaVersion.tenantId, tenantId), eq(schemaVersion.version, latest.version)))
         .limit(1);
       return rows[0] ? keep(tenantId, rows[0]) : null;
     },
