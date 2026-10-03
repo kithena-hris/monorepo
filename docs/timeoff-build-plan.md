@@ -741,7 +741,7 @@ no decline, cancel or change.
   Regenerate SDL with `just codegen`; `just supergraph` must compose.
 - **Done when** `just supergraph` composes and the schema snapshot test passes.
 
-### [ ] TOF-045 — People event consumers
+### [x] TOF-045 — People event consumers
 
 - **Files** `services/timeoff/src/infrastructure/consumers/`
 - **Depends on** TOF-035
@@ -751,6 +751,21 @@ no decline, cancel or change.
   by `effectiveFrom`. Update the manifest's `consumes`.
 - **Done when** a consumer test applies out-of-order events and ends in the right
   state.
+- **As built** `handle.ts` is transport-free like People's; `wire.ts` consumes
+  `kithena.people.v1` as group `timeoff` when `TIMEOFF_DATABASE_URL` and
+  `KAFKA_BROKERS` are both set. Each person event reads, merges and calls
+  `upsertIn` in one transaction, so the fields it does not carry stay as
+  stored; an event about somebody unknown is ignored (People keys a person's
+  events to one partition, so `hired` comes first). People names org units
+  and locations by id, so the keys are `u_<hex>` and `l_<hex>`, and no People
+  event names an org unit: a team's name stays the import's, or none.
+  Locations are a small projection (`LocationStore`, a new port) that turns a
+  member's location into country and zone; a zone change rewrites the
+  members there without an event id, so it never holds back their own events.
+  `profile_updated` applies a name only when given and family name both
+  carry values, and a start date; `synced_from_external` carries field names
+  only and is ignored, its values arriving on the events People raises beside
+  it. A zone change applies on arrival, not from its date.
 
 ### [ ] TOF-046 — REST and OpenAPI
 
