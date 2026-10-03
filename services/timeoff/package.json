@@ -12,6 +12,7 @@
     "test:integration": "vitest run --config vitest.integration.ts",
     "test:contract": "vitest run --config vitest.contract.ts",
     "test:standalone": "vitest run --config vitest.standalone.ts",
+    "seed": "tsx --env-file-if-exists=../../.env src/seed/seed-local.ts",
     "codegen": "tsx ../../tools/codegen/src/subgraph.ts"
   },
   "dependencies": {

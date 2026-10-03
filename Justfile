@@ -9,7 +9,8 @@ default:
 # named People's administrator, version 1 published and sample employees, with
 # a reporting line, job titles and sample photos.
 # Identity's events are piped into People's seed, standing where the topic
-# would; see `services/people/src/seed-local.ts`.
+# would; see `services/people/src/seed-local.ts`. Time Off's comes last: Acme's
+# Platform team in October 2026 (`services/timeoff/src/seed/`).
 dev:
     docker compose up -d --wait
     pnpm db:migrate

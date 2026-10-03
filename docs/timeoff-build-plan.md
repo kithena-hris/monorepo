@@ -789,13 +789,25 @@ no decline, cancel or change.
 - **Done when** model tests cover manager, delegate during range only, HR, and a
   teammate who may see "Off" but not the type.
 
-### [ ] TOF-049 — Seed for the demo company
+### [x] TOF-049 — Seed for the demo company
 
 - **Files** `services/timeoff/src/seed/`, `docs/demo-company.md`
 - **Depends on** TOF-044
 - **Approach** Acme's Platform team, Adam, Marco, Ada and the design's October
   2026 data, so screens match the design on `just dev`.
 - **Done when** `just dev` shows T1 with 11.5 days left for Adam.
+- **As built** `pnpm db:seed` ends with `pnpm --filter @kithena/timeoff seed`,
+  which finds Acme by slug and runs `seedAcme` over the Drizzle unit of work:
+  one transaction, as of 1 October 2026 12:33 in Madrid, through the import's
+  `upsertIn`, the aggregates' own transitions at the dates they happened and
+  `persist`; skipped whole once Adam exists. T1 is not built yet (TOF-051 on),
+  so the "done when" is held by `acme.test.ts` and `acme.integration.test.ts`:
+  Adam's vacation folds to 11.5 left, 10.5 used, 3 booked, personal 2, comp
+  6h. With monthly accrual those need 4.167 carried in, and five days taken
+  in February so the carry does not expire. Adam's own 19–23 October is left
+  out: it is T3's request, whose 11.5 → 6.5 preview and 21 October clash only
+  hold while it is unsent (`docs/demo-company.md`). Ravi's comp day books 1
+  hour, the application having no day-to-hours rule for hour-unit leave.
 
 ### [ ] TOF-050 — Standalone acceptance
 
