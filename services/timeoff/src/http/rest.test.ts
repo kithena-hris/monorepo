@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ok } from '@kithena/domain-kit';
 
 import type { Caller } from '../application/ports.js';
-import { ADA_ACCOUNT, caller, people, world } from '../application/testing/world.js';
+import { ADA_ACCOUNT, caller, people, TENANT, world } from '../application/testing/world.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, ROUTES, type RestRequest } from './rest.js';
 
@@ -34,7 +34,10 @@ describe('the OpenAPI document', () => {
     openapi: string;
     paths: Record<
       string,
-      Record<string, { operationId: string; parameters: { name: string; in: string }[] }>
+      Record<
+        string,
+        { operationId: string; parameters: { name: string; in: string }[]; security?: [] }
+      >
     >;
     components: { schemas: Record<string, Record<string, unknown>> };
   };
@@ -55,7 +58,7 @@ describe('the OpenAPI document', () => {
       for (const [method, op] of Object.entries(methods)) {
         const declared = op.parameters.filter((p) => p.in === 'path').map((p) => p.name);
         expect(declared.toSorted(), `${method} ${path}`).toEqual(inPath.toSorted());
-        if (method !== 'get') {
+        if (method !== 'get' && op.security === undefined) {
           expect(
             op.parameters.map((p) => p.name),
             `${method} ${path}`,
@@ -180,5 +183,64 @@ describe('REST', () => {
       headers: { 'idempotency-key': 'p3' },
     });
     expect(approved.body).toEqual({ status: 'approved' });
+  });
+});
+
+describe('a kiosk, with its own token (TOF-107)', () => {
+  it('registers through HR, then punches with the device token and no key or session', async () => {
+    const { app, call } = boot();
+    const registered = await call({
+      as: 'ada',
+      method: 'POST',
+      url: '/v1/timeoff/kiosks',
+      headers: { 'idempotency-key': 'k-1' },
+      body: JSON.stringify({ name: 'Main entrance', locationKey: 'madrid' }),
+    });
+    expect(registered.status).toBe(201);
+    const { deviceId, token } = registered.body as { deviceId: string; token: string };
+    expect(
+      (
+        await call({
+          as: 'ada',
+          method: 'PUT',
+          url: `/v1/timeoff/members/${people.adam}/kiosk-credentials/pin`,
+          headers: { 'idempotency-key': 'k-2' },
+          body: JSON.stringify({ value: '4821' }),
+        })
+      ).status,
+    ).toBe(200);
+
+    const status = await call({
+      url: `/v1/timeoff/kiosk/${deviceId}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(status).toMatchObject({ status: 200, body: { name: 'Main entrance' } });
+
+    const synced = await call({
+      method: 'POST',
+      url: `/v1/timeoff/kiosk/${deviceId}/punches`,
+      headers: { authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        sentAt: '2026-10-01T07:00:00.000Z',
+        punches: [
+          {
+            sequence: 1,
+            at: '2026-10-01T06:59:00.000Z',
+            credential: { kind: 'pin', value: '4821' },
+          },
+        ],
+      }),
+    });
+    expect(synced).toMatchObject({
+      status: 200,
+      body: { results: [{ sequence: 1, outcome: 'punched', kind: 'in', firstName: 'Adam' }] },
+    });
+    expect(app.state(TENANT).punches.get(people.adam)?.[0]?.source).toBe('kiosk');
+
+    const wrong = await call({
+      url: `/v1/timeoff/kiosk/${deviceId}`,
+      headers: { authorization: 'Bearer kk_nope' },
+    });
+    expect(wrong.status).toBe(401);
   });
 });

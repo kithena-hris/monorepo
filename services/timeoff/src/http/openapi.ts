@@ -81,7 +81,8 @@ export function openApiDocument(): Record<string, unknown> {
         required: inPath.has(name) || isRequired(field as z.ZodType),
         schema: z.toJSONSchema(field as z.ZodType, { io: 'input', unrepresentable: 'any' }),
       }));
-    if (r.method !== 'GET') {
+    // A public write (a kiosk's queue) is made idempotent by its own sequence, not a key.
+    if (r.method !== 'GET' && !r.public) {
       parameters.push({
         name: 'Idempotency-Key',
         in: 'header',

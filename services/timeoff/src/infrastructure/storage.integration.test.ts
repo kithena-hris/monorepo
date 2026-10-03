@@ -412,6 +412,7 @@ describe('attendance', () => {
       'inside_office_area',
       'supersedes',
       'reason',
+      'clock_skew_seconds',
     ]);
   });
 

@@ -50,6 +50,16 @@ import {
   punch,
 } from '../application/attendance/attendance.js';
 import { calendarFeed, issueFeedToken, revokeFeeds } from '../application/calendar/ical.js';
+import {
+  issueKioskQr,
+  kioskDevices,
+  kioskIdentify,
+  kioskPunches,
+  kioskStatus,
+  registerKiosk,
+  revokeKiosk,
+  setKioskCredential,
+} from '../application/attendance/kiosk.js';
 import { importMembers } from '../application/member/import.js';
 import {
   answerParental,
@@ -115,6 +125,12 @@ import {
   HolidaySettingsView,
   HolidaysView,
   HandoverView,
+  KioskIdentityView,
+  KioskQrView,
+  KioskRegisteredView,
+  KioskStatusView,
+  KioskSyncView,
+  KioskView,
   LeaveTypeSettingView,
   LeaveTypesView,
   LookCloserReason,
@@ -204,7 +220,12 @@ export interface Route {
   readonly run: (
     deps: Deps,
     caller: Caller,
-    input: { readonly params: unknown; readonly body: unknown },
+    input: {
+      readonly params: unknown;
+      readonly body: unknown;
+      /** A public route's `Authorization: Bearer` token; `null` on every other. */
+      readonly bearer: string | null;
+    },
   ) => Promise<Result<unknown>>;
   /** The use case's answer as the route's; applied in the write's transaction too, for the key. */
   readonly shape: (value: unknown) => unknown;
@@ -229,6 +250,7 @@ function route<P extends z.ZodObject, B extends z.ZodType | null, A extends z.Zo
     input: {
       readonly params: z.output<P>;
       readonly body: B extends z.ZodType ? z.output<B> : undefined;
+      readonly bearer: string | null;
     },
   ) => Promise<Result<V>>;
   readonly shape: (value: V) => View<A>;
@@ -308,6 +330,45 @@ export const OvertimeBody = z.strictObject({
   approve: z.boolean(),
   choice: z.enum(['comp', 'paid']).nullable().default(null),
 });
+/** What a member taps a kiosk with: a badge number, a PIN, or the QR their phone shows. */
+export const KioskCredentialBody = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('badge'),
+    value: z
+      .string()
+      .trim()
+      .regex(/^[\x21-\x7e]{1,64}$/u, 'a badge number'),
+  }),
+  z.strictObject({
+    kind: z.literal('pin'),
+    value: z.string().regex(/^\d{4,8}$/u, '4 to 8 digits'),
+  }),
+  z.strictObject({ kind: z.literal('qr'), value: z.string().min(1).max(1000) }),
+]);
+export const KioskIdentifyBody = z.strictObject({ credential: KioskCredentialBody });
+export const KioskPunchesBody = z.strictObject({
+  /** The kiosk's clock when it sends, which its skew is read from. */
+  sentAt: Instant,
+  punches: z
+    .array(
+      z.strictObject({
+        sequence: z.int().min(1),
+        at: Instant,
+        credential: KioskCredentialBody,
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+export const KioskBody = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+  locationKey: LocationKey,
+});
+export const KioskCredentialSetBody = z.strictObject({
+  /** `null` takes it away. A badge is any printable code; a PIN 4 to 8 digits. */
+  value: z.string().trim().min(1).max(64).nullable(),
+});
+const KioskParams = z.object({ deviceId: z.uuid() });
 export const ImportBody = z.strictObject({
   format: z.enum(['csv', 'json']),
   content: z.string().max(5_000_000),
@@ -1027,6 +1088,103 @@ export const ROUTES: readonly Route[] = [
     shape: (v) => ({ ...v, errors: [...v.errors] }),
   }),
 
+  /* ------------------------------------------------------------ kiosk -- */
+  route({
+    name: 'timeOffKiosks',
+    method: 'GET',
+    path: `${V1}/kiosks`,
+    summary: 'Every kiosk and when it was last seen; never a token; HR',
+    answer: z.array(KioskView),
+    run: (deps, caller) => kioskDevices(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'registerTimeOffKiosk',
+    method: 'POST',
+    path: `${V1}/kiosks`,
+    summary: 'A kiosk for a location, and its token, shown this once; HR',
+    body: KioskBody,
+    answer: KioskRegisteredView,
+    status: 201,
+    run: (deps, caller, { body }) => registerKiosk(deps)(caller, body),
+    shape: same,
+  }),
+  route({
+    name: 'revokeTimeOffKiosk',
+    method: 'POST',
+    path: `${V1}/kiosks/{deviceId}/revoke`,
+    summary: 'The kiosk’s token stops working at once; HR',
+    params: KioskParams,
+    answer: Done,
+    run: (deps, caller, { params }) => revokeKiosk(deps)(caller, params.deviceId),
+    shape: done,
+  }),
+  route({
+    name: 'setTimeOffKioskCredential',
+    method: 'PUT',
+    path: `${V1}/members/{personId}/kiosk-credentials/{kind}`,
+    summary: 'A member’s badge (HR) or PIN (theirs or HR’s), kept as a keyed hash; null removes it',
+    params: z.object({ personId: PersonId, kind: z.enum(['badge', 'pin']) }),
+    body: KioskCredentialSetBody,
+    answer: Done,
+    run: (deps, caller, { params, body }) => {
+      if (params.kind === 'pin' && body.value !== null && !/^\d{4,8}$/u.test(body.value))
+        return Promise.resolve(err(failure('BAD_REQUEST', 'A PIN is 4 to 8 digits', ['value'])));
+      return setKioskCredential(deps)(caller, params.personId, params.kind, body.value);
+    },
+    shape: done,
+  }),
+  route({
+    name: 'timeOffKioskQr',
+    method: 'GET',
+    path: `${V1}/kiosk-qr`,
+    summary: 'The QR the caller’s phone shows a kiosk, good for a minute',
+    answer: KioskQrView,
+    run: (deps, caller) => issueKioskQr(deps)(caller),
+    shape: same,
+  }),
+  route({
+    name: 'timeOffKioskStatus',
+    method: 'GET',
+    path: `${V1}/kiosk/{deviceId}`,
+    summary: 'The kiosk’s own name and location; its device token, never a person’s',
+    params: KioskParams,
+    answer: KioskStatusView,
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params, bearer }) => kioskStatus(deps)(bearer ?? '', params.deviceId),
+    shape: same,
+  }),
+  route({
+    name: 'identifyAtTimeOffKiosk',
+    method: 'POST',
+    path: `${V1}/kiosk/{deviceId}/identify`,
+    summary: 'Who tapped, by first name, and what the tap would do; writes nothing; device token',
+    params: KioskParams,
+    body: KioskIdentifyBody,
+    answer: KioskIdentityView,
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params, body, bearer }) =>
+      kioskIdentify(deps)(bearer ?? '', params.deviceId, body.credential),
+    shape: same,
+  }),
+  route({
+    name: 'syncTimeOffKioskPunches',
+    method: 'POST',
+    path: `${V1}/kiosk/{deviceId}/punches`,
+    summary:
+      'The kiosk’s queue: each tap at its own instant, a replayed sequence punched once, skew flagged; device token',
+    params: KioskParams,
+    body: KioskPunchesBody,
+    answer: KioskSyncView,
+    graphql: false,
+    public: true,
+    run: (deps, _caller, { params, body, bearer }) =>
+      kioskPunches(deps)(bearer ?? '', params.deviceId, body),
+    shape: (v) => ({ results: [...v.results] }),
+  }),
+
   /* --------------------------------------------------------- settings -- */
   route({
     name: 'defineTimeOffLeaveType',
@@ -1342,14 +1500,37 @@ export function restHandler(
     const params = parse(r.params, coerce(r.params, raw));
     if (!params.ok) return refused(params.error);
 
+    /** The body, parsed by the route's schema; checked after who is asking and the key. */
+    const bodyOf = (): Result<unknown> => {
+      if (r.body === null) return ok(undefined);
+      let json: unknown;
+      try {
+        json = request.body === '' ? {} : JSON.parse(request.body);
+      } catch {
+        return err(failure('BAD_REQUEST', 'The body is not JSON'));
+      }
+      return parse(r.body, json);
+    };
+
     if (r.public) {
+      // Reached with a token of its own (a feed's, a kiosk's), not through the router.
       const anonymous: Caller = {
         tenantId: '' as Caller['tenantId'],
         accountId: '',
         personId: null,
         correlationId: '',
       };
-      return answer(r, await r.run(deps, anonymous, { params: params.value, body: undefined }));
+      const authorization = request.headers['authorization'];
+      const bearer =
+        typeof authorization === 'string' && authorization.startsWith('Bearer ')
+          ? authorization.slice('Bearer '.length).trim()
+          : null;
+      const body = bodyOf();
+      if (!body.ok) return refused(body.error);
+      return answer(
+        r,
+        await r.run(deps, anonymous, { params: params.value, body: body.value, bearer }),
+      );
     }
     const caller = await rest.callerFrom(request);
     if (!caller.ok) return refused(caller.error);
@@ -1362,19 +1543,10 @@ export function restHandler(
         failure('IDEMPOTENCY_KEY_REQUIRED', 'Every write carries an Idempotency-Key header'),
       );
     }
-    let body: unknown;
-    if (r.body !== null) {
-      let json: unknown;
-      try {
-        json = request.body === '' ? {} : JSON.parse(request.body);
-      } catch {
-        return refused(failure('BAD_REQUEST', 'The body is not JSON'));
-      }
-      const parsed = parse(r.body, json);
-      if (!parsed.ok) return refused(parsed.error);
-      body = parsed.value;
-    }
-    const input = { params: params.value, body };
+    const parsedBody = bodyOf();
+    if (!parsedBody.ok) return refused(parsedBody.error);
+    const body = parsedBody.value;
+    const input = { params: params.value, body, bearer: null };
     if (!writes || typeof key !== 'string')
       return answer(r, await r.run(deps, caller.value, input));
 

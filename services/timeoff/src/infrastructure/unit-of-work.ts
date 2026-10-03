@@ -6,7 +6,7 @@ import type { TenantId } from '@kithena/contracts';
 import { logger, onShutdown } from '@kithena/telemetry';
 
 import type { Tx, UnitOfWork } from '../application/ports.js';
-import { drizzleAttendance } from './drizzle-attendance.js';
+import { drizzleAttendance, drizzleKiosks } from './drizzle-attendance.js';
 import {
   drizzleLeaveTypes,
   drizzleLedger,
@@ -50,6 +50,7 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
     attendance: drizzleAttendance(tx, tenantId),
     feeds: drizzleFeeds(tx, tenantId),
     parental: drizzleParental(tx, tenantId),
+    kiosks: drizzleKiosks(tx, tenantId),
     idempotency: drizzleIdempotency(tx, tenantId),
     outbox: { publish: (events) => publish(tx, outbox, events) },
   };

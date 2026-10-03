@@ -173,6 +173,8 @@ export const PunchView = named(
     workModel: AttendanceWorkModel,
     supersedes: z.uuid().nullable(),
     reason: z.string().nullable(),
+    /** A kiosk's clock this far off when it sent the punch, in seconds: an exception (§11.9). */
+    clockSkewSeconds: z.int().nullable(),
   }),
 );
 
@@ -866,6 +868,64 @@ export const ParentalCaseView = named(
       ),
     ),
     canApprove: z.boolean(),
+  }),
+);
+
+/* ----------------------------------------------------------------- kiosk -- */
+
+/** A kiosk as HR sees it (TOF-107): never its token, nor the token's hash. */
+export const KioskView = named(
+  'TimeOffKiosk',
+  z.object({
+    id: z.uuid(),
+    name: z.string(),
+    locationKey: LocationKey,
+    lastSeenAt: Instant.nullable(),
+    revokedAt: Instant.nullable(),
+  }),
+);
+
+/** A kiosk just registered, with the token it is shown this once. */
+export const KioskRegisteredView = named(
+  'TimeOffKioskRegistered',
+  z.object({ deviceId: z.uuid(), token: z.string() }),
+);
+
+/** The personal QR a member's phone shows a kiosk, and when it stops working. */
+export const KioskQrView = named(
+  'TimeOffKioskQr',
+  z.object({ token: z.string(), expiresAt: Instant }),
+);
+
+/** What a kiosk shows at its top: its own name and where it is. */
+export const KioskStatusView = named(
+  'TimeOffKioskStatus',
+  z.object({ name: z.string(), locationName: z.string().nullable() }),
+);
+
+/** Who tapped, by first name, and what the tap would do. Nothing else crosses to a kiosk. */
+export const KioskIdentityView = named(
+  'TimeOffKioskIdentity',
+  z.object({ firstName: z.string(), kind: PunchKind }),
+);
+
+/** Each tap of a synced queue: punched, already synced, or refused and why. */
+export const KioskSyncView = named(
+  'TimeOffKioskSync',
+  z.object({
+    results: z.array(
+      named(
+        'TimeOffKioskSyncResult',
+        z.object({
+          sequence: z.int(),
+          outcome: z.enum(['punched', 'duplicate', 'refused']),
+          kind: PunchKind.optional(),
+          firstName: z.string().optional(),
+          at: Instant.optional(),
+          code: z.string().optional(),
+        }),
+      ),
+    ),
   }),
 );
 

@@ -517,6 +517,52 @@ describe('attendance', () => {
   });
 });
 
+describe('kiosks (TOF-107)', () => {
+  it('keeps a device, its sequence and revocation, a skewed punch and credentials by hash', async () => {
+    const deviceId = ids();
+    const device = {
+      id: deviceId,
+      name: 'Main entrance',
+      locationKey: MADRID,
+      tokenHash: 'ab'.repeat(32),
+      lastSeenAt: null,
+      revokedAt: null,
+      lastSequence: 0,
+    };
+    const pin = 'cd'.repeat(32);
+    const [first] = week;
+    if (first === undefined) throw new Error('the week has punches');
+    const skewed = {
+      ...first,
+      id: ids(),
+      source: 'kiosk' as const,
+      deviceId,
+      clockSkewSeconds: 300,
+    };
+    await run(async (tx) => {
+      await tx.kiosks.saveDevice(device);
+      await tx.kiosks.saveDevice({
+        ...device,
+        lastSequence: 7,
+        lastSeenAt: '2026-10-01T09:00:00.000Z' as never,
+      });
+      await tx.kiosks.setCredential(people.adam, 'pin', pin);
+      await tx.attendance.appendPunch(people.omar, skewed);
+    });
+    await run(async (tx) => {
+      expect(await tx.kiosks.device(deviceId)).toMatchObject({ lastSequence: 7, revokedAt: null });
+      expect(await tx.kiosks.holder('pin', pin)).toBe(people.adam);
+      expect(await tx.kiosks.holder('badge', pin)).toBeNull();
+      expect((await tx.attendance.punches(people.omar)).at(-1)?.clockSkewSeconds).toBe(300);
+      await tx.kiosks.setCredential(people.adam, 'pin', null);
+      expect(await tx.kiosks.holder('pin', pin)).toBeNull();
+    });
+    // No two members hold one PIN, whatever the application forgot to check.
+    await run((tx) => tx.kiosks.setCredential(people.adam, 'pin', pin));
+    await expect(run((tx) => tx.kiosks.setCredential(people.omar, 'pin', pin))).rejects.toThrow();
+  });
+});
+
 /** On what the sections above stored: the published vacation policy and Madrid's layers. */
 describe('the use cases, over Drizzle', () => {
   it('hires a member with their grant, and sends a request whose rows name it', async () => {

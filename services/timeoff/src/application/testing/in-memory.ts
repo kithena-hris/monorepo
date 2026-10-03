@@ -25,6 +25,8 @@ import type {
   FeedStore,
   HolidayStore,
   IdempotencyStore,
+  KioskDevice,
+  KioskStore,
   LeaveTypeStore,
   LedgerStore,
   Location,
@@ -74,6 +76,9 @@ interface State {
   feeds: Map<string, number>;
   plans: Map<string, StoredPlan>;
   parentalCompany: CompanyParentalWeeks | null;
+  kiosks: Map<string, KioskDevice>;
+  /** `${kind}:${hash}` to the member holding it. */
+  credentials: Map<string, PersonId>;
   events: PendingEvent[];
   keys: Map<string, StoredKey>;
 }
@@ -100,6 +105,8 @@ const empty = (): State => ({
   feeds: new Map(),
   plans: new Map(),
   parentalCompany: null,
+  kiosks: new Map(),
+  credentials: new Map(),
   events: [],
   keys: new Map(),
 });
@@ -287,6 +294,22 @@ function stores(tenantId: TenantId, s: State): Tx {
       company: () => s.parentalCompany,
       setCompany: (weeks) => {
         s.parentalCompany = weeks;
+      },
+    }),
+    kiosks: promised<KioskStore>({
+      device: (id) => s.kiosks.get(id) ?? null,
+      devices: () => [...s.kiosks.values()],
+      saveDevice: (device) => {
+        s.kiosks.set(device.id, device);
+      },
+      holder: (kind, hash) => s.credentials.get(`${kind}:${hash}`) ?? null,
+      setCredential: (personId, kind, hash) => {
+        for (const [key, holder] of s.credentials)
+          if (holder === personId && key.startsWith(`${kind}:`)) s.credentials.delete(key);
+        if (hash === null) return;
+        // The partial unique index's refusal, as Postgres would raise it.
+        if (s.credentials.has(`${kind}:${hash}`)) throw new Error('kiosk_credential unique');
+        s.credentials.set(`${kind}:${hash}`, personId);
       },
     }),
     outbox: promised<Outbox>({

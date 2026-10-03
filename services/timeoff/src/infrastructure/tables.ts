@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   char,
   customType,
@@ -293,10 +294,24 @@ export const kioskDevice = timeoff.table(
     tokenHash: sha256('token_hash').notNull(),
     lastSeenAt: instant('last_seen_at'),
     revokedAt: instant('revoked_at'),
+    lastSequence: bigint('last_sequence', { mode: 'number' }).notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
+);
+
+/** A member's badge or PIN, as an HMAC (TOF-107). */
+export const kioskCredential = timeoff.table(
+  'kiosk_credential',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    personId: uuid('person_id').notNull(),
+    kind: text('kind').notNull(),
+    hash: sha256('hash').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.personId, t.kind] })],
 );
 
 /** Insert-only, and no coordinate column: the integration test holds the list. */
@@ -315,6 +330,7 @@ export const punch = timeoff.table(
     insideOfficeArea: boolean('inside_office_area'),
     supersedes: uuid('supersedes'),
     reason: text('reason'),
+    clockSkewSeconds: integer('clock_skew_seconds'),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.id] })],
 );

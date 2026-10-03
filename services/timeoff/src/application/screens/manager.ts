@@ -332,6 +332,7 @@ export const punchView = (p: Punch): PunchView => ({
   workModel: p.workModel,
   supersedes: p.supersedes,
   reason: p.reason,
+  clockSkewSeconds: p.clockSkewSeconds ?? null,
 });
 
 /** T20: a timesheet by week or month — the caller's own unless another member is named. */

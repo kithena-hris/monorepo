@@ -153,6 +153,12 @@ type Mutation {
     input: JSON!
     planId: String!
   ): TimeOffDone!
+  """A kiosk for a location, and its token, shown this once; HR"""
+  registerTimeOffKiosk(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffKioskRegistered!
   """Nobody covers for an approver any more"""
   removeTimeOffDelegation(approverId: String!, idempotencyKey: String!): TimeOffDone!
   """Remove a holiday layer; HR"""
@@ -174,6 +180,8 @@ type Mutation {
   ): TimeOffPolicyVersionNumber!
   """Every feed the caller issued stops working"""
   revokeTimeOffCalendarFeeds(idempotencyKey: String!): TimeOffDone!
+  """The kiosk’s token stops working at once; HR"""
+  revokeTimeOffKiosk(deviceId: String!, idempotencyKey: String!): TimeOffDone!
   """A layer of holidays: national, regional or city; HR"""
   saveTimeOffHolidayCalendar(
     idempotencyKey: String!
@@ -210,6 +218,16 @@ type Mutation {
     idempotencyKey: String!
     """The REST body"""
     input: JSON!
+  ): TimeOffDone!
+  """
+  A member’s badge (HR) or PIN (theirs or HR’s), kept as a keyed hash; null removes it
+  """
+  setTimeOffKioskCredential(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    kind: String!
+    personId: String!
   ): TimeOffDone!
   """
   T31: going below zero, as a revision of the policy, published like any other; HR
@@ -282,6 +300,10 @@ type Query {
   timeOffHolidaySettings(year: Int!): TimeOffSettingsHolidays!
   """MT21: the holidays the caller’s work location observes"""
   timeOffHolidays(year: Int!): TimeOffHolidays!
+  """The QR the caller’s phone shows a kiosk, good for a minute"""
+  timeOffKioskQr: TimeOffKioskQr!
+  """Every kiosk and when it was last seen; never a token; HR"""
+  timeOffKiosks: [TimeOffKiosk!]!
   """T30: one leave type and every version of its policies; HR"""
   timeOffLeaveTypeSetting(key: String!): TimeOffSettingsLeaveType!
   """T29: every leave type; HR"""
@@ -573,6 +595,24 @@ type TimeOffImportReport {
   errors: [TimeOffImportError!]!
   rows: Int!
   updated: Int!
+}
+
+type TimeOffKiosk {
+  id: String!
+  lastSeenAt: String
+  locationKey: String!
+  name: String!
+  revokedAt: String
+}
+
+type TimeOffKioskQr {
+  expiresAt: String!
+  token: String!
+}
+
+type TimeOffKioskRegistered {
+  deviceId: String!
+  token: String!
 }
 
 type TimeOffLeaveTypeDefined {
@@ -919,6 +959,7 @@ type TimeOffProposal {
 
 type TimeOffPunch {
   at: String!
+  clockSkewSeconds: Int
   id: String!
   kind: String!
   reason: String

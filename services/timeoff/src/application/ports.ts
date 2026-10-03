@@ -226,6 +226,37 @@ export interface AttendanceStore {
   decideOvertime(decision: OvertimeDecision): Promise<void>;
 }
 
+/* ----------------------------------------------------------------- kiosk -- */
+
+/**
+ * A wall kiosk at a location (§11.9). Only its token's SHA-256 is kept; the
+ * token is shown once, when HR registers it.
+ */
+export interface KioskDevice {
+  readonly id: string;
+  readonly locationKey: LocationKey;
+  readonly name: string;
+  /** Hex SHA-256 of the token. */
+  readonly tokenHash: string;
+  readonly lastSeenAt: Instant | null;
+  readonly revokedAt: Instant | null;
+  /** The highest punch sequence synced from it; a replay at or below this is nothing new. */
+  readonly lastSequence: number;
+}
+
+/** What a member taps a kiosk with. Only keyed hashes are kept (`credentialHash`). */
+export type KioskCredentialKind = 'badge' | 'pin';
+
+export interface KioskStore {
+  device(id: string): Promise<KioskDevice | null>;
+  devices(): Promise<readonly KioskDevice[]>;
+  saveDevice(device: KioskDevice): Promise<void>;
+  /** The member a badge or PIN hash belongs to. */
+  holder(kind: KioskCredentialKind, hash: string): Promise<PersonId | null>;
+  /** Replaces one kind of credential; `null` removes it. */
+  setCredential(personId: PersonId, kind: KioskCredentialKind, hash: string | null): Promise<void>;
+}
+
 /* -------------------------------------------------------------- parental -- */
 
 /** Who covers one piece of the parent's work while they are away (T10, manual for now). */
@@ -324,6 +355,7 @@ export interface Tx {
   readonly attendance: AttendanceStore;
   readonly feeds: FeedStore;
   readonly parental: ParentalStore;
+  readonly kiosks: KioskStore;
   readonly outbox: Outbox;
   readonly idempotency: IdempotencyStore;
 }
@@ -382,6 +414,7 @@ export type Notice =
       readonly planId: string;
       readonly blockFrom: CalendarDate;
     }
+  | { readonly kind: 'kiosk_clock_skew'; readonly deviceId: string; readonly seconds: number }
   | {
       readonly kind: 'negative_on_leaving';
       readonly leaveTypeKey: LeaveTypeKey;

@@ -13,10 +13,17 @@ import type {
 
 import { DEFAULT_RULES, type AttendanceRules } from '../domain/attendance/day.js';
 import type { Schedule } from '../domain/attendance/schedule.js';
-import type { AttendanceStore, OvertimeDecision } from '../application/ports.js';
+import type {
+  AttendanceStore,
+  KioskDevice,
+  KioskStore,
+  OvertimeDecision,
+} from '../application/ports.js';
 import { instantOf } from './drizzle-leave.js';
 import { readSetting, writeSetting } from './drizzle-settings.js';
 import {
+  kioskCredential,
+  kioskDevice,
   memberSchedule,
   overtimeDecision,
   payPeriod,
@@ -57,6 +64,7 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
         insideOfficeArea: r.insideOfficeArea,
         supersedes: r.supersedes,
         reason: r.reason,
+        ...(r.clockSkewSeconds === null ? {} : { clockSkewSeconds: r.clockSkewSeconds }),
       }));
     },
     async appendPunch(personId, p) {
@@ -181,6 +189,57 @@ export function drizzleAttendance(tx: PostgresJsDatabase, tenantId: TenantId): A
         outcome: d.outcome,
         decidedBy: d.decidedBy,
       });
+    },
+  };
+}
+
+const deviceOf = (r: typeof kioskDevice.$inferSelect): KioskDevice => ({
+  id: r.id,
+  name: r.name,
+  locationKey: r.locationKey as KioskDevice['locationKey'],
+  tokenHash: r.tokenHash,
+  lastSeenAt: r.lastSeenAt === null ? null : instantOf(r.lastSeenAt),
+  revokedAt: r.revokedAt === null ? null : instantOf(r.revokedAt),
+  lastSequence: r.lastSequence,
+});
+
+/** Kiosk devices and members' badges and PINs (TOF-107), hashes only. */
+export function drizzleKiosks(tx: PostgresJsDatabase, tenantId: TenantId): KioskStore {
+  return {
+    async device(id) {
+      const [r] = await tx.select().from(kioskDevice).where(eq(kioskDevice.id, id));
+      return r === undefined ? null : deviceOf(r);
+    },
+    async devices() {
+      return (await tx.select().from(kioskDevice)).map(deviceOf);
+    },
+    async saveDevice(d) {
+      const row = {
+        name: d.name,
+        locationKey: d.locationKey,
+        tokenHash: d.tokenHash,
+        lastSeenAt: d.lastSeenAt,
+        revokedAt: d.revokedAt,
+        lastSequence: d.lastSequence,
+      };
+      await tx
+        .insert(kioskDevice)
+        .values({ tenantId, id: d.id, ...row })
+        .onConflictDoUpdate({ target: [kioskDevice.tenantId, kioskDevice.id], set: row });
+    },
+    async holder(kind, hash) {
+      const [r] = await tx
+        .select({ personId: kioskCredential.personId })
+        .from(kioskCredential)
+        .where(and(eq(kioskCredential.kind, kind), eq(kioskCredential.hash, hash)));
+      return r === undefined ? null : (r.personId as PersonId);
+    },
+    async setCredential(personId, kind, hash) {
+      await tx
+        .delete(kioskCredential)
+        .where(and(eq(kioskCredential.personId, personId), eq(kioskCredential.kind, kind)));
+      if (hash !== null)
+        await tx.insert(kioskCredential).values({ tenantId, personId, kind, hash });
     },
   };
 }

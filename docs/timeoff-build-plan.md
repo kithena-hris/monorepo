@@ -1639,11 +1639,32 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
 
 ### Kiosk, integrations, reach
 
-### [ ] TOF-107 — Kiosk devices
+### [x] TOF-107 — Kiosk devices
 
 - **Spec** PRD §11.9 · **Depends on** TOF-042
 - **Approach** Device registration per location, revocable token hash, scope
   punch-only; badge (keyboard wedge), PIN and personal QR.
+- **As built** `application/attendance/kiosk.ts`, `domain/attendance/kiosk.ts`.
+  HR registers a kiosk for a location (`POST /v1/timeoff/kiosks`) and is shown
+  its token once: `kk_` and the tenant, the device and 32 random bytes, so it
+  is found inside its tenant's RLS; only its SHA-256 is kept, and revoking
+  stops it at once. A device reaches three public routes with
+  `Authorization: Bearer` and nothing else — its own name, *identify* (the
+  first name and what the tap would do, writing nothing) and *punches* (its
+  queue) — none on the subgraph, none needing a session or a key. A badge
+  (HR's to give) or PIN (the member's or HR's) is kept as an HMAC under
+  `TIMEOFF_FEED_SECRET` in `kiosk_credential`, unique per tenant by
+  constraint; the personal QR is `GET /v1/timeoff/kiosk-qr`, signed and good
+  for 60 seconds, checked against the tap's instant. A tap is the next thing
+  the clock allows at that instant (out → in, in → out, on a break → back),
+  `source: kiosk`, `workModel: office`, actor `integration/kiosk`. The queue
+  carries a sequence per tap and the kiosk's time of sending: a sequence at
+  or below `kiosk_device.last_sequence` is a replay and punches nothing; a
+  clock more than 120 s off keeps its instants, writes the skew on each punch
+  (`punch.clock_skew_seconds`, on `TimeOffPunch` for the exceptions list) and
+  tells HR once a day per kiosk (`kiosk_clock_skew`). One refused tap does
+  not stop the batch. ponytail: rotating the feed secret means setting every
+  badge and PIN again.
 
 ### [ ] TOF-108 — Kiosk screens, offline
 
