@@ -665,10 +665,22 @@ the router has); a SCIM request carries no forwarded list to fall back on.
   The remote's own CORS allowlist stays as it is. Only the server reads the
   remote's domain directly: `routes.json`, and `ssr/*`, which it verifies
   against the signature.
-- **The shell** gets `PEOPLE_REMOTE_URL`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY` and
-  `ROUTER_URL` as `--env` on its deploy, each only when set.
-  `PEOPLE_REMOTE_URL` is read at run time, by the server and by `proxy.ts`
-  alike.
+- **The shell** gets `PEOPLE_REMOTE_URL`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY`,
+  `TIMEOFF_REMOTE_URL`, `TIMEOFF_REMOTE_SSR_PUBLIC_KEY` and `ROUTER_URL` as
+  `--env` on its deploy, each only when set. The remote URLs are read at run
+  time, by the server and by `proxy.ts` alike.
+- **Every remote is configured the same way.** The shell's `AREAS`
+  (`apps/web/src/lib/remotes.ts`) maps each area to its paths, its entitlement
+  and a prefix, and the prefix names its settings: `<P>_REMOTE_URL` (where it is
+  deployed), `<P>_REMOTE_SSR_PUBLIC_KEY` (the key its signed server build
+  `ssr/<name>.cjs` must verify under) and `<P>_REMOTE_SSR=off` (render in the
+  browser only). The browser loads it from `/_<name>/*` on the company's host.
+  People is `PEOPLE` and `/_people`, and runs on `http://localhost:3002` when
+  its URL is unset. Time Off is `TIMEOFF` and `/_timeoff`, for `/time-off` and
+  `/settings/time-off`, and has no default: while `TIMEOFF_REMOTE_URL` is
+  unset, those pages say Time off is unavailable and `/_timeoff/*` is a 404.
+  Each remote has a renderer process of its own, so one remote's deploy never
+  interrupts another's server rendering.
 
 People and the router are skipped with a warning while `ROUTER_URL_<ENV>` is
 unset, and the remote while its project variable is, so the workflows run green
@@ -1109,6 +1121,8 @@ presigns a GET.
 | `VERCEL_PROJECT_ID_PEOPLE_REMOTE_STAGING`, `VERCEL_PROJECT_ID_PEOPLE_REMOTE_PRODUCTION` | The remote's Vercel project id (`prj_…`). Unset: the remote is skipped. |
 | `PEOPLE_REMOTE_URL_STAGING`, `PEOPLE_REMOTE_URL_PRODUCTION` | The remote's custom domain, `https://…`, no trailing slash. |
 | `PEOPLE_REMOTE_SSR_PUBLIC_KEY_STAGING`, `PEOPLE_REMOTE_SSR_PUBLIC_KEY_PRODUCTION` | The Ed25519 public key, base64 SPKI DER. |
+| `TIMEOFF_REMOTE_URL_STAGING`, `TIMEOFF_REMOTE_URL_PRODUCTION` | The Time Off remote's custom domain, `https://…`, no trailing slash. Passed to the shell as `TIMEOFF_REMOTE_URL`. Unset: Time off is unavailable in the shell. |
+| `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_STAGING`, `TIMEOFF_REMOTE_SSR_PUBLIC_KEY_PRODUCTION` | The Time Off remote's Ed25519 public key, base64 SPKI DER. Passed to the shell as `TIMEOFF_REMOTE_SSR_PUBLIC_KEY`. Unset: its screens render in the browser only. |
 
 The router's `AUTH_JWKS_URL` is identity's own domain and is written in the
 workflow.

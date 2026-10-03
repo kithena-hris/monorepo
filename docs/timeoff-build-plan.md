@@ -671,7 +671,7 @@ no decline, cancel or change.
   keyboard operable).
 - **Done when** each has a story and `just test-stories` is green.
 
-### [ ] TOF-056 — The shell loads a second remote
+### [x] TOF-056 — The shell loads a second remote
 
 **Goal** The shell's remote loading, screen loading, persisted operations and
 SSR signing are written for People only (`PEOPLE_REMOTE_URL`,
