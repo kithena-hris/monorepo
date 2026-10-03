@@ -627,7 +627,7 @@ no decline, cancel or change.
 
 ### Web shell and Reach
 
-### [ ] TOF-051 — Reach: balance meter
+### [x] TOF-051 — Reach: balance meter
 
 - **Spec** PRD §15.3
 - **Files** `packages/ui/src/components/progress/`
@@ -636,7 +636,7 @@ no decline, cancel or change.
   Story with used and booked.
 - **Done when** `just test-stories` is green.
 
-### [ ] TOF-052 — Reach: day bar
+### [x] TOF-052 — Reach: day bar
 
 - **Files** `packages/ui/src/components/chart/`
 - **Depends on** nothing
@@ -645,7 +645,7 @@ no decline, cancel or change.
   be hidden. Hand-drawn SVG, per the charts decision.
 - **Done when** stories for T20's five days pass axe.
 
-### [ ] TOF-053 — Reach: calendar markers
+### [x] TOF-053 — Reach: calendar markers
 
 - **Files** `packages/ui/src/components/calendar/`
 - **Depends on** nothing
@@ -653,7 +653,7 @@ no decline, cancel or change.
   `today`, struck-through days and an error tone per day.
 - **Done when** a story reproduces MT6.
 
-### [ ] TOF-054 — Reach: rows scheduler and month grid
+### [x] TOF-054 — Reach: rows scheduler and month grid
 
 - **Files** `packages/ui/src/components/scheduler/`
 - **Depends on** nothing
@@ -662,7 +662,7 @@ no decline, cancel or change.
   `view="month"` (chips per day, "+N more", selected and clash cells).
 - **Done when** stories reproduce T12 and T13 and pass axe.
 
-### [ ] TOF-055 — Reach: small variants
+### [x] TOF-055 — Reach: small variants
 
 - **Files** `packages/ui/src/components/{card,badge,stat,slider}/`
 - **Depends on** nothing
