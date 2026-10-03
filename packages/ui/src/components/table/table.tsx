@@ -77,7 +77,9 @@ export function Table({
       // could not be scrolled past from on top of it. A table given a
       // bounded height scrolls itself and hands the page the rest.
       className={cn(
-        'w-full overflow-auto overscroll-x-contain',
+        // `isolate`: the pinned header's stacking stays inside the table,
+        // under the page's own bars and anything laid over the table.
+        'isolate w-full overflow-auto overscroll-x-contain',
         // A raised surface, not a ruled box: the rows are separated by hairlines
         // and the table itself by its shadow, the same as every other card.
         !bare && 'rounded-lg bg-surface shadow-sm',
@@ -109,11 +111,13 @@ export function TableHeader({
         // it, so the table reads as one surface rather than a banded form.
         '[&>tr]:border-b [&>tr]:border-border',
         // Sticky lives on the cells, not the row: `position: sticky` does
-        // nothing on a `<thead>` or `<tr>` in a `border-collapse` table. Pinned,
-        // the header turns to glass so the rows passing under it stay legible
-        // as rows rather than vanishing behind a slab.
-        '[[data-sticky-header]_&_th]:sticky [[data-sticky-header]_&_th]:top-0 [[data-sticky-header]_&_th]:z-10',
-        '[[data-sticky-header]_&_th]:bg-glass [[data-sticky-header]_&_th]:backdrop-blur-lg',
+        // nothing on a `<thead>` or `<tr>` in a `border-collapse` table.
+        // Pinned, every cell is opaque and above the body's pinned column
+        // (`z-10`): glass let the rows show through as they passed under it,
+        // and a pinned body cell at the header's own `z-10` came later in the
+        // document and painted over it.
+        '[[data-sticky-header]_&_th]:sticky [[data-sticky-header]_&_th]:top-0 [[data-sticky-header]_&_th]:z-20',
+        '[[data-sticky-header]_&_th]:bg-surface',
         '[[data-sticky-header]_&_th]:shadow-[inset_0_-1px_0_var(--reach-color-border)]',
         className,
       )}
@@ -240,10 +244,10 @@ export function TableHead({
         // way, the colour says which column, before the arrow is even found.
         sortDirection && 'text-fg',
         numeric && 'text-right',
-        // Opaque, and over the pinned header's glass (`TableHeader`), which is
-        // more specific: the cells scrolling sideways pass under this one, and
-        // through glass they read as part of it.
-        sticky && 'sticky left-0 z-20 bg-surface!',
+        // Opaque, and over the rest of a pinned header (`TableHeader`, whose
+        // rule is more specific, hence `!`): the corner, which both the header
+        // cells scrolling sideways and the pinned column scrolling up pass under.
+        sticky && 'sticky left-0 z-30! bg-surface',
         resizer !== undefined && !sticky && 'relative',
         resizer !== undefined && 'overflow-visible',
         className,

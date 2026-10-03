@@ -10,6 +10,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type FocusEvent,
   type JSX,
   type KeyboardEvent,
@@ -145,9 +146,9 @@ const CARD = {
   section: 'touch:block',
   /*
    * The header's cells stop being sticky one by one; the header as a whole
-   * sticks instead, as a strip of glass over the cards.
+   * sticks instead, opaque, over the cards.
    */
-  head: 'touch:block touch:[&_th]:static! touch:[&_th]:bg-transparent! touch:[&_th]:shadow-none! touch:[[data-sticky-header]_&]:sticky touch:[[data-sticky-header]_&]:top-0 touch:[[data-sticky-header]_&]:z-10 touch:[[data-sticky-header]_&]:bg-glass touch:[[data-sticky-header]_&]:backdrop-blur-lg',
+  head: 'touch:block touch:[&_th]:static! touch:[&_th]:bg-transparent! touch:[&_th]:shadow-none! touch:[[data-sticky-header]_&]:sticky touch:[[data-sticky-header]_&]:top-0 touch:[[data-sticky-header]_&]:z-20 touch:[[data-sticky-header]_&]:bg-surface',
   headRow: 'touch:flex touch:flex-wrap touch:items-center touch:gap-2 touch:px-4 touch:py-2.5',
   row: 'touch:relative touch:flex touch:flex-wrap touch:items-center touch:gap-x-3.5 touch:gap-y-1 touch:py-3.5 touch:pe-4',
   /** Start padding clearing 0, 1 or 2 leading controls (grip, checkbox). */
@@ -755,9 +756,10 @@ export function DataTable<T extends TableRow>({
     count: virtualized ? items.length : 0,
     getScrollElement,
     estimateSize,
-    // Enough rows above and below that a fast flick does not show a gap, and
-    // few enough that the saving is real.
-    overscan: 8,
+    // Rows above and below the view: a screen's worth and more, so a fling
+    // mostly lands on rows already drawn. Where it outruns them, the spacers
+    // are skeleton rows (`SpacerRow`), never blank.
+    overscan: 20,
   });
 
   const virtualRows = virtualized ? virtualizer.getVirtualItems() : [];
@@ -1134,7 +1136,13 @@ export function DataTable<T extends TableRow>({
           // A spacer row rather than a transform: a `<tbody>` may only contain
           // rows, and transforming them breaks the column widths the header is
           // measured against.
-          <tr aria-hidden style={{ height: paddingTop }} />
+          <SpacerRow
+            height={paddingTop}
+            rowHeight={estimateRowHeight}
+            leading={leadingColumns}
+            columns={columns.length}
+            trailing={rowActions ? 1 : 0}
+          />
         ) : null}
 
         {visible.map(({ item, index: rowIndex }) => {
@@ -1212,12 +1220,21 @@ export function DataTable<T extends TableRow>({
                   // By position, not `even:`: a detail row, a group header or
                   // a virtualizer's spacer would each shift an nth-child count.
                   stripe && STRIPE,
+                  // The hover a step past the stripe, so it shows on both.
+                  striped && 'hover:bg-surface-hover',
                   hasTrailing && CARD.titleBreak,
                 )}
                 leadClassName={cn(CARD.leadCell, CARD.lead[0])}
                 {...(stripe ? { 'data-striped': true } : {})}
                 {...(virtualized
-                  ? { measure: virtualizer.measureElement, 'data-index': rowIndex }
+                  ? {
+                      measure: virtualizer.measureElement,
+                      'data-index': rowIndex,
+                      // At a desk, exactly the estimate, so measuring a row
+                      // never moves the total height or the rows under the
+                      // reader. A card is as tall as it is.
+                      height: estimateRowHeight,
+                    }
                   : {})}
                 // 1-based, and past the header row, which is row 1.
                 {...(virtualized ? { 'aria-rowindex': rowIndex + 2 } : {})}
@@ -1336,7 +1353,11 @@ export function DataTable<T extends TableRow>({
                         !column.cardTrailing &&
                         CARD.label,
                       column.hideOnCard && 'touch:hidden',
-                      fixed && 'overflow-hidden text-ellipsis touch:overflow-visible',
+                      // One line, ellipsized: a value that wrapped made its row
+                      // taller than the rest, and the table's height jumped
+                      // as the row was measured.
+                      fixed &&
+                        'overflow-hidden text-ellipsis whitespace-nowrap touch:overflow-visible touch:whitespace-normal',
                       column.className,
                     )}
                   >
@@ -1386,7 +1407,15 @@ export function DataTable<T extends TableRow>({
           );
         })}
 
-        {paddingBottom > 0 ? <tr aria-hidden style={{ height: paddingBottom }} /> : null}
+        {paddingBottom > 0 ? (
+          <SpacerRow
+            height={paddingBottom}
+            rowHeight={estimateRowHeight}
+            leading={leadingColumns}
+            columns={columns.length}
+            trailing={rowActions ? 1 : 0}
+          />
+        ) : null}
 
         {loadingMore ? (
           // A row in the table's own shape, a bar in each cell, as tall as a
@@ -1490,6 +1519,7 @@ function DataRow({
   className,
   leadClassName,
   measure,
+  height,
   children,
   ...rest
 }: {
@@ -1506,6 +1536,8 @@ function DataRow({
    * the estimate, because a card under a finger is twice a desk row's height.
    */
   measure?: (node: HTMLTableRowElement | null) => void;
+  /** A desk row's height in px; a card under a finger keeps its own. */
+  height?: number;
   children: ReactNode;
   /** `aria-rowindex` when the body is virtualized. */
   'aria-rowindex'?: number;
@@ -1538,10 +1570,13 @@ function DataRow({
       style={
         reorderable
           ? { transform: CSS.Transform.toString(transform), transition, position: 'relative' }
-          : undefined
+          : height === undefined
+            ? undefined
+            : { height }
       }
       className={cn(
         className,
+        height !== undefined && 'touch:h-auto!',
         // Held: raised, shadowed and tipped a hair, the same pick-up cue as a
         // Kanban card, so a dragged row reads as lifted rather than selected.
         isDragging && 'z-10 rounded-md bg-surface-raised shadow-lg [rotate:-0.5deg]',
@@ -1575,6 +1610,65 @@ function DataRow({
       ) : null}
       {children}
     </TableRow>
+  );
+}
+
+/**
+ * The rows a virtualized body has not drawn, as their skeleton.
+ *
+ * A fling can outrun the render: the browser scrolls on its own and, until the
+ * rows for the new position are drawn, shows what is there. Here that is a bar
+ * in each column, one per row height, in the shape of the rows rather than a
+ * blank box. Cell backgrounds, so it costs no nodes and nothing to paint while
+ * it scrolls.
+ */
+function SpacerRow({
+  height,
+  rowHeight,
+  leading,
+  columns,
+  trailing,
+}: {
+  height: number;
+  rowHeight: number;
+  leading: number;
+  columns: number;
+  trailing: number;
+}): JSX.Element {
+  const tile = `${String(rowHeight)}px`;
+  const fill = 'var(--reach-color-surface-sunken)';
+  // The hairline under each row, as `divide-y` draws it.
+  const line =
+    'linear-gradient(transparent calc(100% - 1px), var(--reach-color-border) calc(100% - 1px))';
+  // A bar as tall as the loading row's, centred in the row.
+  const bar = `linear-gradient(transparent calc(50% - 7px), ${fill} calc(50% - 7px), ${fill} calc(50% + 7px), transparent calc(50% + 7px))`;
+  const blank: CSSProperties = {
+    backgroundImage: line,
+    backgroundSize: `100% ${tile}`,
+    backgroundRepeat: 'repeat-y',
+  };
+  const barred: CSSProperties = {
+    backgroundImage: `${bar}, ${line}`,
+    backgroundSize: `75% ${tile}, 100% ${tile}`,
+    backgroundRepeat: 'repeat-y',
+    backgroundOrigin: 'content-box, border-box',
+  };
+  return (
+    <tr aria-hidden data-skeleton style={{ height }} className="touch:block">
+      {Array.from({ length: leading + columns + trailing }, (_, i) => {
+        const data = i >= leading && i < leading + columns;
+        return (
+          <TableCell
+            key={i}
+            style={data ? barred : blank}
+            className={cn(
+              'h-auto py-0 [[data-dense]_&]:h-auto [[data-dense]_&]:py-0',
+              i === leading ? 'touch:block touch:h-full' : 'touch:hidden',
+            )}
+          />
+        );
+      })}
+    </tr>
   );
 }
 
