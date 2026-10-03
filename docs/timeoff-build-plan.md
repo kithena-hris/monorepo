@@ -2018,34 +2018,29 @@ variant="track"` (mandatory pinned, unbooked later weeks hatched) and
   whoever it was escalated to; an HR step asks nobody in particular — saying
   who, what and when, with Approve and Decline. Each button carries a value
   Time Off signs (tenant, request, the approver it was sent to, the
-  decision, two weeks' expiry); a press comes to the public
-  `POST /v1/timeoff/integrations/<provider>/actions`, is verified by the
-  adapter (the provider's signature) and by Time Off (its own), and is
+  decision, two weeks' expiry), verified by Time Off when pressed and
   decided through `decideRequest` as that approver, so every rule of the
   screen holds; a refusal ("no longer waiting") is said in the
   conversation. The daily `chat-status` job sets "Out of office" for
-  whoever is away today until midnight after their last day, for members
-  who granted their own status (the installer's grant comes with the
-  install; anyone else's through `POST …/integrations/<provider>/connect-me`,
-  which has no screen yet). **Slack** (`infrastructure/integrations/slack.ts`):
-  OAuth v2 install with bot scopes `chat:write, users:read,
-users:read.email, im:write` and user scope `users.profile:write`;
-  `users.lookupByEmail`, `chat.postMessage` to the user's id with Block Kit
-  buttons, `users.profile.set` with `status_expiration`; a press checked
-  against `x-slack-signature` within five minutes and answered through its
-  `response_url`. Tokens sealed with AES-256-GCM under
-  `TIMEOFF_INTEGRATION_KEY` before they are stored. Inert without any of its
-  credentials.
+  members who granted their own status — none can through Slack yet (below).
+  **Slack** (`infrastructure/integrations/slack.ts`) is Kithena's one Slack
+  app, owned by `platform/slack`, not an app of Time Off's: the company adds
+  Kithena to Slack once, and Time Off talks to the Slack service over
+  internal HTTP with `SLACK_URL` and the pair's `SLACK_TIMEOFF_TOKEN`, as
+  People does. Connecting Slack in Time Off is recorded at once;
+  `POST /internal/timeoff/approval` on the Slack service sends the direct
+  message (`timeoff_approve` / `timeoff_decline`); the service runs in
+  Socket Mode, so a press arrives on its socket and is passed to Time Off's
+  internal `POST /v1/timeoff/integrations/slack/relay` with the same token
+  and the workspace's company, and the message is replaced with Time Off's
+  answer. The relay is not on the router or the public tunnel. A member's
+  own status is refused for now (`connect-me` answers NOT_CONFIGURED): the
+  shared app has no user scope; it needs `users.profile:write` as a user
+  scope and a member grant flow in `platform/slack`.
 - **Credentials a person must create** (none were created here):
-  - A Slack app (api.slack.com/apps), distributed publicly so companies can
-    install it: OAuth redirect URL
-    `<TIMEOFF_PUBLIC_URL>/v1/timeoff/integrations/slack/callback`, bot scopes
-    `chat:write`, `users:read`, `users:read.email`, `im:write`, user scope
-    `users.profile:write`, Interactivity on with the request URL
-    `<TIMEOFF_PUBLIC_URL>/v1/timeoff/integrations/slack/actions`, and App
-    Home's Messages tab on → `TIMEOFF_SLACK_CLIENT_ID`,
-    `TIMEOFF_SLACK_CLIENT_SECRET`, `TIMEOFF_SLACK_SIGNING_SECRET`.
-  - `TIMEOFF_INTEGRATION_KEY`: 32 random bytes, base64.
+  - `SLACK_TIMEOFF_TOKEN`: one random secret, given to both the Slack
+    service and Time Off (the deploy writes it into `slack.env` and
+    `timeoff.env`). Nothing at Slack: the Kithena app already exists.
   - Teams: a Bot Framework registration and an adapter, when it follows.
 
 ### [x] TOF-112 — AI holiday drafts

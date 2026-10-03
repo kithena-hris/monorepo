@@ -519,6 +519,8 @@ jobs:
           SLACK_CLIENT_SECRET: ${{ secrets.SLACK_CLIENT_SECRET }}
           SLACK_TOKEN_KEY: ${{ secrets.SLACK_TOKEN_KEY }}
           SLACK_PEOPLE_TOKEN: ${{ secrets.SLACK_PEOPLE_TOKEN }}
+          # The Slack–Time Off pair's secret, written into both ends.
+          SLACK_TIMEOFF_TOKEN: ${{ secrets.SLACK_TIMEOFF_TOKEN }}
           # The router–audit pair's secret (`docs/audit.md`, "Deploying"),
           # written into both ends from the one secret, as PEOPLE_API_TOKEN is.
           AUDIT_API_TOKEN: ${{ secrets.AUDIT_API_TOKEN }}
@@ -575,13 +577,13 @@ jobs:
               printf 'SLACK_URL=http://slack:4102\nSLACK_PEOPLE_TOKEN=%s\n' "$SLACK_PEOPLE_TOKEN"
             fi
           } | put people.env
-          printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nAUTH_ORIGIN=https://auth.staging.app.kithena.com\nSLACK_COMMAND=/kithena-staging\n' \
-            "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" | put slack.env
+          printf 'SLACK_APP_TOKEN=%s\nSLACK_CLIENT_ID=%s\nSLACK_CLIENT_SECRET=%s\nSLACK_TOKEN_KEY=%s\nSLACK_PEOPLE_TOKEN=%s\nSLACK_TIMEOFF_TOKEN=%s\nAUTH_ORIGIN=https://auth.staging.app.kithena.com\nSLACK_COMMAND=/kithena-staging\n' \
+            "$SLACK_APP_TOKEN" "$SLACK_CLIENT_ID" "$SLACK_CLIENT_SECRET" "$SLACK_TOKEN_KEY" "$SLACK_PEOPLE_TOKEN" "$SLACK_TIMEOFF_TOKEN" | put slack.env
           printf 'AUDIT_API_TOKEN=%s\n' "$AUDIT_API_TOKEN" | put audit.env
           {
             printf '%s\nTIMEOFF_API_TOKEN=%s\n' "$TIMEOFF_ENV" "$TIMEOFF_API_TOKEN"
             for name in TIMEOFF_PUBLIC_URL TIMEOFF_INTEGRATION_KEY TIMEOFF_GOOGLE_SERVICE_ACCOUNT \
-                        TIMEOFF_MICROSOFT_CLIENT_ID TIMEOFF_MICROSOFT_CLIENT_SECRET; do
+                        TIMEOFF_MICROSOFT_CLIENT_ID TIMEOFF_MICROSOFT_CLIENT_SECRET SLACK_TIMEOFF_TOKEN; do
               if [ -n "${!name}" ]; then printf '%s=%s\n' "$name" "${!name}"; fi
             done
           } | put timeoff.env
@@ -809,13 +811,13 @@ jobs:
         if: needs.plan.outputs.shell == 'true'
         env:
           TENANT_HOST_SUFFIX: staging.app.kithena.com
-      # `turbo run ... --filter=X...` and not `pnpm --filter X build`. The
-      # trailing `...` means "and everything X depends on": turbo.json makes
-      # `build` depend on `^build` and `codegen`, so a bare pnpm filter runs
-      # `next build` against workspace packages that were never built. That is
-      # how this failed — `Module not found: Can't resolve '@kithena/contracts'`
-      # — and it passes locally only because a developer's tree already has the
-      # dist directories. The Dockerfile has always done it this way.
+        # `turbo run ... --filter=X...` and not `pnpm --filter X build`. The
+        # trailing `...` means "and everything X depends on": turbo.json makes
+        # `build` depend on `^build` and `codegen`, so a bare pnpm filter runs
+        # `next build` against workspace packages that were never built. That is
+        # how this failed — `Module not found: Can't resolve '@kithena/contracts'`
+        # — and it passes locally only because a developer's tree already has the
+        # dist directories. The Dockerfile has always done it this way.
         run: pnpm turbo run build --filter=@kithena/web...
 
       # The shell's People settings are passed per deployment and read per
@@ -915,7 +917,6 @@ jobs:
       # that migrates the database and ships the UI while leaving the service
       # on old code is the worst of the three states: the schema has moved, the
       # front end expects it, and the thing holding sessions has not been told.
-
 
       # The identity service.
       #
