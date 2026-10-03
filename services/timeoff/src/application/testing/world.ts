@@ -101,7 +101,7 @@ export const sickType = (): LeaveTypeDefinition =>
     requiresNote: { afterDays: 3 },
   });
 
-export const vacationPolicy = (over: Partial<PolicyDefinition> = {}): PolicyDefinition =>
+export const vacationPolicy = (over: Record<string, unknown> = {}): PolicyDefinition =>
   PolicyDefinition.parse({
     leaveTypeKey: 'vacation',
     allowance: [{ fromYears: 0, days: '25.000' }],
