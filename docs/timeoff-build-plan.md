@@ -443,7 +443,7 @@ no decline, cancel or change.
   option, so TOF-016 cannot carry a swap as one proposal without a contract
   change. Asks to teammates go smallest absence first (Yuki before Omar).
 
-### [ ] TOF-023 — Punches and the clock
+### [x] TOF-023 — Punches and the clock
 
 - **Spec** PRD §11.1, §11.2
 - **Files** `services/timeoff/src/domain/attendance/clock.ts`
@@ -453,7 +453,7 @@ no decline, cancel or change.
 - **Done when** a punch from the kiosk followed by one from the web reads as one
   continuous day.
 
-### [ ] TOF-024 — The working day and overtime
+### [x] TOF-024 — The working day and overtime
 
 - **Spec** PRD §11.3, §11.5
 - **Files** `services/timeoff/src/domain/attendance/day.ts`
@@ -464,7 +464,7 @@ no decline, cancel or change.
 - **Done when** T20's week computes 7h 58m, 9h 05m with +1h 05m, a missing
   Wednesday and 3h 41m live.
 
-### [ ] TOF-025 — Missed punches and corrections
+### [x] TOF-025 — Missed punches and corrections
 
 - **Spec** PRD §11.4
 - **Files** `services/timeoff/src/domain/attendance/correction.ts`
@@ -473,8 +473,14 @@ no decline, cancel or change.
   with `supersedes`; corrections after 24 hours flag for the manager.
 - **Done when** Wednesday's missing out is detected on Thursday and a
   correction at 18:05 yields 9h 18m with 1h 18m overtime.
+- **As built, 2026-10-03** The correction yields 8h 28m with 28m overtime.
+  The design's 9h 18m is the whole 08:47–18:05 span, but the same row records
+  a 50-minute break, and Monday and Tuesday subtract theirs. A forgotten
+  clock-out has no original punch to supersede, so
+  `AttendanceCorrected.supersedes` is nullable. Tuesday's overtime starts at
+  17:42, where the eighth hour ends, not at the 17:00 the design draws.
 
-### [ ] TOF-026 — Schedules
+### [x] TOF-026 — Schedules
 
 - **Spec** PRD §11.5
 - **Files** `services/timeoff/src/domain/attendance/schedule.ts`
@@ -482,7 +488,7 @@ no decline, cancel or change.
 - **Approach** Fixed, flexible with core hours, seasonal, rotating.
 - **Done when** "Summer hours" Jul–Aug plans 35h and Madrid office plans 40h.
 
-### [ ] TOF-027 — Pay period
+### [x] TOF-027 — Pay period
 
 - **Spec** PRD §11.8
 - **Files** `services/timeoff/src/domain/attendance/pay-period.ts`
