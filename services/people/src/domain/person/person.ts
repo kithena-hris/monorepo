@@ -567,10 +567,26 @@ export class Person extends AggregateRoot<string> {
     return moved;
   }
 
-  /** Leave began today on the person's own calendar (§8.5), which is what it is effective from. */
-  startLeave(ctx: EventContext, timeZone: string): Result<void> {
+  /**
+   * Leave began today on the person's own calendar (§8.5), which is what it
+   * is effective from — or on `from`, a day already behind them since they
+   * started, for an import of somebody who has been away since June.
+   */
+  startLeave(ctx: EventContext, timeZone: string, from?: string): Result<void> {
     if (this.#status !== 'active') return err(InvalidTransition(this.#status, 'put on leave'));
-    return this.#moveTo('on_leave', 'leave_started', ctx, ctx.clock.date(timeZone));
+    const today = ctx.clock.date(timeZone);
+    const day = from ?? today;
+    if (day > today) {
+      return err(failure('LEAVE_NOT_STARTED', `Leave from ${day} has not begun`, ['from']));
+    }
+    if (this.#hireDate !== null && day < this.#hireDate) {
+      return err(
+        failure('LEAVE_BEFORE_HIRE', `Leave from ${day} precedes the hire date of ${this.#hireDate}`, [
+          'from',
+        ]),
+      );
+    }
+    return this.#moveTo('on_leave', 'leave_started', ctx, day);
   }
 
   endLeave(ctx: EventContext, timeZone: string): Result<void> {

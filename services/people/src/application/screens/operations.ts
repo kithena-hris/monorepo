@@ -393,6 +393,8 @@ export type ImportStageView =
         };
         /** The legal entities the new people join: numbered when they are hired. */
         readonly createdIn: readonly string[];
+        /** Who leaves, serves notice or is on leave once the file is in, and where the dates won. */
+        readonly lifecycle: DryRun['lifecycle'];
       };
       /**
        * The blocked rows as a file that imports once fixed: a signed link
@@ -948,6 +950,7 @@ export async function dryRunImport(
               ? []
               : COUNTRIES.map((c) => ({ code: c.code, name: c.name })),
         },
+        lifecycle: plan.lifecycle,
         createdIn: [
           ...new Set(
             plan.rows.flatMap((r) => {

@@ -63,7 +63,8 @@ export interface AttributeAdvisor {
  * Columns the importer knows without the schema.
  *
  * `hire_date` is core identity and belongs to the lifecycle rather than to the
- * registry, so a published schema need not list it. `__person_id` is the
+ * registry, so a published schema need not list it; so do a status, a
+ * termination date and reason, and the rehire flag. `__person_id` is the
  * export's hidden id (§15.3). The rest are what this module's own reports and
  * exports add, recognised so a round-tripped file is not six "unmatched"
  * columns.
@@ -72,6 +73,12 @@ export const SYSTEM_COLUMNS = {
   [PERSON_ID_COLUMN]: 'mapped',
   hire_date: 'mapped',
   effective_from: 'mapped',
+  // The lifecycle's own (`domain/import/lifecycle.ts`): read onto offboarding,
+  // notice and leave, never kept as fields beside the status.
+  employment_status: 'mapped',
+  last_working_day: 'mapped',
+  leaving_reason: 'mapped',
+  eligible_for_rehire: 'mapped',
   __source_row: 'ignored',
   __reason: 'ignored',
   __missing_required: 'ignored',

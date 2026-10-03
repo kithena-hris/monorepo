@@ -35,6 +35,7 @@ export type PlanStepKind =
   | 'places'
   | 'fields'
   | 'people'
+  | 'lifecycle'
   | 'ids'
   | 'refs'
   | 'ask'
@@ -168,6 +169,7 @@ const STEP_LOOK: Record<
   places: { icon: <icons.location />, tone: 'accent' },
   fields: { icon: <icons.add />, tone: 'accent' },
   people: { icon: <icons.people />, tone: 'success' },
+  lifecycle: { icon: <icons.offboard />, tone: 'neutral' },
   ids: { icon: <icons.identifier />, tone: 'neutral' },
   refs: { icon: <icons.link />, tone: 'warning' },
   ask: { icon: <icons.notifications />, tone: 'info' },
@@ -577,7 +579,8 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         ) : null}
         {done.created > 0 ? (
           <Alert tone="info" title="Nobody has been invited yet">
-            New people are pre-hire or provisional. Invite each from their record when you’re ready.
+            Nobody is invited by an import, and nobody who has left ever is. Invite each from their
+            record when you’re ready.
           </Alert>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">

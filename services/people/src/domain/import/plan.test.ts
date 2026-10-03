@@ -239,3 +239,42 @@ describe('a column that is one of People’s own fields', () => {
     expect(short).toBe('Add Full-time and Part-time to employment type and import 369 people.');
   });
 });
+
+describe('the employment lifecycle columns, in one line', () => {
+  it('says who already left, who is serving notice and who is on leave, right after the people', () => {
+    const { steps, short } = planOf({
+      ...ACME,
+      lifecycle: { left: 58, notice: 6, onLeave: 29, conflicts: {} },
+    });
+    const at = steps.findIndex((s) => s.kind === 'lifecycle');
+    expect(steps[at - 1]?.kind).toBe('people');
+    expect(steps[at]?.title).toBe(
+      '58 people already left (offboarded from their termination date); 6 are serving notice (offboarding scheduled); 29 are on leave',
+    );
+    expect(steps[at]?.detail).toBe(
+      'From the status and the dates beside it, through People’s own offboarding and leave, each effective from its date. Nobody is notified, and nobody who has left is invited or given access. People keeps no leave record of its own, so the leave columns are kept as fields.',
+    );
+    expect(short).toContain('offboard 58');
+  });
+
+  it('names only what happens, and a disagreement the dates settled in a line each', () => {
+    const { steps } = planOf({
+      ...ACME,
+      lifecycle: { left: 1, notice: 0, onLeave: 0, conflicts: { starts_later: 2 } },
+    });
+    const step = steps.find((s) => s.kind === 'lifecycle');
+    expect(step?.title).toBe('1 person already left (offboarded from their termination date)');
+    expect(step?.detail).toBe(
+      'From the status and the dates beside it, through People’s own offboarding and leave, each effective from its date. Nobody is notified, and nobody who has left is invited or given access. Where the status and the dates disagree, the dates decide: 2 people with a start date ahead are pre-hire until then, whatever the status says.',
+    );
+  });
+
+  it('a file with no lifecycle columns has no such step', () => {
+    expect(planOf(ACME).steps.some((s) => s.kind === 'lifecycle')).toBe(false);
+    expect(
+      planOf({ ...ACME, lifecycle: { left: 0, notice: 0, onLeave: 0, conflicts: {} } }).steps.some(
+        (s) => s.kind === 'lifecycle',
+      ),
+    ).toBe(false);
+  });
+});

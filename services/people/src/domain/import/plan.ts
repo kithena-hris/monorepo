@@ -1,3 +1,4 @@
+import { lifecycleNote, type LifecycleConflict } from './lifecycle.js';
 import type { ForExisting } from './new-fields.js';
 
 /**
@@ -55,6 +56,13 @@ export interface PlanInput {
   };
   /** References the rows leave empty for HR, and the fields they are in. */
   readonly leftEmpty?: { readonly count: number; readonly labels: readonly string[] };
+  /** What the file's status and dates do to the people it brings in (`lifecycle.ts`). */
+  readonly lifecycle?: {
+    readonly left: number;
+    readonly notice: number;
+    readonly onLeave: number;
+    readonly conflicts: Readonly<Partial<Record<LifecycleConflict, number>>>;
+  };
 }
 
 export type PlanStepKind =
@@ -62,6 +70,7 @@ export type PlanStepKind =
   | 'places'
   | 'fields'
   | 'people'
+  | 'lifecycle'
   | 'ids'
   | 'refs'
   | 'ask'
@@ -178,6 +187,45 @@ function forExistingStep(f: PlanField): PlanStep | null {
   }
 }
 
+function lifecycleStep(l: NonNullable<PlanInput['lifecycle']>): PlanStep | null {
+  const notes = Object.entries(l.conflicts).flatMap(([code, n]) =>
+    n === 0 ? [] : [lifecycleNote(code as LifecycleConflict, n)],
+  );
+  const said = [
+    l.left > 0 ? [l.left, 'already left (offboarded from their termination date)', null] : null,
+    l.notice > 0
+      ? [
+          l.notice,
+          'is serving notice (offboarding scheduled)',
+          'are serving notice (offboarding scheduled)',
+        ]
+      : null,
+    l.onLeave > 0 ? [l.onLeave, 'is on leave', 'are on leave'] : null,
+  ].filter((x) => x !== null) as [number, string, string | null][];
+  if (said.length === 0 && notes.length === 0) return null;
+  const title = said
+    .map(([n, one, many], i) => {
+      const verb = n === 1 || many === null ? one : many;
+      return i === 0 ? `${plural(n, 'person', 'people')} ${verb}` : `${String(n)} ${verb}`;
+    })
+    .join('; ');
+  return {
+    kind: 'lifecycle',
+    title: title === '' ? 'Everybody’s status follows their dates' : title,
+    detail: [
+      'From the status and the dates beside it, through People’s own offboarding and leave, each effective from its date. Nobody is notified, and nobody who has left is invited or given access.',
+      l.onLeave > 0
+        ? 'People keeps no leave record of its own, so the leave columns are kept as fields.'
+        : null,
+      notes.length > 0
+        ? `Where the status and the dates disagree, the dates decide: ${notes.join(' ')}`
+        : null,
+    ]
+      .filter((x) => x !== null)
+      .join(' '),
+  };
+}
+
 /** The plan's steps, and the same in one sentence. */
 export function planOf(input: PlanInput): {
   readonly steps: readonly PlanStep[];
@@ -257,6 +305,11 @@ export function planOf(input: PlanInput): {
   steps.push(peopleStep(input.rows));
   const importing = input.rows.create + input.rows.update;
   if (importing > 0) short.push(`import ${plural(importing, 'person', 'people')}`);
+  const lifecycle = input.lifecycle === undefined ? null : lifecycleStep(input.lifecycle);
+  if (lifecycle !== null && input.lifecycle !== undefined) {
+    steps.push(lifecycle);
+    if (input.lifecycle.left > 0) short.push(`offboard ${String(input.lifecycle.left)} who left`);
+  }
   if (input.identifiers?.inFile === true) {
     const matching =
       'Rows match people already here by work email; a row that matches nobody is a new person.';

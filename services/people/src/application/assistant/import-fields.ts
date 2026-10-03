@@ -665,6 +665,7 @@ async function planned(
         return to === undefined ? [] : [{ value: w.value, to: to.name }];
       }),
     },
+    lifecycle: dry.lifecycle,
     leftEmpty: {
       count: dry.leftEmptyCount,
       labels: [...new Set(dry.leftEmpty.map((l) => l.label))],
