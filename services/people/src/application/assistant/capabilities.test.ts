@@ -345,7 +345,8 @@ describe('people.reports', () => {
     );
     expect(out.rows.map((r) => r.name).toSorted()).toEqual(['Dwight Schrute', 'Jim Halpert']);
     expect(out.total).toBe(2);
-    expect(out.described).toBe('reporting directly to Michael Scott');
+    // The manager's name alone: the assistant writes "Michael Scott has 2 direct reports".
+    expect(out.described).toBe('Michael Scott');
   });
 
   it('reads "me" as whoever is asking', async () => {
