@@ -371,3 +371,32 @@ export const Removable: Story = {
     );
   },
 };
+
+export const Pulse: Story = {
+  name: 'Live',
+  args: { pulse: true, size: 'sm' },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`pulse` rings the dot in the badge’s own tone, for something happening right now. It loops under normal motion and plays once under reduced motion, and the word still says it is live.',
+      },
+    },
+  },
+  render: () => (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge pulse size="sm" tone="success">
+        Running
+      </Badge>
+      <Badge pulse size="sm" tone="warning">
+        Paused
+      </Badge>
+      <Badge pulse size="sm" tone="danger">
+        Recording
+      </Badge>
+      <Badge pulse size="sm" tone="neutral">
+        Idle
+      </Badge>
+    </div>
+  ),
+};
