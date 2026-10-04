@@ -1283,6 +1283,8 @@ export interface DuplicatesView {
     readonly match: MatchBand;
     /** What flagged the pair, as nobody asked: SCIM provisioning, or Kithena's duplicate check. */
     readonly flaggedBy: string;
+    /** Each one's photo, where they have one and the viewer may read them. */
+    readonly avatarUrls: readonly [string | null, string | null];
   }[];
   /**
    * Merges still standing, newest first, each with what undoing it would
@@ -1342,9 +1344,18 @@ export async function duplicatesView(
     };
 
     const items: DuplicatesView['items'][number][] = [];
+    // Only somebody the viewer may read has a face here, as on every other list.
+    const readable = new Set<string>();
+    for (const id of new Set(queue.value.flatMap((c) => c.personIds))) {
+      // eslint-disable-next-line no-await-in-loop -- one transaction, read in turn
+      if ((await access.read(tx, { ...asking, personId: id })).ok) readable.add(id);
+    }
+    const avatars = await avatarsOf(deps, tx, asking.tenantId, [...readable]);
+    const faceOf = (id: string) => (readable.has(id) ? (avatars.get(id) ?? null) : null);
     for (const c of queue.value) {
       items.push({
         personIds: c.personIds,
+        avatarUrls: [faceOf(c.personIds[0]), faceOf(c.personIds[1])],
         names: [await nameFor(c.personIds[0]), await nameFor(c.personIds[1])],
         reasons: c.signals.map((s) =>
           s.signal === 'unique_value'

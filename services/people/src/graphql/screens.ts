@@ -313,6 +313,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         flaggedBy: t.exposeString('flaggedBy', {
           description: 'What flagged the pair, as nobody asked: SCIM provisioning or the check.',
         }),
+        avatarUrls: t.field({
+          type: ['String'],
+          nullable: { items: true, list: false },
+          description: 'Each one’s photo, in the order of personIds; null where none may be shown.',
+          resolve: (d) => [...d.avatarUrls],
+        }),
       }),
     });
   const ComparedPersonRef = builder.objectRef<ComparedPerson>('ComparedPerson').implement({

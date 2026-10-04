@@ -259,6 +259,7 @@ const pairRow = (pair: DuplicatePair): Row => ({
   id: `dup-${pairId(pair)}`,
   kind: 'duplicates',
   name: pair.names[0] ?? '',
+  avatarUrl: pair.avatarUrls?.[0] ?? null,
   summary: `Possible duplicate of ${pair.names[1] ?? ''} · ${pair.reasons.join(', ')}`,
   by: flaggedByOf(pair),
   at: null,
@@ -277,6 +278,7 @@ const shareRow = (share: ShareRequest): Row => ({
   id: `export-${share.id}`,
   kind: 'exports',
   name: share.requestedBy.name ?? 'A colleague',
+  avatarUrl: share.requestedBy.avatarUrl ?? null,
   summary: `Export to ${share.recipient.name ?? 'a colleague'} · ${share.reason}`,
   at: share.requestedAt,
 });
@@ -871,7 +873,7 @@ function ExportDetail({
   return (
     <Card padded className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
-        <Avatar size="xl" name={asker} />
+        <Avatar size="xl" name={asker} src={share.requestedBy.avatarUrl ?? undefined} />
         <div className="min-w-0 flex-1">
           <h2 className="text-md font-bold">
             {asker}

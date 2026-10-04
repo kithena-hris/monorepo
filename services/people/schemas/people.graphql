@@ -584,6 +584,10 @@ type DuplicateDismissed {
 """Two records that look like one human, and why. Never a value."""
 type DuplicatePair {
   """
+  Each one’s photo, in the order of personIds; null where none may be shown.
+  """
+  avatarUrls: [String]!
+  """
   What flagged the pair, as nobody asked: SCIM provisioning or the check.
   """
   flaggedBy: String

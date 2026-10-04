@@ -61,7 +61,13 @@ export interface DuplicatePair {
   readonly match?: MatchBand | null;
   /** What flagged the pair, as nobody asked for it: SCIM provisioning, or the check. Absent from an older People. */
   readonly flaggedBy?: string | null;
+  /** Each one's photo, in the order of `personIds`, where the viewer may see it. Absent from an older People. */
+  readonly avatarUrls?: readonly (string | null)[];
 }
+
+/** One side's photo, by their id, from the queue's row for the pair. */
+export const faceOf = (pair: DuplicatePair | undefined, personId: string | undefined): string | undefined =>
+  pair?.avatarUrls?.[pair.personIds.indexOf(personId ?? '')] ?? undefined;
 
 /** "Flagged by Kithena’s duplicate check", or null from an older People. */
 export const flaggedByOf = (pair: DuplicatePair | undefined): string | null =>
@@ -336,7 +342,7 @@ export function DuplicateDetail({
   return (
     <Card padded className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
-        <Avatar size="xl" name={people[0]?.name ?? ''} />
+        <Avatar size="xl" name={people[0]?.name ?? ''} src={faceOf(pair, people[0]?.id)} />
         <div className="min-w-0 flex-1">
           <h2 className="text-md font-bold">
             {people[0]?.name}
@@ -399,7 +405,7 @@ export function DuplicateDetail({
           sources={
             [0, 1].map((i) => (
               <div key={people[i]?.id ?? i} className="flex min-w-0 items-center gap-2.5">
-                <Avatar size="lg" name={people[i]?.name ?? ''} />
+                <Avatar size="lg" name={people[i]?.name ?? ''} src={faceOf(pair, people[i]?.id)} />
                 <div className="min-w-0">
                   <p className="truncate font-bold">{people[i]?.name}</p>
                   <p className="truncate text-sm text-fg-muted">

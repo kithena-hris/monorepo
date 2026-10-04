@@ -164,7 +164,7 @@ export const OPERATIONS = {
 
   Duplicates: `query Duplicates($a: ID, $b: ID) {
     peopleDuplicates(a: $a, b: $b) {
-      items { personIds names reasons match flaggedBy }
+      items { personIds names reasons match flaggedBy avatarUrls }
       merges { absorbedId survivorId absorbedName survivorName mergedAt reversed kept account refusal }
       comparison {
         people { id name status refusal }

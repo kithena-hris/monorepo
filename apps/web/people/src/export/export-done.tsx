@@ -50,7 +50,8 @@ export interface ExportRecord {
 export interface ShareRequest {
   readonly id: string;
   readonly state: 'pending' | 'approved' | 'rejected' | 'expired' | 'withdrawn';
-  readonly requestedBy: Person;
+  /** Whoever asked, with their photo where the viewer may see it (absent from an older People). */
+  readonly requestedBy: Person & { readonly avatarUrl?: string | null };
   readonly recipient: Person;
   readonly reason: string;
   readonly requestedAt: string;
