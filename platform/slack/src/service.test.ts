@@ -2,7 +2,14 @@ import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { signState } from './secrets.js';
-import { slackService, type Assistant, type People, type Slack, type TimeOff } from './service.js';
+import {
+  conversations,
+  slackService,
+  type Assistant,
+  type People,
+  type Slack,
+  type TimeOff,
+} from './service.js';
 import { memoryStore } from './store.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
@@ -44,10 +51,15 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       Promise.resolve({ botToken: 'xoxb-new', teamId: 'T2', teamName: 'Acme', botUserId: 'B1' }),
     revoke: () => Promise.resolve(),
   };
-  const asked: { tenantId: string; email: string; question: string }[] = [];
+  const asked: {
+    tenantId: string;
+    email: string;
+    question: string;
+    earlier: readonly string[];
+  }[] = [];
   const assistant: Assistant = {
-    ask: (tenantId, email, question) => {
-      asked.push({ tenantId, email, question });
+    ask: (tenantId, email, question, earlier) => {
+      asked.push({ tenantId, email, question, earlier });
       return question === 'down'
         ? Promise.reject(new Error('ECONNREFUSED'))
         : Promise.resolve({ text: '3 people are off today.', understood: 'Away today' });
@@ -70,6 +82,7 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
     },
   };
   const secret = randomBytes(32);
+  const clock = { ms: 1_000 };
   const service = slackService({
     store,
     people,
@@ -77,7 +90,7 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
     timeOff,
     slack,
     command: '/kithena',
-    now: () => 1_000,
+    now: () => clock.ms,
     oauth: {
       clientId: 'c',
       clientSecret: 's',
@@ -85,7 +98,7 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       stateSecret: secret,
     },
   });
-  return { store, service, posted, replaced, acted, relayed, said, asked, secret };
+  return { store, service, posted, replaced, acted, relayed, said, asked, secret, clock };
 }
 
 const connect = (store: ReturnType<typeof memoryStore>, tenantId = TENANT, teamId = 'T1') =>
@@ -159,7 +172,7 @@ describe('a question', () => {
       ask('who is off today?', { via: 'response_url', url: 'https://hooks/c' }),
     );
     expect(w.asked).toEqual([
-      { tenantId: TENANT, email: 'pam@acme.example', question: 'who is off today?' },
+      { tenantId: TENANT, email: 'pam@acme.example', question: 'who is off today?', earlier: [] },
     ]);
     expect(w.said).toEqual([
       { via: 'respond', m: { url: 'https://hooks/c', text: '3 people are off today.' } },
@@ -204,6 +217,88 @@ describe('a question', () => {
     await w.service.question(ask('who is off today?', { via: 'channel', channel: 'D1' }));
     expect(w.asked).toEqual([]);
     expect(w.said).toEqual([]);
+  });
+});
+
+describe('a follow-up', () => {
+  const dm = (text: string, user = 'U7') => ({
+    team: 'T1',
+    user,
+    text,
+    reply: { via: 'channel' as const, channel: 'D1' },
+  });
+  const inThread = (text: string, user = 'U7', threadTs = '1.2') => ({
+    team: 'T1',
+    user,
+    text,
+    reply: { via: 'thread' as const, channel: 'C1', threadTs },
+  });
+  const earlier = (w: ReturnType<typeof world>) => w.asked.map((a) => a.earlier);
+
+  it('carries the earlier questions of a direct message, oldest first, never an answer', async () => {
+    const w = world();
+    await connect(w.store);
+    await w.service.question(dm('who’s off today?'));
+    await w.service.question(dm('and tomorrow?'));
+    expect(w.asked[1]).toMatchObject({
+      question: 'and tomorrow?',
+      earlier: ['who’s off today?'],
+    });
+    expect(JSON.stringify(w.asked)).not.toContain('3 people are off today.');
+  });
+
+  it('keeps the last five, for thirty minutes from each', async () => {
+    const w = world();
+    await connect(w.store);
+    for (const n of [1, 2, 3, 4, 5, 6]) {
+      // oxlint-disable-next-line no-await-in-loop -- one after another is the conversation
+      await w.service.question(dm(`q${String(n)}`));
+    }
+    await w.service.question(dm('q7'));
+    expect(earlier(w).at(-1)).toEqual(['q2', 'q3', 'q4', 'q5', 'q6']);
+    w.clock.ms += 30 * 60_000 - 1;
+    await w.service.question(dm('q8'));
+    expect(earlier(w).at(-1)).toEqual(['q3', 'q4', 'q5', 'q6', 'q7']);
+    w.clock.ms += 1;
+    await w.service.question(dm('q9'));
+    expect(earlier(w).at(-1)).toEqual(['q8']);
+  });
+
+  it('keeps a thread to itself and to the person asking; a slash command has no conversation', async () => {
+    const w = world();
+    await connect(w.store);
+    await w.service.question(inThread('who’s off today?'));
+    await w.service.question(inThread('and tomorrow?', 'U8'));
+    await w.service.question(inThread('and tomorrow?', 'U7', '3.4'));
+    await w.service.question(dm('and tomorrow?'));
+    await w.service.question(inThread('and Friday?'));
+    const slash = { via: 'response_url' as const, url: 'https://hooks/c' };
+    await w.service.question({ team: 'T1', user: 'U7', text: 'who is off?', reply: slash });
+    await w.service.question({ team: 'T1', user: 'U7', text: 'and tomorrow?', reply: slash });
+    expect(earlier(w)).toEqual([[], [], [], [], ['who’s off today?'], [], []]);
+  });
+});
+
+describe('the conversations kept', () => {
+  it('forget the one asked in longest ago beyond the most it keeps, and expire on their own', () => {
+    let ms = 0;
+    const kept = conversations(() => ms, 2);
+    kept.remember('a', 'one');
+    kept.remember('b', 'two');
+    kept.remember('a', 'three');
+    kept.remember('c', 'four');
+    expect(kept.remember('b', 'five')).toEqual([]);
+    expect(kept.remember('a', 'six')).toEqual([]);
+    expect(kept.size()).toBe(2);
+    ms += 30 * 60_000;
+    kept.remember('d', 'seven');
+    expect(kept.size()).toBe(1);
+  });
+
+  it('cut a question longer than the assistant takes to its length', () => {
+    const kept = conversations(() => 0);
+    kept.remember('a', 'x'.repeat(600));
+    expect(kept.remember('a', 'y')).toEqual(['x'.repeat(500)]);
   });
 });
 
