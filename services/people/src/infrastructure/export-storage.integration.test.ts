@@ -245,6 +245,13 @@ describe('the requests to send an export', () => {
     expect(
       await inTenant(GLOBEX, ({ tx }) => store.find(tx, ACME, pending.approval.id)),
     ).toBeNull();
+    // Waiting while its week runs (Review's Exports), not after it.
+    const waiting = (at: string) =>
+      inTenant(ACME, ({ tx }) => store.waiting(tx, ACME, at, 10)).then((rows) =>
+        rows.map((r) => r.approval.id),
+      );
+    expect(await waiting('2026-10-02T12:00:00.000Z')).toEqual([pending.approval.id]);
+    expect(await waiting('2026-10-08T12:00:00.000Z')).toEqual([]);
     const approved: ShareRequest = {
       ...pending,
       approval: {

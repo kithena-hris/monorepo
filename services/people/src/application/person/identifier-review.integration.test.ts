@@ -291,6 +291,13 @@ describe('the reviewer accepting', () => {
       },
     ]);
     expect((await queue()).ok && (await queue())).toMatchObject({ value: [] });
+    // And on HR's Decided (E9), with who decided it.
+    const decided = await inTenantResult(inTenant, ACME, (tx) =>
+      people.identifierReviews(tx, { ...as(hr), decidedSince: '2000-01-01T00:00:00.000Z' }),
+    );
+    expect(decided.ok && decided.value.map((r) => [r.personId, r.state, r.decidedBy])).toEqual([
+      [LUCIA, 'accepted', hr.accountId],
+    ]);
   });
 
   it('is never asked again for the same value, however it is spaced', async () => {
