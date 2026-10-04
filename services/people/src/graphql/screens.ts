@@ -1091,6 +1091,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         description: 'Who entered the doubted identifiers, as the viewer may name them.',
         resolve: (w) => (w.identifiersBy === null ? null : [...w.identifiersBy]),
       }),
+      duplicatesBy: t.stringList({
+        nullable: true,
+        description:
+          'What flagged the suspected duplicates: Kithena’s duplicate check, SCIM provisioning, or both.',
+        resolve: (w) => (w.duplicatesBy === null ? null : [...w.duplicatesBy]),
+      }),
       accessRequestsBy: t.stringList({
         nullable: true,
         description: 'Who asked for full values, as the viewer may name them.',

@@ -2276,6 +2276,10 @@ type PeopleWaiting {
   """
   asked: Int
   duplicates: Int
+  """
+  What flagged the suspected duplicates: Kithena’s duplicate check, SCIM provisioning, or both.
+  """
+  duplicatesBy: [String!]
   """Requests to send an export this viewer may decide."""
   exports: Int
   """Who wants to send an export waiting for this viewer."""

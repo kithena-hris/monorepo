@@ -174,6 +174,7 @@ describe('Home, as HR (B2)', () => {
     duplicates: 2,
     accessRequests: 1,
     identifiersBy: ['Adam Novak', 'Yuki Sato', 'Omar Haddad'],
+    duplicatesBy: ['Kithena’s duplicate check', 'SCIM provisioning'],
     accessRequestsBy: ['Sofia Lindqvist'],
     joiners: [{ label: 'Sep', value: 14 }],
     starting: [
@@ -203,6 +204,12 @@ describe('Home, as HR (B2)', () => {
     expect(href('Review: 7 changes to approve')).toBe('/people/review/waiting?kind=changes');
     expect(href('Review: 3 identifiers to check')).toBe('/people/review/waiting?kind=ids');
     expect(href('Compare: 2 possible duplicates')).toBe('/people/review/waiting?kind=duplicates');
+    // What flagged the pairs, as they were found: both, here.
+    expect(
+      within(needs).getByText(
+        'Same work email, or name and birth date · flagged by Kithena’s duplicate check and SCIM provisioning',
+      ),
+    ).toBeInTheDocument();
     expect(href('Decide: 1 request for full values')).toBe('/people/review/waiting?kind=access');
     expect(href('Fill in: 11 details for HR to fill in')).toBe(
       '/people/review/waiting?kind=missing',

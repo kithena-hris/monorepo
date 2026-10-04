@@ -90,10 +90,11 @@ describe('the Inbox’s rows, on the bell and the phone alike (B3)', () => {
     ],
     waiting: {
       identifiers: 3,
-      duplicates: 0,
+      duplicates: 1,
       accessRequests: 1,
       exports: 1,
       identifiersBy: ['Adam Novak', 'You'],
+      duplicatesBy: ['SCIM provisioning'],
       accessRequestsBy: ['Sofia Lindqvist'],
       exportsBy: ['Marco Ruiz'],
     },
@@ -104,6 +105,7 @@ describe('the Inbox’s rows, on the bell and the phone alike (B3)', () => {
     expect(rows.map((r) => r.name)).toEqual([
       'Tom Fischer',
       '3 identifiers to check',
+      '1 possible duplicate',
       '1 request for full values',
       '1 export to send',
     ]);
@@ -112,16 +114,18 @@ describe('the Inbox’s rows, on the bell and the phone alike (B3)', () => {
       summary: 'Approve a salary change · Tom Fischer · asked by Marco Ruiz',
     });
     expect(rows[1]).toMatchObject({ person: false, href: '/people/review/waiting?kind=ids' });
+    expect(rows[2]).toMatchObject({ href: '/people/review/waiting?kind=duplicates' });
   });
 
   it('names who asked on every row that counts requests', () => {
     const rows = todoRows(shell);
     expect(rows.map((r) => r.summary).slice(1)).toEqual([
       'Failed a check, or couldn’t be verified · entered by Adam Novak and you',
+      'Same work email, or name and birth date · flagged by SCIM provisioning',
       'Sofia Lindqvist asked to see unmasked values',
       'Marco Ruiz asked to send an export',
     ]);
-    expect(rows[3]).toMatchObject({ href: '/people/review/waiting?kind=exports' });
+    expect(rows[4]).toMatchObject({ href: '/people/review/waiting?kind=exports' });
   });
 
   it('puts a flag’s reason under its change', () => {

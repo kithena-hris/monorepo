@@ -134,6 +134,8 @@ export interface PeopleHomeState {
     readonly accessRequests: number | null;
     /** Who entered the identifiers to check, and who asked for full values. Absent from an older People. */
     readonly identifiersBy?: readonly string[] | null;
+    /** What flagged the suspected duplicates: Kithena's check, SCIM provisioning, or both. */
+    readonly duplicatesBy?: readonly string[] | null;
     readonly accessRequestsBy?: readonly string[] | null;
     /** People who joined, by month. */
     readonly joiners: readonly ChartPoint[];
@@ -811,7 +813,14 @@ function HrHome({
         key="duplicates"
         icon={<icons.merge aria-hidden />}
         title={counted(hr.duplicates ?? 0, 'possible duplicate', 'possible duplicates')}
-        description="Same work email, or name and birth date · flagged by Kithena’s checks"
+        description={[
+          'Same work email, or name and birth date',
+          (hr.duplicatesBy ?? []).length === 0
+            ? null
+            : `flagged by ${(hr.duplicatesBy ?? []).join(' and ')}`,
+        ]
+          .filter((x) => x !== null)
+          .join(' · ')}
         href={review('duplicates')}
         word="Compare"
       />,

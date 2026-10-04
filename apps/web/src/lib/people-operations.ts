@@ -246,7 +246,7 @@ export const OPERATIONS = {
   Waiting: `query Waiting {
     peopleWaiting {
       identifiers duplicates accessRequests flagged asked exports
-      identifiersBy accessRequestsBy exportsBy
+      identifiersBy duplicatesBy accessRequestsBy exportsBy
     }
   }`,
 

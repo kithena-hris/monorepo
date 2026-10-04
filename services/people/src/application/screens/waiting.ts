@@ -7,7 +7,7 @@ import { fullValuesScreen, type FullValuesDeps } from '../export/full-values.js'
 import { flagChange, looking } from '../person/approval-flags.js';
 import { approvalsInbox, type PendingChangeDeps } from '../person/pending-changes.js';
 import type { Asking, PersonAccess } from '../person/person-access.js';
-import { actors } from './people.js';
+import { actors, duplicateSource } from './people.js';
 import type { ScreenDeps } from './record.js';
 
 /**
@@ -39,6 +39,8 @@ export interface WaitingView {
    * an export. Distinct, oldest first; null beside a null count.
    */
   readonly identifiersBy: readonly string[] | null;
+  /** What flagged the suspected duplicates: Kithena's check, SCIM provisioning, or both. */
+  readonly duplicatesBy: readonly string[] | null;
   readonly accessRequestsBy: readonly string[] | null;
   readonly exportsBy: readonly string[] | null;
 }
@@ -73,6 +75,7 @@ export async function waitingView(
       asked: null,
       exports,
       identifiersBy: null,
+      duplicatesBy: null,
       accessRequestsBy: null,
       exportsBy,
     });
@@ -109,6 +112,9 @@ export async function waitingView(
     duplicates: duplicates.ok ? duplicates.value.length : null,
     accessRequests: toDecide === null ? null : toDecide.length,
     identifiersBy: identifiers.ok ? distinct(named === null ? [] : entered.map(named)) : null,
+    duplicatesBy: duplicates.ok
+      ? distinct(duplicates.value.map((c) => duplicateSource(c.signals)))
+      : null,
     accessRequestsBy: toDecide === null ? null : distinct(toDecide.map((r) => r.requestedBy)),
     exportsBy,
     flagged:
