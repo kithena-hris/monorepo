@@ -233,15 +233,13 @@ function Registry({
       />
       <SignupPreview fields={draft.fields} open={previewing} onOpenChange={setPreviewing} />
 
+      {/* At a desk the header says it; on a phone, where the header is short, this line does. */}
       {draft.unpublishedChanges === 0 ? null : (
         <Alert
           tone="info"
+          className="hidden touch:flex"
           title={`${String(draft.unpublishedChanges)} ${draft.unpublishedChanges === 1 ? 'change is' : 'changes are'} waiting to be published`}
-        >
-          Your edits are saved as a draft. Nobody’s forms change until you publish version {next},
-          and the publish step shows exactly what changes and who is affected first. Fields marked
-          Added, Changed or Archived below are the ones in the draft.
-        </Alert>
+        />
       )}
 
       {reviewing.length === 0 ? null : (
