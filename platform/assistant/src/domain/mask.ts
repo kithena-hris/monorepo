@@ -29,6 +29,8 @@ export interface LeaveRef {
 
 export interface Masked {
   readonly question: string;
+  /** Earlier questions in the conversation, masked with the same references. */
+  readonly earlier: readonly string[];
   readonly refs: readonly LeaveRef[];
 }
 
@@ -51,7 +53,16 @@ const WORDS: Partial<Record<LeaveCategory, readonly string[]>> = {
 const escape = (s: string): string => s.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
 const fold = (s: string): string => s.toLocaleLowerCase('en').replaceAll(/\s+/gu, ' ').trim();
 
-export function mask(question: string, leaveTypes: readonly CatalogueLeaveType[]): Masked {
+/**
+ * The question, and any earlier questions of a follow-up, masked together: a
+ * type named in an earlier question is the same reference in this one, so
+ * "and tomorrow?" after "who is off sick today?" can still plan by it.
+ */
+export function mask(
+  question: string,
+  leaveTypes: readonly CatalogueLeaveType[],
+  earlier: readonly string[] = [],
+): Masked {
   const named = new Map<string, LeaveTypeKey[]>();
   const add = (phrase: string, key: LeaveTypeKey) => {
     const p = fold(phrase);
@@ -67,7 +78,7 @@ export function mask(question: string, leaveTypes: readonly CatalogueLeaveType[]
     add(t.key.replaceAll('_', ' '), t.key);
     for (const word of t.category === undefined ? [] : (WORDS[t.category] ?? [])) add(word, t.key);
   }
-  if (named.size === 0) return { question, refs: [] };
+  if (named.size === 0) return { question, earlier, refs: [] };
 
   // Longest first, so "sick leave" is one phrase rather than "sick" and a stray "leave".
   const phrases = [...named.keys()].toSorted((a, b) => b.length - a.length);
@@ -76,16 +87,18 @@ export function mask(question: string, leaveTypes: readonly CatalogueLeaveType[]
     'giu',
   );
   const refs: LeaveRef[] = [];
-  const masked = question.replace(re, (match) => {
-    // Ordered as the catalogue lists them, so one set of types is one reference.
-    const keys = hidden.map((t) => t.key).filter((k) => named.get(fold(match))?.includes(k));
-    const same = refs.find((r) => r.keys.join() === keys.join());
-    if (same !== undefined) return same.ref;
-    const ref = { ref: `L${String(refs.length + 1)}`, keys };
-    refs.push(ref);
-    return ref.ref;
-  });
-  return { question: masked, refs };
+  const masked = (text: string) =>
+    text.replace(re, (match) => {
+      // Ordered as the catalogue lists them, so one set of types is one reference.
+      const keys = hidden.map((t) => t.key).filter((k) => named.get(fold(match))?.includes(k));
+      const same = refs.find((r) => r.keys.join() === keys.join());
+      if (same !== undefined) return same.ref;
+      const ref = { ref: `L${String(refs.length + 1)}`, keys };
+      refs.push(ref);
+      return ref.ref;
+    });
+  // The question first, so its references number as they did before follow-ups.
+  return { question: masked(question), earlier: earlier.map(masked), refs };
 }
 
 /**

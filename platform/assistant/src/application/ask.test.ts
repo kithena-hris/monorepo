@@ -179,6 +179,56 @@ describe('§7.1 how many people are off today', () => {
   });
 });
 
+describe('a follow-up in the same conversation', () => {
+  const followUp = (text: string, earlier: string[]) => ({ ...question(text), earlier });
+  const away = (on: string, extra: Record<string, unknown> = {}) =>
+    one('timeoff.away', { on, ...extra });
+
+  it('"and tomorrow?" after "who’s off today?" is planned with the earlier question, and runs for tomorrow', async () => {
+    const { modules, calls } = fakeModules(BOTH_MODULES, {
+      'timeoff.away': returns(people(0, 'away on Wednesday 7 October')),
+    });
+    const { planner, requests } = fakePlanner(away('tomorrow'));
+    const asked = await ask({ modules, planner })(
+      followUp('And tomorrow?', ['Who’s off today?']),
+      'c',
+    );
+    expect(requests[0]?.question).toBe('And tomorrow?');
+    expect(requests[0]?.earlier).toEqual(['Who’s off today?']);
+    expect(calls[0]?.input.on).toEqual({ from: '2026-10-07', to: '2026-10-07' });
+    expect(asked.outcome).toBe('answered');
+  });
+
+  it('masks a private type in an earlier question, and unmasks the follow-up’s plan by it', async () => {
+    const { modules, calls } = fakeModules(BOTH_MODULES, {
+      'timeoff.away': returns(people(1, 'away on Baja médica on Wednesday 7 October')),
+    });
+    const filters = [{ key: 'leave_type', op: 'in', values: ['L1'] }];
+    const { planner, requests } = fakePlanner(away('tomorrow', { filters }));
+    await ask({ modules, planner })(
+      followUp('And tomorrow?', ['Who is off sick today?', 'Who is on Baja médica?']),
+      'c',
+    );
+    expect(requests[0]?.earlier).toEqual(['Who is L1 today?', 'Who is on L1?']);
+    const types = requests[0]?.offer.get('timeoff.away')?.fields.find((f) => f.key === 'leave_type');
+    expect(types?.options.map((o) => o.value)).toEqual(['vacation', 'personal', 'comp', 'L1']);
+    expect(calls[0]?.input.filters).toEqual([{ key: 'leave_type', op: 'in', values: ['sick'] }]);
+  });
+
+  it('leaves out an earlier question the assistant would refuse, and answers this one', async () => {
+    const { modules } = fakeModules(BOTH_MODULES, {
+      'timeoff.away': returns(people(2, 'away on Wednesday 7 October')),
+    });
+    const { planner, requests } = fakePlanner(away('tomorrow'));
+    const asked = await ask({ modules, planner })(
+      followUp('Who is off tomorrow?', ['Who is pregnant?', 'Who is off today?']),
+      'c',
+    );
+    expect(requests[0]?.earlier).toEqual(['Who is off today?']);
+    expect(asked.outcome).toBe('answered');
+  });
+});
+
 describe('§7.2 the managers of people on sick leave today', () => {
   const plan = {
     kind: 'plan',

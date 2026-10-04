@@ -44,6 +44,20 @@ describe('masking a private leave type', () => {
     ]);
   });
 
+  it('masks earlier questions as the question, one reference for one type across all of them', () => {
+    const masked = mask('And maternity?', TYPES, ['Who is off sick today?', 'Who is on vacation?']);
+    expect(masked.question).toBe('And L1?');
+    expect(masked.earlier).toEqual(['Who is L2 today?', 'Who is on vacation?']);
+    expect(masked.refs).toEqual([
+      { ref: 'L1', keys: ['parental'] },
+      { ref: 'L2', keys: ['sick'] },
+    ]);
+    expect(mask('And tomorrow?', TYPES, ['Who is on sick leave today?']).refs).toEqual([
+      { ref: 'L1', keys: ['sick'] },
+    ]);
+    expect(mask('And tomorrow?', [], ['Who is off today?']).earlier).toEqual(['Who is off today?']);
+  });
+
   it('lets one everyday word stand for every private type of its category', () => {
     const types = CatalogueLeaveType.array().parse([
       { key: 'sick', name: 'Sick', private: true, category: 'sick_leave' },
@@ -59,7 +73,7 @@ describe('masking a private leave type', () => {
 
   it('leaves a type that is not private by its name, and words inside other words alone', () => {
     const masked = mask('Who is on vacation? Will Billy be in?', TYPES);
-    expect(masked).toEqual({ question: 'Who is on vacation? Will Billy be in?', refs: [] });
+    expect(masked).toEqual({ question: 'Who is on vacation? Will Billy be in?', earlier: [], refs: [] });
   });
 
   it('masks a private type without a category by its name and key alone', () => {
