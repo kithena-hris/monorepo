@@ -268,12 +268,67 @@ async function send(
   name: string,
   variables: Record<string, unknown>,
 ): Promise<PeopleAnswer<unknown>> {
+  const body = AREAS[area].operations[name] ?? '';
+  if (body.trimStart().startsWith('mutation')) {
+    // A write waits for identity's word on the session before it is sent.
+    const token = await accessToken();
+    return token === null ? signedOut : call(area, name, variables, token, true);
+  }
+  // A read goes with the session check (`readToken`), and is answered only
+  // once identity has confirmed the session; otherwise it is dropped, unread.
+  const token = await readToken();
+  if (token === null) return signedOut;
+  const [answer, person] = await Promise.all([
+    alongside(`${sha256(token)}\n${area}\n${name}\n${JSON.stringify(variables)}`, () =>
+      call(area, name, variables, token, false),
+    ),
+    currentPerson(),
+  ]);
+  if (person === null) {
+    for (const [k, v] of minted) if (v.token === token) minted.delete(k);
+    return signedOut;
+  }
+  return answer;
+}
+
+/**
+ * Reads on their way, by the token they were sent with and the read: a page
+ * asking what another page of the same viewer is already asking — the
+ * prefetches of a page's tabs all draw the same header, at the same moment —
+ * waits for that answer rather than asking again.
+ *
+ * Only while the first is in flight: once answered it is gone, so nothing
+ * here is older than a request that started after it, and there is nothing to
+ * invalidate. Keyed by a hash of the token, which is one session's (`minted`),
+ * so one viewer's answer is never another's; and each page still confirms its
+ * own session before it reads the answer (`send`). In-process.
+ */
+const inFlight = new Map<string, Promise<PeopleAnswer<unknown>>>();
+
+const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
+
+function alongside(
+  key: string,
+  ask: () => Promise<PeopleAnswer<unknown>>,
+): Promise<PeopleAnswer<unknown>> {
+  let answer = inFlight.get(key);
+  if (answer === undefined) {
+    answer = ask().finally(() => inFlight.delete(key));
+    inFlight.set(key, answer);
+  }
+  return answer;
+}
+
+/** One operation through the router, as `token`, read back into an answer. */
+async function call(
+  area: keyof typeof AREAS,
+  name: string,
+  variables: Record<string, unknown>,
+  token: string,
+  writes: boolean,
+): Promise<PeopleAnswer<unknown>> {
   const { service, operations } = AREAS[area];
   const body = operations[name] ?? '';
-  const writes = body.trimStart().startsWith('mutation');
-  // A write waits for identity's word on the session; a read goes with it (`readToken`).
-  const token = await (writes ? accessToken() : readToken());
-  if (token === null) return signedOut;
   const router = (process.env['ROUTER_URL'] ?? 'http://localhost:4000').replace(/\/$/, '');
   // Every keyed write declares `$key`; the two that only compute do not.
   const keyed = body.includes('$key: String!');
@@ -298,13 +353,6 @@ async function send(
         signal: AbortSignal.timeout(writes ? 120_000 : 10_000),
       }),
     );
-    // A read sent beside the session check is answered only once identity has
-    // confirmed the session (`readToken`); otherwise it is dropped, unread.
-    if (!writes && (await currentPerson()) === null) {
-      for (const [k, v] of minted) if (v.token === token) minted.delete(k);
-      await response.body?.cancel().catch(() => undefined);
-      return signedOut;
-    }
     if (response.status === 401) {
       // Refused, whatever identity said when it was minted: not asked again.
       for (const [k, v] of minted) if (v.token === token) minted.delete(k);

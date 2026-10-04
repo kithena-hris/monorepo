@@ -51,7 +51,7 @@ import { searchPeople } from '../app/(app)/people/actions';
 import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
 import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
 import { todoRows } from '../lib/inbox';
-import { useInAppLinks } from '../lib/links';
+import { useInAppLinks, useWarmPages } from '../lib/links';
 import { matchPath } from '../lib/remotes';
 import {
   DEFAULT_PREFS,
@@ -498,6 +498,17 @@ export function AppShell({
     [shell.routes, timeOff],
   );
   useInAppLinks(isPage);
+  // The other tabs of this page's place, fetched whole once it has settled.
+  const warmAreas = useMemo(
+    () => [
+      { places: [...shell.sections, ...shell.settings], routes: shell.routes },
+      ...(timeOff === undefined
+        ? []
+        : [{ places: [...timeOff.sections, ...timeOff.settings], routes: timeOff.routes }]),
+    ],
+    [shell, timeOff],
+  );
+  useWarmPages(pathname, warmAreas);
   /*
    * `TooltipProvider` wraps the whole shell, not just the sidebar.
    *
