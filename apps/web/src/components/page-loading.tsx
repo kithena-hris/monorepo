@@ -7,8 +7,7 @@ import type { JSX } from 'react';
 import { inboxView } from '../lib/inbox';
 import { headerFrame, matchPath } from '../lib/remotes';
 import { PEOPLE_NOW_PATHS, settingsModules } from '../lib/settings-modules';
-import { AccountSheet, useShellData, useShellPerson } from './app-shell';
-import { HomeLoading } from './home-dashboard';
+import { useShellData, useShellPerson } from './app-shell';
 import { Inbox } from './inbox';
 import { PeopleLoading } from './people-screen';
 import { SettingsIndex } from './settings-index';
@@ -37,15 +36,15 @@ const PENDING_NOW = Object.fromEntries(PEOPLE_NOW_PATHS.map((path) => [path, '']
  * - The inbox: the inbox itself, from the shell's copy of what the bell holds.
  * - Settings: the page itself from the shell's places, each card's "set now"
  *   still to come.
- * - Home: the dashboard's header, tiles and cards with their figures to come.
+ * - Home: nothing. It is People's page, server-rendered, with no skeleton.
  * - Any other: the page skeleton, under its trail in Settings.
  */
-export function PageLoading(): JSX.Element {
+export function PageLoading(): JSX.Element | null {
   const shell = useShellData();
   const person = useShellPerson();
   const pathname = usePathname();
   const search = useSearchParams();
-  if (pathname === '/people' || (pathname.startsWith('/people/') && pathname !== '/people/menu')) {
+  if (pathname.startsWith('/people/') && pathname !== '/people/menu') {
     const frame = headerFrame(
       { sections: shell.sections, actions: shell.actions ?? [] },
       matchPath(shell.routes, pathname)?.path ?? null,
@@ -87,15 +86,8 @@ export function PageLoading(): JSX.Element {
       <SettingsIndex modules={settingsModules(shell, { now: PENDING_NOW, attention: {} }, '')} />
     );
   }
-  if (pathname === '/') {
-    return (
-      <HomeLoading
-        account={person === null ? null : <AccountSheet person={person} />}
-        people={shell.sections.length > 0}
-        hr={shell.roles.hr}
-      />
-    );
-  }
+  // Home is People's, served whole: nothing stands in for it while it comes.
+  if (pathname === '/') return null;
   // A setting's page opens under its trail: Settings › People › Roles.
   return <Skeleton shape="page" label="Loading" breadcrumb={pathname.startsWith('/settings/')} />;
 }
