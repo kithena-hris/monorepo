@@ -8,7 +8,7 @@ import { run } from '../person/service.js';
 import { avatarsOf } from './photo.js';
 import { flaggedToDecide } from './waiting.js';
 import { actors, ownRecord } from './people.js';
-import { nameOf, NOBODY, type ScreenDeps, type Tx } from './record.js';
+import { hrToFill, nameOf, NOBODY, type ScreenDeps, type Tx } from './record.js';
 import type { ViewedAs } from '../person/view-as.js';
 import type { ImportNotice } from '../import/run-store.js';
 
@@ -438,8 +438,10 @@ async function approvalsPart(
 
 async function teamPart(deps: ScreenDeps, tx: Tx, tenantId: string): Promise<OverviewView['team']> {
   const totals = await deps.gapTotals(tx, tenantId);
+  const version = await deps.service.schemas.current(tx, tenantId);
   return {
     waiting: totals.waiting,
-    toFill: totals.staff.reduce((n, s) => n + s.people, 0),
+    // Review's Missing details counts the same: HR's keys, not Finance's.
+    toFill: version ? hrToFill(totals, version) : 0,
   };
 }

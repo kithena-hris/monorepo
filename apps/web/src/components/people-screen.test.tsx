@@ -42,6 +42,7 @@ vi.mock('../app/(app)/people/actions', () => ({
   decideExportShare: vi.fn(),
   saveGrid: vi.fn(),
   checkGrid: vi.fn(),
+  completenessPage: vi.fn(),
   searchPeople: vi.fn(),
   remindWaiting: vi.fn(),
   requestDetails: vi.fn(),

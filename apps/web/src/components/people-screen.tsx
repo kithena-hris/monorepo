@@ -1032,21 +1032,14 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       // page of missing details, is a navigation: People reads it.
       case 'Review': {
         const tab = oneOf(leaf, ['waiting', 'flagged', 'asked', 'decided'], 'waiting');
-        const next =
-          load.status === 'ready' && typeof load.data === 'object' && load.data !== null
-            ? ((load.data as { completeness?: { next?: string | null } | null }).completeness
-                ?.next ?? null)
-            : null;
-        const here = `/people/review/${tab}`;
         return {
           load: loadable,
           tab,
           kind: at('kind'),
           onKindChange: (kind: string | null) => {
-            // A new chip starts at the top of its list, and its first page.
-            if (at('item')?.startsWith('dup-') === true || at('after') !== null) {
-              navigate({ kind, item: null, fill: null, after: null });
-            } else note({ kind, item: null, fill: null }, 'push');
+            // A new chip starts at the top of its list.
+            if (at('item')?.startsWith('dup-') === true) navigate({ kind, item: null, fill: null });
+            else note({ kind, item: null, fill: null }, 'push');
           },
           item: at('item'),
           onItemChange: (item: string | null) => {
@@ -1106,21 +1099,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onRemindAll: actions.remindWaiting,
           onRemind: (personId: string, keys: readonly string[]) =>
             actions.requestDetails(personId, keys),
-          // Keyset pages of missing details, each a URL (PEO-117, PEO-122).
-          ...(next === null
-            ? {}
-            : {
-                onNextPage: () => {
-                  go(withQuery(here, {}, { kind: 'missing', after: next }));
-                },
-              }),
-          ...(search['after'] === undefined
-            ? {}
-            : {
-                onFirstPage: () => {
-                  go(withQuery(here, {}, { kind: 'missing' }));
-                },
-              }),
+          // Missing details scroll on through everybody, by keyset (PEO-122).
+          onLoadMoreMissing: actions.completenessPage,
         };
       }
       case 'WebhookLog':

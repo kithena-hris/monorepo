@@ -271,6 +271,22 @@ describe('stretchOverflowing', () => {
   });
 });
 
+/** A desk's layout, which jsdom has none of: a 400px box, 57px rows. */
+function layOut(): void {
+  const height = (el: HTMLElement): number => (el.getAttribute('role') === 'region' ? 400 : 57);
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    const h = height(this);
+    return { top: 0, left: 0, right: 800, bottom: h, width: 800, height: h } as DOMRect;
+  });
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return height(this);
+  });
+}
+
 describe('<DataTable> that keeps loading', () => {
   const more = (n: number): Person[] =>
     Array.from({ length: n }, (_, i) => ({
@@ -281,7 +297,24 @@ describe('<DataTable> that keeps loading', () => {
       salary: 1,
     }));
 
+  it('draws its first rows before its box is measured, so the server’s HTML has them', () => {
+    const html = renderToString(
+      <DataTable
+        label="People"
+        rows={[...people, ...more(150)]}
+        columns={columns}
+        rowId={(p) => p.id}
+        onEndReached={vi.fn()}
+      />,
+    );
+    // A window's worth and the overscan, not a skeleton, and not all 155.
+    expect(html).toContain('data-row-id="1"');
+    expect(html).toContain('data-row-id="m10"');
+    expect(html).not.toContain('data-row-id="m140"');
+  });
+
   it('is virtualized from its first page, so the rows on screen never remount at the threshold', () => {
+    layOut();
     const { rerender } = render(
       <DataTable
         label="People"
@@ -302,7 +335,9 @@ describe('<DataTable> that keeps loading', () => {
         onEndReached={vi.fn()}
       />,
     );
+    expect(first).not.toBeNull();
     expect(document.querySelector('tr[data-row-id="1"]')).toBe(first);
+    vi.restoreAllMocks();
   });
 
   it('arrives from the server with its first rows drawn, not a skeleton', () => {
@@ -422,21 +457,6 @@ describe('<DataTable> pinned header and a virtualized body', () => {
   ];
 
   /** The box 400px tall and every row its 57px estimate, as a browser would lay them out. */
-  function layOut(): void {
-    const height = (el: HTMLElement): number => (el.getAttribute('role') === 'region' ? 400 : 57);
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
-      this: HTMLElement,
-    ) {
-      const h = height(this);
-      return { top: 0, left: 0, right: 800, bottom: h, width: 800, height: h } as DOMRect;
-    });
-    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
-      this: HTMLElement,
-    ) {
-      return height(this);
-    });
-  }
-
   function scrollTo(top: number): void {
     const box = screen.getByRole('region', { name: 'People' });
     Object.defineProperty(box, 'scrollTop', { configurable: true, value: top });
