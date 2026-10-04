@@ -10,6 +10,7 @@ import { createYoga } from 'graphql-yoga';
 import { startPostgres } from '@kithena/testing';
 
 import { define, versionOf } from '../application/person/in-memory.js';
+import { BULK_PAGE } from '../application/screens/bulk-edit.js';
 import { Person } from '../domain/person/person.js';
 import { yogaOptions } from '../graphql/schema.js';
 import { drizzlePersonRepository } from '../infrastructure/drizzle-person-repository.js';
@@ -298,7 +299,7 @@ describe('bulk edit (PEO-071)', () => {
     const manager = await post('/preview', edit, headers(MARCO_ACCOUNT));
     expect(manager.status).toBe(403);
     const ids = Array.from(
-      { length: 51 },
+      { length: BULK_PAGE + 1 },
       (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
     );
     expect((await post('/preview', { ...edit, personIds: ids })).status).toBe(422);
