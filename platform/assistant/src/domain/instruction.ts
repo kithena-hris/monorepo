@@ -8,9 +8,11 @@ import type { Offer } from './plan.js';
  *
  * The instruction is fixed text, in the voice of People's `instructionFor()`:
  * the plan's shapes, the inputs, the date words, `@me`, and the rules a model
- * gets wrong. The context is this question's: the masked question, today in
- * words, each capability the asker may use — what it is about, what it takes,
- * the fields its filters may name — and one line per module the company
+ * gets wrong. The context is this question's: the masked question, the
+ * earlier questions of a follow-up masked the same way (People's `earlier`,
+ * questions only, never answers), today in words, each capability the asker
+ * may use — what it is about, what it takes, the fields its filters may
+ * name — and one line per module the company
  * cannot use. Configuration only: never a value from a record, never a
  * person's id, never a result.
  *
@@ -36,6 +38,7 @@ export const INSTRUCTION = [
   'A leave type option labelled "a leave type named in the question" stands for words of the question replaced by its value (L1, L2): filter by that value as it is.',
   'Add "say" to a plan: one warm, natural sentence a helpful colleague would open with, in the asker’s language. You have not seen the answer yet, so in "say" never write a number, a leave type value such as L1, a name you were not given, or any fact: write {n} where the count goes.',
   'For unclear, "reply" is a friendly sentence saying what you can help with.',
+  'Earlier questions from the same conversation, oldest first, may be in "earlier": they are context, not questions to answer again. Use them to understand a short follow-up such as "and tomorrow?" or "what about Engineering?": keep what the follow-up does not change from the latest earlier question it continues, and change what it says.',
 ].join('\n');
 
 /** One line each for a module the company cannot use, so the model can say so rather than guess. */
@@ -52,12 +55,20 @@ export interface PlanPrompt {
 
 export interface PromptInput {
   readonly question: string;
+  /** Earlier questions in the conversation, masked, oldest first: never their answers. */
+  readonly earlier?: readonly string[];
   readonly today: Today;
   readonly offer: Offer;
   readonly unavailable: readonly ModuleKey[];
 }
 
-export function promptFor({ question, today, offer, unavailable }: PromptInput): PlanPrompt {
+export function promptFor({
+  question,
+  earlier = [],
+  today,
+  offer,
+  unavailable,
+}: PromptInput): PlanPrompt {
   const day = spoken({ from: today.date, to: today.date }, today);
   // `spoken` leaves out this year; the model is told it.
   const date = day.endsWith(today.date.slice(0, 4)) ? day : `${day} ${today.date.slice(0, 4)}`;
@@ -94,6 +105,7 @@ export function promptFor({ question, today, offer, unavailable }: PromptInput):
     instruction: INSTRUCTION,
     context: {
       question,
+      ...(earlier.length === 0 ? {} : { earlier }),
       today: today.utc ? `${date}, in UTC` : date,
       days: comingDays(today),
       capabilities,
