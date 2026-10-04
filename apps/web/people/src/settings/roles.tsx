@@ -23,11 +23,12 @@ import {
   SearchField,
   Stack,
   DataTable,
+  type DataColumn,
   Textarea,
   usePages,
   icons,
 } from '@reach/ui';
-import { useCallback, useState, type JSX, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type JSX, type ReactNode } from 'react';
 
 import { useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
@@ -117,6 +118,9 @@ export function RoleSettings(props: RoleSettingsProps): JSX.Element {
   );
 }
 
+const nameOf = (p: RolesPerson): string => p.name ?? p.workEmail ?? 'Somebody without a record yet';
+const accountOf = (p: RolesPerson): string => p.accountId;
+
 function Roles({
   state,
   onGrant,
@@ -143,7 +147,68 @@ function Roles({
   const everyHolder = state.holders ?? state.people;
   const admins = everyHolder.filter((p) => p.roles.includes('people_admin')).length;
   const holders = (role: TenantRole) => everyHolder.filter((p) => p.roles.includes(role));
-  const nameOf = (p: RolesPerson) => p.name ?? p.workEmail ?? 'Somebody without a record yet';
+  // Held while what they read holds, so typing in the search or a page
+  // landing redraws only the rows that changed.
+  const viewer = state.viewerAccountId;
+  const canManage = state.canManage;
+  const columns = useMemo<readonly DataColumn<RolesPerson>[]>(
+    () => [
+      {
+        id: 'person',
+        header: 'Person',
+        cell: (person) => {
+          const who = nameOf(person);
+          const me = person.accountId === viewer;
+          return (
+            <div className="flex items-center gap-3">
+              <Avatar name={who} size="sm" />
+              <div className="flex min-w-0 flex-col">
+                <span className="font-medium">
+                  {who}
+                  {me ? ' (you)' : ''}
+                </span>
+                {person.name !== null && person.workEmail !== null ? (
+                  <span className="text-fg-muted text-sm">{person.workEmail}</span>
+                ) : null}
+              </div>
+            </div>
+          );
+        },
+      },
+      ...ROLES.map(({ role, label }) => ({
+        id: role,
+        header: label,
+        shortHeader: label,
+        cell: (person: RolesPerson) => {
+          const who = nameOf(person);
+          const me = person.accountId === viewer;
+          const held = person.roles.includes(role);
+          // Nobody grants themselves a role, and the last
+          // administrator cannot be removed: People refuses both,
+          // and the control says so before anybody tries.
+          const locked =
+            !canManage || (me && !held) || (held && role === 'people_admin' && admins === 1);
+          return canManage ? (
+            <Checkbox
+              checked={held}
+              disabled={locked}
+              aria-label={`${label} for ${who}`}
+              onCheckedChange={(on) => {
+                setPending({ person, role, grant: on === true });
+              }}
+            />
+          ) : held ? (
+            <Badge tone="accent">{label}</Badge>
+          ) : (
+            <span className="text-fg-muted" aria-label={`Not ${label}`}>
+              —
+            </span>
+          );
+        },
+      })),
+    ],
+    [viewer, canManage, admins],
+  );
   // People searches; until its answer arrives, what is loaded is narrowed here.
   const needle = query.trim().toLowerCase();
   const shown =
@@ -218,7 +283,7 @@ function Roles({
           <DataTable<RolesPerson>
             label="Who holds a role"
             rows={shown}
-            rowId={(p) => p.accountId}
+            rowId={accountOf}
             describeRow={nameOf}
             // Infinite: the page's one scroll, the next people loading near its
             // end, only the rows on screen drawn; cards under a finger.
@@ -227,63 +292,7 @@ function Roles({
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
             empty="Nobody matches"
-            columns={[
-              {
-                id: 'person',
-                header: 'Person',
-                cell: (person) => {
-                  const who = nameOf(person);
-                  const me = person.accountId === state.viewerAccountId;
-                  return (
-                    <div className="flex items-center gap-3">
-                      <Avatar name={who} size="sm" />
-                      <div className="flex min-w-0 flex-col">
-                        <span className="font-medium">
-                          {who}
-                          {me ? ' (you)' : ''}
-                        </span>
-                        {person.name !== null && person.workEmail !== null ? (
-                          <span className="text-fg-muted text-sm">{person.workEmail}</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                },
-              },
-              ...ROLES.map(({ role, label }) => ({
-                id: role,
-                header: label,
-                shortHeader: label,
-                cell: (person: RolesPerson) => {
-                  const who = nameOf(person);
-                  const me = person.accountId === state.viewerAccountId;
-                  const held = person.roles.includes(role);
-                  // Nobody grants themselves a role, and the last
-                  // administrator cannot be removed: People refuses both,
-                  // and the control says so before anybody tries.
-                  const locked =
-                    !state.canManage ||
-                    (me && !held) ||
-                    (held && role === 'people_admin' && admins === 1);
-                  return state.canManage ? (
-                    <Checkbox
-                      checked={held}
-                      disabled={locked}
-                      aria-label={`${label} for ${who}`}
-                      onCheckedChange={(on) => {
-                        setPending({ person, role, grant: on === true });
-                      }}
-                    />
-                  ) : held ? (
-                    <Badge tone="accent">{label}</Badge>
-                  ) : (
-                    <span className="text-fg-muted" aria-label={`Not ${label}`}>
-                      —
-                    </span>
-                  );
-                },
-              })),
-            ]}
+            columns={columns}
           />
         </Stack>
       )}

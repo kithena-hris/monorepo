@@ -124,10 +124,10 @@ function inView(id: string): boolean {
 }
 
 /**
- * How much of the box's view, below its header, shows neither a row nor a
- * skeleton, in px. Read in a scroll listener that runs before the table's
- * own: the old rows at the new position, which is what the compositor shows
- * while the main thread is still rendering.
+ * How much of the box's view, below its header, shows neither a row nor the
+ * spacer standing in for one, in px. Read in a scroll listener that runs
+ * before the table's own: the old rows at the new position, which is what the
+ * compositor shows while the main thread is still rendering.
  */
 function gap(box: HTMLElement, rowsOnly = false): number {
   const edge = box.getBoundingClientRect();
@@ -136,7 +136,7 @@ function gap(box: HTMLElement, rowsOnly = false): number {
     ...box.querySelectorAll<HTMLElement>(
       rowsOnly
         ? 'tbody tr[data-row-id]'
-        : 'tbody tr[data-row-id], tbody [aria-busy], [data-skeleton]',
+        : 'tbody tr[data-row-id], tbody [aria-busy], [data-spacer]',
     ),
   ]
     .map((el) => el.getBoundingClientRect())
@@ -302,11 +302,13 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
         expect(run.early + run.late).toBe(0);
         expect(run.off + run.jumps).toBe(0);
       }
-      // The skeleton is painted, in the theme's own colours.
-      const spacer = box.querySelector<HTMLElement>('tr[data-skeleton] td');
-      expect(getComputedStyle(spacer as Element).backgroundImage).toMatch(
-        /linear-gradient\(.*(?:rgb|oklch|color)\(/,
-      );
+      // The rows not mounted are loaded: a hairline per row, in the theme's
+      // own colours, and no skeleton bar.
+      expect(box.querySelector('[data-skeleton]')).toBeNull();
+      const spacer = box.querySelector<HTMLElement>('tr[data-spacer] td');
+      const paint = getComputedStyle(spacer as Element).backgroundImage;
+      expect(paint).toMatch(/linear-gradient\(.*(?:rgb|oklch|color)\(/);
+      expect(paint.match(/linear-gradient/g)).toHaveLength(1);
     },
   );
 

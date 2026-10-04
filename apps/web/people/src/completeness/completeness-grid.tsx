@@ -25,10 +25,12 @@ import {
   type ChartPoint,
   type DataColumn,
   type DataTableHandle,
+  type VirtualRowProps,
   type RowAction,
 } from '@reach/ui';
 import {
   memo,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -460,10 +462,14 @@ function Missing({
     if (!result.ok) setAsked((a) => ({ ...a, [rowId(r)]: result.message }));
   };
   // Asked within the day, here or by the weekly email: another press would be a second email.
-  const recently = (r: GapRow): boolean =>
-    asked[rowId(r)] === null ||
-    (r.remindedAt !== null &&
-      (now ?? Date.parse(state.waiting.lastReminded ?? '')) - Date.parse(r.remindedAt) < DAY_MS);
+  const lastReminded = state.waiting.lastReminded;
+  const recently = useCallback(
+    (r: GapRow): boolean =>
+      asked[rowId(r)] === null ||
+      (r.remindedAt !== null &&
+        (now ?? Date.parse(lastReminded ?? '')) - Date.parse(r.remindedAt) < DAY_MS),
+    [asked, now, lastReminded],
+  );
 
   const due = state.waiting.due ?? 0;
   const canRemindAll = onRemindAll !== undefined && due > 0;
@@ -518,6 +524,121 @@ function Missing({
     </>
   );
 
+  // The table's columns and row actions, held between renders: a page
+  // landing redraws only the rows it brought, and a reminder only redraws
+  // with what it changed (`recently`). The rest is read from `live` when used.
+  const live = useRef({ labelOf, remind, setFill });
+  live.current = { labelOf, remind, setFill };
+  const fillIn = useCallback((r: GapRow): void => {
+    setOutcome(null);
+    live.current.setFill(r.personId);
+  }, []);
+  const action = useCallback(
+    (r: GapRow): JSX.Element | null =>
+      r.owner === 'hr' ? (
+        <Button
+          size="sm"
+          variant="primary"
+          aria-label={`Fill in ${r.name}`}
+          shortcut="row.fill"
+          onClick={() => {
+            fillIn(r);
+          }}
+        >
+          Fill in
+        </Button>
+      ) : onRemind === undefined ? null : recently(r) ? (
+        <Button size="sm" variant="ghost" disabled aria-label={`Reminded ${r.name}`}>
+          Reminded
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          aria-label={`Remind ${r.name}`}
+          shortcut="row.remind"
+          onClick={() => {
+            void live.current.remind(r);
+          }}
+        >
+          Remind
+        </Button>
+      ),
+    [fillIn, onRemind, recently],
+  );
+  // The row's own action, from its menu or its key: F fills in HR's gaps, R reminds a person.
+  const rowActions = useCallback(
+    (r: GapRow): readonly RowAction[] =>
+      r.owner === 'hr'
+        ? [
+            {
+              id: 'fill',
+              label: 'Fill in',
+              shortcut: 'row.fill',
+              icon: <icons.edit aria-hidden />,
+              onSelect: () => {
+                fillIn(r);
+              },
+            },
+          ]
+        : onRemind === undefined
+          ? []
+          : [
+              {
+                id: 'remind',
+                label: recently(r) ? 'Reminded' : 'Remind',
+                shortcut: 'row.remind',
+                icon: <icons.notifications aria-hidden />,
+                disabled: recently(r),
+                onSelect: () => {
+                  void live.current.remind(r);
+                },
+              },
+            ],
+    [fillIn, onRemind, recently],
+  );
+  // A phone row, held between renders like the table's columns, so a scroll
+  // or a page landing redraws only the rows it brings (`VirtualList`).
+  const phoneRow = useCallback(
+    (r: GapRow, _i: number, item: VirtualRowProps) => (
+      <ListItem
+        key={rowId(r)}
+        {...item}
+        leading={<Avatar size="lg" name={r.name} />}
+        description={`Missing: ${r.missing.map(live.current.labelOf).join(', ')}`}
+        trailing={action(r)}
+      >
+        {r.name}
+      </ListItem>
+    ),
+    [action],
+  );
+  const columns = useMemo(
+    (): DataColumn<GapRow>[] => [
+      { id: 'person', header: 'Person', width: '15rem', cell: (r) => <PersonCell row={r} /> },
+      {
+        id: 'missing',
+        header: 'Missing',
+        cell: (r) => (
+          <span className="flex flex-wrap gap-1.5">
+            {r.missing.map(live.current.labelOf).map((label) => (
+              <Badge key={label} size="sm">
+                {label}
+              </Badge>
+            ))}
+          </span>
+        ),
+      },
+      {
+        id: 'who',
+        header: 'Who fills it in',
+        width: '9rem',
+        cell: (r) => <WhoFills owner={r.owner} />,
+      },
+      { id: 'act', header: <span className="sr-only">Action</span>, width: '8rem', cell: action },
+    ],
+    [action],
+  );
+
   if (fill === FILL_ALL) {
     return (
       <FillGrid
@@ -549,92 +670,6 @@ function Missing({
       ? undefined
       : (hrRows.find((r) => r.personId === fill) ??
         state.named?.find((r) => r.owner === 'hr' && r.personId === fill && !filled[r.personId]));
-
-  const fillIn = (r: GapRow): void => {
-    setOutcome(null);
-    setFill(r.personId);
-  };
-  const action = (r: GapRow): JSX.Element | null =>
-    r.owner === 'hr' ? (
-      <Button
-        size="sm"
-        variant="primary"
-        aria-label={`Fill in ${r.name}`}
-        shortcut="row.fill"
-        onClick={() => {
-          fillIn(r);
-        }}
-      >
-        Fill in
-      </Button>
-    ) : onRemind === undefined ? null : recently(r) ? (
-      <Button size="sm" variant="ghost" disabled aria-label={`Reminded ${r.name}`}>
-        Reminded
-      </Button>
-    ) : (
-      <Button
-        size="sm"
-        aria-label={`Remind ${r.name}`}
-        shortcut="row.remind"
-        onClick={() => {
-          void remind(r);
-        }}
-      >
-        Remind
-      </Button>
-    );
-  // The row's own action, from its menu or its key: F fills in HR's gaps, R reminds a person.
-  const rowActions = (r: GapRow): readonly RowAction[] =>
-    r.owner === 'hr'
-      ? [
-          {
-            id: 'fill',
-            label: 'Fill in',
-            shortcut: 'row.fill',
-            icon: <icons.edit aria-hidden />,
-            onSelect: () => {
-              fillIn(r);
-            },
-          },
-        ]
-      : onRemind === undefined
-        ? []
-        : [
-            {
-              id: 'remind',
-              label: recently(r) ? 'Reminded' : 'Remind',
-              shortcut: 'row.remind',
-              icon: <icons.notifications aria-hidden />,
-              disabled: recently(r),
-              onSelect: () => {
-                void remind(r);
-              },
-            },
-          ];
-  const missingOf = (r: GapRow): string[] => r.missing.map(labelOf);
-  const columns: DataColumn<GapRow>[] = [
-    { id: 'person', header: 'Person', width: '15rem', cell: (r) => <PersonCell row={r} /> },
-    {
-      id: 'missing',
-      header: 'Missing',
-      cell: (r) => (
-        <span className="flex flex-wrap gap-1.5">
-          {missingOf(r).map((label) => (
-            <Badge key={label} size="sm">
-              {label}
-            </Badge>
-          ))}
-        </span>
-      ),
-    },
-    {
-      id: 'who',
-      header: 'Who fills it in',
-      width: '9rem',
-      cell: (r) => <WhoFills owner={r.owner} />,
-    },
-    { id: 'act', header: <span className="sr-only">Action</span>, width: '8rem', cell: action },
-  ];
 
   const change = state.complete?.change ?? null;
   const trend = state.complete?.trend ?? [];
@@ -781,17 +816,7 @@ function Missing({
                 ? {}
                 : { onEndReached: pages.loadMore })}
               loadingMore={pages.loading}
-              renderItem={(r, _i, item) => (
-                <ListItem
-                  key={rowId(r)}
-                  {...item}
-                  leading={<Avatar size="lg" name={r.name} />}
-                  description={`Missing: ${missingOf(r).join(', ')}`}
-                  trailing={action(r)}
-                >
-                  {r.name}
-                </ListItem>
-              )}
+              renderItem={phoneRow}
             />
           </div>
         </PageSection>

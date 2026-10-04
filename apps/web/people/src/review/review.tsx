@@ -19,6 +19,7 @@ import {
   PINNED_BAR,
   Stack,
   DataTable,
+  type DataColumn,
   Textarea,
   icons,
   usePages,
@@ -1116,6 +1117,40 @@ function decisionsOf(state: ReviewState): Decision[] {
   );
 }
 
+// At module scope, so the table keeps one set of columns and redraws a row
+// only when its decision changes, not every time a page lands.
+const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
+  {
+    id: 'person',
+    header: 'Person',
+    cell: (d) => (
+      <span className="flex min-w-0 items-center gap-2">
+        <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
+        <span className="truncate">{d.name}</span>
+      </span>
+    ),
+  },
+  { id: 'what', header: 'What', cell: (d) => d.what },
+  {
+    id: 'outcome',
+    header: 'Outcome',
+    cardTrailing: true,
+    cell: (d) => (
+      <Badge size="sm" tone={d.outcome.tone}>
+        {d.outcome.text}
+      </Badge>
+    ),
+  },
+  { id: 'by', header: 'By', shortHeader: 'By', cell: (d) => d.by },
+  {
+    id: 'when',
+    header: 'When',
+    cell: (d) => (d.when == null ? '—' : shortDay(d.when)),
+  },
+];
+const decisionKey = (d: Decision): string => d.key;
+const decisionName = (d: Decision): string => d.name;
+
 /**
  * Decided (E9): every kind for 90 days, with who decided and when, and the
  * merged records underneath with Undo, or why it cannot be undone.
@@ -1183,43 +1218,15 @@ function Decided({
           <DataTable<Decision>
             label="Decided in the last 90 days"
             rows={decisions}
-            rowId={(d) => d.key}
-            describeRow={(d) => d.name}
+            rowId={decisionKey}
+            describeRow={decisionName}
             // Infinite: the page's one scroll, older decisions loading near its
             // end, only the rows on screen drawn; cards under a finger.
             stickyHeader
             containerClassName="page-fill max-h-dvh min-h-96"
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
-            columns={[
-              {
-                id: 'person',
-                header: 'Person',
-                cell: (d) => (
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
-                    <span className="truncate">{d.name}</span>
-                  </span>
-                ),
-              },
-              { id: 'what', header: 'What', cell: (d) => d.what },
-              {
-                id: 'outcome',
-                header: 'Outcome',
-                cardTrailing: true,
-                cell: (d) => (
-                  <Badge size="sm" tone={d.outcome.tone}>
-                    {d.outcome.text}
-                  </Badge>
-                ),
-              },
-              { id: 'by', header: 'By', shortHeader: 'By', cell: (d) => d.by },
-              {
-                id: 'when',
-                header: 'When',
-                cell: (d) => (d.when == null ? '—' : shortDay(d.when)),
-              },
-            ]}
+            columns={DECIDED_COLUMNS}
           />
         </PageSection>
       )}

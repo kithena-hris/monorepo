@@ -516,7 +516,7 @@ describe('<DataTable> pinned header and a virtualized body', () => {
     vi.restoreAllMocks();
   });
 
-  it('draws the rows it has not rendered as skeleton rows, at the rows’ height, never blank', () => {
+  it('draws the rows it has not rendered as hairlined rows, at the rows’ height, never blank', () => {
     layOut();
     render(
       <DataTable
@@ -529,7 +529,7 @@ describe('<DataTable> pinned header and a virtualized body', () => {
       />,
     );
     scrollTo(200 * 57);
-    const spacers = [...document.querySelectorAll<HTMLElement>('tbody tr[data-skeleton]')];
+    const spacers = [...document.querySelectorAll<HTMLElement>('tbody tr[data-spacer]')];
     // One above what is drawn and one below: together, every row not drawn.
     expect(spacers).toHaveLength(2);
     const drawn = document.querySelectorAll('tbody tr[data-row-id]').length;
@@ -537,16 +537,88 @@ describe('<DataTable> pinned header and a virtualized body', () => {
     expect(height).toBe((many.length - drawn) * 57);
     for (const row of spacers) {
       expect(row).toHaveAttribute('aria-hidden', 'true');
-      // A bar in each column, tiled at the row height.
+      // One cell across the columns, a hairline tiled at the row height.
       const cells = [...row.querySelectorAll<HTMLElement>('td')];
-      expect(cells).toHaveLength(nameAndTeam.length);
-      for (const cell of cells) {
-        expect(cell.style.backgroundSize).toContain('57px');
-        expect(cell.style.backgroundRepeat).toBe('repeat-y');
-      }
+      expect(cells).toHaveLength(1);
+      expect(cells[0]).toHaveAttribute('colspan', String(nameAndTeam.length));
+      expect(cells[0]?.style.backgroundSize).toContain('57px');
+      expect(cells[0]?.style.backgroundRepeat).toBe('repeat-y');
     }
     // A drawn desk row is exactly its estimate, so measuring it moves nothing.
     expect(document.querySelector<HTMLElement>('tbody tr[data-row-id]')?.style.height).toBe('57px');
+    vi.restoreAllMocks();
+  });
+
+  it('renders only the rows a scroll brings into view, not every row drawn', () => {
+    layOut();
+    const rendered: string[] = [];
+    const counted: DataColumn<{ id: string; name: string }>[] = [
+      {
+        id: 'name',
+        header: 'Name',
+        cell: (r) => {
+          rendered.push(r.id);
+          return r.name;
+        },
+      },
+      { id: 'team', header: 'Team', cell: () => 'Research' },
+    ];
+    render(
+      <DataTable
+        label="People"
+        rows={many}
+        columns={counted}
+        rowId={(r) => r.id}
+        virtualize
+        selectable
+        striped
+        onRowClick={vi.fn()}
+        rowActions={() => []}
+        estimateRowHeight={57}
+      />,
+    );
+    scrollTo(100 * 57);
+    const before = new Set(
+      [...document.querySelectorAll<HTMLElement>('tbody tr[data-row-id]')].map(
+        (row) => row.dataset['rowId'],
+      ),
+    );
+    rendered.length = 0;
+    // One row further: one row enters at the bottom, one leaves at the top.
+    scrollTo(101 * 57);
+    const after = [...document.querySelectorAll<HTMLElement>('tbody tr[data-row-id]')].map(
+      (row) => row.dataset['rowId'],
+    );
+    const entered = after.filter((id) => !before.has(id));
+    // A window and its overscan drawn (48 here), and of them only the one
+    // that entered rendered: before rows were memoised, all 48 were.
+    expect(after.length).toBeGreaterThan(40);
+    expect(entered).toHaveLength(1);
+    expect(rendered).toEqual(entered);
+    vi.restoreAllMocks();
+  });
+
+  it('draws loaded rows it has not mounted as plain rows, never as skeletons', () => {
+    layOut();
+    render(
+      <DataTable
+        label="People"
+        rows={many}
+        columns={nameAndTeam}
+        rowId={(r) => r.id}
+        virtualize
+        estimateRowHeight={57}
+      />,
+    );
+    scrollTo(200 * 57);
+    const spacers = [...document.querySelectorAll<HTMLElement>('tbody tr[data-spacer]')];
+    expect(spacers).toHaveLength(2);
+    expect(document.querySelector('tbody [data-skeleton]')).toBeNull();
+    for (const cell of spacers.flatMap((row) => [...row.querySelectorAll<HTMLElement>('td')])) {
+      // The hairline under each row and nothing else: no bar.
+      expect(cell.style.backgroundImage).not.toContain('surface-sunken');
+      expect(cell.querySelector('[data-skeleton], .animate-pulse')).toBeNull();
+    }
     vi.restoreAllMocks();
   });
 
