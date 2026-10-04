@@ -1675,7 +1675,7 @@ async function nameEach(
 }
 
 /** A directory page. Keyset, so the last page of 50,000 costs what the first does. */
-export const DIRECTORY_PAGE = 50;
+export const DIRECTORY_PAGE = 100;
 
 /**
  * One page of the directory (PEO-117).

@@ -387,7 +387,7 @@ function useRows(
     next,
   });
   const [loading, setLoading] = useState(false);
-  // How many the last page added, for the live region: "50 more loaded".
+  // How many the last page added, for the live region: "100 more loaded".
   const [added, setAdded] = useState<number | null>(null);
   // Reset while rendering, not after: an effect would leave one render, and a
   // prefetch, holding the old query's cursor.
@@ -744,7 +744,7 @@ function Views({
 }
 
 /** The page People sends at a time, as the footer says it. */
-const DIRECTORY_PAGE = 50;
+const DIRECTORY_PAGE = 100;
 
 type Answered = Extract<DirectoryAsked, { ok: true }>;
 
@@ -2056,7 +2056,7 @@ function Body({
             </>
           ) : null}
           {onLoadMore === undefined ? null : (
-            // Said as each page lands, to a screen reader too: "50 more loaded".
+            // Said as each page lands, to a screen reader too: "100 more loaded".
             // The line itself holds still: pages load a page ahead of the reader,
             // so a "Loading" swapped in each time would blink under a scroll that
             // never waits. Where they would wait, the rows' own skeleton says so.

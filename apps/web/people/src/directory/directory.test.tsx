@@ -531,7 +531,7 @@ describe('Directory', () => {
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
     expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
     // Said as it lands, to a screen reader too.
-    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Loads 50 at a time');
+    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Loads 100 at a time');
     // No pager beside an infinite table.
     expect(screen.queryByRole('navigation', { name: 'Pages of people' })).toBeNull();
     expect(onLoadMore).toHaveBeenCalledOnce();
@@ -575,7 +575,7 @@ describe('Directory', () => {
     });
     // No placeholder cards: the line under them holds still, and the page arrives.
     expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(0);
-    expect(screen.getByRole('status')).toHaveTextContent('Loads 50 at a time');
+    expect(screen.getByRole('status')).toHaveTextContent('Loads 100 at a time');
     expect(screen.queryByRole('button', { name: /more people/i })).toBeNull();
     arrive({
       people: [
@@ -591,7 +591,7 @@ describe('Directory', () => {
       next: null,
     });
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Loads 50 at a time');
+    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Loads 100 at a time');
     expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(0);
     expect(await axeViolations(container)).toEqual([]);
     vi.unstubAllGlobals();
