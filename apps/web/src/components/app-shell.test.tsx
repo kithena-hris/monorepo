@@ -42,7 +42,8 @@ vi.mock('./remote-screen', () => ({
 }));
 
 const { AppShell } = await import('./app-shell');
-const { matchRoute, placesFor } = await import('../lib/remotes');
+const { placesFor } = await import('../lib/remotes');
+const { matchRoute } = await import('../lib/remote-manifest');
 const { EMPTY_SHELL, timeOffCounts, timeOffRoles } = await import('../lib/shell-data');
 const timeOff = (await import('../../timeoff/public/routes.json')).default;
 

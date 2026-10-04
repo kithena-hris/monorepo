@@ -4,7 +4,8 @@ import { cache } from 'react';
 import { flaggedRows, type FlaggedSource } from './inbox';
 import { people, timeOff } from './people';
 import { VIEWS } from './people-views';
-import { AREAS, placesFor, remoteNav, type Area } from './remotes';
+import { remoteNav } from './remote-manifest';
+import { AREAS, placesFor, type Area } from './remotes';
 import {
   countsOf,
   EMPTY_SHELL,

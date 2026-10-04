@@ -1,7 +1,8 @@
 'use server';
 
 import { writePreference } from '../../../../lib/preferences';
-import { problemIn, ShortcutPrefsSchema } from '../../../../lib/shortcuts';
+import { ShortcutPrefsSchema } from '../../../../lib/shortcut-prefs';
+import { problemIn } from '../../../../lib/shortcuts';
 
 /**
  * Saves the signed-in person's keyboard shortcuts.

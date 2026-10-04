@@ -13,11 +13,10 @@ import {
   headerFrame,
   placesFor,
   remoteBase,
-  remoteNav,
   remotePath,
-  remoteRoute,
   siblingsOf,
 } from '../lib/remotes';
+import { remoteNav, remoteRoute } from '../lib/remote-manifest';
 import { shellData, warmShell } from '../lib/shell';
 import { currentPerson } from '../lib/session';
 import { withQuery } from '../lib/url-state';

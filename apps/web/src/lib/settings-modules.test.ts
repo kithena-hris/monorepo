@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import timeOff from '../../timeoff/public/routes.json';
-import { matchRoute, placesFor } from './remotes';
+import { matchRoute } from './remote-manifest';
+import { placesFor } from './remotes';
 import { EMPTY_SHELL } from './shell-data';
 import { settingsModules } from './settings-modules';
 
