@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   EmptyState,
+  InlineCell,
   ListItem,
   VirtualList,
   PageSection,
@@ -31,6 +32,7 @@ import {
 import {
   memo,
   useCallback,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1185,9 +1187,40 @@ function FillGrid({
 const cellId = (personId: string, key: string): string => `cell-${personId}-${key}`;
 
 /**
+ * Kinds whose control is heavy to draw (a list, a calendar, a person search):
+ * an empty one is a plain cell until it is pressed or reached by Tab.
+ */
+const PICKERS = new Set<RecordField['dataType']>([
+  'select',
+  'multi_select',
+  'tags',
+  'date',
+  'person_ref',
+  'country',
+  'currency',
+  'language',
+  'time_zone',
+  'org_unit_ref',
+  'legal_entity_ref',
+  'location_ref',
+  // Inputs with a dial-code list or a currency beside them: heavier than a line.
+  'phone',
+  'money',
+]);
+
+/** Pickers whose choices are not a list sent with the field. */
+const UNLISTED = new Set<RecordField['dataType']>(['date', 'person_ref', 'tags', 'phone', 'money']);
+
+/**
  * One empty cell: the control its field's type takes, reading and writing
  * its own value in the grid's edits, so typing here re-renders this cell
  * alone.
+ *
+ * A picker is drawn as a plain cell until it is used: a page of people times
+ * a dozen fields of lists and calendars cost the grid a third of a second to
+ * open. Pressed, the control replaces it already open; reached by Tab, it
+ * replaces it with the focus in it. Synchronous, in the same event, so the
+ * press is answered on the next frame.
  */
 const Cell = memo(function Cell({
   edits,
@@ -1214,17 +1247,51 @@ const Cell = memo(function Cell({
       ),
     () => undefined,
   );
+  const [live, setLive] = useState<'focus' | 'open' | null>(null);
+  const at = useRef<HTMLDivElement>(null);
+  const id = cellId(row.personId, field.key);
+  const label = `${field.label} for ${row.name}`;
+  // The control that replaced the plain cell takes the focus it had.
+  useLayoutEffect(() => {
+    if (live === null) return;
+    at.current?.querySelector<HTMLElement>('button, input')?.focus({ preventScroll: true });
+  }, [live]);
+  // A list with nothing in it is drawn as it is, disabled, saying so.
+  const empty = field.options.length === 0 && !UNLISTED.has(field.dataType);
+  const plain = live === null && value === null && PICKERS.has(field.dataType) && !empty;
   return (
-    <div data-cell={field.key} data-person={row.personId} className="min-w-32">
-      <AttributeControl
-        field={field}
-        value={value}
-        label={`${field.label} for ${row.name}`}
-        cell={{ id: cellId(row.personId, field.key), warning }}
-        onChange={(next) => {
-          edits.set(row.personId, field.key, next);
-        }}
-      />
+    <div data-cell={field.key} data-person={row.personId} className="min-w-32" ref={at}>
+      {plain ? (
+        <InlineCell
+          id={id}
+          aria-label={label}
+          aria-haspopup="listbox"
+          readOnly
+          value=""
+          status="missing"
+          // Pressed: no focus first, so the control comes in open, not twice.
+          onMouseDown={(event) => {
+            event.preventDefault();
+          }}
+          onClick={() => {
+            setLive('open');
+          }}
+          onFocus={() => {
+            setLive((was) => was ?? 'focus');
+          }}
+          containerClassName="min-w-32"
+        />
+      ) : (
+        <AttributeControl
+          field={field}
+          value={value}
+          label={label}
+          cell={{ id, warning, open: live === 'open' }}
+          onChange={(next) => {
+            edits.set(row.personId, field.key, next);
+          }}
+        />
+      )}
     </div>
   );
 });
