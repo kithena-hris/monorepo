@@ -162,8 +162,6 @@ jobs:
 
       - name: lint
         if: matrix.stream == 'lint'
-        env:
-          NODE_OPTIONS: --max-old-space-size=8192
         run: pnpm lint
 
       # Architectural boundaries. A cross-module import fails here, which is
