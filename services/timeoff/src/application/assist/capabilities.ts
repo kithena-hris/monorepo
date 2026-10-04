@@ -17,11 +17,13 @@ import {
   type RuntimeCatalogue,
 } from '@kithena/contracts';
 
+import { days, type Decimal } from '../../domain/days.js';
 import type { LeaveRequest } from '../../domain/request/leave-request.js';
 import { holidaysFor, runsIn, seesType, sightOf, type Sight } from '../calendar/calendar.js';
 import type { Caller, Deps, Member, Tx } from '../ports.js';
+import { seesBalances } from '../screens/employee.js';
 import { chatAnswersOf } from '../settings/chat.js';
-import { isHrAdmin, refuse, transact } from '../shared.js';
+import { applies, balanceFor, isHrAdmin, refuse, transact } from '../shared.js';
 import { DENIED } from './denied.js';
 import { dayName, longDate, longDay, shortDate } from './words.js';
 
@@ -61,6 +63,12 @@ export const capabilityCatalogue =
           .filter((t) => !isPrivateLeaveType(t))
           .map((t) => ({ value: t.key, label: t.name.default })),
       };
+      const tracked: CatalogueField = {
+        ...leaveType,
+        options: types
+          .filter((t) => t.tracked && !isPrivateLeaveType(t))
+          .map((t) => ({ value: t.key, label: t.name.default })),
+      };
       const team: CatalogueField = {
         key: 'team',
         label: 'Team',
@@ -72,7 +80,10 @@ export const capabilityCatalogue =
       return ok({
         module: 'timeoff',
         serves: timeoffCapabilities.map((c) => ({ name: c.name, version: c.version })),
-        fields: { 'timeoff.away': [leaveType, team] },
+        fields: {
+          'timeoff.away': [leaveType, team],
+          'timeoff.balances': [tracked, DAYS_LEFT, team],
+        },
         metrics: [],
         leaveTypes: types.map((t) => ({
           key: t.key,
@@ -87,6 +98,14 @@ export const capabilityCatalogue =
         chatNamesPrivateLeave: (await chatAnswersOf(tx)).namesPrivateLeave,
       });
     });
+
+/** "More than 10 left": a number, compared with each balance in its own unit. */
+const DAYS_LEFT: CatalogueField = {
+  key: 'days_left',
+  label: 'Days left',
+  kind: 'number',
+  options: [],
+};
 
 /* ---------------------------------------------------------------- shared -- */
 
@@ -140,6 +159,46 @@ async function placeOf(tx: Tx, key: LocationKey, places: Map<string, string>): P
     places.set(key, name);
   }
   return name;
+}
+
+/**
+ * The members a name in a question means, among those the asker may see: the
+ * asker for `@me`, else every member whose name starts word by word as typed,
+ * accents and case aside, a single exact match winning. `sees` is checked only
+ * for the names that match.
+ */
+async function named(
+  members: readonly Member[],
+  name: string,
+  caller: Caller,
+  sees: (m: Member) => Promise<boolean>,
+): Promise<Member[] | AmbiguousResult | NotFoundResult> {
+  if (name === SELF_NAME) {
+    if (caller.personId === null) return { kind: 'not_found', self: true };
+    return members.filter((m) => m.personId === caller.personId);
+  }
+  const typed = fold(name);
+  const words = typed.split(/\s+/u);
+  const visible: Member[] = [];
+  for (const m of members) {
+    const own = fold(m.displayName).split(/\s+/u);
+    // oxlint-disable-next-line no-await-in-loop -- sight only for the names that match
+    if (words.every((w) => own.some((o) => o.startsWith(w))) && (await sees(m))) visible.push(m);
+  }
+  const exact = visible.filter((m) => fold(m.displayName) === typed);
+  const picked = exact.length === 1 ? exact : visible;
+  if (picked.length === 0) return { kind: 'not_found', name };
+  if (picked.length > 1) {
+    return {
+      kind: 'ambiguous',
+      name,
+      candidates: picked
+        .toSorted((a, b) => a.displayName.localeCompare(b.displayName))
+        .slice(0, ASSISTANT_LIMITS.listed)
+        .map((m) => ({ personId: m.personId, name: m.displayName })),
+    };
+  }
+  return picked;
 }
 
 /* ---------------------------------------------------------- timeoff.away -- */
@@ -236,33 +295,14 @@ export const away =
           tests.team.every((t) => t(m.teamKey, m.teamName)),
       );
 
-      if (input.name === SELF_NAME) {
-        if (caller.personId === null) return ok({ kind: 'not_found', self: true });
-        members = members.filter((m) => m.personId === caller.personId);
-      } else if (input.name !== undefined) {
-        const typed = fold(input.name);
-        const words = typed.split(/\s+/u);
-        const visible: Member[] = [];
-        for (const m of members) {
-          const own = fold(m.displayName).split(/\s+/u);
-          // oxlint-disable-next-line no-await-in-loop -- sight only for the names that match
-          if (words.every((w) => own.some((o) => o.startsWith(w))) && (await sight(m)) !== null) {
-            visible.push(m);
-          }
-        }
-        const exact = visible.filter((m) => fold(m.displayName) === typed);
-        const picked = exact.length === 1 ? exact : visible;
-        if (picked.length === 0) return ok({ kind: 'not_found', name: input.name });
-        if (picked.length > 1) {
-          return ok({
-            kind: 'ambiguous',
-            name: input.name,
-            candidates: picked
-              .toSorted((a, b) => a.displayName.localeCompare(b.displayName))
-              .slice(0, ASSISTANT_LIMITS.listed)
-              .map((m) => ({ personId: m.personId, name: m.displayName })),
-          });
-        }
+      if (input.name !== undefined) {
+        const picked = await named(
+          members,
+          input.name,
+          caller,
+          async (m) => (await sight(m)) !== null,
+        );
+        if (!Array.isArray(picked)) return ok(picked);
         members = picked;
       }
 
@@ -402,6 +442,166 @@ export const managers =
         total: matched.length,
         scope: scopeOf(hr),
         described: 'managers of people',
+        notes: [],
+      });
+    });
+
+/* ------------------------------------------------------ timeoff.balances -- */
+
+const NUMBER = /^-?\d+(?:\.\d+)?$/u;
+
+interface LeftTest {
+  readonly test: (left: Decimal) => boolean;
+  readonly said: string;
+}
+
+/** A `days_left` filter as a test of one balance: more than, fewer than, or exactly. */
+function leftOf(filter: CapabilityFilter): Result<LeftTest> {
+  const [value, ...rest] = filter.values.map((v) => v.trim());
+  if (value === undefined || rest.length > 0 || !NUMBER.test(value)) {
+    return refuse('BAD_REQUEST', 'days_left compares with one number', ['filters']);
+  }
+  const n = days(value);
+  switch (filter.op) {
+    case 'after':
+      return ok({ test: (left) => left.gt(n), said: `more than ${n.toString()}` });
+    case 'before':
+      return ok({ test: (left) => left.lt(n), said: `less than ${n.toString()}` });
+    case 'is':
+      return ok({ test: (left) => left.eq(n), said: `exactly ${n.toString()}` });
+    default:
+      return refuse('BAD_REQUEST', 'days_left is "after", "before" or "is"', ['filters']);
+  }
+}
+
+/** "12.5 days left", "1 day left", "6 hours left": the fold's own figure, never a float. */
+const leftText = (left: Decimal, unit: LeaveTypeDefinition['unit']): string =>
+  `${left.toString()} ${unit}${left.eq(1) ? '' : 's'} left`;
+
+/**
+ * `timeoff.balances` (assistant PRD §17, Phase 2): how much leave people have
+ * left today, as the asker may see balances — their own, the people they
+ * approve or cover, HR everyone's (`seesBalances`, the People Graph's rule) —
+ * each from the ledger's fold (`balanceFor`) for the leave year today is in,
+ * in the member's own zone.
+ *
+ * The types are those a `leave_type` filter names, else the annual leave
+ * types (any tracked type that is not private where a company has none), and
+ * only tracked ones that apply to the member. Everybody whose balance the
+ * asker sees has `type` sight of them (`sightOf`), so a private type matches
+ * its filter; its name is still written "Away" beside a person, as
+ * `timeoff.away` writes it, unless the company chose to name it (AST-029a).
+ * One type in play reads "12.5 days left"; several name each.
+ */
+export const balances =
+  (deps: Pick<Deps, 'uow' | 'authz' | 'clock'>) =>
+  (caller: Caller, input: CapabilityInput): Promise<Result<Found>> =>
+    transact(deps, caller.tenantId, async (tx): Promise<Result<Found>> => {
+      const tests: Record<'leave_type' | 'team', Test[]> = { leave_type: [], team: [] };
+      const lefts: LeftTest[] = [];
+      for (const filter of input.filters ?? []) {
+        if (filter.key === 'days_left') {
+          const read = leftOf(filter);
+          if (!read.ok) return read;
+          lefts.push(read.value);
+          continue;
+        }
+        if (filter.key !== 'leave_type' && filter.key !== 'team') {
+          return refuse('BAD_REQUEST', `timeoff.balances has no ${filter.key} filter`, ['filters']);
+        }
+        const test = testOf(filter);
+        if (!test.ok) return test;
+        tests[filter.key].push(test.value);
+      }
+
+      const hr = await isHrAdmin(deps, caller);
+      const naming = (await chatAnswersOf(tx)).namesPrivateLeave;
+      const sees = (m: Member): Promise<boolean> => seesBalances(deps, caller, m.personId, hr);
+      const all = await tx.members.list();
+      const within = input.personIds === undefined ? null : new Set<string>(input.personIds);
+      let members = all.filter(
+        (m) =>
+          m.status !== 'left' &&
+          (within === null || within.has(m.personId)) &&
+          tests.team.every((t) => t(m.teamKey, m.teamName)),
+      );
+      if (input.name === undefined) {
+        const visible: Member[] = [];
+        for (const m of members) {
+          // oxlint-disable-next-line no-await-in-loop -- one check per member
+          if (await sees(m)) visible.push(m);
+        }
+        members = visible;
+      } else {
+        const picked = await named(members, input.name, caller, sees);
+        if (!Array.isArray(picked)) return ok(picked);
+        members = picked;
+      }
+
+      const tracked = (await tx.leaveTypes.list())
+        .filter((t) => !t.deleted && t.definition.tracked)
+        .map((t) => t.definition)
+        .toSorted((a, b) => a.name.default.localeCompare(b.name.default));
+      const annual = tracked.filter((t) => t.category === 'annual_leave');
+      const asked =
+        tests.leave_type.length > 0
+          ? tracked.filter((t) => tests.leave_type.every((test) => test(t.key, t.name.default)))
+          : annual.length > 0
+            ? annual
+            : tracked.filter((t) => !isPrivateLeaveType(t));
+      const several = asked.length > 1;
+
+      const matched: { member: Member; detail: string }[] = [];
+      for (const m of members.toSorted((a, b) => a.displayName.localeCompare(b.displayName))) {
+        const today = deps.clock.date(m.timeZone);
+        const texts: string[] = [];
+        for (const t of asked) {
+          if (!applies(t.appliesTo, m)) continue;
+          // oxlint-disable-next-line no-await-in-loop -- one fold per member and type
+          const left = days((await balanceFor(tx, m, t.key, today)).left);
+          if (!lefts.every((l) => l.test(left))) continue;
+          const label = naming || !isPrivateLeaveType(t) ? t.name.default : 'Away';
+          texts.push(`${leftText(left, t.unit)}${several ? ` · ${label}` : ''}`);
+        }
+        if (texts.length > 0) matched.push({ member: m, detail: texts.join(', ').slice(0, 200) });
+      }
+
+      const places = new Map<string, string>();
+      const rows: PeopleResult['rows'] = [];
+      for (const { member, detail } of matched.slice(0, input.limit ?? ASSISTANT_LIMITS.listed)) {
+        // oxlint-disable-next-line no-await-in-loop -- a location's name once, then remembered
+        const groups = await groupsOf(tx, member, places);
+        // The asker among them: the answer says "(you)".
+        const self = member.personId === caller.personId ? { self: true as const } : {};
+        rows.push({ personId: member.personId, name: member.displayName, detail, groups, ...self });
+      }
+
+      // What was asked, never what was found: "in Sales with more than 10 days of Vacation left".
+      const teams = new Map(
+        all.flatMap((m) => (m.teamKey === null ? [] : said(m.teamKey, m.teamName ?? m.teamKey))),
+      );
+      const inTeams = (input.filters ?? [])
+        .filter((f) => f.key === 'team')
+        .flatMap((f) => {
+          const names = [...new Set(f.values.flatMap((v) => teams.get(fold(v)) ?? []))];
+          if (names.length === 0) return [];
+          return [`${f.op === 'not_in' ? 'not in' : 'in'} ${names.join(' or ')}`];
+        });
+      const typeNames = asked.map((t) => t.name.default).join(' or ');
+      const unit = asked.length > 0 && asked.every((t) => t.unit === 'hour') ? 'hours' : 'days';
+      const balance =
+        lefts.length === 0
+          ? `with a ${typeNames === '' ? 'leave' : typeNames} balance`
+          : `with ${lefts.map((l) => l.said).join(' and ')} ${unit}${typeNames === '' ? '' : ` of ${typeNames}`} left`;
+      return ok({
+        kind: 'people',
+        rows,
+        ...(input.ids === true
+          ? { ids: matched.slice(0, ASSISTANT_LIMITS.ids).map((x) => x.member.personId) }
+          : {}),
+        total: matched.length,
+        scope: scopeOf(hr),
+        described: [...inTeams, balance].join(' ').slice(0, 240),
         notes: [],
       });
     });

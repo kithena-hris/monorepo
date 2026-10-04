@@ -1,11 +1,12 @@
-import type {
-  AssistantAnswer,
-  AssistantChannel,
-  CapabilityOutput,
-  CatalogueLeaveType,
-  ModuleKey,
-  PeopleResult,
-  PersonRow,
+import {
+  SELF_NAME,
+  type AssistantAnswer,
+  type AssistantChannel,
+  type CapabilityOutput,
+  type CatalogueLeaveType,
+  type ModuleKey,
+  type PeopleResult,
+  type PersonRow,
 } from '@kithena/contracts';
 
 import { longDate, resolve, type Today } from './dates.js';
@@ -212,6 +213,7 @@ function chainOf(plan: Plan, step: ValidStep): ValidStep[] {
 
 const isManagers = (step: ValidStep): boolean => step.capability.name.endsWith('.managers');
 const isReports = (step: ValidStep): boolean => step.capability.name === 'people.reports';
+const isBalances = (step: ValidStep): boolean => step.capability.name === 'timeoff.balances';
 
 const personOf = (row: { personId: string; name: string; title?: string | undefined }) => ({
   id: row.personId,
@@ -435,6 +437,17 @@ function peopleAnswer(
     };
   }
 
+  // "How much vacation do I have left?": said to the asker, not listed as somebody they can see.
+  const [mine] = output.rows;
+  if (isBalances(step) && step.input.name === SELF_NAME && n === 1 && mine?.self === true) {
+    return {
+      text: `You have ${detailOf(mine, setting, chat) ?? 'no balance'}.`,
+      people: [],
+      understood: `You, ${what}`,
+      answered: true,
+    };
+  }
+
   const rows = output.rows.slice(0, 25);
   const shown = rows.map((r) => ({ name: r.name, title: detailOf(r, setting, chat) }));
   if (isReports(step)) {
@@ -472,16 +485,22 @@ function peopleAnswer(
 
 /**
  * What follows a name on its line: the module's detail, or the job title. In
- * a chat app a private type in the detail ("Thu 15 · Baja médica") reads
- * "Away", whoever asks (§11.4).
+ * a chat app a private type in any part of the detail ("Thu 15 · Baja
+ * médica", "3 days left · Baja médica, 25 days left · Vacation") reads "Away",
+ * whoever asks (§11.4).
  */
 function detailOf(row: PersonRow, setting: Setting, chat: boolean): string | undefined {
   if (row.detail === undefined) return row.title;
   if (!chat) return row.detail;
-  const cut = row.detail.lastIndexOf(' · ');
-  const type = (cut < 0 ? row.detail : row.detail.slice(cut + 3)).trim().toLowerCase();
-  const hidden = setting.leaveTypes.some(
-    (t) => t.private && (t.name.toLowerCase() === type || t.key === type),
-  );
-  return hidden ? `${cut < 0 ? '' : `${row.detail.slice(0, cut)} · `}Away` : row.detail;
+  return row.detail
+    .split(', ')
+    .map((part) => {
+      const cut = part.lastIndexOf(' · ');
+      const type = (cut < 0 ? part : part.slice(cut + 3)).trim().toLowerCase();
+      const hidden = setting.leaveTypes.some(
+        (t) => t.private && (t.name.toLowerCase() === type || t.key === type),
+      );
+      return hidden ? `${cut < 0 ? '' : `${part.slice(0, cut)} · `}Away` : part;
+    })
+    .join(', ');
 }

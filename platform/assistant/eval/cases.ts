@@ -185,6 +185,15 @@ export const CASES: readonly EvalCase[] = [
     expect: one('timeoff.away', away({ from: '2026-10-12', to: '2026-10-16' }), 'list'),
   },
 
+  {
+    id: 'to-my-vacation-left',
+    group: 'timeoff',
+    question: 'How much vacation do I have left?',
+    company: 'both',
+    asker: 'employee',
+    expect: one('timeoff.balances', { name: '@me', ...types('vacation') }, 'list'),
+  },
+
   // Joins
   {
     id: 'j-managers-sick',
@@ -296,6 +305,30 @@ export const CASES: readonly EvalCase[] = [
         step('s2', 'timeoff.away', away('this_month', types('L1')), 's1'),
       ],
       { kind: 'count', step: 's2' },
+    ),
+  },
+
+  {
+    id: 'j-my-team-days-left',
+    group: 'joins',
+    question: 'Who in my team has more than 10 days left?',
+    company: 'both',
+    asker: 'manager',
+    expect: or(
+      plan(
+        [
+          step('s1', 'people.reports', { name: '@me' }),
+          step('s2', 'timeoff.balances', where('days_left', 'after', '10'), 's1'),
+        ],
+        { kind: 'list', step: 's2' },
+      ),
+      plan(
+        [
+          step('s1', 'people.find', { name: '@me' }),
+          step('s2', 'timeoff.balances', where('days_left', 'after', '10'), 's1'),
+        ],
+        { kind: 'list', step: 's2' },
+      ),
     ),
   },
 

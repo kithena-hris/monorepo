@@ -723,5 +723,85 @@ describe('a question from the web, in the session it was asked in (AST-035)', ()
     );
     expect(sent.length).toBeGreaterThan(0);
     expect(sent.every((as) => as.viewedBy === null && as.impersonatedBy === null)).toBe(true);
+
+describe('balances, end to end (AST-030)', () => {
+  it('how much vacation do I have left?', async () => {
+    const { modules, calls } = fakeModules(
+      { people: PEOPLE_CATALOGUE, timeoff: TIMEOFF_CATALOGUE },
+      {
+        'timeoff.balances': returns(
+          people(
+            1,
+            'with a Vacation balance',
+            [{ name: 'Marco Ruiz', detail: '12.5 days left', self: true }],
+            { scope: 'visible' },
+          ),
+        ),
+      },
+    );
+    const { planner } = fakePlanner(
+      one('timeoff.balances', {
+        name: '@me',
+        filters: [{ key: 'leave_type', op: 'in', values: ['vacation'] }],
+      }),
+    );
+    const asked = await ask({ modules, planner })(
+      question('How much vacation do I have left?'),
+      'c',
+    );
+    expect(calls).toEqual([
+      {
+        name: 'timeoff.balances',
+        input: {
+          name: '@me',
+          filters: [{ key: 'leave_type', op: 'in', values: ['vacation'] }],
+          limit: 25,
+        },
+      },
+    ]);
+    expect(asked.answer.text).toBe('You have 12.5 days left.');
+  });
+
+  it('who in my team has more than 10 days left?', async () => {
+    const { modules, calls } = fakeModules(
+      { people: PEOPLE_CATALOGUE, timeoff: TIMEOFF_CATALOGUE },
+      {
+        'people.reports': returns(people(2, 'Marco Ruiz', [], { ids: [1, 2] })),
+        'timeoff.balances': returns(
+          people(
+            1,
+            'with more than 10 days of Vacation left',
+            [{ name: 'Adam Novak', detail: '12.5 days left' }],
+            { scope: 'visible' },
+          ),
+        ),
+      },
+    );
+    const { planner } = fakePlanner({
+      kind: 'plan',
+      steps: [
+        { id: 's1', capability: 'people.reports', input: { name: '@me' } },
+        {
+          id: 's2',
+          capability: 'timeoff.balances',
+          within: 's1',
+          input: { filters: [{ key: 'days_left', op: 'after', values: ['10'] }] },
+        },
+      ],
+      answer: { kind: 'list', step: 's2' },
+    });
+    const asked = await ask({ modules, planner })(
+      question('Who in my team has more than 10 days left?'),
+      'c',
+    );
+    expect(calls[1]).toEqual({
+      name: 'timeoff.balances',
+      input: {
+        filters: [{ key: 'days_left', op: 'after', values: ['10'] }],
+        limit: 25,
+        personIds: [id(1), id(2)],
+      },
+    });
+    expect(asked.answer.text).toContain('• Adam Novak — 12.5 days left');
   });
 });

@@ -56,12 +56,21 @@ describe('the catalogue offered to the model', () => {
       'people.managers',
       'people.approvals',
       'timeoff.away',
+      'timeoff.balances',
     ]);
     expect(BOTH.get('timeoff.away')?.fields.map((f) => f.key)).toEqual(['leave_type']);
+    expect(BOTH.get('timeoff.balances')?.fields.map((f) => f.key)).toEqual([
+      'leave_type',
+      'days_left',
+    ]);
   });
 
   it('yields nothing where People is absent', () => {
-    expect([...TIMEOFF_ONLY.keys()]).toEqual(['timeoff.away', 'timeoff.managers']);
+    expect([...TIMEOFF_ONLY.keys()]).toEqual([
+      'timeoff.away',
+      'timeoff.managers',
+      'timeoff.balances',
+    ]);
     expect(TIMEOFF_ONLY.get('timeoff.away')?.fields.map((f) => f.key)).toEqual([
       'leave_type',
       'team',

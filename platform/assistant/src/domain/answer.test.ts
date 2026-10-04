@@ -496,6 +496,82 @@ describe('the worked examples', () => {
   });
 });
 
+describe('balances (AST-030)', () => {
+  const VACATION = { key: 'leave_type', op: 'in', values: ['vacation'] };
+  const MORE_THAN_TEN = { key: 'days_left', op: 'after', values: ['10'] };
+
+  it('how much vacation do I have left: the asker’s own, said to them', async () => {
+    const a = await answer(one('timeoff.balances', { name: '@me', filters: [VACATION] }), {
+      s1: people(
+        1,
+        'with a Vacation balance',
+        [{ name: 'Adam Novak', detail: '12.5 days left', self: true }],
+        { scope: 'visible' },
+      ),
+    });
+    expect(a).toEqual({
+      text: 'You have 12.5 days left.',
+      understood: 'You, with a Vacation balance',
+      people: [],
+      answered: true,
+    });
+  });
+
+  it('who in my team has more than ten days left: named, each with their days', async () => {
+    const a = await answer(
+      {
+        kind: 'plan',
+        steps: [
+          { id: 's1', capability: 'people.reports', input: { name: '@me' } },
+          {
+            id: 's2',
+            capability: 'timeoff.balances',
+            input: { filters: [MORE_THAN_TEN] },
+            within: 's1',
+          },
+        ],
+        answer: { kind: 'list', step: 's2' },
+      },
+      {
+        s1: people(2, 'Marco Ruiz', [], { ids: [1, 2] }),
+        s2: people(
+          1,
+          'with more than 10 days of Vacation left',
+          [{ name: 'Adam Novak', detail: '12.5 days left' }],
+          { scope: 'visible' },
+        ),
+      },
+    );
+    expect(a.text).toBe(
+      'I found 1 person you can see reporting to Marco Ruiz and with more than 10 days of Vacation left. You see your own team; HR sees everyone.\n• Adam Novak — 12.5 days left',
+    );
+  });
+
+  it('never writes a private type beside a name in a chat app, in any part of the detail', async () => {
+    const a = await answer(one('timeoff.balances', { filters: [VACATION] }), {
+      s1: people(1, 'with a Vacation balance', [
+        { name: 'Adam Novak', detail: '3 days left · Baja médica, 25 days left · Vacation' },
+      ]),
+    });
+    expect(a.text).toContain('• Adam Novak — 3 days left · Away, 25 days left · Vacation');
+  });
+
+  it('gives a private type’s balances as a count in a chat app, even about the asker', async () => {
+    const sick = { name: '@me', filters: [{ key: 'leave_type', op: 'in', values: ['sick'] }] };
+    const a = await answer(one('timeoff.balances', sick), {
+      s1: people(
+        1,
+        'with a Baja médica balance',
+        [{ name: 'Adam Novak', detail: '3 days left', self: true }],
+        { scope: 'visible' },
+      ),
+    });
+    expect(a.people).toEqual([]);
+    expect(a.text).not.toContain('Adam');
+    expect(a.text).not.toContain('3 days');
+  });
+});
+
 describe('what else an answer says', () => {
   it('adds the modules’ own notes', async () => {
     const a = await answer(one('timeoff.away', TODAY, 'count'), {
