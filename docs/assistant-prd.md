@@ -595,13 +595,13 @@ the module, inputs and outputs are built from a few shared shapes in
 
 **Outputs** (`output` picks one):
 
-| Kind        | Shape                                                                                                                      | Used by                      |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `people`    | `{ rows: { personId, name, title?, detail?, groups }[], ids?, total, scope: 'everyone' \| 'visible', described, notes[] }` | find, away, managers         |
-| `profile`   | `{ personId, name, title?, manager?, hireDate?, email?, self }`                                                            | `people.person`              |
-| `items`     | `{ items: { name, label }[], total }`                                                                                      | `people.approvals`           |
-| `ambiguous` | `{ name, candidates: { personId, name, title? }[] }`                                                                       | Any capability taking `name` |
-| `not_found` | `{ name }` or `{ self: true }` (the asker has no record)                                                                   | Any capability taking `name` |
+| Kind        | Shape                                                                                                                      | Used by                               |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `people`    | `{ rows: { personId, name, title?, detail?, groups }[], ids?, total, scope: 'everyone' \| 'visible', described, notes[] }` | find, away, managers, balances        |
+| `profile`   | `{ personId, name, title?, manager?, hireDate?, email?, self }`                                                            | `people.person`                       |
+| `items`     | `{ items: { name, label }[], total }`                                                                                      | `people.approvals`, `timeoff.pending` |
+| `ambiguous` | `{ name, candidates: { personId, name, title? }[] }`                                                                       | Any capability taking `name`          |
+| `not_found` | `{ name }` or `{ self: true }` (the asker has no record)                                                                   | Any capability taking `name`          |
 
 `ids` is every matching `personId` (≤ 5,000), returned only when the
 assistant asks for it because a later step needs it. `detail` is a module's
@@ -689,7 +689,7 @@ type Step = {
 type Answer =
   | { kind: 'count'; step: StepId; by?: string } // by: a group the step's capability declares
   | { kind: 'list'; step: StepId }
-  | { kind: 'one'; step: StepId }; // profile, items, ambiguous, not_found
+  | { kind: 'one'; step: StepId | StepId[] }; // profile, items, ambiguous, not_found; several only for items
 ```
 
 ### 9.2 Validation (domain, pure, refusal is whole)
