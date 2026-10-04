@@ -291,6 +291,9 @@ describe('merging', () => {
         names: ['Ada Lovelace', 'Augusta Lovelace'],
         reasons: ['Same work email'],
         match: 'likely',
+        flaggedBy: 'Kithena’s duplicate check',
+        // No photo store wired here: nobody's face.
+        avatarUrls: [null, null],
       },
     ]);
     const compared = view.value.comparison;

@@ -6,7 +6,8 @@ import { ShareChoice, type ShareRequest, type ShareStore } from './share.js';
 
 /**
  * `people.export_share`, hand-written against
- * `migrations/20261001150000_people_export_share.sql`. Beside the use case,
+ * `migrations/20261001150000_people_export_share.sql` and
+ * `20261004100000_people_export_share_people.sql`. Beside the use case,
  * as the export ledger is: nothing else reads this table.
  */
 
@@ -25,6 +26,7 @@ type Row = {
   choice: unknown;
   gap: Gap;
   export_id: string | null;
+  people: number | null;
 };
 
 const iso = (v: Date | string) => new Date(v).toISOString();
@@ -48,6 +50,7 @@ function fromRow(r: Row): ShareRequest {
     choice: ShareChoice.parse(r.choice),
     gap: r.gap,
     exportId: r.export_id,
+    people: r.people,
   };
 }
 
@@ -58,10 +61,10 @@ export function drizzleShareStore(): ShareStore {
       await tx.execute(sql`
         INSERT INTO people.export_share
                (tenant_id, id, requested_by, recipient, reason, requested_at, expires_at, state,
-                choice, gap)
+                choice, gap, people)
         VALUES (${q.tenantId}::uuid, ${a.id}::uuid, ${a.requestedBy}::uuid, ${q.recipient}::uuid,
                 ${a.reason}, ${a.requestedAt}::timestamptz, ${a.expiresAt}::timestamptz, ${a.state},
-                ${JSON.stringify(q.choice)}::jsonb, ${JSON.stringify(q.gap)}::jsonb)`);
+                ${JSON.stringify(q.choice)}::jsonb, ${JSON.stringify(q.gap)}::jsonb, ${q.people})`);
     },
 
     async find(tx, tenantId, id) {

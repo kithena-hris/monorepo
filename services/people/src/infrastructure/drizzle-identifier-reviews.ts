@@ -1,6 +1,7 @@
 import { createHmac, hkdfSync, timingSafeEqual } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type { Actor } from '@kithena/contracts';
 import { outboxTable, publish } from '@kithena/db-kit';
 
 import type { IdentifierReviews } from '../application/person/identifier-review.js';
@@ -145,18 +146,29 @@ export function drizzleIdentifierReviews(
     },
 
     async pending(tx, tenantId, limit) {
-      const rows = await tx.execute<Row>(sql`
-        SELECT ${COLUMNS} FROM people.identifier_review
-         WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
-         ORDER BY created_at, id
+      // Who entered each value: the history row's actor, or the held change's requester.
+      const rows = await tx.execute<Row & { entered_by: Actor | null }>(sql`
+        SELECT r.id, r.person_id, r.attribute_key, r.history_id, r.pending_change_id, r.value_hash,
+               r.key_id, r.findings, r.state, r.created_at, r.decided_by, r.decided_at, r.note,
+               COALESCE(h.actor, CASE WHEN c.requested_by IS NULL THEN NULL
+                                      ELSE jsonb_build_object('kind', 'user', 'userId', c.requested_by)
+                                 END) AS entered_by
+          FROM people.identifier_review r
+          LEFT JOIN people.person_attribute_history h
+            ON h.tenant_id = r.tenant_id AND h.id = r.history_id
+          LEFT JOIN people.pending_change c
+            ON c.tenant_id = r.tenant_id AND c.id = r.pending_change_id
+         WHERE r.tenant_id = ${tenantId}::uuid AND r.state = 'pending'
+         ORDER BY r.created_at, r.id
          LIMIT ${limit}`);
-      return [...rows].map(fromRow);
+      return [...rows].map((r) => ({ ...fromRow(r), enteredBy: r.entered_by }));
     },
 
-    async decided(tx, tenantId, since, limit) {
+    async decided(tx, tenantId, since, limit, personId) {
       const rows = await tx.execute<Row>(sql`
         SELECT ${COLUMNS} FROM people.identifier_review
          WHERE tenant_id = ${tenantId}::uuid AND decided_at >= ${since}::timestamptz
+           AND (${personId ?? null}::uuid IS NULL OR person_id = ${personId ?? null}::uuid)
          ORDER BY decided_at DESC, id
          LIMIT ${limit}`);
       return [...rows].map(fromRow);

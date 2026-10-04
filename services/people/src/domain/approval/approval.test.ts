@@ -5,6 +5,7 @@ import {
   expire,
   openApproval,
   outcomeAt,
+  ownOutcomeAt,
   stateAt,
   useOnce,
   withdraw,
@@ -135,6 +136,35 @@ describe('what became of it, for Decided', () => {
       state: 'lapsed',
       at: WEEK_LATER,
     });
+  });
+});
+
+describe('what became of one’s own request, for the requester’s Decided', () => {
+  it('is the same answer as HR’s for a decision or a lapse', () => {
+    const decided = decide(pending(), { by: HR, approve: true, at: AT, note: 'Fine' });
+    expect(decided.ok && ownOutcomeAt(decided.value, WEEK_LATER, FINANCE)).toEqual({
+      state: 'approved',
+      at: AT,
+    });
+    expect(ownOutcomeAt(pending(), WEEK_LATER, FINANCE)).toEqual({
+      state: 'lapsed',
+      at: WEEK_LATER,
+    });
+    expect(ownOutcomeAt(pending(), AT, FINANCE)).toBeNull();
+  });
+
+  it('is withdrawn, when they took it back, which nobody else’s Decided says', () => {
+    const withdrawn = withdraw(pending(), { by: FINANCE, at: AT });
+    expect(withdrawn.ok && ownOutcomeAt(withdrawn.value, WEEK_LATER, FINANCE)).toEqual({
+      state: 'withdrawn',
+      at: AT,
+    });
+  });
+
+  it('is nothing for a request somebody else made', () => {
+    const decided = decide(pending(), { by: HR, approve: false, at: AT });
+    expect(decided.ok && ownOutcomeAt(decided.value, WEEK_LATER, HR)).toBeNull();
+    expect(ownOutcomeAt(pending(), WEEK_LATER, HR)).toBeNull();
   });
 });
 

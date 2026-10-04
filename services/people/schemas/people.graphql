@@ -203,6 +203,10 @@ type ApprovalFlagStats {
 type ApprovalItem {
   avatarUrl: String
   awaitingReview: Boolean
+  """
+  What the field held when it was asked for, on the requester’s own Decided; null elsewhere.
+  """
+  before: FormEntry
   canAsk: Boolean
   canDecide: Boolean
   """May mark its flags not unusual."""
@@ -238,7 +242,9 @@ type ApprovalItem {
   reason: String
   requestedAt: String
   requestedBy: String
-  """pending, approved, rejected or lapsed."""
+  """
+  pending, approved, rejected, lapsed, or withdrawn on the requester’s own.
+  """
   state: String
   value: FormEntry
 }
@@ -584,6 +590,14 @@ type DuplicateDismissed {
 """Two records that look like one human, and why. Never a value."""
 type DuplicatePair {
   """
+  Each one’s photo, in the order of personIds; null where none may be shown.
+  """
+  avatarUrls: [String]!
+  """
+  What flagged the pair, as nobody asked: SCIM provisioning or the check.
+  """
+  flaggedBy: String
+  """
   strong, likely or possible: a band from the signals, never a percentage (`matchBand`).
   """
   match: String
@@ -836,6 +850,10 @@ type IdentifierReviewItem {
   attributeKey: String
   avatarUrl: String
   enteredAt: String
+  """
+  Who entered the value, as the viewer may name them; null when not recorded.
+  """
+  enteredBy: String
   findings: [IdentifierFinding!]
   """
   Held for approval, not yet written: reviewed first; sending it back declines the change.
@@ -1985,6 +2003,18 @@ type PeopleOverviewTeam {
   waiting: Int
 }
 
+"""
+The viewer’s own requests, decided in the last 90 days (E10): theirs alone, whoever they are.
+"""
+type PeopleOwnDecided {
+  """
+  Their requested changes approved, rejected, lapsed or withdrawn, newest first, with `before`.
+  """
+  changes: [ApprovalItem!]
+  """Their own identifiers HR accepted or sent back. Never the value."""
+  identifiers: [DecidedIdentifierReview!]
+}
+
 """A person’s photo, to somebody who may read the person."""
 type PeoplePhoto {
   checksum: String
@@ -2239,6 +2269,8 @@ How many decisions wait for this viewer, counted; null where they have no such q
 """
 type PeopleWaiting {
   accessRequests: Int
+  """Who asked for full values, as the viewer may name them."""
+  accessRequestsBy: [String!]
   """
   HR’s own changes and requests for full values, waiting on somebody else.
   """
@@ -2246,9 +2278,13 @@ type PeopleWaiting {
   duplicates: Int
   """Requests to send an export this viewer may decide."""
   exports: Int
+  """Who wants to send an export waiting for this viewer."""
+  exportsBy: [String!]
   """Changes waiting for this viewer’s decision that People’s checks flag."""
   flagged: Int
   identifiers: Int
+  """Who entered the doubted identifiers, as the viewer may name them."""
+  identifiersBy: [String!]
 }
 
 type Person @key(fields: "id") {
@@ -2526,6 +2562,8 @@ type Query {
   peopleOrgChart: PeopleOrgChart
   peopleOrganisation: PeopleOrganisation
   peopleOverview: PeopleOverview
+  """What became of the viewer’s own requests in the last 90 days (E10)."""
+  peopleOwnDecided: PeopleOwnDecided
   peoplePhoto(personId: ID!): PeoplePhoto
   """People whose name matches, as this viewer may read them."""
   peoplePicker(after: ID, search: String): PeoplePicker

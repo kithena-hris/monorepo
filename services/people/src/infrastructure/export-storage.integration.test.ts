@@ -233,7 +233,24 @@ describe('the requests to send an export', () => {
     },
     gap: { fields: [{ key: 'base_salary', people: 148 }], unlisted: 0 },
     exportId: null,
+    people: 148,
   };
+
+  it('reads a request from before the count was recorded as not counted', async () => {
+    const inTenant = tenantTransaction(asService);
+    const older = '00000000-0000-4000-9000-0000000000e4';
+    await inTenant(ACME, ({ tx }) =>
+      tx.execute(sql`
+        INSERT INTO people.export_share
+               (tenant_id, id, requested_by, recipient, reason, requested_at, expires_at, state,
+                choice, gap)
+        VALUES (${ACME}::uuid, ${older}::uuid, ${HR.accountId}::uuid, ${pending.recipient}::uuid,
+                'Older', '2026-09-01T12:00:00.000Z', '2026-09-08T12:00:00.000Z', 'expired',
+                ${JSON.stringify(pending.choice)}::jsonb, ${JSON.stringify(pending.gap)}::jsonb)`),
+    );
+    const found = await inTenant(ACME, ({ tx }) => drizzleShareStore().find(tx, ACME, older));
+    expect(found?.people).toBeNull();
+  });
 
   it('round-trips a request, decides and sends it once, and hides it from another tenant', async () => {
     const inTenant = tenantTransaction(asService);

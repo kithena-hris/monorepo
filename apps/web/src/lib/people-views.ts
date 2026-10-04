@@ -92,6 +92,17 @@ export const VIEWS = {
     items: v.items.map((i) => ({ ...pending(i), current: formValue(i.current) })),
     decided: (v.decided ?? []).map((i) => ({ ...pending(i), current: formValue(i.current) })),
   }),
+  // The viewer's own decided changes: the value before beside the one asked for.
+  OwnDecided: (
+    v: Json & { changes: (Json & { value: Entry; current: Entry; before: Entry | null })[] },
+  ) => ({
+    ...v,
+    changes: v.changes.map((i) => ({
+      ...pending(i),
+      current: formValue(i.current),
+      before: i.before === null ? null : formValue(i.before),
+    })),
+  }),
   // Each change's value too, from its entry: a sealed one stays `{ last4: null }`.
   PersonHistory: (v: WithRecord & Json & { changes: (Json & { value: Entry })[] }) => ({
     ...record(v),

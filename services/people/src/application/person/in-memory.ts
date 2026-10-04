@@ -354,10 +354,15 @@ function inMemoryReviews(rows: IdentifierReview[]): IdentifierReviews {
       Promise.resolve(rows.filter((r) => r.personId === personId && open(r))),
     pending: (_tx, _tenant, limit) =>
       Promise.resolve(rows.filter((r) => r.state === 'pending').slice(0, limit)),
-    decided: (_tx, _tenant, since, limit) =>
+    decided: (_tx, _tenant, since, limit, personId) =>
       Promise.resolve(
         rows
-          .filter((r) => r.decidedAt !== null && r.decidedAt >= since)
+          .filter(
+            (r) =>
+              r.decidedAt !== null &&
+              r.decidedAt >= since &&
+              (personId === undefined || r.personId === personId),
+          )
           .toSorted((a, b) => ((a.decidedAt ?? '') < (b.decidedAt ?? '') ? 1 : -1))
           .slice(0, limit),
       ),

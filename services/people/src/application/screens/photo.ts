@@ -6,7 +6,7 @@ import { discard, finishUpload, startUpload, type UploadDeps } from '../import/u
 import type { Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import type { ImportUploadView } from './operations.js';
-import type { PhotoStore } from './photo-store.js';
+import { avatarUrl, type PhotoStore } from './photo-store.js';
 import { personOfViewer, type ScreenDeps, type Tx } from './record.js';
 
 /**
@@ -22,21 +22,13 @@ import { personOfViewer, type ScreenDeps, type Tx } from './record.js';
  */
 
 export type { PhotoStore, StoredPhoto } from './photo-store.js';
+export { avatarUrl } from './photo-store.js';
 
 export interface PhotoDeps extends ScreenDeps {
   readonly photos?: PhotoStore;
   readonly uploads: Pick<UploadDeps, 'store' | 'intents'>;
   readonly newId: () => string;
 }
-
-/**
- * Where the tenant app serves a photo: its People route, by version, so a
- * browser may keep one as long as it likes and a new photo is a new URL. The
- * route asks People for the bytes as the person looking (`photoView`); the URL
- * itself opens nothing.
- */
-export const avatarUrl = (personId: string, checksum: string): string =>
-  `/people/photos/${personId}?v=${checksum.slice(0, 16)}`;
 
 /** These people's photo URLs, in one read. Only for people the caller has already read. */
 export async function avatarsOf(

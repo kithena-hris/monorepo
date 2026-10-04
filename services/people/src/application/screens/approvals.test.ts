@@ -12,13 +12,14 @@ import {
 } from '../person/approval-flags.js';
 import {
   decidePendingChange,
+  withdrawPendingChange,
   type Holding,
   type PendingChangeDeps,
 } from '../person/pending-changes.js';
 import { inMemoryPendingChangeStore } from '../person/pending-store.js';
 import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
-import { approvalsView } from './people.js';
+import { approvalsView, ownDecidedView } from './people.js';
 import { flaggedToDecide, waitingView } from './waiting.js';
 import type { ScreenDeps } from './record.js';
 
@@ -64,6 +65,16 @@ const department = define({
   classification: { ...confidential, classification: 'internal' },
 });
 
+// Theirs to change, held for HR: an employee's own request (E10).
+const homeAddress = define({
+  key: 'home_address',
+  label: { default: 'Home address' },
+  visibility: ['self', 'hr'],
+  ownership: ['employee'],
+  requiresApproval: true,
+  classification: { ...confidential, classification: 'internal' },
+});
+
 // Sealed pay that only finance reads (PEO-145): a decider without it learns nothing of it.
 const sealedPay = define({
   key: 'pay',
@@ -88,10 +99,14 @@ const asking = (v: Viewer) => ({
 });
 
 function setup(at: string, facts: Parameters<typeof inMemoryApprovalFlagStore>[0] = {}) {
-  const people = inMemoryPeople([versionOf(3, [salary, department, sealedPay])]);
+  const people = inMemoryPeople([versionOf(3, [salary, department, sealedPay, homeAddress])]);
   people.seed(TOM, {
     account: TOM_ACCOUNT,
-    custom: { base_salary: { amountMinor: 6_100_000, currency: 'EUR' }, department: 'sales' },
+    custom: {
+      base_salary: { amountMinor: 6_100_000, currency: 'EUR' },
+      department: 'sales',
+      home_address: 'Calle Mayor 12',
+    },
   });
   people.seed(NORA, { account: NORA_ACCOUNT });
   const clock: Clock = fixedClock(at);
@@ -427,5 +442,138 @@ describe('sealed pay (PEO-145)', () => {
     });
     expect(noted.ok).toBe(true);
     expect(s.flagStore.decided.get(id)).toEqual(['raise']);
+  });
+});
+
+describe('an employee’s own Decided (E10)', () => {
+  const TOM_SELF = viewer(TOM_ACCOUNT, ['employee']);
+  const moves = async (s: ReturnType<typeof setup>, to: string) => {
+    const written = await s.access.update(tx, {
+      ...asking(TOM_SELF),
+      personId: TOM,
+      changes: { home_address: to },
+      effectiveFrom: '2026-10-01',
+    });
+    const id = written.ok ? written.value.held?.[0]?.changeId : undefined;
+    if (id === undefined) throw new Error('not held');
+    return id;
+  };
+
+  it('lists their own changes approved, rejected and withdrawn, with the value before and HR’s note', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z');
+    // Where they lived before any of it, as history recorded it.
+    s.people.history.push({
+      personId: TOM,
+      id: 'h0',
+      attributeKey: 'home_address',
+      value: 'Calle Mayor 12',
+      effectiveFrom: '2026-01-01',
+      recordedAt: '2026-01-01T09:00:00.000Z',
+      actor: { kind: 'system', process: 'test' },
+      supersedes: null,
+      eventId: null,
+    });
+    // Turned down, then taken back, then approved: each asked while Calle Mayor 12 stood.
+    const rejected = await moves(s, 'Gran Vía 1');
+    await decidePendingChange(tx, s.pending, {
+      ...asking(NORA_HR),
+      changeId: rejected,
+      approve: false,
+      note: 'That is the office',
+    });
+    const withdrawn = await moves(s, 'Plaza Mayor 3');
+    await withdrawPendingChange(tx, s.pending, { ...asking(TOM_SELF), changeId: withdrawn });
+    const approved = await moves(s, 'Calle de Alcalá 48');
+    await decidePendingChange(tx, s.pending, {
+      ...asking(NORA_HR),
+      changeId: approved,
+      approve: true,
+    });
+    // Nora's raise for Tom is hers, not his: never on his Decided.
+    const raise = await askedForRaise(s);
+    await decidePendingChange(tx, s.pending, {
+      ...asking(SOFIA),
+      changeId: raise.item.id,
+      approve: false,
+    });
+
+    const own = await ownDecidedView(s.deps, asking(TOM_SELF));
+    if (!own.ok) throw new Error(own.error.message);
+    expect(
+      own.value.changes.map((c) => [c.id, c.state, c.label, c.before, c.value, c.note]),
+    ).toEqual(
+      expect.arrayContaining([
+        [approved, 'approved', 'Home address', 'Calle Mayor 12', 'Calle de Alcalá 48', null],
+        [
+          rejected,
+          'rejected',
+          'Home address',
+          'Calle Mayor 12',
+          'Gran Vía 1',
+          'That is the office',
+        ],
+        [withdrawn, 'withdrawn', 'Home address', 'Calle Mayor 12', 'Plaza Mayor 3', null],
+      ]),
+    );
+    expect(own.value.changes).toHaveLength(3);
+    expect(own.value.changes.find((c) => c.id === withdrawn)?.decidedBy).toBe('You');
+    expect(own.value.changes.every((c) => c.flags.length === 0)).toBe(true);
+    // HR's own Decided is unchanged: no withdrawals, everybody's decisions.
+    const hr = await approvalsView(s.deps, asking(NORA_HR));
+    expect(hr.ok && hr.value.decided.map((d) => d.state).toSorted()).toEqual([
+      'approved',
+      'rejected',
+      'rejected',
+    ]);
+  });
+
+  it('says a change nobody decided in seven days lapsed, by nobody', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z');
+    const id = await moves(s, 'Calle de Alcalá 48');
+    const own = await ownDecidedView(
+      { ...s.deps, clock: fixedClock('2026-09-30T10:00:00.000Z') },
+      asking(TOM_SELF),
+    );
+    expect(own.ok && own.value.changes.map((c) => [c.id, c.state, c.decidedBy])).toEqual([
+      [id, 'lapsed', null],
+    ]);
+  });
+
+  it('lists their own identifiers HR decided, by label and never by value', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z');
+    s.people.reviews.push({
+      id: 'r1',
+      personId: TOM,
+      attributeKey: 'home_address',
+      historyId: 'h1',
+      pendingChangeId: null,
+      valueHash: 'home_address:secret',
+      keyId: 'k1',
+      findings: [],
+      state: 'sent_back',
+      createdAt: '2026-09-20T10:00:00.000Z',
+      decidedBy: NORA_ACCOUNT,
+      decidedAt: '2026-09-21T10:00:00.000Z',
+      note: 'The number is missing',
+    });
+    const deps = {
+      ...s.deps,
+      personOf: (_tx: never, _tenant: string, account: string) =>
+        Promise.resolve(account === TOM_ACCOUNT ? TOM : null),
+    } as unknown as ScreenDeps;
+    const own = await ownDecidedView(deps, asking(TOM_SELF));
+    expect(own.ok && own.value.identifiers).toEqual([
+      expect.objectContaining({
+        personId: TOM,
+        label: 'Home address',
+        outcome: 'sent_back',
+        decidedAt: '2026-09-21T10:00:00.000Z',
+        note: 'The number is missing',
+      }),
+    ]);
+    expect(JSON.stringify(own)).not.toContain('secret');
+    // Nobody else's: Nora's own Decided holds none of Tom's.
+    const nora = await ownDecidedView(deps, asking(NORA_HR));
+    expect(nora.ok && [nora.value.changes, nora.value.identifiers]).toEqual([[], []]);
   });
 });

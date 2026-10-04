@@ -33,6 +33,7 @@ import type { ReminderCompany } from '../completeness/reminders.js';
 import { relationsToMany, type Asking } from '../person/person-access.js';
 import { userActor, type Viewer } from '../person/ports.js';
 import type { RoleCandidate, RoleStore } from '../roles/roles.js';
+import { avatarUrl } from '../screens/photo-store.js';
 import { exportableColumns } from './export.js';
 import {
   isFinancial,
@@ -130,6 +131,11 @@ export interface ShareRequest extends Share {
   readonly gap: Gap;
   /** Set once approved and sent. */
   readonly exportId: string | null;
+  /**
+   * People in the file as the requester read it when they asked; null on a
+   * request made before it was recorded.
+   */
+  readonly people: number | null;
 }
 
 export interface ShareStore {
@@ -280,6 +286,42 @@ const person = (accounts: Accounts, accountId: string): Person => ({
 });
 const named = (accounts: Accounts, accountId: string | null): Person | null =>
   accountId === null ? null : person(accounts, accountId);
+
+/**
+ * These accounts' photos, by account, for the people this viewer may read:
+ * somebody they may not is left without one, as everywhere else. None where
+ * photos are not wired.
+ */
+async function facesOf(
+  tx: Tx,
+  deps: ShareDeps,
+  asking: Asking,
+  accounts: Accounts,
+  accountIds: readonly string[],
+): Promise<ReadonlyMap<string, string>> {
+  const photos = deps.photos;
+  if (photos?.versions === undefined) return new Map();
+  const readable: (readonly [string, string])[] = [];
+  for (const accountId of new Set(accountIds)) {
+    const personId = accounts.byId.get(accountId)?.personId;
+    if (personId === undefined) continue;
+    // eslint-disable-next-line no-await-in-loop -- a handful of requesters, read as the viewer
+    const read = await deps.access.read(tx, { ...asking, personId });
+    if (read.ok) readable.push([accountId, personId]);
+  }
+  if (readable.length === 0) return new Map();
+  const found = await photos.versions(
+    tx,
+    asking.tenantId,
+    readable.map(([, personId]) => personId),
+  );
+  return new Map(
+    readable.flatMap(([accountId, personId]) => {
+      const checksum = found.get(personId);
+      return checksum === undefined ? [] : [[accountId, avatarUrl(personId, checksum)] as const];
+    }),
+  );
+}
 
 async function labelsOf(
   tx: Tx,
@@ -575,6 +617,7 @@ export async function shareExport(
     choice: input.choice,
     gap,
     exportId: null,
+    people: mine.value.size,
   };
   await deps.shares.insert(tx, share);
   await deps.audit.publish(tx, [
@@ -705,7 +748,8 @@ export async function decideExportShare(
 export interface ShareView {
   readonly id: string;
   readonly state: ApprovalState;
-  readonly requestedBy: Person;
+  /** Whoever asked, with their photo where the viewer may read them. */
+  readonly requestedBy: Person & { readonly avatarUrl: string | null };
   readonly recipient: Person;
   readonly reason: string;
   readonly requestedAt: string;
@@ -718,6 +762,8 @@ export interface ShareView {
   readonly asOf: string | null;
   readonly format: ShareChoice['format'];
   readonly audience: string | null;
+  /** People in it, as the requester read it when they asked; null for an older request. */
+  readonly people: number | null;
   /** The file, once sent. */
   readonly exportId: string | null;
   readonly mine: boolean;
@@ -740,7 +786,8 @@ export async function shareView(
   }
   const accounts = await accountsOf(tx, deps, asking.tenantId);
   const labels = await labelsOf(tx, deps, asking.tenantId);
-  return ok(viewOf(share, asking, accounts, labels, deps.clock.instant()));
+  const faces = await facesOf(tx, deps, asking, accounts, [share.approval.requestedBy]);
+  return ok(viewOf(share, asking, accounts, labels, faces, deps.clock.instant()));
 }
 
 /** How many requests to send Review lists at once. */
@@ -764,7 +811,14 @@ export async function sharesToDecide(
   if (waiting.length === 0) return ok([]);
   const accounts = await accountsOf(tx, deps, asking.tenantId);
   const labels = await labelsOf(tx, deps, asking.tenantId);
-  return ok(waiting.map((share) => viewOf(share, asking, accounts, labels, now)));
+  const faces = await facesOf(
+    tx,
+    deps,
+    asking,
+    accounts,
+    waiting.map((share) => share.approval.requestedBy),
+  );
+  return ok(waiting.map((share) => viewOf(share, asking, accounts, labels, faces, now)));
 }
 
 function viewOf(
@@ -772,6 +826,7 @@ function viewOf(
   asking: Asking,
   accounts: Accounts,
   labels: Awaited<ReturnType<typeof labelsOf>>,
+  faces: ReadonlyMap<string, string>,
   now: string,
 ): ShareView {
   const state = stateAt(share.approval, now);
@@ -779,7 +834,10 @@ function viewOf(
   return {
     id: a.id,
     state,
-    requestedBy: person(accounts, a.requestedBy),
+    requestedBy: {
+      ...person(accounts, a.requestedBy),
+      avatarUrl: faces.get(a.requestedBy) ?? null,
+    },
     recipient: person(accounts, share.recipient),
     reason: a.reason,
     requestedAt: a.requestedAt,
@@ -798,6 +856,7 @@ function viewOf(
     asOf: share.choice.asOf ?? null,
     format: share.choice.format,
     audience: share.choice.filter ?? null,
+    people: share.people,
     exportId: share.exportId,
     mine: a.requestedBy === asking.viewer.accountId,
     canDecide: mayDecideShare(share, asking.viewer, now),

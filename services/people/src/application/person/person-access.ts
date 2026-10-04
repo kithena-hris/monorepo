@@ -423,8 +423,15 @@ export interface PersonAccess {
     tx: Tx,
     asking: Asking & { readonly limit?: number; readonly decidedSince?: string },
   ): Promise<Result<readonly ReviewItem[]>>;
-  /** One person's open reviews, only on attributes the viewer may read. */
-  personReviews(tx: Tx, asking: On<object>): Promise<Result<readonly IdentifierReview[]>>;
+  /**
+   * One person's open reviews, only on attributes the viewer may read. With
+   * `decidedSince`, those HR decided since then instead, newest first: the
+   * person's own Decided. Never a value.
+   */
+  personReviews(
+    tx: Tx,
+    asking: On<{ readonly decidedSince?: string; readonly limit?: number }>,
+  ): Promise<Result<readonly IdentifierReview[]>>;
   /** HR decides a doubted identifier: final, audited. */
   reviewIdentifier(
     tx: Tx,
@@ -3076,7 +3083,16 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.personId,
       );
       const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
-      const open = await deps.reviews.open(tx, asking.tenantId, asking.personId);
+      const open =
+        asking.decidedSince === undefined
+          ? await deps.reviews.open(tx, asking.tenantId, asking.personId)
+          : await deps.reviews.decided(
+              tx,
+              asking.tenantId,
+              asking.decidedSince,
+              asking.limit ?? 100,
+              asking.personId,
+            );
       return ok(
         open.filter((r) => {
           const definition = byKey.get(r.attributeKey);
