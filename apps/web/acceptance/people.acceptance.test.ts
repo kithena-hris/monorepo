@@ -236,7 +236,7 @@ describe('PEO-049: the setup wizard, on a phone', () => {
     );
 
     // Abandoned here, before the identification section.
-    await page.goto(`${stack.shell}/people`);
+    await page.goto(`${stack.shell}/`);
     const [partial] = await person(ADMIN.person);
     expect(partial).toMatchObject({ given_name: 'Priya', family_name: 'Shah' });
     const secrets =
@@ -488,10 +488,10 @@ describe('A press on a People screen before its code has loaded', () => {
   // Without the hold, a link pressed this early was a full page load.
   it('follows a tab’s link once, in the page', async () => {
     const { page, close } = await late(ADMIN.session);
-    await page.goto(`${stack.shell}/people/data-health/completeness`, { waitUntil: 'commit' });
+    await page.goto(`${stack.shell}/people/review/waiting`, { waitUntil: 'commit' });
     const tab = page
-      .getByRole('navigation', { name: 'Data health tabs' })
-      .getByRole('link', { name: /^ID checks/ });
+      .getByRole('navigation', { name: 'Review tabs' })
+      .getByRole('link', { name: /^Flagged/ });
     await tab.waitFor({ timeout: 30_000 });
     expect(await waiting(page)).toBe(true);
     const entries = await page.evaluate(() => {
@@ -499,7 +499,7 @@ describe('A press on a People screen before its code has loaded', () => {
       return history.length;
     });
     await tab.click();
-    await page.waitForURL(/\/people\/data-health\/id-checks$/, { timeout: 30_000 });
+    await page.waitForURL(/\/people\/review\/flagged$/, { timeout: 30_000 });
     await expect.poll(() => tab.getAttribute('aria-current'), { timeout: 30_000 }).toBe('page');
     await page.waitForLoadState('networkidle');
     const stayed = await page.evaluate(() => (window as unknown as { stayed?: boolean }).stayed);
@@ -962,8 +962,8 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
     const finance = await signedIn(EMPLOYEE.session, { viewport: { width: 1280, height: 900 } });
     const asks = await finance.newPage();
     await asks.goto(`${stack.shell}/people`);
-    await (await sections(asks)).getByRole('link', { name: 'Data health' }).click();
-    await asks.waitForURL(/\/people\/data-health\/access-requests$/);
+    await (await sections(asks)).getByRole('link', { name: /^Review/ }).click();
+    await asks.waitForURL(/\/people\/review\/waiting$/);
     await asks.waitForLoadState('networkidle');
     await asks.getByRole('checkbox', { name: 'NIF / NIE' }).click();
     await asks.getByRole('textbox', { name: /Reason/ }).fill('Social security filing, September');
@@ -977,14 +977,12 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
 
     const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const decides = await hr.newPage();
-    await decides.goto(`${stack.shell}/people/data-health/access-requests`);
+    // The request is an item in Review, under its Full values chip.
+    await decides.goto(`${stack.shell}/people/review/waiting?kind=access`);
     await decides.waitForLoadState('networkidle');
-    await decides
-      .getByRole('list', { name: 'Waiting for a decision' })
-      .getByRole('button', { name: /^Approve the request from/ })
-      .click();
-    const dialog = decides.getByRole('dialog', { name: 'Approve the request' });
-    await dialog.getByRole('button', { name: 'Approve' }).click();
+    await decides.getByRole('button', { name: /^Approve the request from/ }).click();
+    const dialog = decides.getByRole('dialog', { name: 'Allow the request' });
+    await dialog.getByRole('button', { name: 'Allow' }).click();
     // No Temporal here: the decision settles in-process, and the file is issued.
     await eventually(
       'the file',
@@ -992,8 +990,8 @@ describe('PEO-121: finance asks for full values, HR approves, one download', () 
         SELECT export_id::text FROM people.full_values_request WHERE id = ${request?.id ?? ''}`,
       ([row]) => row?.export_id !== null && row?.export_id !== undefined,
     );
-    // HR is never handed the link.
-    await decides.reload();
+    // HR is never handed the link: under Decided, its state alone.
+    await decides.goto(`${stack.shell}/people/review/decided?kind=access`);
     await decides.getByText('Ready to download').waitFor({ timeout: 30_000 });
     expect(await decides.getByRole('link', { name: 'Download, once' }).count()).toBe(0);
     await hr.close();
@@ -1358,7 +1356,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // and offers no approval yet.
     const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const approvals = await hr.newPage();
-    await approvals.goto(`${stack.shell}/people/approvals`);
+    await approvals.goto(`${stack.shell}/people/review/waiting?kind=changes`);
     await approvals.waitForLoadState('networkidle');
     // The inbox is a list beside the selected change; its detail is the page's.
     const inbox = approvals.getByRole('main');
@@ -1373,14 +1371,14 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
 
     // HR sees what the checks found, reveals the held value, and accepts it.
     const reviews = await hr.newPage();
-    await reviews.goto(`${stack.shell}/people`);
-    await (await sections(reviews)).getByRole('link', { name: 'Data health' }).click();
-    await reviews.waitForURL(/\/people\/data-health\/completeness$/);
+    await reviews.goto(`${stack.shell}/people/directory/list`);
+    await (await sections(reviews)).getByRole('link', { name: /^Review/ }).click();
+    await reviews.waitForURL(/\/people\/review\/waiting$/);
     await reviews
       .getByRole('main')
-      .getByRole('link', { name: /^ID checks/ })
+      .getByRole('radio', { name: /^ID checks/ })
       .click();
-    await reviews.waitForURL(/\/people\/data-health\/id-checks$/);
+    await reviews.waitForURL(/\/people\/review\/waiting\?kind=ids$/);
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('main');
     await table
@@ -1464,7 +1462,7 @@ describe('PEO-125: a NIF our checks doubt, reviewed by HR, then approved', () =>
     // HR's review finds the letter wrong, and says so; the reason is required.
     const hr = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const reviews = await hr.newPage();
-    await reviews.goto(`${stack.shell}/people/data-health/id-checks`);
+    await reviews.goto(`${stack.shell}/people/review/waiting?kind=ids`);
     await reviews.waitForLoadState('networkidle');
     const table = reviews.getByRole('main');
     await table.getByText('Waiting for approval').waitFor({ timeout: 30_000 });
@@ -1663,9 +1661,9 @@ describe('People inside the shell: its sections, and always a way to add somebod
       (rows) => rows.length === 1,
     );
 
-    // The shell's sidebar, and People's sections inline under its item while
-    // you are in People (V2): nothing opens on hover, nothing covers the screen.
-    await page.goto(`${shell}/people`);
+    // The shell's sidebar, and People's four sections inline under its item
+    // while you are in People (A1): nothing opens on hover, nothing covers the screen.
+    await page.goto(`${shell}/people/review/waiting`);
     await page.waitForLoadState('networkidle');
     expect(await page.getByRole('navigation', { name: 'Areas' }).isVisible()).toBe(true);
 
@@ -1696,9 +1694,10 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await dark(false);
 
     const nav = await sections(page);
-    expect(await nav.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe(
+    expect(await nav.getByRole('link', { name: /^Review/ }).getAttribute('aria-current')).toBe(
       'page',
     );
+    expect(await nav.getByRole('link').count()).toBe(4);
     // The People item is a place to go, not a menu to open.
     expect(await peopleItem(page).getAttribute('aria-expanded')).toBeNull();
     const flyout = page.getByRole('navigation', { name: 'People sections' });
@@ -1718,7 +1717,7 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await peopleItem(page).hover();
     await flyout.waitFor();
     expect(await peopleItem(page).getAttribute('aria-expanded')).toBe('true');
-    expect(await flyout.getByRole('link', { name: /^Overview/ }).getAttribute('aria-current')).toBe(
+    expect(await flyout.getByRole('link', { name: /^Review/ }).getAttribute('aria-current')).toBe(
       'page',
     );
     await page.keyboard.press('Escape');
@@ -1726,8 +1725,8 @@ describe('People inside the shell: its sections, and always a way to add somebod
     await page.mouse.move(900, 600);
     await page.getByRole('button', { name: 'Expand sidebar' }).click();
     await sections(page);
-    // Overview carries the design's trail, People › Overview, whose last crumb
-    // switches to a sibling section (N2).
+    // Review carries the design's trail, People › Review, whose crumb
+    // switches to a sibling section.
     await page.getByRole('navigation', { name: 'Breadcrumb' }).waitFor();
 
     // A marker on the window: it survives a client-side move and not a reload.
@@ -1990,30 +1989,33 @@ describe('People overview: who you are here, what needs you, what is missing', (
     ] as const) {
       const context = await signedIn(ADMIN.session, { ...options, colorScheme: scheme });
       const page = await context.newPage();
-      await page.goto(`${stack.shell}/people`);
-      await page.getByRole('heading', { level: 1, name: 'Overview' }).waitFor({ timeout: 30_000 });
+      // Home for HR (B2): People's overview, folded into Home.
+      await page.goto(`${stack.shell}/`);
+      await page.getByRole('heading', { level: 1, name: /^Hi / }).waitFor({ timeout: 30_000 });
       await page.waitForLoadState('networkidle');
-      const waiting = titled(page, 'Waiting for your approval');
-      await waiting.getByRole('link', { name: `${adamName} · Desk` }).waitFor();
-      expect(
-        await waiting.getByRole('link', { name: /Show all|Open approvals/ }).getAttribute('href'),
-      ).toBe('/people/approvals');
+      const needs = titled(page, 'Needs HR');
+      const changes = needs.getByRole('link', { name: /changes? to approve$/ }).first();
+      await changes.waitFor();
+      expect(await changes.getAttribute('href')).toBe('/people/review/waiting?kind=changes');
+      expect(await needs.getByRole('link', { name: 'Open Review' }).getAttribute('href')).toBe(
+        '/people/review/waiting',
+      );
       await shot(page, name);
       await context.close();
     }
 
-    // The employee's overview: his manager above him, and the detail only he can give.
+    // The employee's Home (B1): his manager above him, and the detail only he can give.
     const context = await signedIn(EMPLOYEE.session, { ...desktop, colorScheme: 'light' });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/people`);
-    await page.getByRole('heading', { level: 1, name: 'Overview' }).waitFor({ timeout: 30_000 });
-    // Who he is here, in the profile card under the title (W1).
+    await page.goto(`${stack.shell}/`);
+    await page.getByRole('heading', { level: 1, name: /^Hi / }).waitFor({ timeout: 30_000 });
+    // Who he is here, in the card beside his To do list.
     await page.getByRole('heading', { level: 2, name: adamName }).waitFor();
     await page.waitForLoadState('networkidle');
     await titled(page, 'Your reporting line').getByRole('link', { name: priya }).waitFor();
-    const gap = titled(page, /^Your profile is \d+% complete$/).getByRole('link', {
-      name: /Emergency contact/,
-    });
+    const gap = titled(page, 'To do')
+      .getByRole('link', { name: /Add your emergency contact/ })
+      .first();
     await gap.waitFor();
     await shot(page, 'overview-employee-desktop-light');
 
@@ -2067,11 +2069,11 @@ describe('People overview: who you are here, what needs you, what is missing', (
       .toBeGreaterThan(0);
     await context.close();
 
-    // And HR sees it beside his name, on his change waiting in her overview.
+    // And HR sees it beside his name, in the Directory.
     const hr = await signedIn(ADMIN.session, desktop);
     const hrPage = await hr.newPage();
-    await hrPage.goto(`${stack.shell}/people`);
-    await hrPage.getByRole('heading', { level: 1, name: 'Overview' }).waitFor({ timeout: 30_000 });
+    await hrPage.goto(`${stack.shell}/people/directory/list`);
+    await hrPage.waitForLoadState('networkidle');
     const his = hrPage.locator(`img[src*="/people/photos/${EMPLOYEE.person}"]`).first();
     await his.waitFor();
     await expect
@@ -2376,12 +2378,12 @@ describe('A company the back office has just created, with nothing published', (
        WHERE tenant_id = ${made.tenantId} AND entitlement = 'module.people'`;
     expect(report?.holders).toEqual([{ accountId: made.account, roles: ['people_admin', 'hr'] }]);
 
-    // The overview draws; the directory, by the sidebar, sends her to setup.
-    await page.goto(`${made.shell}/people`);
+    // Home draws; People, by the sidebar, opens its first section, which sends her to setup.
+    await page.goto(`${made.shell}/`);
     await page.waitForLoadState('networkidle');
     await page
       .getByRole('navigation', { name: 'Areas' })
-      .getByRole('link', { name: 'Directory' })
+      .getByRole('link', { name: 'People' })
       .click();
     await page.waitForURL(/\/people\/setup$/);
     await page.getByRole('heading', { name: 'Confirm the legal entity' }).waitFor();
@@ -2454,7 +2456,7 @@ describe('A company the back office has just created, with nothing published', (
     const hydrated = () =>
       page.waitForFunction(() => document.querySelector('[data-remote][data-hydrating]') === null);
 
-    await page.goto(`${stack.shell}/people`);
+    await page.goto(`${stack.shell}/people/directory/list`);
     await page.waitForLoadState('networkidle');
     await hydrated();
 

@@ -67,7 +67,7 @@ const meta = {
         component: [
           'The last breadcrumb opens a menu of its siblings, so you can move sideways without going up a level. The current one is ticked; each item is a link.',
           '',
-          'A long list opens with a filter: typing narrows it, ↓ goes into the list and ↵ opens the first match. Under a finger the list is a sheet, and `variant="title"` makes a phone’s navigation-bar title the switcher.',
+          'A long list opens with a filter: typing narrows it, ↓ goes into the list and ↵ opens the first match. Under a finger it is the same menu, anchored to the trigger, and `variant="title"` makes a phone’s navigation-bar title the switcher.',
         ].join('\n'),
       },
     },
@@ -192,7 +192,7 @@ export const TwoSwitchers: Story = {
   ),
 };
 
-/** Under a finger, the title switcher's half sheet: each section with its icon, count and a tick. */
+/** The title switcher: a small menu anchored under the title, each section with its icon and count. */
 export const WithIconsAndCounts: Story = {
   name: 'With icons and counts',
   args: {

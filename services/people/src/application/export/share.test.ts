@@ -176,7 +176,7 @@ describe('sending', () => {
     expect(shared.value.mail).toEqual([
       {
         email: 'nora@acme.test',
-        url: `https://acme.app.kithena.test/people/export?share=${requestId}`,
+        url: `https://acme.app.kithena.test/people/review/waiting?kind=exports&item=export-${requestId}`,
         notice: 'export_share_requested',
         dedupeKey: `export-share/${requestId}/${NORA}`,
       },

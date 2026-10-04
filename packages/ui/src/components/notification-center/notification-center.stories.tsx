@@ -136,6 +136,31 @@ export const WithInlineActions: Story = {
   ),
 };
 
+/** `note`: why an item stands out, in words and the warning tone, under what it is. */
+export const WithANote: Story = {
+  render: () => (
+    <NotificationPanel title="Inbox">
+      <NotificationGroup>
+        <NotificationItem
+          avatar={<Avatar name="Amara Okafor" size="lg" />}
+          title="Amara Okafor"
+          description="Salary change · asked by Ravi"
+          note="A 38% raise"
+          time="2h"
+          href="#change"
+        />
+        <NotificationItem
+          avatar={<Avatar name="Ravi Patel" size="lg" />}
+          title="Ravi Patel"
+          description="National ID to check"
+          time="5h"
+          href="#check"
+        />
+      </NotificationGroup>
+    </NotificationPanel>
+  ),
+};
+
 export const AllCaughtUp: Story = {
   render: () => (
     <NotificationPanel>

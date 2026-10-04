@@ -2,7 +2,6 @@
 
 import {
   Avatar,
-  Badge,
   Button,
   CommandPalette,
   DropdownMenu,
@@ -16,26 +15,13 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-  Field,
-  FieldControl,
-  FieldLabel,
   filterCommands,
   KbdShortcut,
   Nav,
   NavItem,
   NavList,
-  NotificationCenter,
-  NotificationItem,
   PageLayout,
   Separator,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  Switch,
   TabBar,
   TabBarItem,
   TooltipProvider,
@@ -64,6 +50,7 @@ import {
 import { searchPeople } from '../app/(app)/people/actions';
 import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
 import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
+import { todoRows } from '../lib/inbox';
 import { useInAppLinks } from '../lib/links';
 import { matchPath } from '../lib/remotes';
 import {
@@ -78,6 +65,7 @@ import {
 import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
+import { InboxBell } from './inbox';
 import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
 import { RemoteSlot } from './remote-slot';
 import {
@@ -93,7 +81,6 @@ import {
   type ShortcutsValue,
 } from './shortcuts';
 
-import { since } from './since';
 
 /*
  * Reach's icon set, by meaning rather than by drawing.
@@ -199,6 +186,8 @@ const AREAS: readonly {
 const ShellContext = createContext<{
   readonly shell: ShellData;
   readonly person: AppShellProps['person'] | null;
+  /** Whose account it is: the account menu says so. */
+  readonly company?: string;
 }>({ shell: EMPTY_SHELL, person: null });
 
 export function useShellData(): ShellData {
@@ -464,7 +453,10 @@ export function AppShell({
   children,
 }: AppShellProps): JSX.Element {
   const [dark, setTheme] = useTheme();
-  const shellView = useMemo(() => ({ shell, person }), [shell, person]);
+  const shellView = useMemo(
+    () => ({ shell, person, company: companyName }),
+    [shell, person, companyName],
+  );
   const areas = areasFor(entitlements);
   const pathname = usePathname();
   const role = roleOf(shell.roles);
@@ -532,7 +524,7 @@ export function AppShell({
               ...(sidebarCollapsed === undefined ? {} : { defaultCollapsed: sidebarCollapsed }),
               onCollapsedChange: rememberSidebar,
             }}
-            bottomBar={<MobileTabs areas={areas} inbox={shell.notices.length} />}
+            bottomBar={<MobileTabs areas={areas} inbox={todoRows(shell).length} />}
             bottomBarVariant="floating"
             // Where the sidebar is (a 40rem container), the tab bar is not.
             bottomBarClassName="@min-[40rem]/page:hidden"
@@ -746,83 +738,8 @@ function TopCorner({
       {slots.map((s) => (
         <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
       ))}
-      <Notices shell={shell} />
+      <InboxBell shell={shell} />
     </div>
-  );
-}
-
-/** The bell and what is behind it. */
-export function Notices({ shell }: { readonly shell: ShellData }): JSX.Element {
-  const count = shell.notices.length;
-  return (
-    <NotificationCenter
-      title="Notifications"
-      trigger={
-        <Button
-          variant="ghost"
-          size="sm"
-          className="relative"
-          aria-label={count === 0 ? 'Notifications' : `Notifications, ${String(count)} waiting`}
-          startIcon={<icons.notifications aria-hidden />}
-        >
-          {count === 0 ? null : (
-            <Badge
-              size="xs"
-              variant="solid"
-              tone="danger"
-              aria-hidden
-              className="absolute -top-0.5 -end-0.5 ring-2 ring-canvas"
-            >
-              {count}
-            </Badge>
-          )}
-        </Button>
-      }
-    >
-      {count === 0 ? (
-        <p className="px-4 py-6 text-sm text-fg-muted">Nothing is waiting for you.</p>
-      ) : (
-        <NoticeList shell={shell} />
-      )}
-    </NotificationCenter>
-  );
-}
-
-/** The notices as items: the bell's panel, and the Inbox page. */
-export function NoticeList({ shell }: { readonly shell: ShellData }): JSX.Element {
-  return (
-    <>
-      {shell.notices.map((n) => (
-        <NotificationItem
-          key={n.id}
-          title={n.title}
-          description={n.detail}
-          time={n.at === null || shell.now === null ? 'To do' : since(n.at, shell.now)}
-          unread
-          href={n.href}
-          {...(n.person === null
-            ? {
-                icon:
-                  n.kind === 'missing' ? (
-                    <icons.person aria-hidden />
-                  ) : n.kind === 'viewed' ? (
-                    <icons.visible aria-hidden />
-                  ) : n.kind === 'import' ? (
-                    <icons.upload aria-hidden />
-                  ) : (
-                    <icons.approve aria-hidden />
-                  ),
-                tone:
-                  n.kind !== 'import'
-                    ? ('warning' as const)
-                    : n.failed === true
-                      ? ('danger' as const)
-                      : ('success' as const),
-              }
-            : { avatar: <Avatar name={n.person} size="lg" /> })}
-        />
-      ))}
-    </>
   );
 }
 
@@ -1287,8 +1204,10 @@ function ThemeChoice({
 }
 
 /**
- * The account, for a screen with no sidebar: settings, the theme and signing
- * out, behind the person's avatar in a phone's title bar.
+ * The account, for a screen with no sidebar (MA A3): a small menu anchored to
+ * the person's avatar in a phone's title bar, not a sheet. Who they are, their
+ * profile and time off, Settings, dark mode, the company and signing out.
+ * While viewing as somebody, ending it comes first.
  */
 export function AccountSheet({
   person,
@@ -1296,10 +1215,17 @@ export function AccountSheet({
   readonly person: AppShellProps['person'];
 }): JSX.Element {
   const [dark, setTheme] = useTheme();
-  const pathname = usePathname();
+  const { shell, company } = use(ShellContext);
+  const signOut = useRef<HTMLFormElement>(null);
+  const role = roleOf(shell.roles);
+  const timeOff = shell.remotes?.['timeoff'] !== undefined;
+  const who =
+    person.viewing == null
+      ? [person.name, role, company].filter((x) => x != null && x !== '').join(' · ')
+      : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`;
   return (
-    <Sheet>
-      <SheetTrigger asChild>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
@@ -1308,56 +1234,77 @@ export function AccountSheet({
         >
           <Avatar name={person.name} size="md" />
         </Button>
-      </SheetTrigger>
-      <SheetContent side="bottom" className="pb-safe-bottom">
-        <SheetHeader>
-          <SheetTitle>{person.name}</SheetTitle>
-          <SheetDescription>
-            {person.viewing == null
-              ? (person.email ?? person.name)
-              : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`}
-          </SheetDescription>
-        </SheetHeader>
-        <SheetBody>
-          {person.viewing == null ? null : (
-            <Button
-              variant="primary"
-              fullWidth
-              startIcon={<icons.close />}
-              className="mb-2"
-              onClick={endViewing}
-            >
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-75">
+        <DropdownMenuLabel className="text-sm font-normal text-fg-muted">{who}</DropdownMenuLabel>
+        {person.viewing == null ? null : (
+          <>
+            <DropdownMenuItem onSelect={endViewing}>
+              <icons.close />
               End viewing as {person.name}
-            </Button>
-          )}
-          <Nav label="Account">
-            <NavList>
-              <NavItem asChild icon={<Settings />} current={isCurrent('/settings', pathname)}>
-                <Link href="/settings">Settings</Link>
-              </NavItem>
-            </NavList>
-          </Nav>
-          {/* The same switch as the menu at a desk: on is dark. */}
-          <Field orientation="horizontal" className="mt-2 items-center justify-between gap-4 px-3">
-            <FieldLabel>Dark mode</FieldLabel>
-            <FieldControl>
-              <Switch checked={dark} onCheckedChange={setTheme} />
-            </FieldControl>
-          </Field>
-          <form action="/auth/sign-out" method="post" className="mt-1 w-full">
-            <Button
-              type="submit"
-              variant="ghost"
-              fullWidth
-              startIcon={<SignOut />}
-              className="justify-start"
-            >
-              Sign out
-            </Button>
-          </form>
-        </SheetBody>
-      </SheetContent>
-    </Sheet>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuItem asChild>
+          <Link href="/people/me">
+            <icons.person />
+            My profile
+          </Link>
+        </DropdownMenuItem>
+        {timeOff ? (
+          <DropdownMenuItem asChild>
+            <Link href="/time-off/overview">
+              <icons.calendar />
+              My time off
+            </Link>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem disabled>
+            <icons.calendar />
+            My time off
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <Settings />
+            Settings
+          </Link>
+        </DropdownMenuItem>
+        <ThemeChoice dark={dark} onChange={setTheme} />
+        {company === undefined ? null : (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <icons.company />
+              Switch company
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-52">
+              <DropdownMenuLabel>Your companies</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked
+                onSelect={(event) => {
+                  event.preventDefault();
+                }}
+              >
+                <span className="truncate">{company}</span>
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          destructive
+          onSelect={() => {
+            signOut.current?.requestSubmit();
+          }}
+        >
+          <SignOut />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+      {/* A POST, so no prefetcher or link scanner can end a session. */}
+      <form ref={signOut} action="/auth/sign-out" method="post" hidden />
+    </DropdownMenu>
   );
 }
 

@@ -7,10 +7,14 @@ import { accessToken } from '../lib/people';
 import { loadScreen, today, withArrived } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import {
+  AREAS,
   currentPlace,
   firstUnder,
   headerFrame,
   placesFor,
+  remoteBase,
+  remoteNav,
+  remotePath,
   remoteRoute,
   siblingsOf,
 } from '../lib/remotes';
@@ -51,13 +55,14 @@ export async function PeopleArea({
   if (!person.entitlements.includes('module.people')) notFound();
 
   // A section's bare path also fits `/people/:id`; it is the section, not a
-  // person called `data-health`, whatever this viewer may open under it.
+  // person called `review`, whatever this viewer may open under it. Bare
+  // `/people` is the first section: People's overview is Home's now.
   const bare =
     route != null &&
     Object.keys(route.params).length > 0 &&
     firstUnder(route.nav.sections, path) !== undefined;
   if (route === undefined || bare) {
-    // A section's bare path (`/people/data-health`) is the first of its tabs
+    // A section's bare path (`/people/review`) is the first of its tabs
     // this person opens, query and all; anything else nobody answers is a 404.
     const to =
       area === 'people'
@@ -206,6 +211,45 @@ export async function PeopleArea({
             />
           </div>
         </div>
+      )}
+    </Waking>
+  );
+}
+
+/**
+ * Home, as People draws it (design B1, B2): People's overview folded into
+ * the app's front page. The remote names the export that fills Home
+ * (`slots.home` in its manifest); the shell fetches its data as the person
+ * signed in, as for any screen, and renders it on the server. `null` when
+ * People offers no Home or cannot say which: the shell's own Home stands.
+ */
+export async function PeopleHome(): Promise<JSX.Element | null> {
+  const area = AREAS.people;
+  const nav = await remoteNav(area);
+  const component = nav?.slots.home;
+  if (component === undefined) return null;
+  const [loaded, ssr] = await Promise.all([
+    loadScreen(component, { params: {}, search: {} }),
+    prepareRemoteSsr(remoteBase(area), area),
+  ]);
+  const load = await withArrived(loaded);
+  // People is asleep or still waking: Home asks again by itself.
+  const waking = load.status === 'error' && load.unreachable === true;
+  return (
+    <Waking area="People" waking={waking}>
+      {waking ? null : (
+        <PeopleScreen
+          route={{
+            entry: `${remotePath(area)}/remoteEntry.js`,
+            component,
+            ...(ssr === undefined ? {} : { ssr: ssr.ssr, stylesheet: ssr.stylesheet }),
+          }}
+          load={load}
+          path="/"
+          params={{}}
+          search={{}}
+          today={today()}
+        />
       )}
     </Waking>
   );

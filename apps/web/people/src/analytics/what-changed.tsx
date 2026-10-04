@@ -257,7 +257,7 @@ export function sourceHref(source: Source, segmentId: string | null): string {
     case 'org-chart':
       return '/people/directory/org-chart';
     default:
-      return '/people/data-health/completeness';
+      return '/people/review/waiting?kind=missing';
   }
 }
 

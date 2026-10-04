@@ -32,14 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../dropdown-menu/dropdown-menu';
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '../sheet/sheet';
 import { useCoarsePointer } from '../../lib/use-media-query';
 
 /**
@@ -297,8 +289,9 @@ function badgeOf(item: SiblingItem): ReactNode {
  * the current one ticked.
  *
  * A long list gets a filter at the top: typing narrows it, ↓ goes into what is
- * left, and ↵ opens the first match. Under a finger the list is a sheet from
- * the bottom rather than a dropdown under a 44px trigger, grouped the same way.
+ * left, and ↵ opens the first match. Under a finger it is the same small menu,
+ * anchored to what was tapped rather than a sheet from the bottom: one tap,
+ * and the page stays in view behind it.
  */
 export function BreadcrumbMenu({
   label,
@@ -358,57 +351,6 @@ export function BreadcrumbMenu({
     setOpen(next);
     if (!next) setQuery('');
   };
-
-  if (coarse) {
-    return (
-      <Sheet open={open} onOpenChange={reset}>
-        <SheetTrigger asChild>{trigger}</SheetTrigger>
-        <SheetContent side="bottom" size="lg">
-          <SheetHeader>
-            <SheetTitle>{menuLabel}</SheetTitle>
-          </SheetHeader>
-          <SheetBody>
-            <nav aria-label={menuLabel} className="flex flex-col gap-4 pb-4">
-              {groups.map((group) => (
-                <div key={group.label} className="flex flex-col gap-2">
-                  <h3 className="px-1 text-xs font-semibold text-fg-subtle">{group.label}</h3>
-                  <ul className="overflow-hidden rounded-[1.125rem] bg-surface-sunken">
-                    {group.items.map((item) => (
-                      <li key={item.href} className="border-b border-border last:border-b-0">
-                        <Slot
-                          aria-current={item.current === true ? 'page' : undefined}
-                          className={cn(
-                            'flex min-h-12.5 items-center gap-3 px-3.5 text-base text-fg',
-                            'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
-                            item.current === true && 'font-semibold',
-                          )}
-                          onClick={() => {
-                            reset(false);
-                          }}
-                        >
-                          {withinLink(
-                            renderLink(item),
-                            iconOf(item, 'text-fg-muted [&_svg]:size-4.5'),
-                            <>
-                              {badgeOf(item)}
-                              {/* A reserved slot, so a tick does not move the count. */}
-                              <span aria-hidden className="flex w-4.5 shrink-0 text-accent-fg">
-                                {item.current === true ? <Check className="size-4.5" /> : null}
-                              </span>
-                            </>,
-                          )}
-                        </Slot>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </nav>
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
-    );
-  }
 
   return (
     <DropdownMenu open={open} onOpenChange={reset}>

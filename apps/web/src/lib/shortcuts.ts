@@ -86,9 +86,8 @@ export const SHORTCUTS: readonly Shortcut[] = [
   go('time-off', 'Time off', 't', '/time-off', 'leave'),
   go('people', 'People', 'p', '/people', 'people'),
   go('directory', 'Directory', 'd', '/people/directory'),
-  go('approvals', 'Approvals', 'a', '/people/approvals'),
-  // Q for quality: H is home, and data health is the quality of the records.
-  go('data-health', 'Data health', 'q', '/people/data-health'),
+  // R for Review: every decision and missing detail, in one queue.
+  go('review', 'Review', 'r', '/people/review'),
   go('import-export', 'Import & export', 'x', '/people/import-export'),
   go('insights', 'Insights', 'i', '/people/insights'),
   go('inbox', 'Inbox', 'n', '/inbox', 'inbox'),
@@ -146,12 +145,12 @@ export const SHORTCUTS: readonly Shortcut[] = [
     fixed: true,
     scope: 'list',
   },
-  row('approvals', 'approve', 'Approve (Approvals)', 'approves the change', 'a'),
-  row('approvals', 'decline', 'Decline (Approvals)', 'declines the change', 'r'),
-  row('duplicates', 'merge', 'Compare or merge (Duplicates)', 'compares the pair', 'm'),
-  row('duplicates', 'not-same', 'Not the same person (Duplicates)', 'keeps the pair apart', 'n'),
-  row('completeness', 'fill', 'Fill in (Completeness)', 'fills in the gaps', 'f'),
-  row('completeness', 'remind', 'Remind (Completeness)', 'sends a reminder', 'r'),
+  row('approvals', 'approve', 'Approve (Review)', 'approves the change', 'a'),
+  row('approvals', 'decline', 'Decline (Review)', 'declines the change', 'r'),
+  row('duplicates', 'merge', 'Merge (Review)', 'compares the pair', 'm'),
+  row('duplicates', 'not-same', 'Not the same person (Review)', 'keeps the pair apart', 'n'),
+  row('completeness', 'fill', 'Fill in (Review)', 'fills in the gaps', 'f'),
+  row('completeness', 'remind', 'Remind (Review)', 'sends a reminder', 'r'),
   row('directory', 'edit', 'Edit the profile (Directory)', 'edits the profile', 'e'),
   // V for view: on a profile an administrator may view as, it asks why and
   // starts; while viewing as somebody, it ends the view.

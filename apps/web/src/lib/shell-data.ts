@@ -1,3 +1,4 @@
+import type { FlaggedRow } from './inbox';
 import {
   currentPlace,
   headerFrame,
@@ -59,6 +60,10 @@ export interface ShellData {
   /** By a tab's path, each tab's own count: what the tab row shows. */
   readonly tabCounts: Readonly<Record<string, number>>;
   readonly notices: readonly ShellNotice[];
+  /** What else waits in Review for HR and finance, counted: the Inbox's rows for them. */
+  readonly waiting?: Waiting | null;
+  /** The changes People's checks flagged for this person to decide: the Inbox's Flagged. Null for anybody who decides none. */
+  readonly flagged?: readonly FlaggedRow[] | null;
   /** Every time an administrator viewed the app as them, newest first: the Inbox keeps them. */
   readonly viewedAs: readonly ViewedAs[];
   /** When People answered, for "12m ago". */
@@ -268,10 +273,13 @@ export function noticesOf(overview: Overview): ShellNotice[] {
           ? `${a.name} · asked by ${a.requestedBy}`
           : `Asked ${a.requestedBy === a.name ? 'by you' : `by ${a.requestedBy}`}`,
     at: a.requestedAt,
-    href:
-      a.asked === true
-        ? `/people/approvals?tab=asked&change=${encodeURIComponent(a.id)}`
-        : '/people/approvals',
+    // Its own item in Review: HR's own change waits under I asked, anybody
+    // else's under Waiting, and a change to decide under Waiting for me.
+    href: reviewItem(
+      a.asked === true && overview.approvals?.isHr === true ? 'asked' : 'waiting',
+      'changes',
+      `change-${a.id}`,
+    ),
     person: a.name,
     kind: 'approval',
   }));
@@ -310,9 +318,9 @@ export function noticesOf(overview: Overview): ShellNotice[] {
 }
 
 /**
- * What waits in Data health's record tools, from People's own reads of them
- * (HR and finance only). `null` where People refused the read: its count is
- * left out rather than guessed.
+ * What waits in Review besides changes, from People's own reads of it (HR and
+ * finance only). `null` where People refused the read: its count is left out
+ * rather than guessed.
  */
 export interface Waiting {
   readonly identifiers: number | null;
@@ -321,50 +329,50 @@ export interface Waiting {
   readonly accessRequests: number | null;
 }
 
-const COMPLETENESS = '/people/data-health/completeness';
-const ID_CHECKS = '/people/data-health/id-checks';
-const DUPLICATES = '/people/data-health/duplicates';
-const ACCESS_REQUESTS = '/people/data-health/access-requests';
-/** The tabs whose counts are decisions somebody has to make: what a section's count adds up. */
-const DECISIONS: ReadonlySet<string> = new Set([ID_CHECKS, DUPLICATES, ACCESS_REQUESTS]);
+/** Review's tab of what waits for this viewer: where its one count goes. */
+export const REVIEW_WAITING = '/people/review/waiting';
+
+/**
+ * An item in Review, as a link opens it: the tab, the kind of item (a chip)
+ * and the item itself, each in the address (`?kind=&item=`). The item names
+ * its kind (`change-…`, `id-…`, `dup-…`, `access-…`, `export-…`), so a link
+ * from the bell or an email lands on it whichever chip is chosen.
+ */
+export function reviewItem(
+  tab: 'waiting' | 'flagged' | 'asked' | 'decided',
+  kind: 'changes' | 'ids' | 'duplicates' | 'access' | 'exports' | 'missing' | null,
+  item: string | null,
+): string {
+  const q = new URLSearchParams();
+  if (kind !== null) q.set('kind', kind);
+  if (item !== null) q.set('item', item);
+  const qs = q.toString();
+  return `/people/review/${tab}${qs === '' ? '' : `?${qs}`}`;
+}
 
 /**
  * Counts by section path and by tab path; a zero is not shown.
  *
- * A tab counts its own queue: Completeness is everybody waiting on
- * themselves plus what HR has to fill in (HR's summary only). A section counts
- * what needs a decision: Approvals its approvals, Data health its ID checks,
- * duplicates and access requests — not Completeness, which is a backlog
- * rather than a decision. Keyed by the viewer's own places, so a finance
- * viewer's Data health, whose link is its access requests, still has one.
+ * Review carries the one count, red: every decision waiting for this viewer,
+ * changes, ID checks, duplicates and requests for full values together. Its
+ * Missing details are a backlog rather than a decision, and are not counted.
+ * Keyed by the viewer's own places, so a viewer without Review counts nothing.
  */
 export function countsOf(
   overview: Overview,
   waiting: Waiting | null,
   sections: readonly Place[],
 ): { readonly sections: Record<string, number>; readonly tabs: Record<string, number> } {
-  const tabs: Record<string, number> = {};
-  const put = (path: string, n: number | null | undefined): void => {
-    if (n != null && n > 0) tabs[path] = n;
-  };
-  if (overview.roles.hr && overview.team !== null) {
-    put(COMPLETENESS, overview.team.waiting + overview.team.toFill);
-  }
-  put(ID_CHECKS, waiting?.identifiers);
-  put(DUPLICATES, waiting?.duplicates);
-  put(ACCESS_REQUESTS, waiting?.accessRequests);
-
-  const counts: Record<string, number> = {};
-  if ((overview.approvals?.total ?? 0) > 0) {
-    counts['/people/approvals'] = overview.approvals?.total ?? 0;
-  }
-  for (const section of sections) {
-    const n = (section.tabs ?? [])
-      .filter((t) => DECISIONS.has(t.path))
-      .reduce((sum, t) => sum + (tabs[t.path] ?? 0), 0);
-    if (n > 0) counts[section.path] = n;
-  }
-  return { sections: counts, tabs };
+  const n =
+    (overview.approvals?.total ?? 0) +
+    (waiting?.identifiers ?? 0) +
+    (waiting?.duplicates ?? 0) +
+    (waiting?.accessRequests ?? 0);
+  const review = sections.find(
+    (s) => s.path === REVIEW_WAITING || s.tabs?.some((t) => t.path === REVIEW_WAITING) === true,
+  );
+  if (review === undefined || n === 0) return { sections: {}, tabs: {} };
+  return { sections: { [review.path]: n }, tabs: { [REVIEW_WAITING]: n } };
 }
 
 /**

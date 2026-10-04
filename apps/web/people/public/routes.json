@@ -1,10 +1,6 @@
 {
   "routes": [
     {
-      "path": "/people",
-      "component": "PeopleHome"
-    },
-    {
       "path": "/people/directory/list",
       "component": "Directory"
     },
@@ -17,20 +13,20 @@
       "component": "OrgChart"
     },
     {
-      "path": "/people/data-health/completeness",
-      "component": "CompletenessGrid"
+      "path": "/people/review/waiting",
+      "component": "Review"
     },
     {
-      "path": "/people/data-health/id-checks",
-      "component": "IdentifierReviews"
+      "path": "/people/review/flagged",
+      "component": "Review"
     },
     {
-      "path": "/people/data-health/duplicates",
-      "component": "Duplicates"
+      "path": "/people/review/asked",
+      "component": "Review"
     },
     {
-      "path": "/people/data-health/access-requests",
-      "component": "FullValues"
+      "path": "/people/review/decided",
+      "component": "Review"
     },
     {
       "path": "/people/import-export",
@@ -141,10 +137,6 @@
       "component": "ExportBuilder"
     },
     {
-      "path": "/people/approvals",
-      "component": "Approvals"
-    },
-    {
       "path": "/people/reports",
       "component": "ReportSchedules"
     },
@@ -170,30 +162,17 @@
       "path": "/people/directory/list?add=person",
       "label": "Add person",
       "for": ["hr"],
-      "on": [
-        "/people",
-        "/people/directory/list",
-        "/people/directory/cards",
-        "/people/directory/org-chart"
-      ],
+      "on": ["/people/directory/list", "/people/directory/cards", "/people/directory/org-chart"],
       "icon": "hire"
     }
   ],
   "sections": [
     {
-      "path": "/people",
-      "label": "Overview",
-      "group": "People",
-      "icon": "overview",
-      "description": "Summary, your tasks, and what needs HR",
-      "summary": "Your tasks and what needs HR"
-    },
-    {
       "path": "/people/directory/list",
       "label": "Directory",
       "group": "People",
       "icon": "people",
-      "description": "Everyone as a list, as cards, or as an org chart",
+      "description": "Everyone, as a list, cards or an org chart",
       "summary": "List, cards or org chart",
       "owns": [
         "/people/directory/cards",
@@ -204,42 +183,34 @@
       ]
     },
     {
-      "path": "/people/approvals",
-      "label": "Approvals",
+      "path": "/people/review/waiting",
+      "label": "Review",
       "group": "People",
       "icon": "approve",
-      "description": "Changes waiting for a decision",
-      "summary": "Changes waiting for a decision"
-    },
-    {
-      "path": "/people/data-health/completeness",
-      "label": "Data health",
-      "group": "People",
-      "for": ["hr", "finance"],
-      "icon": "health",
-      "description": "Gaps, ID checks, duplicates and access requests",
-      "summary": "Gaps, ID checks, duplicates",
+      "description": "Every decision and missing detail, in one queue",
+      "summary": "Every decision, in one queue",
       "tabs": [
         {
-          "path": "/people/data-health/completeness",
-          "label": "Completeness",
+          "path": "/people/review/waiting",
+          "label": "Waiting",
+          "labelFor": {
+            "hr": "Waiting for me",
+            "finance": "Your requests"
+          }
+        },
+        {
+          "path": "/people/review/flagged",
+          "label": "Flagged",
           "for": ["hr"]
         },
         {
-          "path": "/people/data-health/id-checks",
-          "label": "ID checks",
+          "path": "/people/review/asked",
+          "label": "I asked",
           "for": ["hr"]
         },
         {
-          "path": "/people/data-health/duplicates",
-          "label": "Duplicates",
-          "for": ["hr"]
-        },
-        {
-          "path": "/people/data-health/access-requests",
-          "label": "Access requests",
-          "short": "Access",
-          "for": ["finance", "hr"]
+          "path": "/people/review/decided",
+          "label": "Decided"
         }
       ]
     },
@@ -248,7 +219,7 @@
       "label": "Import & export",
       "group": "People",
       "icon": "transfer",
-      "description": "Move people data in and out, with one history",
+      "description": "Bring people in, take data out",
       "summary": "Move data in and out",
       "owns": ["/people/import", "/people/export"]
     },
@@ -258,7 +229,7 @@
       "group": "People",
       "for": ["hr"],
       "icon": "analytics",
-      "description": "Analytics, with scheduled reports built in",
+      "description": "Summary, charts and scheduled reports",
       "summary": "Analytics and reports",
       "owns": ["/people/reports", "/people/reports/:id"],
       "tabs": [
@@ -336,5 +307,8 @@
       "description": "Who did what, and when. Never the values themselves.",
       "icon": "history"
     }
-  ]
+  ],
+  "slots": {
+    "home": "PeopleHome"
+  }
 }

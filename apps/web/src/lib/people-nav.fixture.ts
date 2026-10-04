@@ -2,24 +2,17 @@ import type { Place } from './remotes';
 
 /**
  * People's places as its manifest lists them (`people/public/routes.json`),
- * for the host's tests: six sections, two of them umbrella pages with tabs,
+ * for the host's tests: four sections, two of them umbrella pages with tabs,
  * and adding somebody as an action. A copy, so a test of the host's logic
  * does not move when the remote's copy changes its wording.
  */
 export const PEOPLE_NAV: { readonly sections: Place[]; readonly actions: Place[] } = {
   sections: [
     {
-      path: '/people',
-      label: 'Overview',
-      icon: 'overview',
-      description: 'Summary, your tasks, and what needs HR',
-      summary: 'Your tasks and what needs HR',
-    },
-    {
       path: '/people/directory/list',
       label: 'Directory',
       icon: 'people',
-      description: 'Everyone as a list, as cards, or as an org chart',
+      description: 'Everyone, as a list, cards or an org chart',
       summary: 'List, cards or org chart',
       owns: [
         '/people/directory/cards',
@@ -30,29 +23,20 @@ export const PEOPLE_NAV: { readonly sections: Place[]; readonly actions: Place[]
       ],
     },
     {
-      path: '/people/approvals',
-      label: 'Approvals',
+      path: '/people/review/waiting',
+      label: 'Review',
       icon: 'approve',
-      description: 'Changes waiting for a decision',
-      summary: 'Changes waiting for a decision',
-    },
-    {
-      path: '/people/data-health/completeness',
-      label: 'Data health',
-      icon: 'health',
-      for: ['hr', 'finance'],
-      description: 'Gaps, ID checks, duplicates and access requests',
-      summary: 'Gaps, ID checks, duplicates',
+      description: 'Every decision and missing detail, in one queue',
+      summary: 'Every decision, in one queue',
       tabs: [
-        { path: '/people/data-health/completeness', label: 'Completeness', for: ['hr'] },
-        { path: '/people/data-health/id-checks', label: 'ID checks', for: ['hr'] },
-        { path: '/people/data-health/duplicates', label: 'Duplicates', for: ['hr'] },
         {
-          path: '/people/data-health/access-requests',
-          label: 'Access requests',
-          short: 'Access',
-          for: ['finance', 'hr'],
+          path: '/people/review/waiting',
+          label: 'Waiting',
+          labelFor: { hr: 'Waiting for me', finance: 'Your requests' },
         },
+        { path: '/people/review/flagged', label: 'Flagged', for: ['hr'] },
+        { path: '/people/review/asked', label: 'I asked', for: ['hr'] },
+        { path: '/people/review/decided', label: 'Decided' },
       ],
     },
     {
@@ -80,7 +64,9 @@ export const PEOPLE_NAV: { readonly sections: Place[]; readonly actions: Place[]
       ],
     },
   ],
-  actions: [{ path: '/people/directory/list?add=person', label: 'Add person', icon: 'hire', for: ['hr'] }],
+  actions: [
+    { path: '/people/directory/list?add=person', label: 'Add person', icon: 'hire', for: ['hr'] },
+  ],
 };
 
 export const HR = { hr: true, admin: false, finance: false } as const;

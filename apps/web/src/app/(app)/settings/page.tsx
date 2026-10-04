@@ -4,7 +4,7 @@ import type { JSX } from 'react';
 import { SettingsIndex } from '../../../components/settings-index';
 import { accessToken, people } from '../../../lib/people';
 import { settingsOverview, type ScreenLoad } from '../../../lib/people-screens';
-import { remoteRoute, placesFor } from '../../../lib/remotes';
+import { AREAS, placesFor, remoteNav } from '../../../lib/remotes';
 import { readPreference } from '../../../lib/preferences';
 import { settingsModules } from '../../../lib/settings-modules';
 import { prefsFrom } from '../../../lib/shortcuts';
@@ -122,7 +122,7 @@ function peopleAttention(data: {
 async function peopleSettings(): Promise<ScreenLoad | null> {
   const [home, route] = await Promise.all([
     people<Readonly<Record<string, boolean>>>('Home'),
-    remoteRoute('/people').catch(() => undefined),
+    remoteNav(AREAS.people).catch(() => null),
   ]);
   if (!home.ok || route == null) return null;
   return placesFor(route.nav, home.data).settings.length > 0 ? settingsOverview() : null;

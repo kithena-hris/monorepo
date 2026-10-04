@@ -9,11 +9,12 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CircularProgress,
+  KeyValues,
   List,
   ListItem,
   PageHeader,
   PersonCard,
-  Progress,
   Sparkline,
   Stack,
   Stat,
@@ -28,19 +29,22 @@ import { FieldFiles, FileInput, type UploadOutcome } from '../record/files';
 import { MissingMark } from '../record/missing';
 
 /**
- * Where People starts: who am I here, what needs me, what is missing.
+ * Home (design B1, B2; MA B1, B2): People's overview, folded into the app's
+ * front page, because Home and People › Overview were two pages answering
+ * the same question.
  *
- * Read top to bottom in that order. The person first, as a strip rather than
- * a card of cards — their photo, what they do, where and since when, and the
- * way to their record. Then what needs them, as lists with a way to all of
- * it: the changes waiting for a decision and the details only they can give,
- * each one a link to exactly where it is done. Beside that, narrower, the
- * reporting line as the org chart draws it: the managers above, them, the
- * people below. HR's quieter figures and every place People has come last.
+ * Everybody opens on "Hi" and what needs them. An employee's Home is one To
+ * do list — what of theirs is missing and what of theirs waits on HR, one
+ * button each, how complete their record is beside its title — with who they
+ * are and their reporting line beside it. HR's is the records' figures and
+ * "Needs HR", one list across every queue, each row opening Review with that
+ * chip chosen; beside it who is starting, who joined and their own record.
  *
  * Everything here was decided by People for this viewer: a part they have no
  * use for arrives as null and is simply not drawn, and nothing on the page
- * can show a person or a field People did not hand over.
+ * can show a person or a field People did not hand over. Every time on it is
+ * read from when People answered, in their own zone, so the server's page and
+ * the browser's are the same page.
  */
 
 export interface OverviewPerson {
@@ -200,6 +204,22 @@ const localTime = (now: string, timeZone: string): string => {
   }
 };
 
+/** "Wednesday 3 October": today, where they work. */
+const weekday = (now: string, timeZone: string): string => {
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      timeZone,
+    })
+      .format(new Date(now))
+      .replace(',', '');
+  } catch {
+    return '';
+  }
+};
+
 const STATUS: Readonly<
   Record<string, { label: string; tone: 'success' | 'info' | 'neutral' | 'warning' }>
 > = {
@@ -210,9 +230,19 @@ const STATUS: Readonly<
   notice: { label: 'On notice', tone: 'warning' },
 };
 
+/** "Ada" from "Ada Lovelace": what Home calls them. */
+const first = (name: string): string => name.split(' ')[0] ?? name;
+
+/** An item in Review, its chip chosen: where each row of Home's lists goes. */
+const review = (kind: string, item?: string): string =>
+  `/people/review/waiting?kind=${kind}${item === undefined ? '' : `&item=${encodeURIComponent(item)}`}`;
+
+const counted = (n: number, one: string, many: string): string =>
+  `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+
 /* -------------------------------------------------------------- parts -- */
 
-/** A card with a heading and, optionally, a link beside it: the overview's section. */
+/** A titled card, with a link or a figure beside its title: Home's section. */
 function Section({
   title,
   action,
@@ -237,8 +267,8 @@ function Section({
   );
 }
 
-/** A "Show all" that is a link, because it goes somewhere. */
-function ShowAll({
+/** A link beside a section's title, because it goes somewhere. */
+function SeeAll({
   href,
   children,
 }: {
@@ -246,172 +276,109 @@ function ShowAll({
   readonly children: ReactNode;
 }): JSX.Element {
   return (
-    <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
+    <Button asChild size="sm" variant="link">
       <a href={href}>{children}</a>
     </Button>
   );
 }
 
-/** Who they are (W1): the photo, what they do, their badges, and the way to their record. */
-function Identity({
-  me,
-  now,
-}: {
-  readonly me: NonNullable<PeopleHomeState['me']>;
-  readonly now: string;
-}): JSX.Element {
-  const role = [me.title, me.department, me.location].filter((x) => x !== null).join(' · ');
-  const status = me.status === null ? undefined : STATUS[me.status];
-  const time = localTime(now, me.timeZone);
-  const since = me.startedOn === null ? null : tenure(me.startedOn, me.today);
-  return (
-    <Card padded className="flex flex-wrap items-center gap-5">
-      <Avatar size="3xl" name={me.name} src={me.avatarUrl ?? undefined} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <h2 className="font-display text-xl font-bold tracking-tight text-fg">{me.name}</h2>
-        {role === '' ? null : <p className="text-sm text-fg-muted">{role}</p>}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {status === undefined ? null : (
-            <Badge size="sm" dot tone={status.tone}>
-              {status.label}
-            </Badge>
-          )}
-          {me.missing === null || me.missing === 0 ? null : <MissingMark count={me.missing} />}
-        </div>
-        <ul aria-label="Your details" className="mt-1 flex flex-wrap gap-x-5 gap-y-1">
-          {time === '' ? null : (
-            <Detail icon={<icons.location />}>
-              <span className="tabular-nums">{time} local time</span>
-            </Detail>
-          )}
-          {me.startedOn === null ? null : (
-            <Detail icon={<icons.calendar />}>
-              Joined {longDate(me.startedOn)}
-              {since === null ? null : ` · ${since}`}
-            </Detail>
-          )}
-          {me.email === null ? null : (
-            <Detail icon={<icons.email />}>
-              <a
-                className="relative tap-target underline-offset-4 hover:underline"
-                href={`mailto:${me.email}`}
-              >
-                {me.email}
-              </a>
-            </Detail>
-          )}
-        </ul>
-      </div>
-      <Button asChild endIcon={<icons.forward aria-hidden />}>
-        <a href="/people/me">View your profile</a>
-      </Button>
-    </Card>
-  );
-}
-
-/** A detail with its icon: the icon is decoration, the words carry it. */
-function Detail({
+/** A tile for a row: what kind of thing it is, in its tone. */
+function Tile({
   icon,
-  children,
+  tone,
+  name,
 }: {
   readonly icon: ReactNode;
-  readonly children: ReactNode;
+  readonly tone?: 'warning' | 'danger' | 'info' | 'accent';
+  readonly name: string;
 }): JSX.Element {
-  return (
-    <li className="flex min-w-0 items-center gap-1.5 text-sm text-fg-muted">
-      <span aria-hidden className="shrink-0 text-fg-subtle [&_svg]:size-3.5">
-        {icon}
-      </span>
-      <span className="min-w-0 truncate">{children}</span>
-    </li>
-  );
-}
-
-/** A warning tile, for a detail that is wanted: the icon repeats what the words say. */
-function Wanted(): JSX.Element {
   return (
     <Avatar
       size="lg"
       shape="rounded"
-      name="Missing"
-      tone="warning"
-      fallback={<icons.missing aria-hidden />}
+      name={name}
+      {...(tone === undefined ? {} : { tone })}
+      fallback={icon}
     />
   );
 }
 
-/** How complete their own record is, and each detail of theirs that is missing (W1). */
-function Completeness({
-  missing,
-  required,
+/**
+ * A row's way onward (B1, B2): a button with its word at a desk, a chevron
+ * under a finger, where the whole list is a list of places (MA B1, B2).
+ */
+function Onward({
+  href,
+  label,
+  word,
+  primary = false,
 }: {
-  readonly missing: PeopleHomeState['missing'];
-  readonly required: number;
+  readonly href: string;
+  /** What it does, for a screen reader: "Review 4 changes to approve". */
+  readonly label: string;
+  readonly word: string | null;
+  readonly primary?: boolean;
 }): JSX.Element {
-  const yours = missing.filter((m) => m.ownedBy === null);
-  const theirs = missing.filter((m) => m.ownedBy !== null);
-  const percent = required === 0 ? 100 : Math.round(((required - missing.length) / required) * 100);
   return (
-    <Section
-      title={
-        missing.length === 0
-          ? 'Your record is complete'
-          : `Your profile is ${String(percent)}% complete`
-      }
-      action={
-        missing.length === 0 ? undefined : <ShowAll href="/people/me">Open your profile</ShowAll>
+    <>
+      {word === null ? null : (
+        <Button
+          asChild
+          size="sm"
+          variant={primary ? 'primary' : 'secondary'}
+          className="touch:hidden"
+        >
+          <a href={href} aria-label={label}>
+            {word}
+          </a>
+        </Button>
+      )}
+      <Button
+        asChild
+        size="sm"
+        variant="ghost"
+        startIcon={<icons.forward aria-hidden />}
+        className={word === null ? undefined : 'hidden touch:inline-flex'}
+      >
+        <a href={href} aria-label={label} />
+      </Button>
+    </>
+  );
+}
+
+/** One thing to do (B1): its tile, what it is, why, and the one way to do it. */
+function Todo({
+  icon,
+  tone,
+  title,
+  description,
+  href,
+  word,
+  primary,
+}: {
+  readonly icon: ReactNode;
+  readonly tone?: 'warning' | 'danger' | 'info' | 'accent';
+  readonly title: string;
+  readonly description: string;
+  readonly href: string;
+  readonly word: string | null;
+  readonly primary?: boolean;
+}): JSX.Element {
+  return (
+    <ListItem
+      leading={<Tile icon={icon} name={title} {...(tone === undefined ? {} : { tone })} />}
+      description={description}
+      trailing={
+        <Onward
+          href={href}
+          label={`${word ?? 'Open'}: ${title}`}
+          word={word}
+          {...(primary === undefined ? {} : { primary })}
+        />
       }
     >
-      {missing.length === 0 ? (
-        <Done
-          title="Your record is complete"
-          detail="Everything People asks of you is filled in. If a new detail is needed, it shows up here."
-        />
-      ) : (
-        <Stack gap={4}>
-          <Progress
-            value={percent}
-            showValue
-            label={`${String(missing.length)} of ${String(required)} required ${required === 1 ? 'detail' : 'details'} missing`}
-            valueLabel={`${String(percent)}%`}
-          />
-          {yours.length === 0 ? null : (
-            <List aria-label="For you to add" className="-mx-2 bg-transparent shadow-none">
-              {yours.map((m) => (
-                <ListItem
-                  key={m.key}
-                  asChild
-                  leading={<Wanted />}
-                  description={m.section}
-                  trailing={
-                    <Badge size="sm" tone="accent">
-                      Add
-                    </Badge>
-                  }
-                >
-                  <a href={`/people/me?field=${encodeURIComponent(m.key)}`}>{m.label}</a>
-                </ListItem>
-              ))}
-            </List>
-          )}
-          {theirs.length === 0 ? null : (
-            <div>
-              <p className="text-xs text-fg-muted">
-                Waiting on {[...new Set(theirs.map((m) => m.ownedBy))].join(' and ')}, nothing for
-                you to do:
-              </p>
-              <ul aria-label="Waiting on somebody else" className="mt-1.5 flex flex-wrap gap-2">
-                {theirs.map((m) => (
-                  <li key={m.key}>
-                    <Badge size="sm">{m.label}</Badge>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </Stack>
-      )}
-    </Section>
+      {title}
+    </ListItem>
   );
 }
 
@@ -429,59 +396,173 @@ function Done({ title, detail }: { readonly title: string; readonly detail: stri
   );
 }
 
-/** Changes waiting for a decision: theirs to decide, or their own waiting on HR. */
-function Approvals({
-  approvals,
-  now,
+/**
+ * The one To do list (B1, MA B1): what of theirs is missing, and what of
+ * theirs waits on somebody else, one row and one button each, with how
+ * complete their record is beside the title. What only HR fills in is named
+ * underneath, as nothing for them to do.
+ */
+function ToDo({
+  state,
+  me,
 }: {
-  readonly approvals: NonNullable<PeopleHomeState['approvals']>;
-  readonly now: string;
+  readonly state: PeopleHomeState;
+  readonly me: NonNullable<PeopleHomeState['me']>;
 }): JSX.Element {
-  const title = approvals.isHr ? 'Waiting for your approval' : 'Your changes waiting for approval';
+  const yours = state.missing.filter((m) => m.ownedBy === null);
+  const theirs = state.missing.filter((m) => m.ownedBy !== null);
+  const percent =
+    me.required === 0
+      ? 100
+      : Math.round(((me.required - state.missing.length) / me.required) * 100);
+  // Their own changes waiting for a decision: an employee's are theirs; HR's are under Review.
+  const changes = state.approvals !== null && !state.approvals.isHr ? state.approvals.items : [];
+  const rows = yours.length + changes.length;
   return (
     <Section
-      title={title}
+      title="To do"
       action={
-        approvals.total > 0 ? (
-          <ShowAll href="/people/approvals">
-            {approvals.total > approvals.items.length
-              ? `Show all ${String(approvals.total)}`
-              : 'Open approvals'}
-          </ShowAll>
-        ) : undefined
+        <div className="flex items-center gap-2">
+          <CircularProgress
+            value={percent}
+            size={40}
+            showValue={false}
+            label={`${String(state.missing.length)} of ${String(me.required)} required ${me.required === 1 ? 'detail' : 'details'} missing`}
+            tone={percent >= 100 ? 'success' : 'accent'}
+          />
+          <span className="text-sm text-fg-muted">
+            <b className="text-fg">{percent}%</b> of your record
+          </span>
+        </div>
       }
     >
-      {approvals.items.length === 0 ? (
+      {rows === 0 ? (
         <Done
-          title="Nothing waiting"
+          title={state.missing.length === 0 ? 'Your record is complete' : 'Nothing for you to do'}
           detail={
-            approvals.isHr
-              ? 'When somebody changes a detail that needs HR’s approval, it lands here first.'
-              : 'Changes you make that need HR’s approval wait here until they decide.'
+            state.missing.length === 0
+              ? 'Everything People asks of you is filled in. If a new detail is needed, it shows up here.'
+              : 'What is left is for somebody else to fill in.'
           }
         />
       ) : (
-        <List aria-label={title} className="-mx-2 bg-transparent shadow-none">
-          {approvals.items.map((a) => (
-            <ListItem
-              key={a.id}
-              asChild
-              leading={<Avatar size="lg" name={a.name} src={a.avatarUrl ?? undefined} />}
-              description={`${a.label} · asked by ${a.requestedBy}`}
-              meta={waited(a.requestedAt, now)}
-            >
-              <a href="/people/approvals">{`${a.name} · ${a.label}`}</a>
-            </ListItem>
+        <List aria-label="To do" className="-mx-2 bg-transparent shadow-none">
+          {yours.map((m) => (
+            <Todo
+              key={m.key}
+              icon={<icons.missing aria-hidden />}
+              title={`Add your ${m.label.toLowerCase()}`}
+              description={m.section}
+              href={`/people/me?field=${encodeURIComponent(m.key)}`}
+              word="Add"
+            />
+          ))}
+          {changes.map((c) => (
+            <Todo
+              key={c.id}
+              icon={<icons.scheduled aria-hidden />}
+              title={`Your new ${c.label.toLowerCase()} is with HR`}
+              description={`Sent ${waited(c.requestedAt, state.now)} · nothing changes until HR approves`}
+              href={review('changes', `change-${c.id}`)}
+              word={null}
+            />
           ))}
         </List>
+      )}
+      {theirs.length === 0 ? null : (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-fg-muted">
+            Waiting on {[...new Set(theirs.map((m) => m.ownedBy))].join(' and ')}, nothing for you
+            to do:
+          </span>
+          <ul aria-label="Waiting on somebody else" className="contents">
+            {theirs.map((m) => (
+              <li key={m.key}>
+                <Badge size="sm">{m.label}</Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </Section>
   );
 }
 
+/** Who they are (B1): photo, name, what they do, their badges, three facts and their profile. */
+function Identity({
+  me,
+  now,
+}: {
+  readonly me: NonNullable<PeopleHomeState['me']>;
+  readonly now: string;
+}): JSX.Element {
+  const role = [me.title, me.department, me.location].filter((x) => x !== null).join(' · ');
+  const status = me.status === null ? undefined : STATUS[me.status];
+  const time = localTime(now, me.timeZone);
+  const since = me.startedOn === null ? null : tenure(me.startedOn, me.today);
+  return (
+    <Card padded className="flex flex-col gap-3.5">
+      <div className="flex items-center gap-3.5">
+        <Avatar
+          size="2xl"
+          name={me.name}
+          src={me.avatarUrl ?? undefined}
+          {...(status === undefined ? {} : { status: status.tone })}
+        />
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display text-xl font-bold tracking-tight text-fg">{me.name}</h2>
+          {role === '' ? null : <p className="text-sm text-fg-muted">{role}</p>}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {status === undefined ? null : (
+          <Badge size="sm" dot tone={status.tone}>
+            {status.label}
+          </Badge>
+        )}
+        {me.missing === null || me.missing === 0 ? null : <MissingMark count={me.missing} />}
+      </div>
+      <KeyValues
+        layout="stacked"
+        aria-label="Your details"
+        items={[
+          ...(time === '' ? [] : [{ label: 'Local time', value: time }]),
+          ...(me.startedOn === null
+            ? []
+            : [
+                {
+                  label: 'Joined',
+                  value: `${longDate(me.startedOn)}${since === null ? '' : ` · ${since}`}`,
+                },
+              ]),
+          ...(me.email === null
+            ? []
+            : [
+                {
+                  label: 'Email',
+                  value: (
+                    <a
+                      className="relative tap-target text-accent-fg underline-offset-4 hover:underline"
+                      href={`mailto:${me.email}`}
+                    >
+                      {me.email}
+                    </a>
+                  ),
+                },
+              ]),
+        ]}
+      />
+      <Button asChild fullWidth size="sm">
+        <a href="/people/me">View your profile</a>
+      </Button>
+    </Card>
+  );
+}
+
 /**
- * The reporting line as the org chart draws it (W1): the managers from the
- * top, one card each joined by a rule, then them, then who reports to them.
+ * The reporting line (B1): the managers from the top, then them, as the org
+ * chart draws it, and who else reports to their manager. Under a finger, the
+ * manager alone, a row to their profile (MA B1).
  */
 function ReportingLine({
   line,
@@ -494,58 +575,64 @@ function ReportingLine({
   const above = line.managers.toReversed();
   const top = above[0];
   const manager = line.managers[0];
-  const joint = <span aria-hidden className="mx-auto h-3.5 w-0.5 bg-border-strong" />;
+  const joint = <span aria-hidden className="ms-6 h-3 w-0.5 bg-border-strong" />;
   return (
-    <Section title="Your reporting line">
-      <Stack gap={4}>
+    <Section
+      title="Your reporting line"
+      action={<SeeAll href="/people/directory/org-chart">Org chart</SeeAll>}
+    >
+      <Stack gap={3}>
         <ol aria-label="Your managers, from the top" className="flex flex-col">
           {line.moreAbove && top !== undefined ? (
-            <li className="pb-2 text-center text-xs text-fg-muted">
+            <li className="pb-2 text-xs text-fg-muted">
               <a className="underline underline-offset-4" href={`/people/${top.id}`}>
                 The line goes on above {top.name}
               </a>
             </li>
           ) : null}
-          {above.map((m) => (
-            <li key={m.id} className="flex flex-col">
+          {above.map((m, i) => (
+            <li
+              key={m.id}
+              // Under a finger, only the manager: the one row a phone keeps.
+              className={i === above.length - 1 ? 'flex flex-col' : 'flex flex-col touch:hidden'}
+            >
               <PersonCard
                 layout="row"
                 name={m.name}
-                description={m.title}
+                description={
+                  m.id === manager?.id
+                    ? `Your manager · ${m.title ?? ''}`.replace(/ · $/, '')
+                    : m.title
+                }
                 href={`/people/${m.id}`}
                 {...(m.avatarUrl === null ? {} : { avatarSrc: m.avatarUrl })}
               />
-              {joint}
+              <span className="contents touch:hidden">{joint}</span>
             </li>
           ))}
-          <li>
+          <li className="touch:hidden">
             <PersonCard
               layout="row"
               selected
-              name={me.name}
-              description={`You${me.title === null ? '' : ` · ${me.title}`}`}
+              name="You"
+              description={me.title}
               {...(me.avatarUrl === null ? {} : { avatarSrc: me.avatarUrl })}
             />
           </li>
         </ol>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {line.peers === null || manager === undefined ? (
-            <span />
-          ) : (
-            <p className="text-xs text-fg-muted">
-              {line.peers === 0
-                ? `Nobody else reports to ${manager.name}.`
-                : `${String(line.peers)} ${line.peers === 1 ? 'other person reports' : 'others report'} to ${manager.name}.`}
-            </p>
-          )}
-          <ShowAll href="/people/directory/org-chart">Open org chart</ShowAll>
-        </div>
+        {line.peers === null || manager === undefined ? null : (
+          <p className="text-sm text-fg-muted">
+            {line.peers === 0
+              ? `Nobody else reports to ${manager.name}.`
+              : `${String(line.peers)} ${line.peers === 1 ? 'other reports' : 'others report'} to ${first(manager.name)}.`}
+          </p>
+        )}
       </Stack>
     </Section>
   );
 }
 
-/** Who reports to them (W1, "Your team"), as a row of faces and the way to all of them. */
+/** Who reports to them, for a manager: a row of faces and the way to all of them. */
 function Team({
   line,
 }: {
@@ -561,32 +648,26 @@ function Team({
       }
       action={
         line.reportsFilter === null ? undefined : (
-          <ShowAll href={`/people/directory/list?filter=${encodeURIComponent(line.reportsFilter)}`}>
+          <SeeAll href={`/people/directory/list?filter=${encodeURIComponent(line.reportsFilter)}`}>
             {line.reportsTotal > line.reports.length
               ? `Show all ${String(line.reportsTotal)}`
               : 'In the directory'}
-          </ShowAll>
+          </SeeAll>
         )
       }
     >
-      <ul aria-label="Your direct reports" className="flex flex-col">
+      <List aria-label="Your direct reports" className="-mx-2 bg-transparent shadow-none">
         {line.reports.map((r) => (
-          <li key={r.id}>
-            <a
-              href={`/people/${r.id}`}
-              className="flex min-h-tap items-center gap-3 rounded-md px-2 py-1.5 -mx-2 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-border-focus"
-            >
-              <Avatar size="md" name={r.name} src={r.avatarUrl ?? undefined} />
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold">{r.name}</span>
-                {r.title === null ? null : (
-                  <span className="block truncate text-xs text-fg-muted">{r.title}</span>
-                )}
-              </span>
-            </a>
-          </li>
+          <ListItem
+            key={r.id}
+            asChild
+            leading={<Avatar size="md" name={r.name} src={r.avatarUrl ?? undefined} />}
+            {...(r.title === null ? {} : { description: r.title })}
+          >
+            <a href={`/people/${r.id}`}>{r.name}</a>
+          </ListItem>
         ))}
-      </ul>
+      </List>
     </Section>
   );
 }
@@ -601,6 +682,7 @@ function Figure({
   unit,
   description,
   chart,
+  className,
 }: {
   readonly href: string;
   readonly label: string;
@@ -608,11 +690,12 @@ function Figure({
   readonly unit?: string;
   readonly description: ReactNode;
   readonly chart?: ReactNode;
+  readonly className?: string;
 }): JSX.Element {
   return (
     <a
       href={href}
-      className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+      className={`rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus ${className ?? ''}`}
     >
       <Stat
         label={label}
@@ -626,41 +709,12 @@ function Figure({
   );
 }
 
-/** A row of "Needs attention": the count, what it is, and the button to it. */
-function Attention({
-  icon,
-  tone,
-  title,
-  description,
-  action,
-  href,
-}: {
-  readonly icon: ReactNode;
-  readonly tone: 'warning' | 'danger' | 'info' | 'accent';
-  readonly title: string;
-  readonly description: string;
-  readonly action: string;
-  readonly href: string;
-}): JSX.Element {
-  return (
-    <ListItem
-      leading={<Avatar size="lg" shape="rounded" name={title} tone={tone} fallback={icon} />}
-      description={description}
-      trailing={
-        <Button asChild size="xs">
-          <a href={href} aria-label={`${action}: ${title}`}>
-            {action}
-          </a>
-        </Button>
-      }
-    >
-      {title}
-    </ListItem>
-  );
-}
-
-/** HR's overview (W2): the figures, what needs HR, who joins, who starts. */
-function HrOverview({
+/**
+ * Home for HR (B2, MA B2): the records' four figures, then "Needs HR", one
+ * list across every queue, each row opening Review with its chip chosen;
+ * beside it who is starting, who joined, and a line for their own record.
+ */
+function HrHome({
   hr,
   state,
 }: {
@@ -669,60 +723,93 @@ function HrOverview({
 }): JSX.Element {
   const approvals = state.approvals;
   const team = state.team;
-  const attention: JSX.Element[] = [];
-  if (team !== null && team.toFill + team.waiting > 0) {
-    attention.push(
-      <Attention
-        key="incomplete"
-        icon={<icons.missing aria-hidden />}
-        tone="warning"
-        title={`${String(team.toFill)} ${team.toFill === 1 ? 'detail waits' : 'details wait'} for HR`}
-        description={`${String(team.waiting)} ${team.waiting === 1 ? 'person has' : 'people have'} something of their own to add`}
-        action="Review"
-        href="/people/data-health/completeness"
+  const changes = approvals?.total ?? 0;
+  const needs: JSX.Element[] = [];
+  if (changes > 0) {
+    const oldest = approvals?.items.at(-1);
+    needs.push(
+      <Todo
+        key="changes"
+        icon={<icons.edit aria-hidden />}
+        title={counted(changes, 'change to approve', 'changes to approve')}
+        description={
+          oldest === undefined
+            ? 'Waiting for your decision'
+            : `Oldest asked ${waited(oldest.requestedAt, state.now)}`
+        }
+        href={review('changes')}
+        word="Review"
+        primary
       />,
     );
   }
   if ((hr.identifiers ?? 0) > 0) {
-    attention.push(
-      <Attention
+    needs.push(
+      <Todo
         key="ids"
         icon={<icons.identifier aria-hidden />}
-        tone="danger"
-        title={`${String(hr.identifiers)} ${hr.identifiers === 1 ? 'identifier needs' : 'identifiers need'} review`}
-        description="A national identifier failed its country’s check"
-        action="Review"
-        href="/people/data-health/id-checks"
+        title={counted(hr.identifiers ?? 0, 'identifier to check', 'identifiers to check')}
+        description="Failed a check, or couldn’t be verified"
+        href={review('ids')}
+        word="Review"
       />,
     );
   }
   if ((hr.duplicates ?? 0) > 0) {
-    attention.push(
-      <Attention
-        key="dupes"
+    needs.push(
+      <Todo
+        key="duplicates"
         icon={<icons.merge aria-hidden />}
-        tone="info"
-        title={`${String(hr.duplicates)} possible ${hr.duplicates === 1 ? 'duplicate' : 'duplicates'}`}
-        description="Records that look like the same person"
-        action="Compare"
-        href="/people/data-health/duplicates"
+        title={counted(hr.duplicates ?? 0, 'possible duplicate', 'possible duplicates')}
+        description="Same work email, or name and birth date"
+        href={review('duplicates')}
+        word="Compare"
       />,
     );
   }
   if ((hr.accessRequests ?? 0) > 0) {
-    attention.push(
-      <Attention
+    needs.push(
+      <Todo
         key="access"
         icon={<icons.sensitive aria-hidden />}
-        tone="accent"
-        title={`${String(hr.accessRequests)} access ${hr.accessRequests === 1 ? 'request' : 'requests'}`}
+        title={counted(
+          hr.accessRequests ?? 0,
+          'request for full values',
+          'requests for full values',
+        )}
         description="Somebody asked to see unmasked values"
-        action="Decide"
-        href="/people/data-health/access-requests"
+        href={review('access')}
+        word="Decide"
+      />,
+    );
+  }
+  if (team !== null && team.toFill > 0) {
+    needs.push(
+      <Todo
+        key="fill"
+        icon={<icons.missing aria-hidden />}
+        title={counted(team.toFill, 'detail for HR to fill in', 'details for HR to fill in')}
+        description="Missing details only HR keeps"
+        href={review('missing')}
+        word="Fill in"
+      />,
+    );
+  }
+  if (team !== null && team.waiting > 0) {
+    needs.push(
+      <Todo
+        key="remind"
+        icon={<icons.notifications aria-hidden />}
+        title={`${counted(team.waiting, 'person has', 'people have')} details of their own to add`}
+        description="Reminded by email once a week"
+        href={review('missing')}
+        word="Remind"
       />,
     );
   }
   const headcount = hr.headcount;
+  const oldest = approvals?.items.at(-1);
+  const me = state.me;
   return (
     <Stack gap={4}>
       <div className="grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4">
@@ -743,7 +830,7 @@ function HrOverview({
         )}
         {hr.complete === null ? null : (
           <Figure
-            href="/people/data-health/completeness"
+            href={review('missing')}
             label="Complete records"
             value={hr.complete.percent}
             unit="%"
@@ -752,14 +839,15 @@ function HrOverview({
         )}
         {approvals === null ? null : (
           <Figure
-            href="/people/approvals"
-            label="Approvals waiting"
+            href={review('changes')}
+            label="Waiting for a decision"
             value={approvals.total}
             description={
-              approvals.items[0] === undefined
+              oldest === undefined
                 ? 'nothing waiting'
-                : `oldest ${waited(approvals.items[0].requestedAt, state.now)}`
+                : `Oldest asked ${waited(oldest.requestedAt, state.now)}`
             }
+            className="touch:hidden"
           />
         )}
         {hr.expiring === null ? null : (
@@ -767,63 +855,80 @@ function HrOverview({
             href="/people/insights/data-quality"
             label="Expiring in 90 days"
             value={hr.expiring}
-            description="permits, contracts and probations"
+            description="Permits, contracts, probations"
+            className="touch:hidden"
           />
         )}
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <Section title="Needs attention">
-          {attention.length === 0 ? (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+        <Section
+          title="Needs HR"
+          action={<SeeAll href="/people/review/waiting">Open Review</SeeAll>}
+        >
+          {needs.length === 0 ? (
             <Done title="Nothing needs HR" detail="Records are complete and nothing is flagged." />
           ) : (
-            <List aria-label="Needs attention" className="-mx-2 bg-transparent shadow-none">
-              {attention}
+            <List aria-label="Needs HR" className="-mx-2 bg-transparent shadow-none">
+              {needs}
             </List>
           )}
         </Section>
-        {hr.joiners.length === 0 ? (
-          approvals === null ? null : (
-            <Approvals approvals={approvals} now={state.now} />
-          )
-        ) : (
-          <Section title="Joiners by month">
-            <BarChart
-              data={hr.joiners}
-              label="People who joined, by month"
-              height={170}
-              showValues
-            />
-          </Section>
-        )}
+        <Stack gap={4}>
+          {hr.starting.length === 0 ? null : (
+            <Section
+              title="Starting soon"
+              action={<SeeAll href="/people/directory/list">Directory</SeeAll>}
+            >
+              <List aria-label="Starting soon" className="-mx-2 bg-transparent shadow-none">
+                {hr.starting.map((p) => (
+                  <ListItem
+                    key={p.id}
+                    asChild
+                    leading={<Avatar size="lg" name={p.name} src={p.avatarUrl ?? undefined} />}
+                    description={p.detail}
+                    trailing={
+                      p.missing === null || p.missing === 0 ? (
+                        <Badge size="sm" tone="success">
+                          Ready
+                        </Badge>
+                      ) : (
+                        <MissingMark count={p.missing} />
+                      )
+                    }
+                  >
+                    <a href={`/people/${p.id}`}>{p.name}</a>
+                  </ListItem>
+                ))}
+              </List>
+            </Section>
+          )}
+          {hr.joiners.length === 0 ? null : (
+            <Section title="Joiners by month" className="touch:hidden">
+              <BarChart
+                data={hr.joiners}
+                label="People who joined, by month"
+                height={120}
+                showValues
+              />
+            </Section>
+          )}
+          {me === null ? null : (
+            // HR's own record, which the old overview left out.
+            <Card variant="outlined" padded className="flex items-center gap-2.5 touch:hidden">
+              <Avatar size="sm" name={me.name} src={me.avatarUrl ?? undefined} />
+              <p className="min-w-0 flex-1 text-sm text-fg-muted">
+                Your own record is{' '}
+                <b className="text-fg">
+                  {me.missing === null || me.missing === 0
+                    ? 'complete'
+                    : `missing ${counted(me.missing, 'detail', 'details')}`}
+                </b>
+              </p>
+              <SeeAll href="/people/me">My profile</SeeAll>
+            </Card>
+          )}
+        </Stack>
       </div>
-      {hr.starting.length === 0 ? null : (
-        <Section
-          title="Starting soon"
-          action={<ShowAll href="/people/directory/list">Directory</ShowAll>}
-        >
-          <List aria-label="Starting soon" className="-mx-2 bg-transparent shadow-none">
-            {hr.starting.map((p) => (
-              <ListItem
-                key={p.id}
-                asChild
-                leading={<Avatar size="lg" name={p.name} src={p.avatarUrl ?? undefined} />}
-                description={p.detail}
-                trailing={
-                  p.missing === null || p.missing === 0 ? (
-                    <Badge size="sm" tone="success">
-                      Ready
-                    </Badge>
-                  ) : (
-                    <MissingMark count={p.missing} />
-                  )
-                }
-              >
-                <a href={`/people/${p.id}`}>{p.name}</a>
-              </ListItem>
-            ))}
-          </List>
-        </Section>
-      )}
     </Stack>
   );
 }
@@ -863,6 +968,17 @@ function Setup({
     <Card>
       <CardHeader>
         <CardTitle level={2}>Finish setting up your account</CardTitle>
+        {required ? null : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setLater(true);
+            }}
+          >
+            Later
+          </Button>
+        )}
         <CardDescription>
           {required
             ? 'Your company asks for these before anything else. Each is saved as soon as you choose it.'
@@ -942,18 +1058,6 @@ function Setup({
               ))}
             </FieldFiles.Provider>
           )}
-          {required ? null : (
-            <div>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setLater(true);
-                }}
-              >
-                Later
-              </Button>
-            </div>
-          )}
         </Stack>
       </CardContent>
     </Card>
@@ -961,50 +1065,49 @@ function Setup({
 }
 
 /**
- * The People overview (W1 for everybody, W2 for HR).
- *
- * Everybody opens on themselves: who they are here, how complete their record
- * is and each detail they can add, what of theirs waits for approval, and,
- * beside that, their reporting line as the org chart draws it and who
- * reports to them. HR opens on the records instead: the figures that matter,
- * what needs HR (each row a way to the screen that fixes it), who joined and
- * who is starting.
- *
- * Everything here was decided by People for this viewer: a part they have no
- * use for arrives as null and is simply not drawn, and nothing on the page
- * can show a person or a field People did not hand over.
+ * Home: "Hi", today where they work, and the page for who they are: HR's
+ * (B2) or anybody's (B1). Signing up's last asks come first.
  */
 export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX.Element {
   return (
-    <Loaded load={load} what="your overview">
+    <Loaded load={load} what="your home">
       {(state) => {
-        const { me, reportingLine, approvals, hr } = state;
+        const { me, reportingLine, hr } = state;
         const hrFigures = state.roles.hr ? (hr ?? null) : null;
-        const personal = (
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-            <Stack gap={4}>
-              {me === null ? null : <Identity me={me} now={state.now} />}
-              {me === null ? null : <Completeness missing={state.missing} required={me.required} />}
-              {approvals === null ? null : <Approvals approvals={approvals} now={state.now} />}
-            </Stack>
-            {me === null || reportingLine === null ? null : (
-              <Stack gap={4}>
-                <ReportingLine line={reportingLine} me={me} />
-                {reportingLine.reportsTotal === 0 ? null : <Team line={reportingLine} />}
-              </Stack>
-            )}
-          </div>
-        );
+        const today = me === null ? '' : weekday(state.now, me.timeZone);
+        const time = me === null ? '' : localTime(state.now, me.timeZone);
+        const where = me?.location ?? null;
+        const when = [
+          today,
+          [time, where === null ? null : `in ${where}`]
+            .filter((x) => x !== null && x !== '')
+            .join(' '),
+        ]
+          .filter((x) => x !== '')
+          .join(' · ');
         return (
-          <Stack gap={6}>
+          <Stack gap={5}>
             <PageHeader
-              title="Overview"
+              className="@3xl/page:pe-64"
+              title={me === null ? 'Home' : `Hi ${first(me.name)}`}
               description={
-                hrFigures !== null
-                  ? 'The state of your people records, and what needs HR.'
-                  : me === null
-                    ? 'Your account is not linked to anybody’s record, so there is no profile to show.'
-                    : 'Your profile, what you need to do, and who you work with.'
+                me === null
+                  ? 'Your account is not linked to anybody’s record, so there is no profile to show.'
+                  : hrFigures !== null
+                    ? `${when}. Here’s what needs HR today.`
+                    : when
+              }
+              actions={
+                hrFigures === null ? undefined : (
+                  <Button
+                    asChild
+                    variant="primary"
+                    startIcon={<icons.hire aria-hidden />}
+                    shortcut="create"
+                  >
+                    <a href="/people/directory/list?add=person">Add person</a>
+                  </Button>
+                )
               }
             />
             {me === null || state.setup == null ? null : (
@@ -1015,7 +1118,39 @@ export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX
                 onSetupFile={onSetupFile}
               />
             )}
-            {hrFigures === null ? personal : <HrOverview hr={hrFigures} state={state} />}
+            {hrFigures !== null ? (
+              <HrHome hr={hrFigures} state={state} />
+            ) : me === null ? null : (
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+                <Stack gap={4}>
+                  {/* Under a finger, who they are is one row above the list (MA B1). */}
+                  <a
+                    href="/people/me"
+                    className="hidden items-center gap-3.5 rounded-lg touch:flex focus-visible:outline-2 focus-visible:outline-border-focus"
+                  >
+                    <Avatar size="2xl" name={me.name} src={me.avatarUrl ?? undefined} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-display text-xl font-bold">{me.name}</span>
+                      <span className="block text-sm text-fg-muted">
+                        {[me.title, me.location, time]
+                          .filter((x) => x !== null && x !== '')
+                          .join(' · ')}
+                      </span>
+                    </span>
+                  </a>
+                  <ToDo state={state} me={me} />
+                </Stack>
+                <Stack gap={4}>
+                  <div className="touch:hidden">
+                    <Identity me={me} now={state.now} />
+                  </div>
+                  {reportingLine === null ? null : <ReportingLine line={reportingLine} me={me} />}
+                  {reportingLine === null || reportingLine.reportsTotal === 0 ? null : (
+                    <Team line={reportingLine} />
+                  )}
+                </Stack>
+              </div>
+            )}
           </Stack>
         );
       }}
