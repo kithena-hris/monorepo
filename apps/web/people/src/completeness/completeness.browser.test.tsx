@@ -28,6 +28,9 @@ const coarse = matchMedia('(pointer: coarse)').matches;
 // performance job holds the budgets there, calibrated to its runner.
 const webkit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
 const room = import.meta.env['CI_RUN'] === true ? Number.POSITIVE_INFINITY : webkit ? 2 : 1;
+// Ten thousand rows take a shared runner's WebKit over 20 s to set up and walk
+// through; the flow is what these check there, so it has the time to finish.
+const SCALE_TIMEOUT = 60_000;
 
 const many = (n: number, word: string) =>
   Array.from({ length: n }, (_, i) => ({
@@ -160,79 +163,91 @@ const calendar = () =>
   });
 
 describe.skipIf(coarse)('Missing details at ten thousand gaps', () => {
-  it('opens the grid over everybody at once, a cell answers at once, and keys keep up', async () => {
-    render(frame());
-    await painted();
-    const open = performance.now();
-    press(screen.getByRole('button', { name: 'Fill in for all' }));
-    await painted();
-    const grid = performance.now() - open;
-    expect(screen.getByRole('heading', { name: 'Fill in for HR' })).toBeInTheDocument();
+  it(
+    'opens the grid over everybody at once, a cell answers at once, and keys keep up',
+    async () => {
+      render(frame());
+      await painted();
+      const open = performance.now();
+      press(screen.getByRole('button', { name: 'Fill in for all' }));
+      await painted();
+      const grid = performance.now() - open;
+      expect(screen.getByRole('heading', { name: 'Fill in for HR' })).toBeInTheDocument();
 
-    const toggle = await opening(screen.getByRole('switch', { name: 'Remote for Person 0' }), () =>
-      Promise.resolve(),
-    );
-    const list = await opening(
-      screen.getByRole('textbox', { name: 'Cost centre for Person 0' }),
-      option('CC 0'),
-    );
-    const countries = await opening(
-      screen.getByRole('textbox', { name: 'Nationality for Person 1' }),
-      option('Country 0'),
-    );
-    const zones = await opening(
-      screen.getByRole('textbox', { name: 'Time zone for Person 1' }),
-      option('Zone 0'),
-    );
-    const date = await opening(
-      screen.getByRole('textbox', { name: 'Contract end for Person 1' }),
-      calendar,
-    );
+      const toggle = await opening(
+        screen.getByRole('switch', { name: 'Remote for Person 0' }),
+        () => Promise.resolve(),
+      );
+      const list = await opening(
+        screen.getByRole('textbox', { name: 'Cost centre for Person 0' }),
+        option('CC 0'),
+      );
+      const countries = await opening(
+        screen.getByRole('textbox', { name: 'Nationality for Person 1' }),
+        option('Country 0'),
+      );
+      const zones = await opening(
+        screen.getByRole('textbox', { name: 'Time zone for Person 1' }),
+        option('Zone 0'),
+      );
+      const date = await opening(
+        screen.getByRole('textbox', { name: 'Contract end for Person 1' }),
+        calendar,
+      );
 
-    // A keystroke in a line: from the key to the next frame, at its worst of ten.
-    const desk = screen.getByRole('textbox', { name: 'Desk for Person 3' });
-    let key = 0;
-    for (let i = 1; i <= 10; i += 1) {
-      const at = performance.now();
-      act(() => {
-        fireEvent.change(desk, { target: { value: 'A'.repeat(i) } });
-      });
-      await new Promise<void>((done) => {
-        requestAnimationFrame(() => {
-          done();
+      // A keystroke in a line: from the key to the next frame, at its worst of ten.
+      const desk = screen.getByRole('textbox', { name: 'Desk for Person 3' });
+      let key = 0;
+      for (let i = 1; i <= 10; i += 1) {
+        const at = performance.now();
+        act(() => {
+          fireEvent.change(desk, { target: { value: 'A'.repeat(i) } });
         });
+        await new Promise<void>((done) => {
+          requestAnimationFrame(() => {
+            done();
+          });
+        });
+        key = Math.max(key, performance.now() - at);
+      }
+
+      const said = `grid ${grid.toFixed(0)}, toggle ${toggle.toFixed(0)}, list ${list.toFixed(0)}, countries ${countries.toFixed(0)}, zones ${zones.toFixed(0)}, date ${date.toFixed(0)}, key ${key.toFixed(0)} ms`;
+      expect({ said, grid: grid < 300 * room }).toEqual({ said, grid: true });
+      expect({ said, cells: Math.max(list, countries, zones, date) < 150 * room }).toEqual({
+        said,
+        cells: true,
       });
-      key = Math.max(key, performance.now() - at);
-    }
+      expect({ said, key: key < 50 * room }).toEqual({ said, key: true });
+    },
+    SCALE_TIMEOUT,
+  );
 
-    const said = `grid ${grid.toFixed(0)}, toggle ${toggle.toFixed(0)}, list ${list.toFixed(0)}, countries ${countries.toFixed(0)}, zones ${zones.toFixed(0)}, date ${date.toFixed(0)}, key ${key.toFixed(0)} ms`;
-    expect({ said, grid: grid < 300 * room }).toEqual({ said, grid: true });
-    expect({ said, cells: Math.max(list, countries, zones, date) < 150 * room }).toEqual({
-      said,
-      cells: true,
-    });
-    expect({ said, key: key < 50 * room }).toEqual({ said, key: true });
-  });
+  it(
+    'opens one person’s dialog at once, and its fields answer at once',
+    async () => {
+      render(frame());
+      await painted();
+      const open = performance.now();
+      press(screen.getAllByRole('button', { name: 'Fill in Person 0' })[0] as HTMLElement);
+      const dialog = await screen.findByRole('dialog', { name: 'Fill in for Person 0' });
+      await painted();
+      const opened = performance.now() - open;
 
-  it('opens one person’s dialog at once, and its fields answer at once', async () => {
-    render(frame());
-    await painted();
-    const open = performance.now();
-    press(screen.getAllByRole('button', { name: 'Fill in Person 0' })[0] as HTMLElement);
-    const dialog = await screen.findByRole('dialog', { name: 'Fill in for Person 0' });
-    await painted();
-    const opened = performance.now() - open;
-
-    const list = await opening(
-      within(dialog).getByRole('combobox', { name: 'Cost centre' }),
-      option('CC 0'),
-    );
-    const countries = await opening(
-      within(dialog).getByRole('button', { name: 'Nationality' }),
-      option('Country 0'),
-    );
-    const said = `dialog ${opened.toFixed(0)}, list ${list.toFixed(0)}, countries ${countries.toFixed(0)} ms`;
-    expect({ said, dialog: opened < 300 * room }).toEqual({ said, dialog: true });
-    expect({ said, cells: Math.max(list, countries) < 150 * room }).toEqual({ said, cells: true });
-  });
+      const list = await opening(
+        within(dialog).getByRole('combobox', { name: 'Cost centre' }),
+        option('CC 0'),
+      );
+      const countries = await opening(
+        within(dialog).getByRole('button', { name: 'Nationality' }),
+        option('Country 0'),
+      );
+      const said = `dialog ${opened.toFixed(0)}, list ${list.toFixed(0)}, countries ${countries.toFixed(0)} ms`;
+      expect({ said, dialog: opened < 300 * room }).toEqual({ said, dialog: true });
+      expect({ said, cells: Math.max(list, countries) < 150 * room }).toEqual({
+        said,
+        cells: true,
+      });
+    },
+    SCALE_TIMEOUT,
+  );
 });
