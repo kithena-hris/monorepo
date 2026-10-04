@@ -250,8 +250,11 @@ export async function registryView(
         employmentTypes: companyChoices(draft.attributes, 'employment_type'),
         workModels: companyChoices(draft.attributes, 'work_model'),
       };
+      // An archived section is no change to publish: a fold leaves two behind.
       const newSections = draft.sections.filter(
-        (s) => !(published?.document.sections.some((p) => p.key === s.key) ?? false),
+        (s) =>
+          s.archivedAt === null &&
+          !(published?.document.sections.some((p) => p.key === s.key) ?? false),
       ).length;
       return ok({
         published:
