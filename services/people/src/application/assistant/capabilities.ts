@@ -38,7 +38,7 @@ import {
 import type { Condition, Refine } from '../person/ports.js';
 import { run } from '../person/service.js';
 import { approvalsView, fieldKind, STATUS_OPTIONS } from '../screens/people.js';
-import { nameOf, NOBODY, type ScreenDeps, type Tx } from '../screens/record.js';
+import { choicesOf, isOrgRef, nameOf, NOBODY, type ScreenDeps, type Tx } from '../screens/record.js';
 
 /**
  * People's capabilities for the assistant (assistant PRD §8, §10.3, §16): the
@@ -71,7 +71,7 @@ export async function filterFields(
   if (!version) return [];
   const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
   const definitions = version.document.attributes;
-  const org = await deps.calendars.load(tx, asking.tenantId);
+  const choices = choicesOf(await deps.calendars.load(tx, asking.tenantId));
   const fields = definitions.flatMap((d): PlannedField[] => {
     const kind = fieldKind(d.typeConfig.kind);
     if (
@@ -92,15 +92,9 @@ export async function filterFields(
         ? d.typeConfig.options
             .filter((o) => o.retiredAt === null)
             .map((o) => ({ value: o.value, label: o.label.default }))
-        : d.typeConfig.kind === 'location_ref'
-          ? [...org.locations.values()]
-              .filter((l) => l.archived !== true)
-              .map((l) => ({ value: l.id, label: l.name }))
-          : d.typeConfig.kind === 'legal_entity_ref'
-            ? [...org.entities.values()]
-                .filter((e) => e.archived !== true)
-                .map((e) => ({ value: e.id, label: e.name }))
-            : [];
+        : isOrgRef(d.typeConfig.kind)
+          ? [...choices[d.typeConfig.kind]]
+          : [];
     return [{ key: d.key, label: d.label.default, kind, options, ai: d.classification.aiEligible }];
   });
   return everyone.isHr

@@ -253,7 +253,7 @@ async function figuresOf(
   const flows = await flowsByDepartment(ctx, { from: opening, to: period.to, ...under });
   const made = await composition(ctx, { asOf: period.to, by: ['department'], ...under });
   const minimum = cohortMinimum(ctx.cohortMinimum);
-  const department = labeller(scope.definitions, 'org_unit');
+  const department = labeller(scope.definitions, 'org_unit', scope.departments);
   const groups = (pick: 'joiners' | 'leavers') =>
     flows.ok
       ? [...new Set(flows.value.cells.map((c) => c.department))].map((value) => ({
@@ -396,7 +396,7 @@ export async function whatChangedView(
       to: period.value.to,
       ...under,
     });
-    const department = labeller(scope.definitions, 'org_unit');
+    const department = labeller(scope.definitions, 'org_unit', scope.departments);
     const m = figures.value.movement;
 
     const shares = deps.shares;

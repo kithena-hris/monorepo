@@ -12,6 +12,7 @@ import { ABOUT_SHEET, PERSON_ID_COLUMN } from '../import/parse.js';
 import { aboutSheet, type About } from '../../domain/export/share.js';
 import type { Calendars } from '../org/org.js';
 import type { TenantCalendar } from '../../domain/org/calendar.js';
+import { unitPaths } from '../../domain/org/org-unit.js';
 import {
   relationsToMany,
   type Asking,
@@ -390,7 +391,7 @@ async function photoArchive(
 }
 
 /**
- * A legal entity or work location as its name, in a file: what a person
+ * A legal entity, work location or org unit (by its path) as its name, in a file: what a person
  * reads, and what another company's import can find or add by name. An id
  * means nothing outside this company. The importer reads a name or an id of
  * its own back to the same place, so the file still round-trips. A person
@@ -399,14 +400,18 @@ async function photoArchive(
 function withPlaceNames(
   rows: readonly Row[],
   columns: readonly AttributeDefinition[],
-  calendar: Pick<TenantCalendar, 'entities' | 'locations'>,
+  calendar: Pick<TenantCalendar, 'entities' | 'locations' | 'orgUnits'>,
 ): Row[] {
   const places = columns.filter(
-    (d) => d.typeConfig.kind === 'legal_entity_ref' || d.typeConfig.kind === 'location_ref',
+    (d) =>
+      d.typeConfig.kind === 'legal_entity_ref' ||
+      d.typeConfig.kind === 'location_ref' ||
+      d.typeConfig.kind === 'org_unit_ref',
   );
+  const units = unitPaths([...(calendar.orgUnits?.values() ?? [])]);
   const nameOf = (id: unknown) =>
     typeof id === 'string'
-      ? (calendar.entities.get(id)?.name ?? calendar.locations.get(id)?.name ?? id)
+      ? (calendar.entities.get(id)?.name ?? calendar.locations.get(id)?.name ?? units.get(id) ?? id)
       : id;
   return rows.map((r) =>
     places.every((d) => r.person.attributes[d.key] === undefined)
@@ -715,7 +720,7 @@ const withheld = (
 
 const NOT_PROVIDED: Cell = { text: 'Not provided', muted: true };
 const WITHHELD: Cell = { text: 'Withheld', muted: true };
-const REFS = new Set(['person_ref', 'legal_entity_ref', 'location_ref']);
+const REFS = new Set(['person_ref', 'legal_entity_ref', 'location_ref', 'org_unit_ref']);
 
 /** A value as a person reads it on paper: labels, names, grouped money. */
 function printed(
@@ -750,12 +755,12 @@ interface PdfInput {
   readonly rows: readonly Row[];
   readonly day: string;
   readonly stamp: string;
-  readonly calendar: Pick<TenantCalendar, 'entities' | 'locations'>;
+  readonly calendar: Pick<TenantCalendar, 'entities' | 'locations' | 'orgUnits'>;
   readonly about: About | null;
 }
 
 /**
- * The names a page prints for the people, entities and locations it points
+ * The names a page prints for the people, entities, locations and org units it points
  * at. A person is named only as this viewer may read them; otherwise the id.
  */
 async function namesFor(
@@ -767,6 +772,9 @@ async function namesFor(
   const names = new Map<string, string>();
   for (const e of input.calendar.entities.values()) names.set(e.id, e.name);
   for (const l of input.calendar.locations.values()) names.set(l.id, l.name);
+  for (const [id, path] of unitPaths([...(input.calendar.orgUnits?.values() ?? [])])) {
+    names.set(id, path);
+  }
   for (const r of input.rows) {
     const n = nameOf(r.person.attributes);
     if (n !== null) names.set(r.person.id, n);
