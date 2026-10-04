@@ -56,6 +56,7 @@ import {
   hrToFill,
   listOptions,
   nameOf,
+  orgChoices,
   NOBODY,
   personOfViewer,
   recordSections,
@@ -250,7 +251,8 @@ export async function ownRecord(
   const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, personId);
   const verdict = await deps.service.access.completeness(tx, { ...asking, personId });
   const missing = new Set(verdict.ok ? verdict.value.missing.map((m) => m.key) : []);
-  const sections = recordSections(version, relations, include, missing, people);
+  const org = await orgChoices(deps, tx, asking.tenantId);
+  const sections = recordSections(version, relations, include, missing, people, org);
   // The person's doubted identifiers still open, on fields this viewer reads (PEO-125).
   const open = await deps.service.access.personReviews(tx, { ...asking, personId });
   const labels = new Map(
@@ -2469,6 +2471,7 @@ export async function completenessView(
       }
     }
     const staff = totals.staff.filter((s) => hrs(s.key));
+    const org = await orgChoices(deps, tx, asking.tenantId);
     // HR's fields over everybody, then the labels of the person's own on this page.
     const shown = new Set(staff.map((s) => s.key));
     const own = [
@@ -2493,7 +2496,7 @@ export async function completenessView(
             label: d.label.default,
             dataType: d.dataType,
             currency: d.typeConfig.kind === 'money' ? d.typeConfig.currency : null,
-            options: listOptions(d),
+            options: listOptions(d, org),
             person: d.typeConfig.kind === 'person_ref',
             sensitive: requiresApproval(d),
           },

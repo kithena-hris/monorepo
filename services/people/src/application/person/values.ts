@@ -1,5 +1,7 @@
 import * as z from 'zod';
-import { CountryCode, Money, PostalAddress, type AttributeDefinition } from '@kithena/contracts';
+import { Money, PostalAddress, type AttributeDefinition } from '@kithena/contracts';
+
+import { isCountry } from './standard-lists.js';
 
 /**
  * What a value of each attribute may be, as Zod.
@@ -114,7 +116,8 @@ function scalarFor(definition: AttributeDefinition, today: string): z.ZodType {
     case 'url':
       return z.url();
     case 'country':
-      return CountryCode;
+      // Any ISO 3166-1 country: a nationality is not limited to where People has address rules.
+      return z.string().refine(isCountry, 'not a country');
     case 'currency':
       return z.string().regex(/^[A-Z]{3}$/);
     case 'language':

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { utcCalendars } from '../org/org.js';
+import { fixedCalendars, utcCalendars } from '../org/org.js';
 import { define, inMemoryPeople, TENANT, versionOf } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
 import type { PeopleService } from '../person/service.js';
-import { completenessView, remindWaiting } from './people.js';
+import { completenessView, remindWaiting, saveGrid } from './people.js';
 import type { GapFigures, ScreenDeps } from './record.js';
 
 /**
@@ -40,12 +40,37 @@ const attributes = [
   }),
 ];
 
+const ENTITY = '00000000-0000-4000-8000-0000000000e1';
+const ORG = {
+  defaultZone: 'Europe/Madrid',
+  entities: new Map([
+    [ENTITY, { id: ENTITY, name: 'Acme Iberia SL', country: 'ES', timeZone: 'Europe/Madrid' }],
+    [
+      'gone',
+      { id: 'gone', name: 'Old Co', country: 'ES', timeZone: 'Europe/Madrid', archived: true },
+    ],
+  ]),
+  locations: new Map([
+    [
+      'loc-mad',
+      {
+        id: 'loc-mad',
+        legalEntityId: ENTITY,
+        name: 'Madrid',
+        country: 'ES',
+        zones: [{ effectiveFrom: '2020-01-01', timeZone: 'Europe/Madrid' }],
+      },
+    ],
+  ]),
+} as never;
+
 function world(
   options: {
     figures?: boolean;
     sweep?: boolean;
     extra?: readonly ReturnType<typeof define>[];
     staff?: readonly { key: string; people: number }[];
+    org?: boolean;
   } = {},
 ) {
   const store = inMemoryPeople([versionOf(1, [...attributes, ...(options.extra ?? [])])]);
@@ -74,7 +99,7 @@ function world(
     service,
     relations: store.deps.relations,
     clock: store.deps.clock,
-    calendars: utcCalendars,
+    calendars: options.org === true ? fixedCalendars(ORG) : utcCalendars,
     personOf: () => Promise.resolve(null),
     gapTotals: () =>
       Promise.resolve({
@@ -188,6 +213,50 @@ describe('the completeness view', () => {
     expect(field('cost_centre')).toMatchObject({ dataType: 'text', person: false });
     expect(field('payroll_ref')).toBeUndefined();
     expect(view.value.toFill).toBe(10);
+  });
+
+  it('gives every list-backed field its choices: codes from the standard lists, places from the company', async () => {
+    const plain = (key: string, kind: string) =>
+      define({ key, dataType: kind as never, typeConfig: { kind } as never });
+    const w = world({
+      org: true,
+      extra: [
+        plain('nationality', 'country'),
+        plain('pay_currency', 'currency'),
+        plain('first_language', 'language'),
+        plain('home_zone', 'time_zone'),
+        plain('entity', 'legal_entity_ref'),
+        plain('office', 'location_ref'),
+      ],
+      staff: ['nationality', 'pay_currency', 'first_language', 'home_zone', 'entity', 'office'].map(
+        (key) => ({ key, people: 1 }),
+      ),
+    });
+    const view = await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'));
+    if (!view.ok) throw new Error(view.error.message);
+    const options = (key: string) => view.value.fields.find((f) => f.key === key)?.options ?? [];
+    // Every country, not only the ones People has address rules for.
+    expect(options('nationality')).toContainEqual({ value: 'FR', label: 'France' });
+    expect(options('nationality')).toContainEqual({ value: 'JP', label: 'Japan' });
+    expect(options('nationality').length).toBeGreaterThan(240);
+    // Not a region that is not a country.
+    expect(options('nationality').map((o) => o.value)).not.toContain('EU');
+    expect(options('pay_currency')).toContainEqual({ value: 'EUR', label: 'Euro (EUR)' });
+    expect(options('first_language')).toContainEqual({ value: 'fr', label: 'French' });
+    expect(options('home_zone')).toContainEqual({ value: 'Europe/Madrid', label: 'Europe/Madrid' });
+    // The company's own, the archived one left out.
+    expect(options('entity')).toEqual([{ value: ENTITY, label: 'Acme Iberia SL' }]);
+    expect(options('office')).toEqual([{ value: 'loc-mad', label: 'Madrid' }]);
+  });
+
+  it('saves any country offered, not only one with address rules', async () => {
+    const w = world({
+      extra: [define({ key: 'nationality', dataType: 'country', typeConfig: { kind: 'country' } })],
+    });
+    const saved = await saveGrid(w.deps, w.as(HR_ACCOUNT, 'hr'), [
+      { personId: MEI, values: { nationality: 'JP' } },
+    ]);
+    expect(saved.ok ? 'saved' : saved.error.message).toBe('saved');
   });
 
   it('reads one person’s gaps alone, for the fill-in a link opens', async () => {
