@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ListItem } from '../list-item/list-item';
 import { columnsFor, VirtualList } from './virtual-list';
 
 type Item = { readonly id: string };
@@ -31,6 +32,22 @@ describe('<VirtualList>', () => {
       expect(html).not.toContain('>i500<');
       expect(html).toContain('aria-setsize="1000"');
     }
+  });
+
+  it('holds a List’s own rows directly, each told its place in the whole list', () => {
+    const html = renderToString(
+      list({
+        listItems: true,
+        renderItem: (it, _i, row) => (
+          <ListItem key={it.id} {...row}>
+            {it.id}
+          </ListItem>
+        ),
+      }),
+    );
+    expect(html).toMatch(/<ul[^>]*aria-label="Things"[^>]*><li[^>]*data-index="0"/u);
+    expect(html).toContain('aria-posinset="1"');
+    expect(html).not.toContain('role="listitem"');
   });
 
   it('draws a grid as CSS would until it is measured', () => {

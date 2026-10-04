@@ -2,6 +2,7 @@
 
 import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
 import {
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -13,6 +14,7 @@ import {
 
 import { cn } from '../../lib/cn';
 import { Skeleton } from '../feedback/feedback';
+import { List } from '../list-item/list-item';
 
 /**
  * A long list with only the visible part in the DOM.
@@ -41,6 +43,14 @@ import { Skeleton } from '../feedback/feedback';
  * other honest answer: the list is part of the page and the window scrolls,
  * as a phone's list does.
  *
+ * ### Rows of a `List`
+ *
+ * With `listItems`, `renderItem` returns the row's own `<li>` — a `ListItem`,
+ * spreading the third argument onto it — and the list is a `List`: its
+ * surface, its hairlines and, with `navigable`, its keyboard. The rows not
+ * drawn are space above and below the ones that are, so the rows stay the
+ * list's own children, as a `ul` needs.
+ *
  * ### Drawn on the server
  *
  * Before anything is measured — on the server, and in the first render in the
@@ -53,14 +63,21 @@ import { Skeleton } from '../feedback/feedback';
  *
  * `onEndReached` is called as the reader nears the end of what is loaded, and
  * once at the start when the first page does not fill the view; the caller
- * appends the next page. Each page that lands is said to a screen reader
- * ("20 more loaded").
+ * appends the next page (`usePages`). Each page that lands is said to a
+ * screen reader ("20 more loaded").
  */
+export interface VirtualRowProps {
+  readonly 'data-index': number;
+  readonly 'aria-setsize': number;
+  readonly 'aria-posinset': number;
+}
+
 export interface VirtualListProps<T> {
   items: readonly T[];
   /** Stable identity. An index stops being identity the moment anything sorts. */
   itemKey: (item: T, index: number) => string;
-  renderItem: (item: T, index: number) => ReactNode;
+  /** With `listItems`, spread `row` onto the `<li>` returned. */
+  renderItem: (item: T, index: number, row: VirtualRowProps) => ReactNode;
   /** Names the list for assistive tech. */
   label: string;
   /**
@@ -78,6 +95,10 @@ export interface VirtualListProps<T> {
    * its items.
    */
   scroll?: 'self' | 'page';
+  /** `renderItem` returns a `ListItem`, and the list is a `List`. */
+  listItems?: boolean;
+  /** With `listItems`: the rows move from the keyboard, as `List`'s `navigable`. */
+  navigable?: boolean;
   /**
    * A grid instead of a column: as many columns as fit at this width (px), as
    * CSS's `repeat(auto-fill, minmax(…, 1fr))` would lay them out. Each row of
@@ -119,6 +140,9 @@ export function columnsFor(width: number, minItemWidth: number, gap: number): nu
   return Math.max(1, Math.floor((width + gap) / (minItemWidth + gap)));
 }
 
+/** A length React will not print in exponent form: rounded, never negative. */
+const px = (n: number): string => `${String(Math.max(0, Math.round(n)))}px`;
+
 export function VirtualList<T>({
   items,
   itemKey,
@@ -128,6 +152,8 @@ export function VirtualList<T>({
   overscan = 8,
   empty = 'Nothing to show.',
   scroll = 'self',
+  listItems = false,
+  navigable = false,
   minItemWidth,
   gap = 0,
   initialHeight = 900,
@@ -138,12 +164,16 @@ export function VirtualList<T>({
   itemClassName,
 }: VirtualListProps<T>): JSX.Element {
   const outerRef = useRef<HTMLDivElement | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLElement | null>(null);
+  const setList = useCallback((el: HTMLElement | null) => {
+    listRef.current = el;
+  }, []);
   const page = scroll === 'page';
+  const grid = minItemWidth !== undefined;
 
   // The grid's columns, once the list's width is known. Until then (the
   // server, hydration) a grid is drawn by CSS, which knows the width itself.
-  const [columns, setColumns] = useState<number | null>(minItemWidth === undefined ? 1 : null);
+  const [columns, setColumns] = useState<number | null>(grid ? null : 1);
   useLayoutEffect(() => {
     const el = listRef.current ?? outerRef.current;
     if (minItemWidth === undefined || el === null) return;
@@ -188,9 +218,9 @@ export function VirtualList<T>({
    * willing to wait.
    */
   const getScrollElement = useCallback(() => outerRef.current, []);
-  const estimateSize = useCallback(() => estimateItemHeight + gap, [estimateItemHeight, gap]);
+  const estimateSize = useCallback(() => estimateItemHeight, [estimateItemHeight]);
   const initialRect = { width: 0, height: initialHeight };
-  const options = { estimateSize, overscan, initialRect };
+  const options = { estimateSize, overscan, initialRect, gap };
   // Both, always (hooks are not conditional); the one not scrolling counts nothing.
   const inBox = useVirtualizer({ ...options, count: page ? 0 : rows, getScrollElement });
   const inPage = useWindowVirtualizer({ ...options, count: page ? rows : 0, scrollMargin: margin });
@@ -198,6 +228,13 @@ export function VirtualList<T>({
 
   const virtualRows = virtualizer.getVirtualItems();
   const offset = page ? margin : 0;
+
+  // A column's rows are the list's own children: measured where they sit.
+  useLayoutEffect(() => {
+    if (grid) return;
+    const drawn = listRef.current?.querySelectorAll<HTMLElement>(':scope > [data-index]') ?? [];
+    for (const li of drawn) virtualizer.measureElement(li);
+  });
 
   // The next page, as the reader nears the end of what is drawn.
   const lastDrawn = virtualRows.at(-1)?.index ?? -1;
@@ -219,18 +256,16 @@ export function VirtualList<T>({
     if (onEndReached !== undefined && added > 0) setSaid(moreLoaded(added));
   }, [items.length, onEndReached, moreLoaded]);
 
-  /*
-   * Rounded, and given its own unit.
-   *
-   * React stringifies a numeric `height`, and once a list is long enough that
-   * total passes the point where JavaScript prints it in exponential form.
-   * `1.11998e+06px` is not a length any browser accepts, so the height was
-   * being dropped and the scroll range came from the absolutely positioned
-   * children instead.
-   */
-  const totalHeight = `${String(Math.round(virtualizer.getTotalSize()))}px`;
+  const total = virtualizer.getTotalSize();
 
-  const outer = (children: ReactNode): JSX.Element => (
+  const placeholder = loadingMore ? (
+    <div aria-busy="true" className="p-3" style={{ height: estimateItemHeight }}>
+      <span className="sr-only">Loading more</span>
+      <Skeleton className="h-full w-full rounded-md" />
+    </div>
+  ) : null;
+
+  const outer = (children: ReactNode, surface: boolean): JSX.Element => (
     <div
       ref={outerRef}
       // Focusable for the same reason the table's container is: a region only a
@@ -238,9 +273,10 @@ export function VirtualList<T>({
       {...(page ? {} : { tabIndex: 0 })}
       role="region"
       aria-label={label}
-      className={cn(SURFACE, !page && SCROLLS, className)}
+      className={cn(surface && SURFACE, !page && SCROLLS, className)}
     >
       {children}
+      {placeholder}
       <span aria-live="polite" className="sr-only">
         {said}
       </span>
@@ -248,10 +284,55 @@ export function VirtualList<T>({
   );
 
   if (items.length === 0) {
-    return outer(<p className="p-4 text-center text-sm text-fg-muted">{empty}</p>);
+    return outer(<p className="p-4 text-center text-sm text-fg-muted">{empty}</p>, true);
   }
 
-  const item = (index: number): ReactNode => {
+  const rowProps = (index: number): VirtualRowProps => ({
+    'data-index': index,
+    'aria-setsize': items.length,
+    'aria-posinset': index + 1,
+  });
+
+  /* ---------------------------------------------------------- a column -- */
+  if (!grid) {
+    const first = virtualRows[0];
+    const last = virtualRows.at(-1);
+    // The rows not drawn, as space: rounded, because React prints a long
+    // list's height in exponent form, which no browser accepts as a length.
+    const style = {
+      paddingTop: px(first === undefined ? 0 : first.start - offset),
+      paddingBottom: px(last === undefined ? total : total - (last.end - offset)),
+      ...(gap > 0 ? { display: 'flex', flexDirection: 'column' as const, gap } : {}),
+    };
+    const drawn = virtualRows.map((row) => {
+      const it = items[row.index];
+      if (it === undefined) return null;
+      const key = itemKey(it, row.index);
+      return listItems ? (
+        <Fragment key={key}>{renderItem(it, row.index, rowProps(row.index))}</Fragment>
+      ) : (
+        <li key={key} {...rowProps(row.index)} className={itemClassName}>
+          {renderItem(it, row.index, rowProps(row.index))}
+        </li>
+      );
+    });
+    return listItems
+      ? outer(
+          <List ref={setList} navigable={navigable} aria-label={label} style={style}>
+            {drawn}
+          </List>,
+          false,
+        )
+      : outer(
+          <ul ref={setList} role="list" aria-label={label} style={style}>
+            {drawn}
+          </ul>,
+          true,
+        );
+  }
+
+  /* ------------------------------------------------------------ a grid -- */
+  const cell = (index: number): ReactNode => {
     const it = items[index];
     if (it === undefined) return null;
     return (
@@ -262,70 +343,64 @@ export function VirtualList<T>({
         aria-posinset={index + 1}
         className={cn('min-w-0', itemClassName)}
       >
-        {renderItem(it, index)}
+        {renderItem(it, index, rowProps(index))}
       </div>
     );
   };
 
-  const placeholder = loadingMore ? (
-    <div aria-busy="true" className="p-3" style={{ height: estimateItemHeight }}>
-      <span className="sr-only">Loading more</span>
-      <Skeleton className="h-full w-full rounded-md" />
-    </div>
-  ) : null;
-
-  // A grid not yet measured: CSS lays out the items that would fill the view.
-  if (columns === null && minItemWidth !== undefined) {
+  // Not yet measured: CSS lays out the items that would fill the view.
+  if (columns === null) {
     // A window's rows of as many columns as a wide screen fits.
     const fill = Math.min(items.length, Math.ceil(initialHeight / estimateItemHeight) * 6);
     return outer(
-      <>
-        <div
-          ref={listRef}
-          role="list"
-          className="grid"
-          style={{
-            gap,
-            gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${String(minItemWidth)}px), 1fr))`,
-          }}
-        >
-          {Array.from({ length: fill }, (_, i) => item(i))}
-        </div>
-        {placeholder}
-      </>,
+      <div
+        ref={setList}
+        role="list"
+        aria-label={label}
+        className="grid"
+        style={{
+          gap,
+          gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${String(minItemWidth)}px), 1fr))`,
+        }}
+      >
+        {Array.from({ length: fill }, (_, i) => cell(i))}
+      </div>,
+      false,
     );
   }
 
   return outer(
-    <>
-      <div ref={listRef} role="list" className="relative w-full" style={{ height: totalHeight }}>
-        {virtualRows.map((row) => {
-          const first = row.index * lanes;
-          return (
-            <div
-              key={row.key}
-              // Measured rather than assumed: `estimateItemHeight` is a first
-              // guess, and this replaces it with the real height once painted.
-              ref={virtualizer.measureElement}
-              data-index={row.index}
-              role="presentation"
-              className={cn('absolute top-0 left-0 w-full', lanes > 1 && 'grid')}
-              style={{
-                transform: `translateY(${String(row.start - offset)}px)`,
-                paddingBottom: gap,
-                ...(lanes > 1
-                  ? { gap, gridTemplateColumns: `repeat(${String(lanes)}, minmax(0, 1fr))` }
-                  : {}),
-              }}
-            >
-              {Array.from({ length: Math.min(lanes, items.length - first) }, (_, i) =>
-                item(first + i),
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {placeholder}
-    </>,
+    <div
+      ref={setList}
+      role="list"
+      aria-label={label}
+      className="relative w-full"
+      style={{ height: px(total) }}
+    >
+      {virtualRows.map((row) => {
+        const first = row.index * lanes;
+        return (
+          <div
+            key={row.key}
+            // Measured rather than assumed: `estimateItemHeight` is a first
+            // guess, and this replaces it with the real height once painted.
+            ref={virtualizer.measureElement}
+            data-index={row.index}
+            role="presentation"
+            className="absolute top-0 left-0 grid w-full"
+            style={{
+              transform: `translateY(${String(row.start - offset)}px)`,
+              gap,
+              gridTemplateColumns: `repeat(${String(lanes)}, minmax(0, 1fr))`,
+            }}
+          >
+            {Array.from({ length: Math.min(lanes, items.length - first) }, (_, i) =>
+              cell(first + i),
+            )}
+          </div>
+        );
+      })}
+    </div>,
+    false,
   );
 }
