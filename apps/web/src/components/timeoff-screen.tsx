@@ -8,7 +8,7 @@ import * as settings from '../app/(app)/settings/time-off/actions';
 import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
 import { AREAS } from '../lib/remotes';
-import { areaFrame } from '../lib/shell-data';
+import type { areaFrame } from '../lib/shell-data';
 import { noteInAddress, withQuery, type HistoryMode } from '../lib/url-state';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
