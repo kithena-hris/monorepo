@@ -63,6 +63,7 @@ function peopleNow(data: {
         : [
             plural(live(organisation['legalEntities']), 'legal entity', 'legal entities'),
             plural(live(organisation['locations']), 'location'),
+            plural(live(organisation['orgUnits']), 'org unit'),
             typeof settings['defaultTimeZone'] === 'string' ? settings['defaultTimeZone'] : '',
           ].join(' · '),
     '/settings/people/roles':

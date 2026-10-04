@@ -26,10 +26,7 @@ export const PATH_SEPARATOR = ' › ';
 
 const live = (u: OrgUnit): boolean => u.archived !== true;
 
-function checkParent(
-  units: readonly OrgUnit[],
-  parentId: string | null,
-): Result<string | null> {
+function checkParent(units: readonly OrgUnit[], parentId: string | null): Result<string | null> {
   if (parentId === null) return ok(null);
   const parent = units.find((u) => u.id === parentId);
   if (parent === undefined) {
@@ -77,7 +74,11 @@ export function checkNewUnit(
 function isAtOrAbove(units: readonly OrgUnit[], ancestor: string, id: string): boolean {
   const byId = new Map(units.map((u) => [u.id, u]));
   const seen = new Set<string>();
-  for (let at: string | null = id; at !== null && !seen.has(at); at = byId.get(at)?.parentId ?? null) {
+  for (
+    let at: string | null = id;
+    at !== null && !seen.has(at);
+    at = byId.get(at)?.parentId ?? null
+  ) {
     if (at === ancestor) return true;
     seen.add(at);
   }
@@ -88,7 +89,11 @@ function isAtOrAbove(units: readonly OrgUnit[], ancestor: string, id: string): b
 export function checkUnitChange(
   units: readonly OrgUnit[],
   id: string,
-  change: { readonly name?: string; readonly parentId?: string | null; readonly archived?: boolean },
+  change: {
+    readonly name?: string;
+    readonly parentId?: string | null;
+    readonly archived?: boolean;
+  },
 ): Result<Required<OrgUnit>> {
   const found = units.find((u) => u.id === id);
   if (found === undefined) return err(failure('NOT_FOUND', 'No such org unit'));
@@ -137,7 +142,7 @@ export function unitPaths(units: readonly OrgUnit[]): Map<string, string> {
   for (const unit of units) {
     const names: string[] = [];
     const seen = new Set<string>();
-    for (let at: OrgUnit | undefined = unit; at !== undefined && !seen.has(at.id); ) {
+    for (let at: OrgUnit | undefined = unit; at !== undefined && !seen.has(at.id);) {
       seen.add(at.id);
       names.unshift(at.name);
       at = at.parentId === null ? undefined : byId.get(at.parentId);

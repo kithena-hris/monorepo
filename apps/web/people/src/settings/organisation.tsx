@@ -83,6 +83,16 @@ export interface Place {
   readonly archived: boolean;
 }
 
+/** A department or team: a tree by `parentId`, its path read from the top. */
+export interface OrgUnitRow {
+  readonly id: string;
+  readonly name: string;
+  readonly parentId: string | null;
+  /** "Engineering › Platform". */
+  readonly path: string;
+  readonly archived: boolean;
+}
+
 export interface Numbering {
   readonly legalEntityId: string;
   readonly prefix: string;
@@ -146,6 +156,8 @@ export interface OrganisationState {
   };
   readonly legalEntities: readonly LegalEntity[];
   readonly locations: readonly Place[];
+  /** Ordered by path, so a unit follows its parent. */
+  readonly orgUnits: readonly OrgUnitRow[];
   readonly numberings: readonly Numbering[];
   readonly countries: readonly { readonly code: string; readonly name: string }[];
   readonly timeZones: readonly string[];
@@ -175,6 +187,7 @@ export interface ReminderSchedule {
 export const ORGANISATION_TABS = [
   'entities',
   'locations',
+  'org-units',
   'numbering',
   'country-packs',
   'reminders',
@@ -217,6 +230,12 @@ export interface OrganisationProps {
     patch: { name?: string; archived?: boolean },
   ) => Promise<Outcome>;
   readonly onChangeZone: (id: string, timeZone: string, effectiveFrom: string) => Promise<Outcome>;
+  readonly onCreateOrgUnit: (input: { name: string; parentId: string | null }) => Promise<Outcome>;
+  /** A rename, a move (`parentId`, null for the top), or archiving or restoring. */
+  readonly onUpdateOrgUnit: (
+    id: string,
+    patch: { name?: string; parentId?: string | null; archived?: boolean },
+  ) => Promise<Outcome>;
   readonly onSetNumbering: (
     legalEntityId: string,
     scheme: { prefix: string; digits: number; start: number },
@@ -229,6 +248,7 @@ export interface OrganisationProps {
    * The dialog open over the settings, held by the host so a link opens it in
    * the server's HTML: `entity:new`, `entity:<id>`, `location:new`,
    * `location:<id>`, `zone:<location id>`, `numbering:<entity id>`,
+   * `unit:new`, `unit:<id>` (rename), `unit-move:<id>`, `unit-archive:<id>`,
    * `band:new` or `band:<id>`. One this state does not have is closed.
    */
   readonly open?: string | null;
@@ -313,7 +333,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
     <Stack gap={6}>
       <PageHeader
         title="Organisation"
-        description="Legal entities, locations, numbering, country packs, reminders and pay bands."
+        description="Legal entities, locations, org units, numbering, country packs, reminders and pay bands."
       />
       {state.canManage ? null : (
         <Alert tone="info">Only a People administrator can change these.</Alert>
@@ -322,6 +342,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
         <TabsList aria-label="Organisation settings">
           <TabsTrigger value="entities">Legal entities</TabsTrigger>
           <TabsTrigger value="locations">Locations</TabsTrigger>
+          <TabsTrigger value="org-units">Org units</TabsTrigger>
           <TabsTrigger value="numbering">Employee numbering</TabsTrigger>
           {state.packs == null ? null : (
             <TabsTrigger value="country-packs">Country packs</TabsTrigger>
@@ -334,6 +355,9 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
         </TabsContent>
         <TabsContent value="locations">
           <Locations state={state} onEdit={setEditing} onUpdate={props.onUpdateLocation} />
+        </TabsContent>
+        <TabsContent value="org-units">
+          <OrgUnits state={state} props={props} open={open} onOpenChange={setOpen} />
         </TabsContent>
         <TabsContent value="numbering">
           <Numberings state={state} onEdit={setEditing} />
@@ -655,6 +679,297 @@ function Locations({
         />
       )}
     </Stack>
+  );
+}
+
+/** The parent a unit is moved to when it sits under nothing. */
+const TOP = 'top';
+
+/** How deep a unit sits: 0 at the top. A loop, which People never writes, stops counting. */
+function depthOf(units: readonly OrgUnitRow[], unit: OrgUnitRow): number {
+  const byId = new Map(units.map((u) => [u.id, u]));
+  let depth = 0;
+  for (let at = unit.parentId; at !== null && depth < units.length; depth++) {
+    at = byId.get(at)?.parentId ?? null;
+  }
+  return depth;
+}
+
+/** The unit and everything under it: none of them can be what it moves under. */
+function subtreeOf(units: readonly OrgUnitRow[], id: string): Set<string> {
+  const under = new Set([id]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const u of units) {
+      if (u.parentId !== null && under.has(u.parentId) && !under.has(u.id)) {
+        under.add(u.id);
+        grew = true;
+      }
+    }
+  }
+  return under;
+}
+
+/**
+ * The company's departments and teams as a tree, each indented under its
+ * parent: what a field of the org unit type picks from. Every dialog is in
+ * the address (`unit:new`, `unit:<id>`, `unit-move:<id>`, `unit-archive:<id>`).
+ */
+function OrgUnits({
+  state,
+  props,
+  open,
+  onOpenChange,
+}: {
+  readonly state: OrganisationState;
+  readonly props: OrganisationProps;
+  readonly open: string | null;
+  readonly onOpenChange: (open: string | null) => void;
+}): JSX.Element {
+  const units = state.orgUnits;
+  const [kind, id] = open?.split(':') ?? [];
+  const unit = units.find((u) => u.id === id);
+  const close = (): void => {
+    onOpenChange(null);
+  };
+  const parentPath = (u: OrgUnitRow): string =>
+    units.find((p) => p.id === u.parentId)?.path ?? 'Top level';
+  let dialog: ReactNode = null;
+  if (state.canManage && kind === 'unit' && (id === 'new' || unit !== undefined)) {
+    dialog = (
+      <OrgUnitDialog
+        key={open}
+        units={units}
+        unit={unit ?? null}
+        mode={unit === undefined ? 'add' : 'rename'}
+        props={props}
+        onClose={close}
+      />
+    );
+  } else if (state.canManage && kind === 'unit-move' && unit !== undefined) {
+    dialog = (
+      <OrgUnitDialog
+        key={open}
+        units={units}
+        unit={unit}
+        mode="move"
+        props={props}
+        onClose={close}
+      />
+    );
+  } else if (state.canManage && kind === 'unit-archive' && unit !== undefined) {
+    dialog = (
+      <ArchiveConfirm
+        archiving={{
+          name: unit.name,
+          archived: unit.archived,
+          toggle: () => props.onUpdateOrgUnit(unit.id, { archived: !unit.archived }),
+        }}
+        onClose={close}
+      />
+    );
+  }
+  return (
+    <Stack gap={4}>
+      {state.canManage ? (
+        <div>
+          <Button
+            variant="primary"
+            startIcon={<icons.add aria-hidden />}
+            onClick={() => {
+              onOpenChange('unit:new');
+            }}
+          >
+            Add org unit
+          </Button>
+        </div>
+      ) : null}
+      <DataTable<OrgUnitRow>
+        label="Org units"
+        rows={units}
+        rowId={(u) => u.id}
+        describeRow={(u) => u.name}
+        rowMenuOnCard
+        empty={
+          <EmptyState
+            title="No org units yet"
+            description="Departments and teams, each at the top or under another. A field of the org unit type picks from these."
+          />
+        }
+        columns={[
+          {
+            id: 'name',
+            header: 'Name',
+            cell: (u) => (
+              <span
+                className="inline-flex flex-wrap items-center gap-2"
+                style={{ paddingInlineStart: `${String(depthOf(units, u) * 1.25)}rem` }}
+              >
+                <span className="font-semibold">{u.name}</span>
+                {u.archived ? <Badge size="sm">Archived</Badge> : null}
+              </span>
+            ),
+          },
+          { id: 'parent', header: 'Part of', shortHeader: 'Part of', cell: parentPath },
+        ]}
+        {...(state.canManage
+          ? {
+              rowActions: (u: OrgUnitRow) => [
+                {
+                  id: 'rename',
+                  label: 'Rename',
+                  icon: <icons.edit aria-hidden />,
+                  onSelect: () => {
+                    onOpenChange(`unit:${u.id}`);
+                  },
+                },
+                {
+                  id: 'move',
+                  label: 'Move under',
+                  icon: <icons.move aria-hidden />,
+                  onSelect: () => {
+                    onOpenChange(`unit-move:${u.id}`);
+                  },
+                },
+                {
+                  id: 'archive',
+                  label: u.archived ? 'Restore' : 'Archive',
+                  icon: u.archived ? <icons.undo aria-hidden /> : <icons.archive aria-hidden />,
+                  onSelect: () => {
+                    onOpenChange(`unit-archive:${u.id}`);
+                  },
+                },
+              ],
+            }
+          : {})}
+      />
+      {dialog}
+    </Stack>
+  );
+}
+
+/** Add, rename or move one org unit: whatever People refuses is shown as worded, and nothing closes. */
+function OrgUnitDialog({
+  units,
+  unit,
+  mode,
+  props,
+  onClose,
+}: {
+  readonly units: readonly OrgUnitRow[];
+  readonly unit: OrgUnitRow | null;
+  readonly mode: 'add' | 'rename' | 'move';
+  readonly props: OrganisationProps;
+  readonly onClose: () => void;
+}): JSX.Element {
+  const [name, setName] = useState(unit?.name ?? '');
+  const [parent, setParent] = useState(unit?.parentId ?? TOP);
+  const [shown, setShown] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const invalid = mode !== 'move' && name.trim() === '';
+  // Never under itself or anything beneath it, nor under an archived unit.
+  const excluded = unit === null ? new Set<string>() : subtreeOf(units, unit.id);
+  const parents = [
+    { value: TOP, label: 'Top level' },
+    ...units
+      .filter((u) => !u.archived && !excluded.has(u.id))
+      .map((u) => ({ value: u.id, label: u.path })),
+  ];
+  const parentId = parent === TOP ? null : parent;
+  const title =
+    unit === null
+      ? 'Add an org unit'
+      : mode === 'rename'
+        ? `Rename ${unit.name}`
+        : `Move ${unit.name}`;
+  const submit = (): Promise<Outcome> =>
+    unit === null
+      ? props.onCreateOrgUnit({ name: name.trim(), parentId })
+      : mode === 'rename'
+        ? props.onUpdateOrgUnit(unit.id, { name: name.trim() })
+        : props.onUpdateOrgUnit(unit.id, { parentId });
+  return (
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Kept with who changed it and when.</DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <Stack gap={4}>
+            {mode === 'move' ? null : (
+              <Field required invalid={shown && invalid}>
+                <FieldLabel>Name</FieldLabel>
+                <FieldControl>
+                  <Input
+                    value={name}
+                    maxLength={200}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                    }}
+                  />
+                </FieldControl>
+                <FieldError>A name is needed.</FieldError>
+              </Field>
+            )}
+            {mode === 'rename' ? null : (
+              <Field>
+                <FieldLabel>Under</FieldLabel>
+                <FieldControl>
+                  <Combobox
+                    label="Under"
+                    placeholder="Top level"
+                    searchPlaceholder="Search org units"
+                    options={parents}
+                    value={parent}
+                    onChange={(next) => {
+                      setParent(typeof next === 'string' ? next : TOP);
+                    }}
+                  />
+                </FieldControl>
+                <FieldDescription>
+                  {mode === 'move'
+                    ? 'Everything under it moves with it.'
+                    : 'Leave it at the top level for a department of its own.'}
+                </FieldDescription>
+              </Field>
+            )}
+            {refused === null ? null : (
+              <Alert tone="danger" title="Not saved">
+                {refused}
+              </Alert>
+            )}
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            loading={busy}
+            loadingLabel="Saving"
+            onClick={() => {
+              setShown(true);
+              if (invalid) return;
+              setBusy(true);
+              setRefused(null);
+              void submit().then((outcome) => {
+                setBusy(false);
+                if (outcome.ok) onClose();
+                else setRefused(outcome.message);
+              });
+            }}
+          >
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -315,6 +315,7 @@ export const OPERATIONS = {
       settings { defaultTimeZone cohortMinimum photoAtSignup slug displayName }
       legalEntities { id name country timeZone archived }
       locations { id legalEntityId name country timeZone zones { effectiveFrom timeZone } archived }
+      orgUnits { id name parentId path archived }
       numberings { legalEntityId prefix digits nextValue }
       countries { code name }
       timeZones
@@ -770,6 +771,14 @@ export const OPERATIONS = {
 
   ChangeLocationZone: `mutation ChangeLocationZone($id: ID!, $timeZone: String!, $effectiveFrom: String!, $key: String!) {
     changeLocationZone(id: $id, timeZone: $timeZone, effectiveFrom: $effectiveFrom, idempotencyKey: $key) { id }
+  }`,
+
+  CreateOrgUnit: `mutation CreateOrgUnit($name: String!, $parentId: ID, $key: String!) {
+    createOrgUnit(name: $name, parentId: $parentId, idempotencyKey: $key) { id }
+  }`,
+
+  UpdateOrgUnit: `mutation UpdateOrgUnit($id: ID!, $name: String, $parentId: ID, $archived: Boolean, $key: String!) {
+    updateOrgUnit(id: $id, name: $name, parentId: $parentId, archived: $archived, idempotencyKey: $key) { id }
   }`,
 
   SetEmployeeNumbering: `mutation SetEmployeeNumbering(

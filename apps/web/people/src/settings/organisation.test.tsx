@@ -16,6 +16,8 @@ import {
 
 const ACME = '00000000-0000-4000-8000-0000000000e1';
 const MADRID = '00000000-0000-4000-8000-0000000000f1';
+const ENG = '00000000-0000-4000-8000-0000000000a1';
+const PLATFORM = '00000000-0000-4000-8000-0000000000a2';
 
 const state = (over: Partial<OrganisationState> = {}): OrganisationState => ({
   canManage: true,
@@ -36,6 +38,16 @@ const state = (over: Partial<OrganisationState> = {}): OrganisationState => ({
       country: 'ES',
       timeZone: 'Europe/Madrid',
       zones: [{ effectiveFrom: '2026-01-01', timeZone: 'Europe/Madrid' }],
+      archived: false,
+    },
+  ],
+  orgUnits: [
+    { id: ENG, name: 'Engineering', parentId: null, path: 'Engineering', archived: false },
+    {
+      id: PLATFORM,
+      name: 'Platform',
+      parentId: ENG,
+      path: 'Engineering › Platform',
       archived: false,
     },
   ],
@@ -63,6 +75,8 @@ function props(over: Partial<OrganisationProps> = {}): OrganisationProps {
     onCreateLocation: vi.fn(done),
     onUpdateLocation: vi.fn(done),
     onChangeZone: vi.fn(done),
+    onCreateOrgUnit: vi.fn(done),
+    onUpdateOrgUnit: vi.fn(done),
     onSetNumbering: vi.fn(done),
     ...over,
   };
@@ -113,6 +127,71 @@ describe('the organisation settings (PEO-119)', () => {
       'Pacific/Kiritimati',
       todayIn('Pacific/Kiritimati'),
     );
+  });
+
+  it('lists org units as a tree, adds one under another, and moves one to the top', async () => {
+    const p = props();
+    const opened: (string | null)[] = [];
+    const { container, rerender } = render(
+      <Organisation {...p} tab="org-units" onTabChange={vi.fn()} onOpenChange={(o) => opened.push(o)} />,
+    );
+    expect(screen.getByRole('cell', { name: 'Platform' })).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+    const user = fast();
+    // Every dialog is in the address: the button asks the host to open it.
+    await user.click(screen.getByRole('button', { name: 'Add org unit' }));
+    expect(opened).toEqual(['unit:new']);
+
+    rerender(<Organisation {...p} tab="org-units" onTabChange={vi.fn()} open="unit:new" onOpenChange={vi.fn()} />);
+    const add = screen.getByRole('dialog', { name: 'Add an org unit' });
+    await user.click(within(add).getByRole('button', { name: 'Save' }));
+    expect(within(add).getByText('A name is needed.')).toBeInTheDocument();
+    await user.type(within(add).getByRole('textbox', { name: /Name/ }), 'Data');
+    await user.click(within(add).getByRole('button', { name: 'Under' }));
+    await user.click(screen.getByRole('option', { name: 'Engineering' }));
+    await user.click(within(add).getByRole('button', { name: 'Save' }));
+    expect(p.onCreateOrgUnit).toHaveBeenCalledWith({ name: 'Data', parentId: ENG });
+
+    rerender(
+      <Organisation {...p} tab="org-units" onTabChange={vi.fn()} open={`unit-move:${ENG}`} onOpenChange={vi.fn()} />,
+    );
+    const move = screen.getByRole('dialog', { name: 'Move Engineering' });
+    await user.click(within(move).getByRole('button', { name: 'Under' }));
+    // Not under itself, nor anything beneath it.
+    expect(screen.queryByRole('option', { name: 'Engineering › Platform' })).toBeNull();
+    await user.click(screen.getByRole('option', { name: 'Top level' }));
+    await user.click(within(move).getByRole('button', { name: 'Save' }));
+    expect(p.onUpdateOrgUnit).toHaveBeenCalledWith(ENG, { parentId: null });
+  });
+
+  it('archives an org unit only once asked, from its own address', async () => {
+    const p = props();
+    render(
+      <Organisation
+        {...p}
+        tab="org-units" onTabChange={vi.fn()}
+        open={`unit-archive:${PLATFORM}`}
+        onOpenChange={vi.fn()}
+      />,
+    );
+    const user = fast();
+    const confirm = screen.getByRole('alertdialog', { name: 'Archive Platform?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Archive' }));
+    expect(p.onUpdateOrgUnit).toHaveBeenCalledWith(PLATFORM, { archived: true });
+  });
+
+  it('offers nobody but an administrator the org unit controls', () => {
+    render(
+      <Organisation
+        {...props({ load: { status: 'ready', data: state({ canManage: false }) } })}
+        tab="org-units" onTabChange={vi.fn()}
+        open="unit:new"
+        onOpenChange={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByRole('cell', { name: 'Engineering' })).not.toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Add org unit' })).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('shows People’s refusal and keeps the dialog open', async () => {
