@@ -1,11 +1,9 @@
 import { TooltipProvider } from '@reach/ui';
-import { act } from '@testing-library/react';
-import { createElement, Suspense, type ReactElement } from 'react';
-import { hydrateRoot } from 'react-dom/client';
-import { renderToString } from 'react-dom/server';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createElement, type ReactElement } from 'react';
+import { describe, expect, it } from 'vitest';
 
 import { framed } from '../frame';
+import { serveAndHydrate } from '../test/hydrate';
 import { PeopleHome as HomeScreen, type PeopleHomeState } from './people-home';
 import { overview } from './people-home.fixture';
 
@@ -21,17 +19,8 @@ const element = (data: PeopleHomeState): ReactElement =>
   createElement(
     TooltipProvider,
     null,
-    createElement(
-      Suspense,
-      { fallback: null },
-      createElement(PeopleHome, { load: { status: 'ready', data } }),
-    ),
+    createElement(PeopleHome, { load: { status: 'ready', data } }),
   );
-
-afterEach(() => {
-  document.body.innerHTML = '';
-  vi.restoreAllMocks();
-});
 
 describe('Home on the server, then in the browser', () => {
   it.each([
@@ -53,25 +42,9 @@ describe('Home on the server, then in the browser', () => {
       },
     ],
   ] as const)('renders %s’s Home whole, and hydrates it without a mismatch', async (_, data) => {
-    const html = renderToString(element(data));
+    const { html, errors } = await serveAndHydrate(element(data));
     expect(html).not.toContain('<!--$!-->');
     expect(html).toContain('Hi Ada');
-    const container = document.createElement('div');
-    container.innerHTML = html;
-    document.body.append(container);
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const root = await act(async () => {
-      const r = hydrateRoot(container, element(data), {
-        onRecoverableError: (e) => {
-          throw e;
-        },
-      });
-      await Promise.resolve();
-      return r;
-    });
-    expect(errors.mock.calls).toEqual([]);
-    act(() => {
-      root.unmount();
-    });
+    expect(errors).toEqual([]);
   });
 });

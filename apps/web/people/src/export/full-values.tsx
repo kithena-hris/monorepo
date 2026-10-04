@@ -354,7 +354,7 @@ function Decide({
         if (!open) onClose();
       }}
     >
-      <DialogContent sheetOnTouch={false}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{approve ? 'Allow the request' : 'Reject the request'}</DialogTitle>
           <DialogDescription>

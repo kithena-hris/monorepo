@@ -244,7 +244,7 @@ function Decide({
         if (!open) onClose();
       }}
     >
-      <DialogContent sheetOnTouch={false}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {accept ? 'Accept' : 'Send back'} {item.name}’s {item.label}

@@ -1,11 +1,9 @@
 import { TooltipProvider } from '@reach/ui';
-import { act } from '@testing-library/react';
-import { createElement, Suspense, type ReactElement } from 'react';
-import { hydrateRoot } from 'react-dom/client';
-import { renderToString } from 'react-dom/server';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createElement, type ReactElement } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { framed } from '../frame';
+import { serveAndHydrate } from '../test/hydrate';
 import type { ApprovalItem } from '../approvals/approvals';
 import { Review as ReviewScreen, type ReviewProps, type ReviewState } from './review';
 import { actions, NOTHING } from './review.fixture';
@@ -63,22 +61,13 @@ const element = (props: Partial<ReviewProps>): ReactElement =>
   createElement(
     TooltipProvider,
     null,
-    createElement(
-      Suspense,
-      { fallback: null },
-      createElement(Review, {
-        load: { status: 'ready', data: { ...NOTHING, ...state } },
-        tab: 'waiting',
-        ...actions(),
-        ...props,
-      }),
-    ),
+    createElement(Review, {
+      load: { status: 'ready', data: { ...NOTHING, ...state } },
+      tab: 'waiting',
+      ...actions(),
+      ...props,
+    }),
   );
-
-afterEach(() => {
-  document.body.innerHTML = '';
-  vi.restoreAllMocks();
-});
 
 describe('Review on the server, then in the browser', () => {
   it.each([
@@ -88,28 +77,12 @@ describe('Review on the server, then in the browser', () => {
     { tab: 'decided' as const },
   ])('renders %o whole, and hydrates it without a mismatch', async (address) => {
     const props = { ...address, onKindChange: vi.fn(), onItemChange: vi.fn() };
-    const html = renderToString(element(props));
+    const { html, errors } = await serveAndHydrate(element(props));
     expect(html).not.toContain('<!--$!-->');
     // The item the address names is open in the first HTML.
     if (address.item === 'change-c1') expect(html).toContain('Why this is flagged');
     if (address.item?.startsWith('id-') === true) expect(html).toContain('What the checks found');
 
-    const container = document.createElement('div');
-    container.innerHTML = html;
-    document.body.append(container);
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const root = await act(async () => {
-      const r = hydrateRoot(container, element(props), {
-        onRecoverableError: (e) => {
-          throw e;
-        },
-      });
-      await Promise.resolve();
-      return r;
-    });
-    expect(errors.mock.calls).toEqual([]);
-    act(() => {
-      root.unmount();
-    });
+    expect(errors).toEqual([]);
   });
 });

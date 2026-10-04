@@ -209,7 +209,7 @@ function UndoDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent sheetOnTouch={false}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             Undo merging {merge.absorbedName}'s record into {merge.survivorName}'s
@@ -469,7 +469,7 @@ export function DuplicateDetail({
             if (!open) setConfirming(false);
           }}
         >
-          <DialogContent sheetOnTouch={false}>
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>
                 Merge {gone.name}'s record into {kept.name}'s
