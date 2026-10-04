@@ -861,7 +861,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   per queue and answer `"step":["s1","s2"]`; the eval reads the steps in
   either order as the same plan.
 
-### [ ] AST-033 — Follow-ups in a conversation
+### [x] AST-033 — Follow-ups in a conversation
 
 - **Spec** PRD §4, §17
 - **Files** `platform/slack/src/service.ts`, `platform/assistant/src/application/ask.ts`
