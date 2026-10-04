@@ -79,6 +79,16 @@ export function drizzleShareStore(): ShareStore {
       return row ? fromRow(row) : null;
     },
 
+    async waiting(tx, tenantId, at, limit) {
+      const rows = await tx.execute<Row>(sql`
+        SELECT * FROM people.export_share
+         WHERE tenant_id = ${tenantId}::uuid AND state = 'pending'
+           AND expires_at > ${at}::timestamptz
+         ORDER BY requested_at, id
+         LIMIT ${limit}`);
+      return [...rows].map(fromRow);
+    },
+
     async update(tx, prior, next) {
       // Guarded on what moves, so a decision and a send each win once.
       const a = next.approval;
@@ -109,6 +119,16 @@ export function inMemoryShareStore(): ShareStore & { readonly rows: Map<string, 
     byExport: (_tx, tenantId, exportId) =>
       Promise.resolve(
         [...rows.values()].find((q) => q.tenantId === tenantId && q.exportId === exportId) ?? null,
+      ),
+    waiting: (_tx, tenantId, at, limit) =>
+      Promise.resolve(
+        [...rows.values()]
+          .filter(
+            (q) =>
+              q.tenantId === tenantId && q.approval.state === 'pending' && q.approval.expiresAt > at,
+          )
+          .toSorted((a, b) => a.approval.requestedAt.localeCompare(b.approval.requestedAt))
+          .slice(0, limit),
       ),
     update(_tx, prior, next) {
       const k = key(prior.tenantId, prior.approval.id);

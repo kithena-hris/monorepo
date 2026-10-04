@@ -449,8 +449,8 @@ async function exportExtras(
  * failing it. Only an unreachable People is the page's error.
  *
  * The address chooses what else is read: a pair to compare (`?item=dup-a~b`),
- * the request to send an export an email linked to (`?item=export-…`, which
- * People lists nowhere else), and the page of missing details (`?after=`).
+ * the request to send an export an email linked to (`?item=export-…`, when it
+ * is not one this viewer decides), and the page of missing details (`?after=`).
  */
 async function review(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
   const item = given(search['item']);
@@ -466,7 +466,8 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
   const hr = roles.data.hr === true;
   const finance = roles.data.finance === true;
   const ready = (load: ScreenLoad | null): unknown => (load?.status === 'ready' ? load.data : null);
-  const [changes, identifiers, duplicates, fullValues, completeness, analytics, share] =
+  const admin = roles.data.admin === true;
+  const [changes, identifiers, duplicates, fullValues, completeness, analytics, share, shares] =
     await Promise.all([
       approvals,
       hr ? read('IdentifierReviews') : null,
@@ -482,6 +483,8 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
         ? people<{ complete: unknown }>('Analytics', { segment: null })
         : null,
       shareId === null ? null : people<string>('ExportShare', { id: shareId }),
+      // The requests to send an export waiting for this administrator (E5).
+      admin ? people<string>('ExportSharesToDecide') : null,
     ]);
   const down = [changes, identifiers, duplicates, fullValues, completeness].find(
     (l) => l?.status === 'error' && l.unreachable === true,
@@ -492,7 +495,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     status: 'ready',
     data: {
       now: new Date().toISOString(),
-      roles: { hr, finance, admin: roles.data.admin === true },
+      roles: { hr, finance, admin },
       approvals: ready(changes),
       identifiers: ready(identifiers),
       duplicates: ready(duplicates),
@@ -504,6 +507,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
               ...(missing as object),
               complete: analytics?.ok === true ? analytics.data.complete : null,
             },
+      shares: shares === null ? null : ((jsonOf(shares) as unknown[] | null) ?? null),
       // Somebody else's or gone: said as such in its pane, never as an error page.
       share:
         share === null

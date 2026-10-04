@@ -1,6 +1,6 @@
 import { err, failure, type Result } from '@kithena/domain-kit';
 
-import { decide, type Approval } from '../approval/approval.js';
+import { decide, stateAt, type Approval } from '../approval/approval.js';
 import { effectiveRoles, type Holdings } from '../access/roles.js';
 import { spokenDate } from '../assistant/selection.js';
 
@@ -130,6 +130,24 @@ const NotAnApprover = failure(
   'FORBIDDEN',
   'Only a People administrator who is neither asking nor receiving approves sending this',
 );
+
+/**
+ * Whether this viewer could decide the request now: a People administrator,
+ * neither asking nor receiving, while it still waits. What Review lists for
+ * them, and what `decideShare` would accept.
+ */
+export function mayDecideShare(
+  share: Share,
+  viewer: { readonly accountId: string; readonly roles: ReadonlySet<string> },
+  at: string,
+): boolean {
+  return (
+    stateAt(share.approval, at) === 'pending' &&
+    effectiveRoles(viewer.roles).has('people_admin') &&
+    viewer.accountId !== share.approval.requestedBy &&
+    viewer.accountId !== share.recipient
+  );
+}
 
 export function decideShare<S extends Share>(
   share: S,

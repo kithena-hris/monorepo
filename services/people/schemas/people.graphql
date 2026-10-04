@@ -2431,6 +2431,10 @@ type Query {
     input: String!
   ): String
   """
+  The requests to send an export this viewer may decide now, oldest first (JSON): a People administrator’s, never one they asked for or would receive.
+  """
+  peopleExportSharesToDecide: String
+  """
   A field’s new type, with every value it holds read again as that type and nothing written (JSON): what converts, with examples, and each value that does not, with whose it is and why.
   """
   peopleFieldChange(

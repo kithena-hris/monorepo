@@ -1031,6 +1031,11 @@ export const OPERATIONS = {
     peopleExportShare(id: $id)
   }`,
 
+  /** Review's Exports (E5): the requests to send this viewer may decide now. */
+  ExportSharesToDecide: `query ExportSharesToDecide {
+    peopleExportSharesToDecide
+  }`,
+
   ExportRecord: `query ExportRecord($id: ID!) {
     peopleExportRecord(id: $id)
   }`,

@@ -123,8 +123,13 @@ export interface ReviewState {
   readonly fullValues: FullValuesState | null;
   readonly completeness: CompletenessState | null;
   /**
+   * The requests to send an export this viewer may decide now (E5); null
+   * where they decide none. Absent from an older shell.
+   */
+  readonly shares?: readonly ShareRequest[] | null;
+  /**
    * The request to send an export the address names (`?item=export-…`), or
-   * null: People lists none, so one arrives from the email that asks for it.
+   * null: one the viewer does not decide arrives from the email about it.
    */
   readonly share: ShareRequest | { readonly state: 'missing'; readonly id?: string } | null;
 }
@@ -265,6 +270,13 @@ const shareRow = (share: ShareRequest): Row => ({
   at: share.requestedAt,
 });
 
+/** Every request to send an export on the page: those to decide, and the one the address names. */
+function sharesOf(state: ReviewState): ShareRequest[] {
+  const listed = state.shares ?? [];
+  const named = state.share !== null && state.share.state !== 'missing' ? state.share : null;
+  return named === null || listed.some((s) => s.id === named.id) ? [...listed] : [...listed, named];
+}
+
 /** Newest first, as the queue reads (E1); a pair, undated, after everything dated. */
 const newestFirst = (rows: readonly Row[]): Row[] =>
   rows.toSorted((a, b) =>
@@ -304,7 +316,6 @@ const viewerOf = (state: ReviewState): Viewer =>
 function rowsOf(state: ReviewState, tab: ReviewTab, viewer: Viewer): Row[] {
   const { forMe, asked, rest } = splitChanges(state.approvals);
   const requests = state.fullValues?.requests ?? [];
-  const share = state.share !== null && state.share.state !== 'missing' ? state.share : null;
   if (viewer !== 'hr') {
     return tab === 'decided'
       ? newestFirst((state.approvals?.decided ?? []).map(changeRow))
@@ -319,7 +330,9 @@ function rowsOf(state: ReviewState, tab: ReviewTab, viewer: Viewer): Row[] {
         ...requests
           .filter((r) => r.state === 'pending' && !r.mine && state.fullValues?.canDecide === true)
           .map(accessRow),
-        ...(share !== null && share.state === 'pending' ? [shareRow(share)] : []),
+        ...sharesOf(state)
+          .filter((s) => s.state === 'pending')
+          .map(shareRow),
       ]);
     case 'flagged':
       return newestFirst(forMe.filter(isFlagged).map(changeRow));
@@ -771,10 +784,12 @@ function Detail({
         <AccessDetail request={request} onDecide={actions.onDecideFullValues} />
       );
     }
-    case 'exports':
-      return state.share === null || state.share.state === 'missing' ? null : (
-        <ExportDetail share={state.share} onDecide={actions.onDecideShare} />
+    case 'exports': {
+      const share = sharesOf(state).find((s) => `export-${s.id}` === row.id);
+      return share === undefined ? null : (
+        <ExportDetail share={share} onDecide={actions.onDecideShare} />
       );
+    }
   }
 }
 

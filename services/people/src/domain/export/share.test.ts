@@ -6,6 +6,7 @@ import {
   approversFor,
   decideShare,
   gapBetween,
+  mayDecideShare,
   recipientIn,
   type Share,
 } from './share.js';
@@ -156,6 +157,18 @@ describe('deciding a request to send', () => {
       at,
     );
     expect(decided.ok ? null : decided.error.code).toBe('FORBIDDEN');
+  });
+
+  it('is offered only to whoever could make it, while it waits', () => {
+    const nora = { accountId: NORA, roles: new Set(['people_admin']) };
+    expect(mayDecideShare(share, nora, at)).toBe(true);
+    expect(mayDecideShare(share, { accountId: ADA, roles: new Set(['people_admin']) }, at)).toBe(
+      false,
+    );
+    expect(mayDecideShare({ ...share, recipient: NORA }, nora, at)).toBe(false);
+    expect(mayDecideShare(share, { accountId: TOM, roles: new Set(['hr']) }, at)).toBe(false);
+    // Lapsed after its week, even before anything recorded that.
+    expect(mayDecideShare(share, nora, '2026-10-08T12:00:00.000Z')).toBe(false);
   });
 
   it('is recorded with who and when', () => {

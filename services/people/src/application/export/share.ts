@@ -19,6 +19,7 @@ import {
   decideShare,
   exportCode,
   gapBetween,
+  mayDecideShare,
   recipientIn,
   type About,
   type Gap,
@@ -135,6 +136,8 @@ export interface ShareStore {
   insert(tx: Tx, request: ShareRequest): Promise<void>;
   find(tx: Tx, tenantId: string, id: string): Promise<ShareRequest | null>;
   byExport(tx: Tx, tenantId: string, exportId: string): Promise<ShareRequest | null>;
+  /** Still waiting at `at`, oldest first: Review's Exports. */
+  waiting(tx: Tx, tenantId: string, at: string, limit: number): Promise<readonly ShareRequest[]>;
   /** Write `next` only if the row is still as `prior` left it. False when somebody got there first. */
   update(tx: Tx, prior: ShareRequest, next: ShareRequest): Promise<boolean>;
 }
@@ -737,9 +740,43 @@ export async function shareView(
   }
   const accounts = await accountsOf(tx, deps, asking.tenantId);
   const labels = await labelsOf(tx, deps, asking.tenantId);
-  const state = stateAt(share.approval, deps.clock.instant());
+  return ok(viewOf(share, asking, accounts, labels, deps.clock.instant()));
+}
+
+/** How many requests to send Review lists at once. */
+const WAITING_SHOWN = 50;
+
+/**
+ * The requests to send an export this viewer may decide now (design E5):
+ * People administrators', less any they asked for or would receive. Anybody
+ * else has none, rather than a refusal: Review lists them beside the rest.
+ */
+export async function sharesToDecide(
+  tx: Tx,
+  deps: ShareDeps,
+  asking: Asking,
+): Promise<Result<readonly ShareView[]>> {
+  if (!effectiveRoles(asking.viewer.roles).has('people_admin')) return ok([]);
+  const now = deps.clock.instant();
+  const waiting = (await deps.shares.waiting(tx, asking.tenantId, now, WAITING_SHOWN)).filter(
+    (share) => mayDecideShare(share, asking.viewer, now),
+  );
+  if (waiting.length === 0) return ok([]);
+  const accounts = await accountsOf(tx, deps, asking.tenantId);
+  const labels = await labelsOf(tx, deps, asking.tenantId);
+  return ok(waiting.map((share) => viewOf(share, asking, accounts, labels, now)));
+}
+
+function viewOf(
+  share: ShareRequest,
+  asking: Asking,
+  accounts: Accounts,
+  labels: Awaited<ReturnType<typeof labelsOf>>,
+  now: string,
+): ShareView {
+  const state = stateAt(share.approval, now);
   const a = share.approval;
-  return ok({
+  return {
     id: a.id,
     state,
     requestedBy: person(accounts, a.requestedBy),
@@ -762,15 +799,15 @@ export async function shareView(
     format: share.choice.format,
     audience: share.choice.filter ?? null,
     exportId: share.exportId,
-    mine: a.requestedBy === me,
-    canDecide: state === 'pending' && admin && a.requestedBy !== me && share.recipient !== me,
+    mine: a.requestedBy === asking.viewer.accountId,
+    canDecide: mayDecideShare(share, asking.viewer, now),
     approvers:
       state === 'pending'
         ? approversFor(accounts.holdings, a.requestedBy, share.recipient).map((id) =>
             person(accounts, id),
           )
         : [],
-  });
+  };
 }
 
 /** A finished export as AI14 shows it: what it holds, where it went, and the About inside it. */

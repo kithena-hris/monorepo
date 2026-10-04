@@ -607,6 +607,11 @@ function screenPaths(): Record<string, unknown> {
       ),
     },
     '/v1/exports/share': {
+      get: {
+        summary:
+          'The requests to send an export this viewer may decide now: a People administrator who is neither asking nor receiving',
+        responses: { 200: { description: 'The requests, oldest first' }, ...failure },
+      },
       post: screenWrite(
         'Send an export: now, when the recipient could read all of it themselves; otherwise as a request a People administrator approves',
         'ShareExport',
