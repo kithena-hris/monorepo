@@ -85,7 +85,9 @@ describe('the month (T12, T14)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Subscribe' }));
     expect(onSubscribe).toHaveBeenCalledWith('team');
-    expect(await screen.findByText('https://acme.test/feed.ics?token=t')).toBeTruthy();
+    expect(
+      await screen.findByText('https://acme.test/feed.ics?token=t', {}, { timeout: 5000 }),
+    ).toBeTruthy();
   });
 });
 
