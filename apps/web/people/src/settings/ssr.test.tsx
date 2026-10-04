@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { framed } from '../frame';
-import { hydrated } from '../test/hydrate';
+import { serveAndHydrate } from '../test/hydrate';
 import { Integrations as IntegrationsScreen } from './integrations/integrations';
 import { Organisation as OrganisationScreen, type OrganisationState } from './organisation';
 
@@ -69,9 +69,9 @@ describe('People settings on the server', () => {
     ['country-packs', 'Identity'],
     ['reminders', 'Then once a week'],
   ])('serves Organisation’s %s tab already open, and hydrates it unchanged', async (tab, text) => {
-    const { html, problems } = await hydrated(createElement(Organisation, orgProps(tab)));
+    const { html, errors } = await serveAndHydrate(createElement(Organisation, orgProps(tab)));
     expect(html).toContain(text);
-    expect(problems).toEqual([]);
+    expect(errors).toEqual([]);
   });
 
   it('serves the Integrations tab its address names, and hydrates it unchanged', async () => {
@@ -90,8 +90,8 @@ describe('People settings on the server', () => {
         onRotate: () => Promise.resolve({ ok: true as const, secret: 's' }),
       }),
     );
-    const { html, problems } = await hydrated(element);
+    const { html, errors } = await serveAndHydrate(element);
     expect(html).toContain('No third-party tools connected');
-    expect(problems).toEqual([]);
+    expect(errors).toEqual([]);
   });
 });

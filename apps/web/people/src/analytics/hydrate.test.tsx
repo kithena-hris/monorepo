@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { framed } from '../frame';
-import { hydrated } from '../test/hydrate';
+import { serveAndHydrate } from '../test/hydrate';
 import { WhatChanged as WhatChangedScreen } from './what-changed';
 import { SEPTEMBER } from './what-changed.fixture';
 
@@ -17,7 +17,7 @@ const WhatChanged = framed(WhatChangedScreen);
 describe('What changed, hydrated', () => {
   it('serves the follow-up the address asks, answered, and hydrates it unchanged', async () => {
     let asked = 0;
-    const { html, problems } = await hydrated(
+    const { html, errors } = await serveAndHydrate(
       createElement(WhatChanged, {
         load: {
           status: 'ready',
@@ -44,6 +44,6 @@ describe('What changed, hydrated', () => {
     );
     expect(html).toContain('Engineering hired nine people.');
     expect(asked).toBe(0);
-    expect(problems).toEqual([]);
+    expect(errors).toEqual([]);
   });
 });

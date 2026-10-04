@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { framed } from '../frame';
-import { hydrated } from '../test/hydrate';
+import { serveAndHydrate } from '../test/hydrate';
 import { ImportExport as ImportExportScreen } from './import-export';
 import { ImportFlow as ImportFlowScreen } from './import-flow';
 import { RUN_GOING } from './import.fixture';
@@ -18,7 +18,7 @@ const ok = () => Promise.resolve({ ok: true as const });
 
 describe('Import & export, hydrated', () => {
   it('serves the page with its history and the running import, and hydrates it unchanged', async () => {
-    const { html, problems } = await hydrated(
+    const { html, errors } = await serveAndHydrate(
       createElement(ImportExport, {
         load: {
           status: 'ready',
@@ -49,11 +49,11 @@ describe('Import & export, hydrated', () => {
     );
     expect(html).toContain('Budget planning for 2027');
     expect(html).toContain('312 of 1,000 people');
-    expect(problems).toEqual([]);
+    expect(errors).toEqual([]);
   });
 
   it('serves a running import’s own page with its progress, and hydrates it unchanged', async () => {
-    const { html, problems } = await hydrated(
+    const { html, errors } = await serveAndHydrate(
       createElement(ImportFlow, {
         load: { status: 'ready', data: { step: 'run', run: RUN_GOING } },
         onUpload: ok,
@@ -65,6 +65,6 @@ describe('Import & export, hydrated', () => {
       }),
     );
     expect(html).toContain('312 of 1,000 people');
-    expect(problems).toEqual([]);
+    expect(errors).toEqual([]);
   });
 });
