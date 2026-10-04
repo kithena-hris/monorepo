@@ -11,6 +11,7 @@ import {
   PersonTerminated,
   TenantAdministratorNamed,
   TenantAdministratorRemoved,
+  TenantEntitlementsChanged,
   TenantSettingsChanged,
   type DefinedEvent,
 } from '@kithena/contracts';
@@ -209,6 +210,14 @@ describe('the People consumer', () => {
   });
 });
 
+/** Identity's list of the company's modules, recorded at `occurredAt`. */
+const modules = (n: number, occurredAt: string, entitlements: string[]) => ({
+  ...(envelope(TenantEntitlementsChanged, n, '2026-10-01', { entitlements }) as object),
+  occurredAt,
+  aggregate: { type: 'Tenant', id: TENANT, version: n },
+  actor: { kind: 'system', process: 'identity' },
+});
+
 const graph = () => {
   const calls: string[] = [];
   return {
@@ -275,5 +284,20 @@ describe('the graph beside the projection', () => {
     expect(await handle(settings(1, 15))).toBe('applied');
     expect(await handle(settings(2, 12))).toBe('applied');
     expect(app.state(TENANT).settings.get('cohort_minimum')).toEqual({ value: 15 });
+  });
+
+  it('keeps the modules identity recorded for the company, the newest list winning', async () => {
+    const app = world('2026-10-01T07:00:00.000Z', { members: false });
+    const handle = timeoffConsumer(app.deps);
+    const newer = modules(2, '2026-10-02T09:00:00.000Z', ['module.people', 'module.timeoff']);
+    expect(await handle(newer)).toBe('applied');
+    expect(await handle(modules(1, '2026-10-01T09:00:00.000Z', ['module.people']))).toBe(
+      'unchanged',
+    );
+    expect(await handle(newer)).toBe('unchanged');
+    expect(app.state(TENANT).settings.get('entitlements')).toEqual({
+      entitlements: ['module.people', 'module.timeoff'],
+      asOf: '2026-10-02T09:00:00.000Z',
+    });
   });
 });

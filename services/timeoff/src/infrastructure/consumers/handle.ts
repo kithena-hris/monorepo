@@ -16,6 +16,7 @@ import {
   TeamKey,
   TenantAdministratorNamed,
   TenantAdministratorRemoved,
+  TenantEntitlementsChanged,
   TenantSettingsChanged,
   type CalendarDate,
   type EventDefinition,
@@ -396,6 +397,30 @@ export function timeoffConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<O
           return ok(undefined);
         });
         return 'applied';
+      }
+
+      /*
+       * The modules the company bought, as the back office last recorded
+       * them (PEO-114): the caller's entitlement check reads this before
+       * anything forwarded. The whole list each time; the newest wins, so a
+       * replay or an older message changes nothing. People's
+       * `rememberEntitlements` (`services/people/src/infrastructure/entitlements.ts`).
+       */
+      case TenantEntitlementsChanged.name: {
+        const event = parse(TenantEntitlementsChanged, raw);
+        if (!event) return 'rejected';
+        const result = await transact<{ applied: boolean }>(deps, event.tenantId, async (tx) => {
+          const kept = await tx.settings.get('entitlements');
+          if (kept !== null && Date.parse(kept.asOf) >= Date.parse(event.occurredAt)) {
+            return ok({ applied: false });
+          }
+          await tx.settings.set('entitlements', {
+            entitlements: [...event.payload.entitlements],
+            asOf: event.occurredAt,
+          });
+          return ok({ applied: true });
+        });
+        return outcome(result, event);
       }
 
       default:

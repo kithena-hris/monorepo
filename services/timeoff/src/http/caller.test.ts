@@ -19,6 +19,11 @@ const request = (principal: Record<string, unknown>, token = TOKEN) => ({
   },
 });
 
+/** What identity recorded for the company, as Time Off kept it. */
+const BOTH_RECORDED = () => Promise.resolve(['module.people', 'module.timeoff']);
+const PEOPLE_RECORDED = () => Promise.resolve(['module.people']);
+const NONE_RECORDED = () => Promise.resolve(null);
+
 function boot() {
   const app = world();
   return withMember(callerFromHeaders(TOKEN), app.deps.uow);
@@ -77,5 +82,26 @@ describe('the caller', () => {
   it('is refused for a company that did not buy Time Off', async () => {
     const answer = await boot()(request({ userId: ADAM_ACCOUNT, entitlements: ['module.people'] }));
     expect(answer).toMatchObject({ ok: false, error: { code: 'NOT_ENTITLED' } });
+  });
+
+  it('is entitled by what identity recorded for the company, whatever the router forwards', async () => {
+    const answer = await callerFromHeaders(
+      TOKEN,
+      BOTH_RECORDED,
+    )(request({ userId: ADAM_ACCOUNT, entitlements: ['module.people'] }));
+    expect(answer).toMatchObject({ ok: true, value: { accountId: ADAM_ACCOUNT } });
+  });
+
+  it('is refused when the recorded list leaves Time Off out, though the router forwards it', async () => {
+    const answer = await callerFromHeaders(
+      TOKEN,
+      PEOPLE_RECORDED,
+    )(request({ userId: ADAM_ACCOUNT }));
+    expect(answer).toMatchObject({ ok: false, error: { code: 'NOT_ENTITLED' } });
+  });
+
+  it('falls back to the forwarded list when identity recorded none', async () => {
+    const answer = await callerFromHeaders(TOKEN, NONE_RECORDED)(request({ userId: ADAM_ACCOUNT }));
+    expect(answer).toMatchObject({ ok: true });
   });
 });

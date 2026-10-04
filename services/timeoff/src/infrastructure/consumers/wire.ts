@@ -21,7 +21,8 @@ import { timeoffConsumer } from './handle.js';
  * (PRD §5.2, TOF-045). People's rule for when it runs: with a database and a
  * broker both set, and otherwise not, saying so. Standalone, nothing arrives,
  * and the import (TOF-036) keeps the members instead. Identity's topic too,
- * for whom the back office names Time Off's administrator.
+ * for whom the back office names Time Off's administrator and which modules
+ * the company bought.
  *
  * `uow` is the composition root's — with OpenFGA, the one that keeps the
  * member tuples in step — and null without a database.
@@ -66,16 +67,38 @@ export async function startConsumers(
     notifier: logNotifier,
     ...(tuples === undefined ? {} : { tuples }),
   });
-  const consumer = new Kafka(kafka).consumer({ groupId: 'timeoff' });
-  await consumer.connect();
-  // From the beginning the first time the group exists: every handler is
+  // From the beginning the first time a group exists: every handler is
   // idempotent, and a person hired before Time Off was bought is a member.
   // Every People event shares one topic, and every identity event another;
-  // the handler ignores the rest.
-  await consumer.subscribe({
-    topics: [PersonHired.topic, TenantAdministratorNamed.topic],
-    fromBeginning: true,
-  });
+  // the handler ignores the rest. Identity's is a group of its own, so a new
+  // event read from it (the company's modules, which Time Off's caller check
+  // reads) replays what the broker kept without replaying People's topic.
+  const consumers = await Promise.all([
+    consume(new Kafka(kafka), 'timeoff', PersonHired.topic, handle),
+    consume(new Kafka(kafka), 'timeoff-identity', TenantAdministratorNamed.topic, handle),
+  ]);
+  const outside =
+    reach === undefined || feedSecret === undefined
+      ? null
+      : await startReach(new Kafka(kafka), uow, reach, feedSecret);
+  return {
+    async stop() {
+      await Promise.all(consumers.map((c) => c.disconnect()));
+      await outside?.disconnect();
+    },
+  };
+}
+
+/** One topic, in its own group, through the projection's handler. */
+async function consume(
+  kafka: Kafka,
+  groupId: string,
+  topic: string,
+  handle: (envelope: unknown) => Promise<unknown>,
+) {
+  const consumer = kafka.consumer({ groupId });
+  await consumer.connect();
+  await consumer.subscribe({ topics: [topic], fromBeginning: true });
   await consumer.run({
     eachMessage: async ({ message }) => {
       if (message.value === null) return;
@@ -89,16 +112,7 @@ export async function startConsumers(
       await handle(envelope);
     },
   });
-  const outside =
-    reach === undefined || feedSecret === undefined
-      ? null
-      : await startReach(new Kafka(kafka), uow, reach, feedSecret);
-  return {
-    async stop() {
-      await consumer.disconnect();
-      await outside?.disconnect();
-    },
-  };
+  return consumer;
 }
 
 /**

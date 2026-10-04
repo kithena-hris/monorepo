@@ -2,12 +2,13 @@ import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { createYoga } from 'graphql-yoga';
+import { TenantId } from '@kithena/contracts';
 import { systemClock } from '@kithena/domain-kit';
 import { logger, onShutdown } from '@kithena/telemetry';
 
 import type { Deps, Reach, UnitOfWork } from './application/ports.js';
 import { yogaOptions } from './graphql/schema.js';
-import { callerFromHeaders, withMember } from './http/caller.js';
+import { callerFromHeaders, withMember, type RecordedEntitlements } from './http/caller.js';
 import { timeoffListener, timeoffServer } from './http/server.js';
 import { typesafeJudgeFromEnv } from './infrastructure/assist/typesafe-judge.js';
 import { writerFromEnv } from './infrastructure/assist/writer.js';
@@ -120,13 +121,20 @@ export async function composeTimeOff(env: NodeJS.ProcessEnv = process.env): Prom
 
   const reach = reachFrom(env);
   const feedSecret = feedSecretFrom(env);
+  // What identity recorded for the company wins over the router's deployment-wide list.
+  const recorded: RecordedEntitlements = async (tenantId) =>
+    (await uow.run(TenantId.parse(tenantId), (tx) => tx.settings.get('entitlements')))
+      ?.entitlements ?? null;
   const { listener } = timeoffServer({
     uow,
     authz: fga?.authorizer ?? nobodyRelates,
     feedSecret,
-    callerFrom: withMember(callerFromHeaders(internalToken), uow),
+    callerFrom: withMember(callerFromHeaders(internalToken, recorded), uow),
     // The assistant's secret for its pair (assistant PRD §15.3); empty refuses it.
-    assistantCallerFrom: withMember(callerFromHeaders(env['ASSISTANT_TIMEOFF_TOKEN'] ?? ''), uow),
+    assistantCallerFrom: withMember(
+      callerFromHeaders(env['ASSISTANT_TIMEOFF_TOKEN'] ?? '', recorded),
+      uow,
+    ),
     timers,
     notifier: logNotifier,
     reach,

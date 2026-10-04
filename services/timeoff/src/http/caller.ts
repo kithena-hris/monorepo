@@ -38,8 +38,25 @@ const Forwarded = z.object({
 
 export type CallerFrom = (request: HeaderCarrier) => Result<Caller> | Promise<Result<Caller>>;
 
-export function callerFromHeaders(internalToken: string): CallerFrom {
-  return (request) => {
+/**
+ * The modules identity recorded for the company, kept from
+ * `identity.tenant.entitlements_changed` (`consumers/handle.ts`); null when it
+ * recorded none.
+ */
+export type RecordedEntitlements = (tenantId: string) => Promise<readonly string[] | null>;
+
+/**
+ * A recorded list always wins, so a caller cannot forward its way into a
+ * module the company did not buy, and the router's deployment-wide
+ * `KITHENA_ENTITLEMENTS` does not shut out a company that did. The forwarded
+ * list only where nothing is recorded. People's rule
+ * (`services/people/src/http/caller.ts`, `callerWithEntitlements`).
+ */
+export function callerFromHeaders(
+  internalToken: string,
+  recorded: RecordedEntitlements = () => Promise.resolve(null),
+): CallerFrom {
+  return async (request) => {
     if (!presentsInternalToken(request, internalToken)) {
       return err(failure('UNAUTHENTICATED', 'This service is reached through the router'));
     }
@@ -54,7 +71,8 @@ export function callerFromHeaders(internalToken: string): CallerFrom {
     if ((parsed.data.impersonatedBy ?? parsed.data.viewedBy ?? null) !== null) {
       return err(failure('FORBIDDEN', 'Time Off cannot be used in a support or view-as session'));
     }
-    if (!parsed.data.entitlements.includes('module.timeoff')) {
+    const entitlements = (await recorded(parsed.data.tenantId)) ?? parsed.data.entitlements;
+    if (!entitlements.includes('module.timeoff')) {
       return err(failure('NOT_ENTITLED', 'This workspace does not include Time Off'));
     }
     const correlation = request.headers['x-correlation-id'];
