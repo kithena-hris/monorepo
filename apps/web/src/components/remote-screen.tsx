@@ -45,20 +45,36 @@ let federation: ModuleFederation | undefined;
 
 type Screen = ComponentType<Record<string, unknown>>;
 
-function runtime(): ModuleFederation {
-  federation ??= createInstance({
-    name: 'shell',
-    remotes: [],
-    shared: {
-      react: { version: React.version, lib: () => React, shareConfig },
-      'react/jsx-runtime': { version: React.version, lib: () => jsxRuntime, shareConfig },
-      '@reach/ui': {
-        version: '0.0.0',
-        get: () => import('@reach/ui').then((reach) => () => reach),
-        shareConfig,
-      },
+/**
+ * What the shell puts in the share scope, each `loaded-first`.
+ *
+ * A remote registers its own entry for each of these, at the same version,
+ * whose `get` only throws (`import: false`). Between two entries at one
+ * version, neither loaded, federation keeps the one whose app name sorts
+ * later: "timeoff" beat "shell", so the first Time Off screen got the
+ * remote's thrower for `@reach/ui` and every page after it on the same load
+ * did too ("Time off is unavailable", then People). `loaded-first` is the
+ * one rule that keeps the shell's entry whatever the remote is called.
+ */
+export const shellShared = () =>
+  ({
+    react: { version: React.version, lib: () => React, shareConfig, strategy: 'loaded-first' },
+    'react/jsx-runtime': {
+      version: React.version,
+      lib: () => jsxRuntime,
+      shareConfig,
+      strategy: 'loaded-first',
     },
-  });
+    '@reach/ui': {
+      version: '0.0.0',
+      get: () => import('@reach/ui').then((reach) => () => reach),
+      shareConfig,
+      strategy: 'loaded-first',
+    },
+  }) as const;
+
+function runtime(): ModuleFederation {
+  federation ??= createInstance({ name: 'shell', remotes: [], shared: shellShared() });
   return federation;
 }
 
