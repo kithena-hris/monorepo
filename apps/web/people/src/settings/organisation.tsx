@@ -180,7 +180,6 @@ export const ORGANISATION_TABS = [
   'reminders',
   'pay-bands',
 ] as const;
-export type OrganisationTab = (typeof ORGANISATION_TABS)[number];
 
 export type PhotoAtSignup = 'off' | 'optional' | 'required';
 
@@ -283,7 +282,8 @@ function editingOf(key: string | null, state: OrganisationState): Editing | null
   const [kind, id] = key?.split(':') ?? [];
   const entity = state.legalEntities.find((e) => e.id === id);
   const location = state.locations.find((l) => l.id === id);
-  if (kind === 'entity') return id === 'new' ? { kind, entity: null } : entity ? { kind, entity } : null;
+  if (kind === 'entity')
+    return id === 'new' ? { kind, entity: null } : entity ? { kind, entity } : null;
   if (kind === 'location')
     return id === 'new' ? { kind, location: null } : location ? { kind, location } : null;
   if (kind === 'zone') return location ? { kind, location } : null;

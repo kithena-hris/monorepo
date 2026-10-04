@@ -104,15 +104,6 @@ import {
 export type ReviewTab = 'waiting' | 'flagged' | 'asked' | 'decided';
 export type ReviewKind = 'changes' | 'ids' | 'duplicates' | 'access' | 'exports' | 'missing';
 
-export const REVIEW_KINDS: readonly ReviewKind[] = [
-  'changes',
-  'ids',
-  'duplicates',
-  'access',
-  'exports',
-  'missing',
-];
-
 export interface ReviewState {
   /** When People answered: what every age is read against, the same on the server and in the browser. */
   readonly now: string;

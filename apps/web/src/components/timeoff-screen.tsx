@@ -7,11 +7,10 @@ import { useTransition, type JSX } from 'react';
 import * as settings from '../app/(app)/settings/time-off/actions';
 import * as actions from '../app/(app)/time-off/actions';
 import type { ScreenLoad } from '../lib/people-screens';
-import { AREAS, matchPath, remotePath } from '../lib/remotes';
+import { AREAS } from '../lib/remotes';
 import { areaFrame } from '../lib/shell-data';
 import { noteInAddress, withQuery, type HistoryMode } from '../lib/url-state';
-import { useShellData } from './app-shell';
-import { RemoteScreen, remoteLoaded, type RemoteRoute } from './remote-screen';
+import { RemoteScreen, type RemoteRoute } from './remote-screen';
 
 /**
  * A Time Off screen's props, from what the server fetched and the actions
@@ -272,31 +271,4 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
       }
     />
   );
-}
-
-/**
- * A Time Off page while it is fetched (`PageLoading`): the screen itself in
- * its loading state, so each draws its own skeleton in its exact shape under
- * the real header. Before the remote's code is in the page, the page
- * skeleton with that header's shape.
- */
-export function TimeOffLoading(): JSX.Element {
-  const shell = useShellData();
-  const pathname = usePathname();
-  const places = shell.remotes?.[AREAS.timeoff.name];
-  const matched = places === undefined ? undefined : matchPath(places.routes, pathname);
-  const frame = areaFrame(AREAS.timeoff, matched?.path ?? null, places);
-  const component = matched === undefined ? undefined : places?.screens?.[matched.path];
-  const entry = `${remotePath(AREAS.timeoff)}/remoteEntry.js`;
-  if (component === undefined || !remoteLoaded(entry)) {
-    return (
-      <Skeleton
-        shape="page"
-        label="Loading Time off"
-        breadcrumb={frame.section !== null}
-        tabs={frame.tabs?.length ?? 0}
-      />
-    );
-  }
-  return <TimeOffScreen route={{ entry, component }} load={{ status: 'loading' }} frame={frame} />;
 }

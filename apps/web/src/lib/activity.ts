@@ -18,9 +18,6 @@ export const AREAS = [
 ] as const;
 export type Area = (typeof AREAS)[number]['value'];
 
-/** People's settings: what its own "Activity log" opens filtered to. */
-export const PEOPLE_SETTINGS: readonly Area[] = ['fields', 'organisation', 'roles', 'integrations'];
-
 export const WHO = [
   { value: 'person', label: 'People' },
   { value: 'support', label: 'Kithena support' },
