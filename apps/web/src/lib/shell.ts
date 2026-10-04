@@ -135,6 +135,20 @@ export function warmShell(): void {
   void Promise.all(shellReads());
 }
 
+/**
+ * Start what another area's header waits for (`remotePlaces`) now, before the
+ * session check returns, as `warmShell` does for People's: the roles People
+ * answers and, for Time Off, who the viewer is to it. Both need nobody's
+ * entitlements to be asked, and both are answered once per request, so
+ * `areaPlaces` finds them on their way rather than starting them after the
+ * check. Every answer is still withheld until the session is confirmed
+ * (`people.ts`); one nobody uses (a company without People) is dropped.
+ */
+export function warmArea(area: Area): void {
+  void people<ShellData['roles']>('Home');
+  if (area === AREAS.timeoff) void timeOff<TimeOffViewer>('TimeOffViewer');
+}
+
 /** People's part of the shell: its places, counts and notices, for a company that has it. */
 async function peopleShell(entitlements: readonly string[]): Promise<ShellData> {
   if (!entitlements.includes('module.people')) return EMPTY_SHELL;

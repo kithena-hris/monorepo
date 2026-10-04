@@ -179,6 +179,17 @@ describe('Time off in the shell', () => {
     expect(requests.getAttribute('aria-current')).toBe('page');
   });
 
+  // `/time-off` only redirects there: a press on it was two round trips, the
+  // second only once the first came back (379 ms against 50 ms a tab).
+  it('links the sidebar’s Time off to its first section, not the address that redirects to it', () => {
+    pathname = '/people/directory/list';
+    renderShell({ hr: false, admin: false, finance: false });
+    const areas = within(screen.getByRole('navigation', { name: 'Areas' }));
+    expect(areas.getByRole('link', { name: 'Time off' }).getAttribute('href')).toBe(
+      '/time-off/overview',
+    );
+  });
+
   it('puts Time off between Home and People in the phone’s tab bar', () => {
     renderShell({ hr: false, admin: false, finance: false });
     const tabs = within(screen.getByRole('navigation', { name: 'Main, compact' }));

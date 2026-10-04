@@ -110,11 +110,11 @@ jobs:
           ui='^(packages/ui/|apps/storybook/|apps/docs/|tools/a11y/|tools/storybook/)'
           # What codegen, the contract tests and supergraph composition read.
           contracts='^(packages/contracts/|packages/graphql-kit/|services/|platform/|apps/gateway/|tools/codegen/)'
-          # What the web acceptance stack runs: the shell and its remote, People,
-          # identity, the router's config and persisted operations, every
-          # migration, and every package (the design system renders the screens,
-          # `packages/testing` starts the containers).
-          web='^(apps/web/|services/people/|platform/identity/|apps/gateway/|packages/|migrations/)'
+          # What the web acceptance stack runs: the shell and its remotes, People,
+          # Time Off, identity, the router's config and persisted operations,
+          # every migration, and every package (the design system renders the
+          # screens, `packages/testing` starts the containers).
+          web='^(apps/web/|services/people/|services/timeoff/|platform/identity/|apps/gateway/|packages/|migrations/)'
           # What the integration suites run: every package with one, what they
           # import (the kits; never `packages/ui`, which a service may not
           # import), and the migrations their containers apply.
@@ -389,9 +389,10 @@ jobs:
         run: pnpm --filter @kithena/${{ matrix.module }} test:standalone
 
   # The tenant app as a person meets it: Postgres with every migration,
-  # OpenFGA, identity, the Cosmo Router, People, the People remote and the
-  # shell as production builds, driven by Chromium (`apps/web/acceptance`).
-  # About thirteen tests over three minutes of setup, so it is gated like the
+  # OpenFGA, Redpanda, identity, the Cosmo Router, People and Time Off, both
+  # remotes and the shell as production builds, driven by Chromium
+  # (`apps/web/acceptance`). The builds are made once for both files; each file
+  # starts its own stack. Minutes of setup, so it is gated like the
   # jobs above: the job always runs and always reports `web acceptance`, and
   # its steps run when the diff can reach the stack (`changes.outputs.web`),
   # and always on `main` and in the merge queue.
@@ -418,7 +419,7 @@ jobs:
       - name: install
         if: needs.changes.outputs.web == 'true'
         run: pnpm install --frozen-lockfile
-      # Identity and People run from source under tsx, but resolve
+      # Identity, People and Time Off run from source under tsx, but resolve
       # `@kithena/contracts` and its siblings through their built `dist/`.
       - name: build the packages
         if: needs.changes.outputs.web == 'true'
@@ -444,7 +445,7 @@ jobs:
 
       - name: nothing to check
         if: needs.changes.outputs.web != 'true'
-        run: echo "::notice::No change this job covers (apps/web, People, identity, the gateway, packages, migrations or shared config). On main it runs unless this tree already passed it in its pull request."
+        run: echo "::notice::No change this job covers (apps/web, People, Time Off, identity, the gateway, packages, migrations or shared config). On main it runs unless this tree already passed it in its pull request."
 
   design-system:
     needs: changes

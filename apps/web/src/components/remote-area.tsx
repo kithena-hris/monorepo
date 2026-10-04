@@ -8,7 +8,7 @@ import type { ScreenLoad, ScreenQuery } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import { areaOf, firstUnder, remoteRoute, type Area } from '../lib/remotes';
 import { currentPerson } from '../lib/session';
-import { remotePlaces } from '../lib/shell';
+import { remotePlaces, warmArea } from '../lib/shell';
 import { areaFrame } from '../lib/shell-data';
 import { loadScreen as loadTimeOffScreen } from '../lib/timeoff-screens';
 
@@ -56,6 +56,8 @@ export async function RemoteArea({
   readonly search: Readonly<Record<string, string>>;
 }): Promise<JSX.Element> {
   const area = areaOf(path);
+  // The header's reads, beside the session check rather than after it.
+  if (area !== undefined) warmArea(area);
   const routed = remoteRoute(path);
   // The screen's data and server build, started as soon as the manifest says
   // which screen it is: beside the session check and the shell's reads, not
