@@ -564,7 +564,7 @@ function peopleAnswer(
 function masked(text: string, setting: Setting): string {
   if (!inChat(setting)) return text;
   const hidden = new Set(
-    setting.leaveTypes.filter((t) => t.private).flatMap((t) => [t.name.toLowerCase(), t.key]),
+    setting.leaveTypes.flatMap((t) => (t.private ? [t.name.toLowerCase(), t.key] : [])),
   );
   return text
     .split(/( · |, )/u)

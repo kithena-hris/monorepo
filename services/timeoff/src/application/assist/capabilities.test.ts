@@ -432,9 +432,9 @@ describe('timeoff.balances (AST-030)', () => {
         managerPersonId: people.ravi,
       }),
     );
-    const sick = LeaveType.define(LeaveTypeDefinition.parse({ ...sickType(), tracked: true }));
-    if (!sick.ok) throw new Error(sick.error.message);
-    s.leaveTypes.set('sick', sick.value);
+    const tracked = LeaveType.define(LeaveTypeDefinition.parse({ ...sickType(), tracked: true }));
+    if (!tracked.ok) throw new Error(tracked.error.message);
+    s.leaveTypes.set('sick', tracked.value);
     s.ledger.push(
       LedgerEntry.parse({
         entryId: '0189eeee-0000-7000-8000-000000000001',
@@ -538,10 +538,10 @@ describe('timeoff.balances (AST-030)', () => {
     expect(
       of(await left(app, hr, { filters: [{ key: 'days_left', op: 'is', values: ['24.5'] }] })),
     ).toEqual([['Leo Martin', '24.5 days left']]);
-    const team = await left(app, hr, {
+    const sales = await left(app, hr, {
       filters: [...more('10').filters, { key: 'team', op: 'in', values: ['sales'] }],
     });
-    expect(team).toMatchObject({
+    expect(sales).toMatchObject({
       total: 0,
       described: 'in Sales with more than 10 days of Vacation left',
     });
@@ -561,9 +561,9 @@ describe('timeoff.balances (AST-030)', () => {
 
   it('writes a private type “Away” beside a name unless the company chose to name it', async () => {
     const app = await balancesWorld();
-    const sick = { filters: [{ key: 'leave_type', op: 'in', values: ['sick'] }] };
-    expect(await left(app, hr, sick)).toMatchObject({ total: 8, described: 'with a Sick balance' });
-    expect(of(await left(app, hr, { filters: [...sick.filters, ...more('0').filters] }))).toEqual([
+    const sickLeave = { filters: [{ key: 'leave_type', op: 'in', values: ['sick'] }] };
+    expect(await left(app, hr, sickLeave)).toMatchObject({ total: 8, described: 'with a Sick balance' });
+    expect(of(await left(app, hr, { filters: [...sickLeave.filters, ...more('0').filters] }))).toEqual([
       ['Adam Novak', '3 days left'],
     ]);
     const both = { filters: [{ key: 'leave_type', op: 'in', values: ['vacation', 'Sick'] }] };
@@ -575,7 +575,7 @@ describe('timeoff.balances (AST-030)', () => {
       ['Adam Novak', '3 days left · Sick, 25 days left · Vacation'],
     ]);
     // A teammate never sees another’s balance, of any type: only his own.
-    expect(of(await left(app, caller(people.omar), sick))).toEqual([
+    expect(of(await left(app, caller(people.omar), sickLeave))).toEqual([
       ['Omar Haddad', '0 days left'],
     ]);
   });
