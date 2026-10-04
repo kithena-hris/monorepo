@@ -333,17 +333,47 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           ? { status: 'ready', data: { shared: null } }
           : found;
       }
-      const [summary, schedules] = await Promise.all([
-        orBare(
-          {
-            period: given(query.search['period']),
-            from: dateOf(query.search['from']),
-            to: dateOf(query.search['to']),
-            segment: given(query.search['segment']),
-          },
-          (asked) => read('WhatChanged', asked, json()),
-        ),
+      const period = {
+        period: given(query.search['period']),
+        from: dateOf(query.search['from']),
+        to: dateOf(query.search['to']),
+        segment: given(query.search['segment']),
+      };
+      // The period as the screen asks it, without what the address left out.
+      const ask = Object.fromEntries(Object.entries(period).filter(([, v]) => v !== null));
+      // The follow-up and the export dialog in the address are answered here,
+      // so the first HTML shows the answer and the draft, not a wait for them.
+      const question = given(query.search['ask']);
+      const share = query.search['share'];
+      const exporting =
+        share === 'pdf' || share === 'email'
+          ? {
+              recipient: given(query.search['for']),
+              tone: query.search['tone'] === 'detailed' ? 'detailed' : 'short',
+              charts: query.search['charts'] !== 'off',
+              madeLine: query.search['made'] !== 'off',
+            }
+          : null;
+      const answered = (answer: PeopleAnswer<string>) =>
+        answer.ok ? (jsonOf(answer) ?? 'People could not be asked') : answer.message;
+      const [summary, schedules, followUp, draft] = await Promise.all([
+        orBare(period, (asked) => read('WhatChanged', asked, json())),
         read('ReportSchedules'),
+        question === null
+          ? null
+          : people<string>('WhatChangedAsk', { input: JSON.stringify({ ...ask, question }) }),
+        exporting === null
+          ? null
+          : people<string>('SummaryDraft', {
+              input: JSON.stringify({
+                ...ask,
+                tone: exporting.tone,
+                charts: exporting.charts,
+                madeLine: exporting.madeLine,
+                ...(exporting.recipient === null ? {} : { recipient: exporting.recipient }),
+                edits: [],
+              }),
+            }),
       ]);
       if (summary.status !== 'ready') return summary;
       return {
@@ -351,6 +381,12 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         data: {
           ...(summary.data as object),
           schedules: schedules.status === 'ready' ? schedules.data : null,
+          ...(followUp === null || question === null
+            ? {}
+            : { answered: { question, result: answered(followUp) } }),
+          ...(draft === null || exporting === null
+            ? {}
+            : { drafted: { ...exporting, result: answered(draft) } }),
         },
       };
     }

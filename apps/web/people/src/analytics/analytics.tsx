@@ -41,7 +41,6 @@ import { useId, useState, type JSX, type ReactNode } from 'react';
 import { Loaded, type Loadable } from '../load';
 import type { ReportSchedulesState } from '../reports/report-schedules';
 import { SegmentSelect, type SegmentRef } from '../segments';
-import { Schedules, type ScheduleActions } from './schedules';
 
 /**
  * What People may answer about its own data, already shaped by the query
@@ -183,8 +182,6 @@ export interface AnalyticsProps {
   readonly load: Loadable<AnalyticsState>;
   /** The tab its route names; the host draws the row of tabs. */
   readonly tab?: InsightsTab;
-  /** What the Schedules button may do. Without it, no button. */
-  readonly schedules?: ScheduleActions;
   /** Applied by the shell, server-side: `?segment=<id>`. */
   readonly segmentId?: string | null;
   readonly onSegmentChange?: (segmentId: string | null) => void;
@@ -242,7 +239,7 @@ export const exportUrl = (tab: InsightsTab, segmentId: string | null): string =>
 
 /**
  * Insights (V7, MV6; PRD §16, design screen 12): workforce analytics, a tab
- * at a time, with the report schedules behind a button on the page.
+ * at a time, with the Scheduled reports page a button away.
  *
  * The tab is the route, and the host draws the tabs; this screen draws the
  * one it is given. Each tab opens with its figures, then one section per
@@ -255,7 +252,6 @@ export function Analytics({
   tab = 'headcount',
   segmentId = null,
   onSegmentChange,
-  schedules,
 }: AnalyticsProps): JSX.Element {
   return (
     <Loaded load={load} what="the analytics">
@@ -265,7 +261,6 @@ export function Analytics({
           tab={tab}
           segmentId={segmentId}
           onSegmentChange={onSegmentChange}
-          schedules={schedules}
         />
       )}
     </Loaded>
@@ -274,7 +269,7 @@ export function Analytics({
 
 /**
  * Insights' header, on every tab: the title, what the figures are, the
- * segment, the schedules behind their button, and the tab's own export.
+ * segment, the button to the Scheduled reports page, and the tab's own export.
  */
 export function InsightsHeader({
   description,
@@ -282,7 +277,6 @@ export function InsightsHeader({
   segmentId,
   onSegmentChange,
   reports,
-  schedules,
   exportAction,
 }: {
   readonly description: string;
@@ -291,7 +285,6 @@ export function InsightsHeader({
   readonly onSegmentChange: ((segmentId: string | null) => void) | undefined;
   /** The schedules HR may manage; null for anybody else. */
   readonly reports: ReportSchedulesState | null;
-  readonly schedules: ScheduleActions | undefined;
   readonly exportAction: ReactNode;
 }): JSX.Element {
   return (
@@ -305,11 +298,12 @@ export function InsightsHeader({
           {onSegmentChange === undefined ? null : (
             <SegmentSelect segments={segments} value={segmentId} onChange={onSegmentChange} />
           )}
-          {reports === null || schedules === undefined ? null : (
+          {reports === null ? null : (
             <>
-              <span className="touch:hidden">
-                <Schedules state={reports} actions={schedules} />
-              </span>
+              {/* One list of schedules, on its own page: the button opens it. */}
+              <Button asChild startIcon={<icons.scheduled aria-hidden />} className="touch:hidden">
+                <a href="/people/reports">Schedules</a>
+              </Button>
               {/* A phone's bar keeps the clock; the page is a tap away. */}
               <Button asChild variant="ghost" className="hidden touch:inline-flex">
                 <a href="/people/reports" aria-label="Scheduled reports">
@@ -360,20 +354,15 @@ function Workforce({
   tab,
   segmentId,
   onSegmentChange,
-  schedules,
 }: {
   readonly state: AnalyticsState;
   readonly tab: InsightsTab;
   readonly segmentId: string | null;
   readonly onSegmentChange: AnalyticsProps['onSegmentChange'];
-  readonly schedules: AnalyticsProps['schedules'];
 }): JSX.Element {
   const { headcount, attrition, complete, movement } = state;
-  // The schedules HR may manage, and the actions to manage them with.
-  const reports =
-    schedules !== undefined && state.schedules != null && state.schedules.canManage
-      ? state.schedules
-      : null;
+  // The schedules HR may manage: the Schedules button and the phone's row.
+  const reports = state.schedules != null && state.schedules.canManage ? state.schedules : null;
   const joined =
     state.joiners == null ? null : state.joiners.cells.reduce((n, c) => n + c.value, 0);
 
@@ -683,7 +672,6 @@ function Workforce({
         segmentId={segmentId}
         onSegmentChange={onSegmentChange}
         reports={reports}
-        schedules={schedules}
         exportAction={
           // This tab's numbers as a file, at a desk (V7).
           <Button

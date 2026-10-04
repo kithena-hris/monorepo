@@ -1579,14 +1579,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onSegmentChange: (segment: string | null) => {
             navigate({ segment });
           },
-          // The Schedules button: the schedules page's own actions.
-          schedules: {
-            onCreate: actions.createReportSchedule,
-            onUpdate: actions.updateReportSchedule,
-            onPause: actions.pauseReportSchedule,
-            onResume: actions.resumeReportSchedule,
-            onDelete: actions.deleteReportSchedule,
-          },
         };
       // What changed (design AI5, AI6, MA4, MA5): its own block.
       case 'WhatChanged': {
@@ -1675,14 +1667,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             link.click();
             URL.revokeObjectURL(url);
             return { ok: true };
-          },
-          // The Schedules button: the schedules page's own actions.
-          schedules: {
-            onCreate: actions.createReportSchedule,
-            onUpdate: actions.updateReportSchedule,
-            onPause: actions.pauseReportSchedule,
-            onResume: actions.resumeReportSchedule,
-            onDelete: actions.deleteReportSchedule,
           },
         };
       }

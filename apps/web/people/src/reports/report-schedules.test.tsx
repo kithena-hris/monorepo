@@ -73,15 +73,15 @@ function props(over: Partial<ReportSchedulesProps> = {}): ReportSchedulesProps {
 describe('the scheduled reports screen (PEO-069)', () => {
   it('lists each schedule with its cadence, recipients, last run and status', async () => {
     const { container } = render(<ReportSchedules {...props()} />);
-    const table = screen.getByRole('table', { name: 'Scheduled reports' });
+    const table = screen.getByRole('grid', { name: 'Scheduled reports' });
     expect(within(table).getByText('Monday roster')).toBeInTheDocument();
     expect(within(table).getByText('Weekly on Monday at 07:00')).toBeInTheDocument();
     expect(within(table).getByText('Partly sent')).toBeInTheDocument();
     expect(within(table).getByText('Active')).toBeInTheDocument();
-    expect(within(table).getByRole('link', { name: 'History' })).toHaveAttribute(
-      'href',
-      `/people/reports/${row.id}`,
-    );
+    // Edit, pause, history and delete are in the row's menu.
+    expect(
+      within(table).getByRole('button', { name: 'Actions for Monday roster' }),
+    ).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -89,9 +89,11 @@ describe('the scheduled reports screen (PEO-069)', () => {
     const p = props();
     render(<ReportSchedules {...p} />);
     const user = fast();
-    await user.click(screen.getByRole('button', { name: 'Pause' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Monday roster' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Pause' }));
     expect(p.onPause).toHaveBeenCalledWith(row.id);
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Monday roster' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
     expect(p.onDelete).not.toHaveBeenCalled();
     const confirm = screen.getByRole('alertdialog');
     await user.click(within(confirm).getByRole('button', { name: 'Delete' }));
@@ -100,7 +102,9 @@ describe('the scheduled reports screen (PEO-069)', () => {
 
   it('says under the recipients what each recipient gets', async () => {
     render(<ReportSchedules {...props()} />);
-    await fast().click(screen.getByRole('button', { name: 'Edit' }));
+    const user = fast();
+    await user.click(screen.getByRole('button', { name: 'Actions for Monday roster' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit Monday roster' });
     expect(within(dialog).getByText(EACH_SEES_THEIR_OWN)).toBeInTheDocument();
     expect(
@@ -112,7 +116,8 @@ describe('the scheduled reports screen (PEO-069)', () => {
     const p = props();
     render(<ReportSchedules {...p} />);
     const user = fast();
-    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Monday roster' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit Monday roster' });
     const name = within(dialog).getByRole('textbox', { name: /Name/ });
     await user.clear(name);
