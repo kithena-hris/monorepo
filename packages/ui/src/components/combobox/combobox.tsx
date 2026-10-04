@@ -3,6 +3,7 @@
 import { Check, ChevronsUpDown, Search, X } from 'lucide-react';
 import {
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -69,6 +70,12 @@ export interface ComboboxProps {
   disabled?: boolean;
   /** Adds a clear button once something is selected. */
   clearable?: boolean;
+  /**
+   * Open as it mounts: for a control that stands in for a lighter one until
+   * it is pressed (a cell in a long grid), so the press that mounted it also
+   * opened it.
+   */
+  defaultOpen?: boolean;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   /**
@@ -98,6 +105,9 @@ const clearEnd = {
   lg: 'end-[2.25rem] touch:end-[2.375rem]',
 } as const;
 
+/** Options drawn as the panel opens; the rest follow on the next frame. */
+const FIRST_DRAWN = 50;
+
 export function Combobox({
   options,
   value,
@@ -110,6 +120,7 @@ export function Combobox({
   label,
   disabled = false,
   clearable = false,
+  defaultOpen = false,
   className,
   size = 'md',
   onSearchChange,
@@ -118,8 +129,24 @@ export function Combobox({
   'aria-describedby': describedBy,
   'aria-invalid': invalid,
 }: ComboboxProps): JSX.Element {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [query, setQuery] = useState('');
+  // A long list opens at once with what fits, and draws the rest a frame
+  // later: four hundred time zones drawn before the panel showed made a
+  // press feel late. The highlighted option is always drawn.
+  const [drawn, setDrawn] = useState(FIRST_DRAWN);
+  useEffect(() => {
+    if (!open) {
+      setDrawn(FIRST_DRAWN);
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      setDrawn(Number.POSITIVE_INFINITY);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [open]);
   const [activeIndex, setActiveIndex] = useState(0);
   const listId = useId();
   const optionIdPrefix = useId();
@@ -351,6 +378,7 @@ export function Combobox({
       </div>
 
       <PopoverContent
+        aria-label={label}
         matchTriggerWidth
         className="p-1.5 touch:rounded-[1.25rem]"
         // Focus belongs in the search input the moment the panel opens.
@@ -416,7 +444,7 @@ export function Combobox({
             <li className="px-3 py-6 text-center text-sm text-fg-muted">{emptyMessage}</li>
           ) : (
             grouped.map(([group, items]) => (
-              <li key={group || 'ungrouped'}>
+              <li key={group || 'ungrouped'} role="presentation">
                 {group ? (
                   <div className="px-2.5 pt-2 pb-1 text-xs font-semibold text-fg-subtle">
                     {group}
@@ -425,6 +453,7 @@ export function Combobox({
                 <ul role="group" aria-label={group || undefined}>
                   {items.map((option) => {
                     const index = flatIndex.get(option.value) ?? -1;
+                    if (index >= Math.max(drawn, activeIndex + 1)) return null;
                     const isSelected = selected.includes(option.value);
                     return (
                       <li

@@ -307,3 +307,24 @@ export const Sizes: Story = {
     );
   },
 };
+
+export const OpenOnMount: Story = {
+  name: 'Open as it mounts',
+  args: { defaultOpen: true },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`defaultOpen` for a picker that stands in for a lighter control until it is pressed, such as a cell in a long grid.',
+      },
+    },
+  },
+  render: function OpenOnMountStory(args) {
+    const [value, setValue] = useState<IsoDate | null>(null);
+    return (
+      <div className="w-72">
+        <DatePicker {...args} mode="single" value={value} onChange={setValue} />
+      </div>
+    );
+  },
+};
