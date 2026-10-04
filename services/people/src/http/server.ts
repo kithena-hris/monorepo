@@ -13,7 +13,6 @@ import {
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { presentsInternalToken } from '@kithena/auth-kit';
 import { sql } from 'drizzle-orm';
-import * as z from 'zod';
 
 import { recomputePerson } from '../application/completeness/recompute.js';
 import { sweepReminders } from '../application/completeness/reminders.js';
@@ -114,7 +113,10 @@ import { drizzleDetailRequests } from '../infrastructure/drizzle-detail-requests
 import { drizzleFiles } from '../infrastructure/drizzle-files.js';
 import { drizzleActivity } from '../infrastructure/drizzle-activity.js';
 import { drizzleTransfers } from '../infrastructure/drizzle-transfers.js';
-import { askFromChat, type ChatDeps } from '../application/assistant/from-chat.js';
+import {
+  answer as capabilityAnswer,
+  catalogue as capabilityCatalogue,
+} from '../application/assistant/capabilities.js';
 import { chatModel, modelConfigFrom } from '../infrastructure/assistant/model.js';
 import { PlanBudget } from '../domain/import/new-fields.js';
 import { loadTenantPolicies } from '../infrastructure/policy-registry.js';
@@ -140,6 +142,7 @@ import { shareRoutes } from './export-share.js';
 import type { ShareDeps } from '../application/export/share.js';
 import { drizzleShareStore } from '../application/export/share-store.js';
 import { callerWithEntitlements, viewingRequest, withTenantRoles } from './caller.js';
+import { capabilityRoutes, isCapabilityPath } from './capabilities.js';
 import { recordedEntitlements } from '../infrastructure/entitlements.js';
 import { drizzleIdempotency } from './idempotency.js';
 import { openApiDocument } from './openapi.js';
@@ -583,13 +586,6 @@ function chatFrom(env: NodeJS.ProcessEnv) {
   return apps.length === 0 ? {} : { chat: { apps, notices: drizzleChatNotices() } };
 }
 
-/** A question from Slack: which company, whose verified email, and the words. */
-const ChatQuestion = z.strictObject({
-  tenantId: z.uuid(),
-  email: z.email().max(320),
-  question: z.string().trim().min(1).max(500),
-});
-
 /** The assistant, where a model is configured (`ASSISTANT_*`); nothing otherwise. */
 function assistantFrom(env: NodeJS.ProcessEnv) {
   const config = modelConfigFrom(env);
@@ -986,15 +982,19 @@ export function wirePeople(server: Server): void {
   }
 
   const service = peopleService(url, process.env['PEOPLE_SECRET_KEYS']);
-  const headers = callerWithEntitlements(
-    process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
-    (tenantId) => service.inTenant(tenantId, ({ tx }) => recordedEntitlements(tx, tenantId)),
-  );
   const fga = openFgaFrom(process.env);
-  const callerFrom =
-    fga === null
+  // Whoever a token's caller forwards, entitled as recorded, with OpenFGA's roles.
+  const callerWith = (token: string) => {
+    const headers = callerWithEntitlements(token, (tenantId) =>
+      service.inTenant(tenantId, ({ tx }) => recordedEntitlements(tx, tenantId)),
+    );
+    return fga === null
       ? headers
       : withTenantRoles(headers, (tenantId, accountId) => fga.roles(tenantId, accountId));
+  };
+  const callerFrom = callerWith(
+    process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
+  );
   const exports = wireExports(service);
   const stopReports = startReports(service, exports.deps);
   const uploads = uploadStoreFrom(process.env);
@@ -1076,68 +1076,25 @@ export function wirePeople(server: Server): void {
   ) => void)[];
   server.removeAllListeners('request');
 
+  // The assistant's questions, as the asker (AST-018): its own token, and these routes only.
+  const capabilities = capabilityRoutes({
+    callerFrom: callerWith(process.env['ASSISTANT_PEOPLE_TOKEN'] ?? ''),
+    catalogue: (asking) => capabilityCatalogue(screens, asking),
+    answer: (asking, name, input) => capabilityAnswer(screens, asking, name, input),
+  });
+
   const chatToken = process.env['SLACK_PEOPLE_TOKEN'] ?? '';
-  const chatDeps: ChatDeps = {
-    ...screenDeps(service, exports.deps.store, uploads),
-    accountByEmail: async (tx, tenantId, email) => {
-      const rows = await tx.execute<{ account: string }>(sql`
-        SELECT identity_account_id AS account FROM people.person
-         WHERE tenant_id = ${tenantId}::uuid AND lower(work_email) = ${email}
-           AND identity_account_id IS NOT NULL AND access_ended_at IS NULL
-           AND status NOT IN ('terminated', 'discarded', 'merged')
-         LIMIT 2`);
-      const found = [...rows];
-      // Two current people with one email is a record to fix, not a guess to make.
-      return found.length === 1 ? (found[0]?.account ?? null) : null;
-    },
-  };
-  const answerChat = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
-    try {
-      if (chatToken === '' || !presentsInternalToken({ headers: request.headers }, chatToken)) {
-        send(response, {
-          status: 401,
-          body: { error: { code: 'UNAUTHENTICATED', message: 'Not the Slack service' } },
-        });
-        return;
-      }
-      const raw = await bodyOf(request, BODY_LIMIT);
-      let parsed: unknown = null;
-      try {
-        parsed = raw === null ? null : JSON.parse(raw);
-      } catch {
-        parsed = null;
-      }
-      const input = ChatQuestion.safeParse(parsed);
-      if (!input.success) {
-        send(response, {
-          status: 400,
-          body: { error: { code: 'INVALID_INPUT', message: 'tenantId, email and question' } },
-        });
-        return;
-      }
-      const answered = await askFromChat(chatDeps, { ...input.data, correlationId: uuidv7() });
-      send(
-        response,
-        answered.ok
-          ? { status: 200, body: answered.value }
-          : {
-              status: 200,
-              body: {
-                text: answered.error.message,
-                people: [],
-                understood: answered.error.code,
-                answered: false,
-              },
-            },
-      );
-    } catch (cause) {
-      logger.error({ err: cause }, 'a chat question failed');
-      if (!response.headersSent)
-        send(response, {
-          status: 500,
-          body: { error: { code: 'INTERNAL', message: 'Something went wrong' } },
-        });
-    }
+  /** The account of the current employee with this work email, or null. */
+  const accountByEmail = async (tx: PostgresJsDatabase, tenantId: string, email: string) => {
+    const rows = await tx.execute<{ account: string }>(sql`
+      SELECT identity_account_id AS account FROM people.person
+       WHERE tenant_id = ${tenantId}::uuid AND lower(work_email) = ${email}
+         AND identity_account_id IS NOT NULL AND access_ended_at IS NULL
+         AND status NOT IN ('terminated', 'discarded', 'merged')
+       LIMIT 2`);
+    const found = [...rows];
+    // Two current people with one email is a record to fix, not a guess to make.
+    return found.length === 1 ? (found[0]?.account ?? null) : null;
   };
 
   // What a Slack button does, as whoever pressed it: the app's own routes.
@@ -1169,7 +1126,7 @@ export function wirePeople(server: Server): void {
         {
           apiToken: process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '',
           accountOf: (tenantId, email) =>
-            service.inTenant(tenantId, ({ tx }) => chatDeps.accountByEmail(tx, tenantId, email)),
+            service.inTenant(tenantId, ({ tx }) => accountByEmail(tx, tenantId, email)),
           rest: async (r) => rest(r),
           shown: (tenantId) =>
             service.inTenant(tenantId, async ({ tx }) => {
@@ -1247,10 +1204,38 @@ export function wirePeople(server: Server): void {
       })();
       return;
     }
-    // A question from Slack, asked as whoever's verified email it carries.
-    // Only the Slack service may: it presents a token of its own.
-    if (path === '/internal/assistant/ask' && request.method === 'POST') {
-      void answerChat(request, response);
+    // The assistant, as whoever it asks for; read-only, whatever the handler does.
+    if (isCapabilityPath(path)) {
+      void (async () => {
+        try {
+          const body = await bodyOf(request, BODY_LIMIT);
+          if (body === null) {
+            send(response, {
+              status: 413,
+              body: { error: { code: 'TOO_LARGE', message: 'Body too large' } },
+            });
+            return;
+          }
+          send(
+            response,
+            await readOnly(() =>
+              capabilities({
+                method: request.method ?? 'GET',
+                url: path,
+                headers: request.headers,
+                body,
+              }),
+            ),
+          );
+        } catch (cause) {
+          logger.error({ err: cause }, 'a capability request failed');
+          if (!response.headersSent)
+            send(response, {
+              status: 500,
+              body: { error: { code: 'INTERNAL', message: 'Something went wrong' } },
+            });
+        }
+      })();
       return;
     }
     if (path === '/internal/chat/act' && request.method === 'POST') {

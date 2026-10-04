@@ -257,6 +257,14 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): TimeOffDone!
+  """
+  Whether a chat answer may name people on private leave (sick, parental): off by default, recorded with who and when; HR
+  """
+  setTimeOffChatAnswers(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): TimeOffDone!
   """Who covers for an approver: they set it, or HR does"""
   setTimeOffDelegation(
     approverId: String!
@@ -628,6 +636,10 @@ type TimeOffCaseStep {
   status: String!
 }
 
+type TimeOffChatAnswers {
+  namesPrivateLeave: Boolean!
+}
+
 type TimeOffConsumingModule {
   events: [String!]!
   key: String!
@@ -890,6 +902,7 @@ type TimeOffIntegrationPack {
 }
 
 type TimeOffIntegrations {
+  chatAnswers: TimeOffChatAnswers!
   integrations: [TimeOffIntegration!]!
   kiosks: [TimeOffKiosk!]!
   locations: [TimeOffKioskLocation!]!

@@ -1410,7 +1410,19 @@ export function readDirectoryAnswer(
   shown: readonly CatalogueField[],
   metrics: readonly Metric[] = [],
 ): DirectoryPlan | null {
-  const parsed = DirectoryAnswer.safeParse(firstObject(text));
+  return readDirectoryPlan(firstObject(text), shown, metrics);
+}
+
+/**
+ * `readDirectoryAnswer` for a selection already parsed from JSON: the
+ * assistant's `people.find`, read by the same rules as the model's answer.
+ */
+export function readDirectoryPlan(
+  raw: unknown,
+  shown: readonly CatalogueField[],
+  metrics: readonly Metric[] = [],
+): DirectoryPlan | null {
+  const parsed = DirectoryAnswer.safeParse(raw);
   if (!parsed.success) return null;
   const a = parsed.data;
   const runnable = [...shown, ...asFields(metrics)];

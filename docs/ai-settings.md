@@ -367,6 +367,14 @@ The planner is `domain/assistant/selection.ts`; the use cases are
 `application/assistant/selection.ts`, behind `POST /v1/views/directory/plan`
 and `POST /v1/views/export/plan` (both write nothing).
 
+A question asked in Slack is not one of these, and no longer People's. It goes
+to the assistant (`platform/assistant`, `docs/assistant-prd.md`), which plans
+across every module the company has and reads People through its capability
+routes (`/internal/capabilities*`, behind `ASSISTANT_PEOPLE_TOKEN`), as the
+person asking. People's own `/internal/assistant/ask` is gone; the directory
+selection a capability runs is the same smart-search reader as below, so the
+two read a sentence alike.
+
 - **The result is the screen's own state, in the address.** The Directory gets
   its `conditions`, `match` and `sort`, shown as the chips it always shows and
   edited in its Filters sheet; the builder gets `who`, `conditions`, `fields`,

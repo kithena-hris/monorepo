@@ -7,6 +7,7 @@
 #   deploy.sh <staging|production> slack <image>
 #   deploy.sh <staging|production> audit <image>
 #   deploy.sh <staging|production> timeoff <image>
+#   deploy.sh <staging|production> assistant <image>
 #
 # `migrate` runs first, as the Neon step does for identity: it makes sure
 # People's database and its two roles exist, applies `migrations/` with a
@@ -25,13 +26,13 @@
 # back never depends on the registry still having the tag.
 set -euo pipefail
 
-usage='usage: deploy.sh <staging|production> <migrate | people <image> | router <image> | slack <image> | audit <image> | timeoff <image>>'
+usage='usage: deploy.sh <staging|production> <migrate | people <image> | router <image> | slack <image> | audit <image> | timeoff <image> | assistant <image>>'
 env="${1:?$usage}"
 service="${2:?$usage}"
 case "$env" in staging | production) ;; *) echo "unknown environment: $env" >&2; exit 2 ;; esac
 case "$service" in
   migrate) image= ;;
-  people | router | slack | audit | timeoff) image="${3:?$usage}" ;;
+  people | router | slack | audit | timeoff | assistant) image="${3:?$usage}" ;;
   *) echo "unknown service: $service" >&2; exit 2 ;;
 esac
 
@@ -42,7 +43,7 @@ umask 077
 mkdir -p "$dir"
 chmod 700 "$root" "$dir"
 cp "$here/compose.yaml" "$here/compose.staging.yaml" "$here/debezium.env" "$dir/"
-touch "$dir/state.env" "$dir/people.env" "$dir/router.env" "$dir/slack.env" "$dir/audit.env" "$dir/timeoff.env" "$dir/secrets.env" "$dir/relay.env"
+touch "$dir/state.env" "$dir/people.env" "$dir/router.env" "$dir/slack.env" "$dir/audit.env" "$dir/timeoff.env" "$dir/assistant.env" "$dir/secrets.env" "$dir/relay.env"
 chmod 600 "$dir"/*
 
 get() { sed -n "s/^$1=//p" "$dir/state.env" | tail -n 1; }
@@ -82,6 +83,7 @@ retry() {
 [ -n "$(get SLACK_IMAGE)" ] || export SLACK_IMAGE=not-deployed-yet
 [ -n "$(get AUDIT_IMAGE)" ] || export AUDIT_IMAGE=not-deployed-yet
 [ -n "$(get TIMEOFF_IMAGE)" ] || export TIMEOFF_IMAGE=not-deployed-yet
+[ -n "$(get ASSISTANT_IMAGE)" ] || export ASSISTANT_IMAGE=not-deployed-yet
 
 # Postgres 17 to 18, once, before anything here starts Postgres. 18 cannot
 # open a 17 data directory, and its image keeps the cluster in a versioned
@@ -290,6 +292,13 @@ elif [ "$service" = slack ]; then
     compose logs --tail 80 slack >&2
     exit 1
   }
+elif [ "$service" = assistant ]; then
+  compose up --detach --wait --wait-timeout 120 assistant
+  retry ask http://assistant:4104/health || {
+    echo "::error::the assistant never answered /health" >&2
+    compose logs --tail 80 assistant >&2
+    exit 1
+  }
 elif [ "$service" = audit ]; then
   compose up --detach --wait --wait-timeout 120 audit
   retry ask http://audit:4103/health || {
@@ -340,6 +349,6 @@ echo "$env $service: $image"
 # Every kithena image no environment is on or would roll back to.
 keep="$(cat "$root"/*/state.env | sed -nE 's/^[A-Z]+_(IMAGE|PREVIOUS)=//p' | sort -u)"
 docker images --format '{{.Repository}}:{{.Tag}}' \
-  | grep -E '/kithena-(people|router|slack|audit|timeoff):' \
+  | grep -E '/kithena-(people|router|slack|audit|timeoff|assistant):' \
   | grep -vxF -f <(printf '%s\n' "$keep") \
   | xargs -r docker rmi >/dev/null || true

@@ -22,6 +22,7 @@ import type { PayPeriod, TimeLine } from '../domain/attendance/pay-period.js';
 import type { Schedule } from '../domain/attendance/schedule.js';
 import type { HolidayLayer } from '../domain/calendar/holiday-calendar.js';
 import type { EventContext } from '../domain/context.js';
+import type { ChatAnswers } from '../domain/settings/chat.js';
 import type { TeamMinimum } from '../domain/coverage/coverage.js';
 import type { LeaveType } from '../domain/policy/leave-type.js';
 import type { Policy, PolicyId } from '../domain/policy/policy.js';
@@ -505,6 +506,8 @@ export interface Settings {
   readonly cohort_minimum: { readonly value: number };
   /** T34's "If nobody decides" (§9.7). */
   readonly escalation: Escalation;
+  /** What a chat answer may say about private leave (assistant PRD §11.4). */
+  readonly chat_answers: ChatAnswers;
 }
 
 /** How long a request waits before it moves on, to whom, and when the daily reminder goes. */

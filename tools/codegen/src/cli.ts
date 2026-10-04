@@ -15,7 +15,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as z from 'zod';
-import { identityEvents, policy, peopleEvents, timeoffEvents } from '@kithena/contracts';
+import {
+  allCapabilities,
+  identityEvents,
+  policy,
+  peopleEvents,
+  timeoffEvents,
+} from '@kithena/contracts';
 
 const allEvents = [...identityEvents, ...peopleEvents, ...timeoffEvents];
 
@@ -91,56 +97,77 @@ interface PolicyManifest {
   unclassified: string[];
 }
 
+/** An array's items, as a path segment. */
+const ITEMS = '[*]';
+
+/**
+ * Pino writes an array's items as `rows[*].detail`; the AI gateway matches a
+ * path with the indices left out (`rows.detail`), and so does the export.
+ */
+const pinoPath = (path: readonly string[]): string => path.join('.').replaceAll(`.${ITEMS}`, ITEMS);
+const plainPath = (path: readonly string[]): string => path.filter((s) => s !== ITEMS).join('.');
+
 function walk(schema: z.ZodType, path: string[], out: PolicyManifest): void {
   const meta = effectivePolicy(schema);
   if (meta) {
-    const dotted = path.join('.');
     if (meta.classification === 'confidential' || meta.classification === 'special-category') {
-      out.redact.push(dotted);
+      out.redact.push(pinoPath(path));
     }
-    if (!meta.aiEligible) out.denyAi.push(dotted);
-    if (meta.exportable) out.export.push(dotted);
+    if (!meta.aiEligible) out.denyAi.push(plainPath(path));
+    if (meta.exportable) out.export.push(plainPath(path));
   }
 
   /*
    * `instanceof` rather than reading a `type` string off an asserted `def`.
-   * The guard narrows `schema` to `ZodObject`, so `shape` is Zod's own typed
-   * property, and a nested object is recognised by being one rather than by
-   * matching a literal that Zod is free to rename.
+   * Each guard narrows to Zod's own class, so `shape`, `options` and `element`
+   * are typed properties, and a structure is recognised by being one rather
+   * than by matching a literal that Zod is free to rename.
    */
-  const object = asObject(schema);
-  if (!object) return;
+  const held = innermost(schema);
 
-  for (const [key, child] of Object.entries(object.shape)) {
-    // `ZodObject`'s shape is typed `any` at its default generic, so each child
-    // arrives untyped. Checking is what makes it a `ZodType` here, and it also
-    // skips anything Zod may one day put in a shape that is not a schema.
-    if (!(child instanceof z.ZodType)) continue;
-
-    // A nested object carries no policy of its own; its leaves do. Descending
-    // into it and reporting it as unclassified would flag every branch.
-    if (!effectivePolicy(child) && !asObject(child)) {
-      out.unclassified.push([...path, key].join('.'));
+  // A nested object carries no policy of its own; its leaves do. Reporting it
+  // as unclassified would flag every branch.
+  if (held instanceof z.ZodObject) {
+    for (const [key, child] of Object.entries(held.shape)) {
+      // `ZodObject`'s shape is typed `any` at its default generic, so each child
+      // arrives untyped. Checking is what makes it a `ZodType` here, and it also
+      // skips anything Zod may one day put in a shape that is not a schema.
+      if (child instanceof z.ZodType) walk(child, [...path, key], out);
     }
-    walk(child, [...path, key], out);
+    return;
   }
+
+  // A classified union or list is a leaf: a list of ids, a date or a reference.
+  if (meta) return;
+
+  // Otherwise each alternative, at the same path, and each item, are
+  // classified on their own: a capability's results, a row in a result.
+  if (held instanceof z.ZodUnion) {
+    for (const option of held.options) if (option instanceof z.ZodType) walk(option, path, out);
+    return;
+  }
+  if (held instanceof z.ZodArray && held.element instanceof z.ZodType) {
+    walk(held.element, [...path, ITEMS], out);
+    return;
+  }
+
+  out.unclassified.push(plainPath(path));
 }
 
 /**
- * The object underneath, looking through any wrappers.
+ * The schema underneath, looking through any wrappers.
  *
  * A `z.object({...}).optional()` is still an object for the purposes of the
  * walk, and the previous `def.type === 'object'` test missed that: a wrapped
  * nested object was never descended into, so nothing inside it was ever
  * classified or reported.
  */
-function asObject(schema: z.ZodType): z.ZodObject | undefined {
-  let current: z.ZodType | undefined = schema;
-  while (current) {
-    if (current instanceof z.ZodObject) return current;
-    current = unwrapOnce(current);
+function innermost(schema: z.ZodType): z.ZodType {
+  let current = schema;
+  for (let inner = unwrapOnce(current); inner && inner !== current; inner = unwrapOnce(current)) {
+    current = inner;
   }
-  return undefined;
+  return current;
 }
 
 /** Repo root, from this file's own location rather than from `process.cwd()`. */
@@ -187,6 +214,11 @@ function writePaths(file: string, name: string, why: string, paths: readonly str
 function main(): void {
   const out: PolicyManifest = { redact: [], denyAi: [], export: [], unclassified: [] };
   for (const event of allEvents) walk(event.payload, ['payload'], out);
+  // Beside the events, every capability's call and result (assistant PRD §8.2).
+  for (const c of allCapabilities) {
+    walk(c.schemas.input, ['capability', c.name, 'input'], out);
+    walk(c.schemas.output, ['capability', c.name, 'output'], out);
+  }
 
   if (out.unclassified.length > 0) {
     console.error('Contract fields with no classification policy:');

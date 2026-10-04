@@ -13,7 +13,7 @@ import type { Attribute, Section } from '../../domain/schema/draft.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS } from './core.js';
 import type { PersonAccessDeps } from './person-access.js';
-import { LEAVERS, type PersonRecord, type PersonSearch } from './ports.js';
+import { LEAVERS, type PersonRecord, type PersonSearch, type Refine } from './ports.js';
 import type { IdentifierReviews } from './identifier-review.js';
 import type { IdentifierReview } from '../../domain/person/identifier-review.js';
 import { utcCalendars } from '../org/org.js';
@@ -188,8 +188,11 @@ export function inMemoryPeople(
     where: Readonly<Record<string, string>>,
     search: PersonSearch | undefined,
     leavers = true,
+    // Of the directory's refinements, only the assistant's join: conditions are the database's.
+    refine?: Refine,
   ): boolean => {
     if (!leavers && (LEAVERS as readonly string[]).includes(r.snapshot.status)) return false;
+    if (refine?.personIds !== undefined && !refine.personIds.includes(r.snapshot.id)) return false;
     // `manager_id` is a typed column; the rest are `custom`, as the reader's.
     if (
       !Object.entries(where).every(([k, v]) =>
@@ -225,17 +228,17 @@ export function inMemoryPeople(
       },
       records: (_tx, _tenant, ids) =>
         Promise.resolve(ids.flatMap((id) => (rows.has(id) ? [toRecord(rows.get(id) as Row)] : []))),
-      page: (_tx, _tenant, after, limit, where = {}, search, _gaps, leavers = true) =>
+      page: (_tx, _tenant, after, limit, where = {}, search, _gaps, leavers = true, _in, refine) =>
         Promise.resolve(
           [...rows.values()]
             .filter((r) => after === null || r.snapshot.id > after)
-            .filter((r) => matches(r, where, search, leavers))
+            .filter((r) => matches(r, where, search, leavers, refine))
             .toSorted((a, b) => a.snapshot.id.localeCompare(b.snapshot.id))
             .slice(0, limit)
             .map(toRecord),
         ),
-      count: (_tx, _tenant, where = {}, search, leavers = true) => {
-        const found = [...rows.values()].filter((r) => matches(r, where, search, leavers));
+      count: (_tx, _tenant, where = {}, search, leavers = true, _gaps, _in, refine) => {
+        const found = [...rows.values()].filter((r) => matches(r, where, search, leavers, refine));
         return Promise.resolve({
           all: found.length,
           active: found.filter((r) => r.snapshot.status === 'active').length,

@@ -62,6 +62,12 @@ storybook:
 test-stories:
     pnpm test:stories
 
+# Needs ASSISTANT_EVAL_LIVE=1 and ASSISTANT_API_KEY. `--record` writes the
+# recording CI replays; `--stub` records the expected plans with no model.
+# The assistant's eval set against the real model (assistant PRD §13.2).
+assistant-eval *args:
+    pnpm --filter @kithena/assistant eval {{args}}
+
 # Regenerate JSON Schema, redaction paths and DSAR manifest from Zod contracts.
 codegen:
     pnpm --filter @kithena/codegen generate
@@ -140,6 +146,9 @@ admin-dev postgres_port=env_var_or_default("POSTGRES_PORT", "5432") valkey_port=
     WEBAUTHN_RP_ID=localhost \
     ADMIN_RP_ID=localhost ADMIN_ORIGIN=http://localhost:3001 \
       npx tsx platform/identity/src/main.ts &
+    # The assistant, so a Slack question reaches identity's asker route; People
+    # and Time Off are `just dev`'s, and one not running is left out.
+    npx tsx platform/assistant/src/main.ts &
     trap 'kill 0' EXIT
     (cd apps/auth/shell && npx modern dev) &
     cd apps/admin && npx next dev -p 3001

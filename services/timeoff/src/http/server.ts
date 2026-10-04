@@ -5,7 +5,8 @@ import { systemClock } from '@kithena/domain-kit';
 import type { Deps } from '../application/ports.js';
 import { configureGraphQL, yogaOptions } from '../graphql/schema.js';
 import { uuidv7 } from '../infrastructure/ids.js';
-import type { CallerFrom } from './caller.js';
+import { CAPABILITIES_PREFIX, capabilitiesHandler } from './capabilities.js';
+import { callerFromHeaders, type CallerFrom } from './caller.js';
 import { openApiDocument } from './openapi.js';
 import { restHandler, type RestRequest, type RestResponse } from './rest.js';
 import { SCIM_PREFIX, scimHandler, type ScimRequest, type ScimResponse } from './scim.js';
@@ -24,8 +25,9 @@ async function bodyOf(request: IncomingMessage): Promise<string> {
 
 /**
  * The one request listener on Time Off's one port: `/healthz`, the OpenAPI
- * document, REST v1 in front of GraphQL — the way People's `wirePeople` puts
- * its routes before Yoga — and everything else to GraphQL.
+ * document, REST v1 and the assistant's capabilities in front of GraphQL —
+ * the way People's `wirePeople` puts its routes before Yoga — and everything
+ * else to GraphQL.
  *
  * `/healthz` needs nothing — no database, no broker — so it says the process
  * is up and serving, which is what a container health check asks.
@@ -34,6 +36,7 @@ export function timeoffListener(
   graphql: Listener,
   rest?: RestDispatch,
   scim?: ScimDispatch,
+  capabilities?: RestDispatch,
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
@@ -63,12 +66,19 @@ export function timeoffListener(
       });
       return;
     }
-    if (rest === undefined || !(request.url ?? '').startsWith('/v1/')) {
+    // The assistant's capabilities: its own token, never the router's (`capabilities.ts`).
+    const url = request.url ?? '';
+    const dispatch = url.startsWith(CAPABILITIES_PREFIX)
+      ? capabilities
+      : url.startsWith('/v1/')
+        ? rest
+        : undefined;
+    if (dispatch === undefined) {
       graphql(request, response);
       return;
     }
     void (async () => {
-      const answer = await rest({
+      const answer = await dispatch({
         method: request.method ?? 'GET',
         url: request.url ?? '/',
         headers: request.headers,
@@ -97,6 +107,8 @@ export interface TimeOffServerOptions extends Pick<
   'uow' | 'authz' | 'feedSecret' | 'judge' | 'writer'
 > {
   readonly callerFrom: CallerFrom;
+  /** The assistant's, over `ASSISTANT_TIMEOFF_TOKEN`; without it its capabilities refuse everybody. */
+  readonly assistantCallerFrom?: CallerFrom;
   readonly clock?: Deps['clock'];
   readonly newId?: Deps['newId'];
   /** Temporal's, when `TEMPORAL_ADDRESS` is set; without it nothing reminds or escalates. */
@@ -118,6 +130,7 @@ export function timeoffServer(options: TimeOffServerOptions): {
   readonly listener: Listener;
   readonly rest: RestDispatch;
   readonly scim: ScimDispatch;
+  readonly capabilities: RestDispatch;
   readonly graphql: ReturnType<typeof createYoga>;
 } {
   const deps: Deps = {
@@ -134,6 +147,10 @@ export function timeoffServer(options: TimeOffServerOptions): {
     ...(options.writer === undefined ? {} : { writer: options.writer }),
   };
   const rest = restHandler({ deps, callerFrom: options.callerFrom });
+  const capabilities = capabilitiesHandler({
+    deps,
+    callerFrom: options.assistantCallerFrom ?? callerFromHeaders(''),
+  });
   const publicUrl = (options.reach?.publicUrl ?? 'http://localhost:4002').replace(/\/$/u, '');
   const scim = scimHandler(deps, `${publicUrl}${SCIM_PREFIX}`);
   configureGraphQL({ rest });
@@ -141,6 +158,7 @@ export function timeoffServer(options: TimeOffServerOptions): {
   return {
     rest,
     scim,
+    capabilities,
     graphql,
     listener: timeoffListener(
       (request, response) => {
@@ -148,6 +166,7 @@ export function timeoffServer(options: TimeOffServerOptions): {
       },
       rest,
       scim,
+      capabilities,
     ),
   };
 }

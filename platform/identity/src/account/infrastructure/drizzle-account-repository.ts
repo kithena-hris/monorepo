@@ -337,3 +337,26 @@ export async function recordCapturedName(
   `);
   return [...rows].length > 0;
 }
+
+/**
+ * The active member accounts with this work email, for the assistant's asker
+ * route: at most two, which is enough to refuse. Case-insensitive, as the
+ * live-email index is. A suspended or terminated account is not asking
+ * anything.
+ */
+export function askerAccounts(
+  tx: PostgresJsDatabase,
+  email: string,
+): Promise<{ id: string; timeZone: string }[]> {
+  return tx
+    .select({ id: account.id, timeZone: account.timeZone })
+    .from(account)
+    .where(
+      and(
+        eq(account.status, 'active'),
+        eq(account.kind, 'member'),
+        sql`lower(${account.workEmail}) = lower(${email})`,
+      ),
+    )
+    .limit(2);
+}

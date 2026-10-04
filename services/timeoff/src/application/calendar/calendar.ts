@@ -1,6 +1,7 @@
 import { ok, type Result } from '@kithena/domain-kit';
 import {
   CalendarDate,
+  type LeaveTypeDefinition,
   type LocationKey,
   type PersonId,
   type TeamKey,
@@ -53,10 +54,14 @@ export interface CalendarView {
   readonly coverage: readonly DayCoverage[];
 }
 
-type Sight = 'type' | 'teammate';
+export type Sight = 'type' | 'teammate';
+type LeaveTypeVisibility = LeaveTypeDefinition['visibility'];
 
-/** How much of a member's time off the caller may see, or `null` for none of it. */
-async function sightOf(
+/**
+ * How much of a member's time off the caller may see, or `null` for none of
+ * it. The calendar's rule, and the assistant's (`assist/capabilities.ts`).
+ */
+export async function sightOf(
   deps: Pick<Deps, 'authz'>,
   caller: Caller,
   member: Member,
@@ -70,6 +75,31 @@ async function sightOf(
     return 'type';
   }
   return (await relates(deps, caller, 'teammate', member.personId)) ? 'teammate' : null;
+}
+
+/**
+ * Whether an absence shows its leave type to somebody with `sight` of the
+ * member: always to the member, their approvers and HR; to a teammate only
+ * where the type says so — never sick or parental leave (§6.1). Otherwise it
+ * is "Off" and nothing else.
+ */
+export const seesType = (sight: Sight, visibility: LeaveTypeVisibility | undefined): boolean =>
+  sight === 'type' || visibility === 'type';
+
+/** A request's runs of days overlapping `from`–`to`, each with its own half days. */
+export function runsIn(
+  request: LeaveRequest,
+  from: CalendarDate,
+  to: CalendarDate,
+): TeammateRequestView['span'][] {
+  return request.spans
+    .filter((run) => run.to >= from && run.from <= to)
+    .map((run) => ({
+      from: run.from,
+      to: run.to,
+      startsHalfDay: run.from === request.span.from && request.span.startsHalfDay,
+      endsHalfDay: run.to === request.span.to && request.span.endsHalfDay,
+    }));
 }
 
 const SHOWN: readonly LeaveRequest['status'][] = [...LIVE, 'taken'];
@@ -123,25 +153,18 @@ export async function calendarIn(
   const entries = records.flatMap(({ request }): TeammateRequestView[] => {
     const who = seen.get(request.personId);
     if (who === undefined) return [];
-    const off = who.sight === 'teammate' && visibility.get(request.leaveType.key) !== 'type';
-    return request.spans
-      .filter((run) => run.to >= query.from && run.from <= query.to)
-      .map((run) => {
-        const base = {
-          requestId: request.id,
-          personId: request.personId,
-          span: {
-            from: run.from,
-            to: run.to,
-            startsHalfDay: run.from === request.span.from && request.span.startsHalfDay,
-            endsHalfDay: run.to === request.span.to && request.span.endsHalfDay,
-          },
-          status: request.status,
-        };
-        return off
-          ? { ...base, shows: 'off' as const }
-          : { ...base, shows: 'type' as const, leaveTypeKey: request.leaveType.key };
-      });
+    const off = !seesType(who.sight, visibility.get(request.leaveType.key));
+    return runsIn(request, query.from, query.to).map((span) => {
+      const base = {
+        requestId: request.id,
+        personId: request.personId,
+        span,
+        status: request.status,
+      };
+      return off
+        ? { ...base, shows: 'off' as const }
+        : { ...base, shows: 'type' as const, leaveTypeKey: request.leaveType.key };
+    });
   });
 
   const people = [...seen.values()].map(({ member }) => member);
@@ -181,7 +204,8 @@ export async function calendarIn(
   });
 }
 
-async function holidaysFor(
+/** The public holidays at the members' locations in `from`–`to`, by date. */
+export async function holidaysFor(
   tx: Tx,
   people: readonly Member[],
   from: CalendarDate,

@@ -65,6 +65,7 @@ const acme = (): IntegrationsData => ({
     { key: 'benefits', events: ['timeoff.parental.birth_recorded'] },
     { key: 'projects', events: ['timeoff.request.approved'] },
   ],
+  chatAnswers: { namesPrivateLeave: false },
 });
 
 const ready = () => ({ status: 'ready' as const, data: acme() });
@@ -146,6 +147,39 @@ describe('integrations (T35)', () => {
     expect(onRegisterKiosk).toHaveBeenCalledWith({ name: 'Back door', locationKey: 'madrid' });
     const shown = within(screen.getByRole('dialog', { name: 'Open this on the tablet' }));
     expect(shown.getByText(/\/kiosk\/k-2#token=kk_shown-once$/u)).toBeTruthy();
+  });
+
+  it('lets HR name people on private leave in chat answers, behind the warning (AST-029a)', async () => {
+    const onChatAnswers = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const { container } = render(<Integrations load={ready()} onChatAnswers={onChatAnswers} />);
+    const toggle = screen.getByRole('switch', {
+      name: 'Name people on private leave in chat answers',
+    });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(screen.getByText(/health data is stored by your chat provider/u)).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(toggle);
+      await Promise.resolve();
+    });
+    expect(onChatAnswers).toHaveBeenCalledWith({ namesPrivateLeave: true });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('puts the switch back when Time Off refuses it', async () => {
+    const onChatAnswers = vi.fn(() =>
+      Promise.resolve({ ok: false as const, message: 'Only HR can change this.' }),
+    );
+    render(<Integrations load={ready()} onChatAnswers={onChatAnswers} />);
+    const toggle = screen.getByRole('switch', {
+      name: 'Name people on private leave in chat answers',
+    });
+    await act(async () => {
+      fireEvent.click(toggle);
+      await Promise.resolve();
+    });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(screen.getByText('Only HR can change this.')).toBeTruthy();
   });
 
   it('draws its loading state in the page’s shape', async () => {

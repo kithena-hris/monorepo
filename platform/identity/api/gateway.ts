@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { deploymentEntitlements } from '@kithena/contracts';
 
 import { compose, type RequestHandler } from '../src/composition.js';
 
@@ -65,7 +66,8 @@ function routes(): Promise<RequestHandler> {
      */
     ...(process.env['IDENTITY_IMAGE_HOSTS']
       ? {
-          imageHosts: process.env['IDENTITY_IMAGE_HOSTS'].split(',')
+          imageHosts: process.env['IDENTITY_IMAGE_HOSTS']
+            .split(',')
             .map((host) => host.trim())
             .filter((host) => host !== ''),
         }
@@ -78,10 +80,21 @@ function routes(): Promise<RequestHandler> {
     // Optional. Absent, invitations are not emailed and the enrolment link
     // comes back in the response only — a supported deployment, not a broken one.
     ...(process.env['MESSAGING_URL'] ? { messagingUrl: process.env['MESSAGING_URL'] } : {}),
+    // The assistant's own secret for its asker route; unset refuses it.
+    ...(process.env['ASSISTANT_IDENTITY_TOKEN']
+      ? { assistantToken: process.env['ASSISTANT_IDENTITY_TOKEN'] }
+      : {}),
     // Its own secret, falling back to the shared one. See `Config.messagingToken`.
     ...(process.env['MESSAGING_API_TOKEN']
       ? { messagingToken: process.env['MESSAGING_API_TOKEN'] }
       : {}),
+    // The same, for People reading a tenant's accounts. See `Config.peopleToken`.
+    ...(process.env['PEOPLE_IDENTITY_TOKEN']
+      ? { peopleToken: process.env['PEOPLE_IDENTITY_TOKEN'] }
+      : {}),
+    // What a company with no modules recorded holds (PEO-114). Without it such
+    // a company looks as if it had none, and the assistant would say so.
+    defaultEntitlements: deploymentEntitlements(process.env['KITHENA_ENTITLEMENTS']),
   });
   return routesPromise;
 }

@@ -1387,6 +1387,12 @@ export const KioskSyncView = named(
 
 export const IntegrationProviderView = z.enum(['google', 'microsoft', 'slack', 'teams']);
 
+/** What a chat answer may say about private leave (assistant PRD §11.4): HR's switch. */
+export const ChatAnswersBody = named(
+  'TimeOffChatAnswers',
+  z.strictObject({ namesPrivateLeave: z.boolean() }),
+);
+
 /** T35: calendars, chat apps, kiosks, country packs and the modules that would read Time Off. */
 export const IntegrationsView = named(
   'TimeOffIntegrations',
@@ -1421,6 +1427,7 @@ export const IntegrationsView = named(
     modules: z.array(
       named('TimeOffConsumingModule', z.object({ key: z.string(), events: z.array(z.string()) })),
     ),
+    chatAnswers: ChatAnswersBody,
   }),
 );
 

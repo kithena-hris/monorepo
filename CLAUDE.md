@@ -108,6 +108,17 @@ than quietly working around it.
   module needing a genuinely analytical chart takes that as a module
   dependency.
 
+- **The assistant is a platform service, `platform/assistant`.** Like
+  messaging, nobody buys it and `ModuleKey` does not list it. It reaches a
+  module only through that module's capability routes, whose shapes live in
+  `packages/contracts` (`assistant/`), each pair with its own token; no module
+  imports it or calls it. **The model only plans**: it sees capability and
+  field names, never a value, and writes no text after anything is looked up.
+  The assistant's domain computes every number and writes every answer, and
+  the module decides who may see what. In a chat app a private leave type is
+  never written beside a name unless the company has switched that on in Time
+  Off.
+
 Full reasoning lives in `docs/tech-stack.md`.
 
 ## Rules that are enforced, not suggested
@@ -210,7 +221,7 @@ just test-all             # unit + integration + contract
 just codegen              # regenerate derived artifacts from Zod contracts
 just standalone timeoff   # boot one module with no siblings
 just supergraph           # compose the federated schema locally
-just admin-dev            # messaging, identity, the auth origin and the back-office
+just admin-dev            # messaging, identity, the assistant, the auth origin and the back-office
 just invite <tenant> <email>  # invite one person and send them their link
 just storybook            # design system docs on :6006
 just test-stories         # render every story in Chromium, run axe over it
@@ -242,6 +253,16 @@ Requirements are in `docs/timeoff-prd.md` and the tickets, `TOF-001` to
 in the same way. Each lane is a pull request into `time-off`; `time-off` goes to
 `main` once, when every lane has landed. The screens are `T1`–`T36` (web) and
 `MT1`–`MT21` (mobile) in the same Claude Design project as People.
+
+**The Assistant is specified and being built on the `assistant` branch.** A
+platform service, `platform/assistant`, that answers questions in words across
+the modules a company has: each module publishes typed capabilities in
+`packages/contracts`, a model only plans which to call, and every call runs as
+the asker in the module's own authorization. Requirements are in
+`docs/assistant-prd.md` and the tickets, `AST-001` to `AST-036`, in
+`docs/assistant-build-plan.md`, which is the record of its progress in the same
+way. Each lane is a pull request into `assistant`; `assistant` goes to `main`
+once, when Phase 1's lanes have landed.
 
 ## Adding a module
 

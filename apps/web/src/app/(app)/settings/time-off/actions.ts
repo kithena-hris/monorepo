@@ -179,6 +179,13 @@ export async function registerKiosk(input: {
   return a.ok ? { ok: true, ...a.data } : { ok: false, message: a.message };
 }
 
+/** Whether a chat answer may name people on private leave (assistant PRD §11.4); HR. */
+export async function setChatAnswers(input: {
+  readonly namesPrivateLeave: boolean;
+}): Promise<Outcome> {
+  return outcome(await timeOff('SetTimeOffChatAnswers', { input }));
+}
+
 /** T35: the kiosk's token stops working at once. */
 export async function revokeKiosk(deviceId: string): Promise<Outcome> {
   return outcome(await timeOff('RevokeTimeOffKiosk', { deviceId }));

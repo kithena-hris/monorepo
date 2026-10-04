@@ -104,6 +104,11 @@ export interface Refine {
   readonly match?: 'all' | 'any';
   readonly sort?: { readonly key: string; readonly direction: 'asc' | 'desc' };
   readonly offset?: number;
+  /**
+   * Only these people, of those the rest finds: the assistant's join (PRD
+   * §9.5). It narrows and never widens, so it is authorized as the list is.
+   */
+  readonly personIds?: readonly string[];
 }
 
 /** A directory search: the text, and the core keys it may be matched against. */

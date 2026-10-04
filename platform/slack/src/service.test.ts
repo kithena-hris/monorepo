@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { signState } from './secrets.js';
-import { slackService, type People, type Slack, type TimeOff } from './service.js';
+import { slackService, type Assistant, type People, type Slack, type TimeOff } from './service.js';
 import { memoryStore } from './store.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
@@ -13,6 +13,8 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
   const posted: { channel: string; text: string; blocks: readonly unknown[] }[] = [];
   const replaced: { text: string }[] = [];
   const acted: Record<string, unknown>[] = [];
+  /** Every answer, by the call that carried it. */
+  const said: { via: string; m: Record<string, unknown> }[] = [];
   const slack: Slack = {
     emailOf: () => Promise.resolve('pam@acme.example'),
     userByEmail: (_t, email) => Promise.resolve(email === 'pam@acme.example' ? 'U1' : null),
@@ -20,8 +22,18 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       posted.push(m);
       return Promise.resolve();
     },
-    postMessage: () => Promise.resolve(),
-    respond: () => Promise.resolve(),
+    postMessage: (_t, m) => {
+      said.push({ via: 'postMessage', m });
+      return Promise.resolve();
+    },
+    postEphemeral: (_t, m) => {
+      said.push({ via: 'postEphemeral', m });
+      return Promise.resolve();
+    },
+    respond: (url, text) => {
+      said.push({ via: 'respond', m: { url, text } });
+      return Promise.resolve();
+    },
     replaceMessage: (_u, m) => {
       replaced.push(m);
       return Promise.resolve();
@@ -32,8 +44,16 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       Promise.resolve({ botToken: 'xoxb-new', teamId: 'T2', teamName: 'Acme', botUserId: 'B1' }),
     revoke: () => Promise.resolve(),
   };
+  const asked: { tenantId: string; email: string; question: string }[] = [];
+  const assistant: Assistant = {
+    ask: (tenantId, email, question) => {
+      asked.push({ tenantId, email, question });
+      return question === 'down'
+        ? Promise.reject(new Error('ECONNREFUSED'))
+        : Promise.resolve({ text: '3 people are off today.', understood: 'Away today' });
+    },
+  };
   const people: People = {
-    ask: () => Promise.resolve(null),
     act: (_t, _e, action) => {
       acted.push(action);
       const answer = answers[String(action['action'])];
@@ -53,6 +73,7 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
   const service = slackService({
     store,
     people,
+    assistant,
     timeOff,
     slack,
     command: '/kithena',
@@ -64,7 +85,7 @@ function world(answers: Partial<Record<string, unknown>> = {}) {
       stateSecret: secret,
     },
   });
-  return { store, service, posted, replaced, acted, relayed, secret };
+  return { store, service, posted, replaced, acted, relayed, said, asked, secret };
 }
 
 const connect = (store: ReturnType<typeof memoryStore>, tenantId = TENANT, teamId = 'T1') =>
@@ -117,6 +138,72 @@ describe('notify', () => {
     expect(sent).toContain('"value":"ca_a"');
     expect(sent).toContain('"action_id":"timeoff_decline","style":"danger"');
     expect(sent).toContain('"value":"ca_d"');
+  });
+});
+
+describe('a question', () => {
+  const ask = (
+    text: string,
+    reply: Parameters<ReturnType<typeof world>['service']['question']>[0]['reply'],
+  ) => ({
+    team: 'T1',
+    user: 'U7',
+    text,
+    reply,
+  });
+
+  it('is asked of the assistant as the asker, and a slash command is answered through its response URL', async () => {
+    const w = world();
+    await connect(w.store);
+    await w.service.question(
+      ask('who is off today?', { via: 'response_url', url: 'https://hooks/c' }),
+    );
+    expect(w.asked).toEqual([
+      { tenantId: TENANT, email: 'pam@acme.example', question: 'who is off today?' },
+    ]);
+    expect(w.said).toEqual([
+      { via: 'respond', m: { url: 'https://hooks/c', text: '3 people are off today.' } },
+    ]);
+  });
+
+  it('answers a direct message in the conversation', async () => {
+    const w = world();
+    await connect(w.store);
+    await w.service.question(ask('who is off today?', { via: 'channel', channel: 'D1' }));
+    expect(w.said).toEqual([
+      { via: 'postMessage', m: { channel: 'D1', text: '3 people are off today.' } },
+    ]);
+  });
+
+  it('answers a mention to the asker alone, in its thread', async () => {
+    const w = world();
+    await connect(w.store);
+    await w.service.question(
+      ask('who is off today?', { via: 'thread', channel: 'C1', threadTs: '1.2' }),
+    );
+    expect(w.said).toEqual([
+      {
+        via: 'postEphemeral',
+        m: { channel: 'C1', user: 'U7', text: '3 people are off today.', threadTs: '1.2' },
+      },
+    ]);
+  });
+
+  it('says sorry when the assistant cannot be reached, and helps when asked nothing', async () => {
+    const w = world();
+    await connect(w.store);
+    await w.service.question(ask('down', { via: 'channel', channel: 'D1' }));
+    await w.service.question(ask('', { via: 'channel', channel: 'D1' }));
+    expect(w.said[0]?.m['text']).toBe('Kithena could not do that just now. Try again in a moment.');
+    expect(w.said[1]?.m['text']).toMatch(/^Ask me about the people in your company/);
+    expect(w.asked).toHaveLength(1);
+  });
+
+  it('is not answered for a workspace no company connected', async () => {
+    const w = world();
+    await w.service.question(ask('who is off today?', { via: 'channel', channel: 'D1' }));
+    expect(w.asked).toEqual([]);
+    expect(w.said).toEqual([]);
   });
 });
 
