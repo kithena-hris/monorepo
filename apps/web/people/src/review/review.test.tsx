@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { ApprovalItem } from '../approvals/approvals';
 import type { ShareRequest } from '../export/export-done';
+import { fast } from '../test/user';
 import { done, renderReview } from './review.fixture';
 
 /** A request to send an export, waiting for this administrator (E5). */
@@ -231,6 +232,35 @@ describe('Review', () => {
     expect(within(table).getByText('Nobody, in 7 days')).toBeInTheDocument();
     expect(within(table).getByText('Sent back')).toBeInTheDocument();
     expect(within(table).getByText('Ada Lovelace')).toBeInTheDocument();
+  });
+
+  it('shows a chosen chip at once, before the address echoes it', async () => {
+    const onKindChange = vi.fn();
+    renderReview(
+      {
+        approvals: { isHr: true, items: [], decided: [] },
+        identifiers: {
+          items: [],
+          decided: [
+            {
+              personId: 'p2',
+              name: 'Adam Novak',
+              label: 'National ID',
+              outcome: 'sent_back',
+              decidedBy: 'Ada Lovelace',
+              decidedAt: '2026-09-22T09:00:00.000Z',
+              note: null,
+            },
+          ],
+        },
+      },
+      { tab: 'decided', kind: null, onKindChange },
+    );
+    const chip = screen.getByRole('radio', { name: /ID checks 1/u });
+    await fast().click(chip);
+    expect(onKindChange).toHaveBeenCalledWith('ids');
+    // The host has not echoed it into `kind`: the chip is chosen anyway.
+    expect(chip).toBeChecked();
   });
 
   it('loads older decisions as it scrolls, an older ID check waiting for the changes around it', async () => {

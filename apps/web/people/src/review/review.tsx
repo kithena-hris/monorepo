@@ -55,7 +55,7 @@ import {
   type FullValuesState,
 } from '../export/full-values';
 import { FORMAT_LABEL, firstName, listed, spokenDate } from '../export/words';
-import { useHeld } from '../held';
+import { useHeldAtOnce } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type { SearchPeople } from '../record/attribute-input';
 import { DisplayValue } from '../record/display';
@@ -403,13 +403,14 @@ function Queue({
 }: Omit<ReviewProps, 'load'> & { readonly state: ReviewState }): JSX.Element {
   const viewer = viewerOf(state);
   const chips = viewer === 'hr' ? CHIPS[tab] : [];
-  const [chosen, setChosen] = useHeld<string | null>(
+  // A chip or a row shows at once; the address follows (`useHeldAtOnce`).
+  const [chosen, setChosen] = useHeldAtOnce<string | null>(
     heldKind,
     onKindChange as never,
     heldKind ?? null,
   );
   const kind = chips.find((k) => k === chosen) ?? null;
-  const [picked, pick] = useHeld<string | null>(heldItem, onItemChange, heldItem ?? null);
+  const [picked, pick] = useHeldAtOnce<string | null>(heldItem, onItemChange, heldItem ?? null);
   const now = Date.parse(state.now);
   // A, on a change's row: it opens with the note to write, as its button needs one.
   const [noteFor, setNoteFor] = useState<string | null>(null);
