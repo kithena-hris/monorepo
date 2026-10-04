@@ -40,19 +40,43 @@ export function shellData(entitlements: readonly string[]): Promise<ShellData> {
 }
 
 const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
+  // Every other area's manifest, asked beside People rather than after it.
+  const [shell, remotes] = await Promise.all([
+    peopleShell(key === '' ? [] : key.split('\n')),
+    remotesOnce(key),
+  ]);
+  return { ...shell, remotes };
+});
+
+/**
+ * Every other area's places for this viewer, once per request, by entitlement
+ * set: what a Time Off page's header needs from the shell, without waiting
+ * for People's overview, the slowest read behind the rest of it.
+ */
+export function remotePlaces(
+  entitlements: readonly string[],
+): Promise<NonNullable<ShellData['remotes']>> {
+  return remotesOnce(entitlements.join('\n'));
+}
+
+const remotesOnce = cache(async (key: string): Promise<NonNullable<ShellData['remotes']>> => {
   const entitlements = key === '' ? [] : key.split('\n');
-  // Every other area's manifest, asked beside People rather than after it;
-  // cut to the roles People answers with, none where there is no People.
   const others = Object.values(AREAS).filter(
     (a) => a !== AREAS.people && entitlements.includes(a.entitlement),
   );
-  const base = peopleShell(entitlements);
-  const [shell, areas] = await Promise.all([
-    base,
-    Promise.all(others.map(async (a) => [a.name, await areaPlaces(a, base)] as const)),
-  ]);
-  const remotes = Object.fromEntries(areas.flatMap(([name, p]) => (p === null ? [] : [[name, p]])));
-  return { ...shell, remotes };
+  // Cut to the roles People answers with (its overview carries them too, when
+  // only that answers), none where there is no People.
+  const roles = entitlements.includes('module.people')
+    ? people<ShellData['roles']>('Home').then(async (h) => {
+        if (h.ok) return h.data;
+        const overview = await people<Overview>('Overview');
+        return overview.ok ? overview.data.roles : EMPTY_SHELL.roles;
+      })
+    : Promise.resolve(EMPTY_SHELL.roles);
+  const areas = await Promise.all(
+    others.map(async (a) => [a.name, await areaPlaces(a, roles)] as const),
+  );
+  return Object.fromEntries(areas.flatMap(([name, p]) => (p === null ? [] : [[name, p]])));
 });
 
 /**
@@ -62,16 +86,19 @@ const shellDataOnce = cache(async (key: string): Promise<ShellData> => {
  * for them is its counts. A Time Off that does not answer leaves the shell's
  * roles and no counts, never a guess.
  */
-async function areaPlaces(area: Area, base: Promise<ShellData>): Promise<AreaPlaces | null> {
-  const [found, shell, viewer] = await Promise.all([
+async function areaPlaces(
+  area: Area,
+  roles: Promise<ShellData['roles']>,
+): Promise<AreaPlaces | null> {
+  const [found, held, viewer] = await Promise.all([
     remoteNav(area),
-    base,
+    roles,
     area === AREAS.timeoff
       ? timeOff<TimeOffViewer>('TimeOffViewer').then((a) => (a.ok ? a.data : null))
       : null,
   ]);
   if (found === null) return null;
-  const places = placesFor(found.nav, timeOffRoles(shell.roles, viewer));
+  const places = placesFor(found.nav, timeOffRoles(held, viewer));
   const counts = timeOffCounts(viewer, places.sections);
   return {
     ...places,
@@ -83,23 +110,45 @@ async function areaPlaces(area: Area, base: Promise<ShellData>): Promise<AreaPla
   };
 }
 
+/**
+ * People's reads behind the shell, started: each answered once per request
+ * (`read` in `people.ts`), so whichever asks first starts them and the rest
+ * find them on their way.
+ */
+function shellReads() {
+  return [
+    people<Overview>('Overview'),
+    people<ShellData['roles']>('Home'),
+    waitingFor(),
+    people<never>('Approvals', {}),
+  ] as const;
+}
+
+/**
+ * Start the shell's People reads now, before the session check returns and
+ * before anything knows the company has People: a People page knows it is
+ * one from its address, and these are what its header waits for. Every
+ * answer is still withheld until the session is confirmed (`people.ts`); one
+ * nobody uses is dropped.
+ */
+export function warmShell(): void {
+  void Promise.all(shellReads());
+}
+
 /** People's part of the shell: its places, counts and notices, for a company that has it. */
 async function peopleShell(entitlements: readonly string[]): Promise<ShellData> {
   if (!entitlements.includes('module.people')) return EMPTY_SHELL;
   // All at once: the roles on their own (People answers them whether or not
   // anything is published yet, which the overview does not), the overview,
-  // and what waits for a decision, which needs nobody's roles to be asked.
-  // The changes flagged for whoever decides, asked as soon as the roles say HR.
-  const roles0 = people<ShellData['roles']>('Home');
-  const flaggedP = roles0.then((h) => (h.ok && h.data.hr ? people<never>('Approvals', {}) : null));
-  const [route, overview, answered, waiting, approvals] = await Promise.all([
+  // what waits for a decision, which needs nobody's roles to be asked, and
+  // the changes flagged for whoever decides — asked beside the roles rather
+  // than after them, and kept only when the roles say HR.
+  const [route, overview, answered, waiting, flagged] = await Promise.all([
     // The manifest, whichever path is asked for: People's own front page is Home's now.
     remoteNav(AREAS.people).catch(() => null),
-    people<Overview>('Overview'),
-    roles0,
-    waitingFor(),
-    flaggedP,
+    ...shellReads(),
   ]);
+  const approvals = answered.ok && answered.data.hr ? flagged : null;
   const data = overview.ok ? overview.data : null;
   const roles = answered.ok ? answered.data : (data?.roles ?? EMPTY_SHELL.roles);
   if (route === null) return { ...EMPTY_SHELL, roles };

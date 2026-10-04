@@ -833,6 +833,8 @@ export {
 export type { Breakpoint } from './lib/use-media-query';
 
 export { useInView } from './lib/use-in-view';
+export { usePages } from './lib/use-pages';
+export type { LoadedPage } from './lib/use-pages';
 export { PINNED_BAR, useClearOfPinned } from './lib/pinned';
 export type { UseInViewOptions } from './lib/use-in-view';
 

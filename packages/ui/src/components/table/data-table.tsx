@@ -56,7 +56,7 @@ import {
   type RowData,
   type SortingState,
 } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { observeElementRect, useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import { ArrowUpDown, ChevronRight, GripVertical, X } from 'lucide-react';
 
 import { bulkBarClass } from '../../lib/bulk-bar';
@@ -221,6 +221,22 @@ const COLUMN_MAX = 960;
 const COLUMN_DEFAULT = 176;
 /** How near the end, in px, counts as the end. */
 const END_MARGIN = 480;
+
+/** The box a virtualized table assumes until it has one: a window's height. */
+const UNMEASURED = { width: 0, height: 900 };
+
+/**
+ * The box's size as the virtualizer follows it, from its first real size on.
+ * A box with no height yet (not laid out, or hidden by a breakpoint) keeps
+ * `UNMEASURED`, so it draws rows rather than nothing.
+ */
+const observeSizedRect = (
+  instance: Virtualizer<HTMLDivElement, Element>,
+  cb: (rect: { width: number; height: number }) => void,
+): (() => void) | undefined =>
+  observeElementRect(instance, (rect) => {
+    if (rect.height > 0) cb(rect);
+  });
 
 const clampWidth = (w: number): number => Math.min(COLUMN_MAX, Math.max(COLUMN_MIN, Math.round(w)));
 
@@ -773,6 +789,12 @@ export function DataTable<T extends TableRow>({
     // mostly lands on rows already drawn. Where it outruns them, the spacers
     // are skeleton rows (`SpacerRow`), never blank.
     overscan: 20,
+    // Before its box has a size of its own (on the server, while hydrating,
+    // in a box not laid out yet) the table draws the rows a window would
+    // show, not a skeleton: the first HTML carries the first rows, and the
+    // browser's first render is the same as the server's.
+    initialRect: UNMEASURED,
+    observeElementRect: observeSizedRect,
   });
 
   // The pinned header's height: with every row counted at its height, the
@@ -945,11 +967,25 @@ export function DataTable<T extends TableRow>({
   // since a first page shorter than the container never scrolls at all.
   const endReached = useRef(onEndReached);
   endReached.current = onEndReached;
+  // "50 more loaded", as each page lands: the rows below the reader are not announced otherwise.
+  const [said, setSaid] = useState('');
+  const loadedBefore = useRef(rows.length);
+  // Infinite once is infinite for the announcement: the last page comes with no next.
+  const infinite = useRef(false);
+  if (onEndReached !== undefined) infinite.current = true;
+  useEffect(() => {
+    const added = rows.length - loadedBefore.current;
+    loadedBefore.current = rows.length;
+    if (infinite.current && added > 0) setSaid(`${String(added)} more loaded`);
+  }, [rows.length]);
   const wantsEnd = onEndReached !== undefined && !loadingMore;
   useEffect(() => {
     const el = scrollRef.current;
     if (el === null || !wantsEnd) return;
     const check = (): void => {
+      // A table not drawn (a desk's, hidden under a finger) is at no end at all.
+      // (`in`: jsdom has no `checkVisibility`, and draws nothing anyway.)
+      if ('checkVisibility' in el && !el.checkVisibility()) return;
       if (el.scrollHeight - el.scrollTop - el.clientHeight < END_MARGIN) endReached.current?.();
     };
     check();
@@ -1540,6 +1576,9 @@ export function DataTable<T extends TableRow>({
       )}
 
       {bulkBar}
+      <span aria-live="polite" className="sr-only">
+        {said}
+      </span>
     </div>
   );
 }

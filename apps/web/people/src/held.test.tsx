@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TYPING_MS, useHeld, useTyped } from './held';
+import { TYPING_MS, useHeld, useHeldAtOnce, useTyped } from './held';
 
 describe('useHeld', () => {
   it('is the host’s value when the host holds it, and its fallback when it holds none', () => {
@@ -17,6 +17,24 @@ describe('useHeld', () => {
     expect(onChange).toHaveBeenCalledWith('mine');
     rerender({ held: null });
     expect(result.current[0]).toBe('mine');
+  });
+
+  it('shows a choice at once, before the host echoes it, and follows the host after', () => {
+    const onChange = vi.fn();
+    const { result, rerender } = renderHook<
+      readonly [string, (next: string) => void],
+      { held: string | null }
+    >(({ held }) => useHeldAtOnce(held, onChange, 'all'), { initialProps: { held: null } });
+    act(() => {
+      result.current[1]('missing');
+    });
+    // The router has not answered yet: the screen already shows it.
+    expect(result.current[0]).toBe('missing');
+    rerender({ held: 'missing' });
+    expect(result.current[0]).toBe('missing');
+    // Back: the host's value wins.
+    rerender({ held: 'ids' });
+    expect(result.current[0]).toBe('ids');
   });
 
   it('is the screen’s own state in a host that holds nothing', () => {

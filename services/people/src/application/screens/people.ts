@@ -52,7 +52,11 @@ import {
 import { offersViewAs } from '../person/view-as.js';
 import {
   formValues,
+  hrFills,
+  hrToFill,
+  listOptions,
   nameOf,
+  orgChoices,
   NOBODY,
   personOfViewer,
   recordSections,
@@ -247,7 +251,8 @@ export async function ownRecord(
   const relations = await deps.relations.relations(tx, asking.tenantId, asking.viewer, personId);
   const verdict = await deps.service.access.completeness(tx, { ...asking, personId });
   const missing = new Set(verdict.ok ? verdict.value.missing.map((m) => m.key) : []);
-  const sections = recordSections(version, relations, include, missing, people);
+  const org = await orgChoices(deps, tx, asking.tenantId);
+  const sections = recordSections(version, relations, include, missing, people, org);
   // The person's doubted identifiers still open, on fields this viewer reads (PEO-125).
   const open = await deps.service.access.personReviews(tx, { ...asking, personId });
   const labels = new Map(
@@ -682,8 +687,10 @@ export interface ApprovalsView {
   /** HR sees every change waiting in the tenant; anybody else, their own. */
   readonly isHr: boolean;
   readonly items: readonly ApprovalItem[];
-  /** HR's: decided in the last 90 days, newest first. Empty for anybody else. */
+  /** HR's: decided in the last 90 days, newest first, a page at a time. Empty for anybody else. */
   readonly decided: readonly ApprovalItem[];
+  /** The place of the next page of `decided`, null on the last. */
+  readonly decidedNext: string | null;
   /** What Kithena checks (AI8), for HR; null for anybody else. */
   readonly checks: readonly CheckView[] | null;
   /** A People administrator switches the checks. */
@@ -693,7 +700,10 @@ export interface ApprovalsView {
 }
 
 const NINETY_DAYS_MS = 90 * 86_400_000;
-const DECIDED_SHOWN = 50;
+/** Decided, a keyset page at a time as the list scrolls. */
+export const DECIDED_PAGE = 50;
+/** A page's place: when the last one was decided (or lapsed), and its id. */
+const DECIDED_CURSOR = /^(\d{4}-\d{2}-\d{2}T[0-9:.]+Z)~([0-9a-f-]{36})$/u;
 
 const unflagged = {
   flags: [],
@@ -712,6 +722,11 @@ const unflagged = {
 export async function approvalsView(
   deps: ScreenDeps,
   asking: Asking,
+  /**
+   * Decided's next page from this place (the last page's `decidedNext`): the
+   * page alone, without the queue, which is the first page's.
+   */
+  decidedAfter: string | null = null,
 ): Promise<Result<ApprovalsView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const pending = deps.service.pending;
@@ -720,6 +735,7 @@ export async function approvalsView(
         isHr: false,
         items: [],
         decided: [],
+        decidedNext: null,
         checks: null,
         canTune: false,
         last90: null,
@@ -728,15 +744,24 @@ export async function approvalsView(
     const inbox = await approvalsInbox(tx, pending, asking);
     if (!inbox.ok) return inbox;
     const isHr = inbox.value.isHr;
+    const queue = decidedAfter === null ? inbox.value.items : [];
     const now = deps.clock.instant();
     const since = new Date(Date.parse(now) - NINETY_DAYS_MS).toISOString();
-    const decided = isHr
+    const place = decidedAfter === null ? null : DECIDED_CURSOR.exec(decidedAfter);
+    const read = isHr
       ? await pending.store.decided(tx, asking.tenantId, {
           since,
           until: now,
-          limit: DECIDED_SHOWN,
+          limit: DECIDED_PAGE + 1,
+          ...(place === null ? {} : { before: { at: place[1] ?? '', id: place[2] ?? '' } }),
         })
       : [];
+    const decided = read.slice(0, DECIDED_PAGE);
+    const lastDecided = decided.at(-1);
+    const decidedNext =
+      read.length > DECIDED_PAGE && lastDecided !== undefined
+        ? `${new Date(lastDecided.approval.decidedAt ?? lastDecided.approval.expiresAt).toISOString()}~${lastDecided.approval.id}`
+        : null;
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     const definitions = version?.document.attributes ?? [];
     const labels = new Map(definitions.map((d) => [d.key as string, d.label.default]));
@@ -744,11 +769,11 @@ export async function approvalsView(
       pending.flags === undefined
         ? []
         : await pending.flags.store.questions(tx, asking.tenantId, [
-            ...inbox.value.items.map((c) => c.id),
+            ...queue.map((c) => c.id),
             ...decided.map((c) => c.approval.id),
           ]);
     const by = await actors(deps, tx, asking, [
-      ...inbox.value.items.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
+      ...queue.map((c) => ({ kind: 'user' as const, userId: c.requestedBy })),
       ...decided.flatMap((c) => [
         { kind: 'user' as const, userId: c.approval.requestedBy },
         ...(c.approval.decidedBy === null
@@ -772,12 +797,12 @@ export async function approvalsView(
         }));
     const look = await looking(tx, pending, asking);
     const avatars = await avatarsOf(deps, tx, asking.tenantId, [
-      ...inbox.value.items.map((c) => c.personId),
+      ...queue.map((c) => c.personId),
       ...decided.map((c) => c.personId),
     ]);
 
     const items: ApprovalItem[] = [];
-    for (const c of inbox.value.items) {
+    for (const c of queue) {
       const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
       const attributes = person.ok ? person.value.attributes : {};
       const change =
@@ -895,6 +920,7 @@ export async function approvalsView(
       isHr,
       items,
       decided: decidedItems,
+      decidedNext,
       checks: isHr ? checksOf(look.enabled) : null,
       canTune: everyone?.isAdmin === true && pending.flags !== undefined,
       last90:
@@ -937,7 +963,7 @@ export async function ownDecidedView(
         : await pending.store.decided(tx, asking.tenantId, {
             since,
             until: now,
-            limit: DECIDED_SHOWN,
+            limit: DECIDED_PAGE,
             requestedBy: me,
           });
     const version = await deps.service.schemas.current(tx, asking.tenantId);
@@ -951,7 +977,7 @@ export async function ownDecidedView(
             ...asking,
             personId: own,
             decidedSince: since,
-            limit: DECIDED_SHOWN,
+            limit: DECIDED_PAGE,
           });
     const reviews = reviewed?.ok === true ? reviewed.value : [];
     const by = await actors(deps, tx, asking, [
@@ -1370,7 +1396,7 @@ export async function identifierReviewsView(
     const closed = await deps.service.access.identifierReviews(tx, {
       ...asking,
       decidedSince: since,
-      limit: DECIDED_SHOWN,
+      limit: DECIDED_PAGE,
     });
     const reviews = closed.ok ? closed.value : [];
     const by = await actors(
@@ -1454,6 +1480,8 @@ export interface DuplicatesView {
    * do; empty beside a comparison.
    */
   readonly merges: readonly MergedPair[];
+  /** The next page of `merges`, as `mergesAfter`; null on the last. */
+  readonly mergesNext: string | null;
   /** The pair asked about, side by side; null when none was. */
   readonly comparison: {
     readonly people: readonly [ComparedPerson, ComparedPerson];
@@ -1494,15 +1522,22 @@ function shown(
  * what HR may not read is absent here too; what may be copied, and which way
  * a merge may go, are `mergeOptions`', the same rules `merge` applies.
  */
+/** Merged records, a keyset page at a time as the list scrolls. */
+export const MERGES_PAGE = 20;
+const MERGES_CURSOR = /^(\d{4}-\d{2}-\d{2}T[0-9:.]+Z)~([0-9a-f-]{36})$/u;
+
 export async function duplicatesView(
   deps: ScreenDeps,
   asking: Asking,
   pair: readonly [string, string] | null,
+  /** Merged records' next page from this place: the page alone, without the queue. */
+  mergesAfter: string | null = null,
 ): Promise<Result<DuplicatesView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const access = deps.service.access;
-    const queue = await access.duplicates(tx, asking);
-    if (!queue.ok) return queue;
+    const queued = await access.duplicates(tx, asking);
+    if (!queued.ok) return queued;
+    const queue = mergesAfter === null ? queued : { ...queued, value: [] };
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
     const labelOf = (key: string) =>
@@ -1536,10 +1571,21 @@ export async function duplicatesView(
       });
     }
     if (pair === null) {
-      const standing = await access.merges(tx, asking);
+      const place = mergesAfter === null ? null : MERGES_CURSOR.exec(mergesAfter);
+      const standing = await access.merges(tx, {
+        ...asking,
+        limit: MERGES_PAGE + 1,
+        ...(place === null ? {} : { before: { at: place[1] ?? '', id: place[2] ?? '' } }),
+      });
       if (!standing.ok) return standing;
+      const shown = standing.value.slice(0, MERGES_PAGE);
+      const last = shown.at(-1);
+      const mergesNext =
+        standing.value.length > MERGES_PAGE && last !== undefined
+          ? `${last.decidedAt}~${last.id}`
+          : null;
       const merges: MergedPair[] = [];
-      for (const m of standing.value) {
+      for (const m of shown) {
         const undo = await access.unmergeOptions(tx, { ...asking, personId: m.absorbedId });
         if (!undo.ok) return undo;
         merges.push({
@@ -1554,7 +1600,7 @@ export async function duplicatesView(
           refusal: undo.value.refusal?.message ?? null,
         });
       }
-      return ok<DuplicatesView>({ items, merges, comparison: null });
+      return ok<DuplicatesView>({ items, merges, mergesNext, comparison: null });
     }
 
     const [a, b] = pair;
@@ -1609,6 +1655,7 @@ export async function duplicatesView(
     return ok({
       items,
       merges: [],
+      mergesNext: null,
       comparison: {
         people: [
           person(readA.value, intoA.value.refusal),
@@ -1917,12 +1964,10 @@ export async function directoryView(
             gapsIn: 'any' as const,
           }
         : {};
-    // A sorted directory's cursor is its offset (`@150`); an unsorted one's,
-    // the last person's id, as ever.
-    const offset =
-      query.sort !== undefined && query.after?.startsWith('@') === true
-        ? Number.parseInt(query.after.slice(1), 10) || 0
-        : 0;
+    // The cursor is the last person's place, sorted or not; with a "top",
+    // how many were shown before it too (`<id>~150`), for where to stop.
+    const [afterId = null, shownBefore] = query.after?.split('~') ?? [];
+    const offset = Number.parseInt(shownBefore ?? '0', 10) || 0;
     // A view saved from a search holds conditions too: all of them, and
     // all of any typed beside it. "Any of" either side cannot be one query.
     const own = query.conditions ?? [];
@@ -1941,7 +1986,7 @@ export async function directoryView(
     const refine = {
       conditions: [...saved, ...own],
       match: own.length === 0 ? savedMatch : saved.length === 0 ? ownMatch : ('all' as const),
-      ...(query.sort === undefined ? {} : { sort: query.sort, offset }),
+      ...(query.sort === undefined ? {} : { sort: query.sort }),
     };
     const narrowed = {
       ...asking,
@@ -1954,7 +1999,7 @@ export async function directoryView(
     const top = query.top ?? null;
     const listed = await deps.service.access.list(tx, {
       ...narrowed,
-      after: query.sort === undefined ? (query.after ?? null) : null,
+      after: afterId,
       limit: top === null ? DIRECTORY_PAGE : Math.max(1, Math.min(DIRECTORY_PAGE, top - offset)),
     });
     if (!listed.ok) return listed;
@@ -1986,7 +2031,12 @@ export async function directoryView(
           })
         : null;
     const page = listed.value.items;
-    const next = top !== null && offset + page.length >= top ? null : listed.value.next;
+    const next =
+      top !== null && offset + page.length >= top
+        ? null
+        : top === null || listed.value.next === null
+          ? listed.value.next
+          : `${listed.value.next}~${String(offset + page.length)}`;
 
     const columns = directoryColumns(definitions, everyone);
     const shownDefault = new Set(
@@ -2271,7 +2321,7 @@ export async function orgChartView(
       ...asking,
       after: null,
       limit: ORG_CHART_MAX + 1,
-      refine: { conditions: [], match: 'all', sort: { key: 'name', direction: 'asc' }, offset: 0 },
+      refine: { conditions: [], match: 'all', sort: { key: 'name', direction: 'asc' } },
     });
     if (!listed.ok) return listed;
     const page = listed.value.items.slice(0, ORG_CHART_MAX);
@@ -2341,6 +2391,10 @@ export interface CompletenessView {
   readonly fields: readonly {
     readonly key: string;
     readonly label: string;
+    /** What kind of value it takes, so each cell is that kind's own control. */
+    readonly dataType: AttributeDefinition['dataType'];
+    /** ISO 4217, for a money field fixed to one currency; null for any other. */
+    readonly currency: string | null;
     readonly options: readonly { readonly value: string; readonly label: string }[];
     /** A person reference: picked by searching people (`pickerView`), not from `options`. */
     readonly person: boolean;
@@ -2377,7 +2431,11 @@ export const GRID_PAGE = DIRECTORY_PAGE;
 export async function completenessView(
   deps: ScreenDeps,
   asking: Asking,
-  query: { readonly after?: string | null } = {},
+  query: {
+    readonly after?: string | null;
+    /** One person's gaps alone, for the fill-in a link opens (`?fill=`); the totals stay everybody's. */
+    readonly person?: string | null;
+  } = {},
 ): Promise<Result<CompletenessView>> {
   return run(deps.service, asking.tenantId, async (tx) => {
     const everyone = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
@@ -2385,21 +2443,24 @@ export async function completenessView(
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     if (!version) return err(failure('SCHEMA_NOT_PUBLISHED', 'Nothing is published yet'));
     const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
-    const hrs = (key: string) => byKey.get(key)?.ownership.includes('hr') === true;
+    const hrs = (key: string) => hrFills(byKey.get(key));
     // `gapsByOwner`'s rule: theirs alone, not also HR's or Finance's.
     const theirs = (key: string) => {
       const owners = byKey.get(key)?.ownership ?? [];
       return owners.includes('employee') && !owners.some((o) => o === 'hr' || o === 'finance');
     };
     // Selected by the keys the rows show, so a page is never short of people
-    // whose only gap is Finance's.
-    const listed = await deps.service.access.list(tx, {
-      ...asking,
-      gaps: [...byKey.keys()].filter((k) => hrs(k) || theirs(k)),
-      gapsIn: 'any',
-      after: query.after ?? null,
-      limit: GRID_PAGE,
-    });
+    // whose only gap is Finance's. One person is read as a profile is.
+    const listed =
+      query.person == null
+        ? await deps.service.access.list(tx, {
+            ...asking,
+            gaps: [...byKey.keys()].filter((k) => hrs(k) || theirs(k)),
+            gapsIn: 'any',
+            after: query.after ?? null,
+            limit: GRID_PAGE,
+          })
+        : await one(deps, tx, asking, query.person);
     if (!listed.ok) return listed;
     const page = listed.value.items;
     const totals = await deps.gapTotals(tx, asking.tenantId);
@@ -2455,6 +2516,7 @@ export async function completenessView(
       }
     }
     const staff = totals.staff.filter((s) => hrs(s.key));
+    const org = await orgChoices(deps, tx, asking.tenantId);
     // HR's fields over everybody, then the labels of the person's own on this page.
     const shown = new Set(staff.map((s) => s.key));
     const own = [
@@ -2468,7 +2530,7 @@ export async function completenessView(
         due: figures === null || deps.remindNow === undefined ? null : figures.due,
       },
       completedThisWeek: 0,
-      toFill: staff.reduce((n, s) => n + s.people, 0),
+      toFill: hrToFill(totals, version),
       blocking: figures?.blocking ?? null,
       fields: [...staff.map((s) => s.key), ...own].flatMap((key) => {
         const d = byKey.get(key);
@@ -2477,12 +2539,9 @@ export async function completenessView(
           {
             key,
             label: d.label.default,
-            options:
-              d.typeConfig.kind === 'select'
-                ? d.typeConfig.options
-                    .filter((o) => o.retiredAt === null)
-                    .map((o) => ({ value: o.value, label: o.label.default }))
-                : [],
+            dataType: d.dataType,
+            currency: d.typeConfig.kind === 'money' ? d.typeConfig.currency : null,
+            options: listOptions(d, org),
             person: d.typeConfig.kind === 'person_ref',
             sensitive: requiresApproval(d),
           },
@@ -2492,6 +2551,20 @@ export async function completenessView(
       next: listed.value.next,
     });
   });
+}
+
+/** One person as a page of one: none, for somebody this viewer cannot read or who is not there. */
+async function one(
+  deps: ScreenDeps,
+  tx: Tx,
+  asking: Asking,
+  personId: string,
+): Promise<Result<{ readonly items: readonly PersonView[]; readonly next: null }>> {
+  const read = await deps.service.access.read(tx, { ...asking, personId });
+  if (read.ok) return ok({ items: [read.value], next: null });
+  return read.error.code === 'NOT_FOUND' || read.error.code === 'FORBIDDEN'
+    ? ok({ items: [], next: null })
+    : read;
 }
 
 /**
@@ -2531,7 +2604,7 @@ export type GridFinding = IdentifierFindingView & { readonly personId: string };
 
 type GridChanges = readonly {
   readonly personId: string;
-  readonly values: Readonly<Record<string, string>>;
+  readonly values: Readonly<Record<string, unknown>>;
 }[];
 
 /**

@@ -1,6 +1,5 @@
 'use client';
 
-import { Skeleton } from '@reach/ui';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTransition, type JSX } from 'react';
 
@@ -47,7 +46,14 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
     load.status === 'ready'
       ? { status: 'ready' as const, data: load.data }
       : load.status === 'error'
-        ? { status: 'error' as const, message: load.message, retry: refresh }
+        ? {
+            status: 'error' as const,
+            message: load.message,
+            // A refusal says why; asking again changes nothing, so nothing to press.
+            ...(load.code === 'FORBIDDEN' || load.code === 'NOT_ENTITLED'
+              ? { refused: true as const }
+              : { retry: refresh }),
+          }
         : { status: 'loading' as const };
   /** Another view in the address (a path, a query patch), followed client-side so the server reads it. */
   const goTo = (patch: Readonly<Record<string, string | null>>, path?: string): void => {
@@ -88,6 +94,12 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onDecide: actions.decideRequest,
           onSuggest: actions.suggestDates,
           onNavigate: go,
+          // Coming up and Decided load as they scroll; the address opens the first page.
+          onLoadMore: (after: string) =>
+            actions.approvalsPage(
+              pathname.startsWith('/time-off/approvals/coming-up') ? 'coming_up' : 'decided',
+              after,
+            ),
         };
       case 'Delegation':
         return {
@@ -260,15 +272,9 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
             ? { ...frame, notice: load.notice }
             : frame,
       }}
-      // Drawn in the browser, the screen is its header's shape until it is.
-      fallback={
-        <Skeleton
-          shape="page"
-          label="Loading Time off"
-          breadcrumb={frame.section !== null}
-          tabs={frame.tabs?.length ?? 0}
-        />
-      }
+      // Served whole by the server and hydrated over, as People's screens are:
+      // nothing stands in for it, so no skeleton ever comes between two pages.
+      fallback={null}
     />
   );
 }

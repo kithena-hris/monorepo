@@ -5,6 +5,7 @@ import { requiresApproval, type AttributeDefinition, type WriterRole } from '@ki
 import { canWrite, visibleTo, type ViewerRelations } from '../../domain/access/field-access.js';
 import type { PublishedVersion } from '../../domain/schema/publish.js';
 import type { AttributeFindings } from '../person/identifier-review.js';
+import { standardList, type Choice } from '../person/standard-lists.js';
 import type { Asking, PersonView } from '../person/person-access.js';
 import type { Calendars } from '../org/org.js';
 import type { RelationsResolver } from '../person/ports.js';
@@ -186,6 +187,8 @@ export function recordSections(
   include: (definition: AttributeDefinition) => boolean,
   missing: ReadonlySet<string>,
   people: readonly { readonly value: string; readonly label: string }[] = [],
+  /** The company's entities and locations, for a reference field's choices; absent, none. */
+  org?: OrgChoices,
 ): RecordSection[] {
   const { sections, attributes } = version.document;
   return sections
@@ -201,7 +204,7 @@ export function recordSections(
             include(d),
         )
         .toSorted((a, b) => a.order - b.order)
-        .map((d) => fieldOf(d, relations, missing, people));
+        .map((d) => fieldOf(d, relations, missing, people, org));
       return fields.length === 0
         ? []
         : [
@@ -220,16 +223,10 @@ function fieldOf(
   relations: ViewerRelations,
   missing: ReadonlySet<string>,
   people: readonly { readonly value: string; readonly label: string }[],
+  org: OrgChoices | undefined,
 ): RecordField {
   const config = d.typeConfig;
-  const options =
-    config.kind === 'select' || config.kind === 'multi_select'
-      ? config.options
-          .filter((o) => o.retiredAt === null)
-          .map((o) => ({ value: o.value, label: o.label.default }))
-      : config.kind === 'person_ref'
-        ? people
-        : [];
+  const options = config.kind === 'person_ref' ? people : listOptions(d, org);
   const readOnly = !canWrite(d, relations).ok;
   const keptIn = relations.sources?.get(d.key)?.system;
   return {
@@ -246,6 +243,65 @@ function fieldOf(
     ...(keptIn === undefined ? {} : { keptIn }),
     sensitive: requiresApproval(d),
   };
+}
+
+/** The company's own lists a reference field picks from, as `orgChoices` reads them. */
+export interface OrgChoices {
+  readonly legal_entity_ref: readonly Choice[];
+  readonly location_ref: readonly Choice[];
+  /** People keeps no org units of its own yet: nothing to offer. */
+  readonly org_unit_ref: readonly Choice[];
+}
+
+/** The company's live legal entities and locations, by name: what a new value may point at. */
+export async function orgChoices(deps: ScreenDeps, tx: Tx, tenantId: string): Promise<OrgChoices> {
+  const org = await deps.calendars.load(tx, tenantId);
+  const live = (
+    all: ReadonlyMap<string, { readonly id: string; readonly name: string; readonly archived?: boolean }>,
+  ): Choice[] =>
+    [...all.values()]
+      .filter((x) => x.archived !== true)
+      .map((x) => ({ value: x.id, label: x.name }))
+      .toSorted((a, b) => a.label.localeCompare(b.label, 'en'));
+  return {
+    legal_entity_ref: live(org.entities),
+    location_ref: live(org.locations),
+    org_unit_ref: [],
+  };
+}
+
+/**
+ * What a field offers to pick, the one place that says so: a list's live
+ * options, a standard list (countries, currencies, languages, time zones),
+ * or the company's entities and locations. Nothing for any other field.
+ */
+export function listOptions(d: AttributeDefinition, org?: OrgChoices): Choice[] {
+  const config = d.typeConfig;
+  if (config.kind === 'select' || config.kind === 'multi_select') {
+    return config.options
+      .filter((o) => o.retiredAt === null)
+      .map((o) => ({ value: o.value, label: o.label.default }));
+  }
+  const standard = standardList(config.kind);
+  if (standard !== null) return [...standard];
+  return config.kind === 'legal_entity_ref' ||
+    config.kind === 'location_ref' ||
+    config.kind === 'org_unit_ref'
+    ? [...(org?.[config.kind] ?? [])]
+    : [];
+}
+
+/** Whether HR fills this field in: what Missing details and Home both count as HR's. */
+export const hrFills = (d: AttributeDefinition | undefined): boolean =>
+  d?.ownership.includes('hr') === true;
+
+/**
+ * HR's missing values over everybody: the keys HR fills in, and not a key
+ * Finance or a system alone fills. Home's figure and Review's are this one sum.
+ */
+export function hrToFill(totals: GapTotals, version: PublishedVersion): number {
+  const byKey = new Map(version.document.attributes.map((d) => [d.key as string, d]));
+  return totals.staff.filter((s) => hrFills(byKey.get(s.key))).reduce((n, s) => n + s.people, 0);
 }
 
 /** A stored value as a form holds it. */

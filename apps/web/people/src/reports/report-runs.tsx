@@ -1,17 +1,5 @@
-import {
-  Badge,
-  Button,
-  EmptyState,
-  PageHeader,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@reach/ui';
-import type { JSX } from 'react';
+import { Badge, Button, EmptyState, PageHeader, Stack, VirtualList, usePages } from '@reach/ui';
+import { useCallback, type JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import { RUN_OUTCOME } from './report-schedules';
@@ -36,10 +24,14 @@ export interface ReportRunsState {
       readonly outcome: string;
     }[];
   }[];
+  /** The page before the last period shown; null on the last. Absent from an older People. */
+  readonly next?: string | null;
 }
 
 export interface ReportRunsProps {
   readonly load: Loadable<ReportRunsState>;
+  /** The runs before `before`, as People answers them (a `ReportRunsState`), or null. */
+  readonly onLoadMore?: (before: string) => Promise<unknown>;
 }
 
 /** Why a recipient or a run got nothing, in words. */
@@ -55,78 +47,96 @@ const WHY: Record<string, string> = {
 };
 const why = (code: string): string => WHY[code] ?? code;
 
-export function ReportRuns({ load }: ReportRunsProps): JSX.Element {
+export function ReportRuns({ load, onLoadMore }: ReportRunsProps): JSX.Element {
   return (
     <Loaded load={load} what="the report’s history">
-      {(state) => (
-        <Stack gap={6}>
-          <PageHeader
-            title={state.name === '' ? 'Scheduled report' : state.name}
-            description="Each run, newest first. A run after the backend slept covers the periods it missed; only the latest is sent."
-            actions={
-              <Button asChild variant="ghost">
-                <a href="/people/reports">All scheduled reports</a>
-              </Button>
-            }
-          />
-          {state.runs.length === 0 ? (
-            <EmptyState
-              title="Not run yet"
-              description="It first goes out at its next time after it was saved."
-            />
-          ) : (
-            <Table aria-label="Runs">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Outcome</TableHead>
-                  <TableHead>Recipients</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {state.runs.map((run) => {
-                  const outcome =
-                    run.outcome === null
-                      ? { label: 'Did not finish', tone: 'neutral' as const }
-                      : (RUN_OUTCOME[run.outcome] ?? {
-                          label: run.outcome,
-                          tone: 'neutral' as const,
-                        });
-                  return (
-                    <TableRow key={run.period}>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span>{run.period}</span>
-                          {run.missed > 0 ? (
-                            <span className="text-fg-muted text-sm">
-                              Covers {String(run.missed)} earlier{' '}
-                              {run.missed === 1 ? 'period' : 'periods'}
-                            </span>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge tone={outcome.tone}>{outcome.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <ul className="flex flex-col gap-1">
-                          {run.recipients.map((r, i) => (
-                            <li key={r.accountId ?? i}>
-                              {r.accountId === null
-                                ? why(r.outcome)
-                                : `${r.name ?? 'Somebody who has left'}: ${why(r.outcome)}`}
-                            </li>
-                          ))}
-                        </ul>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </Stack>
-      )}
+      {(state) => <Runs state={state} onLoadMore={onLoadMore} />}
     </Loaded>
+  );
+}
+
+type Run = ReportRunsState['runs'][number];
+
+/** The history, newest first, older runs loading as it scrolls and only those near the view drawn. */
+function Runs({
+  state,
+  onLoadMore,
+}: {
+  readonly state: ReportRunsState;
+  readonly onLoadMore: ReportRunsProps['onLoadMore'];
+}): JSX.Element {
+  const more = useCallback(
+    async (before: string) => {
+      const page = (await onLoadMore?.(before)) as ReportRunsState | null | undefined;
+      return page == null ? null : { items: page.runs, next: page.next ?? null };
+    },
+    [onLoadMore],
+  );
+  const pages = usePages(
+    state.runs,
+    state.next ?? null,
+    onLoadMore === undefined ? undefined : more,
+  );
+  return (
+    <Stack gap={6}>
+      <PageHeader
+        title={state.name === '' ? 'Scheduled report' : state.name}
+        description="Each run, newest first. A run after the backend slept covers the periods it missed; only the latest is sent."
+        actions={
+          <Button asChild variant="ghost">
+            <a href="/people/reports">All scheduled reports</a>
+          </Button>
+        }
+      />
+      {state.runs.length === 0 ? (
+        <EmptyState
+          title="Not run yet"
+          description="It first goes out at its next time after it was saved."
+        />
+      ) : (
+        <VirtualList<Run>
+          label="Runs"
+          items={pages.items}
+          itemKey={(run) => run.period}
+          scroll="page"
+          estimateItemHeight={88}
+          // A hairline between runs, as a List draws its own.
+          itemClassName="[&:not(:last-child)]:shadow-[inset_0_-1px_0_var(--color-border)]"
+          {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+          loadingMore={pages.loading}
+          renderItem={(run) => {
+            const outcome =
+              run.outcome === null
+                ? { label: 'Did not finish', tone: 'neutral' as const }
+                : (RUN_OUTCOME[run.outcome] ?? { label: run.outcome, tone: 'neutral' as const });
+            return (
+              <div className="flex items-start gap-3 px-4.5 py-3">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="font-medium">{run.period}</span>
+                  {run.missed > 0 ? (
+                    <span className="text-fg-muted text-sm">
+                      Covers {String(run.missed)} earlier {run.missed === 1 ? 'period' : 'periods'}
+                    </span>
+                  ) : null}
+                  <ul
+                    aria-label={`Recipients of ${run.period}`}
+                    className="flex flex-col gap-0.5 text-sm"
+                  >
+                    {run.recipients.map((r, i) => (
+                      <li key={r.accountId ?? i}>
+                        {r.accountId === null
+                          ? why(r.outcome)
+                          : `${r.name ?? 'Somebody who has left'}: ${why(r.outcome)}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <Badge tone={outcome.tone}>{outcome.label}</Badge>
+              </div>
+            );
+          }}
+        />
+      )}
+    </Stack>
   );
 }

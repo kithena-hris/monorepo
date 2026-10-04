@@ -19,7 +19,7 @@ import {
 import { inMemoryPendingChangeStore } from '../person/pending-store.js';
 import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
-import { approvalsView, ownDecidedView } from './people.js';
+import { approvalsView, DECIDED_PAGE, ownDecidedView } from './people.js';
 import { flaggedToDecide, waitingView } from './waiting.js';
 import type { ScreenDeps } from './record.js';
 
@@ -270,6 +270,45 @@ describe('Decided (E9)', () => {
     expect(
       later.ok && later.value.decided.map((d) => [d.id, d.state, d.decidedBy, d.decidedAt]),
     ).toEqual([[item.id, 'lapsed', null, item.expiresAt]]);
+  });
+});
+
+describe('Decided, a page at a time (keyset)', () => {
+  it('pages HR’s decided newest first from the last one’s place, each once, past fifty', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z');
+    const { item } = await askedForRaise(s);
+    const done = await decidePendingChange(tx, s.pending, {
+      ...asking(SOFIA),
+      changeId: item.id,
+      approve: false,
+      note: 'Not this year',
+    });
+    if (!done.ok) throw new Error(done.error.message);
+    const store = s.pending.store as ReturnType<typeof inMemoryPendingChangeStore>;
+    const [decided] = [...store.rows.values()];
+    if (decided === undefined) throw new Error('fixture');
+    // Fifty-six more, a minute apart, two of them in the same minute.
+    const total = DECIDED_PAGE + 7;
+    for (let i = 1; i < total; i += 1) {
+      const id = `00000000-0000-4000-8000-${String(100_000_000_000 + i)}`;
+      const at = new Date(Date.parse('2026-09-21T10:00:00.000Z') - Math.floor(i / 2) * 60_000);
+      store.rows.set(`${TENANT}/${id}`, {
+        ...decided,
+        approval: { ...decided.approval, id, decidedAt: at.toISOString() },
+      });
+    }
+    const first = await approvalsView(s.deps, asking(SOFIA));
+    if (!first.ok) throw new Error(first.error.message);
+    expect(first.value.decided).toHaveLength(DECIDED_PAGE);
+    expect(first.value.decidedNext).not.toBeNull();
+    const second = await approvalsView(s.deps, asking(SOFIA), first.value.decidedNext);
+    if (!second.ok) throw new Error(second.error.message);
+    expect(second.value.decided).toHaveLength(7);
+    expect(second.value.decidedNext).toBeNull();
+    const ids = [...first.value.decided, ...second.value.decided].map((d) => d.id);
+    expect(new Set(ids).size).toBe(total);
+    // A later page carries only what was decided: the queue is the first page's.
+    expect(second.value.items).toEqual([]);
   });
 });
 

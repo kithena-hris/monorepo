@@ -211,6 +211,18 @@ const outcome = (a: { ok: true } | { ok: false; message: string }): Outcome =>
   a.ok ? { ok: true } : { ok: false, message: a.message };
 
 /**
+ * Coming up or Decided after `after` (the last page's `next`), as the list
+ * scrolls: Time Off's keyset page of only the people the caller decides for.
+ */
+export async function approvalsPage(
+  tab: 'coming_up' | 'decided',
+  after: string,
+): Promise<unknown> {
+  const answer = await timeOff<unknown>('TimeOffApprovals', { tab, after });
+  return answer.ok ? answer.data : null;
+}
+
+/**
  * Approve all (T16): Time Off approves only what triage calls clear and
  * says why not for the rest, which the screen then shows; the approved ones
  * stay approved either way.

@@ -384,6 +384,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       items: t.field({ type: [DuplicateItemRef], resolve: (v) => list(v.items) }),
       merges: t.field({ type: [MergedPairRef], resolve: (v) => list(v.merges) }),
+      mergesNext: t.exposeString('mergesNext', {
+        nullable: true,
+        description: 'The next page of merged records, as `mergesAfter`; null on the last.',
+      }),
       comparison: t.field({ type: ComparisonRef, nullable: true, resolve: (v) => v.comparison }),
     }),
   });
@@ -399,11 +403,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     t.field({
       type: DuplicatesRef,
       description: 'Suspected duplicates (PEO-074), and the pair a and b side by side; HR only.',
-      args: { a: t.arg.id(), b: t.arg.id() },
+      args: { a: t.arg.id(), b: t.arg.id(), mergesAfter: t.arg.string() },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
         if (args.a) query.set('a', args.a);
         if (args.b) query.set('b', args.b);
+        if (args.mergesAfter) query.set('mergesAfter', args.mergesAfter);
         const qs = query.toString();
         return viaRest<DuplicatesView>(
           ctx,
@@ -783,8 +788,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       items: t.field({ type: [ApprovalItemRef], resolve: (v) => list(v.items) }),
       decided: t.field({
         type: [ApprovalItemRef],
-        description: 'HR’s: decided in the last 90 days, newest first.',
+        description: 'HR’s: decided in the last 90 days, newest first, a page at a time.',
         resolve: (v) => list(v.decided),
+      }),
+      decidedNext: t.exposeString('decidedNext', {
+        nullable: true,
+        description: 'The next page of Decided, as `decidedAfter`; null on the last.',
       }),
       checks: t.field({
         type: [ApprovalCheckRef],
@@ -1130,6 +1139,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       fields: (t) => ({
         key: t.exposeString('key'),
         label: t.exposeString('label'),
+        dataType: t.exposeString('dataType', {
+          description: 'What kind of value it takes: the cell is that kind’s own control.',
+        }),
+        currency: t.exposeString('currency', {
+          nullable: true,
+          description: 'ISO 4217, for a money field fixed to one currency.',
+        }),
         options: t.field({ type: [OptionRef], resolve: (f) => list(f.options) }),
         person: t.exposeBoolean('person', {
           description: 'A person reference: picked with peoplePicker, not from options',
@@ -1194,7 +1210,20 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     fields: (t) => ({
       viewerAccountId: t.exposeID('viewerAccountId'),
       canManage: t.exposeBoolean('canManage'),
-      people: t.field({ type: [RolesPerson], resolve: (v) => list(v.people) }),
+      people: t.field({
+        type: [RolesPerson],
+        description: 'A page of everybody who signs in, by name, or those the search finds.',
+        resolve: (v) => list(v.people),
+      }),
+      next: t.exposeID('next', {
+        nullable: true,
+        description: 'The next page, as `after`; null on the last.',
+      }),
+      holders: t.field({
+        type: [RolesPerson],
+        description: 'Everybody holding a role, whatever the page.',
+        resolve: (v) => list(v.holders),
+      }),
     }),
   });
 
@@ -2214,15 +2243,21 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleCompleteness: t.field({
       type: CompletenessRef,
-      args: { after: t.arg.id() },
-      resolve: (_root, args, ctx) =>
-        viaRest<CompletenessView>(
+      args: {
+        after: t.arg.id(),
+        person: t.arg.id({ description: 'One person’s gaps alone; the totals stay everybody’s.' }),
+      },
+      resolve: (_root, args, ctx) => {
+        const query = new URLSearchParams();
+        if (args.after) query.set('after', args.after);
+        if (args.person) query.set('person', args.person);
+        const asked = query.toString();
+        return viaRest<CompletenessView>(
           ctx,
           'GET',
-          args.after
-            ? `/v1/views/completeness?after=${encodeURIComponent(args.after)}`
-            : '/v1/views/completeness',
-        ),
+          asked === '' ? '/v1/views/completeness' : `/v1/views/completeness?${asked}`,
+        );
+      },
     }),
     peopleHeadcount: t.int({
       description: 'How many people you could find by searching: a count only.',
@@ -2247,7 +2282,14 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
     }),
     peopleRoleSettings: t.field({
       type: RoleSettings,
-      resolve: view<RolesView>(() => '/v1/views/roles'),
+      args: { search: t.arg.string(), after: t.arg.id() },
+      resolve: view<RolesView>((args) => {
+        const q = new URLSearchParams();
+        if (typeof args['search'] === 'string' && args['search'] !== '') q.set('q', args['search']);
+        if (typeof args['after'] === 'string') q.set('after', args['after']);
+        const qs = q.toString();
+        return qs === '' ? '/v1/views/roles' : `/v1/views/roles?${qs}`;
+      }),
     }),
     peopleRegistry: t.field({
       type: Registry,
@@ -2360,13 +2402,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       value: t.string({ required: true }),
     }),
   });
-  const CellInput = builder.inputType('GridCellInput', {
-    fields: (t) => ({ key: t.string({ required: true }), value: t.string({ required: true }) }),
-  });
   const GridChange = builder.inputType('GridChangeInput', {
     fields: (t) => ({
       personId: t.id({ required: true }),
-      values: t.field({ type: [CellInput], required: true }),
+      // Each cell as a form holds it, so a date, a choice, a flag or money
+      // arrives as itself rather than as text.
+      values: t.field({ type: [FormValueInput], required: true }),
     }),
   });
   const ClauseInput = builder.inputType('PredicateClauseInput', {
@@ -2574,12 +2615,12 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   const gridChanges = (
     changes: readonly {
       personId: string | number;
-      values: readonly { key: string; value: string }[];
+      values: readonly FormInput[];
     }[],
   ) =>
     changes.map((c) => ({
       personId: String(c.personId),
-      values: Object.fromEntries(c.values.map((v) => [v.key, v.value])),
+      values: changed(c.values),
     }));
   builder.queryField('peopleGridCheck', (t) =>
     t.field({
@@ -3569,7 +3610,17 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       type: ApprovalsRef,
       description:
         'Changes waiting for approval (PEO-077): every one for HR, the viewer’s own otherwise.',
-      resolve: view<ApprovalsView>(() => '/v1/views/approvals'),
+      args: {
+        decidedAfter: t.arg.string({
+          description:
+            'Decided’s next page, from the last page’s `decidedNext`; the queue is left out.',
+        }),
+      },
+      resolve: view<ApprovalsView>((args: { decidedAfter?: string | null }) =>
+        args.decidedAfter
+          ? `/v1/views/approvals?decidedAfter=${encodeURIComponent(args.decidedAfter)}`
+          : '/v1/views/approvals',
+      ),
     }),
     peopleIdentifierReviews: t.field({
       type: ReviewsRef,

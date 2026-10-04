@@ -5,7 +5,15 @@ import { decideRequest } from '../approval/decide.js';
 import { decideOvertime, punch } from '../attendance/attendance.js';
 import { sendRequest } from '../request/request.js';
 import { caller, d, people, world } from '../testing/world.js';
-import { attendanceRequestsScreen, calendar, delegation, requestDecision } from './manager.js';
+import { addDays } from '../../domain/days.js';
+import {
+  APPROVALS_PAGE,
+  approvals,
+  attendanceRequestsScreen,
+  calendar,
+  delegation,
+  requestDecision,
+} from './manager.js';
 
 const vacation = LeaveTypeKey.parse('vacation');
 
@@ -158,5 +166,74 @@ describe('the attendance Requests tab (TOF-099)', () => {
       { date: '2026-10-06', minutes: 60, status: 'waiting' },
       { date: '2026-10-05', minutes: 60, status: 'paid' },
     ]);
+  });
+});
+
+describe('coming up and decided, a page at a time (keyset)', () => {
+  /** One weekday each, round-robin over Marco's six, so nobody's team falls short; all approved. */
+  async function busyAutumn(count: number) {
+    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
+    const team = [people.adam, people.omar, people.yuki, people.leo, people.hana, people.ravi];
+    let day = d('2026-10-05');
+    let sent = 0;
+    while (sent < count) {
+      const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
+      if (weekday !== 0 && weekday !== 6) {
+        const who = team[sent % team.length] as PersonId;
+        // oxlint-disable-next-line no-await-in-loop -- one request after another
+        const ask = await sendRequest(app.deps)(caller(who), {
+          leaveTypeKey: vacation,
+          span: DateSpan.parse({ from: day, to: day }),
+        });
+        if (ask.ok) {
+          // oxlint-disable-next-line no-await-in-loop -- one decision after another
+          const done = await decideRequest(app.deps)(caller(people.marco), {
+            requestId: ask.value.requestId,
+            decision: 'approve',
+          });
+          if (!done.ok) throw new Error(done.error.message);
+          sent += 1;
+        }
+      }
+      day = addDays(day, 1);
+    }
+    return app;
+  }
+
+  it('pages decided requests newest first from the last one’s cursor, each once', async () => {
+    const total = APPROVALS_PAGE + 7;
+    const app = await busyAutumn(total);
+    const first = await approvals(app.deps)(caller(people.marco), { tab: 'decided' });
+    if (!first.ok) throw new Error(first.error.message);
+    expect(first.value.items).toHaveLength(APPROVALS_PAGE);
+    expect(first.value.next).not.toBeNull();
+    const second = await approvals(app.deps)(caller(people.marco), {
+      tab: 'decided',
+      after: first.value.next ?? undefined,
+    });
+    if (!second.ok) throw new Error(second.error.message);
+    expect(second.value.items).toHaveLength(7);
+    expect(second.value.next).toBeNull();
+    const ids = [...first.value.items, ...second.value.items].map((i) => i.requestId);
+    expect(new Set(ids).size).toBe(total);
+  });
+
+  it('pages coming up soonest first, and shows Adam none of his team’s', async () => {
+    const total = APPROVALS_PAGE + 3;
+    const app = await busyAutumn(total);
+    const first = await approvals(app.deps)(caller(people.marco), { tab: 'coming_up' });
+    if (!first.ok) throw new Error(first.error.message);
+    const froms = first.value.items.map((i) => i.span.from);
+    expect(froms).toEqual(froms.toSorted());
+    expect(first.value.items).toHaveLength(APPROVALS_PAGE);
+    const second = await approvals(app.deps)(caller(people.marco), {
+      tab: 'coming_up',
+      after: first.value.next ?? undefined,
+    });
+    const next = second.ok ? (second.value.items[0]?.span.from ?? '') : '';
+    expect(next >= (froms.at(-1) ?? '')).toBe(true);
+    expect(second.ok && second.value.items).toHaveLength(3);
+    const adam = await approvals(app.deps)(caller(people.adam), { tab: 'coming_up' });
+    expect(adam.ok && adam.value.items).toEqual([]);
   });
 });

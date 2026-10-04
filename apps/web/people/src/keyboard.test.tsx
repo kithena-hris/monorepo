@@ -166,7 +166,7 @@ describe('Completeness from the keyboard', () => {
     ],
   };
 
-  it('reminds the focused person with R, fills in with F, and offers "Remind" to the palette', async () => {
+  it('reminds the focused person with R, fills in with F, and offers both to the palette', async () => {
     const onRemind = vi.fn(done);
     render(
       <MissingDetails
@@ -178,15 +178,17 @@ describe('Completeness from the keyboard', () => {
         )}
       />,
     );
-    expect(screenCommands().map((c) => c.label)).toContain('Remind 1 person waiting');
+    expect(screenCommands().map((c) => c.label)).toEqual(
+      expect.arrayContaining(['Remind 1 person waiting', 'Fill in for all']),
+    );
     const [lena, lucia] = bodyRows(screen.getByRole('grid', { name: 'Missing information' }));
     lucia?.focus();
     await press('r');
     expect(onRemind).toHaveBeenCalledWith('u', ['desk']);
     lena?.focus();
     await press('f');
-    expect(
-      await screen.findByRole('textbox', { name: /Desk for Lena Moreau/ }),
-    ).toBeInTheDocument();
+    // That person's own dialog, at once.
+    const dialog = screen.getByRole('dialog', { name: 'Fill in for Lena Moreau' });
+    expect(within(dialog).getByRole('textbox', { name: 'Desk' })).toBeInTheDocument();
   });
 });

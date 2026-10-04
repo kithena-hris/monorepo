@@ -62,7 +62,21 @@ export interface RoleStore {
    * the back office's operator confirmed.
    */
   releaseLastAdministrator(tx: Tx): Promise<void>;
-  candidates(tx: Tx, tenantId: string): Promise<readonly RoleCandidate[]>;
+  /**
+   * Everybody who could hold a role, by family name, given name and id; or
+   * with `where`, those whose name or work email holds `search`, only
+   * `accounts`, after the one whose person id is `after`, `limit` of them.
+   */
+  candidates(
+    tx: Tx,
+    tenantId: string,
+    where?: {
+      readonly search?: string | null;
+      readonly accounts?: readonly string[];
+      readonly after?: string | null;
+      readonly limit?: number;
+    },
+  ): Promise<readonly RoleCandidate[]>;
   publish(tx: Tx, events: readonly PendingEvent[]): Promise<void>;
 }
 
@@ -90,14 +104,24 @@ export interface Named {
 export type Removed = Named & { readonly confirmedLast: boolean };
 
 export interface TenantRoles {
-  /** Everybody holding a role, and who could; `people_admin` or `hr` only. */
+  /**
+   * Everybody holding a role, and who could (`page` of them, as the store
+   * pages them); `people_admin` or `hr` only. `named` is the holders' own
+   * candidates, whatever the page.
+   */
   list(
     tx: Tx,
     asking: Asked,
+    page?: {
+      readonly search?: string | null;
+      readonly after?: string | null;
+      readonly limit: number;
+    },
   ): Promise<
     Result<{
       readonly holders: readonly RoleHolder[];
       readonly candidates: readonly RoleCandidate[];
+      readonly named: readonly RoleCandidate[];
     }>
   >;
   /** One account's roles, as the rows hold them; for a write's answer. */
@@ -226,16 +250,21 @@ export function tenantRoles(deps: {
   };
 
   return {
-    async list(tx, asking) {
+    async list(tx, asking, page) {
       const held = await store.holdings(tx, asking.tenantId);
       // HR's rights, which every administrator and Kithena support hold.
       const mine = effectiveRoles(held.get(asking.viewer.accountId) ?? []);
       if (asking.viewer.support === undefined && !mine.has('hr')) {
         return err(NotAllowedToList);
       }
+      const accounts = [...held.keys()].toSorted();
       return ok({
-        holders: [...held.keys()].toSorted().map((account) => holderOf(held, account)),
-        candidates: await store.candidates(tx, asking.tenantId),
+        holders: accounts.map((account) => holderOf(held, account)),
+        candidates: await store.candidates(tx, asking.tenantId, page),
+        named:
+          page === undefined || accounts.length === 0
+            ? []
+            : await store.candidates(tx, asking.tenantId, { accounts }),
       });
     },
 

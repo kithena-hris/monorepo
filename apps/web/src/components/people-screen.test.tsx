@@ -24,6 +24,10 @@ const imports = vi.hoisted(() => ({
 vi.mock('../app/(app)/people/actions', () => ({
   ...imports,
   decidePendingChange: vi.fn(),
+  transferHistoryPage: vi.fn(),
+  decidedPage: vi.fn(),
+  mergesPage: vi.fn(),
+  screenPage: vi.fn(),
   withdrawPendingChange: vi.fn(),
   approveAlone: vi.fn(),
   markNotUnusual: vi.fn(),
@@ -40,6 +44,7 @@ vi.mock('../app/(app)/people/actions', () => ({
   decideExportShare: vi.fn(),
   saveGrid: vi.fn(),
   checkGrid: vi.fn(),
+  completenessPage: vi.fn(),
   searchPeople: vi.fn(),
   remindWaiting: vi.fn(),
   requestDetails: vi.fn(),

@@ -130,6 +130,8 @@ export interface PendingChangeStore {
       readonly until: string;
       readonly limit: number;
       readonly requestedBy?: string;
+      /** A keyset page: decided (or lapsed) before this, newest first, then by id. */
+      readonly before?: { readonly at: string; readonly id: string };
     },
   ): Promise<readonly PendingChange[]>;
   /** A sealed value's plaintext, while it is pending. */

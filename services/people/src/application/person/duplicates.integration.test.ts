@@ -217,7 +217,10 @@ describe('the queue', () => {
   it('offers pairs sharing a work email, whatever its case and spacing, and merges nothing', async () => {
     const listed = await queue();
     expect(listed.ok && listed.value).toEqual([
-      { personIds: [HR_RECORD, SIGNED_UP], signals: [{ signal: 'work_email', attributeKey: null }] },
+      {
+        personIds: [HR_RECORD, SIGNED_UP],
+        signals: [{ signal: 'work_email', attributeKey: null }],
+      },
       { personIds: [LEAVER, OTHER], signals: [{ signal: 'work_email', attributeKey: null }] },
     ]);
     const statuses = await admin.execute(sql`SELECT status FROM people.person ORDER BY id`);
@@ -278,7 +281,8 @@ describe('merging', () => {
       service: { access: people, schemas: drizzleSchemaVersions(), inTenant },
       relations: drizzleRelations(),
       clock,
-      personOf: (tx, tenantId, accountId) => drizzlePersonReader().personOf(tx, tenantId, accountId),
+      personOf: (tx, tenantId, accountId) =>
+        drizzlePersonReader().personOf(tx, tenantId, accountId),
       calendars: utcCalendars,
       gapTotals: () => Promise.resolve({ waiting: 0, staff: [] }),
     };
@@ -404,8 +408,38 @@ describe('merging', () => {
   });
 
   it('lets Ada sign in to the survivor', async () => {
-    const own = await inTenant(ACME, ({ tx }) => drizzlePersonReader().personOf(tx, ACME, ADA_ACCOUNT));
+    const own = await inTenant(ACME, ({ tx }) =>
+      drizzlePersonReader().personOf(tx, ACME, ADA_ACCOUNT),
+    );
     expect(own).toBe(HR_RECORD);
+  });
+
+  it('lists merged records a page at a time, newest first, from the last one’s place', async () => {
+    const store = drizzleDuplicates();
+    const [newest] = await inTenant(ACME, ({ tx }) => store.merges(tx, ACME, { limit: 1 }));
+    if (newest === undefined) throw new Error('nothing merged');
+    const before = await inTenant(ACME, ({ tx }) =>
+      store.merges(tx, ACME, { limit: 10, before: { at: newest.decidedAt, id: newest.id } }),
+    );
+    expect(before.map((m) => m.id)).not.toContain(newest.id);
+    const deps: ScreenDeps = {
+      service: { access: people, schemas: drizzleSchemaVersions(), inTenant },
+      relations: drizzleRelations(),
+      clock,
+      personOf: (tx, tenantId, accountId) =>
+        drizzlePersonReader().personOf(tx, tenantId, accountId),
+      calendars: utcCalendars,
+      gapTotals: () => Promise.resolve({ waiting: 0, staff: [] }),
+    };
+    const view = await duplicatesView(deps, as(hr), null);
+    if (!view.ok) throw new Error(view.error.message);
+    expect(view.value.merges.map((m) => m.absorbedId)).toEqual([SIGNED_UP]);
+    expect(view.value.mergesNext).toBeNull();
+    const later = await duplicatesView(deps, as(hr), null, `${newest.decidedAt}~${newest.id}`);
+    if (!later.ok) throw new Error(later.error.message);
+    expect(later.value.merges).toEqual([]);
+    // A later page is the merges alone: the queue is the first page's.
+    expect(later.value.items).toEqual([]);
   });
 });
 
@@ -446,8 +480,24 @@ describe('undoing a merge', () => {
     at('2026-09-27T09:00:00.000Z');
     await create(SURVIVOR, 'active', null, {});
     await create(ABSORBED, 'provisional', GRACE_ACCOUNT, {});
-    expect((await write(SURVIVOR, { given_name: 'Grace', family_name: 'Hopper', work_email: 'gh@acme.test' })).ok).toBe(true);
-    expect((await write(ABSORBED, { given_name: 'Gracie', family_name: 'Hopper-Smith', work_email: 'GH@acme.test' })).ok).toBe(true);
+    expect(
+      (
+        await write(SURVIVOR, {
+          given_name: 'Grace',
+          family_name: 'Hopper',
+          work_email: 'gh@acme.test',
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await write(ABSORBED, {
+          given_name: 'Gracie',
+          family_name: 'Hopper-Smith',
+          work_email: 'GH@acme.test',
+        })
+      ).ok,
+    ).toBe(true);
     at('2026-09-27T10:00:00.000Z');
     expect((await merge(SURVIVOR, ABSORBED, ['given_name', 'family_name'])).ok).toBe(true);
     at('2026-09-27T11:00:00.000Z');
@@ -483,7 +533,9 @@ describe('undoing a merge', () => {
       given_name: 'Grace',
       family_name: 'Hopper-Jones',
     });
-    const own = await inTenant(ACME, ({ tx }) => drizzlePersonReader().personOf(tx, ACME, GRACE_ACCOUNT));
+    const own = await inTenant(ACME, ({ tx }) =>
+      drizzlePersonReader().personOf(tx, ACME, GRACE_ACCOUNT),
+    );
     expect(own).toBe(ABSORBED);
   });
 
@@ -496,7 +548,10 @@ describe('undoing a merge', () => {
          ORDER BY recorded_at`)),
     ];
     expect(rows.map((r) => r['value'])).toEqual(['Grace', 'Gracie', 'Grace']);
-    expect(rows[2]).toMatchObject({ supersedes: rows[1]?.['id'], effective_from: rows[1]?.['effective_from'] });
+    expect(rows[2]).toMatchObject({
+      supersedes: rows[1]?.['id'],
+      effective_from: rows[1]?.['effective_from'],
+    });
     expect(await payloads('people.person.attribute_corrected')).toContainEqual(
       expect.objectContaining({
         personId: SURVIVOR,

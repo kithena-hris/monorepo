@@ -125,4 +125,38 @@ describe('the webhook delivery log (PEO-121)', () => {
     expect(onReplay).toHaveBeenCalledWith('d1');
     expect(await screen.findByText(/Replayed\./)).toBeInTheDocument();
   });
+
+  it('loads older deliveries as it scrolls, from the last page’s cursor, with no Older button', async () => {
+    const delivery = (id: string, eventName: string) => ({
+      id,
+      eventName,
+      status: 'delivered',
+      attempts: 1,
+      lastResponse: 200,
+      createdAt: '2026-09-24T09:00:00.000Z',
+      deliveredAt: '2026-09-24T09:00:01.000Z',
+      replayOf: null,
+    });
+    const endpoint = { id: 'e1', url: 'https://hooks.example.com/people', enabled: true };
+    const onLoadMore = vi.fn(() =>
+      Promise.resolve({
+        endpoint,
+        deliveries: [delivery('d2', 'people.person.terminated')],
+        next: null,
+      }),
+    );
+    render(
+      <WebhookLog
+        load={{
+          status: 'ready',
+          data: { endpoint, deliveries: [delivery('d1', 'people.person.hired')], next: 'seq-1' },
+        }}
+        onReplay={vi.fn(done)}
+        onLoadMore={onLoadMore}
+      />,
+    );
+    expect(await screen.findByText('people.person.terminated')).toBeInTheDocument();
+    expect(onLoadMore).toHaveBeenCalledWith('seq-1');
+    expect(screen.queryByRole('button', { name: 'Older' })).toBeNull();
+  });
 });

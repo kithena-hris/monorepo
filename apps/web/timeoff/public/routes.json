@@ -48,6 +48,7 @@
       "path": "/time-off/request",
       "label": "Request time off",
       "icon": "add",
+      "for": ["member"],
       "owns": ["/time-off/request/describe"],
       "on": [
         "/time-off/overview",

@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { JSX } from 'react';
+import { useCallback, useState, type JSX } from 'react';
+
+import { usePages } from '../../lib/use-pages';
 
 import { Avatar } from '../avatar/avatar';
 import { Badge } from '../badge/badge';
@@ -184,6 +186,70 @@ export const Empty: Story = {
         className="h-48"
         empty="No one matches these filters."
         renderItem={(person) => <p>{person.name}</p>}
+      />
+    );
+  },
+};
+
+/**
+ * Infinite: the first page is what the server drew, and each page after it is
+ * asked for as the reader nears the end (`usePages` holds the pages). Each
+ * page that lands is said to a screen reader, "20 more loaded".
+ */
+export const Infinite: Story = {
+  render: function InfiniteStory() {
+    const [first] = useState(() => makePeople(20));
+    const load = useCallback(
+      (cursor: string) =>
+        new Promise<{ items: Person[]; next: string | null }>((resolve) => {
+          const from = Number(cursor);
+          setTimeout(() => {
+            resolve({
+              items: makePeople(20, 200_000 + from),
+              next: from + 20 >= 200 ? null : String(from + 20),
+            });
+          }, 400);
+        }),
+      [],
+    );
+    const pages = usePages(first, '20', load);
+    return (
+      <VirtualList
+        items={pages.items}
+        label="Everyone"
+        itemKey={(person) => person.id}
+        estimateItemHeight={56}
+        className="h-96"
+        renderItem={(person) => <PersonRow person={person} />}
+        {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+        loadingMore={pages.loading}
+      />
+    );
+  },
+};
+
+/**
+ * Part of the page: the window scrolls, as a phone's list does, and the list
+ * is as tall as its items. Here as a grid of cards, as many columns as fit.
+ */
+export const PageScrolledGrid: Story = {
+  render: function PageScrolledGridStory() {
+    const people = makePeople(2000, 400_000);
+    return (
+      <VirtualList
+        items={people}
+        label="Everyone"
+        scroll="page"
+        minItemWidth={200}
+        gap={12}
+        itemKey={(person) => person.id}
+        estimateItemHeight={64}
+        className="bg-transparent shadow-none"
+        renderItem={(person) => (
+          <div className="rounded-lg bg-surface shadow-sm">
+            <PersonRow person={person} />
+          </div>
+        )}
       />
     );
   },

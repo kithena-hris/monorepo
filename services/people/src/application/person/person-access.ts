@@ -491,7 +491,10 @@ export interface PersonAccess {
   /** Merges still standing, newest first, for HR: what an undo is offered on. */
   merges(
     tx: Tx,
-    asking: Asking & { readonly limit?: number },
+    asking: Asking & {
+      readonly limit?: number;
+      readonly before?: { readonly at: string; readonly id: string };
+    },
   ): Promise<Result<readonly MergeDecision[]>>;
   /**
    * HR undoes the merge that absorbed `personId`, for a stated reason: the
@@ -680,9 +683,6 @@ export function refinable(
   const sort = refine.sort;
   if (sort !== undefined && sort.key !== 'name' && !readable(sort.key, false)) {
     return err(failure('FIELD_NOT_SORTABLE', `You cannot sort people by ${sort.key}`, [sort.key]));
-  }
-  if (refine.offset !== undefined && (refine.offset < 0 || refine.offset > 100_000)) {
-    return err(failure('CONDITION_INVALID', 'Offset out of range'));
   }
   return ok(undefined);
 }
@@ -2328,7 +2328,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       if (!everyone.isHr) return err(failure('FORBIDDEN', 'Only HR reviews duplicates'));
       return ok(
         (await deps.duplicates?.merges(tx, asking.tenantId, {
-          limit: Math.min(asking.limit ?? 20, 100),
+          limit: Math.min(asking.limit ?? 20, 101),
+          ...(asking.before === undefined ? {} : { before: asking.before }),
         })) ?? [],
       );
     },
@@ -2579,13 +2580,8 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
           ),
         );
       }
-      // A sorted list's next page is its offset; an unsorted one's, the last id.
-      const next =
-        rows.length < asking.limit
-          ? null
-          : asking.refine?.sort !== undefined
-            ? `@${String((asking.refine.offset ?? 0) + asking.limit)}`
-            : (rows.at(-1)?.snapshot.id ?? null);
+      // The next page is the last one's place, sorted or not.
+      const next = rows.length < asking.limit ? null : (rows.at(-1)?.snapshot.id ?? null);
       return ok({ items, next });
     },
 

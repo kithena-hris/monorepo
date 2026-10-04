@@ -35,7 +35,6 @@ export interface ActivityFilters {
   readonly to: string | null;
   readonly zone: string | null;
   readonly search: string | null;
-  readonly before: string | null;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -49,8 +48,9 @@ const matching = (v: string | undefined, shape: RegExp): string | null =>
 
 /**
  * The address's filters: `area` (comma-separated), `by`, `actor`, `subject`,
- * `from`, `to`, `tz` (the reader's zone, which the page adds with a date),
- * `q` and `before`.
+ * `from`, `to`, `tz` (the reader's zone, which the page adds with a date)
+ * and `q`. Which page is not among them: the address opens the newest, and
+ * older entries load as the reader scrolls.
  */
 export function activityFilters(search: Readonly<Record<string, string>>): ActivityFilters {
   const known = new Set<string>(AREAS.map((a) => a.value));
@@ -67,12 +67,18 @@ export function activityFilters(search: Readonly<Record<string, string>>): Activ
     to: matching(search['to'], DAY),
     zone: matching(search['tz'], ZONE),
     search: text(search['q']),
-    before: matching(search['before'], UUID),
   };
 }
 
-/** The router's variables for them: an absent filter is left out, never sent empty. */
-export function activityVariables(f: ActivityFilters): Record<string, unknown> {
+/** A cursor into the log (the last entry's id), or null for a garbled one. */
+export const cursorOf = (before: string | null | undefined): string | null =>
+  matching(before ?? undefined, UUID);
+
+/** The router's variables for them, from `before`: an absent filter is left out, never sent empty. */
+export function activityVariables(
+  f: ActivityFilters,
+  before: string | null = null,
+): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries({
       areas: f.areas.length === 0 ? null : f.areas,
@@ -83,7 +89,7 @@ export function activityVariables(f: ActivityFilters): Record<string, unknown> {
       to: f.to,
       zone: f.zone,
       search: f.search,
-      before: f.before,
+      before: cursorOf(before),
     }).filter(([, v]) => v !== null),
   );
 }
@@ -133,10 +139,21 @@ export function idsToName(page: ActivityPage): { accountIds: string[]; personIds
 export function changesIn(
   text: string,
 ): readonly { readonly what: string; readonly from: string; readonly to: string }[] | null {
-  const found = [...text.matchAll(/([^:.→]+): (.*?) → (.*?)\.(?=\s|$)/g)].map((m) => ({
-    what: (m[1] ?? '').trim(),
-    from: m[2] ?? '',
-    to: m[3] ?? '',
-  }));
+  // Split by hand, not with one regular expression: a sentence boundary, then
+  // ": " and " → " inside it, each found once, in time linear in the text.
+  const found: { what: string; from: string; to: string }[] = [];
+  for (const sentence of text.split(/\.(?=\s|$)/)) {
+    const colon = sentence.indexOf(': ');
+    if (colon === -1) continue;
+    const arrow = sentence.indexOf(' → ', colon + 2);
+    if (arrow === -1) continue;
+    const what = sentence.slice(0, colon);
+    if (/[.→]/.test(what)) continue;
+    found.push({
+      what: what.trim(),
+      from: sentence.slice(colon + 2, arrow),
+      to: sentence.slice(arrow + 3),
+    });
+  }
   return found.length === 0 ? null : found;
 }

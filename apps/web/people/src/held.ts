@@ -16,6 +16,34 @@ export function useHeld<T>(
   return onChange === undefined ? [own, setOwn] : [held ?? fallback, onChange];
 }
 
+/**
+ * `useHeld` for a choice that opens something (a dialog, an editor): shown
+ * at once, then the host is told. A router applies an address it is told
+ * about in a transition (Next does, for `pushState`), so a screen that waited
+ * for the echo opened it a beat late, and later still when what it opened
+ * was heavy. A change the host makes itself (Back, a link) still wins.
+ */
+export function useHeldAtOnce<T>(
+  held: T | null | undefined,
+  onChange: ((next: T) => void) | undefined,
+  fallback: T,
+): readonly [T, (next: T) => void] {
+  const [own, setOwn] = useState<T>(onChange === undefined ? fallback : (held ?? fallback));
+  const [seen, setSeen] = useState(held);
+  if (onChange !== undefined && held !== seen) {
+    setSeen(held);
+    setOwn(held ?? fallback);
+  }
+  if (onChange === undefined) return [own, setOwn];
+  return [
+    own,
+    (next) => {
+      setOwn(next);
+      onChange(next);
+    },
+  ];
+}
+
 /** How long typing rests before the address follows it. */
 export const TYPING_MS = 300;
 

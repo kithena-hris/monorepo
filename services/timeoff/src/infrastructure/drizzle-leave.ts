@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import {
   CalendarDate,
@@ -29,6 +29,7 @@ import type {
   RequestRecord,
   RequestStore,
 } from '../application/ports.js';
+import { pageCursor } from '../application/shared.js';
 import { ledgerEntry, leaveType, policy, policyVersion, request } from './tables.js';
 
 /**
@@ -373,6 +374,49 @@ export function drizzleRequests(tx: PostgresJsDatabase, tenantId: TenantId): Req
         )
         .orderBy(asc(request.requestedAt), asc(request.id));
       return rows.map((row) => toRecord(tenantId, row));
+    },
+
+    /**
+     * The keyset over `request_page_newest` or `request_page_soonest`
+     * (`migrations/20261004121000_timeoff_request_pages.sql`): one more row
+     * than the page says whether there is a next.
+     */
+    async page(f) {
+      const after = pageCursor.read(f.after);
+      const first = sql`lower(range_merge(${request.days}))`;
+      const rows = await select()
+        .where(
+          and(
+            f.personIds === undefined ? undefined : inArray(request.personId, [...f.personIds]),
+            inArray(request.status, [...f.statuses]),
+            f.from === undefined
+              ? undefined
+              : sql`upper(range_merge(${request.days})) > ${f.from}::date`,
+            after === null
+              ? undefined
+              : f.order === 'newest'
+                ? sql`(${request.requestedAt}, ${request.id}) < (${after.key}::timestamptz, ${after.id}::uuid)`
+                : sql`(${first}, ${request.id}) > (${after.key}::date, ${after.id}::uuid)`,
+          ),
+        )
+        .orderBy(
+          ...(f.order === 'newest'
+            ? [desc(request.requestedAt), desc(request.id)]
+            : [asc(first), asc(request.id)]),
+        )
+        .limit(f.limit + 1);
+      const records = rows.slice(0, f.limit).map((row) => toRecord(tenantId, row));
+      const last = records.at(-1);
+      return {
+        records,
+        next:
+          rows.length > f.limit && last !== undefined
+            ? pageCursor.of(
+                f.order === 'newest' ? last.requestedAt : last.request.span.from,
+                last.request.id,
+              )
+            : null,
+      };
     },
 
     async save(record) {

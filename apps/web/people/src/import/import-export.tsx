@@ -5,23 +5,19 @@ import {
   Button,
   Card,
   EmptyState,
-  List,
-  ListItem,
   PageHeader,
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
   Progress,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
+  ListItem,
+  VirtualList,
+  usePages,
   icons,
 } from '@reach/ui';
-import { useId, useState, type JSX, type ReactNode } from 'react';
+import { useCallback, useId, useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
@@ -78,8 +74,9 @@ export interface ImportExportState {
   /** False while nothing is published: the import sends setup first. Absent is set up. */
   readonly setUp?: boolean;
   /**
-   * Newest first, a page at a time, read with the rest of the page so the
-   * first HTML holds it. `null`: not this viewer’s to read.
+   * Newest first, the first page read with the rest of the page so the first
+   * HTML holds it, older ones as it scrolls (`onLoadMore`). `null`: not this
+   * viewer’s to read.
    */
   readonly history: TransferHistory | null;
   /** When the page was read, so "Today" means the same on the server and in the browser. */
@@ -90,8 +87,6 @@ export interface TransferHistory {
   readonly items: readonly TransferEntry[];
   /** The cursor for older entries; null on the last page. */
   readonly next: string | null;
-  /** An older page, so "Newest" leads back. */
-  readonly paged: boolean;
 }
 
 export interface ImportExportProps {
@@ -111,12 +106,12 @@ export interface ImportExportProps {
   readonly onDescribe?: (
     sentence: string,
   ) => Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }>;
+  /** The history before `before`, as People answers it (a `TransferHistory`), or null. */
+  readonly onLoadMore?: (before: string) => Promise<unknown>;
 }
 
 export type HistoryKind = 'all' | 'import' | 'export';
 
-/** Where the page lives, and so its older pages. */
-const HERE = '/people/import-export';
 /** The template, as a file: the shell's download route. */
 export const TEMPLATE_URL = '/people/downloads/import-template';
 
@@ -297,23 +292,7 @@ export function ImportExport({
               />
             </div>
             {state.history === null ? null : (
-              <History
-                history={
-                  // The run as the host follows it, not as the page was read.
-                  going === null
-                    ? state.history
-                    : {
-                        ...state.history,
-                        items: state.history.items.map((e) =>
-                          e.id === going.id && e.run != null
-                            ? { ...e, run: { ...e.run, people: going.people } }
-                            : e,
-                        ),
-                      }
-                }
-                now={state.now}
-                {...held}
-              />
+              <History history={state.history} going={going} now={state.now} {...held} />
             )}
           </>
         )}
@@ -470,25 +449,45 @@ const KIND = {
 /** One history for both, newest first: every import and export, whoever ran it. */
 function History({
   history,
+  going,
   now,
+  onLoadMore,
   ...held
 }: Omit<ImportExportProps, 'load'> & {
   readonly history: TransferHistory;
+  /** The run as the host follows it, not as the page was read. */
+  readonly going: {
+    readonly id: string;
+    readonly people: { done: number; total: number | null };
+  } | null;
   readonly now: string;
 }): JSX.Element {
   const [kind, setKind] = useHeld<HistoryKind>(held.kind, held.onKindChange, 'all');
   const [search, setSearch] = useTyped(held.search ?? '', held.onSearchChange);
   const zone = useZone();
-  // Older and newest keep what the history is narrowed to.
-  const page = (before: string | null): string => {
-    const q = new URLSearchParams();
-    if (before !== null) q.set('before', before);
-    if (kind !== 'all') q.set('kind', kind);
-    if (search.trim() !== '') q.set('q', search);
-    const qs = q.toString();
-    return qs === '' ? HERE : `${HERE}?${qs}`;
+  // Older pages as it scrolls; the kind and the search narrow what is loaded,
+  // and a narrowed list too short to scroll keeps loading until it is not.
+  const more = useCallback(
+    async (before: string) => {
+      const page = (await onLoadMore?.(before)) as TransferHistory | null | undefined;
+      return page == null ? null : { items: page.items, next: page.next };
+    },
+    [onLoadMore],
+  );
+  const pages = usePages(history.items, history.next, onLoadMore === undefined ? undefined : more);
+  const items =
+    going === null
+      ? pages.items
+      : pages.items.map((e) =>
+          e.id === going.id && e.run != null
+            ? { ...e, run: { ...e.run, people: going.people } }
+            : e,
+        );
+  const shown = filterHistory(items, kind, search);
+  const infinite = {
+    ...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore }),
+    loadingMore: pages.loading,
   };
-  const shown = filterHistory(history.items, kind, search);
   const when = (e: TransferEntry) => whenOf(e.at, now, zone);
   return (
     <section aria-labelledby="history" className="flex flex-col gap-3">
@@ -524,88 +523,100 @@ function History({
       </div>
       {shown.length === 0 ? (
         <EmptyState
-          title={
-            history.items.length === 0 ? 'Nothing imported or exported yet' : 'Nothing matches'
-          }
+          title={items.length === 0 ? 'Nothing imported or exported yet' : 'Nothing matches'}
         />
       ) : (
         <>
-          <Table aria-label="Imports and exports" containerClassName="touch:hidden">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-30">Type</TableHead>
-                <TableHead>File or reason</TableHead>
-                <TableHead>By</TableHead>
-                <TableHead className="w-30">When</TableHead>
-                <TableHead>Result</TableHead>
-                <TableHead className="w-15">
-                  <span className="sr-only">Open</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shown.map((e) => {
-                const title = titleOf(e);
-                const result = resultOf(e);
-                const href = hrefOf(e);
-                return (
-                  <TableRow key={e.id}>
-                    <TableCell>
-                      <Badge size="sm" tone={KIND[e.kind].tone}>
-                        {KIND[e.kind].icon}
-                        {KIND[e.kind].label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="whitespace-normal">{title}</TableCell>
-                    <TableCell>
-                      <span className="flex items-center gap-2">
-                        <Avatar size="sm" name={e.by.name} src={e.by.avatarUrl ?? undefined} />
-                        {e.by.name}
-                      </span>
-                    </TableCell>
-                    <TableCell>{when(e)}</TableCell>
-                    <TableCell>
-                      {result.tone === 'neutral' ? (
-                        result.text
-                      ) : (
-                        <Badge size="sm" tone={result.tone}>
-                          {result.text}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {href === null ? null : (
-                        <Button asChild size="xs" variant="ghost">
-                          <a
-                            href={href}
-                            aria-label={
-                              e.kind === 'export'
-                                ? `Download ${title}`
-                                : href === e.reportUrl
-                                  ? `Report of ${title}`
-                                  : `Open the import of ${title}`
-                            }
-                          >
-                            {e.kind === 'import' ? (
-                              <icons.document aria-hidden />
-                            ) : (
-                              <icons.download aria-hidden />
-                            )}
-                          </a>
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          <List aria-label="Imports and exports" className="hidden touch:block">
-            {shown.map((e) => {
+          {/* At a desk, a virtualized table that is the page's one scroll. */}
+          <DataTable<TransferEntry>
+            label="Imports and exports"
+            rows={shown}
+            rowId={(e) => e.id}
+            describeRow={titleOf}
+            stickyHeader
+            containerClassName="page-fill max-h-dvh min-h-96 touch:hidden"
+            {...infinite}
+            columns={[
+              {
+                id: 'type',
+                header: 'Type',
+                width: '7.5rem',
+                hideOnCard: true,
+                cell: (e) => (
+                  <Badge size="sm" tone={KIND[e.kind].tone}>
+                    {KIND[e.kind].icon}
+                    {KIND[e.kind].label}
+                  </Badge>
+                ),
+              },
+              {
+                id: 'title',
+                header: 'File or reason',
+                cell: (e) => {
+                  const href = hrefOf(e);
+                  const title = titleOf(e);
+                  return href === null ? (
+                    title
+                  ) : (
+                    <a
+                      href={href}
+                      aria-label={
+                        e.kind === 'export'
+                          ? `Download ${title}`
+                          : href === e.reportUrl
+                            ? `Report of ${title}`
+                            : `Open the import of ${title}`
+                      }
+                    >
+                      {title}
+                    </a>
+                  );
+                },
+              },
+              {
+                id: 'by',
+                header: 'By',
+                cell: (e) => (
+                  <span className="flex items-center gap-2">
+                    <Avatar size="sm" name={e.by.name} src={e.by.avatarUrl ?? undefined} />
+                    {e.by.name}
+                  </span>
+                ),
+              },
+              { id: 'when', header: 'When', width: '7.5rem', cell: (e) => when(e) },
+              {
+                id: 'result',
+                header: 'Result',
+                cardTrailing: true,
+                cell: (e) => {
+                  const result = resultOf(e);
+                  return result.tone === 'neutral' ? (
+                    result.text
+                  ) : (
+                    <Badge size="sm" tone={result.tone}>
+                      {result.text}
+                    </Badge>
+                  );
+                },
+              },
+            ]}
+          />
+          {/* Under a finger, a list that scrolls with the page, drawn near the view. */}
+          <VirtualList
+            label="Imports and exports"
+            items={shown}
+            itemKey={(e) => e.id}
+            scroll="page"
+            listItems
+            estimateItemHeight={72}
+            className="hidden touch:block"
+            {...infinite}
+            renderItem={(e, _i, row) => {
               const href = hrefOf(e);
               return (
                 <ListItem
                   key={e.id}
+                  {...row}
                   leading={
                     <Avatar
                       size="lg"
@@ -621,23 +632,9 @@ function History({
                   {href === null ? titleOf(e) : <a href={href}>{titleOf(e)}</a>}
                 </ListItem>
               );
-            })}
-          </List>
+            }}
+          />
         </>
-      )}
-      {history.next === null && !history.paged ? null : (
-        <nav aria-label="Older history" className="flex gap-2">
-          {history.paged ? (
-            <Button asChild>
-              <a href={page(null)}>Newest</a>
-            </Button>
-          ) : null}
-          {history.next === null ? null : (
-            <Button asChild>
-              <a href={page(history.next)}>Older</a>
-            </Button>
-          )}
-        </nav>
       )}
     </section>
   );

@@ -83,4 +83,24 @@ describe('the roles screen (PEO-112)', () => {
     expect(screen.getAllByText('People administrator').length).toBeGreaterThan(0);
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('loads the next people as the table scrolls, the cards counting every holder', async () => {
+    const ADA = '00000000-0000-4000-8000-0000000000b3';
+    const ada = {
+      accountId: ADA,
+      personId: 'p3',
+      name: 'Ada Lovelace',
+      workEmail: null,
+      roles: ['finance' as const],
+    };
+    const onLoadMore = vi.fn(() =>
+      Promise.resolve({ ...state(), people: [ada], next: null, holders: [] }),
+    );
+    const first = state({ next: 'p2', holders: [...state().people.slice(0, 1), ada] });
+    render(<RoleSettings {...props({ load: { status: 'ready', data: first }, onLoadMore })} />);
+    // Ada holds Finance though she is not on the first page.
+    expect(screen.queryByText('Nobody is granted Finance')).toBeNull();
+    expect(await screen.findByRole('checkbox', { name: 'Finance for Ada Lovelace' })).toBeChecked();
+    expect(onLoadMore).toHaveBeenCalledWith('p2');
+  });
 });

@@ -197,6 +197,33 @@ describe('tenant roles in People', () => {
     expect(String((refused as { cause?: unknown }).cause)).toMatch(/last people_admin/);
   });
 
+  it('pages who could hold a role by name, one after another, and searches them', async () => {
+    const store = drizzleRoleStore();
+    const all = await inTenant(ACME, ({ tx }) => store.candidates(tx, ACME));
+    const walked: string[] = [];
+    let after: string | null = null;
+    for (;;) {
+      // oxlint-disable-next-line no-await-in-loop -- page after page
+      const page = await inTenant(ACME, ({ tx }) =>
+        store.candidates(tx, ACME, { after, limit: 1 }),
+      );
+      if (page.length === 0) break;
+      walked.push(...page.map((c) => c.personId));
+      after = page.at(-1)?.personId ?? null;
+    }
+    expect(walked).toEqual(all.map((c) => c.personId));
+    expect(walked).toHaveLength(3);
+    // The family name is the person id's last three digits here.
+    const found = await inTenant(ACME, ({ tx }) =>
+      store.candidates(tx, ACME, { search: MARCO.person.slice(-3), limit: 10 }),
+    );
+    expect(found.map((c) => c.personId)).toEqual([MARCO.person]);
+    const holders = await inTenant(ACME, ({ tx }) =>
+      store.candidates(tx, ACME, { accounts: [PRIYA.account] }),
+    );
+    expect(holders.map((c) => c.accountId)).toEqual([PRIYA.account]);
+  });
+
   it('shows who holds what to HR and administrators only', async () => {
     // Priya holds hr whoever won above.
     const listed = await inTenant(ACME, ({ tx }) => roles.list(tx, as(PRIYA.account)));

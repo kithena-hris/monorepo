@@ -199,12 +199,8 @@ export async function placePerson(
   return outcome(people('PlacePerson', { personId, ...placement }));
 }
 
-export async function saveGrid(
-  changes: readonly {
-    readonly personId: string;
-    readonly values: Readonly<Record<string, string>>;
-  }[],
-): Promise<Saved> {
+/** Missing details' save: one change per person, each value as a form holds it. */
+export async function saveGrid(changes: GridChanges): Promise<Saved> {
   return saved(people('SaveCompletenessGrid', { changes: gridChanges(changes) }));
 }
 
@@ -213,16 +209,28 @@ export async function checkGrid(changes: GridChanges): Promise<Saved> {
   return saved(people('GridCheck', { changes: gridChanges(changes) }));
 }
 
-type GridChanges = readonly {
-  readonly personId: string;
-  readonly values: Readonly<Record<string, string>>;
-}[];
+type GridChanges = readonly { readonly personId: string; readonly values: Values }[];
 
 const gridChanges = (changes: GridChanges) =>
-  changes.map((c) => ({
-    personId: c.personId,
-    values: Object.entries(c.values).map(([key, value]) => ({ key, value })),
-  }));
+  changes.map((c) => ({ personId: c.personId, values: formInputs(c.values) }));
+
+/** Missing details' next people, for its infinite list: from `after`, by keyset (PEO-122). */
+export async function completenessPage(after: string): Promise<{
+  readonly rows: readonly unknown[];
+  readonly fields: readonly unknown[];
+  readonly next: string | null;
+} | null> {
+  const answer = await people<{ rows?: unknown[]; fields?: unknown[]; next?: string | null }>(
+    'Completeness',
+    { after },
+  );
+  if (!answer.ok) return null;
+  return {
+    rows: answer.data.rows ?? [],
+    fields: answer.data.fields ?? [],
+    next: answer.data.next ?? null,
+  };
+}
 
 /* ----------------------------------------------------------- bulk edit -- */
 
@@ -1120,6 +1128,49 @@ export async function draftSummary(input: Readonly<Record<string, unknown>>): Pr
 /** Send the summary as previewed and edited: stored for its recipient, and an email with a link. */
 export async function shareSummary(input: Readonly<Record<string, unknown>>): Promise<Parsed> {
   return parsed(people<string>('ShareSummary', { input: JSON.stringify(input) }));
+}
+
+/** The screens whose lists load as they scroll, and the name their read gives its cursor. */
+const PAGED = {
+  WebhookLog: 'after',
+  RoleSettings: 'after',
+  ReportRuns: 'before',
+} as const;
+
+/**
+ * The next page of a screen's list, for its infinite scroll: the screen's own
+ * read (`loadScreen`), as the page was drawn, from the cursor its last page
+ * gave. Its data as the screen's first page had it, or null when People did
+ * not answer. Only the screens above: anything else is not a list.
+ */
+export async function screenPage(
+  component: keyof typeof PAGED,
+  params: Readonly<Record<string, string>>,
+  search: Readonly<Record<string, string>>,
+  cursor: string,
+): Promise<unknown> {
+  const key = PAGED[component] as string | undefined;
+  if (key === undefined) return null;
+  const load = await loadScreen(component, { params, search: { ...search, [key]: cursor } });
+  return load.status === 'ready' ? load.data : null;
+}
+
+/** Review's Decided after `after` (the last page's `decidedNext`), as it scrolls: HR's, the page alone. */
+export async function decidedPage(after: string): Promise<unknown> {
+  const answer = await people<never>('Approvals', { decidedAfter: after });
+  return answer.ok ? VIEWS.Approvals(answer.data) : null;
+}
+
+/** Review's merged records after `after` (the last page's `mergesNext`), as they scroll. */
+export async function mergesPage(after: string): Promise<unknown> {
+  const answer = await people<unknown>('Duplicates', { mergesAfter: after });
+  return answer.ok ? answer.data : null;
+}
+
+/** Import & export's history before `before` (the last entry's cursor), as it scrolls. */
+export async function transferHistoryPage(before: string): Promise<unknown> {
+  const answer = await people<unknown>('TransferHistory', { before });
+  return answer.ok ? answer.data : null;
 }
 
 /**

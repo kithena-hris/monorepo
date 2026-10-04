@@ -313,3 +313,30 @@ export const States: Story = {
     </div>
   ),
 };
+
+export const HiddenLabel: Story = {
+  name: 'Label read, not shown',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`hideLabel` for a field whose column already names it, such as a cell in a table. The label still names the field and its list for a screen reader.',
+      },
+    },
+  },
+  render: function HiddenLabelStory(args) {
+    const [value, setValue] = useState<readonly string[]>(['Laptop']);
+    return (
+      <div className="max-w-xs">
+        <TagsInput
+          {...args}
+          size="sm"
+          hideLabel
+          label="Equipment for Ada Lovelace"
+          value={value}
+          onChange={setValue}
+        />
+      </div>
+    );
+  },
+};

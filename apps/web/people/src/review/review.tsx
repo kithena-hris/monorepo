@@ -18,17 +18,13 @@ import {
   PageSection,
   PINNED_BAR,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  DataTable,
   Textarea,
   icons,
+  usePages,
   type RowAction,
 } from '@reach/ui';
-import { useState, type ComponentProps, type JSX, type ReactNode } from 'react';
+import { useCallback, useState, type ComponentProps, type JSX, type ReactNode } from 'react';
 
 import {
   ChangeDetail,
@@ -59,7 +55,7 @@ import {
   type FullValuesState,
 } from '../export/full-values';
 import { FORMAT_LABEL, firstName, listed, spokenDate } from '../export/words';
-import { useHeld } from '../held';
+import { useHeld, useHeldAtOnce } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type { SearchPeople } from '../record/attribute-input';
 import { DisplayValue } from '../record/display';
@@ -100,9 +96,10 @@ import {
  * finance viewer's is their requests for full values. Missing details is a
  * backlog rather than a decision: it is a chip, never counted in the badge.
  *
- * The chip, the item and the fill-in grid live in the address (`?kind=`,
- * `?item=`, `?fill=`), so a link from the bell or an email opens the item,
- * already selected, in the page the server sends.
+ * The chip, the item and what is being filled in live in the address
+ * (`?kind=`, `?item=`, `?fill=all` or `?fill=<person>`), so a link from the
+ * bell or an email opens the item, already selected, in the page the server
+ * sends.
  */
 
 export type ReviewTab = 'waiting' | 'flagged' | 'asked' | 'decided';
@@ -151,6 +148,10 @@ export interface ReviewProps extends ChangeActions {
   readonly onMerge: DuplicateActions['onMerge'];
   readonly onDismiss: DuplicateActions['onDismiss'];
   readonly onUnmerge: DuplicateActions['onUnmerge'];
+  /** HR's Decided after this place, as People answers `Approvals` for it, or null. */
+  readonly onMoreDecided?: (after: string) => Promise<unknown>;
+  /** Merged records after this place, as People answers `Duplicates` for it, or null. */
+  readonly onMoreMerges?: (after: string) => Promise<unknown>;
   readonly onRequestFullValues: FullValuesActions['onRequest'];
   readonly onDecideFullValues: FullValuesActions['onDecide'];
   readonly onDecideShare?: (id: string, approve: boolean, note: string) => Promise<Outcome>;
@@ -158,10 +159,10 @@ export interface ReviewProps extends ChangeActions {
   readonly onCheckMissing?: MissingActions['onCheck'];
   readonly onRemindAll?: MissingActions['onRemindAll'];
   readonly onRemind?: MissingActions['onRemind'];
-  readonly onNextPage?: MissingActions['onNextPage'];
-  readonly onFirstPage?: MissingActions['onFirstPage'];
+  readonly onLoadMoreMissing?: MissingActions['onLoadMore'];
+  /** What is filled in (`?fill=`): `all`, the grid; a person's id, their dialog. */
   readonly fill?: string | null;
-  readonly onFillChange?: (personId: string | null) => void;
+  readonly onFillChange?: (fill: string | null) => void;
   readonly searchPeople?: SearchPeople;
 }
 
@@ -404,17 +405,22 @@ function Queue({
 }: Omit<ReviewProps, 'load'> & { readonly state: ReviewState }): JSX.Element {
   const viewer = viewerOf(state);
   const chips = viewer === 'hr' ? CHIPS[tab] : [];
-  const [chosen, setChosen] = useHeld<string | null>(
+  // A chip shows at once; the address follows (`useHeldAtOnce`).
+  const [chosen, setChosen] = useHeldAtOnce<string | null>(
     heldKind,
     onKindChange as never,
     heldKind ?? null,
   );
   const kind = chips.find((k) => k === chosen) ?? null;
+  // A row waits for the address: a pair opens on what the server reads for it.
   const [picked, pick] = useHeld<string | null>(heldItem, onItemChange, heldItem ?? null);
   const now = Date.parse(state.now);
   // A, on a change's row: it opens with the note to write, as its button needs one.
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
+  /** Missing values filled in on this page, until People is read again: off the chip's count. */
+  const [filled, setFilled] = useState({ of: state.completeness, count: 0 });
+  const filledHere = filled.of === state.completeness ? filled.count : 0;
   /** A row's own keys (A and R on a change, M and N on a pair), as its buttons do. */
   const rowActions = (row: Row): readonly RowAction[] | undefined => {
     if (row.kind === 'changes') {
@@ -479,7 +485,7 @@ function Queue({
   const total = tab === 'decided' ? decisions.length + merged : all.length;
   const countOf = (k: ReviewKind): number =>
     k === 'missing'
-      ? (state.completeness?.toFill ?? 0)
+      ? Math.max(0, (state.completeness?.toFill ?? 0) - filledHere)
       : tab === 'decided'
         ? k === 'duplicates'
           ? merged
@@ -534,15 +540,26 @@ function Queue({
       );
     }
     if (tab === 'decided') {
-      return <Decided state={state} kind={kind} viewer={viewer} onUnmerge={actions.onUnmerge} />;
+      return (
+        <Decided
+          state={state}
+          kind={kind}
+          viewer={viewer}
+          onUnmerge={actions.onUnmerge}
+          onMore={actions.onMoreDecided}
+          onMoreMerges={actions.onMoreMerges}
+        />
+      );
     }
     if (kind === 'missing') {
       return state.completeness === null ? (
-        <EmptyState
-          icon={<icons.missing />}
-          title={EMPTY.missing.title}
-          description={EMPTY.missing.body}
-        />
+        <Card padded>
+          <EmptyState
+            icon={<icons.missing />}
+            title={EMPTY.missing.title}
+            description={EMPTY.missing.body}
+          />
+        </Card>
       ) : (
         <MissingDetails
           state={state.completeness}
@@ -550,8 +567,12 @@ function Queue({
           {...(actions.onCheckMissing === undefined ? {} : { onCheck: actions.onCheckMissing })}
           {...(actions.onRemindAll === undefined ? {} : { onRemindAll: actions.onRemindAll })}
           {...(actions.onRemind === undefined ? {} : { onRemind: actions.onRemind })}
-          {...(actions.onNextPage === undefined ? {} : { onNextPage: actions.onNextPage })}
-          {...(actions.onFirstPage === undefined ? {} : { onFirstPage: actions.onFirstPage })}
+          {...(actions.onLoadMoreMissing === undefined
+            ? {}
+            : { onLoadMore: actions.onLoadMoreMissing })}
+          onFilled={(count) => {
+            setFilled({ of: state.completeness, count });
+          }}
           now={now}
           fill={actions.fill ?? null}
           {...(actions.onFillChange === undefined ? {} : { onFillChange: actions.onFillChange })}
@@ -1100,17 +1121,46 @@ function decisionsOf(state: ReviewState): Decision[] {
  * merged records underneath with Undo, or why it cannot be undone.
  */
 function Decided({
-  state,
+  state: drawn,
   kind,
   viewer,
   onUnmerge,
+  onMore,
+  onMoreMerges,
 }: {
   readonly state: ReviewState;
   readonly kind: ReviewKind | null;
   readonly viewer: Viewer;
   readonly onUnmerge: DuplicateActions['onUnmerge'];
+  readonly onMore: ReviewProps['onMoreDecided'];
+  readonly onMoreMerges: ReviewProps['onMoreMerges'];
 }): JSX.Element {
-  const decisions = decisionsOf(state).filter((d) => kind === null || d.kind === kind);
+  // HR's decided changes, a page at a time as the table scrolls.
+  const more = useCallback(
+    async (after: string) => {
+      const page = (await onMore?.(after)) as ApprovalsState | null | undefined;
+      return page == null ? null : { items: page.decided ?? [], next: page.decidedNext ?? null };
+    },
+    [onMore],
+  );
+  const first = drawn.approvals?.decided ?? [];
+  const pages = usePages(
+    first,
+    drawn.approvals?.decidedNext ?? null,
+    onMore === undefined || drawn.approvals === null ? undefined : more,
+  );
+  const state =
+    drawn.approvals === null
+      ? drawn
+      : { ...drawn, approvals: { ...drawn.approvals, decided: pages.items } };
+  // The other kinds come whole; while changes are still to load, only those
+  // as recent as the last change loaded, so a page never lands above them.
+  const oldest = pages.loadMore === undefined ? null : (pages.items.at(-1)?.decidedAt ?? null);
+  const decisions = decisionsOf(state).filter(
+    (d) =>
+      (kind === null || d.kind === kind) &&
+      (oldest === null || d.kind === 'changes' || (d.when ?? '') >= oldest),
+  );
   const merges =
     viewer === 'hr' && (kind === null || kind === 'duplicates')
       ? (state.duplicates?.merges ?? [])
@@ -1130,40 +1180,55 @@ function Decided({
     <Stack gap={4}>
       {decisions.length === 0 ? null : (
         <PageSection surface title="Decided in the last 90 days">
-          <Table aria-label="Decided in the last 90 days">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Person</TableHead>
-                <TableHead>What</TableHead>
-                <TableHead>Outcome</TableHead>
-                <TableHead>By</TableHead>
-                <TableHead>When</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {decisions.map((d) => (
-                <TableRow key={d.key}>
-                  <TableCell>
-                    <span className="flex min-w-0 items-center gap-2">
-                      <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
-                      <span className="truncate">{d.name}</span>
-                    </span>
-                  </TableCell>
-                  <TableCell>{d.what}</TableCell>
-                  <TableCell>
-                    <Badge size="sm" tone={d.outcome.tone}>
-                      {d.outcome.text}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{d.by}</TableCell>
-                  <TableCell>{d.when == null ? '—' : shortDay(d.when)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable<Decision>
+            label="Decided in the last 90 days"
+            rows={decisions}
+            rowId={(d) => d.key}
+            describeRow={(d) => d.name}
+            // Infinite: the page's one scroll, older decisions loading near its
+            // end, only the rows on screen drawn; cards under a finger.
+            stickyHeader
+            containerClassName="page-fill max-h-dvh min-h-96"
+            {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+            loadingMore={pages.loading}
+            columns={[
+              {
+                id: 'person',
+                header: 'Person',
+                cell: (d) => (
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
+                    <span className="truncate">{d.name}</span>
+                  </span>
+                ),
+              },
+              { id: 'what', header: 'What', cell: (d) => d.what },
+              {
+                id: 'outcome',
+                header: 'Outcome',
+                cardTrailing: true,
+                cell: (d) => (
+                  <Badge size="sm" tone={d.outcome.tone}>
+                    {d.outcome.text}
+                  </Badge>
+                ),
+              },
+              { id: 'by', header: 'By', shortHeader: 'By', cell: (d) => d.by },
+              {
+                id: 'when',
+                header: 'When',
+                cell: (d) => (d.when == null ? '—' : shortDay(d.when)),
+              },
+            ]}
+          />
         </PageSection>
       )}
-      <Merges merges={merges} onUnmerge={onUnmerge} />
+      <Merges
+        merges={merges}
+        next={drawn.duplicates?.mergesNext ?? null}
+        onUnmerge={onUnmerge}
+        onLoadMore={onMoreMerges}
+      />
     </Stack>
   );
 }

@@ -152,17 +152,15 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'ImportExport': {
       // Importing stays HR's, as it was. The history is HR's and People
       // administrators', read beside the rest so the first HTML holds it:
-      // the page is drawn once, whole, with no rows still to come. One
-      // People refuses this viewer is left out, not an error.
-      const before = given(query.search['before']);
+      // the page is drawn with its newest history, and older pages load as
+      // it scrolls (`transferHistoryPage`). One People refuses this viewer is
+      // left out, not an error.
       // `Home` is the shell's own read of the roles (`shellData`), shared.
       const [roles, template, running, history] = await Promise.all([
         read('Home'),
         read('ImportTemplate'),
         activeImport(),
-        orBare({ before }, (asked) => read('TransferHistory', asked)).then((answer) =>
-          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
-        ),
+        read('TransferHistory').then((answer) => (answer.status === 'ready' ? answer.data : null)),
       ]);
       if (roles.status !== 'ready') return roles;
       const { hr = false, admin = false } = roles.data as { hr?: boolean; admin?: boolean };
@@ -218,7 +216,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       };
     }
     case 'RoleSettings':
-      return read('RoleSettings');
+      // The search is People's (`?q=`); `after` is only ever a later page's.
+      return read('RoleSettings', {
+        search: given(query.search['q']),
+        after: given(query.search['after']),
+      });
     case 'PeopleHome':
       return overview();
     case 'Organisation':
@@ -234,7 +236,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'ReportSchedules':
       return read('ReportSchedules');
     case 'ReportRuns':
-      return read('ReportRuns', { id: query.params['id'] ?? '' });
+      return read('ReportRuns', {
+        id: query.params['id'] ?? '',
+        // Only ever a later page's (`screenPage`): the address opens the newest.
+        before: given(query.search['before']),
+      });
     case 'ExportBuilder': {
       // The directory's conditions, from its Export button or an export
       // described in words: one more audience, or the bare builder with a notice.
@@ -422,13 +428,29 @@ async function exportExtras(
  *
  * The address chooses what else is read: a pair to compare (`?item=dup-a~b`),
  * the request to send an export an email linked to (`?item=export-…`, when it
- * is not one this viewer decides), and the page of missing details (`?after=`).
+ * is not one this viewer decides), and the person whose missing details are
+ * filled in (`?fill=<person>`), on their own, wherever they are in the list.
  */
 async function review(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
   const item = given(search['item']);
   const pair = item?.startsWith('dup-') === true ? item.slice(4).split('~') : null;
+  // The person whose missing details the address fills in (`?fill=<id>`), not the grid's `all`.
+  const fillFor = given(search['fill']);
+  const named = fillFor === null || fillFor === 'all' ? null : fillFor;
   const shareId = item?.startsWith('export-') === true ? item.slice(7) : null;
   const approvals = read('Approvals', {}, VIEWS.Approvals);
+  // Every queue, asked beside the roles rather than after them: each read is
+  // answered once per request (`people.ts`), so those below find these on
+  // their way, and one this viewer may not open is refused at once and unused.
+  void Promise.all([
+    people('IdentifierReviews'),
+    people('Duplicates', { a: pair?.[0] ?? null, b: pair?.[1] ?? null }),
+    people('FullValues'),
+    people('Completeness'),
+    people('Analytics', { segment: null }),
+    people('ExportSharesToDecide'),
+    people('OwnDecided'),
+  ]);
   const roles = await people<{ hr?: boolean; admin?: boolean; finance?: boolean }>('Home');
   if (!roles.ok) {
     return roles.code === 'UNREACHABLE'
@@ -449,6 +471,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     share,
     shares,
     own,
+    person,
   ] = await Promise.all([
     approvals,
     hr ? read('IdentifierReviews') : null,
@@ -456,7 +479,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
       ? orBare({ a: pair?.[0] ?? null, b: pair?.[1] ?? null }, (asked) => read('Duplicates', asked))
       : null,
     hr || finance ? read('FullValues') : null,
-    hr ? orBare({ after: given(search['after']) }, (asked) => read('Completeness', asked)) : null,
+    hr ? read('Completeness') : null,
     // Complete records overall, analytics' own figure, beside the missing details.
     hr ? people<{ complete: unknown }>('Analytics', { segment: null }) : null,
     shareId === null ? null : people<string>('ExportShare', { id: shareId }),
@@ -464,6 +487,8 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     admin ? people<string>('ExportSharesToDecide') : null,
     // Anybody but HR: their own requests, decided (E10). HR's Decided is everybody's.
     hr ? null : read('OwnDecided', {}, VIEWS.OwnDecided),
+    // Their gaps on their own, so the dialog opens though they are past the first page.
+    hr && named !== null ? read('Completeness', { person: named }) : null,
   ]);
   const down = [changes, identifiers, duplicates, fullValues, completeness].find(
     (l) => l?.status === 'error' && l.unreachable === true,
@@ -485,6 +510,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
           : {
               ...(missing as object),
               complete: analytics?.ok === true ? analytics.data.complete : null,
+              named: (ready(person) as { rows?: unknown[] } | null)?.rows ?? null,
             },
       shares: shares === null ? null : ((jsonOf(shares) as unknown[] | null) ?? null),
       ownDecided: ready(own),

@@ -40,7 +40,6 @@ describe('Import & export, hydrated', () => {
                 },
               ],
               next: null,
-              paged: false,
             },
           },
         },

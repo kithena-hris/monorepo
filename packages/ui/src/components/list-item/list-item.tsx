@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react';
 import {
   cloneElement,
   isValidElement,
+  useCallback,
   useEffect,
   useRef,
   type ComponentPropsWithoutRef,
@@ -12,6 +13,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
   type ReactNode,
+  type Ref,
   type RefObject,
 } from 'react';
 
@@ -68,6 +70,7 @@ export interface ListProps extends ComponentPropsWithoutRef<'ul'> {
    * character keys off.
    */
   navigable?: boolean;
+  ref?: Ref<HTMLUListElement>;
 }
 
 /** The rows of a navigable list: each interactive row's own element. */
@@ -79,9 +82,18 @@ export function List({
   className,
   navigable = false,
   onKeyDown,
+  ref: given,
   ...props
 }: ListProps): JSX.Element {
   const ref = useRef<HTMLUListElement | null>(null);
+  const setRef = useCallback(
+    (el: HTMLUListElement | null): void => {
+      ref.current = el;
+      if (typeof given === 'function') given(el);
+      else if (given) given.current = el;
+    },
+    [given],
+  );
   // One row in the tab order: the focused one, the current one, else the first.
   useEffect(() => {
     const list = ref.current;
@@ -96,7 +108,7 @@ export function List({
   });
   return (
     <ul
-      ref={ref}
+      ref={setRef}
       onKeyDown={(event) => {
         onKeyDown?.(event);
         const list = ref.current;

@@ -25,7 +25,16 @@ import {
   type RequestRecord,
   type Tx,
 } from '../ports.js';
-import { calendarOf, forbidden, notFound, post, refuse, selfOrHr, transact } from '../shared.js';
+import {
+  calendarOf,
+  forbidden,
+  notFound,
+  post,
+  refuse,
+  self,
+  selfOrHr,
+  transact,
+} from '../shared.js';
 import { assess, LIVE, type Assessment } from './assess.js';
 
 /**
@@ -60,12 +69,6 @@ const preview = (a: Assessment): Preview => ({
   approvers: a.approvers,
   approver: a.approver,
 });
-
-async function self(tx: Tx, caller: Caller): Promise<Result<Member>> {
-  if (caller.personId === null) return forbidden();
-  const member = await tx.members.get(caller.personId);
-  return member === null ? notFound('Member') : ok(member);
-}
 
 async function overlaps(
   tx: Tx,

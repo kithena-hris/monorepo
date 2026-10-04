@@ -48,6 +48,7 @@ import { knownTenants } from './tenants.js';
 import { drizzleSecretStore, secretRotation } from './secret-store.js';
 import { claimRotation, drizzleUniqueClaims } from './unique.js';
 import { tenantTransaction } from './unit-of-work.js';
+import { readCacheFrom } from './valkey-read-cache.js';
 
 /**
  * Everything People does that no request asks for (PEO-080, PEO-086).
@@ -127,7 +128,8 @@ export async function startBackground(
 
   const client = postgres(databaseUrl, { max: 2 });
   const db = drizzle(client);
-  const inTenant = tenantTransaction(db);
+  // A snapshot or a publication changes what analytics reads (`read-cache.ts`).
+  const inTenant = tenantTransaction(db, readCacheFrom(env)?.changed);
   const registry = options.registry ?? tenantPolicies;
   const schema = drizzleSchemaRepository();
   const org = drizzleOrgStore();

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
-import { MissingDetails, type CompletenessState } from './completeness-grid';
+import { MissingDetails, type CompletenessState, type GapRow } from './completeness-grid';
 import { renderReview } from '../review/review.fixture';
 
 const state: CompletenessState = {
@@ -86,7 +86,22 @@ const state: CompletenessState = {
   ],
 };
 
-/** "Fill in" on a person's row: the grid, at their first missing cell. */
+const kai: GapRow = {
+  personId: 'k',
+  name: 'Kai Lund',
+  department: null,
+  manager: null,
+  missing: ['desk'],
+  owner: 'hr',
+  remindedAt: null,
+};
+
+/** "Fill in for all": the grid over every gap HR fills. */
+const fillAll = async () => {
+  await fast().click(screen.getByRole('button', { name: 'Fill in for all' }));
+};
+
+/** "Fill in" on a person's row: the dialog for their gaps alone. */
 const fillIn = async (name = 'Lena Moreau') => {
   const [atDesk] = screen.getAllByRole('button', { name: `Fill in ${name}` });
   if (atDesk !== undefined) await fast().click(atDesk);
@@ -109,37 +124,193 @@ describe('Missing details', () => {
     // The person's own gaps are listed too, as theirs to fill.
     expect(within(table).getAllByText('Employee')).toHaveLength(2);
     expect(within(table).getByText('Bank account')).toBeInTheDocument();
-    // Nothing to fill in yet: the grid opens from a row.
+    // Nothing to fill in yet: the grid opens from "Fill in for all", one person from their row.
+    expect(screen.getByRole('button', { name: 'Fill in for all' })).toBeInTheDocument();
     expect(screen.queryByRole('combobox')).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('opens one grid over exactly the missing cells from Fill in, at that person', async () => {
+  it('opens one grid over every gap HR fills from "Fill in for all", and back', async () => {
     const { container } = render(<MissingDetails state={state} onSave={vi.fn()} />);
-    await fillIn('Joan Bosch');
+    await fillAll();
+    expect(screen.getByRole('heading', { name: 'Fill in for HR' })).toBeInTheDocument();
     expect(screen.getAllByRole('combobox', { name: /^Cost centre for / })).toHaveLength(3);
-    expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
     expect(await axeViolations(container)).toEqual([]);
     await fast().click(screen.getByRole('button', { name: 'Back to the list' }));
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
+  it('opens a dialog for one person’s gaps alone from Fill in on their row (E6)', async () => {
+    const onFillChange = vi.fn();
+    render(
+      <MissingDetails state={state} onSave={vi.fn()} fill={null} onFillChange={onFillChange} />,
+    );
+    await fillIn('Lena Moreau');
+    // At once, before the address echoes it.
+    const dialog = screen.getByRole('dialog', { name: 'Fill in for Lena Moreau' });
+    expect(onFillChange).toHaveBeenCalledWith('l');
+    expect(within(dialog).getByRole('combobox', { name: 'Cost centre' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: 'Desk' })).toBeInTheDocument();
+    // Hers alone: nobody else's cells, and none of the employee's own.
+    expect(within(dialog).queryByText(/Joan Bosch/)).toBeNull();
+    expect(within(dialog).queryByRole('textbox', { name: 'Bank account' })).toBeNull();
+    expect(await axeViolations(dialog)).toEqual([]);
+  });
+
+  it('saves one person’s answers from their dialog, closes it, and drops what was filled', async () => {
+    const user = fast();
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(<MissingDetails state={state} onSave={onSave} />);
+    await fillIn('Lena Moreau');
+    const dialog = screen.getByRole('dialog', { name: 'Fill in for Lena Moreau' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Desk' }), 'A-04');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledWith([{ personId: 'l', values: { desk: 'A-04' } }]);
+    expect(
+      await screen.findByText(/Lena Moreau’s record now carries what you filled in/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // The desk is no longer missing; the cost centre still is, and the count says so.
+    const table = screen.getByRole('grid', { name: 'Missing information' });
+    expect(within(table).queryByText('Desk')).toBeNull();
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('opens the dialog a link names, as the server sends it (E6)', () => {
+    renderReview({ completeness: state }, { kind: 'missing', fill: 'j', onFillChange: vi.fn() });
+    expect(screen.getByRole('dialog', { name: 'Fill in for Joan Bosch' })).toBeInTheDocument();
+  });
+
+  it('opens the dialog for somebody past the first page, read on their own', () => {
+    render(<MissingDetails state={{ ...state, named: [kai] }} fill="k" onSave={vi.fn()} />);
+    const dialog = screen.getByRole('dialog', { name: 'Fill in for Kai Lund' });
+    expect(within(dialog).getByRole('textbox', { name: 'Desk' })).toBeInTheDocument();
+  });
+
+  it('draws each kind of value with its own control, in the grid and in the dialog', async () => {
+    const typed: CompletenessState = {
+      ...state,
+      fields: [
+        { key: 'contract_end', label: 'Contract end', dataType: 'date', options: [], person: false },
+        {
+          key: 'equipment',
+          label: 'Equipment',
+          dataType: 'multi_select',
+          options: [{ value: 'laptop', label: 'Laptop' }],
+          person: false,
+        },
+        { key: 'remote', label: 'Remote', dataType: 'boolean', options: [], person: false },
+        {
+          key: 'allowance',
+          label: 'Allowance',
+          dataType: 'money',
+          currency: 'EUR',
+          options: [],
+          person: false,
+        },
+        { key: 'work_email', label: 'Work email', dataType: 'email', options: [], person: false },
+        { key: 'iban', label: 'Bank account', dataType: 'bank_account', options: [], person: false },
+      ],
+      rows: [
+        {
+          personId: 'l',
+          name: 'Lena Moreau',
+          department: null,
+          manager: null,
+          missing: ['contract_end', 'equipment', 'remote', 'allowance', 'work_email', 'iban'],
+          owner: 'hr',
+          remindedAt: null,
+        },
+      ],
+    };
+    const { unmount } = render(<MissingDetails state={typed} onSave={vi.fn()} />);
+    await fillAll();
+    // A date is a date picker, never a text box that holds a date.
+    expect(screen.getByRole('button', { name: 'Contract end for Lena Moreau' })).toHaveTextContent(
+      'Missing',
+    );
+    expect(screen.queryByRole('textbox', { name: 'Contract end for Lena Moreau' })).toBeNull();
+    expect(screen.getByRole('switch', { name: 'Remote for Lena Moreau' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Allowance for Lena Moreau' })).toHaveAttribute(
+      'inputmode',
+      'decimal',
+    );
+    const email = screen.getByRole('textbox', { name: 'Work email for Lena Moreau' });
+    expect(email).toHaveAttribute('type', 'email');
+    expect(email).toHaveAttribute('autocorrect', 'off');
+    expect(screen.getByRole('textbox', { name: 'Bank account for Lena Moreau' })).toHaveAttribute(
+      'spellcheck',
+      'false',
+    );
+    unmount();
+
+    render(<MissingDetails state={typed} fill="l" onSave={vi.fn()} />);
+    const dialog = screen.getByRole('dialog', { name: 'Fill in for Lena Moreau' });
+    expect(within(dialog).getByRole('button', { name: 'Contract end' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('switch', { name: 'Remote' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: 'Work email' })).toHaveAttribute(
+      'type',
+      'email',
+    );
+  });
+
+  it('searches a long list of choices, and says so when a list has none', async () => {
+    const user = fast();
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const countries = [
+      ...Array.from({ length: 40 }, (_, i) => ({ value: `Q${String(i)}`, label: `Country ${String(i)}` })),
+      { value: 'JP', label: 'Japan' },
+    ];
+    render(
+      <MissingDetails
+        state={{
+          ...state,
+          fields: [
+            { key: 'nationality', label: 'Nationality', dataType: 'country', options: countries, person: false },
+            { key: 'team', label: 'Team', dataType: 'org_unit_ref', options: [], person: false },
+          ],
+          rows: [{ ...(state.rows[0] as GapRow), missing: ['nationality', 'team'] }],
+        }}
+        onSave={onSave}
+      />,
+    );
+    await fillAll();
+    await user.click(screen.getByRole('button', { name: 'Nationality for Lena Moreau' }));
+    await user.type(screen.getByRole('combobox', { name: 'Nationality for Lena Moreau search' }), 'Jap');
+    await user.click(await screen.findByRole('option', { name: 'Japan' }));
+    // Nothing to pick from is said, not drawn as a list that opens empty.
+    expect(screen.getByRole('combobox', { name: 'Team for Lena Moreau' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Team for Lena Moreau' })).toHaveTextContent(
+      'Nothing to choose from',
+    );
+    await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
+    expect(onSave).toHaveBeenCalledWith([{ personId: 'l', values: { nationality: 'JP' } }]);
+  });
+
+  it('saves a typed value as itself, not as text', async () => {
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(
+      <MissingDetails
+        state={{
+          ...state,
+          fields: [
+            { key: 'remote', label: 'Remote', dataType: 'boolean', options: [], person: false },
+          ],
+          rows: [{ ...(state.rows[0] as GapRow), missing: ['remote'] }],
+        }}
+        onSave={onSave}
+      />,
+    );
+    await fillAll();
+    await fast().click(screen.getByRole('switch', { name: 'Remote for Lena Moreau' }));
+    await fast().click(screen.getByRole('button', { name: 'Save 1 change' }));
+    expect(onSave).toHaveBeenCalledWith([{ personId: 'l', values: { remote: true } }]);
+  });
+
   it('tabs across the row, and Enter moves down the column', async () => {
     const user = fast();
-    const rows = [
-      ...state.rows,
-      {
-        personId: 'k',
-        name: 'Kai Lund',
-        department: null,
-        manager: null,
-        missing: ['desk'],
-        owner: 'hr' as const,
-        remindedAt: null,
-      },
-    ];
-    render(<MissingDetails state={{ ...state, rows }} onSave={vi.fn()} />);
-    await fillIn();
+    render(<MissingDetails state={{ ...state, rows: [...state.rows, kai] }} onSave={vi.fn()} />);
+    await fillAll();
     screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
     await user.tab();
     expect(screen.getByRole('textbox', { name: 'Desk for Lena Moreau' })).toHaveFocus();
@@ -151,7 +322,7 @@ describe('Missing details', () => {
     const user = fast();
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(<MissingDetails state={state} onSave={onSave} />);
-    await fillIn();
+    await fillAll();
     await pick('Cost centre for Lena Moreau', 'ENG-204');
     await pick('Cost centre for Joan Bosch', 'ENG-201');
     // The next column over: Lena again.
@@ -166,6 +337,9 @@ describe('Missing details', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     });
+    // What was filled is no longer missing: Lena is done, Nadia still waits.
+    expect(screen.queryByRole('combobox', { name: 'Cost centre for Lena Moreau' })).toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Cost centre for Nadia Petrova' })).toBeInTheDocument();
   });
 
   it('keeps the edits and says why when the save is refused', async () => {
@@ -176,29 +350,31 @@ describe('Missing details', () => {
         onSave={() => Promise.resolve({ ok: false, message: 'ENG-201 was retired' })}
       />,
     );
-    await fillIn();
+    await fillAll();
     await pick('Cost centre for Joan Bosch', 'ENG-201');
     await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
     expect(await screen.findByText('ENG-201 was retired')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save 1 change' })).toBeEnabled();
   });
 
-  it('counts over everybody, and pages rather than stopping at the first people (PEO-122)', async () => {
-    const user = fast();
-    const onNextPage = vi.fn();
+  it('counts over everybody, and scrolls on through everybody by keyset (PEO-122)', async () => {
+    const onLoadMore = vi.fn((after: string) =>
+      Promise.resolve(after === 'n' ? { rows: [kai], fields: [], next: null } : null),
+    );
     const { container } = render(
       <MissingDetails
-        state={{ ...state, toFill: 4210 }}
+        state={{ ...state, toFill: 4210, next: 'n' }}
         onSave={vi.fn()}
-        onNextPage={onNextPage}
-        onFirstPage={vi.fn()}
+        onLoadMore={onLoadMore}
       />,
     );
     // The stat is People's count over every page, not this page's three rows.
     expect(screen.getByText('4210')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Next page' }));
-    expect(onNextPage).toHaveBeenCalledOnce();
-    expect(screen.getByRole('button', { name: 'First page' })).toBeInTheDocument();
+    // No page buttons: the next people load as the end of the list nears.
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    expect(await screen.findAllByText('Kai Lund')).not.toHaveLength(0);
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+    expect(onLoadMore).toHaveBeenCalledWith('n');
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -219,7 +395,7 @@ describe('Missing details', () => {
         searchPeople={searchPeople}
       />,
     );
-    await fillIn();
+    await fillAll();
     await user.click(screen.getByRole('button', { name: 'Manager for Lena Moreau' }));
     await user.type(
       screen.getByRole('combobox', { name: 'Manager for Lena Moreau search' }),
@@ -236,11 +412,12 @@ describe('Missing details', () => {
       <MissingDetails state={{ ...state, fields: [], rows: [] }} onSave={vi.fn()} />,
     );
     expect(screen.getByText('Nothing is missing')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fill in for all' })).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
   });
 
   it('is Review’s Missing details chip, and opens the grid a link named (E6, E7)', () => {
-    renderReview({ completeness: state }, { kind: 'missing', fill: 'j' });
+    renderReview({ completeness: state }, { kind: 'missing', fill: 'all', onFillChange: vi.fn() });
     expect(screen.getByRole('heading', { name: 'Fill in for HR' })).toBeInTheDocument();
     expect(screen.getAllByRole('combobox', { name: /^Cost centre for / })).toHaveLength(3);
   });
@@ -280,7 +457,7 @@ describe('Missing details', () => {
       }),
     );
     const { container } = render(<MissingDetails state={nif} onSave={onSave} onCheck={onCheck} />);
-    await fillIn('Joan Bosch');
+    await fillAll();
     await user.type(screen.getByRole('textbox', { name: 'NIF for Joan Bosch' }), '12345678A');
     await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
 
@@ -294,8 +471,42 @@ describe('Missing details', () => {
     await user.click(screen.getByRole('button', { name: 'Save anyway' }));
     expect(onSave).toHaveBeenCalledWith([{ personId: 'j', values: { es_nif: '12345678A' } }]);
     expect(
-      await screen.findByText(/1 value our checks doubted went to HR's review/),
+      await screen.findByText(/1 value our checks doubted went to HR’s review/),
     ).toBeInTheDocument();
+  });
+
+  it('warns on a doubted identifier in the dialog too, then saves it anyway (PEO-125)', async () => {
+    const user = fast();
+    const nif: CompletenessState = {
+      ...state,
+      fields: [{ key: 'es_nif', label: 'NIF', dataType: 'national_id', options: [], person: false }],
+      rows: [{ ...(state.rows[1] as GapRow), missing: ['es_nif'] }],
+    };
+    const finding = {
+      personId: 'j',
+      key: 'es_nif',
+      label: 'NIF',
+      level: 'mismatch' as const,
+      code: 'check_mismatch',
+      message: 'The control letter does not compute.',
+      review: 'none' as const,
+    };
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    render(
+      <MissingDetails
+        state={nif}
+        onSave={onSave}
+        onCheck={() => Promise.resolve({ ok: true as const, findings: [finding] })}
+      />,
+    );
+    await fillIn('Joan Bosch');
+    const dialog = screen.getByRole('dialog', { name: 'Fill in for Joan Bosch' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'NIF' }), '12345678A');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(within(dialog).getByText('Our checks suggest this may be wrong')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Save anyway' }));
+    expect(onSave).toHaveBeenCalledWith([{ personId: 'j', values: { es_nif: '12345678A' } }]);
   });
 });
 
@@ -379,7 +590,7 @@ describe('Missing details, the figures and reminders (E6, MA E5)', () => {
   it('keeps Fill in for HR’s rows only, and opens the grid over them alone', async () => {
     render(<MissingDetails state={state} onSave={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Fill in Omar Haddad' })).toBeNull();
-    await fillIn();
+    await fillAll();
     expect(screen.queryByRole('textbox', { name: /Bank account/ })).toBeNull();
     expect(screen.queryByText('Omar Haddad')).toBeNull();
   });

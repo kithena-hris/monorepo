@@ -607,7 +607,6 @@ describe('the directory at 50,000 people', () => {
       ],
       match: 'any' as const,
       sort: { key: 'name', direction: 'asc' as const },
-      offset: 0,
     };
     const page = await timed('directory conditions sorted by name', () =>
       inTenantResult(inTenant, PERF, (tx) =>
@@ -622,25 +621,32 @@ describe('the directory at 50,000 people', () => {
     );
     const names = page.value.items.map((p) => String(p.attributes['given_name']).toLowerCase());
     expect(names).toEqual([...names].sort());
-    // Sorted, the next page is an offset.
-    expect(page.value.next).toBe('@50');
+    // Sorted too, the next page is the last one's place, never an offset.
+    expect(page.value.next).toBe(page.value.items.at(-1)?.id);
   });
 
-  it('pages a sorted list by offset without repeating anybody', async () => {
-    const refine = (offset: number) => ({
-      conditions: [{ key: 'cost_centre', op: 'is' as const, values: ['CC-7'] }],
+  it('pages a sorted list from the last one’s place, in order across the seam, nobody twice', async () => {
+    const refine = {
+      conditions: [{ key: 'cost_centre', op: 'contains' as const, values: ['CC-7'] }],
       sort: { key: 'cost_centre', direction: 'desc' as const },
-      offset,
-    });
+    };
     const first = await inTenantResult(inTenant, PERF, (tx) =>
-      people.list(tx, { ...asking(hr, PERF), limit: 50, refine: refine(0) }),
+      people.list(tx, { ...asking(hr, PERF), limit: 50, refine }),
     );
-    const second = await inTenantResult(inTenant, PERF, (tx) =>
-      people.list(tx, { ...asking(hr, PERF), limit: 50, refine: refine(50) }),
+    if (!first.ok) throw new Error('not listed');
+    const second = await timed('directory sorted, the second page by keyset', () =>
+      inTenantResult(inTenant, PERF, (tx) =>
+        people.list(tx, { ...asking(hr, PERF), after: first.value.next, limit: 50, refine }),
+      ),
     );
-    if (!first.ok || !second.ok) throw new Error('not listed');
+    if (!second.ok) throw new Error('not listed');
     const a = new Set(first.value.items.map((p) => p.id));
+    expect(second.value.items.length).toBeGreaterThan(0);
     expect(second.value.items.some((p) => a.has(p.id))).toBe(false);
+    const centre = (p: { attributes: Record<string, unknown> }) =>
+      String(p.attributes['cost_centre']);
+    const seam = [first.value.items.at(-1), second.value.items[0]].map((p) => (p ? centre(p) : ''));
+    expect((seam[0] ?? '') >= (seam[1] ?? '')).toBe(true);
   });
 
   it('lets HR narrow by status, and counts what the conditions match', async () => {

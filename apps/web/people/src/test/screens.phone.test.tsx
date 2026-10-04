@@ -763,13 +763,14 @@ describe('at 390×844, with a finger', () => {
           kind: 'missing',
           onSaveMissing: ok,
           onRemind: ok,
-          // Paged (PEO-122): the page buttons are finger-sized too.
-          onNextPage: vi.fn(),
-          onFirstPage: vi.fn(),
+          // Infinite (PEO-122): the next people load as the list nears its end.
+          onLoadMoreMissing: vi.fn(() => Promise.resolve(null)),
         },
       ),
     );
-    expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull();
+    // Reminding everybody and the grid over everybody are a desk's (MA E5).
+    expect(screen.queryByRole('button', { name: 'Fill in for all' })).toBeNull();
     // A phone gets the percentage as a bar, and a row a person (MV2); the table is a desk's.
     expect(screen.queryByRole('table', { name: 'Missing information' })).toBeNull();
     const people = screen.getByRole('list', { name: 'Missing information' });
@@ -778,10 +779,13 @@ describe('at 390×844, with a finger', () => {
     expect(within(people).getByRole('button', { name: 'Remind Lucía Fernández' })).toBeVisible();
     await userEvent.click(within(people).getByRole('button', { name: 'Fill in Lena Moreau' }));
     await settled();
+    // Her gaps alone, in a dialog centred on the phone, not a sheet.
+    const dialog = screen.getByRole('dialog', { name: 'Fill in for Lena Moreau' });
+    const box = dialog.getBoundingClientRect();
+    expect(box.left).toBeGreaterThan(0);
+    expect(box.bottom).toBeLessThan(window.innerHeight);
+    expect(within(dialog).getByRole('combobox', { name: 'Cost centre' })).toBeVisible();
     expect(underFloor(document.body)).toEqual([]);
-    expect(screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' })).toHaveFocus();
-    await userEvent.keyboard('{Tab}');
-    expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
   });
 
   it('import and export, two tiles and one history (MV5)', async () => {
@@ -807,7 +811,6 @@ describe('at 390×844, with a finger', () => {
                 },
               ],
               next: null,
-              paged: false,
             },
           },
         }}
@@ -953,7 +956,7 @@ describe('at 390×844, with a finger', () => {
         }}
         onReplay={ok}
         onBack={() => undefined}
-        onOlder={() => undefined}
+        onLoadMore={() => Promise.resolve(null)}
       />,
     );
   });

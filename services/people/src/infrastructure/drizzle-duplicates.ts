@@ -105,6 +105,11 @@ export function drizzleDuplicates(): DuplicateStore {
              SELECT 1 FROM people.duplicate_decision u
               WHERE u.tenant_id = d.tenant_id AND u.reverses = d.id)
            ${where.absorbedId === undefined ? sql`` : sql`AND d.absorbed_id = ${where.absorbedId}::uuid`}
+           ${
+             where.before === undefined
+               ? sql``
+               : sql`AND (d.decided_at, d.id) < (${where.before.at}::timestamptz, ${where.before.id}::uuid)`
+           }
          ORDER BY d.decided_at DESC, d.id DESC
          LIMIT ${where.limit}`);
       return [...rows].map((r) => ({
