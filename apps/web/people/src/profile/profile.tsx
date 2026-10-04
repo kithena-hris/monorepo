@@ -25,7 +25,6 @@ import {
   EmptyState,
   Field,
   FieldControl,
-  FieldDescription,
   FieldLabel,
   Input,
   PageHeader,
@@ -35,7 +34,6 @@ import {
   Separator,
   Stack,
   TertiaryNav,
-  Textarea,
   Tooltip,
   icons,
   useScreenCommand,
@@ -379,26 +377,24 @@ function Record({
         };
 
   // The record's parts, as the record card lists them and a phone's pills.
-  const parts = [
-    ...sections.map((section) => {
-      const n = gapsIn(section).length;
-      return {
-        id: `section-${section.key}`,
-        label: section.label,
-        ...(person.missing === null
-          ? {}
-          : {
-              status: n === 0 ? ('success' as const) : ('warning' as const),
-              ...(n === 0
-                ? {}
-                : {
-                    badge: <MissingMark count={n} />,
-                    shortLabel: `${section.label} · ${String(n)}`,
-                  }),
-            }),
-      };
-    }),
-  ];
+  const parts = sections.map((section) => {
+    const n = gapsIn(section).length;
+    return {
+      id: `section-${section.key}`,
+      label: section.label,
+      ...(person.missing === null
+        ? {}
+        : {
+            status: n === 0 ? ('success' as const) : ('warning' as const),
+            ...(n === 0
+              ? {}
+              : {
+                  badge: <MissingMark count={n} />,
+                  shortLabel: `${section.label} · ${String(n)}`,
+                }),
+          }),
+    };
+  });
   const history =
     historyHref === undefined ? null : { id: 'history', label: 'History', href: historyHref };
 
