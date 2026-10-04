@@ -2695,3 +2695,66 @@ describe('A People page while the VM behind it is asleep', () => {
     await context.close();
   });
 });
+
+/**
+ * Moving between People's pages as a person does: a pointer that rests on a
+ * link a moment before pressing it, on a page they have had a second to
+ * read. Each move is timed from the press to the address changing, which is
+ * when the next page is drawn: the previous one stays until then, with no
+ * skeleton in between. With `NAV_OUT`, a run writes the timings down.
+ */
+describe('Moving between People’s sections, tabs and views', () => {
+  it('lands every move, with no skeleton between pages', async () => {
+    const context = await signedIn(ADMIN.session, { viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    await page.goto(`${stack.shell}/people/directory/list`);
+    await page.locator('[data-remote="people"]').waitFor({ state: 'attached', timeout: 30_000 });
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => {
+      const w = window as unknown as { skeletons: string[] };
+      w.skeletons = [];
+      new MutationObserver(() => {
+        for (const s of document.querySelectorAll('[role=status]')) {
+          if (/Loading/.test(s.textContent)) w.skeletons.push(s.textContent);
+        }
+      }).observe(document.body, { subtree: true, childList: true });
+    });
+    const sidebar = (name: string) =>
+      page.getByRole('navigation', { name: 'Areas' }).getByRole('link', { name, exact: true });
+    const tab = (section: string, name: string) =>
+      page
+        .getByRole('navigation', { name: `${section} tabs` })
+        .getByRole('link', { name, exact: true });
+    const moves: [string, number][] = [];
+    const move = async (link: ReturnType<typeof sidebar>, to: RegExp): Promise<void> => {
+      await link.first().hover();
+      await page.waitForTimeout(150);
+      const start = performance.now();
+      await link.first().click();
+      await page.waitForURL(to, { timeout: 30_000 });
+      moves.push([to.source, Math.round(performance.now() - start)]);
+      // A moment on the page, as somebody reading it.
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1_000);
+    };
+    await move(sidebar('Review'), /\/people\/review\/waiting/);
+    await move(tab('Review', 'Decided'), /\/people\/review\/decided/);
+    await move(tab('Review', 'Flagged'), /\/people\/review\/flagged/);
+    await move(sidebar('Insights'), /\/people\/insights\/what-changed/);
+    await move(tab('Insights', 'Headcount'), /\/people\/insights\/headcount/);
+    await move(tab('Insights', 'Turnover'), /\/people\/insights\/turnover/);
+    await move(sidebar('Import & export'), /\/people\/import-export/);
+    await move(sidebar('Directory'), /\/people\/directory\/list/);
+    await move(sidebar('Review'), /\/people\/review\/waiting/);
+    await move(sidebar('Directory'), /\/people\/directory\/list/);
+    const out = process.env['NAV_OUT'];
+    if (out !== undefined) {
+      for (const [to, ms] of moves) appendFileSync(out, `${to} ${String(ms)}\n`);
+    }
+    expect(moves).toHaveLength(10);
+    expect(
+      await page.evaluate(() => (window as unknown as { skeletons: string[] }).skeletons),
+    ).toEqual([]);
+    await context.close();
+  });
+});
