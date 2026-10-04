@@ -267,6 +267,7 @@ function Schedules({
         rows={state.schedules}
         rowId={(row) => row.id}
         describeRow={(row) => row.name}
+        rowMenuOnCard
         empty={
           <EmptyState
             title="No scheduled reports"

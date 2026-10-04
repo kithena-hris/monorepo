@@ -426,6 +426,7 @@ function Entities({
         rows={state.legalEntities}
         rowId={(e) => e.id}
         describeRow={(e) => e.name}
+        rowMenuOnCard
         empty={
           <EmptyState
             title="No legal entities yet"
@@ -523,6 +524,7 @@ function Locations({
         rows={state.locations}
         rowId={(p) => p.id}
         describeRow={(p) => p.name}
+        rowMenuOnCard
         empty={
           <EmptyState
             title="No locations yet"

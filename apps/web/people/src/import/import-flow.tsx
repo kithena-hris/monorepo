@@ -337,6 +337,8 @@ function Steps({
     readonly here: PlacesHere;
   } | null>(null);
   const [placeChoices, setPlaceChoices] = useState<PlaceChoices>({});
+  // On a phone, the work locations were looked at and Next pressed: the new fields follow.
+  const [placesSeen, setPlacesSeen] = useState(false);
   // Another file read: nothing chosen for the last one carries over.
   const [file, setFile] = useState(stage);
   if (given.step === 'map' && file !== stage) {
@@ -344,6 +346,7 @@ function Steps({
     setChoices({});
     setPlaces(null);
     setPlaceChoices({});
+    setPlacesSeen(false);
     setView(null);
     setProposals([]);
     setPlan(null);
@@ -473,6 +476,7 @@ function Steps({
     coarse &&
     given.step === 'map' &&
     step === 'review' &&
+    deciding.length > 0 &&
     plan === null &&
     !busy &&
     refused === null;
@@ -659,7 +663,7 @@ function Steps({
               })}
           actions={
             done !== null && props.onDone !== undefined ? (
-              <Button variant="secondary" size="sm" onClick={props.onDone}>
+              <Button variant="secondary" onClick={props.onDone}>
                 Done
               </Button>
             ) : given.step === 'upload' ? (
@@ -728,8 +732,17 @@ function Steps({
   }
 
   const current = step === 'map' ? 0 : step === 'decide' ? 1 : 2;
-  // Under a finger the new fields are a carousel once the work locations are settled (MA8).
-  const phoneCards = coarse && step === 'decide' && placesDone && view !== null;
+  // Under a finger the file's work locations come first, then the new fields
+  // as a carousel (MA8), once the work locations are settled.
+  const phoneCards =
+    coarse &&
+    step === 'decide' &&
+    view !== null &&
+    proposals.length > 0 &&
+    (!hasPlaces || (placesSeen && placesDone));
+  // Who fills each new field shares the plan's screen on a phone (MA9); with
+  // nothing to decide there, the plan is drawn whole, as at a desk.
+  const phonePlan = coarse && step === 'review' && deciding.length > 0;
 
   return (
     <Stack gap={5}>
@@ -947,7 +960,7 @@ function Steps({
         </div>
       ) : null}
 
-      {step === 'decide' && coarse && !phoneCards && places !== null ? (
+      {step === 'decide' && coarse && !phoneCards && places !== null && hasPlaces ? (
         <>
           {refusedAlert}
           <WorkLocationsStep
@@ -964,7 +977,21 @@ function Steps({
           {/* In thumb reach, pinned above the tab bar as MA8's buttons are. */}
           <div {...PINNED_BAR} className="sticky bottom-24 z-10 flex flex-col gap-2 bg-canvas py-2">
             {placesHint}
-            {toReview}
+            {view !== null && proposals.length > 0 ? (
+              <Button
+                variant="primary"
+                endIcon={<icons.forward aria-hidden />}
+                disabled={!placesDone}
+                aria-describedby={placesMissing.length === 0 ? undefined : `${whyId}-places`}
+                onClick={() => {
+                  setPlacesSeen(true);
+                }}
+              >
+                Next: new fields
+              </Button>
+            ) : (
+              toReview
+            )}
           </div>
         </>
       ) : null}
@@ -1040,7 +1067,7 @@ function Steps({
         </>
       ) : null}
 
-      {step === 'review' && plan !== null && !coarse ? (
+      {step === 'review' && plan !== null && !phonePlan ? (
         <PlanStep
           plan={plan}
           busy={busy}
@@ -1055,7 +1082,7 @@ function Steps({
         />
       ) : null}
 
-      {step === 'review' && coarse ? (
+      {phonePlan ? (
         <>
           <PhonePlan view={view} kept={kept} plan={plan} refused={refusedAlert} onChange={change} />
           <div {...PINNED_BAR} className="sticky bottom-24 z-10 flex flex-col gap-2 bg-canvas py-2">
