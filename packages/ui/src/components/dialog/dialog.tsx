@@ -2,7 +2,12 @@
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
-import type { ComponentPropsWithoutRef, JSX } from 'react';
+import {
+  useSyncExternalStore,
+  type ComponentPropsWithoutRef,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 import { usePortalContainer } from '../../lib/portal-container';
@@ -25,12 +30,20 @@ export function DialogContent({
   className,
   children,
   showCloseButton = true,
+  sheetOnTouch = true,
   ...props
 }: ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
+  /**
+   * Under a finger, rise as a bottom sheet (the default). `false` keeps it a
+   * centred dialog there too: for a short, focused task (a few fields, one
+   * outcome) whose whole form fits on screen, where a sheet would cover the
+   * page for no reason. A long or scrolling editor stays a sheet.
+   */
+  sheetOnTouch?: boolean;
 }): JSX.Element {
   return (
-    <DialogPrimitive.Portal container={usePortalContainer()}>
+    <InPortal container={usePortalContainer()}>
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(
@@ -56,10 +69,15 @@ export function DialogContent({
           // `dvh`, not `vh`: mobile Safari's `vh` is the height with the URL bar
           // hidden, so a `90vh` sheet is taller than the visible page until the
           // user scrolls.
-          'touch:inset-x-2 touch:top-auto touch:bottom-[max(0.5rem,var(--spacing-safe-bottom))]',
-          'touch:max-h-[92dvh] touch:w-auto touch:max-w-none touch:translate-x-0 touch:translate-y-0',
-          'touch:rounded-[2.25rem]',
-          'touch:data-[state=open]:animate-slide-in-bottom touch:data-[state=closed]:animate-slide-out-bottom',
+          sheetOnTouch
+            ? [
+                'touch:inset-x-2 touch:top-auto touch:bottom-[max(0.5rem,var(--spacing-safe-bottom))]',
+                'touch:max-h-[92dvh] touch:w-auto touch:max-w-none touch:translate-x-0 touch:translate-y-0',
+                'touch:rounded-[2.25rem]',
+                'touch:data-[state=open]:animate-slide-in-bottom touch:data-[state=closed]:animate-slide-out-bottom',
+              ]
+            : // Centred under a finger too, a 16px gutter each side.
+              'touch:rounded-[1.75rem] touch:max-h-[85dvh] touch:max-w-none',
           className,
         )}
         {...props}
@@ -67,10 +85,12 @@ export function DialogContent({
         {/* Grabber. Purely a signifier that the surface came from the bottom
             edge, it is decorative, and the sheet is dismissed by the close
             button, Escape or the overlay, all of which work without a gesture. */}
-        <div
-          aria-hidden
-          className="mx-auto mt-2 hidden h-[5px] w-9 shrink-0 rounded-full bg-border-strong touch:block"
-        />
+        {sheetOnTouch ? (
+          <div
+            aria-hidden
+            className="mx-auto mt-2 hidden h-[5px] w-9 shrink-0 rounded-full bg-border-strong touch:block"
+          />
+        ) : null}
         {children}
         {showCloseButton ? (
           <DialogPrimitive.Close
@@ -85,7 +105,35 @@ export function DialogContent({
           </DialogPrimitive.Close>
         ) : null}
       </DialogPrimitive.Content>
-    </DialogPrimitive.Portal>
+    </InPortal>
+  );
+}
+
+const subscribeNever = (): (() => void) => () => undefined;
+
+/**
+ * The portal, once the page is live. A dialog open in the server's HTML (one
+ * the address asked for) has no `document` to portal into there, and a portal
+ * draws nothing until it mounts; so on the server and while hydrating it is
+ * drawn where it sits — fixed, so in the same place — and moves into the
+ * portal right after. The first HTML already shows it open.
+ */
+function InPortal({
+  container,
+  children,
+}: {
+  readonly container: HTMLElement | null | undefined;
+  readonly children: ReactNode;
+}): JSX.Element {
+  const live = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
+  return live ? (
+    <DialogPrimitive.Portal container={container}>{children}</DialogPrimitive.Portal>
+  ) : (
+    <>{children}</>
   );
 }
 

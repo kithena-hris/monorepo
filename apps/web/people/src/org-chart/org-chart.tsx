@@ -13,7 +13,7 @@ import {
   useCoarsePointer,
   type OrgNode,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import type { JSX } from 'react';
 
 import { ViewSwitch, type DirectoryView } from '../directory/directory';
 import { useHeld } from '../held';
@@ -64,6 +64,9 @@ export interface OrgChartScreenProps {
   /** Whose chain the search focused (`?focus=<id>`); null for everybody. */
   readonly focusId?: string | null;
   readonly onFocusChange?: (personId: string | null) => void;
+  /** Whose side card is open (`?person=<id>`); null for none. */
+  readonly pickedId?: string | null;
+  readonly onPickedChange?: (personId: string | null) => void;
 }
 
 export type Orientation = 'vertical' | 'horizontal';
@@ -90,12 +93,16 @@ function Body({
   onLayoutChange,
   focusId,
   onFocusChange,
+  pickedId,
+  onPickedChange,
 }: Omit<OrgChartScreenProps, 'load'> & { readonly state: OrgChartState }): JSX.Element {
   const coarse = useCoarsePointer();
   const [orientation, setOrientation] = useHeld<Orientation>(layout, onLayoutChange, 'vertical');
   const [focused, setFocused] = useHeld<string | null>(focusId, onFocusChange, null);
-  const [picked, setPicked] = useState<string | null>(null);
+  const [chosen, setPicked] = useHeld<string | null>(pickedId, onPickedChange, null);
   const ids = new Set(state.people.map((p) => p.id));
+  // Somebody a link names who is not on this viewer's chart: no card.
+  const picked = chosen !== null && ids.has(chosen) ? chosen : null;
   // Somebody a link focused who is not on this viewer's chart: everybody.
   const focus = focused !== null && ids.has(focused) ? focused : null;
   const managers = new Set(
@@ -158,19 +165,22 @@ function Body({
                 ? {}
                 : {
                     toolbar: (
-                      <SegmentedControl
-                        aria-label="Direction"
-                        size="sm"
-                        value={orientation}
-                        onValueChange={(next) => {
-                          setOrientation(next === 'horizontal' ? 'horizontal' : 'vertical');
-                        }}
-                      >
-                        <SegmentedControlItem value="vertical">Top down</SegmentedControlItem>
-                        <SegmentedControlItem value="horizontal">
-                          Left to right
-                        </SegmentedControlItem>
-                      </SegmentedControl>
+                      <span className="flex items-center gap-2 text-sm text-fg-muted">
+                        <span aria-hidden>Direction</span>
+                        <SegmentedControl
+                          aria-label="Direction"
+                          size="sm"
+                          value={orientation}
+                          onValueChange={(next) => {
+                            setOrientation(next === 'horizontal' ? 'horizontal' : 'vertical');
+                          }}
+                        >
+                          <SegmentedControlItem value="vertical">Top down</SegmentedControlItem>
+                          <SegmentedControlItem value="horizontal">
+                            Left to right
+                          </SegmentedControlItem>
+                        </SegmentedControl>
+                      </span>
                     ),
                   })}
               minimap

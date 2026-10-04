@@ -15,7 +15,7 @@ describe('framed', () => {
         title="People"
         frame={{
           section: 'Directory',
-          actions: [{ href: '/people/new', label: 'Add employee', icon: 'hire' }],
+          actions: [{ href: '/people/directory/list?add=person', label: 'Add employee', icon: 'hire' }],
         }}
       />,
     );
@@ -25,7 +25,7 @@ describe('framed', () => {
     // Two copies of the action, one displayed at a time: labelled at a desk,
     // an icon named by its label in the phone's bar under a finger.
     const [add, icon] = screen.getAllByRole('link', { name: 'Add employee' });
-    expect(add?.getAttribute('href')).toBe('/people/new');
+    expect(add?.getAttribute('href')).toBe('/people/directory/list?add=person');
     expect(add?.textContent).toBe('Add employee');
     expect(icon?.textContent).toBe('');
     expect(icon?.className).toContain('touch:inline-flex');

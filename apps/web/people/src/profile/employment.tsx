@@ -16,6 +16,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  Input,
   PageSection,
   Select,
   SelectContent,
@@ -207,6 +208,7 @@ export function EmploymentMove({
     <MoveDialog
       kind={kind}
       today={state.calendar.today}
+      timeZone={state.calendar.timeZone}
       lastPeriod={state.employment?.periods.at(-1) ?? null}
       name={name ?? 'They'}
       placement={placement ?? null}
@@ -303,6 +305,7 @@ function ReasonSelect({
 function MoveDialog({
   kind,
   today,
+  timeZone,
   lastPeriod,
   name,
   placement,
@@ -311,6 +314,8 @@ function MoveDialog({
 }: {
   readonly kind: Asking;
   readonly today: string;
+  /** Their calendar's zone: "Europe/Madrid". */
+  readonly timeZone: string;
   readonly lastPeriod: EmploymentPeriod | null;
   readonly name: string;
   readonly placement: PlacementState | null;
@@ -379,131 +384,125 @@ function MoveDialog({
     }
   };
 
+  const first = name.split(' ')[0] ?? name;
+  // Their calendar's city, as people say it: "Madrid" from "Europe/Madrid".
+  const city = (timeZone.split('/').at(-1) ?? timeZone).replaceAll('_', ' ');
   const WHAT: Record<Asking, string> = {
-    giveNotice: 'They stay employed until the end of their last working day.',
+    giveNotice: `${first} keeps access until the end of the last working day on their own calendar.`,
     withdrawNotice: 'They go back to the status they held before notice.',
-    terminate:
-      'Their employment ends; their access ends at the end of the last working day unless you end it now.',
+    terminate: `Ends ${first}’s employment on the day you choose. Their record stays, closed.`,
     endAccess: 'They can no longer sign in, from now. Their record stays.',
     startLeave: 'They are on leave from today, on their calendar.',
     endLeave: 'They are back from today, on their calendar.',
     discard: 'This provisional record was never a person. It is withdrawn.',
     rehire: 'A new employment period on the same record, starting on this day.',
-    hire: 'Their employment starts on this day, on their calendar: past or future.',
+    hire: `${first} is pre-hire until the start date, then an employee from it.`,
+  };
+  const TITLE: Partial<Record<Asking, string>> = {
+    giveNotice: `${first} is leaving`,
+    terminate: `Terminate ${name}`,
+    rehire: `Rehire ${name}`,
+    hire: `Is ${name} an employee?`,
   };
 
   const body: ReactNode[] = [];
-  if (needsDay) {
-    body.push(
-      <div key="day" className="flex flex-col gap-1.5">
+  const dayField = needsDay ? (
+    <Field key="day">
+      <FieldLabel>
+        {kind === 'rehire' || kind === 'hire' ? 'Start date' : 'Last working day'}
+      </FieldLabel>
+      <FieldControl>
         <DatePicker
           label={kind === 'rehire' || kind === 'hire' ? 'Start date' : 'Last working day'}
           value={day}
           onChange={setDay}
+          today={today}
         />
-        <p className="text-fg-muted text-xs">A day on their calendar; today there is {today}.</p>
+      </FieldControl>
+      <FieldDescription>
+        A day on their calendar; today there is {longDate(today)}.
+      </FieldDescription>
+    </Field>
+  ) : null;
+  if (kind === 'giveNotice' || kind === 'terminate') {
+    // The day and the reason, side by side.
+    body.push(
+      <div key="when" className="grid gap-3 sm:grid-cols-2">
+        {dayField}
+        <ReasonSelect
+          value={reason}
+          onChange={setReason}
+          required={kind === 'terminate'}
+          invalid={shown && problems.reason}
+        />
       </div>,
     );
-  }
-  if (kind === 'giveNotice' || kind === 'terminate') {
-    body.push(
-      <ReasonSelect
-        key="reason"
-        value={reason}
-        onChange={setReason}
-        required={kind === 'terminate'}
-        invalid={shown && problems.reason}
-      />,
-    );
+  } else if (dayField !== null) {
+    body.push(dayField);
   }
   if (kind === 'terminate') {
     body.push(
       <Field key="note">
         <FieldLabel>Note</FieldLabel>
         <FieldControl>
-          <Textarea
+          <Input
             value={note}
             maxLength={500}
+            placeholder="Optional"
             onChange={(e) => {
               setNote(e.target.value);
             }}
           />
         </FieldControl>
-        <FieldDescription>Kept with the termination. Optional.</FieldDescription>
       </Field>,
-      <Field key="eligible" orientation="horizontal">
-        <FieldControl>
-          <Checkbox
-            checked={eligible}
-            onCheckedChange={(on) => {
-              setEligible(on === true);
-            }}
-          />
-        </FieldControl>
-        <FieldLabel>Eligible for rehire</FieldLabel>
-      </Field>,
-      <Field key="now" orientation="horizontal">
-        <FieldControl>
-          <Checkbox
-            checked={endNow}
-            onCheckedChange={(on) => {
-              setEndNow(on === true);
-            }}
-          />
-        </FieldControl>
-        <FieldLabel>End their access now</FieldLabel>
-      </Field>,
+      <div key="flags" className="flex flex-wrap gap-x-6 gap-y-2">
+        <Field orientation="horizontal">
+          <FieldControl>
+            <Checkbox
+              checked={eligible}
+              onCheckedChange={(on) => {
+                setEligible(on === true);
+              }}
+            />
+          </FieldControl>
+          <FieldLabel>Eligible for rehire</FieldLabel>
+        </Field>
+        <Field orientation="horizontal">
+          <FieldControl>
+            <Checkbox
+              checked={endNow}
+              onCheckedChange={(on) => {
+                setEndNow(on === true);
+              }}
+            />
+          </FieldControl>
+          <FieldLabel>End their access now</FieldLabel>
+        </Field>
+      </div>,
     );
   }
   if (places) {
     body.push(
-      <PlacementPickers
-        key="placement"
-        placement={placement}
-        entity={entity}
-        location={location}
-        onEntity={setEntity}
-        onLocation={setLocation}
-        required
-        invalid={shown && problems.entity}
-      />,
-    );
-  }
-  if (kind === 'hire' && day !== null) {
-    body.push(
-      <Alert key="what" tone="info">
-        {day <= today
-          ? `${name} becomes an employee from ${longDate(day)}.`
-          : `${name} is pre-hire until ${longDate(day)}, and an employee from then.`}
+      <Alert key="nowhere" tone="neutral" title={`${first} is placed nowhere`}>
+        Choose where they work.
       </Alert>,
-    );
-  }
-  if ((kind === 'giveNotice' || kind === 'terminate') && day !== null) {
-    // What the move sets going, on their own calendar (W15).
-    body.push(
-      <Card key="happens" variant="fill" padded>
-        <p className="text-xs font-semibold text-fg-muted">What happens</p>
-        <ul className="mt-2 flex list-disc flex-col gap-1 ps-4 text-sm">
-          <li>
-            {name} stays {kind === 'giveNotice' ? 'employed' : 'active'} until the end of{' '}
-            {longDate(day)}, on their own calendar.
-          </li>
-          <li>
-            {kind === 'terminate' && endNow
-              ? 'Their access ends now.'
-              : 'Their access ends at the end of that day, not at midnight UTC.'}
-          </li>
-          {kind === 'giveNotice' ? (
-            <li>If they stay, withdraw the notice any time before then.</li>
-          ) : null}
-        </ul>
-      </Card>,
+      <div key="placement" className="grid gap-3 sm:grid-cols-2">
+        <PlacementPickers
+          placement={placement}
+          entity={entity}
+          location={location}
+          onEntity={setEntity}
+          onLocation={setLocation}
+          required
+          invalid={shown && problems.entity}
+        />
+      </div>,
     );
   }
   if (notEligible) {
     body.push(
-      <Alert key="warn" tone="warning">
-        Their last employment ended marked not eligible for rehire.
+      <Alert key="warn" tone="warning" title={`${first} was marked not eligible for rehire`}>
+        Say why you are rehiring anyway. It’s kept on the record.
       </Alert>,
       <Field key="override" required invalid={shown && problems.override}>
         <FieldLabel>Why rehire them anyway</FieldLabel>
@@ -516,9 +515,33 @@ function MoveDialog({
             }}
           />
         </FieldControl>
-        <FieldDescription>Kept on the new period and audited.</FieldDescription>
         <FieldError>Say why.</FieldError>
       </Field>,
+    );
+  }
+  // What the move sets going, on their own calendar (D5).
+  const happens =
+    day === null
+      ? null
+      : kind === 'hire'
+        ? day <= today
+          ? `${name} becomes an employee from ${longDate(day)}.`
+          : `${name} is pre-hire until ${longDate(day)}, and an employee from then.`
+        : kind === 'giveNotice' || kind === 'terminate'
+          ? `${first} keeps access until the end of ${longDate(day)} on their own calendar (${city}), not at midnight UTC.${
+              kind === 'terminate' && endNow
+                ? ' Their access ends now instead.'
+                : ' You can withdraw this before then.'
+            }`
+          : kind === 'rehire'
+            ? `A new employment period starts on ${longDate(day)}.`
+            : null;
+  if (happens !== null) {
+    body.push(
+      <Card key="happens" variant="fill" padded>
+        <p className="text-sm font-semibold text-fg">What happens</p>
+        <p className="mt-2 text-sm text-fg-muted">{happens}</p>
+      </Card>,
     );
   }
 
@@ -529,15 +552,9 @@ function MoveDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent className="max-w-150" sheetOnTouch={false}>
         <DialogHeader>
-          <DialogTitle>
-            {kind === 'giveNotice'
-              ? `${name} is leaving`
-              : kind === 'hire'
-                ? `Is ${name} an employee?`
-                : LABEL[kind]}
-          </DialogTitle>
+          <DialogTitle>{TITLE[kind] ?? LABEL[kind]}</DialogTitle>
           <DialogDescription>{WHAT[kind]}</DialogDescription>
         </DialogHeader>
         <DialogBody>

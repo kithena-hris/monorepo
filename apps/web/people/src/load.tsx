@@ -39,7 +39,8 @@ export function Loaded<T>({
           )
         }
       >
-        {load.message}
+        {/* The server's own words, said as theirs (C9). */}
+        The server said: <span>{load.message}</span>
       </Alert>
     );
   }

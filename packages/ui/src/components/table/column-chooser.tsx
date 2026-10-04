@@ -67,6 +67,12 @@ export interface ColumnChooserProps {
   /** The trigger's word. */
   label?: string;
   size?: 'sm' | 'md';
+  /**
+   * Draw the list in place, without a trigger or a popover of its own: for a
+   * panel that already holds other choices (a view menu with sort and group
+   * beside the columns). The caller draws any reset beside it.
+   */
+  inline?: boolean;
 }
 
 /** Past this many columns the list gets a search box. */
@@ -99,6 +105,7 @@ export function ColumnChooser({
   onReset,
   label = 'Columns',
   size = 'md',
+  inline = false,
 }: ColumnChooserProps): JSX.Element {
   const headingId = useId();
   const [query, setQuery] = useState('');
@@ -144,6 +151,56 @@ export function ColumnChooser({
     </label>
   );
 
+  const list = (
+    <>
+      {ordered.length >= SEARCH_FROM ? (
+        <SearchField
+          label="Find a column"
+          placeholder="Find a column"
+          value={query}
+          onValueChange={setQuery}
+          className="mb-1"
+        />
+      ) : null}
+
+      <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain">
+        {needle ? (
+          <ul aria-label="Columns" className="flex flex-col gap-0.5">
+            {matching.map((column) => (
+              <li key={column.id} className="flex items-center gap-3 px-1">
+                {row(column)}
+              </li>
+            ))}
+            {matching.length === 0 ? (
+              <li className="px-1 py-2 text-sm text-fg-muted">No column called “{query}”.</li>
+            ) : null}
+          </ul>
+        ) : (
+          <SortableList
+            appearance="plain"
+            label="Columns"
+            items={ordered}
+            itemLabel={(c) => c.label}
+            moveButtons="on-focus"
+            onReorder={(move) => {
+              onChange({ order: move.order, visible: value.visible });
+            }}
+          >
+            {row}
+          </SortableList>
+        )}
+      </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div role="group" aria-label={label} className="flex flex-col gap-1">
+        {list}
+      </div>
+    );
+  }
+
   return (
     <Popover
       onOpenChange={(open) => {
@@ -179,43 +236,7 @@ export function ColumnChooser({
           </p>
         </div>
 
-        {ordered.length >= SEARCH_FROM ? (
-          <SearchField
-            label="Find a column"
-            placeholder="Find a column"
-            value={query}
-            onValueChange={setQuery}
-            className="mb-1"
-          />
-        ) : null}
-
-        <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain">
-          {needle ? (
-            <ul aria-label="Columns" className="flex flex-col gap-0.5">
-              {matching.map((column) => (
-                <li key={column.id} className="flex items-center gap-3 px-1">
-                  {row(column)}
-                </li>
-              ))}
-              {matching.length === 0 ? (
-                <li className="px-1 py-2 text-sm text-fg-muted">No column called “{query}”.</li>
-              ) : null}
-            </ul>
-          ) : (
-            <SortableList
-              appearance="plain"
-              label="Columns"
-              items={ordered}
-              itemLabel={(c) => c.label}
-              moveButtons="on-focus"
-              onReorder={(move) => {
-                onChange({ order: move.order, visible: value.visible });
-              }}
-            >
-              {row}
-            </SortableList>
-          )}
-        </div>
+        {list}
 
         <div className="mt-1 flex items-center justify-between gap-2">
           {onReset === undefined ? (

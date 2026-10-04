@@ -278,7 +278,7 @@ describe('Profile', () => {
     // From the Actions menu, in a dialog.
     await user.click(screen.getByRole('button', { name: 'Actions' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Change placement' }));
-    const form = await screen.findByRole('form', { name: 'Placement' });
+    const form = await screen.findByRole('form', { name: 'Change placement' });
     expect(within(form).getByRole('button', { name: 'Move' })).toBeDisabled();
 
     await user.click(within(form).getByRole('combobox', { name: 'Legal entity' }));
@@ -294,11 +294,10 @@ describe('Profile', () => {
     render(
       <Profile load={{ status: 'ready', data: asManager }} onSave={vi.fn()} onPlace={vi.fn()} />,
     );
-    expect(screen.queryByRole('form', { name: 'Placement' })).toBeNull();
+    expect(screen.queryByRole('form', { name: 'Change placement' })).toBeNull();
   });
 
-  it('opens the history where the shell offers it (PEO-064)', async () => {
-    const onHistory = vi.fn();
+  it('leads to the history where the shell offers it (PEO-064)', async () => {
     const { rerender } = render(
       <Profile load={{ status: 'ready', data: asManager }} onSave={vi.fn()} />,
     );
@@ -307,12 +306,14 @@ describe('Profile', () => {
       <Profile
         load={{ status: 'ready', data: asManager }}
         onSave={vi.fn()}
-        onHistory={onHistory}
+        historyHref="/people/p/history"
       />,
     );
     await fast().click(screen.getByRole('button', { name: 'Actions' }));
-    await fast().click(screen.getByRole('menuitem', { name: 'History' }));
-    expect(onHistory).toHaveBeenCalledOnce();
+    expect(screen.getByRole('menuitem', { name: 'History' })).toHaveAttribute(
+      'href',
+      '/people/p/history',
+    );
   });
 
   it('has loading and error states', async () => {
@@ -349,7 +350,13 @@ describe('Profile: what is missing', () => {
             missing: true,
           }),
           // Required of contractors only: empty on Ada's record, and not missing.
-          field({ key: 'agency', label: 'Agency', readOnly: false, required: false, missing: false }),
+          field({
+            key: 'agency',
+            label: 'Agency',
+            readOnly: false,
+            required: false,
+            missing: false,
+          }),
         ],
       },
       {
@@ -373,9 +380,12 @@ describe('Profile: what is missing', () => {
   };
 
   it('marks each gap in place, counts them per section and overall, in words', async () => {
-    const { container } = render(<Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} />);
+    const { container } = render(
+      <Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} />,
+    );
     expect(screen.getByText('2 missing')).toBeInTheDocument();
-    expect(screen.getAllByText('1 missing')).toHaveLength(2);
+    // Each section's count in its header, in the record card and in a phone's pills.
+    expect(screen.getAllByText('1 missing')).toHaveLength(6);
     expect(screen.getAllByText('Missing')).toHaveLength(2);
     expect(screen.getByText('Not provided yet. HR fills this in.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add Emergency contact' })).toBeInTheDocument();
@@ -412,7 +422,9 @@ describe('Profile: what is missing', () => {
   it('names what is missing on the count, and goes to the first when pressed', async () => {
     const user = fast();
     render(<Profile load={{ status: 'ready', data: own }} onSave={vi.fn()} />);
-    const chip = screen.getByRole('button', { name: /missing: .*Emergency contact.*Go to the first/ });
+    const chip = screen.getByRole('button', {
+      name: /missing: .*Emergency contact.*Go to the first/,
+    });
     await user.click(chip);
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: /Emergency contact/ })).toHaveFocus();
@@ -437,7 +449,10 @@ describe('Profile: what is missing', () => {
     // Somebody who may not change it sees the photo, not a picker.
     rerender(
       <Profile
-        load={{ status: 'ready', data: { ...own, person: { ...own.person, canChangePhoto: false } } }}
+        load={{
+          status: 'ready',
+          data: { ...own, person: { ...own.person, canChangePhoto: false } },
+        }}
         onSave={vi.fn()}
         onPhoto={onPhoto}
       />,
@@ -465,7 +480,12 @@ describe('Profile: what is missing', () => {
       ],
       values: {},
       requests: [
-        { key: 'hometown', label: 'Hometown', requestedAt: '2026-09-20T10:00:00Z', by: 'Toby Flenderson' },
+        {
+          key: 'hometown',
+          label: 'Hometown',
+          requestedAt: '2026-09-20T10:00:00Z',
+          by: 'Toby Flenderson',
+        },
       ],
     };
     const { container } = render(
@@ -507,12 +527,19 @@ describe('Profile: what is missing', () => {
       ],
       values: {},
       requests: [
-        { key: 'hometown', label: 'Hometown', requestedAt: '2026-09-20T10:00:00Z', by: 'Toby Flenderson' },
+        {
+          key: 'hometown',
+          label: 'Hometown',
+          requestedAt: '2026-09-20T10:00:00Z',
+          by: 'Toby Flenderson',
+        },
       ],
     };
     render(<Profile load={{ status: 'ready', data: state }} onSave={vi.fn()} />);
-    expect(screen.getByText('Toby Flenderson asked you to add a detail')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Add them' }));
+    expect(
+      screen.getByText('Toby Flenderson asked you to add a detail: Hometown.'),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Add it' }));
     expect(screen.getByRole('textbox', { name: /Hometown/ })).toHaveFocus();
   });
 });
@@ -536,39 +563,94 @@ describe('a profile read again', () => {
   });
 });
 
-describe('the record’s tab, in the address', () => {
-  it('opens on the section a link named, and hands a chosen tab to the host', async () => {
-    const user = fast();
-    const onTabChange = vi.fn();
+describe('one layout for every record (D1)', () => {
+  it('lists the sections in the record card, with History, and draws every section without tabs', () => {
     render(
       <Profile
         load={{ status: 'ready', data: asHr }}
         onSave={vi.fn()}
         onMove={vi.fn()}
-        tab="compensation"
-        onTabChange={onTabChange}
+        historyHref="/people/p/history"
       />,
     );
-    expect(screen.getByRole('tab', { name: 'Compensation' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    expect(screen.queryByRole('tab')).toBeNull();
+    const parts = screen.getAllByRole('navigation', { name: 'Parts of the record' })[0];
+    expect(parts).toBeDefined();
+    expect(
+      within(parts as HTMLElement)
+        .getAllByRole('link')
+        .map((l) => l.getAttribute('href')),
+    ).toEqual(['#section-personal', '#section-compensation', '#section-work']);
+    expect(
+      within(screen.getByRole('navigation', { name: 'The record’s history' })).getByRole('link', {
+        name: 'History',
+      }),
+    ).toHaveAttribute('href', '/people/p/history');
+    // Every section at once: the old per-section tabs are gone.
+    expect(screen.getByText('Hybrid')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Compensation' })).toBeInTheDocument();
+  });
+});
+
+describe('what is open over the record, in the address', () => {
+  // HR's view of somebody employed: their day, and the moves it allows.
+  const active: ProfileState = {
+    ...asHr,
+    calendar: { today: '2026-10-03', timeZone: 'Europe/Madrid' },
+    employment: { status: 'active', periods: [] },
+  };
+
+  it('opens the move the address names, and hands a chosen one to the host', async () => {
+    const user = fast();
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <Profile
+        load={{ status: 'ready', data: active }}
+        onSave={vi.fn()}
+        onMove={vi.fn()}
+        open={null}
+        onOpenChange={onOpenChange}
+      />,
     );
-    expect(screen.queryByText('Hybrid')).toBeNull();
-    await user.click(screen.getByRole('tab', { name: 'Overview' }));
-    expect(onTabChange).toHaveBeenCalledWith('overview');
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Terminate' }));
+    expect(onOpenChange).toHaveBeenCalledWith('move:terminate');
+    rerender(
+      <Profile
+        load={{ status: 'ready', data: active }}
+        onSave={vi.fn()}
+        onMove={vi.fn()}
+        open="move:terminate"
+        onOpenChange={onOpenChange}
+      />,
+    );
+    expect(screen.getByRole('dialog', { name: /Terminate/ })).toBeInTheDocument();
   });
 
-  it('opens on the overview for a section this record does not have', () => {
+  it('opens nothing for a move this record does not offer', () => {
+    render(
+      <Profile
+        load={{ status: 'ready', data: active }}
+        onSave={vi.fn()}
+        onMove={vi.fn()}
+        open="move:rehire"
+        onOpenChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens the section the address says is being edited', () => {
     render(
       <Profile
         load={{ status: 'ready', data: asHr }}
         onSave={vi.fn()}
         onMove={vi.fn()}
-        tab="nonsense"
-        onTabChange={vi.fn()}
+        editing="work"
+        onEditingChange={vi.fn()}
       />,
     );
-    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByText('Hybrid')).toBeInTheDocument();
+    expect(screen.getByRole('form', { name: 'Work' })).toBeInTheDocument();
+    expect(screen.getByText('Editing')).toBeInTheDocument();
   });
 });

@@ -644,22 +644,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             go('/people/me');
           },
         };
-      // One person by hand; then their record, to fill in the rest.
-      case 'AddPerson':
-        return {
-          today,
-          onAdd: async (person: Readonly<Record<string, string>>) => {
-            const added = await actions.addPerson(person);
-            if (added.ok) go(`/people/${added.personId}`);
-            return added;
-          },
-          onCancel: () => {
-            go('/people/directory/list');
-          },
-          onImport: () => {
-            go('/people/import');
-          },
-        };
       case 'Onboarding':
         return {
           load: loadable,
@@ -674,10 +658,16 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load: loadable,
           // A link from the overview to one missing detail.
           ...(search['field'] === undefined ? {} : { focusField: search['field'] }),
-          // The part of the record on screen; the screen checks it is one this record has.
-          tab: at('tab'),
-          onTabChange: (tab: string) => {
-            note({ tab: tab === 'overview' ? null : tab }, 'push');
+          // The section being edited and what is open over the record, in the
+          // address so a link opens them in the server's HTML; the screen
+          // checks each is one this record and viewer offer.
+          editing: at('edit'),
+          onEditingChange: (section: string | null) => {
+            note({ edit: section, field: null }, section === null ? 'replace' : 'push');
+          },
+          open: at('open'),
+          onOpenChange: (open: string | null) => {
+            note({ open }, open === null ? 'replace' : 'push');
           },
           // Offered to everybody; the screen shows it only where People says they may.
           onPhoto: (file: File) => uploadPhoto(id ?? null, file),
@@ -723,9 +713,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
                 onRequest: (keys: readonly string[]) => actions.requestDetails(id, keys),
               }),
           searchPeople: actions.searchPeople,
-          onHistory: () => {
-            go(id === undefined ? '/people/me/history' : `/people/${id}/history`);
-          },
+          historyHref: id === undefined ? '/people/me/history' : `/people/${id}/history`,
           onWithdraw: actions.withdrawPendingChange,
           onSelfApprove: actions.approveAlone,
           onApprovals: () => {
@@ -763,8 +751,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         // first page, and a page is a history entry, so Back returns to the
         // one before (PEO-117).
         const query = (patch: Readonly<Record<string, string | null>>, mode?: HistoryMode) => {
-          // A new query starts at the top: the row the reader was on belongs to the old one.
-          navigate({ after: null, row: null, ...patch }, mode);
+          // A new query starts at the top, on its own first person: the row the
+          // reader was on, and whose quick look was open, belong to the old one.
+          navigate({ after: null, row: null, look: null, ...patch }, mode);
         };
         const view = leaf === 'cards' ? 'cards' : 'list';
         const data =
@@ -972,6 +961,35 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             const done = await actions.remindDirectory(conditions, match, at('q'));
             return done.ok ? { ok: true, asked: done.asked, more: done.more } : done;
           },
+          // Whose quick look is open, and which panel: in the address, so a
+          // shared link opens the same card or dialog in the server's HTML.
+          look: at('look'),
+          onLookChange: (look: string | null) => {
+            note({ look }, 'replace');
+          },
+          filtersOpen: at('filters') === 'open',
+          onFiltersOpenChange: (open: boolean) => {
+            note({ filters: open ? 'open' : null }, open ? 'push' : 'replace');
+          },
+          savingView: at('save') === 'view',
+          onSavingViewChange: (open: boolean) => {
+            note({ save: open ? 'view' : null }, open ? 'push' : 'replace');
+          },
+          // Add person (D9): the dialog over the directory; on success, the new record.
+          ...(shell.roles.hr
+            ? {
+                today,
+                adding: at('add') === 'person',
+                onAddingChange: (open: boolean) => {
+                  note({ add: open ? 'person' : null }, open ? 'push' : 'replace');
+                },
+                onAdd: async (person: Readonly<Record<string, string>>) => {
+                  const added = await actions.addPerson(person);
+                  if (added.ok) go(`/people/${added.personId}`);
+                  return added;
+                },
+              }
+            : {}),
           // Where the reader is: noted in the address, so Back returns to the same row.
           place: Number.parseInt(at('row') ?? '', 10) || null,
           onPlaceChange: (row: number | null) => {
@@ -1210,6 +1228,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           focusId: at('focus'),
           onFocusChange: (focus: string | null) => {
             note({ focus }, 'push');
+          },
+          // Whose side card is open, so a link opens it in the server's HTML.
+          pickedId: at('person'),
+          onPickedChange: (person: string | null) => {
+            note({ person }, 'replace');
           },
         };
       case 'PeopleSettings':

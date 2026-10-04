@@ -107,14 +107,21 @@ function Sections({
             : `${String(done)} of ${String(total)} sections done. You can stop any time; nothing you have saved is lost.`
         }
       />
-      <Progress value={done} max={total} label="Sections done" size="lg" />
+      <Progress
+        value={done}
+        max={total}
+        label="Sections done"
+        showValue
+        valueLabel={`${String(done)} of ${String(total)}`}
+        className="max-w-105 touch:max-w-none"
+      />
       <ReviewNotices reviews={state.reviews} />
       {/*
         One section at a time (W16, M8): the sections as steps down the side,
         done or not, and the one being filled in beside them. Every step can
         be left for later and done from the profile.
       */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @4xl/page:grid-cols-[16.25rem_minmax(0,1fr)] @4xl/page:items-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @4xl/page:grid-cols-[18.75rem_minmax(0,1fr)] @4xl/page:items-start">
         <Card padded className="touch:hidden">
           <Stepper
             label="Onboarding sections"
@@ -139,7 +146,7 @@ function Sections({
             />
           </Card>
         ) : (
-          <Card padded className="flex flex-col gap-4">
+          <Card padded className="@container flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-display text-lg font-bold">{section.label}</h2>
               {saved.has(section.key) ? (
@@ -157,6 +164,7 @@ function Sections({
               key={section.key}
               section={section}
               values={values}
+              columns={2}
               submitLabel={nextOf(section.key) === undefined ? 'Save' : 'Save and continue'}
               {...(onCheck === undefined ? {} : { onCheck })}
               footer={

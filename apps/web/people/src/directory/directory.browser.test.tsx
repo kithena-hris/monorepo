@@ -10,7 +10,7 @@ import { Directory as Screen, type DirectoryPerson, type DirectoryState } from '
 const Directory = framed(Screen);
 const FRAME = {
   section: 'Directory',
-  actions: [{ href: '/people/new', label: 'Add employee', icon: 'hire' }],
+  actions: [{ href: '/people/directory/list?add=person', label: 'Add employee', icon: 'hire' }],
   tabs: [
     { href: '/people/directory/list', label: 'List', current: true },
     { href: '/people/directory/cards', label: 'Cards', current: false },
@@ -329,13 +329,13 @@ describe.runIf(!coarse)('the directory’s table, scrolled with a mouse', () => 
     }
   });
 
-  it('says its keys above the list, in view without a scroll, on plain rows', async () => {
+  it('says its keys under the list, in view without a scroll, on plain rows', async () => {
     const { onLoadMore } = pages();
     directory({ onLoadMore });
     const box = screen.getByRole('region', { name: 'People' });
-    const hint = screen.getByText(/to open the card/);
+    const hint = screen.getByText('quick look');
     const r = hint.getBoundingClientRect();
-    expect(r.bottom).toBeLessThanOrEqual(box.getBoundingClientRect().top);
+    expect(r.top).toBeGreaterThanOrEqual(box.getBoundingClientRect().bottom);
     expect(r.top).toBeGreaterThanOrEqual(0);
     expect(r.bottom).toBeLessThanOrEqual(window.innerHeight);
     // No stripes: every row the same surface, until hovered, picked or open.
@@ -423,10 +423,12 @@ describe.runIf(!coarse)('the directory’s table, in the window', () => {
       const r = now.getBoundingClientRect();
       expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight);
       expect(r.bottom).toBeLessThanOrEqual(window.innerHeight);
-      // Filling it, not merely inside it: the page's content, the status line
+      // Filling it, not merely inside it: the page's content, the line of keys and loading
       // under the box last, ends at the window's bottom less the page's padding.
       const main = screen.getByRole('main');
-      const end = screen.getByText(/^Results stream in/).getBoundingClientRect().bottom;
+      const end = (
+        screen.getByText(/^Loads \d+ at a time/).parentElement as HTMLElement
+      ).getBoundingClientRect().bottom;
       const padding = Number.parseFloat(getComputedStyle(main).paddingBottom);
       expect(Math.abs(window.innerHeight - padding - end)).toBeLessThanOrEqual(2);
       expect(now.scrollHeight).toBeGreaterThan(now.clientHeight);
@@ -446,8 +448,8 @@ describe.runIf(coarse)('the directory’s list, under a finger', () => {
   it('has no keyboard hint', () => {
     const { onLoadMore } = pages();
     directory({ onLoadMore });
-    expect(screen.queryByText(/to open the card/)).toBeNull();
-    expect(screen.queryByText(/to move/)).toBeNull();
+    expect(screen.queryByText('quick look')).toBeNull();
+    expect(screen.queryByText(/ move$/)).toBeNull();
   });
 
   it('opens with the first person selected, without opening them, and a page ahead', async () => {

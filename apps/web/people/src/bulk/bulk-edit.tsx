@@ -13,21 +13,24 @@ import {
   FieldDescription,
   FieldLabel,
   PageHeader,
+  PageSection,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Spinner,
   Stack,
   Stat,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  icons,
   useBreakpoint,
   type DataColumn,
 } from '@reach/ui';
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld } from '../held';
 import { Loaded, type IdentifierFinding, type Loadable } from '../load';
@@ -135,7 +138,11 @@ export function BulkEdit({
       <Loaded load={load} what="the people to edit">
         {(state) => {
           const { onPreviewHire, onCommitHire, ...edit } = props;
-          if (onPreviewHire === undefined || onCommitHire === undefined || state.people.length === 0) {
+          if (
+            onPreviewHire === undefined ||
+            onCommitHire === undefined ||
+            state.people.length === 0
+          ) {
             return <Editor state={state} {...edit} />;
           }
           return (
@@ -145,18 +152,16 @@ export function BulkEdit({
                 if (next === 'edit' || next === 'hire') setTab(next);
               }}
             >
-              <TabsList aria-label="What to do">
-                <TabsTrigger value="edit">Set values</TabsTrigger>
-                <TabsTrigger value="hire">Hire</TabsTrigger>
-              </TabsList>
+              {/* Under each tab's own header (C7, C8): the title says what the tab does. */}
               <TabsContent value="edit">
-                <Editor state={state} {...edit} />
+                <Editor state={state} {...edit} tabs={<WhatToDo />} />
               </TabsContent>
               <TabsContent value="hire">
                 <Hire
                   state={state}
                   onPreview={onPreviewHire}
                   onCommit={onCommitHire}
+                  tabs={<WhatToDo />}
                   {...(props.onBack === undefined ? {} : { onBack: props.onBack })}
                 />
               </TabsContent>
@@ -165,6 +170,39 @@ export function BulkEdit({
         }}
       </Loaded>
     </PeopleSearch.Provider>
+  );
+}
+
+function WhatToDo(): JSX.Element {
+  return (
+    <TabsList aria-label="What to do">
+      <TabsTrigger value="edit">Set values</TabsTrigger>
+      <TabsTrigger value="hire">Hire</TabsTrigger>
+    </TabsList>
+  );
+}
+
+/** Back to the directory, from the header of either tab. */
+function BackToDirectory({
+  onBack,
+}: {
+  readonly onBack: (() => void) | undefined;
+}): JSX.Element | null {
+  return onBack === undefined ? null : (
+    <Button variant="ghost" size="sm" startIcon={<icons.back aria-hidden />} onClick={onBack}>
+      Directory
+    </Button>
+  );
+}
+
+/** A preview's counts, as tiles in a row. */
+function Tiles({ items }: { readonly items: readonly (readonly [string, number])[] }): JSX.Element {
+  return (
+    <AutoGrid minItemWidth="7rem" gap={2}>
+      {items.map(([label, value]) => (
+        <Stat key={label} label={label} value={value} />
+      ))}
+    </AutoGrid>
   );
 }
 
@@ -215,8 +253,11 @@ function Editor({
   onPreview,
   onCommit,
   onBack,
+  tabs,
 }: Omit<BulkEditProps, 'load' | 'searchPeople' | 'onPreviewHire' | 'onCommitHire'> & {
   readonly state: BulkEditState;
+  /** Set values and Hire, under the header; absent where there is no hire. */
+  readonly tabs?: ReactNode;
 }): JSX.Element {
   const fields = state.sections.flatMap((s) => s.fields);
   const [chosen, setChosen] = useState<readonly string[]>(fields[0] ? [fields[0].key] : []);
@@ -224,9 +265,7 @@ function Editor({
   const [effectiveFrom, setEffectiveFrom] = useState(state.today);
   const [withoutApproval, setWithoutApproval] = useState(false);
   const sensitive = fields.filter((f) => f.sensitive === true && chosen.includes(f.key));
-  const [shown, setShown] = useState<{ committed: boolean; rows: readonly BulkRow[] } | null>(
-    null,
-  );
+  const [shown, setShown] = useState<{ committed: boolean; rows: readonly BulkRow[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -270,171 +309,193 @@ function Editor({
   }
 
   return (
-    <Stack gap={6}>
+    <Stack gap={5}>
       <PageHeader
         title={`Edit ${String(state.people.length)} ${state.people.length === 1 ? 'person' : 'people'}`}
         description={state.people.map((p) => p.name).join(', ')}
-        actions={onBack === undefined ? undefined : <Button onClick={onBack}>Directory</Button>}
+        actions={<BackToDirectory onBack={onBack} />}
       />
-
-      <Card className="flex flex-col gap-4 p-4">
-        {chosen.map((key) => {
-          const field = byKey.get(key);
-          if (field === undefined) return null;
-          return (
-            <div key={key} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <Field className="sm:w-56">
-                <FieldLabel>Field</FieldLabel>
-                <Select
-                  value={key}
-                  onValueChange={(next) => {
-                    reset();
-                    setChosen((c) => c.map((k) => (k === key ? next : k)));
-                  }}
+      {tabs}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @4xl/page:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] @4xl/page:items-start">
+        <PageSection surface title="What to change">
+          <Stack gap={3}>
+            {chosen.map((key) => {
+              const field = byKey.get(key);
+              if (field === undefined) return null;
+              return (
+                <div
+                  key={key}
+                  className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-[12rem_minmax(0,1fr)_auto] sm:items-end"
                 >
-                  <FieldControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FieldControl>
-                  <SelectContent>
-                    {[field, ...open].map((f) => (
-                      <SelectItem key={f.key} value={f.key}>
-                        {f.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <div className="min-w-0 flex-1">
-                <AttributeInput
-                  field={{ ...field, required: false }}
-                  value={values[key] ?? null}
-                  onChange={(next) => {
-                    reset();
-                    setValues((v) => ({ ...v, [key]: next }));
-                  }}
-                />
-              </div>
-              {chosen.length === 1 ? null : (
+                  <Field>
+                    <FieldLabel>Field</FieldLabel>
+                    <Select
+                      value={key}
+                      onValueChange={(next) => {
+                        reset();
+                        setChosen((c) => c.map((k) => (k === key ? next : k)));
+                      }}
+                    >
+                      <FieldControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FieldControl>
+                      <SelectContent>
+                        {[field, ...open].map((f) => (
+                          <SelectItem key={f.key} value={f.key}>
+                            {f.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <div className="min-w-0">
+                    <AttributeInput
+                      field={{ ...field, required: false }}
+                      value={values[key] ?? null}
+                      onChange={(next) => {
+                        reset();
+                        setValues((v) => ({ ...v, [key]: next }));
+                      }}
+                    />
+                  </div>
+                  {chosen.length === 1 ? (
+                    <span />
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      aria-label={`Remove ${field.label}`}
+                      startIcon={<icons.close aria-hidden />}
+                      onClick={() => {
+                        reset();
+                        setChosen((c) => c.filter((k) => k !== key));
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            {open.length === 0 ? null : (
+              <div>
                 <Button
                   variant="ghost"
-                  aria-label={`Remove ${field.label}`}
+                  size="sm"
+                  startIcon={<icons.add aria-hidden />}
                   onClick={() => {
                     reset();
-                    setChosen((c) => c.filter((k) => k !== key));
+                    setChosen((c) => [...c, open[0]?.key ?? '']);
                   }}
                 >
-                  Remove
+                  Add a field
                 </Button>
-              )}
-            </div>
-          );
-        })}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <DatePicker
-            label="Takes effect from"
-            value={effectiveFrom}
-            onChange={(next) => {
-              reset();
-              setEffectiveFrom(next ?? state.today);
-            }}
-          />
-          {open.length === 0 ? null : (
-            <Button
-              onClick={() => {
-                reset();
-                setChosen((c) => [...c, open[0]?.key ?? '']);
-              }}
-            >
-              Add a field
-            </Button>
-          )}
-        </div>
-        <p className="text-sm text-fg-muted">
-          Empty clears the field. A field kept without dates changes on the day, whatever the date
-          says.
-        </p>
-        {sensitive.length === 0 ? null : (
-          <Field orientation="horizontal" className="justify-start">
-            <FieldControl>
-              <Checkbox
-                checked={withoutApproval}
-                onCheckedChange={(on) => {
-                  reset();
-                  setWithoutApproval(on === true);
-                }}
-              />
-            </FieldControl>
-            <FieldLabel>Apply sensitive values without approval</FieldLabel>
-            <FieldDescription>
-              {sensitive.map((f) => f.label).join(', ')} otherwise wait for a second HR member to
-              approve them. Each change records that you applied it without approval.
-            </FieldDescription>
-          </Field>
-        )}
-      </Card>
-
-      {problem === null ? null : (
-        <Alert tone="danger" title="That did not go through">
-          {problem}
-        </Alert>
-      )}
-
-      {shown === null ? (
-        <div>
-          <Button
-            variant="primary"
-            disabled={chosen.length === 0}
-            loading={busy}
-            loadingLabel="Working out what would change"
-            onClick={() => {
-              void run(onPreview);
-            }}
-          >
-            Preview changes
-          </Button>
-        </div>
-      ) : (
-        <Stack gap={4}>
-          {shown.committed ? (
-            <Alert tone={count('refused') === 0 ? 'success' : 'warning'}>
-              {`Saved for ${String(count('changed'))} ${count('changed') === 1 ? 'person' : 'people'}.`}
-              {count('refused') === 0
-                ? ''
-                : ` ${String(count('refused'))} refused, as each says below; nothing was written for them.`}
-            </Alert>
-          ) : (
-            <Alert tone="info" title="Nothing is saved yet">
-              Preview of the changes for each person. Each person is saved separately, so one error won’t stop the rest.
-            </Alert>
-          )}
-          <AutoGrid minItemWidth="10rem" gap={3}>
-            <Stat label={shown.committed ? 'Changed' : 'Will change'} value={count('changed')} />
-            <Stat label="Already set" value={count('unchanged')} />
-            <Stat label="Refused" value={count('refused')} />
-            {count('held') === 0 ? null : (
-              <Stat label="Pending approval" value={count('held')} />
+              </div>
             )}
-          </AutoGrid>
-          <Results rows={shown.rows} byKey={byKey} />
-          {shown.committed ? null : (
+            <Field>
+              <FieldLabel>Takes effect from</FieldLabel>
+              <FieldControl>
+                <DatePicker
+                  label="Takes effect from"
+                  value={effectiveFrom}
+                  onChange={(next) => {
+                    reset();
+                    setEffectiveFrom(next ?? state.today);
+                  }}
+                />
+              </FieldControl>
+              <FieldDescription>
+                Empty clears the field. Fields kept without dates change on the day.
+              </FieldDescription>
+            </Field>
+            {sensitive.length === 0 ? null : (
+              <Field orientation="horizontal" className="justify-start">
+                <FieldControl>
+                  <Checkbox
+                    checked={withoutApproval}
+                    onCheckedChange={(on) => {
+                      reset();
+                      setWithoutApproval(on === true);
+                    }}
+                  />
+                </FieldControl>
+                <FieldLabel>Apply sensitive values without approval</FieldLabel>
+                <FieldDescription>
+                  {sensitive.map((f) => f.label).join(', ')} otherwise wait for a second HR member
+                  to approve each one. Recorded either way.
+                </FieldDescription>
+              </Field>
+            )}
             <div>
               <Button
-                variant="primary"
-                disabled={count('changed') + count('held') === 0}
-                loading={busy}
-                loadingLabel="Saving"
+                disabled={chosen.length === 0}
+                loading={busy && shown === null}
+                loadingLabel="Working out what would change"
                 onClick={() => {
-                  void run(onCommit);
+                  void run(onPreview);
                 }}
               >
-                {`Apply to ${String(count('changed') + count('held'))} ${count('changed') + count('held') === 1 ? 'person' : 'people'}`}
+                Preview changes
               </Button>
             </div>
-          )}
-        </Stack>
-      )}
+          </Stack>
+        </PageSection>
+
+        <PageSection surface title="Preview">
+          <Stack gap={4}>
+            {problem === null ? null : (
+              <Alert tone="danger" title="That did not go through">
+                {problem}
+              </Alert>
+            )}
+            {shown === null ? (
+              <p className="text-sm text-fg-muted">
+                Preview the changes to see, for each person, what would change and what would be
+                refused. Nothing is saved until you apply them.
+              </p>
+            ) : (
+              <>
+                {shown.committed ? (
+                  <Alert tone={count('refused') === 0 ? 'success' : 'warning'}>
+                    {`Saved for ${String(count('changed'))} ${count('changed') === 1 ? 'person' : 'people'}.`}
+                    {count('refused') === 0
+                      ? ''
+                      : ` ${String(count('refused'))} refused, as each says below; nothing was written for them.`}
+                  </Alert>
+                ) : (
+                  <Alert tone="info" title="Nothing is saved yet">
+                    Each person is saved separately, so one error won’t stop the rest.
+                  </Alert>
+                )}
+                <Tiles
+                  items={[
+                    [shown.committed ? 'Changed' : 'Will change', count('changed')],
+                    ['Already set', count('unchanged')],
+                    ['Refused', count('refused')],
+                    ['Wait for approval', count('held')],
+                  ]}
+                />
+                <Results rows={shown.rows} byKey={byKey} />
+                {shown.committed ? null : (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="primary"
+                      startIcon={<icons.confirm aria-hidden />}
+                      disabled={count('changed') + count('held') === 0}
+                      loading={busy}
+                      loadingLabel="Saving"
+                      onClick={() => {
+                        void run(onCommit);
+                      }}
+                    >
+                      {`Apply to ${String(count('changed') + count('held'))} ${count('changed') + count('held') === 1 ? 'person' : 'people'}`}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </Stack>
+        </PageSection>
+      </div>
     </Stack>
   );
 }
@@ -459,11 +520,13 @@ function Hire({
   onPreview,
   onCommit,
   onBack,
+  tabs,
 }: {
   readonly state: BulkEditState;
   readonly onPreview: (hires: BulkHirePage) => Promise<BulkOutcome>;
   readonly onCommit: (hires: BulkHirePage) => Promise<BulkOutcome>;
   readonly onBack?: () => void;
+  readonly tabs?: ReactNode;
 }): JSX.Element {
   const [day, setDay] = useState(state.today);
   const [place, setPlace] = useState<Placed>(NOWHERE);
@@ -537,7 +600,8 @@ function Hire({
     const who = r.name;
     const needsPlace =
       placing !== null &&
-      (r.refusal?.code === 'PLACEMENT_REQUIRED' || r.changes.some((c) => c.key === 'legal_entity_id'));
+      (r.refusal?.code === 'PLACEMENT_REQUIRED' ||
+        r.changes.some((c) => c.key === 'legal_entity_id'));
     const mine = placeOf(r.personId);
     const setMine = (next: (p: Placed) => Placed): void => {
       setPlaces((p) => ({ ...p, [r.personId]: next(p[r.personId] ?? place) }));
@@ -570,104 +634,128 @@ function Hire({
     );
   };
 
+  // Nowhere to wait for a button (C8): the first preview is asked for as the tab opens.
+  const first = useRef(hires);
+  useEffect(() => {
+    void run('preview', first.current);
+  }, []);
+  // Who the preview says is placed nowhere on their start date.
+  const nowhere =
+    shown?.rows.filter((r) => r.refusal?.code === 'PLACEMENT_REQUIRED').map((r) => r.name) ?? [];
+
   return (
-    <Stack gap={6}>
+    <Stack gap={5}>
       <PageHeader
-        title={`Hire ${String(state.people.length)} ${state.people.length === 1 ? 'person' : 'people'}`}
+        title={`Hire ${String(shown === null ? state.people.length : hired)} ${(shown === null ? state.people.length : hired) === 1 ? 'person' : 'people'}`}
         description="People without a start date become employees on the date you choose."
-        actions={onBack === undefined ? undefined : <Button onClick={onBack}>Directory</Button>}
+        actions={<BackToDirectory onBack={onBack} />}
       />
-      <Card className="flex flex-col gap-4 p-4">
-        <DatePicker
-          label="Start date"
-          value={day}
-          onChange={(next) => {
-            setDay(next ?? state.today);
-          }}
-        />
-        <p className="text-sm text-fg-muted">
-          Each date is a day on the person’s own calendar, past or future. Change it for one person
-          in the preview.
-        </p>
-        {placing === null ? null : (
-          <PlacementPickers
-            placement={placing}
-            entity={place.entity}
-            location={place.location}
-            onEntity={(entity) => {
-              setPlace((p) => ({ ...p, entity }));
-            }}
-            onLocation={(location) => {
-              setPlace((p) => ({ ...p, location }));
-            }}
-            locationHint="For anybody placed nowhere on their start date, placed from it; change it for one person in the preview. Somebody already placed keeps their placement."
-          />
-        )}
-      </Card>
-
-      {problem === null ? null : (
-        <Alert tone="danger" title="That did not go through">
-          {problem}
-        </Alert>
-      )}
-
-      {shown === null ? (
-        <div>
-          <Button
-            variant="primary"
-            loading={busy === 'preview'}
-            loadingLabel="Working out who would be hired"
-            onClick={() => {
-              void run('preview', hires);
-            }}
-          >
-            Preview hire
-          </Button>
-        </div>
-      ) : (
-        <Stack gap={4}>
-          {shown.committed ? (
-            <Alert tone={skipped === 0 ? 'success' : 'warning'}>
-              {`Hired ${String(hired)} ${hired === 1 ? 'person' : 'people'}.`}
-              {skipped === 0
-                ? ''
-                : ` ${String(skipped)} skipped, as each says below; nothing was done for them.`}
-            </Alert>
-          ) : (
-            <Alert tone="info" title="Nobody is hired yet">
-              Preview of each hire. Each person is hired separately, so one skipped hire won’t stop the rest.
-            </Alert>
-          )}
-          <AutoGrid minItemWidth="10rem" gap={3}>
-            <Stat label={shown.committed ? 'Hired' : 'Will be hired'} value={hired} />
-            <Stat label="Skipped" value={skipped} />
-          </AutoGrid>
-          <Results
-            rows={shown.rows}
-            byKey={new Map()}
-            words={HIRE_WORD}
-            {...(shown.committed ? {} : { edit, editHeader: 'Start date and placement' })}
-          />
-          {shown.committed ? null : (
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="primary"
-                disabled={hired === 0 || recomputing}
-                loading={busy === 'commit'}
-                loadingLabel="Hiring"
-                onClick={() => {
-                  void run('commit', shown.sent);
-                }}
+      {tabs}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @4xl/page:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] @4xl/page:items-start">
+        <PageSection surface title="When and where">
+          <Stack gap={4}>
+            <Field>
+              <FieldLabel>Start date</FieldLabel>
+              <FieldControl>
+                <DatePicker
+                  label="Start date"
+                  value={day}
+                  onChange={(next) => {
+                    setDay(next ?? state.today);
+                  }}
+                />
+              </FieldControl>
+              <FieldDescription>
+                A day on each person’s own calendar, past or future. Change it for one person in the
+                preview.
+              </FieldDescription>
+            </Field>
+            {nowhere.length === 0 ? null : (
+              <Alert
+                tone="neutral"
+                title={`${nowhere.join(', ')} ${nowhere.length === 1 ? 'is' : 'are'} placed nowhere`}
               >
-                {`Hire ${String(hired)} ${hired === 1 ? 'person' : 'people'}`}
-              </Button>
-              <p role="status" className="text-sm text-fg-muted">
-                {recomputing ? 'Updating the preview…' : ''}
-              </p>
-            </div>
-          )}
-        </Stack>
-      )}
+                Choose where they work. Anyone already placed keeps their placement.
+              </Alert>
+            )}
+            {placing === null ? null : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PlacementPickers
+                  placement={placing}
+                  entity={place.entity}
+                  location={place.location}
+                  onEntity={(entity) => {
+                    setPlace((p) => ({ ...p, entity }));
+                  }}
+                  onLocation={(location) => {
+                    setPlace((p) => ({ ...p, location }));
+                  }}
+                />
+              </div>
+            )}
+          </Stack>
+        </PageSection>
+
+        <PageSection surface title="Preview">
+          <Stack gap={4}>
+            {problem === null ? null : (
+              <Alert tone="danger" title="That did not go through">
+                {problem}
+              </Alert>
+            )}
+            <p role="status" className="flex items-center gap-2 text-sm text-fg-muted">
+              {recomputing || (shown === null && problem === null) ? (
+                <>
+                  <span aria-hidden className="inline-flex">
+                    <Spinner size="sm" />
+                  </span>
+                  Updating the preview…
+                </>
+              ) : null}
+            </p>
+            {shown === null ? null : (
+              <>
+                {shown.committed ? (
+                  <Alert tone={skipped === 0 ? 'success' : 'warning'}>
+                    {`Hired ${String(hired)} ${hired === 1 ? 'person' : 'people'}.`}
+                    {skipped === 0
+                      ? ''
+                      : ` ${String(skipped)} skipped, as each says below; nothing was done for them.`}
+                  </Alert>
+                ) : null}
+                <Tiles
+                  items={[
+                    [shown.committed ? 'Hired' : 'Will be hired', hired],
+                    ['Skipped', skipped],
+                  ]}
+                />
+                <Results
+                  rows={shown.rows}
+                  byKey={new Map()}
+                  words={HIRE_WORD}
+                  {...(shown.committed ? {} : { edit, editHeader: 'Start date and placement' })}
+                />
+                {shown.committed ? null : (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="primary"
+                      startIcon={<icons.hire aria-hidden />}
+                      disabled={hired === 0 || recomputing}
+                      loading={busy === 'commit'}
+                      loadingLabel="Hiring"
+                      onClick={() => {
+                        void run('commit', shown.sent);
+                      }}
+                    >
+                      {`Hire ${String(hired)} ${hired === 1 ? 'person' : 'people'}`}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </Stack>
+        </PageSection>
+      </div>
     </Stack>
   );
 }
@@ -712,7 +800,8 @@ function Results({
       <ul className="flex flex-col gap-1">
         {held.length === 0 ? null : (
           <li>
-            {held.join(', ')}: waits for HR&apos;s approval; the record keeps what it had until then.
+            {held.join(', ')}: waits for HR&apos;s approval; the record keeps what it had until
+            then.
           </li>
         )}
         {r.changes.map((c) => {

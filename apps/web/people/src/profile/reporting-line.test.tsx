@@ -5,7 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { axeViolations } from '../test/axe';
 import { ReportingLine } from './reporting-line';
 
-const p = (id: string, name: string, title: string | null = null) => ({ id, name, title, avatarUrl: null });
+const p = (id: string, name: string, title: string | null = null) => ({
+  id,
+  name,
+  title,
+  avatarUrl: null,
+});
 
 describe('ReportingLine', () => {
   it('reads from the top down to the person, then names their peers', async () => {
@@ -21,12 +26,19 @@ describe('ReportingLine', () => {
       { wrapper: TooltipProvider },
     );
     const line = screen.getByRole('list', { name: 'Alan Turing’s reporting line' });
-    const names = within(line).getAllByRole('listitem').map((li) => li.textContent);
+    const names = within(line)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
     expect(names[0]).toContain('Grace Hopper');
     expect(names[1]).toContain('Ada Lovelace');
     expect(names[2]).toContain('Alan Turing');
-    expect(screen.getByRole('link', { name: 'Grace Hopper' })).toHaveAttribute('href', '/people/ceo');
-    expect(screen.getByRole('group', { name: 'Peers: Alan Kay, Barbara Liskov' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Grace Hopper' })).toHaveAttribute(
+      'href',
+      '/people/ceo',
+    );
+    expect(
+      screen.getByRole('group', { name: 'Peers: Alan Kay, Barbara Liskov' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/2 peers with the same manager as Alan/)).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });

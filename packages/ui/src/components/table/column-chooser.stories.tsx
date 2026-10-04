@@ -106,6 +106,25 @@ export const ManyColumns: Story = {
   },
 };
 
+export const Inline: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The list alone, drawn where it sits: for a panel that already holds other choices, such as a view menu with sort and group above the columns. The panel draws any reset beside it.',
+      },
+    },
+  },
+  render: function Inline(args) {
+    const [value, setValue] = useState(initial);
+    return (
+      <div className="w-72">
+        <ColumnChooser {...args} inline value={value} onChange={setValue} />
+      </div>
+    );
+  },
+};
+
 interface Row {
   id: string;
   name: string;

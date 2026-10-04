@@ -1,9 +1,4 @@
-import {
-  Alert,
-  Button,
-  PINNED_BAR,
-  Stack,
-} from '@reach/ui';
+import { Alert, Button, PINNED_BAR, Stack } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import type { Checked, IdentifierFinding, Outcome } from '../load';
@@ -12,6 +7,7 @@ import {
   isMissing,
   type AttributeValue,
   type PendingValue,
+  type RecordField,
   type RecordSection,
   type Values,
 } from './model';
@@ -41,7 +37,15 @@ export function SectionForm({
   onWithdraw,
   onSelfApprove,
   focusKey,
+  columns = 1,
+  wide,
+  hint,
 }: {
+  /** Two columns where the form is wide enough; a `wide` field takes a whole row. */
+  readonly columns?: 1 | 2;
+  readonly wide?: (field: RecordField) => boolean;
+  /** A word beside the buttons: "Only changed fields are sent." */
+  readonly hint?: ReactNode;
   readonly section: RecordSection;
   readonly values: Values;
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
@@ -63,7 +67,9 @@ export function SectionForm({
     if (focusKey === undefined) return;
     const at = form.current?.querySelector<HTMLElement>(`[data-field="${CSS.escape(focusKey)}"]`);
     at?.scrollIntoView({ block: 'center' });
-    at?.querySelector<HTMLElement>('input, textarea, button, [role="combobox"]')?.focus({ preventScroll: true });
+    at?.querySelector<HTMLElement>('input, textarea, button, [role="combobox"]')?.focus({
+      preventScroll: true,
+    });
   }, [focusKey]);
   const [draft, setDraft] = useState<Values>(values);
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({});
@@ -146,7 +152,9 @@ export function SectionForm({
   const shown = stillWarned ? warned.findings : [];
   const warningFor = (key: string): string | undefined => {
     const messages = shown.filter((f) => f.key === key).map((f) => f.message);
-    return messages.length === 0 ? undefined : `Our checks suggest this may be wrong: ${messages.join(' ')}`;
+    return messages.length === 0
+      ? undefined
+      : `Our checks suggest this may be wrong: ${messages.join(' ')}`;
   };
   const labels = [...new Set(shown.map((f) => f.label))];
 
@@ -161,30 +169,42 @@ export function SectionForm({
       }}
     >
       <Stack gap={4}>
-        {section.fields.map((field) => (
-          <div key={field.key} data-field={field.key} className="flex flex-col gap-1.5">
-            <AttributeInput
-              field={field}
-              value={draft[field.key] ?? null}
-              problem={problems[field.key]}
-              warning={warningFor(field.key)}
-              onChange={(value: AttributeValue) => {
-                setDraft((d) => ({ ...d, [field.key]: value }));
-              }}
-            />
-            {pending
-              .filter((p) => p.key === field.key)
-              .map((p) => (
-                <PendingNote
-                  key={p.id}
-                  field={field}
-                  pending={p}
-                  onWithdraw={onWithdraw}
-                  onSelfApprove={onSelfApprove}
-                />
-              ))}
-          </div>
-        ))}
+        <div
+          className={
+            columns === 2
+              ? 'grid grid-cols-[minmax(0,1fr)] gap-4 @xl:grid-cols-2'
+              : 'flex flex-col gap-4'
+          }
+        >
+          {section.fields.map((field) => (
+            <div
+              key={field.key}
+              data-field={field.key}
+              className={`flex flex-col gap-1.5${wide?.(field) === true ? ' col-span-full' : ''}`}
+            >
+              <AttributeInput
+                field={field}
+                value={draft[field.key] ?? null}
+                problem={problems[field.key]}
+                warning={warningFor(field.key)}
+                onChange={(value: AttributeValue) => {
+                  setDraft((d) => ({ ...d, [field.key]: value }));
+                }}
+              />
+              {pending
+                .filter((p) => p.key === field.key)
+                .map((p) => (
+                  <PendingNote
+                    key={p.id}
+                    field={field}
+                    pending={p}
+                    onWithdraw={onWithdraw}
+                    onSelfApprove={onSelfApprove}
+                  />
+                ))}
+            </div>
+          ))}
+        </div>
         {shown.length === 0 ? null : (
           <Alert tone="warning" title="Our checks suggest this may be wrong">
             Please look again at {labels.join(' and ')}. If it is right as it is, save anyway: HR
@@ -212,12 +232,23 @@ export function SectionForm({
             never below the keyboard or behind a scroll. */}
         <div
           {...PINNED_BAR}
-          className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 bg-surface pt-3 pb-[calc(0.75rem+var(--spacing-safe-bottom))]"
+          className="sticky bottom-0 z-10 flex flex-wrap items-center gap-2 border-t border-border bg-surface pt-3 pb-[calc(0.75rem+var(--spacing-safe-bottom))]"
         >
-          <Button type="submit" variant="primary" loading={saving} loadingLabel="Saving">
-            {shown.length > 0 ? 'Save anyway' : submitLabel}
-          </Button>
-          {footer}
+          {hint === undefined ? null : (
+            <p className="text-sm text-fg-subtle touch:hidden">{hint}</p>
+          )}
+          <span className="flex flex-1 flex-wrap items-center justify-end gap-2 touch:*:flex-1">
+            {footer}
+            <Button
+              type="submit"
+              variant="primary"
+              loading={saving}
+              loadingLabel="Saving"
+              shortcut="form.submit"
+            >
+              {shown.length > 0 ? 'Save anyway' : submitLabel}
+            </Button>
+          </span>
         </div>
       </Stack>
     </form>
