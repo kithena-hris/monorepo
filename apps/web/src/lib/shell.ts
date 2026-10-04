@@ -1,7 +1,9 @@
 import 'server-only';
 
 import { cache } from 'react';
+import { flaggedRows, type FlaggedSource } from './inbox';
 import { people, timeOff } from './people';
+import { VIEWS } from './people-views';
 import { AREAS, placesFor, remoteNav, type Area } from './remotes';
 import {
   countsOf,
@@ -87,12 +89,18 @@ async function peopleShell(entitlements: readonly string[]): Promise<ShellData> 
   // All at once: the roles on their own (People answers them whether or not
   // anything is published yet, which the overview does not), the overview,
   // and what waits for a decision, which needs nobody's roles to be asked.
-  const [route, overview, answered, waiting] = await Promise.all([
+  // The changes flagged for whoever decides, asked as soon as the roles say HR.
+  const roles0 = people<ShellData['roles']>('Home');
+  const flaggedP = roles0.then((h) =>
+    h.ok && h.data.hr ? people<never>('Approvals', {}) : null,
+  );
+  const [route, overview, answered, waiting, approvals] = await Promise.all([
     // The manifest, whichever path is asked for: People's own front page is Home's now.
     remoteNav(AREAS.people).catch(() => null),
     people<Overview>('Overview'),
-    people<ShellData['roles']>('Home'),
+    roles0,
     waitingFor(),
+    flaggedP,
   ]);
   const data = overview.ok ? overview.data : null;
   const roles = answered.ok ? answered.data : (data?.roles ?? EMPTY_SHELL.roles);
@@ -109,6 +117,11 @@ async function peopleShell(entitlements: readonly string[]): Promise<ShellData> 
     counts: counts?.sections ?? {},
     tabCounts: counts?.tabs ?? {},
     notices: data === null ? [] : noticesOf(data),
+    waiting,
+    flagged:
+      approvals === null || !approvals.ok
+        ? null
+        : flaggedRows((VIEWS.Approvals(approvals.data) as unknown as { items: FlaggedSource[] }).items),
     viewedAs: data?.viewedAs ?? [],
     now: data?.now ?? null,
   };

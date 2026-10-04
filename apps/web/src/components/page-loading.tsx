@@ -71,15 +71,8 @@ export function PageLoading(): JSX.Element | null {
     return <PeopleLoading skeleton={<Skeleton shape="page" label="Loading" breadcrumb />} />;
   }
   if (pathname === '/inbox' && person !== null) {
-    // The view in the address; the flagged rows are People's, still on their way.
-    return (
-      <Inbox
-        shell={shell}
-        person={person}
-        view={inboxView(search.get('view') ?? undefined)}
-        flagged={undefined}
-      />
-    );
+    // The view in the address, from the shell's copy of what the bell holds.
+    return <Inbox shell={shell} person={person} view={inboxView(search.get('view') ?? undefined)} />;
   }
   if (pathname === '/settings') {
     return (

@@ -64,6 +64,7 @@ import {
 import { searchPeople } from '../app/(app)/people/actions';
 import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
 import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
+import { todoRows } from '../lib/inbox';
 import { useInAppLinks } from '../lib/links';
 import { matchPath } from '../lib/remotes';
 import {
@@ -78,6 +79,7 @@ import {
 import { SIDEBAR_COOKIE } from '../lib/sidebar';
 import { themeCookie } from '../lib/theme';
 import { Assistant } from './assistant';
+import { InboxBell } from './inbox';
 import { iconOf, PeopleSections, PeopleSubnav } from './people-nav';
 import { RemoteSlot } from './remote-slot';
 import {
@@ -532,7 +534,7 @@ export function AppShell({
               ...(sidebarCollapsed === undefined ? {} : { defaultCollapsed: sidebarCollapsed }),
               onCollapsedChange: rememberSidebar,
             }}
-            bottomBar={<MobileTabs areas={areas} inbox={shell.notices.length} />}
+            bottomBar={<MobileTabs areas={areas} inbox={todoRows(shell).length} />}
             bottomBarVariant="floating"
             // Where the sidebar is (a 40rem container), the tab bar is not.
             bottomBarClassName="@min-[40rem]/page:hidden"
@@ -746,83 +748,8 @@ function TopCorner({
       {slots.map((s) => (
         <RemoteSlot key={`${s.area} ${s.slot}`} slot={s} />
       ))}
-      <Notices shell={shell} />
+      <InboxBell shell={shell} />
     </div>
-  );
-}
-
-/** The bell and what is behind it. */
-export function Notices({ shell }: { readonly shell: ShellData }): JSX.Element {
-  const count = shell.notices.length;
-  return (
-    <NotificationCenter
-      title="Notifications"
-      trigger={
-        <Button
-          variant="ghost"
-          size="sm"
-          className="relative"
-          aria-label={count === 0 ? 'Notifications' : `Notifications, ${String(count)} waiting`}
-          startIcon={<icons.notifications aria-hidden />}
-        >
-          {count === 0 ? null : (
-            <Badge
-              size="xs"
-              variant="solid"
-              tone="danger"
-              aria-hidden
-              className="absolute -top-0.5 -end-0.5 ring-2 ring-canvas"
-            >
-              {count}
-            </Badge>
-          )}
-        </Button>
-      }
-    >
-      {count === 0 ? (
-        <p className="px-4 py-6 text-sm text-fg-muted">Nothing is waiting for you.</p>
-      ) : (
-        <NoticeList shell={shell} />
-      )}
-    </NotificationCenter>
-  );
-}
-
-/** The notices as items: the bell's panel, and the Inbox page. */
-export function NoticeList({ shell }: { readonly shell: ShellData }): JSX.Element {
-  return (
-    <>
-      {shell.notices.map((n) => (
-        <NotificationItem
-          key={n.id}
-          title={n.title}
-          description={n.detail}
-          time={n.at === null || shell.now === null ? 'To do' : since(n.at, shell.now)}
-          unread
-          href={n.href}
-          {...(n.person === null
-            ? {
-                icon:
-                  n.kind === 'missing' ? (
-                    <icons.person aria-hidden />
-                  ) : n.kind === 'viewed' ? (
-                    <icons.visible aria-hidden />
-                  ) : n.kind === 'import' ? (
-                    <icons.upload aria-hidden />
-                  ) : (
-                    <icons.approve aria-hidden />
-                  ),
-                tone:
-                  n.kind !== 'import'
-                    ? ('warning' as const)
-                    : n.failed === true
-                      ? ('danger' as const)
-                      : ('success' as const),
-              }
-            : { avatar: <Avatar name={n.person} size="lg" /> })}
-        />
-      ))}
-    </>
   );
 }
 

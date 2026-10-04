@@ -1,3 +1,4 @@
+import type { FlaggedRow } from './inbox';
 import {
   currentPlace,
   headerFrame,
@@ -59,6 +60,10 @@ export interface ShellData {
   /** By a tab's path, each tab's own count: what the tab row shows. */
   readonly tabCounts: Readonly<Record<string, number>>;
   readonly notices: readonly ShellNotice[];
+  /** What else waits in Review for HR and finance, counted: the Inbox's rows for them. */
+  readonly waiting?: Waiting | null;
+  /** The changes People's checks flagged for this person to decide: the Inbox's Flagged. Null for anybody who decides none. */
+  readonly flagged?: readonly FlaggedRow[] | null;
   /** Every time an administrator viewed the app as them, newest first: the Inbox keeps them. */
   readonly viewedAs: readonly ViewedAs[];
   /** When People answered, for "12m ago". */

@@ -3,54 +3,237 @@
 import {
   Avatar,
   Badge,
+  Button,
   EmptyState,
-  List,
-  ListItem,
+  NotificationCenter,
+  NotificationGroup,
   NotificationItem,
   PageHeader,
   PageSection,
-  Skeleton,
+  SegmentedControl,
+  SegmentedControlItem,
   icons,
 } from '@reach/ui';
 import Link from 'next/link';
-import type { JSX } from 'react';
+import { useState, type JSX, type ReactNode } from 'react';
 
-import type { FlaggedRow, InboxView } from '../lib/inbox';
+import {
+  flaggedInboxRows,
+  todoRows,
+  type InboxRow,
+  type InboxView,
+} from '../lib/inbox';
 import { viewedAsNotice, type ShellData } from '../lib/shell-data';
-import { AccountSheet, NoticeList, type AppShellProps } from './app-shell';
+import { AccountSheet, type AppShellProps } from './app-shell';
 import { InboxViews } from './inbox-views';
 import { since } from './since';
 import { Waking } from './waking';
 
 /**
- * Inbox (M12, MA6): what the bell holds, as a phone's tab. To do is the same
- * list the bell shows at a desk, so the two never disagree; Flagged is the
- * changes People's checks flagged for the viewer to decide, each with its
- * reason on the row, so they know why before they open it; Updates is what
- * happened to them, every time a People administrator viewed Kithena as them.
- *
- * Drawn from the shell's data, which the shell already holds, so the page's
- * `loading.tsx` draws this same screen from the shell's copy while the page's
- * own is fetched. Only the flagged rows come from People: `flagged` is null
- * where the viewer decides nothing, and undefined while they are on their way.
+ * The Inbox (design B3, MA B3): one inbox with three views, the same rows on
+ * the desk's bell and the phone's Inbox tab. To do is what waits for this
+ * person; Flagged (whoever decides) the changes People's checks flagged, each
+ * with its reason on the row; Updates every time a People administrator viewed
+ * Kithena as them. Every row opens its item where it is done, a decision in
+ * Review.
+ */
+
+/** Each kind's glyph, beside a row nobody's face stands for. */
+const KIND: Readonly<Record<InboxRow['kind'], ReactNode>> = {
+  change: <icons.edit aria-hidden />,
+  id: <icons.identifier aria-hidden />,
+  duplicate: <icons.merge aria-hidden />,
+  access: <icons.sensitive aria-hidden />,
+  missing: <icons.person aria-hidden />,
+  import: <icons.upload aria-hidden />,
+  viewed: <icons.visible aria-hidden />,
+};
+
+/** The rows, each its face or its kind, what it is, how long ago and why it stands out. */
+export function InboxRows({
+  rows,
+  now,
+  label,
+}: {
+  readonly rows: readonly InboxRow[];
+  readonly now: string | null;
+  readonly label: string;
+}): JSX.Element {
+  return (
+    <NotificationGroup aria-label={label}>
+      {rows.map((r) => (
+        <NotificationItem
+          key={r.id}
+          title={r.name}
+          description={r.summary}
+          {...(r.flag === undefined ? {} : { note: r.flag })}
+          time={r.at === null || now === null ? '' : since(r.at, now)}
+          href={r.href}
+          {...(r.person
+            ? { avatar: <Avatar name={r.name} size="lg" /> }
+            : {
+                icon: KIND[r.kind],
+                tone:
+                  r.kind === 'import'
+                    ? r.failed === true
+                      ? ('danger' as const)
+                      : ('success' as const)
+                    : ('warning' as const),
+              })}
+        />
+      ))}
+    </NotificationGroup>
+  );
+}
+
+/** Being viewed as, kept here after the bell has moved on: the entry they can always come back to. */
+function Updates({ shell }: { readonly shell: ShellData }): JSX.Element {
+  if (shell.viewedAs.length === 0) {
+    return (
+      <EmptyState
+        icon={<icons.notifications />}
+        title="No updates"
+        description="When something happens to your record, you hear about it here."
+      />
+    );
+  }
+  return (
+    <PageSection title="Viewed as you" description="When a People administrator saw Kithena as you, read-only.">
+      <ul className="flex flex-col gap-2">
+        {shell.viewedAs.map((v) => {
+          const said = viewedAsNotice(v);
+          return (
+            <NotificationItem
+              key={v.id}
+              title={said.title}
+              description={said.detail}
+              time={shell.now === null ? '' : since(v.endedAt, shell.now)}
+              avatar={<Avatar name={v.by ?? 'People administrator'} size="lg" />}
+            />
+          );
+        })}
+      </ul>
+    </PageSection>
+  );
+}
+
+const NOTHING_TO_DO = (
+  <EmptyState
+    icon={<icons.inbox />}
+    title="Nothing to do"
+    description="Approvals and details you are asked for land here."
+  />
+);
+
+const NOTHING_FLAGGED = (
+  <EmptyState
+    icon={<icons.flagged />}
+    title="Nothing flagged"
+    description="No change waiting for you looks unusual."
+  />
+);
+
+/**
+ * The bell (B3): the Inbox as a popover at a desk, drawn from the shell's
+ * data. Its view is the popover's own, held while it is open.
+ */
+export function InboxBell({ shell }: { readonly shell: ShellData }): JSX.Element {
+  const todo = todoRows(shell);
+  const count = todo.length;
+  const decides = shell.roles.hr;
+  const [view, setView] = useState<InboxView>('todo');
+  const flagged = shell.flagged ?? null;
+  return (
+    <NotificationCenter
+      title="Inbox"
+      trigger={
+        <Button
+          variant="ghost"
+          size="sm"
+          className="relative"
+          aria-label={count === 0 ? 'Inbox' : `Inbox, ${String(count)} to do`}
+          startIcon={<icons.notifications aria-hidden />}
+        >
+          {count === 0 ? null : (
+            <Badge
+              size="xs"
+              variant="solid"
+              tone="danger"
+              aria-hidden
+              className="absolute -top-0.5 -end-0.5 ring-2 ring-canvas"
+            >
+              {count}
+            </Badge>
+          )}
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-1.5 px-3.5 pt-3 pb-1">
+        <SegmentedControl
+          aria-label="Show"
+          fullWidth
+          size="sm"
+          value={view}
+          onValueChange={(next) => {
+            if (next === 'todo' || next === 'flagged' || next === 'updates') setView(next);
+          }}
+        >
+          <SegmentedControlItem value="todo">To do · {count}</SegmentedControlItem>
+          {decides ? (
+            <SegmentedControlItem value="flagged">
+              Flagged · {flagged?.length ?? 0}
+            </SegmentedControlItem>
+          ) : null}
+          <SegmentedControlItem value="updates">Updates</SegmentedControlItem>
+        </SegmentedControl>
+      </div>
+      {view === 'updates' ? (
+        <div className="p-3.5">
+          <Updates shell={shell} />
+        </div>
+      ) : view === 'flagged' ? (
+        flagged === null || flagged.length === 0 ? (
+          NOTHING_FLAGGED
+        ) : (
+          <InboxRows rows={flaggedInboxRows(flagged)} now={shell.now} label="Flagged" />
+        )
+      ) : count === 0 ? (
+        NOTHING_TO_DO
+      ) : (
+        <InboxRows rows={todo} now={shell.now} label="To do" />
+      )}
+      {shell.sections.some((s) => s.path.startsWith('/people/review/')) ? (
+        <div className="flex border-t border-border px-4 py-2.5">
+          <Button asChild variant="link" size="sm">
+            <Link href="/people/review/waiting">Open Review</Link>
+          </Button>
+        </div>
+      ) : null}
+    </NotificationCenter>
+  );
+}
+
+/**
+ * The Inbox as a phone's tab (MA B3): the bell's views, each its own address,
+ * drawn from the shell's data, which the shell already holds, so its loading
+ * state is this same screen.
  */
 export function Inbox({
   shell,
   person,
   view,
-  flagged,
   waking = false,
 }: {
   readonly shell: ShellData;
   readonly person: AppShellProps['person'];
   readonly view: InboxView;
-  readonly flagged: readonly FlaggedRow[] | null | undefined;
   /** People is asleep or still waking: the lists wait for it (`components/waking.tsx`). */
   readonly waking?: boolean;
 }): JSX.Element {
   // Only for whoever decides: People flags nothing for anybody else.
-  const decides = flagged !== null && (flagged !== undefined || shell.roles.hr);
-  const open = view === 'flagged' && !decides ? 'todo' : view;
+  const flagged = shell.roles.hr ? (shell.flagged ?? []) : null;
+  const open = view === 'flagged' && flagged === null ? 'todo' : view;
+  const todo = todoRows(shell);
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -58,93 +241,20 @@ export function Inbox({
         description="Things to do, from every module you use."
         actions={<AccountSheet person={person} />}
       />
-      <InboxViews
-        view={open}
-        todo={shell.notices.length}
-        flagged={decides ? (flagged?.length ?? null) : null}
-      />
+      <InboxViews view={open} todo={todo.length} flagged={flagged?.length ?? null} />
       <Waking area="People" waking={waking}>
         {waking ? null : open === 'flagged' ? (
-          flagged === undefined || flagged === null ? (
-            // Two rows in a flagged row's height, until People answers.
-            <div role="status" className="flex flex-col gap-2">
-              <span className="sr-only">Loading flagged changes</span>
-              <Skeleton className="h-[5.5rem] w-full" />
-              <Skeleton className="h-[5.5rem] w-full" />
-            </div>
-          ) : flagged.length === 0 ? (
-            <EmptyState
-              icon={<icons.flagged />}
-              title="Nothing flagged"
-              description="No change waiting for you looks unusual."
-            />
+          flagged === null || flagged.length === 0 ? (
+            NOTHING_FLAGGED
           ) : (
-            <List aria-label="Flagged changes">
-              {flagged.map((f) => (
-                <ListItem
-                  key={f.id}
-                  asChild
-                  leading={<Avatar name={f.name} size="xl" />}
-                  description={f.change}
-                  supporting={
-                    <span className="font-medium text-warning-fg">
-                      <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
-                      {f.why}
-                    </span>
-                  }
-                  chevron
-                >
-                  <Link href={f.href}>
-                    {f.name}
-                    <Badge size="sm" tone="warning" className="ms-2">
-                      <icons.flagged aria-hidden />
-                      Unusual
-                    </Badge>
-                  </Link>
-                </ListItem>
-              ))}
-            </List>
+            <InboxRows rows={flaggedInboxRows(flagged)} now={shell.now} label="Flagged changes" />
           )
         ) : open === 'updates' ? (
-          shell.viewedAs.length === 0 ? (
-            <EmptyState
-              icon={<icons.notifications />}
-              title="No updates"
-              description="When something happens to your record, you hear about it here."
-            />
-          ) : (
-            // Every time a People administrator viewed Kithena as them, kept
-            // here after the bell has moved on: the entry they can always come back to.
-            <PageSection
-              title="Viewed as you"
-              description="When a People administrator saw Kithena as you, read-only."
-            >
-              <ul className="flex flex-col gap-2">
-                {shell.viewedAs.map((v) => {
-                  const said = viewedAsNotice(v);
-                  return (
-                    <NotificationItem
-                      key={v.id}
-                      title={said.title}
-                      description={said.detail}
-                      time={shell.now === null ? '' : since(v.endedAt, shell.now)}
-                      avatar={<Avatar name={v.by ?? 'People administrator'} size="lg" />}
-                    />
-                  );
-                })}
-              </ul>
-            </PageSection>
-          )
-        ) : shell.notices.length === 0 ? (
-          <EmptyState
-            icon={<icons.inbox />}
-            title="Nothing to do"
-            description="Approvals and details you are asked for land here."
-          />
+          <Updates shell={shell} />
+        ) : todo.length === 0 ? (
+          NOTHING_TO_DO
         ) : (
-          <div className="flex flex-col gap-2">
-            <NoticeList shell={shell} />
-          </div>
+          <InboxRows rows={todo} now={shell.now} label="To do" />
         )}
       </Waking>
     </div>
