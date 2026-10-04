@@ -712,6 +712,18 @@ const todayIn = (zone: string): string =>
     day: '2-digit',
   }).format(new Date());
 
+/**
+ * The profile's "Their day" as it reads in `zone`: "14:05, Pago Pago", the
+ * time from when People answered. Either side of a minute turning over.
+ */
+const dayIn = (zone: string): readonly string[] =>
+  [new Date(), new Date(Date.now() - 60_000), new Date(Date.now() - 120_000)].map(
+    (at) =>
+      `${new Intl.DateTimeFormat('en-GB', { timeStyle: 'short', timeZone: zone }).format(at)}, ${(
+        zone.split('/').at(-1) ?? zone
+      ).replaceAll('_', ' ')}`,
+  );
+
 describe('PEO-119: a location in another zone changes a person’s day', () => {
   it('adds a location on the settings screen, and HR sees the person’s day follow its zone', async () => {
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
@@ -731,17 +743,19 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     await page.getByRole('combobox', { name: 'Time zone search' }).fill('Pago_Pago');
     await page.getByRole('option', { name: 'Pacific/Pago_Pago' }).click();
     await dialog.getByRole('button', { name: 'Save' }).click();
-    await page.getByRole('cell', { name: /^Pago Pago office/ }).waitFor({ timeout: 30_000 });
+    // A row of a table with row menus: a grid's cell.
+    await page.getByRole('gridcell', { name: /^Pago Pago office/ }).waitFor({ timeout: 30_000 });
     const [office] = await stack.sql<{ id: string }[]>`
       SELECT id FROM people.location WHERE tenant_id = ${TENANT} AND name = 'Pago Pago office'`;
     if (office === undefined) throw new Error('the location was not created');
 
-    // Adam's day before he works there: the tenant's.
-    const theirDay = async (): Promise<string> => {
+    const theirDayIs = async (zone: string): Promise<void> => {
       await page.goto(`${stack.shell}/people/${EMPLOYEE.person}`);
-      return page.getByTestId('their-day').innerText({ timeout: 30_000 });
+      const shown = await page.getByTestId('their-day').innerText({ timeout: 30_000 });
+      expect(dayIn(zone)).toContain(shown);
     };
-    expect(await theirDay()).toBe(`${todayIn('Etc/UTC')} (Etc/UTC)`);
+    // Adam's day before he works there: the tenant's.
+    await theirDayIs('Etc/UTC');
 
     // PEO-123: HR places him there from his profile. The move is dated on
     // the office's calendar, and from then on his day is the office's.
@@ -766,10 +780,10 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
        ORDER BY created_at DESC LIMIT 1`;
     expect(placed?.effective).toBe(todayIn('Pacific/Pago_Pago'));
     expect(placed?.payload).toMatchObject({ locationId: office.id });
-    expect(await theirDay()).toBe(`${todayIn('Pacific/Pago_Pago')} (Pacific/Pago_Pago)`);
+    await theirDayIs('Pacific/Pago_Pago');
 
     // The office moves across the date line from today there: 25 hours
-    // ahead, so his day is always a different date.
+    // ahead, so his day is always a different date, and his clock an hour on.
     await page.goto(`${stack.shell}/settings/people/organisation/locations`);
     await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Actions for Pago Pago office' }).click();
@@ -781,8 +795,7 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
     await move.getByRole('button', { name: 'Save' }).click();
     await move.waitFor({ state: 'detached', timeout: 30_000 });
 
-    const after = await theirDay();
-    expect(after).toBe(`${todayIn('Pacific/Kiritimati')} (Pacific/Kiritimati)`);
+    await theirDayIs('Pacific/Kiritimati');
     expect(todayIn('Pacific/Kiritimati')).not.toBe(todayIn('Pacific/Pago_Pago'));
     const [event] = await stack.sql<{ n: number }[]>`
       SELECT count(*)::int AS n FROM people.outbox WHERE event_name = 'people.location.zone_changed'`;
