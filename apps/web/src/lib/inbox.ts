@@ -172,7 +172,14 @@ export function todoRows(shell: ShellData): InboxRow[] {
       'duplicates',
       'possible duplicate',
       'possible duplicates',
-      'Same work email, or name and birth date · flagged by Kithena’s checks',
+      [
+        'Same work email, or name and birth date',
+        (w?.duplicatesBy ?? []).length === 0
+          ? null
+          : `flagged by ${(w?.duplicatesBy ?? []).join(' and ')}`,
+      ]
+        .filter((x) => x !== null)
+        .join(' · '),
     ),
     ...queue(
       w?.accessRequests,

@@ -1461,6 +1461,12 @@ export interface DuplicatesView {
   } | null;
 }
 
+/** What flagged a suspected pair: SCIM provisioning when it found it, else Kithena's own check. */
+export const duplicateSource = (signals: readonly { readonly signal: string }[]): string =>
+  signals.some((s) => s.signal === 'scim_work_email')
+    ? 'SCIM provisioning'
+    : 'Kithena’s duplicate check';
+
 const SIGNAL_WORDS = {
   work_email: 'Same work email',
   scim_work_email: 'SCIM provisioned, same work email',
@@ -1526,9 +1532,7 @@ export async function duplicatesView(
             : SIGNAL_WORDS[s.signal],
         ),
         match: matchBand(c.signals),
-        flaggedBy: c.signals.some((s) => s.signal === 'scim_work_email')
-          ? 'SCIM provisioning'
-          : 'Kithena’s duplicate check',
+        flaggedBy: duplicateSource(c.signals),
       });
     }
     if (pair === null) {

@@ -349,6 +349,8 @@ export interface Waiting {
    * export. Absent from an older People.
    */
   readonly identifiersBy?: readonly string[] | null;
+  /** What flagged the suspected duplicates: Kithena's check, SCIM provisioning, or both. */
+  readonly duplicatesBy?: readonly string[] | null;
   readonly accessRequestsBy?: readonly string[] | null;
   readonly exportsBy?: readonly string[] | null;
 }

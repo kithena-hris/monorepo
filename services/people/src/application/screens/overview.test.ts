@@ -12,7 +12,13 @@ import { inMemoryPendingChangeStore } from '../person/pending-store.js';
 import type { PeopleService } from '../person/service.js';
 import { overviewView } from './overview.js';
 import { completePhotoUpload, photoView, startPhotoUpload, type PhotoDeps } from './photo.js';
-import { directoryView, orgChartView, peopleHeadcount, profileView } from './people.js';
+import {
+  directoryView,
+  duplicateSource,
+  orgChartView,
+  peopleHeadcount,
+  profileView,
+} from './people.js';
 import { waitingView } from './waiting.js';
 
 /**
@@ -523,6 +529,7 @@ describe('what waits for a decision, counted', () => {
         asked: null,
         exports: null,
         identifiersBy: null,
+        duplicatesBy: null,
         accessRequestsBy: null,
         exportsBy: null,
       },
@@ -548,9 +555,22 @@ describe('what waits for a decision, counted', () => {
         exports: null,
         // Nobody to name without a reader of accounts; no queue, nobody at all.
         identifiersBy: reviews.ok ? [] : null,
+        // What flagged each pair, once each, in the queue's order.
+        duplicatesBy: duplicates.ok
+          ? [...new Set(duplicates.value.map((c) => duplicateSource(c.signals)))]
+          : null,
         accessRequestsBy: null,
         exportsBy: null,
       },
     });
+  });
+});
+
+describe('what flagged a suspected pair', () => {
+  it('is SCIM provisioning when it found the pair, and Kithena’s own check otherwise', () => {
+    expect(duplicateSource([{ signal: 'scim_work_email' }, { signal: 'work_email' }])).toBe(
+      'SCIM provisioning',
+    );
+    expect(duplicateSource([{ signal: 'name_and_birth_date' }])).toBe('Kithena’s duplicate check');
   });
 });
