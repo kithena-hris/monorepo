@@ -2227,8 +2227,8 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       },
       resolve: (_root, args, ctx) => {
         const query = new URLSearchParams();
-        if (args.after) query.set('after', String(args.after));
-        if (args.person) query.set('person', String(args.person));
+        if (args.after) query.set('after', args.after);
+        if (args.person) query.set('person', args.person);
         const asked = query.toString();
         return viaRest<CompletenessView>(
           ctx,

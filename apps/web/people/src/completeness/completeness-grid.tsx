@@ -298,7 +298,7 @@ function usePages(state: CompletenessState, onLoadMore: MissingActions['onLoadMo
   }, [state.rows, more.rows]);
   const fields = useMemo(() => {
     const byKey = new Map<string, GapField>();
-    for (const f of [...state.fields, ...(more.fields as GapField[])]) {
+    for (const f of [...state.fields, ...more.fields]) {
       if (!byKey.has(f.key)) byKey.set(f.key, f);
     }
     return byKey;
