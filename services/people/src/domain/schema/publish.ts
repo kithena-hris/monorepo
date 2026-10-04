@@ -45,12 +45,16 @@ export interface PublishedVersion {
   readonly publishedBy: string | null;
   /** Set when this version exists because somebody reverted to an older one. */
   readonly rolledBackFrom: number | null;
+  /** Why the system published it, when no person did: "Duplicate sections merged". */
+  readonly reason: string | null;
 }
 
 export interface PublishContext {
   readonly clock: Clock;
   /** The account that published. Null for a country pack applied by the system. */
   readonly actor: string | null;
+  /** Why, when it is the system's change rather than a person's. */
+  readonly reason?: string | null;
 }
 
 export interface SchemaDiff {
@@ -164,6 +168,7 @@ export function publish(
       publishedAt: ctx.clock.instant(),
       publishedBy: ctx.actor,
       rolledBackFrom: null,
+      reason: ctx.reason ?? null,
     }),
   );
 }
@@ -262,6 +267,7 @@ export function rollbackTo(
       publishedAt: ctx.clock.instant(),
       publishedBy: ctx.actor,
       rolledBackFrom: current.version,
+      reason: ctx.reason ?? null,
     }),
   );
 }

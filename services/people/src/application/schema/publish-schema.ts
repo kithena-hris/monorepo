@@ -46,6 +46,13 @@ export interface PublishRequest {
   readonly correlationId: string;
   /** Where the published artifact will be fetchable. */
   readonly artifactUrl: string;
+  /**
+   * Publish this rather than the stored draft: a system repair applied to the
+   * version in force, which must not carry an administrator's unfinished edits.
+   */
+  readonly draft?: SchemaDraft;
+  /** Why the system published, recorded on the version and its event. */
+  readonly reason?: string;
 }
 
 export interface PublishPreview {
@@ -107,13 +114,17 @@ export function publishSchema(deps: PublishSchemaDeps): PublishSchema {
       newlySealed: readonly string[];
     }>
   > {
-    const [{ sections, attributes }, current] = await Promise.all([
-      deps.schema.loadDraft(tx, request.tenantId),
+    const [stored, current] = await Promise.all([
+      request.draft === undefined ? deps.schema.loadDraft(tx, request.tenantId) : null,
       deps.schema.currentVersion(tx, request.tenantId),
     ]);
 
-    const draft = SchemaDraft.rehydrate(sections, attributes);
-    const candidate = publish(draft, current, { clock: deps.clock, actor: request.publishedBy });
+    const draft = request.draft ?? SchemaDraft.rehydrate(stored?.sections ?? [], stored?.attributes ?? []);
+    const candidate = publish(draft, current, {
+      clock: deps.clock,
+      actor: request.publishedBy,
+      reason: request.reason ?? null,
+    });
     if (!candidate.ok) return candidate;
 
     const before = current?.document.attributes ?? [];
@@ -263,6 +274,7 @@ function events(
           archived: preview.diff.archived.length,
         },
         artifactUrl: request.artifactUrl,
+        ...(version.reason === null ? {} : { reason: version.reason }),
       },
     },
   ];
