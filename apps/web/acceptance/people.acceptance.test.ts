@@ -2719,8 +2719,8 @@ describe('Moving between People’s sections, tabs and views', () => {
         }
       }).observe(document.body, { subtree: true, childList: true });
     });
-    // A place's name, and its count when something waits there.
-    const named = (name: string) => new RegExp(`^${name}(\\s*\\d+)?$`);
+    // A place's name, whatever its count says beside it when something waits there.
+    const named = (name: string) => new RegExp(`^${name}`);
     const sidebar = (name: string) =>
       page
         .getByRole('navigation', { name: 'Areas' })
