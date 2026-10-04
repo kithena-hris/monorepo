@@ -177,27 +177,6 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         { personIds: (query.search['people'] ?? '').split(',').filter((id) => id !== '') },
         VIEWS.BulkEdit,
       );
-    case 'CompletenessGrid': {
-      // Beside the grid, analytics' own figure: complete overall. By section is Insights'.
-      const [grid, analytics] = await Promise.all([
-        orBare({ after: given(query.search['after']) }, (asked) => read('Completeness', asked)),
-        people<{
-          complete: {
-            percent: number;
-            incomplete: number;
-            change: number | null;
-            trend: { label: string; value: number }[];
-          } | null;
-        }>('Analytics', {
-          segment: null,
-        }),
-      ]);
-      if (grid.status !== 'ready' || !analytics.ok) return grid;
-      return {
-        status: 'ready',
-        data: { ...(grid.data as object), complete: analytics.data.complete },
-      };
-    }
     case 'ImportExport': {
       // Importing stays HR's, as it was. The history is HR's and People
       // administrators', and the one part of the page that is not the same
@@ -288,16 +267,8 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           : [];
       return { status: 'ready', data: { packs, entities } };
     }
-    case 'FullValues':
-      return read('FullValues');
-    case 'IdentifierReviews':
-      return read('IdentifierReviews');
-    case 'Approvals':
-      return read('Approvals', {}, VIEWS.Approvals);
-    case 'Duplicates':
-      return orBare({ a: given(query.search['a']), b: given(query.search['b']) }, (asked) =>
-        read('Duplicates', asked),
-      );
+    case 'Review':
+      return review(query.search);
     case 'WebhookLog':
       return orBare({ after: given(query.search['after']) }, (asked) =>
         read('WebhookDeliveries', { endpointId: query.params['id'] ?? '', ...asked }),
@@ -445,6 +416,78 @@ async function exportExtras(
     preview: preview === null ? null : jsonOf(preview),
     ...(record === null ? {} : { record: jsonOf(record) ?? { status: 'missing' } }),
     ...(share === null ? {} : { share: jsonOf(share) ?? { state: 'missing' } }),
+  };
+}
+
+/**
+ * Review (design E1–E13): every queue a decision waits in, read at once as
+ * the viewer, so the page arrives whole with the item the address names
+ * already open. HR's queues only for HR (and finance's requests for
+ * finance); one People refuses this viewer is null on the page rather than
+ * failing it. Only an unreachable People is the page's error.
+ *
+ * The address chooses what else is read: a pair to compare (`?item=dup-a~b`),
+ * the request to send an export an email linked to (`?item=export-…`, which
+ * People lists nowhere else), and the page of missing details (`?after=`).
+ */
+async function review(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+  const item = given(search['item']);
+  const pair = item?.startsWith('dup-') === true ? item.slice(4).split('~') : null;
+  const shareId = item?.startsWith('export-') === true ? item.slice(7) : null;
+  const approvals = read('Approvals', {}, VIEWS.Approvals);
+  const roles = await people<{ hr?: boolean; admin?: boolean; finance?: boolean }>('Home');
+  if (!roles.ok) {
+    return roles.code === 'UNREACHABLE'
+      ? { status: 'error', message: roles.message, unreachable: true }
+      : { status: 'error', message: roles.message, code: roles.code };
+  }
+  const hr = roles.data.hr === true;
+  const finance = roles.data.finance === true;
+  const ready = (load: ScreenLoad | null): unknown => (load?.status === 'ready' ? load.data : null);
+  const [changes, identifiers, duplicates, fullValues, completeness, analytics, share] =
+    await Promise.all([
+      approvals,
+      hr ? read('IdentifierReviews') : null,
+      hr
+        ? orBare({ a: pair?.[0] ?? null, b: pair?.[1] ?? null }, (asked) =>
+            read('Duplicates', asked),
+          )
+        : null,
+      hr || finance ? read('FullValues') : null,
+      hr ? orBare({ after: given(search['after']) }, (asked) => read('Completeness', asked)) : null,
+      // Complete records overall, analytics' own figure, beside the missing details.
+      hr
+        ? people<{ complete: unknown }>('Analytics', { segment: null })
+        : null,
+      shareId === null ? null : people<string>('ExportShare', { id: shareId }),
+    ]);
+  const down = [changes, identifiers, duplicates, fullValues, completeness].find(
+    (l) => l?.status === 'error' && l.unreachable === true,
+  );
+  if (down != null) return down;
+  const missing = ready(completeness);
+  return {
+    status: 'ready',
+    data: {
+      now: new Date().toISOString(),
+      roles: { hr, finance, admin: roles.data.admin === true },
+      approvals: ready(changes),
+      identifiers: ready(identifiers),
+      duplicates: ready(duplicates),
+      fullValues: ready(fullValues),
+      completeness:
+        missing === null
+          ? null
+          : {
+              ...(missing as object),
+              complete: analytics?.ok === true ? analytics.data.complete : null,
+            },
+      // Somebody else's or gone: said as such in its pane, never as an error page.
+      share:
+        share === null
+          ? null
+          : ((jsonOf(share) as object | null) ?? { state: 'missing', id: shareId }),
+    },
   };
 }
 

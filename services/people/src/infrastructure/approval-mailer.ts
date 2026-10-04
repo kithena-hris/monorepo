@@ -31,8 +31,8 @@ export interface ApprovalMailer {
   ): Promise<void>;
 }
 
-/** Where the button goes: the inbox, on the company's own origin. */
-export const inboxUrl = (origin: string): string => new URL('/people/approvals', origin).toString();
+/** Where the button goes: the changes in Review, on the company's own origin. */
+export const inboxUrl = (origin: string): string => new URL('/people/review/waiting?kind=changes', origin).toString();
 
 /** A correction is made on one's own profile, not in the inbox. */
 export const urlFor = (notice: ApprovalNotice, origin: string): string =>

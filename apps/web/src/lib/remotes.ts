@@ -46,15 +46,16 @@ const Tab = z.object({
   owns: z.array(z.string().startsWith('/')).optional(),
   /** An action's pages: offered only there. Absent, everywhere in the area. */
   on: z.array(z.string().startsWith('/')).optional(),
+  /**
+   * Its label for a viewer with one of these roles, the first that matches:
+   * "Waiting for me" for whoever decides, "Your requests" for finance,
+   * "Waiting" (`label`) for the rest.
+   */
+  labelFor: z.record(z.string(), z.string().min(1)).optional(),
 });
 const Place = Tab.extend({
   /** A shorter line than `description`, under the label on a phone's row. */
   summary: z.string().min(1).optional(),
-  /**
-   * Its label for a viewer with one of these roles, the first that matches:
-   * "Requests" for whoever decides them, "My requests" (`label`) for the rest.
-   */
-  labelFor: z.record(z.string(), z.string().min(1)).optional(),
   tabs: z.array(Tab).min(1).optional(),
 });
 export type Place = z.infer<typeof Place>;
@@ -80,8 +81,12 @@ const RouteManifest = z.object({
    */
   slots: z.record(z.string(), z.string().min(1)).default({}),
 });
-/** The places in the shell's chrome a remote may fill. */
-export type SlotName = 'topBar';
+/**
+ * The places in the shell's chrome a remote may fill: `topBar`, beside search
+ * and the bell, and `home`, the app's front page, which People draws (its
+ * overview folded into Home).
+ */
+export type SlotName = 'topBar' | 'home';
 
 /**
  * The sections and actions this viewer's roles open, in the manifest's order.
@@ -104,14 +109,14 @@ export function placesFor(
 } {
   const opens = (p: Pick<Place, 'for'>): boolean =>
     p.for === undefined || p.for.some((r) => roles[r] === true);
-  const named = (p: Place): Place => {
+  const named = <T extends Pick<Place, 'labelFor' | 'label'>>(p: T): T => {
     const label = Object.entries(p.labelFor ?? {}).find(([role]) => roles[role] === true)?.[1];
     return label === undefined ? p : { ...p, label };
   };
   return {
     sections: nav.sections.filter(opens).flatMap((section): Place[] => {
       if (section.tabs === undefined) return [named(section)];
-      const tabs = section.tabs.filter(opens);
+      const tabs = section.tabs.filter(opens).map(named);
       const first = tabs[0];
       return first === undefined ? [] : [{ ...named(section), path: first.path, tabs }];
     }),
@@ -473,6 +478,11 @@ export async function remoteNav(area: Area): Promise<{
     nav: { sections, actions, settings },
     routes: routes.map((r) => r.path),
     screens: Object.fromEntries(routes.map((r) => [r.path, r.component])),
-    slots: slots['topBar'] === undefined ? {} : { topBar: slots['topBar'] },
+    slots: Object.fromEntries(
+      (['topBar', 'home'] as const).flatMap((name) => {
+        const component = slots[name];
+        return component === undefined ? [] : [[name, component]];
+      }),
+    ),
   };
 }

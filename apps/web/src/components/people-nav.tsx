@@ -56,10 +56,10 @@ export function iconOf(name: string | undefined): JSX.Element | undefined {
   return <Icon />;
 }
 
-/** A count as a small solid badge; approvals are the urgent tone, the rest a warning. */
+/** A count as a small solid badge: Review's is red, any other area's a warning. */
 function Count({ path, n }: { readonly path: string; readonly n: number }): JSX.Element {
   return (
-    <Badge size="xs" variant="solid" tone={/\/approvals(\/|$)/.test(path) ? 'danger' : 'warning'}>
+    <Badge size="xs" variant="solid" tone={path.startsWith('/people/review/') ? 'danger' : 'warning'}>
       {n}
       <span className="sr-only"> waiting</span>
     </Badge>
@@ -186,7 +186,7 @@ export function PeopleMenu({
           const n = counts[s.path];
           // What waits for you says so; otherwise the line says what it holds.
           const waiting =
-            n !== undefined && s.path.endsWith('/approvals')
+            n !== undefined && s.path.startsWith('/people/review/')
               ? `${String(n)} waiting for you`
               : undefined;
           return (

@@ -100,10 +100,10 @@ function iconOf(name: string | undefined): ReactNode {
     : undefined;
 }
 
-/** What needs action in a section, as the sidebar shows it: approvals urgent, the rest a warning. */
+/** What needs action in a section, as the sidebar shows it: Review's red, anything else a warning. */
 function countOf(href: string, count: number | undefined): ReactNode {
   return count === undefined ? undefined : (
-    <Badge size="xs" variant="solid" tone={href.endsWith('/approvals') ? 'danger' : 'warning'}>
+    <Badge size="xs" variant="solid" tone={href.startsWith('/people/review/') ? 'danger' : 'warning'}>
       {count}
       <span className="sr-only"> waiting</span>
     </Badge>

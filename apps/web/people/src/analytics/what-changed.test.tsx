@@ -64,7 +64,7 @@ describe('What changed (AI5)', () => {
     );
     expect(sourceHref({ kind: 'org-chart', label: '' }, null)).toBe('/people/directory/org-chart');
     expect(sourceHref({ kind: 'section', label: 'Bank' }, null)).toBe(
-      '/people/data-health/completeness',
+      '/people/review/waiting?kind=missing',
     );
   });
 

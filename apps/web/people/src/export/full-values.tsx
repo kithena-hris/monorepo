@@ -21,6 +21,7 @@ import {
   KeyValues,
   PageHeader,
   PageSection,
+  PINNED_BAR,
   Stack,
   Table,
   TableBody,
@@ -29,11 +30,11 @@ import {
   TableHeader,
   TableRow,
   Textarea,
+  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { DATA_HEALTH } from '../data-health';
-import { Loaded, type Loadable, type Outcome } from '../load';
+import type { Outcome } from '../load';
 
 /**
  * Full values, through somebody else's hands (PEO-088, PEO-121; PRD §15.2).
@@ -67,8 +68,8 @@ export interface FullValuesState {
   readonly requests: readonly FullValuesRequest[];
 }
 
-export interface FullValuesProps {
-  readonly load: Loadable<FullValuesState>;
+/** What a request for full values may have done to it, and asked. */
+export interface FullValuesActions {
   readonly onRequest: (fields: readonly string[], reason: string) => Promise<Outcome>;
   readonly onDecide: (id: string, approve: boolean, note: string | null) => Promise<Outcome>;
 }
@@ -84,127 +85,103 @@ const STATE: Partial<Record<string, { readonly tone: Tone; readonly text: string
   expired: { tone: 'neutral', text: 'Expired' },
 };
 
-const day = (iso: string): string => iso.slice(0, 10);
+/** A request's state in words and tone: "Waiting for HR". */
+export const stateOf = (r: FullValuesRequest): { readonly tone: Tone; readonly text: string } =>
+  STATE[r.state] ?? { tone: 'neutral', text: r.state };
 
-export function FullValues(props: FullValuesProps): JSX.Element {
-  return (
-    <Loaded load={props.load} what="the requests for full values">
-      {(state) => <Requests {...props} state={state} />}
-    </Loaded>
-  );
-}
+const day = (iso: string): string =>
+  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
-function Requests({
-  state,
-  onRequest,
+/** Who asked, as a decider reads it. */
+export const askedBy = (r: FullValuesRequest): string =>
+  r.mine ? 'You' : (r.requestedBy ?? 'Somebody in finance');
+
+/**
+ * One request for full values, as the decision it is (design E4): who wants
+ * what and why, what approving issues, and Decline or Allow, each confirmed
+ * with an optional note.
+ */
+export function AccessDetail({
+  request,
   onDecide,
-}: FullValuesProps & { readonly state: FullValuesState }): JSX.Element {
-  const [deciding, setDeciding] = useState<{ request: FullValuesRequest; approve: boolean } | null>(
-    null,
-  );
-  const waiting = state.requests.filter((r) => r.state === 'pending' && !r.mine);
-
+}: {
+  readonly request: FullValuesRequest;
+  readonly onDecide: FullValuesActions['onDecide'];
+}): JSX.Element {
+  const [deciding, setDeciding] = useState<boolean | null>(null);
+  const who = askedBy(request);
   return (
-    <Stack gap={6}>
-      <PageHeader title={DATA_HEALTH.title} description={DATA_HEALTH.description} />
-      <p className="text-sm text-fg-muted">
-        Who can see unmasked values, for how long and why: one download, once, within 24 hours of
-        HR’s approval. Every request is logged.
-      </p>
-      {state.canRequest ? <Ask state={state} onRequest={onRequest} /> : null}
-      {state.canDecide ? (
-        <PageSection title="Waiting for a decision">
-          {waiting.length === 0 ? (
-            <EmptyState
-              title="Nothing to decide"
-              description="A request appears here when finance asks."
-            />
-          ) : (
-            // Each request as the decision it is (R11): who, what, why, and the two answers.
-            <ul aria-label="Waiting for a decision" className="grid gap-4 @5xl/page:grid-cols-2">
-              {waiting.map((r) => {
-                const who = r.requestedBy ?? 'Somebody in finance';
-                return (
-                  <li key={r.id} className="flex">
-                    <Card padded className="flex flex-1 flex-col gap-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar size="xl" name={who} />
-                        <div className="min-w-0">
-                          <h3 className="text-md font-bold">
-                            {who} wants to see {r.fields.join(', ').toLowerCase()}
-                          </h3>
-                          <p className="text-sm text-fg-muted">Asked {day(r.requestedAt)}</p>
-                        </div>
-                      </div>
-                      <KeyValues
-                        layout="aligned"
-                        labelWidth="7.5rem"
-                        items={[
-                          { label: 'Fields', value: r.fields.join(', ') },
-                          { label: 'Reason', value: r.reason },
-                          { label: 'Expires', value: `${day(r.expiresAt)} if nobody decides` },
-                        ]}
-                      />
-                      <Alert tone="warning" title="These values are masked everywhere else">
-                        Approving issues one download, once, within 24 hours. The people whose
-                        values are read can see that it happened.
-                      </Alert>
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Button
-                          aria-label={`Reject the request from ${who}`}
-                          onClick={() => {
-                            setDeciding({ request: r, approve: false });
-                          }}
-                        >
-                          Decline
-                        </Button>
-                        <Button
-                          variant="primary"
-                          aria-label={`Approve the request from ${who}`}
-                          onClick={() => {
-                            setDeciding({ request: r, approve: true });
-                          }}
-                        >
-                          Allow
-                        </Button>
-                      </div>
-                    </Card>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </PageSection>
-      ) : null}
-      <PageSection title={state.canDecide ? 'Every request' : 'Your requests'}>
-        {state.requests.length === 0 ? (
-          <EmptyState title="No requests yet" />
-        ) : (
-          <List label="Requests" requests={state.requests} />
-        )}
-      </PageSection>
+    <Card padded className="flex flex-col gap-4">
+      <div className="flex items-start gap-3">
+        <Avatar size="xl" name={who} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-md font-bold">
+            {who}
+            <span className="font-normal text-fg-muted">
+              {' '}
+              · wants to see {request.fields.join(' and ')}
+            </span>
+          </h2>
+          <p className="text-sm text-fg-muted">
+            Asked {day(request.requestedAt)} · expires {day(request.expiresAt)} if nobody decides
+          </p>
+        </div>
+      </div>
+      <KeyValues
+        layout="aligned"
+        labelWidth="7.5rem"
+        items={[
+          { label: 'Fields', value: request.fields.join(', ') },
+          { label: 'Reason', value: `“${request.reason}”` },
+        ]}
+      />
+      <Alert tone="warning" title="These values are masked everywhere else">
+        Approving issues one download, once, within 24 hours. The people whose values are read can
+        see that it happened.
+      </Alert>
+      <div
+        {...PINNED_BAR}
+        className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4 touch:sticky touch:bottom-24 touch:z-10 touch:grid touch:grid-cols-2 touch:bg-surface touch:py-2"
+      >
+        <Button
+          aria-label={`Reject the request from ${who}`}
+          onClick={() => {
+            setDeciding(false);
+          }}
+        >
+          Decline
+        </Button>
+        <Button
+          variant="primary"
+          aria-label={`Approve the request from ${who}`}
+          onClick={() => {
+            setDeciding(true);
+          }}
+        >
+          Allow
+        </Button>
+      </div>
       {deciding === null ? null : (
         <Decide
-          request={deciding.request}
-          approve={deciding.approve}
+          request={request}
+          approve={deciding}
           onDecide={onDecide}
           onClose={() => {
             setDeciding(null);
           }}
         />
       )}
-    </Stack>
+    </Card>
   );
 }
 
-function List({
+/** Requests as a table (design E11): when, what and why, their state, and the one download. */
+export function RequestsTable({
   label,
   requests,
-  onDecide,
 }: {
   readonly label: string;
   readonly requests: readonly FullValuesRequest[];
-  readonly onDecide?: (request: FullValuesRequest, approve: boolean) => void;
 }): JSX.Element {
   return (
     <Table aria-label={label}>
@@ -213,61 +190,38 @@ function List({
           <TableHead>Asked</TableHead>
           <TableHead>Fields and reason</TableHead>
           <TableHead>State</TableHead>
-          <TableHead>{onDecide === undefined ? 'File' : 'Decide'}</TableHead>
+          <TableHead>File</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {requests.map((r) => {
-          const shown = STATE[r.state] ?? { tone: 'neutral', text: r.state };
-          const who = r.mine ? 'You' : (r.requestedBy ?? 'Somebody in finance');
+          const shown = stateOf(r);
           return (
             <TableRow key={r.id}>
               <TableCell>
-                {who}
-                <span className="block text-fg-muted text-sm">{day(r.requestedAt)}</span>
+                {askedBy(r)}
+                <span className="block text-sm text-fg-muted">{day(r.requestedAt)}</span>
               </TableCell>
               <TableCell>
                 <span className="font-medium">{r.fields.join(', ')}</span>
-                <span className="block text-fg-muted text-sm">{r.reason}</span>
+                <span className="block text-sm text-fg-muted">{r.reason}</span>
               </TableCell>
               <TableCell>
                 <Badge tone={shown.tone}>{shown.text}</Badge>
                 {r.note === null ? null : (
-                  <span className="block text-fg-muted text-sm">{r.note}</span>
+                  <span className="block text-sm text-fg-muted">“{r.note}”</span>
                 )}
                 {r.state === 'pending' ? (
-                  <span className="block text-fg-muted text-sm">Expires {day(r.expiresAt)}</span>
+                  <span className="block text-sm text-fg-muted">Expires {day(r.expiresAt)}</span>
                 ) : null}
               </TableCell>
               <TableCell>
-                {onDecide !== undefined ? (
-                  <span className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      aria-label={`Approve the request from ${who}`}
-                      onClick={() => {
-                        onDecide(r, true);
-                      }}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      aria-label={`Reject the request from ${who}`}
-                      onClick={() => {
-                        onDecide(r, false);
-                      }}
-                    >
-                      Reject
-                    </Button>
-                  </span>
-                ) : r.link === null ? (
+                {r.link === null ? (
                   '—'
                 ) : (
                   // A signed bearer link that carries its own authority and
                   // works once: a real link, so the browser downloads it.
-                  <Button asChild size="sm" variant="primary">
+                  <Button asChild size="sm" variant="primary" startIcon={<icons.download aria-hidden />}>
                     <a href={r.link} download>
                       Download, once
                     </a>
@@ -282,12 +236,12 @@ function List({
   );
 }
 
-function Ask({
+export function AskForFullValues({
   state,
   onRequest,
 }: {
   readonly state: FullValuesState;
-  readonly onRequest: FullValuesProps['onRequest'];
+  readonly onRequest: FullValuesActions['onRequest'];
 }): JSX.Element {
   const [chosen, setChosen] = useState<readonly string[]>([]);
   const [reason, setReason] = useState('');
@@ -387,7 +341,7 @@ function Decide({
 }: {
   readonly request: FullValuesRequest;
   readonly approve: boolean;
-  readonly onDecide: FullValuesProps['onDecide'];
+  readonly onDecide: FullValuesActions['onDecide'];
   readonly onClose: () => void;
 }): JSX.Element {
   const [note, setNote] = useState('');
@@ -404,11 +358,11 @@ function Decide({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{verb} the request</DialogTitle>
+          <DialogTitle>{approve ? 'Allow the request' : 'Reject the request'}</DialogTitle>
           <DialogDescription>
             {approve
               ? `${request.fields.join(', ')} in full, one download for the requester, within 24 hours.`
-              : 'Nothing is issued. The requester sees your note.'}
+              : `Nothing is issued. ${request.requestedBy ?? 'The requester'} sees your note.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

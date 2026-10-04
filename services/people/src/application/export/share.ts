@@ -438,10 +438,12 @@ async function linkTo(
   deps: ShareDeps,
   tenantId: string,
   query: Record<string, string>,
+  /** The finished export's page, or, for a request to decide, its item in Review. */
+  path = '/people/export',
 ): Promise<string | null> {
   const company = deps.company === undefined ? null : await deps.company(tx, tenantId);
   if (company === null || deps.mailer === undefined) return null;
-  const url = new URL('/people/export', company.origin);
+  const url = new URL(path, company.origin);
   for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
   return url.toString();
 }
@@ -589,7 +591,14 @@ export async function shareExport(
       }),
     ),
   ]);
-  const url = await linkTo(tx, deps, asking.tenantId, { share: approval.value.id });
+  // An approver decides it in Review, beside every other decision waiting for them.
+  const url = await linkTo(
+    tx,
+    deps,
+    asking.tenantId,
+    { kind: 'exports', item: `export-${approval.value.id}` },
+    '/people/review/waiting',
+  );
   return ok({
     value: {
       status: 'waiting',

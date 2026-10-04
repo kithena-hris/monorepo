@@ -1,3 +1,5 @@
+import { reviewItem } from './shell-data';
+
 /**
  * The Inbox's three views (design MA6): what there is to do, the changes
  * People's checks flagged for the viewer to decide, and updates. Each is its
@@ -66,7 +68,7 @@ export function flaggedRows(items: readonly FlaggedSource[]): FlaggedRow[] {
         name: i.name,
         change: before !== null && after !== null ? `${i.label} ${before} → ${after}` : i.label,
         why: i.flagSummary ?? '',
-        href: `/people/approvals?tab=flagged&change=${encodeURIComponent(i.id)}`,
+        href: reviewItem('flagged', 'changes', `change-${i.id}`),
       };
     });
 }

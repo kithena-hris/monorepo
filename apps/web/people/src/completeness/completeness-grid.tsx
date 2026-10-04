@@ -27,8 +27,8 @@ import {
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
-import { DATA_HEALTH } from '../data-health';
-import { Loaded, type IdentifierFinding, type Loadable } from '../load';
+import { useHeld } from '../held';
+import type { IdentifierFinding } from '../load';
 import { PeopleSearch, PersonPicker, type SearchPeople } from '../record/attribute-input';
 
 /** A field somebody is missing: HR's to fill in, or the person's own. */
@@ -114,16 +114,14 @@ export type GridOutcome =
     }
   | { readonly ok: false; readonly message: string };
 
-export interface CompletenessGridProps {
-  readonly load: Loadable<CompletenessState>;
+/** What Review's Missing details may do (design E6, E7). */
+export interface MissingActions {
   readonly onSave: (changes: readonly GridSave[]) => Promise<GridOutcome>;
   /**
    * What our checks would warn about a national identifier in these cells,
    * before they are saved (PEO-125). Absent: save straight away.
    */
   readonly onCheck?: (changes: readonly GridSave[]) => Promise<GridOutcome>;
-  /** Finds people for a person field, by name, over everybody (PEO-122). */
-  readonly searchPeople?: SearchPeople;
   /** Present when there are more people after this page (PEO-122). */
   readonly onNextPage?: () => void;
   /** Present when this is not the first page. */
@@ -135,10 +133,19 @@ export interface CompletenessGridProps {
     personId: string,
     keys: readonly string[],
   ) => Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }>;
+  /**
+   * Filling in, from whose row (`?fill=`): the grid over HR's gaps, that
+   * person's first cell focused. Null: the list. Kept by the host, so a link
+   * opens the grid; kept here without one.
+   */
+  readonly fill?: string | null;
+  readonly onFillChange?: (personId: string | null) => void;
+  /** When the page was read (epoch ms): what "reminded within the day" is measured from, the same on the server and in the browser. */
+  readonly now?: number;
 }
 
 /**
- * Data health's Completeness tab (V4, MV2; PRD §8.4, design screen 8).
+ * Review's Missing details (design E6, E7, MA E5; PRD §8.4).
  *
  * First who is missing what, one row a person, as a list to read. "Fill in"
  * opens the grid over exactly the missing cells, at that person's first one.
@@ -155,16 +162,18 @@ export interface CompletenessGridProps {
  * people" runs the weekly reminder now for everybody due one; the week's cap
  * still holds, so pressing it twice sends nothing twice.
  */
-export function CompletenessGrid({
-  load,
+export function MissingDetails({
+  state,
   searchPeople,
   ...props
-}: CompletenessGridProps): JSX.Element {
+}: MissingActions & {
+  readonly state: CompletenessState;
+  /** Finds people for a person field, by name, over everybody (PEO-122). */
+  readonly searchPeople?: SearchPeople | undefined;
+}): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
-      <Loaded load={load} what="the missing information">
-        {(state) => <Grid state={state} {...props} />}
-      </Loaded>
+      <Grid state={state} {...props} />
     </PeopleSearch.Provider>
   );
 }
@@ -177,11 +186,18 @@ function Grid({
   onFirstPage,
   onRemindAll,
   onRemind,
-}: Omit<CompletenessGridProps, 'load' | 'searchPeople'> & {
+  fill,
+  onFillChange,
+  now,
+}: MissingActions & {
   readonly state: CompletenessState;
 }): JSX.Element {
   /** Filling in, from whose row: the grid, and that person's first cell focused. */
-  const [filling, setFilling] = useState<{ readonly from: string } | null>(null);
+  const [from, setFrom] = useHeld<string | null>(fill, onFillChange, null);
+  const filling = from === null ? null : { from };
+  const setFilling = (next: { readonly from: string } | null): void => {
+    setFrom(next?.from ?? null);
+  };
   // personId → key → value, across every field the admin has worked through.
   const [edits, setEdits] = useState<Readonly<Record<string, Readonly<Record<string, string>>>>>(
     {},
@@ -413,7 +429,7 @@ function Grid({
   // Asked within the day, here or by the weekly email: another press would be a second email.
   const recently = (r: GapRow): boolean =>
     asked[rowId(r)] === null ||
-    (r.remindedAt !== null && Date.now() - Date.parse(r.remindedAt) < DAY_MS);
+    (r.remindedAt !== null && (now ?? Date.parse(state.waiting.lastReminded ?? '')) - Date.parse(r.remindedAt) < DAY_MS);
   const action = (r: GapRow): JSX.Element | null =>
     r.owner === 'hr' ? (
       fillIn(r)
@@ -512,12 +528,20 @@ function Grid({
   const failed = Object.values(asked).find((message) => message !== null);
 
   return (
-    <Stack gap={5}>
-      <PageHeader
-        title={DATA_HEALTH.title}
-        description={DATA_HEALTH.description}
-        actions={
-          filling === null ? (
+    <Stack gap={4}>
+      {filling === null ? null : (
+        // Filling in for HR (E7): its own heading, Back and Save beside it.
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-xl font-bold tracking-tight">Fill in for HR</h2>
+            <p className="text-sm text-fg-muted">
+              {`${String(state.toFill)} ${state.toFill === 1 ? 'detail' : 'details'} across ${String(rows.length)} ${rows.length === 1 ? 'person' : 'people'}. Tab moves across, ↵ moves down. Nothing is saved until you press Save.`}
+            </p>
+          </div>
+        </div>
+      )}
+      <div className="flex flex-wrap justify-end gap-2 empty:hidden">
+        {filling === null ? (
             onRemindAll === undefined || due === 0 ? undefined : (
               // A desk's (V4): on a phone each row carries its own Remind (MV2).
               <Button
@@ -535,6 +559,8 @@ function Grid({
           ) : (
             <>
               <Button
+                variant="ghost"
+                startIcon={<icons.back aria-hidden />}
                 onClick={() => {
                   setFilling(null);
                 }}
@@ -557,11 +583,12 @@ function Grid({
                     : `Save ${String(pending)} ${pending === 1 ? 'change' : 'changes'}`}
               </Button>
             </>
-          )
-        }
-      />
+          )}
+      </div>
       {/* At a desk, the four figures; a phone gets the one that matters, as a bar. */}
-      <div className="grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4 touch:hidden">
+      <div
+        className={`grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4 touch:hidden ${filling === null ? '' : 'hidden'}`}
+      >
         {state.complete == null ? null : (
           <Stat
             label="Complete"
@@ -604,7 +631,7 @@ function Grid({
           <Stat label="Blocking payroll" value={state.blocking} description="Bank, tax or ID details" />
         )}
       </div>
-      <Card padded className="hidden touch:block">
+      <Card padded className={filling === null ? 'hidden touch:block' : 'hidden'}>
         {state.complete == null ? null : (
           <p className="mb-2 flex items-baseline gap-2">
             <span className="font-display text-3xl font-bold tabular-nums">
@@ -669,7 +696,8 @@ function Grid({
             empty={<EmptyState title="Nobody is missing anything" />}
           />
           <p className="text-sm text-fg-muted">
-            Tab moves across, ↵ moves down. Nothing is saved until you press Save.
+            Each person’s edits go out as one change. Sensitive values wait for approval; doubted
+            identifiers go to HR’s review.
           </p>
         </>
       ) : (
@@ -712,7 +740,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** "21 Sep": when, to the day. */
 const shortDay = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /** "1 reminder", "40 reminders". */
 const n = (count: number, one: string, many: string): string =>

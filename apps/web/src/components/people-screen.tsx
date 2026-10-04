@@ -729,7 +729,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onWithdraw: actions.withdrawPendingChange,
           onSelfApprove: actions.approveAlone,
           onApprovals: () => {
-            go('/people/approvals');
+            go('/people/review/waiting?kind=changes');
           },
         };
       }
@@ -1009,39 +1009,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               }),
         };
       }
-      case 'CompletenessGrid': {
-        // Keyset pages, each a URL, as the directory's are (PEO-117, PEO-122).
-        const next =
-          load.status === 'ready' && typeof load.data === 'object' && load.data !== null
-            ? ((load.data as { next?: string | null }).next ?? null)
-            : null;
-        return {
-          load: loadable,
-          onSave: actions.saveGrid,
-          onCheck: actions.checkGrid,
-          searchPeople: actions.searchPeople,
-          // Everybody due, through the weekly sweep; one person, through asking them.
-          onRemindAll: actions.remindWaiting,
-          onRemind: (personId: string, keys: readonly string[]) =>
-            actions.requestDetails(personId, keys),
-          ...(next === null
-            ? {}
-            : {
-                onNextPage: () => {
-                  router.push(
-                    `/people/data-health/completeness?after=${encodeURIComponent(next)}` as Route,
-                  );
-                },
-              }),
-          ...(search['after'] === undefined
-            ? {}
-            : {
-                onFirstPage: () => {
-                  router.push('/people/data-health/completeness');
-                },
-              }),
-        };
-      }
       // Previewed and applied a page of people at a time (PEO-071).
       case 'BulkEdit':
         return {
@@ -1214,63 +1181,60 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         };
       case 'PeopleSettings':
         return { load: loadable };
-      case 'FullValues':
+      // One queue for every decision (design E1–E13). The tab is the route;
+      // the chip, the item and the fill-in grid are the address, so the
+      // server draws them already chosen. Picking a pair to compare, or a
+      // page of missing details, is a navigation: People reads it.
+      case 'Review': {
+        const tab = oneOf(leaf, ['waiting', 'flagged', 'asked', 'decided'], 'waiting');
+        const next =
+          load.status === 'ready' && typeof load.data === 'object' && load.data !== null
+            ? ((load.data as { completeness?: { next?: string | null } | null }).completeness
+                ?.next ?? null)
+            : null;
+        const here = `/people/review/${tab}`;
         return {
           load: loadable,
-          onRequest: actions.requestFullValues,
-          onDecide: actions.decideFullValues,
-        };
-      case 'IdentifierReviews':
-        return {
-          load: loadable,
-          onDecide: actions.reviewIdentifier,
-          onReveal: actions.revealIdentifier,
-        };
-      case 'Approvals':
-        return {
-          load: loadable,
+          tab,
+          kind: at('kind'),
+          onKindChange: (kind: string | null) => {
+            // A new chip starts at the top of its list, and its first page.
+            if (at('item')?.startsWith('dup-') === true || at('after') !== null) {
+              navigate({ kind, item: null, fill: null, after: null });
+            } else note({ kind, item: null, fill: null }, 'push');
+          },
+          item: at('item'),
+          onItemChange: (item: string | null) => {
+            if (item?.startsWith('dup-') === true) navigate({ item });
+            else note({ item }, 'push');
+          },
+          fill: at('fill'),
+          onFillChange: (fill: string | null) => {
+            note({ fill }, 'push');
+          },
           onDecide: actions.decidePendingChange,
           onWithdraw: actions.withdrawPendingChange,
           onSelfApprove: actions.approveAlone,
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
-          tab: oneOf(at('tab'), ['mine', 'flagged', 'asked', 'decided'], null),
-          onTabChange: (tab: string) => {
-            note({ tab, change: null }, 'push');
-          },
-          // The change open beside the list: a link to one opens it (Inbox, MA6).
-          change: at('change'),
-          onChangeOpen: (change: string | null) => {
-            note({ change }, 'push');
-          },
           // Flagged approvals (design AI7, AI8).
           onMarkNotUnusual: actions.markNotUnusual,
           onAsk: actions.askAboutChange,
           onAnswer: actions.answerApprovalQuestion,
           onSetCheck: actions.setApprovalCheck,
-        };
-      case 'Duplicates': {
-        const list = '/people/data-health/duplicates';
-        return {
-          load: loadable,
-          onCompare: (a: string, b: string) => {
-            go(`${list}?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
-          },
-          onBack: () => {
-            go(list);
-          },
+          onReviewIdentifier: actions.reviewIdentifier,
+          onReveal: actions.revealIdentifier,
           // Afterwards the survivor's record: the merge's answer, as People now holds it.
           onMerge: async (survivorId: string, absorbedId: string, take: readonly string[]) => {
             const merged = await actions.mergePerson(survivorId, absorbedId, take);
             if (merged.ok) go(`/people/${encodeURIComponent(survivorId)}`);
             return merged;
           },
-          // From the list, the list again; from a comparison, back to the list.
+          // Not the same: the pair leaves the queue, and the pane with it.
           onDismiss: async (a: string, b: string) => {
             const dismissed = await actions.dismissDuplicate([a, b]);
-            // From the list the write's own answer is the list again.
-            if (dismissed.ok && search['a'] !== undefined) go(list);
+            if (dismissed.ok && at('item')?.startsWith('dup-') === true) navigate({ item: null });
             return dismissed;
           },
           // Afterwards the restored record, as People now holds it.
@@ -1279,6 +1243,39 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             if (undone.ok) go(`/people/${encodeURIComponent(absorbedId)}`);
             return undone;
           },
+          onRequestFullValues: actions.requestFullValues,
+          onDecideFullValues: actions.decideFullValues,
+          onDecideShare: async (id: string, approve: boolean, note: string) => {
+            const decided = await actions.decideExportShare(
+              id,
+              approve,
+              note.trim() === '' ? null : note,
+            );
+            if (decided.ok) refresh();
+            return decided.ok ? { ok: true } : decided;
+          },
+          onSaveMissing: actions.saveGrid,
+          onCheckMissing: actions.checkGrid,
+          searchPeople: actions.searchPeople,
+          // Everybody due, through the weekly sweep; one person, through asking them.
+          onRemindAll: actions.remindWaiting,
+          onRemind: (personId: string, keys: readonly string[]) =>
+            actions.requestDetails(personId, keys),
+          // Keyset pages of missing details, each a URL (PEO-117, PEO-122).
+          ...(next === null
+            ? {}
+            : {
+                onNextPage: () => {
+                  go(withQuery(here, {}, { kind: 'missing', after: next }));
+                },
+              }),
+          ...(search['after'] === undefined
+            ? {}
+            : {
+                onFirstPage: () => {
+                  go(withQuery(here, {}, { kind: 'missing' }));
+                },
+              }),
         };
       }
       case 'WebhookLog': {
