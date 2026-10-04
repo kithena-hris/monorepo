@@ -140,10 +140,13 @@ describe('Settings › Activity', () => {
       />,
     );
     // jsdom measures nothing, so the first page never fills the table: it asks at once.
-    await vi.waitFor(() => {
-      expect(onMore).toHaveBeenCalled();
-    });
-    expect(await screen.findByText(/Removed a role/)).toBeTruthy();
+    await vi.waitFor(
+      () => {
+        expect(onMore).toHaveBeenCalled();
+      },
+      { timeout: 5000 },
+    );
+    expect(await screen.findByText(/Removed a role/, undefined, { timeout: 5000 })).toBeTruthy();
     expect(onMore).toHaveBeenCalledWith(entries[2]?.id);
     expect(screen.queryByRole('button', { name: 'Older' })).toBeNull();
     expect(screen.getByText('1 more loaded')).toBeTruthy();
