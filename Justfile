@@ -79,6 +79,10 @@ supergraph:
     pnpm turbo run codegen --filter=@kithena/people --filter=@kithena/timeoff --output-logs=errors-only
     pnpm --filter @kithena/gateway check
 
+# Build or refresh the code knowledge graph in graphify-out/ (free, no model).
+graph:
+    graphify update .
+
 # Boot a single module with no siblings present, then run its acceptance suite.
 standalone module:
     pnpm --filter @kithena/{{module}} test:standalone

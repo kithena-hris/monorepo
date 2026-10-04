@@ -225,6 +225,7 @@ just admin-dev            # messaging, identity, the assistant, the auth origin 
 just invite <tenant> <email>  # invite one person and send them their link
 just storybook            # design system docs on :6006
 just test-stories         # render every story in Chromium, run axe over it
+just graph                # build or refresh the code knowledge graph (free, no model)
 ```
 
 ## Work in flight
@@ -285,3 +286,39 @@ dependency without saying why the existing stack cannot cover it.
 Migrations are expand-contract only: add nullable, backfill, write, stop
 reading, drop later. There are no down migrations against a multi-tenant
 production database.
+
+## The knowledge graph
+
+The repository is past two thousand files, and a question that crosses
+modules ("what reaches `personAccess`?", "how does a remote load into the
+shell?") costs a dozen greps to answer from source. graphify turns the tree
+into a graph of symbols, imports, calls and the concepts in `docs/`, with the
+communities and bridges between them, and answers that kind of question from
+the graph instead. It is a developer tool, not a dependency: nothing in the
+product imports it and CI does not run it.
+
+Install it once, then build the graph in each checkout or worktree:
+
+```bash
+uv tool install 'graphifyy[sql,terraform]'   # the extras parse migrations/ and the .hcl
+just graph                                    # graphify-out/, gitignored
+```
+
+`just graph` reads code only and costs nothing. `/graphify` in Claude Code
+adds the docs layer (PRDs, build plans, workflows) and spends model tokens;
+run it when the docs matter to the question.
+
+When `graphify-out/graph.json` exists:
+
+- For a question about the codebase, run `graphify query "<question>"` before
+  grepping. `graphify path "<A>" "<B>"` traces how two things connect and
+  `graphify explain "<concept>"` describes one. Each returns a scoped subgraph,
+  far smaller than the report or a raw grep.
+- Read `graphify-out/GRAPH_REPORT.md` only for an architecture review, or when
+  a query does not surface enough.
+- After changing code, run `just graph` so the next answer is not stale.
+
+The graph orients; the source decides. Read the file before editing it, and
+treat an INFERRED edge as a lead, not a fact. The hooks in
+`.claude/settings.json` nudge towards a query and do nothing when graphify
+is not installed or no graph has been built.
