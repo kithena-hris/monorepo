@@ -69,7 +69,8 @@ const HR_ACCOUNT = '00000000-0000-4000-8000-0000000000b2';
 const NEW_IBAN = 'DE89370400440532013000';
 
 let ids = 0;
-const publisher = publishSchema({ calendars: utcCalendars,
+const publisher = publishSchema({
+  calendars: utcCalendars,
   schema: drizzleSchemaRepository(),
   people: drizzlePeopleFacts(),
   clock,
@@ -158,9 +159,13 @@ beforeAll(async () => {
   `);
 
   // Version 1: a core field, three tenant-defined ones and one that is not exportable.
-  await define('given_name', policy({ classification: 'confidential', piiKind: 'identity' }), { origin: 'core' });
+  await define('given_name', policy({ classification: 'confidential', piiKind: 'identity' }), {
+    origin: 'core',
+  });
   await define('religion', policy({ classification: 'special-category' }), { visibility: '{}' });
-  await define('bank_account', policy({ classification: 'confidential', piiKind: 'financial' }), { encrypted: true });
+  await define('bank_account', policy({ classification: 'confidential', piiKind: 'financial' }), {
+    encrypted: true,
+  });
   await define('shoe_size', policy({}));
   await define('hr_judgement', policy({ exportable: false }));
   expect((await publish()).ok).toBe(true);
@@ -204,18 +209,24 @@ afterAll(async () => {
 describe('a subject access export', () => {
   it('contains every exportable attribute of the version the record was written under, in under a minute', async () => {
     const started = performance.now();
-    const result = await inTenant(ACME, ({ tx }) => dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }));
+    const result = await inTenant(ACME, ({ tx }) =>
+      dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }),
+    );
     const elapsed = performance.now() - started;
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    const v1 = await admin.execute(sql`SELECT document FROM people.schema_version WHERE version = 1`);
+    const v1 = await admin.execute(
+      sql`SELECT document FROM people.schema_version WHERE version = 1`,
+    );
     const document = [...v1][0]?.['document'] as
-      | { attributes: { key: string; classification: FieldPolicy }[] }
-      | undefined;
+      { attributes: { key: string; classification: FieldPolicy }[] } | undefined;
     const attributes = document?.attributes ?? [];
-    const exportable = attributes.filter((a) => a.classification.exportable).map((a) => a.key).toSorted();
+    const exportable = attributes
+      .filter((a) => a.classification.exportable)
+      .map((a) => a.key)
+      .toSorted();
 
     expect(result.value.schemaVersion).toBe(1);
     expect(result.value.attributes.map((a) => a.key).toSorted()).toEqual(exportable);
@@ -224,15 +235,24 @@ describe('a subject access export', () => {
   });
 
   it('carries the values, special-category and encrypted included', async () => {
-    const result = await inTenant(ACME, ({ tx }) => dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }));
+    const result = await inTenant(ACME, ({ tx }) =>
+      dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }),
+    );
     if (!result.ok) throw new Error(result.error.message);
 
     const values = Object.fromEntries(result.value.attributes.map((a) => [a.key, a.value]));
-    expect(values).toEqual({ given_name: 'Ada', religion: 'Pastafarian', bank_account: IBAN, shoe_size: 38 });
+    expect(values).toEqual({
+      given_name: 'Ada',
+      religion: 'Pastafarian',
+      bank_account: IBAN,
+      shoe_size: 38,
+    });
   });
 
   it('includes history and events, and withholds what the policy does not export', async () => {
-    const result = await inTenant(ACME, ({ tx }) => dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }));
+    const result = await inTenant(ACME, ({ tx }) =>
+      dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }),
+    );
     if (!result.ok) throw new Error(result.error.message);
 
     expect(result.value.history.map((h) => h.attributeKey)).toEqual(['shoe_size']);
@@ -270,7 +290,11 @@ describe('a subject access export', () => {
     const REJECTED = '01890000-0000-7000-8000-0000000000d2';
     await inTenant(ACME, async ({ tx }) => {
       // Theirs, sealed, still waiting: in full, as a sealed attribute is.
-      await pending.insert(tx, change('01890000-0000-7000-8000-0000000000d1', {}), JSON.stringify(NEW_IBAN));
+      await pending.insert(
+        tx,
+        change('01890000-0000-7000-8000-0000000000d1', {}),
+        JSON.stringify(NEW_IBAN),
+      );
       // HR's, rejected with a note.
       const asked = change(REJECTED, {
         attributeKey: 'shoe_size',
@@ -307,7 +331,9 @@ describe('a subject access export', () => {
       );
     });
 
-    const result = await inTenant(ACME, ({ tx }) => dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }));
+    const result = await inTenant(ACME, ({ tx }) =>
+      dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }),
+    );
     if (!result.ok) throw new Error(result.error.message);
     expect(result.value.changes).toEqual([
       expect.objectContaining({
@@ -335,7 +361,11 @@ describe('a subject access export', () => {
 
   it('is refused to anybody but the subject', async () => {
     const result = await inTenant(ACME, ({ tx }) =>
-      dsar(tx, { tenantId: ACME, personId: ADA, requester: { ...subject, isSelf: false, isHr: true } }),
+      dsar(tx, {
+        tenantId: ACME,
+        personId: ADA,
+        requester: { ...subject, isSelf: false, isHr: true },
+      }),
     );
     expect(result).toMatchObject({ ok: false, error: { code: 'DSAR_NOT_SUBJECT' } });
   });
@@ -354,7 +384,9 @@ describe('a subject access export', () => {
               '2020-01-01', ${JSON.stringify({ kind: 'system', process: 'seed' })}::jsonb)
     `);
 
-    const result = await inTenant(ACME, ({ tx }) => dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }));
+    const result = await inTenant(ACME, ({ tx }) =>
+      dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }),
+    );
     if (!result.ok) throw new Error(result.error.message);
 
     // The subject's own values are untouched by what the tombstones hold.
@@ -369,8 +401,24 @@ describe('a subject access export', () => {
       history: m.history.map((h) => [h.attributeKey, h.value]),
     }));
     expect(merged).toEqual([
-      { source: 'merged_record', personId: OLD, mergedInto: ADA, schemaVersion: 2, given: 'Ada L.', shoes: 36, history: [] },
-      { source: 'merged_record', personId: OLDER, mergedInto: OLD, schemaVersion: 1, given: 'A. Lovelace', shoes: null, history: [['shoe_size', 35]] },
+      {
+        source: 'merged_record',
+        personId: OLD,
+        mergedInto: ADA,
+        schemaVersion: 2,
+        given: 'Ada L.',
+        shoes: 36,
+        history: [],
+      },
+      {
+        source: 'merged_record',
+        personId: OLDER,
+        mergedInto: OLD,
+        schemaVersion: 1,
+        given: 'A. Lovelace',
+        shoes: null,
+        history: [['shoe_size', 35]],
+      },
     ]);
   });
 
@@ -382,7 +430,9 @@ describe('a subject access export', () => {
        WHERE attribute_key = 'shoe_size'
     `);
 
-    const result = await inTenant(ACME, ({ tx }) => dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }));
+    const result = await inTenant(ACME, ({ tx }) =>
+      dsar(tx, { tenantId: ACME, personId: ADA, requester: subject }),
+    );
     if (!result.ok) throw new Error(result.error.message);
 
     // The fact of the change survives; what it was does not.
