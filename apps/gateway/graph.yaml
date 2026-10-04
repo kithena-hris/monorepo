@@ -14,3 +14,7 @@ subgraphs:
     routing_url: http://localhost:4103/graphql
     introspection:
       url: http://localhost:4103/graphql
+  - name: assistant
+    routing_url: http://localhost:4104/graphql
+    introspection:
+      url: http://localhost:4104/graphql

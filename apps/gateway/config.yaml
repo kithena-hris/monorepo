@@ -141,6 +141,26 @@ headers:
         - op: 'set'
           name: 'x-internal-token'
           value: '${AUDIT_API_TOKEN}'
+    # The assistant (`platform/assistant`, AST-035): `ask(question)` for the
+    # web, under the router–assistant pair's own secret. It forwards the
+    # session unchanged to every module it asks, so a view-as or support
+    # session is told what each module tells it on its own screens: People
+    # answers a view-as read-only, Time Off refuses both. It reads which
+    # modules a company has from identity, so no entitlements here.
+    assistant:
+      request:
+        - op: 'set'
+          name: 'x-kithena-principal'
+          expression: >-
+            '{"userId":"' + request.auth.claims.sub + '","tenantId":"' +
+            request.auth.claims.tid + '","impersonatedBy":' +
+            (request.auth.claims.act?.sub == nil || request.auth.claims.act?.kind == 'view_as' ? 'null' : '"' + request.auth.claims.act.sub + '"') +
+            ',"viewedBy":' +
+            (request.auth.claims.act?.sub != nil && request.auth.claims.act?.kind == 'view_as' ? '"' + request.auth.claims.act.sub + '"' : 'null') +
+            '}'
+        - op: 'set'
+          name: 'x-internal-token'
+          value: '${ASSISTANT_API_TOKEN}'
 
 # People's refusal reaches the caller as People gave it: its code (FORBIDDEN,
 # LAST_ADMIN, IDEMPOTENCY_KEY_REUSED …), its message and the field it names
