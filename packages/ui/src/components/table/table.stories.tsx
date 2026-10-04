@@ -960,7 +960,7 @@ export const InfiniteVirtualized: Story = {
     });
     box.scrollTop = box.scrollHeight / 2;
     await waitFor(async () => {
-      await expect(canvasElement.querySelector('tbody tr[data-skeleton]')).not.toBeNull();
+      await expect(canvasElement.querySelector('tbody tr[data-spacer]')).not.toBeNull();
     });
     // The header holds over the rows scrolling under it: the pinned corner
     // and a plain header cell are each the topmost thing where they are.
