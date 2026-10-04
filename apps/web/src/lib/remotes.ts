@@ -92,7 +92,7 @@ export type SlotName = 'topBar' | 'home';
  * The sections and actions this viewer's roles open, in the manifest's order.
  *
  * An umbrella section keeps only the tabs the viewer opens, and links to the
- * first of them: a finance viewer's Data health is its access requests. One
+ * first of them, each named for the viewer: finance's Review opens on its requests. One
  * whose tabs they open none of is not theirs at all.
  */
 export function placesFor(
@@ -147,7 +147,7 @@ export function currentTab(section: Place | undefined, route: string | null): Pl
 
 /**
  * Where a path no route answers sends this viewer, when it is the bare start
- * of their places: `/people/data-health` to the first tab of Data health they
+ * of their places: `/people/review` to the first tab of Review they
  * open, `/people/directory` to its first view. Only places the viewer opens
  * count (`placesFor`), in order; anything else is `undefined`, and a 404.
  */
@@ -186,7 +186,7 @@ export interface HeaderFrame {
 
 /**
  * What a screen's own header shows of the host's navigation: the section it
- * is under, for the breadcrumb (the front page too, as Overview), with its
+ * is under, for the breadcrumb, with its
  * siblings (their icons and counts) and, on an umbrella page, its tabs; and
  * the actions this viewer may start. An action is left off its own screen,
  * whose form is then the only copy of it. `_home` is the area's own path,
@@ -204,8 +204,7 @@ export function headerFrame(
   const here = section ?? currentPlace(places.actions, route);
   const tab = currentTab(section, route);
   return {
-    // People's front page is a section like the rest: "People › Overview", with
-    // its siblings a click away, as every other People screen opens.
+    // Every People page opens as "People › section", its siblings a click away.
     section: here === undefined ? null : here.label,
     siblings: siblingsOf(places.sections, here, counts.sections),
     siblingsLabel: `${area} sections`,

@@ -115,8 +115,8 @@ function countOf(href: string, count: number | undefined): ReactNode {
  * finger), its actions, and an umbrella page's tabs.
  *
  * At a desk the trail ends in two switchers on an umbrella page, "People ›
- * Data health ▾ › Duplicates ▾": the section's menu lists the sections and,
- * under "In Data health", its tabs, the one you are on ticked; the tab's lists
+ * Review ▾ › Flagged ▾": the section's menu lists the sections and,
+ * under "In Review", its tabs, the one you are on ticked; the tab's lists
  * the tabs. Under a finger the bar's title is the section's switcher, each
  * section with its icon and count, and the tabs are a row of pills.
  */
