@@ -9,7 +9,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
-import { startCosmoRouter, startObjectStore, startOpenFga, startPostgres } from '@kithena/testing';
+import {
+  startCosmoRouter,
+  startObjectStore,
+  startOpenFga,
+  startPostgres,
+  startValkey,
+} from '@kithena/testing';
 
 /**
  * The tenant app as a person meets it, for the acceptance tests (PEO-098,
@@ -452,10 +458,14 @@ export async function startStack(): Promise<Stack> {
   let receiver: Awaited<ReturnType<typeof startReceiver>> | undefined;
   const receiverDir = await mkdtemp(join(tmpdir(), 'kithena-receiver-'));
   // The bucket an import is uploaded to, straight from the browser (§14.2).
-  const [pg, fga, storage] = await Promise.all([
+  const [pg, fga, storage, valkey] = await Promise.all([
     startPostgres(),
     startOpenFga(),
     startObjectStore(),
+    // `ACCEPTANCE_VALKEY=1`: People with Valkey, so its read cache is on, for a
+    // timing run. Off otherwise: some tests write People's rows and tuples
+    // straight to the database, which no cache is told about.
+    process.env['ACCEPTANCE_VALKEY'] === '1' ? startValkey() : undefined,
   ]);
   const sql = postgres(pg.url, { max: 2, onnotice: () => {} });
 
@@ -465,7 +475,7 @@ export async function startStack(): Promise<Stack> {
     );
     await router?.stop().catch(() => undefined);
     await sql.end({ timeout: 5 }).catch(() => undefined);
-    await Promise.allSettled([pg.stop(), fga.stop(), storage.stop()]);
+    await Promise.allSettled([pg.stop(), fga.stop(), storage.stop(), valkey?.stop()]);
     await new Promise<void>((resolve) => {
       if (receiver)
         receiver.server.close(() => {
@@ -581,6 +591,7 @@ export async function startStack(): Promise<Stack> {
           PEOPLE_WEBHOOKS_ALLOW_LOOPBACK: '1',
           NODE_EXTRA_CA_CERTS: certificate.cert,
           LOG_LEVEL: 'warn',
+          ...(valkey === undefined ? {} : { VALKEY_URL: valkey.url }),
         },
         logs['people'] ?? [],
       ),

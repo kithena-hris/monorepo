@@ -44,6 +44,7 @@ import { scimProvisioning } from '../application/scim/provisioning.js';
 import { drizzleScimStore } from '../infrastructure/drizzle-scim-store.js';
 import type { PeopleService } from '../application/person/service.js';
 import { configureGraphQL } from '../graphql/schema.js';
+import { readCacheFrom } from '../infrastructure/valkey-read-cache.js';
 import { chatAct, parseChatAction } from './chat.js';
 import { chatAppsFrom } from '../infrastructure/chat-apps.js';
 import { sealExisting } from '../infrastructure/seal-existing.js';
@@ -192,7 +193,8 @@ export function peopleService(
   const client = postgres(databaseUrl);
   const db = drizzle(client);
   const ring = staticKeyRing(keysFrom(secretKeys));
-  const raw = tenantTransaction(db);
+  // Every unit of work that writes moves the tenant's read cache on (`read-cache.ts`).
+  const raw = tenantTransaction(db, readCacheFrom(process.env)?.changed);
   const schemas = drizzleSchemaVersions();
 
   // Plain http or a loopback receiver only when a developer or a test says so;
@@ -1005,6 +1007,7 @@ export function wirePeople(server: Server): void {
   const activitySchema = drizzleSchemaRepository();
   const activityOrg = drizzleOrgStore();
   const shares = shareDeps(exports.deps);
+  const readCache = readCacheFrom(process.env);
   const rest = restHandler({
     service,
     callerFrom,
@@ -1019,6 +1022,7 @@ export function wirePeople(server: Server): void {
       // An export sent to somebody else (design AI13, AI14, MA10).
       ...shareRoutes({ service, idempotency, share: shares }),
     ],
+    ...(readCache === null ? {} : { readCache }),
     activity: {
       store: drizzleActivity(),
       newId: uuidv7,

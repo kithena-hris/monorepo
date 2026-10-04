@@ -36,21 +36,42 @@ export type InTenantTransaction = <T>(
  * handed back to the pool therefore carries no tenant, which is what stops the
  * next unit of work inheriting the last one's.
  */
-export function tenantTransaction(db: PostgresJsDatabase): InTenantTransaction {
-  return (tenantId, fn) => {
+export function tenantTransaction(
+  db: PostgresJsDatabase,
+  /**
+   * Told, once it has committed, that a unit of work wrote something in the
+   * tenant, and waited for before the unit returns: the read cache's
+   * invalidation (`application/read-cache.ts`), so the request that wrote
+   * reads its own write.
+   */
+  changed?: (tenantId: string) => Promise<void>,
+): InTenantTransaction {
+  return async (tenantId, fn) => {
     const open = shared.getStore();
     if (open?.tenantId === tenantId) {
       // Inside `sharing`: a savepoint on the open transaction, so a refusal
       // or a retried deadlock rolls back this unit alone and the outer commit
-      // still decides for everything.
+      // still decides for everything — and the outer unit says if it wrote.
       return open.tx.transaction((tx) => sharing({ tx, tenantId }, () => fn({ tx, tenantId })));
     }
-    return db.transaction(async (tx) => {
+    let wrote = false;
+    const result = await db.transaction(async (tx) => {
       // First, before any other statement, or Postgres refuses to change it.
       if (viewOnly.getStore() === true) await tx.execute(sql`SET TRANSACTION READ ONLY`);
       await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
-      return fn({ tx, tenantId });
+      const value = await fn({ tx, tenantId });
+      if (changed !== undefined) {
+        // A transaction is given an id the moment it first writes, and only
+        // then: whatever wrote — a use case, a consumer, a job — this sees it.
+        const [row] = await tx.execute<{ wrote: boolean }>(
+          sql`SELECT pg_current_xact_id_if_assigned() IS NOT NULL AS wrote`,
+        );
+        wrote = row?.wrote === true;
+      }
+      return value;
     });
+    if (wrote && changed !== undefined) await changed(tenantId);
+    return result;
   };
 }
 
