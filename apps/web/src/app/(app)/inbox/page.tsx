@@ -20,11 +20,6 @@ export default async function InboxPage({
   // lists wait for People rather than saying there is nothing to do.
   const waking = entitlements.includes('module.people') && isWaking(await people('Home'));
   return (
-    <Inbox
-      shell={shell}
-      account={<AccountSheet person={person} />}
-      view={view}
-      waking={waking}
-    />
+    <Inbox shell={shell} account={<AccountSheet person={person} />} view={view} waking={waking} />
   );
 }
