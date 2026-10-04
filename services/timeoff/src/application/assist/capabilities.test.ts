@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DateSpan,
+  ItemsResult,
   LedgerEntry,
   LeaveTypeDefinition,
   LeaveTypeKey,
@@ -10,10 +11,12 @@ import {
   TimeOffAway,
   TimeOffBalances,
   TimeOffManagers,
+  TimeOffPending,
 } from '@kithena/contracts';
 
 import { LeaveType } from '../../domain/policy/leave-type.js';
 import { decideRequest } from '../approval/decide.js';
+import { approvals } from '../screens/manager.js';
 import type { Caller } from '../ports.js';
 import { sendRequest } from '../request/request.js';
 import { setChatAnswers } from '../settings/chat.js';
@@ -29,7 +32,7 @@ import {
   vacationType,
   world,
 } from '../testing/world.js';
-import { away, balances, capabilityCatalogue, managers } from './capabilities.js';
+import { away, balances, capabilityCatalogue, managers, pending } from './capabilities.js';
 
 /** Assistant PRD §8.5: what Time Off offers the assistant, as the asker. */
 
@@ -44,6 +47,7 @@ describe('Time Off’s capability catalogue (AST-022)', () => {
       { name: 'timeoff.away', version: 1 },
       { name: 'timeoff.managers', version: 1 },
       { name: 'timeoff.balances', version: 1 },
+      { name: 'timeoff.pending', version: 1 },
     ]);
     expect(catalogue.leaveTypes).toEqual([
       { key: 'sick', name: 'Sick', private: true, category: 'sick_leave' },
@@ -580,5 +584,80 @@ describe('timeoff.balances (AST-030)', () => {
     const counted = await left(await balancesWorld(), hr, { limit: 0, ids: true, ...more('24') });
     expect(counted).toMatchObject({ rows: [], total: 6 });
     expect(counted.kind === 'people' && counted.ids?.length).toBe(6);
+  });
+});
+
+/* --------------------------------------------------------- timeoff.pending -- */
+
+describe('timeoff.pending (AST-031)', () => {
+  async function waiting(app: App, who: Caller, limit = 25) {
+    const answer = await pending(app.deps)(who, TimeOffPending.schemas.input.parse({ limit }));
+    if (!answer.ok) throw new Error(answer.error.message);
+    return ItemsResult.parse(TimeOffPending.schemas.output.parse(answer.value));
+  }
+
+  /** Who the approvals screen's "waiting" tab (T16) shows the asker. */
+  async function screen(app: App, who: Caller): Promise<string[]> {
+    const view = await approvals(app.deps)(who, { tab: 'waiting' });
+    if (!view.ok) throw new Error(view.error.message);
+    return [...view.value.lookCloser.map((l) => l.item), ...view.value.clear]
+      .map((i) => i.displayName)
+      .toSorted();
+  }
+
+  it('is exactly the asker’s queue, as T16 shows it', async () => {
+    const app = await october();
+    for (const who of [caller(people.marco), caller(people.omar), caller(people.ravi), hr]) {
+      // oxlint-disable-next-line no-await-in-loop -- four askers
+      const result = await waiting(app, who);
+      // oxlint-disable-next-line no-await-in-loop -- four askers
+      const shown = await screen(app, who);
+      expect(result.items.map((i) => i.name).toSorted()).toEqual(shown);
+      expect(result.total).toBe(shown.length);
+    }
+    expect((await waiting(app, caller(people.omar))).total).toBe(0);
+  });
+
+  it('labels each with its type and days, a private type as Away unless the company names it', async () => {
+    const app = await october();
+    // A type teammates see only as "Off" is private, whatever its category.
+    const personal = LeaveType.define(
+      LeaveTypeDefinition.parse({
+        ...vacationType(),
+        key: 'personal',
+        name: { default: 'Personal' },
+        tracked: false,
+        visibility: 'off_only',
+      }),
+    );
+    if (!personal.ok) throw new Error(personal.error.message);
+    app.state(TENANT).leaveTypes.set('personal', personal.value);
+    const sent = await sendRequest(app.deps)(caller(people.ravi), {
+      leaveTypeKey: LeaveTypeKey.parse('personal'),
+      span: DateSpan.parse({ from: '2026-10-12', to: '2026-10-14' }),
+    });
+    if (!sent.ok) throw new Error(sent.error.message);
+
+    const labels = async () => {
+      return (await waiting(app, caller(people.marco))).items;
+    };
+    // Monday 12 October is a public holiday in Madrid: two days.
+    expect(await labels()).toEqual([
+      { name: 'Hana Kim', label: 'Vacation · Tue 6 Oct (1 day)' },
+      { name: 'Ravi Patel', label: 'Away · Mon 12 Oct to Wed 14 Oct (2 days)' },
+    ]);
+    await setChatAnswers(app.deps)(hr, { namesPrivateLeave: true });
+    expect((await labels())[1]?.label).toBe('Personal · Mon 12 Oct to Wed 14 Oct (2 days)');
+  });
+
+  it('lists up to the limit and counts them all', async () => {
+    const app = await october();
+    const all = await waiting(app, caller(people.marco));
+    expect(all.total).toBeGreaterThan(0);
+    expect(await waiting(app, caller(people.marco), 0)).toEqual({
+      kind: 'items',
+      items: [],
+      total: all.total,
+    });
   });
 });

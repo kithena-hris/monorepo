@@ -9,6 +9,7 @@ import {
   type CapabilityFilter,
   type CapabilityInput,
   type CatalogueField,
+  type ItemsResult,
   type LeaveTypeDefinition,
   type LocationKey,
   type NotFoundResult,
@@ -19,13 +20,14 @@ import {
 
 import { days, type Decimal } from '../../domain/days.js';
 import type { LeaveRequest } from '../../domain/request/leave-request.js';
+import { approvalQueue, type QueueItem } from '../approval/decide.js';
 import { holidaysFor, runsIn, seesType, sightOf, type Sight } from '../calendar/calendar.js';
 import type { Caller, Deps, Member, Tx } from '../ports.js';
 import { seesBalances } from '../screens/employee.js';
 import { chatAnswersOf } from '../settings/chat.js';
 import { applies, balanceFor, isHrAdmin, refuse, transact } from '../shared.js';
 import { DENIED } from './denied.js';
-import { dayName, longDate, longDay, shortDate } from './words.js';
+import { dayCount, dayName, longDate, longDay, shortDate } from './words.js';
 
 /**
  * What Time Off answers the assistant (assistant PRD §8, §10.3): read-only
@@ -605,3 +607,55 @@ export const balances =
         notes: [],
       });
     });
+
+/* ------------------------------------------------------- timeoff.pending -- */
+
+/** "Tue 6 Oct", "Tue 6 Oct, half day", "Mon 12 Oct to Wed 14 Oct": a request may be months away. */
+function spanText(span: QueueItem['span']): string {
+  if (span.from === span.to) {
+    return `${shortDate(span.from)}${span.startsHalfDay || span.endsHalfDay ? ', half day' : ''}`;
+  }
+  return `${shortDate(span.from)}${half(span.startsHalfDay)} to ${shortDate(span.to)}${half(span.endsHalfDay)}`;
+}
+
+/**
+ * `timeoff.pending` (assistant PRD §17, Phase 2): the requests waiting for
+ * the asker's decision — `approvalQueue`, the very queue the approvals
+ * screen's "waiting" tab shows (T16), the ones to look closer at first.
+ *
+ * Whoever may decide a request sees its type, so a label names it, except a
+ * private type, written "Away" as `timeoff.away` writes it, unless the
+ * company chose to name it (AST-029a): the label sits beside a name in a chat
+ * app.
+ */
+export const pending =
+  (deps: Pick<Deps, 'uow' | 'authz' | 'clock'>) =>
+  async (caller: Caller, input: CapabilityInput): Promise<Result<ItemsResult>> => {
+    const queue = await approvalQueue(deps)(caller);
+    if (!queue.ok) return queue;
+    const waiting = [...queue.value.lookCloser.map((l) => l.item), ...queue.value.clear];
+    return transact(deps, caller.tenantId, async (tx) => {
+      const naming = (await chatAnswersOf(tx)).namesPrivateLeave;
+      const types = new Map<string, LeaveTypeDefinition>(
+        (await tx.leaveTypes.list()).map((t) => [t.definition.key, t.definition]),
+      );
+      const items = waiting.slice(0, input.limit ?? ASSISTANT_LIMITS.listed).map((q) => {
+        const type = types.get(q.leaveTypeKey);
+        const name =
+          type === undefined
+            ? q.leaveTypeKey
+            : naming || !isPrivateLeaveType(type)
+              ? type.name.default
+              : 'Away';
+        const change = q.status === 'change_pending' ? 'a change to ' : '';
+        return {
+          name: q.displayName,
+          label: `${name} · ${change}${spanText(q.span)} (${dayCount(q.workingDays)})`.slice(
+            0,
+            200,
+          ),
+        };
+      });
+      return ok({ kind: 'items', items, total: waiting.length });
+    });
+  };

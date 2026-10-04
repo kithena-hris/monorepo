@@ -9,6 +9,7 @@ import {
   TimeOffAway,
   TimeOffBalances,
   TimeOffManagers,
+  TimeOffPending,
 } from './timeoff.js';
 
 const ANA = '0190a0b0-0000-7000-8000-000000000001';
@@ -32,12 +33,32 @@ const away = {
 };
 
 describe('Time Off’s capabilities (AST-003)', () => {
-  it('are away, managers and balances', () => {
+  it('are away, managers, balances and pending', () => {
     expect(timeoffCapabilities.map((c) => c.name)).toEqual([
       'timeoff.away',
       'timeoff.managers',
       'timeoff.balances',
+      'timeoff.pending',
     ]);
+  });
+
+  it('timeoff.pending: nothing to ask, items back, a label as health data', () => {
+    const { step, input, output } = TimeOffPending.schemas;
+    expect(step.safeParse({}).success).toBe(true);
+    expect(step.safeParse({ name: '@me' }).success).toBe(false);
+    expect(input.safeParse({ limit: 25 }).success).toBe(true);
+    const items = {
+      kind: 'items',
+      items: [{ name: 'Hana Kim', label: 'Vacation · Tue 6 Oct (1 day)' }],
+      total: 1,
+    };
+    expect(output.safeParse(items).success).toBe(true);
+    if (!(output instanceof z.ZodObject)) throw new Error('pending takes no name');
+    const list: unknown = output.shape['items'];
+    if (!(list instanceof z.ZodArray) || !(list.element instanceof z.ZodObject)) {
+      throw new Error('pending answers with items');
+    }
+    expect(policy.get(list.element.shape['label'])?.piiKind).toBe('health');
   });
 
   it('timeoff.balances: by type, days left and team, a name, within; people with their days', () => {

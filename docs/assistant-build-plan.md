@@ -826,11 +826,20 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   "You have 12.5 days left." to an asker about themselves, and its chat lock
   now reads every part of a detail, not only the last.
 
-### [ ] AST-031 — `timeoff.pending`
+### [x] AST-031 — `timeoff.pending`
 
 - **Depends on** AST-022
 - **Approach** Requests waiting for the asker's decision, output `items`.
 - **Done when** tests show only the asker's queue, as T16 shows it.
+- **As built** `approvalQueue` itself, the queue behind T16's "waiting"
+  tab, the ones to look closer at first; a test compares every asker's items
+  with what the screen shows them. A label is the type, the dates and the
+  working days ("Vacation · Tue 6 Oct (1 day)", "a change to …" for a counter
+  proposal); a private type is "Away" unless the company chose to name it.
+  An item's `label` is now classified special-category (health), as a row's
+  `detail` is, because it can hold a leave type. The answer has Time Off's
+  own sentences ("1 time off request is waiting for your decision:") and
+  reads every label for a private type in a chat app, as it reads a detail.
 
 ### [ ] AST-032 — An answer over several item steps
 

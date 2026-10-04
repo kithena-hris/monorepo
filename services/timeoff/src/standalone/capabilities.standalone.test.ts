@@ -7,6 +7,7 @@ import {
   TimeOffAway,
   TimeOffBalances,
   TimeOffManagers,
+  TimeOffPending,
 } from '@kithena/contracts';
 
 import type { Caller } from '../application/ports.js';
@@ -62,6 +63,7 @@ describe('Time Off’s capabilities with People absent', () => {
       'timeoff.away',
       'timeoff.managers',
       'timeoff.balances',
+      'timeoff.pending',
     ]);
     expect(catalogue.fields['timeoff.away']?.find((f) => f.key === 'team')?.options).toEqual([
       { value: 'platform', label: 'Platform' },
@@ -133,6 +135,27 @@ describe('Time Off’s capabilities with People absent', () => {
     expect((await ask('adam', '/timeoff.balances', { name: 'omar', limit: 25 })).body).toEqual({
       kind: 'not_found',
       name: 'omar',
+    });
+  });
+
+  it('answers timeoff.pending with the asker’s own queue', async () => {
+    const { app, ask } = boot();
+    const sent = await sendRequest(app.deps)(caller(people.adam), {
+      leaveTypeKey: LeaveTypeKey.parse('vacation'),
+      span: DateSpan.parse({ from: '2026-10-08', to: '2026-10-08' }),
+    });
+    if (!sent.ok) throw new Error(sent.error.message);
+    const marco = await ask('marco', '/timeoff.pending', { limit: 25 });
+    expect(marco.status).toBe(200);
+    expect(TimeOffPending.schemas.output.parse(marco.body)).toEqual({
+      kind: 'items',
+      items: [{ name: 'Adam Novak', label: 'Vacation · Thu 8 Oct (1 day)' }],
+      total: 1,
+    });
+    expect((await ask('adam', '/timeoff.pending', { limit: 25 })).body).toEqual({
+      kind: 'items',
+      items: [],
+      total: 0,
     });
   });
 });

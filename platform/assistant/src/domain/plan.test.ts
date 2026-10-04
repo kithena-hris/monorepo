@@ -57,6 +57,7 @@ describe('the catalogue offered to the model', () => {
       'people.approvals',
       'timeoff.away',
       'timeoff.balances',
+      'timeoff.pending',
     ]);
     expect(BOTH.get('timeoff.away')?.fields.map((f) => f.key)).toEqual(['leave_type']);
     expect(BOTH.get('timeoff.balances')?.fields.map((f) => f.key)).toEqual([
@@ -70,6 +71,7 @@ describe('the catalogue offered to the model', () => {
       'timeoff.away',
       'timeoff.managers',
       'timeoff.balances',
+      'timeoff.pending',
     ]);
     expect(TIMEOFF_ONLY.get('timeoff.away')?.fields.map((f) => f.key)).toEqual([
       'leave_type',
