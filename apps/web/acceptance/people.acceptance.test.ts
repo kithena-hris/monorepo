@@ -399,11 +399,12 @@ describe('PEO-094: the remote, rendered on the server', () => {
       await bare.route(/\/(remoteEntry\.js|assets\/.*\.js)$/, (route) => route.abort());
       const page = await bare.newPage();
       const response = await page.goto(`${stack.shell}/people/me`);
-      // No screen drawn on the server — only its skeleton in its place. (The
-      // labels are still in the page's data, which is not a rendering.)
+      // No screen drawn on the server, and nothing standing in for it: there
+      // is no skeleton. (The labels are still in the page's data, which is
+      // not a rendering.)
       const html = (await response?.text()) ?? '';
       expect(html).not.toContain('data-remote="people"');
-      expect(html).toContain('Loading People');
+      expect(html).not.toContain('Loading People');
       expect(await page.evaluate(() => document.body.innerText)).not.toContain('Legal first name');
       await bare.close();
 
