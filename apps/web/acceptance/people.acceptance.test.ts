@@ -1750,15 +1750,15 @@ describe('People inside the shell: its sections, and always a way to add somebod
         .isVisible(),
     ).toBe(true);
 
-    // One Add person on the screen (the design's name for it, W3), last in the
-    // row after the screen's own List / Cards / Org chart switch (V2): never
-    // repeated in a bar above it or in the empty state.
+    // Add person in the screen's header (the design's name for it, W3), last
+    // in the row after the screen's own List / Cards / Org chart switch (V2),
+    // and never repeated in a bar above it.
     await page.waitForLoadState('networkidle');
-    const add = page.getByRole('main').getByRole('link', { name: 'Add person' });
-    expect(await add.count()).toBe(1);
+    const header = page.getByRole('main').getByRole('link', { name: 'Add person' });
+    expect(await header.count()).toBe(1);
     expect(await screenHeader.getByRole('link', { name: 'Add person' }).count()).toBe(1);
     expect(
-      await add.evaluate((a) => {
+      await header.evaluate((a) => {
         // Before it in the row as laid out. The phone bar that holds the
         // frame's actions is `display: contents` at a desk: a wrapper, not a box.
         let at: Element = a;
@@ -1772,19 +1772,22 @@ describe('People inside the shell: its sections, and always a way to add somebod
         return /Org chart/.test(at.previousElementSibling?.textContent ?? '');
       }),
     ).toBe(true);
-    expect(await page.getByRole('main').getByRole('button', { name: 'Add person' }).count()).toBe(
-      0,
-    );
+    // The empty directory says how people arrive and offers both ways in
+    // (C9): Import, and Add person. Both Add persons are one way to add
+    // somebody: the same dialog, centred over the directory, at the address
+    // the header links to.
+    const empty = page.getByRole('main');
+    expect(await empty.getByRole('button', { name: 'Import' }).count()).toBe(1);
+    const add = empty.getByRole('button', { name: 'Add person' });
+    expect(await add.count()).toBe(1);
+    expect(await header.getAttribute('href')).toBe('/people/directory/list?add=person');
     await add.click();
-    await page.waitForURL(/\/people\/new$/);
+    await page.waitForURL(/\/people\/directory\/list\?add=person$/);
     expect(await kept()).toBe(true);
-    const form = page.getByRole('form', { name: 'Add employee' });
+    const form = page
+      .getByRole('dialog', { name: 'Add a person' })
+      .getByRole('form', { name: 'Add employee' });
     await form.waitFor({ timeout: 30_000 });
-    await page.waitForLoadState('networkidle');
-    // On its own screen the form's button is the only Add employee, and no
-    // section is current.
-    expect(await add.count()).toBe(0);
-    expect(await (await sections(page)).locator('[aria-current="page"]').count()).toBe(0);
     await form.getByRole('textbox', { name: /Legal first name/ }).fill('Lena');
     await form.getByRole('textbox', { name: /Legal family name/ }).fill('Moreau');
     await form.getByRole('textbox', { name: /Work email/ }).fill('lena@globex.example');
