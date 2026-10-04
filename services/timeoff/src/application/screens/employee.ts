@@ -29,6 +29,7 @@ import {
   policyFor,
   refuse,
   relates,
+  self,
   selfOrHr,
   transact,
 } from '../shared.js';
@@ -141,12 +142,6 @@ async function balancesIn(tx: Tx, member: Member, on: CalendarDate): Promise<Bal
     out.push(await balanceView(tx, member, t, on));
   }
   return out;
-}
-
-async function self(tx: Tx, caller: Caller): Promise<Result<Member>> {
-  if (caller.personId === null) return forbidden();
-  const member = await tx.members.get(caller.personId);
-  return member === null ? notFound('Member') : ok(member);
 }
 
 /** Whether the caller decides for, or covers, the member. */
@@ -417,6 +412,10 @@ export const balanceLedger =
     query: { readonly leaveTypeKey: LeaveTypeKey; readonly personId?: PersonId | undefined },
   ): Promise<Result<BalanceLedgerView>> =>
     transact<BalanceLedgerView>(deps, caller.tenantId, async (tx) => {
+      if (query.personId === undefined) {
+        const mine = await self(tx, caller);
+        if (!mine.ok) return mine;
+      }
       const personId = query.personId ?? caller.personId;
       if (personId === null) return forbidden();
       if (!(await selfOrHr(deps, caller, personId))) return forbidden();

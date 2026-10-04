@@ -13,7 +13,7 @@ import {
 import { AttendanceClock, ms } from '../../domain/attendance/clock.js';
 import { CLOCK_SKEW_SECONDS, clockSkew, kindAt, unseen } from '../../domain/attendance/kiosk.js';
 import type { Caller, Deps, KioskCredentialKind, KioskDevice, Member, Tx } from '../ports.js';
-import { forbidden, isHrAdmin, notFound, refuse, transact } from '../shared.js';
+import { forbidden, isHrAdmin, notFound, refuse, self, transact } from '../shared.js';
 
 /**
  * Kiosk devices (PRD §11.9, TOF-107): a wall tablet at a location, which
@@ -242,18 +242,18 @@ export const issueKioskQr =
   (deps: Pick<Deps, 'uow' | 'clock' | 'feedSecret'>) =>
   (caller: Caller): Promise<Result<{ token: string; expiresAt: Instant; personId: PersonId }>> =>
     transact(deps, caller.tenantId, async (tx) => {
-      if (caller.personId === null) return forbidden();
-      if ((await tx.members.get(caller.personId)) === null) return notFound('Member');
+      const me = await self(tx, caller);
+      if (!me.ok) return me;
       const expiresAt = new Date(
         ms(deps.clock.instant()) + QR_SECONDS * 1000,
       ).toISOString() as Instant;
       const body = Buffer.from(
-        JSON.stringify({ t: caller.tenantId, p: caller.personId, e: expiresAt }),
+        JSON.stringify({ t: caller.tenantId, p: me.value.personId, e: expiresAt }),
       ).toString('base64url');
       return ok({
         token: `${QR_PREFIX}${body}.${qrSignature(deps.feedSecret, body)}`,
         expiresAt,
-        personId: caller.personId,
+        personId: me.value.personId,
       });
     });
 

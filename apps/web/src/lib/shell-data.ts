@@ -129,6 +129,8 @@ export interface ShellSlot {
 export interface TimeOffViewer {
   readonly approves: boolean;
   readonly hrAdmin: boolean;
+  /** Whether Time Off holds them as an employee: somebody People has hired, who may request. */
+  readonly member: boolean;
   readonly counts: {
     readonly requestsWaiting: number;
     readonly attendanceExceptions: number;
@@ -140,15 +142,22 @@ export interface TimeOffViewer {
  * graph Time Off holds, not a role anybody grants, so `manager` is added here
  * for this area only, when Time Off says they approve somebody; `hr` too when
  * they are Time Off's HR in a company whose People says otherwise (or that
- * has no People). Without an answer, the shell's own roles.
+ * has no People). `member` is whether Time Off holds them as an employee,
+ * which is what Request time off is for. Without an answer, the shell's own
+ * roles, and Request offered as it was before Time Off could say.
  */
 export function timeOffRoles(
   roles: ShellData['roles'],
   viewer: TimeOffViewer | null,
 ): Readonly<Record<string, boolean>> {
   return viewer === null
-    ? roles
-    : { ...roles, manager: viewer.approves, hr: roles.hr || viewer.hrAdmin };
+    ? { ...roles, member: true }
+    : {
+        ...roles,
+        manager: viewer.approves,
+        hr: roles.hr || viewer.hrAdmin,
+        member: viewer.member,
+      };
 }
 
 const WAITING = '/time-off/approvals/waiting';

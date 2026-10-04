@@ -131,7 +131,12 @@ describe('Time off in the shell', () => {
     pathname = '/time-off/approvals/waiting';
     renderShell(
       { hr: false, admin: false, finance: false },
-      { approves: true, hrAdmin: false, counts: { requestsWaiting: 2, attendanceExceptions: 1 } },
+      {
+        approves: true,
+        hrAdmin: false,
+        member: true,
+        counts: { requestsWaiting: 2, attendanceExceptions: 1 },
+      },
     );
     // Each count is read out after its section: "Requests 2 waiting".
     expect(sections()).toEqual([
@@ -151,7 +156,12 @@ describe('Time off in the shell', () => {
     pathname = '/time-off/requests/upcoming';
     renderShell(
       { hr: false, admin: false, finance: false },
-      { approves: false, hrAdmin: false, counts: { requestsWaiting: 0, attendanceExceptions: 0 } },
+      {
+        approves: false,
+        hrAdmin: false,
+        member: true,
+        counts: { requestsWaiting: 0, attendanceExceptions: 0 },
+      },
     );
     expect(sections()).toEqual(['Overview', 'Calendar', 'My requests', 'Attendance']);
     expect(screen.queryByText(/waiting/)).toBeNull();

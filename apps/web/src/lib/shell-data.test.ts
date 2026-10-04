@@ -141,9 +141,10 @@ describe('Time Off for its approvers (TOF-058a)', () => {
     settings: [],
   };
   const employee = { hr: false, admin: false, finance: false };
-  const viewer = (approves: boolean): TimeOffViewer => ({
+  const viewer = (approves: boolean, member = true): TimeOffViewer => ({
     approves,
     hrAdmin: false,
+    member,
     counts: { requestsWaiting: approves ? 3 : 0, attendanceExceptions: 0 },
   });
   const requests = (v: TimeOffViewer) => {
@@ -183,8 +184,18 @@ describe('Time Off for its approvers (TOF-058a)', () => {
     });
   });
 
+  it('offers Request time off only to somebody Time Off holds as an employee', () => {
+    const actions = (v: TimeOffViewer | null) =>
+      placesFor(nav, timeOffRoles(employee, v)).actions.map((a) => a.label);
+    expect(actions(viewer(false))).toEqual(['Request time off']);
+    // A provisional record People has not hired: nothing to request from.
+    expect(actions(viewer(false, false))).toEqual([]);
+    // Time Off did not answer: offered, as before it could say.
+    expect(actions(null)).toEqual(['Request time off']);
+  });
+
   it('keeps the shell’s roles when Time Off does not answer', () => {
-    expect(timeOffRoles(employee, null)).toBe(employee);
+    expect(timeOffRoles(employee, null)).toEqual({ ...employee, member: true });
     expect(timeOffCounts(null, [])).toEqual({ sections: {}, tabs: {} });
   });
 });

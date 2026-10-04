@@ -590,10 +590,10 @@ export const viewer =
           timeZone: me.timeZone,
         }).filter((o) => o.date >= since).length;
       }
-      return ok({ hrAdmin, approvesAnyone, missed });
+      return ok({ hrAdmin, approvesAnyone, missed, member: me !== null });
     });
     if (!facts.ok) return facts;
-    const { hrAdmin, approvesAnyone, missed } = facts.value;
+    const { hrAdmin, approvesAnyone, missed, member } = facts.value;
     let requestsWaiting = 0;
     let needsYou = 0;
     if (approvesAnyone || hrAdmin) {
@@ -607,6 +607,7 @@ export const viewer =
     return ok({
       approves: approvesAnyone,
       hrAdmin,
+      member,
       counts: { requestsWaiting, attendanceExceptions: missed + needsYou },
     });
   };

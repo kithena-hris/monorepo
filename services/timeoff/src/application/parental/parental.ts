@@ -45,6 +45,7 @@ import {
   notFound,
   refuse,
   relates,
+  self,
   transact,
 } from '../shared.js';
 
@@ -78,12 +79,6 @@ export interface ParentalAnswers {
 }
 
 /* -------------------------------------------------------------- loading -- */
-
-async function self(tx: Tx, caller: Caller): Promise<Result<Member>> {
-  if (caller.personId === null) return forbidden();
-  const member = await tx.members.get(caller.personId);
-  return member === null ? notFound('Member') : ok(member);
-}
 
 function answersOf(
   stored: Pick<StoredPlan, 'role' | 'childDate' | 'singleParent' | 'children' | 'company'>,

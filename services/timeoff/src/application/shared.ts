@@ -60,6 +60,21 @@ export const notFound = (what: string): Result<never> => err(NotFound(what));
 export const refuse = (code: string, message: string, path?: readonly string[]): Result<never> =>
   err(failure(code, message, path));
 
+/**
+ * Said to an account no member holds, on every screen that is somebody's own.
+ * Time Off's members are the people People has hired (`hired` puts the
+ * account on one); an account whose record is still provisional, or one with
+ * no record, has no balances, no approver and nothing to request from.
+ */
+export const NOT_A_MEMBER =
+  'Time Off does not have you as an employee yet, so there is no time off or attendance of yours here. There will be once HR hires you in People.';
+
+/** The caller's own member, or the refusal above when Time Off holds none for them. */
+export async function self(tx: Tx, caller: Caller): Promise<Result<Member>> {
+  const member = caller.personId === null ? null : await tx.members.get(caller.personId);
+  return member === null ? refuse('FORBIDDEN', NOT_A_MEMBER) : ok(member);
+}
+
 /* --------------------------------------------------------- authorization -- */
 
 /** Whether the caller holds `relation` on a member. A caller who is not a member holds none. */

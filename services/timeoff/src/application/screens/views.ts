@@ -1196,6 +1196,8 @@ export const ViewerView = named(
   z.object({
     approves: z.boolean(),
     hrAdmin: z.boolean(),
+    /** Whether Time Off holds a member for the caller: somebody People has hired, who may request. */
+    member: z.boolean(),
     counts: z.object({ requestsWaiting: z.int(), attendanceExceptions: z.int() }),
   }),
 );

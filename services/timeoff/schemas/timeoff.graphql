@@ -1733,6 +1733,7 @@ type TimeOffViewer {
   approves: Boolean!
   counts: TimeOffViewerCounts!
   hrAdmin: Boolean!
+  member: Boolean!
 }
 
 type TimeOffViewerCounts {

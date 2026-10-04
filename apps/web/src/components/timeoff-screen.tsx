@@ -47,7 +47,14 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
     load.status === 'ready'
       ? { status: 'ready' as const, data: load.data }
       : load.status === 'error'
-        ? { status: 'error' as const, message: load.message, retry: refresh }
+        ? {
+            status: 'error' as const,
+            message: load.message,
+            // A refusal says why; asking again changes nothing, so nothing to press.
+            ...(load.code === 'FORBIDDEN' || load.code === 'NOT_ENTITLED'
+              ? {}
+              : { retry: refresh }),
+          }
         : { status: 'loading' as const };
   /** Another view in the address (a path, a query patch), followed client-side so the server reads it. */
   const goTo = (patch: Readonly<Record<string, string | null>>, path?: string): void => {

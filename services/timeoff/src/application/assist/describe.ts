@@ -220,7 +220,7 @@ const lineTemplate = (o: {
 export const describeRequest =
   (deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'judge' | 'writer'>) =>
   async (caller: Caller, query: DescribeQuery): Promise<Result<DescribedView>> => {
-    if (caller.personId === null) return forbidden();
+    // The panel refuses an account Time Off holds no member for, in words.
     const panel = await requestPanel(deps)(caller, {});
     if (!panel.ok) return panel;
     const types = panel.value.leaveTypes.filter((t) => t.category !== 'sick_leave');

@@ -272,7 +272,7 @@ export const OPERATIONS = {
   /** Whether the caller approves anyone, is HR, and the counts on Requests and Attendance (TOF-058a) */
   TimeOffViewer: `query TimeOffViewer {
     timeOffViewer {
-      approves counts { attendanceExceptions requestsWaiting } hrAdmin
+      approves counts { attendanceExceptions requestsWaiting } hrAdmin member
     }
   }`,
 
