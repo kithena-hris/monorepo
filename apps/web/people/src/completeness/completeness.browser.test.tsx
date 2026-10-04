@@ -21,12 +21,13 @@ import {
  */
 
 const coarse = matchMedia('(pointer: coarse)').matches;
-// The budgets are Chromium's on a developer machine, where they are measured.
-// WebKit (Safari's engine) gets twice the room, and a small machine (a CI
-// runner's 2 to 4 cores) three times: the same flow, still failing on a real
-// regression, never on a slower harness alone.
+// The budgets are Chromium's on a developer machine, where they are measured;
+// WebKit (Safari's engine) gets twice the room. On CI the flow still runs and
+// must work, but its timing is not held: a shared runner measured the same
+// build at 3 to 10 times this machine's numbers, varying run to run. The
+// performance job holds the budgets there, calibrated to its runner.
 const webkit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-const room = (webkit ? 2 : 1) * (navigator.hardwareConcurrency <= 4 ? 3 : 1);
+const room = import.meta.env['CI_RUN'] === true ? Number.POSITIVE_INFINITY : webkit ? 2 : 1;
 
 const many = (n: number, word: string) =>
   Array.from({ length: n }, (_, i) => ({

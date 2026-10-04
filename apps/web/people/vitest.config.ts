@@ -20,6 +20,10 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   plugins: [react()],
+  // Whether this run is CI's: the scale tests hold their millisecond budgets
+  // on a developer machine only, since a shared runner's timing varies run to
+  // run by more than the budgets themselves.
+  define: { 'import.meta.env.CI_RUN': JSON.stringify(process.env['CI'] === 'true') },
   test: {
     projects: [
       {
