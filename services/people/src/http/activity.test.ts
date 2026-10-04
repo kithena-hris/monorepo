@@ -47,6 +47,19 @@ describe('the settings activity log’s words', () => {
     });
   });
 
+  it('says what was done to an org unit', () => {
+    const unit = '/v1/org-units/00000000-0000-4000-8000-0000000000a1';
+    const said = (method: string, path: string, body: object) =>
+      settingsActivity(method, path, JSON.stringify(body))?.action;
+    expect(said('POST', '/v1/org-units', { name: 'Data', parentId: null })).toBe(
+      'Added an org unit',
+    );
+    expect(said('PATCH', unit, { name: 'Platform' })).toBe('Renamed an org unit');
+    expect(said('PATCH', unit, { parentId: null })).toBe('Moved an org unit');
+    expect(said('PATCH', unit, { archived: true })).toBe('Archived an org unit');
+    expect(said('PATCH', unit, { archived: false })).toBe('Restored an org unit');
+  });
+
   it('hands over a key the path named, for the router to say as its label', () => {
     expect(
       settingsActivity(

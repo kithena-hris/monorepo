@@ -765,6 +765,16 @@ people.tenant_settings  The tenant's default zone, the cohort minimum (§16.1),
                       name from the back office, for links and reminders.
 ```
 
+Beside them, and deciding nobody's day, `people.org_unit`: the company's
+departments and teams, a name and an optional parent, so a tree. What
+`org_unit_id` points at, what the directory and analytics call a department,
+and what Time Off makes a team of. Archived rather than deleted; a name is
+unique among a unit's live siblings; never archived while a live unit sits
+under it. Managed in Settings › Organisation › Org units by a People
+administrator, and offered to an org unit field by its path ("Engineering ›
+Platform"). Like a location's name, a rename or a move is configuration, not
+effective-dated; its event says when.
+
 **A person's zone** is, in order: their `work_location`'s zone on that
 instant, else their `legal_entity`'s default, else their own `time_zone` (the
 copy identity holds, §5), else the tenant default. A location or entity the
