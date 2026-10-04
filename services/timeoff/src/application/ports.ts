@@ -508,6 +508,8 @@ export interface Settings {
   readonly escalation: Escalation;
   /** What a chat answer may say about private leave (assistant PRD §11.4). */
   readonly chat_answers: ChatAnswers;
+  /** The modules identity last recorded for the company (`identity.tenant.entitlements_changed`). */
+  readonly entitlements: { readonly entitlements: readonly string[]; readonly asOf: string };
 }
 
 /** How long a request waits before it moves on, to whom, and when the daily reminder goes. */
