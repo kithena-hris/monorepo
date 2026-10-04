@@ -139,10 +139,21 @@ export function idsToName(page: ActivityPage): { accountIds: string[]; personIds
 export function changesIn(
   text: string,
 ): readonly { readonly what: string; readonly from: string; readonly to: string }[] | null {
-  const found = [...text.matchAll(/([^:.→]+): (.*?) → (.*?)\.(?=\s|$)/g)].map((m) => ({
-    what: (m[1] ?? '').trim(),
-    from: m[2] ?? '',
-    to: m[3] ?? '',
-  }));
+  // Split by hand, not with one regular expression: a sentence boundary, then
+  // ": " and " → " inside it, each found once, in time linear in the text.
+  const found: { what: string; from: string; to: string }[] = [];
+  for (const sentence of text.split(/\.(?=\s|$)/)) {
+    const colon = sentence.indexOf(': ');
+    if (colon === -1) continue;
+    const arrow = sentence.indexOf(' → ', colon + 2);
+    if (arrow === -1) continue;
+    const what = sentence.slice(0, colon);
+    if (/[.→]/.test(what)) continue;
+    found.push({
+      what: what.trim(),
+      from: sentence.slice(colon + 2, arrow),
+      to: sentence.slice(arrow + 3),
+    });
+  }
   return found.length === 0 ? null : found;
 }

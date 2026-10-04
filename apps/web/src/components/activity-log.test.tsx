@@ -149,7 +149,8 @@ describe('Settings › Activity', () => {
     expect(await screen.findByText(/Removed a role/, undefined, { timeout: 5000 })).toBeTruthy();
     expect(onMore).toHaveBeenCalledWith(entries[2]?.id);
     expect(screen.queryByRole('button', { name: 'Older' })).toBeNull();
-    expect(screen.getByText('1 more loaded')).toBeTruthy();
+    // Announced once the page has been drawn, which a busy runner may take a moment over.
+    expect(await screen.findByText('1 more loaded', undefined, { timeout: 5000 })).toBeTruthy();
   });
 
   it('says the log is not available yet, rather than an error, while it is not deployed', () => {
