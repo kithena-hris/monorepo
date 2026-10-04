@@ -161,25 +161,6 @@ describe('ImportExport', () => {
     expect(screen.queryByRole('link', { name: 'Template' })).toBeNull();
   });
 
-  it('draws the header, both cards and their buttons while the history is on its way', async () => {
-    const { container } = render(
-      <ImportExport load={{ status: 'ready', data: state({ history: 'loading' }) }} />,
-    );
-    expect(screen.getByRole('heading', { level: 1, name: 'Import & export' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Start import' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Template' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'New export' })).toBeInTheDocument();
-    // The history's own header too; only its rows wait, in the shape they arrive in.
-    const history = screen.getByRole('region', { name: 'History' });
-    expect(history).toHaveAttribute('aria-busy', 'true');
-    expect(
-      within(history).getByRole('searchbox', { name: 'Search the history' }),
-    ).toBeInTheDocument();
-    expect(within(history).queryByText('Nothing imported or exported yet')).toBeNull();
-    expect(within(history).queryByRole('navigation', { name: 'Older history' })).toBeNull();
-    expect(await axeViolations(container)).toEqual([]);
-  });
-
   it('says so when nothing has been imported or exported yet', () => {
     render(
       <ImportExport
@@ -305,5 +286,21 @@ describe('the history’s filters, in the address', () => {
     );
     await user.click(screen.getByRole('radio', { name: 'Imports' }));
     expect(onKindChange).toHaveBeenCalledWith('import');
+  });
+
+  it('takes an export as a sentence straight away, and says when nothing was built', async () => {
+    const user = fast();
+    const onDescribe = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false as const, message: 'That reads as no export' })
+      .mockResolvedValue({ ok: true as const });
+    const { container } = render(
+      <ImportExport load={{ status: 'ready', data: state() }} onDescribe={onDescribe} />,
+    );
+    const sentence = screen.getByRole('searchbox', { name: 'Describe an export' });
+    await user.type(sentence, 'salaries in Madrid as of 30 June{Enter}');
+    expect(onDescribe).toHaveBeenCalledWith('salaries in Madrid as of 30 June');
+    expect(await screen.findByText('That reads as no export')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
   });
 });

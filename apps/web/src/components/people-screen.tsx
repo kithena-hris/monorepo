@@ -629,6 +629,46 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   /** The run that keeps Import waiting, or null. */
   const running = runId !== null && runGoing(followed.run) ? followed.run : null;
 
+  // An export described in words (docs/ai-settings.md), from the export page or
+  // Import & export's card: the choices go into the export page's address, and
+  // it starts again from them for a person to check.
+  const describeExport = async (sentence: string) => {
+    const planned = await actions.planExport(sentence);
+    if (!planned.ok) return planned;
+    const plan = planned.data as {
+      who: string;
+      conditions: readonly { key: string; op: string; values: readonly string[] }[];
+      match: 'all' | 'any';
+      fields: readonly string[];
+      asOf: string;
+      format: string;
+      photos: boolean;
+      reason: string;
+      by: 'assistant' | 'rules';
+      note: string | null;
+      notes: readonly string[];
+    };
+    go(
+      withQuery(
+        '/people/export',
+        {},
+        {
+          q: sentence,
+          read: plan.by,
+          who: plan.who === 'everyone' ? null : plan.who,
+          conditions: plan.conditions.length === 0 ? null : JSON.stringify(plan.conditions),
+          match: plan.match === 'any' ? 'any' : null,
+          fields: plan.fields.join(','),
+          asOf: plan.asOf,
+          format: plan.format,
+          photos: plan.photos ? 'true' : null,
+          reason: plan.reason,
+        },
+      ),
+    );
+    return { ok: true as const, by: plan.by, note: plan.note, notes: plan.notes };
+  };
+
   const props = ((): Record<string, unknown> => {
     switch (component) {
       case 'PeopleSetup':
@@ -1135,11 +1175,12 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             return actions.rotateEndpoint(id);
           },
           onOpenLog: (id: string) => {
-            go(`/settings/people/integrations/${id}`);
+            go(`/settings/people/integrations/webhooks/${id}`);
           },
-          tab: at('tab'),
+          // Each tab is its own address: the overview is the page's, the others under it.
+          tab: leaf === 'integrations' ? 'overview' : leaf,
           onTabChange: (tab: string) => {
-            note({ tab: tab === 'overview' ? null : tab }, 'push');
+            go(`/settings/people/integrations${tab === 'overview' ? '' : `/${tab}`}`);
           },
           scim: {
             onConnect: async (system: string) => {
@@ -1177,13 +1218,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onDelete: actions.deleteReportSchedule,
         };
       case 'ReportRuns':
-        return { load: loadable };
-      case 'ReminderSettings':
-        return {
-          load: loadable,
-          onCohortMinimum: (cohortMinimum: number) => actions.updateSettings({ cohortMinimum }),
-        };
-      case 'CountryPacks':
         return { load: loadable };
       case 'RoleSettings':
         return {
@@ -1309,12 +1343,12 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? ((load.data as { next?: string | null }).next ?? null)
             : null;
-        const here = `/settings/people/integrations/${params['id'] ?? ''}`;
+        const here = `/settings/people/integrations/webhooks/${params['id'] ?? ''}`;
         return {
           load: loadable,
           onReplay: actions.replayDelivery,
           onBack: () => {
-            go('/settings/people/integrations');
+            go('/settings/people/integrations/webhooks');
           },
           ...(next === null
             ? {}
@@ -1343,9 +1377,10 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onChangeZone: actions.changeZone,
           onSetNumbering: actions.setNumbering,
           onSetPayBand: actions.setPayBand,
-          tab: at('tab'),
+          // Each tab is its own address: legal entities are the page's, the others under it.
+          tab: leaf === 'organisation' ? 'entities' : leaf,
           onTabChange: (tab: string) => {
-            note({ tab: tab === 'entities' ? null : tab }, 'push');
+            go(`/settings/people/organisation${tab === 'entities' ? '' : `/${tab}`}`);
           },
         };
       case 'ExportBuilder': {
@@ -1430,44 +1465,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               recipients: [recipient],
             });
           },
-          // Described in words (docs/ai-settings.md): the choices go into the
-          // address, and the page starts again from them for a person to check.
-          onDescribe: async (sentence: string) => {
-            const planned = await actions.planExport(sentence);
-            if (!planned.ok) return planned;
-            const plan = planned.data as {
-              who: string;
-              conditions: readonly { key: string; op: string; values: readonly string[] }[];
-              match: 'all' | 'any';
-              fields: readonly string[];
-              asOf: string;
-              format: string;
-              photos: boolean;
-              reason: string;
-              by: 'assistant' | 'rules';
-              note: string | null;
-              notes: readonly string[];
-            };
-            go(
-              withQuery(
-                '/people/export',
-                {},
-                {
-                  q: sentence,
-                  read: plan.by,
-                  who: plan.who === 'everyone' ? null : plan.who,
-                  conditions: plan.conditions.length === 0 ? null : JSON.stringify(plan.conditions),
-                  match: plan.match === 'any' ? 'any' : null,
-                  fields: plan.fields.join(','),
-                  asOf: plan.asOf,
-                  format: plan.format,
-                  photos: plan.photos ? 'true' : null,
-                  reason: plan.reason,
-                },
-              ),
-            );
-            return { ok: true, by: plan.by, note: plan.note, notes: plan.notes };
-          },
+          onDescribe: describeExport,
         };
       }
       case 'ImportFlow': {
@@ -1607,14 +1605,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onSegmentChange: (segment: string | null) => {
             navigate({ segment });
           },
-          // The Schedules button: the schedules page's own actions.
-          schedules: {
-            onCreate: actions.createReportSchedule,
-            onUpdate: actions.updateReportSchedule,
-            onPause: actions.pauseReportSchedule,
-            onResume: actions.resumeReportSchedule,
-            onDelete: actions.deleteReportSchedule,
-          },
         };
       // What changed (design AI5, AI6, MA4, MA5): its own block.
       case 'WhatChanged': {
@@ -1704,20 +1694,13 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             URL.revokeObjectURL(url);
             return { ok: true };
           },
-          // The Schedules button: the schedules page's own actions.
-          schedules: {
-            onCreate: actions.createReportSchedule,
-            onUpdate: actions.updateReportSchedule,
-            onPause: actions.pauseReportSchedule,
-            onResume: actions.resumeReportSchedule,
-            onDelete: actions.deleteReportSchedule,
-          },
         };
       }
       case 'ImportExport':
         return {
           load: loadable,
           running,
+          onDescribe: describeExport,
           kind: oneOf(at('kind'), ['import', 'export'], null),
           onKindChange: (kind: string) => {
             note({ kind: kind === 'all' ? null : kind }, 'push');

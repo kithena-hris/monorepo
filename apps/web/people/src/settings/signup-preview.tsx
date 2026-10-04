@@ -2,13 +2,13 @@ import {
   Alert,
   Button,
   KeyValues,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Stack,
   Stepper,
 } from '@reach/ui';
@@ -110,7 +110,7 @@ export function SignupPreview({
   );
 
   return (
-    <Sheet
+    <Dialog
       open={open}
       onOpenChange={(next) => {
         onOpenChange(next);
@@ -120,60 +120,65 @@ export function SignupPreview({
         }
       }}
     >
-      <SheetContent side="right" size="lg">
-        <SheetHeader>
-          <SheetTitle>Sign-up preview</SheetTitle>
-          <SheetDescription>
-            What somebody sees from their email link, with the fields as they are in this draft.
-            Nothing here is saved or sent.
-          </SheetDescription>
-        </SheetHeader>
-        <SheetBody>
-          <Stack gap={6}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Sign-up preview</DialogTitle>
+          <DialogDescription>
+            What somebody sees from their email link. Nothing here is saved or sent.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <div className="grid gap-6 sm:grid-cols-[12.5rem_minmax(0,1fr)]">
             <Stepper
               label="Sign-up steps"
+              orientation="vertical"
               steps={steps}
               current={at}
               onStepChange={(index) => {
                 setAt(index);
               }}
             />
-            {step === 'about' ? inputs(NAMES) : null}
-            {step === 'details' ? inputs(page) : null}
-            {step === 'review' ? (
-              <KeyValues
-                aria-label="Your answers"
-                items={[...NAMES, ...page].map((f) => ({
-                  label: f.label,
-                  value: <DisplayValue field={f} value={values[f.key]} />,
-                }))}
-              />
-            ) : null}
-            {step === 'passkey' ? (
-              <Alert tone="info" title="Your device asks for a fingerprint, a face or a PIN">
-                A passkey is made on their own device, so it is not part of this preview. They sign
-                in with it from then on.
-              </Alert>
-            ) : null}
-            {step === 'after' ? (
-              <FieldFiles.Provider
-                value={{
-                  known: new Map(),
-                  upload: () =>
-                    Promise.resolve({ ok: false, message: 'Nothing is uploaded in a preview.' }),
-                }}
-              >
-                <Stack gap={4}>
-                  <p className="text-sm text-fg-muted">
-                    Asked after sign-in. Sign-up never asks for files or confidential data.
-                  </p>
-                  {inputs(after)}
-                </Stack>
-              </FieldFiles.Provider>
-            ) : null}
-          </Stack>
-        </SheetBody>
-        <SheetFooter>
+            <section aria-labelledby="signup-step" className="flex min-w-0 flex-col gap-4">
+              <h3 id="signup-step" className="text-md font-semibold text-fg">
+                {steps[Math.min(at, steps.length - 1)]?.label}
+              </h3>
+              {step === 'about' ? inputs(NAMES) : null}
+              {step === 'details' ? inputs(page) : null}
+              {step === 'review' ? (
+                <KeyValues
+                  aria-label="Your answers"
+                  items={[...NAMES, ...page].map((f) => ({
+                    label: f.label,
+                    value: <DisplayValue field={f} value={values[f.key]} />,
+                  }))}
+                />
+              ) : null}
+              {step === 'passkey' ? (
+                <Alert tone="info" title="Your device asks for a fingerprint, a face or a PIN">
+                  A passkey is made on their own device, so it is not part of this preview. They
+                  sign in with it from then on.
+                </Alert>
+              ) : null}
+              {step === 'after' ? (
+                <FieldFiles.Provider
+                  value={{
+                    known: new Map(),
+                    upload: () =>
+                      Promise.resolve({ ok: false, message: 'Nothing is uploaded in a preview.' }),
+                  }}
+                >
+                  <Stack gap={4}>
+                    <p className="text-sm text-fg-muted">
+                      Asked after sign-in. Sign-up never asks for files or confidential data.
+                    </p>
+                    {inputs(after)}
+                  </Stack>
+                </FieldFiles.Provider>
+              ) : null}
+            </section>
+          </div>
+        </DialogBody>
+        <DialogFooter>
           <Button
             disabled={at === 0}
             onClick={() => {
@@ -191,8 +196,8 @@ export function SignupPreview({
           >
             {at >= steps.length - 1 ? 'Close preview' : 'Next'}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

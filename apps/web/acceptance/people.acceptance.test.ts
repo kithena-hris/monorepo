@@ -582,8 +582,9 @@ describe('PEO-055: an import with broken cells, which blocks nothing', () => {
     ].join('\n');
     await upload(page, 'people.csv', broken);
 
-    // Every column maps itself: its header is the field's key.
-    const review = page.getByRole('button', { name: 'Next: review the plan' });
+    // Every column maps itself: its header is the field's key, and nothing is
+    // new, so Decide what's new skips itself.
+    const review = page.getByRole('button', { name: 'Next: decide what’s new' });
     await review.waitFor({ timeout: 30_000 });
     // Each step is its own address.
     expect(new URL(page.url()).search).toBe('?step=map');
@@ -632,8 +633,11 @@ describe('Work locations set up inside the import', () => {
         'Karen,Filippelli,karen@acme.example,2025-05-05,stamford',
       ].join('\n'),
     );
-    await page.getByRole('button', { name: 'Next: work locations' }).click({ timeout: 30_000 });
-    await page.waitForURL(/\?step=places$/);
+    await page.getByRole('button', { name: 'Next: decide what’s new' }).click({ timeout: 30_000 });
+    await page.waitForURL(/\?step=decide$/);
+    // Every value already has a suggestion, so its block starts closed: open it.
+    const block = page.getByRole('button', { name: /^Work locations/ });
+    if ((await block.getAttribute('aria-expanded')) !== 'true') await block.click();
     const stamford = page.getByRole('radiogroup', { name: 'What happens to “Stamford”' });
     expect(
       await stamford.getByRole('radio', { name: /Add it as a new work location/ }).isChecked(),
@@ -765,10 +769,10 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
 
     // The office moves across the date line from today there: 25 hours
     // ahead, so his day is always a different date.
-    await page.goto(`${stack.shell}/settings/people/organisation`);
+    await page.goto(`${stack.shell}/settings/people/organisation/locations`);
     await page.waitForLoadState('networkidle');
-    await page.getByRole('tab', { name: 'Locations' }).click();
-    await page.getByRole('button', { name: 'Change the time zone of Pago Pago office' }).click();
+    await page.getByRole('button', { name: 'Actions for Pago Pago office' }).click();
+    await page.getByRole('menuitem', { name: 'Change time zone' }).click();
     const move = page.getByRole('dialog');
     await move.getByRole('button', { name: 'New time zone' }).click();
     await page.getByRole('combobox', { name: 'New time zone search' }).fill('Kiritimati');
@@ -1040,11 +1044,10 @@ describe('PEO-121: the webhook delivery log', () => {
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/settings/people/integrations`);
+    await page.goto(`${stack.shell}/settings/people/integrations/webhooks`);
     await page.waitForLoadState('networkidle');
-    await page.getByRole('tab', { name: 'Webhooks' }).click();
     await page.getByRole('button', { name: `Delivery log for ${hookUrl}` }).click();
-    await page.waitForURL(new RegExp(`/settings/people/integrations/${endpointId}$`));
+    await page.waitForURL(new RegExp(`/settings/people/integrations/webhooks/${endpointId}$`));
     await page.waitForLoadState('networkidle');
     const table = page.getByRole('table', { name: 'Deliveries' });
     await table.getByText('Failed').waitFor({ timeout: 30_000 });
@@ -1558,7 +1561,7 @@ describe('An import larger than a Vercel function takes, straight to storage (§
     expect(Buffer.byteLength(csv)).toBeGreaterThan(4.5 * 1024 * 1024);
     await upload(page, 'big.csv', csv);
 
-    const review = page.getByRole('button', { name: 'Next: review the plan' });
+    const review = page.getByRole('button', { name: 'Next: decide what’s new' });
     await review.waitFor({ timeout: 120_000 });
     // What storage holds is the file, whole: People read it back and pinned
     // the SHA-256 of exactly these bytes.
@@ -2511,7 +2514,7 @@ describe('A company the back office has just created, with nothing published', (
         'Ana,Ruiz,ana@harbour.example,2019-04-01,Terminated,2023-06-30,Resignation - personal',
       ].join('\n'),
     );
-    await page.getByRole('button', { name: 'Next: review the plan' }).click({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Next: decide what’s new' }).click({ timeout: 30_000 });
     await page.waitForURL(/\?step=review$/);
     // The lifecycle columns are People's own: the plan says what they do, in one line.
     await page
@@ -2552,7 +2555,7 @@ describe('A company the back office has just created, with nothing published', (
     // Hydrated first: a file chosen before the remote's handlers are on goes nowhere.
     await page.waitForLoadState('networkidle');
     await upload(page, 'cascade.csv', csv);
-    await page.getByRole('button', { name: 'Next: review the plan' }).click({ timeout: 120_000 });
+    await page.getByRole('button', { name: 'Next: decide what’s new' }).click({ timeout: 120_000 });
     await page.waitForURL(/\?step=review$/);
     const approve = page.getByRole('button', { name: 'Approve and run' });
     await approve.waitFor({ timeout: 120_000 });

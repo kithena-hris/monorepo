@@ -451,6 +451,12 @@ export interface DataTableProps<T extends TableRow> {
    */
   rowActions?: (row: T) => readonly RowAction[];
   /**
+   * Under a finger, keep the row menu on each card, at the end of its title
+   * line. Off by default: a card is usually its own way in, and its actions
+   * live on what it opens. On when the actions are the only way to them.
+   */
+  rowMenuOnCard?: boolean;
+  /**
    * The row whose record is open beside the table, in a quick look or a
    * detail pane: marked with the accent edge and `aria-current`, so the
    * reader keeps their place while the pane changes.
@@ -525,6 +531,7 @@ export function DataTable<T extends TableRow>({
   onRowOpen = onRowClick,
   onRowPreview,
   rowActions,
+  rowMenuOnCard = false,
   activeRowId = null,
   empty = 'Nothing to show.',
   stickyHeader = false,
@@ -929,7 +936,8 @@ export function DataTable<T extends TableRow>({
       event.stopPropagation();
     }
   };
-  const hasTrailing = columns.some((column) => column.cardTrailing);
+  const menuOnCard = rowActions !== undefined && rowMenuOnCard;
+  const hasTrailing = menuOnCard || columns.some((column) => column.cardTrailing);
 
   // Near the end of what is loaded: on scroll, and whenever the rows change,
   // since a first page shorter than the container never scrolls at all.
@@ -1393,7 +1401,9 @@ export function DataTable<T extends TableRow>({
                 ))}
 
                 {rowActions ? (
-                  <TableCell className="w-12 touch:hidden">
+                  <TableCell
+                    className={cn('w-12', menuOnCard ? [CARD.cell, CARD.trailing] : 'touch:hidden')}
+                  >
                     <RowMenu name={name} actions={rowActions(row)} />
                   </TableCell>
                 ) : null}
