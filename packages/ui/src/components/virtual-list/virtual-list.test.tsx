@@ -94,9 +94,7 @@ describe('<VirtualList>', () => {
       });
     }
     const drawn = (): string[] =>
-      [...document.querySelectorAll<HTMLElement>('li[data-index]')].map(
-        (li) => li.textContent ?? '',
-      );
+      [...document.querySelectorAll<HTMLElement>('li[data-index]')].map((li) => li.textContent);
     afterEach(() => {
       vi.restoreAllMocks();
     });
