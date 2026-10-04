@@ -295,9 +295,13 @@ export function sectionName(label: string): string {
  * falls back to its default). The same words in two languages are not a clash.
  */
 function sameName(a: Section['label'], b: Section['label']): boolean {
-  const locales = new Set([...Object.keys(a.translations), ...Object.keys(b.translations)]);
+  // A document published before labels carried translations has none: read
+  // as no translations, so folding a company's oldest sections never throws.
+  const words = (l: Section['label']): Readonly<Record<string, string>> =>
+    (l as { readonly translations?: Readonly<Record<string, string>> }).translations ?? {};
+  const locales = new Set([...Object.keys(words(a)), ...Object.keys(words(b))]);
   const named = (l: Section['label'], locale: string | null) =>
-    sectionName((locale === null ? undefined : l.translations[locale]) ?? l.default);
+    sectionName((locale === null ? undefined : words(l)[locale]) ?? l.default);
   return [null, ...locales].some((locale) => named(a, locale) === named(b, locale));
 }
 
@@ -402,7 +406,9 @@ export class SchemaDraft {
         );
       let order = Math.max(
         -1,
-        ...[...this.#attributes.values()].filter((a) => a.sectionKey === first.key).map((a) => a.order),
+        ...[...this.#attributes.values()]
+          .filter((a) => a.sectionKey === first.key)
+          .map((a) => a.order),
       );
       for (const a of moving) {
         order += 1;
@@ -430,7 +436,8 @@ export class SchemaDraft {
    */
   archiveSection(key: string, clock: Clock): Result<Section> {
     const section = this.#sections.get(key);
-    if (!section) return err(failure('SECTION_UNKNOWN', `No section called ${key}`, ['sectionKey']));
+    if (!section)
+      return err(failure('SECTION_UNKNOWN', `No section called ${key}`, ['sectionKey']));
     if (section.archivedAt !== null) return ok(section);
 
     const required = this.attributesIn(key).filter((a) => a.requiredness.mode !== 'never');
@@ -467,9 +474,7 @@ export class SchemaDraft {
       );
     }
     if (section.archivedAt !== null) {
-      return err(
-        failure('SECTION_ARCHIVED', `${section.key} is archived`, ['sectionKey']),
-      );
+      return err(failure('SECTION_ARCHIVED', `${section.key} is archived`, ['sectionKey']));
     }
 
     const readable = this.#checkReadableByOwner(definition);
@@ -527,7 +532,9 @@ export class SchemaDraft {
     if (next.sectionKey !== current.sectionKey) {
       const section = this.#sections.get(next.sectionKey);
       if (!section) {
-        return err(failure('SECTION_UNKNOWN', `No section called ${next.sectionKey}`, ['sectionKey']));
+        return err(
+          failure('SECTION_UNKNOWN', `No section called ${next.sectionKey}`, ['sectionKey']),
+        );
       }
       if (section.archivedAt !== null) {
         return err(failure('SECTION_ARCHIVED', `${section.key} is archived`, ['sectionKey']));
@@ -564,7 +571,9 @@ export class SchemaDraft {
       return err(failure('ATTRIBUTE_UNKNOWN', `No attribute called ${key}`, ['key']));
     }
     if (current.origin === 'core') {
-      return err(failure('CORE_ATTRIBUTE', `${key} is shipped by Kithena and cannot be archived`, ['key']));
+      return err(
+        failure('CORE_ATTRIBUTE', `${key} is shipped by Kithena and cannot be archived`, ['key']),
+      );
     }
     if (current.deprecatedAt !== null) return ok(current);
 
@@ -586,7 +595,11 @@ export class SchemaDraft {
     // Shared with the assistant: the company's choice for any field it could
     // safely be, never for one that is confidential, special-category or
     // sealed, whoever shipped it.
-    if (next.classification.aiEligible && !current.classification.aiEligible && !aiShareable(next)) {
+    if (
+      next.classification.aiEligible &&
+      !current.classification.aiEligible &&
+      !aiShareable(next)
+    ) {
       return err(
         failure(
           'AI_NOT_ALLOWED',
@@ -687,7 +700,9 @@ function sealedShape<T extends object>(input: T): T {
     : input;
 }
 
-export function aiShareable(definition: Pick<AttributeDefinition, 'classification' | 'encrypted'>): boolean {
+export function aiShareable(
+  definition: Pick<AttributeDefinition, 'classification' | 'encrypted'>,
+): boolean {
   return (
     !definition.encrypted &&
     (definition.classification.classification === 'public' ||
