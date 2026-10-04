@@ -200,20 +200,18 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     }
     case 'ImportExport': {
       // Importing stays HR's, as it was. The history is HR's and People
-      // administrators', and the one part of the page that is not the same
-      // every time: asked for now, but streamed (a promise, `useStreamed`),
-      // so the header, both cards and their buttons never wait on it. One
+      // administrators', read beside the rest so the first HTML holds it:
+      // the page is drawn once, whole, with no rows still to come. One
       // People refuses this viewer is left out, not an error.
       const before = given(query.search['before']);
-      const history = orBare({ before }, (asked) => read('TransferHistory', asked)).then(
-        (answer) =>
-          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
-      );
       // `Home` is the shell's own read of the roles (`shellData`), shared.
-      const [roles, template, running] = await Promise.all([
+      const [roles, template, running, history] = await Promise.all([
         read('Home'),
         read('ImportTemplate'),
         activeImport(),
+        orBare({ before }, (asked) => read('TransferHistory', asked)).then((answer) =>
+          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
+        ),
       ]);
       if (roles.status !== 'ready') return roles;
       const { hr = false, admin = false } = roles.data as { hr?: boolean; admin?: boolean };
@@ -536,11 +534,7 @@ async function overview(): Promise<ScreenLoad> {
  * the reporting floor it shares a card with.
  */
 async function organisation(): Promise<ScreenLoad> {
-  const [org, setup, chat] = await Promise.all([
-    read('Organisation'),
-    read('Setup'),
-    read('Chat'),
-  ]);
+  const [org, setup, chat] = await Promise.all([read('Organisation'), read('Setup'), read('Chat')]);
   if (org.status !== 'ready') return org;
   const chatData =
     chat.status === 'ready'

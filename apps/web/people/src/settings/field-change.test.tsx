@@ -93,11 +93,11 @@ describe('FieldChange', () => {
     expect(await screen.findByText('Refused')).toBeVisible();
   });
 
-  it('waits in the shape of the page, and says when it could not check', async () => {
+  it('says while it checks, and when it could not', async () => {
     const { container, rerender } = render(
       <FieldChange load={{ status: 'loading' }} onApply={vi.fn()} onBack={vi.fn()} />,
     );
-    expect(screen.getByLabelText('Checking every value')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Checking every value')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
     rerender(
       <FieldChange

@@ -18,7 +18,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
+  Spinner,
   Stack,
   icons,
 } from '@reach/ui';
@@ -110,7 +110,7 @@ const plural = (n: number, one: string, many: string) =>
   `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
 
 export function FieldChange({ load, onApply, onBack }: FieldChangeProps): JSX.Element {
-  if (load.status === 'loading') return <ChangeSkeleton />;
+  if (load.status === 'loading') return <Spinner label="Checking every value" />;
   if (load.status === 'error') {
     return (
       <Stack gap={6}>
@@ -139,23 +139,6 @@ export function FieldChange({ load, onApply, onBack }: FieldChangeProps): JSX.El
     );
   }
   return <Review view={load.data} onApply={onApply} onBack={onBack} />;
-}
-
-/** The page as it will be drawn: the header, the summary, and rows to come. */
-function ChangeSkeleton(): JSX.Element {
-  return (
-    <Stack gap={6} role="status" aria-busy="true" aria-label="Checking every value">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-8 w-72 max-w-full" />
-        <Skeleton className="h-4 w-96 max-w-full" />
-      </div>
-      <Skeleton className="h-36 w-full rounded-lg" />
-      <Skeleton className="h-10 w-full" />
-      {[0, 1, 2].map((i) => (
-        <Skeleton key={i} className="h-28 w-full rounded-lg" />
-      ))}
-    </Stack>
-  );
 }
 
 function Review({

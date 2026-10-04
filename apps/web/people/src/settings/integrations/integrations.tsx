@@ -678,7 +678,8 @@ function AddEndpoint({
         <DialogHeader>
           <DialogTitle>Add an endpoint</DialogTitle>
           <DialogDescription>
-            People sends a signed message to this address for each selected event. The signing secret is shown once.
+            People sends a signed message to this address for each selected event. The signing
+            secret is shown once.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

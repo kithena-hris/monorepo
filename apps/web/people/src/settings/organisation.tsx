@@ -262,7 +262,9 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
   const [chosen, setTab] = useHeld<string>(props.tab, props.onTabChange, 'entities');
   // Country packs are People administrators'; pay bands HR's and finance's.
   const tabs = ORGANISATION_TABS.filter(
-    (t) => (t !== 'country-packs' || state.packs != null) && (t !== 'pay-bands' || state.payBands != null),
+    (t) =>
+      (t !== 'country-packs' || state.packs != null) &&
+      (t !== 'pay-bands' || state.payBands != null),
   ) as readonly string[];
   const tab = tabs.includes(chosen) ? chosen : 'entities';
   const close = (): void => {
@@ -458,7 +460,11 @@ function Entities({
                 {
                   id: 'archive',
                   label: entity.archived ? 'Restore' : 'Archive',
-                  icon: entity.archived ? <icons.undo aria-hidden /> : <icons.archive aria-hidden />,
+                  icon: entity.archived ? (
+                    <icons.undo aria-hidden />
+                  ) : (
+                    <icons.archive aria-hidden />
+                  ),
                   onSelect: () => {
                     setArchiving({
                       name: entity.name,
@@ -1329,77 +1335,72 @@ function Company({
 
   return (
     <PageSection surface title="Company">
-        <form
-          aria-label="Company settings"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!changed) return;
-            setBusy(true);
-            setOutcome(null);
-            void onSave({
-              ...(zone === settings.defaultTimeZone ? {} : { defaultTimeZone: zone }),
-              ...(photo === photoWas ? {} : { photoAtSignup: photo }),
-            }).then((result) => {
-              setBusy(false);
-              setOutcome(result);
-            });
-          }}
-        >
-          <Stack gap={4}>
-            <Field>
-              <FieldLabel>Company</FieldLabel>
-              <FieldControl>
-                <Input readOnly value={settings.displayName ?? 'Not known yet'} />
-              </FieldControl>
-              <FieldDescription>
-                {settings.slug === null
-                  ? 'Named by the back office.'
-                  : `Signs in at ${settings.slug}. Named by the back office, and changed there.`}
-              </FieldDescription>
-            </Field>
-            <ZonePicker
-              state={state}
-              label="Default time zone"
-              value={zone}
-              onChange={setZone}
+      <form
+        aria-label="Company settings"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!changed) return;
+          setBusy(true);
+          setOutcome(null);
+          void onSave({
+            ...(zone === settings.defaultTimeZone ? {} : { defaultTimeZone: zone }),
+            ...(photo === photoWas ? {} : { photoAtSignup: photo }),
+          }).then((result) => {
+            setBusy(false);
+            setOutcome(result);
+          });
+        }}
+      >
+        <Stack gap={4}>
+          <Field>
+            <FieldLabel>Company</FieldLabel>
+            <FieldControl>
+              <Input readOnly value={settings.displayName ?? 'Not known yet'} />
+            </FieldControl>
+            <FieldDescription>
+              {settings.slug === null
+                ? 'Named by the back office.'
+                : `Signs in at ${settings.slug}. Named by the back office, and changed there.`}
+            </FieldDescription>
+          </Field>
+          <ZonePicker
+            state={state}
+            label="Default time zone"
+            value={zone}
+            onChange={setZone}
+            disabled={!state.canManage}
+            description="The day of anybody with no location or legal entity, and of every figure about the whole company."
+          />
+          <Field>
+            <FieldLabel>A photo when someone signs up</FieldLabel>
+            <Select
+              value={photo}
               disabled={!state.canManage}
-              description="The day of anybody with no location or legal entity, and of every figure about the whole company."
-            />
-            <Field>
-              <FieldLabel>A photo when someone signs up</FieldLabel>
-              <Select
-                value={photo}
-                disabled={!state.canManage}
-                onValueChange={(v) => {
-                  setPhoto(v as PhotoAtSignup);
-                }}
-              >
-                <FieldControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FieldControl>
-                <SelectContent>
-                  {PHOTO_AT_SIGNUP.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldDescription>
-                Asked on the first screen after they set up their account, beside any image or
-                document field you collect at sign-up.
-              </FieldDescription>
-            </Field>
-            <SaveRow
-              canManage={state.canManage}
-              busy={busy}
-              disabled={!changed}
-              outcome={outcome}
-            />
-          </Stack>
-        </form>
+              onValueChange={(v) => {
+                setPhoto(v as PhotoAtSignup);
+              }}
+            >
+              <FieldControl>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </FieldControl>
+              <SelectContent>
+                {PHOTO_AT_SIGNUP.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              Asked on the first screen after they set up their account, beside any image or
+              document field you collect at sign-up.
+            </FieldDescription>
+          </Field>
+          <SaveRow canManage={state.canManage} busy={busy} disabled={!changed} outcome={outcome} />
+        </Stack>
+      </form>
     </PageSection>
   );
 }
@@ -1424,57 +1425,57 @@ function RemindersAndPrivacy({
   const { reminders } = state;
   return (
     <PageSection surface title="Reminders and privacy">
-        <form
-          aria-label="Reminders and privacy"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (lowered || minimum === floor) return;
-            setBusy(true);
-            setOutcome(null);
-            void onSave({ cohortMinimum: minimum }).then((result) => {
-              setBusy(false);
-              setOutcome(result);
-            });
-          }}
-        >
-          <Stack gap={4}>
-            {reminders == null ? null : (
-              <KeyValues
-                aria-label="How reminders are sent"
-                layout="stacked"
-                items={[
-                  {
-                    label: 'Reminders to employees',
-                    value: 'By email, at most once a week, until their profile is complete',
-                  },
-                  { label: 'When', value: reminders.cadence },
-                  { label: 'At', value: reminders.window },
-                  {
-                    label: 'In chat',
-                    value: reminders.inChat ? 'Also, when connected' : 'Email only',
-                  },
-                ]}
-              />
-            )}
-            <NumberField
-              label="Smallest group shown in reports"
-              value={minimum}
-              min={floor}
-              step={1}
-              disabled={!state.canManage}
-              invalid={lowered}
-              hint="Can be raised, never lowered. In a smaller group, people can be picked out from an average."
-              onChange={setMinimum}
-              className="max-w-40"
+      <form
+        aria-label="Reminders and privacy"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (lowered || minimum === floor) return;
+          setBusy(true);
+          setOutcome(null);
+          void onSave({ cohortMinimum: minimum }).then((result) => {
+            setBusy(false);
+            setOutcome(result);
+          });
+        }}
+      >
+        <Stack gap={4}>
+          {reminders == null ? null : (
+            <KeyValues
+              aria-label="How reminders are sent"
+              layout="stacked"
+              items={[
+                {
+                  label: 'Reminders to employees',
+                  value: 'By email, at most once a week, until their profile is complete',
+                },
+                { label: 'When', value: reminders.cadence },
+                { label: 'At', value: reminders.window },
+                {
+                  label: 'In chat',
+                  value: reminders.inChat ? 'Also, when connected' : 'Email only',
+                },
+              ]}
             />
-            <SaveRow
-              canManage={state.canManage}
-              busy={busy}
-              disabled={lowered || minimum === floor}
-              outcome={outcome}
-            />
-          </Stack>
-        </form>
+          )}
+          <NumberField
+            label="Smallest group shown in reports"
+            value={minimum}
+            min={floor}
+            step={1}
+            disabled={!state.canManage}
+            invalid={lowered}
+            hint="Can be raised, never lowered. In a smaller group, people can be picked out from an average."
+            onChange={setMinimum}
+            className="max-w-40"
+          />
+          <SaveRow
+            canManage={state.canManage}
+            busy={busy}
+            disabled={lowered || minimum === floor}
+            outcome={outcome}
+          />
+        </Stack>
+      </form>
     </PageSection>
   );
 }
@@ -1493,14 +1494,16 @@ const FLOOR_NAMES: Readonly<Record<string, string>> = {
 function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[] }): JSX.Element {
   const pending = floors.some((f) => f.status === 'unreviewed');
   return (
-    <PageSection surface
+    <PageSection
+      surface
       title="Statutory retention"
       description="The minimum time a leaver’s records are kept by law."
     >
       <Stack gap={4}>
         {pending ? (
           <Alert tone="warning" title="Pending legal review">
-            These periods await legal review. Nothing is erased automatically until they’re confirmed.
+            These periods await legal review. Nothing is erased automatically until they’re
+            confirmed.
           </Alert>
         ) : null}
         <Table aria-label="Statutory retention floors">
@@ -1545,7 +1548,8 @@ function UpcomingErasures({
   readonly erasures: readonly UpcomingErasure[];
 }): JSX.Element {
   return (
-    <PageSection surface
+    <PageSection
+      surface
       title="Automated erasure"
       description="Leavers whose data will be erased in the next three months."
       actions={<Badge size="sm">HR only</Badge>}

@@ -157,7 +157,11 @@ describe('the organisation settings (PEO-119)', () => {
       reminders: { cadence: 'Then once a week', window: '09:00 to 18:00', inChat: false },
     });
     const { container } = render(
-      <Organisation {...props({ load: { status: 'ready', data: reminded } })} tab="reminders" onTabChange={vi.fn()} />,
+      <Organisation
+        {...props({ load: { status: 'ready', data: reminded } })}
+        tab="reminders"
+        onTabChange={vi.fn()}
+      />,
     );
     expect(screen.getByText('Then once a week')).toBeInTheDocument();
     expect(screen.getByText('Email only')).toBeInTheDocument();

@@ -426,9 +426,7 @@ function Connect({
                   }}
                 />
               </FieldControl>
-              <FieldDescription>
-                For example Okta, Microsoft Entra or Workday.
-              </FieldDescription>
+              <FieldDescription>For example Okta, Microsoft Entra or Workday.</FieldDescription>
             </Field>
             {refused === null ? null : (
               <Alert tone="danger" title="Not connected">
