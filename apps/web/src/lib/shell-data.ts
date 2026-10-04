@@ -1,4 +1,3 @@
-import type { FlaggedRow } from './inbox';
 import {
   currentPlace,
   headerFrame,
@@ -43,6 +42,17 @@ export interface ViewedAs {
   readonly endedAt: string;
   /** Special-category data of theirs, or that they may read, was visible. */
   readonly specialCategory: boolean;
+}
+
+/** A flagged change as the Inbox lists it. */
+export interface FlaggedRow {
+  readonly id: string;
+  readonly name: string;
+  /** "Base salary €61k → €84k", or the field alone where no amount shows. */
+  readonly change: string;
+  /** Why, on the row: "A 38% raise, above the band". */
+  readonly why: string;
+  readonly href: string;
 }
 
 export interface ShellData {

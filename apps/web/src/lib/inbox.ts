@@ -1,4 +1,6 @@
-import { reviewItem, type ShellData, type ShellNotice } from './shell-data';
+import { reviewItem, type FlaggedRow, type ShellData, type ShellNotice } from './shell-data';
+
+export type { FlaggedRow };
 
 /**
  * The Inbox's three views (design MA6): what there is to do, the changes
@@ -24,16 +26,6 @@ export interface FlaggedSource {
   readonly flagSummary?: string | null;
   readonly value: Value;
   readonly current: Value;
-}
-
-export interface FlaggedRow {
-  readonly id: string;
-  readonly name: string;
-  /** "Base salary €61k → €84k", or the field alone where no amount shows. */
-  readonly change: string;
-  /** Why, on the row: "A 38% raise, above the band". */
-  readonly why: string;
-  readonly href: string;
 }
 
 const isMoney = (v: Value): v is { readonly amountMinor: string; readonly currency: string } =>

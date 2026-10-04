@@ -19,7 +19,6 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { flaggedInboxRows, todoRows, type InboxRow, type InboxView } from '../lib/inbox';
 import { viewedAsNotice, type ShellData } from '../lib/shell-data';
-import { AccountSheet, type AppShellProps } from './app-shell';
 import { InboxViews } from './inbox-views';
 import { since } from './since';
 import { Waking } from './waking';
@@ -218,12 +217,13 @@ export function InboxBell({ shell }: { readonly shell: ShellData }): JSX.Element
  */
 export function Inbox({
   shell,
-  person,
+  account,
   view,
   waking = false,
 }: {
   readonly shell: ShellData;
-  readonly person: AppShellProps['person'];
+  /** The header's account menu, drawn by the shell (`AccountSheet`). */
+  readonly account: ReactNode;
   readonly view: InboxView;
   /** People is asleep or still waking: the lists wait for it (`components/waking.tsx`). */
   readonly waking?: boolean;
@@ -237,7 +237,7 @@ export function Inbox({
       <PageHeader
         title="Inbox"
         description="Things to do, from every module you use."
-        actions={<AccountSheet person={person} />}
+        actions={account}
       />
       <InboxViews view={open} todo={todo.length} flagged={flagged?.length ?? null} />
       <Waking area="People" waking={waking}>

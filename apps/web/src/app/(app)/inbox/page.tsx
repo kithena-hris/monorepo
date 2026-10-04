@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 
+import { AccountSheet } from '../../../components/app-shell';
 import { Inbox } from '../../../components/inbox';
 import { flatSearch } from '../../../components/people-area';
 import { inboxView } from '../../../lib/inbox';
@@ -18,5 +19,12 @@ export default async function InboxPage({
   // The shell's own first read, answered already in this request: asleep, the
   // lists wait for People rather than saying there is nothing to do.
   const waking = entitlements.includes('module.people') && isWaking(await people('Home'));
-  return <Inbox shell={shell} person={person} view={view} waking={waking} />;
+  return (
+    <Inbox
+      shell={shell}
+      account={<AccountSheet person={person} />}
+      view={view}
+      waking={waking}
+    />
+  );
 }
