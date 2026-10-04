@@ -250,11 +250,16 @@ export function VirtualList<T>({
   // "20 more loaded", as each page lands.
   const [said, setSaid] = useState('');
   const before = useRef(items.length);
+  // Infinite once is infinite for the announcement: the last page comes with no next.
+  const infinite = useRef(false);
+  if (onEndReached !== undefined) infinite.current = true;
+  const say = useRef(moreLoaded);
+  say.current = moreLoaded;
   useEffect(() => {
     const added = items.length - before.current;
     before.current = items.length;
-    if (onEndReached !== undefined && added > 0) setSaid(moreLoaded(added));
-  }, [items.length, onEndReached, moreLoaded]);
+    if (infinite.current && added > 0) setSaid(say.current(added));
+  }, [items.length]);
 
   const total = virtualizer.getTotalSize();
 

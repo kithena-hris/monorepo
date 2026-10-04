@@ -955,11 +955,14 @@ export function DataTable<T extends TableRow>({
   // "50 more loaded", as each page lands: the rows below the reader are not announced otherwise.
   const [said, setSaid] = useState('');
   const loadedBefore = useRef(rows.length);
+  // Infinite once is infinite for the announcement: the last page comes with no next.
+  const infinite = useRef(false);
+  if (onEndReached !== undefined) infinite.current = true;
   useEffect(() => {
     const added = rows.length - loadedBefore.current;
     loadedBefore.current = rows.length;
-    if (onEndReached !== undefined && added > 0) setSaid(`${String(added)} more loaded`);
-  }, [rows.length, onEndReached]);
+    if (infinite.current && added > 0) setSaid(`${String(added)} more loaded`);
+  }, [rows.length]);
   const wantsEnd = onEndReached !== undefined && !loadingMore;
   useEffect(() => {
     const el = scrollRef.current;
@@ -1555,11 +1558,9 @@ export function DataTable<T extends TableRow>({
       )}
 
       {bulkBar}
-      {onEndReached === undefined ? null : (
-        <span aria-live="polite" className="sr-only">
-          {said}
-        </span>
-      )}
+      <span aria-live="polite" className="sr-only">
+        {said}
+      </span>
     </div>
   );
 }
