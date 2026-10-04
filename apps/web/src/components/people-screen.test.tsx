@@ -71,7 +71,7 @@ vi.mock('./remote-screen', () => ({
   },
 }));
 
-const { PeopleScreen, heldFor } = await import('./people-screen');
+const { PeopleScreen } = await import('./people-screen');
 
 /** The screen at `url`, and the props it was handed. */
 function open(url: string, component: string, data: unknown = {}): Record<string, unknown> {
@@ -258,62 +258,6 @@ describe('the directory, which People answers from the address', () => {
     );
     call(props, 'onViewChange', 'cards');
     expect(router.push).toHaveBeenCalledWith('/people/directory/cards?q=ada&conditions=%5B%5D');
-  });
-});
-
-describe('what a loading state shows of a page before it arrives', () => {
-  const tabs = ['what-changed', 'headcount', 'turnover'].map((t) => ({
-    href: `/people/insights/${t}`,
-    label: t,
-    current: t === 'headcount',
-  }));
-  const live = () =>
-    render(
-      <PeopleScreen
-        // A screen with no actions of its own stands in for Insights.
-        route={{ entry: 'x', component: 'ReportRuns' }}
-        load={{ status: 'ready', data: { figures: 1 } }}
-        path="/people/insights/headcount"
-        params={{}}
-        search={{}}
-        today="2026-09-29"
-        frame={{ section: 'Insights', tabs }}
-      />,
-    );
-  const now = () => shell.current as unknown as Parameters<typeof heldFor>[2];
-  const current = (held: ReturnType<typeof heldFor>) =>
-    held?.input.frame?.tabs?.find((t) => t.current)?.label;
-
-  it('draws another address of the screen on show from its data, as that page', () => {
-    live();
-    const held = heldFor('/people/insights/turnover', {}, now());
-    expect(held?.pending).toBe(false);
-    expect(held?.input.path).toBe('/people/insights/turnover');
-    expect(held?.input.load).toEqual({ status: 'ready', data: { figures: 1 } });
-    expect(current(held)).toBe('turnover');
-    // Asked another question, it is not the same data.
-    expect(heldFor('/people/insights/turnover', { segment: 's' }, now())?.pending).toBe(true);
-  });
-
-  it('keeps the page on show under another of its tabs, its body to come', () => {
-    live();
-    const held = heldFor('/people/insights/what-changed', {}, now());
-    expect(held?.pending).toBe(true);
-    expect(held?.input.path).toBe('/people/insights/headcount');
-    expect(current(held)).toBe('what-changed');
-  });
-
-  it('shows a page seen before as it was, until a write', () => {
-    live();
-    cleanup();
-    // Away from it, nothing is on show: only what was seen.
-    expect(heldFor('/people/insights/what-changed', {}, now())).toBeNull();
-    expect(heldFor('/people/insights/headcount', {}, now())?.input.path).toBe(
-      '/people/insights/headcount',
-    );
-    // A write draws the shell again: everything seen before it is stale.
-    shell.current = { ...shell.current };
-    expect(heldFor('/people/insights/headcount', {}, now())).toBeNull();
   });
 });
 

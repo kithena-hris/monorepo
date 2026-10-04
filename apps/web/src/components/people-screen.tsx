@@ -1,24 +1,18 @@
 'use client';
 
-import { Skeleton } from '@reach/ui';
 import type { Route } from 'next';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useEffect,
-  useLayoutEffect,
   useReducer,
   useRef,
   useState,
-  useSyncExternalStore,
   useTransition,
   type JSX,
-  type ReactNode,
 } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
-import { matchPath } from '../lib/remotes';
-import type { ShellData } from '../lib/shell-data';
 import { useShellData } from './app-shell';
 import { DIRECTORY_VIEWS, viewHref } from '../lib/shortcuts';
 import {
@@ -118,147 +112,6 @@ export interface PeopleScreenProps {
         }[];
       }
     | undefined;
-  /**
-   * Drawn by a loading state from what this tab already holds, rather than
-   * sent by the server for this address: kept out of what it remembers.
-   */
-  readonly kept?: boolean;
-}
-
-/*
- * What this tab has shown of People, so that going back to a page is the page
- * at once rather than its skeleton.
- *
- * Each page People's server sent, by its address, with the shell's data it
- * arrived under. That data is drawn again only after a write (the layout
- * renders again then, `changed` in `lib/people.ts`), so a page kept under an
- * older copy is from before a write and is never shown again: a saved change
- * is never shown stale. Only in the browser — on the server this module is
- * shared by everybody's requests.
- */
-interface Seen {
-  readonly input: PeopleScreenProps;
-  readonly shell: ShellData;
-}
-const seen = new Map<string, Seen>();
-/** As many pages as anybody moves between; the oldest goes first. */
-const KEEP = 24;
-/** The page on screen now, by its address; null away from People. */
-let onScreen: string | null = null;
-
-/** An address as it is kept: the path, and its query in one order. */
-function addressKey(path: string, search: Readonly<Record<string, string>>): string {
-  const query = new URLSearchParams(
-    Object.entries(search).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-  ).toString();
-  return query === '' ? path : `${path}?${query}`;
-}
-
-/** The query as the server reads it (`flatSearch`): a repeated key is dropped. */
-function flat(query: URLSearchParams): Record<string, string> {
-  return Object.fromEntries(
-    [...query.keys()].flatMap((k) => {
-      const all = query.getAll(k);
-      return all.length === 1 ? [[k, all[0] ?? '']] : [];
-    }),
-  );
-}
-
-function same(a: Readonly<Record<string, string>>, b: Readonly<Record<string, string>>): boolean {
-  const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k]);
-}
-
-const pathOf = (href: string): string => href.split(/[?#]/)[0] ?? href;
-
-/** The frame with `to` as the tab chosen: the tab moves on the click, not when the page lands. */
-function chosen(frame: PeopleScreenProps['frame'], to: string): PeopleScreenProps['frame'] {
-  return frame?.tabs === undefined
-    ? frame
-    : { ...frame, tabs: frame.tabs.map((t) => ({ ...t, current: pathOf(t.href) === to })) };
-}
-
-/**
- * What a loading state for `to` can show at once, from what is on screen and
- * what was seen, or null for the page's skeleton.
- *
- * - Another address of the screen on show, asked the same question: the same
- *   data, which is what the server will send (`loadScreen` reads the screen,
- *   its parameters and the query, never which of its paths it is). Insights'
- *   tabs, the directory as a list or as cards. Drawn as that page now.
- * - A page seen before: as it was, while the navigation fetches it again.
- * - Another tab of the page on show: its header, the tab moved, and its body
- *   still to come (`pending`).
- */
-export function heldFor(
-  to: string,
-  search: Readonly<Record<string, string>>,
-  shell: ShellData,
-): { readonly input: PeopleScreenProps; readonly pending: boolean } | null {
-  const shown = onScreen === null ? undefined : seen.get(onScreen);
-  const current = shown?.shell === shell ? shown.input : undefined;
-  const target = matchPath(shell.routes, to);
-  if (
-    current?.route != null &&
-    target !== undefined &&
-    shell.screens?.[target.path] === current.route.component &&
-    same(target.params, current.params) &&
-    same(search, current.search)
-  ) {
-    return { input: { ...current, path: to, frame: chosen(current.frame, to) }, pending: false };
-  }
-  const before = seen.get(addressKey(to, search));
-  if (before?.shell === shell) return { input: before.input, pending: false };
-  if (current?.frame?.tabs?.some((t) => pathOf(t.href) === to) === true) {
-    return { input: { ...current, frame: chosen(current.frame, to) }, pending: true };
-  }
-  return null;
-}
-
-/** How long a body may take before its skeleton shows: a quick answer never flashes one. */
-const PENDING_MS = 150;
-
-const subscribeNever = (): (() => void) => () => undefined;
-
-/**
- * A People page while it is fetched (`PageLoading`): what `heldFor` finds,
- * drawn in the area's one stage (`RemoteScreen`), so a header shared with the
- * page on screen stays the element it is; `skeleton` when it finds nothing.
- * Decided once, as the loading state opens: the page on screen is about to go.
- */
-export function PeopleLoading({ skeleton }: { readonly skeleton: ReactNode }): ReactNode {
-  const to = usePathname();
-  const query = useSearchParams();
-  const shell = useShellData();
-  // Never from memory while hydrating: the server had none.
-  const hydrating = useSyncExternalStore(
-    subscribeNever,
-    () => false,
-    () => true,
-  );
-  const [held] = useState(() => (hydrating ? null : heldFor(to, flat(query), shell)));
-  const [late, setLate] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLate(true);
-    }, PENDING_MS);
-    return () => {
-      clearTimeout(timer);
-    };
-  }, []);
-  if (held === null) return skeleton;
-  const { input, pending } = held;
-  return (
-    <PeopleScreen
-      {...input}
-      kept
-      frame={
-        pending && late && input.frame !== undefined
-          ? { ...input.frame, pending: true }
-          : input.frame
-      }
-    />
-  );
 }
 
 /**
@@ -469,7 +322,7 @@ function download(
   return { ok: true };
 }
 
-/** What each streamed part of a load settled to, once it has: kept, so a page held from `seen` has it at once. */
+/** What each streamed part of a load settled to, once it has: kept, so a page drawn again has it at once. */
 const settled = new WeakMap<object, unknown>();
 
 const isThenable = (value: unknown): value is PromiseLike<unknown> =>
@@ -522,24 +375,9 @@ function useStreamed(load: ScreenLoad): ScreenLoad {
 }
 
 export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
-  const { route, path, params, search, today, frame, kept = false } = input;
+  const { route, path, params, search, today, frame } = input;
   const load = useStreamed(input.load);
   const shell = useShellData();
-  // What the server sent for this address is kept, and is what is on screen.
-  useLayoutEffect(() => {
-    if (kept) return;
-    const key = addressKey(path, search);
-    seen.delete(key);
-    seen.set(key, { input, shell });
-    for (const old of seen.keys()) {
-      if (seen.size <= KEEP) break;
-      seen.delete(old);
-    }
-    onScreen = key;
-    return () => {
-      if (onScreen === key) onScreen = null;
-    };
-  });
   const router = useRouter();
   const [, startTransition] = useTransition();
   const refresh = (): void => {
@@ -1718,16 +1556,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       area="People"
       route={route}
       props={frame === undefined ? props : { ...props, frame }}
-      // Drawn in the browser, the screen is its header's shape until it is: the
-      // trail and the tabs the frame will give it.
-      fallback={
-        <Skeleton
-          shape="page"
-          label="Loading People"
-          breadcrumb={frame?.section != null}
-          tabs={frame?.tabs?.length ?? 0}
-        />
-      }
+      // Served whole by the server and hydrated over: nothing stands in for it.
+      fallback={null}
     />
   );
 }
