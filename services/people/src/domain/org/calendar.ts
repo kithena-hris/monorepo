@@ -237,7 +237,7 @@ function checkCountry(country: string): Result<string> {
     : ok(country.toUpperCase());
 }
 
-function checkName(name: string): Result<string> {
+export function checkName(name: string): Result<string> {
   const trimmed = name.trim();
   return trimmed === '' || trimmed.length > 200
     ? err(failure('NAME_REQUIRED', 'A name of 1 to 200 characters is required', ['name']))
