@@ -62,6 +62,11 @@ const ORG = {
       },
     ],
   ]),
+  orgUnits: new Map([
+    ['eng', { id: 'eng', name: 'Engineering', parentId: null }],
+    ['plat', { id: 'plat', name: 'Platform', parentId: 'eng' }],
+    ['old', { id: 'old', name: 'Old team', parentId: 'eng', archived: true }],
+  ]),
 } as never;
 
 function world(
@@ -227,10 +232,17 @@ describe('the completeness view', () => {
         plain('home_zone', 'time_zone'),
         plain('entity', 'legal_entity_ref'),
         plain('office', 'location_ref'),
+        plain('team', 'org_unit_ref'),
       ],
-      staff: ['nationality', 'pay_currency', 'first_language', 'home_zone', 'entity', 'office'].map(
-        (key) => ({ key, people: 1 }),
-      ),
+      staff: [
+        'nationality',
+        'pay_currency',
+        'first_language',
+        'home_zone',
+        'entity',
+        'office',
+        'team',
+      ].map((key) => ({ key, people: 1 })),
     });
     const view = await completenessView(w.deps, w.as(HR_ACCOUNT, 'hr'));
     if (!view.ok) throw new Error(view.error.message);
@@ -247,6 +259,11 @@ describe('the completeness view', () => {
     // The company's own, the archived one left out.
     expect(options('entity')).toEqual([{ value: ENTITY, label: 'Acme Iberia SL' }]);
     expect(options('office')).toEqual([{ value: 'loc-mad', label: 'Madrid' }]);
+    // Org units by their path from the top.
+    expect(options('team')).toEqual([
+      { value: 'eng', label: 'Engineering' },
+      { value: 'plat', label: 'Engineering › Platform' },
+    ]);
   });
 
   it('saves any country offered, not only one with address rules', async () => {

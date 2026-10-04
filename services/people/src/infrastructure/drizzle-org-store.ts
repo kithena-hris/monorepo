@@ -10,6 +10,7 @@ import {
   legalEntity,
   location,
   locationZone,
+  orgUnit,
   outbox,
   person,
   tenantSettings,
@@ -40,9 +41,9 @@ async function zonesOf(
 }
 
 /**
- * Legal entities, locations and settings in Postgres (PEO-099).
+ * Legal entities, locations, org units and settings in Postgres (PEO-099).
  *
- * `load` is the resolver every "today" in People goes through: four small
+ * `load` is the resolver every "today" in People goes through: five small
  * reads, once per transaction that needs a calendar. A tenant has a handful of
  * entities and at most hundreds of locations, so the whole calendar is read
  * rather than the one row a person points at — and one read answers a
@@ -51,11 +52,12 @@ async function zonesOf(
 export function drizzleOrgStore(): OrgStore {
   const store: OrgStore = {
     async load(tx, tenantId): Promise<TenantCalendar> {
-      const [settings, entities, locations, zones] = [
+      const [settings, entities, locations, zones, units] = [
         await store.settings(tx, tenantId),
         await store.legalEntities(tx, tenantId),
         await tx.select().from(location).where(eq(location.tenantId, tenantId)),
         await zonesOf(tx, tenantId),
+        await store.orgUnits(tx, tenantId),
       ];
       return {
         defaultZone: settings.defaultTimeZone,
@@ -80,6 +82,7 @@ export function drizzleOrgStore(): OrgStore {
             },
           ]),
         ),
+        orgUnits: new Map(units.map((u) => [u.id, u])),
       };
     },
 
@@ -197,6 +200,37 @@ export function drizzleOrgStore(): OrgStore {
 
     async insertZone(tx, tenantId, locationId, zone) {
       await tx.insert(locationZone).values({ tenantId, locationId, ...zone });
+    },
+
+    async orgUnits(tx, tenantId) {
+      const rows = await tx
+        .select()
+        .from(orgUnit)
+        .where(eq(orgUnit.tenantId, tenantId))
+        .orderBy(asc(orgUnit.name), asc(orgUnit.id));
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        parentId: r.parentId,
+        archived: r.archivedAt !== null,
+      }));
+    },
+
+    async insertOrgUnit(tx, tenantId, unit) {
+      await tx
+        .insert(orgUnit)
+        .values({ tenantId, id: unit.id, name: unit.name, parentId: unit.parentId });
+    },
+
+    async updateOrgUnit(tx, tenantId, unit) {
+      await tx
+        .update(orgUnit)
+        .set({
+          name: unit.name,
+          parentId: unit.parentId,
+          archivedAt: unit.archived ? sql`COALESCE(${orgUnit.archivedAt}, now())` : null,
+        })
+        .where(and(eq(orgUnit.tenantId, tenantId), eq(orgUnit.id, unit.id)));
     },
 
     async publish(tx, events) {

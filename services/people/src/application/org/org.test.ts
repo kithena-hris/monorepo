@@ -126,6 +126,79 @@ describe('legal entities and locations', () => {
   });
 });
 
+describe('org units', () => {
+  it('adds a tree, read by anybody with each unit’s path, each change its own event', async () => {
+    const { org, admin, hr, events } = setup();
+    const eng = await org.createOrgUnit(tx, { ...admin, name: 'Engineering', parentId: null });
+    if (!eng.ok) throw new Error(eng.error.message);
+    const platform = await org.createOrgUnit(tx, {
+      ...admin,
+      name: 'Platform',
+      parentId: eng.value.id,
+    });
+    if (!platform.ok) throw new Error(platform.error.message);
+    expect(platform.value).toMatchObject({
+      name: 'Platform',
+      parentId: eng.value.id,
+      path: 'Engineering › Platform',
+      archived: false,
+    });
+
+    const listed = await org.orgUnits(tx, hr);
+    expect(listed.ok && listed.value.map((u) => u.path)).toEqual([
+      'Engineering',
+      'Engineering › Platform',
+    ]);
+
+    const renamed = await org.updateOrgUnit(tx, { ...admin, id: eng.value.id, name: 'R&D' });
+    expect(renamed.ok && renamed.value.path).toBe('R&D');
+    const archived = await org.updateOrgUnit(tx, {
+      ...admin,
+      id: platform.value.id,
+      archived: true,
+    });
+    expect(archived.ok && archived.value.archived).toBe(true);
+
+    expect(events.map((e) => e.eventName)).toEqual([
+      'people.org_unit.created',
+      'people.org_unit.created',
+      'people.org_unit.updated',
+      'people.org_unit.updated',
+    ]);
+    expect(events[3]?.payload).toMatchObject({
+      orgUnitId: platform.value.id,
+      archived: true,
+      fieldsChanged: ['archived'],
+    });
+  });
+
+  it('refuses anybody but a People administrator, and a namesake beside it', async () => {
+    const { org, admin, hr, events } = setup();
+    expect(
+      await org.createOrgUnit(tx, { ...hr, name: 'Sales', parentId: null }),
+    ).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+    await org.createOrgUnit(tx, { ...admin, name: 'Sales', parentId: null });
+    expect(
+      await org.createOrgUnit(tx, { ...admin, name: 'sales', parentId: null }),
+    ).toMatchObject({ ok: false, error: { code: 'ORG_UNIT_NAME_TAKEN' } });
+    expect(events).toHaveLength(1);
+  });
+
+  it('moves a unit and writes nothing when nothing changed', async () => {
+    const { org, admin, events } = setup();
+    const a = await org.createOrgUnit(tx, { ...admin, name: 'A', parentId: null });
+    const b = await org.createOrgUnit(tx, { ...admin, name: 'B', parentId: null });
+    if (!a.ok || !b.ok) throw new Error('not created');
+    const moved = await org.updateOrgUnit(tx, { ...admin, id: b.value.id, parentId: a.value.id });
+    expect(moved.ok && moved.value.path).toBe('A › B');
+    await org.updateOrgUnit(tx, { ...admin, id: b.value.id, name: 'B' });
+    expect(events.filter((e) => e.eventName === 'people.org_unit.updated')).toHaveLength(1);
+    expect(
+      await org.updateOrgUnit(tx, { ...admin, id: a.value.id, parentId: b.value.id }),
+    ).toMatchObject({ ok: false, error: { code: 'ORG_UNIT_CYCLE' } });
+  });
+});
+
 describe('settings', () => {
   it('raises the cohort minimum and never lowers it', async () => {
     const { org, admin } = setup();

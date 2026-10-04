@@ -27,6 +27,7 @@ import { fromMinor } from '../import/cells.js';
 import { relationsToMany, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import type { ViewerRelations } from '../../domain/access/field-access.js';
+import { unitPaths } from '../../domain/org/org-unit.js';
 import { NOBODY, tenantToday, type ScreenDeps, type Tx } from './record.js';
 import { chartViewerOf, segmentFor, segmentsFor, type SegmentView } from './segments.js';
 
@@ -212,6 +213,8 @@ export const TENURE_LABELS: Readonly<Record<(typeof TENURE_BANDS)[number], strin
 export function labeller(
   definitions: readonly AttributeDefinition[],
   key: string,
+  /** Names for values that are ids: an org unit's path, for a department. */
+  names: ReadonlyMap<string, string> = new Map(),
 ): (value: string | null) => string {
   const definition = definitions.find((d) => d.key === key);
   const options =
@@ -221,7 +224,7 @@ export function labeller(
   return (value) => {
     if (value === null) return 'Not set';
     if (value === '(unanswered)') return 'Not answered';
-    return options.get(value) ?? value;
+    return options.get(value) ?? names.get(value) ?? value;
   };
 }
 
@@ -273,6 +276,8 @@ export interface ChartScope {
   /** Section keys to their labels. */
   readonly sections: ReadonlyMap<string, string>;
   readonly everyone: ViewerRelations;
+  /** Org unit ids to their paths: a department held as an org unit is named by it. */
+  readonly departments: ReadonlyMap<string, string>;
 }
 
 /**
@@ -323,6 +328,9 @@ export async function chartScope(
     definitions,
     sections: new Map(version.document.sections.map((s) => [s.key as string, s.label.default])),
     everyone,
+    departments: unitPaths([
+      ...((await deps.calendars.load(tx, asking.tenantId)).orgUnits?.values() ?? []),
+    ]),
   });
 }
 
@@ -383,7 +391,7 @@ async function chartsView(
     by: ['department', 'employment_type'],
     ...(filters ? { filters } : {}),
   });
-  const department = labeller(definitions, 'org_unit');
+  const department = labeller(definitions, 'org_unit', scope.departments);
   const employment = labeller(definitions, 'employment_type');
 
   const percent = states.ok ? percentComplete(states.value.states) : null;

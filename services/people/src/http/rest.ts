@@ -506,6 +506,27 @@ export const LocationZoneBody = z.strictObject({
   effectiveFrom: z.iso.date(),
 });
 
+export const OrgUnitBody = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  parentId: z.uuid().nullable(),
+  path: z.string().describe('From the top: "Engineering › Platform".'),
+  archived: z.boolean(),
+});
+
+export const CreateOrgUnitBody = z.strictObject({
+  name: z.string(),
+  /** The unit it sits under; absent or null at the top. */
+  parentId: z.uuid().nullable().optional(),
+});
+
+export const PatchOrgUnitBody = z.strictObject({
+  name: z.string().optional(),
+  /** Move under another unit; null moves it to the top. */
+  parentId: z.uuid().nullable().optional(),
+  archived: z.boolean().optional(),
+});
+
 /* ------------------------------------------------------------- errors -- */
 
 const STATUS: Record<string, number> = {
@@ -550,6 +571,9 @@ const STATUS: Record<string, number> = {
   // An upstream system is the source of record for it (PEO-073): change it there.
   SOURCE_OF_RECORD_EXTERNAL: 403,
   SCIM_CONNECTION_REVOKED: 409,
+  // An org unit's name taken beside it, or units still under one being archived.
+  ORG_UNIT_NAME_TAKEN: 409,
+  ORG_UNIT_HAS_UNITS: 409,
   UNAVAILABLE: 503,
   // An administrator viewing as somebody changes nothing (`domain/access/view-as.ts`).
   VIEW_ONLY: 403,
@@ -919,6 +943,8 @@ export function restRoutes(deps: RestDeps): Route[] {
     readOrg(asking, (org, tx) => org.legalEntities(tx, asking), id);
   const readLocation = (asking: Asking, id: string) =>
     readOrg(asking, (org, tx) => org.locations(tx, asking), id);
+  const readOrgUnit = (asking: Asking, id: string) =>
+    readOrg(asking, (org, tx) => org.orgUnits(tx, asking), id);
 
   /** Parse a JSON body against a schema, or the refusal to answer with. */
   const bodyAs = <T>(schema: z.ZodType<T>, request: RestRequest): Result<T> => {
@@ -1837,6 +1863,63 @@ export function restRoutes(deps: RestDeps): Route[] {
             return changed.ok ? ok(id) : changed;
           },
           (resource) => readLocation(asking, resource),
+        );
+      },
+    },
+    {
+      method: 'GET',
+      pattern: /^\/v1\/org-units$/,
+      handle: async (asking) =>
+        respond(await inOrg(asking, (org, tx) => org.orgUnits(tx, asking)), 200, (items) => ({
+          items,
+        })),
+    },
+    {
+      method: 'POST',
+      pattern: /^\/v1\/org-units$/,
+      handle: async (asking, request) => {
+        const input = bodyAs(CreateOrgUnitBody, request);
+        if (!input.ok) return refused(input.error);
+        return idempotent(
+          deps,
+          asking,
+          request,
+          201,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Org units are not configured'));
+            const created = await service.org.createOrgUnit(tx, {
+              ...asking,
+              name: input.value.name,
+              parentId: input.value.parentId ?? null,
+            });
+            return created.ok ? ok(created.value.id) : created;
+          },
+          (id) => readOrgUnit(asking, id),
+        );
+      },
+    },
+    {
+      method: 'PATCH',
+      pattern: new RegExp(`^/v1/org-units/${UUID}$`),
+      handle: async (asking, request, params) => {
+        const input = bodyAs(PatchOrgUnitBody, request);
+        if (!input.ok) return refused(input.error);
+        const id = params['id'] ?? '';
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            if (!service.org) return err(failure('UNAVAILABLE', 'Org units are not configured'));
+            const updated = await service.org.updateOrgUnit(tx, {
+              ...asking,
+              id,
+              ...present(input.value),
+            });
+            return updated.ok ? ok(id) : updated;
+          },
+          (resource) => readOrgUnit(asking, resource),
         );
       },
     },

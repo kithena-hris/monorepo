@@ -482,6 +482,9 @@ describe('at 390×844, with a finger', () => {
                 archived: false,
               },
             ],
+            orgUnits: [
+              { id: 'u1', name: 'Engineering', parentId: null, path: 'Engineering', archived: false },
+            ],
             numberings: [{ legalEntityId: 'e1', prefix: 'ES-', digits: 5, nextValue: 42 }],
             countries: [{ code: 'ES', name: 'Spain' }],
             timeZones: ['Etc/UTC', 'Europe/Madrid'],
@@ -502,12 +505,61 @@ describe('at 390×844, with a finger', () => {
         onCreateLocation={ok}
         onUpdateLocation={ok}
         onChangeZone={ok}
+        onCreateOrgUnit={ok}
+        onUpdateOrgUnit={ok}
         onSetNumbering={ok}
       />,
     );
     // Each row's actions are in its menu, on the card under a finger (H7).
     await userEvent.click(screen.getByRole('button', { name: 'Actions for Acme Iberia SL' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+    await settled();
+    expect(await violations(document.body)).toEqual([]);
+    expect(underFloor(document.body)).toEqual([]);
+  });
+
+  it('the org units, as a tree, and moving one', async () => {
+    const units = [
+      { id: 'u1', name: 'Engineering', parentId: null, path: 'Engineering', archived: false },
+      { id: 'u2', name: 'Platform', parentId: 'u1', path: 'Engineering › Platform', archived: false },
+    ];
+    await checked(
+      <Organisation
+        load={{
+          status: 'ready',
+          data: {
+            canManage: true,
+            settings: {
+              defaultTimeZone: 'Europe/Madrid',
+              cohortMinimum: 10,
+              slug: 'acme',
+              displayName: 'Acme',
+            },
+            legalEntities: [],
+            locations: [],
+            orgUnits: units,
+            numberings: [],
+            countries: [],
+            timeZones: [],
+            retentionFloors: [],
+          },
+        }}
+        tab="org-units"
+        onTabChange={() => undefined}
+        open="unit-move:u2"
+        onOpenChange={() => undefined}
+        onUpdateSettings={ok}
+        onCreateEntity={ok}
+        onUpdateEntity={ok}
+        onCreateLocation={ok}
+        onUpdateLocation={ok}
+        onChangeZone={ok}
+        onCreateOrgUnit={ok}
+        onUpdateOrgUnit={ok}
+        onSetNumbering={ok}
+      />,
+    );
+    expect(screen.getByRole('dialog', { name: 'Move Platform' })).toBeInTheDocument();
     await settled();
     expect(await violations(document.body)).toEqual([]);
     expect(underFloor(document.body)).toEqual([]);

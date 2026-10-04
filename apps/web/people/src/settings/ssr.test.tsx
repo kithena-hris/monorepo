@@ -44,6 +44,10 @@ const organisation: OrganisationState = {
       archived: false,
     },
   ],
+  orgUnits: [
+    { id: 'u1', name: 'Engineering', parentId: null, path: 'Engineering', archived: false },
+    { id: 'u2', name: 'Platform', parentId: 'u1', path: 'Engineering › Platform', archived: false },
+  ],
   numberings: [{ legalEntityId: ACME, prefix: 'ES-', digits: 5, nextValue: 42 }],
   countries: [{ code: 'ES', name: 'Spain' }],
   timeZones: ['Europe/Madrid'],
@@ -75,6 +79,8 @@ const orgProps = (tab: string) => ({
   onCreateLocation: done,
   onUpdateLocation: done,
   onChangeZone: done,
+  onCreateOrgUnit: done,
+  onUpdateOrgUnit: done,
   onSetNumbering: done,
   onSetPayBand: done,
 });
@@ -160,6 +166,7 @@ describe('People settings on the server', () => {
   it.each([
     ['entities', 'Acme Iberia SL'],
     ['locations', 'Madrid office'],
+    ['org-units', 'Platform'],
     ['numbering', 'ES-00042'],
     ['country-packs', 'Identity'],
     ['reminders', 'Then once a week'],
@@ -213,6 +220,9 @@ describe('People settings’ dialogs, in the address', () => {
     ['entities', 'entity:new', 'Add a legal entity'],
     ['locations', 'location:l1', 'Madrid office'],
     ['numbering', `numbering:${ACME}`, 'ES-'],
+    ['org-units', 'unit:new', 'Add an org unit'],
+    ['org-units', 'unit:u2', 'Rename Platform'],
+    ['org-units', 'unit-move:u2', 'Move Platform'],
     ['pay-bands', 'band:new', 'Add a pay band'],
     ['pay-bands', 'band:b1', 'Correct L3, EUR'],
   ])('serves Organisation’s %s with ?open=%s', async (tab, open, text) => {

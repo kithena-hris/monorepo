@@ -25,12 +25,13 @@ import {
   type TenantCalendar,
 } from '../../domain/org/calendar.js';
 import { checkScheme } from '../../domain/org/numbering.js';
+import { checkNewUnit, checkUnitChange, unitPaths, type OrgUnit } from '../../domain/org/org-unit.js';
 import type { Viewer } from '../person/ports.js';
 import { userActor } from '../person/ports.js';
 import type { EmployeeNumbers, NumberingView } from './numbering.js';
 
 /**
- * Legal entities, locations and the tenant's People settings (PEO-099).
+ * Legal entities, locations, org units and the tenant's People settings (PEO-099).
  *
  * The calendars every "today" in People is read on, and the cohort minimum.
  * Reading is open to anybody in the tenant — an office and its zone are what
@@ -106,6 +107,15 @@ export interface LocationView {
   readonly archived: boolean;
 }
 
+/** An org unit as read: its path from the top, "Engineering › Platform", beside its name. */
+export interface OrgUnitView {
+  readonly id: string;
+  readonly name: string;
+  readonly parentId: string | null;
+  readonly path: string;
+  readonly archived: boolean;
+}
+
 export interface ZoneRow {
   readonly id: string;
   readonly effectiveFrom: CalendarDate;
@@ -145,6 +155,10 @@ export interface OrgStore extends Calendars {
     location: { readonly id: string; readonly name: string; readonly archived: boolean },
   ): Promise<void>;
   insertZone(tx: Tx, tenantId: string, locationId: string, zone: ZoneRow): Promise<void>;
+  /** Archived ones included, with the flag. */
+  orgUnits(tx: Tx, tenantId: string): Promise<readonly Required<OrgUnit>[]>;
+  insertOrgUnit(tx: Tx, tenantId: string, unit: Required<OrgUnit>): Promise<void>;
+  updateOrgUnit(tx: Tx, tenantId: string, unit: Required<OrgUnit>): Promise<void>;
   publish(tx: Tx, events: readonly PendingEvent[]): Promise<void>;
 }
 
@@ -179,7 +193,10 @@ export interface SettingsChange {
 }
 
 const NotAdmin = () =>
-  failure('FORBIDDEN', 'Only a People administrator may change legal entities, locations or settings');
+  failure(
+    'FORBIDDEN',
+    'Only a People administrator may change legal entities, locations, org units or settings',
+  );
 
 export interface OrgAdmin {
   settings(tx: Tx, asking: Asked): Promise<Result<TenantSettings>>;
@@ -211,6 +228,22 @@ export interface OrgAdmin {
     tx: Tx,
     asking: Asked<{ readonly id: string; readonly timeZone: string; readonly effectiveFrom: string }>,
   ): Promise<Result<LocationView>>;
+  /** Every org unit, archived ones too, ordered by path. Anybody in the tenant reads them. */
+  orgUnits(tx: Tx, asking: Asked): Promise<Result<readonly OrgUnitView[]>>;
+  createOrgUnit(
+    tx: Tx,
+    asking: Asked<{ readonly name: string; readonly parentId: string | null }>,
+  ): Promise<Result<OrgUnitView>>;
+  /** Rename, move under another unit (null: to the top), archive or restore. */
+  updateOrgUnit(
+    tx: Tx,
+    asking: Asked<{
+      readonly id: string;
+      readonly name?: string;
+      readonly parentId?: string | null;
+      readonly archived?: boolean;
+    }>,
+  ): Promise<Result<OrgUnitView>>;
   adoptTenant(
     tx: Tx,
     by: Writer,
@@ -284,6 +317,19 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
   async function locationView(tx: Tx, tenantId: string, id: string): Promise<Result<LocationView>> {
     const found = (await store.locations(tx, tenantId)).find((l) => l.id === id);
     return found ? ok(viewOf(found)) : err(failure('NOT_FOUND', 'No such location'));
+  }
+
+  async function unitViews(tx: Tx, tenantId: string): Promise<OrgUnitView[]> {
+    const units = await store.orgUnits(tx, tenantId);
+    const paths = unitPaths(units);
+    return units
+      .map((u) => ({ ...u, path: paths.get(u.id) ?? u.name }))
+      .toSorted((a, b) => a.path.localeCompare(b.path, 'en'));
+  }
+
+  async function unitView(tx: Tx, tenantId: string, id: string): Promise<Result<OrgUnitView>> {
+    const found = (await unitViews(tx, tenantId)).find((u) => u.id === id);
+    return found ? ok(found) : err(failure('NOT_FOUND', 'No such org unit'));
   }
 
   async function entity(tx: Tx, tenantId: string, id: string): Promise<Result<LegalEntityView>> {
@@ -519,6 +565,50 @@ export function orgAdmin(deps: OrgDeps): OrgAdmin {
         ),
       ]);
       return locationView(tx, asking.tenantId, asking.id);
+    },
+
+    orgUnits: async (tx, asking) => ok(await unitViews(tx, asking.tenantId)),
+
+    createOrgUnit: async (tx, asking) => {
+      const by = writer(asking);
+      if (!by.ok) return by;
+      const checked = checkNewUnit(await store.orgUnits(tx, asking.tenantId), asking);
+      if (!checked.ok) return checked;
+      const created = { id: deps.newId(), ...checked.value, archived: false };
+      await store.insertOrgUnit(tx, asking.tenantId, created);
+      await store.publish(tx, [
+        event(by.value, 'people.org_unit.created', { type: 'OrgUnit', id: created.id }, {
+          orgUnitId: created.id,
+          name: created.name,
+          parentId: created.parentId,
+        }),
+      ]);
+      return unitView(tx, asking.tenantId, created.id);
+    },
+
+    updateOrgUnit: async (tx, asking) => {
+      const by = writer(asking);
+      if (!by.ok) return by;
+      const units = await store.orgUnits(tx, asking.tenantId);
+      const next = checkUnitChange(units, asking.id, asking);
+      if (!next.ok) return next;
+      const before = units.find((u) => u.id === asking.id);
+      const fieldsChanged = (['name', 'parentId', 'archived'] as const).filter(
+        (k) => next.value[k] !== before?.[k],
+      );
+      if (fieldsChanged.length > 0) {
+        await store.updateOrgUnit(tx, asking.tenantId, next.value);
+        await store.publish(tx, [
+          event(by.value, 'people.org_unit.updated', { type: 'OrgUnit', id: asking.id }, {
+            orgUnitId: asking.id,
+            name: next.value.name,
+            parentId: next.value.parentId,
+            archived: next.value.archived,
+            fieldsChanged,
+          }),
+        ]);
+      }
+      return unitView(tx, asking.tenantId, asking.id);
     },
 
     /**

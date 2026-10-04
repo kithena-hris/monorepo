@@ -1131,6 +1131,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onCreateLocation: actions.createLocation,
           onUpdateLocation: actions.updateLocation,
           onChangeZone: actions.changeZone,
+          onCreateOrgUnit: actions.createOrgUnit,
+          onUpdateOrgUnit: actions.updateOrgUnit,
           onSetNumbering: actions.setNumbering,
           onSetPayBand: actions.setPayBand,
           // Each tab is its own address: legal entities are the page's, the others under it.

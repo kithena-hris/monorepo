@@ -30,6 +30,9 @@ import {
   LocationBody,
   LocationZoneBody,
   NumberingBody,
+  OrgUnitBody,
+  CreateOrgUnitBody,
+  PatchOrgUnitBody,
   PatchLegalEntityBody,
   PatchLocationBody,
   PatchPersonBody,
@@ -139,6 +142,10 @@ const components = {
   CreateLocation: CreateLocationBody,
   PatchLocation: PatchLocationBody,
   LocationZone: LocationZoneBody,
+  OrgUnit: OrgUnitBody,
+  OrgUnits: z.object({ items: z.array(OrgUnitBody) }),
+  CreateOrgUnit: CreateOrgUnitBody,
+  PatchOrgUnit: PatchOrgUnitBody,
   CreateFullValues: CreateFullValuesBody,
   FullValuesDecision: FullValuesDecisionBody,
   FullValues: FullValuesBody,
@@ -1280,6 +1287,26 @@ export function openApiDocument(): Record<string, unknown> {
             201: { description: 'The location after', ...json('Location') },
             ...failure,
           },
+        },
+      },
+      '/v1/org-units': {
+        get: {
+          summary: 'Every org unit, archived ones too, with its path from the top',
+          responses: { 200: { description: 'Org units', ...json('OrgUnits') }, ...failure },
+        },
+        post: {
+          summary: 'Add an org unit, at the top or under another; people_admin only',
+          parameters: [idempotencyKey],
+          requestBody: { required: true, ...json('CreateOrgUnit') },
+          responses: { 201: { description: 'Created', ...json('OrgUnit') }, ...failure },
+        },
+      },
+      '/v1/org-units/{id}': {
+        patch: {
+          summary: 'Rename, move under another unit, archive or restore; people_admin only',
+          parameters: [id, idempotencyKey],
+          requestBody: { required: true, ...json('PatchOrgUnit') },
+          responses: { 200: { description: 'After', ...json('OrgUnit') }, ...failure },
         },
       },
       '/v1/roles': {
