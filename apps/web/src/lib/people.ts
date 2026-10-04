@@ -1,6 +1,6 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
-import { refresh } from 'next/cache';
+import { refresh, revalidatePath } from 'next/cache';
 import { cookies, headers } from 'next/headers';
 import { after } from 'next/server';
 import { cache } from 'react';
@@ -85,7 +85,8 @@ function wakeSoon(): typeof unreachable {
  * session's token is never another's, and never outliving what identity said.
  *
  * Only ever handed out beside a session identity has just confirmed in the
- * same request (`accessToken`): a signed-out or revoked session gets nothing
+ * same request (`accessToken`), or for a read whose answer waits for that
+ * confirmation (`readToken`): a signed-out or revoked session gets nothing
  * from here, on this instance or any other, the moment identity says so.
  */
 const minted = new Map<string, { readonly token: string; readonly until: number }>();
@@ -156,6 +157,30 @@ export const accessToken = cache(async (): Promise<string | null> => {
 });
 
 /**
+ * A token to start a read with: the one already minted for this session, at
+ * once, rather than after identity's check of the session; else the same wait
+ * as `accessToken`.
+ *
+ * Only ever for a read, and never trusted alone: `send` withholds the answer
+ * until `currentPerson` has confirmed the session in this same request, and a
+ * session identity no longer recognises gets `signedOut`, whatever People
+ * answered. What it saves is the order — the read and the check travel
+ * together instead of one after the other, a round trip off every page. The
+ * token is this session's own (keyed as `minted` is), one identity issued and
+ * this server already holds; nothing reaches a page that `accessToken` would
+ * not have let through.
+ */
+const readToken = cache(async (): Promise<string | null> => {
+  const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
+  const tenantId = (await headers()).get('x-tenant-id');
+  if (sessionId === undefined || sessionId === '' || tenantId === null || tenantId === '') {
+    return null;
+  }
+  const held = minted.get(keyOf(sessionId, tenantId));
+  return held !== undefined && held.until > Date.now() ? held.token : accessToken();
+});
+
+/**
  * Whose operations: People's, or another area's through the same router, the
  * same token and the same rules (TOF-060). `service` names it in a sentence.
  */
@@ -192,6 +217,12 @@ const read = cache(
 function changed(): void {
   try {
     refresh();
+    // And every page prefetched whole (`prefetchPage` in `links.ts`): `refresh`
+    // alone drops what the router kept but not its prefetches, so a tab
+    // fetched before the save would open as it was. A path revalidated is
+    // what tells the browser to drop those too; nothing here is cached on
+    // the server for it to drop.
+    revalidatePath('/', 'layout');
   } catch {
     // Not a server action.
   }
@@ -243,12 +274,76 @@ async function send(
   name: string,
   variables: Record<string, unknown>,
 ): Promise<PeopleAnswer<unknown>> {
+  const body = AREAS[area].operations[name] ?? '';
+  if (body.trimStart().startsWith('mutation')) {
+    // A write waits for identity's word on the session before it is sent.
+    const token = await accessToken();
+    if (token === null) return signedOut;
+    const answer = await call(area, name, variables, token, true);
+    // A read this viewer started before the write is not the page drawn after it.
+    const mine = `${sha256(token)}\n`;
+    for (const key of inFlight.keys()) if (key.startsWith(mine)) inFlight.delete(key);
+    return answer;
+  }
+  // A read goes with the session check (`readToken`), and is answered only
+  // once identity has confirmed the session; otherwise it is dropped, unread.
+  const token = await readToken();
+  if (token === null) return signedOut;
+  const [answer, person] = await Promise.all([
+    alongside(`${sha256(token)}\n${area}\n${name}\n${JSON.stringify(variables)}`, () =>
+      call(area, name, variables, token, false),
+    ),
+    currentPerson(),
+  ]);
+  if (person === null) {
+    for (const [k, v] of minted) if (v.token === token) minted.delete(k);
+    return signedOut;
+  }
+  return answer;
+}
+
+/**
+ * Reads on their way, by the token they were sent with and the read: a page
+ * asking what another page of the same viewer is already asking — the
+ * prefetches of a page's tabs all draw the same header, at the same moment —
+ * waits for that answer rather than asking again.
+ *
+ * Only while the first is in flight: once answered it is gone, and a write by
+ * the same viewer drops every read of theirs still on its way, so the page
+ * drawn after a save never waits on a read sent before it. No expiry, nothing
+ * else to invalidate. Keyed by a hash of the token, which is one session's (`minted`),
+ * so one viewer's answer is never another's; and each page still confirms its
+ * own session before it reads the answer (`send`). In-process.
+ */
+const inFlight = new Map<string, Promise<PeopleAnswer<unknown>>>();
+
+const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
+
+function alongside(
+  key: string,
+  ask: () => Promise<PeopleAnswer<unknown>>,
+): Promise<PeopleAnswer<unknown>> {
+  const held = inFlight.get(key);
+  if (held !== undefined) return held;
+  const answer: Promise<PeopleAnswer<unknown>> = ask().finally(() => {
+    // Only this one: a write may have dropped it and a newer read taken its place.
+    if (inFlight.get(key) === answer) inFlight.delete(key);
+  });
+  inFlight.set(key, answer);
+  return answer;
+}
+
+/** One operation through the router, as `token`, read back into an answer. */
+async function call(
+  area: keyof typeof AREAS,
+  name: string,
+  variables: Record<string, unknown>,
+  token: string,
+  writes: boolean,
+): Promise<PeopleAnswer<unknown>> {
   const { service, operations } = AREAS[area];
   const body = operations[name] ?? '';
-  const token = await accessToken();
-  if (token === null) return signedOut;
   const router = (process.env['ROUTER_URL'] ?? 'http://localhost:4000').replace(/\/$/, '');
-  const writes = body.trimStart().startsWith('mutation');
   // Every keyed write declares `$key`; the two that only compute do not.
   const keyed = body.includes('$key: String!');
   const operation = {

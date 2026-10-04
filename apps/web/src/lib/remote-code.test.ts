@@ -80,14 +80,22 @@ describe('verifyBuild', () => {
 
 describe('prepareRemoteSsr', () => {
   const files: Record<string, string> = {};
+  const asked: string[] = [];
   let server: Server;
   let base: string;
 
   beforeAll(async () => {
     server = createServer((request, response) => {
       const body = files[request.url ?? ''];
-      response.writeHead(body === undefined ? 404 : 200);
-      response.end(body);
+      // As a CDN does: an ETag for each file, and 304 to a request that holds it.
+      const etag = body === undefined ? undefined : `"${sri(body)}"`;
+      const unchanged = etag !== undefined && request.headers['if-none-match'] === etag;
+      asked.push(`${request.url ?? ''} ${unchanged ? '304' : body === undefined ? '404' : '200'}`);
+      response.writeHead(
+        body === undefined ? 404 : unchanged ? 304 : 200,
+        etag === undefined ? {} : { etag },
+      );
+      response.end(unchanged ? undefined : body);
     });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const address = server.address();
@@ -115,6 +123,30 @@ describe('prepareRemoteSsr', () => {
       ssr: `${base}/ssr/people.cjs`,
       stylesheet: { href: `/_people/ssr/people.css`, integrity: sri(CSS) },
     });
+  });
+
+  it('downloads the build again only when the host serves other bytes', async () => {
+    const other = `exports.Profile = function () { return 'v2'; };`;
+    serve(CODE, `${manifestOf(CODE)}\n`);
+    expect(await prepareRemoteSsr(base)).toBeDefined();
+    asked.length = 0;
+    expect(await prepareRemoteSsr(base)).toBeDefined();
+    // All three asked every time; the build answered with no body.
+    expect(asked.sort()).toEqual([
+      '/ssr/manifest.json 200',
+      '/ssr/manifest.json.sig 200',
+      '/ssr/people.cjs 304',
+    ]);
+    // A deploy: the next page fetches, checks and renders the new build.
+    serve(other);
+    asked.length = 0;
+    expect(await prepareRemoteSsr(base)).toBeDefined();
+    expect(asked).toContain('/ssr/people.cjs 200');
+    // Bytes swapped under an unchanged manifest are fetched, checked and refused.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    files['/ssr/people.cjs'] = 'exports.Profile = function () { return "swapped"; };';
+    expect(await prepareRemoteSsr(base)).toBeUndefined();
+    warn.mockRestore();
   });
 
   it('falls back to the browser for a substituted build, and says so once per build without the code', async () => {

@@ -18,7 +18,7 @@ import {
   remoteRoute,
   siblingsOf,
 } from '../lib/remotes';
-import { shellData } from '../lib/shell';
+import { shellData, warmShell } from '../lib/shell';
 import { currentPerson } from '../lib/session';
 import { withQuery } from '../lib/url-state';
 
@@ -47,20 +47,31 @@ export async function PeopleArea({
   readonly search: Readonly<Record<string, string>>;
   readonly area: 'people' | 'settings';
 }): Promise<JSX.Element> {
-  // All three at once: which screen the path is does not depend on who asks,
-  // and the token is minted (or found) while identity checks the session.
-  const [person, route] = await Promise.all([currentPerson(), remoteRoute(path), accessToken()]);
+  // All at once: which screen the path is does not depend on who asks, the
+  // token is minted (or found) while identity checks the session, and the
+  // reads the page is drawn from go with that check rather than after it —
+  // `people.ts` withholds every answer until identity has confirmed the
+  // session, and a page that turns out not to be drawn drops them unread.
+  const routed = remoteRoute(path);
+  warmShell();
+  // A section's bare path also fits `/people/:id`; it is the section, not a
+  // person called `review`, whatever this viewer may open under it. Bare
+  // `/people` is the first section: People's overview is Home's now.
+  const isBare = (r: NonNullable<Awaited<typeof routed>>): boolean =>
+    Object.keys(r.params).length > 0 && firstUnder(r.nav.sections, path) !== undefined;
+  const drawn = routed.then((r) => (r === undefined || (r !== null && isBare(r)) ? undefined : r));
+  const loading = drawn.then((r) =>
+    r == null
+      ? ({ status: 'none' } as const)
+      : loadScreen(r.component, { params: r.params, search }),
+  );
+  const preparing = drawn.then((r) => (r == null ? undefined : prepareRemoteSsr(r.base, r.area)));
+  const [person, route] = await Promise.all([currentPerson(), routed, accessToken()]);
   if (person === null) redirect('/login');
   // A company that did not buy People has no People screens (PEO-114).
   if (!person.entitlements.includes('module.people')) notFound();
 
-  // A section's bare path also fits `/people/:id`; it is the section, not a
-  // person called `review`, whatever this viewer may open under it. Bare
-  // `/people` is the first section: People's overview is Home's now.
-  const bare =
-    route != null &&
-    Object.keys(route.params).length > 0 &&
-    firstUnder(route.nav.sections, path) !== undefined;
+  const bare = route != null && isBare(route);
   if (route === undefined || bare) {
     // A section's bare path (`/people/review`) is the first of its tabs
     // this person opens, query and all; anything else nobody answers is a 404.
@@ -77,10 +88,8 @@ export async function PeopleArea({
   // process of its own (`lib/remote-code.ts`, PEO-115). `PEOPLE_REMOTE_SSR=off`
   // is still the switch.
   const [load, ssr, shell] = await Promise.all([
-    route === null
-      ? ({ status: 'none' } as const)
-      : loadScreen(route.component, { params: route.params, search }),
-    route === null ? undefined : prepareRemoteSsr(route.base, route.area),
+    loading,
+    preparing,
     // Which of People's places this person's roles open, the counts and the
     // notices, for the shell around the screen.
     shellData(person.entitlements),

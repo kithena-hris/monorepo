@@ -433,6 +433,18 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
   const named = fillFor === null || fillFor === 'all' ? null : fillFor;
   const shareId = item?.startsWith('export-') === true ? item.slice(7) : null;
   const approvals = read('Approvals', {}, VIEWS.Approvals);
+  // Every queue, asked beside the roles rather than after them: each read is
+  // answered once per request (`people.ts`), so those below find these on
+  // their way, and one this viewer may not open is refused at once and unused.
+  void Promise.all([
+    people('IdentifierReviews'),
+    people('Duplicates', { a: pair?.[0] ?? null, b: pair?.[1] ?? null }),
+    people('FullValues'),
+    people('Completeness'),
+    people('Analytics', { segment: null }),
+    people('ExportSharesToDecide'),
+    people('OwnDecided'),
+  ]);
   const roles = await people<{ hr?: boolean; admin?: boolean; finance?: boolean }>('Home');
   if (!roles.ok) {
     return roles.code === 'UNREACHABLE'

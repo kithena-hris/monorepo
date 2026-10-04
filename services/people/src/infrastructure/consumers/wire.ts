@@ -28,6 +28,7 @@ import { drizzleDuplicates } from '../drizzle-duplicates.js';
 import { drizzleUniqueClaims } from '../unique.js';
 import { recomputePerson } from '../../application/completeness/recompute.js';
 import { tenantTransaction } from '../unit-of-work.js';
+import { readCacheFrom } from '../valkey-read-cache.js';
 import { approvalMailerFrom } from '../approval-mailer.js';
 import { drizzlePersonReader } from '../drizzle-person-reader.js';
 import { drizzleIdentifierReviews } from '../drizzle-identifier-reviews.js';
@@ -78,7 +79,7 @@ export async function startConsumers(
   }
 
   const client = postgres(databaseUrl, { max: 5 });
-  const inTenant = tenantTransaction(drizzle(client));
+  const inTenant = tenantTransaction(drizzle(client), readCacheFrom(env)?.changed);
   const approvals = await pendingChanges(env, inTenant);
   const handle = consumerFrom(env, inTenant, approvals);
 
@@ -133,7 +134,7 @@ export function consumerFrom(
   const reportRoles = roleReportFrom(env, inTenant, systemClock);
   const reportSignup = signupReportFrom(env, inTenant, systemClock);
   const selfEntry = selfEntryFrom(env);
-  return peopleConsumer({
+  const handle = peopleConsumer({
     ...(authz === null ? {} : { authz }),
     ...(reportRoles === null ? {} : { reportRoles }),
     ...(reportSignup === null ? {} : { reportSignup }),
@@ -152,6 +153,22 @@ export function consumerFrom(
     org: orgAdmin({ store: drizzleOrgStore(), clock: systemClock, newId: uuidv7 }),
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
   });
+  /*
+   * An event applied may have changed who sees whom without People writing a
+   * row: OpenFGA's tuples follow People's events here, and a sync that finds
+   * the rows as they were writes nothing in Postgres. So every applied event
+   * moves its tenant's read cache on, after the tuples are written
+   * (`application/read-cache.ts`).
+   */
+  const cache = readCacheFrom(env);
+  if (cache === null) return handle;
+  return async (raw) => {
+    const outcome = await handle(raw);
+    const tenantId: unknown =
+      typeof raw === 'object' && raw !== null ? Reflect.get(raw, 'tenantId') : undefined;
+    if (outcome === 'applied' && typeof tenantId === 'string') await cache.changed(tenantId);
+    return outcome;
+  };
 }
 
 /**

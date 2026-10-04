@@ -116,6 +116,29 @@ async function text(url: string): Promise<string | undefined> {
   }
 }
 
+/**
+ * The server build at `url`: `unchanged` when the host answers that the bytes
+ * it called `etag` are still the ones it serves; undefined when it cannot be
+ * read.
+ */
+async function fetchBuild(
+  url: string,
+  etag: string | undefined,
+): Promise<{ readonly code: string; readonly etag: string | undefined } | 'unchanged' | undefined> {
+  try {
+    const response = await fetch(url, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(2000),
+      ...(etag === undefined ? {} : { headers: { 'if-none-match': etag } }),
+    });
+    if (etag !== undefined && response.status === 304) return 'unchanged';
+    if (!response.ok) return undefined;
+    return { code: await response.text(), etag: response.headers.get('etag') ?? undefined };
+  } catch {
+    return undefined;
+  }
+}
+
 /** Verified builds by URL, as the render below finds them. */
 const verified = new Map<string, { readonly code: string; readonly sha: string }>();
 
@@ -136,6 +159,25 @@ export const REMOTE_RENDER = Symbol.for('kithena.remote-render');
   if (build === undefined) return Promise.reject(new Error(`${url} was not verified`));
   return timed('remote.render', renderRemote(build.code, build.sha, component, props, prefix));
 };
+
+/**
+ * The build last verified at each URL, with the signed manifest, signature
+ * and pinned key it was verified against: reused while all three are the
+ * same. In-process, one entry per remote; a new manifest replaces it.
+ */
+const checked = new Map<
+  string,
+  {
+    readonly manifest: string;
+    readonly signature: string;
+    readonly pinned: string;
+    /** What the host called these bytes, to ask whether they are still the ones it serves. */
+    readonly etag: string | undefined;
+    readonly code: string;
+    readonly sha: string;
+    readonly stylesheet: string;
+  }
+>();
 
 export interface PreparedSsr {
   /** The server build's address, as the screen asks the renderer for it. */
@@ -162,27 +204,60 @@ export async function prepareRemoteSsr(
     refuse({ ok: false, reason: `${pin} is not an Ed25519 key` }, url);
     return undefined;
   }
-  const [code, manifest, signature] = await timed(
+  /*
+   * All three asked for on every page, as before, so a deploy is the next
+   * page's build and a host that swaps the bytes is refused on the next page.
+   * The build — half a megabyte, hashed — is asked for with the ETag of the
+   * one last verified here (`checked`): unchanged, the host answers 304 with
+   * no body, and the kept bytes render if the signed manifest is the one they
+   * were verified against. Anything else is fetched whole and checked again.
+   */
+  const kept = checked.get(url);
+  const [fetched, manifest, signature] = await timed(
     'remote.ssr',
     Promise.all([
-      text(url),
+      fetchBuild(url, kept?.etag),
       text(`${base}/ssr/manifest.json`),
       text(`${base}/ssr/manifest.json.sig`),
     ]),
   );
   // Down, slow or not deployed with a server build: nothing to say.
-  if (code === undefined || manifest === undefined || signature === undefined) return undefined;
-  const verdict = verifyBuild(key, manifest, signature, code, name);
-  if (!verdict.ok) {
-    refuse(verdict, url);
-    return undefined;
+  if (fetched === undefined || manifest === undefined || signature === undefined) return undefined;
+  const pinned = process.env[pin] ?? '';
+  const same =
+    kept !== undefined &&
+    kept.manifest === manifest &&
+    kept.signature === signature &&
+    kept.pinned === pinned;
+  let ready = same && fetched === 'unchanged' ? kept : undefined;
+  if (ready === undefined) {
+    const whole = fetched === 'unchanged' ? await fetchBuild(url, undefined) : fetched;
+    if (whole === undefined || whole === 'unchanged') return undefined;
+    const verdict = verifyBuild(key, manifest, signature, whole.code, name);
+    if (!verdict.ok) {
+      checked.delete(url);
+      refuse(verdict, url);
+      return undefined;
+    }
+    ready = {
+      manifest,
+      signature,
+      pinned,
+      etag: whole.etag,
+      code: whole.code,
+      sha: verdict.sha,
+      stylesheet: verdict.stylesheet,
+    };
+    checked.set(url, ready);
   }
-  verified.set(url, { code, sha: verdict.sha });
+  const build = ready;
+  verified.set(url, { code: build.code, sha: build.sha });
   // The remote's own renderer, under the id prefix its screens render with.
-  warmRenderer(code, verdict.sha, `${name}-`);
+  warmRenderer(build.code, build.sha, `${name}-`);
   return {
     ssr: url,
     // For the browser, on the company's own host like the rest of the remote.
-    stylesheet: { href: `${remotePath(area)}/ssr/${name}.css`, integrity: verdict.stylesheet },
+    stylesheet: { href: `${remotePath(area)}/ssr/${name}.css`, integrity: build.stylesheet },
   };
 }
+
