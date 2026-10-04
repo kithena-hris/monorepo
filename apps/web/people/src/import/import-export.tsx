@@ -1,4 +1,5 @@
 import {
+  Alert,
   Avatar,
   Badge,
   Button,
@@ -20,7 +21,7 @@ import {
   TableRow,
   icons,
 } from '@reach/ui';
-import { useId, type JSX, type ReactNode } from 'react';
+import { useId, useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
@@ -103,6 +104,13 @@ export interface ImportExportProps {
   readonly onSearchChange?: (search: string) => void;
   /** The company's import running now, as the host follows it: Import waits for it. */
   readonly running?: ImportRunStatus | null;
+  /**
+   * An export described in a sentence on the Export card: read into the
+   * export page's choices, which it opens with them. Absent, no sentence.
+   */
+  readonly onDescribe?: (
+    sentence: string,
+  ) => Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }>;
 }
 
 export type HistoryKind = 'all' | 'import' | 'export';
@@ -211,7 +219,12 @@ export function filterHistory(
   );
 }
 
-export function ImportExport({ load, running = null, ...held }: ImportExportProps): JSX.Element {
+export function ImportExport({
+  load,
+  running = null,
+  onDescribe,
+  ...held
+}: ImportExportProps): JSX.Element {
   const busyId = useId();
   const going = running !== null && isRunning(running) ? running : null;
   return (
@@ -278,8 +291,9 @@ export function ImportExport({ load, running = null, ...held }: ImportExportProp
                 facts={['CSV, Excel or PDF', 'As of any date']}
                 href="/people/export"
                 start="New export"
-                startIcon={<icons.download aria-hidden />}
+                startIcon={<icons.add aria-hidden />}
                 shortcut="create"
+                lead={onDescribe === undefined ? null : <DescribeExport onDescribe={onDescribe} />}
               />
             </div>
             {state.history === null ? null : (
@@ -309,6 +323,50 @@ export function ImportExport({ load, running = null, ...held }: ImportExportProp
 }
 
 /**
+ * The Export card's sentence: described here, the export page opens with it
+ * read into who, which fields, as of when, the format and a reason. Nothing
+ * leaves until a button there is pressed.
+ */
+function DescribeExport({
+  onDescribe,
+}: {
+  readonly onDescribe: NonNullable<ImportExportProps['onDescribe']>;
+}): JSX.Element {
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  return (
+    <Stack gap={2}>
+      <SearchField
+        variant="prompt"
+        size="sm"
+        label="Describe an export"
+        placeholder="Describe it, like “salaries in Madrid as of 30 June, for Finance”"
+        enterKeyHint="go"
+        maxLength={300}
+        loading={busy}
+        value={typed}
+        onValueChange={setTyped}
+        onSearch={(value) => {
+          if (value.trim() === '') return;
+          setBusy(true);
+          setRefused(null);
+          void onDescribe(value.trim()).then((answer) => {
+            setBusy(false);
+            if (!answer.ok) setRefused(answer.message);
+          });
+        }}
+      />
+      {refused === null ? null : (
+        <Alert tone="danger" title="Nothing was built">
+          {refused}
+        </Alert>
+      )}
+    </Stack>
+  );
+}
+
+/**
  * A way in or out. At a desk a card with what it takes and its buttons; under
  * a finger a tile that is itself the link.
  */
@@ -323,6 +381,7 @@ function Action({
   start,
   startIcon,
   more = null,
+  lead = null,
   shortcut,
   busy = null,
 }: {
@@ -337,6 +396,8 @@ function Action({
   readonly startIcon: ReactNode;
   /** A second button beside the start, at a desk: the import's template. */
   readonly more?: ReactNode;
+  /** Above the buttons, at a desk: the export's sentence, the way most exports start. */
+  readonly lead?: ReactNode;
   /** The shortcut the start answers to (C for a new export), shown in its tooltip. */
   readonly shortcut?: string;
   /**
@@ -368,6 +429,7 @@ function Action({
           ))}
         </div>
         {busy === null ? null : busy.progress}
+        {lead}
         <div className="flex gap-2">
           {busy === null ? (
             <Button

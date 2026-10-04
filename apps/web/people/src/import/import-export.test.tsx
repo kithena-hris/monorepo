@@ -287,4 +287,20 @@ describe('the history’s filters, in the address', () => {
     await user.click(screen.getByRole('radio', { name: 'Imports' }));
     expect(onKindChange).toHaveBeenCalledWith('import');
   });
+
+  it('takes an export as a sentence straight away, and says when nothing was built', async () => {
+    const user = fast();
+    const onDescribe = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false as const, message: 'That reads as no export' })
+      .mockResolvedValue({ ok: true as const });
+    const { container } = render(
+      <ImportExport load={{ status: 'ready', data: state() }} onDescribe={onDescribe} />,
+    );
+    const sentence = screen.getByRole('searchbox', { name: 'Describe an export' });
+    await user.type(sentence, 'salaries in Madrid as of 30 June{Enter}');
+    expect(onDescribe).toHaveBeenCalledWith('salaries in Madrid as of 30 June');
+    expect(await screen.findByText('That reads as no export')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });

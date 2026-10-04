@@ -629,6 +629,46 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   /** The run that keeps Import waiting, or null. */
   const running = runId !== null && runGoing(followed.run) ? followed.run : null;
 
+  // An export described in words (docs/ai-settings.md), from the export page or
+  // Import & export's card: the choices go into the export page's address, and
+  // it starts again from them for a person to check.
+  const describeExport = async (sentence: string) => {
+    const planned = await actions.planExport(sentence);
+    if (!planned.ok) return planned;
+    const plan = planned.data as {
+      who: string;
+      conditions: readonly { key: string; op: string; values: readonly string[] }[];
+      match: 'all' | 'any';
+      fields: readonly string[];
+      asOf: string;
+      format: string;
+      photos: boolean;
+      reason: string;
+      by: 'assistant' | 'rules';
+      note: string | null;
+      notes: readonly string[];
+    };
+    go(
+      withQuery(
+        '/people/export',
+        {},
+        {
+          q: sentence,
+          read: plan.by,
+          who: plan.who === 'everyone' ? null : plan.who,
+          conditions: plan.conditions.length === 0 ? null : JSON.stringify(plan.conditions),
+          match: plan.match === 'any' ? 'any' : null,
+          fields: plan.fields.join(','),
+          asOf: plan.asOf,
+          format: plan.format,
+          photos: plan.photos ? 'true' : null,
+          reason: plan.reason,
+        },
+      ),
+    );
+    return { ok: true as const, by: plan.by, note: plan.note, notes: plan.notes };
+  };
+
   const props = ((): Record<string, unknown> => {
     switch (component) {
       case 'PeopleSetup':
@@ -1402,44 +1442,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               recipients: [recipient],
             });
           },
-          // Described in words (docs/ai-settings.md): the choices go into the
-          // address, and the page starts again from them for a person to check.
-          onDescribe: async (sentence: string) => {
-            const planned = await actions.planExport(sentence);
-            if (!planned.ok) return planned;
-            const plan = planned.data as {
-              who: string;
-              conditions: readonly { key: string; op: string; values: readonly string[] }[];
-              match: 'all' | 'any';
-              fields: readonly string[];
-              asOf: string;
-              format: string;
-              photos: boolean;
-              reason: string;
-              by: 'assistant' | 'rules';
-              note: string | null;
-              notes: readonly string[];
-            };
-            go(
-              withQuery(
-                '/people/export',
-                {},
-                {
-                  q: sentence,
-                  read: plan.by,
-                  who: plan.who === 'everyone' ? null : plan.who,
-                  conditions: plan.conditions.length === 0 ? null : JSON.stringify(plan.conditions),
-                  match: plan.match === 'any' ? 'any' : null,
-                  fields: plan.fields.join(','),
-                  asOf: plan.asOf,
-                  format: plan.format,
-                  photos: plan.photos ? 'true' : null,
-                  reason: plan.reason,
-                },
-              ),
-            );
-            return { ok: true, by: plan.by, note: plan.note, notes: plan.notes };
-          },
+          onDescribe: describeExport,
         };
       }
       case 'ImportFlow': {
@@ -1674,6 +1677,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         return {
           load: loadable,
           running,
+          onDescribe: describeExport,
           kind: oneOf(at('kind'), ['import', 'export'], null),
           onKindChange: (kind: string) => {
             note({ kind: kind === 'all' ? null : kind }, 'push');
