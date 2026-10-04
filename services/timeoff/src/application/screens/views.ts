@@ -401,6 +401,8 @@ export const ApprovalsView = named(
       named('TimeOffLookCloserItem', z.object({ item: RequestItem, reason: LookCloserReason })),
     ),
     items: z.array(RequestItem),
+    /** Coming up and Decided: the next page's place, null on the last (and on Waiting). */
+    next: z.string().nullable(),
     /** Waiting for me: each request's one line, clear or not (TOF-086). */
     why: z.array(named('TimeOffWhy', z.object({ requestId: z.uuid(), text: WrittenView }))),
   }),

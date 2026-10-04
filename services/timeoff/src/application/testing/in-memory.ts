@@ -15,6 +15,7 @@ import type { HolidayLayer } from '../../domain/calendar/holiday-calendar.js';
 import type { TeamMinimum } from '../../domain/coverage/coverage.js';
 import type { LeaveType } from '../../domain/policy/leave-type.js';
 import type { Policy } from '../../domain/policy/policy.js';
+import { pageCursor } from '../shared.js';
 import type {
   ApprovalStore,
   ApprovalTimers,
@@ -222,6 +223,37 @@ function stores(tenantId: TenantId, s: State): Tx {
             (f.from === undefined || r.span.to >= f.from) &&
             (f.to === undefined || r.span.from <= f.to),
         ),
+      page: (f) => {
+        const keyOf = (r: RequestRecord): string =>
+          f.order === 'newest' ? r.requestedAt : r.request.span.from;
+        const sign = f.order === 'newest' ? -1 : 1;
+        const after = pageCursor.read(f.after);
+        const rows = [...s.requests.values()]
+          .filter(
+            ({ request: r }) =>
+              (f.personIds === undefined || f.personIds.includes(r.personId)) &&
+              f.statuses.includes(r.status) &&
+              (f.from === undefined || r.span.to >= f.from),
+          )
+          .filter((r) => {
+            if (after === null) return true;
+            const c = keyOf(r).localeCompare(after.key) || r.request.id.localeCompare(after.id);
+            return sign * c > 0;
+          })
+          .toSorted(
+            (a, b) =>
+              sign * (keyOf(a).localeCompare(keyOf(b)) || a.request.id.localeCompare(b.request.id)),
+          );
+        const records = rows.slice(0, f.limit);
+        const last = records.at(-1);
+        return {
+          records,
+          next:
+            rows.length > f.limit && last !== undefined
+              ? pageCursor.of(keyOf(last), last.request.id)
+              : null,
+        };
+      },
       save: (record) => {
         s.requests.set(record.request.id, record);
       },

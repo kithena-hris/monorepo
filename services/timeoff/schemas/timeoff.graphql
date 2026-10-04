@@ -346,7 +346,7 @@ type Query {
   """
   T16: waiting for the caller (clear and look closer), coming up, or decided
   """
-  timeOffApprovals(tab: String): TimeOffApprovals!
+  timeOffApprovals(after: String, tab: String): TimeOffApprovals!
   """
   T23: missed clock-outs, short rest, overtime waiting and holidays worked over a period; HR
   """
@@ -495,6 +495,7 @@ type TimeOffApprovals {
   clear: [TimeOffRequestItem!]!
   items: [TimeOffRequestItem!]!
   lookCloser: [TimeOffLookCloserItem!]!
+  next: String
   tab: String!
   why: [TimeOffWhy!]!
 }

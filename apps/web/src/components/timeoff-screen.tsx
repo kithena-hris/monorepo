@@ -95,6 +95,12 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           onDecide: actions.decideRequest,
           onSuggest: actions.suggestDates,
           onNavigate: go,
+          // Coming up and Decided load as they scroll; the address opens the first page.
+          onLoadMore: (after: string) =>
+            actions.approvalsPage(
+              pathname.startsWith('/time-off/approvals/coming-up') ? 'coming_up' : 'decided',
+              after,
+            ),
         };
       case 'Delegation':
         return {

@@ -10,9 +10,11 @@ import {
   ListItem,
   PageHeader,
   Skeleton,
+  VirtualList,
   icons,
+  usePages,
 } from '@reach/ui';
-import { useState, useTransition, type JSX } from 'react';
+import { useCallback, useState, useTransition, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { Decision, DecisionSkeleton, type DecisionData } from './decision';
@@ -49,8 +51,10 @@ export interface ApprovalsData {
   readonly tab: ApprovalsTab;
   readonly clear: readonly RequestItem[];
   readonly lookCloser: readonly { readonly item: RequestItem; readonly reason: LookCloser }[];
-  /** Coming up and Decided. */
+  /** Coming up and Decided: the first page. */
   readonly items: readonly RequestItem[];
+  /** Coming up and Decided: the next page's place, null on the last. Absent from an older Time Off. */
+  readonly next?: string | null;
   /** Waiting for me: each request's one line, the model's or Time Off's template (TOF-086). */
   readonly why: readonly { readonly requestId: string; readonly text: Written }[];
   /** How each leave type looks. */
@@ -76,6 +80,8 @@ export interface ApprovalsProps {
   ) => Promise<Outcome>;
   /** Go to an address of this screen; a plain link does the same. */
   readonly onNavigate?: (href: string) => void;
+  /** Coming up and Decided: the page after `after`, as Time Off answers the tab, or null. */
+  readonly onLoadMore?: (after: string) => Promise<unknown>;
 }
 
 const WAITING = '/time-off/approvals/waiting';
@@ -105,6 +111,7 @@ export function Approvals({
   onDecide,
   onSuggest,
   onNavigate,
+  onLoadMore,
 }: ApprovalsProps): JSX.Element {
   const { id } = openedAt(path);
   if (load.status === 'loading')
@@ -115,7 +122,7 @@ export function Approvals({
       <Loaded load={load} what="requests">
         {(data) =>
           data.tab !== 'waiting' ? (
-            <Decided data={data} />
+            <Decided data={data} onLoadMore={onLoadMore} />
           ) : id === null ? (
             <Waiting data={data} onApprove={onApprove} onDecide={onDecide} />
           ) : (
@@ -426,7 +433,29 @@ const STATUS: Record<
   counter_proposed: { label: 'New dates suggested', tone: 'info' },
 };
 
-function Decided({ data }: { readonly data: ApprovalsData }): JSX.Element {
+/**
+ * Coming up and Decided: the first page as the server drew it, each one after
+ * as the reader nears the end, and only the rows near the view drawn.
+ */
+function Decided({
+  data,
+  onLoadMore,
+}: {
+  readonly data: ApprovalsData;
+  readonly onLoadMore: ApprovalsProps['onLoadMore'];
+}): JSX.Element {
+  const more = useCallback(
+    async (after: string) => {
+      const page = (await onLoadMore?.(after)) as Pick<ApprovalsData, 'items' | 'next'> | null;
+      return page === null ? null : { items: page.items, next: page.next ?? null };
+    },
+    [onLoadMore],
+  );
+  const pages = usePages(
+    data.items,
+    data.next ?? null,
+    onLoadMore === undefined ? undefined : more,
+  );
   if (data.items.length === 0) {
     return (
       <Card padded className="text-center">
@@ -437,13 +466,23 @@ function Decided({ data }: { readonly data: ApprovalsData }): JSX.Element {
     );
   }
   return (
-    <List>
-      {data.items.map((item) => {
+    <VirtualList
+      label={data.tab === 'coming_up' ? 'Coming up' : 'Decided'}
+      items={pages.items}
+      itemKey={(item) => item.requestId}
+      scroll="page"
+      listItems
+      navigable
+      estimateItemHeight={72}
+      {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
+      loadingMore={pages.loading}
+      renderItem={(item, _i, row) => {
         const look = lookOf(data.types, item.leaveTypeKey);
         const status = STATUS[item.status] ?? { label: item.status, tone: 'neutral' as const };
         return (
           <ListItem
             key={item.requestId}
+            {...row}
             asChild
             icon={look.icon}
             iconTone={look.tone}
@@ -457,8 +496,8 @@ function Decided({ data }: { readonly data: ApprovalsData }): JSX.Element {
             <a href={`/time-off/requests/${item.requestId}`}>{item.displayName}</a>
           </ListItem>
         );
-      })}
-    </List>
+      }}
+    />
   );
 }
 

@@ -61,34 +61,37 @@ async function todayOf(tx: Tx, deps: Pick<Deps, 'clock'>, caller: Caller): Promi
   return deps.clock.date(me?.timeZone ?? 'UTC');
 }
 
-/** Records with their members, for the people the caller decides for (HR: everyone). */
-async function decidedFor(
+/**
+ * The people whose requests the caller decides for, or covers: `undefined`
+ * for HR, who decides for everyone. Never the caller.
+ *
+ * ponytail: one check per member, as `viewer` does; OpenFGA's `ListObjects`
+ * on `approver` is the upgrade when a tenant is large.
+ */
+async function decidesFor(
   tx: Tx,
   deps: Pick<Deps, 'authz'>,
   caller: Caller,
-  records: readonly RequestRecord[],
-): Promise<{ record: RequestRecord; member: Member }[]> {
-  const hr = await isHrAdmin(deps, caller);
-  const out: { record: RequestRecord; member: Member }[] = [];
-  for (const record of records) {
-    const { personId } = record.request;
-    if (personId === caller.personId) continue;
-    if (!hr && !(await approves(deps, caller, personId))) continue;
-    const member = await tx.members.get(personId);
-    if (member !== null) out.push({ record, member });
+): Promise<readonly PersonId[] | undefined> {
+  if (await isHrAdmin(deps, caller)) return undefined;
+  const out: PersonId[] = [];
+  for (const m of await tx.members.list()) {
+    if (m.personId === caller.personId) continue;
+    if (await approves(deps, caller, m.personId)) out.push(m.personId);
   }
   return out;
 }
 
 const DECIDED: readonly LeaveRequest['status'][] = ['approved', 'declined', 'taken', 'cancelled'];
-const DECIDED_SHOWN = 50;
+/** Coming up and Decided, a page at a time as the list scrolls. */
+export const APPROVALS_PAGE = 50;
 
 /** T16: waiting for me (clear and look closer), coming up, and decided. */
 export const approvals =
   (deps: ReadDeps) =>
   async (
     caller: Caller,
-    query: { readonly tab: ApprovalsView['tab'] },
+    query: { readonly tab: ApprovalsView['tab']; readonly after?: string | undefined },
   ): Promise<Result<ApprovalsView>> => {
     if (query.tab === 'waiting') {
       const queue = await approvalQueue(deps)(caller);
@@ -120,7 +123,10 @@ export const approvals =
             const found = await item(q.item.requestId, { group: 'look_closer', reason: q.reason });
             if (found !== null) lookCloser.push({ item: found, reason: reasonView(q.reason) });
           }
-          return ok({ view: { tab: query.tab, clear, lookCloser, items: [] }, facts });
+          return ok({
+            view: { tab: query.tab, clear, lookCloser, items: [], next: null },
+            facts,
+          });
         },
       );
       if (!read.ok) return read;
@@ -129,21 +135,30 @@ export const approvals =
         why: await writeReasons(deps.writer, caller.tenantId, read.value.facts),
       });
     }
+    // Coming up soonest first, Decided newest first, each a keyset page from
+    // the last one's place, of only the people the caller decides for.
     return transact<ApprovalsView>(deps, caller.tenantId, async (tx) => {
+      const empty = { tab: query.tab, clear: [], lookCloser: [], why: [] };
+      const personIds = await decidesFor(tx, deps, caller);
+      if (personIds?.length === 0) return ok({ ...empty, items: [], next: null });
       const today = await todayOf(tx, deps, caller);
       const types = await typesOf(tx);
-      const records =
-        query.tab === 'coming_up'
-          ? (await tx.requests.list({ statuses: ['approved'], from: today })).toSorted((a, b) =>
-              a.request.span.from.localeCompare(b.request.span.from),
-            )
-          : (await tx.requests.list({ statuses: DECIDED })).toSorted((a, b) =>
-              b.requestedAt.localeCompare(a.requestedAt),
-            );
-      const shown = (await decidedFor(tx, deps, caller, records))
-        .slice(0, query.tab === 'decided' ? DECIDED_SHOWN : undefined)
-        .map(({ record, member }) => requestItem(record, member, types));
-      return ok({ tab: query.tab, clear: [], lookCloser: [], items: shown, why: [] });
+      const page = await tx.requests.page({
+        ...(personIds === undefined ? {} : { personIds }),
+        ...(query.tab === 'coming_up'
+          ? { statuses: ['approved'], from: today, order: 'soonest' as const }
+          : { statuses: DECIDED, order: 'newest' as const }),
+        after: query.after ?? null,
+        limit: APPROVALS_PAGE,
+      });
+      const items: RequestItem[] = [];
+      for (const record of page.records) {
+        // HR's own requests are someone else's to decide.
+        if (record.request.personId === caller.personId) continue;
+        const member = await tx.members.get(record.request.personId);
+        if (member !== null) items.push(requestItem(record, member, types));
+      }
+      return ok({ ...empty, items, next: page.next });
     });
   };
 

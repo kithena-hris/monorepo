@@ -367,6 +367,69 @@ describe('requests', () => {
       LeaveApproved.name,
     ]);
   });
+
+  it('pages newest asked first and soonest first, each row once, from the last one’s place', async () => {
+    const days = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06'];
+    const made: string[] = [];
+    for (const [i, day] of days.entries()) {
+      const id = leaveRequestId(ids());
+      made.push(id);
+      const { request } = must(
+        LeaveRequest.request(
+          {
+            id,
+            tenantId: TENANT,
+            personId: people.omar,
+            leaveType: {
+              key: vacationType().key,
+              category: 'annual_leave',
+              tracked: true,
+              paid: 'paid',
+              unit: 'day',
+            },
+            span: span(day, day, '1.000'),
+            verdict: { kind: 'fits' },
+          },
+          ctx,
+        ),
+      );
+      request.drainEvents();
+      // Asked in the reverse of their days, so the two orders differ.
+      // oxlint-disable-next-line no-await-in-loop -- one row after another
+      await run((tx) =>
+        tx.requests.save({
+          request,
+          routing: { chain: ['manager'], step: 0, since: '2026-10-01' as never, escalatedTo: null },
+          note: null,
+          requestedAt: `2026-10-0${String(9 - i)}T09:00:00.000Z` as never,
+          proposedBy: null,
+          proposalMessage: null,
+        }),
+      );
+    }
+    const walk = async (order: 'newest' | 'soonest') => {
+      const seen: string[] = [];
+      let after: string | null = null;
+      do {
+        // oxlint-disable-next-line no-await-in-loop -- page after page
+        const page = await run((tx) =>
+          tx.requests.page({
+            personIds: [people.omar],
+            statuses: ['pending'],
+            from: '2026-11-01' as never,
+            order,
+            after,
+            limit: 2,
+          }),
+        );
+        seen.push(...page.records.map((r) => r.request.id));
+        after = page.next;
+      } while (after !== null);
+      return seen;
+    };
+    expect(await walk('soonest')).toEqual(made);
+    expect(await walk('newest')).toEqual(made);
+  });
 });
 
 describe('settings', () => {

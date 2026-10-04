@@ -69,6 +69,18 @@ export const refuse = (code: string, message: string, path?: readonly string[]):
 export const NOT_A_MEMBER =
   'Time Off does not have you as an employee yet, so there is no time off or attendance of yours here. There will be once HR hires you in People.';
 
+/**
+ * A keyset page's place: the sort key and the id of the last row, as one
+ * opaque string the screen hands back. A garbled one is the first page.
+ */
+export const pageCursor = {
+  of: (key: string, id: string): string => `${key}~${id}`,
+  read: (cursor: string | null): { key: string; id: string } | null => {
+    const m = cursor === null ? null : /^([0-9T:.Z+-]{10,40})~([0-9a-f-]{36})$/u.exec(cursor);
+    return m === null ? null : { key: m[1] ?? '', id: m[2] ?? '' };
+  },
+};
+
 /** The caller's own member, or the refusal above when Time Off holds none for them. */
 export async function self(tx: Tx, caller: Caller): Promise<Result<Member>> {
   const member = caller.personId === null ? null : await tx.members.get(caller.personId);

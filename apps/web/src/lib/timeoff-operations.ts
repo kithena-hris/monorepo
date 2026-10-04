@@ -25,9 +25,9 @@ export const OPERATIONS = {
   }`,
 
   /** T16: waiting for the caller (clear and look closer), coming up, or decided */
-  TimeOffApprovals: `query TimeOffApprovals($tab: String) {
-    timeOffApprovals(tab: $tab) {
-      clear { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } items { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } lookCloser { item { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } reason { amount days rule } } tab why { requestId text { ai text } }
+  TimeOffApprovals: `query TimeOffApprovals($after: String, $tab: String) {
+    timeOffApprovals(after: $after, tab: $tab) {
+      clear { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } items { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } lookCloser { item { category displayName leaveTypeKey leaveTypeName personId requestId requestedAt span { endsHalfDay from startsHalfDay to } spans { from to } status waitingOn workingDays } reason { amount days rule } } next tab why { requestId text { ai text } }
     }
   }`,
 
