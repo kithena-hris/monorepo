@@ -75,6 +75,9 @@ const PICKED = new Set<RecordField['dataType']>([
   'location_ref',
 ]);
 
+/** Past this many choices a list is searched (`Combobox`) rather than scrolled (`Select`). */
+const SEARCHED_FROM = 15;
+
 /**
  * What a line of text takes for a data type: its `type`, the keyboard a phone
  * offers, autofill, and no correcting of a value typed exactly. The same for a
@@ -210,7 +213,7 @@ export interface CellPlace {
  * | data type | control |
  * | --- | --- |
  * | date | `DatePicker` |
- * | select, country, currency, language, time zone, an org reference | `Select` |
+ * | select, country, currency, language, time zone, an org reference | `Select`; `Combobox`, searched, past 15 choices; disabled and said when People sent none |
  * | multi_select | `Combobox` with `multiple` |
  * | tags | `TagsInput` |
  * | person_ref | `PersonPicker`, searching People |
@@ -370,10 +373,30 @@ export function AttributeControl({
       break;
   }
   if (PICKED.has(field.dataType)) {
+    const empty = field.options.length === 0;
+    // A long list (countries, time zones, languages) is searched, not scrolled.
+    if (field.options.length > SEARCHED_FROM) {
+      return (
+        <Combobox
+          {...control}
+          label={label}
+          size={size}
+          options={field.options}
+          value={text(value) === '' ? null : text(value)}
+          disabled={disabled}
+          placeholder={cell === undefined ? 'Choose' : 'Missing'}
+          searchPlaceholder="Type to search"
+          onChange={(next) => {
+            onChange(typeof next === 'string' ? next : null);
+          }}
+        />
+      );
+    }
     return (
       <Select
         value={text(value)}
-        disabled={disabled}
+        // A list with nothing in it says so rather than opening empty.
+        disabled={disabled || empty}
         onValueChange={(next) => {
           onChange(next);
         }}
@@ -385,7 +408,9 @@ export function AttributeControl({
           size={size}
           {...(cell === undefined ? {} : { className: 'min-w-32' })}
         >
-          <SelectValue placeholder={cell === undefined ? 'Choose' : 'Missing'} />
+          <SelectValue
+            placeholder={empty ? 'Nothing to choose from' : cell === undefined ? 'Choose' : 'Missing'}
+          />
         </SelectTrigger>
         <SelectContent>
           {field.options.map((o) => (

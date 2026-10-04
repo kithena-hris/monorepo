@@ -16,7 +16,7 @@ import {
 import { coerceCell, fromMinor } from '../import/cells.js';
 import { asSchemaChange, type Asking } from '../person/person-access.js';
 import { run } from '../person/service.js';
-import { NOBODY, nameOf, tenantToday, type Tx } from './record.js';
+import { listOptions, NOBODY, nameOf, orgChoices, tenantToday, type Tx } from './record.js';
 import { emailAll, recordOne, type Recorded } from './requests.js';
 import {
   applyRequiredFrom,
@@ -352,12 +352,7 @@ export async function fieldChangeView(
           label: next.label.default,
           from: was.dataType,
           to: next.dataType,
-          options:
-            config.kind === 'select' || config.kind === 'multi_select'
-              ? config.options
-                  .filter((o) => o.retiredAt === null)
-                  .map((o) => ({ value: o.value, label: o.label.default }))
-              : [],
+          options: listOptions(next, await orgChoices(deps, tx, asking.tenantId)),
           currency: config.kind === 'money' ? config.currency : null,
           encrypted: next.encrypted,
         },
