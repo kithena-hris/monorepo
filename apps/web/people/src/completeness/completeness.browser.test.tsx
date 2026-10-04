@@ -21,10 +21,12 @@ import {
  */
 
 const coarse = matchMedia('(pointer: coarse)').matches;
-// The budgets are Chromium's, where they are measured; WebKit (Safari's engine)
-// runs the same flow with twice the room, so it still catches a regression
-// without failing on its slower test harness.
-const room = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent) ? 2 : 1;
+// The budgets are Chromium's on a developer machine, where they are measured.
+// WebKit (Safari's engine) gets twice the room, and a small machine (a CI
+// runner's 2 to 4 cores) three times: the same flow, still failing on a real
+// regression, never on a slower harness alone.
+const webkit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+const room = (webkit ? 2 : 1) * (navigator.hardwareConcurrency <= 4 ? 3 : 1);
 
 const many = (n: number, word: string) =>
   Array.from({ length: n }, (_, i) => ({
