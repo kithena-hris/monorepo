@@ -29,8 +29,7 @@ export interface FileInfo {
 }
 
 export type UploadOutcome =
-  | { readonly ok: true; readonly file: FileInfo }
-  | { readonly ok: false; readonly message: string };
+  { readonly ok: true; readonly file: FileInfo } | { readonly ok: false; readonly message: string };
 
 export interface FieldFilesValue {
   /** Keep this file for this field; answers with what People kept. */
@@ -112,7 +111,7 @@ export function FileInput({
   const [images, setImages] = useState<readonly UploadedImage[]>([]);
   const [kept, setKept] = useState<FileInfo | null>(null);
   const label = field.required ? `${field.label} (required)` : field.label;
-  const current = value === null ? null : (kept?.id === value ? kept : known.get(value)) ?? null;
+  const current = value === null ? null : ((kept?.id === value ? kept : known.get(value)) ?? null);
 
   if (upload === null || field.readOnly) {
     return (

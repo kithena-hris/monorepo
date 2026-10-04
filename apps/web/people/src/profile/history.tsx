@@ -200,7 +200,8 @@ function History({
               </Button>
             }
           >
-            Includes later corrections. Fields without dates, like phone number, show only their changes.
+            Includes later corrections. Fields without dates, like phone number, show only their
+            changes.
           </Alert>
           {sections.map((section) => (
             <PageSection key={section.key} surface title={section.label}>
@@ -380,7 +381,10 @@ function Change({
             <Badge size="sm" tone="warning">
               Correction
             </Badge>
-            <span>A mistake fixed: it replaces the value recorded {longDate(corrected.recordedAt.slice(0, 10))}.</span>
+            <span>
+              A mistake fixed: it replaces the value recorded{' '}
+              {longDate(corrected.recordedAt.slice(0, 10))}.
+            </span>
           </span>
         ) : replacement ? (
           <span className="inline-flex flex-wrap items-center gap-2 text-xs text-fg-muted">

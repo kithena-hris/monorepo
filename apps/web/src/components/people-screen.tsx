@@ -658,10 +658,16 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load: loadable,
           // A link from the overview to one missing detail.
           ...(search['field'] === undefined ? {} : { focusField: search['field'] }),
-          // The part of the record on screen; the screen checks it is one this record has.
-          tab: at('tab'),
-          onTabChange: (tab: string) => {
-            note({ tab: tab === 'overview' ? null : tab }, 'push');
+          // The section being edited and what is open over the record, in the
+          // address so a link opens them in the server's HTML; the screen
+          // checks each is one this record and viewer offer.
+          editing: at('edit'),
+          onEditingChange: (section: string | null) => {
+            note({ edit: section, field: null }, section === null ? 'replace' : 'push');
+          },
+          open: at('open'),
+          onOpenChange: (open: string | null) => {
+            note({ open }, open === null ? 'replace' : 'push');
           },
           // Offered to everybody; the screen shows it only where People says they may.
           onPhoto: (file: File) => uploadPhoto(id ?? null, file),
@@ -707,9 +713,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
                 onRequest: (keys: readonly string[]) => actions.requestDetails(id, keys),
               }),
           searchPeople: actions.searchPeople,
-          onHistory: () => {
-            go(id === undefined ? '/people/me/history' : `/people/${id}/history`);
-          },
+          historyHref: id === undefined ? '/people/me/history' : `/people/${id}/history`,
           onWithdraw: actions.withdrawPendingChange,
           onSelfApprove: actions.approveAlone,
           onApprovals: () => {
