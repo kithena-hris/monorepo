@@ -26,14 +26,19 @@ import type { Viewer } from './person/ports.js';
  */
 export interface ReadCache {
   /** The answer kept for `key`, or the generation a fresh one is to be kept under. */
-  read(
+  readonly read: (
     tenantId: string,
     key: string,
-  ): Promise<{ readonly hit: true; readonly value: unknown } | ReadMiss>;
+  ) => Promise<{ readonly hit: true; readonly value: unknown } | ReadMiss>;
   /** Keep `value` for `key`, under the generation the miss was read in. */
-  write(tenantId: string, key: string, generation: string, value: unknown): Promise<void>;
+  readonly write: (
+    tenantId: string,
+    key: string,
+    generation: string,
+    value: unknown,
+  ) => Promise<void>;
   /** Something in the tenant changed: nothing kept for it before now is answered again. */
-  changed(tenantId: string): Promise<void>;
+  readonly changed: (tenantId: string) => Promise<void>;
 }
 
 export interface ReadMiss {

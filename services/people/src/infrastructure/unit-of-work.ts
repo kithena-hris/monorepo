@@ -54,24 +54,21 @@ export function tenantTransaction(
       // still decides for everything — and the outer unit says if it wrote.
       return open.tx.transaction((tx) => sharing({ tx, tenantId }, () => fn({ tx, tenantId })));
     }
-    let wrote = false;
-    const result = await db.transaction(async (tx) => {
+    const { value, wrote } = await db.transaction(async (tx) => {
       // First, before any other statement, or Postgres refuses to change it.
       if (viewOnly.getStore() === true) await tx.execute(sql`SET TRANSACTION READ ONLY`);
       await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
-      const value = await fn({ tx, tenantId });
-      if (changed !== undefined) {
-        // A transaction is given an id the moment it first writes, and only
-        // then: whatever wrote — a use case, a consumer, a job — this sees it.
-        const [row] = await tx.execute<{ wrote: boolean }>(
-          sql`SELECT pg_current_xact_id_if_assigned() IS NOT NULL AS wrote`,
-        );
-        wrote = row?.wrote === true;
-      }
-      return value;
+      const answer = await fn({ tx, tenantId });
+      if (changed === undefined) return { value: answer, wrote: false };
+      // A transaction is given an id the moment it first writes, and only
+      // then: whatever wrote — a use case, a consumer, a job — this sees it.
+      const [row] = await tx.execute<{ wrote: boolean }>(
+        sql`SELECT pg_current_xact_id_if_assigned() IS NOT NULL AS wrote`,
+      );
+      return { value: answer, wrote: row?.wrote === true };
     });
-    if (wrote && changed !== undefined) await changed(tenantId);
-    return result;
+    if (wrote) await changed?.(tenantId);
+    return value;
   };
 }
 
