@@ -1477,6 +1477,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onSearchChange: (text: string) => {
             note({ q: typed(text) }, 'replace');
           },
+          // Older history as it scrolls; the address opens the newest.
+          onLoadMore: actions.transferHistoryPage,
         };
       default:
         return {};

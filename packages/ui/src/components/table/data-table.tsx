@@ -968,6 +968,8 @@ export function DataTable<T extends TableRow>({
     const el = scrollRef.current;
     if (el === null || !wantsEnd) return;
     const check = (): void => {
+      // A table not drawn (a desk's, hidden under a finger) is at no end at all.
+      if (el.checkVisibility?.() === false) return;
       if (el.scrollHeight - el.scrollTop - el.clientHeight < END_MARGIN) endReached.current?.();
     };
     check();

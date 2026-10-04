@@ -242,6 +242,8 @@ export function VirtualList<T>({
   end.current = onEndReached;
   const wantsEnd = onEndReached !== undefined && !loadingMore;
   useEffect(() => {
+    // A list not drawn (a phone's, hidden at a desk) asks for nothing.
+    if (outerRef.current?.checkVisibility?.() === false) return;
     if (wantsEnd && rows > 0 && lastDrawn >= rows - 1 - Math.ceil(AHEAD / lanes)) {
       end.current?.();
     }
@@ -275,9 +277,9 @@ export function VirtualList<T>({
       ref={outerRef}
       // Focusable for the same reason the table's container is: a region only a
       // mouse can scroll is unreachable from the keyboard.
-      {...(page ? {} : { tabIndex: 0 })}
-      role="region"
-      aria-label={label}
+      // A box that scrolls is a region the keyboard can reach; a list that is
+      // part of the page is only a list, named on the list itself.
+      {...(page ? {} : { tabIndex: 0, role: 'region', 'aria-label': label })}
       className={cn(surface && SURFACE, !page && SCROLLS, className)}
     >
       {children}

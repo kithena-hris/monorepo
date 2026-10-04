@@ -24,6 +24,8 @@ const imports = vi.hoisted(() => ({
 vi.mock('../app/(app)/people/actions', () => ({
   ...imports,
   decidePendingChange: vi.fn(),
+  transferHistoryPage: vi.fn(),
+  screenPage: vi.fn(),
   withdrawPendingChange: vi.fn(),
   approveAlone: vi.fn(),
   markNotUnusual: vi.fn(),

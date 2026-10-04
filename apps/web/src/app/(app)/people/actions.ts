@@ -1125,10 +1125,6 @@ export async function shareSummary(input: Readonly<Record<string, unknown>>): Pr
 /** The screens whose lists load as they scroll, and the name their read gives its cursor. */
 const PAGED = {
   WebhookLog: 'after',
-  ImportExport: 'before',
-  Review: 'before',
-  ReportRuns: 'before',
-  RoleSettings: 'after',
 } as const;
 
 /**
@@ -1147,6 +1143,12 @@ export async function screenPage(
   if (key === undefined) return null;
   const load = await loadScreen(component, { params, search: { ...search, [key]: cursor } });
   return load.status === 'ready' ? load.data : null;
+}
+
+/** Import & export's history before `before` (the last entry's cursor), as it scrolls. */
+export async function transferHistoryPage(before: string): Promise<unknown> {
+  const answer = await people<unknown>('TransferHistory', { before });
+  return answer.ok ? answer.data : null;
 }
 
 /**

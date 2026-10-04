@@ -807,7 +807,6 @@ describe('at 390×844, with a finger', () => {
                 },
               ],
               next: null,
-              paged: false,
             },
           },
         }}
