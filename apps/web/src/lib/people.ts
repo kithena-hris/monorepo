@@ -1,6 +1,6 @@
 import 'server-only';
 import { createHash, randomUUID } from 'node:crypto';
-import { refresh } from 'next/cache';
+import { refresh, revalidatePath } from 'next/cache';
 import { cookies, headers } from 'next/headers';
 import { after } from 'next/server';
 import { cache } from 'react';
@@ -217,6 +217,12 @@ const read = cache(
 function changed(): void {
   try {
     refresh();
+    // And every page prefetched whole (`prefetchPage` in `links.ts`): `refresh`
+    // alone drops what the router kept but not its prefetches, so a tab
+    // fetched before the save would open as it was. A path revalidated is
+    // what tells the browser to drop those too; nothing here is cached on
+    // the server for it to drop.
+    revalidatePath('/', 'layout');
   } catch {
     // Not a server action.
   }

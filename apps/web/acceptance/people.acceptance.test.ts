@@ -2719,12 +2719,16 @@ describe('Moving between People’s sections, tabs and views', () => {
         }
       }).observe(document.body, { subtree: true, childList: true });
     });
+    // A place's name, and its count when something waits there.
+    const named = (name: string) => new RegExp(`^${name}(\\s*\\d+)?$`);
     const sidebar = (name: string) =>
-      page.getByRole('navigation', { name: 'Areas' }).getByRole('link', { name, exact: true });
+      page
+        .getByRole('navigation', { name: 'Areas' })
+        .getByRole('link', { name: named(name) });
     const tab = (section: string, name: string) =>
       page
         .getByRole('navigation', { name: `${section} tabs` })
-        .getByRole('link', { name, exact: true });
+        .getByRole('link', { name: named(name) });
     const moves: [string, number][] = [];
     const move = async (link: ReturnType<typeof sidebar>, to: RegExp): Promise<void> => {
       await link.first().hover();
