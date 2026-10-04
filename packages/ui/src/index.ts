@@ -686,10 +686,17 @@ export type { KeyValueItem, KeyValuesProps } from './components/key-values/key-v
  * on a date, a value that is hidden until asked for, a before and after —
  * and none of them knows whose record it is.
  */
-export { AccessMatrix, AccessStrip, toggleAccess } from './components/access-matrix/access-matrix';
+export {
+  AccessMatrix,
+  AccessStrip,
+  accessLevel,
+  toggleAccess,
+  withAccessLevel,
+} from './components/access-matrix/access-matrix';
 export type {
   AccessAudience,
   AccessColumn,
+  AccessLevel,
   AccessMatrixProps,
   AccessStripProps,
   AccessValue,

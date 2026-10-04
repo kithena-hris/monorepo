@@ -56,7 +56,8 @@ function setup() {
   const sent: string[] = [];
   const revealed: string[] = [];
   let ids = 0;
-  const deps: FullValuesDeps = { calendars: utcCalendars,
+  const deps: FullValuesDeps = {
+    calendars: utcCalendars,
     access: personAccess(people.deps),
     schemas: people.deps.schemas,
     relations: people.deps.relations,
@@ -308,6 +309,8 @@ describe('the full-values screen (PEO-121)', () => {
     expect(hr.value.canDecide && !hr.value.canRequest).toBe(true);
     expect(hr.value.fields).toEqual([]);
     expect(hr.value.requests.map((r) => r.mine)).toEqual([false, false]);
+    // Whose values (E4): asked for everybody, counted as HR may list them.
+    expect(hr.value.requests[0]?.people).toMatch(/^Everybody · \d+$/u);
 
     const refused = await fullValuesScreen(tx, deps, asking(MANAGER));
     expect(refused.ok || refused.error.code).toBe('FORBIDDEN');

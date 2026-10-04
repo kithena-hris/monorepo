@@ -116,4 +116,20 @@ describe('Provisioning (PEO-072, PEO-073)', () => {
       await within(okta).findByText('given_name is already kept in Workday'),
     ).toBeInTheDocument();
   });
+
+  it('asks before disconnecting a system', async () => {
+    const user = fast();
+    const p = props();
+    render(<Provisioning {...p} />);
+    const okta = screen.getByRole('region', { name: 'Okta' });
+    await user.click(within(okta).getByRole('button', { name: 'Disconnect' }));
+    const confirm = screen.getByRole('alertdialog', { name: 'Disconnect Okta?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Keep it connected' }));
+    expect(p.onDisconnect).not.toHaveBeenCalled();
+    await user.click(within(okta).getByRole('button', { name: 'Disconnect' }));
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Disconnect' }),
+    );
+    expect(p.onDisconnect).toHaveBeenCalledWith('c1');
+  });
 });

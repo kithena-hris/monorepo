@@ -4,7 +4,6 @@ import {
   Badge,
   Button,
   Card,
-  DataTable,
   Dialog,
   DialogBody,
   DialogContent,
@@ -12,14 +11,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  EmptyState,
   Field,
   FieldControl,
   FieldDescription,
   FieldError,
   FieldLabel,
   MergeCompare,
-  PageHeader,
+  PINNED_BAR,
   RadioGroup,
   RadioGroupItem,
   Stack,
@@ -31,12 +29,10 @@ import {
   TableRow,
   Textarea,
   icons,
-  type DataColumn,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { DATA_HEALTH } from '../data-health';
-import { Loaded, type Loadable, type Outcome } from '../load';
+import type { Outcome } from '../load';
 
 /**
  * HR's review of suspected duplicates (PEO-074; PRD §12.4).
@@ -115,10 +111,8 @@ export interface DuplicatesState {
   } | null;
 }
 
-export interface DuplicatesProps {
-  readonly load: Loadable<DuplicatesState>;
-  readonly onCompare: (a: string, b: string) => void;
-  readonly onBack: () => void;
+/** What a duplicate's detail pane, and the merged records, may do. */
+export interface DuplicateActions {
   readonly onMerge: (
     survivorId: string,
     absorbedId: string,
@@ -128,187 +122,19 @@ export interface DuplicatesProps {
   readonly onUnmerge: (absorbedId: string, reason: string) => Promise<Outcome>;
 }
 
-export function Duplicates(props: DuplicatesProps): JSX.Element {
-  return (
-    <Loaded load={props.load} what="possible duplicates">
-      {(state) =>
-        state.comparison === null ? (
-          <Stack gap={8}>
-            <Queue items={state.items} onCompare={props.onCompare} onDismiss={props.onDismiss} />
-            <Merges merges={state.merges ?? []} onUnmerge={props.onUnmerge} />
-          </Stack>
-        ) : (
-          <Compare
-            people={state.comparison.people}
-            rows={state.comparison.rows}
-            onBack={props.onBack}
-            onMerge={props.onMerge}
-            onDismiss={props.onDismiss}
-          />
-        )
-      }
-    </Loaded>
-  );
-}
+/** A pair's id in Review's address: the two records, in People's order. */
+export const pairId = (pair: Pick<DuplicatePair, 'personIds'>): string => pair.personIds.join('~');
 
-/**
- * The queue (V5): each pair side by side, why it looks alike, how strong the
- * match is (Strong, Likely, Possible), and the two answers. "Not the same" takes
- * the pair out for good; "Compare" opens the side-by-side merge.
- */
-function Queue({
-  items,
-  onCompare,
-  onDismiss,
-}: {
-  readonly items: readonly DuplicatePair[];
-  readonly onCompare: DuplicatesProps['onCompare'];
-  readonly onDismiss: DuplicatesProps['onDismiss'];
-}): JSX.Element {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [refused, setRefused] = useState<string | null>(null);
-  // A band is People's to give; from an older People with none, there is no column to show an empty one in.
-  const scored = items.some((pair) => pair.match != null);
-  const dismiss = (a: string, b: string): void => {
-    setBusy(`${a}/${b}`);
-    setRefused(null);
-    void onDismiss(a, b).then((outcome) => {
-      setBusy(null);
-      if (!outcome.ok) setRefused(outcome.message);
-    });
-  };
-  const columns: DataColumn<DuplicatePair>[] = [
-    {
-      id: 'pair',
-      header: 'Possible duplicate',
-      cell: (pair) => {
-        const [first = '', second = ''] = pair.names;
-        return (
-          <span className="flex items-center gap-2 font-semibold whitespace-nowrap">
-            <Avatar size="sm" name={first} />
-            {first}
-            <icons.transfer aria-label="and" className="size-3.5 text-fg-subtle" />
-            <Avatar size="sm" name={second} />
-            {second}
-          </span>
-        );
-      },
-    },
-    { id: 'why', header: 'Why we think so', cell: (pair) => pair.reasons.join(', ') },
-    ...(scored
-      ? [
-          {
-            id: 'match',
-            header: 'Match',
-            width: '6.25rem',
-            cell: (pair: DuplicatePair) =>
-              pair.match == null ? null : (
-                <Badge tone="warning" size="sm">
-                  {BAND[pair.match]}
-                </Badge>
-              ),
-          },
-        ]
-      : []),
-    {
-      id: 'decide',
-      header: <span className="sr-only">Decide</span>,
-      width: '12.5rem',
-      cell: (pair) => {
-        const [a = '', b = ''] = pair.personIds;
-        const names = pair.names.join(' and ');
-        return (
-          <span className="flex justify-end gap-1.5">
-            <Button
-              size="xs"
-              variant="ghost"
-              aria-label={`${names} are not the same person`}
-              shortcut="row.not-same"
-              loading={busy === `${a}/${b}`}
-              loadingLabel="Saving"
-              onClick={(event) => {
-                event.stopPropagation();
-                dismiss(a, b);
-              }}
-            >
-              Not the same
-            </Button>
-            <Button
-              size="xs"
-              variant="secondary"
-              aria-label={`Compare ${names}`}
-              shortcut="row.merge"
-              onClick={(event) => {
-                event.stopPropagation();
-                onCompare(a, b);
-              }}
-            >
-              Compare
-            </Button>
-          </span>
-        );
-      },
-    },
-  ];
-  return (
-    <Stack gap={5}>
-      <PageHeader title={DATA_HEALTH.title} description={DATA_HEALTH.description} />
-      {refused === null ? null : (
-        <Alert tone="danger" title="Not done">
-          {refused}
-        </Alert>
-      )}
-      {items.length === 0 ? (
-        <EmptyState
-          title="Nothing looks duplicated"
-          description="No two records share a work email, a name and birth date, or a unique value."
-        />
-      ) : (
-        <DataTable
-          label="Possible duplicates"
-          rows={items}
-          rowId={(pair) => pair.personIds.join('/')}
-          describeRow={(pair) => pair.names.join(' and ')}
-          // A click or Enter compares; M from the row's menu or its key too.
-          onRowClick={(pair) => {
-            const [a = '', b = ''] = pair.personIds;
-            onCompare(a, b);
-          }}
-          rowActions={(pair) => {
-            const [a = '', b = ''] = pair.personIds;
-            return [
-              {
-                id: 'compare',
-                label: 'Compare or merge',
-                shortcut: 'row.merge',
-                icon: <icons.transfer aria-hidden />,
-                onSelect: () => {
-                  onCompare(a, b);
-                },
-              },
-              {
-                id: 'not-same',
-                label: 'Not the same person',
-                shortcut: 'row.not-same',
-                onSelect: () => {
-                  dismiss(a, b);
-                },
-              },
-            ];
-          }}
-          columns={columns}
-        />
-      )}
-    </Stack>
-  );
-}
+/** "Strong", for a pair's row and its pane; absent from an older People. */
+export const bandOf = (pair: DuplicatePair): string | null =>
+  pair.match == null ? null : BAND[pair.match];
 
-function Merges({
+export function Merges({
   merges,
   onUnmerge,
 }: {
   readonly merges: readonly MergedPair[];
-  readonly onUnmerge: DuplicatesProps['onUnmerge'];
+  readonly onUnmerge: DuplicateActions['onUnmerge'];
 }): JSX.Element | null {
   const [undoing, setUndoing] = useState<MergedPair | null>(null);
   if (merges.length === 0) return null;
@@ -369,7 +195,7 @@ function UndoDialog({
 }: {
   readonly merge: MergedPair;
   readonly onClose: () => void;
-  readonly onUnmerge: DuplicatesProps['onUnmerge'];
+  readonly onUnmerge: DuplicateActions['onUnmerge'];
 }): JSX.Element {
   const [reason, setReason] = useState('');
   const [shown, setShown] = useState(false);
@@ -469,18 +295,24 @@ function UndoDialog({
   );
 }
 
-function Compare({
+/**
+ * A possible duplicate, compared in Review's detail pane (design E3, MA E4):
+ * why it looks alike, the two records side by side, the one that stays, the
+ * values to take across, and the two answers. Merge asks first.
+ */
+export function DuplicateDetail({
+  pair,
   people,
   rows,
-  onBack,
   onMerge,
   onDismiss,
 }: {
+  /** The queue's row for it: why, and how strong. Absent when only the comparison is known. */
+  readonly pair?: DuplicatePair | undefined;
   readonly people: readonly ComparedPerson[];
   readonly rows: readonly ComparedRow[];
-  readonly onBack: () => void;
-  readonly onMerge: DuplicatesProps['onMerge'];
-  readonly onDismiss: DuplicatesProps['onDismiss'];
+  readonly onMerge: DuplicateActions['onMerge'];
+  readonly onDismiss: DuplicateActions['onDismiss'];
 }): JSX.Element {
   const may = people.flatMap((p, i) => (p.refusal === null ? [i] : []));
   const [survivor, setSurvivor] = useState<number | null>(
@@ -496,14 +328,33 @@ function Compare({
   const [a = '', b = ''] = people.map((p) => p.id);
 
   return (
-    <Stack gap={6}>
-      <PageHeader
-        title={`${people[0]?.name ?? ''} and ${people[1]?.name ?? ''}`}
-        description="Side by side, as you may see them. A sealed value shows its last four."
-      />
-      <div>
-        <Button onClick={onBack}>Back to the list</Button>
+    <Card padded className="flex flex-col gap-4">
+      <div className="flex items-start gap-3">
+        <Avatar size="xl" name={people[0]?.name ?? ''} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-md font-bold">
+            {people[0]?.name}
+            <span className="font-normal text-fg-muted"> · Possible duplicate</span>
+          </h2>
+          <p className="text-sm text-fg-muted">
+            {[
+              (pair?.reasons ?? []).join(', '),
+              pair === undefined || bandOf(pair) === null ? null : `${bandOf(pair) ?? ''} match`,
+            ]
+              .filter((x) => x !== null && x !== '')
+              .join(' · ') || `Possible duplicate of ${people[1]?.name ?? ''}`}
+          </p>
+        </div>
+        {pair === undefined || bandOf(pair) === null ? null : (
+          <Badge tone="warning" size="sm" className="shrink-0">
+            {bandOf(pair)}
+          </Badge>
+        )}
       </div>
+      <p className="text-sm text-fg-muted">
+        Side by side, as you may see them. A sealed value shows its last four. Tick the values to
+        take from the other record.
+      </p>
       {refused === null ? null : (
         <Alert tone="danger" title="Not done">
           {refused}
@@ -536,7 +387,7 @@ function Compare({
           ))}
         </RadioGroup>
       )}
-      <Card padded>
+      <div className="overflow-x-auto">
         <MergeCompare
           sources={
             [0, 1].map((i) => (
@@ -577,19 +428,14 @@ function Compare({
             });
           }}
         />
-      </Card>
-      <span className="flex flex-wrap gap-2">
+      </div>
+      <div
+        {...PINNED_BAR}
+        className="flex flex-wrap items-center gap-2 border-t border-border pt-4 touch:sticky touch:bottom-24 touch:z-10 touch:grid touch:grid-cols-2 touch:bg-surface touch:py-2"
+      >
         <Button
-          variant="primary"
-          startIcon={<icons.merge aria-hidden />}
-          disabled={kept === undefined}
-          onClick={() => {
-            setConfirming(true);
-          }}
-        >
-          Merge
-        </Button>
-        <Button
+          variant="ghost"
+          shortcut="row.not-same"
           loading={busy && !confirming}
           loadingLabel="Saving"
           onClick={() => {
@@ -603,7 +449,19 @@ function Compare({
         >
           Not the same person
         </Button>
-      </span>
+        <Button
+          variant="primary"
+          className="ms-auto touch:ms-0"
+          shortcut="row.merge"
+          startIcon={<icons.merge aria-hidden />}
+          disabled={kept === undefined}
+          onClick={() => {
+            setConfirming(true);
+          }}
+        >
+          Merge
+        </Button>
+      </div>
       {confirming && kept !== undefined && gone !== undefined ? (
         <Dialog
           open
@@ -626,8 +484,7 @@ function Compare({
             </DialogHeader>
             <DialogBody>
               <p className="text-sm">
-                It can be undone later from the list of merged records; a copied value changed since
-                is kept.
+                You can undo this later, under Decided; a copied value changed since is kept.
               </p>
             </DialogBody>
             <DialogFooter>
@@ -658,6 +515,6 @@ function Compare({
           </DialogContent>
         </Dialog>
       ) : null}
-    </Stack>
+    </Card>
   );
 }

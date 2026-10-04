@@ -6,6 +6,7 @@ import { approvalsInbox } from '../person/pending-changes.js';
 import { REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { avatarsOf } from './photo.js';
+import { flaggedToDecide } from './waiting.js';
 import { actors, ownRecord } from './people.js';
 import { nameOf, NOBODY, type ScreenDeps, type Tx } from './record.js';
 import type { ViewedAs } from '../person/view-as.js';
@@ -77,6 +78,9 @@ export interface OverviewView {
   readonly approvals: {
     readonly isHr: boolean;
     readonly total: number;
+    /** HR's: how many of those the checks flag, and the newest one's reasons ("A 38% raise"). */
+    readonly flagged: number | null;
+    readonly flagReason: string | null;
     readonly items: readonly {
       readonly id: string;
       readonly personId: string;
@@ -97,6 +101,16 @@ export interface OverviewView {
     readonly section: string;
     /** Null: the viewer fills it in. Otherwise who does ("HR"). */
     readonly ownedBy: string | null;
+  }[];
+  /**
+   * Their own identifiers HR sent back (PEO-125), each to correct: which,
+   * where it lives, and why, in HR's words or the check's.
+   */
+  readonly corrections: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly sectionKey: string;
+    readonly reason: string;
   }[];
   /** HR's summary of everybody's gaps; null for anybody else. */
   readonly team: { readonly waiting: number; readonly toFill: number } | null;
@@ -171,6 +185,7 @@ export async function overviewView(
         reportingLine: null,
         approvals,
         missing: [],
+        corrections: [],
         team,
         setup: null,
         viewedAs,
@@ -214,6 +229,25 @@ export async function overviewView(
         required: f.required,
       }));
 
+    // Sent back by HR: the employee writes a new value, which answers it.
+    const reviews = await deps.service.access.personReviews(tx, { ...asking, personId });
+    const corrections = (reviews.ok ? reviews.value : [])
+      .filter((r) => r.state === 'sent_back')
+      .flatMap((r) => {
+        const field = fields.find((f) => f.key === r.attributeKey);
+        return field === undefined
+          ? []
+          : [
+              {
+                key: field.key,
+                label: field.label,
+                sectionKey: field.section.key,
+                reason:
+                  r.note ?? r.findings.find((f) => f.level !== 'ok')?.message ?? 'HR sent it back',
+              },
+            ];
+      });
+
     return ok({
       roles,
       now,
@@ -244,6 +278,7 @@ export async function overviewView(
           section: f.section.label,
           ownedBy: f.readOnly ? (f.ownedBy ?? 'HR') : null,
         })),
+      corrections,
       team,
       setup:
         asked === 'off' && setupFields.length === 0
@@ -258,11 +293,17 @@ export async function overviewView(
 /** A select's label rather than its stored value, when the department is one. */
 function departmentOf(
   view: PersonView,
-  fields: readonly { readonly key: string; readonly options: readonly { value: string; label: string }[] }[],
+  fields: readonly {
+    readonly key: string;
+    readonly options: readonly { value: string; label: string }[];
+  }[],
 ): string | null {
   const value = text(view.attributes['department']);
   if (value === null) return null;
-  return fields.find((f) => f.key === 'department')?.options.find((o) => o.value === value)?.label ?? value;
+  return (
+    fields.find((f) => f.key === 'department')?.options.find((o) => o.value === value)?.label ??
+    value
+  );
 }
 
 async function reportingLine(
@@ -385,14 +426,17 @@ async function approvalsPart(
       asked: open.has(c.id),
     });
   }
-  return { isHr: inbox.value.isHr, total: all.length, items };
+  const flagged = inbox.value.isHr ? await flaggedToDecide(tx, pending, asking) : null;
+  return {
+    isHr: inbox.value.isHr,
+    total: all.length,
+    flagged: flagged?.count ?? null,
+    flagReason: flagged?.latest ?? null,
+    items,
+  };
 }
 
-async function teamPart(
-  deps: ScreenDeps,
-  tx: Tx,
-  tenantId: string,
-): Promise<OverviewView['team']> {
+async function teamPart(deps: ScreenDeps, tx: Tx, tenantId: string): Promise<OverviewView['team']> {
   const totals = await deps.gapTotals(tx, tenantId);
   return {
     waiting: totals.waiting,

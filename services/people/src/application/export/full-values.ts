@@ -499,6 +499,8 @@ export interface FullValuesScreen {
     readonly requestedBy: string | null;
     readonly reason: string;
     readonly fields: readonly string[];
+    /** Whose values, in words (design E4): "Everybody · 128", "6 selected people", or the builder's. */
+    readonly people: string;
     readonly requestedAt: string;
     readonly expiresAt: string;
     readonly note: string | null;
@@ -542,6 +544,21 @@ export async function fullValuesScreen(
     return names.get(accountId) ?? null;
   };
 
+  // Everybody, counted once and only when a request is for everybody.
+  let everybody: number | null | undefined;
+  const whose = async (request: FullValuesRequest): Promise<string> => {
+    if (request.filter !== null) return request.filter;
+    if (request.personIds !== null) {
+      const n = request.personIds.length;
+      return `${String(n)} selected ${n === 1 ? 'person' : 'people'}`;
+    }
+    if (everybody === undefined) {
+      const counted = await deps.access.count(tx, asking);
+      everybody = counted.ok ? counted.value.all : null;
+    }
+    return everybody === null ? 'Everybody' : `Everybody · ${String(everybody)}`;
+  };
+
   const requests: FullValuesScreen['requests'][number][] = [];
   for (const request of listed) {
     const seen = await viewFullValues(tx, deps, { ...asking, requestId: request.approval.id });
@@ -553,6 +570,7 @@ export async function fullValuesScreen(
       requestedBy: await nameOfAccount(request.approval.requestedBy),
       reason: request.approval.reason,
       fields: request.attributeKeys.map((k) => labels.get(k) ?? k),
+      people: await whose(request),
       requestedAt: request.approval.requestedAt,
       expiresAt: request.approval.expiresAt,
       note: request.approval.note,

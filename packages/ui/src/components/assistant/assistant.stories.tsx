@@ -120,6 +120,28 @@ function Panel({
   );
 }
 
+/**
+ * A small window that minimises (design: a floating chat): `onMinimize` folds
+ * it into its launcher and keeps the conversation; Close ends it.
+ */
+export const Minimisable: Story = {
+  render: () => (
+    <AssistantPanel
+      subtitle="Answers with only what you can see"
+      onNewChat={noop}
+      onMinimize={noop}
+      onClose={noop}
+      composer={<Composer />}
+      className="h-145 w-100 max-w-full touch:h-100 touch:w-full"
+    >
+      <AssistantMessage from="user">Who on my team starts in November?</AssistantMessage>
+      <AssistantMessage from="assistant">
+        <p>One person on your team starts in November.</p>
+      </AssistantMessage>
+    </AssistantPanel>
+  ),
+};
+
 const feedback = (
   <>
     <Button variant="ghost" size="sm" startIcon={<Copy aria-hidden />} aria-label="Copy" />

@@ -260,16 +260,36 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         last4: t.exposeString('last4', { nullable: true }),
         findings: t.field({ type: [FindingRef], resolve: (r) => list(r.findings) }),
         enteredAt: t.exposeString('enteredAt'),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
         held: t.exposeBoolean('held', {
           description:
             'Held for approval, not yet written: reviewed first; sending it back declines the change.',
         }),
       }),
     });
+  const DecidedReviewRef = builder
+    .objectRef<IdentifierReviewsView['decided'][number]>('DecidedIdentifierReview')
+    .implement({
+      description: 'An identifier HR decided: never the value.',
+      fields: (t) => ({
+        personId: t.exposeID('personId'),
+        name: t.exposeString('name'),
+        label: t.exposeString('label'),
+        outcome: t.exposeString('outcome', { description: 'accepted or sent_back.' }),
+        decidedBy: t.exposeString('decidedBy'),
+        decidedAt: t.exposeString('decidedAt'),
+        note: t.exposeString('note', { nullable: true }),
+      }),
+    });
   const ReviewsRef = builder.objectRef<IdentifierReviewsView>('PeopleIdentifierReviews').implement({
     description: 'HR’s queue of doubted national identifiers, oldest first.',
     fields: (t) => ({
       items: t.field({ type: [ReviewItemRef], resolve: (v) => list(v.items) }),
+      decided: t.field({
+        type: [DecidedReviewRef],
+        description: 'Decided in the last 90 days, newest first.',
+        resolve: (v) => list(v.decided),
+      }),
     }),
   });
   /* ------------------------------------------------- duplicates (PEO-074) -- */
@@ -464,7 +484,13 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
   const PersonCalendar = builder
     .objectRef<NonNullable<ProfileView['calendar']>>('PersonCalendar')
     .implement({
-      fields: (t) => ({ today: t.exposeString('today'), timeZone: t.exposeString('timeZone') }),
+      fields: (t) => ({
+        today: t.exposeString('today'),
+        timeZone: t.exposeString('timeZone'),
+        now: t.exposeString('now', {
+          description: 'When People answered: the instant their local time is read from.',
+        }),
+      }),
     });
   type Employment = NonNullable<ProfileView['employment']>;
   const ProfilePeriod = builder
@@ -612,7 +638,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       description:
         'Why People’s checks flag a change (design AI7), for whoever decides it. It never blocks.',
       fields: (t) => ({
-        code: t.exposeString('code', { description: 'The check: raise, band, bank_after_contact, close_colleagues, payroll_closing or unusual_time.' }),
+        code: t.exposeString('code', {
+          description:
+            'The check: raise, band, bank_after_contact, close_colleagues, payroll_closing or unusual_time.',
+        }),
         title: t.exposeString('title', { description: '“A 38% raise”.' }),
         detail: t.exposeString('detail', {
           description: 'What it compared against, in words. Empty on a decided change.',
@@ -675,7 +704,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description: 'Only to whoever decides it; empty for anybody else.',
           resolve: (c) => list(c.flags),
         }),
-        comparisons: t.field({ type: [ApprovalComparisonRef], resolve: (c) => list(c.comparisons) }),
+        comparisons: t.field({
+          type: [ApprovalComparisonRef],
+          resolve: (c) => list(c.comparisons),
+        }),
         flagNote: t.exposeString('flagNote', {
           nullable: true,
           description: '“This might be fine: …”, with anything flagged.',
@@ -687,7 +719,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         canAsk: t.exposeBoolean('canAsk'),
         canMark: t.exposeBoolean('canMark', { description: 'May mark its flags not unusual.' }),
         questions: t.field({ type: [ApprovalQuestionRef], resolve: (c) => list(c.questions) }),
-        state: t.exposeString('state', { description: 'pending, approved or rejected.' }),
+        state: t.exposeString('state', { description: 'pending, approved, rejected or lapsed.' }),
         decidedBy: t.exposeString('decidedBy', { nullable: true }),
         decidedAt: t.exposeString('decidedAt', { nullable: true }),
         note: t.exposeString('note', { nullable: true }),
@@ -708,6 +740,7 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         findings: t.field({ type: [FindingRef], resolve: (c) => list(c.findings) }),
         personId: t.exposeID('personId'),
         name: t.exposeString('name'),
+        avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
         readable: t.exposeBoolean('readable', {
           description:
             'False where the viewer may not read the field: value and current are empty.',
@@ -874,6 +907,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       name: t.exposeString('name'),
       email: t.exposeString('email', { nullable: true }),
       avatarUrl: t.exposeString('avatarUrl', { nullable: true }),
+      timeZone: t.exposeString('timeZone', {
+        nullable: true,
+        description:
+          'Their zone, from where the viewer may read they work; null when that is nowhere.',
+      }),
       values: t.field({
         type: [Cell],
         resolve: (p) => Object.entries(p.values).map(([key, value]) => ({ key, value })),
@@ -922,12 +960,19 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       total: t.exposeInt('total'),
       active: t.exposeInt('active'),
       notStarted: t.exposeInt('notStarted', { nullable: true }),
+      leaving: t.exposeInt('leaving', {
+        nullable: true,
+        description: 'On notice, of everybody: beside the bare directory, for HR only.',
+      }),
       incomplete: t.exposeInt('incomplete', { nullable: true }),
       columns: t.field({ type: [Column], resolve: (v) => list(v.columns) }),
       filterable: t.field({ type: [Filterable], resolve: (v) => list(v.filterable) }),
       fields: t.field({ type: [DirectoryField], resolve: (v) => list(v.fields) }),
       metrics: t.field({ type: [DirectoryMetric], resolve: (v) => list(v.metrics) }),
       query: t.field({ type: DirectoryQuery, resolve: (v) => v.query }),
+      now: t.exposeString('now', {
+        description: 'When People answered: what each person’s local time is read from.',
+      }),
       people: t.field({ type: [DirectoryPerson], resolve: (v) => list(v.people) }),
       next: t.exposeString('next', { nullable: true }),
       can: t.field({ type: DirectoryCan, resolve: (v) => v.can }),
@@ -981,6 +1026,18 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       identifiers: t.exposeInt('identifiers', { nullable: true }),
       duplicates: t.exposeInt('duplicates', { nullable: true }),
       accessRequests: t.exposeInt('accessRequests', { nullable: true }),
+      flagged: t.exposeInt('flagged', {
+        nullable: true,
+        description: 'Changes waiting for this viewer’s decision that People’s checks flag.',
+      }),
+      asked: t.exposeInt('asked', {
+        nullable: true,
+        description: 'HR’s own changes and requests for full values, waiting on somebody else.',
+      }),
+      exports: t.exposeInt('exports', {
+        nullable: true,
+        description: 'Requests to send an export this viewer may decide.',
+      }),
     }),
   });
 
@@ -1977,6 +2034,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         requestedBy: t.exposeString('requestedBy', { nullable: true }),
         reason: t.exposeString('reason'),
         fields: t.stringList({ resolve: (r) => list(r.fields) }),
+        people: t.exposeString('people', {
+          description: 'Whose values, in words: "Everybody · 128", "6 selected people".',
+        }),
         requestedAt: t.exposeString('requestedAt'),
         expiresAt: t.exposeString('expiresAt'),
         note: t.exposeString('note', { nullable: true }),
@@ -3342,10 +3402,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         'Its flags were not worth raising (design AI7): similar changes by the same requester are flagged less often. Decides nothing.',
       args: { id: t.arg.id({ required: true }), idempotencyKey: t.arg.string({ required: true }) },
       resolve: async (_root, args, ctx) => {
-        await viaRest(ctx, 'POST', `/v1/pending-changes/${encodeURIComponent(args.id)}/not-unusual`, {
-          body: {},
-          key: args.idempotencyKey,
-        });
+        await viaRest(
+          ctx,
+          'POST',
+          `/v1/pending-changes/${encodeURIComponent(args.id)}/not-unusual`,
+          {
+            body: {},
+            key: args.idempotencyKey,
+          },
+        );
         return done();
       },
     }),

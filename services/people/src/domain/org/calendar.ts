@@ -116,6 +116,24 @@ export function personZone(calendar: TenantCalendar, placement: Placement, at: s
   return calendar.defaultZone;
 }
 
+/**
+ * A person's zone, to tell somebody their local time: as `personZone`, but
+ * nothing when nothing about them places them — the tenant's default would
+ * be a guess about this person, not a fact. The placement is what the viewer
+ * may read of them, so a location they may not see places nobody.
+ */
+export function placedZone(
+  calendar: TenantCalendar,
+  placement: Placement,
+  at: string,
+): string | null {
+  const placed =
+    (placement.locationId !== null && calendar.locations.has(placement.locationId)) ||
+    (placement.legalEntityId !== null && calendar.entities.has(placement.legalEntityId)) ||
+    (placement.ownZone !== null && isTimeZone(placement.ownZone));
+  return placed ? personZone(calendar, placement, at) : null;
+}
+
 const HOUR_MS = 3_600_000;
 
 /**
@@ -177,7 +195,9 @@ export function entityDays(
   at: string,
 ): { readonly byEntity: ReadonlyMap<string, CalendarDate>; readonly fallback: CalendarDate } {
   return {
-    byEntity: new Map([...calendar.entities.values()].map((e) => [e.id, localDate(at, e.timeZone)])),
+    byEntity: new Map(
+      [...calendar.entities.values()].map((e) => [e.id, localDate(at, e.timeZone)]),
+    ),
     fallback: localDate(at, calendar.defaultZone),
   };
 }
@@ -246,7 +266,9 @@ export function checkLocation(
 ): Result<PlaceInput & { readonly legalEntityId: string }> {
   if (!calendar.entities.has(input.legalEntityId)) {
     return err(
-      failure('LEGAL_ENTITY_NOT_FOUND', 'No such legal entity in this workspace', ['legalEntityId']),
+      failure('LEGAL_ENTITY_NOT_FOUND', 'No such legal entity in this workspace', [
+        'legalEntityId',
+      ]),
     );
   }
   const checked = checkLegalEntity(input);

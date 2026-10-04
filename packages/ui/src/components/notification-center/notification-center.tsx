@@ -12,6 +12,8 @@ import {
   type RefObject,
 } from 'react';
 
+import { Flag } from 'lucide-react';
+
 import { cn } from '../../lib/cn';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '../sheet/sheet';
@@ -145,6 +147,11 @@ export interface NotificationItemProps extends Omit<ComponentPropsWithoutRef<'li
   href?: string;
   /** Buttons that act on the item without opening it: Decline, Approve. */
   actions?: ReactNode;
+  /**
+   * A line under the description that asks for a second look, in the warning
+   * tone with a flag: why it stands out. Words, not only the colour.
+   */
+  note?: ReactNode;
 }
 
 export function NotificationItem({
@@ -157,6 +164,7 @@ export function NotificationItem({
   tone = 'neutral',
   href,
   actions,
+  note,
   className,
   ...props
 }: NotificationItemProps): JSX.Element {
@@ -199,6 +207,12 @@ export function NotificationItem({
           )}
         </p>
         {description ? <p className="truncate text-xs text-fg-muted">{description}</p> : null}
+        {note ? (
+          <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-warning-fg [&_svg]:size-3 [&_svg]:shrink-0">
+            <Flag aria-hidden />
+            <span className="truncate">{note}</span>
+          </p>
+        ) : null}
         {actions ? (
           <div className="relative z-10 mt-1.5 flex flex-wrap gap-2">{actions}</div>
         ) : null}

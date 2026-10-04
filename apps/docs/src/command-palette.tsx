@@ -132,6 +132,7 @@ export function CommandPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="top-24 max-w-lg translate-y-0 p-0"
+        sheetOnTouch
         onOpenAutoFocus={(event) => {
           /*
            * Focus the field, not the panel. Radix focuses the first tabbable

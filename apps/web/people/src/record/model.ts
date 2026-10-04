@@ -75,7 +75,11 @@ export interface PendingValue {
   /** A national identifier the checks doubt: not approvable until HR accepts its review. */
   readonly awaitingReview?: boolean;
   /** What the checks doubted, while it awaits review. */
-  readonly findings?: readonly { readonly level: string; readonly code: string; readonly message: string }[];
+  readonly findings?: readonly {
+    readonly level: string;
+    readonly code: string;
+    readonly message: string;
+  }[];
 }
 
 export interface RecordSection {

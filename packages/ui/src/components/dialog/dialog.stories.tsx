@@ -43,6 +43,7 @@ const meta = {
           '- The confirming button names the act, "Offboard", not "OK". A user who skimmed the title still reads the button.',
           '- Consequences go in the body, above the buttons, where they cannot be missed on the way past.',
           '- `DialogBody` scrolls at 60vh so a long form never pushes the footer off-screen on a laptop.',
+          '- Under a finger it stays centred. Only a long, scrolling editor takes `sheetOnTouch` and rises as a bottom sheet.',
         ].join('\n'),
       },
     },
@@ -205,6 +206,49 @@ export const Destructive: Story = {
             <Button variant="ghost">Keep active</Button>
           </DialogClose>
           <Button variant="danger">Offboard</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+};
+
+export const SheetOnTouch: Story = {
+  name: 'Sheet on touch',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Every dialog stays centred under a finger, because a short task fits on screen and keeps the page in sight. `sheetOnTouch` is for the exception: a long, scrolling editor that needs the height rises as a bottom sheet instead, its actions in reach of the thumb.',
+      },
+    },
+  },
+  render: (args) => (
+    <Dialog {...args}>
+      <DialogTrigger asChild>
+        <Button>Edit the policy</Button>
+      </DialogTrigger>
+      <DialogContent sheetOnTouch>
+        <DialogHeader>
+          <DialogTitle>Edit the travel policy</DialogTitle>
+          <DialogDescription>Each part is published on its own effective date.</DialogDescription>
+        </DialogHeader>
+        <DialogBody className="grid gap-4 pb-4">
+          {['Who it covers', 'What it pays for', 'How to claim', 'Who approves', 'Exceptions'].map(
+            (part) => (
+              <Field key={part}>
+                <FieldLabel>{part}</FieldLabel>
+                <FieldControl>
+                  <Textarea rows={4} />
+                </FieldControl>
+              </Field>
+            ),
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button>Cancel</Button>
+          </DialogClose>
+          <Button variant="primary">Save policy</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

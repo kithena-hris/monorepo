@@ -187,7 +187,7 @@ function AppRow({
           ) : (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" loading={busy} loadingLabel="Disconnecting">
+                <Button size="sm" loading={busy} loadingLabel="Disconnecting">
                   Disconnect
                 </Button>
               </AlertDialogTrigger>

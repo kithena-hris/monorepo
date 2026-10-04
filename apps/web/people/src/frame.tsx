@@ -100,10 +100,10 @@ function iconOf(name: string | undefined): ReactNode {
     : undefined;
 }
 
-/** What needs action in a section, as the sidebar shows it: approvals urgent, the rest a warning. */
+/** What needs action in a section, as the sidebar shows it: Review's red, anything else a warning. */
 function countOf(href: string, count: number | undefined): ReactNode {
   return count === undefined ? undefined : (
-    <Badge size="xs" variant="solid" tone={href.endsWith('/approvals') ? 'danger' : 'warning'}>
+    <Badge size="xs" variant="solid" tone={href.startsWith('/people/review/') ? 'danger' : 'warning'}>
       {count}
       <span className="sr-only"> waiting</span>
     </Badge>
@@ -115,8 +115,8 @@ function countOf(href: string, count: number | undefined): ReactNode {
  * finger), its actions, and an umbrella page's tabs.
  *
  * At a desk the trail ends in two switchers on an umbrella page, "People ›
- * Data health ▾ › Duplicates ▾": the section's menu lists the sections and,
- * under "In Data health", its tabs, the one you are on ticked; the tab's lists
+ * Review ▾ › Flagged ▾": the section's menu lists the sections and,
+ * under "In Review", its tabs, the one you are on ticked; the tab's lists
  * the tabs. Under a finger the bar's title is the section's switcher, each
  * section with its icon and count, and the tabs are a row of pills.
  */

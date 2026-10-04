@@ -201,6 +201,7 @@ type ApprovalFlagStats {
 }
 
 type ApprovalItem {
+  avatarUrl: String
   awaitingReview: Boolean
   canAsk: Boolean
   canDecide: Boolean
@@ -237,7 +238,7 @@ type ApprovalItem {
   reason: String
   requestedAt: String
   requestedBy: String
-  """pending, approved or rejected."""
+  """pending, approved, rejected or lapsed."""
   state: String
   value: FormEntry
 }
@@ -406,6 +407,18 @@ type DateAttribute {
   value: String
 }
 
+"""An identifier HR decided: never the value."""
+type DecidedIdentifierReview {
+  decidedAt: String
+  decidedBy: String
+  label: String
+  name: String
+  note: String
+  """accepted or sent_back."""
+  outcome: String
+  personId: ID
+}
+
 """A field somebody asked the person to fill in, still empty."""
 type DetailRequest {
   """Who asked, in words the viewer may read."""
@@ -500,6 +513,10 @@ type DirectoryPerson {
   Each person column (a manager), to draw as a person: who, and their photo.
   """
   people: [DirectoryPersonRef!]
+  """
+  Their zone, from where the viewer may read they work; null when that is nowhere.
+  """
+  timeZone: String
   values: [DirectoryCell!]
 }
 
@@ -668,6 +685,8 @@ type FullValuesListed {
   link: String
   mine: Boolean
   note: String
+  """Whose values, in words: "Everybody · 128", "6 selected people"."""
+  people: String
   reason: String
   requestedAt: String
   requestedBy: String
@@ -815,6 +834,7 @@ type IdentifierReviewEntry {
 
 type IdentifierReviewItem {
   attributeKey: String
+  avatarUrl: String
   enteredAt: String
   findings: [IdentifierFinding!]
   """
@@ -1676,9 +1696,13 @@ type PeopleDirectory {
   fields: [DirectoryField!]
   filterable: [DirectoryFilter!]
   incomplete: Int
+  """On notice, of everybody: beside the bare directory, for HR only."""
+  leaving: Int
   metrics: [DirectoryMetric!]
   next: String
   notStarted: Int
+  """When People answered: what each person’s local time is read from."""
+  now: String
   people: [DirectoryPerson!]
   query: DirectoryQuery
   """
@@ -1766,6 +1790,8 @@ type PeopleHome {
 
 """HR’s queue of doubted national identifiers, oldest first."""
 type PeopleIdentifierReviews {
+  """Decided in the last 90 days, newest first."""
+  decided: [DecidedIdentifierReview!]
   items: [IdentifierReviewItem!]
 }
 
@@ -1848,6 +1874,7 @@ Where People starts: the viewer, their reporting line, and what waits for them.
 """
 type PeopleOverview {
   approvals: PeopleOverviewApprovals
+  corrections: [PeopleOverviewCorrection!]
   """
   Imports the viewer approved that finished in the last two weeks, newest first.
   """
@@ -1883,9 +1910,24 @@ type PeopleOverviewApproval {
 }
 
 type PeopleOverviewApprovals {
+  """The newest flagged change’s reasons in a line: "A 38% raise"."""
+  flagReason: String
+  """HR’s: how many changes waiting for their decision the checks flag."""
+  flagged: Int
   isHr: Boolean
   items: [PeopleOverviewApproval!]
   total: Int
+}
+
+"""
+One of their own identifiers HR sent back, to correct. Never the value.
+"""
+type PeopleOverviewCorrection {
+  key: String
+  label: String
+  """Why, in HR’s words or the check’s."""
+  reason: String
+  sectionKey: String
 }
 
 """The viewer’s own record, as they may read it."""
@@ -2197,7 +2239,15 @@ How many decisions wait for this viewer, counted; null where they have no such q
 """
 type PeopleWaiting {
   accessRequests: Int
+  """
+  HR’s own changes and requests for full values, waiting on somebody else.
+  """
+  asked: Int
   duplicates: Int
+  """Requests to send an export this viewer may decide."""
+  exports: Int
+  """Changes waiting for this viewer’s decision that People’s checks flag."""
+  flagged: Int
   identifiers: Int
 }
 
@@ -2214,6 +2264,8 @@ type Person @key(fields: "id") {
 union PersonAttribute = AddressAttribute | BooleanAttribute | DateAttribute | ListAttribute | MoneyAttribute | NumberAttribute | SealedAttribute | TextAttribute
 
 type PersonCalendar {
+  """When People answered: the instant their local time is read from."""
+  now: String
   timeZone: String
   today: String
 }
@@ -2430,6 +2482,10 @@ type Query {
     """JSON: choice, recipient, sentence"""
     input: String!
   ): String
+  """
+  The requests to send an export this viewer may decide now, oldest first (JSON): a People administrator’s, never one they asked for or would receive.
+  """
+  peopleExportSharesToDecide: String
   """
   A field’s new type, with every value it holds read again as that type and nothing written (JSON): what converts, with examples, and each value that does not, with whose it is and why.
   """

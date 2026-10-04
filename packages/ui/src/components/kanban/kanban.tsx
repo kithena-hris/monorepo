@@ -30,7 +30,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Ellipsis, GripVertical, Lock, MoveRight, X } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { bulkBarClass } from '../../lib/bulk-bar';
 import { cn } from '../../lib/cn';
@@ -549,6 +549,8 @@ export function Kanban<T extends { id: string }>({
     [],
   );
 
+  // dnd-kit numbers its ids per process, so the server's and the browser's would differ.
+  const dndId = useId();
   const sensors = useSensors(
     useSensor(PointerSensor, {
       // Without a distance threshold every click on a card starts a drag, and
@@ -679,6 +681,7 @@ export function Kanban<T extends { id: string }>({
 
   return (
     <DndContext
+      id={dndId}
       sensors={sensors}
       collisionDetection={closestCorners}
       accessibility={{ announcements, screenReaderInstructions: instructions }}

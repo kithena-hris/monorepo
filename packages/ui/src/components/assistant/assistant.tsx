@@ -6,6 +6,7 @@ import {
   CircleCheck,
   Maximize2,
   Minimize2,
+  Minus,
   Sparkles,
   SquarePen,
   X,
@@ -169,6 +170,12 @@ export interface AssistantPanelProps extends Omit<ComponentPropsWithoutRef<'sect
   /** Toggles between floating and full size. Not offered under a finger, where it is always full. */
   onExpand?: () => void;
   expanded?: boolean;
+  /**
+   * Folds the window back into its launcher and keeps the conversation, as a
+   * window's minimise does. With it, Close is a cross under a finger too: it
+   * ends the conversation rather than putting it away.
+   */
+  onMinimize?: () => void;
   onClose?: () => void;
   /** Keeps the list pinned while a reply streams in. */
   busy?: boolean;
@@ -184,6 +191,7 @@ export function AssistantPanel({
   onNewChat,
   onExpand,
   expanded = false,
+  onMinimize,
   onClose,
   busy = false,
   composer,
@@ -234,15 +242,28 @@ export function AssistantPanel({
             className="touch:hidden"
           />
         ) : null}
+        {onMinimize ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            startIcon={<Minus aria-hidden />}
+            aria-label="Minimise"
+            onClick={onMinimize}
+          />
+        ) : null}
         {onClose ? (
           <Button
             variant="ghost"
             size="sm"
             startIcon={
-              <>
-                <X aria-hidden className="touch:hidden" />
-                <ChevronDown aria-hidden className="hidden touch:block" />
-              </>
+              onMinimize ? (
+                <X aria-hidden />
+              ) : (
+                <>
+                  <X aria-hidden className="touch:hidden" />
+                  <ChevronDown aria-hidden className="hidden touch:block" />
+                </>
+              )
             }
             aria-label="Close assistant"
             onClick={onClose}

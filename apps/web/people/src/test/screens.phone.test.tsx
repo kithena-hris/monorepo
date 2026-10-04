@@ -6,9 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
 import { Analytics } from '../analytics/analytics';
-import { Approvals } from '../approvals/approvals';
 import { BulkEdit } from '../bulk/bulk-edit';
-import { CompletenessGrid } from '../completeness/completeness-grid';
 import { Directory } from '../directory/directory';
 import { ExportBuilder } from '../export/export-builder';
 import { ImportFlow } from '../import/import-flow';
@@ -31,12 +29,10 @@ import { START_DAY } from '../settings/field-change.fixture';
 import { Integrations } from '../settings/integrations/integrations';
 import { Organisation } from '../settings/organisation';
 import { WebhookLog } from '../settings/integrations/webhook-log';
-import { FullValues } from '../export/full-values';
 import { PeopleHome } from '../home/people-home';
 import { overview } from '../home/people-home.fixture';
-import { IdentifierReviews } from '../review/identifier-reviews';
 import { ImportExport } from '../import/import-export';
-import { Duplicates } from '../review/duplicates';
+import { reviewOf } from '../review/review.fixture';
 import { PublishDialog } from '../settings/publish';
 import { PeopleSetup } from '../setup/people-setup';
 import { WhatChanged } from '../analytics/what-changed';
@@ -85,6 +81,17 @@ async function violations(root: Element): Promise<string[]> {
   return result.violations.map(
     (v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
   );
+}
+
+/**
+ * A short task's dialog, centred under a finger rather than risen as a sheet:
+ * its top-left is the middle of the window before the translate, read from
+ * the style rather than the box, which may still be scaling in.
+ */
+function expectCentred(dialog: HTMLElement): void {
+  const style = getComputedStyle(dialog);
+  expect(Number.parseFloat(style.top)).toBeCloseTo(window.innerHeight / 2, 0);
+  expect(Number.parseFloat(style.left)).toBeCloseTo(window.innerWidth / 2, 0);
 }
 
 function mount(ui: ReactElement) {
@@ -265,7 +272,7 @@ describe('at 390×844, with a finger', () => {
     for (const group of sheet.querySelectorAll('fieldset')) expect(underFloor(group)).toEqual([]);
   });
 
-  it('publishing, as a sheet from the bottom', async () => {
+  it('publishing, as a dialog centred over the page', async () => {
     await checked(
       <PublishDialog
         open
@@ -298,10 +305,7 @@ describe('at 390×844, with a finger', () => {
     );
     await screen.findByText('Become incomplete');
     const dialog = screen.getByRole('dialog');
-    // Anchored to the bottom edge, not centred: read from the style rather than
-    // the box, which is mid-way through sliding in.
-    // Reach 2 floats the sheet a half-rem above the edge (or the safe area).
-    expect(Number.parseFloat(getComputedStyle(dialog).bottom)).toBeLessThanOrEqual(8);
+    expectCentred(dialog);
     expect(underFloor(dialog)).toEqual([]);
   });
 
@@ -501,7 +505,9 @@ describe('at 390×844, with a finger', () => {
         onSetNumbering={ok}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Edit Acme Iberia SL' }));
+    // Each row's actions are in its menu, on the card under a finger (H7).
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for Acme Iberia SL' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
     await settled();
     expect(await violations(document.body)).toEqual([]);
     expect(underFloor(document.body)).toEqual([]);
@@ -703,12 +709,11 @@ describe('at 390×844, with a finger', () => {
     expect(await violations(document.body)).toEqual([]);
   });
 
-  it('the completeness grid, as one card per person', async () => {
+  it('Review’s missing details, as one card per person (MA E5)', async () => {
     await checked(
-      <CompletenessGrid
-        load={{
-          status: 'ready',
-          data: {
+      reviewOf(
+        {
+          completeness: {
             since: 'Since version 4',
             waiting: { people: 61, lastReminded: null, due: 61 },
             completedThisWeek: 3,
@@ -753,13 +758,16 @@ describe('at 390×844, with a finger', () => {
               },
             ],
           },
-        }}
-        onSave={ok}
-        onRemind={ok}
-        // Paged (PEO-122): the page buttons are finger-sized too.
-        onNextPage={vi.fn()}
-        onFirstPage={vi.fn()}
-      />,
+        },
+        {
+          kind: 'missing',
+          onSaveMissing: ok,
+          onRemind: ok,
+          // Paged (PEO-122): the page buttons are finger-sized too.
+          onNextPage: vi.fn(),
+          onFirstPage: vi.fn(),
+        },
+      ),
     );
     expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument();
     // A phone gets the percentage as a bar, and a row a person (MV2); the table is a desk's.
@@ -950,12 +958,11 @@ describe('at 390×844, with a finger', () => {
     );
   });
 
-  it('full values, for finance and for HR', async () => {
+  it('a request for full values in Review, for HR (E4)', async () => {
     await checked(
-      <FullValues
-        load={{
-          status: 'ready',
-          data: {
+      reviewOf(
+        {
+          fullValues: {
             canRequest: true,
             canDecide: true,
             fields: [{ key: 'es_nif', label: 'NIF / NIE' }],
@@ -986,19 +993,17 @@ describe('at 390×844, with a finger', () => {
               },
             ],
           },
-        }}
-        onRequest={ok}
-        onDecide={ok}
-      />,
+        },
+        { kind: 'access' },
+      ),
     );
   });
 
-  it('identifiers to review, for HR (PEO-125)', async () => {
+  it('an ID check in Review, for HR (MA E3)', async () => {
     await checked(
-      <IdentifierReviews
-        load={{
-          status: 'ready',
-          data: {
+      reviewOf(
+        {
+          identifiers: {
             items: [
               {
                 personId: 'p1',
@@ -1018,20 +1023,24 @@ describe('at 390×844, with a finger', () => {
               },
             ],
           },
-        }}
-        onDecide={ok}
-        onReveal={() => Promise.resolve({ ok: true as const, value: '12345678A' })}
-      />,
+        },
+        { kind: 'ids', item: 'id-p1~es_nif' },
+      ),
     );
   });
 
-  it('two possible duplicates side by side, for HR (PEO-074)', async () => {
+  it('two possible duplicates stacked, for HR (MA E4)', async () => {
     await checked(
-      <Duplicates
-        load={{
-          status: 'ready',
-          data: {
-            items: [],
+      reviewOf(
+        {
+          duplicates: {
+            items: [
+              {
+                personIds: ['p1', 'p2'],
+                names: ['Ada Lovelace', 'Augusta Lovelace'],
+                reasons: ['Same work email'],
+              },
+            ],
             comparison: {
               people: [
                 { id: 'p1', name: 'Ada Lovelace', status: 'active', refusal: null },
@@ -1053,13 +1062,9 @@ describe('at 390×844, with a finger', () => {
               ],
             },
           },
-        }}
-        onCompare={vi.fn()}
-        onBack={vi.fn()}
-        onMerge={ok}
-        onDismiss={ok}
-        onUnmerge={ok}
-      />,
+        },
+        { kind: 'duplicates', item: 'dup-p1~p2' },
+      ),
     );
   });
 
@@ -1092,7 +1097,7 @@ describe('at 390×844, with a finger', () => {
 
     it('new fields, one card at a time, with Skip and Create in thumb reach (MA8)', async () => {
       await checked(flow({ status: 'ready', data: MAPPING }));
-      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next' }));
       await screen.findByText('New fields · 1 of 3');
       // The import's own bar, as drawn: back to Import, the step as the title,
       // and no large title or stepper under it.
@@ -1116,7 +1121,7 @@ describe('at 390×844, with a finger', () => {
 
     it('the people without a value, then the plan in a sentence and Approve (MA9)', async () => {
       await checked(flow({ status: 'ready', data: MAPPING }));
-      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next' }));
       // One card at a time: the same two buttons serve every card, so each
       // press waits for its card, or it lands on the one before and the plan
       // never comes.
@@ -1138,7 +1143,7 @@ describe('at 390×844, with a finger', () => {
     it('the plan', async () => {
       const noNewColumns = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
       await checked(flow({ status: 'ready', data: noNewColumns }));
-      await userEvent.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next' }));
       await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
       // A cell left empty is a card titled by whose it is, under "See rows".
       await userEvent.click(screen.getByRole('button', { name: 'See rows' }));
@@ -1163,7 +1168,7 @@ describe('at 390×844, with a finger', () => {
           admin
         />,
       );
-      await userEvent.click(screen.getByRole('button', { name: 'Next: work locations' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next' }));
       await screen.findByRole('heading', {
         name: '3 work locations in this file. Here’s how each maps.',
       });
@@ -1367,10 +1372,9 @@ describe('a floating button over a pinned footer (MA7)', () => {
   it('rises above the footer, so Approve is the thing under a finger at its centre', async () => {
     mount(
       <>
-        <Approvals
-          load={{
-            status: 'ready',
-            data: {
+        {reviewOf(
+          {
+            approvals: {
               isHr: true,
               items: [
                 {
@@ -1401,14 +1405,9 @@ describe('a floating button over a pinned footer (MA7)', () => {
                 },
               ],
             },
-          }}
-          onDecide={ok}
-          onWithdraw={ok}
-          onMarkNotUnusual={ok}
-          onAsk={ok}
-          change="c1"
-          onChangeOpen={() => undefined}
-        />
+          },
+          { onMarkNotUnusual: ok, onAsk: ok, item: 'change-c1', onItemChange: () => undefined },
+        )}
         {/* Where the shell puts it under a finger: the corner above the tab bar. */}
         <AssistantLauncher
           label="Ask"
@@ -1439,13 +1438,12 @@ describe('a floating button over a pinned footer (MA7)', () => {
   });
 });
 
-describe('approvals on a phone, with a flagged change (MA7)', () => {
+describe('Review on a phone, with a flagged change (MA E2)', () => {
   it('draws why it is flagged and the decision, and every target is a finger’s', async () => {
     await checked(
-      <Approvals
-        load={{
-          status: 'ready',
-          data: {
+      reviewOf(
+        {
+          approvals: {
             isHr: true,
             items: [
               {
@@ -1480,14 +1478,9 @@ describe('approvals on a phone, with a flagged change (MA7)', () => {
               },
             ],
           },
-        }}
-        onDecide={ok}
-        onWithdraw={ok}
-        onMarkNotUnusual={ok}
-        onAsk={ok}
-        change="c1"
-        onChangeOpen={() => undefined}
-      />,
+        },
+        { onMarkNotUnusual: ok, onAsk: ok, item: 'change-c1', onItemChange: () => undefined },
+      ),
     );
     expect(screen.getByRole('heading', { name: 'Why this is flagged' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /with note$/ })).toBeInTheDocument();
@@ -1496,10 +1489,9 @@ describe('approvals on a phone, with a flagged change (MA7)', () => {
 
   it('puts what gets flagged under the Flagged tab, switches a finger’s', async () => {
     await checked(
-      <Approvals
-        load={{
-          status: 'ready',
-          data: {
+      reviewOf(
+        {
+          approvals: {
             isHr: true,
             items: [],
             canTune: true,
@@ -1519,13 +1511,9 @@ describe('approvals on a phone, with a flagged change (MA7)', () => {
             ],
             last90: { flagged: 11, rejected: 3, marked: 6 },
           },
-        }}
-        onDecide={ok}
-        onWithdraw={ok}
-        onSetCheck={ok}
-        tab="flagged"
-        onTabChange={() => undefined}
-      />,
+        },
+        { tab: 'flagged', onSetCheck: ok },
+      ),
     );
     expect(screen.getByRole('heading', { name: 'What Kithena checks' })).toBeInTheDocument();
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
@@ -1646,7 +1634,7 @@ describe('what changed on a phone (MA4, MA5)', () => {
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   });
 
-  it('shares as a sheet from the bottom, rewritten for its recipient', async () => {
+  it('shares in a centred dialog, rewritten for its recipient', async () => {
     await checked(
       <WhatChanged
         load={{ status: 'ready', data: SEPTEMBER }}
@@ -1667,7 +1655,7 @@ describe('what changed on a phone (MA4, MA5)', () => {
     expect(within(dialog).getByText('Message')).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Send to Nora' })).toBeVisible();
     expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
-    expect(Number.parseFloat(getComputedStyle(dialog).bottom)).toBeLessThanOrEqual(8);
+    expectCentred(dialog);
     await settled();
     expect(underFloor(dialog)).toEqual([]);
     expect(await violations(document.body)).toEqual([]);

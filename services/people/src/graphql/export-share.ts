@@ -30,6 +30,11 @@ export function defineExportShare(builder: PeopleBuilder, viaRest: ViaRest): voi
       args: { id: t.arg.id({ required: true }) },
       resolve: (_root, args, ctx) => json(viaRest(ctx, 'GET', `/v1/exports/share/${id(args.id)}`)),
     }),
+    peopleExportSharesToDecide: t.string({
+      description:
+        'The requests to send an export this viewer may decide now, oldest first (JSON): a People administrator’s, never one they asked for or would receive.',
+      resolve: (_root, _args, ctx) => json(viaRest(ctx, 'GET', '/v1/exports/share')),
+    }),
     peopleExportRecord: t.string({
       description:
         'A finished export for its requester or recipient: where it went, what it holds, its About and its links (JSON).',

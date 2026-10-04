@@ -8,6 +8,7 @@ import {
   exportRecord,
   previewShare,
   shareExport,
+  sharesToDecide,
   shareView,
   ShareAsk,
   ShareDecisionAsk,
@@ -147,6 +148,15 @@ export function shareRoutes(deps: {
               : waiting;
         },
       ),
+    },
+    {
+      // Review's Exports (E5): the requests this viewer may decide now.
+      method: 'GET',
+      pattern: /^\/v1\/exports\/share$/,
+      handle: async (asking) => {
+        const found = inShare(asking, (d, tx) => sharesToDecide(tx, d, asking));
+        return found === null ? answer(ok([])) : answer(await found);
+      },
     },
     {
       method: 'GET',

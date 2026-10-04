@@ -1004,17 +1004,19 @@ export function wirePeople(server: Server): void {
   const idempotency = drizzleIdempotency();
   const activitySchema = drizzleSchemaRepository();
   const activityOrg = drizzleOrgStore();
+  const shares = shareDeps(exports.deps);
   const rest = restHandler({
     service,
     callerFrom,
     idempotency,
     exports,
     fullValues: exports.fullValues,
+    shares,
     segments: drizzleSegments(),
     screens: [
       ...screenRoutes({ ...screens, ...imports.deps }, idempotency),
       // An export sent to somebody else (design AI13, AI14, MA10).
-      ...shareRoutes({ service, idempotency, share: shareDeps(exports.deps) }),
+      ...shareRoutes({ service, idempotency, share: shares }),
     ],
     activity: {
       store: drizzleActivity(),

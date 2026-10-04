@@ -155,8 +155,7 @@ describe('the shortcuts, in the shell', () => {
       'go.home': '/',
       'go.people': '/people',
       'go.directory': '/people/directory/list',
-      'go.approvals': '/people/approvals',
-      'go.data-health': '/people/data-health/completeness',
+      'go.review': '/people/review/waiting',
       'go.import-export': '/people/import-export',
       'go.insights': '/people/insights/what-changed',
       'go.inbox': '/inbox',
@@ -261,7 +260,7 @@ describe('C, ⌘Enter and the palette’s actions', () => {
     pathname = '/people/directory/list';
     const { unmount } = renderShell();
     press('c');
-    expect(push).toHaveBeenLastCalledWith('/people/new');
+    expect(push).toHaveBeenLastCalledWith('/people/directory/list?add=person');
     unmount();
     pathname = '/people/import-export';
     renderShell();

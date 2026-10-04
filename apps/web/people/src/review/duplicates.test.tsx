@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
-import { Duplicates, type DuplicatesState } from './duplicates';
+import type { DuplicatesState } from './duplicates';
+import { renderReview } from './review.fixture';
 
 const queue: DuplicatesState = {
   items: [
@@ -56,13 +57,12 @@ const compared: DuplicatesState = {
 };
 
 const done = () => Promise.resolve({ ok: true as const });
-const props = {
-  onCompare: vi.fn(),
-  onBack: vi.fn(),
-  onMerge: vi.fn(done),
-  onDismiss: vi.fn(done),
-  onUnmerge: vi.fn(done),
-};
+/** Review on its Duplicates chip, with the pair the address names open. */
+const duplicates = (data: DuplicatesState, props: Parameters<typeof renderReview>[1] = {}) =>
+  renderReview(
+    { duplicates: data },
+    { kind: 'duplicates', ...(data.comparison === null ? {} : { item: 'dup-p1~p2' }), ...props },
+  );
 
 const withMerges: DuplicatesState = {
   ...queue,
@@ -93,51 +93,35 @@ const withMerges: DuplicatesState = {
   ],
 };
 
-describe('HR’s duplicate review (PEO-074)', () => {
-  it('lists pairs and why, and merges nothing from the list', async () => {
-    const onCompare = vi.fn();
-    const { container } = render(
-      <Duplicates {...props} onCompare={onCompare} load={{ status: 'ready', data: queue }} />,
-    );
+describe('possible duplicates in Review (PEO-074)', () => {
+  it('lists pairs and why, as a band never a percentage, and compares from the row', async () => {
+    const onItemChange = vi.fn();
+    const { container } = duplicates(queue, { onItemChange });
     expect(await axeViolations(container)).toEqual([]);
-    expect(screen.getByText('Same work email')).toBeInTheDocument();
-    await fast().click(screen.getByRole('button', { name: /Compare Ada Lovelace and Augusta/ }));
-    expect(onCompare).toHaveBeenCalledWith('p1', 'p2');
-    // Titled as its section; the match is a band People gives, never a percentage.
-    expect(screen.getByRole('heading', { level: 1, name: 'Data health' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Match' })).toBeInTheDocument();
-    expect(screen.getByText('Likely')).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Waiting for a decision' });
+    expect(
+      within(list).getByText(/Possible duplicate of Augusta Lovelace · Same work email/),
+    ).toBeInTheDocument();
+    expect(within(list).getByText('Likely')).toBeInTheDocument();
     expect(screen.queryByText(/%/u)).toBeNull();
+    // Compared on People's side: nothing merges until the pair is open.
+    await fast().click(screen.getByRole('button', { name: 'Compare' }));
+    expect(onItemChange).toHaveBeenCalledWith('dup-p1~p2');
   });
 
-  it('draws no Match column for pairs People gave no band', () => {
-    const { personIds, names, reasons } = queue.items[0] ?? { personIds: [], names: [], reasons: [] };
-    render(
-      <Duplicates
-        {...props}
-        load={{ status: 'ready', data: { ...queue, items: [{ personIds, names, reasons }] } }}
-      />,
-    );
-    expect(screen.queryByRole('columnheader', { name: 'Match' })).toBeNull();
-  });
-
-  it('takes a pair out of the list from the row, and says why when People refuses', async () => {
-    const onDismiss = vi.fn(() => Promise.resolve({ ok: false as const, message: 'Gone' }));
-    render(<Duplicates {...props} onDismiss={onDismiss} load={{ status: 'ready', data: queue }} />);
-    await fast().click(
-      screen.getByRole('button', {
-        name: 'Ada Lovelace and Augusta Lovelace are not the same person',
-      }),
-    );
-    expect(onDismiss).toHaveBeenCalledWith('p1', 'p2');
-    expect(await screen.findByText('Gone')).toBeInTheDocument();
+  it('draws no band for pairs People gave none', () => {
+    const { personIds, names, reasons } = queue.items[0] ?? {
+      personIds: [],
+      names: [],
+      reasons: [],
+    };
+    duplicates({ ...queue, items: [{ personIds, names, reasons }] });
+    expect(screen.queryByText('Likely')).toBeNull();
   });
 
   it('keeps the record People allows, takes only what is ticked, and asks before merging', async () => {
     const onMerge = vi.fn(done);
-    const { container } = render(
-      <Duplicates {...props} onMerge={onMerge} load={{ status: 'ready', data: compared }} />,
-    );
+    const { container } = duplicates(compared, { onMerge });
     expect(await axeViolations(container)).toEqual([]);
     expect(screen.getByRole('radio', { name: /Keep Augusta Lovelace/ })).toBeDisabled();
     expect(screen.getByRole('radio', { name: /Keep Ada Lovelace/ })).toBeChecked();
@@ -156,20 +140,17 @@ describe('HR’s duplicate review (PEO-074)', () => {
     expect(onMerge).toHaveBeenCalledWith('p1', 'p2', ['given_name']);
   });
 
-  it('says a pair are two people', async () => {
-    const onDismiss = vi.fn(done);
-    render(
-      <Duplicates {...props} onDismiss={onDismiss} load={{ status: 'ready', data: compared }} />,
-    );
+  it('says a pair are two people, and says why when People refuses', async () => {
+    const onDismiss = vi.fn(() => Promise.resolve({ ok: false as const, message: 'Gone' }));
+    duplicates(compared, { onDismiss });
     await fast().click(screen.getByRole('button', { name: 'Not the same person' }));
     expect(onDismiss).toHaveBeenCalledWith('p1', 'p2');
+    expect(await screen.findByText('Gone')).toBeInTheDocument();
   });
 
-  it('undoes a merge only with a reason, saying first what goes back and what is kept', async () => {
+  it('undoes a merge under Decided, only with a reason, saying first what goes back and what is kept', async () => {
     const onUnmerge = vi.fn(done);
-    const { baseElement } = render(
-      <Duplicates {...props} onUnmerge={onUnmerge} load={{ status: 'ready', data: withMerges }} />,
-    );
+    const { baseElement } = renderReview({ duplicates: withMerges }, { tab: 'decided', onUnmerge });
     expect(screen.getByText(/undo that first/)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Undo merge of/ })).toHaveLength(1);
 
@@ -202,8 +183,13 @@ describe('HR’s duplicate review (PEO-074)', () => {
         })),
       },
     };
-    render(<Duplicates {...props} load={{ status: 'ready', data: blocked }} />);
+    duplicates(blocked);
     expect(screen.getByText('These two cannot be merged here')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Merge' })).toBeDisabled();
+  });
+
+  it('says so when nothing looks duplicated', () => {
+    duplicates({ items: [], comparison: null });
+    expect(screen.getByText('Nothing looks duplicated')).toBeInTheDocument();
   });
 });

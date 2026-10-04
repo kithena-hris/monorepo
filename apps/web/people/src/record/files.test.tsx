@@ -43,7 +43,13 @@ describe('file fields', () => {
     const onChange = vi.fn();
     const { container } = render(
       <FieldFiles.Provider value={{ upload, known: new Map() }}>
-        <FileInput field={contract} value={null} invalid={false} description="" onChange={onChange} />
+        <FileInput
+          field={contract}
+          value={null}
+          invalid={false}
+          description=""
+          onChange={onChange}
+        />
       </FieldFiles.Provider>,
     );
     const file = new File(['%PDF-1.7'], 'contract.pdf', { type: 'application/pdf' });
@@ -54,7 +60,9 @@ describe('file fields', () => {
   });
 
   it('says where a file is filled in when the screen cannot upload', () => {
-    render(<FileInput field={contract} value={null} invalid={false} description="" onChange={vi.fn()} />);
+    render(
+      <FileInput field={contract} value={null} invalid={false} description="" onChange={vi.fn()} />,
+    );
     expect(screen.getByText('Uploaded on the profile.')).toBeInTheDocument();
   });
 });

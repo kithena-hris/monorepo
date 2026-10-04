@@ -14,6 +14,7 @@ import {
   exportRecord,
   previewShare,
   shareExport,
+  sharesToDecide,
   shareView,
   type ShareChoice,
   type ShareDeps,
@@ -176,7 +177,7 @@ describe('sending', () => {
     expect(shared.value.mail).toEqual([
       {
         email: 'nora@acme.test',
-        url: `https://acme.app.kithena.test/people/export?share=${requestId}`,
+        url: `https://acme.app.kithena.test/people/review/waiting?kind=exports&item=export-${requestId}`,
         notice: 'export_share_requested',
         dedupeKey: `export-share/${requestId}/${NORA}`,
       },
@@ -191,6 +192,23 @@ describe('sending', () => {
       approvers: [{ accountId: NORA, name: 'Nora Becker' }],
       gap: { fields: [{ key: 'given_name' }, { key: 'job_title' }, { key: 'base_salary' }] },
     });
+  });
+
+  it('is listed for the administrator who may decide it, and nobody else', async () => {
+    const { deps } = setup();
+    const shared = await shareExport(tx, deps, asking(HR), {
+      choice,
+      recipient: MANAGER.accountId,
+    });
+    if (!shared.ok) throw new Error(shared.error.message);
+    const requestId = shared.value.value.status === 'waiting' ? shared.value.value.requestId : '';
+    const listed = await sharesToDecide(tx, deps, asking(ADMIN));
+    expect(listed.ok && listed.value.map((s) => [s.id, s.canDecide])).toEqual([[requestId, true]]);
+    // The requester, the recipient and anybody not an administrator see none.
+    for (const viewer of [HR, MANAGER, FINANCE]) {
+      const none = await sharesToDecide(tx, deps, asking(viewer));
+      expect(none.ok && none.value).toEqual([]);
+    }
   });
 
   it('is refused with nobody to approve it', async () => {

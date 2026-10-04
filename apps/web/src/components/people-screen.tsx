@@ -1,24 +1,18 @@
 'use client';
 
-import { Skeleton } from '@reach/ui';
 import type { Route } from 'next';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   useEffect,
-  useLayoutEffect,
   useReducer,
   useRef,
   useState,
-  useSyncExternalStore,
   useTransition,
   type JSX,
-  type ReactNode,
 } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
-import { matchPath } from '../lib/remotes';
-import type { ShellData } from '../lib/shell-data';
 import { useShellData } from './app-shell';
 import { DIRECTORY_VIEWS, viewHref } from '../lib/shortcuts';
 import {
@@ -118,147 +112,6 @@ export interface PeopleScreenProps {
         }[];
       }
     | undefined;
-  /**
-   * Drawn by a loading state from what this tab already holds, rather than
-   * sent by the server for this address: kept out of what it remembers.
-   */
-  readonly kept?: boolean;
-}
-
-/*
- * What this tab has shown of People, so that going back to a page is the page
- * at once rather than its skeleton.
- *
- * Each page People's server sent, by its address, with the shell's data it
- * arrived under. That data is drawn again only after a write (the layout
- * renders again then, `changed` in `lib/people.ts`), so a page kept under an
- * older copy is from before a write and is never shown again: a saved change
- * is never shown stale. Only in the browser — on the server this module is
- * shared by everybody's requests.
- */
-interface Seen {
-  readonly input: PeopleScreenProps;
-  readonly shell: ShellData;
-}
-const seen = new Map<string, Seen>();
-/** As many pages as anybody moves between; the oldest goes first. */
-const KEEP = 24;
-/** The page on screen now, by its address; null away from People. */
-let onScreen: string | null = null;
-
-/** An address as it is kept: the path, and its query in one order. */
-function addressKey(path: string, search: Readonly<Record<string, string>>): string {
-  const query = new URLSearchParams(
-    Object.entries(search).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-  ).toString();
-  return query === '' ? path : `${path}?${query}`;
-}
-
-/** The query as the server reads it (`flatSearch`): a repeated key is dropped. */
-function flat(query: URLSearchParams): Record<string, string> {
-  return Object.fromEntries(
-    [...query.keys()].flatMap((k) => {
-      const all = query.getAll(k);
-      return all.length === 1 ? [[k, all[0] ?? '']] : [];
-    }),
-  );
-}
-
-function same(a: Readonly<Record<string, string>>, b: Readonly<Record<string, string>>): boolean {
-  const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k]);
-}
-
-const pathOf = (href: string): string => href.split(/[?#]/)[0] ?? href;
-
-/** The frame with `to` as the tab chosen: the tab moves on the click, not when the page lands. */
-function chosen(frame: PeopleScreenProps['frame'], to: string): PeopleScreenProps['frame'] {
-  return frame?.tabs === undefined
-    ? frame
-    : { ...frame, tabs: frame.tabs.map((t) => ({ ...t, current: pathOf(t.href) === to })) };
-}
-
-/**
- * What a loading state for `to` can show at once, from what is on screen and
- * what was seen, or null for the page's skeleton.
- *
- * - Another address of the screen on show, asked the same question: the same
- *   data, which is what the server will send (`loadScreen` reads the screen,
- *   its parameters and the query, never which of its paths it is). Insights'
- *   tabs, the directory as a list or as cards. Drawn as that page now.
- * - A page seen before: as it was, while the navigation fetches it again.
- * - Another tab of the page on show: its header, the tab moved, and its body
- *   still to come (`pending`).
- */
-export function heldFor(
-  to: string,
-  search: Readonly<Record<string, string>>,
-  shell: ShellData,
-): { readonly input: PeopleScreenProps; readonly pending: boolean } | null {
-  const shown = onScreen === null ? undefined : seen.get(onScreen);
-  const current = shown?.shell === shell ? shown.input : undefined;
-  const target = matchPath(shell.routes, to);
-  if (
-    current?.route != null &&
-    target !== undefined &&
-    shell.screens?.[target.path] === current.route.component &&
-    same(target.params, current.params) &&
-    same(search, current.search)
-  ) {
-    return { input: { ...current, path: to, frame: chosen(current.frame, to) }, pending: false };
-  }
-  const before = seen.get(addressKey(to, search));
-  if (before?.shell === shell) return { input: before.input, pending: false };
-  if (current?.frame?.tabs?.some((t) => pathOf(t.href) === to) === true) {
-    return { input: { ...current, frame: chosen(current.frame, to) }, pending: true };
-  }
-  return null;
-}
-
-/** How long a body may take before its skeleton shows: a quick answer never flashes one. */
-const PENDING_MS = 150;
-
-const subscribeNever = (): (() => void) => () => undefined;
-
-/**
- * A People page while it is fetched (`PageLoading`): what `heldFor` finds,
- * drawn in the area's one stage (`RemoteScreen`), so a header shared with the
- * page on screen stays the element it is; `skeleton` when it finds nothing.
- * Decided once, as the loading state opens: the page on screen is about to go.
- */
-export function PeopleLoading({ skeleton }: { readonly skeleton: ReactNode }): ReactNode {
-  const to = usePathname();
-  const query = useSearchParams();
-  const shell = useShellData();
-  // Never from memory while hydrating: the server had none.
-  const hydrating = useSyncExternalStore(
-    subscribeNever,
-    () => false,
-    () => true,
-  );
-  const [held] = useState(() => (hydrating ? null : heldFor(to, flat(query), shell)));
-  const [late, setLate] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLate(true);
-    }, PENDING_MS);
-    return () => {
-      clearTimeout(timer);
-    };
-  }, []);
-  if (held === null) return skeleton;
-  const { input, pending } = held;
-  return (
-    <PeopleScreen
-      {...input}
-      kept
-      frame={
-        pending && late && input.frame !== undefined
-          ? { ...input.frame, pending: true }
-          : input.frame
-      }
-    />
-  );
 }
 
 /**
@@ -469,7 +322,7 @@ function download(
   return { ok: true };
 }
 
-/** What each streamed part of a load settled to, once it has: kept, so a page held from `seen` has it at once. */
+/** What each streamed part of a load settled to, once it has: kept, so a page drawn again has it at once. */
 const settled = new WeakMap<object, unknown>();
 
 const isThenable = (value: unknown): value is PromiseLike<unknown> =>
@@ -522,24 +375,9 @@ function useStreamed(load: ScreenLoad): ScreenLoad {
 }
 
 export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
-  const { route, path, params, search, today, frame, kept = false } = input;
+  const { route, path, params, search, today, frame } = input;
   const load = useStreamed(input.load);
   const shell = useShellData();
-  // What the server sent for this address is kept, and is what is on screen.
-  useLayoutEffect(() => {
-    if (kept) return;
-    const key = addressKey(path, search);
-    seen.delete(key);
-    seen.set(key, { input, shell });
-    for (const old of seen.keys()) {
-      if (seen.size <= KEEP) break;
-      seen.delete(old);
-    }
-    onScreen = key;
-    return () => {
-      if (onScreen === key) onScreen = null;
-    };
-  });
   const router = useRouter();
   const [, startTransition] = useTransition();
   const refresh = (): void => {
@@ -629,6 +467,55 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   /** The run that keeps Import waiting, or null. */
   const running = runId !== null && runGoing(followed.run) ? followed.run : null;
 
+  // An export described in words (docs/ai-settings.md), from the export page or
+  // Import & export's card: the choices go into the export page's address, and
+  // it starts again from them for a person to check.
+  const describeExport = async (sentence: string) => {
+    const planned = await actions.planExport(sentence);
+    if (!planned.ok) return planned;
+    const plan = planned.data as {
+      who: string;
+      conditions: readonly { key: string; op: string; values: readonly string[] }[];
+      match: 'all' | 'any';
+      fields: readonly string[];
+      asOf: string;
+      format: string;
+      photos: boolean;
+      reason: string;
+      by: 'assistant' | 'rules';
+      note: string | null;
+      notes: readonly string[];
+    };
+    go(
+      withQuery(
+        '/people/export',
+        {},
+        {
+          q: sentence,
+          read: plan.by,
+          who: plan.who === 'everyone' ? null : plan.who,
+          conditions: plan.conditions.length === 0 ? null : JSON.stringify(plan.conditions),
+          match: plan.match === 'any' ? 'any' : null,
+          fields: plan.fields.join(','),
+          asOf: plan.asOf,
+          format: plan.format,
+          photos: plan.photos ? 'true' : null,
+          reason: plan.reason,
+        },
+      ),
+    );
+    return { ok: true as const, by: plan.by, note: plan.note, notes: plan.notes };
+  };
+
+  // The dialog open over a screen (`?open=`), so a shared link opens it in the
+  // server's HTML; the screen checks it names one it offers.
+  const dialog = {
+    open: at('open'),
+    onOpenChange: (open: string | null) => {
+      note({ open }, open === null ? 'replace' : 'push');
+    },
+  };
+
   const props = ((): Record<string, unknown> => {
     switch (component) {
       case 'PeopleSetup':
@@ -642,22 +529,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onWithdraw: actions.withdrawPendingChange,
           onFinish: () => {
             go('/people/me');
-          },
-        };
-      // One person by hand; then their record, to fill in the rest.
-      case 'AddPerson':
-        return {
-          today,
-          onAdd: async (person: Readonly<Record<string, string>>) => {
-            const added = await actions.addPerson(person);
-            if (added.ok) go(`/people/${added.personId}`);
-            return added;
-          },
-          onCancel: () => {
-            go('/people/directory/list');
-          },
-          onImport: () => {
-            go('/people/import');
           },
         };
       case 'Onboarding':
@@ -674,11 +545,14 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load: loadable,
           // A link from the overview to one missing detail.
           ...(search['field'] === undefined ? {} : { focusField: search['field'] }),
-          // The part of the record on screen; the screen checks it is one this record has.
-          tab: at('tab'),
-          onTabChange: (tab: string) => {
-            note({ tab: tab === 'overview' ? null : tab }, 'push');
+          // The section being edited and what is open over the record, in the
+          // address so a link opens them in the server's HTML; the screen
+          // checks each is one this record and viewer offer.
+          editing: at('edit'),
+          onEditingChange: (section: string | null) => {
+            note({ edit: section, field: null }, section === null ? 'replace' : 'push');
           },
+          ...dialog,
           // Offered to everybody; the screen shows it only where People says they may.
           onPhoto: (file: File) => uploadPhoto(id ?? null, file),
           // A file for an image or document field; the form's Save keeps it.
@@ -723,13 +597,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
                 onRequest: (keys: readonly string[]) => actions.requestDetails(id, keys),
               }),
           searchPeople: actions.searchPeople,
-          onHistory: () => {
-            go(id === undefined ? '/people/me/history' : `/people/${id}/history`);
-          },
+          historyHref: id === undefined ? '/people/me/history' : `/people/${id}/history`,
           onWithdraw: actions.withdrawPendingChange,
           onSelfApprove: actions.approveAlone,
           onApprovals: () => {
-            go('/people/approvals');
+            go('/people/review/waiting?kind=changes');
           },
         };
       }
@@ -763,8 +635,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         // first page, and a page is a history entry, so Back returns to the
         // one before (PEO-117).
         const query = (patch: Readonly<Record<string, string | null>>, mode?: HistoryMode) => {
-          // A new query starts at the top: the row the reader was on belongs to the old one.
-          navigate({ after: null, row: null, ...patch }, mode);
+          // A new query starts at the top, on its own first person: the row the
+          // reader was on, and whose quick look was open, belong to the old one.
+          navigate({ after: null, row: null, look: null, ...patch }, mode);
         };
         const view = leaf === 'cards' ? 'cards' : 'list';
         const data =
@@ -972,6 +845,35 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             const done = await actions.remindDirectory(conditions, match, at('q'));
             return done.ok ? { ok: true, asked: done.asked, more: done.more } : done;
           },
+          // Whose quick look is open, and which panel: in the address, so a
+          // shared link opens the same card or dialog in the server's HTML.
+          look: at('look'),
+          onLookChange: (look: string | null) => {
+            note({ look }, 'replace');
+          },
+          filtersOpen: at('filters') === 'open',
+          onFiltersOpenChange: (open: boolean) => {
+            note({ filters: open ? 'open' : null }, open ? 'push' : 'replace');
+          },
+          savingView: at('save') === 'view',
+          onSavingViewChange: (open: boolean) => {
+            note({ save: open ? 'view' : null }, open ? 'push' : 'replace');
+          },
+          // Add person (D9): the dialog over the directory; on success, the new record.
+          ...(shell.roles.hr
+            ? {
+                today,
+                adding: at('add') === 'person',
+                onAddingChange: (open: boolean) => {
+                  note({ add: open ? 'person' : null }, open ? 'push' : 'replace');
+                },
+                onAdd: async (person: Readonly<Record<string, string>>) => {
+                  const added = await actions.addPerson(person);
+                  if (added.ok) go(`/people/${added.personId}`);
+                  return added;
+                },
+              }
+            : {}),
           // Where the reader is: noted in the address, so Back returns to the same row.
           place: Number.parseInt(at('row') ?? '', 10) || null,
           onPlaceChange: (row: number | null) => {
@@ -1005,39 +907,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             : {
                 onFirstPage: () => {
                   query({});
-                },
-              }),
-        };
-      }
-      case 'CompletenessGrid': {
-        // Keyset pages, each a URL, as the directory's are (PEO-117, PEO-122).
-        const next =
-          load.status === 'ready' && typeof load.data === 'object' && load.data !== null
-            ? ((load.data as { next?: string | null }).next ?? null)
-            : null;
-        return {
-          load: loadable,
-          onSave: actions.saveGrid,
-          onCheck: actions.checkGrid,
-          searchPeople: actions.searchPeople,
-          // Everybody due, through the weekly sweep; one person, through asking them.
-          onRemindAll: actions.remindWaiting,
-          onRemind: (personId: string, keys: readonly string[]) =>
-            actions.requestDetails(personId, keys),
-          ...(next === null
-            ? {}
-            : {
-                onNextPage: () => {
-                  router.push(
-                    `/people/data-health/completeness?after=${encodeURIComponent(next)}` as Route,
-                  );
-                },
-              }),
-          ...(search['after'] === undefined
-            ? {}
-            : {
-                onFirstPage: () => {
-                  router.push('/people/data-health/completeness');
                 },
               }),
         };
@@ -1090,6 +959,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               `/settings/people/fields/${encodeURIComponent(key)}/change?to=${encodeURIComponent(to)}`,
             );
           },
+          ...dialog,
         };
       // A field's new type, every value reviewed, then published with it.
       case 'FieldChange': {
@@ -1117,12 +987,14 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             return actions.rotateEndpoint(id);
           },
           onOpenLog: (id: string) => {
-            go(`/settings/people/integrations/${id}`);
+            go(`/settings/people/integrations/webhooks/${id}`);
           },
-          tab: at('tab'),
+          // Each tab is its own address: the overview is the page's, the others under it.
+          tab: leaf === 'integrations' ? 'overview' : leaf,
           onTabChange: (tab: string) => {
-            note({ tab: tab === 'overview' ? null : tab }, 'push');
+            go(`/settings/people/integrations${tab === 'overview' ? '' : `/${tab}`}`);
           },
+          ...dialog,
           scim: {
             onConnect: async (system: string) => {
               return actions.createScimConnection(system);
@@ -1157,15 +1029,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onPause: actions.pauseReportSchedule,
           onResume: actions.resumeReportSchedule,
           onDelete: actions.deleteReportSchedule,
+          ...dialog,
         };
       case 'ReportRuns':
-        return { load: loadable };
-      case 'ReminderSettings':
-        return {
-          load: loadable,
-          onCohortMinimum: (cohortMinimum: number) => actions.updateSettings({ cohortMinimum }),
-        };
-      case 'CountryPacks':
         return { load: loadable };
       case 'RoleSettings':
         return {
@@ -1211,66 +1077,68 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onFocusChange: (focus: string | null) => {
             note({ focus }, 'push');
           },
+          // Whose side card is open, so a link opens it in the server's HTML.
+          pickedId: at('person'),
+          onPickedChange: (person: string | null) => {
+            note({ person }, 'replace');
+          },
         };
       case 'PeopleSettings':
         return { load: loadable };
-      case 'FullValues':
+      // One queue for every decision (design E1–E13). The tab is the route;
+      // the chip, the item and the fill-in grid are the address, so the
+      // server draws them already chosen. Picking a pair to compare, or a
+      // page of missing details, is a navigation: People reads it.
+      case 'Review': {
+        const tab = oneOf(leaf, ['waiting', 'flagged', 'asked', 'decided'], 'waiting');
+        const next =
+          load.status === 'ready' && typeof load.data === 'object' && load.data !== null
+            ? ((load.data as { completeness?: { next?: string | null } | null }).completeness
+                ?.next ?? null)
+            : null;
+        const here = `/people/review/${tab}`;
         return {
           load: loadable,
-          onRequest: actions.requestFullValues,
-          onDecide: actions.decideFullValues,
-        };
-      case 'IdentifierReviews':
-        return {
-          load: loadable,
-          onDecide: actions.reviewIdentifier,
-          onReveal: actions.revealIdentifier,
-        };
-      case 'Approvals':
-        return {
-          load: loadable,
+          tab,
+          kind: at('kind'),
+          onKindChange: (kind: string | null) => {
+            // A new chip starts at the top of its list, and its first page.
+            if (at('item')?.startsWith('dup-') === true || at('after') !== null) {
+              navigate({ kind, item: null, fill: null, after: null });
+            } else note({ kind, item: null, fill: null }, 'push');
+          },
+          item: at('item'),
+          onItemChange: (item: string | null) => {
+            if (item?.startsWith('dup-') === true) navigate({ item });
+            else note({ item }, 'push');
+          },
+          fill: at('fill'),
+          onFillChange: (fill: string | null) => {
+            note({ fill }, 'push');
+          },
           onDecide: actions.decidePendingChange,
           onWithdraw: actions.withdrawPendingChange,
           onSelfApprove: actions.approveAlone,
           onOpen: (personId: string) => {
             go(`/people/${personId}`);
           },
-          tab: oneOf(at('tab'), ['mine', 'flagged', 'asked', 'decided'], null),
-          onTabChange: (tab: string) => {
-            note({ tab, change: null }, 'push');
-          },
-          // The change open beside the list: a link to one opens it (Inbox, MA6).
-          change: at('change'),
-          onChangeOpen: (change: string | null) => {
-            note({ change }, 'push');
-          },
           // Flagged approvals (design AI7, AI8).
           onMarkNotUnusual: actions.markNotUnusual,
           onAsk: actions.askAboutChange,
           onAnswer: actions.answerApprovalQuestion,
           onSetCheck: actions.setApprovalCheck,
-        };
-      case 'Duplicates': {
-        const list = '/people/data-health/duplicates';
-        return {
-          load: loadable,
-          onCompare: (a: string, b: string) => {
-            go(`${list}?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
-          },
-          onBack: () => {
-            go(list);
-          },
+          onReviewIdentifier: actions.reviewIdentifier,
+          onReveal: actions.revealIdentifier,
           // Afterwards the survivor's record: the merge's answer, as People now holds it.
           onMerge: async (survivorId: string, absorbedId: string, take: readonly string[]) => {
             const merged = await actions.mergePerson(survivorId, absorbedId, take);
             if (merged.ok) go(`/people/${encodeURIComponent(survivorId)}`);
             return merged;
           },
-          // From the list, the list again; from a comparison, back to the list.
+          // Not the same: the pair leaves the queue, and the pane with it.
           onDismiss: async (a: string, b: string) => {
             const dismissed = await actions.dismissDuplicate([a, b]);
-            // From the list the write's own answer is the list again.
-            if (dismissed.ok && search['a'] !== undefined) go(list);
+            if (dismissed.ok && at('item')?.startsWith('dup-') === true) navigate({ item: null });
             return dismissed;
           },
           // Afterwards the restored record, as People now holds it.
@@ -1279,6 +1147,39 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             if (undone.ok) go(`/people/${encodeURIComponent(absorbedId)}`);
             return undone;
           },
+          onRequestFullValues: actions.requestFullValues,
+          onDecideFullValues: actions.decideFullValues,
+          onDecideShare: async (id: string, approve: boolean, note: string) => {
+            const decided = await actions.decideExportShare(
+              id,
+              approve,
+              note.trim() === '' ? null : note,
+            );
+            if (decided.ok) refresh();
+            return decided.ok ? { ok: true } : decided;
+          },
+          onSaveMissing: actions.saveGrid,
+          onCheckMissing: actions.checkGrid,
+          searchPeople: actions.searchPeople,
+          // Everybody due, through the weekly sweep; one person, through asking them.
+          onRemindAll: actions.remindWaiting,
+          onRemind: (personId: string, keys: readonly string[]) =>
+            actions.requestDetails(personId, keys),
+          // Keyset pages of missing details, each a URL (PEO-117, PEO-122).
+          ...(next === null
+            ? {}
+            : {
+                onNextPage: () => {
+                  go(withQuery(here, {}, { kind: 'missing', after: next }));
+                },
+              }),
+          ...(search['after'] === undefined
+            ? {}
+            : {
+                onFirstPage: () => {
+                  go(withQuery(here, {}, { kind: 'missing' }));
+                },
+              }),
         };
       }
       case 'WebhookLog': {
@@ -1286,12 +1187,12 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? ((load.data as { next?: string | null }).next ?? null)
             : null;
-        const here = `/settings/people/integrations/${params['id'] ?? ''}`;
+        const here = `/settings/people/integrations/webhooks/${params['id'] ?? ''}`;
         return {
           load: loadable,
           onReplay: actions.replayDelivery,
           onBack: () => {
-            go('/settings/people/integrations');
+            go('/settings/people/integrations/webhooks');
           },
           ...(next === null
             ? {}
@@ -1320,10 +1221,12 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onChangeZone: actions.changeZone,
           onSetNumbering: actions.setNumbering,
           onSetPayBand: actions.setPayBand,
-          tab: at('tab'),
+          // Each tab is its own address: legal entities are the page's, the others under it.
+          tab: leaf === 'organisation' ? 'entities' : leaf,
           onTabChange: (tab: string) => {
-            note({ tab: tab === 'entities' ? null : tab }, 'push');
+            go(`/settings/people/organisation${tab === 'entities' ? '' : `/${tab}`}`);
           },
+          ...dialog,
         };
       case 'ExportBuilder': {
         // Everything the page shows is in its address (design AI13): the
@@ -1407,44 +1310,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               recipients: [recipient],
             });
           },
-          // Described in words (docs/ai-settings.md): the choices go into the
-          // address, and the page starts again from them for a person to check.
-          onDescribe: async (sentence: string) => {
-            const planned = await actions.planExport(sentence);
-            if (!planned.ok) return planned;
-            const plan = planned.data as {
-              who: string;
-              conditions: readonly { key: string; op: string; values: readonly string[] }[];
-              match: 'all' | 'any';
-              fields: readonly string[];
-              asOf: string;
-              format: string;
-              photos: boolean;
-              reason: string;
-              by: 'assistant' | 'rules';
-              note: string | null;
-              notes: readonly string[];
-            };
-            go(
-              withQuery(
-                '/people/export',
-                {},
-                {
-                  q: sentence,
-                  read: plan.by,
-                  who: plan.who === 'everyone' ? null : plan.who,
-                  conditions: plan.conditions.length === 0 ? null : JSON.stringify(plan.conditions),
-                  match: plan.match === 'any' ? 'any' : null,
-                  fields: plan.fields.join(','),
-                  asOf: plan.asOf,
-                  format: plan.format,
-                  photos: plan.photos ? 'true' : null,
-                  reason: plan.reason,
-                },
-              ),
-            );
-            return { ok: true, by: plan.by, note: plan.note, notes: plan.notes };
-          },
+          onDescribe: describeExport,
         };
       }
       case 'ImportFlow': {
@@ -1584,14 +1450,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onSegmentChange: (segment: string | null) => {
             navigate({ segment });
           },
-          // The Schedules button: the schedules page's own actions.
-          schedules: {
-            onCreate: actions.createReportSchedule,
-            onUpdate: actions.updateReportSchedule,
-            onPause: actions.pauseReportSchedule,
-            onResume: actions.resumeReportSchedule,
-            onDelete: actions.deleteReportSchedule,
-          },
         };
       // What changed (design AI5, AI6, MA4, MA5): its own block.
       case 'WhatChanged': {
@@ -1681,20 +1539,13 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             URL.revokeObjectURL(url);
             return { ok: true };
           },
-          // The Schedules button: the schedules page's own actions.
-          schedules: {
-            onCreate: actions.createReportSchedule,
-            onUpdate: actions.updateReportSchedule,
-            onPause: actions.pauseReportSchedule,
-            onResume: actions.resumeReportSchedule,
-            onDelete: actions.deleteReportSchedule,
-          },
         };
       }
       case 'ImportExport':
         return {
           load: loadable,
           running,
+          onDescribe: describeExport,
           kind: oneOf(at('kind'), ['import', 'export'], null),
           onKindChange: (kind: string) => {
             note({ kind: kind === 'all' ? null : kind }, 'push');
@@ -1715,16 +1566,8 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
       area="People"
       route={route}
       props={frame === undefined ? props : { ...props, frame }}
-      // Drawn in the browser, the screen is its header's shape until it is: the
-      // trail and the tabs the frame will give it.
-      fallback={
-        <Skeleton
-          shape="page"
-          label="Loading People"
-          breadcrumb={frame?.section != null}
-          tabs={frame?.tabs?.length ?? 0}
-        />
-      }
+      // Served whole by the server and hydrated over: nothing stands in for it.
+      fallback={null}
     />
   );
 }

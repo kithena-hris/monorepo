@@ -177,43 +177,20 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         { personIds: (query.search['people'] ?? '').split(',').filter((id) => id !== '') },
         VIEWS.BulkEdit,
       );
-    case 'CompletenessGrid': {
-      // Beside the grid, analytics' own figure: complete overall. By section is Insights'.
-      const [grid, analytics] = await Promise.all([
-        orBare({ after: given(query.search['after']) }, (asked) => read('Completeness', asked)),
-        people<{
-          complete: {
-            percent: number;
-            incomplete: number;
-            change: number | null;
-            trend: { label: string; value: number }[];
-          } | null;
-        }>('Analytics', {
-          segment: null,
-        }),
-      ]);
-      if (grid.status !== 'ready' || !analytics.ok) return grid;
-      return {
-        status: 'ready',
-        data: { ...(grid.data as object), complete: analytics.data.complete },
-      };
-    }
     case 'ImportExport': {
       // Importing stays HR's, as it was. The history is HR's and People
-      // administrators', and the one part of the page that is not the same
-      // every time: asked for now, but streamed (a promise, `useStreamed`),
-      // so the header, both cards and their buttons never wait on it. One
+      // administrators', read beside the rest so the first HTML holds it:
+      // the page is drawn once, whole, with no rows still to come. One
       // People refuses this viewer is left out, not an error.
       const before = given(query.search['before']);
-      const history = orBare({ before }, (asked) => read('TransferHistory', asked)).then(
-        (answer) =>
-          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
-      );
       // `Home` is the shell's own read of the roles (`shellData`), shared.
-      const [roles, template, running] = await Promise.all([
+      const [roles, template, running, history] = await Promise.all([
         read('Home'),
         read('ImportTemplate'),
         activeImport(),
+        orBare({ before }, (asked) => read('TransferHistory', asked)).then((answer) =>
+          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
+        ),
       ]);
       if (roles.status !== 'ready') return roles;
       const { hr = false, admin = false } = roles.data as { hr?: boolean; admin?: boolean };
@@ -273,31 +250,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'PeopleHome':
       return overview();
     case 'Organisation':
-      return read('Organisation');
+      return organisation();
     case 'PeopleSettings':
       return settingsOverview();
-    case 'ReminderSettings':
-      return reminderSettings();
-    case 'CountryPacks': {
-      const [setup, organisation] = await Promise.all([read('Setup'), read('Organisation')]);
-      if (setup.status !== 'ready') return setup;
-      const { packs } = setup.data as { packs: unknown[] };
-      const entities =
-        organisation.status === 'ready'
-          ? (organisation.data as { legalEntities: unknown[] }).legalEntities
-          : [];
-      return { status: 'ready', data: { packs, entities } };
-    }
-    case 'FullValues':
-      return read('FullValues');
-    case 'IdentifierReviews':
-      return read('IdentifierReviews');
-    case 'Approvals':
-      return read('Approvals', {}, VIEWS.Approvals);
-    case 'Duplicates':
-      return orBare({ a: given(query.search['a']), b: given(query.search['b']) }, (asked) =>
-        read('Duplicates', asked),
-      );
+    case 'Review':
+      return review(query.search);
     case 'WebhookLog':
       return orBare({ after: given(query.search['after']) }, (asked) =>
         read('WebhookDeliveries', { endpointId: query.params['id'] ?? '', ...asked }),
@@ -347,17 +304,47 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           ? { status: 'ready', data: { shared: null } }
           : found;
       }
-      const [summary, schedules] = await Promise.all([
-        orBare(
-          {
-            period: given(query.search['period']),
-            from: dateOf(query.search['from']),
-            to: dateOf(query.search['to']),
-            segment: given(query.search['segment']),
-          },
-          (asked) => read('WhatChanged', asked, json()),
-        ),
+      const period = {
+        period: given(query.search['period']),
+        from: dateOf(query.search['from']),
+        to: dateOf(query.search['to']),
+        segment: given(query.search['segment']),
+      };
+      // The period as the screen asks it, without what the address left out.
+      const ask = Object.fromEntries(Object.entries(period).filter(([, v]) => v !== null));
+      // The follow-up and the export dialog in the address are answered here,
+      // so the first HTML shows the answer and the draft, not a wait for them.
+      const question = given(query.search['ask']);
+      const share = query.search['share'];
+      const exporting =
+        share === 'pdf' || share === 'email'
+          ? {
+              recipient: given(query.search['for']),
+              tone: query.search['tone'] === 'detailed' ? 'detailed' : 'short',
+              charts: query.search['charts'] !== 'off',
+              madeLine: query.search['made'] !== 'off',
+            }
+          : null;
+      const answered = (answer: PeopleAnswer<string>) =>
+        answer.ok ? (jsonOf(answer) ?? 'People could not be asked') : answer.message;
+      const [summary, schedules, followUp, draft] = await Promise.all([
+        orBare(period, (asked) => read('WhatChanged', asked, json())),
         read('ReportSchedules'),
+        question === null
+          ? null
+          : people<string>('WhatChangedAsk', { input: JSON.stringify({ ...ask, question }) }),
+        exporting === null
+          ? null
+          : people<string>('SummaryDraft', {
+              input: JSON.stringify({
+                ...ask,
+                tone: exporting.tone,
+                charts: exporting.charts,
+                madeLine: exporting.madeLine,
+                ...(exporting.recipient === null ? {} : { recipient: exporting.recipient }),
+                edits: [],
+              }),
+            }),
       ]);
       if (summary.status !== 'ready') return summary;
       return {
@@ -365,6 +352,12 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         data: {
           ...(summary.data as object),
           schedules: schedules.status === 'ready' ? schedules.data : null,
+          ...(followUp === null || question === null
+            ? {}
+            : { answered: { question, result: answered(followUp) } }),
+          ...(draft === null || exporting === null
+            ? {}
+            : { drafted: { ...exporting, result: answered(draft) } }),
         },
       };
     }
@@ -445,6 +438,80 @@ async function exportExtras(
     preview: preview === null ? null : jsonOf(preview),
     ...(record === null ? {} : { record: jsonOf(record) ?? { status: 'missing' } }),
     ...(share === null ? {} : { share: jsonOf(share) ?? { state: 'missing' } }),
+  };
+}
+
+/**
+ * Review (design E1–E13): every queue a decision waits in, read at once as
+ * the viewer, so the page arrives whole with the item the address names
+ * already open. HR's queues only for HR (and finance's requests for
+ * finance); one People refuses this viewer is null on the page rather than
+ * failing it. Only an unreachable People is the page's error.
+ *
+ * The address chooses what else is read: a pair to compare (`?item=dup-a~b`),
+ * the request to send an export an email linked to (`?item=export-…`, when it
+ * is not one this viewer decides), and the page of missing details (`?after=`).
+ */
+async function review(search: Readonly<Record<string, string>>): Promise<ScreenLoad> {
+  const item = given(search['item']);
+  const pair = item?.startsWith('dup-') === true ? item.slice(4).split('~') : null;
+  const shareId = item?.startsWith('export-') === true ? item.slice(7) : null;
+  const approvals = read('Approvals', {}, VIEWS.Approvals);
+  const roles = await people<{ hr?: boolean; admin?: boolean; finance?: boolean }>('Home');
+  if (!roles.ok) {
+    return roles.code === 'UNREACHABLE'
+      ? { status: 'error', message: roles.message, unreachable: true }
+      : { status: 'error', message: roles.message, code: roles.code };
+  }
+  const hr = roles.data.hr === true;
+  const finance = roles.data.finance === true;
+  const ready = (load: ScreenLoad | null): unknown => (load?.status === 'ready' ? load.data : null);
+  const admin = roles.data.admin === true;
+  const [changes, identifiers, duplicates, fullValues, completeness, analytics, share, shares] =
+    await Promise.all([
+      approvals,
+      hr ? read('IdentifierReviews') : null,
+      hr
+        ? orBare({ a: pair?.[0] ?? null, b: pair?.[1] ?? null }, (asked) =>
+            read('Duplicates', asked),
+          )
+        : null,
+      hr || finance ? read('FullValues') : null,
+      hr ? orBare({ after: given(search['after']) }, (asked) => read('Completeness', asked)) : null,
+      // Complete records overall, analytics' own figure, beside the missing details.
+      hr ? people<{ complete: unknown }>('Analytics', { segment: null }) : null,
+      shareId === null ? null : people<string>('ExportShare', { id: shareId }),
+      // The requests to send an export waiting for this administrator (E5).
+      admin ? people<string>('ExportSharesToDecide') : null,
+    ]);
+  const down = [changes, identifiers, duplicates, fullValues, completeness].find(
+    (l) => l?.status === 'error' && l.unreachable === true,
+  );
+  if (down != null) return down;
+  const missing = ready(completeness);
+  return {
+    status: 'ready',
+    data: {
+      now: new Date().toISOString(),
+      roles: { hr, finance, admin },
+      approvals: ready(changes),
+      identifiers: ready(identifiers),
+      duplicates: ready(duplicates),
+      fullValues: ready(fullValues),
+      completeness:
+        missing === null
+          ? null
+          : {
+              ...(missing as object),
+              complete: analytics?.ok === true ? analytics.data.complete : null,
+            },
+      shares: shares === null ? null : ((jsonOf(shares) as unknown[] | null) ?? null),
+      // Somebody else's or gone: said as such in its pane, never as an error page.
+      share:
+        share === null
+          ? null
+          : ((jsonOf(share) as object | null) ?? { state: 'missing', id: shareId }),
+    },
   };
 }
 
@@ -540,15 +607,16 @@ async function overview(): Promise<ScreenLoad> {
 }
 
 /**
- * Completeness and reminders (S20): the reminder rule People runs today
- * (the day a detail goes missing, then weekly, in working hours), whether the
- * chat notice for it is on, and the reporting floor from the organisation.
- * The HR digest and the directory policy have no source yet and are left out.
+ * Organisation, every tab of it in one read (so moving between tabs fetches
+ * nothing new): the organisation itself; the country packs, which are People
+ * administrators' (`Setup` refuses anybody else, and the tab is left out);
+ * and the reminder rule People runs today (the day a detail goes missing,
+ * then weekly, in working hours), with whether its chat notice is on, beside
+ * the reporting floor it shares a card with.
  */
-async function reminderSettings(): Promise<ScreenLoad> {
-  const [organisation, chat] = await Promise.all([read('Organisation'), read('Chat')]);
-  if (organisation.status !== 'ready') return organisation;
-  const org = organisation.data as { canManage: boolean; settings: { cohortMinimum: number } };
+async function organisation(): Promise<ScreenLoad> {
+  const [org, setup, chat] = await Promise.all([read('Organisation'), read('Setup'), read('Chat')]);
+  if (org.status !== 'ready') return org;
   const chatData =
     chat.status === 'ready'
       ? (chat.data as {
@@ -563,8 +631,8 @@ async function reminderSettings(): Promise<ScreenLoad> {
   return {
     status: 'ready',
     data: {
-      canManage: org.canManage,
-      cohortMinimum: org.settings.cohortMinimum,
+      ...(org.data as object),
+      packs: setup.status === 'ready' ? (setup.data as { packs: unknown[] }).packs : null,
       reminders: {
         cadence: 'The day a detail goes missing, then once a week',
         window: '09:00 to 18:00, on their own clock',

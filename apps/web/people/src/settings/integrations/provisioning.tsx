@@ -1,5 +1,13 @@
 import {
   Alert,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Badge,
   Button,
   CopyField,
@@ -32,6 +40,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { useHeld } from '../../held';
 import type { Outcome } from '../../load';
 
 /** One SCIM path and the attribute it keeps upstream (PEO-073). */
@@ -74,6 +83,9 @@ export interface ProvisioningProps {
   readonly onRotateToken: (id: string) => Promise<WithToken>;
   readonly onDisconnect: (id: string) => Promise<Outcome>;
   readonly onSetMapping: (id: string, mapping: readonly MappingEntry[]) => Promise<Outcome>;
+  /** Connect a system is open, held by the host (in its address). */
+  readonly connecting?: boolean;
+  readonly onConnectingChange?: (open: boolean) => void;
 }
 
 /** A path as a person reads it: the extension's name dropped. */
@@ -90,7 +102,11 @@ const pathLabel = (path: string, extension: string) =>
  */
 export function Provisioning(props: ProvisioningProps): JSX.Element {
   const { scim } = props;
-  const [connecting, setConnecting] = useState(false);
+  const [connecting, setConnecting] = useHeld(
+    props.connecting,
+    props.onConnectingChange,
+    false,
+  );
   const [token, setToken] = useState<{ system: string; value: string } | null>(null);
 
   return (
@@ -345,15 +361,36 @@ function ConnectionCard({
             >
               Rotate token
             </Button>
-            <Button
-              variant="destructive"
-              disabled={busy}
-              onClick={() => {
-                void attempt(() => onDisconnect(connection.id));
-              }}
-            >
-              Disconnect
-            </Button>
+            {/* Asked first: a disconnected system cannot be connected again with its old token. */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="danger-soft" disabled={busy} className="ms-auto">
+                  Disconnect
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogTitle>{`Disconnect ${connection.system}?`}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Its token stops working, and it no longer adds or removes people here. To
+                  provision from it again, connect it as a new system.
+                </AlertDialogDescription>
+                <AlertDialogFooter>
+                  <AlertDialogCancel asChild>
+                    <Button>Keep it connected</Button>
+                  </AlertDialogCancel>
+                  <AlertDialogAction asChild>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        void attempt(() => onDisconnect(connection.id));
+                      }}
+                    >
+                      Disconnect
+                    </Button>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         ) : null}
       </Stack>
@@ -397,9 +434,7 @@ function Connect({
                   }}
                 />
               </FieldControl>
-              <FieldDescription>
-                For example Okta, Microsoft Entra or Workday.
-              </FieldDescription>
+              <FieldDescription>For example Okta, Microsoft Entra or Workday.</FieldDescription>
             </Field>
             {refused === null ? null : (
               <Alert tone="danger" title="Not connected">

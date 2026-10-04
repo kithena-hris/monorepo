@@ -104,9 +104,16 @@ export interface IntegrationsProps {
   readonly scim?: Omit<ProvisioningProps, 'scim'>;
   /** Chat apps (Slack today) and People's notices to them; absent, not drawn. */
   readonly chat?: ChatAppsProps;
-  /** The tab on screen (`?tab=webhooks`), held by the host. */
+  /** The tab on screen, from its address, held by the host. */
   readonly tab?: string | null;
   readonly onTabChange?: (tab: string) => void;
+  /**
+   * The dialog open over the tab, held by the host so a link opens it in the
+   * server's HTML: `endpoint` to add a webhook endpoint, `connect` to connect
+   * a system over SCIM. Any other value is closed.
+   */
+  readonly open?: string | null;
+  readonly onOpenChange?: (open: string | null) => void;
 }
 
 /**
@@ -204,20 +211,28 @@ function Endpoints({
   chat,
   tab: heldTab,
   onTabChange,
+  open: heldOpen,
+  onOpenChange,
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
-  const [adding, setAdding] = useState(false);
+  const [open, setOpen] = useHeld<string | null>(heldOpen, onOpenChange, null);
+  const dialog = (name: string) => ({
+    open: open === name,
+    onOpenChange: (next: boolean) => {
+      setOpen(next ? name : null);
+    },
+  });
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null);
   // Back where Slack sent them: straight to its tab.
   const [chosen, setTab] = useHeld<string>(
     heldTab,
     onTabChange,
-    chat?.returned === undefined || chat.returned === null ? 'overview' : 'chat',
+    chat?.returned === undefined || chat.returned === null ? 'overview' : 'slack',
   );
   // A tab this viewer has; a link to one that is not drawn here opens the overview.
   const tabs = [
     'overview',
     'webhooks',
-    ...(chat === undefined || state.chat === undefined ? [] : ['chat']),
+    ...(chat === undefined || state.chat === undefined ? [] : ['slack']),
     ...(state.scim === undefined || scim === undefined ? [] : ['provisioning']),
   ];
   const tab = tabs.includes(chosen) ? chosen : 'overview';
@@ -233,7 +248,7 @@ function Endpoints({
         <TabsList aria-label="Integrations">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {chat === undefined || state.chat === undefined ? null : (
-            <TabsTrigger value="chat">Slack</TabsTrigger>
+            <TabsTrigger value="slack">Slack</TabsTrigger>
           )}
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           {state.scim === undefined || scim === undefined ? null : (
@@ -252,7 +267,7 @@ function Endpoints({
           </Stack>
         </TabsContent>
         {chat === undefined || state.chat === undefined ? null : (
-          <TabsContent value="chat" className="pt-6">
+          <TabsContent value="slack" className="pt-6">
             <ChatApps {...chat} state={state.chat} />
           </TabsContent>
         )}
@@ -264,7 +279,7 @@ function Endpoints({
               <Button
                 variant="primary"
                 onClick={() => {
-                  setAdding(true);
+                  setOpen('endpoint');
                 }}
               >
                 Add endpoint
@@ -316,13 +331,19 @@ function Endpoints({
         </TabsContent>
         {state.scim === undefined || scim === undefined ? null : (
           <TabsContent value="provisioning" className="pt-6">
-            <Provisioning scim={state.scim} {...scim} />
+            <Provisioning
+              scim={state.scim}
+              {...scim}
+              connecting={open === 'connect'}
+              onConnectingChange={(next) => {
+                setOpen(next ? 'connect' : null);
+              }}
+            />
           </TabsContent>
         )}
       </Tabs>
       <AddEndpoint
-        open={adding}
-        onOpenChange={setAdding}
+        {...dialog('endpoint')}
         state={state}
         onCreate={async (input) => {
           const created = await onCreate(input);
@@ -364,7 +385,7 @@ function Directory({
     ...(chatShown && slack !== undefined
       ? [
           {
-            id: 'chat',
+            id: 'slack',
             name: 'Slack',
             mark: <AppMark app="slack" className="size-7" />,
             says: 'Answer questions and approve changes in Slack.',
@@ -678,7 +699,8 @@ function AddEndpoint({
         <DialogHeader>
           <DialogTitle>Add an endpoint</DialogTitle>
           <DialogDescription>
-            People sends a signed message to this address for each selected event. The signing secret is shown once.
+            People sends a signed message to this address for each selected event. The signing
+            secret is shown once.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

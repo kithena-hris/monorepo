@@ -9,8 +9,6 @@ import {
   FieldControl,
   FieldLabel,
   Input,
-  KeyValues,
-  PageSection,
   RadioCard,
   RadioGroup,
   Select,
@@ -112,7 +110,6 @@ export function WorkLocationsStep({
   coarse,
 }: WorkLocationsStepProps): JSX.Element {
   const n = workplaces.length;
-  const counts = tally(workplaces, choices);
   const cards = workplaces.map((w) => (
     <WorkLocationCard
       key={w.key}
@@ -155,32 +152,36 @@ export function WorkLocationsStep({
       </div>
     );
   }
+  // At a desk, the content of Decide what's new's "Work locations" block:
+  // one card per value, three to a row; its summary is the block's title line.
   return (
-    <div className="grid items-start gap-4 @4xl/page:grid-cols-[minmax(0,1fr)_21.25rem]">
-      <div className="flex min-w-0 flex-col gap-3">
-        {intro}
-        {note}
+    <div className="flex min-w-0 flex-col gap-3">
+      {note}
+      <div className="grid items-start gap-3 @3xl/page:grid-cols-2 @6xl/page:grid-cols-3">
         {cards}
       </div>
-      <div className="flex flex-col gap-3.5">
-        <PageSection surface title="From this file">
-          <KeyValues
-            items={[
-              { label: 'Work locations named', value: n },
-              { label: 'Already here', value: counts.here },
-              { label: 'Mapped to one here', value: counts.mapped },
-              { label: 'Added', value: counts.added },
-              { label: 'People left empty', value: counts.left },
-            ]}
-          />
-        </PageSection>
-        <Alert tone="info" title="Added in Settings › Organisation">
-          A new work location is added there with the name, country and time zone you give it, by
-          the run that imports the file.
-        </Alert>
-      </div>
+      <p className="text-sm text-fg-muted">
+        A new work location is added in Settings › Organisation, with the name, country and time
+        zone you give it, by the run that imports the file.
+      </p>
     </div>
   );
+}
+
+/** "3 in this file: 2 already here, 1 to add", for the block's title line. */
+export function placesSummary(
+  workplaces: readonly WorkplaceValue[],
+  choices: PlaceChoices,
+): string {
+  const counts = tally(workplaces, choices);
+  const parts = [
+    counts.here + counts.mapped > 0 ? `${String(counts.here + counts.mapped)} already here` : null,
+    counts.added > 0 ? `${String(counts.added)} to add` : null,
+    counts.left > 0
+      ? `${String(counts.left)} ${counts.left === 1 ? 'person' : 'people'} left empty`
+      : null,
+  ].filter((x) => x !== null);
+  return `${String(workplaces.length)} in this file${parts.length === 0 ? '' : `: ${parts.join(', ')}`}`;
 }
 
 /** Where a value ends up, in words, for the card's title. */

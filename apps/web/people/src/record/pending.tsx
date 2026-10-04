@@ -49,10 +49,7 @@ export function PendingNote({
         </span>
       ) : null}
       {pending.canSelfApprove === true && pending.awaitingReview !== true && onSelfApprove ? (
-        <ApproveAlone
-          label={field.label}
-          onApprove={() => onSelfApprove(pending.id)}
-        />
+        <ApproveAlone label={field.label} onApprove={() => onSelfApprove(pending.id)} />
       ) : null}
       {pending.mine && onWithdraw !== undefined ? (
         <Button
@@ -117,9 +114,7 @@ export function ApproveAlone({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Approve your own change to {label}?</DialogTitle>
-            <DialogDescription>
-              No other HR member can approve this change.
-            </DialogDescription>
+            <DialogDescription>No other HR member can approve this change.</DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Stack gap={4}>

@@ -18,6 +18,7 @@ import {
   fullValuesScreen,
   type FullValuesDeps,
 } from '../application/export/full-values.js';
+import type { ShareDeps } from '../application/export/share.js';
 import type { Asking } from '../application/person/person-access.js';
 import { waitingView } from '../application/screens/waiting.js';
 import {
@@ -691,6 +692,8 @@ export interface RestDeps {
   };
   /** The routes the tenant app's screens read and act through (PEO-098, `screens.ts`). */
   readonly screens?: readonly Route[];
+  /** Exports sent to somebody else: only counted here, for Review's badge (`export-share.ts`). */
+  readonly shares?: ShareDeps;
   /** Saved segments, for an export of one (PEO-068). */
   readonly segments?: SegmentStore;
   /** The Settings activity log: each successful settings command, in words (`activity.ts`). */
@@ -1103,6 +1106,8 @@ export function restRoutes(deps: RestDeps): Route[] {
               {
                 access: service.access,
                 ...(deps.fullValues === undefined ? {} : { fullValues: deps.fullValues.deps }),
+                ...(service.pending === undefined ? {} : { pending: service.pending }),
+                ...(deps.shares === undefined ? {} : { shares: deps.shares }),
               },
               asking,
             ),

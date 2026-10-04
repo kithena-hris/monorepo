@@ -153,7 +153,7 @@ describe('Directory', () => {
     expect(onFiltersChange).toHaveBeenCalledWith({});
 
     // The panel opens with what is in force, and applies it back.
-    await user.click(screen.getByRole('button', { name: 'Filters (2)' }));
+    await user.click(screen.getByRole('button', { name: 'Add filter' }));
     const panel = screen.getByRole('dialog', { name: 'Filter people' });
     await user.click(within(panel).getByRole('button', { name: 'Apply 2 conditions' }));
     expect(onConditionsChange).toHaveBeenLastCalledWith(filtered.query?.conditions, 'all');
@@ -166,6 +166,20 @@ describe('Directory', () => {
     render(<Directory {...props({ onSortChange })} />);
     await user.click(screen.getByRole('button', { name: /Cost centre/ }));
     expect(onSortChange).toHaveBeenCalledWith({ key: 'cost_centre', direction: 'asc' });
+  });
+
+  it('counts who is starting and who is leaving on their views (C1)', () => {
+    const status = { key: 'status', label: 'Status', kind: 'status', options: [] };
+    render(
+      <Directory
+        {...props({
+          onView: vi.fn(),
+          load: { status: 'ready', data: { ...state, leaving: 2, fields: [status] } },
+        })}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: /Starting soon\s*5/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Leaving\s*2/ })).toBeInTheDocument();
   });
 
   it('lets HR narrow to people with something missing, through the shell', async () => {
@@ -249,6 +263,35 @@ describe('Directory', () => {
     vi.unstubAllGlobals();
   });
 
+  it('says the time where they work on the quick look, as People answered (W3b)', () => {
+    const [adam, lena] = state.people;
+    if (adam === undefined || lena === undefined) throw new Error('fixture');
+    render(
+      <Directory
+        {...props({
+          load: {
+            status: 'ready',
+            data: {
+              ...state,
+              now: '2026-10-03T12:12:00.000Z',
+              columns: [...state.columns, { key: 'location_id', label: 'Location' }],
+              people: [
+                {
+                  ...adam,
+                  timeZone: 'Europe/Madrid',
+                  values: { ...adam.values, location_id: 'Madrid' },
+                },
+                lena,
+              ],
+            },
+          },
+        })}
+      />,
+    );
+    const look = screen.getByRole('complementary', { name: 'Quick look' });
+    expect(within(look).getByText('Madrid · 14:12')).toBeInTheDocument();
+  });
+
   it('opens a quick look beside the list, then the person (W3b)', async () => {
     const user = fast();
     const onOpen = vi.fn();
@@ -292,14 +335,14 @@ describe('Directory', () => {
     expect(onOpen).not.toHaveBeenCalled();
     await user.keyboard('e');
     expect(onOpen).toHaveBeenCalledWith('a');
-    // The keys are said once, at the list's head, not on the card: under a
-    // list that keeps loading they were only reached at its end.
-    const hint = screen.getByText(/to open the card/);
+    // The keys are said once, in the line under the list, not on the card.
+    const hint = screen.getByText('profile');
     expect(look).not.toContainElement(hint);
-    expect(hint).toHaveTextContent(/to move.*to open the card.*E for the profile/);
+    expect(hint).toHaveTextContent('E profile');
+    expect(screen.getByText('quick look')).toBeInTheDocument();
     expect(
       hint.compareDocumentPosition(screen.getByRole('region', { name: 'People' })) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+        Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
     // Plain rows: no stripes.
     expect(container.querySelector('tr[data-striped]')).toBeNull();
@@ -488,16 +531,14 @@ describe('Directory', () => {
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
     expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
     // Said as it lands, to a screen reader too.
-    expect(screen.getByRole('status')).toHaveTextContent(
-      '1 more loaded. Results stream in 50 at a time.',
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Loads 100 at a time');
     // No pager beside an infinite table.
     expect(screen.queryByRole('navigation', { name: 'Pages of people' })).toBeNull();
     expect(onLoadMore).toHaveBeenCalledOnce();
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('cards load the next page as the reader nears the end, with cards in their shape meanwhile and no button', async () => {
+  it('cards load the next page as the reader nears the end, with no placeholder cards and no button', async () => {
     // The sentinel a screen ahead is in view at once: jsdom lays nothing out.
     const observed: (() => void)[] = [];
     vi.stubGlobal(
@@ -532,9 +573,9 @@ describe('Directory', () => {
     await vi.waitFor(() => {
       expect(onLoadMore).toHaveBeenCalledWith('cursor-1');
     });
-    // The cards' own shape says a page is coming; the line under them holds still.
-    expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(4);
-    expect(screen.getByRole('status')).toHaveTextContent('Results stream in 50 at a time.');
+    // No placeholder cards: the line under them holds still, and the page arrives.
+    expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(0);
+    expect(screen.getByRole('status')).toHaveTextContent('Loads 100 at a time');
     expect(screen.queryByRole('button', { name: /more people/i })).toBeNull();
     arrive({
       people: [
@@ -550,9 +591,7 @@ describe('Directory', () => {
       next: null,
     });
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(
-      '1 more loaded. Results stream in 50 at a time.',
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Loads 100 at a time');
     expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(0);
     expect(await axeViolations(container)).toEqual([]);
     vi.unstubAllGlobals();
@@ -575,8 +614,10 @@ describe('Directory', () => {
     const { rerender } = render(
       <Directory {...props({ load: { status: 'ready', data: grouped }, onGroupChange })} />,
     );
+    // Sort, group and columns are one View menu (C1b).
+    await user.click(screen.getByRole('button', { name: 'View' }));
     await user.click(screen.getByRole('combobox', { name: 'Group by' }));
-    await user.click(await screen.findByRole('option', { name: 'Group by cost centre' }));
+    await user.click(await screen.findByRole('option', { name: 'Cost centre' }));
     expect(onGroupChange).toHaveBeenCalledWith('cost_centre');
     rerender(
       <Directory
@@ -645,7 +686,7 @@ describe('the directory’s search, in the address (smart search: AI1–AI4)', (
     expect(within(row).getByRole('button', { name: 'Edit as filters' })).toBeInTheDocument();
     expect(screen.getByText(/isn’t set up here/u)).toBeInTheDocument();
     expect(box).toHaveValue('managers in Sales');
-    expect(screen.getByText('Updated as you edit the chips')).toBeInTheDocument();
+    expect(screen.getByText('Updates as you edit the chips')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -706,6 +747,7 @@ describe('the directory’s search, in the address (smart search: AI1–AI4)', (
     expect(screen.queryByText(/null/u)).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
     // The same metrics, as orders anybody can pick.
+    await user.click(screen.getByRole('button', { name: 'View' }));
     await user.click(screen.getByRole('combobox', { name: 'Sort by' }));
     await user.click(await screen.findByRole('option', { name: 'Fewest missing details' }));
     expect(onSortChange).toHaveBeenCalledWith({ key: 'missing_count', direction: 'asc' });

@@ -5,7 +5,8 @@ import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
 import { SectionForm } from '../record/section-form';
 import type { RecordSection } from '../record/model';
-import { IdentifierReviews, type ReviewItem } from './identifier-reviews';
+import type { ReviewItem } from './identifier-reviews';
+import { renderReview } from './review.fixture';
 
 const item: ReviewItem = {
   personId: 'p1',
@@ -25,16 +26,14 @@ const item: ReviewItem = {
 
 const done = () => Promise.resolve({ ok: true as const });
 
-describe('HR’s review of doubted identifiers (PEO-125)', () => {
+/** Review on its ID checks chip. */
+const idChecks = (items: readonly ReviewItem[], props: Parameters<typeof renderReview>[1] = {}) =>
+  renderReview({ identifiers: { items } }, { kind: 'ids', ...props });
+
+describe('ID checks in Review (PEO-125)', () => {
   it('lists each with its findings and last four, never the value until asked', async () => {
     const onReveal = vi.fn(() => Promise.resolve({ ok: true as const, value: '12345678A' }));
-    const { container } = render(
-      <IdentifierReviews
-        load={{ status: 'ready', data: { items: [item] } }}
-        onDecide={vi.fn(done)}
-        onReveal={onReveal}
-      />,
-    );
+    const { container } = idChecks([item], { onReveal: onReveal });
     expect(await axeViolations(container)).toEqual([]);
     expect(screen.getByText('•••• 678A')).toBeInTheDocument();
     expect(screen.getAllByText(/control letter does not compute/).length).toBeGreaterThan(0);
@@ -47,13 +46,7 @@ describe('HR’s review of doubted identifiers (PEO-125)', () => {
 
   it('accepts, finally, and sends back only with a reason', async () => {
     const onDecide = vi.fn(done);
-    render(
-      <IdentifierReviews
-        load={{ status: 'ready', data: { items: [item] } }}
-        onDecide={onDecide}
-        onReveal={vi.fn()}
-      />,
-    );
+    idChecks([item], { onReviewIdentifier: onDecide });
     const user = fast();
     await user.click(screen.getByRole('button', { name: /Accept Lucía Ortega's/ }));
     expect(screen.getByText(/will not be flagged again/)).toBeInTheDocument();
@@ -72,13 +65,7 @@ describe('HR’s review of doubted identifiers (PEO-125)', () => {
   });
 
   it('marks a value still waiting for approval, and says sending it back declines the change', async () => {
-    const { container } = render(
-      <IdentifierReviews
-        load={{ status: 'ready', data: { items: [{ ...item, held: true }] } }}
-        onDecide={vi.fn(done)}
-        onReveal={vi.fn()}
-      />,
-    );
+    const { container } = idChecks([{ ...item, held: true }]);
     expect(await axeViolations(container)).toEqual([]);
     expect(screen.getByText('Waiting for approval')).toBeInTheDocument();
     await fast().click(screen.getByRole('button', { name: /Send Lucía Ortega's NIF \/ NIE back/ }));
@@ -89,13 +76,7 @@ describe('HR’s review of doubted identifiers (PEO-125)', () => {
   });
 
   it('says when there is nothing to review', () => {
-    render(
-      <IdentifierReviews
-        load={{ status: 'ready', data: { items: [] } }}
-        onDecide={vi.fn(done)}
-        onReveal={vi.fn()}
-      />,
-    );
+    idChecks([]);
     expect(screen.getByText('Nothing to review')).toBeInTheDocument();
   });
 });

@@ -104,6 +104,13 @@ export interface FieldRegistryProps {
   readonly section?: string | null;
   readonly onSectionChange?: (section: string | null) => void;
   /**
+   * The dialog open over the registry, held by the host so a link opens it in
+   * the server's HTML: `preview` for the sign-up preview, `section` for adding
+   * a section. Any other value is closed.
+   */
+  readonly open?: string | null;
+  readonly onOpenChange?: (open: string | null) => void;
+  /**
    * Open the review of a field whose type or format changes
    * (`/settings/people/fields/<key>/change?to=<type>`): every value it holds,
    * checked before it is published.
@@ -156,7 +163,13 @@ function Registry({
   ...held
 }: FieldRegistryProps & { readonly draft: RegistryDraft }): JSX.Element {
   const reviewing = draft.fields.filter((f) => f.review === true);
-  const [previewing, setPreviewing] = useState(false);
+  const [open, setOpen] = useHeld<string | null>(held.open, held.onOpenChange, null);
+  const dialog = (name: string) => ({
+    open: open === name,
+    onOpenChange: (next: boolean) => {
+      setOpen(next ? name : null);
+    },
+  });
   // The order as the admin last left it, shown until the shell hands back a
   // draft that agrees — the list does not jump back while the save is in flight.
   const [sectionOrder, setSectionOrder] = useState<readonly string[] | null>(null);
@@ -165,7 +178,6 @@ function Registry({
   );
   const [picked, setChosen] = useHeld<string | null>(held.section, held.onSectionChange, null);
   const [editing, setEditing] = useState<{ field: RegistryField | null } | null>(null);
-  const [adding, setAdding] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [query, setQuery] = useTyped(held.search ?? '', held.onSearchChange);
@@ -214,7 +226,7 @@ function Registry({
             <Button
               startIcon={<icons.visible aria-hidden />}
               onClick={() => {
-                setPreviewing(true);
+                setOpen('preview');
               }}
             >
               Preview sign-up
@@ -231,17 +243,15 @@ function Registry({
           </>
         }
       />
-      <SignupPreview fields={draft.fields} open={previewing} onOpenChange={setPreviewing} />
+      <SignupPreview fields={draft.fields} {...dialog('preview')} />
 
+      {/* At a desk the header says it; on a phone, where the header is short, this line does. */}
       {draft.unpublishedChanges === 0 ? null : (
         <Alert
           tone="info"
+          className="hidden touch:flex"
           title={`${String(draft.unpublishedChanges)} ${draft.unpublishedChanges === 1 ? 'change is' : 'changes are'} waiting to be published`}
-        >
-          Your edits are saved as a draft. Nobody’s forms change until you publish version {next},
-          and the publish step shows exactly what changes and who is affected first. Fields marked
-          Added, Changed or Archived below are the ones in the draft.
-        </Alert>
+        />
       )}
 
       {reviewing.length === 0 ? null : (
@@ -318,7 +328,7 @@ function Registry({
             <Button
               startIcon={<Plus />}
               onClick={() => {
-                setAdding(true);
+                setOpen('section');
               }}
             >
               Add section
@@ -385,7 +395,7 @@ function Registry({
                   className="mt-2"
                   startIcon={<Plus />}
                   onClick={() => {
-                    setAdding(true);
+                    setOpen('section');
                   }}
                 >
                   Add section
@@ -435,7 +445,7 @@ function Registry({
           {...(onReview === undefined ? {} : { onReview })}
         />
       )}
-      <AddSection open={adding} onOpenChange={setAdding} onAdd={onAddSection} />
+      <AddSection {...dialog('section')} onAdd={onAddSection} />
       <PublishDialog
         open={publishing}
         onOpenChange={setPublishing}

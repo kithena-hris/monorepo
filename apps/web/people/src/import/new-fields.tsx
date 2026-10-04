@@ -588,7 +588,6 @@ export function NewFieldsStep({
   onIndexChange,
 }: NewFieldsStepProps): JSX.Element {
   const readOnly = !view.canCreate;
-  const kept = proposals.filter((p) => p.include);
   const newSections = newSectionsOf(proposals);
   const n = proposals.length;
   const card = (p: ColumnProposal, selected = false): JSX.Element => {
@@ -610,10 +609,6 @@ export function NewFieldsStep({
       />
     );
   };
-  const notImported = [
-    ...facts.ignored,
-    ...proposals.filter((p) => !p.include).map((p) => p.header),
-  ];
   const assistantNote = view.byModel
     ? null
     : 'Proposed by Kithena’s own rules: the assistant didn’t answer this time.';
@@ -657,66 +652,83 @@ export function NewFieldsStep({
     );
   }
 
+  // At a desk, the content of Decide what's new's "New fields" block: the
+  // proposals two by two, each edited in place.
   return (
-    <div className="grid items-start gap-4 @4xl/page:grid-cols-[minmax(0,1fr)_21.25rem]">
-      <div className="flex min-w-0 flex-col gap-3">
-        <AssistantCard
-          level={2}
-          title={
-            n === 1
-              ? '1 column isn’t a field yet. Here’s what I’d create.'
-              : `${String(n)} columns aren’t fields yet. Here’s what I’d create.`
-          }
-          action={
-            readOnly || proposals.length === 0 ? undefined : (
-              <Button
-                size="sm"
-                variant="primary"
-                startIcon={<icons.confirm aria-hidden />}
-                onClick={() => {
-                  for (const p of proposals) onChange(p.column, { include: true });
-                }}
-              >
-                Accept all {proposals.length}
-              </Button>
-            )
-          }
-          {...(assistantNote === null ? {} : { note: assistantNote })}
-        >
-          <p className="text-sm text-fg-muted">
-            I read every value in each column to choose the type, the options and who should see it.
-            Switch off any you don’t want, or edit them.
-          </p>
-        </AssistantCard>
-        {alerts}
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-fg-muted">
+          <icons.assistant aria-hidden className="size-3.5 shrink-0" />
+          {assistantNote ??
+            'I read the headers and the shape of each column, never a value, to choose the type, the options and who should see it.'}
+        </p>
+        {readOnly || proposals.length === 0 ? null : (
+          <Button
+            size="sm"
+            startIcon={<icons.confirm aria-hidden />}
+            onClick={() => {
+              for (const p of proposals) onChange(p.column, { include: true });
+            }}
+          >
+            Accept all {proposals.length}
+          </Button>
+        )}
+      </div>
+      {alerts}
+      <div className="grid items-start gap-3 @3xl/page:grid-cols-2">
         {proposals.map((p) => card(p))}
       </div>
-      <div className="flex flex-col gap-3.5">
-        <PageSection surface title="From this file">
-          <KeyValues
-            items={[
-              { label: 'Columns', value: facts.columns },
-              { label: 'Matched to fields', value: facts.mapped },
-              { label: 'New fields suggested', value: kept.length },
-              {
-                label: 'Not imported',
-                value:
-                  notImported.length === 0
-                    ? 'None'
-                    : `${String(notImported.length)} (${notImported.join(', ')})`,
-              },
-            ]}
-          />
-        </PageSection>
+    </div>
+  );
+}
+
+/**
+ * What the file brings, beside Decide what's new: its columns, how many
+ * matched, the fields suggested and what is left out; and where the new
+ * fields go, as a draft, until the plan is approved.
+ */
+export function FileFactsCard({
+  view,
+  proposals,
+  facts,
+}: {
+  readonly view: NewFieldsView | null;
+  readonly proposals: readonly ColumnProposal[];
+  readonly facts: FileFacts;
+}): JSX.Element {
+  const kept = proposals.filter((p) => p.include);
+  const notImported = [
+    ...facts.ignored,
+    ...proposals.filter((p) => !p.include).map((p) => p.header),
+  ];
+  return (
+    <div className="flex flex-col gap-3.5">
+      <PageSection surface title="From this file">
+        <KeyValues
+          items={[
+            { label: 'Columns', value: facts.columns },
+            { label: 'Matched to fields', value: facts.mapped },
+            { label: 'New fields suggested', value: kept.length },
+            {
+              label: 'Not imported',
+              value:
+                notImported.length === 0
+                  ? 'None'
+                  : `${String(notImported.length)} (${notImported.join(', ')})`,
+            },
+          ]}
+        />
+      </PageSection>
+      {view === null || kept.length === 0 ? null : (
         <Alert
           tone="info"
           title={view.setup === null ? 'These become a draft in Settings' : 'These come with setup'}
         >
           {view.setup === null
-            ? `They’re added to Employee fields as draft version ${String(view.version)}. Nothing is published until you approve the plan.`
+            ? `Draft version ${String(view.version)}. Nothing is published until you approve the plan.`
             : `They’re published with ${view.setup.countryName === null ? 'the fields every company has' : `the ${view.setup.countryName} pack`} as version 1. Nothing is published until you approve the plan.`}
         </Alert>
-      </div>
+      )}
     </div>
   );
 }
@@ -958,7 +970,6 @@ export function ExistingStep({
     kept.find((p) => p.key === selected) ?? kept.find((p) => missingOf(p) > 0) ?? kept[0];
   const recommended = (p: ColumnProposal): ForExisting['kind'] | null =>
     view.proposals.find((x) => x.column === p.column)?.forExisting.kind ?? null;
-  const most = kept.every((p) => haveOf(p) >= missingOf(p));
   const total = view.totalPeople;
   const columns: DataColumn<ColumnProposal>[] = [
     {
@@ -998,19 +1009,6 @@ export function ExistingStep({
   return (
     <div className="grid items-start gap-4 @4xl/page:grid-cols-2">
       <div className="flex min-w-0 flex-col gap-3">
-        <AssistantCard
-          level={2}
-          title={
-            most
-              ? 'Most people already have a value from the file'
-              : 'Many people won’t have a value from the file'
-          }
-        >
-          <p className="text-sm text-fg-muted">
-            For the people who don’t, their own details (bank, documents, home, family) are asked
-            of them, and employment details go to HR. Change any of them.
-          </p>
-        </AssistantCard>
         {kept.length === 0 ? (
           <Alert tone="info" title="No new fields">
             Every new column is switched off, so the file imports without them.

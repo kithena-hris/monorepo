@@ -4,6 +4,7 @@ import { Eye, Info, Minus, Pencil } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { SegmentedControl, SegmentedControlItem } from '../segmented-control/segmented-control';
 
 /**
  * Who can see a value and who can change it, as one grid.
@@ -56,6 +57,24 @@ export function toggleAccess(value: AccessValue, id: string, column: AccessColum
     : { see: [...value.see, id], change: value.change };
 }
 
+/** One audience's access as a single level: nothing, seeing, or changing (which sees). */
+export type AccessLevel = 'none' | 'see' | 'change';
+
+export function accessLevel(value: AccessValue, id: string): AccessLevel {
+  return value.change.includes(id) ? 'change' : value.see.includes(id) ? 'see' : 'none';
+}
+
+/** The value with one audience set to `level`: the same rule, chosen as one step under a finger. */
+export function withAccessLevel(value: AccessValue, id: string, level: AccessLevel): AccessValue {
+  const see = value.see.filter((x) => x !== id);
+  const change = value.change.filter((x) => x !== id);
+  return level === 'none'
+    ? { see, change }
+    : level === 'see'
+      ? { see: [...see, id], change }
+      : { see: [...see, id], change: [...change, id] };
+}
+
 export interface AccessMatrixProps extends Omit<ComponentPropsWithoutRef<'div'>, 'onChange'> {
   readonly audiences: readonly AccessAudience[];
   readonly value: AccessValue;
@@ -67,6 +86,9 @@ export interface AccessMatrixProps extends Omit<ComponentPropsWithoutRef<'div'>,
   readonly footer?: ReactNode;
   readonly seeLabel?: string;
   readonly changeLabel?: string;
+  /** The levels' names in the one-choice-per-audience control under a finger. */
+  readonly seeShort?: string;
+  readonly changeShort?: string;
   /** Names the table. */
   readonly label?: string;
 }
@@ -137,10 +159,13 @@ export function AccessMatrix({
   footer,
   seeLabel = 'Sees',
   changeLabel = 'Changes',
+  seeShort = 'See',
+  changeShort = 'Change',
   label = 'Who can see and change it',
   className,
   ...props
 }: AccessMatrixProps): JSX.Element {
+  const editable = onChange !== undefined;
   const press = (id: string, column: AccessColumn) =>
     onChange === undefined
       ? undefined
@@ -161,15 +186,33 @@ export function AccessMatrix({
             <th scope="col" className="px-3.5 py-2.5 text-start font-semibold">
               Who
             </th>
-            <th scope="col" className="w-20 px-2 py-2.5 text-center font-semibold touch:w-16">
+            <th
+              scope="col"
+              className={cn(
+                'w-20 px-2 py-2.5 text-center font-semibold touch:w-16',
+                editable && 'touch:hidden',
+              )}
+            >
               {seeLabel}
             </th>
             <th
               scope="col"
-              className="w-20 py-2.5 ps-2 pe-3.5 text-center font-semibold touch:w-18"
+              className={cn(
+                'w-20 py-2.5 ps-2 pe-3.5 text-center font-semibold touch:w-18',
+                editable && 'touch:hidden',
+              )}
             >
               {changeLabel}
             </th>
+            {/* Under a finger, an editable grid is one choice per audience. */}
+            {editable ? (
+              <th
+                scope="col"
+                className="hidden py-2.5 pe-3.5 text-end font-semibold touch:table-cell"
+              >
+                Access
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -203,7 +246,7 @@ export function AccessMatrix({
                     </span>
                   </span>
                 </th>
-                <td className="px-2 py-2 text-center">
+                <td className={cn('px-2 py-2 text-center', editable && 'touch:hidden')}>
                   <Cell
                     on={see}
                     locked={change}
@@ -212,7 +255,7 @@ export function AccessMatrix({
                     onPress={press(a.id, 'see')}
                   />
                 </td>
-                <td className="py-2 ps-2 pe-3.5 text-center">
+                <td className={cn('py-2 ps-2 pe-3.5 text-center', editable && 'touch:hidden')}>
                   {a.canChange === false ? null : (
                     <Cell
                       on={change}
@@ -223,6 +266,24 @@ export function AccessMatrix({
                     />
                   )}
                 </td>
+                {editable ? (
+                  <td className="hidden py-2 pe-3.5 text-end touch:table-cell">
+                    <SegmentedControl
+                      size="sm"
+                      aria-label={`What ${a.label} can do`}
+                      value={accessLevel(value, a.id)}
+                      onValueChange={(level) => {
+                        onChange(withAccessLevel(value, a.id, level as AccessLevel));
+                      }}
+                    >
+                      <SegmentedControlItem value="none">None</SegmentedControlItem>
+                      <SegmentedControlItem value="see">{seeShort}</SegmentedControlItem>
+                      {a.canChange === false ? null : (
+                        <SegmentedControlItem value="change">{changeShort}</SegmentedControlItem>
+                      )}
+                    </SegmentedControl>
+                  </td>
+                ) : null}
               </tr>
             );
           })}

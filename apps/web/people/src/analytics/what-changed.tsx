@@ -24,7 +24,6 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   Separator,
-  Skeleton,
   Spinner,
   Stack,
   StackedBarChart,
@@ -39,7 +38,6 @@ import { Loaded, type Loadable, type Outcome } from '../load';
 import type { ReportSchedulesState } from '../reports/report-schedules';
 import type { SegmentRef } from '../segments';
 import { InsightsHeader } from './analytics';
-import type { ScheduleActions } from './schedules';
 
 /**
  * What changed (design AI5, AI6, MA4, MA5): the first tab of Insights.
@@ -123,6 +121,19 @@ export interface WhatChangedState {
   readonly recipients: readonly { readonly accountId: string; readonly name: string }[];
   readonly canSend: boolean;
   readonly schedules?: ReportSchedulesState | null;
+  /** The follow-up the address asks (`?ask=`), answered on the server with the page. */
+  readonly answered?: {
+    readonly question: string;
+    readonly result: FollowUpAnswer | string;
+  } | null;
+  /** The export dialog the address opens (`?share=`), its draft read on the server. */
+  readonly drafted?: {
+    readonly recipient: string | null;
+    readonly tone: string;
+    readonly charts: boolean;
+    readonly madeLine: boolean;
+    readonly result: SummaryDraft | string;
+  } | null;
 }
 
 /** A summary as it goes, or went, to somebody. */
@@ -188,7 +199,6 @@ export interface SummaryInput {
 
 export interface WhatChangedProps {
   readonly load: Loadable<WhatChangedState | { readonly shared: SharedSummary | null }>;
-  readonly schedules?: ScheduleActions;
   /** Applied by the shell, server-side: `?segment=<id>`. */
   readonly segmentId?: string | null;
   readonly onSegmentChange?: (segmentId: string | null) => void;
@@ -247,7 +257,7 @@ export function sourceHref(source: Source, segmentId: string | null): string {
     case 'org-chart':
       return '/people/directory/org-chart';
     default:
-      return '/people/data-health/completeness';
+      return '/people/review/waiting?kind=missing';
   }
 }
 
@@ -291,7 +301,6 @@ export function WhatChanged(props: WhatChangedProps): JSX.Element {
 
 function Summary({
   state,
-  schedules,
   segmentId = null,
   onSegmentChange,
   onPeriodChange,
@@ -305,10 +314,7 @@ function Summary({
   onDownload,
   onSend,
 }: WhatChangedProps & { readonly state: WhatChangedState }): JSX.Element {
-  const reports =
-    schedules !== undefined && state.schedules != null && state.schedules.canManage
-      ? state.schedules
-      : null;
+  const reports = state.schedules != null && state.schedules.canManage ? state.schedules : null;
   const asked = `${state.period.from}|${state.period.to}|${state.segment?.id ?? ''}`;
   const [worded, setWorded] = useState<{
     readonly asked: string;
@@ -348,7 +354,6 @@ function Summary({
         segmentId={segmentId}
         onSegmentChange={onSegmentChange}
         reports={reports}
-        schedules={schedules}
         exportAction={
           exportable ? (
             <Button
@@ -631,13 +636,18 @@ function FollowUp({
   readonly onExport: (() => void) | undefined;
 }): JSX.Element {
   const [text, setText] = useState(question ?? '');
+  const asked = `${question ?? ''}|${state.period.from}|${state.period.to}|${state.segment?.id ?? ''}`;
+  // The question the page was served with is answered already, in its HTML.
   const [answer, setAnswer] = useState<{
     readonly asked: string;
     readonly result: FollowUpAnswer | string;
-  } | null>(null);
-  const asked = `${question ?? ''}|${state.period.from}|${state.period.to}|${state.segment?.id ?? ''}`;
+  } | null>(
+    state.answered != null && state.answered.question === question
+      ? { asked, result: state.answered.result }
+      : null,
+  );
   useEffect(() => {
-    if (question === null) return undefined;
+    if (question === null || answer?.asked === asked) return undefined;
     let live = true;
     void onAsk(question)
       .catch(() => ({ ok: false as const, message: 'People could not be asked' }))
@@ -690,10 +700,7 @@ function FollowUp({
       </form>
       <div role="status" aria-live="polite">
         {question === null ? null : result === null ? (
-          <span className="flex flex-col gap-2" aria-busy="true">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </span>
+          <Spinner label="Answering" />
         ) : typeof result === 'string' ? (
           <Alert tone="danger" title="No answer">
             {result}
@@ -752,10 +759,19 @@ function ExportDialog({
     onChoicesChange({ ...choices, ...patch });
   };
   const asked = JSON.stringify([choices.recipient, choices.tone, choices.charts, choices.madeLine]);
+  // The dialog the page was served with has its draft already, in its HTML.
+  const served = state.drafted;
   const [draft, setDraft] = useState<{
     readonly asked: string;
     readonly result: SummaryDraft | string;
-  } | null>(null);
+  } | null>(
+    served == null
+      ? null
+      : {
+          asked: JSON.stringify([served.recipient, served.tone, served.charts, served.madeLine]),
+          result: served.result,
+        },
+  );
   const [edits, setEdits] = useState<Readonly<Record<string, string>>>({});
   const [busy, setBusy] = useState<'download' | 'send' | null>(null);
   const [done, setDone] = useState<{
@@ -769,7 +785,7 @@ function ExportDialog({
     ...(choices.recipient === null ? {} : { recipient: choices.recipient }),
   };
   useEffect(() => {
-    if (onDraft === undefined) return undefined;
+    if (onDraft === undefined || draft?.asked === asked) return undefined;
     let live = true;
     setDone(null);
     void onDraft({ ...base, edits: [] })
@@ -908,7 +924,7 @@ function ExportDialog({
                 </SegmentedControl>
               </Field>
               {current === null ? (
-                <Skeleton className="h-20 w-full rounded-lg" />
+                <Spinner label="Writing it for them" />
               ) : typeof current === 'string' ? (
                 <Alert tone="danger" title="Could not prepare it">
                   {current}
@@ -1025,16 +1041,8 @@ function Preview({
 }): JSX.Element {
   if (doc === null) {
     return (
-      <Card variant="elevated" padded className="min-w-0 flex-1" aria-busy="true">
-        <span className="sr-only">Preparing the preview</span>
-        <Stack gap={3}>
-          <Skeleton className="h-3 w-40" />
-          <Skeleton className="h-7 w-3/4" />
-          <Skeleton className="h-3 w-56" />
-          {[0, 1, 2].map((n) => (
-            <Skeleton key={n} className="h-12 w-full" />
-          ))}
-        </Stack>
+      <Card variant="elevated" padded className="grid min-w-0 flex-1 place-items-center">
+        <Spinner label="Preparing the preview" />
       </Card>
     );
   }

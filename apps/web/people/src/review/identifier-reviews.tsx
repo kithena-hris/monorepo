@@ -11,24 +11,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  EmptyState,
   Field,
   FieldControl,
   FieldDescription,
   FieldError,
   FieldLabel,
-  List,
-  ListDetail,
-  ListItem,
   MaskedValue,
-  PageHeader,
+  PINNED_BAR,
   Stack,
   Textarea,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { DATA_HEALTH } from '../data-health';
-import { Loaded, type Loadable, type Outcome } from '../load';
+import type { Outcome } from '../load';
 
 /**
  * HR's review of the national identifiers our checks doubted (PEO-125; PRD
@@ -57,6 +52,8 @@ export interface ReviewFinding {
 export interface ReviewItem {
   readonly personId: string;
   readonly name: string;
+  /** Their photo, when they have one and the viewer may read them. Absent from an older People. */
+  readonly avatarUrl?: string | null;
   readonly attributeKey: string;
   readonly label: string;
   readonly last4: string | null;
@@ -66,15 +63,28 @@ export interface ReviewItem {
   readonly held?: boolean;
 }
 
+/** An identifier HR decided (E9). Never the value. */
+export interface DecidedReview {
+  readonly personId: string;
+  readonly name: string;
+  readonly label: string;
+  readonly outcome: 'accepted' | 'sent_back';
+  readonly decidedBy: string;
+  readonly decidedAt: string;
+  readonly note: string | null;
+}
+
 export interface IdentifierReviewsState {
   readonly items: readonly ReviewItem[];
+  /** Decided in the last 90 days, newest first. Absent from an older People. */
+  readonly decided?: readonly DecidedReview[];
 }
 
 export type Revealed =
   { readonly ok: true; readonly value: string } | { readonly ok: false; readonly message: string };
 
-export interface IdentifierReviewsProps {
-  readonly load: Loadable<IdentifierReviewsState>;
+/** What an ID check's detail pane may do. */
+export interface IdCheckActions {
   readonly onDecide: (
     personId: string,
     attributeKey: string,
@@ -90,187 +100,137 @@ const LEVEL = {
   attention: { tone: 'warning', text: 'Needs attention' },
 } as const;
 
-const id = (item: ReviewItem): string => `${item.personId}/${item.attributeKey}`;
+/** An item's id in Review's address: whose identifier, and which. */
+export const idCheckId = (item: ReviewItem): string => `${item.personId}~${item.attributeKey}`;
 
-const day = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-
-export function IdentifierReviews({
-  load,
-  onDecide,
-  onReveal,
-}: IdentifierReviewsProps): JSX.Element {
-  return (
-    <Loaded load={load} what="identifiers to review">
-      {(state) => <Queue state={state} onDecide={onDecide} onReveal={onReveal} />}
-    </Loaded>
-  );
+/** Failed, or only unverifiable: the badge on its row. */
+export function verdictOf(item: ReviewItem): {
+  readonly tone: 'danger' | 'warning';
+  readonly text: string;
+} {
+  return item.findings.some((f) => f.level === 'mismatch')
+    ? { tone: 'danger', text: 'Failed' }
+    : { tone: 'warning', text: 'Unverifiable' };
 }
 
-function Queue({
-  state,
+const day = (iso: string): string =>
+  new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+
+/**
+ * One identifier to check (design E2, MA E3): what was entered, masked until
+ * revealed, what the checks found, and the two decisions, each confirmed in a
+ * short dialog.
+ */
+export function IdCheckDetail({
+  item,
   onDecide,
   onReveal,
-}: {
-  readonly state: IdentifierReviewsState;
-  readonly onDecide: IdentifierReviewsProps['onDecide'];
-  readonly onReveal: IdentifierReviewsProps['onReveal'];
-}): JSX.Element {
-  const [deciding, setDeciding] = useState<{ item: ReviewItem; accept: boolean } | null>(null);
-  const [shown, setShown] = useState<Readonly<Record<string, string>>>({});
+}: { readonly item: ReviewItem } & IdCheckActions): JSX.Element {
+  const [deciding, setDeciding] = useState<boolean | null>(null);
+  const [shown, setShown] = useState<string | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
-  const [picked, setPicked] = useState<string | null>(null);
-  const current = state.items.find((i) => id(i) === picked) ?? state.items[0] ?? null;
-  const worst = (item: ReviewItem) =>
-    item.findings.some((f) => f.level === 'mismatch') ? LEVEL.mismatch : LEVEL.attention;
-
+  const first = item.name.split(' ')[0] ?? item.name;
   return (
-    <Stack gap={5}>
-      <PageHeader title={DATA_HEALTH.title} description={DATA_HEALTH.description} />
-      <p className="text-sm text-fg-muted">
-        National identifiers that failed a check, or need a person to look at them. Whatever you
-        decide is final.
-      </p>
+    <Card padded className="flex flex-col gap-4">
+      <div className="flex items-start gap-3">
+        <Avatar size="xl" name={item.name} src={item.avatarUrl ?? undefined} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-md font-bold">
+            {item.name}
+            <span className="font-normal text-fg-muted"> · {item.label}</span>
+          </h2>
+          <p className="text-sm text-fg-muted">Entered on {day(item.enteredAt)}</p>
+        </div>
+        {item.held === true ? (
+          <Badge tone="warning" size="sm" className="shrink-0">
+            Waiting for approval
+          </Badge>
+        ) : null}
+      </div>
       {refused === null ? null : (
         <Alert tone="danger" title="Could not show the value">
           {refused}
         </Alert>
       )}
-      {state.items.length === 0 || current === null ? (
-        <EmptyState
-          title="Nothing to review"
-          description="Every national identifier entered so far passed its country's checks, or has been reviewed."
-        />
-      ) : (
-        <ListDetail
-          listWidth="27.5rem"
-          listLabel="Identifiers to review"
-          detailLabel={`${current.name}’s ${current.label}`}
-          selected={picked !== null}
-          onBack={() => {
-            setPicked(null);
-          }}
-          backLabel="All identifiers"
-          list={
-            <List aria-label="Identifiers to review">
-              {state.items.map((item) => (
-                <ListItem
-                  key={id(item)}
-                  asChild
-                  selected={id(item) === id(current)}
-                  leading={<Avatar size="lg" name={item.name} />}
-                  description={`${item.label} · ${item.findings[0]?.message ?? ''}`}
-                  trailing={
-                    <Badge tone={worst(item).tone} size="sm">
-                      {worst(item) === LEVEL.mismatch ? 'Failed' : 'Unverifiable'}
+      <div className="@container grid gap-3 @md:grid-cols-2">
+        <Card variant="fill" padded className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-fg-muted">What they entered</p>
+          <MaskedValue
+            masked={item.last4 === null ? '—' : `•••• ${item.last4}`}
+            value={shown}
+            label={`${item.name}'s ${item.label} in full`}
+            onReveal={() => {
+              setRefused(null);
+              void onReveal(item.personId, item.attributeKey).then((r) => {
+                if (r.ok) setShown(r.value);
+                else setRefused(r.message);
+              });
+            }}
+            onHide={() => {
+              setShown(null);
+            }}
+          />
+        </Card>
+        <Card variant="fill" padded className="flex flex-col gap-2">
+          <p className="text-xs font-semibold text-fg-muted">What the checks found</p>
+          <ul className="flex flex-col gap-2">
+            {item.findings.map((f) => {
+              const level = f.level === 'mismatch' ? LEVEL.mismatch : LEVEL.attention;
+              return (
+                <li key={f.code} className="flex flex-col gap-1">
+                  <span>
+                    <Badge tone={level.tone} size="sm">
+                      {level.text}
                     </Badge>
-                  }
-                >
-                  <button
-                    type="button"
-                    aria-current={id(item) === id(current) ? true : undefined}
-                    onClick={() => {
-                      setPicked(id(item));
-                    }}
-                  >
-                    {item.name}
-                  </button>
-                </ListItem>
-              ))}
-            </List>
-          }
-          detail={
-            <div className="flex flex-col gap-4 rounded-lg bg-surface p-5 shadow-sm touch:rounded-[1.375rem] touch:p-4">
-              <div className="flex items-center gap-3">
-                <Avatar size="xl" name={current.name} />
-                <div className="min-w-0">
-                  <h2 className="text-md font-bold">
-                    {current.name} · {current.label}
-                  </h2>
-                  <p className="text-sm text-fg-muted">Entered on {day(current.enteredAt)}</p>
-                </div>
-                {current.held === true ? (
-                  <Badge tone="warning" size="sm" className="ms-auto">
-                    Waiting for approval
-                  </Badge>
-                ) : null}
-              </div>
-              <div className="grid gap-3 @md:grid-cols-2 @container">
-                <Card variant="fill" padded className="flex flex-col gap-2">
-                  <p className="text-xs font-semibold text-fg-muted">What they entered</p>
-                  <MaskedValue
-                    masked={current.last4 === null ? '—' : `•••• ${current.last4}`}
-                    value={shown[id(current)] ?? null}
-                    label={`${current.name}'s ${current.label} in full`}
-                    onReveal={() => {
-                      setRefused(null);
-                      void onReveal(current.personId, current.attributeKey).then((r) => {
-                        if (r.ok) setShown((s) => ({ ...s, [id(current)]: r.value }));
-                        else setRefused(r.message);
-                      });
-                    }}
-                    onHide={() => {
-                      setShown((s) =>
-                        Object.fromEntries(Object.entries(s).filter(([k]) => k !== id(current))),
-                      );
-                    }}
-                  />
-                </Card>
-                <Card variant="fill" padded className="flex flex-col gap-2">
-                  <p className="text-xs font-semibold text-fg-muted">What the checks found</p>
-                  <ul className="flex flex-col gap-2">
-                    {current.findings.map((f) => {
-                      const level = f.level === 'mismatch' ? LEVEL.mismatch : LEVEL.attention;
-                      return (
-                        <li key={f.code} className="flex flex-col gap-1">
-                          <span>
-                            <Badge tone={level.tone} size="sm">
-                              {level.text}
-                            </Badge>
-                          </span>
-                          <span className="text-sm">{f.message}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </Card>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="ghost"
-                  aria-label={`Accept ${current.name}'s ${current.label}`}
-                  onClick={() => {
-                    setDeciding({ item: current, accept: true });
-                  }}
-                >
-                  Mark as correct anyway
-                </Button>
-                <Button
-                  variant="primary"
-                  className="ms-auto"
-                  aria-label={`Send ${current.name}'s ${current.label} back`}
-                  onClick={() => {
-                    setDeciding({ item: current, accept: false });
-                  }}
-                >
-                  Ask {current.name.split(' ')[0]} to correct it
-                </Button>
-              </div>
-            </div>
-          }
-        />
-      )}
+                  </span>
+                  <span className="text-sm">{f.message}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      </div>
+      <p className="text-sm text-fg-muted">
+        Revealing the value is logged. Whatever you decide is final.
+      </p>
+      <div
+        {...PINNED_BAR}
+        className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4 touch:sticky touch:bottom-24 touch:z-10 touch:grid touch:grid-cols-2 touch:bg-surface touch:py-2"
+      >
+        <Button
+          aria-label={`Send ${item.name}'s ${item.label} back`}
+          onClick={() => {
+            setDeciding(false);
+          }}
+        >
+          Ask {first} to correct it
+        </Button>
+        <Button
+          variant="primary"
+          aria-label={`Accept ${item.name}'s ${item.label}`}
+          onClick={() => {
+            setDeciding(true);
+          }}
+        >
+          Mark as correct anyway
+        </Button>
+      </div>
       {deciding === null ? null : (
         <Decide
-          item={deciding.item}
-          accept={deciding.accept}
+          item={item}
+          accept={deciding}
           onDecide={onDecide}
           onClose={() => {
             setDeciding(null);
           }}
         />
       )}
-    </Stack>
+    </Card>
   );
 }
 
@@ -282,7 +242,7 @@ function Decide({
 }: {
   readonly item: ReviewItem;
   readonly accept: boolean;
-  readonly onDecide: IdentifierReviewsProps['onDecide'];
+  readonly onDecide: IdCheckActions['onDecide'];
   readonly onClose: () => void;
 }): JSX.Element {
   const [note, setNote] = useState('');
@@ -302,7 +262,7 @@ function Decide({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {verb} {item.name}'s {item.label}
+            {accept ? 'Accept' : 'Send back'} {item.name}’s {item.label}
           </DialogTitle>
           <DialogDescription>
             {accept

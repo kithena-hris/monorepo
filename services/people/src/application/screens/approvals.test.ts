@@ -19,6 +19,7 @@ import { inMemoryPendingChangeStore } from '../person/pending-store.js';
 import { personAccess } from '../person/person-access.js';
 import type { Viewer } from '../person/ports.js';
 import { approvalsView } from './people.js';
+import { flaggedToDecide, waitingView } from './waiting.js';
 import type { ScreenDeps } from './record.js';
 
 /**
@@ -227,6 +228,36 @@ describe('a flagged approval (AI7)', () => {
   });
 });
 
+describe('Review’s tab counts (E1)', () => {
+  it('counts the flagged change for whoever decides it, and the asker’s own under I asked', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z', { raises });
+    await askedForRaise(s);
+    expect(await flaggedToDecide(tx, s.pending, asking(SOFIA))).toEqual({
+      count: 1,
+      latest: 'A 38% raise',
+    });
+    const sofia = await waitingView(tx, { access: s.access, pending: s.pending }, asking(SOFIA));
+    expect(sofia.ok && [sofia.value.flagged, sofia.value.asked]).toEqual([1, 0]);
+    // Nora asked: nothing of hers is flagged to her, and it waits under I asked.
+    const nora = await waitingView(tx, { access: s.access, pending: s.pending }, asking(NORA_HR));
+    expect(nora.ok && [nora.value.flagged, nora.value.asked]).toEqual([0, 1]);
+  });
+});
+
+describe('Decided (E9)', () => {
+  it('lists a change nobody decided in its seven days as lapsed, by nobody', async () => {
+    const s = setup('2026-09-22T10:00:00.000Z');
+    const { item } = await askedForRaise(s);
+    const later = await approvalsView(
+      { ...s.deps, clock: fixedClock('2026-09-30T10:00:00.000Z') },
+      asking(SOFIA),
+    );
+    expect(
+      later.ok && later.value.decided.map((d) => [d.id, d.state, d.decidedBy, d.decidedAt]),
+    ).toEqual([[item.id, 'lapsed', null, item.expiresAt]]);
+  });
+});
+
 describe('Not unusual', () => {
   it('quietens the flag, decides nothing, and is whoever decides it’s alone', async () => {
     const s = setup('2026-09-22T10:00:00.000Z', { raises });
@@ -241,8 +272,13 @@ describe('Not unusual', () => {
     expect(now?.state).toBe('pending');
     // Quiet, so approving it needs no note any more.
     expect(
-      (await decidePendingChange(tx, s.pending, { ...asking(SOFIA), changeId: item.id, approve: true }))
-        .ok,
+      (
+        await decidePendingChange(tx, s.pending, {
+          ...asking(SOFIA),
+          changeId: item.id,
+          approve: true,
+        })
+      ).ok,
     ).toBe(true);
   });
 });
@@ -377,7 +413,11 @@ describe('sealed pay (PEO-145)', () => {
     const s = await askedForSealedRaise();
     const view = await approvalsView(s.deps, asking(FINANCE_HR));
     const id = (view.ok ? view.value.items.find((i) => i.key === 'pay')?.id : undefined) ?? '';
-    const bare = await decidePendingChange(tx, s.pending, { ...asking(FINANCE_HR), changeId: id, approve: true });
+    const bare = await decidePendingChange(tx, s.pending, {
+      ...asking(FINANCE_HR),
+      changeId: id,
+      approve: true,
+    });
     expect(!bare.ok && bare.error.code).toBe('NOTE_REQUIRED');
     const noted = await decidePendingChange(tx, s.pending, {
       ...asking(FINANCE_HR),

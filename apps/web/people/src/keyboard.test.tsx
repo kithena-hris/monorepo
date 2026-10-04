@@ -2,14 +2,15 @@ import { setShortcutKeys, screenCommands } from '@reach/ui';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Approvals, type ApprovalItem } from './approvals/approvals';
-import { CompletenessGrid, type CompletenessState } from './completeness/completeness-grid';
-import { Duplicates } from './review/duplicates';
+import type { ApprovalItem } from './approvals/approvals';
+import { MissingDetails, type CompletenessState } from './completeness/completeness-grid';
+import { renderReview } from './review/review.fixture';
 import { axeViolations } from './test/axe';
 
 /**
- * The context actions of a focused row, as the shell binds them: A and R on
- * Approvals, M and N on Duplicates, F and R on Completeness. The keys come
+ * The context actions of a focused row in Review, as the shell binds them: A
+ * and R on a change, M and N on a possible duplicate, F and R on Missing
+ * details. The keys come
  * from the shell's table through Reach's store, as they do in the app.
  */
 beforeEach(() => {
@@ -35,11 +36,14 @@ async function press(key: string): Promise<void> {
   const target = document.activeElement;
   if (target === null) throw new Error('nothing has focus');
   fireEvent.keyDown(target, { key });
-  await act(() => new Promise<void>((resolve) => {
-      requestAnimationFrame(() => {
-        resolve();
-      });
-    }));
+  await act(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      }),
+  );
 }
 const bodyRows = (grid: HTMLElement): HTMLElement[] =>
   within(grid)
@@ -48,34 +52,30 @@ const bodyRows = (grid: HTMLElement): HTMLElement[] =>
 
 describe('Duplicates from the keyboard', () => {
   it('compares the focused pair with M and keeps it apart with N', async () => {
-    const onCompare = vi.fn();
+    const onItemChange = vi.fn();
     const onDismiss = vi.fn(done);
-    const { container } = render(
-      <Duplicates
-        load={{
-          status: 'ready',
-          data: {
-            items: [
-              { personIds: ['p1', 'p2'], names: ['Ada', 'Augusta'], reasons: ['Same email'] },
-              { personIds: ['p3', 'p4'], names: ['Grace', 'Gracie'], reasons: ['Same email'] },
-            ],
-            comparison: null,
-          },
-        }}
-        onCompare={onCompare}
-        onBack={vi.fn()}
-        onMerge={vi.fn(done)}
-        onDismiss={onDismiss}
-        onUnmerge={vi.fn(done)}
-      />,
+    const { container } = renderReview(
+      {
+        duplicates: {
+          items: [
+            { personIds: ['p1', 'p2'], names: ['Ada', 'Augusta'], reasons: ['Same email'] },
+            { personIds: ['p3', 'p4'], names: ['Grace', 'Gracie'], reasons: ['Same email'] },
+          ],
+          comparison: null,
+        },
+      },
+      { kind: 'duplicates', onItemChange, onDismiss },
     );
-    const [first] = bodyRows(screen.getByRole('grid', { name: 'Possible duplicates' }));
+    const list = screen.getByRole('list', { name: 'Waiting for a decision' });
+    const [first] = within(list)
+      .getAllByRole('button')
+      .filter((b) => b.hasAttribute('data-list-row'));
     first?.focus();
     await press('j');
     // With a row focused, the page is still axe-clean.
     expect(await axeViolations(container)).toEqual([]);
     await press('m');
-    expect(onCompare).toHaveBeenCalledWith('p3', 'p4');
+    expect(onItemChange).toHaveBeenCalledWith('dup-p3~p4');
     await press('n');
     expect(onDismiss).toHaveBeenCalledWith('p3', 'p4');
   });
@@ -103,17 +103,19 @@ describe('Approvals from the keyboard', () => {
 
   it('moves with J, and A opens the focused change at its note, deciding nothing yet', async () => {
     const onDecide = vi.fn(done);
-    render(
-      <Approvals
-        load={{
-          status: 'ready',
-          data: { isHr: true, items: [item, { ...item, id: 'c2', name: 'Omar Haddad' }] },
-        }}
-        onDecide={onDecide}
-        onWithdraw={vi.fn(done)}
-      />,
+    renderReview(
+      {
+        approvals: {
+          isHr: true,
+          items: [
+            { ...item, requestedAt: '2026-09-23T09:00:00.000Z' },
+            { ...item, id: 'c2', name: 'Omar Haddad' },
+          ],
+        },
+      },
+      { onDecide },
     );
-    const list = screen.getByRole('list', { name: 'Changes waiting for a decision' });
+    const list = screen.getByRole('list', { name: 'Waiting for a decision' });
     // The rows themselves, not their action menus.
     const [lucia, omar] = within(list)
       .getAllByRole('button')
@@ -167,11 +169,13 @@ describe('Completeness from the keyboard', () => {
   it('reminds the focused person with R, fills in with F, and offers "Remind" to the palette', async () => {
     const onRemind = vi.fn(done);
     render(
-      <CompletenessGrid
-        load={{ status: 'ready', data: state }}
+      <MissingDetails
+        state={state}
         onSave={vi.fn()}
         onRemind={onRemind}
-        onRemindAll={vi.fn(() => Promise.resolve({ ok: true as const, sent: 1, failed: 0, skipped: 0 }))}
+        onRemindAll={vi.fn(() =>
+          Promise.resolve({ ok: true as const, sent: 1, failed: 0, skipped: 0 }),
+        )}
       />,
     );
     expect(screenCommands().map((c) => c.label)).toContain('Remind 1 person waiting');
@@ -181,6 +185,8 @@ describe('Completeness from the keyboard', () => {
     expect(onRemind).toHaveBeenCalledWith('u', ['desk']);
     lena?.focus();
     await press('f');
-    expect(await screen.findByRole('textbox', { name: /Desk for Lena Moreau/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('textbox', { name: /Desk for Lena Moreau/ }),
+    ).toBeInTheDocument();
   });
 });

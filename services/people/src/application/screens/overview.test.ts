@@ -114,7 +114,8 @@ function world() {
   const objects = new Map<string, Uint8Array>();
   const intents = new Map<string, UploadIntent>();
   const uploadStore: UploadStore = {
-    presignPut: (key) => Promise.resolve({ url: `https://bucket.test/${key}`, method: 'PUT', headers: {} }),
+    presignPut: (key) =>
+      Promise.resolve({ url: `https://bucket.test/${key}`, method: 'PUT', headers: {} }),
     read: (key) => {
       const bytes = objects.get(key);
       return Promise.resolve(
@@ -173,7 +174,10 @@ function world() {
   return { store, access, deps, photos, objects, as };
 }
 
-const overview = async (w: ReturnType<typeof world>, asking: ReturnType<ReturnType<typeof world>['as']>) => {
+const overview = async (
+  w: ReturnType<typeof world>,
+  asking: ReturnType<ReturnType<typeof world>['as']>,
+) => {
   const read = await overviewView(w.deps, asking);
   if (!read.ok) throw new Error(read.error.message);
   return read.value;
@@ -231,6 +235,32 @@ describe('the overview', () => {
     expect(me?.missing).toBe(2);
   });
 
+  it('asks them to correct what HR sent back, in HR’s words, and nothing still pending (B1)', async () => {
+    const w = world();
+    const review = (state: 'sent_back' | 'pending', attributeKey: string) => ({
+      id: `r-${attributeKey}`,
+      personId: ADA,
+      attributeKey,
+      historyId: 'h1',
+      pendingChangeId: null,
+      valueHash: 'hash',
+      keyId: 'k1',
+      findings: [
+        { level: 'mismatch' as const, code: 'check', message: 'The check digit is wrong.' },
+      ],
+      state,
+      createdAt: '2026-09-24T08:00:00.000Z',
+      decidedBy: state === 'sent_back' ? HR_ACCOUNT : null,
+      decidedAt: state === 'sent_back' ? '2026-09-24T09:00:00.000Z' : null,
+      note: state === 'sent_back' ? 'The check digit doesn’t match.' : null,
+    });
+    w.store.reviews.push(review('sent_back', 'job_title'), review('pending', 'grade'));
+    const { corrections } = await overview(w, w.as(ADA_ACCOUNT));
+    expect(corrections).toEqual([
+      expect.objectContaining({ key: 'job_title', reason: 'The check digit doesn’t match.' }),
+    ]);
+  });
+
   it('gives HR the team’s gaps and the changes waiting for them, first ones first', async () => {
     const w = world();
     const held = await w.access.update({} as never, {
@@ -247,11 +277,18 @@ describe('the overview', () => {
     expect(hr.approvals).toMatchObject({
       isHr: true,
       total: 1,
+      // Nothing about a plain change looks unusual (checks: `approvals.test.ts`).
+      flagged: 0,
+      flagReason: null,
       items: [{ personId: ADA, name: 'Ada Lovelace', label: 'base_salary' }],
     });
 
     // The requester sees their own request; somebody else sees no inbox at all.
-    expect((await overview(w, w.as(ADA_ACCOUNT))).approvals).toMatchObject({ isHr: false, total: 1 });
+    expect((await overview(w, w.as(ADA_ACCOUNT))).approvals).toMatchObject({
+      isHr: false,
+      total: 1,
+      flagged: null,
+    });
     expect((await overview(w, w.as(TIM_ACCOUNT))).approvals).toBeNull();
   });
 });
@@ -269,7 +306,14 @@ function png(): Uint8Array {
     0,
   ];
   return new Uint8Array([
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a,
     ...chunk('IHDR', [...u32(256), ...u32(256), 8, 6, 0, 0, 0]),
     ...chunk('tEXt', Array.from(Buffer.from('GPS 52N', 'latin1'))),
     ...chunk('IDAT', [1, 2, 3]),
@@ -295,7 +339,9 @@ describe('a person’s photo', () => {
     const saved = await upload(w, w.as(ADA_ACCOUNT), null, png());
     if (!saved.ok) throw new Error(saved.error.message);
     expect(saved.value.avatarUrl).toMatch(new RegExp(`^/people/photos/${ADA}\\?v=[0-9a-f]{16}$`));
-    expect(Buffer.from(w.photos.rows.get(ADA)?.bytes ?? []).toString('latin1')).not.toContain('GPS');
+    expect(Buffer.from(w.photos.rows.get(ADA)?.bytes ?? []).toString('latin1')).not.toContain(
+      'GPS',
+    );
     // The upload is let go once kept.
     expect(w.objects.size).toBe(0);
 
@@ -407,6 +453,33 @@ describe('the org chart', () => {
     }
   });
 
+  it('counts who is leaving beside everybody, for HR only (C1)', async () => {
+    const w = world();
+    w.store.seed('00000000-0000-4000-8000-0000000000a8', {
+      ...person('Leaving', 'Soon', ADA),
+      status: 'notice',
+    });
+    // The in-memory reader leaves status conditions to the database: counted, not narrowed, here.
+    const hr = await directoryView(w.deps, w.as(HR_ACCOUNT, 'hr'), { search: '', filters: {} });
+    expect(hr.ok && typeof hr.value.leaving).toBe('number');
+    const searched = await directoryView(w.deps, w.as(HR_ACCOUNT, 'hr'), {
+      search: 'Ada',
+      filters: {},
+    });
+    expect(searched.ok && searched.value.leaving).toBeNull();
+    const tim = await directoryView(w.deps, w.as(TIM_ACCOUNT), { search: '', filters: {} });
+    expect(tim.ok && tim.value.leaving).toBeNull();
+  });
+
+  it('answers with one instant to read local times from, and no zone for somebody placed nowhere', async () => {
+    const w = world();
+    const read = await directoryView(w.deps, w.as(HR_ACCOUNT, 'hr'), { search: '', filters: {} });
+    if (!read.ok) throw new Error(read.error.message);
+    expect(read.value.now).toBe(w.deps.clock.instant());
+    // Nobody here has a location or an entity: the tenant's default would be a guess.
+    expect(new Set(read.value.people.map((p) => p.timeZone))).toEqual(new Set([null]));
+  });
+
   it('leaves out a field the viewer cannot read on everybody, for everybody', async () => {
     const w = world();
     // A title only its holder and HR read: no column, so nobody's on the chart.
@@ -442,7 +515,14 @@ describe('what waits for a decision, counted', () => {
     const counted = await waitingView({} as never, { access: untouched }, w.as(TIM_ACCOUNT));
     expect(counted).toEqual({
       ok: true,
-      value: { identifiers: null, duplicates: null, accessRequests: null },
+      value: {
+        identifiers: null,
+        duplicates: null,
+        accessRequests: null,
+        flagged: null,
+        asked: null,
+        exports: null,
+      },
     });
   });
 
@@ -459,6 +539,10 @@ describe('what waits for a decision, counted', () => {
         duplicates: duplicates.ok ? duplicates.value.length : null,
         // No full-values requests here at all: not a queue of anybody's.
         accessRequests: null,
+        // No approvals or exports wired: no such queue either.
+        flagged: null,
+        asked: null,
+        exports: null,
       },
     });
   });

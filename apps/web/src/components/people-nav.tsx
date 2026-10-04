@@ -56,10 +56,14 @@ export function iconOf(name: string | undefined): JSX.Element | undefined {
   return <Icon />;
 }
 
-/** A count as a small solid badge; approvals are the urgent tone, the rest a warning. */
+/** A count as a small solid badge: Review's is red, any other area's a warning. */
 function Count({ path, n }: { readonly path: string; readonly n: number }): JSX.Element {
   return (
-    <Badge size="xs" variant="solid" tone={/\/approvals(\/|$)/.test(path) ? 'danger' : 'warning'}>
+    <Badge
+      size="xs"
+      variant="solid"
+      tone={path.startsWith('/people/review/') ? 'danger' : 'warning'}
+    >
       {n}
       <span className="sr-only"> waiting</span>
     </Badge>
@@ -72,8 +76,8 @@ function countOf(counts: Readonly<Record<string, number>>, path: string): { badg
 }
 
 /**
- * The sidebar's People pages, inline under its item (V2): ruled rows with
- * their counts. Any other area's sections are drawn the same way, named by
+ * The sidebar's People pages, inline under its item (A1): ruled rows, Review
+ * with the one red count. Any other area's sections are drawn the same way, named by
  * `label` ("Time off sections").
  */
 export function PeopleSubnav({
@@ -103,7 +107,7 @@ export function PeopleSubnav({
 }
 
 /**
- * The collapsed rail's People flyout (V8): the same places as a compact menu,
+ * The collapsed rail's People flyout (A1): the same four as a compact menu,
  * each with its icon, what it holds and its count, and where the settings are.
  */
 export function PeopleSections({
@@ -157,8 +161,8 @@ export function PeopleSections({
 }
 
 /**
- * People as a phone's tab (MV1): six rows you push from, each a tile, its
- * name, a line on what it holds and its count, under a search of the
+ * People as a phone's tab (MA A1): four rows you push from, each a tile, its
+ * name, a line on what it holds and Review's count, under a search of the
  * directory. Your own profile is the Me tab's, not a row here.
  */
 export function PeopleMenu({
@@ -184,18 +188,18 @@ export function PeopleMenu({
       <List aria-label="People sections">
         {sections.map((s) => {
           const n = counts[s.path];
-          // What waits for you says so; otherwise the line says what it holds.
+          // What waits for you says so, in the count's red; otherwise the line says what it holds.
           const waiting =
-            n !== undefined && s.path.endsWith('/approvals')
-              ? `${String(n)} waiting for you`
-              : undefined;
+            n !== undefined && s.path.startsWith('/people/review/') ? (
+              <span className="font-semibold text-danger-fg">{`${String(n)} waiting for you`}</span>
+            ) : undefined;
           return (
             <ListItem
               key={s.path}
               asChild
               chevron
               icon={iconOf(s.icon)}
-              description={waiting ?? s.summary ?? s.description}
+              description={waiting ?? s.description ?? s.summary}
               {...(n === undefined ? {} : { trailing: <Count path={s.path} n={n} /> })}
             >
               <Link href={s.path}>{s.label}</Link>

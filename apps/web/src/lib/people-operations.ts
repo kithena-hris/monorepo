@@ -90,7 +90,7 @@ export const OPERATIONS = {
       person { name summary avatarUrl missing canChangePhoto canViewAs }
       sections { key label visibility readsLogged fields { ...RecordFieldParts } }
       values { ...EntryParts }
-      calendar { today timeZone }
+      calendar { today timeZone now }
       employment {
         status
         periods {
@@ -145,7 +145,7 @@ export const OPERATIONS = {
     }
   }
   fragment ApprovalParts on ApprovalItem {
-    id personId name key label kind readable effectiveFrom requestedAt expiresAt requestedBy
+    id personId name avatarUrl key label kind readable effectiveFrom requestedAt expiresAt requestedBy
     reason mine canDecide canSelfApprove awaitingReview findings { level code message }
     flags { code title detail }
     comparisons { label percent highlight }
@@ -157,7 +157,8 @@ export const OPERATIONS = {
 
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {
-      items { personId name attributeKey label last4 findings { level code message } enteredAt held }
+      items { personId name avatarUrl attributeKey label last4 findings { level code message } enteredAt held }
+      decided { personId name label outcome decidedBy decidedAt note }
     }
   }`,
 
@@ -213,7 +214,7 @@ export const OPERATIONS = {
     peopleFullValues {
       canRequest canDecide
       fields { key label }
-      requests { id state mine requestedBy reason fields requestedAt expiresAt note link }
+      requests { id state mine requestedBy reason fields people requestedAt expiresAt note link }
     }
   }`,
 
@@ -232,7 +233,7 @@ export const OPERATIONS = {
 
   /** How many decisions wait for this viewer, counted: the shell's bell and badges. */
   Waiting: `query Waiting {
-    peopleWaiting { identifiers duplicates accessRequests }
+    peopleWaiting { identifiers duplicates accessRequests flagged asked exports }
   }`,
 
   /** Where People starts: the viewer, their line, and what waits for them. */
@@ -250,8 +251,9 @@ export const OPERATIONS = {
         reports { id name title avatarUrl }
         reportsTotal reportsFilter
       }
-      approvals { isHr total items { id personId name avatarUrl label requestedAt requestedBy asked } }
+      approvals { isHr total flagged flagReason items { id personId name avatarUrl label requestedAt requestedBy asked } }
       missing { key label sectionKey section ownedBy }
+      corrections { key label sectionKey reason }
       team { waiting toFill }
       setup { photo fields { key sectionKey label description dataType required } }
       viewedAs { id by at endedAt specialCategory }
@@ -308,7 +310,7 @@ export const OPERATIONS = {
 
   Directory: `query Directory($search: String, $filter: String, $after: ID, $segment: ID, $incomplete: Boolean, $conditions: [DirectoryConditionInput!], $match: String, $sort: String, $top: Int) {
     peopleDirectory(search: $search, filter: $filter, after: $after, segment: $segment, incomplete: $incomplete, conditions: $conditions, match: $match, sort: $sort, top: $top) {
-      total active notStarted incomplete
+      total active notStarted leaving incomplete
       segment { id name }
       segments { id name }
       columns { key label shown sortable }
@@ -316,7 +318,8 @@ export const OPERATIONS = {
       metrics { key label kind filter most least }
       query { conditions { key op values } match sort { key direction } top }
       filterable { key label options { value label } }
-      people { id name email avatarUrl values { key value } people { key id name avatarUrl } missing }
+      now
+      people { id name email avatarUrl timeZone values { key value } people { key id name avatarUrl } missing }
       next
       can { import export bulkEdit }
       suggestions remind
@@ -1029,6 +1032,11 @@ export const OPERATIONS = {
 
   ExportShare: `query ExportShare($id: ID!) {
     peopleExportShare(id: $id)
+  }`,
+
+  /** Review's Exports (E5): the requests to send this viewer may decide now. */
+  ExportSharesToDecide: `query ExportSharesToDecide {
+    peopleExportSharesToDecide
   }`,
 
   ExportRecord: `query ExportRecord($id: ID!) {

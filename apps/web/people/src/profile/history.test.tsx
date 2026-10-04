@@ -91,7 +91,13 @@ describe('PersonHistory', () => {
     expect(within(compensation).getByText(/51,000\.00/)).toBeInTheDocument();
     // A phone number has no value on a past day, only its changes.
     expect(within(section('Contact')).getByText('Not kept by date')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+  });
 
+  it('lists the changes, grouped by day, a correction shown as superseding (D7)', async () => {
+    const { container } = render(
+      <PersonHistory load={{ status: 'ready', data: { ...march, asOf: null } }} onAsOf={vi.fn()} />,
+    );
     // Newest first, by the day each was made.
     const days = screen.getAllByRole('list', { name: /^Changes, / });
     expect(days.map((d) => d.getAttribute('aria-label'))).toEqual([
@@ -186,9 +192,23 @@ describe('PersonHistory', () => {
     await user.click(screen.getByRole('combobox', { name: 'Field' }));
     await user.click(await screen.findByRole('option', { name: 'Mobile' }));
     expect(screen.queryByRole('heading', { name: 'Compensation' })).toBeNull();
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: 'Contact' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Today' }));
     expect(onAsOf).toHaveBeenCalledWith(null);
+  });
+
+  it('switches between the changes and a past day, each its own address (D8)', async () => {
+    const user = fast();
+    const onAsOf = vi.fn();
+    const { rerender } = render(
+      <PersonHistory load={{ status: 'ready', data: { ...march, asOf: null } }} onAsOf={onAsOf} />,
+    );
+    await user.click(screen.getByRole('radio', { name: 'As it was on a date' }));
+    expect(onAsOf).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/u));
+    rerender(<PersonHistory load={{ status: 'ready', data: march }} onAsOf={onAsOf} />);
+    expect(screen.queryByRole('heading', { name: 'Changes' })).toBeNull();
+    await user.click(screen.getByRole('radio', { name: 'Changes' }));
+    expect(onAsOf).toHaveBeenLastCalledWith(null);
   });
 
   it('shows today as the changes alone, without the as-of notice or the record', () => {

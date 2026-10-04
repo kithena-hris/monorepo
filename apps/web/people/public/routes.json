@@ -1,10 +1,6 @@
 {
   "routes": [
     {
-      "path": "/people",
-      "component": "PeopleHome"
-    },
-    {
       "path": "/people/directory/list",
       "component": "Directory"
     },
@@ -17,20 +13,20 @@
       "component": "OrgChart"
     },
     {
-      "path": "/people/data-health/completeness",
-      "component": "CompletenessGrid"
+      "path": "/people/review/waiting",
+      "component": "Review"
     },
     {
-      "path": "/people/data-health/id-checks",
-      "component": "IdentifierReviews"
+      "path": "/people/review/flagged",
+      "component": "Review"
     },
     {
-      "path": "/people/data-health/duplicates",
-      "component": "Duplicates"
+      "path": "/people/review/asked",
+      "component": "Review"
     },
     {
-      "path": "/people/data-health/access-requests",
-      "component": "FullValues"
+      "path": "/people/review/decided",
+      "component": "Review"
     },
     {
       "path": "/people/import-export",
@@ -55,10 +51,6 @@
     {
       "path": "/people/insights/pay",
       "component": "Analytics"
-    },
-    {
-      "path": "/people/new",
-      "component": "AddPerson"
     },
     {
       "path": "/people/setup",
@@ -93,7 +85,19 @@
       "component": "Integrations"
     },
     {
-      "path": "/settings/people/integrations/:id",
+      "path": "/settings/people/integrations/slack",
+      "component": "Integrations"
+    },
+    {
+      "path": "/settings/people/integrations/webhooks",
+      "component": "Integrations"
+    },
+    {
+      "path": "/settings/people/integrations/provisioning",
+      "component": "Integrations"
+    },
+    {
+      "path": "/settings/people/integrations/webhooks/:id",
       "component": "WebhookLog"
     },
     {
@@ -105,16 +109,32 @@
       "component": "Organisation"
     },
     {
+      "path": "/settings/people/organisation/locations",
+      "component": "Organisation"
+    },
+    {
+      "path": "/settings/people/organisation/numbering",
+      "component": "Organisation"
+    },
+    {
+      "path": "/settings/people/organisation/country-packs",
+      "component": "Organisation"
+    },
+    {
+      "path": "/settings/people/organisation/reminders",
+      "component": "Organisation"
+    },
+    {
+      "path": "/settings/people/organisation/pay-bands",
+      "component": "Organisation"
+    },
+    {
       "path": "/people/import",
       "component": "ImportFlow"
     },
     {
       "path": "/people/export",
       "component": "ExportBuilder"
-    },
-    {
-      "path": "/people/approvals",
-      "component": "Approvals"
     },
     {
       "path": "/people/reports",
@@ -135,45 +155,24 @@
     {
       "path": "/settings/people",
       "component": "PeopleSettings"
-    },
-    {
-      "path": "/settings/people/reminders",
-      "component": "ReminderSettings"
-    },
-    {
-      "path": "/settings/people/country-packs",
-      "component": "CountryPacks"
     }
   ],
   "actions": [
     {
-      "path": "/people/new",
+      "path": "/people/directory/list?add=person",
       "label": "Add person",
       "for": ["hr"],
-      "on": [
-        "/people",
-        "/people/directory/list",
-        "/people/directory/cards",
-        "/people/directory/org-chart"
-      ],
+      "on": ["/people/directory/list", "/people/directory/cards", "/people/directory/org-chart"],
       "icon": "hire"
     }
   ],
   "sections": [
     {
-      "path": "/people",
-      "label": "Overview",
-      "group": "People",
-      "icon": "overview",
-      "description": "Summary, your tasks, and what needs HR",
-      "summary": "Your tasks and what needs HR"
-    },
-    {
       "path": "/people/directory/list",
       "label": "Directory",
       "group": "People",
       "icon": "people",
-      "description": "Everyone as a list, as cards, or as an org chart",
+      "description": "Everyone, as a list, cards or an org chart",
       "summary": "List, cards or org chart",
       "owns": [
         "/people/directory/cards",
@@ -184,42 +183,34 @@
       ]
     },
     {
-      "path": "/people/approvals",
-      "label": "Approvals",
+      "path": "/people/review/waiting",
+      "label": "Review",
       "group": "People",
       "icon": "approve",
-      "description": "Changes waiting for a decision",
-      "summary": "Changes waiting for a decision"
-    },
-    {
-      "path": "/people/data-health/completeness",
-      "label": "Data health",
-      "group": "People",
-      "for": ["hr", "finance"],
-      "icon": "health",
-      "description": "Gaps, ID checks, duplicates and access requests",
-      "summary": "Gaps, ID checks, duplicates",
+      "description": "Every decision and missing detail, in one queue",
+      "summary": "Every decision, in one queue",
       "tabs": [
         {
-          "path": "/people/data-health/completeness",
-          "label": "Completeness",
+          "path": "/people/review/waiting",
+          "label": "Waiting",
+          "labelFor": {
+            "hr": "Waiting for me",
+            "finance": "Your requests"
+          }
+        },
+        {
+          "path": "/people/review/flagged",
+          "label": "Flagged",
           "for": ["hr"]
         },
         {
-          "path": "/people/data-health/id-checks",
-          "label": "ID checks",
+          "path": "/people/review/asked",
+          "label": "I asked",
           "for": ["hr"]
         },
         {
-          "path": "/people/data-health/duplicates",
-          "label": "Duplicates",
-          "for": ["hr"]
-        },
-        {
-          "path": "/people/data-health/access-requests",
-          "label": "Access requests",
-          "short": "Access",
-          "for": ["finance", "hr"]
+          "path": "/people/review/decided",
+          "label": "Decided"
         }
       ]
     },
@@ -228,7 +219,7 @@
       "label": "Import & export",
       "group": "People",
       "icon": "transfer",
-      "description": "Move people data in and out, with one history",
+      "description": "Bring people in, take data out",
       "summary": "Move data in and out",
       "owns": ["/people/import", "/people/export"]
     },
@@ -238,7 +229,7 @@
       "group": "People",
       "for": ["hr"],
       "icon": "analytics",
-      "description": "Analytics, with scheduled reports built in",
+      "description": "Summary, charts and scheduled reports",
       "summary": "Analytics and reports",
       "owns": ["/people/reports", "/people/reports/:id"],
       "tabs": [
@@ -273,50 +264,51 @@
       "label": "Employee fields",
       "for": ["admin"],
       "owns": ["/people/setup"],
-      "description": "The details kept on each person, who sees them and when they’re asked.",
+      "description": "What you keep about each person, who sees it and when it’s asked.",
       "icon": "document"
     },
     {
       "path": "/settings/people/organisation",
       "label": "Organisation",
-      "description": "Legal entities, locations, numbering, time zone and retention.",
+      "owns": [
+        "/settings/people/organisation/locations",
+        "/settings/people/organisation/numbering",
+        "/settings/people/organisation/country-packs",
+        "/settings/people/organisation/reminders",
+        "/settings/people/organisation/pay-bands"
+      ],
+      "description": "Legal entities, locations, numbering, country packs, reminders and pay bands.",
       "icon": "organisation"
     },
     {
       "path": "/settings/people/roles",
       "label": "Roles",
       "for": ["hr", "admin"],
-      "description": "Who has HR, administrator and finance access.",
+      "description": "Who has administrator, HR and finance access.",
       "icon": "permission"
     },
     {
       "path": "/settings/people/integrations",
       "label": "Integrations",
       "for": ["admin"],
-      "owns": ["/settings/people/integrations/:id"],
-      "description": "Slack, webhooks and identity provider sync.",
+      "owns": [
+        "/settings/people/integrations/slack",
+        "/settings/people/integrations/webhooks",
+        "/settings/people/integrations/provisioning",
+        "/settings/people/integrations/webhooks/:id"
+      ],
+      "description": "Slack, webhooks and provisioning from your identity provider.",
       "icon": "link"
-    },
-    {
-      "path": "/settings/people/reminders",
-      "label": "Completeness and reminders",
-      "for": ["hr", "admin"],
-      "description": "When people are reminded about missing details, and how small a group reports describe.",
-      "icon": "notifications"
-    },
-    {
-      "path": "/settings/people/country-packs",
-      "label": "Country packs",
-      "for": ["admin"],
-      "description": "The identifiers, fields and rules each country needs.",
-      "icon": "location"
     },
     {
       "path": "/settings/activity?area=fields,organisation,roles,integrations",
       "label": "Activity log",
       "for": ["hr", "admin"],
-      "description": "Every settings change, who made it and when, in the company’s activity log.",
+      "description": "Who did what, and when. Never the values themselves.",
       "icon": "history"
     }
-  ]
+  ],
+  "slots": {
+    "home": "PeopleHome"
+  }
 }

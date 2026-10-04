@@ -14,6 +14,7 @@ import {
   inReminderWindow,
   locationZoneAt,
   personZone,
+  placedZone,
   placementOf,
   UTC_CALENDAR,
   type TenantCalendar,
@@ -70,13 +71,21 @@ describe("a person's zone", () => {
 
   it("is the work location's zone first", () => {
     expect(
-      personZone(calendar, { locationId: CANARIES, legalEntityId: MADRID, ownZone: 'Asia/Tokyo' }, at),
+      personZone(
+        calendar,
+        { locationId: CANARIES, legalEntityId: MADRID, ownZone: 'Asia/Tokyo' },
+        at,
+      ),
     ).toBe('Atlantic/Canary');
   });
 
   it("falls back to the legal entity's default", () => {
     expect(
-      personZone(calendar, { locationId: null, legalEntityId: BANGALORE, ownZone: 'Asia/Tokyo' }, at),
+      personZone(
+        calendar,
+        { locationId: null, legalEntityId: BANGALORE, ownZone: 'Asia/Tokyo' },
+        at,
+      ),
     ).toBe('Asia/Kolkata');
   });
 
@@ -103,9 +112,9 @@ describe("a person's zone", () => {
   });
 
   it('is UTC for a tenant nobody has configured', () => {
-    expect(personZone(UTC_CALENDAR, { locationId: null, legalEntityId: null, ownZone: null }, at)).toBe(
-      'Etc/UTC',
-    );
+    expect(
+      personZone(UTC_CALENDAR, { locationId: null, legalEntityId: null, ownZone: null }, at),
+    ).toBe('Etc/UTC');
   });
 });
 
@@ -149,7 +158,7 @@ describe("a location's zone is effective-dated", () => {
 });
 
 describe('a tenant with entities in Madrid and Bangalore', () => {
-  it("counts each entity on its own day: 20:00 UTC on the 31st is the 1st in Bangalore", () => {
+  it('counts each entity on its own day: 20:00 UTC on the 31st is the 1st in Bangalore', () => {
     const days = entityDays(calendar, '2026-03-31T20:00:00.000Z');
     expect(days.byEntity.get(MADRID)).toBe('2026-03-31');
     expect(days.byEntity.get(BANGALORE)).toBe('2026-04-01');
@@ -159,16 +168,52 @@ describe('a tenant with entities in Madrid and Bangalore', () => {
 
   it("uses an entity's own default, never its locations'", () => {
     // 23:30 UTC on 28 March: the 29th in Madrid (UTC+1), still the 28th in the Canaries (UTC+0).
-    expect(entityDays(calendar, '2026-03-28T23:30:00.000Z').byEntity.get(MADRID)).toBe('2026-03-29');
+    expect(entityDays(calendar, '2026-03-28T23:30:00.000Z').byEntity.get(MADRID)).toBe(
+      '2026-03-29',
+    );
     expect(entityZone(calendar, MADRID)).toBe('Europe/Madrid');
     expect(entityZone(calendar, null)).toBe('Europe/Madrid');
+  });
+});
+
+describe("a person's zone, as somebody may be told it", () => {
+  const at = '2026-03-01T12:00:00.000Z';
+
+  it('is their zone when something about them places them', () => {
+    expect(
+      placedZone(calendar, { locationId: CANARIES, legalEntityId: null, ownZone: null }, at),
+    ).toBe('Atlantic/Canary');
+    expect(
+      placedZone(calendar, { locationId: null, legalEntityId: BANGALORE, ownZone: null }, at),
+    ).toBe('Asia/Kolkata');
+    expect(
+      placedZone(calendar, { locationId: null, legalEntityId: null, ownZone: 'Asia/Tokyo' }, at),
+    ).toBe('Asia/Tokyo');
+  });
+
+  it("is nothing rather than the tenant's default: that would be a guess about them", () => {
+    expect(
+      placedZone(calendar, { locationId: null, legalEntityId: null, ownZone: null }, at),
+    ).toBeNull();
+    expect(
+      placedZone(
+        calendar,
+        { locationId: 'nowhere', legalEntityId: 'nobody', ownZone: 'Europe/Atlantis' },
+        at,
+      ),
+    ).toBeNull();
   });
 });
 
 describe("a person's placement, read off their values", () => {
   it('takes the location, the entity and their own zone by attribute key', () => {
     expect(
-      placementOf({ location_id: CANARIES, legal_entity_id: MADRID, time_zone: 'Asia/Tokyo', x: 1 }),
+      placementOf({
+        location_id: CANARIES,
+        legal_entity_id: MADRID,
+        time_zone: 'Asia/Tokyo',
+        x: 1,
+      }),
     ).toEqual({ locationId: CANARIES, legalEntityId: MADRID, ownZone: 'Asia/Tokyo' });
     expect(placementOf({ location_id: 7 })).toEqual({
       locationId: null,
@@ -203,9 +248,15 @@ describe('checking what an admin sends', () => {
   });
 
   it('refuses a legal entity without a name, a supported country or a real zone', () => {
-    expect(checkLegalEntity({ name: '  ', country: 'ES', timeZone: 'Europe/Madrid' }).ok).toBe(false);
-    expect(checkLegalEntity({ name: 'Acme', country: 'XX', timeZone: 'Europe/Madrid' }).ok).toBe(false);
-    expect(checkLegalEntity({ name: 'Acme', country: 'es', timeZone: 'Europe/Nowhere' }).ok).toBe(false);
+    expect(checkLegalEntity({ name: '  ', country: 'ES', timeZone: 'Europe/Madrid' }).ok).toBe(
+      false,
+    );
+    expect(checkLegalEntity({ name: 'Acme', country: 'XX', timeZone: 'Europe/Madrid' }).ok).toBe(
+      false,
+    );
+    expect(checkLegalEntity({ name: 'Acme', country: 'es', timeZone: 'Europe/Nowhere' }).ok).toBe(
+      false,
+    );
     const ok = checkLegalEntity({ name: ' Acme SL ', country: 'es', timeZone: 'Europe/Madrid' });
     expect(ok).toEqual({
       ok: true,
@@ -214,7 +265,12 @@ describe('checking what an admin sends', () => {
   });
 
   it('refuses a location under a legal entity the tenant does not have', () => {
-    const input = { name: 'Pune', country: 'IN', timeZone: 'Asia/Kolkata', legalEntityId: 'nobody' };
+    const input = {
+      name: 'Pune',
+      country: 'IN',
+      timeZone: 'Asia/Kolkata',
+      legalEntityId: 'nobody',
+    };
     expect(checkLocation(calendar, input)).toMatchObject({
       ok: false,
       error: { code: 'LEGAL_ENTITY_NOT_FOUND' },

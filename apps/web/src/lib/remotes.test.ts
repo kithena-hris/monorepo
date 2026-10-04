@@ -76,7 +76,7 @@ describe('matchRoute', () => {
           ],
         },
       ],
-      actions: [{ path: '/people/new', label: 'Add employee', for: ['hr'] }],
+      actions: [{ path: '/people/directory/list?add=person', label: 'Add employee', for: ['hr'] }],
       settings: [
         {
           path: '/settings/people/roles',
@@ -143,7 +143,7 @@ describe('placesFor', () => {
         for: ['finance', 'hr'],
       },
     ],
-    actions: [{ path: '/people/new', label: 'Add employee', for: ['hr'] }],
+    actions: [{ path: '/people/directory/list?add=person', label: 'Add employee', for: ['hr'] }],
   };
 
   it('opens a place to any one of its roles, and everything unmarked to everybody', () => {
@@ -156,20 +156,20 @@ describe('placesFor', () => {
     expect(labels({})).toEqual(['Overview']);
   });
 
-  it('keeps an umbrella page’s tabs the viewer opens, and links it to the first of them', () => {
-    const health = (roles: Record<string, boolean>) =>
-      placesFor(PEOPLE_NAV, roles).sections.find((s) => s.label === 'Data health');
-    expect(health(HR)?.path).toBe('/people/data-health/completeness');
-    expect(health(HR)?.tabs?.map((t) => t.label)).toEqual([
-      'Completeness',
-      'ID checks',
-      'Duplicates',
-      'Access requests',
+  it('keeps an umbrella page’s tabs the viewer opens, each named for them, linked to the first', () => {
+    const review = (roles: Record<string, boolean>) =>
+      placesFor(PEOPLE_NAV, roles).sections.find((s) => s.label === 'Review');
+    expect(review(HR)?.path).toBe('/people/review/waiting');
+    expect(review(HR)?.tabs?.map((t) => t.label)).toEqual([
+      'Waiting for me',
+      'Flagged',
+      'I asked',
+      'Decided',
     ]);
-    // Finance opens Data health for its access requests alone, and lands there.
-    expect(health(FINANCE)?.path).toBe('/people/data-health/access-requests');
-    expect(health(FINANCE)?.tabs?.map((t) => t.label)).toEqual(['Access requests']);
-    expect(health(EMPLOYEE)).toBeUndefined();
+    // Finance's Review is its requests; anybody else's, their own changes.
+    expect(review(FINANCE)?.tabs?.map((t) => t.label)).toEqual(['Your requests', 'Decided']);
+    expect(review(EMPLOYEE)?.tabs?.map((t) => t.label)).toEqual(['Waiting', 'Decided']);
+    expect(review(EMPLOYEE)?.path).toBe('/people/review/waiting');
   });
 
   it('drops an umbrella page none of whose tabs the viewer opens', () => {
@@ -192,8 +192,7 @@ describe('currentPlace', () => {
   const at = (route: string | null) => currentPlace(hr, route)?.label;
 
   it('is the section of a tab, of what a section owns, and of a directory view', () => {
-    expect(at('/people')).toBe('Overview');
-    expect(at('/people/data-health/duplicates')).toBe('Data health');
+    expect(at('/people/review/decided')).toBe('Review');
     expect(at('/people/insights/pay')).toBe('Insights');
     expect(at('/people/reports/:id')).toBe('Insights');
     expect(at('/people/directory/list')).toBe('Directory');
@@ -204,13 +203,13 @@ describe('currentPlace', () => {
 
   it('is nothing for a route no place claims', () => {
     expect(at(null)).toBeUndefined();
+    expect(at('/people')).toBeUndefined();
     expect(at('/people/me')).toBeUndefined();
-    expect(at('/people/new')).toBeUndefined();
   });
 
   it('finds the tab a route is, and none off an umbrella page', () => {
-    const health = currentPlace(hr, '/people/data-health/id-checks');
-    expect(currentTab(health, '/people/data-health/id-checks')?.label).toBe('ID checks');
+    const review = currentPlace(hr, '/people/review/flagged');
+    expect(currentTab(review, '/people/review/flagged')?.label).toBe('Flagged');
     expect(currentTab(currentPlace(hr, '/people/reports'), '/people/reports')).toBeUndefined();
     expect(currentTab(currentPlace(hr, '/people/:id'), '/people/:id')).toBeUndefined();
   });
@@ -219,47 +218,34 @@ describe('currentPlace', () => {
 describe('headerFrame', () => {
   const hr = placesFor(PEOPLE_NAV, HR);
   const counts = {
-    sections: { '/people/approvals': 4, '/people/data-health/completeness': 6 },
-    tabs: { '/people/data-health/completeness': 88, '/people/data-health/duplicates': 2 },
+    sections: { '/people/review/waiting': 9 },
+    tabs: { '/people/review/waiting': 9 },
   };
 
   it('titles an umbrella page by its section, with its tabs, counts and the one you are on', () => {
-    const frame = headerFrame(hr, '/people/data-health/duplicates', '/people', counts);
-    expect(frame.section).toBe('Data health');
+    const frame = headerFrame(hr, '/people/review/flagged', '/people', counts);
+    expect(frame.section).toBe('Review');
     expect(frame.tabs).toEqual([
-      {
-        href: '/people/data-health/completeness',
-        label: 'Completeness',
-        current: false,
-        count: 88,
-      },
-      { href: '/people/data-health/id-checks', label: 'ID checks', current: false },
-      { href: '/people/data-health/duplicates', label: 'Duplicates', current: true, count: 2 },
-      {
-        href: '/people/data-health/access-requests',
-        label: 'Access requests',
-        short: 'Access',
-        current: false,
-      },
+      { href: '/people/review/waiting', label: 'Waiting for me', current: false, count: 9 },
+      { href: '/people/review/flagged', label: 'Flagged', current: true },
+      { href: '/people/review/asked', label: 'I asked', current: false },
+      { href: '/people/review/decided', label: 'Decided', current: false },
     ]);
   });
 
   it('lists the sections as one group, each with its icon and count, this one marked', () => {
-    const frame = headerFrame(hr, '/people/data-health/duplicates', '/people', counts);
+    const frame = headerFrame(hr, '/people/review/flagged', '/people', counts);
     expect(frame.siblingsLabel).toBe('People sections');
     expect(frame.siblings.map((g) => g.label)).toEqual(['People']);
     const items = frame.siblings[0]?.items ?? [];
     expect(items.map((i) => i.label)).toEqual([
-      'Overview',
       'Directory',
-      'Approvals',
-      'Data health',
+      'Review',
       'Import & export',
       'Insights',
     ]);
-    expect(items.find((i) => i.current)?.label).toBe('Data health');
-    expect(items.find((i) => i.label === 'Approvals')).toMatchObject({ icon: 'approve', count: 4 });
-    expect(items.find((i) => i.label === 'Data health')?.count).toBe(6);
+    expect(items.find((i) => i.current)?.label).toBe('Review');
+    expect(items.find((i) => i.label === 'Review')).toMatchObject({ icon: 'approve', count: 9 });
   });
 
   it('has no tabs off an umbrella page, and on a page an umbrella tab only owns', () => {
@@ -269,15 +255,13 @@ describe('headerFrame', () => {
     expect(reports.tabs?.some((t) => t.current)).toBe(false);
   });
 
-  it('offers adding somebody where it belongs, and not on its own form or a profile', () => {
-    expect(headerFrame(hr, '/people', '/people').actions).toEqual([
-      { href: '/people/new', label: 'Add person', icon: 'hire' },
+  it('offers adding somebody where it belongs, as the dialog over the directory', () => {
+    expect(headerFrame(hr, '/people/directory/list', '/people').actions).toEqual([
+      { href: '/people/directory/list?add=person', label: 'Add person', icon: 'hire' },
     ]);
-    expect(headerFrame(hr, '/people/new', '/people')).toMatchObject({
-      section: 'Add person',
-      actions: [],
-    });
-    expect(headerFrame(placesFor(PEOPLE_NAV, EMPLOYEE), '/people', '/people').actions).toEqual([]);
+    expect(
+      headerFrame(placesFor(PEOPLE_NAV, EMPLOYEE), '/people/directory/list', '/people').actions,
+    ).toEqual([]);
   });
 });
 
@@ -285,18 +269,17 @@ describe('firstUnder', () => {
   const sections = (roles: Record<string, boolean>) => placesFor(PEOPLE_NAV, roles).sections;
 
   it('sends a bare section to the first tab or view the viewer opens', () => {
-    expect(firstUnder(sections(HR), '/people/data-health')).toBe(
-      '/people/data-health/completeness',
-    );
-    expect(firstUnder(sections(FINANCE), '/people/data-health')).toBe(
-      '/people/data-health/access-requests',
-    );
+    expect(firstUnder(sections(HR), '/people/review')).toBe('/people/review/waiting');
+    expect(firstUnder(sections(FINANCE), '/people/review')).toBe('/people/review/waiting');
+    // People's own front page is Home's now: its bare path is the first section.
+    expect(firstUnder(sections(EMPLOYEE), '/people')).toBe('/people/directory/list');
     expect(firstUnder(sections(HR), '/people/insights/')).toBe('/people/insights/what-changed');
     expect(firstUnder(sections(EMPLOYEE), '/people/directory')).toBe('/people/directory/list');
   });
 
   it('sends nothing else anywhere', () => {
     expect(firstUnder(sections(EMPLOYEE), '/people/data-health')).toBeUndefined();
+    expect(firstUnder(sections(EMPLOYEE), '/people/insights')).toBeUndefined();
     expect(firstUnder(sections(HR), '/people/data')).toBeUndefined();
     expect(firstUnder(sections(HR), '/people/nobody')).toBeUndefined();
   });

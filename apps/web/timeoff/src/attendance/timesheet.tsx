@@ -531,7 +531,7 @@ function FixClockOut({
         if (!open) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent sheetOnTouch>
         <DialogHeader>
           <DialogTitle>{`When did you finish on ${weekdayName(day.date)}?`}</DialogTitle>
           <DialogDescription>

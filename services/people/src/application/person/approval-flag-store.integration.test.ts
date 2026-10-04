@@ -162,10 +162,14 @@ describe('what the checks read', () => {
     );
     expect(band).toEqual({ minimumMinor: '6200000', maximumMinor: '7800000' });
     expect(
-      await inTenant(ACME, ({ tx }) => store.band(tx, ACME, { grade: 'L3', currency: 'EUR', day: '2026-02-01' })),
+      await inTenant(ACME, ({ tx }) =>
+        store.band(tx, ACME, { grade: 'L3', currency: 'EUR', day: '2026-02-01' }),
+      ),
     ).toEqual({ minimumMinor: '6000000', maximumMinor: '7800000' });
     expect(
-      await inTenant(ACME, ({ tx }) => store.band(tx, ACME, { grade: 'L4', currency: 'EUR', day: '2026-10-01' })),
+      await inTenant(ACME, ({ tx }) =>
+        store.band(tx, ACME, { grade: 'L4', currency: 'EUR', day: '2026-10-01' }),
+      ),
     ).toBeNull();
   });
 
@@ -184,9 +188,24 @@ describe('what the checks read', () => {
 describe('what People keeps about the checks', () => {
   it('keeps switches, marks, questions and decided flags in their tenant', async () => {
     await inTenant(ACME, async ({ tx }) => {
-      await store.setSwitch(tx, ACME, { code: 'raise', on: false, by: SOFIA, at: '2026-09-22T10:00:00Z' });
-      await store.setSwitch(tx, ACME, { code: 'raise', on: true, by: SOFIA, at: '2026-09-22T10:01:00Z' });
-      await store.setSwitch(tx, ACME, { code: 'unusual_time', on: true, by: SOFIA, at: '2026-09-22T10:01:00Z' });
+      await store.setSwitch(tx, ACME, {
+        code: 'raise',
+        on: false,
+        by: SOFIA,
+        at: '2026-09-22T10:00:00Z',
+      });
+      await store.setSwitch(tx, ACME, {
+        code: 'raise',
+        on: true,
+        by: SOFIA,
+        at: '2026-09-22T10:01:00Z',
+      });
+      await store.setSwitch(tx, ACME, {
+        code: 'unusual_time',
+        on: true,
+        by: SOFIA,
+        at: '2026-09-22T10:01:00Z',
+      });
       await store.mark(
         tx,
         ACME,
@@ -239,10 +258,12 @@ describe('what People keeps about the checks', () => {
     await inTenant(ACME, ({ tx }) => store.ask(tx, ACME, asked));
     const answer = { ...asked, answer: 'Payroll closes', answeredAt: '2026-09-22T11:00:00.000Z' };
     expect(await inTenant(ACME, ({ tx }) => store.answer(tx, ACME, answer))).toBe(true);
-    expect(await inTenant(ACME, ({ tx }) => store.answer(tx, ACME, { ...answer, answer: 'Again' }))).toBe(
-      false,
+    expect(
+      await inTenant(ACME, ({ tx }) => store.answer(tx, ACME, { ...answer, answer: 'Again' })),
+    ).toBe(false);
+    expect((await inTenant(ACME, ({ tx }) => store.question(tx, ACME, id)))?.answer).toBe(
+      'Payroll closes',
     );
-    expect((await inTenant(ACME, ({ tx }) => store.question(tx, ACME, id)))?.answer).toBe('Payroll closes');
   });
 
   it('records what flagged a decided change, and counts the last 90 days', async () => {
@@ -252,9 +273,25 @@ describe('what People keeps about the checks', () => {
        WHERE id = ${OTHER}::uuid`);
     await inTenant(ACME, ({ tx }) => store.recordDecided(tx, ACME, OTHER, ['raise', 'band']));
     const decided = await inTenant(ACME, ({ tx }) =>
-      changes.decided(tx, ACME, { since: '2026-09-01T00:00:00Z', limit: 10 }),
+      changes.decided(tx, ACME, {
+        since: '2026-09-01T00:00:00Z',
+        until: '2026-09-25T00:00:00Z',
+        limit: 10,
+      }),
     );
     expect(decided.map((c) => [c.approval.id, c.flags])).toEqual([[OTHER, ['raise', 'band']]]);
+    // Past its deadline, the one still pending lapsed: Decided lists it first, newest.
+    const later = await inTenant(ACME, ({ tx }) =>
+      changes.decided(tx, ACME, {
+        since: '2026-09-01T00:00:00Z',
+        until: '2026-10-01T00:00:00Z',
+        limit: 10,
+      }),
+    );
+    expect(later.map((c) => [c.approval.id, c.approval.state])).toEqual([
+      [CHANGE, 'pending'],
+      [OTHER, 'rejected'],
+    ]);
     const stats = await inTenant(ACME, ({ tx }) => store.stats(tx, ACME, '2026-07-01T00:00:00Z'));
     // OTHER flagged and rejected; CHANGE marked not unusual.
     expect(stats).toEqual({ flagged: 2, rejected: 1, marked: 1 });

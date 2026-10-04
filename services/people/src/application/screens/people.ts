@@ -38,6 +38,9 @@ import {
   type Comparison,
   type Reason,
 } from '../../domain/approval/unusual.js';
+import { outcomeAt } from '../../domain/approval/approval.js';
+import { reviewOutcome } from '../../domain/person/identifier-review.js';
+import { placedZone, placementOf } from '../../domain/org/calendar.js';
 import {
   checksOf,
   flagChange,
@@ -286,8 +289,16 @@ export interface ProfileView {
   };
   readonly sections: readonly (RecordSection & { readonly readsLogged: boolean })[];
   readonly values: FormValues;
-  /** Whose day it is for them, and what day: HR's alone, absent for anybody else (PEO-119). */
-  readonly calendar: { readonly today: string; readonly timeZone: string } | null;
+  /**
+   * Whose day it is for them, and what day: HR's alone, absent for anybody
+   * else (PEO-119). `now` is when People answered, the one instant their
+   * local time is read from, on the server and in the browser alike.
+   */
+  readonly calendar: {
+    readonly today: string;
+    readonly timeZone: string;
+    readonly now: string;
+  } | null;
   /** HR's alone, beside the calendar: where they stand and every employment (PEO-120). */
   readonly employment: {
     readonly status: string;
@@ -491,7 +502,7 @@ export async function profileView(
           deps.viewAs !== undefined && (await offersViewAs(deps.viewAs, tx, asking, id.value)),
       },
       // Reading a sealed value in full is audited; this screen only ever shows the last four.
-      calendar: calendar.ok ? calendar.value : null,
+      calendar: calendar.ok ? { ...calendar.value, now: deps.clock.instant() } : null,
       employment: periods?.ok && status !== null ? { status, periods: periods.value } : null,
       sections: named.map((s) => ({ ...s, readsLogged: false })),
       values: formValues(view, named),
@@ -629,6 +640,8 @@ export interface ApprovalItem extends PendingFieldView {
   readonly personId: string;
   /** The person, as the viewer may name them. */
   readonly name: string;
+  /** Their photo, when they have one and the viewer may read them. */
+  readonly avatarUrl: string | null;
   /** Null where the viewer may not read the field: they decide on who, when and why. */
   readonly value: FormValue;
   readonly readable: boolean;
@@ -648,8 +661,9 @@ export interface ApprovalItem extends PendingFieldView {
   /** And may mark its flags not unusual. */
   readonly canMark: boolean;
   readonly questions: readonly ApprovalQuestion[];
-  readonly state: 'pending' | 'approved' | 'rejected';
-  /** Who decided, when and with what note: a decided change only. */
+  /** Lapsed: nobody decided it within its seven days. */
+  readonly state: 'pending' | 'approved' | 'rejected' | 'lapsed';
+  /** Who decided (nobody, for a lapsed one), when and with what note: a decided change only. */
   readonly decidedBy: string | null;
   readonly decidedAt: string | null;
   readonly note: string | null;
@@ -705,9 +719,14 @@ export async function approvalsView(
     const inbox = await approvalsInbox(tx, pending, asking);
     if (!inbox.ok) return inbox;
     const isHr = inbox.value.isHr;
-    const since = new Date(Date.parse(deps.clock.instant()) - NINETY_DAYS_MS).toISOString();
+    const now = deps.clock.instant();
+    const since = new Date(Date.parse(now) - NINETY_DAYS_MS).toISOString();
     const decided = isHr
-      ? await pending.store.decided(tx, asking.tenantId, { since, limit: DECIDED_SHOWN })
+      ? await pending.store.decided(tx, asking.tenantId, {
+          since,
+          until: now,
+          limit: DECIDED_SHOWN,
+        })
       : [];
     const version = await deps.service.schemas.current(tx, asking.tenantId);
     const definitions = version?.document.attributes ?? [];
@@ -743,6 +762,10 @@ export async function approvalsView(
           canAnswer: mine && q.answer === null,
         }));
     const look = await looking(tx, pending, asking);
+    const avatars = await avatarsOf(deps, tx, asking.tenantId, [
+      ...inbox.value.items.map((c) => c.personId),
+      ...decided.map((c) => c.personId),
+    ]);
 
     const items: ApprovalItem[] = [];
     for (const c of inbox.value.items) {
@@ -765,6 +788,7 @@ export async function approvalsView(
         id: c.id,
         personId: c.personId,
         name: nameOf(attributes) ?? 'Unnamed',
+        avatarUrl: person.ok ? (avatars.get(c.personId) ?? null) : null,
         key: c.attributeKey,
         label: labels.get(c.attributeKey) ?? c.attributeKey,
         kind: c.kind,
@@ -802,6 +826,8 @@ export async function approvalsView(
     const titleOf = new Map<string, string>(CHECKS.map((k) => [k.code, k.title]));
     const decidedItems: ApprovalItem[] = [];
     for (const c of decided) {
+      const outcome = outcomeAt(c.approval, now);
+      if (outcome === null) continue;
       const person = await deps.service.access.read(tx, { ...asking, personId: c.personId });
       const attributes = person.ok ? person.value.attributes : {};
       const definition = definitions.find((d) => d.key === c.attributeKey);
@@ -817,6 +843,7 @@ export async function approvalsView(
         id: c.approval.id,
         personId: c.personId,
         name: nameOf(attributes) ?? 'Unnamed',
+        avatarUrl: person.ok ? (avatars.get(c.personId) ?? null) : null,
         key: c.attributeKey,
         label: labels.get(c.attributeKey) ?? c.attributeKey,
         kind: c.kind,
@@ -845,9 +872,9 @@ export async function approvalsView(
         canAsk: false,
         canMark: false,
         questions: asked(c.approval.id, false),
-        state: c.approval.state === 'approved' ? 'approved' : 'rejected',
+        state: outcome.state,
         decidedBy: c.approval.decidedBy === null ? null : user(c.approval.decidedBy),
-        decidedAt: c.approval.decidedAt,
+        decidedAt: outcome.at,
         note: c.approval.note,
       });
     }
@@ -1109,12 +1136,27 @@ export interface IdentifierReviewItem {
     readonly message: string;
   }[];
   readonly enteredAt: string;
+  /** Their photo, when they have one and the viewer may read them. */
+  readonly avatarUrl: string | null;
   /** Held for approval, not yet written: reviewed first, and sending it back declines it. */
   readonly held: boolean;
 }
 
+/** An identifier HR decided (Review's Decided, E9): who, which, what and by whom. Never the value. */
+export interface DecidedIdentifierReview {
+  readonly personId: string;
+  readonly name: string;
+  readonly label: string;
+  readonly outcome: 'accepted' | 'sent_back';
+  readonly decidedBy: string;
+  readonly decidedAt: string;
+  readonly note: string | null;
+}
+
 export interface IdentifierReviewsView {
   readonly items: readonly IdentifierReviewItem[];
+  /** Decided in the last 90 days, newest first. */
+  readonly decided: readonly DecidedIdentifierReview[];
 }
 
 /**
@@ -1130,9 +1172,16 @@ export async function identifierReviewsView(
     const queue = await deps.service.access.identifierReviews(tx, asking);
     if (!queue.ok) return queue;
     const items: IdentifierReviewItem[] = [];
+    const avatars = await avatarsOf(
+      deps,
+      tx,
+      asking.tenantId,
+      queue.value.map((r) => r.personId),
+    );
     for (const r of queue.value) {
       const person = await deps.service.access.read(tx, { ...asking, personId: r.personId });
       items.push({
+        avatarUrl: person.ok ? (avatars.get(r.personId) ?? null) : null,
         personId: r.personId,
         name: (person.ok ? nameOf(person.value.attributes) : null) ?? 'Unnamed',
         attributeKey: r.attributeKey,
@@ -1143,7 +1192,37 @@ export async function identifierReviewsView(
         held: r.pendingChangeId !== null,
       });
     }
-    return ok({ items });
+    const since = new Date(Date.parse(deps.clock.instant()) - NINETY_DAYS_MS).toISOString();
+    const closed = await deps.service.access.identifierReviews(tx, {
+      ...asking,
+      decidedSince: since,
+      limit: DECIDED_SHOWN,
+    });
+    const reviews = closed.ok ? closed.value : [];
+    const by = await actors(
+      deps,
+      tx,
+      asking,
+      reviews.flatMap((r) =>
+        r.decidedBy === null ? [] : [{ kind: 'user' as const, userId: r.decidedBy }],
+      ),
+    );
+    const decided: DecidedIdentifierReview[] = [];
+    for (const r of reviews) {
+      const outcome = reviewOutcome(r);
+      if (outcome === null || r.decidedBy === null || r.decidedAt === null) continue;
+      const person = await deps.service.access.read(tx, { ...asking, personId: r.personId });
+      decided.push({
+        personId: r.personId,
+        name: (person.ok ? nameOf(person.value.attributes) : null) ?? 'Unnamed',
+        label: r.label,
+        outcome,
+        decidedBy: by({ kind: 'user', userId: r.decidedBy }),
+        decidedAt: r.decidedAt,
+        note: r.note,
+      });
+    }
+    return ok({ items, decided });
   });
 }
 
@@ -1356,6 +1435,11 @@ export interface DirectoryView {
   readonly active: number;
   /** Provisional or pre-hire among them; null when this viewer is not shown statuses. */
   readonly notStarted: number | null;
+  /**
+   * On notice, of everybody: the Leaving view's count (C1). Only beside the
+   * bare directory, and only for a viewer shown statuses; null otherwise.
+   */
+  readonly leaving: number | null;
   readonly incomplete: number | null;
   /**
    * Every column this viewer may show, in order; `shown` is the default set
@@ -1403,11 +1487,18 @@ export interface DirectoryView {
     readonly label: string;
     readonly options: readonly { readonly value: string; readonly label: string }[];
   }[];
+  /** When People answered: what each person's local time is read from. */
+  readonly now: string;
   readonly people: readonly {
     readonly id: string;
     readonly name: string;
     readonly email: string | null;
     readonly avatarUrl: string | null;
+    /**
+     * Their zone, from what the viewer may read of where they work; null
+     * when that places them nowhere (`placedZone`).
+     */
+    readonly timeZone: string | null;
     readonly values: Readonly<Record<string, string>>;
     /** Each person column (a manager): who, with their photo, to draw as a person. */
     readonly people: readonly {
@@ -1584,7 +1675,7 @@ async function nameEach(
 }
 
 /** A directory page. Keyset, so the last page of 50,000 costs what the first does. */
-export const DIRECTORY_PAGE = 50;
+export const DIRECTORY_PAGE = 100;
 
 /**
  * One page of the directory (PEO-117).
@@ -1683,6 +1774,23 @@ export async function directoryView(
         notStarted: capped(found.value.notStarted),
       },
     };
+    // Leaving, counted as Starting soon is: beside everybody, for a viewer shown statuses.
+    const bare =
+      own.length === 0 &&
+      segment === null &&
+      query.incomplete !== true &&
+      query.search.trim() === '' &&
+      Object.keys(query.filters).length === 0;
+    const leaving =
+      everyone.isHr && bare
+        ? await deps.service.access.count(tx, {
+            ...asking,
+            refine: {
+              conditions: [{ key: 'status', op: 'in', values: ['notice'] }],
+              match: 'all',
+            },
+          })
+        : null;
     const page = listed.value.items;
     const next = top !== null && offset + page.length >= top ? null : listed.value.next;
 
@@ -1695,6 +1803,7 @@ export async function directoryView(
     );
     const org = await deps.calendars.load(tx, asking.tenantId);
     const placeName = placeNames(org);
+    const now = deps.clock.instant();
     const selects = definitions.filter(
       (d) => d.typeConfig.kind === 'select' && filterable(definitions, [d.key], everyone).ok,
     );
@@ -1815,6 +1924,7 @@ export async function directoryView(
       total: counted.value.all,
       active: counted.value.active,
       notStarted: everyone.isHr ? counted.value.notStarted : null,
+      leaving: leaving?.ok === true ? leaving.value.all : null,
       incomplete: incomplete?.ok === true ? incomplete.value.all : null,
       columns: [
         ...columns.map((c) => ({
@@ -1870,6 +1980,7 @@ export async function directoryView(
               : [],
         })),
       ],
+      now,
       people: page.map((p) => {
         const email = p.attributes['work_email'];
         return {
@@ -1877,6 +1988,7 @@ export async function directoryView(
           name: nameOf(p.attributes) ?? (typeof email === 'string' ? email : 'Unnamed'),
           email: typeof email === 'string' ? email : null,
           avatarUrl: avatars.get(p.id) ?? null,
+          timeZone: placedZone(org, placementOf(p.attributes), now),
           values: withStatus(
             p.status,
             Object.fromEntries(

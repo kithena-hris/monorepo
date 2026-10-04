@@ -2,7 +2,12 @@
 
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
-import type { ComponentPropsWithoutRef, JSX } from 'react';
+import {
+  useSyncExternalStore,
+  type ComponentPropsWithoutRef,
+  type JSX,
+  type ReactNode,
+} from 'react';
 
 import { cn } from '../../lib/cn';
 import { usePortalContainer } from '../../lib/portal-container';
@@ -16,6 +21,10 @@ import { usePortalContainer } from '../../lib/portal-container';
  *
  * Modals interrupt. Use one for a decision that blocks the task, not to show
  * detail that a panel or a route could carry.
+ *
+ * Centred everywhere, a finger included: a short task (a filter, a
+ * confirmation, a few fields) fits on screen and keeps the page in sight
+ * around it. `sheetOnTouch` is for the long, scrolling editor that would not.
  */
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -25,12 +34,20 @@ export function DialogContent({
   className,
   children,
   showCloseButton = true,
+  sheetOnTouch = false,
   ...props
 }: ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
+  /**
+   * Under a finger, rise as a bottom sheet instead of staying centred. For a
+   * long, scrolling editor or list that needs the height; a short, focused
+   * task (a few fields, one outcome) leaves it off, because a sheet would
+   * cover the page for no reason.
+   */
+  sheetOnTouch?: boolean;
 }): JSX.Element {
   return (
-    <DialogPrimitive.Portal container={usePortalContainer()}>
+    <InPortal container={usePortalContainer()}>
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(
@@ -48,18 +65,23 @@ export function DialogContent({
           'top-1/2 left-1/2 max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2',
           'rounded-[1.5rem]',
           'data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
-          // Under a finger it is a bottom sheet, not a shrunken dialog. A centred
-          // modal puts its actions out of the thumb's reach and its close button
-          // in the corner hardest to reach one-handed. This follows the pointer,
-          // not the window width: a tablet is held the same way a phone is.
+          // A long editor under a finger is a bottom sheet, not a shrunken
+          // dialog: it needs the height, and its actions sit in the thumb's
+          // reach. This follows the pointer, not the window width: a tablet is
+          // held the same way a phone is.
           //
           // `dvh`, not `vh`: mobile Safari's `vh` is the height with the URL bar
           // hidden, so a `90vh` sheet is taller than the visible page until the
           // user scrolls.
-          'touch:inset-x-2 touch:top-auto touch:bottom-[max(0.5rem,var(--spacing-safe-bottom))]',
-          'touch:max-h-[92dvh] touch:w-auto touch:max-w-none touch:translate-x-0 touch:translate-y-0',
-          'touch:rounded-[2.25rem]',
-          'touch:data-[state=open]:animate-slide-in-bottom touch:data-[state=closed]:animate-slide-out-bottom',
+          sheetOnTouch
+            ? [
+                'touch:inset-x-2 touch:top-auto touch:bottom-[max(0.5rem,var(--spacing-safe-bottom))]',
+                'touch:max-h-[92dvh] touch:w-auto touch:max-w-none touch:translate-x-0 touch:translate-y-0',
+                'touch:rounded-[2.25rem]',
+                'touch:data-[state=open]:animate-slide-in-bottom touch:data-[state=closed]:animate-slide-out-bottom',
+              ]
+            : // Centred under a finger too, a 16px gutter each side.
+              'touch:rounded-[1.75rem] touch:max-h-[85dvh] touch:max-w-none',
           className,
         )}
         {...props}
@@ -67,10 +89,12 @@ export function DialogContent({
         {/* Grabber. Purely a signifier that the surface came from the bottom
             edge, it is decorative, and the sheet is dismissed by the close
             button, Escape or the overlay, all of which work without a gesture. */}
-        <div
-          aria-hidden
-          className="mx-auto mt-2 hidden h-[5px] w-9 shrink-0 rounded-full bg-border-strong touch:block"
-        />
+        {sheetOnTouch ? (
+          <div
+            aria-hidden
+            className="mx-auto mt-2 hidden h-[5px] w-9 shrink-0 rounded-full bg-border-strong touch:block"
+          />
+        ) : null}
         {children}
         {showCloseButton ? (
           <DialogPrimitive.Close
@@ -85,7 +109,35 @@ export function DialogContent({
           </DialogPrimitive.Close>
         ) : null}
       </DialogPrimitive.Content>
-    </DialogPrimitive.Portal>
+    </InPortal>
+  );
+}
+
+const subscribeNever = (): (() => void) => () => undefined;
+
+/**
+ * The portal, once the page is live. A dialog open in the server's HTML (one
+ * the address asked for) has no `document` to portal into there, and a portal
+ * draws nothing until it mounts; so on the server and while hydrating it is
+ * drawn where it sits — fixed, so in the same place — and moves into the
+ * portal right after. The first HTML already shows it open.
+ */
+function InPortal({
+  container,
+  children,
+}: {
+  readonly container: HTMLElement | null | undefined;
+  readonly children: ReactNode;
+}): JSX.Element {
+  const live = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
+  return live ? (
+    <DialogPrimitive.Portal container={container}>{children}</DialogPrimitive.Portal>
+  ) : (
+    <>{children}</>
   );
 }
 

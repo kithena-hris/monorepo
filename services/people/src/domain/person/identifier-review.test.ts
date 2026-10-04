@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { decideReview, onIdentifierWritten, type IdentifierReview } from './identifier-review.js';
+import {
+  decideReview,
+  onIdentifierWritten,
+  reviewOutcome,
+  type IdentifierReview,
+} from './identifier-review.js';
 
 const mismatch = { level: 'mismatch', code: 'check_mismatch', message: 'm' } as const;
 const attention = { level: 'attention', code: 'suffix_missing', message: 'a' } as const;
@@ -123,8 +128,16 @@ describe('a reviewer deciding', () => {
 
   it('never sends a value back without saying why: the employee has to know what to fix', () => {
     for (const note of [null, '   ']) {
-      const decided = decideReview(review('pending'), { decision: 'send_back', by: 'hr-1', at, note });
-      expect(!decided.ok && decided.error).toMatchObject({ code: 'REASON_REQUIRED', path: ['note'] });
+      const decided = decideReview(review('pending'), {
+        decision: 'send_back',
+        by: 'hr-1',
+        at,
+        note,
+      });
+      expect(!decided.ok && decided.error).toMatchObject({
+        code: 'REASON_REQUIRED',
+        path: ['note'],
+      });
     }
   });
 
@@ -136,5 +149,24 @@ describe('a reviewer deciding', () => {
       note: 'x'.repeat(501),
     });
     expect(!decided.ok && decided.error.code).toBe('VALUE_INVALID');
+  });
+});
+
+describe('what HR decided, for Decided', () => {
+  it('is the decision, and stays sent back once a new value replaced it', () => {
+    expect(reviewOutcome(review('accepted'))).toBe('accepted');
+    expect(reviewOutcome(review('sent_back'))).toBe('sent_back');
+    expect(
+      reviewOutcome({
+        ...review('superseded'),
+        decidedBy: 'hr',
+        decidedAt: '2026-09-24T09:00:00.000Z',
+      }),
+    ).toBe('sent_back');
+  });
+
+  it('is nothing for a review nobody decided', () => {
+    expect(reviewOutcome(review('pending'))).toBeNull();
+    expect(reviewOutcome(review('superseded'))).toBeNull();
   });
 });

@@ -13,7 +13,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  EmptyState,
   Field,
   FieldControl,
   FieldDescription,
@@ -23,25 +22,18 @@ import {
   IconList,
   IconListItem,
   List,
-  ListDetail,
   ListItem,
-  PageHeader,
   PageSection,
   PINNED_BAR,
   Stack,
   Stat,
   Switch,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   Textarea,
   icons,
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
-import { useHeld } from '../held';
-import { Loaded, type Loadable, type Outcome } from '../load';
+import type { Outcome } from '../load';
 import { DisplayValue, longDate } from '../record/display';
 import type { AttributeValue, PendingValue, RecordField } from '../record/model';
 import { ApproveAlone, PendingBadge } from '../record/pending';
@@ -98,6 +90,8 @@ export interface ApprovalQuestion {
 export interface ApprovalItem extends PendingValue {
   readonly personId: string;
   readonly name: string;
+  /** Their photo, when they have one and the viewer may read them. Absent from an older People. */
+  readonly avatarUrl?: string | null;
   /** False where the viewer may not read the field: they decide on who, when and why. */
   readonly readable: boolean;
   /** What is in force now, masked as the field is. */
@@ -111,7 +105,8 @@ export interface ApprovalItem extends PendingValue {
   readonly canAsk?: boolean;
   readonly canMark?: boolean;
   readonly questions?: readonly ApprovalQuestion[];
-  readonly state?: 'pending' | 'approved' | 'rejected';
+  /** Lapsed: nobody decided it within its seven days. */
+  readonly state?: 'pending' | 'approved' | 'rejected' | 'lapsed';
   readonly decidedBy?: string | null;
   readonly decidedAt?: string | null;
   readonly note?: string | null;
@@ -140,21 +135,13 @@ export interface ApprovalsState {
   } | null;
 }
 
-export type ApprovalsTab = 'mine' | 'flagged' | 'asked' | 'decided';
-
-export interface ApprovalsProps {
-  readonly load: Loadable<ApprovalsState>;
+/** What a change's detail pane may do: People's operations, each handed over by the host. */
+export interface ChangeActions {
   readonly onDecide: (changeId: string, approve: boolean, note: string | null) => Promise<Outcome>;
   readonly onWithdraw: (changeId: string) => Promise<Outcome>;
   /** A requester no other HR member can approve for, approving their own change, once they confirm (PEO-077). */
   readonly onSelfApprove?: (changeId: string, note?: string | null) => Promise<Outcome>;
   readonly onOpen?: (personId: string) => void;
-  /** HR's tab (`?tab=`). Absent: whichever has something. */
-  readonly tab?: ApprovalsTab | null;
-  readonly onTabChange?: (tab: ApprovalsTab) => void;
-  /** The change open beside the list (`?change=`). */
-  readonly change?: string | null;
-  readonly onChangeOpen?: (change: string | null) => void;
   /** Its flags were not worth raising: the checks learn from it. */
   readonly onMarkNotUnusual?: (changeId: string) => Promise<Outcome>;
   /** Ask the requester before deciding. */
@@ -188,8 +175,8 @@ const CHECK_ICON: Readonly<Record<string, ReactNode>> = {
 };
 const iconOf = (code: string): ReactNode => CHECK_ICON[code] ?? <icons.flagged aria-hidden />;
 
-const flagsOf = (item: ApprovalItem): readonly ApprovalFlag[] => item.flags ?? [];
-const isFlagged = (item: ApprovalItem): boolean => flagsOf(item).length > 0;
+export const flagsOf = (item: ApprovalItem): readonly ApprovalFlag[] => item.flags ?? [];
+export const isFlagged = (item: ApprovalItem): boolean => flagsOf(item).length > 0;
 
 /** "€84k": short money for a row. */
 function compact(value: AttributeValue): string | null {
@@ -198,7 +185,9 @@ function compact(value: AttributeValue): string | null {
     new Intl.NumberFormat('en', { style: 'currency', currency: value.currency }).resolvedOptions()
       .maximumFractionDigits ?? 2;
   // Display only: a whole thousand, never arithmetic on the amount.
-  const major = Number(value.amountMinor.slice(0, Math.max(0, value.amountMinor.length - digits)) || '0');
+  const major = Number(
+    value.amountMinor.slice(0, Math.max(0, value.amountMinor.length - digits)) || '0',
+  );
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency: value.currency,
@@ -209,14 +198,22 @@ function compact(value: AttributeValue): string | null {
     .replace(/K$/u, 'k');
 }
 
-const shortDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const shortDate = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+});
+
+/** Decided, or lapsed with nobody deciding: no longer waiting. */
+export const isClosed = (item: ApprovalItem): boolean =>
+  item.state === 'approved' || item.state === 'rejected' || item.state === 'lapsed';
 
 /** "Salary €61k → €84k · from 1 Oct", or the field and the date where no amount shows. */
-function summaryOf(item: ApprovalItem): string {
+export function summaryOf(item: ApprovalItem): string {
   const from = `from ${shortDate.format(Date.parse(`${item.effectiveFrom}T00:00:00Z`))}`;
   const after = item.readable ? compact(item.value) : null;
   // A decided change keeps what was asked for, not what was in force before it.
-  if (item.state === 'approved' || item.state === 'rejected') {
+  if (isClosed(item)) {
     return after === null ? `${item.label} · ${from}` : `${item.label} ${after} · ${from}`;
   }
   const before = item.readable ? compact(item.current) : null;
@@ -226,7 +223,7 @@ function summaryOf(item: ApprovalItem): string {
 }
 
 /** "12m", "3h", "Yesterday", "4 days": how long ago it was asked for. */
-function ago(at: string, now: number): string {
+export function ago(at: string, now: number): string {
   const minutes = Math.max(0, Math.floor((now - Date.parse(at)) / 60_000));
   if (minutes < 60) return `${String(Math.max(minutes, 1))}m`;
   if (minutes < 24 * 60) return `${String(Math.floor(minutes / 60))}h`;
@@ -241,267 +238,20 @@ function daysLeft(expiresAt: string, now: number): string {
 }
 
 /** "Nora" from "Nora Becker"; "the requester" when it is not a name. */
-const firstName = (name: string): string =>
+export const firstName = (name: string): string =>
   name === 'You' || name.startsWith('A ') || name.startsWith('An ')
     ? 'the requester'
     : (name.split(' ')[0] ?? name);
-
-export function Approvals({ load, ...props }: ApprovalsProps): JSX.Element {
-  return (
-    <Loaded load={load} what="changes waiting for approval">
-      {(state) => <Inbox state={state} {...props} />}
-    </Loaded>
-  );
-}
-
-function Inbox({
-  state,
-  onDecide,
-  onWithdraw,
-  onSelfApprove,
-  onOpen,
-  tab: heldTab,
-  onTabChange,
-  change: heldChange,
-  onChangeOpen,
-  onMarkNotUnusual,
-  onAsk,
-  onAnswer,
-  onSetCheck,
-}: Omit<ApprovalsProps, 'load'> & { readonly state: ApprovalsState }): JSX.Element {
-  const [refused, setRefused] = useState<string | null>(null);
-  const forMe = state.items.filter((i) => i.canDecide || i.canSelfApprove === true);
-  const asked = state.items.filter((i) => i.mine && !forMe.includes(i));
-  const rest = state.items.filter((i) => !forMe.includes(i) && !asked.includes(i));
-  const flagged = forMe.filter(isFlagged);
-  const decided = state.decided ?? [];
-  const [tab, setTab] = useHeld<ApprovalsTab>(
-    heldTab,
-    onTabChange,
-    forMe.length > 0 || !state.isHr ? 'mine' : 'asked',
-  );
-  const shown = !state.isHr
-    ? state.items
-    : tab === 'mine'
-      ? [...forMe, ...rest]
-      : tab === 'flagged'
-        ? flagged
-        : tab === 'asked'
-          ? asked
-          : decided;
-  const [picked, setPicked] = useHeld<string | null>(heldChange, onChangeOpen, null);
-  const current = shown.find((i) => i.id === picked) ?? shown[0] ?? null;
-  const [now] = useState(() => Date.now());
-  // A, on a row: its change opens with the note to write, as the button needs one.
-  const [noteFor, setNoteFor] = useState<string | null>(null);
-  const pick = (id: string | null): void => {
-    setPicked(id);
-  };
-
-  const list = (
-    // J and K through the changes; A approves the focused one and R rejects
-    // it, the same as the buttons beside it.
-    <List navigable aria-label="Changes waiting for a decision">
-      {shown.map((item) => (
-        <ListItem
-          key={item.id}
-          asChild
-          selected={item.id === current?.id}
-          {...(item.canDecide
-            ? {
-                actions: [
-                  ...(item.awaitingReview === true
-                    ? []
-                    : [
-                        {
-                          id: 'approve',
-                          label: isFlagged(item) ? 'Approve with note' : 'Approve',
-                          shortcut: 'row.approve',
-                          onSelect: () => {
-                            pick(item.id);
-                            setNoteFor(item.id);
-                          },
-                        },
-                      ]),
-                  {
-                    id: 'decline',
-                    label: 'Reject',
-                    shortcut: 'row.decline',
-                    onSelect: () => {
-                      pick(item.id);
-                    },
-                  },
-                ],
-              }
-            : {})}
-          leading={<Avatar size="lg" name={item.name} />}
-          description={summaryOf(item)}
-          {...(item.flagSummary
-            ? {
-                supporting: (
-                  <span className="font-medium text-warning-fg">
-                    <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
-                    {item.flagSummary}
-                  </span>
-                ),
-              }
-            : {})}
-          meta={
-            item.state === 'approved' || item.state === 'rejected'
-              ? item.state === 'approved'
-                ? 'Approved'
-                : 'Rejected'
-              : ago(item.requestedAt, now)
-          }
-        >
-          <button
-            type="button"
-            aria-current={item.id === current?.id ? true : undefined}
-            onClick={() => {
-              pick(item.id);
-            }}
-          >
-            {item.name}
-            {isFlagged(item) && item.state !== 'approved' && item.state !== 'rejected' ? (
-              <Badge size="sm" tone="warning" className="ms-2">
-                <icons.flagged aria-hidden />
-                Unusual
-              </Badge>
-            ) : null}
-          </button>
-        </ListItem>
-      ))}
-    </List>
-  );
-
-  const detail =
-    current === null ? null : (
-      <Detail
-        key={current.id}
-        item={current}
-        isHr={state.isHr}
-        now={now}
-        focusNote={noteFor === current.id}
-        onDecide={onDecide}
-        onWithdraw={() => {
-          setRefused(null);
-          void onWithdraw(current.id).then((outcome) => {
-            if (!outcome.ok) setRefused(outcome.message);
-          });
-        }}
-        onSelfApprove={onSelfApprove}
-        onOpen={onOpen}
-        onMarkNotUnusual={onMarkNotUnusual}
-        onAsk={onAsk}
-        onAnswer={onAnswer}
-      />
-    );
-
-  const listDetail =
-    shown.length === 0 ? (
-      <EmptyState
-        title={
-          tab === 'flagged'
-            ? 'Nothing flagged'
-            : tab === 'decided'
-              ? 'Nothing decided lately'
-              : 'Nothing to approve'
-        }
-        description={
-          tab === 'flagged'
-            ? 'No change waiting for you looks unusual.'
-            : tab === 'decided'
-              ? 'Changes decided in the last 90 days appear here.'
-              : 'All changes have been decided.'
-        }
-      />
-    ) : (
-      <ListDetail
-        listWidth="26.25rem"
-        listLabel="Changes"
-        detailLabel={current === null ? 'Change' : `${current.name}’s ${current.label}`}
-        selected={picked !== null}
-        onBack={() => {
-          pick(null);
-        }}
-        backLabel="All changes"
-        list={list}
-        detail={detail}
-      />
-    );
-
-  return (
-    <Stack gap={5}>
-      <PageHeader
-        title={state.isHr ? 'Approvals' : 'Your pending changes'}
-        description={
-          state.isHr
-            ? 'Changes to sensitive fields wait here until someone other than the requester decides.'
-            : 'HR reviews each change within 7 days. Your record stays the same until then.'
-        }
-      />
-      {refused === null ? null : (
-        <Alert tone="danger" title="Couldn’t complete that">
-          {refused}
-        </Alert>
-      )}
-      {state.isHr ? (
-        <Tabs
-          value={tab}
-          onValueChange={(next) => {
-            if (next === 'mine' || next === 'flagged' || next === 'asked' || next === 'decided') {
-              setTab(next);
-            }
-            pick(null);
-          }}
-        >
-          <TabsList aria-label="Whose changes">
-            <TabsTrigger value="mine">
-              Waiting for me{' '}
-              <Badge size="xs" variant="solid" tone="danger">
-                {forMe.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="flagged">
-              <icons.flagged aria-hidden /> Flagged <Badge size="xs">{flagged.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="asked">
-              I asked <Badge size="xs">{asked.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="decided">Decided</TabsTrigger>
-          </TabsList>
-          <TabsContent value={tab} className="pt-4">
-            <Stack gap={5}>
-              {tab === 'flagged' && flagged.length === 0 ? null : listDetail}
-              {tab === 'flagged' ? (
-                <Checks
-                  checks={state.checks ?? []}
-                  canTune={state.canTune === true}
-                  last90={state.last90 ?? null}
-                  onSetCheck={onSetCheck}
-                />
-              ) : null}
-            </Stack>
-          </TabsContent>
-        </Tabs>
-      ) : shown.length === 0 ? (
-        <EmptyState title="Nothing waiting" description="None of your changes wait for approval." />
-      ) : (
-        listDetail
-      )}
-    </Stack>
-  );
-}
 
 /**
  * One change, to decide (AI7, MA7): who asked, the value in force beside the
  * one asked for, why it is flagged, a note, and the decision.
  */
-function Detail({
+export function ChangeDetail({
   item,
   isHr,
   now,
-  focusNote,
+  focusNote = false,
   onDecide,
   onWithdraw,
   onSelfApprove,
@@ -513,21 +263,21 @@ function Detail({
   readonly item: ApprovalItem;
   readonly isHr: boolean;
   readonly now: number;
-  readonly focusNote: boolean;
-  readonly onDecide: ApprovalsProps['onDecide'];
-  readonly onWithdraw: () => void;
-  readonly onSelfApprove: ApprovalsProps['onSelfApprove'];
-  readonly onOpen: ApprovalsProps['onOpen'];
-  readonly onMarkNotUnusual: ApprovalsProps['onMarkNotUnusual'];
-  readonly onAsk: ApprovalsProps['onAsk'];
-  readonly onAnswer: ApprovalsProps['onAnswer'];
+  readonly focusNote?: boolean;
+  readonly onDecide: ChangeActions['onDecide'];
+  readonly onWithdraw: ChangeActions['onWithdraw'];
+  readonly onSelfApprove: ChangeActions['onSelfApprove'];
+  readonly onOpen: ChangeActions['onOpen'];
+  readonly onMarkNotUnusual: ChangeActions['onMarkNotUnusual'];
+  readonly onAsk: ChangeActions['onAsk'];
+  readonly onAnswer: ChangeActions['onAnswer'];
 }): JSX.Element {
   const field = asField(item);
   const flags = flagsOf(item);
   const flaggedNow = flags.length > 0;
-  const decided = item.state === 'approved' || item.state === 'rejected';
+  const decided = isClosed(item);
   const [note, setNote] = useState('');
-  const [busy, setBusy] = useState<'approve' | 'reject' | 'mark' | null>(null);
+  const [busy, setBusy] = useState<'approve' | 'reject' | 'mark' | 'withdraw' | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
   const [needsNote, setNeedsNote] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -556,7 +306,7 @@ function Detail({
     // Not a landmark of its own: the list-detail's pane is the region, named for it.
     <Card padded className="flex flex-col gap-3.5">
       <div className="flex items-start gap-3">
-        <Avatar size="xl" name={item.name} />
+        <Avatar size="xl" name={item.name} src={item.avatarUrl ?? undefined} />
         <div className="min-w-0 flex-1">
           <h2 className="text-md font-bold">
             {onOpen === undefined ? (
@@ -577,17 +327,19 @@ function Detail({
           <p className="text-sm text-fg-muted">
             Asked by {item.requestedBy} on {longDate(item.requestedAt.slice(0, 10))}
             {decided
-              ? ` · ${item.state === 'approved' ? 'approved' : 'rejected'} by ${item.decidedBy ?? 'HR'}${
-                  item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''
-                }`
+              ? item.state === 'lapsed'
+                ? ` · lapsed${item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''}, nobody decided in 7 days`
+                : ` · ${item.state === 'approved' ? 'approved' : 'rejected'} by ${item.decidedBy ?? 'HR'}${
+                    item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''
+                  }`
               : ` · expires in ${daysLeft(item.expiresAt, now).replace(' left', '').toLowerCase()}`}
           </p>
-          {item.awaitingReview === true || (!item.canDecide && !decided) ? (
-            <span className="mt-2 flex flex-wrap items-center gap-2">
-              <PendingBadge pending={item} />
-            </span>
-          ) : null}
         </div>
+        {decided ? null : (
+          <span className="shrink-0">
+            <PendingBadge pending={item} />
+          </span>
+        )}
       </div>
       {item.readable && decided ? (
         // What was asked for; what was in force before it is not kept with the decision.
@@ -663,15 +415,12 @@ function Detail({
       )}
 
       {decided ? null : (
-        // One row at a desk, Not unusual apart; under a finger, a pinned two-column footer (MA7).
-        <div
-          {...PINNED_BAR}
-          className="flex flex-wrap items-center justify-end gap-2 touch:sticky touch:bottom-24 touch:z-10 touch:grid touch:grid-cols-2 touch:bg-surface touch:py-2"
-        >
+        // At a desk one row, the asking actions apart on the left. Under a
+        // finger they sit above, and the decision is a pinned two-column bar (MA7).
+        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           {item.canMark === true && onMarkNotUnusual !== undefined ? (
             <Button
               variant="ghost"
-              className="me-auto touch:me-0"
               startIcon={<icons.reject aria-hidden />}
               loading={busy === 'mark'}
               loadingLabel="Saving"
@@ -687,21 +436,33 @@ function Detail({
               Not unusual
             </Button>
           ) : null}
+          {item.canAsk === true && onAsk !== undefined ? (
+            <Button
+              startIcon={<icons.message aria-hidden />}
+              onClick={() => {
+                setAsking(true);
+              }}
+            >
+              Ask {requester}
+            </Button>
+          ) : null}
           {item.awaitingReview === true ? (
-            <span className="me-auto text-sm text-fg-muted touch:col-span-2">
-              Review this ID under Identifier reviews first.
+            <span className="text-sm text-fg-muted">Check this ID under ID checks first.</span>
+          ) : null}
+          {!item.canDecide && !item.mine ? (
+            <span className="text-sm text-fg-muted">
+              This change is about you, so someone else decides.
             </span>
           ) : null}
-            {item.canAsk === true && onAsk !== undefined ? (
-              <Button
-                startIcon={<icons.message aria-hidden />}
-                onClick={() => {
-                  setAsking(true);
-                }}
-              >
-                Ask {requester}
-              </Button>
-            ) : null}
+          {!item.canDecide && item.mine && isHr && item.canSelfApprove !== true ? (
+            <span className="text-sm text-fg-muted">
+              Another HR member must approve your change.
+            </span>
+          ) : null}
+          <div
+            {...PINNED_BAR}
+            className="ms-auto flex flex-wrap items-center justify-end gap-2 touch:sticky touch:bottom-24 touch:z-10 touch:ms-0 touch:grid touch:w-full touch:grid-cols-2 touch:bg-surface touch:py-2 touch:[&>*:only-child]:col-span-2"
+          >
             {item.canSelfApprove === true &&
             item.awaitingReview !== true &&
             onSelfApprove !== undefined ? (
@@ -726,7 +487,6 @@ function Detail({
                 {item.awaitingReview === true ? null : (
                   <Button
                     variant="primary"
-                    startIcon={<icons.confirm aria-hidden />}
                     aria-label={`Approve the change to ${item.name}'s ${item.label}${flaggedNow ? ' with note' : ''}`}
                     shortcut="row.approve"
                     loading={busy === 'approve'}
@@ -743,21 +503,21 @@ function Detail({
             {item.mine ? (
               <Button
                 aria-label={`Withdraw the change to ${item.name}'s ${item.label}`}
-                onClick={onWithdraw}
+                loading={busy === 'withdraw'}
+                loadingLabel="Withdrawing"
+                onClick={() => {
+                  setBusy('withdraw');
+                  setRefused(null);
+                  void onWithdraw(item.id).then((outcome) => {
+                    setBusy(null);
+                    if (!outcome.ok) setRefused(outcome.message);
+                  });
+                }}
               >
                 Withdraw
               </Button>
             ) : null}
-          {!item.canDecide && !item.mine ? (
-            <span className="text-sm text-fg-muted touch:col-span-2">
-              This change is about you, so someone else decides.
-            </span>
-          ) : null}
-          {!item.canDecide && item.mine && isHr && item.canSelfApprove !== true ? (
-            <span className="text-sm text-fg-muted touch:col-span-2">
-              Another HR member must approve your change.
-            </span>
-          ) : null}
+          </div>
         </div>
       )}
       {asking && onAsk !== undefined ? (
@@ -821,7 +581,7 @@ function Questions({
   onAnswer,
 }: {
   readonly item: ApprovalItem;
-  readonly onAnswer: ApprovalsProps['onAnswer'];
+  readonly onAnswer: ChangeActions['onAnswer'];
 }): JSX.Element | null {
   const questions = item.questions ?? [];
   if (questions.length === 0) return null;
@@ -857,7 +617,7 @@ function Answer({
   onAnswer,
 }: {
   readonly questionId: string;
-  readonly onAnswer: NonNullable<ApprovalsProps['onAnswer']>;
+  readonly onAnswer: NonNullable<ChangeActions['onAnswer']>;
 }): JSX.Element {
   const [answer, setAnswer] = useState('');
   const [busy, setBusy] = useState(false);
@@ -910,7 +670,7 @@ function Ask({
 }: {
   readonly item: ApprovalItem;
   readonly to: string;
-  readonly onAsk: NonNullable<ApprovalsProps['onAsk']>;
+  readonly onAsk: NonNullable<ChangeActions['onAsk']>;
   readonly onClose: () => void;
 }): JSX.Element {
   const [question, setQuestion] = useState('');
@@ -977,7 +737,7 @@ function Ask({
  * What gets flagged (AI8): every check, switchable by a People administrator,
  * the last 90 days, and what the checks never do.
  */
-function Checks({
+export function Checks({
   checks,
   canTune,
   last90,
@@ -986,7 +746,7 @@ function Checks({
   readonly checks: readonly ApprovalCheck[];
   readonly canTune: boolean;
   readonly last90: ApprovalsState['last90'];
-  readonly onSetCheck: ApprovalsProps['onSetCheck'];
+  readonly onSetCheck: ChangeActions['onSetCheck'];
 }): JSX.Element | null {
   const [saving, setSaving] = useState<string | null>(null);
   const [refused, setRefused] = useState<string | null>(null);

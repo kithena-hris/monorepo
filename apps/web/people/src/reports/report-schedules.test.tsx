@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
+import { serveAndHydrate } from '../test/hydrate';
 import { ReportRuns } from './report-runs';
 import {
   EACH_SEES_THEIR_OWN,
@@ -73,15 +74,15 @@ function props(over: Partial<ReportSchedulesProps> = {}): ReportSchedulesProps {
 describe('the scheduled reports screen (PEO-069)', () => {
   it('lists each schedule with its cadence, recipients, last run and status', async () => {
     const { container } = render(<ReportSchedules {...props()} />);
-    const table = screen.getByRole('table', { name: 'Scheduled reports' });
+    const table = screen.getByRole('grid', { name: 'Scheduled reports' });
     expect(within(table).getByText('Monday roster')).toBeInTheDocument();
     expect(within(table).getByText('Weekly on Monday at 07:00')).toBeInTheDocument();
     expect(within(table).getByText('Partly sent')).toBeInTheDocument();
     expect(within(table).getByText('Active')).toBeInTheDocument();
-    expect(within(table).getByRole('link', { name: 'History' })).toHaveAttribute(
-      'href',
-      `/people/reports/${row.id}`,
-    );
+    // Edit, pause, history and delete are in the row's menu.
+    expect(
+      within(table).getByRole('button', { name: 'Actions for Monday roster' }),
+    ).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -89,9 +90,11 @@ describe('the scheduled reports screen (PEO-069)', () => {
     const p = props();
     render(<ReportSchedules {...p} />);
     const user = fast();
-    await user.click(screen.getByRole('button', { name: 'Pause' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Monday roster' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Pause' }));
     expect(p.onPause).toHaveBeenCalledWith(row.id);
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Monday roster' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
     expect(p.onDelete).not.toHaveBeenCalled();
     const confirm = screen.getByRole('alertdialog');
     await user.click(within(confirm).getByRole('button', { name: 'Delete' }));
@@ -100,7 +103,9 @@ describe('the scheduled reports screen (PEO-069)', () => {
 
   it('says under the recipients what each recipient gets', async () => {
     render(<ReportSchedules {...props()} />);
-    await fast().click(screen.getByRole('button', { name: 'Edit' }));
+    const user = fast();
+    await user.click(screen.getByRole('button', { name: 'Actions for Monday roster' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit Monday roster' });
     expect(within(dialog).getByText(EACH_SEES_THEIR_OWN)).toBeInTheDocument();
     expect(
@@ -112,7 +117,8 @@ describe('the scheduled reports screen (PEO-069)', () => {
     const p = props();
     render(<ReportSchedules {...p} />);
     const user = fast();
-    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Monday roster' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit Monday roster' });
     const name = within(dialog).getByRole('textbox', { name: /Name/ });
     await user.clear(name);
@@ -215,5 +221,34 @@ describe('a scheduled report’s history', () => {
     expect(screen.getByText('Priya Shah: sent')).toBeInTheDocument();
     expect(screen.getByText('Marco Rossi: may not filter by this audience')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe('a schedule’s dialog, in the address', () => {
+  it.each([
+    ['new', 'It first goes out at its next time'],
+    [row.id, 'Edit Monday roster'],
+  ])('serves ?open=%s already open, and hydrates it unchanged', async (open, text) => {
+    const { html, errors } = await serveAndHydrate(
+      <ReportSchedules {...props({ open, onOpenChange: vi.fn() })} />,
+    );
+    expect(html).toContain(text);
+    expect(errors).toEqual([]);
+    expect(screen.getByRole('dialog')).toHaveTextContent(text);
+  });
+
+  it('opens nothing for a schedule it does not have', async () => {
+    const { html } = await serveAndHydrate(
+      <ReportSchedules {...props({ open: 'gone', onOpenChange: vi.fn() })} />,
+    );
+    expect(html).not.toContain('It first goes out at its next time');
+  });
+
+  it('asks the host to open a new one', async () => {
+    const onOpenChange = vi.fn();
+    const user = fast();
+    render(<ReportSchedules {...props({ open: null, onOpenChange })} />);
+    await user.click(screen.getByRole('button', { name: 'New scheduled report' }));
+    expect(onOpenChange).toHaveBeenLastCalledWith('new');
   });
 });

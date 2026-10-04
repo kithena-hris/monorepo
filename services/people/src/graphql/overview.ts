@@ -38,7 +38,9 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     .implement({
       description: 'An import the viewer approved, finished: Imported or Import failed.',
       fields: (t) => ({
-        id: t.exposeID('id', { description: 'The run: `importRun(id)` and `/people/import?run=`.' }),
+        id: t.exposeID('id', {
+          description: 'The run: `importRun(id)` and `/people/import?run=`.',
+        }),
         status: t.exposeString('status', { description: 'succeeded or failed.' }),
         finishedAt: t.exposeString('finishedAt'),
         people: t.exposeInt('people', { description: 'People created or updated.' }),
@@ -114,7 +116,8 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
         requestedAt: t.exposeString('requestedAt'),
         requestedBy: t.exposeString('requestedBy'),
         asked: t.exposeBoolean('asked', {
-          description: 'Whoever decides asked the viewer, who asked for it, a question not yet answered.',
+          description:
+            'Whoever decides asked the viewer, who asked for it, a question not yet answered.',
         }),
       }),
     });
@@ -122,9 +125,29 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     fields: (t) => ({
       isHr: t.exposeBoolean('isHr'),
       total: t.exposeInt('total'),
+      flagged: t.exposeInt('flagged', {
+        nullable: true,
+        description: 'HR’s: how many changes waiting for their decision the checks flag.',
+      }),
+      flagReason: t.exposeString('flagReason', {
+        nullable: true,
+        description: 'The newest flagged change’s reasons in a line: "A 38% raise".',
+      }),
       items: t.field({ type: [ApprovalRef], resolve: (a) => list(a.items) }),
     }),
   });
+
+  const CorrectionRef = builder
+    .objectRef<OverviewView['corrections'][number]>('PeopleOverviewCorrection')
+    .implement({
+      description: 'One of their own identifiers HR sent back, to correct. Never the value.',
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        sectionKey: t.exposeString('sectionKey'),
+        reason: t.exposeString('reason', { description: 'Why, in HR’s words or the check’s.' }),
+      }),
+    });
 
   const MissingRef = builder
     .objectRef<OverviewView['missing'][number]>('PeopleOverviewMissing')
@@ -190,6 +213,7 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
       reportingLine: t.field({ type: LineRef, nullable: true, resolve: (o) => o.reportingLine }),
       approvals: t.field({ type: ApprovalsRef, nullable: true, resolve: (o) => o.approvals }),
       missing: t.field({ type: [MissingRef], resolve: (o) => list(o.missing) }),
+      corrections: t.field({ type: [CorrectionRef], resolve: (o) => list(o.corrections) }),
       team: t.field({ type: Team, nullable: true, resolve: (o) => o.team }),
       viewedAs: t.field({
         type: [ViewedAsRef],
@@ -200,7 +224,8 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
       setup: t.field({ type: SetupRef, nullable: true, resolve: (o) => o.setup }),
       imports: t.field({
         type: [ImportNoticeRef],
-        description: 'Imports the viewer approved that finished in the last two weeks, newest first.',
+        description:
+          'Imports the viewer approved that finished in the last two weeks, newest first.',
         resolve: (o) => list(o.imports),
       }),
     }),

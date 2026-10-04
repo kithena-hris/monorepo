@@ -5,10 +5,10 @@ import {
   AssistantLauncher,
   AssistantMessage,
   AssistantPanel,
-  AssistantSuggestion,
-  AssistantSuggestions,
   Avatar,
   Button,
+  Chip,
+  ChipRow,
   icons,
 } from '@reach/ui';
 import Link from 'next/link';
@@ -19,10 +19,13 @@ import { askAssistant } from '../app/assistant/actions';
 import type { AssistantReply } from '../lib/assistant';
 
 /**
- * The assistant, in the app: a panel floating in the bottom corner of every
- * page from Reach's launcher, or ⌘J from anywhere. The page stays in view and
- * usable beside it on a desk; under a finger it fills the screen, and the
- * launcher sits clear of the tab bar.
+ * Ask Kithena (design B4, MA A4): a small window grown out of the launcher in
+ * the bottom corner of every page, or ⌘J from anywhere. About 400 by 580 on a
+ * desk; a compact card above the tab bar on a phone. Never full height, never
+ * full screen, and no dimming: the page behind keeps working, so a person
+ * chip, a scroll or a profile is still a click away while the chat stays put.
+ * Minimise folds it back into the launcher and keeps the conversation; Close
+ * ends it.
  *
  * It asks every module the company has (`lib/assistant.ts`) and answers as the
  * person asking, with only what they could see themselves. The conversation
@@ -38,14 +41,11 @@ interface Turn {
   readonly people?: AssistantReply['people'];
 }
 
-const SUGGESTIONS: readonly { readonly text: string; readonly icon: JSX.Element }[] = [
-  { text: 'Who reports to me?', icon: <icons.team aria-hidden /> },
-  { text: 'How many people are in each department?', icon: <icons.analytics aria-hidden /> },
-  { text: 'Who started this year?', icon: <icons.hire aria-hidden /> },
-  { text: 'What is waiting for my approval?', icon: <icons.inbox aria-hidden /> },
-];
+/** Ask about your people: the two questions a chip offers above the box, every time. */
+const SUGGESTIONS: readonly string[] = ['Who reports to me?', 'What’s waiting for me?'];
 
 export function Assistant(): JSX.Element {
+  // Open, or folded into the launcher; the conversation outlives either.
   const [open, setOpen] = useState(false);
   const [turns, setTurns] = useState<readonly Turn[]>([]);
   const [draft, setDraft] = useState('');
@@ -115,16 +115,17 @@ export function Assistant(): JSX.Element {
   return (
     <div
       ref={panel}
-      className="fixed end-6 bottom-6 z-40 flex h-[min(35rem,calc(100dvh-3rem))] w-[25rem] max-w-[calc(100vw-3rem)] touch:inset-0 touch:h-auto touch:w-auto touch:max-w-none"
+      // A window from the launcher at a desk; a compact card above the tab bar on a phone.
+      className="fixed end-6 bottom-6 z-40 flex h-[min(36.25rem,calc(100dvh-3rem))] w-[25rem] max-w-[calc(100vw-3rem)] touch:inset-x-2.5 touch:end-2.5 touch:bottom-24 touch:h-[min(25rem,calc(100dvh-8rem))] touch:w-auto touch:max-w-none"
       onKeyDown={(event) => {
+        // Escape folds it away, as minimise does: the conversation stays.
         if (event.key === 'Escape') setOpen(false);
       }}
     >
       <AssistantPanel
         title="Ask Kithena"
-        subtitle="Answers only with what you can see yourself"
+        subtitle="Answers with only what you can see"
         busy={busy}
-        className="touch:rounded-none"
         {...(turns.length === 0
           ? {}
           : {
@@ -134,21 +135,50 @@ export function Assistant(): JSX.Element {
                 setBusy(false);
               },
             })}
+        onMinimize={() => {
+          setOpen(false);
+        }}
         onClose={() => {
+          // Ends the conversation: a stopped answer's reply is dropped when it comes.
+          asked.current += 1;
+          setTurns([]);
+          setBusy(false);
+          setDraft('');
           setOpen(false);
         }}
         composer={
-          <AssistantComposer
-            value={draft}
-            onValueChange={setDraft}
-            onSubmit={ask}
-            streaming={busy}
-            onStop={() => {
-              asked.current += 1;
-              setBusy(false);
-            }}
-            placeholder="Ask about your people…"
-          />
+          <>
+            <ChipRow aria-label="Try asking" className="px-4 pt-2">
+              {SUGGESTIONS.map((text) => (
+                <Chip
+                  key={text}
+                  disabled={busy}
+                  onClick={() => {
+                    ask(text);
+                  }}
+                >
+                  {text}
+                </Chip>
+              ))}
+            </ChipRow>
+            <AssistantComposer
+              value={draft}
+              onValueChange={setDraft}
+              onSubmit={ask}
+              streaming={busy}
+              onStop={() => {
+                asked.current += 1;
+                setBusy(false);
+              }}
+              placeholder="Ask about your people…"
+              disclaimer={
+                <span className="inline-flex items-center gap-1.5 [&_svg]:size-3">
+                  <icons.assistant aria-hidden />
+                  Read-only. Sees your question and field names, never values.
+                </span>
+              }
+            />
+          </>
         }
       >
         <AssistantMessage from="assistant">
@@ -157,21 +187,6 @@ export function Assistant(): JSX.Element {
             many people work where, or what is waiting for you.
           </p>
         </AssistantMessage>
-        {turns.length === 0 ? (
-          <AssistantSuggestions aria-label="Try asking">
-            {SUGGESTIONS.map((s) => (
-              <AssistantSuggestion
-                key={s.text}
-                icon={s.icon}
-                onClick={() => {
-                  ask(s.text);
-                }}
-              >
-                {s.text}
-              </AssistantSuggestion>
-            ))}
-          </AssistantSuggestions>
-        ) : null}
         {turns.map((t) => (
           <AssistantMessage key={t.id} from={t.from}>
             {t.from === 'user' ? t.text : <p>{t.text}</p>}

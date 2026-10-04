@@ -6,6 +6,7 @@ import { headerFrame, matchRoute, placesFor } from './remotes';
 import {
   countsOf,
   noticesOf,
+  reviewItem,
   timeOffCounts,
   timeOffRoles,
   type Overview,
@@ -21,31 +22,56 @@ const overview = (roles: Overview['roles'], approvals: number): Overview => ({
 });
 
 describe('countsOf', () => {
-  it('counts each tab’s queue, and a section only what needs a decision', () => {
+  it('counts every decision waiting in Review as its one count, and not its missing details', () => {
     const { sections, tabs } = countsOf(
       overview(HR, 4),
       { identifiers: 3, duplicates: 2, accessRequests: 1 },
       placesFor(PEOPLE_NAV, HR).sections,
     );
-    expect(tabs).toEqual({
-      '/people/data-health/completeness': 88,
-      '/people/data-health/id-checks': 3,
-      '/people/data-health/duplicates': 2,
-      '/people/data-health/access-requests': 1,
-    });
-    // Completeness is a backlog, not a decision: Data health is 3 + 2 + 1.
-    expect(sections).toEqual({ '/people/approvals': 4, '/people/data-health/completeness': 6 });
+    // 4 changes + 3 ID checks + 2 duplicates + 1 request; the 88 missing details are a backlog.
+    expect(sections).toEqual({ '/people/review/waiting': 10 });
+    expect(tabs).toEqual({ '/people/review/waiting': 10 });
   });
 
-  it('leaves out what People refused and every zero, and keys by the viewer’s own link', () => {
+  it('leaves out what People refused and every zero, and counts nothing off Review', () => {
     const { sections, tabs } = countsOf(
       overview(FINANCE, 0),
       { identifiers: null, duplicates: null, accessRequests: 2 },
       placesFor(PEOPLE_NAV, FINANCE).sections,
     );
-    expect(tabs).toEqual({ '/people/data-health/access-requests': 2 });
-    expect(sections).toEqual({ '/people/data-health/access-requests': 2 });
-    expect(countsOf(overview(FINANCE, 0), null, [])).toEqual({ sections: {}, tabs: {} });
+    expect(tabs).toEqual({ '/people/review/waiting': 2 });
+    expect(sections).toEqual({ '/people/review/waiting': 2 });
+    expect(
+      countsOf(
+        overview(FINANCE, 0),
+        { identifiers: 0, duplicates: 0, accessRequests: 0 },
+        placesFor(PEOPLE_NAV, FINANCE).sections,
+      ),
+    ).toEqual({ sections: {}, tabs: {} });
+    expect(countsOf(overview(FINANCE, 3), null, [])).toEqual({ sections: {}, tabs: {} });
+  });
+
+  it('counts exports to send in Waiting, and Flagged and I asked on their own tabs (E1)', () => {
+    const { sections, tabs } = countsOf(
+      overview(HR, 4),
+      { identifiers: 3, duplicates: 2, accessRequests: 1, exports: 1, flagged: 1, asked: 2 },
+      placesFor(PEOPLE_NAV, HR).sections,
+    );
+    expect(sections).toEqual({ '/people/review/waiting': 11 });
+    expect(tabs).toEqual({
+      '/people/review/waiting': 11,
+      '/people/review/flagged': 1,
+      '/people/review/asked': 2,
+    });
+  });
+});
+
+describe('reviewItem', () => {
+  it('opens an item of Review, its chip chosen, from a link', () => {
+    expect(reviewItem('flagged', 'changes', 'change-c1')).toBe(
+      '/people/review/flagged?kind=changes&item=change-c1',
+    );
+    expect(reviewItem('waiting', null, null)).toBe('/people/review/waiting');
   });
 });
 
@@ -103,7 +129,7 @@ describe('a question about one’s own change (AI7)', () => {
     expect(notice).toMatchObject({
       title: 'HR asked about your base salary change',
       detail: 'Tom Fischer · answer it to move it on',
-      href: '/people/approvals?tab=asked&change=c1',
+      href: '/people/review/waiting?kind=changes&item=change-c1',
     });
   });
 });

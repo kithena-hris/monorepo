@@ -446,7 +446,7 @@ function Kiosks({
         </List>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent sheetOnTouch>
           {registered === null ? (
             <form
               onSubmit={(event) => {
