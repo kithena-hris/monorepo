@@ -849,7 +849,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
 - **Done when** a Teams question gets the same answer as the same question in
   Slack.
 
-### [ ] AST-035 — The assistant behind the router
+### [x] AST-035 — The assistant behind the router
 
 - **Spec** PRD §17, Phase 3
 - **Files** `platform/assistant/src/graphql/*`, `apps/gateway/config.yaml`

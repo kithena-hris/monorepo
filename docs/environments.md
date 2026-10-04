@@ -1267,6 +1267,7 @@ available right now."), and the deploy warns rather than fails.
 | `ASSISTANT_PEOPLE_TOKEN`                     | `people.env`, `assistant.env`                       | The assistant → People's `/internal/capabilities*`, and nothing else of People's. Random, 32+ bytes.                                                                        |
 | `ASSISTANT_TIMEOFF_TOKEN`                    | `timeoff.env`, `assistant.env`                      | The assistant → Time Off's `/internal/capabilities*`, likewise.                                                                                                             |
 | `ASSISTANT_IDENTITY_TOKEN`                   | identity's Vercel deploy (`--env`), `assistant.env` | The assistant → identity's `POST /api/internal/tenants/<id>/assistant/asker`. Identity has no fallback for it.                                                              |
+| `ASSISTANT_API_TOKEN`                        | `router.env`, `assistant.env`                       | The router → the assistant's subgraph (`ask(question)`, the web's questions, AST-035) as `x-internal-token`. Random, 32+ bytes, unlike any other pair's.                   |
 | `ASSISTANT_API_KEY`                          | `people.env`, `assistant.env`                       | The model's key (Groq by default), the one People's own words already use. `ASSISTANT_BASE_URL` and `ASSISTANT_MODEL` default as People's.                                  |
 | `TENANT_APP_BASE_<ENV>`                      | `assistant.env` (`TENANT_APP_BASE`)                 | A repository variable, messaging's: where an answer's link goes, `https://{slug}.app.kithena.com`.                                                                          |
 | `IDENTITY_URL`                               | `assistant.env`, by the VM job                      | Identity's public address, `https://identity.kithena.com` (staging's `identity.staging`): identity is on Vercel, so it differs by environment and is not a Compose address. |
@@ -1278,6 +1279,16 @@ recorded holds the deployment's rather than none — without it the assistant
 would tell that company it does not use People. `PEOPLE_IDENTITY_TOKEN` stays
 a variable of identity's Vercel project, beside `IDENTITY_DATABASE_URL`, with
 the same value as in `PEOPLE_ENV`.
+
+The web asks through the router (AST-035): the supergraph routes `ask` to
+`http://assistant:4104/graphql`, and the router sends the signed-in principal
+with `ASSISTANT_API_TOKEN`, a support or view-as session included, which the
+assistant forwards to each module unchanged. The router will not start with
+an empty header value, so while the secret is unset the VM job writes a
+throwaway into `router.env` and none into `assistant.env`: `ask` is refused
+and nothing else changes. Set it with
+`openssl rand -base64 32 | gh secret set ASSISTANT_API_TOKEN --env <env>`; the
+next deploy that ships the router and the assistant picks it up.
 
 #### GitHub: repository variables (Settings → Secrets and variables → Actions → Variables)
 

@@ -78,11 +78,14 @@ const container = docker(
   '--env',
   'PEOPLE_API_TOKEN=smoke',
   // Every subgraph's token header must have a value, or the router refuses to
-  // start ("no header name/value combination"); audit's and Time Off's too.
+  // start ("no header name/value combination"); audit's, Time Off's and the
+  // assistant's too.
   '--env',
   'AUDIT_API_TOKEN=smoke',
   '--env',
   'TIMEOFF_API_TOKEN=smoke',
+  '--env',
+  'ASSISTANT_API_TOKEN=smoke',
   '--env',
   'KITHENA_ENTITLEMENTS=[]',
   image,
