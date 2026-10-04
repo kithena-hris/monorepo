@@ -273,7 +273,7 @@ export function AccessMatrix({
                       aria-label={`What ${a.label} can do`}
                       value={accessLevel(value, a.id)}
                       onValueChange={(level) => {
-                        onChange?.(withAccessLevel(value, a.id, level as AccessLevel));
+                        onChange(withAccessLevel(value, a.id, level as AccessLevel));
                       }}
                     >
                       <SegmentedControlItem value="none">None</SegmentedControlItem>

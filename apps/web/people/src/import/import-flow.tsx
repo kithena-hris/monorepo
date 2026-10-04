@@ -996,7 +996,7 @@ function Steps({
         </>
       ) : null}
 
-      {phoneCards && view !== null ? (
+      {phoneCards ? (
         <>
           {refusedAlert}
           {proposals.length > 0 ? (

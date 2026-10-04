@@ -27,7 +27,9 @@ export async function serveAndHydrate(
   const host = document.createElement('div');
   host.innerHTML = html;
   document.body.append(host);
-  onTestFinished(() => host.remove());
+  onTestFinished(() => {
+    host.remove();
+  });
   const errors: string[] = [];
   const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
     errors.push(args.map(String).join(' '));

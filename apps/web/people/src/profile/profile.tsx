@@ -629,7 +629,7 @@ function Record({
         </Stack>
         <Stack gap={6} className="min-w-0">
           {/* Under a finger: how far along their own record is, first (MD2). */}
-          {own && person.missing !== null ? (
+          {own ? (
             <Card padded className="hidden items-center gap-3 touch:flex">
               <CircularProgress
                 value={percent}
