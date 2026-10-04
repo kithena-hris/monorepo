@@ -88,7 +88,15 @@ describe('the Inbox’s rows, on the bell and the phone alike (B3)', () => {
         kind: 'viewed' as const,
       },
     ],
-    waiting: { identifiers: 3, duplicates: 0, accessRequests: 1 },
+    waiting: {
+      identifiers: 3,
+      duplicates: 0,
+      accessRequests: 1,
+      exports: 1,
+      identifiersBy: ['Adam Novak', 'You'],
+      accessRequestsBy: ['Sofia Lindqvist'],
+      exportsBy: ['Marco Ruiz'],
+    },
   };
 
   it('lists what to do, each other queue of Review a row to its chip, and leaves news to Updates', () => {
@@ -97,12 +105,23 @@ describe('the Inbox’s rows, on the bell and the phone alike (B3)', () => {
       'Tom Fischer',
       '3 identifiers to check',
       '1 request for full values',
+      '1 export to send',
     ]);
     expect(rows[0]).toMatchObject({
       person: true,
       summary: 'Approve a salary change · Tom Fischer · asked by Marco Ruiz',
     });
     expect(rows[1]).toMatchObject({ person: false, href: '/people/review/waiting?kind=ids' });
+  });
+
+  it('names who asked on every row that counts requests', () => {
+    const rows = todoRows(shell);
+    expect(rows.map((r) => r.summary).slice(1)).toEqual([
+      'Failed a check, or couldn’t be verified · entered by Adam Novak and you',
+      'Sofia Lindqvist asked to see unmasked values',
+      'Marco Ruiz asked to send an export',
+    ]);
+    expect(rows[3]).toMatchObject({ href: '/people/review/waiting?kind=exports' });
   });
 
   it('puts a flag’s reason under its change', () => {

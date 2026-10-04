@@ -19,6 +19,7 @@ import type {
   DuplicatesView,
   MergedPair,
   OnboardingView,
+  OwnDecidedView,
   OrgChartView,
   PickerView,
   ProfileView,
@@ -265,6 +266,11 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description:
             'Held for approval, not yet written: reviewed first; sending it back declines the change.',
         }),
+        enteredBy: t.exposeString('enteredBy', {
+          nullable: true,
+          description:
+            'Who entered the value, as the viewer may name them; null when not recorded.',
+        }),
       }),
     });
   const DecidedReviewRef = builder
@@ -305,6 +311,15 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         match: t.exposeString('match', {
           description:
             'strong, likely or possible: a band from the signals, never a percentage (`matchBand`).',
+        }),
+        flaggedBy: t.exposeString('flaggedBy', {
+          description: 'What flagged the pair, as nobody asked: SCIM provisioning or the check.',
+        }),
+        avatarUrls: t.field({
+          type: ['String'],
+          nullable: { items: true, list: false },
+          description: 'Each one’s photo, in the order of personIds; null where none may be shown.',
+          resolve: (d) => [...d.avatarUrls],
         }),
       }),
     });
@@ -719,7 +734,16 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         canAsk: t.exposeBoolean('canAsk'),
         canMark: t.exposeBoolean('canMark', { description: 'May mark its flags not unusual.' }),
         questions: t.field({ type: [ApprovalQuestionRef], resolve: (c) => list(c.questions) }),
-        state: t.exposeString('state', { description: 'pending, approved, rejected or lapsed.' }),
+        state: t.exposeString('state', {
+          description: 'pending, approved, rejected, lapsed, or withdrawn on the requester’s own.',
+        }),
+        before: t.field({
+          type: FormEntry,
+          nullable: true,
+          description:
+            'What the field held when it was asked for, on the requester’s own Decided; null elsewhere.',
+          resolve: (c) => (c.before === undefined ? null : { key: c.key, value: c.before }),
+        }),
         decidedBy: t.exposeString('decidedBy', { nullable: true }),
         decidedAt: t.exposeString('decidedAt', { nullable: true }),
         note: t.exposeString('note', { nullable: true }),
@@ -778,6 +802,30 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       }),
     }),
   });
+  const OwnDecidedRef = builder.objectRef<OwnDecidedView>('PeopleOwnDecided').implement({
+    description:
+      'The viewer’s own requests, decided in the last 90 days (E10): theirs alone, whoever they are.',
+    fields: (t) => ({
+      changes: t.field({
+        type: [ApprovalItemRef],
+        description:
+          'Their requested changes approved, rejected, lapsed or withdrawn, newest first, with `before`.',
+        resolve: (v) => list(v.changes),
+      }),
+      identifiers: t.field({
+        type: [DecidedReviewRef],
+        description: 'Their own identifiers HR accepted or sent back. Never the value.',
+        resolve: (v) => list(v.identifiers),
+      }),
+    }),
+  });
+  builder.queryField('peopleOwnDecided', (t) =>
+    t.field({
+      type: OwnDecidedRef,
+      description: 'What became of the viewer’s own requests in the last 90 days (E10).',
+      resolve: (_root, _args, ctx) => viaRest<OwnDecidedView>(ctx, 'GET', '/v1/views/own-decided'),
+    }),
+  );
 
   const HistoryActorRef = builder.objectRef<HistoryChange['actor']>('HistoryActor').implement({
     description: 'Who made a change, to draw: a person with their photo, or not a person.',
@@ -1037,6 +1085,21 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       exports: t.exposeInt('exports', {
         nullable: true,
         description: 'Requests to send an export this viewer may decide.',
+      }),
+      identifiersBy: t.stringList({
+        nullable: true,
+        description: 'Who entered the doubted identifiers, as the viewer may name them.',
+        resolve: (w) => (w.identifiersBy === null ? null : [...w.identifiersBy]),
+      }),
+      accessRequestsBy: t.stringList({
+        nullable: true,
+        description: 'Who asked for full values, as the viewer may name them.',
+        resolve: (w) => (w.accessRequestsBy === null ? null : [...w.accessRequestsBy]),
+      }),
+      exportsBy: t.stringList({
+        nullable: true,
+        description: 'Who wants to send an export waiting for this viewer.',
+        resolve: (w) => (w.exportsBy === null ? null : [...w.exportsBy]),
       }),
     }),
   });

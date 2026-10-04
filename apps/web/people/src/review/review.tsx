@@ -34,6 +34,7 @@ import {
   ChangeDetail,
   Checks,
   ago,
+  asField,
   isClosed,
   isFlagged,
   summaryOf,
@@ -61,10 +62,12 @@ import { FORMAT_LABEL, firstName, listed, spokenDate } from '../export/words';
 import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import type { SearchPeople } from '../record/attribute-input';
+import { DisplayValue } from '../record/display';
 import {
   DuplicateDetail,
   Merges,
   bandOf,
+  flaggedByOf,
   pairId,
   type DuplicateActions,
   type DuplicatePair,
@@ -74,6 +77,7 @@ import {
   IdCheckDetail,
   idCheckId,
   verdictOf,
+  type DecidedReview,
   type IdCheckActions,
   type IdentifierReviewsState,
   type ReviewItem,
@@ -104,15 +108,6 @@ import {
 export type ReviewTab = 'waiting' | 'flagged' | 'asked' | 'decided';
 export type ReviewKind = 'changes' | 'ids' | 'duplicates' | 'access' | 'exports' | 'missing';
 
-export const REVIEW_KINDS: readonly ReviewKind[] = [
-  'changes',
-  'ids',
-  'duplicates',
-  'access',
-  'exports',
-  'missing',
-];
-
 export interface ReviewState {
   /** When People answered: what every age is read against, the same on the server and in the browser. */
   readonly now: string;
@@ -133,6 +128,14 @@ export interface ReviewState {
    * null: one the viewer does not decide arrives from the email about it.
    */
   readonly share: ShareRequest | { readonly state: 'missing'; readonly id?: string } | null;
+  /**
+   * The viewer's own requests, decided (E10): anybody's but HR's, whose
+   * Decided is everybody's. Null for HR, or where People refused the read.
+   */
+  readonly ownDecided?: {
+    readonly changes: readonly ApprovalItem[];
+    readonly identifiers: readonly DecidedReview[];
+  } | null;
 }
 
 export interface ReviewProps extends ChangeActions {
@@ -210,6 +213,10 @@ const EMPTY: Readonly<Record<ReviewKind | 'all' | 'mine', { title: string; body:
   mine: { title: 'Nothing waiting', body: 'None of your changes wait for approval.' },
 };
 
+/** "6 people", "1 person". */
+const peopleCount = (n: number): string =>
+  `${n.toLocaleString('en-GB')} ${n === 1 ? 'person' : 'people'}`;
+
 const shortDay = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -224,6 +231,8 @@ interface Row {
   /** Their photo, where People sent one. */
   readonly avatarUrl?: string | null;
   readonly summary: string;
+  /** Who asked, when the row's name is not them: "Asked by Marco Ruiz", "Flagged by …". */
+  readonly by?: string | null;
   /** When it was asked for, for its age and the order; null for a pair, which has none. */
   readonly at: string | null;
   readonly flag?: string | null;
@@ -236,6 +245,7 @@ const changeRow = (item: ApprovalItem): Row => ({
   name: item.name,
   avatarUrl: item.avatarUrl ?? null,
   summary: summaryOf(item),
+  by: `Asked by ${item.requestedBy === 'You' ? 'you' : item.requestedBy}`,
   at: item.requestedAt,
   flag: isClosed(item) ? null : (item.flagSummary ?? null),
 });
@@ -247,6 +257,10 @@ const idRow = (item: ReviewItem): Row => ({
   avatarUrl: item.avatarUrl ?? null,
   summary: `${item.label} · ${item.findings[0]?.message ?? ''}`,
   at: item.enteredAt,
+  by:
+    item.enteredBy == null
+      ? null
+      : `Entered by ${item.enteredBy === 'You' ? 'you' : item.enteredBy}`,
   badge: verdictOf(item),
 });
 
@@ -254,7 +268,9 @@ const pairRow = (pair: DuplicatePair): Row => ({
   id: `dup-${pairId(pair)}`,
   kind: 'duplicates',
   name: pair.names[0] ?? '',
+  avatarUrl: pair.avatarUrls?.[0] ?? null,
   summary: `Possible duplicate of ${pair.names[1] ?? ''} · ${pair.reasons.join(', ')}`,
+  by: flaggedByOf(pair),
   at: null,
   badge: bandOf(pair) === null ? null : { tone: 'warning', text: bandOf(pair) ?? '' },
 });
@@ -271,7 +287,11 @@ const shareRow = (share: ShareRequest): Row => ({
   id: `export-${share.id}`,
   kind: 'exports',
   name: share.requestedBy.name ?? 'A colleague',
-  summary: `Export to ${share.recipient.name ?? 'a colleague'} · ${share.reason}`,
+  avatarUrl: share.requestedBy.avatarUrl ?? null,
+  // "Export to Nora Becker · 6 people" (E5); an older request, uncounted, says why instead.
+  summary: `Export to ${share.recipient.name ?? 'a colleague'} · ${
+    share.people == null ? share.reason : peopleCount(share.people)
+  }`,
   at: share.requestedAt,
 });
 
@@ -307,6 +327,10 @@ function splitChanges(approvals: ApprovalsState | null): {
   return { forMe, asked, rest };
 }
 
+/** The changes decided that the viewer's Decided lists: their own, or for HR everybody's. */
+const decidedChanges = (state: ReviewState): readonly ApprovalItem[] =>
+  state.ownDecided?.changes ?? state.approvals?.decided ?? [];
+
 /** Whose Review it is: HR's queue, an employee's own changes, or finance's requests. */
 type Viewer = 'hr' | 'finance' | 'employee';
 
@@ -323,7 +347,7 @@ function rowsOf(state: ReviewState, tab: ReviewTab, viewer: Viewer): Row[] {
   const requests = state.fullValues?.requests ?? [];
   if (viewer !== 'hr') {
     return tab === 'decided'
-      ? newestFirst((state.approvals?.decided ?? []).map(changeRow))
+      ? newestFirst(decidedChanges(state).map(changeRow))
       : newestFirst((state.approvals?.items ?? []).map(changeRow));
   }
   switch (tab) {
@@ -666,13 +690,18 @@ function Rows({
               <span className="truncate">{row.summary}</span>
             </span>
           }
-          {...(row.flag
+          {...(row.flag || row.by
             ? {
                 supporting: (
-                  <span className="font-medium text-warning-fg">
-                    <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
-                    {row.flag}
-                  </span>
+                  <>
+                    {row.by ? <span className="block truncate">{row.by}</span> : null}
+                    {row.flag ? (
+                      <span className="block font-medium text-warning-fg">
+                        <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
+                        {row.flag}
+                      </span>
+                    ) : null}
+                  </>
                 ),
               }
             : {})}
@@ -727,7 +756,7 @@ function Detail({
   const isHr = viewerOf(state) === 'hr';
   switch (row.kind) {
     case 'changes': {
-      const item = [...(state.approvals?.items ?? []), ...(state.approvals?.decided ?? [])].find(
+      const item = [...(state.approvals?.items ?? []), ...decidedChanges(state)].find(
         (i) => `change-${i.id}` === row.id,
       );
       return item === undefined ? null : (
@@ -777,7 +806,9 @@ function Detail({
             {pair?.names.join(' and ') ?? row.name}
             <span className="font-normal text-fg-muted"> · Possible duplicate</span>
           </h2>
-          <p className="text-sm text-fg-muted">{pair?.reasons.join(', ')}</p>
+          <p className="text-sm text-fg-muted">
+            {[pair?.reasons.join(', '), flaggedByOf(pair)].filter((x) => x).join(' · ')}
+          </p>
           <Button
             variant="primary"
             startIcon={<icons.merge aria-hidden />}
@@ -858,7 +889,7 @@ function ExportDetail({
   return (
     <Card padded className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
-        <Avatar size="xl" name={asker} />
+        <Avatar size="xl" name={asker} src={share.requestedBy.avatarUrl ?? undefined} />
         <div className="min-w-0 flex-1">
           <h2 className="text-md font-bold">
             {asker}
@@ -907,10 +938,12 @@ function ExportDetail({
         items={[
           {
             label: 'Who',
-            value: (share.audience ?? 'Everybody you can see').replace(
-              /\byou\b/u,
-              firstName(asker),
-            ),
+            value: [
+              (share.audience ?? 'Everybody you can see').replace(/\byou\b/u, firstName(asker)),
+              share.people == null ? null : peopleCount(share.people),
+            ]
+              .filter((x) => x !== null)
+              .join(' · '),
           },
           { label: 'Fields', value: listed(share.fields) },
           {
@@ -982,7 +1015,7 @@ interface Decision {
   readonly kind: 'changes' | 'ids' | 'access';
   readonly name: string;
   readonly avatarUrl?: string | null;
-  readonly what: string;
+  readonly what: ReactNode;
   readonly outcome: { readonly tone: ComponentProps<typeof Badge>['tone']; readonly text: string };
   readonly by: string;
   readonly when: string | null;
@@ -990,43 +1023,62 @@ interface Decision {
 
 /** Every decision of the last 90 days the viewer may see, newest first. */
 function decisionsOf(state: ReviewState): Decision[] {
-  const changes = (state.approvals?.decided ?? []).map((c): Decision => ({
+  const changes = decidedChanges(state).map((c): Decision => ({
     key: `change-${c.id}`,
     kind: 'changes',
     name: c.name,
     avatarUrl: c.avatarUrl ?? null,
-    what: [
-      `${c.label} change`,
-      isFlagged(c)
-        ? `Flagged when decided: ${c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', ')}`
-        : null,
-      c.note ? `Note: “${c.note}”` : null,
-    ]
-      .filter((x) => x !== null)
-      .join(' · '),
+    what:
+      c.before !== undefined && c.readable ? (
+        // One's own (E10): the field, what it held → what was asked for, from when.
+        <>
+          {c.label}: <DisplayValue field={asField(c)} value={c.before} /> →{' '}
+          <DisplayValue field={asField(c)} value={c.value} /> · from {shortDay(c.effectiveFrom)}
+          {c.note ? ` · Note: “${c.note}”` : ''}
+        </>
+      ) : (
+        [
+          `${c.label} change`,
+          isFlagged(c)
+            ? `Flagged when decided: ${c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', ')}`
+            : null,
+          c.note ? `Note: “${c.note}”` : null,
+        ]
+          .filter((x) => x !== null)
+          .join(' · ')
+      ),
     outcome:
       c.state === 'approved'
         ? { tone: 'success', text: 'Approved' }
         : c.state === 'lapsed'
           ? { tone: 'neutral', text: 'Lapsed' }
-          : { tone: 'danger', text: 'Rejected' },
-    by: c.state === 'lapsed' ? 'Nobody, in 7 days' : (c.decidedBy ?? 'HR'),
+          : c.state === 'withdrawn'
+            ? { tone: 'neutral', text: 'Withdrawn' }
+            : { tone: 'danger', text: 'Rejected' },
+    by:
+      c.state === 'lapsed'
+        ? 'Nobody, in 7 days'
+        : c.state === 'withdrawn'
+          ? 'You'
+          : (c.decidedBy ?? 'HR'),
     when: c.decidedAt ?? null,
   }));
-  const ids = (state.identifiers?.decided ?? []).map((r): Decision => ({
-    key: `id-${r.personId}-${r.label}-${r.decidedAt}`,
-    kind: 'ids',
-    name: r.name,
-    what: [`ID check: ${r.label}`, r.note ? `Note: “${r.note}”` : null]
-      .filter((x) => x !== null)
-      .join(' · '),
-    outcome:
-      r.outcome === 'accepted'
-        ? { tone: 'success', text: 'Accepted' }
-        : { tone: 'danger', text: 'Sent back' },
-    by: r.decidedBy,
-    when: r.decidedAt,
-  }));
+  const ids = (state.ownDecided?.identifiers ?? state.identifiers?.decided ?? []).map(
+    (r): Decision => ({
+      key: `id-${r.personId}-${r.label}-${r.decidedAt}`,
+      kind: 'ids',
+      name: r.name,
+      what: [`ID check: ${r.label}`, r.note ? `Note: “${r.note}”` : null]
+        .filter((x) => x !== null)
+        .join(' · '),
+      outcome:
+        r.outcome === 'accepted'
+          ? { tone: 'success', text: 'Accepted' }
+          : { tone: 'danger', text: 'Sent back' },
+      by: r.decidedBy,
+      when: r.decidedAt,
+    }),
+  );
   const requests = (state.fullValues?.requests ?? [])
     .filter((r) => r.state !== 'pending')
     .map((r): Decision => ({

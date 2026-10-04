@@ -355,7 +355,7 @@ export function CompanyModules({
           if (!open) setConfirming(null);
         }}
       >
-        <DialogContent sheetOnTouch>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {companyName} will be left without{' '}
@@ -414,7 +414,7 @@ export function CompanyModules({
           if (!open) setConfirming(null);
         }}
       >
-        <DialogContent sheetOnTouch>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Switch off {switchedOff.map((c) => c.label).join(' and ')}</DialogTitle>
             <DialogDescription>

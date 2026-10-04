@@ -3710,8 +3710,11 @@ rule that gets broken in a car park by somebody who needed it now.
   the same on a phone as at a desk (PEO-117). Each page is a URL, so the
   phone's Back gesture returns to the page before; nothing loads 50,000 rows
   into a browser to scroll or search them.
-- **Dialogs become sheets.** `Sheet` from the bottom, not `Dialog` in the
-  middle — a centred modal on a phone puts its actions under the keyboard.
+- **Short tasks stay centred; long editors become sheets.** A filter, a
+  confirmation, Add person or a dated change is a centred `Dialog` on a phone
+  too, so the page behind keeps its place (People v2). Only a long, scrolling
+  editor, like the field editor, opens as a `Sheet` from the bottom; its
+  actions stick above the keyboard.
 - **Actions stick.** A form's primary action sits in a sticky bar above the
   safe-area inset, so "Save" is never below a keyboard or behind a scroll.
 - **No hover-only affordance.** Anything revealed on hover has a visible

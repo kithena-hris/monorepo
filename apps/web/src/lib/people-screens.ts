@@ -120,34 +120,6 @@ async function orBare<V extends Record<string, unknown>>(
   return bare.status === 'ready' ? { ...bare, notice: first.message } : first;
 }
 
-const NOT_YET = Symbol('not yet');
-
-/**
- * A load's streamed parts that have already arrived, put in place, so the
- * page is sent with them; only one still on its way is left to stream. Called
- * once the page has everything else it waits for, so a part as quick as that
- * is in the HTML, and a slower one never holds the page.
- */
-export async function withArrived(load: ScreenLoad): Promise<ScreenLoad> {
-  if (
-    load.status !== 'ready' ||
-    typeof load.data !== 'object' ||
-    load.data === null ||
-    !Object.values(load.data).some((part) => part instanceof Promise)
-  ) {
-    return load;
-  }
-  const parts = await Promise.all(
-    Object.entries(load.data).map(async ([key, part]: [string, unknown]) => {
-      if (!(part instanceof Promise)) return [key, part] as const;
-      // Settled already, it wins the race: its reaction was queued first.
-      const now: unknown = await Promise.race([part, Promise.resolve(NOT_YET)]);
-      return [key, now === NOT_YET ? part : now] as const;
-    }),
-  );
-  return { ...load, data: Object.fromEntries(parts) };
-}
-
 export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   switch (component) {
     case 'Directory': {
@@ -467,23 +439,32 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
   const finance = roles.data.finance === true;
   const ready = (load: ScreenLoad | null): unknown => (load?.status === 'ready' ? load.data : null);
   const admin = roles.data.admin === true;
-  const [changes, identifiers, duplicates, fullValues, completeness, analytics, share, shares] =
-    await Promise.all([
-      approvals,
-      hr ? read('IdentifierReviews') : null,
-      hr
-        ? orBare({ a: pair?.[0] ?? null, b: pair?.[1] ?? null }, (asked) =>
-            read('Duplicates', asked),
-          )
-        : null,
-      hr || finance ? read('FullValues') : null,
-      hr ? orBare({ after: given(search['after']) }, (asked) => read('Completeness', asked)) : null,
-      // Complete records overall, analytics' own figure, beside the missing details.
-      hr ? people<{ complete: unknown }>('Analytics', { segment: null }) : null,
-      shareId === null ? null : people<string>('ExportShare', { id: shareId }),
-      // The requests to send an export waiting for this administrator (E5).
-      admin ? people<string>('ExportSharesToDecide') : null,
-    ]);
+  const [
+    changes,
+    identifiers,
+    duplicates,
+    fullValues,
+    completeness,
+    analytics,
+    share,
+    shares,
+    own,
+  ] = await Promise.all([
+    approvals,
+    hr ? read('IdentifierReviews') : null,
+    hr
+      ? orBare({ a: pair?.[0] ?? null, b: pair?.[1] ?? null }, (asked) => read('Duplicates', asked))
+      : null,
+    hr || finance ? read('FullValues') : null,
+    hr ? orBare({ after: given(search['after']) }, (asked) => read('Completeness', asked)) : null,
+    // Complete records overall, analytics' own figure, beside the missing details.
+    hr ? people<{ complete: unknown }>('Analytics', { segment: null }) : null,
+    shareId === null ? null : people<string>('ExportShare', { id: shareId }),
+    // The requests to send an export waiting for this administrator (E5).
+    admin ? people<string>('ExportSharesToDecide') : null,
+    // Anybody but HR: their own requests, decided (E10). HR's Decided is everybody's.
+    hr ? null : read('OwnDecided', {}, VIEWS.OwnDecided),
+  ]);
   const down = [changes, identifiers, duplicates, fullValues, completeness].find(
     (l) => l?.status === 'error' && l.unreachable === true,
   );
@@ -506,6 +487,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
               complete: analytics?.ok === true ? analytics.data.complete : null,
             },
       shares: shares === null ? null : ((jsonOf(shares) as unknown[] | null) ?? null),
+      ownDecided: ready(own),
       // Somebody else's or gone: said as such in its pane, never as an error page.
       share:
         share === null
@@ -542,6 +524,8 @@ function hrFigures() {
       identifiers: number | null;
       duplicates: number | null;
       accessRequests: number | null;
+      identifiersBy?: string[] | null;
+      accessRequestsBy?: string[] | null;
     }>('Waiting'),
     people<{ people: DirectoryRow[] }>('Directory', {
       conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }],
@@ -591,6 +575,8 @@ async function overview(): Promise<ScreenLoad> {
         identifiers: counted?.identifiers ?? null,
         duplicates: counted?.duplicates ?? null,
         accessRequests: counted?.accessRequests ?? null,
+        identifiersBy: counted?.identifiersBy ?? null,
+        accessRequestsBy: counted?.accessRequestsBy ?? null,
         joiners,
         starting: (starting.ok ? starting.data.people : []).slice(0, 5).map((p) => ({
           id: p.id,

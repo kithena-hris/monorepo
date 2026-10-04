@@ -43,6 +43,7 @@ import {
   historyView,
   identifierReviewsView,
   approvalsView,
+  ownDecidedView,
   duplicatesView,
   onboardingView,
   orgChartView,
@@ -908,6 +909,12 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
       method: 'GET',
       pattern: /^\/v1\/views\/approvals$/,
       handle: async (asking) => answer(await approvalsView(deps, asking)),
+    },
+    // The viewer's own requests, decided (E10): an employee's Decided tab.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/views\/own-decided$/,
+      handle: async (asking) => answer(await ownDecidedView(deps, asking)),
     },
     // Flagged approvals (design AI7, AI8): "Not unusual", a question and its
     // answer, and an administrator's switch per check. None decides anything.

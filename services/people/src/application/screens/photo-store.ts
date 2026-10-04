@@ -9,6 +9,15 @@ import type { PhotoMediaType } from '../../domain/person/photo.js';
 
 type Tx = PostgresJsDatabase;
 
+/**
+ * Where the tenant app serves a photo: its People route, by version, so a
+ * browser may keep one as long as it likes and a new photo is a new URL. The
+ * route asks People for the bytes as the person looking (`photoView`); the URL
+ * itself opens nothing.
+ */
+export const avatarUrl = (personId: string, checksum: string): string =>
+  `/people/photos/${personId}?v=${checksum.slice(0, 16)}`;
+
 export interface StoredPhoto {
   readonly tenantId?: string;
   readonly personId?: string;

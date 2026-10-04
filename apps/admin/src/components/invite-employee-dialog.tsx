@@ -46,7 +46,7 @@ export function InviteEmployeeDialog({
           Invite an employee
         </Button>
       </DialogTrigger>
-      <DialogContent sheetOnTouch className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Invite an employee to {companyName}</DialogTitle>
           <DialogDescription>

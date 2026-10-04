@@ -4,7 +4,7 @@ import type { JSX } from 'react';
 import { PeopleScreen } from './people-screen';
 import { Waking, WakingHeader } from './waking';
 import { accessToken } from '../lib/people';
-import { loadScreen, today, withArrived } from '../lib/people-screens';
+import { loadScreen, today } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import {
   AREAS,
@@ -76,7 +76,7 @@ export async function PeopleArea({
   // Server rendering: a build whose signed manifest verifies, rendered in a
   // process of its own (`lib/remote-code.ts`, PEO-115). `PEOPLE_REMOTE_SSR=off`
   // is still the switch.
-  const [loaded, ssr, shell] = await Promise.all([
+  const [load, ssr, shell] = await Promise.all([
     route === null
       ? ({ status: 'none' } as const)
       : loadScreen(route.component, { params: route.params, search }),
@@ -86,9 +86,6 @@ export async function PeopleArea({
     shellData(person.entitlements),
   ]);
   const roles = shell.roles;
-  // A part the screen streams (the import and export history) is in the HTML
-  // if it came while everything else did; a slower one follows the page.
-  const load = await withArrived(loaded);
 
   // Nothing published yet: the administrator who can publish it is taken to
   // the wizard that does (design screen 2), rather than left on a screen
@@ -228,11 +225,10 @@ export async function PeopleHome(): Promise<JSX.Element | null> {
   const nav = await remoteNav(area);
   const component = nav?.slots.home;
   if (component === undefined) return null;
-  const [loaded, ssr] = await Promise.all([
+  const [load, ssr] = await Promise.all([
     loadScreen(component, { params: {}, search: {} }),
     prepareRemoteSsr(remoteBase(area), area),
   ]);
-  const load = await withArrived(loaded);
   // People is asleep or still waking: Home asks again by itself.
   const waking = load.status === 'error' && load.unreachable === true;
   return (

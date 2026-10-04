@@ -159,7 +159,7 @@ export function EmployeeActions({
           if (!open) setResult(null);
         }}
       >
-        <DialogContent sheetOnTouch className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{titleOf(result)}</DialogTitle>
             <DialogDescription>{descriptionOf(result, email)}</DialogDescription>

@@ -67,6 +67,19 @@ const PENDING = `
     mine canDecide canSelfApprove awaitingReview findings { level code message }
   }`;
 
+/** A change in the approvals inbox (PEO-077), waiting or decided, masked as its field is. */
+const APPROVAL = `
+  fragment ApprovalParts on ApprovalItem {
+    id personId name avatarUrl key label kind readable effectiveFrom requestedAt expiresAt requestedBy
+    reason mine canDecide canSelfApprove awaitingReview findings { level code message }
+    flags { code title detail }
+    comparisons { label percent highlight }
+    flagNote flagSummary canAsk canMark state decidedBy decidedAt note
+    questions { id question askedBy askedAt answer answeredAt canAnswer }
+    value { ...EntryParts }
+    current { ...EntryParts }
+  }`;
+
 /** What the country checks warned about, on a save or before one (PEO-125). */
 const FINDINGS = 'findings { key label level code message review }';
 
@@ -143,28 +156,26 @@ export const OPERATIONS = {
       checks { code title detail on }
       last90 { flagged rejected marked }
     }
-  }
-  fragment ApprovalParts on ApprovalItem {
-    id personId name avatarUrl key label kind readable effectiveFrom requestedAt expiresAt requestedBy
-    reason mine canDecide canSelfApprove awaitingReview findings { level code message }
-    flags { code title detail }
-    comparisons { label percent highlight }
-    flagNote flagSummary canAsk canMark state decidedBy decidedAt note
-    questions { id question askedBy askedAt answer answeredAt canAnswer }
-    value { ...EntryParts }
-    current { ...EntryParts }
-  }${ENTRY}`,
+  }${APPROVAL}${ENTRY}`,
+
+  /** The viewer's own requests, decided (E10): an employee's Decided tab, theirs alone. */
+  OwnDecided: `query OwnDecided {
+    peopleOwnDecided {
+      changes { ...ApprovalParts before { ...EntryParts } }
+      identifiers { personId name label outcome decidedBy decidedAt note }
+    }
+  }${APPROVAL}${ENTRY}`,
 
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {
-      items { personId name avatarUrl attributeKey label last4 findings { level code message } enteredAt held }
+      items { personId name avatarUrl attributeKey label last4 findings { level code message } enteredAt held enteredBy }
       decided { personId name label outcome decidedBy decidedAt note }
     }
   }`,
 
   Duplicates: `query Duplicates($a: ID, $b: ID) {
     peopleDuplicates(a: $a, b: $b) {
-      items { personIds names reasons match }
+      items { personIds names reasons match flaggedBy avatarUrls }
       merges { absorbedId survivorId absorbedName survivorName mergedAt reversed kept account refusal }
       comparison {
         people { id name status refusal }
@@ -233,7 +244,10 @@ export const OPERATIONS = {
 
   /** How many decisions wait for this viewer, counted: the shell's bell and badges. */
   Waiting: `query Waiting {
-    peopleWaiting { identifiers duplicates accessRequests flagged asked exports }
+    peopleWaiting {
+      identifiers duplicates accessRequests flagged asked exports
+      identifiersBy accessRequestsBy exportsBy
+    }
   }`,
 
   /** Where People starts: the viewer, their line, and what waits for them. */

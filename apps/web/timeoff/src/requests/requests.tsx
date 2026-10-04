@@ -523,7 +523,7 @@ function ChangeDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent sheetOnTouch>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{approved ? `Change ${label}` : `Withdraw ${label}`}</DialogTitle>
           <DialogDescription>

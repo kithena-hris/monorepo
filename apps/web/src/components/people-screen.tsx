@@ -2,14 +2,7 @@
 
 import type { Route } from 'next';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  useEffect,
-  useReducer,
-  useRef,
-  useState,
-  useTransition,
-  type JSX,
-} from 'react';
+import { useEffect, useRef, useState, useTransition, type JSX } from 'react';
 
 import * as actions from '../app/(app)/people/actions';
 import type { ScreenLoad } from '../lib/people-screens';
@@ -322,61 +315,9 @@ function download(
   return { ok: true };
 }
 
-/** What each streamed part of a load settled to, once it has: kept, so a page drawn again has it at once. */
-const settled = new WeakMap<object, unknown>();
-
-const isThenable = (value: unknown): value is PromiseLike<unknown> =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as { then?: unknown }).then === 'function';
-
-/**
- * A load with parts the server streams rather than waits for (a promise in
- * its data, `loadScreen`): each part is `'loading'` until it arrives, so the
- * rest of the screen is sent, drawn and pressable without it. On the server
- * and while hydrating every such part is still `'loading'`, as the server
- * drew it.
- */
-function useStreamed(load: ScreenLoad): ScreenLoad {
-  const [, arrived] = useReducer((n: number) => n + 1, 0);
-  const data =
-    load.status === 'ready' && typeof load.data === 'object' && load.data !== null
-      ? (load.data as Readonly<Record<string, unknown>>)
-      : null;
-  useEffect(() => {
-    if (data === null) return;
-    let live = true;
-    for (const part of Object.values(data)) {
-      if (!isThenable(part) || settled.has(part)) continue;
-      // `Promise.resolve`: React's streamed thenable does not chain.
-      void Promise.resolve(part)
-        .catch(() => null)
-        .then((value) => {
-          settled.set(part, value);
-          if (live) arrived();
-        });
-    }
-    return () => {
-      live = false;
-    };
-  }, [data]);
-  if (load.status !== 'ready' || data === null || !Object.values(data).some(isThenable)) {
-    return load;
-  }
-  return {
-    ...load,
-    data: Object.fromEntries(
-      Object.entries(data).map(([key, part]) => [
-        key,
-        isThenable(part) ? (settled.has(part) ? settled.get(part) : 'loading') : part,
-      ]),
-    ),
-  };
-}
-
 export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   const { route, path, params, search, today, frame } = input;
-  const load = useStreamed(input.load);
+  const { load } = input;
   const shell = useShellData();
   const router = useRouter();
   const [, startTransition] = useTransition();

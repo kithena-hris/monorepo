@@ -189,6 +189,8 @@ describe('sending', () => {
       state: 'pending',
       mine: true,
       canDecide: false,
+      // How many people it covers, as the requester read it when they asked (E5).
+      people: 3,
       approvers: [{ accountId: NORA, name: 'Nora Becker' }],
       gap: { fields: [{ key: 'given_name' }, { key: 'job_title' }, { key: 'base_salary' }] },
     });
@@ -209,6 +211,30 @@ describe('sending', () => {
       const none = await sharesToDecide(tx, deps, asking(viewer));
       expect(none.ok && none.value).toEqual([]);
     }
+  });
+
+  it('puts the requester’s photo on it, where the administrator may read them', async () => {
+    const { deps } = setup();
+    const faces: ShareDeps = {
+      ...deps,
+      photos: {
+        get: () => Promise.resolve(null),
+        versions: (_tx, _tenant, ids) =>
+          Promise.resolve(
+            new Map(ids.filter((id) => id === ADA).map((id) => [id, 'abcdef0123456789ff'])),
+          ),
+      },
+    };
+    await shareExport(tx, faces, asking(HR), { choice, recipient: MANAGER.accountId });
+    const listed = await sharesToDecide(tx, faces, asking(ADMIN));
+    expect(listed.ok && listed.value[0]?.requestedBy).toEqual({
+      accountId: HR.accountId,
+      name: 'Ada Lovelace',
+      avatarUrl: `/people/photos/${ADA}?v=abcdef0123456789`,
+    });
+    // No photos wired: nobody's face.
+    const plain = await sharesToDecide(tx, deps, asking(ADMIN));
+    expect(plain.ok && plain.value[0]?.requestedBy.avatarUrl).toBeNull();
   });
 
   it('is refused with nobody to approve it', async () => {

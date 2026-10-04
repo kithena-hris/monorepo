@@ -119,11 +119,18 @@ export interface PendingChangeStore {
   /**
    * Approved or rejected since an instant, or lapsed since then by `until`
    * (an expiry not yet recorded included), newest first: the Decided tab.
+   * With `requestedBy`, only that requester's, their withdrawals included:
+   * their own Decided.
    */
   decided(
     tx: Tx,
     tenantId: string,
-    where: { readonly since: string; readonly until: string; readonly limit: number },
+    where: {
+      readonly since: string;
+      readonly until: string;
+      readonly limit: number;
+      readonly requestedBy?: string;
+    },
   ): Promise<readonly PendingChange[]>;
   /** A sealed value's plaintext, while it is pending. */
   unseal(tx: Tx, tenantId: string, id: string): Promise<string | null>;

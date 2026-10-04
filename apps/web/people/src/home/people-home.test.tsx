@@ -173,6 +173,8 @@ describe('Home, as HR (B2)', () => {
     identifiers: 3,
     duplicates: 2,
     accessRequests: 1,
+    identifiersBy: ['Adam Novak', 'Yuki Sato', 'Omar Haddad'],
+    accessRequestsBy: ['Sofia Lindqvist'],
     joiners: [{ label: 'Sep', value: 14 }],
     starting: [
       { id: 'm', name: 'Mei Tanaka', avatarUrl: null, detail: 'Data analyst', missing: 3 },
@@ -234,7 +236,24 @@ describe('Home, as HR (B2)', () => {
       />,
       { wrapper: TooltipProvider },
     );
-    expect(within(part('Needs HR')).getByText('1 looks unusual: a 38% raise')).toBeInTheDocument();
+    expect(
+      within(part('Needs HR')).getByText(
+        '1 looks unusual: a 38% raise · asked by Tim Berners-Lee and others',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('names who asked on every row of Needs HR (B2)', () => {
+    render(<PeopleHome load={ready({ ...overview(), hr: figures })} />, {
+      wrapper: TooltipProvider,
+    });
+    const needs = within(part('Needs HR'));
+    expect(
+      needs.getByText(
+        'Failed a check, or couldn’t be verified · entered by Adam Novak and 2 others',
+      ),
+    ).toBeInTheDocument();
+    expect(needs.getByText('Sofia Lindqvist asked to see unmasked values')).toBeInTheDocument();
   });
 
   it('says nothing needs HR when every queue is empty', () => {

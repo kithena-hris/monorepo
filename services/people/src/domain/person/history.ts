@@ -169,6 +169,22 @@ export function valueAsOf(
 }
 
 /**
+ * The entry last recorded for a key before an instant: what a write at that
+ * instant found there, which is what "before" means beside a change that was
+ * decided, withdrawn or lapsed then. Nothing before the first record.
+ */
+export function recordedBefore(
+  history: readonly HistoryEntry[],
+  attributeKey: string,
+  at: string,
+): HistoryEntry | undefined {
+  return history
+    .filter((e) => e.attributeKey === attributeKey && Date.parse(e.recordedAt) < Date.parse(at))
+    .toSorted((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt))
+    .at(-1);
+}
+
+/**
  * A record's values with `keys` read as they stand on `date`: a row in force
  * that day, a scheduled one included, and otherwise what the record holds —
  * a key nothing recorded yet was in force for keeps its current value.

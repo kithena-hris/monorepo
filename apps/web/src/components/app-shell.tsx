@@ -81,7 +81,6 @@ import {
   type ShortcutsValue,
 } from './shortcuts';
 
-
 /*
  * Reach's icon set, by meaning rather than by drawing.
  *
@@ -192,10 +191,6 @@ const ShellContext = createContext<{
 
 export function useShellData(): ShellData {
   return use(ShellContext).shell;
-}
-
-export function useShellPerson(): AppShellProps['person'] | null {
-  return use(ShellContext).person;
 }
 
 /** The shell's own pages, beside People's routes (`isPage`). */

@@ -128,8 +128,11 @@ export interface ExportDeps {
   readonly records: RecordDeps;
   /** The tenant's calendar, for the file's date. */
   readonly calendars: Calendars;
-  /** Profile photos. Absent, an export carries none. */
-  readonly photos?: Pick<PhotoStore, 'get'>;
+  /**
+   * Profile photos. Absent, an export carries none. `versions`, where given,
+   * puts a requester's face on a request to send an export.
+   */
+  readonly photos?: Pick<PhotoStore, 'get'> & Partial<Pick<PhotoStore, 'versions'>>;
 }
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';

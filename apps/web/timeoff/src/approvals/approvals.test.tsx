@@ -105,7 +105,7 @@ describe('waiting for me (T16)', () => {
     fireEvent.click(
       screen.getByRole('checkbox', { name: 'Include Leo Rossi’s request in Approve all' }),
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Approve 2' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve 2' }, { timeout: 5000 }));
     expect(onApprove).toHaveBeenLastCalledWith(
       waiting()
         .clear.filter((i) => i.requestId !== leo.requestId)

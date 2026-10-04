@@ -41,6 +41,21 @@ export const listed = (items: readonly string[]): string =>
     ? (items[0] ?? '')
     : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
 
+/**
+ * Who asked, for a row that counts several requests: "Sofia Lindqvist",
+ * "Sofia Lindqvist and Marco Ruiz", "Sofia Lindqvist and 2 others", or, where
+ * the names are only some of them, "Sofia Lindqvist and others". Null for none.
+ */
+export function whoOf(names: readonly string[], more = false): string | null {
+  const [first, second] = names;
+  if (first === undefined) return null;
+  if (more) return `${first} and others`;
+  if (second === undefined) return first;
+  return names.length === 2
+    ? `${first} and ${second.replace(/^You$/u, 'you')}`
+    : `${first} and ${String(names.length - 1)} others`;
+}
+
 /** A small muted line with a shield: the rule a panel works under. */
 export function Rule({ children }: { readonly children: ReactNode }): JSX.Element {
   return (

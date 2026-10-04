@@ -4,7 +4,6 @@ import type {
   CollectAt,
   DataType,
   ListOperand,
-  PiiKind,
   RequirednessMode,
   ViewerScope,
   WriterRole,
@@ -123,24 +122,6 @@ export const SCOPE_LABEL: Record<ViewerScope, string> = {
  * somebody is hired, before their first day; `anytime` and `hr_only` from the
  * start date (`completeness.ts`, `BEFORE_START`).
  */
-/** A line under each "who can change it" choice. */
-export const WRITER_HINT: Partial<Record<WriterRole, string>> = {
-  employee: 'They fill it in and correct it themselves.',
-  manager: 'Their direct manager can change it.',
-  hr: 'Anyone in your HR team can change it.',
-  finance: 'Your finance team can change it, for payroll.',
-};
-
-/** A line under each "who can see it" choice. */
-export const SCOPE_HINT: Record<ViewerScope, string> = {
-  self: 'The person the record is about.',
-  manager: 'Their direct manager.',
-  manager_chain: 'Every manager above them, up to the top.',
-  hr: 'Your HR team.',
-  finance: 'Your finance team, for payroll.',
-  admin: 'People administrators.',
-  directory: 'Anybody at the company, in the people directory.',
-};
 
 export const COLLECT_LABEL: Record<
   CollectAt,
@@ -208,15 +189,6 @@ export const CLASSIFICATION_LABEL: Record<Classification, { label: string; descr
         'Protected by law (GDPR Article 9). Never sent to AI, never carried on an event, never exported without a reason.',
     },
   };
-
-export const PII_LABEL: Record<PiiKind, string> = {
-  identity: 'Who someone is',
-  financial: 'Money or bank details',
-  contact: 'How to reach someone',
-  health: 'Health',
-  biometric: 'Biometric',
-  none: 'Not personal data',
-};
 
 export const REQUIREDNESS_LABEL: Record<RequirednessMode, string> = {
   always: 'Required',

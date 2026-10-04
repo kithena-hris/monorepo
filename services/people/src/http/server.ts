@@ -1012,6 +1012,7 @@ export function wirePeople(server: Server): void {
     exports,
     fullValues: exports.fullValues,
     shares,
+    personOf: screens.personOf,
     segments: drizzleSegments(),
     screens: [
       ...screenRoutes({ ...screens, ...imports.deps }, idempotency),

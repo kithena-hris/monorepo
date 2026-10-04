@@ -1,14 +1,6 @@
 import type { SettingsModule } from '../components/settings-index';
 import type { ShellData } from './shell-data';
 
-/** The People settings whose card says how each is set now (`peopleNow` on the Settings page). */
-export const PEOPLE_NOW_PATHS = [
-  '/settings/people/fields',
-  '/settings/people/organisation',
-  '/settings/people/roles',
-  '/settings/people/integrations',
-] as const;
-
 /**
  * The Settings page's modules, in order: People's settings where this viewer
  * has any, Time Off's likewise, the activity log for People administrators and HR, and their own.

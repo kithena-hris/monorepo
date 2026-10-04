@@ -46,7 +46,7 @@ export function SupportSignIn({
           Sign in as support
         </Button>
       </DialogTrigger>
-      <DialogContent sheetOnTouch className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <form
           method="post"
           action={`/companies/${companyId}/support`}
