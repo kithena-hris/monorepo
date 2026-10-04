@@ -93,6 +93,11 @@ export interface CompletenessState {
   readonly completedThisWeek: number;
   /** HR's missing values over everybody, not only this page. */
   readonly toFill: number;
+  /**
+   * The rows Missing details lists over everybody (a person HR fills for, a
+   * person waiting on themselves): what Review's chip counts. Absent from an older People.
+   */
+  readonly listed?: number;
   /** People missing bank, tax or ID details; null where People cannot say. */
   readonly blocking: number | null;
   readonly fields: readonly GapField[];
@@ -180,8 +185,6 @@ export interface MissingActions {
    */
   readonly fill?: string | null;
   readonly onFillChange?: (fill: string | null) => void;
-  /** How many values were filled in here, for a count drawn outside (Review's chip). */
-  readonly onFilled?: (count: number) => void;
   /** When the page was read (epoch ms): what "reminded within the day" is measured from, the same on the server and in the browser. */
   readonly now?: number;
 }
@@ -372,7 +375,6 @@ function Missing({
   onRemind,
   fill: heldFill,
   onFillChange,
-  onFilled,
   now,
 }: MissingActions & { readonly state: CompletenessState }): JSX.Element {
   const [fill, setFill] = useHeldAtOnce<string | null>(heldFill, onFillChange, heldFill ?? null);
@@ -420,7 +422,6 @@ function Missing({
       for (const c of applied) next[c.personId] = [...(next[c.personId] ?? []), ...c.keys];
       return next;
     });
-    onFilled?.(filledCount + count);
     const held = result.held ?? 0;
     const reviewed = (result.findings ?? []).filter((f) => f.review === 'pending').length;
     setOutcome({

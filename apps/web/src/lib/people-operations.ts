@@ -247,7 +247,7 @@ export const OPERATIONS = {
   /** How many decisions wait for this viewer, counted: the shell's bell and badges. */
   Waiting: `query Waiting {
     peopleWaiting {
-      identifiers duplicates accessRequests flagged asked exports
+      identifiers duplicates accessRequests flagged asked exports changes
       identifiersBy duplicatesBy accessRequestsBy exportsBy
     }
   }`,
@@ -356,6 +356,7 @@ export const OPERATIONS = {
       waiting { people lastReminded due }
       completedThisWeek
       toFill
+      listed
       blocking
       fields { key label dataType currency options { value label } person sensitive }
       rows { personId name department manager missing owner remindedAt }

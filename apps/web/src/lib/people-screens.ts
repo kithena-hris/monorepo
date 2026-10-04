@@ -450,6 +450,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     people('Analytics', { segment: null }),
     people('ExportSharesToDecide'),
     people('OwnDecided'),
+    people('Waiting'),
   ]);
   const roles = await people<{ hr?: boolean; admin?: boolean; finance?: boolean }>('Home');
   if (!roles.ok) {
@@ -472,6 +473,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     shares,
     own,
     person,
+    counts,
   ] = await Promise.all([
     approvals,
     hr ? read('IdentifierReviews') : null,
@@ -489,6 +491,8 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     hr ? null : read('OwnDecided', {}, VIEWS.OwnDecided),
     // Their gaps on their own, so the dialog opens though they are past the first page.
     hr && named !== null ? read('Completeness', { person: named }) : null,
+    // Every chip's count, People's over everybody: the shell's own read, shared.
+    read('Waiting'),
   ]);
   const down = [changes, identifiers, duplicates, fullValues, completeness].find(
     (l) => l?.status === 'error' && l.unreachable === true,
@@ -514,6 +518,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
             },
       shares: shares === null ? null : ((jsonOf(shares) as unknown[] | null) ?? null),
       ownDecided: ready(own),
+      counts: ready(counts),
       // Somebody else's or gone: said as such in its pane, never as an error page.
       share:
         share === null
