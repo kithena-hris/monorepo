@@ -55,7 +55,13 @@ const row = (personId: string, name: string, over: Partial<BulkRow> = {}): BulkR
   name,
   outcome: 'changed',
   changes: [
-    { key: 'job_title', label: 'Job title', dated: true, before: 'Engineer', after: 'Staff engineer' },
+    {
+      key: 'job_title',
+      label: 'Job title',
+      dated: true,
+      before: 'Engineer',
+      after: 'Staff engineer',
+    },
   ],
   refusal: null,
   findings: [],
@@ -63,21 +69,20 @@ const row = (personId: string, name: string, over: Partial<BulkRow> = {}): BulkR
 });
 
 const answer = (committed: boolean) =>
-  vi.fn(
-    (page: BulkEditPage): Promise<BulkOutcome> =>
-      Promise.resolve({
-        ok: true,
-        committed,
-        rows: page.personIds.map((id) =>
-          id === 'j'
-            ? row(id, 'Joan Bosch', {
-                outcome: 'refused',
-                changes: [],
-                refusal: { code: 'FIELD_NOT_WRITABLE', message: 'Not yours to change: job_title' },
-              })
-            : row(id, id === 'a' ? 'Adam Reyes' : 'Lena Moreau'),
-        ),
-      }),
+  vi.fn((page: BulkEditPage): Promise<BulkOutcome> =>
+    Promise.resolve({
+      ok: true,
+      committed,
+      rows: page.personIds.map((id) =>
+        id === 'j'
+          ? row(id, 'Joan Bosch', {
+              outcome: 'refused',
+              changes: [],
+              refusal: { code: 'FIELD_NOT_WRITABLE', message: 'Not yours to change: job_title' },
+            })
+          : row(id, id === 'a' ? 'Adam Reyes' : 'Lena Moreau'),
+      ),
+    }),
   );
 
 describe('BulkEdit', () => {
@@ -86,7 +91,11 @@ describe('BulkEdit', () => {
     const onPreview = answer(false);
     const onCommit = answer(true);
     const { container } = render(
-      <BulkEdit load={{ status: 'ready', data: state }} onPreview={onPreview} onCommit={onCommit} />,
+      <BulkEdit
+        load={{ status: 'ready', data: state }}
+        onPreview={onPreview}
+        onCommit={onCommit}
+      />,
     );
     expect(screen.getByRole('heading', { name: 'Edit 3 people' })).toBeInTheDocument();
     await user.type(screen.getByRole('textbox', { name: 'Job title' }), 'Staff engineer');
@@ -151,7 +160,8 @@ describe('BulkEdit', () => {
 const placedIn =
   (location: string) =>
   (_: string, element: Element | null): boolean =>
-    element?.tagName === 'LI' && new RegExp(`^Work location: .*→ ${location}$`).test(element.textContent);
+    element?.tagName === 'LI' &&
+    new RegExp(`^Work location: .*→ ${location}$`).test(element.textContent);
 
 describe('BulkEdit: hire', () => {
   const hired = (personId: string, name: string, status: string): BulkRow =>
@@ -162,24 +172,23 @@ describe('BulkEdit: hire', () => {
       ],
     });
   const hires = (committed: boolean) =>
-    vi.fn(
-      (page: BulkHirePage): Promise<BulkOutcome> =>
-        Promise.resolve({
-          ok: true,
-          committed,
-          rows: page.map(({ personId }) =>
-            personId === 'j'
-              ? row(personId, 'Joan Bosch', {
-                  outcome: 'refused',
-                  changes: [],
-                  refusal: {
-                    code: 'INVALID_TRANSITION',
-                    message: 'Already employed; there is nobody to hire',
-                  },
-                })
-              : hired(personId, personId === 'a' ? 'Adam Reyes' : 'Lena Moreau', 'Active'),
-          ),
-        }),
+    vi.fn((page: BulkHirePage): Promise<BulkOutcome> =>
+      Promise.resolve({
+        ok: true,
+        committed,
+        rows: page.map(({ personId }) =>
+          personId === 'j'
+            ? row(personId, 'Joan Bosch', {
+                outcome: 'refused',
+                changes: [],
+                refusal: {
+                  code: 'INVALID_TRANSITION',
+                  message: 'Already employed; there is nobody to hire',
+                },
+              })
+            : hired(personId, personId === 'a' ? 'Adam Reyes' : 'Lena Moreau', 'Active'),
+        ),
+      }),
     );
 
   it('previews who is hired and who is skipped and why, then hires, reporting partial success', async () => {
@@ -196,11 +205,11 @@ describe('BulkEdit: hire', () => {
       />,
     );
     await user.click(screen.getByRole('tab', { name: 'Hire' }));
-    expect(screen.getByRole('heading', { name: 'Hire 3 people' })).toBeInTheDocument();
+    // The preview asks itself as the tab opens (C8): the title counts who it would hire.
+    expect(await screen.findByRole('heading', { name: 'Hire 2 people' })).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
-    await user.click(screen.getByRole('button', { name: 'Preview hire' }));
 
-    await screen.findByText('Nobody is hired yet');
+    await screen.findByRole('table', { name: 'Per person' });
     expect(onPreviewHire.mock.calls.map(([page]) => page)).toEqual([
       [
         { personId: 'a', hireDate: '2026-09-26' },
@@ -209,7 +218,9 @@ describe('BulkEdit: hire', () => {
       [{ personId: 'j', hireDate: '2026-09-26' }],
     ]);
     const table = screen.getByRole('table', { name: 'Per person' });
-    expect(within(table).getByText('Already employed; there is nobody to hire')).toBeInTheDocument();
+    expect(
+      within(table).getByText('Already employed; there is nobody to hire'),
+    ).toBeInTheDocument();
     expect(within(table).getAllByText('Skipped')).toHaveLength(1);
     expect(await axeViolations(container)).toEqual([]);
 
@@ -233,7 +244,6 @@ describe('BulkEdit: hire', () => {
       />,
     );
     await user.click(screen.getByRole('tab', { name: 'Hire' }));
-    await user.click(screen.getByRole('button', { name: 'Preview hire' }));
     const table = await screen.findByRole('table', { name: 'Per person' });
     expect(await axeViolations(container)).toEqual([]);
 
@@ -264,17 +274,16 @@ describe('BulkEdit: hire', () => {
   it('draws only the latest preview when an older one answers last', async () => {
     const user = fast();
     const slow: ((answer: BulkOutcome) => void)[] = [];
-    const onPreviewHire = vi.fn(
-      (page: BulkHirePage): Promise<BulkOutcome> =>
-        page.some((h) => h.hireDate === '2026-09-30')
-          ? Promise.resolve({
-              ok: true,
-              committed: false,
-              rows: page.map((h) => hired(h.personId, h.personId, 'Starting soon')),
-            })
-          : onPreviewHire.mock.calls.length <= 1
-            ? hires(false)(page)
-            : new Promise((resolve) => slow.push(resolve)),
+    const onPreviewHire = vi.fn((page: BulkHirePage): Promise<BulkOutcome> =>
+      page.some((h) => h.hireDate === '2026-09-30')
+        ? Promise.resolve({
+            ok: true,
+            committed: false,
+            rows: page.map((h) => hired(h.personId, h.personId, 'Starting soon')),
+          })
+        : onPreviewHire.mock.calls.length <= 1
+          ? hires(false)(page)
+          : new Promise((resolve) => slow.push(resolve)),
     );
     render(
       <BulkEdit
@@ -286,7 +295,6 @@ describe('BulkEdit: hire', () => {
       />,
     );
     await user.click(screen.getByRole('tab', { name: 'Hire' }));
-    await user.click(screen.getByRole('button', { name: 'Preview hire' }));
     const table = await screen.findByRole('table', { name: 'Per person' });
     expect(within(table).getAllByText('Skipped')).toHaveLength(1);
 
@@ -328,36 +336,47 @@ describe('BulkEdit: hire', () => {
       [string, string]
     >;
     // Adam is placed already; Lena and Joan are placed nowhere.
-    const onPreviewHire = vi.fn(
-      (page: BulkHirePage): Promise<BulkOutcome> =>
-        Promise.resolve({
-          ok: true,
-          committed: false,
-          rows: page.map(({ personId, locationId }) => {
-            const name = named[personId] ?? personId;
-            if (personId === 'a') return hired(personId, name, 'Active');
-            const at = locationId === undefined ? undefined : where[locationId];
-            if (at === undefined) {
-              return row(personId, name, {
-                outcome: 'refused',
-                changes: [],
-                refusal: {
-                  code: 'PLACEMENT_REQUIRED',
-                  message: 'Choose a legal entity and work location first',
-                },
-              });
-            }
-            const base = hired(personId, name, 'Active');
-            return {
-              ...base,
-              changes: [
-                ...base.changes,
-                { key: 'legal_entity_id', label: 'Legal entity', dated: true, before: null, after: at[0] },
-                { key: 'location_id', label: 'Work location', dated: true, before: null, after: at[1] },
-              ],
-            };
-          }),
+    const onPreviewHire = vi.fn((page: BulkHirePage): Promise<BulkOutcome> =>
+      Promise.resolve({
+        ok: true,
+        committed: false,
+        rows: page.map(({ personId, locationId }) => {
+          const name = named[personId] ?? personId;
+          if (personId === 'a') return hired(personId, name, 'Active');
+          const at = locationId === undefined ? undefined : where[locationId];
+          if (at === undefined) {
+            return row(personId, name, {
+              outcome: 'refused',
+              changes: [],
+              refusal: {
+                code: 'PLACEMENT_REQUIRED',
+                message: 'Choose a legal entity and work location first',
+              },
+            });
+          }
+          const base = hired(personId, name, 'Active');
+          return {
+            ...base,
+            changes: [
+              ...base.changes,
+              {
+                key: 'legal_entity_id',
+                label: 'Legal entity',
+                dated: true,
+                before: null,
+                after: at[0],
+              },
+              {
+                key: 'location_id',
+                label: 'Work location',
+                dated: true,
+                before: null,
+                after: at[1],
+              },
+            ],
+          };
         }),
+      }),
     );
     const { container } = render(
       <BulkEdit
@@ -369,12 +388,17 @@ describe('BulkEdit: hire', () => {
       />,
     );
     await user.click(screen.getByRole('tab', { name: 'Hire' }));
-    await user.click(screen.getByRole('button', { name: 'Preview hire' }));
     const table = await screen.findByRole('table', { name: 'Per person' });
     // Nowhere chosen: those placed nowhere are skipped, and why, with somewhere to choose.
-    expect(within(table).getAllByText('Choose a legal entity and work location first')).toHaveLength(2);
-    expect(within(table).getByRole('combobox', { name: 'Work location for Lena Moreau' })).toBeInTheDocument();
-    expect(within(table).queryByRole('combobox', { name: 'Work location for Adam Reyes' })).toBeNull();
+    expect(
+      within(table).getAllByText('Choose a legal entity and work location first'),
+    ).toHaveLength(2);
+    expect(
+      within(table).getByRole('combobox', { name: 'Work location for Lena Moreau' }),
+    ).toBeInTheDocument();
+    expect(
+      within(table).queryByRole('combobox', { name: 'Work location for Adam Reyes' }),
+    ).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
 
     // One choice for everybody.
@@ -392,7 +416,9 @@ describe('BulkEdit: hire', () => {
     // And Lena somewhere else.
     await user.click(within(table).getByRole('combobox', { name: 'Legal entity for Lena Moreau' }));
     await user.click(screen.getByRole('option', { name: 'Acme GmbH' }));
-    await user.click(within(table).getByRole('combobox', { name: 'Work location for Lena Moreau' }));
+    await user.click(
+      within(table).getByRole('combobox', { name: 'Work location for Lena Moreau' }),
+    );
     await user.click(screen.getByRole('option', { name: 'Berlin' }));
     await waitFor(() => {
       expect(within(table).getByText(placedIn('Berlin'))).toBeInTheDocument();
