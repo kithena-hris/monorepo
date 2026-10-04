@@ -34,6 +34,12 @@ export interface WaitingView {
   /** Requests to send an export this viewer may decide (E5). */
   readonly exports: number | null;
   /**
+   * Changes in HR's Waiting tab: every change waiting in the tenant but the
+   * viewer's own that wait on somebody else (those are I asked). Null for
+   * anybody but HR.
+   */
+  readonly changes: number | null;
+  /**
    * Who asked, beside each count, as the viewer may name them: whoever
    * entered each doubted identifier, asked for full values, or wants to send
    * an export. Distinct, oldest first; null beside a null count.
@@ -74,6 +80,7 @@ export async function waitingView(
       flagged: null,
       asked: null,
       exports,
+      changes: null,
       identifiersBy: null,
       duplicatesBy: null,
       accessRequestsBy: null,
@@ -91,6 +98,8 @@ export async function waitingView(
     inbox?.ok === true
       ? inbox.value.items.filter((c) => c.mine && !c.canDecide && !c.canSelfApprove).length
       : null;
+  // ponytail: the inbox is the store's first 200; a count query when a queue outgrows that.
+  const changes = inbox?.ok === true && mine !== null ? inbox.value.items.length - mine : null;
   const fullMine =
     full?.ok === true
       ? full.value.requests.filter((r) => r.mine && r.state === 'pending').length
@@ -98,7 +107,7 @@ export async function waitingView(
   // Only a decision waits on somebody who can make it; a request of one's own is not one.
   const toDecide =
     full?.ok === true && full.value.canDecide
-      ? full.value.requests.filter((r) => r.state === 'pending')
+      ? full.value.requests.filter((r) => r.state === 'pending' && !r.mine)
       : null;
   const entered = identifiers.ok
     ? identifiers.value.flatMap((r) => (r.enteredBy == null ? [] : [r.enteredBy]))
@@ -123,6 +132,7 @@ export async function waitingView(
         : null,
     asked: mine === null ? null : mine + fullMine,
     exports,
+    changes,
   });
 }
 

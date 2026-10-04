@@ -266,6 +266,11 @@ export function VirtualList<T>({
   const measured = useRef(new WeakMap<Element, string>());
   useLayoutEffect(() => {
     if (grid) return;
+    // A list not drawn (a phone's, hidden at a desk) has no heights to give:
+    // measured, every row is 0 tall, all of them fit, and each one drawn and
+    // measured asked for more until React stopped it (five thousand rows).
+    const box = outerRef.current;
+    if (box !== null && 'checkVisibility' in box && !box.checkVisibility()) return;
     const drawn = listRef.current?.querySelectorAll<HTMLElement>(':scope > [data-index]') ?? [];
     for (const li of drawn) {
       const at = li.dataset['index'] ?? '';

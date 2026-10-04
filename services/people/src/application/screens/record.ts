@@ -69,6 +69,11 @@ export interface ScreenDeps {
   readonly calendars: Calendars;
   /** The completeness grid's totals over everybody (PEO-122). */
   readonly gapTotals: (tx: Tx, tenantId: string) => Promise<GapTotals>;
+  /**
+   * How many people are missing any of these keys (HR's), over everybody.
+   * Absent, the most people missing any one key stands in: never more.
+   */
+  readonly gapPeople?: (tx: Tx, tenantId: string, keys: readonly string[]) => Promise<number>;
   /** The completeness screen's payroll and reminder figures. Absent, they are not shown. */
   readonly gapFigures?: (
     tx: Tx,

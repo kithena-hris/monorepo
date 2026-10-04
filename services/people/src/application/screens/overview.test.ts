@@ -546,6 +546,7 @@ describe('what waits for a decision, counted', () => {
         flagged: null,
         asked: null,
         exports: null,
+        changes: null,
         identifiersBy: null,
         duplicatesBy: null,
         accessRequestsBy: null,
@@ -571,6 +572,7 @@ describe('what waits for a decision, counted', () => {
         flagged: null,
         asked: null,
         exports: null,
+        changes: null,
         // Nobody to name without a reader of accounts; no queue, nobody at all.
         identifiersBy: reviews.ok ? [] : null,
         // What flagged each pair, once each, in the queue's order.
