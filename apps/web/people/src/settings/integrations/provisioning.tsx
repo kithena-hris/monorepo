@@ -1,5 +1,13 @@
 import {
   Alert,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Badge,
   Button,
   CopyField,
@@ -345,15 +353,36 @@ function ConnectionCard({
             >
               Rotate token
             </Button>
-            <Button
-              variant="destructive"
-              disabled={busy}
-              onClick={() => {
-                void attempt(() => onDisconnect(connection.id));
-              }}
-            >
-              Disconnect
-            </Button>
+            {/* Asked first: a disconnected system cannot be connected again with its old token. */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="danger-soft" disabled={busy} className="ms-auto">
+                  Disconnect
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogTitle>{`Disconnect ${connection.system}?`}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Its token stops working, and it no longer adds or removes people here. To
+                  provision from it again, connect it as a new system.
+                </AlertDialogDescription>
+                <AlertDialogFooter>
+                  <AlertDialogCancel asChild>
+                    <Button>Keep it connected</Button>
+                  </AlertDialogCancel>
+                  <AlertDialogAction asChild>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        void attempt(() => onDisconnect(connection.id));
+                      }}
+                    >
+                      Disconnect
+                    </Button>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         ) : null}
       </Stack>

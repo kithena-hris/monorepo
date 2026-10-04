@@ -93,7 +93,19 @@
       "component": "Integrations"
     },
     {
-      "path": "/settings/people/integrations/:id",
+      "path": "/settings/people/integrations/slack",
+      "component": "Integrations"
+    },
+    {
+      "path": "/settings/people/integrations/webhooks",
+      "component": "Integrations"
+    },
+    {
+      "path": "/settings/people/integrations/provisioning",
+      "component": "Integrations"
+    },
+    {
+      "path": "/settings/people/integrations/webhooks/:id",
       "component": "WebhookLog"
     },
     {
@@ -102,6 +114,26 @@
     },
     {
       "path": "/settings/people/organisation",
+      "component": "Organisation"
+    },
+    {
+      "path": "/settings/people/organisation/locations",
+      "component": "Organisation"
+    },
+    {
+      "path": "/settings/people/organisation/numbering",
+      "component": "Organisation"
+    },
+    {
+      "path": "/settings/people/organisation/country-packs",
+      "component": "Organisation"
+    },
+    {
+      "path": "/settings/people/organisation/reminders",
+      "component": "Organisation"
+    },
+    {
+      "path": "/settings/people/organisation/pay-bands",
       "component": "Organisation"
     },
     {
@@ -135,14 +167,6 @@
     {
       "path": "/settings/people",
       "component": "PeopleSettings"
-    },
-    {
-      "path": "/settings/people/reminders",
-      "component": "ReminderSettings"
-    },
-    {
-      "path": "/settings/people/country-packs",
-      "component": "CountryPacks"
     }
   ],
   "actions": [
@@ -273,49 +297,47 @@
       "label": "Employee fields",
       "for": ["admin"],
       "owns": ["/people/setup"],
-      "description": "The details kept on each person, who sees them and when they’re asked.",
+      "description": "What you keep about each person, who sees it and when it’s asked.",
       "icon": "document"
     },
     {
       "path": "/settings/people/organisation",
       "label": "Organisation",
-      "description": "Legal entities, locations, numbering, time zone and retention.",
+      "owns": [
+        "/settings/people/organisation/locations",
+        "/settings/people/organisation/numbering",
+        "/settings/people/organisation/country-packs",
+        "/settings/people/organisation/reminders",
+        "/settings/people/organisation/pay-bands"
+      ],
+      "description": "Legal entities, locations, numbering, country packs, reminders and pay bands.",
       "icon": "organisation"
     },
     {
       "path": "/settings/people/roles",
       "label": "Roles",
       "for": ["hr", "admin"],
-      "description": "Who has HR, administrator and finance access.",
+      "description": "Who has administrator, HR and finance access.",
       "icon": "permission"
     },
     {
       "path": "/settings/people/integrations",
       "label": "Integrations",
       "for": ["admin"],
-      "owns": ["/settings/people/integrations/:id"],
-      "description": "Slack, webhooks and identity provider sync.",
+      "owns": [
+        "/settings/people/integrations/slack",
+        "/settings/people/integrations/webhooks",
+        "/settings/people/integrations/provisioning",
+        "/settings/people/integrations/webhooks/:id"
+      ],
+      "description": "Slack, webhooks and provisioning from your identity provider.",
       "icon": "link"
-    },
-    {
-      "path": "/settings/people/reminders",
-      "label": "Completeness and reminders",
-      "for": ["hr", "admin"],
-      "description": "When people are reminded about missing details, and how small a group reports describe.",
-      "icon": "notifications"
-    },
-    {
-      "path": "/settings/people/country-packs",
-      "label": "Country packs",
-      "for": ["admin"],
-      "description": "The identifiers, fields and rules each country needs.",
-      "icon": "location"
     },
     {
       "path": "/settings/activity?area=fields,organisation,roles,integrations",
       "label": "Activity log",
       "for": ["hr", "admin"],
-      "description": "Every settings change, who made it and when, in the company’s activity log.",
+      "description": "Who did what, and when. Never the values themselves.",
       "icon": "history"
     }
   ]

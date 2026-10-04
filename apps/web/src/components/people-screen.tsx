@@ -1117,11 +1117,12 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             return actions.rotateEndpoint(id);
           },
           onOpenLog: (id: string) => {
-            go(`/settings/people/integrations/${id}`);
+            go(`/settings/people/integrations/webhooks/${id}`);
           },
-          tab: at('tab'),
+          // Each tab is its own address: the overview is the page's, the others under it.
+          tab: leaf === 'integrations' ? 'overview' : leaf,
           onTabChange: (tab: string) => {
-            note({ tab: tab === 'overview' ? null : tab }, 'push');
+            go(`/settings/people/integrations${tab === 'overview' ? '' : `/${tab}`}`);
           },
           scim: {
             onConnect: async (system: string) => {
@@ -1159,13 +1160,6 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onDelete: actions.deleteReportSchedule,
         };
       case 'ReportRuns':
-        return { load: loadable };
-      case 'ReminderSettings':
-        return {
-          load: loadable,
-          onCohortMinimum: (cohortMinimum: number) => actions.updateSettings({ cohortMinimum }),
-        };
-      case 'CountryPacks':
         return { load: loadable };
       case 'RoleSettings':
         return {
@@ -1286,12 +1280,12 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load.status === 'ready' && typeof load.data === 'object' && load.data !== null
             ? ((load.data as { next?: string | null }).next ?? null)
             : null;
-        const here = `/settings/people/integrations/${params['id'] ?? ''}`;
+        const here = `/settings/people/integrations/webhooks/${params['id'] ?? ''}`;
         return {
           load: loadable,
           onReplay: actions.replayDelivery,
           onBack: () => {
-            go('/settings/people/integrations');
+            go('/settings/people/integrations/webhooks');
           },
           ...(next === null
             ? {}
@@ -1320,9 +1314,10 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onChangeZone: actions.changeZone,
           onSetNumbering: actions.setNumbering,
           onSetPayBand: actions.setPayBand,
-          tab: at('tab'),
+          // Each tab is its own address: legal entities are the page's, the others under it.
+          tab: leaf === 'organisation' ? 'entities' : leaf,
           onTabChange: (tab: string) => {
-            note({ tab: tab === 'entities' ? null : tab }, 'push');
+            go(`/settings/people/organisation${tab === 'entities' ? '' : `/${tab}`}`);
           },
         };
       case 'ExportBuilder': {

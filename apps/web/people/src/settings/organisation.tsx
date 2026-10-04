@@ -1,8 +1,15 @@
 import {
   Alert,
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
   Badge,
   Button,
   Combobox,
+  DataTable,
   DatePicker,
   Dialog,
   DialogBody,
@@ -18,6 +25,7 @@ import {
   FieldError,
   FieldLabel,
   Input,
+  KeyValues,
   NumberField,
   PageHeader,
   PageSection,
@@ -37,12 +45,14 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  icons,
   type IsoDate,
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
+import { CountryPacks, type CountryPackRow } from './country-packs';
 
 /**
  * Legal entities, locations, employee numbering and the company's settings
@@ -142,7 +152,35 @@ export interface OrganisationState {
   readonly retentionFloors: readonly RetentionFloor[];
   /** HR's alone; null or absent for anybody else (PEO-075). */
   readonly upcomingErasures?: readonly UpcomingErasure[] | null;
+  /** The country packs, for People administrators; null or absent for anybody else. */
+  readonly packs?: readonly CountryPackRow[] | null;
+  /** How reminders about missing details go out: People's own rule, stated. Absent: not read. */
+  readonly reminders?: ReminderSchedule | null;
 }
+
+/** People's reminder rule today, stated rather than offered as a choice. */
+export interface ReminderSchedule {
+  /** "The day a detail goes missing, then once a week". */
+  readonly cadence: string;
+  /** "09:00 to 18:00, on their own clock". */
+  readonly window: string;
+  /** Also sent in a connected chat app, when its notice is on. */
+  readonly inChat: boolean;
+}
+
+/**
+ * The parts of Organisation, each its own address: the first is the page's
+ * own (`/settings/people/organisation`), every other is under it.
+ */
+export const ORGANISATION_TABS = [
+  'entities',
+  'locations',
+  'numbering',
+  'country-packs',
+  'reminders',
+  'pay-bands',
+] as const;
+export type OrganisationTab = (typeof ORGANISATION_TABS)[number];
 
 export type PhotoAtSignup = 'off' | 'optional' | 'required';
 
@@ -185,7 +223,7 @@ export interface OrganisationProps {
     scheme: { prefix: string; digits: number; start: number },
   ) => Promise<Outcome>;
   readonly onSetPayBand?: (band: PayBandInput) => Promise<Outcome>;
-  /** The part of the settings on screen (`?tab=locations`), held by the host. */
+  /** The part of the settings on screen, from its address, held by the host. */
   readonly tab?: string | null;
   readonly onTabChange?: (tab: string) => void;
 }
@@ -222,13 +260,10 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
   const { state } = props;
   const [editing, setEditing] = useState<Editing | null>(null);
   const [chosen, setTab] = useHeld<string>(props.tab, props.onTabChange, 'entities');
-  const tabs = [
-    'entities',
-    'locations',
-    'numbering',
-    'company',
-    ...(state.payBands == null ? [] : ['pay']),
-  ];
+  // Country packs are People administrators'; pay bands HR's and finance's.
+  const tabs = ORGANISATION_TABS.filter(
+    (t) => (t !== 'country-packs' || state.packs != null) && (t !== 'pay-bands' || state.payBands != null),
+  ) as readonly string[];
   const tab = tabs.includes(chosen) ? chosen : 'entities';
   const close = (): void => {
     setEditing(null);
@@ -237,7 +272,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
     <Stack gap={6}>
       <PageHeader
         title="Organisation"
-        description="Legal entities, locations, time zones, employee numbering and company settings."
+        description="Legal entities, locations, numbering, country packs, reminders and pay bands."
       />
       {state.canManage ? null : (
         <Alert tone="info">Only a People administrator can change these.</Alert>
@@ -247,8 +282,11 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
           <TabsTrigger value="entities">Legal entities</TabsTrigger>
           <TabsTrigger value="locations">Locations</TabsTrigger>
           <TabsTrigger value="numbering">Employee numbering</TabsTrigger>
-          <TabsTrigger value="company">Company</TabsTrigger>
-          {state.payBands == null ? null : <TabsTrigger value="pay">Pay bands</TabsTrigger>}
+          {state.packs == null ? null : (
+            <TabsTrigger value="country-packs">Country packs</TabsTrigger>
+          )}
+          <TabsTrigger value="reminders">Reminders and privacy</TabsTrigger>
+          {state.payBands == null ? null : <TabsTrigger value="pay-bands">Pay bands</TabsTrigger>}
         </TabsList>
         <TabsContent value="entities">
           <Entities state={state} onEdit={setEditing} onUpdate={props.onUpdateEntity} />
@@ -259,17 +297,23 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
         <TabsContent value="numbering">
           <Numberings state={state} onEdit={setEditing} />
         </TabsContent>
-        <TabsContent value="company">
-          <Stack gap={6}>
+        {state.packs == null ? null : (
+          <TabsContent value="country-packs">
+            <CountryPacks packs={state.packs} entities={state.legalEntities} />
+          </TabsContent>
+        )}
+        <TabsContent value="reminders">
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 @4xl/page:grid-cols-2">
             <Company state={state} onSave={props.onUpdateSettings} />
+            <RemindersAndPrivacy state={state} onSave={props.onUpdateSettings} />
             <RetentionFloors floors={state.retentionFloors} />
             {state.upcomingErasures == null ? null : (
               <UpcomingErasures erasures={state.upcomingErasures} />
             )}
-          </Stack>
+          </div>
         </TabsContent>
         {state.payBands == null ? null : (
-          <TabsContent value="pay">
+          <TabsContent value="pay-bands">
             <PayBands bands={state.payBands} onSet={props.onSetPayBand} />
           </TabsContent>
         )}
@@ -284,38 +328,69 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
 const countryName = (state: OrganisationState, code: string): string =>
   state.countries.find((c) => c.code === code)?.name ?? code;
 
-/** Archive or restore at once: nothing is lost either way, so there is nothing to confirm. */
-function ArchiveButton({
-  name,
-  archived,
-  onToggle,
-}: {
+/** An entity or a location to archive or restore, once its row menu was chosen. */
+interface Archiving {
   readonly name: string;
   readonly archived: boolean;
-  readonly onToggle: () => Promise<Outcome>;
+  readonly toggle: () => Promise<Outcome>;
+}
+
+/**
+ * Archive or restore, asked first. Nothing is lost either way, but either
+ * changes what can be chosen for everybody, so it is never one stray click.
+ */
+function ArchiveConfirm({
+  archiving,
+  onClose,
+}: {
+  readonly archiving: Archiving;
+  readonly onClose: () => void;
 }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
+  const verb = archiving.archived ? 'Restore' : 'Archive';
   return (
-    <span className="inline-flex flex-col gap-1">
-      <Button
-        size="sm"
-        loading={busy}
-        loadingLabel="Saving"
-        aria-label={`${archived ? 'Restore' : 'Archive'} ${name}`}
-        onClick={() => {
-          setBusy(true);
-          setRefused(null);
-          void onToggle().then((outcome) => {
-            setBusy(false);
-            if (!outcome.ok) setRefused(outcome.message);
-          });
-        }}
-      >
-        {archived ? 'Restore' : 'Archive'}
-      </Button>
-      {refused === null ? null : <span className="text-danger-fg text-xs">{refused}</span>}
-    </span>
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogTitle>{`${verb} ${archiving.name}?`}</AlertDialogTitle>
+        <AlertDialogDescription>
+          {archiving.archived
+            ? 'It can be chosen again for new records.'
+            : 'It can no longer be chosen for new records. Nothing is lost: restore it any time.'}
+        </AlertDialogDescription>
+        {refused === null ? null : (
+          <Alert tone="danger" title={archiving.archived ? 'Not restored' : 'Not archived'}>
+            {refused}
+          </Alert>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button>Cancel</Button>
+          </AlertDialogCancel>
+          <Button
+            variant={archiving.archived ? 'primary' : 'destructive'}
+            loading={busy}
+            loadingLabel="Saving"
+            onClick={() => {
+              setBusy(true);
+              setRefused(null);
+              void archiving.toggle().then((outcome) => {
+                setBusy(false);
+                if (outcome.ok) onClose();
+                else setRefused(outcome.message);
+              });
+            }}
+          >
+            {verb}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -328,12 +403,14 @@ function Entities({
   readonly onEdit: (editing: Editing) => void;
   readonly onUpdate: OrganisationProps['onUpdateEntity'];
 }): JSX.Element {
+  const [archiving, setArchiving] = useState<Archiving | null>(null);
   return (
     <Stack gap={4}>
       {state.canManage ? (
         <div>
           <Button
             variant="primary"
+            startIcon={<icons.add aria-hidden />}
             onClick={() => {
               onEdit({ kind: 'entity', entity: null });
             }}
@@ -342,54 +419,65 @@ function Entities({
           </Button>
         </div>
       ) : null}
-      {state.legalEntities.length === 0 ? (
-        <EmptyState
-          title="No legal entities yet"
-          description="The company’s first one comes from the back office; add others here."
+      <DataTable<LegalEntity>
+        label="Legal entities"
+        rows={state.legalEntities}
+        rowId={(e) => e.id}
+        describeRow={(e) => e.name}
+        empty={
+          <EmptyState
+            title="No legal entities yet"
+            description="The company’s first one comes from the back office; add others here."
+          />
+        }
+        columns={[
+          {
+            id: 'name',
+            header: 'Name',
+            cell: (e) => (
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <span className="font-semibold">{e.name}</span>
+                {e.archived ? <Badge size="sm">Archived</Badge> : null}
+              </span>
+            ),
+          },
+          { id: 'country', header: 'Country', cell: (e) => countryName(state, e.country) },
+          { id: 'zone', header: 'Time zone', cell: (e) => e.timeZone },
+        ]}
+        {...(state.canManage
+          ? {
+              rowActions: (entity: LegalEntity) => [
+                {
+                  id: 'edit',
+                  label: 'Edit',
+                  icon: <icons.edit aria-hidden />,
+                  onSelect: () => {
+                    onEdit({ kind: 'entity', entity });
+                  },
+                },
+                {
+                  id: 'archive',
+                  label: entity.archived ? 'Restore' : 'Archive',
+                  icon: entity.archived ? <icons.undo aria-hidden /> : <icons.archive aria-hidden />,
+                  onSelect: () => {
+                    setArchiving({
+                      name: entity.name,
+                      archived: entity.archived,
+                      toggle: () => onUpdate(entity.id, { archived: !entity.archived }),
+                    });
+                  },
+                },
+              ],
+            }
+          : {})}
+      />
+      {archiving === null ? null : (
+        <ArchiveConfirm
+          archiving={archiving}
+          onClose={() => {
+            setArchiving(null);
+          }}
         />
-      ) : (
-        <Table aria-label="Legal entities">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Country</TableHead>
-              <TableHead>Time zone</TableHead>
-              {state.canManage ? <TableHead>Change</TableHead> : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {state.legalEntities.map((entity) => (
-              <TableRow key={entity.id}>
-                <TableCell>
-                  <span className="font-medium">{entity.name}</span>{' '}
-                  {entity.archived ? <Badge tone="neutral">Archived</Badge> : null}
-                </TableCell>
-                <TableCell>{countryName(state, entity.country)}</TableCell>
-                <TableCell>{entity.timeZone}</TableCell>
-                {state.canManage ? (
-                  <TableCell>
-                    <span className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        aria-label={`Edit ${entity.name}`}
-                        onClick={() => {
-                          onEdit({ kind: 'entity', entity });
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <ArchiveButton
-                        name={entity.name}
-                        archived={entity.archived}
-                        onToggle={() => onUpdate(entity.id, { archived: !entity.archived })}
-                      />
-                    </span>
-                  </TableCell>
-                ) : null}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
       )}
     </Stack>
   );
@@ -404,6 +492,7 @@ function Locations({
   readonly onEdit: (editing: Editing) => void;
   readonly onUpdate: OrganisationProps['onUpdateLocation'];
 }): JSX.Element {
+  const [archiving, setArchiving] = useState<Archiving | null>(null);
   const entityName = (id: string): string =>
     state.legalEntities.find((e) => e.id === id)?.name ?? '—';
   const live = state.legalEntities.some((e) => !e.archived);
@@ -413,6 +502,7 @@ function Locations({
         <div>
           <Button
             variant="primary"
+            startIcon={<icons.add aria-hidden />}
             disabled={!live}
             onClick={() => {
               onEdit({ kind: 'location', location: null });
@@ -422,78 +512,95 @@ function Locations({
           </Button>
         </div>
       ) : null}
-      {state.locations.length === 0 ? (
-        <EmptyState
-          title="No locations yet"
-          description="A location’s time zone decides the day of everybody who works there."
-        />
-      ) : (
-        <Table aria-label="Locations">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Legal entity</TableHead>
-              <TableHead>Time zone</TableHead>
-              {state.canManage ? <TableHead>Change</TableHead> : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {state.locations.map((place) => {
+      <DataTable<Place>
+        label="Locations"
+        rows={state.locations}
+        rowId={(p) => p.id}
+        describeRow={(p) => p.name}
+        empty={
+          <EmptyState
+            title="No locations yet"
+            description="A location’s time zone decides the day of everybody who works there."
+          />
+        }
+        columns={[
+          {
+            id: 'name',
+            header: 'Name',
+            cell: (place) => (
+              <span className="flex flex-col">
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{place.name}</span>
+                  {place.archived ? <Badge size="sm">Archived</Badge> : null}
+                </span>
+                <span className="text-sm text-fg-muted">{countryName(state, place.country)}</span>
+              </span>
+            ),
+          },
+          { id: 'entity', header: 'Legal entity', cell: (p) => entityName(p.legalEntityId) },
+          {
+            id: 'zone',
+            header: 'Time zone',
+            cell: (place) => {
+              // A change still to come is said beside the zone in force.
               const later = place.zones.filter(
                 (z) => z.effectiveFrom > todayIn(z.timeZone) && z.timeZone !== place.timeZone,
               );
               return (
-                <TableRow key={place.id}>
-                  <TableCell>
-                    <span className="font-medium">{place.name}</span>{' '}
-                    {place.archived ? <Badge tone="neutral">Archived</Badge> : null}
-                    <span className="block text-fg-muted text-sm">
-                      {countryName(state, place.country)}
+                <span className="whitespace-normal">
+                  {place.timeZone}
+                  {later.map((z) => (
+                    <span key={z.effectiveFrom} className="text-fg-muted">
+                      {` · ${z.timeZone} from ${z.effectiveFrom}`}
                     </span>
-                  </TableCell>
-                  <TableCell>{entityName(place.legalEntityId)}</TableCell>
-                  <TableCell>
-                    {place.timeZone}
-                    {later.map((z) => (
-                      <span key={z.effectiveFrom} className="block text-fg-muted text-sm">
-                        {z.timeZone} from {z.effectiveFrom}
-                      </span>
-                    ))}
-                  </TableCell>
-                  {state.canManage ? (
-                    <TableCell>
-                      <span className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          aria-label={`Rename ${place.name}`}
-                          onClick={() => {
-                            onEdit({ kind: 'location', location: place });
-                          }}
-                        >
-                          Rename
-                        </Button>
-                        <Button
-                          size="sm"
-                          aria-label={`Change the time zone of ${place.name}`}
-                          onClick={() => {
-                            onEdit({ kind: 'zone', location: place });
-                          }}
-                        >
-                          Change time zone
-                        </Button>
-                        <ArchiveButton
-                          name={place.name}
-                          archived={place.archived}
-                          onToggle={() => onUpdate(place.id, { archived: !place.archived })}
-                        />
-                      </span>
-                    </TableCell>
-                  ) : null}
-                </TableRow>
+                  ))}
+                </span>
               );
-            })}
-          </TableBody>
-        </Table>
+            },
+          },
+        ]}
+        {...(state.canManage
+          ? {
+              rowActions: (place: Place) => [
+                {
+                  id: 'rename',
+                  label: 'Rename',
+                  icon: <icons.edit aria-hidden />,
+                  onSelect: () => {
+                    onEdit({ kind: 'location', location: place });
+                  },
+                },
+                {
+                  id: 'zone',
+                  label: 'Change time zone',
+                  icon: <icons.scheduled aria-hidden />,
+                  onSelect: () => {
+                    onEdit({ kind: 'zone', location: place });
+                  },
+                },
+                {
+                  id: 'archive',
+                  label: place.archived ? 'Restore' : 'Archive',
+                  icon: place.archived ? <icons.undo aria-hidden /> : <icons.archive aria-hidden />,
+                  onSelect: () => {
+                    setArchiving({
+                      name: place.name,
+                      archived: place.archived,
+                      toggle: () => onUpdate(place.id, { archived: !place.archived }),
+                    });
+                  },
+                },
+              ],
+            }
+          : {})}
+      />
+      {archiving === null ? null : (
+        <ArchiveConfirm
+          archiving={archiving}
+          onClose={() => {
+            setArchiving(null);
+          }}
+        />
       )}
     </Stack>
   );
@@ -1165,7 +1272,46 @@ function PayBandDialog({
   );
 }
 
-/** The minimum is raised, never lowered: People refuses a lower one, and so does its database. */
+/** A card's save: what People answered, under the fields, and the button at the end. */
+function SaveRow({
+  canManage,
+  busy,
+  disabled,
+  outcome,
+}: {
+  readonly canManage: boolean;
+  readonly busy: boolean;
+  readonly disabled: boolean;
+  readonly outcome: Outcome | null;
+}): JSX.Element | null {
+  return (
+    <>
+      {outcome === null ? null : outcome.ok ? (
+        <Alert tone="success">Saved.</Alert>
+      ) : (
+        <Alert tone="danger" title="Not saved">
+          {outcome.message}
+        </Alert>
+      )}
+      {canManage ? (
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={disabled}
+            loading={busy}
+            loadingLabel="Saving"
+          >
+            Save
+          </Button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/** The company as the back office named it, its default clock, and the photo at sign-up. */
 function Company({
   state,
   onSave,
@@ -1175,122 +1321,161 @@ function Company({
 }): JSX.Element {
   const { settings } = state;
   const [zone, setZone] = useState(settings.defaultTimeZone);
-  const [minimum, setMinimum] = useState<number | null>(settings.cohortMinimum);
   const photoWas = settings.photoAtSignup ?? 'off';
   const [photo, setPhoto] = useState<PhotoAtSignup>(photoWas);
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const lowered = minimum === null || minimum < settings.cohortMinimum;
-  const changed =
-    zone !== settings.defaultTimeZone ||
-    minimum !== settings.cohortMinimum ||
-    photo !== photoWas;
+  const changed = zone !== settings.defaultTimeZone || photo !== photoWas;
 
   return (
-    <form
-      aria-label="Company settings"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (lowered || !changed) return;
-        setBusy(true);
-        setOutcome(null);
-        void onSave({
-          ...(zone === settings.defaultTimeZone ? {} : { defaultTimeZone: zone }),
-          ...(minimum === settings.cohortMinimum ? {} : { cohortMinimum: minimum }),
-          ...(photo === photoWas ? {} : { photoAtSignup: photo }),
-        }).then((result) => {
-          setBusy(false);
-          setOutcome(result);
-        });
-      }}
-    >
-      <Stack gap={4}>
-        <Field>
-          <FieldLabel>Company</FieldLabel>
-          <FieldControl>
-            <Input readOnly value={settings.displayName ?? 'Not known yet'} />
-          </FieldControl>
-          <FieldDescription>
-            {settings.slug === null
-              ? 'Named by the back office.'
-              : `Signs in at ${settings.slug}. Named by the back office, and changed there.`}
-          </FieldDescription>
-        </Field>
-        <ZonePicker
-          state={state}
-          label="Default time zone"
-          value={zone}
-          onChange={setZone}
-          disabled={!state.canManage}
-          description="The day of anybody with no location or legal entity, and of every figure about the whole company."
-        />
-        <Field>
-          <FieldLabel>A photo when someone signs up</FieldLabel>
-          <Select
-            value={photo}
-            disabled={!state.canManage}
-            onValueChange={(v) => {
-              setPhoto(v as PhotoAtSignup);
-            }}
-          >
-            <FieldControl>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-            </FieldControl>
-            <SelectContent>
-              {PHOTO_AT_SIGNUP.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FieldDescription>
-            Asked on the first screen after they set up their account, beside any image or
-            document field you collect at sign-up.
-          </FieldDescription>
-        </Field>
-        {state.canManage ? (
-          <NumberField
-            label="Smallest group analytics will describe"
-            value={minimum}
-            min={settings.cohortMinimum}
-            step={1}
-            invalid={lowered}
-            hint={`Raise it to protect smaller groups. It cannot go below ${String(settings.cohortMinimum)}.`}
-            onChange={setMinimum}
-          />
-        ) : (
-          <Field>
-            <FieldLabel>Smallest group analytics will describe</FieldLabel>
-            <FieldControl>
-              <Input readOnly value={String(settings.cohortMinimum)} />
-            </FieldControl>
-          </Field>
-        )}
-        {outcome === null ? null : outcome.ok ? (
-          <Alert tone="success">Saved.</Alert>
-        ) : (
-          <Alert tone="danger" title="Not saved">
-            {outcome.message}
-          </Alert>
-        )}
-        {state.canManage ? (
-          <div>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={!changed || lowered}
-              loading={busy}
-              loadingLabel="Saving"
-            >
-              Save
-            </Button>
-          </div>
-        ) : null}
-      </Stack>
-    </form>
+    <PageSection surface title="Company">
+        <form
+          aria-label="Company settings"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!changed) return;
+            setBusy(true);
+            setOutcome(null);
+            void onSave({
+              ...(zone === settings.defaultTimeZone ? {} : { defaultTimeZone: zone }),
+              ...(photo === photoWas ? {} : { photoAtSignup: photo }),
+            }).then((result) => {
+              setBusy(false);
+              setOutcome(result);
+            });
+          }}
+        >
+          <Stack gap={4}>
+            <Field>
+              <FieldLabel>Company</FieldLabel>
+              <FieldControl>
+                <Input readOnly value={settings.displayName ?? 'Not known yet'} />
+              </FieldControl>
+              <FieldDescription>
+                {settings.slug === null
+                  ? 'Named by the back office.'
+                  : `Signs in at ${settings.slug}. Named by the back office, and changed there.`}
+              </FieldDescription>
+            </Field>
+            <ZonePicker
+              state={state}
+              label="Default time zone"
+              value={zone}
+              onChange={setZone}
+              disabled={!state.canManage}
+              description="The day of anybody with no location or legal entity, and of every figure about the whole company."
+            />
+            <Field>
+              <FieldLabel>A photo when someone signs up</FieldLabel>
+              <Select
+                value={photo}
+                disabled={!state.canManage}
+                onValueChange={(v) => {
+                  setPhoto(v as PhotoAtSignup);
+                }}
+              >
+                <FieldControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FieldControl>
+                <SelectContent>
+                  {PHOTO_AT_SIGNUP.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                Asked on the first screen after they set up their account, beside any image or
+                document field you collect at sign-up.
+              </FieldDescription>
+            </Field>
+            <SaveRow
+              canManage={state.canManage}
+              busy={busy}
+              disabled={!changed}
+              outcome={outcome}
+            />
+          </Stack>
+        </form>
+    </PageSection>
+  );
+}
+
+/**
+ * How people are reminded about missing details, and the smallest group a
+ * report describes: the one place that number is set. It is raised, never
+ * lowered: People refuses a lower one, and so does its database.
+ */
+function RemindersAndPrivacy({
+  state,
+  onSave,
+}: {
+  readonly state: OrganisationState;
+  readonly onSave: OrganisationProps['onUpdateSettings'];
+}): JSX.Element {
+  const floor = state.settings.cohortMinimum;
+  const [minimum, setMinimum] = useState<number | null>(floor);
+  const [busy, setBusy] = useState(false);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const lowered = minimum === null || minimum < floor;
+  const { reminders } = state;
+  return (
+    <PageSection surface title="Reminders and privacy">
+        <form
+          aria-label="Reminders and privacy"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (lowered || minimum === floor) return;
+            setBusy(true);
+            setOutcome(null);
+            void onSave({ cohortMinimum: minimum }).then((result) => {
+              setBusy(false);
+              setOutcome(result);
+            });
+          }}
+        >
+          <Stack gap={4}>
+            {reminders == null ? null : (
+              <KeyValues
+                aria-label="How reminders are sent"
+                layout="stacked"
+                items={[
+                  {
+                    label: 'Reminders to employees',
+                    value: 'By email, at most once a week, until their profile is complete',
+                  },
+                  { label: 'When', value: reminders.cadence },
+                  { label: 'At', value: reminders.window },
+                  {
+                    label: 'In chat',
+                    value: reminders.inChat ? 'Also, when connected' : 'Email only',
+                  },
+                ]}
+              />
+            )}
+            <NumberField
+              label="Smallest group shown in reports"
+              value={minimum}
+              min={floor}
+              step={1}
+              disabled={!state.canManage}
+              invalid={lowered}
+              hint="Can be raised, never lowered. In a smaller group, people can be picked out from an average."
+              onChange={setMinimum}
+              className="max-w-40"
+            />
+            <SaveRow
+              canManage={state.canManage}
+              busy={busy}
+              disabled={lowered || minimum === floor}
+              outcome={outcome}
+            />
+          </Stack>
+        </form>
+    </PageSection>
   );
 }
 
@@ -1308,7 +1493,7 @@ const FLOOR_NAMES: Readonly<Record<string, string>> = {
 function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[] }): JSX.Element {
   const pending = floors.some((f) => f.status === 'unreviewed');
   return (
-    <PageSection
+    <PageSection surface
       title="Statutory retention"
       description="The minimum time a leaver’s records are kept by law."
     >
@@ -1360,9 +1545,10 @@ function UpcomingErasures({
   readonly erasures: readonly UpcomingErasure[];
 }): JSX.Element {
   return (
-    <PageSection
+    <PageSection surface
       title="Automated erasure"
       description="Leavers whose data will be erased in the next three months."
+      actions={<Badge size="sm">HR only</Badge>}
     >
       {erasures.length === 0 ? (
         <EmptyState

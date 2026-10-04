@@ -44,7 +44,7 @@ const shell = vi.hoisted(() => ({
     screens: {
       '/people/insights/headcount': 'ReportRuns',
       '/people/insights/turnover': 'ReportRuns',
-      '/people/insights/what-changed': 'CountryPacks',
+      '/people/insights/what-changed': 'PeopleSettings',
     },
   },
 }));

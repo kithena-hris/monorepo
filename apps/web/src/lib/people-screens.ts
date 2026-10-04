@@ -273,21 +273,9 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'PeopleHome':
       return overview();
     case 'Organisation':
-      return read('Organisation');
+      return organisation();
     case 'PeopleSettings':
       return settingsOverview();
-    case 'ReminderSettings':
-      return reminderSettings();
-    case 'CountryPacks': {
-      const [setup, organisation] = await Promise.all([read('Setup'), read('Organisation')]);
-      if (setup.status !== 'ready') return setup;
-      const { packs } = setup.data as { packs: unknown[] };
-      const entities =
-        organisation.status === 'ready'
-          ? (organisation.data as { legalEntities: unknown[] }).legalEntities
-          : [];
-      return { status: 'ready', data: { packs, entities } };
-    }
     case 'FullValues':
       return read('FullValues');
     case 'IdentifierReviews':
@@ -540,15 +528,20 @@ async function overview(): Promise<ScreenLoad> {
 }
 
 /**
- * Completeness and reminders (S20): the reminder rule People runs today
- * (the day a detail goes missing, then weekly, in working hours), whether the
- * chat notice for it is on, and the reporting floor from the organisation.
- * The HR digest and the directory policy have no source yet and are left out.
+ * Organisation, every tab of it in one read (so moving between tabs fetches
+ * nothing new): the organisation itself; the country packs, which are People
+ * administrators' (`Setup` refuses anybody else, and the tab is left out);
+ * and the reminder rule People runs today (the day a detail goes missing,
+ * then weekly, in working hours), with whether its chat notice is on, beside
+ * the reporting floor it shares a card with.
  */
-async function reminderSettings(): Promise<ScreenLoad> {
-  const [organisation, chat] = await Promise.all([read('Organisation'), read('Chat')]);
-  if (organisation.status !== 'ready') return organisation;
-  const org = organisation.data as { canManage: boolean; settings: { cohortMinimum: number } };
+async function organisation(): Promise<ScreenLoad> {
+  const [org, setup, chat] = await Promise.all([
+    read('Organisation'),
+    read('Setup'),
+    read('Chat'),
+  ]);
+  if (org.status !== 'ready') return org;
   const chatData =
     chat.status === 'ready'
       ? (chat.data as {
@@ -563,8 +556,8 @@ async function reminderSettings(): Promise<ScreenLoad> {
   return {
     status: 'ready',
     data: {
-      canManage: org.canManage,
-      cohortMinimum: org.settings.cohortMinimum,
+      ...(org.data as object),
+      packs: setup.status === 'ready' ? (setup.data as { packs: unknown[] }).packs : null,
       reminders: {
         cadence: 'The day a detail goes missing, then once a week',
         window: '09:00 to 18:00, on their own clock',

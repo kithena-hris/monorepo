@@ -146,7 +146,11 @@ export function SettingsIndex({
                   {module.description}
                 </p>
                 {shown.length === 0 ? (
-                  <p className="text-sm text-fg-muted">No setting matches “{query}”.</p>
+                  <EmptyState
+                    icon={<icons.search />}
+                    title={`No setting matches “${query.trim()}”`}
+                    description="Try another word, or browse the areas on the left."
+                  />
                 ) : (
                   <ul className="grid gap-3.5 @5xl/page:grid-cols-2">
                     {shown.map((s) => (

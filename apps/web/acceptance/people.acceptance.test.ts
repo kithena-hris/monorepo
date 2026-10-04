@@ -765,10 +765,10 @@ describe('PEO-119: a location in another zone changes a person’s day', () => {
 
     // The office moves across the date line from today there: 25 hours
     // ahead, so his day is always a different date.
-    await page.goto(`${stack.shell}/settings/people/organisation`);
+    await page.goto(`${stack.shell}/settings/people/organisation/locations`);
     await page.waitForLoadState('networkidle');
-    await page.getByRole('tab', { name: 'Locations' }).click();
-    await page.getByRole('button', { name: 'Change the time zone of Pago Pago office' }).click();
+    await page.getByRole('button', { name: 'Actions for Pago Pago office' }).click();
+    await page.getByRole('menuitem', { name: 'Change time zone' }).click();
     const move = page.getByRole('dialog');
     await move.getByRole('button', { name: 'New time zone' }).click();
     await page.getByRole('combobox', { name: 'New time zone search' }).fill('Kiritimati');
@@ -1040,11 +1040,10 @@ describe('PEO-121: the webhook delivery log', () => {
 
     const context = await signedIn(ADMIN.session, { viewport: { width: 1280, height: 900 } });
     const page = await context.newPage();
-    await page.goto(`${stack.shell}/settings/people/integrations`);
+    await page.goto(`${stack.shell}/settings/people/integrations/webhooks`);
     await page.waitForLoadState('networkidle');
-    await page.getByRole('tab', { name: 'Webhooks' }).click();
     await page.getByRole('button', { name: `Delivery log for ${hookUrl}` }).click();
-    await page.waitForURL(new RegExp(`/settings/people/integrations/${endpointId}$`));
+    await page.waitForURL(new RegExp(`/settings/people/integrations/webhooks/${endpointId}$`));
     await page.waitForLoadState('networkidle');
     const table = page.getByRole('table', { name: 'Deliveries' });
     await table.getByText('Failed').waitFor({ timeout: 30_000 });

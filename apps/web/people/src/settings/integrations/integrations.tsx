@@ -104,7 +104,7 @@ export interface IntegrationsProps {
   readonly scim?: Omit<ProvisioningProps, 'scim'>;
   /** Chat apps (Slack today) and People's notices to them; absent, not drawn. */
   readonly chat?: ChatAppsProps;
-  /** The tab on screen (`?tab=webhooks`), held by the host. */
+  /** The tab on screen, from its address, held by the host. */
   readonly tab?: string | null;
   readonly onTabChange?: (tab: string) => void;
 }
@@ -211,13 +211,13 @@ function Endpoints({
   const [chosen, setTab] = useHeld<string>(
     heldTab,
     onTabChange,
-    chat?.returned === undefined || chat.returned === null ? 'overview' : 'chat',
+    chat?.returned === undefined || chat.returned === null ? 'overview' : 'slack',
   );
   // A tab this viewer has; a link to one that is not drawn here opens the overview.
   const tabs = [
     'overview',
     'webhooks',
-    ...(chat === undefined || state.chat === undefined ? [] : ['chat']),
+    ...(chat === undefined || state.chat === undefined ? [] : ['slack']),
     ...(state.scim === undefined || scim === undefined ? [] : ['provisioning']),
   ];
   const tab = tabs.includes(chosen) ? chosen : 'overview';
@@ -233,7 +233,7 @@ function Endpoints({
         <TabsList aria-label="Integrations">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {chat === undefined || state.chat === undefined ? null : (
-            <TabsTrigger value="chat">Slack</TabsTrigger>
+            <TabsTrigger value="slack">Slack</TabsTrigger>
           )}
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           {state.scim === undefined || scim === undefined ? null : (
@@ -252,7 +252,7 @@ function Endpoints({
           </Stack>
         </TabsContent>
         {chat === undefined || state.chat === undefined ? null : (
-          <TabsContent value="chat" className="pt-6">
+          <TabsContent value="slack" className="pt-6">
             <ChatApps {...chat} state={state.chat} />
           </TabsContent>
         )}
@@ -364,7 +364,7 @@ function Directory({
     ...(chatShown && slack !== undefined
       ? [
           {
-            id: 'chat',
+            id: 'slack',
             name: 'Slack',
             mark: <AppMark app="slack" className="size-7" />,
             says: 'Answer questions and approve changes in Slack.',

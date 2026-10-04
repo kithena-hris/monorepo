@@ -102,7 +102,8 @@ describe('the organisation settings (PEO-119)', () => {
     render(<Organisation {...p} />);
     const user = fast();
     await user.click(screen.getByRole('tab', { name: 'Locations' }));
-    await user.click(screen.getByRole('button', { name: 'Change the time zone of Madrid office' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Madrid office' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Change time zone' }));
     const dialog = screen.getByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'New time zone' }));
     await user.click(screen.getByRole('option', { name: 'Pacific/Kiritimati' }));
@@ -133,17 +134,81 @@ describe('the organisation settings (PEO-119)', () => {
     const p = props();
     render(<Organisation {...p} />);
     const user = fast();
-    await user.click(screen.getByRole('tab', { name: 'Company' }));
-    const minimum = screen.getByRole('spinbutton', { name: /Smallest group/ });
+    await user.click(screen.getByRole('tab', { name: 'Reminders and privacy' }));
+    const form = screen.getByRole('form', { name: 'Reminders and privacy' });
+    const save = within(form).getByRole('button', { name: 'Save' });
+    const minimum = within(form).getByRole('spinbutton', { name: /Smallest group/ });
     await user.clear(minimum);
     await user.type(minimum, '5');
     await user.tab();
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(save).toBeDisabled();
     await user.clear(minimum);
     await user.type(minimum, '12');
     await user.tab();
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(save);
     expect(p.onUpdateSettings).toHaveBeenCalledWith({ cohortMinimum: 12 });
+    // The one place the number is set: the company card does not repeat it.
+    const company = screen.getByRole('form', { name: 'Company settings' });
+    expect(within(company).queryByRole('spinbutton')).toBeNull();
+  });
+
+  it('states the reminder rule beside the reporting floor', async () => {
+    const reminded = state({
+      reminders: { cadence: 'Then once a week', window: '09:00 to 18:00', inChat: false },
+    });
+    const { container } = render(
+      <Organisation {...props({ load: { status: 'ready', data: reminded } })} tab="reminders" onTabChange={vi.fn()} />,
+    );
+    expect(screen.getByText('Then once a week')).toBeInTheDocument();
+    expect(screen.getByText('Email only')).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('asks before archiving a location, and says why it was refused', async () => {
+    const p = props({
+      onUpdateLocation: vi.fn(() => Promise.resolve({ ok: false as const, message: 'In use' })),
+    });
+    render(<Organisation {...p} tab="locations" onTabChange={vi.fn()} />);
+    const user = fast();
+    await user.click(screen.getByRole('button', { name: 'Actions for Madrid office' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Archive' }));
+    const confirm = screen.getByRole('alertdialog', { name: 'Archive Madrid office?' });
+    expect(p.onUpdateLocation).not.toHaveBeenCalled();
+    await user.click(within(confirm).getByRole('button', { name: 'Archive' }));
+    expect(p.onUpdateLocation).toHaveBeenCalledWith(MADRID, { archived: true });
+    expect(await within(confirm).findByText('In use')).toBeInTheDocument();
+  });
+
+  it('lists the country packs to whom People sent them, with no guessed check', async () => {
+    const { unmount } = render(<Organisation {...props()} />);
+    expect(screen.queryByRole('tab', { name: 'Country packs' })).toBeNull();
+    unmount();
+    const withPacks = state({
+      packs: [
+        { country: 'ES', countryName: 'Spain', fields: 3, sections: [{ label: 'Identification' }] },
+        { country: 'IN', countryName: 'India', fields: 2, sections: [{ label: 'Identification' }] },
+      ],
+    });
+    const { container } = render(
+      <Organisation {...props({ load: { status: 'ready', data: withPacks } })} />,
+    );
+    await fast().click(screen.getByRole('tab', { name: 'Country packs' }));
+    const table = screen.getByRole('table', { name: 'Country packs' });
+    expect(within(table).getByText('Acme Iberia SL')).toBeInTheDocument();
+    expect(within(table).getByText('No entity yet')).toBeInTheDocument();
+    expect(within(table).queryByRole('columnheader', { name: 'Check' })).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('opens the tab its address names, and hands a chosen tab to the host', async () => {
+    const onTabChange = vi.fn();
+    render(<Organisation {...props()} tab="numbering" onTabChange={onTabChange} />);
+    expect(screen.getByRole('tab', { name: 'Employee numbering' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await fast().click(screen.getByRole('tab', { name: 'Locations' }));
+    expect(onTabChange).toHaveBeenCalledWith('locations');
   });
 
   it('marks every unreviewed retention floor pending legal review (PEO-126)', async () => {
@@ -168,7 +233,7 @@ describe('the organisation settings (PEO-119)', () => {
     const { container } = render(
       <Organisation {...props({ load: { status: 'ready', data: reviewed } })} />,
     );
-    await fast().click(screen.getByRole('tab', { name: 'Company' }));
+    await fast().click(screen.getByRole('tab', { name: 'Reminders and privacy' }));
     const table = screen.getByRole('table', { name: 'Statutory retention floors' });
     const spain = within(table).getByRole('row', { name: /Spain, labour records/ });
     expect(within(spain).getByText('48 months')).toBeInTheDocument();
@@ -195,7 +260,7 @@ describe('the organisation settings (PEO-119)', () => {
     const { container } = render(
       <Organisation {...props({ load: { status: 'ready', data: hr } })} />,
     );
-    await fast().click(screen.getByRole('tab', { name: 'Company' }));
+    await fast().click(screen.getByRole('tab', { name: 'Reminders and privacy' }));
     const table = screen.getByRole('table', { name: 'Upcoming automated erasures' });
     const ada = within(table).getByRole('row', { name: /Ada Lovelace/ });
     expect(within(ada).getByText('Spain, labour records')).toBeInTheDocument();
@@ -208,7 +273,7 @@ describe('the organisation settings (PEO-119)', () => {
 
   it('lists no automated erasures to anybody People sent none', async () => {
     render(<Organisation {...props()} />);
-    await fast().click(screen.getByRole('tab', { name: 'Company' }));
+    await fast().click(screen.getByRole('tab', { name: 'Reminders and privacy' }));
     expect(screen.queryByRole('table', { name: 'Upcoming automated erasures' })).toBeNull();
     expect(screen.queryByText('Automated erasure')).toBeNull();
   });
