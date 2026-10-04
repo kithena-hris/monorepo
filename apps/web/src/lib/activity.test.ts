@@ -13,9 +13,8 @@ describe('the activity log’s address', () => {
       to: '2026-09-29',
       tz: 'Europe/Madrid',
       q: ' role ',
-      before: '01890000-0000-7000-8000-000000000001',
     });
-    expect(activityVariables(f)).toEqual({
+    expect(activityVariables(f, '01890000-0000-7000-8000-000000000001')).toEqual({
       areas: ['roles', 'sign_in'],
       by: 'support',
       actor: '00000000-0000-4000-8000-0000000000a1',
@@ -35,9 +34,8 @@ describe('the activity log’s address', () => {
       actor: 'ada',
       from: 'yesterday',
       tz: '../etc',
-      before: '1 OR 1=1',
     });
-    expect(activityVariables(f)).toEqual({});
+    expect(activityVariables(f, '1 OR 1=1')).toEqual({});
   });
 });
 
