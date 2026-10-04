@@ -21,31 +21,42 @@ import type { Offer } from '../domain/plan.js';
 /** Identity's answer for an email in a tenant (§10.1). */
 export type AskerLookup = Result<AssistantAsker, 'NOT_FOUND' | 'UNREACHABLE'>;
 
+/** Whom to look up: a chat app's verified work email, or the web's signed-in account. */
+export type AskerKey = { readonly email: string } | { readonly accountId: string };
+
 export interface Identity {
-  asker(tenantId: string, email: string): Promise<AskerLookup>;
+  asker(tenantId: string, who: AskerKey): Promise<AskerLookup>;
 }
 
 /**
  * Who a module is called as: the router's principal shape
- * (`apps/gateway/config.yaml`), never a support or view-as session.
+ * (`apps/gateway/config.yaml`). A chat app's asker is always the person; a
+ * web question carries the session the router forwarded — a support session
+ * (`impersonatedBy`) or a view-as (`viewedBy`) — and each module treats it as
+ * it does on its own screens.
  */
 export interface Principal {
   readonly userId: string;
   readonly tenantId: string;
   readonly entitlements: readonly string[];
-  readonly impersonatedBy: null;
-  readonly viewedBy: null;
+  readonly impersonatedBy: string | null;
+  readonly viewedBy: string | null;
+}
+
+/** A module that said no to this asker (a 403), in its own words: never retried as anybody else. */
+export interface Refused {
+  readonly refused: string;
 }
 
 export interface Modules {
   /** The modules this deployment can reach: a URL and a pair token each (§6.5). */
   readonly configured: readonly ModuleKey[];
-  /** What the module offers this asker; null when it did not answer within its contract. */
+  /** What the module offers this asker, its refusal, or null when it did not answer within its contract. */
   catalogue(
     module: ModuleKey,
     as: Principal,
     correlationId: string,
-  ): Promise<RuntimeCatalogue | null>;
+  ): Promise<RuntimeCatalogue | Refused | null>;
   /** One capability as the asker. `signal` is the question's deadline. */
   call(
     capability: Capability,

@@ -1,6 +1,7 @@
 import {
   allCapabilities,
   type AssistantAnswer,
+  type AssistantChannel,
   type AssistantQuestion,
   type ModuleKey,
   type RuntimeCatalogue,
@@ -24,7 +25,7 @@ import { todayIn } from '../domain/dates.js';
 import { execute, type Call } from '../domain/execute.js';
 import { mask, maskOffer, refused, unmask } from '../domain/mask.js';
 import { offer, readPlan } from '../domain/plan.js';
-import type { Identity, Modules, Planner, Principal } from './ports.js';
+import type { Identity, Modules, Planner, Principal, Refused } from './ports.js';
 
 /**
  * One question, answered across every module the company has (assistant PRD
@@ -54,6 +55,21 @@ export interface AskDeps {
   readonly originOf?: (slug: string) => string | null;
   /** The whole question's deadline; 15 s. */
   readonly questionMs?: number;
+}
+
+/**
+ * A question from the web (§17 Phase 3): the router has already said who is
+ * signed in, so the account stands in for a chat app's email, and the session
+ * comes with it — a support session or a view-as — to be forwarded to every
+ * module unchanged.
+ */
+export interface SignedInQuestion {
+  readonly tenantId: string;
+  readonly question: string;
+  readonly channel: AssistantChannel;
+  readonly accountId: string;
+  readonly impersonatedBy: string | null;
+  readonly viewedBy: string | null;
 }
 
 /** How a question ended, for the counters (§13.1). */
@@ -116,15 +132,18 @@ function gate(max: number): <T>(job: () => Promise<T>) => Promise<T> {
   };
 }
 
+const isRefusal = (c: RuntimeCatalogue | Refused | null): c is Refused =>
+  c !== null && 'refused' in c;
+
 export function asker(
   deps: AskDeps,
-): (q: AssistantQuestion, correlationId: string) => Promise<Asked> {
+): (q: AssistantQuestion | SignedInQuestion, correlationId: string) => Promise<Asked> {
   const budget = hourly(deps.plansPerHour ?? 120, deps.clock);
   const queue = gate(8);
   const questionMs = deps.questionMs ?? 15_000;
 
   async function answer(
-    q: AssistantQuestion,
+    q: AssistantQuestion | SignedInQuestion,
     correlationId: string,
     signal: AbortSignal,
     called: string[],
@@ -134,7 +153,11 @@ export function asker(
       return { answer: said(UNAVAILABLE), outcome: 'failed', reason: 'NO_MODEL', called };
     }
     const { planner } = deps;
-    const who = await deps.identity.asker(q.tenantId, q.email);
+    const signedIn = 'accountId' in q;
+    const who = await deps.identity.asker(
+      q.tenantId,
+      signedIn ? { accountId: q.accountId } : { email: q.email },
+    );
     if (!who.ok) {
       return {
         answer: said(who.error === 'NOT_FOUND' ? NOT_IN_KITHENA : WHO_ARE_YOU),
@@ -148,8 +171,9 @@ export function asker(
       userId: asking.accountId,
       tenantId: q.tenantId,
       entitlements: asking.entitlements,
-      impersonatedBy: null,
-      viewedBy: null,
+      // The session as the router forwarded it; a chat app's asker is always the person.
+      impersonatedBy: signedIn ? q.impersonatedBy : null,
+      viewedBy: signedIn ? q.viewedBy : null,
     };
 
     // The company's modules this deployment can reach, asked in parallel.
@@ -160,8 +184,12 @@ export function asker(
     const fetched = await Promise.all(
       reachable.map(async (m) => ({ m, c: await deps.modules.catalogue(m, as, correlationId) })),
     );
-    const catalogues = fetched.flatMap(({ c }) => (c === null ? [] : [c]));
+    const catalogues = fetched.flatMap(({ c }) => (c === null || isRefusal(c) ? [] : [c]));
     const down = new Set(fetched.flatMap(({ m, c }) => (c === null ? [m] : [])));
+    // A module that said no to this asker — Time Off to a view-as, say — in its own words.
+    const refusedBy = new Map(
+      fetched.flatMap(({ m, c }) => (isRefusal(c) ? [[m, c.refused] as const] : [])),
+    );
     const present = catalogues.map((c: RuntimeCatalogue) => c.module);
     const offered = offer(catalogues);
     const leaveTypes = catalogues.flatMap((c) => c.leaveTypes);
@@ -197,7 +225,13 @@ export function asker(
     switch (plan.kind) {
       case 'unclear':
         return { answer: unclearAnswer(plan.reply), outcome: 'unclear', called };
-      case 'unavailable':
+      case 'unavailable': {
+        // Refused is neither down nor missing: the module's words, never retried as anybody else.
+        const no = refusedBy.get(plan.module);
+        if (no !== undefined) {
+          const failed = failedAnswer({ code: 'REFUSED', module: plan.module, message: no });
+          return { answer: failed, outcome: 'refused', reason: 'MODULE_REFUSED', called };
+        }
         // Entitled but not answering is not "your company doesn't use it".
         if (down.has(plan.module)) {
           const failed = failedAnswer({ code: 'UNREACHABLE', module: plan.module });
@@ -208,6 +242,7 @@ export function asker(
           return { answer: unclearAnswer(), outcome: 'unclear', reason: 'UNAVAILABLE', called };
         }
         return { answer: unavailableAnswer(plan.module, present), outcome: 'unavailable', called };
+      }
       case 'plan':
         break;
     }

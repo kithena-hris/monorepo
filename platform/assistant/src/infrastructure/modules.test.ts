@@ -88,6 +88,38 @@ describe('a catalogue', () => {
     expect(sent).toHaveLength(3);
   });
 
+  it('forwards a view-as or a support session unchanged, and keeps each apart', async () => {
+    const { fake, sent } = fetching(() => reply(200, PEOPLE_CATALOGUE));
+    const modules = modulesFrom(SETTINGS, { fetch: fake, logger: quiet });
+    const admin = '00000000-0000-4000-8000-0000000000c1';
+    await modules.catalogue('people', { ...AS, viewedBy: admin }, 'c');
+    await modules.catalogue('people', { ...AS, impersonatedBy: admin }, 'c');
+    await modules.catalogue('people', AS, 'c');
+    const principals = sent.map(
+      (s) => JSON.parse((s.init.headers as Record<string, string>)['x-kithena-principal'] ?? ''),
+    ) as Principal[];
+    expect(principals.map((p) => [p.viewedBy, p.impersonatedBy])).toEqual([
+      [admin, null],
+      [null, admin],
+      [null, null],
+    ]);
+  });
+
+  it('is the module’s refusal in its own words when it says no (403)', async () => {
+    const { fake } = fetching(() =>
+      reply(403, {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Time Off cannot be used in a support or view-as session',
+        },
+      }),
+    );
+    const modules = modulesFrom(SETTINGS, { fetch: fake, logger: quiet });
+    expect(await modules.catalogue('timeoff', AS, 'c')).toEqual({
+      refused: 'Time Off cannot be used in a support or view-as session',
+    });
+  });
+
   it('drops a capability served at a version the assistant does not pin', async () => {
     const { fake } = fetching(() =>
       reply(200, {
@@ -103,7 +135,7 @@ describe('a catalogue', () => {
       AS,
       'c',
     );
-    expect(got?.serves).toEqual([{ name: 'people.reports', version: 1 }]);
+    expect(got).toMatchObject({ serves: [{ name: 'people.reports', version: 1 }] });
   });
 
   it('is nothing when the module refuses, answers off contract, or does not answer in time', async () => {
