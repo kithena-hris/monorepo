@@ -211,6 +211,45 @@ export const Destructive: Story = {
   ),
 };
 
+export const CentredOnTouch: Story = {
+  name: 'Centred on touch',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '`sheetOnTouch={false}`: a short, focused task stays a centred dialog under a finger too, instead of rising as a bottom sheet. For a few fields and one outcome, where the whole form fits on screen.',
+      },
+    },
+  },
+  render: (args) => (
+    <Dialog {...args}>
+      <DialogTrigger asChild>
+        <Button>Rename the view</Button>
+      </DialogTrigger>
+      <DialogContent sheetOnTouch={false}>
+        <DialogHeader>
+          <DialogTitle>Rename the view</DialogTitle>
+          <DialogDescription>Everybody it is shared with sees the new name.</DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <Field>
+            <FieldLabel>Name</FieldLabel>
+            <FieldControl>
+              <Textarea rows={1} defaultValue="Madrid engineers" />
+            </FieldControl>
+          </Field>
+        </DialogBody>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button>Cancel</Button>
+          </DialogClose>
+          <Button variant="primary">Rename</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ),
+};
+
 export const Controlled: Story = {
   parameters: {
     docs: {

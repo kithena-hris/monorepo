@@ -6,7 +6,7 @@ import { people } from '../../../../../../lib/people';
  *
  * Finished as whoever is signed in here: People checks they administer People,
  * and the chat service checks the `state` was issued for this company and has
- * not expired. Then back to Integrations, saying how it went.
+ * not expired. Then back to Integrations › Slack, saying how it went.
  */
 
 const NAMES: Readonly<Record<string, string>> = { slack: 'Slack' };
@@ -17,7 +17,7 @@ export async function GET(
 ): Promise<Response> {
   const { app } = await params;
   const url = new URL(request.url);
-  const back = new URL('/settings/people/integrations', url);
+  const back = new URL('/settings/people/integrations/slack', url);
   const name = NAMES[app];
   if (name === undefined) return new Response(null, { status: 404 });
 

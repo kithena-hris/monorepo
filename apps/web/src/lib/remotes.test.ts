@@ -76,7 +76,7 @@ describe('matchRoute', () => {
           ],
         },
       ],
-      actions: [{ path: '/people/new', label: 'Add employee', for: ['hr'] }],
+      actions: [{ path: '/people/directory/list?add=person', label: 'Add employee', for: ['hr'] }],
       settings: [
         {
           path: '/settings/people/roles',
@@ -143,7 +143,7 @@ describe('placesFor', () => {
         for: ['finance', 'hr'],
       },
     ],
-    actions: [{ path: '/people/new', label: 'Add employee', for: ['hr'] }],
+    actions: [{ path: '/people/directory/list?add=person', label: 'Add employee', for: ['hr'] }],
   };
 
   it('opens a place to any one of its roles, and everything unmarked to everybody', () => {
@@ -205,7 +205,6 @@ describe('currentPlace', () => {
     expect(at(null)).toBeUndefined();
     expect(at('/people')).toBeUndefined();
     expect(at('/people/me')).toBeUndefined();
-    expect(at('/people/new')).toBeUndefined();
   });
 
   it('finds the tab a route is, and none off an umbrella page', () => {
@@ -256,14 +255,10 @@ describe('headerFrame', () => {
     expect(reports.tabs?.some((t) => t.current)).toBe(false);
   });
 
-  it('offers adding somebody where it belongs, and not on its own form or a profile', () => {
+  it('offers adding somebody where it belongs, as the dialog over the directory', () => {
     expect(headerFrame(hr, '/people/directory/list', '/people').actions).toEqual([
-      { href: '/people/new', label: 'Add person', icon: 'hire' },
+      { href: '/people/directory/list?add=person', label: 'Add person', icon: 'hire' },
     ]);
-    expect(headerFrame(hr, '/people/new', '/people')).toMatchObject({
-      section: 'Add person',
-      actions: [],
-    });
     expect(
       headerFrame(placesFor(PEOPLE_NAV, EMPLOYEE), '/people/directory/list', '/people').actions,
     ).toEqual([]);

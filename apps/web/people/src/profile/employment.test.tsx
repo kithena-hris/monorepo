@@ -134,7 +134,7 @@ describe('lifecycle moves on a profile (PEO-120)', () => {
     render(<Employment state={state('active')} onMove={onMove} />);
     const user = fast();
     await user.click(screen.getByRole('button', { name: 'Terminate' }));
-    const dialog = screen.getByRole('dialog', { name: 'Terminate' });
+    const dialog = screen.getByRole('dialog', { name: /^Terminate / });
     await user.click(within(dialog).getByRole('button', { name: 'Terminate' }));
     expect(onMove).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('combobox', { name: /Reason/ }));
@@ -162,7 +162,7 @@ describe('lifecycle moves on a profile (PEO-120)', () => {
     render(<Employment state={state('terminated', [left])} onMove={onMove} />);
     const user = fast();
     await user.click(screen.getByRole('button', { name: 'Rehire' }));
-    const dialog = screen.getByRole('dialog', { name: 'Rehire' });
+    const dialog = screen.getByRole('dialog', { name: /^Rehire / });
     await user.click(within(dialog).getByRole('button', { name: 'Rehire' }));
     expect(onMove).not.toHaveBeenCalled();
     await user.type(

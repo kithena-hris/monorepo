@@ -35,12 +35,10 @@ function props(
 
 const ready = (data: ImportStage) => ({ status: 'ready' as const, data });
 
-/** From the mapping to the new fields, as HR would. */
+/** From the mapping to Decide what's new, as HR would. */
 async function toNewFields(user: ReturnType<typeof fast>) {
-  await user.click(screen.getByRole('button', { name: 'Next: new fields' }));
-  return screen.findByRole('heading', {
-    name: '3 columns aren’t fields yet. Here’s what I’d create.',
-  });
+  await user.click(screen.getByRole('button', { name: 'Next: decide what’s new' }));
+  return screen.findByRole('heading', { name: /^New fields/ });
 }
 
 describe('ImportFlow', () => {
@@ -54,12 +52,13 @@ describe('ImportFlow', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
-  it('shows the five steps, and says nothing is written until the plan is approved', () => {
+  it('shows the three steps, and says nothing is written until the plan is approved', () => {
     render(<ImportFlow {...props(ready({ step: 'upload' }))} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Import' })).toBeInTheDocument();
     expect(screen.getByText('Nothing is written until you approve the plan.')).toBeInTheDocument();
-    for (const label of ['Upload', 'Map columns', 'New fields', 'Review plan', 'Import'])
+    for (const label of ['Upload and map', 'Decide what’s new', 'Approve and run'])
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Map columns')).toBeNull();
   });
 
   it('keeps the header and the stepper mounted from the upload to the end', () => {
@@ -149,12 +148,13 @@ describe('ImportFlow', () => {
     const { container } = render(<ImportFlow {...props(ready(doubtful), { plan })} />);
     expect(screen.getAllByText('Usual name')).toHaveLength(2);
     expect(screen.getByText('0.71, check this')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next: review the plan' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next: decide what’s new' })).toBeDisabled();
+    expect(screen.getByText('1 column needs a decision')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
     await user.click(screen.getByRole('combobox', { name: 'CC goes to' }));
     await user.click(await screen.findByRole('option', { name: 'Cost centre' }));
-    // Every column placed: straight to the plan, with no new fields.
-    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+    // Every column placed and nothing new: Decide what's new skips itself.
+    await user.click(screen.getByRole('button', { name: 'Next: decide what’s new' }));
     expect(plan).toHaveBeenCalledWith(
       { 0: 'given_name', 1: 'work_email', 2: 'cost_centre' },
       [],
@@ -206,18 +206,16 @@ describe('ImportFlow', () => {
     const plan = vi.fn(() => Promise.resolve({ ok: true as const, data: PLAN }));
     const { container } = render(<ImportFlow {...props(ready(MAPPING), { plan })} />);
     await toNewFields(user);
-    await user.click(screen.getByRole('button', { name: 'Next: what about existing people?' }));
-    expect(
-      await screen.findByRole('heading', {
-        name: 'Most people already have a value from the file',
-      }),
-    ).toBeInTheDocument();
+    // The people without a value are a block of the same page.
+    expect(screen.getByRole('heading', { name: /^People without a value/ })).toBeInTheDocument();
     expect(screen.getAllByText('4 missing')).toHaveLength(2);
     const choices = screen.getByRole('radiogroup', {
       name: 'What happens for the people without T-shirt size',
     });
     // Their own detail: asked of them, not typed in by HR.
-    expect(within(choices).getByRole('radio', { name: /Ask the 4 people to fill it in/ })).toBeChecked();
+    expect(
+      within(choices).getByRole('radio', { name: /Ask the 4 people to fill it in/ }),
+    ).toBeChecked();
     expect(within(choices).getByText('Suggested')).toBeInTheDocument();
     expect(
       screen.getByText('Why this suggestion: About them, not their job: the employee tells us.'),
@@ -271,9 +269,6 @@ describe('ImportFlow', () => {
     expect(
       screen.getByText('Why this suggestion: The company assigns it: HR fills it in.'),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/their own details \(bank, documents, home, family\) are asked of them/u),
-    ).toBeInTheDocument();
   });
 
   it('says everything that will happen, and runs it on one approval (AI11)', async () => {
@@ -284,8 +279,7 @@ describe('ImportFlow', () => {
       <ImportFlow {...props(ready(MAPPING), { run, onDownloadBlocked })} />,
     );
     await toNewFields(user);
-    await user.click(screen.getByRole('button', { name: 'Next: what about existing people?' }));
-    await user.click(await screen.findByRole('button', { name: 'Next: review the plan' }));
+    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
     await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
     for (const s of PLAN.steps) expect(screen.getByText(s.title)).toBeInTheDocument();
     // Who is asked, once each, and what HR fills in.
@@ -342,7 +336,7 @@ describe('ImportFlow', () => {
     const plan = vi.fn(() => Promise.resolve({ ok: true as const, data: sensitive }));
     const noNewColumns: ImportStage = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
     render(<ImportFlow {...props(ready(noNewColumns), { run, plan })} />);
-    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+    await user.click(screen.getByRole('button', { name: 'Next: decide what’s new' }));
     await user.click(await screen.findByRole('button', { name: 'Approve and run' }));
     expect(screen.queryByLabelText('Apply sensitive values without approval')).toBeNull();
     expect(run).toHaveBeenCalledWith({ 0: 'given_name', 1: 'work_email' }, [], { basedOn: null });
@@ -362,7 +356,7 @@ describe('ImportFlow', () => {
         {...props(ready({ ...MAPPING, columns: MAPPING.columns.slice(0, 2) }), { plan })}
       />,
     );
-    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+    await user.click(screen.getByRole('button', { name: 'Next: decide what’s new' }));
     const why = await screen.findByText('The employee fields have 1 unpublished change.');
     expect(why.closest('[role="alert"]')).not.toBeNull();
     const approve = screen.getByRole('button', { name: 'Approve and run' });
@@ -383,8 +377,7 @@ describe('ImportFlow', () => {
       .mockResolvedValue({ ok: true as const, data: PLAN });
     const { container } = render(<ImportFlow {...props(ready(MAPPING), { plan })} />);
     await toNewFields(user);
-    await user.click(screen.getByRole('button', { name: 'Next: what about existing people?' }));
-    await user.click(await screen.findByRole('button', { name: 'Next: review the plan' }));
+    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
     const approve = await screen.findByRole('button', { name: 'Approve and run' });
     expect(approve).toBeDisabled();
     expect(approve).toHaveAccessibleDescription(/T-shirt size: a choice needs options/);
@@ -412,7 +405,7 @@ describe('ImportFlow', () => {
     );
     const noNewColumns: ImportStage = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
     const { container } = render(<ImportFlow {...props(ready(noNewColumns), { run })} />);
-    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+    await user.click(screen.getByRole('button', { name: 'Next: decide what’s new' }));
     await user.click(await screen.findByRole('button', { name: 'Approve and run' }));
     expect(await screen.findByText(/started by Ada Lovelace/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'See the import' })).toHaveAttribute(
@@ -636,14 +629,12 @@ describe('ImportFlow', () => {
     );
     // A reload: nothing proposed or planned here yet, so the mapping.
     expect(screen.getByRole('table', { name: 'Columns' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Next: new fields' }));
-    expect(onStepChange).toHaveBeenCalledWith('fields');
-    rerender(<ImportFlow {...props(ready(MAPPING), { step: 'fields', onStepChange })} />);
-    expect(
-      await screen.findByRole('heading', {
-        name: '3 columns aren’t fields yet. Here’s what I’d create.',
-      }),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Next: decide what’s new' }));
+    await waitFor(() => {
+      expect(onStepChange).toHaveBeenCalledWith('decide');
+    });
+    rerender(<ImportFlow {...props(ready(MAPPING), { step: 'decide', onStepChange })} />);
+    expect(await screen.findByRole('heading', { name: /^New fields/ })).toBeInTheDocument();
   });
 
   it('has loading and error states', async () => {

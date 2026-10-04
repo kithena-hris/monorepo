@@ -1105,7 +1105,7 @@ export function PeopleHome({ load, onPhoto, onSetupFile }: PeopleHomeProps): JSX
                     startIcon={<icons.hire aria-hidden />}
                     shortcut="create"
                   >
-                    <a href="/people/new">Add person</a>
+                    <a href="/people/directory/list?add=person">Add person</a>
                   </Button>
                 )
               }

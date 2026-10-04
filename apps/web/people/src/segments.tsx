@@ -20,6 +20,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { useHeld } from './held';
 import type { Outcome } from './load';
 
 /**
@@ -80,12 +81,17 @@ export function SegmentSelect({
 export function SaveSegment({
   onSave,
   label = 'Save view',
+  open: heldOpen,
+  onOpenChange,
 }: {
   readonly onSave: (segment: { name: string; shared: boolean }) => Promise<Outcome>;
   /** The button's words: "Save as view" beside a question's results. */
   readonly label?: string;
+  /** Open, held by the host (`?save=view`), so a link opens it. */
+  readonly open?: boolean;
+  readonly onOpenChange?: (open: boolean) => void;
 }): JSX.Element {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useHeld(heldOpen, onOpenChange, false);
   const [name, setName] = useState('');
   const [shared, setShared] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -106,7 +112,7 @@ export function SaveSegment({
       }}
     >
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" startIcon={<icons.add aria-hidden />}>
+        <Button variant="ghost" size="sm" startIcon={<icons.starred aria-hidden />}>
           {label}
         </Button>
       </PopoverTrigger>

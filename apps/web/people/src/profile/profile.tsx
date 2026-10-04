@@ -27,22 +27,13 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  Input,
   PageHeader,
   PageSection,
+  RadioCard,
   RadioGroup,
-  RadioGroupItem,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
+  Separator,
   Stack,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   TertiaryNav,
   Textarea,
   Tooltip,
@@ -51,12 +42,11 @@ import {
   useShortcutKeys,
   keysOf,
   KbdShortcut,
-  useCoarsePointer,
   usePageHeaderFrame,
   type IsoDate,
   type UploadedImage,
 } from '@reach/ui';
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld } from '../held';
 import { Loaded, type Checked, type Loadable, type Outcome } from '../load';
@@ -155,6 +145,13 @@ export interface PlacementChange {
   readonly effectiveFrom?: string;
 }
 
+/**
+ * What is open over the record, in the address (`?open=`), so a link opens
+ * it in the server's HTML: a move (`move:terminate`), a dated change to one
+ * field (`change:salary`), the placement, the PDF, or viewing as them.
+ */
+export type ProfileOpen = string;
+
 export interface ProfileProps {
   readonly load: Loadable<ProfileState>;
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
@@ -166,13 +163,13 @@ export interface ProfileProps {
   readonly onPlace?: (placement: PlacementChange) => Promise<Outcome>;
   /** Finds people for a person field, by name, over everybody (PEO-122). */
   readonly searchPeople?: SearchPeople;
-  /** Open the record as of a date, and its changes (PEO-064). */
-  readonly onHistory?: () => void;
+  /** The record's history, its own page (PEO-064): the address it is at. */
+  readonly historyHref?: string;
   /** Take back a change of one's own that waits for approval (PEO-077). */
   readonly onWithdraw?: (changeId: string) => Promise<Outcome>;
   /** A requester no other HR member can approve for, approving their own held change, once they confirm (PEO-077). */
   readonly onSelfApprove?: (changeId: string) => Promise<Outcome>;
-  /** Open the approvals inbox, where HR decides (PEO-077). */
+  /** Open the review queue, where HR decides (PEO-077). */
   readonly onApprovals?: () => void;
   /** This record as a PDF, as the viewer may read it (PEO-061). Absent where not offered. */
   readonly onDownloadRecord?: (reason: string) => Promise<Outcome>;
@@ -186,9 +183,12 @@ export interface ProfileProps {
   readonly onPhoto?: (file: File) => Promise<PhotoOutcome>;
   /** Open with this field's section in edit mode and the cursor in it: a link to one missing detail. */
   readonly focusField?: string;
-  /** The part of the record on screen: `overview` or a section's key (`?tab=`), held by the host. */
-  readonly tab?: string;
-  readonly onTabChange?: (tab: string) => void;
+  /** The section being edited (`?edit=<key>`), held by the host; null for none. */
+  readonly editing?: string | null;
+  readonly onEditingChange?: (section: string | null) => void;
+  /** What is open over the record (`?open=`), held by the host; null for nothing. */
+  readonly open?: ProfileOpen | null;
+  readonly onOpenChange?: (open: ProfileOpen | null) => void;
   /**
    * Ask the person to fill in these empty fields: they are emailed. Absent on
    * one's own profile; offered beside a field only where People says it may be.
@@ -211,36 +211,18 @@ export type PhotoOutcome =
   | { readonly ok: false; readonly message: string };
 
 /**
- * One person's record, for whoever is looking (PRD §6.6, design screen 6).
+ * One person's record, for whoever is looking (D1, D3; PRD §6.6).
  *
- * One screen for HR, a manager and the person themselves, differing only by
- * the authorization decision that shaped `load`. A field the viewer cannot
- * read is absent: no label, no padlock, no greyed row, no empty section — each
- * of those would say the field exists, and for a self-ID answer that is the
- * disclosure itself. This component renders what it is given and cannot
- * re-add a key the application layer removed.
+ * One layout for every record and every viewer, one's own included: on the
+ * left the record card (how complete it is, its sections with what each is
+ * missing, and History) and the reporting line; on the right what needs
+ * attention, then every section. Each field's actions sit on its own row.
+ * A field the viewer cannot read is absent: no label, no padlock, no greyed
+ * row, no empty section — each of those would say the field exists, and for
+ * a self-ID answer that is the disclosure itself. This component renders what
+ * it is given and cannot re-add a key the application layer removed.
  */
-export function Profile({
-  load,
-  onSave,
-  onCheck,
-  onMove,
-  onPlace,
-  searchPeople,
-  onHistory,
-  onWithdraw,
-  onSelfApprove,
-  onApprovals,
-  onDownloadRecord,
-  onViewAs,
-  onPhoto,
-  focusField,
-  onRequest,
-  onUploadFile,
-  onChangeDated,
-  tab,
-  onTabChange,
-}: ProfileProps): JSX.Element {
+export function Profile({ load, searchPeople, onUploadFile, ...props }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
       <Loaded load={load} what="this profile">
@@ -251,25 +233,7 @@ export function Profile({
               known: new Map((state.files ?? []).map((f) => [f.id, f])),
             }}
           >
-            <Record
-              state={state}
-              onPhoto={onPhoto}
-              focusField={focusField}
-              onSave={onSave}
-              onCheck={onCheck}
-              onMove={onMove}
-              onPlace={onPlace}
-              onHistory={onHistory}
-              onWithdraw={onWithdraw}
-              onSelfApprove={onSelfApprove}
-              onApprovals={onApprovals}
-              onDownloadRecord={onDownloadRecord}
-              onViewAs={onViewAs}
-              onRequest={onRequest}
-              onChangeDated={onChangeDated}
-              tab={tab}
-              onTabChange={onTabChange}
-            />
+            <Record state={state} {...props} />
           </FieldFiles.Provider>
         )}
       </Loaded>
@@ -277,13 +241,16 @@ export function Profile({
   );
 }
 
+/** Fields that need a whole row of the form: long text, lists, files. */
+const WIDE = new Set(['long_text', 'address', 'multi_select', 'tags']);
+
 function Record({
   state,
   onSave,
   onCheck,
   onMove,
   onPlace,
-  onHistory,
+  historyHref,
   onWithdraw,
   onSelfApprove,
   onApprovals,
@@ -293,26 +260,12 @@ function Record({
   focusField,
   onRequest,
   onChangeDated,
-  tab: heldTab,
-  onTabChange,
-}: {
+  editing: heldEditing,
+  onEditingChange,
+  open: heldOpen,
+  onOpenChange,
+}: Omit<ProfileProps, 'load' | 'searchPeople' | 'onUploadFile'> & {
   readonly state: ProfileState;
-  readonly tab: ProfileProps['tab'];
-  readonly onTabChange: ProfileProps['onTabChange'];
-  readonly onChangeDated: ProfileProps['onChangeDated'];
-  readonly onPhoto: ProfileProps['onPhoto'];
-  readonly focusField: ProfileProps['focusField'];
-  readonly onSave: ProfileProps['onSave'];
-  readonly onCheck: ProfileProps['onCheck'];
-  readonly onMove: ProfileProps['onMove'];
-  readonly onPlace: ProfileProps['onPlace'];
-  readonly onHistory: ProfileProps['onHistory'];
-  readonly onWithdraw: ProfileProps['onWithdraw'];
-  readonly onSelfApprove: ProfileProps['onSelfApprove'];
-  readonly onApprovals: ProfileProps['onApprovals'];
-  readonly onDownloadRecord: ProfileProps['onDownloadRecord'];
-  readonly onViewAs: ProfileProps['onViewAs'];
-  readonly onRequest: ProfileProps['onRequest'];
 }): JSX.Element {
   // A link to one missing detail opens its section, with the cursor in it.
   const sectionOf = (key: string | undefined): string | null =>
@@ -320,9 +273,11 @@ function Record({
       ? null
       : (state.sections.find((s) => s.fields.some((f) => f.key === key && !f.readOnly))?.key ??
         null);
-  const [editing, setEditing] = useState<string | null>(() => sectionOf(focusField));
+  const [editingHeld, setEditing] = useHeld<string | null>(heldEditing, onEditingChange, null);
+  const editing = editingHeld ?? sectionOf(focusField);
   const [focus, setFocus] = useState<string | undefined>(focusField);
-  const open = (key: string): void => {
+  const [opened, setOpened] = useHeld<string | null>(heldOpen, onOpenChange, null);
+  const openOne = (key: string): void => {
     const at = sectionOf(key);
     if (at !== null) {
       setEditing(at);
@@ -339,7 +294,6 @@ function Record({
     // Once, for the link that opened the page.
   }, []);
   const [values, setValues] = useState<Values>(state.values);
-  const [placing, setPlacing] = useState(false);
   // What the server now holds, whenever the screen is read again (a move, a
   // decision, another tab): a save's own echo is kept locally until then.
   useEffect(() => {
@@ -368,29 +322,19 @@ function Record({
           .filter((f) => f.askable === true && isMissing(values[f.key]));
   const firstName = person.name.split(' ')[0] ?? person.name;
   const status = state.employment?.status ?? null;
-  const [moving, setMoving] = useState<MoveKind | null>(null);
-  const [chosenTab, setTab] = useHeld(heldTab, onTabChange, 'overview');
-  const [dating, setDating] = useState<RecordField | null>(null);
   const frame = usePageHeaderFrame();
-  const coarse = useCoarsePointer();
   const firstWritable = sections.find((s) => s.fields.some((f) => !f.readOnly));
-  // Their own record (W12): nobody moves their own employment or asks themselves.
+  // Their own record (D3): nobody moves their own employment or asks themselves.
   const own = onMove === undefined && onRequest === undefined && person.missing !== null;
-  // A tab this record has, and this viewer is shown tabs for; anything else is the overview.
-  const tab =
-    !own && sections.length >= 2 && sections.some((s) => s.key === chosenTab)
-      ? chosenTab
-      : 'overview';
   const required = sections.flatMap((s) => s.fields).filter((f) => f.required).length;
   const percent =
     required === 0
       ? 100
       : Math.round(((required - Math.min(gaps.length, required)) / required) * 100);
-  const [pdf, setPdf] = useState(false);
+  const forOthers = gaps.filter((g) => g.readOnly).length;
   const [notice, setNotice] = useState<string | null>(null);
   // Viewing as them: an administrator's, where People offers it. `V` and ⌘K
   // open the same dialog as the menu.
-  const [viewing, setViewing] = useState(false);
   const viewAs = onViewAs !== undefined && person.canViewAs === true ? onViewAs : undefined;
   useScreenCommand(
     viewAs === undefined
@@ -399,10 +343,64 @@ function Record({
           id: 'view-as',
           label: `View as ${person.name}`,
           run: () => {
-            setViewing(true);
+            setOpened('view-as');
           },
         },
   );
+  const close = (): void => {
+    setOpened(null);
+  };
+  // What is open, checked against what this record and viewer offer.
+  const moves = onMove === undefined || !state.calendar ? [] : offeredMoves(status);
+  const moving = moves.find((m) => opened === `move:${m}`) ?? null;
+  const dating =
+    onChangeDated === undefined || !state.calendar || !opened?.startsWith('change:')
+      ? null
+      : (sections
+          .flatMap((s) => s.fields)
+          .find((f) => `change:${f.key}` === opened && !f.readOnly && !isFileField(f)) ?? null);
+  const askAll =
+    askable.length === 0 || onRequest === undefined
+      ? null
+      : {
+          label:
+            askable.length === 1
+              ? `Ask ${firstName} for ${askable[0]?.label ?? 'this'}`
+              : `Ask ${firstName} for ${String(askable.length)} empty details`,
+          run: () => {
+            void onRequest(askable.map((f) => f.key)).then((outcome) => {
+              setNotice(
+                outcome.ok
+                  ? `${firstName} has been asked, by email.`
+                  : `Not sent: ${outcome.message}`,
+              );
+            });
+          },
+        };
+
+  // The record's parts, as the record card lists them and a phone's pills.
+  const parts = [
+    ...sections.map((section) => {
+      const n = gapsIn(section).length;
+      return {
+        id: `section-${section.key}`,
+        label: section.label,
+        ...(person.missing === null
+          ? {}
+          : {
+              status: n === 0 ? ('success' as const) : ('warning' as const),
+              ...(n === 0
+                ? {}
+                : {
+                    badge: <MissingMark count={n} />,
+                    shortLabel: `${section.label} · ${String(n)}`,
+                  }),
+            }),
+      };
+    }),
+  ];
+  const history =
+    historyHref === undefined ? null : { id: 'history', label: 'History', href: historyHref };
 
   return (
     <Stack gap={6}>
@@ -430,7 +428,7 @@ function Record({
               description={person.summary ?? undefined}
               meta={
                 status === null && person.missing === null && !state.calendar ? undefined : (
-                  <span className="flex flex-wrap items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-2 touch:justify-center">
                     {status === null ? null : (
                       <Badge dot tone={status === 'active' ? 'success' : 'neutral'}>
                         {statusLabel(status)}
@@ -443,68 +441,62 @@ function Record({
                         labels={gaps.map((g) => g.label)}
                         onJump={() => {
                           const first = gaps[0];
-                          if (first !== undefined) open(first.key);
+                          if (first !== undefined) openOne(first.key);
                         }}
                       />
                     )}
                     {/* HR's: what day it is for them, on their own clock (PEO-119). */}
                     {state.calendar ? (
-                      <span className="text-sm text-fg-muted">
-                        Their day{' '}
-                        <span className="text-fg" data-testid="their-day">
-                          {state.calendar.today} ({state.calendar.timeZone})
+                      <Badge>
+                        <icons.scheduled aria-hidden />
+                        Their day:{' '}
+                        <span data-testid="their-day">
+                          {longDate(state.calendar.today)}, {state.calendar.timeZone}
                         </span>
-                      </span>
+                      </Badge>
                     ) : null}
                   </span>
                 )
               }
               actions={
                 <span className="flex items-center gap-2">
+                  {askAll === null ? null : (
+                    <Button
+                      startIcon={<icons.send aria-hidden />}
+                      className="touch:hidden"
+                      onClick={askAll.run}
+                    >
+                      Ask {firstName}
+                    </Button>
+                  )}
                   <RecordActions
-                    moves={onMove === undefined || !state.calendar ? [] : offeredMoves(status)}
-                    onMove={setMoving}
+                    moves={moves}
+                    onMove={(kind) => {
+                      setOpened(`move:${kind}`);
+                    }}
                     {...(state.placement && onPlace
                       ? {
                           onPlacement: () => {
-                            setPlacing(true);
+                            setOpened('placement');
                           },
                         }
                       : {})}
                     firstMissing={gaps[0] ?? null}
                     onFirstMissing={(key) => {
-                      open(key);
+                      openOne(key);
                     }}
-                    askFor={
-                      askable.length === 0 || onRequest === undefined
-                        ? null
-                        : {
-                            label:
-                              askable.length === 1
-                                ? `Ask ${firstName} for ${askable[0]?.label ?? 'this'}`
-                                : `Ask ${firstName} for ${String(askable.length)} empty details`,
-                            run: () => {
-                              void onRequest(askable.map((f) => f.key)).then((outcome) => {
-                                setNotice(
-                                  outcome.ok
-                                    ? `${firstName} has been asked, by email.`
-                                    : `Not sent: ${outcome.message}`,
-                                );
-                              });
-                            },
-                          }
-                    }
-                    onHistory={onHistory}
+                    askFor={askAll}
+                    historyHref={historyHref}
                     onDownload={
                       onDownloadRecord === undefined
                         ? undefined
                         : () => {
-                            setPdf(true);
+                            setOpened('pdf');
                           }
                     }
                     viewAsLabel={viewAs === undefined ? null : `View as ${firstName}`}
                     onViewAs={() => {
-                      setViewing(true);
+                      setOpened('view-as');
                     }}
                   />
                   {firstWritable === undefined ? null : (
@@ -512,7 +504,6 @@ function Record({
                       variant="primary"
                       startIcon={<icons.edit aria-hidden />}
                       onClick={() => {
-                        setTab('overview');
                         setEditing(firstWritable.key);
                       }}
                     >
@@ -556,359 +547,413 @@ function Record({
           onMove={onMove}
           name={person.name}
           placement={state.placement}
-          onClose={() => {
-            setMoving(null);
-          }}
+          onClose={close}
         />
       )}
       {onDownloadRecord === undefined ? null : (
-        <RecordPdf open={pdf} onOpenChange={setPdf} onDownload={onDownloadRecord} />
+        <RecordPdf
+          name={firstName}
+          open={opened === 'pdf'}
+          onOpenChange={(next) => {
+            setOpened(next ? 'pdf' : null);
+          }}
+          onDownload={onDownloadRecord}
+        />
       )}
       {viewAs === undefined ? null : (
         <ViewAsDialog
           name={person.name}
-          open={viewing}
-          onOpenChange={setViewing}
+          open={opened === 'view-as'}
+          onOpenChange={(next) => {
+            setOpened(next ? 'view-as' : null);
+          }}
           onViewAs={viewAs}
         />
-      )}
-      <ReviewNotices
-        reviews={state.reviews}
-        onCorrect={(key) => {
-          // The section that asks for it, open to edit.
-          const at = sections.find((s) => s.fields.some((f) => f.key === key && !f.readOnly));
-          if (at) setEditing(at.key);
-        }}
-      />
-      {decidable === 0 ? null : (
-        <Alert
-          tone="warning"
-          title={`${String(decidable)} ${decidable === 1 ? 'change waits' : 'changes wait'} for your approval`}
-          action={
-            onApprovals === undefined ? undefined : (
-              <Button size="sm" onClick={onApprovals}>
-                Review
-              </Button>
-            )
-          }
-        >
-          Pending values are shown under their fields and are not applied until approved.
-        </Alert>
-      )}
-      {/* Asked of them, on their own profile: what, and by whom. */}
-      {onRequest !== undefined || requests.size === 0 ? null : (
-        <Alert
-          tone="info"
-          title={`${[...requests.values()][0]?.by ?? 'HR'} asked you to add ${
-            requests.size === 1 ? 'a detail' : `${String(requests.size)} details`
-          }`}
-          action={
-            <Button
-              size="sm"
-              onClick={() => {
-                const first = [...requests.keys()][0];
-                if (first !== undefined) open(first);
-              }}
-            >
-              Add them
-            </Button>
-          }
-        >
-          {[...requests.values()].map((r) => r.label).join(', ')}.
-        </Alert>
       )}
       {dating === null || onChangeDated === undefined ? null : (
         <DatedChange
           field={dating}
-          name={firstName}
+          name={person.name}
           current={values[dating.key]}
           today={state.calendar?.today ?? null}
           onChange={onChangeDated}
-          onClose={() => {
-            setDating(null);
-          }}
+          onClose={close}
         />
       )}
       {/* Where they work (PEO-123): changed from Actions, dated, in a dialog. */}
-      {state.placement && onPlace && placing ? (
-        <PlacementDialog
-          placement={state.placement}
-          onPlace={onPlace}
-          onClose={() => {
-            setPlacing(false);
-          }}
-        />
+      {state.placement && onPlace && opened === 'placement' ? (
+        <PlacementDialog placement={state.placement} onPlace={onPlace} onClose={close} />
       ) : null}
-      {/*
-        The record in tabs (W8–W10): the overview holds every section, and each
-        section has a tab of its own, so a long record is one click from any
-        part of it. History is its own page, and the last tab goes there.
-      */}
-      <Tabs
-        value={tab}
-        onValueChange={(next) => {
-          if (next === 'history') onHistory?.();
-          else setTab(next);
-        }}
-      >
-        {sections.length < 2 || own ? null : (
-          <TabsList
-            variant={coarse ? 'pill' : 'line'}
-            aria-label="Parts of the record"
-            className="max-w-full overflow-x-auto"
-          >
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            {sections.map((section) => (
-              <TabsTrigger key={section.key} value={section.key}>
-                {section.label}
-              </TabsTrigger>
-            ))}
-            {onHistory === undefined ? null : <TabsTrigger value="history">History</TabsTrigger>}
-          </TabsList>
-        )}
-        {/* The record, and beside it on a desk who they report to. */}
-        <TabsContent
-          value={tab}
-          className={
-            own
-              ? 'grid grid-cols-[minmax(0,1fr)] gap-6 @5xl/page:grid-cols-[16.25rem_minmax(0,1fr)] @5xl/page:items-start'
-              : 'grid grid-cols-[minmax(0,1fr)] gap-6 @5xl/page:grid-cols-[minmax(0,1fr)_20rem] @5xl/page:items-start'
-          }
-        >
-          {own ? (
-            // How complete their record is, and each part of it, done or not (W12).
-            <Card
-              padded
-              className="flex flex-col items-center gap-3 @5xl/page:sticky @5xl/page:top-6"
-            >
-              <CircularProgress
-                value={percent}
-                size={84}
-                label="Your record"
-                tone={percent === 100 ? 'success' : 'accent'}
-              />
-              <p className="font-bold">
-                {percent === 100 ? 'Your record is complete' : `${String(percent)}% complete`}
-              </p>
-              {gaps.length === 0 ? null : (
-                <p className="text-sm text-fg-muted">
-                  {gaps.length} {gaps.length === 1 ? 'detail' : 'details'} left
-                </p>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 @5xl/page:grid-cols-[18rem_minmax(0,1fr)] @5xl/page:items-start">
+        {/* The record card and the reporting line, the same for every viewer (D1). */}
+        <Stack gap={6} className="@5xl/page:sticky @5xl/page:top-6">
+          {parts.length + (history === null ? 0 : 1) < 2 && person.missing === null ? null : (
+            <Card padded className="flex flex-col gap-4 touch:hidden">
+              {person.missing === null ? null : (
+                <div className="flex items-center gap-3">
+                  <CircularProgress
+                    value={percent}
+                    size={52}
+                    label={own ? 'Your record' : 'Complete'}
+                    tone={percent === 100 ? 'success' : 'accent'}
+                  />
+                  <div className="min-w-0">
+                    <p className="font-display text-md font-bold">
+                      {own ? 'Your record' : `${String(percent)}% complete`}
+                    </p>
+                    <p className="text-sm text-fg-muted">
+                      {gaps.length === 0
+                        ? 'Nothing left to fill in'
+                        : own
+                          ? `${String(percent)}% complete · ${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left`
+                          : `${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left${forOthers === 0 ? '' : `, ${String(forOthers)} for ${gaps.find((g) => g.readOnly)?.ownedBy ?? 'HR'}`}`}
+                    </p>
+                  </div>
+                </div>
               )}
-              <TertiaryNav
-                label="Parts of your record"
-                variant="fill"
-                touchLayout="pills"
-                className="w-full"
-                items={sections.map((section) => ({
-                  id: `section-${section.key}`,
-                  label: section.label,
-                  status:
-                    gapsIn(section).length === 0 ? ('success' as const) : ('warning' as const),
-                }))}
-              />
+              <TertiaryNav label="Parts of the record" variant="fill" items={parts} />
+              {history === null ? null : (
+                <>
+                  <Separator />
+                  <TertiaryNav label="The record’s history" variant="fill" items={[history]} />
+                </>
+              )}
             </Card>
-          ) : null}
-          <Stack gap={6} className="min-w-0">
-            {sections.length === 0 ? (
-              <EmptyState title="Nothing else to show" />
-            ) : (
-              sections
-                .filter((section) => tab === 'overview' || tab === section.key)
-                .map((section) => {
-                  const writable = section.fields.some((f) => !f.readOnly);
-                  return (
-                    <PageSection
-                      key={section.key}
-                      id={`section-${section.key}`}
-                      surface
-                      className="@container scroll-mt-4"
-                      title={section.label}
-                      actions={
-                        <span className="flex items-center gap-2">
-                          {gapsIn(section).length === 0 ? null : (
-                            <MissingMark count={gapsIn(section).length} />
-                          )}
-                          {section.readsLogged ? <Badge size="sm">Reads are logged</Badge> : null}
-                          {writable && editing !== section.key ? (
-                            <Button
-                              size="sm"
-                              aria-label={`Edit ${section.label}`}
-                              onClick={() => {
-                                setEditing(section.key);
-                              }}
-                            >
-                              Edit
-                            </Button>
-                          ) : null}
-                        </span>
-                      }
-                    >
-                      {(held[section.key] ?? []).length === 0 || editing === section.key ? null : (
-                        <Alert tone="info" title="Sent to HR for approval">
-                          {(held[section.key] ?? []).join(' and ')}{' '}
-                          {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until
-                          HR approves; the record keeps what it had until then.
-                        </Alert>
-                      )}
-                      {editing === section.key ? (
-                        <SectionForm
-                          section={section}
-                          values={values}
-                          pending={pending}
-                          {...(onWithdraw === undefined ? {} : { onWithdraw })}
-                          {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
-                          {...(onCheck === undefined ? {} : { onCheck })}
-                          {...(focus === undefined ? {} : { focusKey: focus })}
-                          footer={
-                            <Button
-                              onClick={() => {
-                                setEditing(null);
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                          }
-                          onSave={async (key, changed) => {
-                            const outcome = await onSave(key, changed);
-                            if (outcome.ok) {
-                              // A value sent for approval is not the record's yet (PEO-077).
-                              const waiting = new Set(outcome.held ?? []);
-                              const applied = Object.fromEntries(
-                                Object.entries(changed).filter(
-                                  ([k]) =>
-                                    !waiting.has(
-                                      section.fields.find((f) => f.key === k)?.label ?? k,
-                                    ),
-                                ),
-                              );
-                              setValues((v) => ({ ...v, ...applied }));
-                              setHeld((h) => ({ ...h, [key]: outcome.held ?? [] }));
-                              setEditing(null);
-                            }
-                            return outcome;
-                          }}
-                        />
-                      ) : (
-                        <dl className="-mt-1 flex flex-col">
-                          {section.fields.map((field) => {
-                            const gap = field.missing === true && isMissing(values[field.key]);
-                            return (
-                              <div
-                                key={field.key}
-                                className="relative grid min-h-12 items-center gap-x-4 gap-y-1 border-b border-border py-1.5 last:border-b-0 @md:grid-cols-[11.25rem_minmax(0,1fr)] touch:py-2.5"
-                              >
-                                <dt
-                                  id={`field-${field.key}`}
-                                  className="flex flex-wrap items-center gap-1.5 text-sm text-fg-muted"
-                                >
-                                  {field.label}
-                                  <SensitiveMark field={field} />
-                                  {gap ? <MissingMark /> : null}
-                                </dt>
-                                <dd className="flex min-w-0 flex-col gap-1 text-sm font-medium touch:text-base">
-                                  {onChangeDated === undefined ||
-                                  !state.calendar ||
-                                  field.readOnly ||
-                                  isFileField(field) ? null : (
-                                    <Button
-                                      variant="ghost"
-                                      size="xs"
-                                      className="relative tap-target self-end -my-1 @md:absolute @md:end-4"
-                                      aria-label={`Change ${field.label} from a date`}
-                                      startIcon={<icons.history aria-hidden />}
-                                      onClick={() => {
-                                        setDating(field);
-                                      }}
-                                    />
-                                  )}
-                                  {gap ? (
-                                    <span className="flex flex-wrap items-center gap-2 text-fg-muted">
-                                      {field.readOnly
-                                        ? `Not provided yet. ${field.ownedBy ?? 'HR'} fills this in.`
-                                        : 'Not provided yet.'}
-                                      {field.readOnly ? null : (
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          aria-label={`Add ${field.label}`}
-                                          onClick={() => {
-                                            open(field.key);
-                                          }}
-                                        >
-                                          Add
-                                        </Button>
-                                      )}
-                                      {onRequest !== undefined && field.askable === true ? (
-                                        <AskButton
-                                          field={field.label}
-                                          keyName={field.key}
-                                          firstName={firstName}
-                                          asked={requests.get(field.key) ?? null}
-                                          onRequest={onRequest}
-                                        />
-                                      ) : null}
-                                    </span>
-                                  ) : onRequest !== undefined &&
-                                    field.askable === true &&
-                                    isMissing(values[field.key]) ? (
-                                    <span className="flex flex-wrap items-center gap-1">
-                                      <DisplayValue field={field} value={values[field.key]} />
-                                      <AskButton
-                                        field={field.label}
-                                        keyName={field.key}
-                                        firstName={firstName}
-                                        asked={requests.get(field.key) ?? null}
-                                        onRequest={onRequest}
-                                      />
-                                    </span>
-                                  ) : (
-                                    <DisplayValue field={field} value={values[field.key]} />
-                                  )}
-                                  {pending
-                                    .filter((p) => p.key === field.key)
-                                    .map((p) => (
-                                      <PendingNote
-                                        key={p.id}
-                                        field={field}
-                                        pending={p}
-                                        onWithdraw={onWithdraw}
-                                        onSelfApprove={onSelfApprove}
-                                      />
-                                    ))}
-                                </dd>
-                              </div>
-                            );
-                          })}
-                        </dl>
-                      )}
-                    </PageSection>
-                  );
-                })
-            )}
-            {tab === 'overview' ? (
-              <EmploymentPeriods periods={state.employment?.periods ?? []} />
-            ) : null}
-          </Stack>
+          )}
           {state.reportingLine === undefined ? null : (
-            <aside className="@5xl/page:sticky @5xl/page:top-6">
+            <div className="touch:hidden">
               <ReportingLine
                 line={state.reportingLine}
                 person={{ name: person.name, title: person.summary, avatarUrl: person.avatarUrl }}
               />
-            </aside>
+            </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </Stack>
+        <Stack gap={6} className="min-w-0">
+          {/* Under a finger: how far along their own record is, first (MD2). */}
+          {own && person.missing !== null ? (
+            <Card padded className="hidden items-center gap-3 touch:flex">
+              <CircularProgress
+                value={percent}
+                size={52}
+                label="Your record"
+                tone={percent === 100 ? 'success' : 'accent'}
+              />
+              <div className="min-w-0">
+                <p className="font-display text-md font-bold">Your record</p>
+                <p className="text-sm text-fg-muted">
+                  {percent}% complete
+                  {gaps.length === 0
+                    ? ''
+                    : ` · ${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left`}
+                </p>
+              </div>
+            </Card>
+          ) : null}
+          <ReviewNotices
+            reviews={state.reviews}
+            onCorrect={(key) => {
+              // The section that asks for it, open to edit.
+              const at = sections.find((s) => s.fields.some((f) => f.key === key && !f.readOnly));
+              if (at) setEditing(at.key);
+            }}
+          />
+          {decidable === 0 ? null : (
+            <Alert
+              tone="warning"
+              title={`${String(decidable)} ${decidable === 1 ? 'change waits' : 'changes wait'} for your approval`}
+              action={
+                onApprovals === undefined ? undefined : (
+                  <Button size="sm" onClick={onApprovals}>
+                    Open in Review
+                  </Button>
+                )
+              }
+            >
+              Pending values are shown under their fields and are not applied until approved.
+            </Alert>
+          )}
+          {/* Asked of them, on their own profile: what, and by whom. */}
+          {onRequest !== undefined || requests.size === 0 ? null : (
+            <Alert
+              tone="info"
+              icon={<icons.send aria-hidden />}
+              title={`${[...requests.values()][0]?.by ?? 'HR'} asked you to add ${
+                requests.size === 1 ? 'a detail' : `${String(requests.size)} details`
+              }: ${[...requests.values()].map((r) => r.label).join(' and ')}.`}
+              action={
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const first = [...requests.keys()][0];
+                    if (first !== undefined) openOne(first);
+                  }}
+                >
+                  {requests.size === 1 ? 'Add it' : 'Add them'}
+                </Button>
+              }
+            />
+          )}
+          {/* Under a finger, the sections as pills, History last (MD1). */}
+          {parts.length + (history === null ? 0 : 1) < 2 ? null : (
+            <TertiaryNav
+              label="Sections of the record"
+              orientation="horizontal"
+              className="hidden touch:block"
+              items={history === null ? parts : [...parts, history]}
+            />
+          )}
+          {sections.length === 0 ? (
+            <EmptyState title="Nothing else to show" />
+          ) : (
+            sections.map((section) => {
+              const writable = section.fields.some((f) => !f.readOnly);
+              const isEditing = editing === section.key;
+              return (
+                <PageSection
+                  key={section.key}
+                  id={`section-${section.key}`}
+                  surface
+                  className="@container scroll-mt-4"
+                  title={section.label}
+                  actions={
+                    <span className="flex items-center gap-2">
+                      {gapsIn(section).length === 0 || isEditing ? null : (
+                        <MissingMark count={gapsIn(section).length} />
+                      )}
+                      {section.readsLogged && !isEditing ? (
+                        <Badge size="sm">
+                          <icons.visible aria-hidden />
+                          Reads are logged
+                        </Badge>
+                      ) : null}
+                      {isEditing ? (
+                        <Badge size="sm" tone="accent">
+                          Editing
+                        </Badge>
+                      ) : writable ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          startIcon={<icons.edit aria-hidden />}
+                          aria-label={`Edit ${section.label}`}
+                          onClick={() => {
+                            setEditing(section.key);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      ) : null}
+                    </span>
+                  }
+                >
+                  {(held[section.key] ?? []).length === 0 || isEditing ? null : (
+                    <Alert tone="info" title="Sent to HR for approval">
+                      {(held[section.key] ?? []).join(' and ')}{' '}
+                      {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until HR
+                      approves; the record keeps what it had until then.
+                    </Alert>
+                  )}
+                  {isEditing ? (
+                    <SectionForm
+                      section={section}
+                      values={values}
+                      pending={pending}
+                      columns={2}
+                      wide={(f) => WIDE.has(f.dataType) || isFileField(f)}
+                      hint="Only changed fields are sent."
+                      {...(onWithdraw === undefined ? {} : { onWithdraw })}
+                      {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
+                      {...(onCheck === undefined ? {} : { onCheck })}
+                      {...(focus === undefined ? {} : { focusKey: focus })}
+                      footer={
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setEditing(null);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      }
+                      onSave={async (key, changed) => {
+                        const outcome = await onSave(key, changed);
+                        if (outcome.ok) {
+                          // A value sent for approval is not the record's yet (PEO-077).
+                          const waiting = new Set(outcome.held ?? []);
+                          const applied = Object.fromEntries(
+                            Object.entries(changed).filter(
+                              ([k]) =>
+                                !waiting.has(section.fields.find((f) => f.key === k)?.label ?? k),
+                            ),
+                          );
+                          setValues((v) => ({ ...v, ...applied }));
+                          setHeld((h) => ({ ...h, [key]: outcome.held ?? [] }));
+                          setEditing(null);
+                        }
+                        return outcome;
+                      }}
+                    />
+                  ) : (
+                    <dl className="-mt-1 flex flex-col">
+                      {section.fields.map((field) => (
+                        <FieldRow
+                          key={field.key}
+                          field={field}
+                          value={values[field.key]}
+                          pending={pending.filter((p) => p.key === field.key)}
+                          firstName={firstName}
+                          asked={requests.get(field.key) ?? null}
+                          onAdd={
+                            field.readOnly
+                              ? undefined
+                              : () => {
+                                  openOne(field.key);
+                                }
+                          }
+                          onRequest={field.askable === true ? onRequest : undefined}
+                          onDated={
+                            onChangeDated === undefined ||
+                            !state.calendar ||
+                            field.readOnly ||
+                            isFileField(field)
+                              ? undefined
+                              : () => {
+                                  setOpened(`change:${field.key}`);
+                                }
+                          }
+                          onWithdraw={onWithdraw}
+                          onSelfApprove={onSelfApprove}
+                        />
+                      ))}
+                    </dl>
+                  )}
+                </PageSection>
+              );
+            })
+          )}
+          <EmploymentPeriods periods={state.employment?.periods ?? []} />
+          {state.reportingLine === undefined ? null : (
+            <div className="hidden touch:block">
+              <ReportingLine
+                line={state.reportingLine}
+                person={{ name: person.name, title: person.summary, avatarUrl: person.avatarUrl }}
+              />
+            </div>
+          )}
+        </Stack>
+      </div>
     </Stack>
   );
 }
 
 /**
- * One value, changed from a date (W11): the new value, when it takes effect,
- * and what happens because of it. Today, or a day People applies it on; a
- * sensitive field goes to Approvals and applies only once somebody else
- * agrees. Every change keeps the value it replaces in the history.
+ * One field, read (D1): its label and what marks it, its value with anything
+ * waiting under it, and on the row's end what may be done to it — a dated
+ * change for HR, Ask or Asked for whoever may ask, Add for the person.
+ */
+function FieldRow({
+  field,
+  value,
+  pending,
+  firstName,
+  asked,
+  onAdd,
+  onRequest,
+  onDated,
+  onWithdraw,
+  onSelfApprove,
+}: {
+  readonly field: RecordField;
+  readonly value: AttributeValue | undefined;
+  readonly pending: readonly PendingValue[];
+  readonly firstName: string;
+  readonly asked: DetailRequest | null;
+  readonly onAdd: (() => void) | undefined;
+  readonly onRequest: ((keys: readonly string[]) => Promise<Outcome>) | undefined;
+  readonly onDated: (() => void) | undefined;
+  readonly onWithdraw: ProfileProps['onWithdraw'];
+  readonly onSelfApprove: ProfileProps['onSelfApprove'];
+}): JSX.Element {
+  const empty = isMissing(value);
+  const gap = field.missing === true && empty;
+  const trail: ReactNode[] = [];
+  if (onRequest !== undefined && empty) {
+    trail.push(
+      <AskButton
+        key="ask"
+        field={field.label}
+        keyName={field.key}
+        firstName={firstName}
+        asked={asked}
+        onRequest={onRequest}
+      />,
+    );
+  } else if (gap && onAdd !== undefined) {
+    trail.push(
+      <Button key="add" size="xs" aria-label={`Add ${field.label}`} onClick={onAdd}>
+        Add
+      </Button>,
+    );
+  }
+  if (onDated !== undefined) {
+    trail.push(
+      <Tooltip key="dated" content={`Change ${field.label} from a date`}>
+        <Button
+          variant="ghost"
+          size="xs"
+          aria-label={`Change ${field.label} from a date`}
+          startIcon={<icons.history aria-hidden />}
+          onClick={onDated}
+        />
+      </Tooltip>,
+    );
+  }
+  return (
+    <div className="grid min-h-12 items-center gap-x-4 gap-y-1 border-b border-border py-1.5 last:border-b-0 @md:grid-cols-[11.25rem_minmax(0,1fr)_auto] touch:py-2.5">
+      <dt
+        id={`field-${field.key}`}
+        className="flex flex-wrap items-center gap-1.5 text-sm text-fg-muted"
+      >
+        {field.label}
+        <SensitiveMark field={field} />
+        {gap ? <MissingMark /> : null}
+      </dt>
+      <dd className="flex min-w-0 flex-col gap-1.5 text-sm font-medium touch:text-base">
+        {gap ? (
+          <span className="font-normal text-fg-muted">
+            {field.readOnly
+              ? `Not provided yet. ${field.ownedBy ?? 'HR'} fills this in.`
+              : 'Not provided yet.'}
+          </span>
+        ) : (
+          <DisplayValue field={field} value={value} />
+        )}
+        {pending.map((p) => (
+          <PendingNote
+            key={p.id}
+            field={field}
+            pending={p}
+            onWithdraw={onWithdraw}
+            onSelfApprove={onSelfApprove}
+          />
+        ))}
+      </dd>
+      {trail.length === 0 ? (
+        <dd className="hidden @md:block" />
+      ) : (
+        <dd className="flex items-center gap-1 justify-self-start @md:justify-self-end">{trail}</dd>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One value, changed from a date (D4): the new value, when it takes effect,
+ * and what happens because of it, in a centred dialog since it is one value
+ * and one date. Today, or a day People applies it on; a sensitive field goes
+ * to Review and applies only once somebody else agrees. Every change keeps
+ * the value it replaces in the history.
  */
 function DatedChange({
   field,
@@ -921,6 +966,7 @@ function DatedChange({
   readonly field: RecordField;
   readonly name: string;
   readonly current: AttributeValue | undefined;
+  /** Today on their calendar, from the record: never the browser's clock. */
   readonly today: string | null;
   readonly onChange: NonNullable<ProfileProps['onChangeDated']>;
   readonly onClose: () => void;
@@ -930,95 +976,111 @@ function DatedChange({
   const [from, setFrom] = useState<IsoDate | null>(null);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
-  const day = today ?? new Date().toISOString().slice(0, 10);
-  const effectiveFrom = when === 'today' ? day : from;
+  const effectiveFrom = when === 'today' ? today : from;
   return (
-    <Sheet
+    <Dialog
       open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
-      <SheetContent size="lg">
-        <SheetHeader>
-          <SheetTitle>Change {field.label.toLowerCase()}</SheetTitle>
-          <SheetDescription>{name} · the old value stays in the history</SheetDescription>
-        </SheetHeader>
-        <SheetBody>
-          <form
-            aria-label={`Change ${field.label}`}
-            id={`dated-${field.key}`}
-            className="flex flex-col gap-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (effectiveFrom === null) return;
-              setBusy(true);
-              setRefused(null);
-              void onChange({ values: { [field.key]: value }, effectiveFrom }).then((outcome) => {
-                setBusy(false);
-                if (outcome.ok) onClose();
-                else setRefused(outcome.message);
-              });
-            }}
-          >
-            <AttributeInput
-              field={{ ...field, readOnly: false }}
-              value={value}
-              onChange={setValue}
-            />
-            <Field>
-              <FieldLabel>When does it take effect?</FieldLabel>
-              <RadioGroup
-                value={when}
-                onValueChange={(next) => {
-                  setWhen(next === 'date' ? 'date' : 'today');
-                }}
-              >
-                <RadioGroupItem value="today" description="From the start of their day.">
-                  Today
-                </RadioGroupItem>
-                <RadioGroupItem value="date" description="It shows as scheduled until then.">
-                  On a date
-                </RadioGroupItem>
-              </RadioGroup>
-            </Field>
-            {when === 'date' ? (
-              <DatePicker label="Takes effect on" value={from} onChange={setFrom} />
-            ) : null}
-            {field.sensitive === true ? (
-              <Alert tone="warning" title="This needs a second approver">
-                {field.label} is sensitive, so somebody else in HR approves it before it applies.
-              </Alert>
-            ) : null}
-            {refused === null ? null : (
-              <Alert tone="danger" title="Not changed">
-                {refused}
-              </Alert>
-            )}
-          </form>
-        </SheetBody>
-        <SheetFooter>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button
-            type="submit"
-            form={`dated-${field.key}`}
-            variant="primary"
-            loading={busy}
-            loadingLabel="Saving"
-            disabled={effectiveFrom === null}
-          >
-            {field.sensitive === true ? 'Send for approval' : 'Save change'}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+      <DialogContent className="max-w-140" sheetOnTouch={false}>
+        <form
+          aria-label={`Change ${field.label}`}
+          className="flex min-h-0 flex-col"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (effectiveFrom === null) return;
+            setBusy(true);
+            setRefused(null);
+            void onChange({ values: { [field.key]: value }, effectiveFrom }).then((outcome) => {
+              setBusy(false);
+              if (outcome.ok) onClose();
+              else setRefused(outcome.message);
+            });
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Change {field.label}</DialogTitle>
+            <DialogDescription>{name} · the old value stays in the history</DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <Stack gap={4}>
+              <AttributeInput
+                field={{ ...field, label: 'New value', readOnly: false }}
+                value={value}
+                onChange={setValue}
+              />
+              <Field>
+                <FieldLabel>When does it take effect?</FieldLabel>
+                <RadioGroup
+                  value={when}
+                  orientation="horizontal"
+                  className="grid gap-2.5 sm:grid-cols-2"
+                  onValueChange={(next) => {
+                    setWhen(next === 'date' ? 'date' : 'today');
+                  }}
+                >
+                  <RadioCard value="today" description="From the start of their day.">
+                    Today
+                  </RadioCard>
+                  <RadioCard value="date" description="It shows as scheduled until then.">
+                    On a date
+                  </RadioCard>
+                </RadioGroup>
+              </Field>
+              {when === 'date' ? (
+                <Field>
+                  <FieldLabel>Takes effect on</FieldLabel>
+                  <FieldControl>
+                    <DatePicker
+                      label="Takes effect on"
+                      value={from}
+                      onChange={setFrom}
+                      {...(today === null ? {} : { today })}
+                    />
+                  </FieldControl>
+                </Field>
+              ) : null}
+              {field.sensitive === true ? (
+                <Alert tone="warning" title="This needs a second approver">
+                  Another HR member approves sensitive changes. The record keeps what it has until
+                  then.
+                </Alert>
+              ) : null}
+              {refused === null ? null : (
+                <Alert tone="danger" title="Not changed">
+                  {refused}
+                </Alert>
+              )}
+            </Stack>
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={busy}
+              loadingLabel="Saving"
+              disabled={effectiveFrom === null}
+              shortcut="form.submit"
+            >
+              {field.sensitive === true ? 'Send for approval' : 'Save change'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 /**
- * Ask the person for one empty detail: an icon beside it, its meaning in the
- * tooltip and the accessible name alike. Once asked, it says when and by
- * whom; pressing it again within the day records it and sends no second email.
+ * Ask the person for one empty detail, on the field's row: "Ask", then
+ * "Asked", its whole meaning in the tooltip and the accessible name alike.
+ * Once asked, it says when and by whom; pressing it again within the day
+ * records it and sends no second email.
  */
 function AskButton({
   field,
@@ -1044,18 +1106,17 @@ function AskButton({
         : asked !== null
           ? `${asked.by} asked ${firstName} for this on ${longDate(asked.requestedAt.slice(0, 10))}. Ask again`
           : `Ask ${firstName} to add ${field}`;
+  const done = sent || asked !== null;
   return (
     <>
       <Tooltip content={label}>
         <Button
-          size="sm"
-          variant="ghost"
+          size="xs"
+          variant={done ? 'ghost' : 'secondary'}
           aria-label={label}
           loading={busy}
           loadingLabel={`Asking ${firstName}`}
-          startIcon={
-            sent || asked !== null ? <icons.success aria-hidden /> : <icons.send aria-hidden />
-          }
+          startIcon={done ? <icons.confirm aria-hidden /> : <icons.send aria-hidden />}
           onClick={() => {
             setBusy(true);
             setProblem(null);
@@ -1066,7 +1127,7 @@ function AskButton({
             });
           }}
         >
-          {null}
+          {done ? 'Asked' : 'Ask'}
         </Button>
       </Tooltip>
       {problem === null ? null : (
@@ -1078,10 +1139,24 @@ function AskButton({
   );
 }
 
+/** Each move's glyph in the Actions menu. */
+const MOVE_ICON: Record<MoveKind, JSX.Element> = {
+  giveNotice: <icons.signOut aria-hidden />,
+  withdrawNotice: <icons.undo aria-hidden />,
+  terminate: <icons.offboard aria-hidden />,
+  endAccess: <icons.locked aria-hidden />,
+  startLeave: <icons.vacation aria-hidden />,
+  endLeave: <icons.vacation aria-hidden />,
+  discard: <icons.delete aria-hidden />,
+  rehire: <icons.hire aria-hidden />,
+  hire: <icons.hire aria-hidden />,
+};
+
 /**
  * Everything one may do to this record, in one menu beside the page's primary
- * action: the moves the status allows, then the record's own. A header with a
- * button per verb reads as a toolbar; this reads as a page.
+ * action (D2), in two groups: the moves that fit the status (only those, so
+ * nothing is disabled to puzzle over), then the record's own. On one's own
+ * record only History and the PDF are there.
  */
 function RecordActions({
   moves,
@@ -1089,7 +1164,7 @@ function RecordActions({
   firstMissing,
   onFirstMissing,
   askFor,
-  onHistory,
+  historyHref,
   onDownload,
   onPlacement,
   viewAsLabel,
@@ -1105,7 +1180,7 @@ function RecordActions({
   readonly firstMissing: { readonly key: string; readonly readOnly: boolean } | null;
   readonly onFirstMissing: (key: string) => void;
   readonly askFor: { readonly label: string; readonly run: () => void } | null;
-  readonly onHistory: (() => void) | undefined;
+  readonly historyHref: string | undefined;
   readonly onDownload: (() => void) | undefined;
 }): JSX.Element | null {
   // An item that puts the cursor somewhere keeps it there: the menu would
@@ -1135,10 +1210,12 @@ function RecordActions({
         {askFor.label}
       </DropdownMenuItem>
     ),
-    onHistory === undefined ? null : (
-      <DropdownMenuItem key="history" onSelect={onHistory}>
-        <icons.history aria-hidden />
-        History
+    historyHref === undefined ? null : (
+      <DropdownMenuItem key="history" asChild>
+        <a href={historyHref}>
+          <icons.history aria-hidden />
+          History
+        </a>
       </DropdownMenuItem>
     ),
     onDownload === undefined ? null : (
@@ -1168,11 +1245,13 @@ function RecordActions({
           onMove(kind);
         }}
       >
+        {MOVE_ICON[kind]}
         {moveLabel(kind)}
       </DropdownMenuItem>
     )),
     onPlacement === undefined ? null : (
       <DropdownMenuItem key="placement" onSelect={onPlacement}>
+        <icons.location aria-hidden />
         Change placement
       </DropdownMenuItem>
     ),
@@ -1289,58 +1368,119 @@ function PlacementDialog({
     entity !== '' && placement.legalEntityId !== null && entity !== placement.legalEntityId;
   const unchanged =
     entity === (placement.legalEntityId ?? '') && location === (placement.locationId ?? '');
+  const was = placement.entities.find((e) => e.value === placement.legalEntityId)?.label;
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
+    <RecordDialog
+      title="Change placement"
+      description="Their legal entity and work location, from a date."
+      onClose={onClose}
+      refusal={refused === null ? null : { title: 'Not moved', message: refused }}
+      action={
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={unchanged}
+          loading={saving}
+          loadingLabel="Moving"
+        >
+          Move
+        </Button>
+      }
+      onSubmit={() => {
+        setSaving(true);
+        setRefused(null);
+        void onPlace({
+          legalEntityId: entity === '' ? null : entity,
+          locationId: location === '' ? null : location,
+          ...(from === null ? {} : { effectiveFrom: from }),
+        }).then((outcome) => {
+          setSaving(false);
+          if (outcome.ok) onClose();
+          else setRefused(outcome.message);
+        });
       }}
     >
-      <DialogContent>
+      <PlacementPickers
+        placement={placement}
+        entity={entity}
+        location={location}
+        onEntity={setEntity}
+        onLocation={setLocation}
+        locationHint="Their working day follows this location’s time zone."
+      />
+      <Field>
+        <FieldLabel>Effective from</FieldLabel>
+        <FieldControl>
+          <DatePicker label="Effective from" value={from} onChange={setFrom} />
+        </FieldControl>
+      </Field>
+      {transfer ? (
+        <Alert tone="info" title="This is a transfer">
+          {was === undefined
+            ? 'The legal entity changes on this date.'
+            : `The legal entity changes from ${was}.`}{' '}
+          Service stays continuous.
+        </Alert>
+      ) : null}
+    </RecordDialog>
+  );
+}
+
+/**
+ * The one shape every record dialog shares (D5, D6): a title, a one-line
+ * explanation, only the inputs the task needs, the refusal in its own words,
+ * and a primary button named after what it does. Centred, a phone's too.
+ */
+function RecordDialog({
+  title,
+  description,
+  children,
+  refusal,
+  action,
+  onSubmit,
+  onClose,
+  open = true,
+  onOpenChange,
+}: {
+  readonly title: string;
+  readonly description: ReactNode;
+  readonly children: ReactNode;
+  readonly refusal: { readonly title: string; readonly message: string } | null;
+  readonly action: ReactNode;
+  readonly onSubmit: () => void;
+  readonly onClose: () => void;
+  readonly open?: boolean;
+  readonly onOpenChange?: (open: boolean) => void;
+}): JSX.Element {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange?.(next);
+        if (!next) onClose();
+      }}
+    >
+      <DialogContent className="max-w-120" sheetOnTouch={false}>
         <form
           noValidate
-          aria-label="Placement"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSaving(true);
-            setRefused(null);
-            void onPlace({
-              legalEntityId: entity === '' ? null : entity,
-              locationId: location === '' ? null : location,
-              ...(from === null ? {} : { effectiveFrom: from }),
-            }).then((outcome) => {
-              setSaving(false);
-              if (outcome.ok) onClose();
-              else setRefused(outcome.message);
-            });
+          aria-label={title}
+          className="flex min-h-0 flex-col"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
           }}
         >
           <DialogHeader>
-            <DialogTitle>Change placement</DialogTitle>
-            <DialogDescription>
-              Their legal entity and work location, from a date.
-            </DialogDescription>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Stack gap={4}>
-              <PlacementPickers
-                placement={placement}
-                entity={entity}
-                location={location}
-                onEntity={setEntity}
-                onLocation={setLocation}
-                locationHint="Their working day follows this location’s time zone."
-              />
-              <DatePicker label="Effective from" value={from} onChange={setFrom} />
-              {transfer ? (
-                <Alert tone="info" title="This is a transfer">
-                  Employment moves to the new legal entity on this date. Service stays continuous.
-                </Alert>
-              ) : null}
-              {refused === null ? null : (
-                <Alert tone="danger" title="Not moved">
-                  {refused}
+              {children}
+              {refusal === null ? null : (
+                <Alert tone="danger" title={refusal.title}>
+                  {refusal.message}
                 </Alert>
               )}
             </Stack>
@@ -1349,15 +1489,7 @@ function PlacementDialog({
             <Button type="button" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={unchanged}
-              loading={saving}
-              loadingLabel="Moving"
-            >
-              Move
-            </Button>
+            {action}
           </DialogFooter>
         </form>
       </DialogContent>
@@ -1366,14 +1498,8 @@ function PlacementDialog({
 }
 
 /**
- * The employee record as a PDF (PRD §15.5): what this viewer may read, the
- * rest counted in its footer. An export with pay or bank details in it needs
- * a reason, recorded with it (§15.1), so the reason is asked for up front
- * rather than after a refusal.
- */
-/**
- * Viewing the app as this person: what it means, said before it starts, and
- * the reason, which is required and kept in the activity log.
+ * Viewing the app as this person (D6): what it means, said before it starts,
+ * and the reason, which is required and kept in the activity log.
  */
 function ViewAsDialog({
   name,
@@ -1385,168 +1511,131 @@ function ViewAsDialog({
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onViewAs: (reason: string) => Promise<Outcome>;
-}): JSX.Element {
+}): JSX.Element | null {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
   const first = name.split(' ')[0] ?? name;
-  const start = (): void => {
-    if (reason.trim() === '') {
-      setRefused('Say why you are viewing as them.');
-      return;
-    }
-    setBusy(true);
-    setRefused(null);
-    void onViewAs(reason.trim()).then((outcome) => {
-      // On success the page becomes theirs; stay busy until it has.
-      if (!outcome.ok) {
-        setBusy(false);
-        setRefused(outcome.message);
-      }
-    });
-  };
-
+  if (!open) return null;
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) {
-          setReason('');
-          setRefused(null);
+    <RecordDialog
+      title={`View Kithena as ${first}`}
+      description={`Shows Kithena exactly as ${first} sees it, private details included, for up to 30 minutes. Nothing can be changed meanwhile, and ${first} is told afterwards.`}
+      onClose={() => {
+        setOpen(false);
+        setReason('');
+        setRefused(null);
+      }}
+      refusal={refused === null ? null : { title: 'Not started', message: refused }}
+      action={
+        <Button
+          type="submit"
+          variant="primary"
+          startIcon={<icons.visible aria-hidden />}
+          loading={busy}
+          loadingLabel="Starting"
+        >
+          View as {first}
+        </Button>
+      }
+      onSubmit={() => {
+        if (reason.trim() === '') {
+          setRefused('Say why you are viewing as them.');
+          return;
         }
+        setBusy(true);
+        setRefused(null);
+        void onViewAs(reason.trim()).then((outcome) => {
+          // On success the page becomes theirs; stay busy until it has.
+          if (!outcome.ok) {
+            setBusy(false);
+            setRefused(outcome.message);
+          }
+        });
       }}
     >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>View as {name}</DialogTitle>
-          <DialogDescription>
-            See Kithena exactly as {first} does, including their private details, for up to 30
-            minutes. Nothing can be changed while you do.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          <Stack gap={4}>
-            <Field required>
-              <FieldLabel>Reason</FieldLabel>
-              <FieldControl>
-                <Textarea
-                  value={reason}
-                  maxLength={500}
-                  onChange={(e) => {
-                    setReason(e.target.value);
-                  }}
-                />
-              </FieldControl>
-              <FieldDescription>
-                Kept in the activity log. {first} is told afterwards that you viewed as them.
-              </FieldDescription>
-            </Field>
-            {refused === null ? null : (
-              <Alert tone="danger" title="Not started">
-                {refused}
-              </Alert>
-            )}
-          </Stack>
-        </DialogBody>
-        <DialogFooter>
-          <Button
-            onClick={() => {
-              setOpen(false);
+      <Field required>
+        <FieldLabel>Reason</FieldLabel>
+        <FieldControl>
+          <Input
+            value={reason}
+            maxLength={500}
+            placeholder="Kept in the activity log"
+            onChange={(e) => {
+              setReason(e.target.value);
             }}
-          >
-            Cancel
-          </Button>
-          <Button variant="primary" loading={busy} loadingLabel="Starting" onClick={start}>
-            View as {first}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          />
+        </FieldControl>
+      </Field>
+    </RecordDialog>
   );
 }
 
+/**
+ * The employee record as a PDF (D6, PRD §15.5): what this viewer may read,
+ * the rest counted in its footer. An export with pay or bank details in it
+ * needs a reason, recorded with it (§15.1), so the reason is asked for up
+ * front rather than after a refusal.
+ */
 function RecordPdf({
+  name,
   open,
   onOpenChange: setOpen,
   onDownload,
 }: {
+  /** Whose record: "Adam". */
+  readonly name: string;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onDownload: (reason: string) => Promise<Outcome>;
-}): JSX.Element {
+}): JSX.Element | null {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
-
+  if (!open) return null;
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) {
-          setReason('');
-          setRefused(null);
-        }
+    <RecordDialog
+      title={`Download ${name}’s record`}
+      description="A PDF of what you can see. A reason is needed when it includes pay and bank details; it is kept with the export."
+      onClose={() => {
+        setOpen(false);
+        setReason('');
+        setRefused(null);
+      }}
+      refusal={refused === null ? null : { title: 'No PDF was made', message: refused }}
+      action={
+        <Button
+          type="submit"
+          variant="primary"
+          startIcon={<icons.download aria-hidden />}
+          loading={busy}
+          loadingLabel="Preparing PDF"
+        >
+          Download
+        </Button>
+      }
+      onSubmit={() => {
+        setBusy(true);
+        setRefused(null);
+        void onDownload(reason.trim()).then((outcome) => {
+          setBusy(false);
+          if (outcome.ok) setOpen(false);
+          else setRefused(outcome.message);
+        });
       }}
     >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Download the employee record</DialogTitle>
-          <DialogDescription>
-            A PDF of what you can see here. Anything withheld from you is counted in its footer.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          <Stack gap={4}>
-            <Field>
-              <FieldLabel>Reason</FieldLabel>
-              <FieldControl>
-                <Textarea
-                  value={reason}
-                  maxLength={500}
-                  onChange={(e) => {
-                    setReason(e.target.value);
-                  }}
-                />
-              </FieldControl>
-              <FieldDescription>
-                Needed when the record includes pay or bank details. Kept with the export.
-              </FieldDescription>
-            </Field>
-            {refused === null ? null : (
-              <Alert tone="danger" title="No PDF was made">
-                {refused}
-              </Alert>
-            )}
-          </Stack>
-        </DialogBody>
-        <DialogFooter>
-          <Button
-            onClick={() => {
-              setOpen(false);
+      <Field>
+        <FieldLabel>Reason</FieldLabel>
+        <FieldControl>
+          <Input
+            value={reason}
+            maxLength={500}
+            onChange={(e) => {
+              setReason(e.target.value);
             }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            loading={busy}
-            loadingLabel="Preparing PDF"
-            onClick={() => {
-              setBusy(true);
-              setRefused(null);
-              void onDownload(reason.trim()).then((outcome) => {
-                setBusy(false);
-                if (outcome.ok) setOpen(false);
-                else setRefused(outcome.message);
-              });
-            }}
-          >
-            Download
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          />
+        </FieldControl>
+      </Field>
+    </RecordDialog>
   );
 }

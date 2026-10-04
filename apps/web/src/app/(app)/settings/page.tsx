@@ -91,6 +91,8 @@ function peopleNow(data: {
               ? 'no provisioning'
               : `provisioning from ${String(scim[0]?.['system'])}`,
           ].join(' · '),
+    // The company's log, opened on People's settings.
+    '/settings/activity?area=fields,organisation,roles,integrations': 'Filtered to People settings',
   };
 }
 

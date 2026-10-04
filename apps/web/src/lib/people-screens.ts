@@ -179,20 +179,18 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
       );
     case 'ImportExport': {
       // Importing stays HR's, as it was. The history is HR's and People
-      // administrators', and the one part of the page that is not the same
-      // every time: asked for now, but streamed (a promise, `useStreamed`),
-      // so the header, both cards and their buttons never wait on it. One
+      // administrators', read beside the rest so the first HTML holds it:
+      // the page is drawn once, whole, with no rows still to come. One
       // People refuses this viewer is left out, not an error.
       const before = given(query.search['before']);
-      const history = orBare({ before }, (asked) => read('TransferHistory', asked)).then(
-        (answer) =>
-          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
-      );
       // `Home` is the shell's own read of the roles (`shellData`), shared.
-      const [roles, template, running] = await Promise.all([
+      const [roles, template, running, history] = await Promise.all([
         read('Home'),
         read('ImportTemplate'),
         activeImport(),
+        orBare({ before }, (asked) => read('TransferHistory', asked)).then((answer) =>
+          answer.status === 'ready' ? { ...(answer.data as object), paged: before !== null } : null,
+        ),
       ]);
       if (roles.status !== 'ready') return roles;
       const { hr = false, admin = false } = roles.data as { hr?: boolean; admin?: boolean };
@@ -252,21 +250,9 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'PeopleHome':
       return overview();
     case 'Organisation':
-      return read('Organisation');
+      return organisation();
     case 'PeopleSettings':
       return settingsOverview();
-    case 'ReminderSettings':
-      return reminderSettings();
-    case 'CountryPacks': {
-      const [setup, organisation] = await Promise.all([read('Setup'), read('Organisation')]);
-      if (setup.status !== 'ready') return setup;
-      const { packs } = setup.data as { packs: unknown[] };
-      const entities =
-        organisation.status === 'ready'
-          ? (organisation.data as { legalEntities: unknown[] }).legalEntities
-          : [];
-      return { status: 'ready', data: { packs, entities } };
-    }
     case 'Review':
       return review(query.search);
     case 'WebhookLog':
@@ -318,17 +304,47 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           ? { status: 'ready', data: { shared: null } }
           : found;
       }
-      const [summary, schedules] = await Promise.all([
-        orBare(
-          {
-            period: given(query.search['period']),
-            from: dateOf(query.search['from']),
-            to: dateOf(query.search['to']),
-            segment: given(query.search['segment']),
-          },
-          (asked) => read('WhatChanged', asked, json()),
-        ),
+      const period = {
+        period: given(query.search['period']),
+        from: dateOf(query.search['from']),
+        to: dateOf(query.search['to']),
+        segment: given(query.search['segment']),
+      };
+      // The period as the screen asks it, without what the address left out.
+      const ask = Object.fromEntries(Object.entries(period).filter(([, v]) => v !== null));
+      // The follow-up and the export dialog in the address are answered here,
+      // so the first HTML shows the answer and the draft, not a wait for them.
+      const question = given(query.search['ask']);
+      const share = query.search['share'];
+      const exporting =
+        share === 'pdf' || share === 'email'
+          ? {
+              recipient: given(query.search['for']),
+              tone: query.search['tone'] === 'detailed' ? 'detailed' : 'short',
+              charts: query.search['charts'] !== 'off',
+              madeLine: query.search['made'] !== 'off',
+            }
+          : null;
+      const answered = (answer: PeopleAnswer<string>) =>
+        answer.ok ? (jsonOf(answer) ?? 'People could not be asked') : answer.message;
+      const [summary, schedules, followUp, draft] = await Promise.all([
+        orBare(period, (asked) => read('WhatChanged', asked, json())),
         read('ReportSchedules'),
+        question === null
+          ? null
+          : people<string>('WhatChangedAsk', { input: JSON.stringify({ ...ask, question }) }),
+        exporting === null
+          ? null
+          : people<string>('SummaryDraft', {
+              input: JSON.stringify({
+                ...ask,
+                tone: exporting.tone,
+                charts: exporting.charts,
+                madeLine: exporting.madeLine,
+                ...(exporting.recipient === null ? {} : { recipient: exporting.recipient }),
+                edits: [],
+              }),
+            }),
       ]);
       if (summary.status !== 'ready') return summary;
       return {
@@ -336,6 +352,12 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         data: {
           ...(summary.data as object),
           schedules: schedules.status === 'ready' ? schedules.data : null,
+          ...(followUp === null || question === null
+            ? {}
+            : { answered: { question, result: answered(followUp) } }),
+          ...(draft === null || exporting === null
+            ? {}
+            : { drafted: { ...exporting, result: answered(draft) } }),
         },
       };
     }
@@ -583,15 +605,16 @@ async function overview(): Promise<ScreenLoad> {
 }
 
 /**
- * Completeness and reminders (S20): the reminder rule People runs today
- * (the day a detail goes missing, then weekly, in working hours), whether the
- * chat notice for it is on, and the reporting floor from the organisation.
- * The HR digest and the directory policy have no source yet and are left out.
+ * Organisation, every tab of it in one read (so moving between tabs fetches
+ * nothing new): the organisation itself; the country packs, which are People
+ * administrators' (`Setup` refuses anybody else, and the tab is left out);
+ * and the reminder rule People runs today (the day a detail goes missing,
+ * then weekly, in working hours), with whether its chat notice is on, beside
+ * the reporting floor it shares a card with.
  */
-async function reminderSettings(): Promise<ScreenLoad> {
-  const [organisation, chat] = await Promise.all([read('Organisation'), read('Chat')]);
-  if (organisation.status !== 'ready') return organisation;
-  const org = organisation.data as { canManage: boolean; settings: { cohortMinimum: number } };
+async function organisation(): Promise<ScreenLoad> {
+  const [org, setup, chat] = await Promise.all([read('Organisation'), read('Setup'), read('Chat')]);
+  if (org.status !== 'ready') return org;
   const chatData =
     chat.status === 'ready'
       ? (chat.data as {
@@ -606,8 +629,8 @@ async function reminderSettings(): Promise<ScreenLoad> {
   return {
     status: 'ready',
     data: {
-      canManage: org.canManage,
-      cohortMinimum: org.settings.cohortMinimum,
+      ...(org.data as object),
+      packs: setup.status === 'ready' ? (setup.data as { packs: unknown[] }).packs : null,
       reminders: {
         cadence: 'The day a detail goes missing, then once a week',
         window: '09:00 to 18:00, on their own clock',

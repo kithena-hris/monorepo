@@ -474,16 +474,7 @@ describe('Analytics', () => {
     expect(screen.queryByRole('heading', { name: /Compa-ratio/ })).toBeNull();
   });
 
-  it('keeps report schedules behind a button that counts the running ones (V7)', async () => {
-    const user = fast();
-    const done = () => Promise.resolve({ ok: true as const });
-    const actions = {
-      onCreate: vi.fn(done),
-      onUpdate: vi.fn(done),
-      onPause: vi.fn(done),
-      onResume: vi.fn(done),
-      onDelete: vi.fn(done),
-    };
+  it('opens the Scheduled reports page from its Schedules button', async () => {
     const schedule = {
       id: 's1',
       name: 'Monthly headcount',
@@ -517,31 +508,19 @@ describe('Analytics', () => {
       fields: [],
     };
     const { container, rerender } = render(
-      <Analytics
-        load={{ status: 'ready', data: { ...workforce, schedules } }}
-        schedules={actions}
-      />,
+      <Analytics load={{ status: 'ready', data: { ...workforce, schedules } }} />,
     );
-    await user.click(screen.getByRole('button', { name: 'Schedules, 1 active' }));
-    const list = await screen.findByRole('list', { name: 'Scheduled reports' });
-    expect(
-      within(list).getByText('Monthly on day 1 at 08:00 · Nora Becker, Sofia Lindqvist and 1 more'),
-    ).toBeInTheDocument();
-    expect(within(list).getByText('Paused')).toBeInTheDocument();
+    // One list of schedules, on its own page: no popover repeats it here.
+    expect(screen.getByRole('link', { name: 'Schedules' })).toHaveAttribute(
+      'href',
+      '/people/reports',
+    );
+    expect(screen.queryByRole('list', { name: 'Scheduled reports' })).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
 
-    await user.click(within(list).getByRole('button', { name: 'More for Expiring permits' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Resume' }));
-    expect(actions.onResume).toHaveBeenCalledWith('s2');
-
     // For a viewer People refuses them, there is no button.
-    rerender(
-      <Analytics
-        load={{ status: 'ready', data: { ...workforce, schedules: null } }}
-        schedules={actions}
-      />,
-    );
-    expect(screen.queryByRole('button', { name: /^Schedules/ })).toBeNull();
+    rerender(<Analytics load={{ status: 'ready', data: { ...workforce, schedules: null } }} />);
+    expect(screen.queryByRole('link', { name: 'Schedules' })).toBeNull();
   });
 
   it('has loading and error states', async () => {

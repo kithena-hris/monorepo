@@ -70,7 +70,7 @@ describe('PeopleSections', () => {
   }, 20_000);
 
   it('shows an employee only what their roles open, and marks nothing on adding somebody', () => {
-    render(<PeopleSections {...placesFor(PEOPLE_NAV, EMPLOYEE)} route="/people/new" />);
+    render(<PeopleSections {...placesFor(PEOPLE_NAV, EMPLOYEE)} route="/people/me" />);
     const links = within(screen.getByRole('navigation', { name: 'People sections' }));
     expect(links.getAllByRole('link').map((l) => l.textContent)).toEqual([
       expect.stringContaining('Directory'),

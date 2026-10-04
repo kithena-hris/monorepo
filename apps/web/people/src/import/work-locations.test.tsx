@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axeViolations } from '../test/axe';
@@ -8,9 +8,9 @@ import { MAPPING_WITH_OFFICE, NEW_FIELDS, PLACES_HERE, PLAN_WITH_OFFICE } from '
 import { WorkLocationsStep } from './work-locations';
 
 /**
- * The file's work locations, set up inside the import right after Map
- * columns (the user: "Set up workplaces inline"): map each value to one here,
- * add it, or leave it empty with its people named for HR.
+ * The file's work locations, the first block of Decide what's new (the user:
+ * "Set up workplaces inline"): map each value to one here, add it, or leave
+ * it empty with its people named for HR.
  */
 function props(over: Partial<ImportFlowProps> = {}): ImportFlowProps {
   const ok = () => Promise.resolve({ ok: true as const });
@@ -29,15 +29,18 @@ function props(over: Partial<ImportFlowProps> = {}): ImportFlowProps {
 
 const ID = '01a0e1d1-f26f-7000-be34-a7236a53ad47';
 
+/** From the mapping to Decide what's new, with its Work locations block open. */
 async function toPlaces(user: ReturnType<typeof fast>) {
-  await user.click(screen.getByRole('button', { name: 'Next: work locations' }));
-  return screen.findByRole('heading', {
-    name: '3 work locations in this file. Here’s how each maps.',
-  });
+  await user.click(screen.getByRole('button', { name: 'Next: decide what’s new' }));
+  const block = await screen.findByRole('button', { name: /^Work locations/ });
+  // Every value already decided: the block starts closed, with its summary.
+  expect(block).toHaveAccessibleName(/3 in this file/);
+  if (block.getAttribute('aria-expanded') !== 'true') await user.click(block);
+  return block;
 }
 
 describe('the work locations in the file', () => {
-  it('shows each value, how it maps, and who it is, still under Map columns', async () => {
+  it('shows each value, how it maps, and who it is, in Decide what’s new', async () => {
     const user = fast();
     const { container } = render(<ImportFlow {...props()} />);
     await toPlaces(user);
@@ -78,18 +81,15 @@ describe('the work locations in the file', () => {
 
     const stamford = screen.getByRole('radiogroup', { name: 'What happens to “Stamford”' });
     await user.clear(screen.getByRole('textbox', { name: /^Name/ }));
-    expect(screen.getByRole('button', { name: 'Next: new fields' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next: review the plan' })).toBeDisabled();
     await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'Stamford Branch');
     const id = screen.getByRole('radiogroup', { name: `What happens to “${ID}”` });
     await user.click(within(id).getByRole('radio', { name: /Map it to a work location here/ }));
     expect(within(stamford).getByRole('radio', { name: /Add it/ })).toBeChecked();
 
-    await user.click(screen.getByRole('button', { name: 'Next: new fields' }));
-    await screen.findByRole('heading', {
-      name: '3 columns aren’t fields yet. Here’s what I’d create.',
-    });
-    await user.click(screen.getByRole('button', { name: 'Next: what about existing people?' }));
-    await user.click(await screen.findByRole('button', { name: 'Next: review the plan' }));
+    // The new fields are on the same page, below.
+    expect(screen.getByRole('heading', { name: /^New fields/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
     await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
     const places = {
       'scranton branch': { kind: 'map', locationId: 'l-scr' },
@@ -116,30 +116,26 @@ describe('the work locations in the file', () => {
     const { container } = render(<ImportFlow {...props({ admin: false, plan })} />);
     await toPlaces(user);
     expect(screen.getByText('An administrator sets up work locations')).toBeInTheDocument();
-    for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
+    for (const group of screen.getAllByRole('radiogroup', { name: /^What happens to “/ }))
+      for (const radio of within(group).getAllByRole('radio')) expect(radio).toBeDisabled();
     expect(await axeViolations(container)).toEqual([]);
-    await user.click(screen.getByRole('button', { name: 'Next: new fields' }));
-    await screen.findByRole('heading', {
-      name: '3 columns aren’t fields yet. Here’s what I’d create.',
-    });
-    await user.click(screen.getByRole('button', { name: 'Next: what about existing people?' }));
-    await user.click(await screen.findByRole('button', { name: 'Next: review the plan' }));
+    await user.click(screen.getByRole('button', { name: 'Next: review the plan' }));
     await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
     expect(plan).toHaveBeenLastCalledWith(expect.any(Object), expect.any(Array), undefined);
   });
 
-  it('keeps its own step in the address, and Back from new fields returns to it', async () => {
+  it('keeps its step in the address, and Back from Decide what’s new returns to the mapping', async () => {
     const user = fast();
     const onStepChange = vi.fn();
     const { rerender } = render(<ImportFlow {...props({ step: 'map', onStepChange })} />);
-    await user.click(screen.getByRole('button', { name: 'Next: work locations' }));
-    expect(onStepChange).toHaveBeenLastCalledWith('places');
-    rerender(<ImportFlow {...props({ step: 'places', onStepChange })} />);
-    await user.click(await screen.findByRole('button', { name: 'Next: new fields' }));
-    expect(onStepChange).toHaveBeenLastCalledWith('fields');
-    rerender(<ImportFlow {...props({ step: 'fields', onStepChange })} />);
-    await user.click(await screen.findByRole('button', { name: 'Back' }));
-    expect(onStepChange).toHaveBeenLastCalledWith('places');
+    await user.click(screen.getByRole('button', { name: 'Next: decide what’s new' }));
+    await waitFor(() => {
+      expect(onStepChange).toHaveBeenLastCalledWith('decide');
+    });
+    rerender(<ImportFlow {...props({ step: 'decide', onStepChange })} />);
+    expect(await screen.findByRole('button', { name: /^Work locations/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(onStepChange).toHaveBeenLastCalledWith('map');
   });
 
   it('shows what to check beside the prefilled country and zone, ready to change', async () => {

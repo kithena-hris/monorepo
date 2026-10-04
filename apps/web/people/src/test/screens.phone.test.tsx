@@ -497,7 +497,9 @@ describe('at 390×844, with a finger', () => {
         onSetNumbering={ok}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Edit Acme Iberia SL' }));
+    // Each row's actions are in its menu, on the card under a finger (H7).
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for Acme Iberia SL' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
     await settled();
     expect(await violations(document.body)).toEqual([]);
     expect(underFloor(document.body)).toEqual([]);
@@ -1087,7 +1089,7 @@ describe('at 390×844, with a finger', () => {
 
     it('new fields, one card at a time, with Skip and Create in thumb reach (MA8)', async () => {
       await checked(flow({ status: 'ready', data: MAPPING }));
-      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next' }));
       await screen.findByText('New fields · 1 of 3');
       // The import's own bar, as drawn: back to Import, the step as the title,
       // and no large title or stepper under it.
@@ -1111,7 +1113,7 @@ describe('at 390×844, with a finger', () => {
 
     it('the people without a value, then the plan in a sentence and Approve (MA9)', async () => {
       await checked(flow({ status: 'ready', data: MAPPING }));
-      await userEvent.click(screen.getByRole('button', { name: 'Next: new fields' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next' }));
       // One card at a time: the same two buttons serve every card, so each
       // press waits for its card, or it lands on the one before and the plan
       // never comes.
@@ -1133,7 +1135,7 @@ describe('at 390×844, with a finger', () => {
     it('the plan', async () => {
       const noNewColumns = { ...MAPPING, columns: MAPPING.columns.slice(0, 2) };
       await checked(flow({ status: 'ready', data: noNewColumns }));
-      await userEvent.click(screen.getByRole('button', { name: 'Next: review the plan' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next' }));
       await screen.findByRole('heading', { name: 'Here’s everything that will happen' });
       // A cell left empty is a card titled by whose it is, under "See rows".
       await userEvent.click(screen.getByRole('button', { name: 'See rows' }));
@@ -1158,7 +1160,7 @@ describe('at 390×844, with a finger', () => {
           admin
         />,
       );
-      await userEvent.click(screen.getByRole('button', { name: 'Next: work locations' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Next' }));
       await screen.findByRole('heading', {
         name: '3 work locations in this file. Here’s how each maps.',
       });

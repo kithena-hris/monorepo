@@ -157,7 +157,7 @@ describe('Home, as HR (B2)', () => {
       wrapper: TooltipProvider,
     });
     expect(screen.getByText(/Here’s what needs HR today\.$/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add person' })).toHaveAttribute('href', '/people/new');
+    expect(screen.getByRole('link', { name: 'Add person' })).toHaveAttribute('href', '/people/directory/list?add=person');
     for (const label of [
       'Headcount',
       'Complete records',

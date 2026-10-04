@@ -7,7 +7,6 @@ import {
   PageHeader,
   SearchField,
   SettingsCard,
-  Skeleton,
   TertiaryNav,
   icons,
   type IconName,
@@ -36,7 +35,7 @@ export interface SettingsModule {
     readonly label: string;
     readonly description?: string | undefined;
     readonly icon?: string | undefined;
-    /** How it is set now, in a few words; empty while still to come. */
+    /** How it is set now, in a few words; empty or null when there is nothing to say. */
     readonly now: string | null;
     /** A state that wants attention: the card's badge, and the chip over the cards. */
     readonly attention: { readonly badge: string; readonly chip: string } | null;
@@ -146,7 +145,11 @@ export function SettingsIndex({
                   {module.description}
                 </p>
                 {shown.length === 0 ? (
-                  <p className="text-sm text-fg-muted">No setting matches “{query}”.</p>
+                  <EmptyState
+                    icon={<icons.search />}
+                    title={`No setting matches “${query.trim()}”`}
+                    description="Try another word, or browse the areas on the left."
+                  />
                 ) : (
                   <ul className="grid gap-3.5 @5xl/page:grid-cols-2">
                     {shown.map((s) => (
@@ -156,14 +159,7 @@ export function SettingsIndex({
                           icon={<Icon name={s.icon} />}
                           title={s.label}
                           description={s.description}
-                          meta={
-                            // Still to come, while the page is fetched (`PageLoading`).
-                            s.now === '' ? (
-                              <Skeleton className="inline-block h-3.5 w-44 max-w-full align-middle" />
-                            ) : (
-                              (s.now ?? undefined)
-                            )
-                          }
+                          meta={s.now === '' || s.now === null ? undefined : s.now}
                           badge={
                             s.attention === null ? undefined : (
                               <Badge size="sm" tone="warning">

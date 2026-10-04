@@ -9,6 +9,7 @@ import {
   Badge,
   Button,
   Combobox,
+  DataTable,
   Dialog,
   DialogBody,
   DialogContent,
@@ -32,14 +33,9 @@ import {
   SelectTrigger,
   SelectValue,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Tooltip,
   TooltipProvider,
+  useScreenCommand,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -140,6 +136,13 @@ export const EACH_SEES_THEIR_OWN =
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const hh = (hour: number): string => `${String(hour).padStart(2, '0')}:00`;
 
+/** Who gets it, short enough for one line: two names, then how many more. */
+export function recipientsText(row: Pick<ScheduleRow, 'recipients'>): string {
+  const names = row.recipients.map((r) => r.name ?? 'Somebody who has left');
+  if (names.length <= 2) return names.join(', ');
+  return `${names.slice(0, 2).join(', ')} and ${String(names.length - 2)} more`;
+}
+
 export function cadenceText(r: Pick<ScheduleRow, 'every' | 'weekday' | 'day' | 'hour'>): string {
   if (r.every === 'week')
     return `Weekly on ${WEEKDAYS[(r.weekday ?? 1) - 1] ?? 'Monday'} at ${hh(r.hour)}`;
@@ -175,10 +178,6 @@ export function ReportSchedules(props: ReportSchedulesProps): JSX.Element {
   return (
     <TooltipProvider>
       <Stack gap={6}>
-        <PageHeader
-          title="Scheduled reports"
-          description="A file or the summary, emailed as a link on a cadence. Nobody is sent the data itself."
-        />
         <Loaded load={props.load} what="the scheduled reports">
           {(state) => <Schedules {...props} state={state} />}
         </Loaded>
@@ -187,8 +186,16 @@ export function ReportSchedules(props: ReportSchedulesProps): JSX.Element {
   );
 }
 
+const TITLE = 'Scheduled reports';
+const ABOUT =
+  'A file or the summary, emailed as a link on a cadence. Nobody is sent the data itself.';
+
 type Editing = { readonly row: ScheduleRow | null } | null;
 
+/**
+ * The one list of schedules: the Schedules button on every Insights tab opens
+ * it. Each row's actions are in its menu; a new schedule is a centred dialog.
+ */
 function Schedules({
   state,
   onCreate,
@@ -200,9 +207,26 @@ function Schedules({
   const [editing, setEditing] = useState<Editing>(null);
   const [deleting, setDeleting] = useState<ScheduleRow | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
+  // C makes a schedule, here as on the button: the shell's key and its palette run it.
+  useScreenCommand(
+    state.canManage
+      ? {
+          id: 'create',
+          label: 'New scheduled report',
+          run: () => {
+            setEditing({ row: null });
+          },
+        }
+      : null,
+  );
 
   if (!state.canManage) {
-    return <Alert tone="info">Only HR and People administrators schedule reports.</Alert>;
+    return (
+      <>
+        <PageHeader title={TITLE} description={ABOUT} />
+        <Alert tone="info">Only HR and People administrators schedule reports.</Alert>
+      </>
+    );
   }
 
   const act = (outcome: Promise<Outcome>): void => {
@@ -211,115 +235,127 @@ function Schedules({
       if (!o.ok) setRefused(o.message);
     });
   };
+  const history = (row: ScheduleRow): void => {
+    window.location.assign(`/people/reports/${row.id}`);
+  };
 
   return (
-    <Stack gap={4}>
-      <div>
-        <Button
-          variant="primary"
-          onClick={() => {
-            setEditing({ row: null });
-          }}
-        >
-          New scheduled report
-        </Button>
-      </div>
+    <>
+      <PageHeader
+        title={TITLE}
+        description={ABOUT}
+        actions={
+          <Button
+            variant="primary"
+            startIcon={<icons.add aria-hidden />}
+            shortcut="create"
+            onClick={() => {
+              setEditing({ row: null });
+            }}
+          >
+            New scheduled report
+          </Button>
+        }
+      />
       {refused === null ? null : (
         <Alert tone="danger" title="Not changed">
           {refused}
         </Alert>
       )}
-      {state.schedules.length === 0 ? (
-        <EmptyState
-          title="No scheduled reports"
-          description="Schedule an Excel file, a PDF roster or the summary for the people who need it."
-        />
-      ) : (
-        <Table aria-label="Scheduled reports">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Report</TableHead>
-              <TableHead>When</TableHead>
-              <TableHead>Recipients</TableHead>
-              <TableHead>Last run</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {state.schedules.map((row) => {
-              const last = row.lastRun === null ? null : outcomeOf(row.lastRun.outcome);
+      <DataTable<ScheduleRow>
+        label={TITLE}
+        rows={state.schedules}
+        rowId={(row) => row.id}
+        describeRow={(row) => row.name}
+        rowMenuOnCard
+        empty={
+          <EmptyState
+            title="No scheduled reports"
+            description="Schedule an Excel file, a PDF roster or the summary for the people who need it."
+          />
+        }
+        columns={[
+          {
+            id: 'report',
+            header: 'Report',
+            cell: (row) => (
+              <span className="flex flex-col">
+                <span className="font-semibold">{row.name}</span>
+                <span className="text-sm text-fg-muted">
+                  {reportText(row)} · {audienceText(row)}
+                </span>
+              </span>
+            ),
+          },
+          { id: 'when', header: 'When', cell: (row) => cadenceText(row) },
+          { id: 'recipients', header: 'Recipients', cell: (row) => recipientsText(row) },
+          {
+            id: 'last',
+            header: 'Last run',
+            cell: (row) => {
+              if (row.lastRun === null) return <span className="text-fg-muted">Not yet</span>;
+              const last = outcomeOf(row.lastRun.outcome);
               return (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{row.name}</span>
-                      <span className="text-fg-muted text-sm">
-                        {reportText(row)} · {audienceText(row)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{cadenceText(row)}</TableCell>
-                  <TableCell>
-                    {row.recipients.map((r) => r.name ?? 'Somebody who has left').join(', ')}
-                  </TableCell>
-                  <TableCell>
-                    {row.lastRun === null || last === null ? (
-                      <span className="text-fg-muted">Not yet</span>
-                    ) : (
-                      <div className="flex flex-col items-start gap-1">
-                        <Badge tone={last.tone}>{last.label}</Badge>
-                        <span className="text-fg-muted text-sm">{row.lastRun.period}</span>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {row.paused ? (
-                      <Badge tone="neutral">Paused</Badge>
-                    ) : (
-                      <Badge tone="success">Active</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setEditing({ row });
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          act(row.paused ? onResume(row.id) : onPause(row.id));
-                        }}
-                      >
-                        {row.paused ? 'Resume' : 'Pause'}
-                      </Button>
-                      <Button asChild size="sm" variant="ghost">
-                        <a href={`/people/reports/${row.id}`}>History</a>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => {
-                          setDeleting(row);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <Badge size="sm" tone={last.tone}>
+                    {last.label}
+                  </Badge>
+                  <span className="text-sm text-fg-muted">{row.lastRun.period}</span>
+                </span>
               );
-            })}
-          </TableBody>
-        </Table>
-      )}
+            },
+          },
+          {
+            id: 'status',
+            header: 'Status',
+            cardTrailing: true,
+            cell: (row) =>
+              row.paused ? (
+                <Badge size="sm">Paused</Badge>
+              ) : (
+                <Badge size="sm" tone="success">
+                  Active
+                </Badge>
+              ),
+          },
+        ]}
+        rowActions={(row) => [
+          {
+            id: 'edit',
+            label: 'Edit',
+            icon: <icons.edit aria-hidden />,
+            onSelect: () => {
+              setEditing({ row });
+            },
+          },
+          {
+            id: 'pause',
+            label: row.paused ? 'Resume' : 'Pause',
+            icon: row.paused ? <icons.play aria-hidden /> : <icons.pause aria-hidden />,
+            onSelect: () => {
+              act(row.paused ? onResume(row.id) : onPause(row.id));
+            },
+          },
+          {
+            id: 'history',
+            label: 'History',
+            icon: <icons.history aria-hidden />,
+            onSelect: () => {
+              history(row);
+            },
+          },
+          {
+            id: 'delete',
+            label: 'Delete',
+            icon: <icons.delete aria-hidden />,
+            destructive: true,
+            onSelect: () => {
+              setDeleting(row);
+            },
+          },
+        ]}
+        onRowOpen={history}
+      />
       {editing === null ? null : (
         <ScheduleForm
           state={state}
@@ -341,11 +377,11 @@ function Schedules({
           act(onDelete(id));
         }}
       />
-    </Stack>
+    </>
   );
 }
 
-/** "Delete this schedule?", asked before it goes, here and in Insights' Schedules. */
+/** "Delete this schedule?", asked before it goes. */
 export function DeleteSchedule({
   row,
   onClose,

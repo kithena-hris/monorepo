@@ -1,17 +1,16 @@
-import { Badge, DataTable, EmptyState, PageHeader, Stack } from '@reach/ui';
+import { Badge, DataTable, EmptyState, PageSection } from '@reach/ui';
 import type { JSX } from 'react';
 
-import { Loaded, type Loadable } from '../load';
-
 /**
- * Country packs (S21): the identifiers, fields and rules each country needs,
- * and which of the company's legal entities are in that country.
+ * Country packs (S21), a tab of Organisation beside the legal entities they
+ * apply to: the identifiers, fields and rules each country needs, and which
+ * of the company's entities are in that country. Read-only, for People
+ * administrators.
  *
  * A pack is registry data seeded into the draft for an entity's country; after
- * the first publish its fields are the company's own. What a pack adds and
- * where it applies is read from People. Turning a pack on or off per entity
- * is drawn only when the server offers it (`onToggle`), and so is how strong
- * its identifier check is (`check`): neither is shown with a guessed value.
+ * the first publish its fields are the company's own. How strong a pack's
+ * identifier check is (`check`) is drawn only when the server says: never a
+ * guessed value.
  */
 export interface CountryPackRow {
   readonly country: string;
@@ -26,18 +25,11 @@ export interface CountryPackRow {
   readonly check?: 'checksum' | 'allocation' | 'ranges' | 'shape' | null;
 }
 
-export interface CountryPacksState {
-  readonly packs: readonly CountryPackRow[];
-  readonly entities: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly country: string;
-    readonly archived: boolean;
-  }[];
-}
-
-export interface CountryPacksProps {
-  readonly load: Loadable<CountryPacksState>;
+export interface PackEntity {
+  readonly id: string;
+  readonly name: string;
+  readonly country: string;
+  readonly archived: boolean;
 }
 
 const CHECK: Record<
@@ -50,38 +42,28 @@ const CHECK: Record<
   shape: { label: 'Shape only', tone: 'warning' },
 };
 
-export function CountryPacks({ load }: CountryPacksProps): JSX.Element {
-  return (
-    <Stack gap={6}>
-      <PageHeader
-        title="Country packs"
-        description="The identifiers, fields and rules each country needs, and the legal entities they apply to."
-      />
-      <Loaded load={load} what="the country packs">
-        {(state) => <Packs state={state} />}
-      </Loaded>
-    </Stack>
-  );
-}
-
-function Packs({ state }: { readonly state: CountryPacksState }): JSX.Element {
-  if (state.packs.length === 0) {
-    return (
-      <EmptyState
-        title="No country packs"
-        description="Packs arrive with People, one per country it has paperwork rules for."
-      />
-    );
-  }
-  const checked = state.packs.some((p) => p.check != null);
+export function CountryPacks({
+  packs,
+  entities,
+}: {
+  readonly packs: readonly CountryPackRow[];
+  readonly entities: readonly PackEntity[];
+}): JSX.Element {
+  const checked = packs.some((p) => p.check != null);
   const entitiesIn = (country: string) =>
-    state.entities.filter((e) => !e.archived && e.country === country);
+    entities.filter((e) => !e.archived && e.country === country);
   return (
-    <Stack gap={4}>
+    <PageSection surface title="Country packs">
       <DataTable<CountryPackRow>
         label="Country packs"
-        rows={state.packs}
+        rows={packs}
         rowId={(p) => p.country}
+        empty={
+          <EmptyState
+            title="No country packs"
+            description="Packs arrive with People, one per country it has paperwork rules for."
+          />
+        }
         columns={[
           {
             id: 'country',
@@ -108,7 +90,9 @@ function Packs({ state }: { readonly state: CountryPacksState }): JSX.Element {
               ) : (
                 <span className="flex flex-wrap gap-1.5">
                   {here.map((e) => (
-                    <Badge key={e.id}>{e.name}</Badge>
+                    <Badge key={e.id} size="sm">
+                      {e.name}
+                    </Badge>
                   ))}
                 </span>
               );
@@ -129,10 +113,10 @@ function Packs({ state }: { readonly state: CountryPacksState }): JSX.Element {
             : []),
         ]}
       />
-      <p className="text-sm text-fg-muted">
+      <p className="mt-4 text-sm text-fg-muted">
         Where no public check exists, the pack says so, and values are flagged for review instead of
         refused.
       </p>
-    </Stack>
+    </PageSection>
   );
 }

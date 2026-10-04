@@ -260,7 +260,7 @@ describe('C, ⌘Enter and the palette’s actions', () => {
     pathname = '/people/directory/list';
     const { unmount } = renderShell();
     press('c');
-    expect(push).toHaveBeenLastCalledWith('/people/new');
+    expect(push).toHaveBeenLastCalledWith('/people/directory/list?add=person');
     unmount();
     pathname = '/people/import-export';
     renderShell();

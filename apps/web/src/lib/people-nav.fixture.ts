@@ -64,7 +64,7 @@ export const PEOPLE_NAV: { readonly sections: Place[]; readonly actions: Place[]
       ],
     },
   ],
-  actions: [{ path: '/people/new', label: 'Add person', icon: 'hire', for: ['hr'] }],
+  actions: [{ path: '/people/directory/list?add=person', label: 'Add person', icon: 'hire', for: ['hr'] }],
 };
 
 export const HR = { hr: true, admin: false, finance: false } as const;

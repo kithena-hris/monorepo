@@ -1,4 +1,8 @@
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
   AppBarBack,
   Alert,
   AssistantCard,
@@ -7,13 +11,14 @@ import {
   DataTable,
   FileUploader,
   PageHeader,
+  PageSection,
   PINNED_BAR,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
+  Spinner,
   Stack,
   Stepper,
   icons,
@@ -37,6 +42,7 @@ import { ImportBusy, ImportRunning, isRunning, type ImportRunStatus } from './im
 import {
   WorkLocationsStep,
   placesReady,
+  placesSummary,
   type PlaceChoices,
   type PlacesHere,
   type WorkplaceValue,
@@ -44,6 +50,7 @@ import {
 import {
   ExistingChoices,
   ExistingStep,
+  FileFactsCard,
   WithoutValue,
   NewFieldsStep,
   proposalsOf,
@@ -103,8 +110,11 @@ export type ImportStage =
 export type Started =
   { readonly ok: true } | { readonly ok: false; readonly message: string; readonly link?: string };
 
-/** The steps after the upload that live in the address (`?step=`). */
-export type FlowStep = 'map' | 'places' | 'fields' | 'existing' | 'review';
+/**
+ * The import's three steps after the upload, in the address (`?step=`):
+ * upload and map, decide what's new, approve and run.
+ */
+export type FlowStep = 'map' | 'decide' | 'review';
 
 /** PRD §14.5: 100 MB per file. The server holds it to that; this saves the wait. */
 export const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
@@ -165,11 +175,9 @@ export interface ImportFlowProps {
 }
 
 const STEPS = [
-  { id: 'upload', label: 'Upload' },
-  { id: 'map', label: 'Map columns' },
-  { id: 'fields', label: 'New fields' },
-  { id: 'plan', label: 'Review plan' },
-  { id: 'done', label: 'Import' },
+  { id: 'map', label: 'Upload and map' },
+  { id: 'decide', label: 'Decide what’s new' },
+  { id: 'plan', label: 'Approve and run' },
 ] as const;
 
 const IGNORE = '__ignore';
@@ -177,11 +185,12 @@ const IGNORE = '__ignore';
 /**
  * Importing people from a spreadsheet (PRD §14; design AI9 to AI12, MA8, MA9).
  *
- * Upload, map, then the columns that match no field become proposed fields,
- * HR says what happens for the people without a value, and one plan says
- * everything the import will do, from a dry run. Nothing is written until HR
- * approves it. A company with nothing published imports the same way: the
- * plan sets it up.
+ * Three steps. Upload and map: the file, then where each column goes.
+ * Decide what's new: the file's work locations, the columns that become new
+ * fields and who fills them for the people without a value, three blocks that
+ * skip themselves when empty. Approve and run: one plan, in sentences, from a
+ * dry run. Nothing is written until HR approves it. A company with nothing
+ * published imports the same way: the plan sets it up.
  */
 export function ImportFlow(props: ImportFlowProps): JSX.Element {
   const coarse = useCoarsePointer();
@@ -302,7 +311,7 @@ function confidence(column: ProposedColumn): JSX.Element | string {
   );
 }
 
-/** Every step: upload, map, new fields, people without a value, the plan, done. */
+/** Every step: upload and map, decide what's new, the plan; then the run. */
 function Steps({
   stage: given,
   coarse,
@@ -328,6 +337,8 @@ function Steps({
     readonly here: PlacesHere;
   } | null>(null);
   const [placeChoices, setPlaceChoices] = useState<PlaceChoices>({});
+  // On a phone, the work locations were looked at and Next pressed: the new fields follow.
+  const [placesSeen, setPlacesSeen] = useState(false);
   // Another file read: nothing chosen for the last one carries over.
   const [file, setFile] = useState(stage);
   if (given.step === 'map' && file !== stage) {
@@ -335,6 +346,7 @@ function Steps({
     setChoices({});
     setPlaces(null);
     setPlaceChoices({});
+    setPlacesSeen(false);
     setView(null);
     setProposals([]);
     setPlan(null);
@@ -345,15 +357,14 @@ function Steps({
   const [ownStep, setOwnStep] = useState<FlowStep>('map');
 
   const asked = props.onStepChange === undefined ? ownStep : (props.step ?? 'map');
+  const hasPlaces = places !== null && places.workplaces.length > 0;
   // A step whose data this page no longer holds (a reload) opens the mapping.
   const step: FlowStep =
-    (asked === 'fields' || asked === 'existing') && view !== null
-      ? asked
+    asked === 'decide' && (view !== null || hasPlaces)
+      ? 'decide'
       : asked === 'review' && plan !== null
         ? 'review'
-        : asked === 'places' && places !== null
-          ? 'places'
-          : 'map';
+        : 'map';
   const goTo = (to: FlowStep): void => {
     setRefused(null);
     if (props.onStepChange === undefined) setOwnStep(to);
@@ -371,10 +382,12 @@ function Steps({
   );
   const kept = proposals.filter((p) => p.include);
   const mapsPlaces = Object.values(mapping).includes('location_id');
-  const hasPlaces = places !== null && places.workplaces.length > 0;
   // What the plan and the run are given: an administrator's choices only.
   const placesArg = props.admin === true && hasPlaces ? placeChoices : undefined;
-  const beforeFields: FlowStep = hasPlaces ? 'places' : 'map';
+  const missingOf = (p: ColumnProposal): number =>
+    view?.proposals.find((x) => x.column === p.column)?.counts.missing ?? 0;
+  // The fields kept whose people without a value need a decision.
+  const deciding = kept.filter((p) => missingOf(p) > 0);
 
   const change = (column: number, patch: Partial<ColumnProposal>): void => {
     setProposals((list) => list.map((p) => (p.column === column ? { ...p, ...patch } : p)));
@@ -399,52 +412,41 @@ function Steps({
       return null;
     });
 
-  // After the mapping, and the work locations: new fields, or straight to the plan.
-  const onwards = async (): Promise<string | null> => {
-    if (!unplaced) {
-      const answer = await props.plan(mapping, [], placesArg);
-      if (!answer.ok) return answer.message;
-      setPlan(answer.data);
-      goTo('review');
-      return null;
-    }
-    const proposed = await props.propose(mapping);
-    if (!proposed.ok) return proposed.message;
-    const list = proposalsOf(proposed.data);
-    setView(proposed.data);
-    setProposals(list);
-    setCard(0);
-    if (list.length === 0) {
-      const answer = await props.plan(mapping, [], placesArg);
-      if (!answer.ok) return answer.message;
-      setPlan(answer.data);
-      goTo('review');
-      return null;
-    }
-    goTo('fields');
-    return null;
-  };
-
+  /*
+   * From the mapping, everything that is new in the file at once: its work
+   * locations (read by a dry run) and the columns that match no field
+   * (proposed as fields). Each is a block of Decide what's new; a file with
+   * nothing new skips the step and goes straight to the plan.
+   */
   const next = (): void => {
     void attempt(async () => {
-      // A work location column: its values first, read by a dry run.
+      let workplaces = places?.workplaces ?? [];
       if (mapsPlaces && places === null) {
         const answer = await props.plan(mapping, []);
         if (!answer.ok) return answer.message;
-        const workplaces = answer.data.review.dryRun.workplaces ?? [];
-        const here = answer.data.review.dryRun.here;
-        if (workplaces.length > 0 && here !== undefined) {
-          setPlaces({ workplaces, here });
-          setPlaceChoices(Object.fromEntries(workplaces.map((w) => [w.key, w.proposed])));
-          goTo('places');
-          return null;
-        }
-        setPlaces({ workplaces: [], here: { locations: [], entities: [] } });
-      } else if (hasPlaces) {
-        goTo('places');
+        workplaces = answer.data.review.dryRun.workplaces ?? [];
+        const here = answer.data.review.dryRun.here ?? { locations: [], entities: [] };
+        setPlaces({ workplaces, here });
+        setPlaceChoices(Object.fromEntries(workplaces.map((w) => [w.key, w.proposed])));
+      }
+      let list = proposals;
+      if (unplaced && view === null) {
+        const proposed = await props.propose(mapping);
+        if (!proposed.ok) return proposed.message;
+        list = proposalsOf(proposed.data);
+        setView(proposed.data);
+        setProposals(list);
+        setCard(0);
+      }
+      if (workplaces.length > 0 || list.length > 0) {
+        goTo('decide');
         return null;
       }
-      return onwards();
+      const answer = await props.plan(mapping, [], placesArg);
+      if (!answer.ok) return answer.message;
+      setPlan(answer.data);
+      goTo('review');
+      return null;
     });
   };
 
@@ -468,12 +470,13 @@ function Steps({
     void toPlan(list, null);
   };
 
-  // On a phone the people without a value and the plan are one screen (MA9):
-  // the plan is worked out as the screen opens and again after each choice.
+  // On a phone, who fills each new field and the plan are one screen (MA9):
+  // the plan is worked out again after each choice there.
   const phonePlanDue =
     coarse &&
     given.step === 'map' &&
-    step === 'existing' &&
+    step === 'review' &&
+    deciding.length > 0 &&
     plan === null &&
     !busy &&
     refused === null;
@@ -516,6 +519,7 @@ function Steps({
               onValueChange={(value) => {
                 setChoices((x) => ({ ...x, [c.index]: value === IGNORE ? null : value }));
                 setView(null);
+                setProposals([]);
                 setPlan(null);
                 setPlaces(null);
               }}
@@ -585,112 +589,55 @@ function Steps({
       </Alert>
     );
 
-  // The header's buttons: where to go from here (design AI9 to AI11).
-  const back = (to: FlowStep | 'upload'): JSX.Element => (
-    <Button
-      onClick={() => {
-        if (to === 'upload') props.onBack();
-        else goTo(to);
-      }}
-    >
-      Back
-    </Button>
-  );
-  const onwardsLabel = unplaced ? 'Next: new fields' : 'Next: review the plan';
-  const placesFirst = mapsPlaces && (places === null || hasPlaces);
-  const nextLabel = placesFirst ? 'Next: work locations' : onwardsLabel;
   const placesDone = places === null || placesReady(places.workplaces, placeChoices);
   // Which work locations still need something before Next: named, so HR knows where to look.
   const placesMissing =
     places === null ? [] : places.workplaces.filter((w) => !placesReady([w], placeChoices));
-  const placesNext = (
-    <div className="flex flex-col gap-2">
-      {placesMissing.length === 0 ? null : (
-        <p id={`${whyId}-places`} role="status" className="text-sm text-warning-fg">
-          Give {placesMissing.map((w) => `“${w.value}”`).join(', ')} a name, a country and a time
-          zone, or leave {placesMissing.length === 1 ? 'it' : 'them'} empty.
-        </p>
-      )}
-      <Button
-        variant="primary"
-        className={coarse ? 'w-full' : undefined}
-        endIcon={<icons.forward aria-hidden />}
-        disabled={!placesDone}
-        aria-describedby={placesMissing.length === 0 ? undefined : `${whyId}-places`}
-        loading={busy}
-        loadingLabel={unplaced ? 'Reading the new columns' : 'Checking every row'}
-        onClick={() => {
-          void attempt(onwards);
-        }}
-      >
-        {onwardsLabel}
+  const placesHint =
+    placesMissing.length === 0 ? null : (
+      <p id={`${whyId}-places`} role="status" className="text-sm text-warning-fg">
+        Give {placesMissing.map((w) => `“${w.value}”`).join(', ')} a name, a country and a time
+        zone, or leave {placesMissing.length === 1 ? 'it' : 'them'} empty.
+      </p>
+    );
+
+  // Leaving: the import is dropped, and nothing was written.
+  const cancel =
+    props.onDone === undefined ? null : (
+      <Button variant="ghost" size="sm" onClick={props.onDone}>
+        Cancel import
       </Button>
-    </div>
+    );
+  const backButton = (onClick: () => void): JSX.Element => <Button onClick={onClick}>Back</Button>;
+  const toDecide = (
+    <Button
+      variant="primary"
+      endIcon={<icons.forward aria-hidden />}
+      disabled={undecided.length > 0}
+      aria-describedby={undecided.length > 0 ? `${whyId}-map` : undefined}
+      loading={busy}
+      loadingLabel={mapsPlaces || unplaced ? 'Reading what’s new' : 'Checking every row'}
+      onClick={next}
+    >
+      {coarse ? 'Next' : 'Next: decide what’s new'}
+    </Button>
   );
-  const actions: Record<FlowStep, ReactNode> = {
-    map: (
-      <>
-        {back('upload')}
-        <Button
-          variant="primary"
-          endIcon={<icons.forward aria-hidden />}
-          disabled={undecided.length > 0}
-          aria-describedby={undecided.length > 0 ? `${whyId}-map` : undefined}
-          loading={busy}
-          loadingLabel={
-            placesFirst
-              ? 'Reading the work locations'
-              : unplaced
-                ? 'Reading the new columns'
-                : 'Checking every row'
-          }
-          onClick={next}
-        >
-          {nextLabel}
-        </Button>
-      </>
-    ),
-    places: (
-      <>
-        {back('map')}
-        {placesNext}
-      </>
-    ),
-    fields: (
-      <>
-        {back(beforeFields)}
-        <Button
-          variant="primary"
-          endIcon={<icons.forward aria-hidden />}
-          loading={busy}
-          loadingLabel="Checking every row"
-          onClick={() => {
-            if (kept.length === 0) void toPlan(proposals);
-            else goTo('existing');
-          }}
-        >
-          {kept.length === 0 ? 'Next: review the plan' : 'Next: what about existing people?'}
-        </Button>
-      </>
-    ),
-    existing: (
-      <>
-        {back('fields')}
-        <Button
-          variant="primary"
-          endIcon={<icons.forward aria-hidden />}
-          loading={busy}
-          loadingLabel="Checking every row"
-          onClick={() => {
-            void toPlan(proposals);
-          }}
-        >
-          Next: review the plan
-        </Button>
-      </>
-    ),
-    review: back(view === null ? beforeFields : kept.length === 0 ? 'fields' : 'existing'),
-  };
+  const toReview = (
+    <Button
+      variant="primary"
+      endIcon={<icons.forward aria-hidden />}
+      disabled={!placesDone}
+      aria-describedby={placesMissing.length === 0 ? undefined : `${whyId}-places`}
+      loading={busy}
+      loadingLabel="Checking every row"
+      onClick={() => {
+        void toPlan(proposals);
+      }}
+    >
+      Next: review the plan
+    </Button>
+  );
+
   if (given.step !== 'map') {
     const run = given.step === 'run' ? given.run : null;
     const done =
@@ -704,7 +651,7 @@ function Steps({
     return (
       <Stack gap={5}>
         <Header
-          current={given.step === 'upload' ? 0 : 4}
+          current={given.step === 'upload' ? 0 : STEPS.length}
           {...(run === null
             ? {}
             : {
@@ -716,9 +663,11 @@ function Steps({
               })}
           actions={
             done !== null && props.onDone !== undefined ? (
-              <Button variant="primary" onClick={props.onDone}>
+              <Button variant="secondary" onClick={props.onDone}>
                 Done
               </Button>
+            ) : given.step === 'upload' ? (
+              cancel
             ) : null
           }
         />
@@ -782,32 +731,51 @@ function Steps({
     );
   }
 
-  // On a phone the people without a value share the plan's screen (MA9): Review plan.
-  const current =
-    step === 'map' || step === 'places'
-      ? 1
-      : step === 'review' || (coarse && step === 'existing')
-        ? 3
-        : 2;
+  const current = step === 'map' ? 0 : step === 'decide' ? 1 : 2;
+  // Under a finger the file's work locations come first, then the new fields
+  // as a carousel (MA8), once the work locations are settled.
+  const phoneCards =
+    coarse &&
+    step === 'decide' &&
+    view !== null &&
+    proposals.length > 0 &&
+    (!hasPlaces || (placesSeen && placesDone));
+  // Who fills each new field shares the plan's screen on a phone (MA9); with
+  // nothing to decide there, the plan is drawn whole, as at a desk.
+  const phonePlan = coarse && step === 'review' && deciding.length > 0;
 
   return (
     <Stack gap={5}>
       <Header
         current={current}
-        actions={coarse && step !== 'map' ? null : actions[step]}
+        actions={
+          step === 'review' && !coarse ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                goTo(view === null && !hasPlaces ? 'map' : 'decide');
+              }}
+            >
+              Change something
+            </Button>
+          ) : coarse ? null : (
+            cancel
+          )
+        }
         phoneBar={
-          coarse && step === 'fields'
+          phoneCards && proposals.length > 0
             ? {
                 title: `New fields · ${String(Math.min(card + 1, proposals.length))} of ${String(proposals.length)}`,
                 onBack: () => {
-                  goTo(beforeFields);
+                  goTo('map');
                 },
               }
-            : coarse && step === 'existing'
+            : coarse && step === 'review'
               ? {
                   title: 'Review plan',
                   onBack: () => {
-                    goTo('fields');
+                    goTo(view === null && !hasPlaces ? 'map' : 'decide');
                   },
                 }
               : null
@@ -815,36 +783,184 @@ function Steps({
       />
 
       {step === 'map' ? (
-        <Stack gap={4}>
-          <p className="text-sm">
-            {stage.file.name} · {stage.file.rows} rows
-            {stage.file.sheet === null ? '' : ` · sheet “${stage.file.sheet}”`} · {mapped} of{' '}
-            {stage.columns.length} columns mapped
-          </p>
-          {undecided.length > 0 ? (
-            <Alert id={`${whyId}-map`} tone="warning">
-              {undecided.length} {undecided.length === 1 ? 'column needs' : 'columns need'} a
-              decision: {undecided.map((c) => c.header).join(', ')}. A column is never dropped
-              quietly.
-            </Alert>
-          ) : null}
-          {unplaced ? (
-            <Alert tone="info">
-              Columns that match no field are proposed as new fields next. Nothing is created until
-              you approve the plan.
-            </Alert>
-          ) : null}
-          {refusedAlert}
-          <DataTable
-            label="Columns"
-            rows={stage.columns}
-            columns={columns}
-            rowId={(c) => String(c.index)}
-          />
-        </Stack>
+        <div className="grid items-start gap-5 @4xl/page:grid-cols-[minmax(0,1fr)_21.25rem]">
+          {(() => {
+            // The drop zone, once a file is in, is this line.
+            const mappingBody = (
+              <Stack gap={3}>
+                <p className="text-sm text-fg-muted">
+                  {stage.file.name} · {stage.file.rows.toLocaleString('en-GB')} rows
+                  {stage.file.sheet === null ? '' : ` · sheet “${stage.file.sheet}”`} · {mapped} of{' '}
+                  {stage.columns.length} columns mapped
+                </p>
+                <DataTable
+                  label="Columns"
+                  rows={stage.columns}
+                  columns={columns}
+                  rowId={(c) => String(c.index)}
+                />
+              </Stack>
+            );
+            // Under a finger the rows are cards already: no card around them.
+            return coarse ? (
+              mappingBody
+            ) : (
+              <PageSection surface title="Columns" className="min-w-0">
+                {mappingBody}
+              </PageSection>
+            );
+          })()}
+          <Stack gap={4}>
+            {undecided.length > 0 ? (
+              <Alert
+                id={`${whyId}-map`}
+                tone="warning"
+                title={`${String(undecided.length)} ${undecided.length === 1 ? 'column needs' : 'columns need'} a decision`}
+              >
+                {undecided.map((c) => c.header).join(', ')}. A column is never dropped quietly.
+              </Alert>
+            ) : null}
+            <AssistantCard
+              level={2}
+              title="How columns were matched"
+              note="Rows match people already here by work email only."
+              className="touch:hidden"
+            >
+              <p className="text-sm text-fg-muted">
+                Exact names and usual aliases first. For the rest, Kithena read only the headers and
+                your fields, never a cell, and mapped anything at 0.9 or above. Columns that match
+                nothing are proposed as new fields next.
+              </p>
+            </AssistantCard>
+            {refusedAlert}
+            <div
+              {...(coarse ? PINNED_BAR : {})}
+              className={
+                coarse
+                  ? 'sticky bottom-0 z-10 grid grid-cols-2 gap-2 bg-canvas py-2 *:min-w-0'
+                  : 'flex items-center justify-between gap-2'
+              }
+            >
+              {backButton(props.onBack)}
+              {toDecide}
+            </div>
+          </Stack>
+        </div>
       ) : null}
 
-      {step === 'places' && places !== null ? (
+      {step === 'decide' && !coarse ? (
+        <div className="grid items-start gap-5 @4xl/page:grid-cols-[minmax(0,1fr)_18.75rem]">
+          <Stack gap={4} className="min-w-0">
+            {refusedAlert}
+            {places !== null && hasPlaces ? (
+              <Accordion type="multiple" defaultValue={placesDone ? [] : ['places']}>
+                <AccordionItem value="places">
+                  <AccordionTrigger
+                    level={2}
+                    description={placesSummary(places.workplaces, placeChoices)}
+                    meta={
+                      placesDone ? (
+                        <Badge size="sm" tone="success">
+                          Decided
+                        </Badge>
+                      ) : (
+                        <Badge size="sm" tone="warning">
+                          {placesMissing.length} to decide
+                        </Badge>
+                      )
+                    }
+                  >
+                    Work locations
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <WorkLocationsStep
+                      workplaces={places.workplaces}
+                      here={places.here}
+                      choices={placeChoices}
+                      readOnly={props.admin !== true}
+                      coarse={false}
+                      onChange={(key, choice) => {
+                        setPlaceChoices((x) => ({ ...x, [key]: choice }));
+                        setPlan(null);
+                      }}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            ) : null}
+            {view !== null && proposals.length > 0 ? (
+              <Accordion type="multiple" defaultValue={['fields']}>
+                <AccordionItem value="fields">
+                  <AccordionTrigger
+                    level={2}
+                    description={
+                      proposals.length === 1
+                        ? '1 column isn’t a field yet. Here’s what I’d create.'
+                        : `${String(proposals.length)} columns aren’t fields yet. Here’s what I’d create.`
+                    }
+                    meta={
+                      <Badge size="sm">
+                        {kept.length} of {proposals.length} kept
+                      </Badge>
+                    }
+                  >
+                    New fields
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <NewFieldsStep
+                      view={view}
+                      proposals={proposals}
+                      facts={facts}
+                      onChange={change}
+                      coarse={false}
+                      index={card}
+                      onIndexChange={setCard}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            ) : null}
+            {view !== null && deciding.length > 0 ? (
+              <Accordion type="multiple" defaultValue={['without']}>
+                <AccordionItem value="without">
+                  <AccordionTrigger
+                    level={2}
+                    description="For people the file doesn’t reach, their own details are asked of them and employment details go to HR."
+                    meta={
+                      <Badge size="sm">
+                        {deciding.length} {deciding.length === 1 ? 'field' : 'fields'}
+                      </Badge>
+                    }
+                  >
+                    People without a value
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <ExistingStep
+                      view={view}
+                      kept={kept}
+                      selected={props.field ?? null}
+                      onSelect={(key) => {
+                        props.onFieldChange?.(key);
+                      }}
+                      onChange={change}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            ) : null}
+            {placesHint}
+            <div className="flex items-center justify-between gap-2">
+              {backButton(() => {
+                goTo('map');
+              })}
+              {toReview}
+            </div>
+          </Stack>
+          <FileFactsCard view={view} proposals={proposals} facts={facts} />
+        </div>
+      ) : null}
+
+      {step === 'decide' && coarse && !phoneCards && places !== null && hasPlaces ? (
         <>
           {refusedAlert}
           <WorkLocationsStep
@@ -852,64 +968,106 @@ function Steps({
             here={places.here}
             choices={placeChoices}
             readOnly={props.admin !== true}
-            coarse={coarse}
+            coarse
             onChange={(key, choice) => {
               setPlaceChoices((x) => ({ ...x, [key]: choice }));
               setPlan(null);
             }}
           />
+          {/* In thumb reach, pinned above the tab bar as MA8's buttons are. */}
+          <div {...PINNED_BAR} className="sticky bottom-24 z-10 flex flex-col gap-2 bg-canvas py-2">
+            {placesHint}
+            {view !== null && proposals.length > 0 ? (
+              <Button
+                variant="primary"
+                endIcon={<icons.forward aria-hidden />}
+                disabled={!placesDone}
+                aria-describedby={placesMissing.length === 0 ? undefined : `${whyId}-places`}
+                onClick={() => {
+                  setPlacesSeen(true);
+                }}
+              >
+                Next: new fields
+              </Button>
+            ) : (
+              toReview
+            )}
+          </div>
         </>
       ) : null}
 
-      {coarse && step === 'places' ? (
-        // In thumb reach, pinned above the tab bar as MA8's buttons are.
-        <div {...PINNED_BAR} className="sticky bottom-24 z-10 bg-canvas py-2">
-          {placesNext}
-        </div>
-      ) : null}
-
-      {step === 'fields' && view !== null ? (
+      {phoneCards && view !== null ? (
         <>
           {refusedAlert}
-          <NewFieldsStep
-            view={view}
-            proposals={proposals}
-            facts={facts}
-            onChange={change}
-            coarse={coarse}
-            index={card}
-            onIndexChange={setCard}
-          />
+          {proposals.length > 0 ? (
+            <NewFieldsStep
+              view={view}
+              proposals={proposals}
+              facts={facts}
+              onChange={change}
+              coarse
+              index={card}
+              onIndexChange={setCard}
+            />
+          ) : null}
+          {/* MA8: Skip and Create in thumb reach, one card at a time, pinned above
+              the tab bar as approvals' footer is; the assistant's button rises over it. */}
+          <div
+            {...PINNED_BAR}
+            className="sticky bottom-24 z-10 grid grid-cols-2 gap-2 bg-canvas py-2"
+          >
+            {(() => {
+              const p = proposals[card];
+              const advance = (list: readonly ColumnProposal[]): void => {
+                if (card + 1 < proposals.length) setCard(card + 1);
+                else void toPlan(list);
+              };
+              const set = (include: boolean): readonly ColumnProposal[] =>
+                proposals.map((x) => (x.column === p?.column ? { ...x, include } : x));
+              if (p === undefined || !view.canCreate) {
+                return (
+                  <Button
+                    variant="primary"
+                    className="col-span-2"
+                    loading={busy}
+                    loadingLabel="Checking every row"
+                    onClick={() => {
+                      advance(proposals);
+                    }}
+                  >
+                    Next
+                  </Button>
+                );
+              }
+              return (
+                <>
+                  <Button
+                    onClick={() => {
+                      change(p.column, { include: false });
+                      advance(set(false));
+                    }}
+                  >
+                    Skip
+                  </Button>
+                  <Button
+                    variant="primary"
+                    loading={busy}
+                    loadingLabel="Checking every row"
+                    onClick={() => {
+                      change(p.column, { include: true });
+                      advance(set(true));
+                    }}
+                  >
+                    Create field
+                  </Button>
+                </>
+              );
+            })()}
+          </div>
         </>
       ) : null}
 
-      {step === 'existing' && view !== null && !coarse ? (
-        <>
-          {refusedAlert}
-          <ExistingStep
-            view={view}
-            kept={kept}
-            selected={props.field ?? null}
-            onSelect={(key) => {
-              props.onFieldChange?.(key);
-            }}
-            onChange={change}
-          />
-        </>
-      ) : null}
-
-      {step === 'existing' && view !== null && coarse ? (
-        <PhonePlan
-          view={view}
-          kept={kept}
-          plan={plan}
-          busy={busy}
-          refused={refusedAlert}
-          onChange={change}
-        />
-      ) : null}
-
-      {step === 'review' && plan !== null ? (
+      {step === 'review' && plan !== null && !phonePlan ? (
         <PlanStep
           plan={plan}
           busy={busy}
@@ -917,84 +1075,42 @@ function Steps({
           refusedLink={refusedLink}
           onApprove={approve}
           onChange={() => {
-            goTo(view === null ? 'map' : 'fields');
+            goTo(view === null && !hasPlaces ? 'map' : 'decide');
           }}
           onLeaveOut={leaveOut}
           onDownloadBlocked={props.onDownloadBlocked}
         />
       ) : null}
 
-      {coarse && step === 'fields' && view !== null ? (
-        // MA8: Skip and Create in thumb reach, one card at a time, pinned above
-        // the tab bar as approvals' footer is; the assistant's button rises over it.
-        <div
-          {...PINNED_BAR}
-          className="sticky bottom-24 z-10 grid grid-cols-2 gap-2 bg-canvas py-2"
-        >
-          {(() => {
-            const p = proposals[card];
-            const advance = (): void => {
-              if (card + 1 < proposals.length) setCard(card + 1);
-              else goTo('existing');
-            };
-            if (p === undefined || !view.canCreate) {
-              return (
-                <Button variant="primary" className="col-span-2" onClick={advance}>
-                  Next
-                </Button>
-              );
-            }
-            return (
-              <>
-                <Button
-                  onClick={() => {
-                    change(p.column, { include: false });
-                    advance();
-                  }}
-                >
-                  Skip
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    change(p.column, { include: true });
-                    advance();
-                  }}
-                >
-                  Create field
-                </Button>
-              </>
-            );
-          })()}
-        </div>
-      ) : null}
-
-      {coarse && step === 'existing' ? (
-        <div {...PINNED_BAR} className="sticky bottom-24 z-10 flex flex-col gap-2 bg-canvas py-2">
-          <WhyNotYet id={whyId} reasons={phoneNotYet} onLeaveOut={leaveOut} />
-          {plan === null && !busy && refused !== null ? (
+      {phonePlan ? (
+        <>
+          <PhonePlan view={view} kept={kept} plan={plan} refused={refusedAlert} onChange={change} />
+          <div {...PINNED_BAR} className="sticky bottom-24 z-10 flex flex-col gap-2 bg-canvas py-2">
+            <WhyNotYet id={whyId} reasons={phoneNotYet} onLeaveOut={leaveOut} />
+            {plan === null && !busy && refused !== null ? (
+              <Button
+                className="w-full"
+                onClick={() => {
+                  void toPlan(proposals, null);
+                }}
+              >
+                Work out the plan again
+              </Button>
+            ) : null}
             <Button
+              variant="primary"
               className="w-full"
-              onClick={() => {
-                void toPlan(proposals, null);
-              }}
+              startIcon={<icons.confirm aria-hidden />}
+              disabled={plan === null || phoneNotYet.length > 0}
+              aria-describedby={phoneNotYet.length > 0 ? whyId : undefined}
+              loading={busy}
+              loadingLabel={plan === null ? 'Working out the plan' : 'Starting the import'}
+              onClick={approve}
             >
-              Work out the plan again
+              Approve and run
             </Button>
-          ) : null}
-          <Button
-            variant="primary"
-            className="w-full"
-            startIcon={<icons.confirm aria-hidden />}
-            disabled={plan === null || phoneNotYet.length > 0}
-            aria-describedby={phoneNotYet.length > 0 ? whyId : undefined}
-            loading={busy}
-            loadingLabel={plan === null ? 'Working out the plan' : 'Starting the import'}
-            onClick={approve}
-          >
-            Approve and run
-          </Button>
-        </div>
+          </div>
+        </>
       ) : null}
     </Stack>
   );
@@ -1008,20 +1124,18 @@ function PhonePlan({
   view,
   kept,
   plan,
-  busy,
   refused,
   onChange,
 }: {
-  readonly view: NewFieldsView;
+  readonly view: NewFieldsView | null;
   readonly kept: readonly ColumnProposal[];
   readonly plan: ImportPlanView | null;
-  readonly busy: boolean;
   readonly refused: ReactNode;
   readonly onChange: (column: number, patch: Partial<ColumnProposal>) => void;
 }): JSX.Element {
   const missingOf = (p: ColumnProposal): number =>
-    view.proposals.find((x) => x.column === p.column)?.counts.missing ?? 0;
-  const deciding = kept.filter((p) => missingOf(p) > 0);
+    view?.proposals.find((x) => x.column === p.column)?.counts.missing ?? 0;
+  const deciding = view === null ? [] : kept.filter((p) => missingOf(p) > 0);
   return (
     <div className="flex flex-col gap-3">
       {deciding.map((p) => (
@@ -1038,9 +1152,9 @@ function PhonePlan({
             proposal={p}
             missing={missingOf(p)}
             recommended={
-              view.proposals.find((x) => x.column === p.column)?.forExisting.kind ?? null
+              view?.proposals.find((x) => x.column === p.column)?.forExisting.kind ?? null
             }
-            readOnly={!view.canCreate}
+            readOnly={view?.canCreate !== true}
             compact
             onChange={(forExisting) => {
               onChange(p.column, { forExisting });
@@ -1048,22 +1162,16 @@ function PhonePlan({
           />
           <WithoutValue
             label={p.field.label}
-            names={view.proposals.find((x) => x.column === p.column)?.counts.without ?? []}
+            names={view?.proposals.find((x) => x.column === p.column)?.counts.without ?? []}
             missing={missingOf(p)}
-            here={view.proposals.find((x) => x.column === p.column)?.counts.existingWithout ?? 0}
+            here={view?.proposals.find((x) => x.column === p.column)?.counts.existingWithout ?? 0}
           />
         </section>
       ))}
       {refused}
       <AssistantCard level={2} title="The plan">
         {plan === null ? (
-          busy ? (
-            <div role="status" className="flex flex-col gap-2">
-              <span className="sr-only">Working out the plan</span>
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/5" />
-            </div>
-          ) : null
+          <Spinner size="sm" label="Working out the plan" />
         ) : (
           <>
             <p className="text-base">{plan.short}</p>

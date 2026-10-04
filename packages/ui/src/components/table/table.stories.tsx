@@ -807,6 +807,32 @@ export const NarrowScreen: Story = {
   },
 };
 
+export const MenuOnEachCard: Story = {
+  name: 'DataTable, a menu on each card',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Each row has a menu at its end. Under a finger it is usually left off the card, because the card opens the record and its actions live there; `rowMenuOnCard` keeps it, at the end of the title line, for a list whose actions have no other way in.',
+      },
+    },
+  },
+  render: () => (
+    <DataTable<Row>
+      label="Employees"
+      rows={rows.slice(0, 4)}
+      columns={dataColumns.slice(0, 3)}
+      rowId={(row) => row.id}
+      describeRow={(row) => row.name}
+      rowMenuOnCard
+      rowActions={() => [
+        { id: 'rename', label: 'Rename', onSelect: fn() },
+        { id: 'archive', label: 'Archive', destructive: true, onSelect: fn() },
+      ]}
+    />
+  ),
+};
+
 export const Dense: Story = {
   parameters: {
     docs: {

@@ -1,4 +1,5 @@
 import {
+  Alert,
   Avatar,
   Badge,
   Button,
@@ -11,7 +12,6 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   Progress,
-  Skeleton,
   Stack,
   Table,
   TableBody,
@@ -21,7 +21,7 @@ import {
   TableRow,
   icons,
 } from '@reach/ui';
-import { useId, type JSX, type ReactNode } from 'react';
+import { useId, useState, type JSX, type ReactNode } from 'react';
 
 import { useHeld, useTyped } from '../held';
 import { Loaded, type Loadable } from '../load';
@@ -78,10 +78,10 @@ export interface ImportExportState {
   /** False while nothing is published: the import sends setup first. Absent is set up. */
   readonly setUp?: boolean;
   /**
-   * Newest first, a page at a time. `null`: not this viewer's to read.
-   * `'loading'`: on its way, while the rest of the page is already drawn.
+   * Newest first, a page at a time, read with the rest of the page so the
+   * first HTML holds it. `null`: not this viewer’s to read.
    */
-  readonly history: TransferHistory | 'loading' | null;
+  readonly history: TransferHistory | null;
   /** When the page was read, so "Today" means the same on the server and in the browser. */
   readonly now: string;
 }
@@ -104,6 +104,13 @@ export interface ImportExportProps {
   readonly onSearchChange?: (search: string) => void;
   /** The company's import running now, as the host follows it: Import waits for it. */
   readonly running?: ImportRunStatus | null;
+  /**
+   * An export described in a sentence on the Export card: read into the
+   * export page's choices, which it opens with them. Absent, no sentence.
+   */
+  readonly onDescribe?: (
+    sentence: string,
+  ) => Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }>;
 }
 
 export type HistoryKind = 'all' | 'import' | 'export';
@@ -212,7 +219,12 @@ export function filterHistory(
   );
 }
 
-export function ImportExport({ load, running = null, ...held }: ImportExportProps): JSX.Element {
+export function ImportExport({
+  load,
+  running = null,
+  onDescribe,
+  ...held
+}: ImportExportProps): JSX.Element {
   const busyId = useId();
   const going = running !== null && isRunning(running) ? running : null;
   return (
@@ -279,15 +291,16 @@ export function ImportExport({ load, running = null, ...held }: ImportExportProp
                 facts={['CSV, Excel or PDF', 'As of any date']}
                 href="/people/export"
                 start="New export"
-                startIcon={<icons.download aria-hidden />}
+                startIcon={<icons.add aria-hidden />}
                 shortcut="create"
+                lead={onDescribe === undefined ? null : <DescribeExport onDescribe={onDescribe} />}
               />
             </div>
             {state.history === null ? null : (
               <History
                 history={
                   // The run as the host follows it, not as the page was read.
-                  going === null || state.history === 'loading'
+                  going === null
                     ? state.history
                     : {
                         ...state.history,
@@ -310,6 +323,50 @@ export function ImportExport({ load, running = null, ...held }: ImportExportProp
 }
 
 /**
+ * The Export card's sentence: described here, the export page opens with it
+ * read into who, which fields, as of when, the format and a reason. Nothing
+ * leaves until a button there is pressed.
+ */
+function DescribeExport({
+  onDescribe,
+}: {
+  readonly onDescribe: NonNullable<ImportExportProps['onDescribe']>;
+}): JSX.Element {
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  return (
+    <Stack gap={2}>
+      <SearchField
+        variant="prompt"
+        size="sm"
+        label="Describe an export"
+        placeholder="Describe it, like “salaries in Madrid as of 30 June, for Finance”"
+        enterKeyHint="go"
+        maxLength={300}
+        loading={busy}
+        value={typed}
+        onValueChange={setTyped}
+        onSearch={(value) => {
+          if (value.trim() === '') return;
+          setBusy(true);
+          setRefused(null);
+          void onDescribe(value.trim()).then((answer) => {
+            setBusy(false);
+            if (!answer.ok) setRefused(answer.message);
+          });
+        }}
+      />
+      {refused === null ? null : (
+        <Alert tone="danger" title="Nothing was built">
+          {refused}
+        </Alert>
+      )}
+    </Stack>
+  );
+}
+
+/**
  * A way in or out. At a desk a card with what it takes and its buttons; under
  * a finger a tile that is itself the link.
  */
@@ -324,6 +381,7 @@ function Action({
   start,
   startIcon,
   more = null,
+  lead = null,
   shortcut,
   busy = null,
 }: {
@@ -338,6 +396,8 @@ function Action({
   readonly startIcon: ReactNode;
   /** A second button beside the start, at a desk: the import's template. */
   readonly more?: ReactNode;
+  /** Above the buttons, at a desk: the export's sentence, the way most exports start. */
+  readonly lead?: ReactNode;
   /** The shortcut the start answers to (C for a new export), shown in its tooltip. */
   readonly shortcut?: string;
   /**
@@ -369,6 +429,7 @@ function Action({
           ))}
         </div>
         {busy === null ? null : busy.progress}
+        {lead}
         <div className="flex gap-2">
           {busy === null ? (
             <Button
@@ -401,65 +462,6 @@ function Action({
   );
 }
 
-/** The history's rows while they arrive, in the shape they arrive in. */
-function HistoryLoading(): JSX.Element {
-  const rows = [0, 1, 2];
-  return (
-    <>
-      <Table aria-label="Imports and exports, loading" containerClassName="touch:hidden">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-30">Type</TableHead>
-            <TableHead>File or reason</TableHead>
-            <TableHead>By</TableHead>
-            <TableHead className="w-30">When</TableHead>
-            <TableHead>Result</TableHead>
-            <TableHead className="w-15">
-              <span className="sr-only">Open</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row}>
-              <TableCell>
-                <Skeleton className="h-5 w-18 rounded-full" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-44" />
-              </TableCell>
-              <TableCell>
-                <span className="flex items-center gap-2">
-                  <Skeleton className="size-6 rounded-full" />
-                  <Skeleton className="h-4 w-24" />
-                </span>
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-20" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-28" />
-              </TableCell>
-              <TableCell />
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <List aria-label="Imports and exports, loading" className="hidden touch:block">
-        {rows.map((row) => (
-          <ListItem
-            key={row}
-            leading={<Skeleton className="size-10 rounded-[28%]" />}
-            description={<Skeleton className="mt-1.5 h-3 w-32" />}
-          >
-            <Skeleton className="h-4 w-44" />
-          </ListItem>
-        ))}
-      </List>
-    </>
-  );
-}
-
 const KIND = {
   import: { label: 'Import', tone: 'info', icon: <icons.upload aria-hidden /> },
   export: { label: 'Export', tone: 'accent', icon: <icons.download aria-hidden /> },
@@ -471,7 +473,7 @@ function History({
   now,
   ...held
 }: Omit<ImportExportProps, 'load'> & {
-  readonly history: TransferHistory | 'loading';
+  readonly history: TransferHistory;
   readonly now: string;
 }): JSX.Element {
   const [kind, setKind] = useHeld<HistoryKind>(held.kind, held.onKindChange, 'all');
@@ -486,11 +488,10 @@ function History({
     const qs = q.toString();
     return qs === '' ? HERE : `${HERE}?${qs}`;
   };
-  const loading = history === 'loading';
-  const shown = loading ? [] : filterHistory(history.items, kind, search);
+  const shown = filterHistory(history.items, kind, search);
   const when = (e: TransferEntry) => whenOf(e.at, now, zone);
   return (
-    <section aria-labelledby="history" aria-busy={loading} className="flex flex-col gap-3">
+    <section aria-labelledby="history" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <h2 id="history" className="text-md font-semibold">
           History
@@ -521,9 +522,7 @@ function History({
           <a href="/settings/activity?area=imports_exports">See all activity</a>
         </Button>
       </div>
-      {loading ? (
-        <HistoryLoading />
-      ) : shown.length === 0 ? (
+      {shown.length === 0 ? (
         <EmptyState
           title={
             history.items.length === 0 ? 'Nothing imported or exported yet' : 'Nothing matches'
@@ -626,7 +625,7 @@ function History({
           </List>
         </>
       )}
-      {loading || (history.next === null && !history.paged) ? null : (
+      {history.next === null && !history.paged ? null : (
         <nav aria-label="Older history" className="flex gap-2">
           {history.paged ? (
             <Button asChild>

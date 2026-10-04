@@ -11,7 +11,11 @@ export interface IdentifierReview {
   readonly key: string;
   readonly label: string;
   readonly state: 'pending' | 'sent_back';
-  readonly findings: readonly { readonly level: string; readonly code: string; readonly message: string }[];
+  readonly findings: readonly {
+    readonly level: string;
+    readonly code: string;
+    readonly message: string;
+  }[];
   /** Why HR could not accept it, as they wrote it. */
   readonly note: string | null;
 }
