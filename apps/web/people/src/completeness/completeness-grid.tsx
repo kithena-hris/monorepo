@@ -193,7 +193,7 @@ function Grid({
   readonly state: CompletenessState;
 }): JSX.Element {
   /** Filling in, from whose row: the grid, and that person's first cell focused. */
-  const [from, setFrom] = useHeld<string | null>(fill, onFillChange, null);
+  const [from, setFrom] = useHeld<string | null>(fill, onFillChange, fill ?? null);
   const filling = from === null ? null : { from };
   const setFilling = (next: { readonly from: string } | null): void => {
     setFrom(next?.from ?? null);
@@ -231,7 +231,7 @@ function Grid({
     const first = fields.find((f) => missing.includes(f.key));
     if (first !== undefined) document.getElementById(`cell-${filling.from}-${first.key}`)?.focus();
     // Once per "Fill in", not on every keystroke in the grid.
-  }, [filling]);
+  }, [from]);
 
   const set = (personId: string, key: string, value: string): void => {
     setOutcome(null);

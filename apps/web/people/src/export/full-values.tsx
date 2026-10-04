@@ -347,7 +347,7 @@ function Decide({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
-  const verb = approve ? 'Approve' : 'Reject';
+  const verb = approve ? 'Allow' : 'Reject';
 
   return (
     <Dialog

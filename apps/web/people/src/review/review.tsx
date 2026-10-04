@@ -357,9 +357,9 @@ function Queue({
 }: Omit<ReviewProps, 'load'> & { readonly state: ReviewState }): JSX.Element {
   const viewer = viewerOf(state);
   const chips = viewer === 'hr' ? CHIPS[tab] : [];
-  const [chosen, setChosen] = useHeld<string | null>(heldKind, onKindChange as never, null);
+  const [chosen, setChosen] = useHeld<string | null>(heldKind, onKindChange as never, heldKind ?? null);
   const kind = chips.find((k) => k === chosen) ?? null;
-  const [picked, pick] = useHeld<string | null>(heldItem, onItemChange, null);
+  const [picked, pick] = useHeld<string | null>(heldItem, onItemChange, heldItem ?? null);
   const now = Date.parse(state.now);
   // A, on a change's row: it opens with the note to write, as its button needs one.
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -606,7 +606,10 @@ function Rows({
           key={row.id}
           asChild
           selected={row.id === current}
-          {...(actionsOf?.(row) === undefined ? {} : { actions: actionsOf(row) })}
+          {...((): { actions?: readonly RowAction[] } => {
+            const actions = actionsOf?.(row);
+            return actions === undefined ? {} : { actions };
+          })()}
           leading={<Avatar size="lg" name={row.name} />}
           description={
             <span className="flex min-w-0 items-center gap-1.5 [&_svg]:size-3.5 [&_svg]:shrink-0">
@@ -633,7 +636,7 @@ function Rows({
                   </Badge>
                 ),
               })}
-          meta={row.at === null ? undefined : ago(row.at, now)}
+          {...(row.at === null ? {} : { meta: ago(row.at, now) })}
         >
           <button
             type="button"

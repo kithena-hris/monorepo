@@ -30,6 +30,19 @@ vi.mock('../app/(app)/people/actions', () => ({
   askAboutChange: vi.fn(),
   answerApprovalQuestion: vi.fn(),
   setApprovalCheck: vi.fn(),
+  reviewIdentifier: vi.fn(),
+  revealIdentifier: vi.fn(),
+  mergePerson: vi.fn(),
+  dismissDuplicate: vi.fn(),
+  unmergePerson: vi.fn(),
+  requestFullValues: vi.fn(),
+  decideFullValues: vi.fn(),
+  decideExportShare: vi.fn(),
+  saveGrid: vi.fn(),
+  checkGrid: vi.fn(),
+  searchPeople: vi.fn(),
+  remindWaiting: vi.fn(),
+  requestDetails: vi.fn(),
   saveSegment: vi.fn(),
   directoryPage: vi.fn(),
 }));
@@ -89,28 +102,35 @@ afterEach(() => {
 });
 
 describe('a screen that narrows what it already has', () => {
-  it('restores a tab from the address, and ignores one it does not know', () => {
-    expect(open('/people/approvals?tab=asked', 'Approvals')['tab']).toBe('asked');
-    cleanup();
-    expect(open('/people/approvals?tab=%3Cscript%3E', 'Approvals')['tab']).toBeNull();
+  it('hands Review its tab from the route, and its chip and item from the address', () => {
+    const props = open('/people/review/flagged?kind=changes&item=change-c1', 'Review');
+    expect([props['tab'], props['kind'], props['item']]).toEqual([
+      'flagged',
+      'changes',
+      'change-c1',
+    ]);
   });
 
-  it('notes a chosen tab in the address as a new entry, without asking the server', () => {
-    const props = open('/people/approvals', 'Approvals');
+  it('notes a chosen chip and item in the address as new entries, without asking the server', () => {
+    const props = open('/people/review/waiting', 'Review');
     const before = window.history.length;
-    call(props, 'onTabChange', 'asked');
-    expect(here()).toBe('/people/approvals?tab=asked');
-    expect(window.history.length).toBe(before + 1);
+    call(props, 'onKindChange', 'ids');
+    expect(here()).toBe('/people/review/waiting?kind=ids');
+    call(props, 'onItemChange', 'change-c2');
+    expect(here()).toBe('/people/review/waiting?kind=ids&item=change-c2');
+    expect(window.history.length).toBe(before + 2);
     expect(router.push).not.toHaveBeenCalled();
+    call(props, 'onFillChange', 'p1');
+    expect(here()).toBe('/people/review/waiting?kind=ids&item=change-c2&fill=p1');
   });
 
-  it('keeps the flagged tab and the open change in the address (MA6, MA7)', () => {
-    const props = open('/people/approvals?tab=flagged&change=c1', 'Approvals');
-    expect([props['tab'], props['change']]).toEqual(['flagged', 'c1']);
-    call(props, 'onChangeOpen', 'c2');
-    expect(here()).toBe('/people/approvals?tab=flagged&change=c2');
-    call(props, 'onTabChange', 'decided');
-    expect(here()).toBe('/people/approvals?tab=decided');
+  it('asks the server for a pair to compare, which People reads side by side', () => {
+    const props = open('/people/review/waiting?kind=duplicates', 'Review');
+    call(props, 'onItemChange', 'dup-p1~p2');
+    expect(router.push).toHaveBeenCalledWith(
+      '/people/review/waiting?kind=duplicates&item=dup-p1%7Ep2',
+      { scroll: false },
+    );
   });
 
   it('rewrites the entry while a search is typed, and leaves an empty one out', () => {

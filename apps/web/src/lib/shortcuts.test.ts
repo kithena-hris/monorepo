@@ -16,7 +16,10 @@ import {
 describe('the shortcut table', () => {
   it('has no collisions: no two shortcuts share keys, and none starts another', () => {
     for (const shortcut of SHORTCUTS) {
-      expect({ id: shortcut.id, problem: problemWith(SHORTCUTS, shortcut.id, shortcut.keys) }).toEqual({
+      expect({
+        id: shortcut.id,
+        problem: problemWith(SHORTCUTS, shortcut.id, shortcut.keys),
+      }).toEqual({
         id: shortcut.id,
         problem: null,
       });
@@ -31,8 +34,7 @@ describe('the shortcut table', () => {
       'Time off',
       'People',
       'Directory',
-      'Approvals',
-      'Data health',
+      'Review',
       'Import & export',
       'Insights',
       'Inbox',
@@ -42,6 +44,8 @@ describe('the shortcut table', () => {
       'Keyboard shortcuts',
     ]);
     for (const s of goTo) expect(s.keys[0]).toBe('g');
+    // G R opens Review; it replaced G A and G Q.
+    expect(SHORTCUTS.find((s) => s.id === 'go.review')?.keys).toEqual(['g', 'r']);
     expect(SHORTCUTS.find((s) => s.id === 'go.activity')?.href).toBe('/settings/activity');
   });
 });
@@ -187,14 +191,23 @@ describe('where each go-to shortcut goes', () => {
     activity: true,
   };
   const at = (id: string, reach = hr) =>
-    destinationOf(SHORTCUTS.find((s) => s.id === id) ?? { id, group: 'Navigation', label: id, does: '', keys: [] }, reach);
+    destinationOf(
+      SHORTCUTS.find((s) => s.id === id) ?? {
+        id,
+        group: 'Navigation',
+        label: id,
+        does: '',
+        keys: [],
+      },
+      reach,
+    );
 
   it('opens each People section at the first page under it this viewer opens', () => {
     expect(at('go.directory')).toBe('/people/directory/list');
-    expect(at('go.data-health')).toBe('/people/data-health/completeness');
+    expect(at('go.review')).toBe('/people/review/waiting');
     expect(at('go.insights')).toBe('/people/insights/what-changed');
     const finance = { ...hr, sections: placesFor(PEOPLE_NAV, FINANCE).sections, activity: false };
-    expect(at('go.data-health', finance)).toBe('/people/data-health/access-requests');
+    expect(at('go.review', finance)).toBe('/people/review/waiting');
     expect(at('go.insights', finance)).toBeNull();
     expect(at('go.activity', finance)).toBeNull();
   });
@@ -230,12 +243,22 @@ describe('[ and ]', () => {
 
   it('step through an umbrella page’s tabs, and stop at either end', () => {
     const at = (route: string) => ({ pathname: route, search: '' });
+    expect(adjacentPage(sections, '/people/review/flagged', at('/people/review/flagged'), 1)).toBe(
+      '/people/review/asked',
+    );
     expect(
-      adjacentPage(sections, '/people/data-health/id-checks', at('/people/data-health/id-checks'), 1),
-    ).toBe('/people/data-health/duplicates');
-    expect(
-      adjacentPage(sections, '/people/insights/what-changed', at('/people/insights/what-changed'), -1),
+      adjacentPage(
+        sections,
+        '/people/insights/what-changed',
+        at('/people/insights/what-changed'),
+        -1,
+      ),
     ).toBeNull();
-    expect(adjacentPage(sections, '/people/approvals', at('/people/approvals'), 1)).toBeNull();
+    expect(
+      adjacentPage(sections, '/people/review/decided', at('/people/review/decided'), 1),
+    ).toBeNull();
+    expect(
+      adjacentPage(sections, '/people/import-export', at('/people/import-export'), 1),
+    ).toBeNull();
   });
 });

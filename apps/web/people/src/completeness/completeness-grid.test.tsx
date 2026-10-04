@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { fast } from '../test/user';
 import { axeViolations } from '../test/axe';
-import { CompletenessGrid, type CompletenessState } from './completeness-grid';
+import { MissingDetails, type CompletenessState } from './completeness-grid';
+import { renderReview } from '../review/review.fixture';
 
 const state: CompletenessState = {
   since: 'Since version 4 was published on 22 Sep',
@@ -97,12 +98,9 @@ const pick = async (name: string, option: string) => {
   await user.click(await screen.findByRole('option', { name: option }));
 };
 
-describe('CompletenessGrid', () => {
-  it('lists who is missing what, titled as Data health', async () => {
-    const { container } = render(
-      <CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />,
-    );
-    expect(screen.getByRole('heading', { level: 1, name: 'Data health' })).toBeInTheDocument();
+describe('Missing details', () => {
+  it('lists who is missing what', async () => {
+    const { container } = render(<MissingDetails state={state} onSave={vi.fn()} />);
     expect(screen.getByText('Waiting on employees')).toBeInTheDocument();
     expect(screen.getByText('For HR to fill in')).toBeInTheDocument();
     const table = screen.getByRole('grid', { name: 'Missing information' });
@@ -117,9 +115,7 @@ describe('CompletenessGrid', () => {
   });
 
   it('opens one grid over exactly the missing cells from Fill in, at that person', async () => {
-    const { container } = render(
-      <CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />,
-    );
+    const { container } = render(<MissingDetails state={state} onSave={vi.fn()} />);
     await fillIn('Joan Bosch');
     expect(screen.getAllByRole('combobox', { name: /^Cost centre for / })).toHaveLength(3);
     expect(screen.getByRole('combobox', { name: 'Cost centre for Joan Bosch' })).toHaveFocus();
@@ -142,9 +138,7 @@ describe('CompletenessGrid', () => {
         remindedAt: null,
       },
     ];
-    render(
-      <CompletenessGrid load={{ status: 'ready', data: { ...state, rows } }} onSave={vi.fn()} />,
-    );
+    render(<MissingDetails state={{ ...state, rows }} onSave={vi.fn()} />);
     await fillIn();
     screen.getByRole('combobox', { name: 'Cost centre for Lena Moreau' }).focus();
     await user.tab();
@@ -156,7 +150,7 @@ describe('CompletenessGrid', () => {
   it('saves one change per person, however many fields were filled for them', async () => {
     const user = fast();
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
-    render(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={onSave} />);
+    render(<MissingDetails state={state} onSave={onSave} />);
     await fillIn();
     await pick('Cost centre for Lena Moreau', 'ENG-204');
     await pick('Cost centre for Joan Bosch', 'ENG-201');
@@ -177,8 +171,8 @@ describe('CompletenessGrid', () => {
   it('keeps the edits and says why when the save is refused', async () => {
     const user = fast();
     render(
-      <CompletenessGrid
-        load={{ status: 'ready', data: state }}
+      <MissingDetails
+        state={state}
         onSave={() => Promise.resolve({ ok: false, message: 'ENG-201 was retired' })}
       />,
     );
@@ -193,8 +187,8 @@ describe('CompletenessGrid', () => {
     const user = fast();
     const onNextPage = vi.fn();
     const { container } = render(
-      <CompletenessGrid
-        load={{ status: 'ready', data: { ...state, toFill: 4210 } }}
+      <MissingDetails
+        state={{ ...state, toFill: 4210 }}
         onSave={vi.fn()}
         onNextPage={onNextPage}
         onFirstPage={vi.fn()}
@@ -215,14 +209,11 @@ describe('CompletenessGrid', () => {
     );
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(
-      <CompletenessGrid
-        load={{
-          status: 'ready',
-          data: {
-            ...state,
-            fields: [{ key: 'manager', label: 'Manager', options: [], person: true }],
-            rows: state.rows.slice(0, 1).map((r) => ({ ...r, missing: ['manager'] })),
-          },
+      <MissingDetails
+        state={{
+          ...state,
+          fields: [{ key: 'manager', label: 'Manager', options: [], person: true }],
+          rows: state.rows.slice(0, 1).map((r) => ({ ...r, missing: ['manager'] })),
         }}
         onSave={onSave}
         searchPeople={searchPeople}
@@ -240,21 +231,18 @@ describe('CompletenessGrid', () => {
     expect(onSave).toHaveBeenCalledWith([{ personId: 'l', values: { manager: 'i' } }]);
   });
 
-  it('has loading, error and nothing-missing states', async () => {
-    const { container, rerender } = render(
-      <CompletenessGrid load={{ status: 'loading' }} onSave={vi.fn()} />,
-    );
-    expect(screen.getByText('Loading the missing information')).toBeInTheDocument();
-    rerender(<CompletenessGrid load={{ status: 'error', message: 'Down' }} onSave={vi.fn()} />);
-    expect(screen.getByText('Down')).toBeInTheDocument();
-    rerender(
-      <CompletenessGrid
-        load={{ status: 'ready', data: { ...state, fields: [], rows: [] } }}
-        onSave={vi.fn()}
-      />,
+  it('says so when nothing is missing, as Review’s own chip (E13)', async () => {
+    const { container } = render(
+      <MissingDetails state={{ ...state, fields: [], rows: [] }} onSave={vi.fn()} />,
     );
     expect(screen.getByText('Nothing is missing')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('is Review’s Missing details chip, and opens the grid a link named (E6, E7)', () => {
+    renderReview({ completeness: state }, { kind: 'missing', fill: 'j' });
+    expect(screen.getByRole('heading', { name: 'Fill in for HR' })).toBeInTheDocument();
+    expect(screen.getAllByRole('combobox', { name: /^Cost centre for / })).toHaveLength(3);
   });
 
   it('warns on a doubted identifier in its own cell, then saves it anyway (PEO-125)', async () => {
@@ -291,9 +279,7 @@ describe('CompletenessGrid', () => {
         findings: [{ ...finding, review: 'pending' as const }],
       }),
     );
-    const { container } = render(
-      <CompletenessGrid load={{ status: 'ready', data: nif }} onSave={onSave} onCheck={onCheck} />,
-    );
+    const { container } = render(<MissingDetails state={nif} onSave={onSave} onCheck={onCheck} />);
     await fillIn('Joan Bosch');
     await user.type(screen.getByRole('textbox', { name: 'NIF for Joan Bosch' }), '12345678A');
     await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
@@ -313,9 +299,9 @@ describe('CompletenessGrid', () => {
   });
 });
 
-describe('CompletenessGrid, the figures and reminders (V4, MV2)', () => {
+describe('Missing details, the figures and reminders (E6, MA E5)', () => {
   it('shows the four figures, with the change this month and its sparkline', () => {
-    render(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />);
+    render(<MissingDetails state={state} onSave={vi.fn()} />);
     expect(screen.getByText('+6 pts')).toBeInTheDocument();
     expect(screen.getByText('this month')).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Complete records by month' })).toBeInTheDocument();
@@ -330,7 +316,7 @@ describe('CompletenessGrid, the figures and reminders (V4, MV2)', () => {
       blocking: null,
       complete: { percent: 79, incomplete: 88, change: null, trend: [] },
     };
-    render(<CompletenessGrid load={{ status: 'ready', data: bare }} onSave={vi.fn()} />);
+    render(<MissingDetails state={bare} onSave={vi.fn()} />);
     expect(screen.queryByText('Blocking payroll')).toBeNull();
     expect(screen.queryByText(/pts/)).toBeNull();
     expect(screen.queryByRole('table', { name: 'Complete records by month' })).toBeNull();
@@ -342,44 +328,40 @@ describe('CompletenessGrid, the figures and reminders (V4, MV2)', () => {
       Promise.resolve({ ok: true as const, sent: 40, failed: 0, skipped: 21 }),
     );
     const { container } = render(
-      <CompletenessGrid
-        load={{ status: 'ready', data: state }}
-        onSave={vi.fn()}
-        onRemindAll={onRemindAll}
-      />,
+      <MissingDetails state={state} onSave={vi.fn()} onRemindAll={onRemindAll} />,
     );
     await fast().click(screen.getByRole('button', { name: 'Remind 61 people' }));
     expect(onRemindAll).toHaveBeenCalledOnce();
-    expect(await screen.findByText(/Sent 40 reminders\. 21 people were not due/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Sent 40 reminders\. 21 people were not due/),
+    ).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
 
   it('offers no bulk reminder when nobody is due, or it cannot be sent from here', () => {
     const { rerender } = render(
-      <CompletenessGrid
-        load={{ status: 'ready', data: { ...state, waiting: { ...state.waiting, due: 0 } } }}
+      <MissingDetails
+        state={{ ...state, waiting: { ...state.waiting, due: 0 } }}
         onSave={vi.fn()}
         onRemindAll={vi.fn()}
       />,
     );
     expect(screen.queryByRole('button', { name: /^Remind \d/ })).toBeNull();
-    rerender(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />);
+    rerender(<MissingDetails state={state} onSave={vi.fn()} />);
     expect(screen.queryByRole('button', { name: /^Remind \d/ })).toBeNull();
   });
 
   it('reminds one person of their own fields, and not twice in a day', async () => {
     const onRemind = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(
-      <CompletenessGrid
-        load={{
-          status: 'ready',
-          data: {
-            ...state,
-            rows: state.rows.map((r) =>
-              r.personId === 'u' ? { ...r, remindedAt: new Date().toISOString() } : r,
-            ),
-          },
+      <MissingDetails
+        state={{
+          ...state,
+          rows: state.rows.map((r) =>
+            r.personId === 'u' ? { ...r, remindedAt: new Date().toISOString() } : r,
+          ),
         }}
+        now={Date.now()}
         onSave={vi.fn()}
         onRemind={onRemind}
       />,
@@ -395,7 +377,7 @@ describe('CompletenessGrid, the figures and reminders (V4, MV2)', () => {
   });
 
   it('keeps Fill in for HR’s rows only, and opens the grid over them alone', async () => {
-    render(<CompletenessGrid load={{ status: 'ready', data: state }} onSave={vi.fn()} />);
+    render(<MissingDetails state={state} onSave={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Fill in Omar Haddad' })).toBeNull();
     await fillIn();
     expect(screen.queryByRole('textbox', { name: /Bank account/ })).toBeNull();

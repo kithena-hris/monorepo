@@ -35,12 +35,12 @@ export function actions(): Omit<ReviewProps, 'load' | 'tab'> {
   };
 }
 
-/** Review over `state`, on `tab`, with `props` over the spies; charts' tooltips as the host provides them. */
-export function renderReview(
+/** Review over `state`, on its Waiting tab unless `props` says otherwise, every operation a spy. */
+export function reviewOf(
   state: Partial<ReviewState>,
   props: Partial<ReviewProps> = {},
-): ReturnType<typeof render> {
-  const ui: ReactElement = (
+): ReactElement {
+  return (
     <Review
       load={{ status: 'ready', data: { ...NOTHING, ...state } }}
       tab="waiting"
@@ -48,5 +48,12 @@ export function renderReview(
       {...props}
     />
   );
-  return render(ui, { wrapper: TooltipProvider });
+}
+
+/** `reviewOf`, rendered; charts' tooltips as the host provides them. */
+export function renderReview(
+  state: Partial<ReviewState>,
+  props: Partial<ReviewProps> = {},
+): ReturnType<typeof render> {
+  return render(reviewOf(state, props), { wrapper: TooltipProvider });
 }

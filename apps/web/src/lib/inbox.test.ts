@@ -35,21 +35,21 @@ describe('the Inbox (MA6)', () => {
         name: 'Tom Fischer',
         change: 'Salary €61k → €84k',
         why: 'A 38% raise, above the band',
-        href: '/people/approvals?tab=flagged&change=c1',
+        href: '/people/review/flagged?kind=changes&item=change-c1',
       },
       {
         id: 'c2',
         name: 'Lucía Fernández',
         change: 'Bank account',
         why: '2 days after a new address',
-        href: '/people/approvals?tab=flagged&change=c2',
+        href: '/people/review/flagged?kind=changes&item=change-c2',
       },
       {
         id: 'c5',
         name: 'Tom Fischer',
         change: 'Salary',
         why: 'A 38% raise, above the band',
-        href: '/people/approvals?tab=flagged&change=c5',
+        href: '/people/review/flagged?kind=changes&item=change-c5',
       },
     ]);
   });

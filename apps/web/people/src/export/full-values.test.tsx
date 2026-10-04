@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { axeViolations } from '../test/axe';
 import { fast } from '../test/user';
 import { WebhookLog } from '../settings/integrations/webhook-log';
-import { FullValues, type FullValuesRequest, type FullValuesState } from './full-values';
+import { renderReview } from '../review/review.fixture';
+import type { FullValuesRequest, FullValuesState } from './full-values';
 
 const pending: FullValuesRequest = {
   id: 'r1',
@@ -29,63 +30,64 @@ const state = (over: Partial<FullValuesState> = {}): FullValuesState => ({
 
 const done = () => Promise.resolve({ ok: true as const });
 
-describe('full values (PEO-121)', () => {
+const FINANCE = { hr: false, admin: false, finance: true };
+
+describe('full values in Review (PEO-121, design E4, E11)', () => {
   it('lets finance ask for masked fields, with a reason', async () => {
-    const onRequest = vi.fn(done);
-    const { container } = render(
-      <FullValues
-        load={{
-          status: 'ready',
-          data: state({ canRequest: true, fields: [{ key: 'es_nif', label: 'NIF / NIE' }] }),
-        }}
-        onRequest={onRequest}
-        onDecide={vi.fn(done)}
-      />,
+    const onRequestFullValues = vi.fn(done);
+    const { container } = renderReview(
+      {
+        roles: FINANCE,
+        fullValues: state({ canRequest: true, fields: [{ key: 'es_nif', label: 'NIF / NIE' }] }),
+      },
+      { onRequestFullValues },
     );
     expect(await axeViolations(container)).toEqual([]);
     const user = fast();
     await user.click(screen.getByRole('button', { name: 'Ask HR' }));
-    expect(onRequest).not.toHaveBeenCalled();
+    expect(onRequestFullValues).not.toHaveBeenCalled();
+    expect(screen.getByText('Choose at least one field.')).toBeInTheDocument();
     await user.click(screen.getByRole('checkbox', { name: 'NIF / NIE' }));
     await user.type(screen.getByRole('textbox', { name: /Reason/ }), 'September payroll');
     await user.click(screen.getByRole('button', { name: 'Ask HR' }));
-    expect(onRequest).toHaveBeenCalledWith(['es_nif'], 'September payroll');
+    expect(onRequestFullValues).toHaveBeenCalledWith(['es_nif'], 'September payroll');
     expect(await screen.findByText(/HR has seven days/)).toBeInTheDocument();
   });
 
-  it('gives the requester the one download, and HR the decision', async () => {
-    const onDecide = vi.fn(done);
-    const { rerender } = render(
-      <FullValues
-        load={{
-          status: 'ready',
-          data: state({
-            canRequest: true,
-            requests: [{ ...pending, mine: true, state: 'issued', link: 'https://files.test/x' }],
-          }),
-        }}
-        onRequest={vi.fn(done)}
-        onDecide={onDecide}
-      />,
-    );
+  it('gives the requester the one download', () => {
+    renderReview({
+      roles: FINANCE,
+      fullValues: state({
+        canRequest: true,
+        requests: [{ ...pending, mine: true, state: 'issued', link: 'https://files.test/x' }],
+      }),
+    });
     expect(screen.getByRole('link', { name: 'Download, once' })).toHaveAttribute(
       'href',
       'https://files.test/x',
     );
+  });
 
-    rerender(
-      <FullValues
-        load={{ status: 'ready', data: state({ canDecide: true, requests: [pending] }) }}
-        onRequest={vi.fn(done)}
-        onDecide={onDecide}
-      />,
+  it('gives HR the decision, in the same pane as every other kind, confirmed in a dialog', async () => {
+    const onDecideFullValues = vi.fn(done);
+    renderReview(
+      { fullValues: state({ canDecide: true, requests: [pending] }) },
+      { kind: 'access', onDecideFullValues },
     );
     expect(screen.queryByRole('link')).toBeNull();
+    const detail = screen.getByRole('region', { name: /Adam Ruiz/ });
+    expect(within(detail).getByText('These values are masked everywhere else')).toBeInTheDocument();
     const user = fast();
     await user.click(screen.getByRole('button', { name: 'Approve the request from Adam Ruiz' }));
-    const dialog = screen.getByRole('dialog', { name: 'Approve the request' });
-    await user.click(within(dialog).getByRole('button', { name: 'Approve' }));
-    expect(onDecide).toHaveBeenCalledWith('r1', true, null);
+    const dialog = screen.getByRole('dialog', { name: 'Allow the request' });
+    expect(await axeViolations(document.body)).toEqual([]);
+    await user.click(within(dialog).getByRole('button', { name: 'Allow' }));
+    expect(onDecideFullValues).toHaveBeenCalledWith('r1', true, null);
+  });
+
+  it('says when nothing waits to be decided', () => {
+    renderReview({ fullValues: state({ canDecide: true }) }, { kind: 'access' });
+    expect(screen.getByText('Nothing to decide')).toBeInTheDocument();
   });
 });
 
