@@ -85,7 +85,8 @@ function wakeSoon(): typeof unreachable {
  * session's token is never another's, and never outliving what identity said.
  *
  * Only ever handed out beside a session identity has just confirmed in the
- * same request (`accessToken`): a signed-out or revoked session gets nothing
+ * same request (`accessToken`), or for a read whose answer waits for that
+ * confirmation (`readToken`): a signed-out or revoked session gets nothing
  * from here, on this instance or any other, the moment identity says so.
  */
 const minted = new Map<string, { readonly token: string; readonly until: number }>();
@@ -153,6 +154,30 @@ export const accessToken = cache(async (): Promise<string | null> => {
     return null;
   }
   return token;
+});
+
+/**
+ * A token to start a read with: the one already minted for this session, at
+ * once, rather than after identity's check of the session; else the same wait
+ * as `accessToken`.
+ *
+ * Only ever for a read, and never trusted alone: `send` withholds the answer
+ * until `currentPerson` has confirmed the session in this same request, and a
+ * session identity no longer recognises gets `signedOut`, whatever People
+ * answered. What it saves is the order — the read and the check travel
+ * together instead of one after the other, a round trip off every page. The
+ * token is this session's own (keyed as `minted` is), one identity issued and
+ * this server already holds; nothing reaches a page that `accessToken` would
+ * not have let through.
+ */
+const readToken = cache(async (): Promise<string | null> => {
+  const sessionId = (await cookies()).get(SESSION_COOKIE)?.value;
+  const tenantId = (await headers()).get('x-tenant-id');
+  if (sessionId === undefined || sessionId === '' || tenantId === null || tenantId === '') {
+    return null;
+  }
+  const held = minted.get(keyOf(sessionId, tenantId));
+  return held !== undefined && held.until > Date.now() ? held.token : accessToken();
 });
 
 /**
@@ -245,10 +270,11 @@ async function send(
 ): Promise<PeopleAnswer<unknown>> {
   const { service, operations } = AREAS[area];
   const body = operations[name] ?? '';
-  const token = await accessToken();
+  const writes = body.trimStart().startsWith('mutation');
+  // A write waits for identity's word on the session; a read goes with it (`readToken`).
+  const token = await (writes ? accessToken() : readToken());
   if (token === null) return signedOut;
   const router = (process.env['ROUTER_URL'] ?? 'http://localhost:4000').replace(/\/$/, '');
-  const writes = body.trimStart().startsWith('mutation');
   // Every keyed write declares `$key`; the two that only compute do not.
   const keyed = body.includes('$key: String!');
   const operation = {
@@ -272,6 +298,13 @@ async function send(
         signal: AbortSignal.timeout(writes ? 120_000 : 10_000),
       }),
     );
+    // A read sent beside the session check is answered only once identity has
+    // confirmed the session (`readToken`); otherwise it is dropped, unread.
+    if (!writes && (await currentPerson()) === null) {
+      for (const [k, v] of minted) if (v.token === token) minted.delete(k);
+      await response.body?.cancel().catch(() => undefined);
+      return signedOut;
+    }
     if (response.status === 401) {
       // Refused, whatever identity said when it was minted: not asked again.
       for (const [k, v] of minted) if (v.token === token) minted.delete(k);
