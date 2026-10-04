@@ -13,7 +13,7 @@ import { writeToday } from '../assist/today.js';
 import { reasonFacts, writeReasons, type ReasonFacts } from '../assist/reasons.js';
 import { addDays, amount, days } from '../../domain/days.js';
 import type { LeaveRequest, LeaveRequestId } from '../../domain/request/leave-request.js';
-import type { Caller, Deps, Member, RequestRecord, Tx } from '../ports.js';
+import type { Caller, Deps, Tx } from '../ports.js';
 import { teamAlternatives, teamBelow } from '../request/assess.js';
 import { balanceFor, forbidden, isHrAdmin, notFound, transact } from '../shared.js';
 import { approves, memberView, requestItem, typesOf } from './employee.js';

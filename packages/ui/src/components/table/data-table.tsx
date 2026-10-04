@@ -984,7 +984,8 @@ export function DataTable<T extends TableRow>({
     if (el === null || !wantsEnd) return;
     const check = (): void => {
       // A table not drawn (a desk's, hidden under a finger) is at no end at all.
-      if (el.checkVisibility?.() === false) return;
+      // (`in`: jsdom has no `checkVisibility`, and draws nothing anyway.)
+      if ('checkVisibility' in el && !el.checkVisibility()) return;
       if (el.scrollHeight - el.scrollTop - el.clientHeight < END_MARGIN) endReached.current?.();
     };
     check();

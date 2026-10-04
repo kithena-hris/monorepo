@@ -243,7 +243,8 @@ export function VirtualList<T>({
   const wantsEnd = onEndReached !== undefined && !loadingMore;
   useEffect(() => {
     // A list not drawn (a phone's, hidden at a desk) asks for nothing.
-    if (outerRef.current?.checkVisibility?.() === false) return;
+    const box = outerRef.current;
+    if (box !== null && 'checkVisibility' in box && !box.checkVisibility()) return;
     if (wantsEnd && rows > 0 && lastDrawn >= rows - 1 - Math.ceil(AHEAD / lanes)) {
       end.current?.();
     }

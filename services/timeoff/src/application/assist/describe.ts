@@ -6,7 +6,7 @@ import { addDays, addMonths, amount, days as amountOf, type DateRange } from '..
 import { dateOptions, type TeamDay } from '../../domain/request/options.js';
 import type { Caller, Deps } from '../ports.js';
 import { LIVE, teamCoverage } from '../request/assess.js';
-import { balanceFor, calendarOf, forbidden, notFound, transact } from '../shared.js';
+import { balanceFor, calendarOf, notFound, transact } from '../shared.js';
 import { requestPanel } from '../screens/employee.js';
 import type { DescribedView } from '../screens/views.js';
 import { written, type Line } from './written.js';

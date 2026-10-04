@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DateSpan, LeaveTypeKey } from '@kithena/contracts';
+import type { Result } from '@kithena/domain-kit';
 
 import { answerParental } from '../parental/parental.js';
 import { previewRequest, sendRequest } from '../request/request.js';
@@ -17,6 +18,14 @@ const vacation = LeaveTypeKey.parse('vacation');
  */
 const nobody = caller(null, '0000000b-0000-4000-8000-000000000001');
 
+/** Refused, and told why in words: not domain-kit's bare "Not permitted". */
+function refusedInWords(answer: Result<unknown>): void {
+  expect(answer.ok).toBe(false);
+  if (answer.ok) return;
+  expect(answer.error.code).toBe('FORBIDDEN');
+  expect(answer.error.message).toMatch(/not.*employee/iu);
+}
+
 describe('an account Time Off holds no member for', () => {
   it('is told why it cannot request time off, on every screen of its own', async () => {
     const app = world('2026-10-01T07:00:00.000Z');
@@ -30,12 +39,7 @@ describe('an account Time Off holds no member for', () => {
       // The answers are never read: the caller is refused first.
       await answerParental(app.deps)(nobody, {} as never),
     ];
-    for (const answer of answers) {
-      expect(answer).toMatchObject({
-        ok: false,
-        error: { code: 'FORBIDDEN', message: expect.stringMatching(/not.*employee/iu) },
-      });
-    }
+    for (const answer of answers) refusedInWords(answer);
   });
 
   it('says the same when the router named a person Time Off does not hold', async () => {
@@ -43,10 +47,7 @@ describe('an account Time Off holds no member for', () => {
     const stranger = caller(
       people.adam.replace(/-000000000002$/u, '-000000000099') as typeof people.adam,
     );
-    expect(await requestPanel(app.deps)(stranger, {})).toMatchObject({
-      ok: false,
-      error: { code: 'FORBIDDEN', message: expect.stringMatching(/not.*employee/iu) },
-    });
+    refusedInWords(await requestPanel(app.deps)(stranger, {}));
   });
 
   it('is no member to the shell, which then offers no Request', async () => {

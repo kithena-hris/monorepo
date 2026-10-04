@@ -9,9 +9,8 @@ describe('usePages', () => {
       Promise.resolve({ items: [`${cursor}-x`], next: cursor === 'c1' ? 'c2' : null }),
     );
     const first = ['a'];
-    const { result, rerender } = renderHook(({ f, n }) => usePages(f, n, load), {
-      initialProps: { f: first, n: 'c1' as string | null },
-    });
+    const initialProps: { f: string[]; n: string | null } = { f: first, n: 'c1' };
+    const { result, rerender } = renderHook(({ f, n }) => usePages(f, n, load), { initialProps });
     await act(async () => {
       result.current.loadMore?.();
       result.current.loadMore?.();
