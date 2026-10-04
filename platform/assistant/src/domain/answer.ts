@@ -4,6 +4,7 @@ import {
   type AssistantChannel,
   type CapabilityOutput,
   type CatalogueLeaveType,
+  type ItemsResult,
   type ModuleKey,
   type PeopleResult,
   type PersonRow,
@@ -232,6 +233,42 @@ const listed = (
     )
     .join('\n');
 
+/** What one queue's answer says. */
+interface Waiting {
+  readonly one: string;
+  readonly many: string;
+  readonly none: string;
+  readonly understood: string;
+}
+
+/** People's sentences for its approvals, carried over. */
+const APPROVALS: Waiting = {
+  one: 'change is waiting for your approval',
+  many: 'changes are waiting for your approval',
+  none: 'You’re all caught up. Nothing is waiting for your approval.',
+  understood: 'What waits for approval',
+};
+const WAITING: Readonly<Record<string, Waiting>> = {
+  'people.approvals': APPROVALS,
+  'timeoff.pending': {
+    one: 'time off request is waiting for your decision',
+    many: 'time off requests are waiting for your decision',
+    none: 'You’re all caught up. No time off requests are waiting for you.',
+    understood: 'What waits for your decision in Time Off',
+  },
+};
+
+/** The first ten of a queue, a line each. */
+const itemsOf = (output: ItemsResult, setting: Setting): string =>
+  output.items
+    .slice(0, 10)
+    .map((i) => `• ${i.name} — ${masked(i.label, setting)}`)
+    .join('\n');
+
+/** The chat rules for private leave hold: a chat app, and the company has not lifted them (§11.4). */
+const inChat = (setting: Setting): boolean =>
+  setting.channel !== 'web' && !setting.namesPrivateLeave;
+
 /* ------------------------------------------------------------- the answer -- */
 
 /** The answer to a plan that ran. */
@@ -291,16 +328,14 @@ function written(
     }
     case 'items': {
       const n = output.total;
+      const waits = WAITING[step.capability.name] ?? APPROVALS;
       return {
         text:
           n === 0
-            ? 'You’re all caught up. Nothing is waiting for your approval.'
-            : `${opening(plan.say, n, `${String(n)} ${plural(n, 'change is', 'changes are')} waiting for your approval:`)}\n${output.items
-                .slice(0, 10)
-                .map((i) => `• ${i.name} — ${i.label}`)
-                .join('\n')}`,
+            ? waits.none
+            : `${opening(plan.say, n, `${String(n)} ${plural(n, waits.one, waits.many)}:`)}\n${itemsOf(output, setting)}`,
         people: [],
-        understood: 'What waits for approval',
+        understood: waits.understood,
         answered: true,
       };
     }
@@ -348,7 +383,7 @@ function peopleAnswer(
     ? PRIVATE_SIGHT
     : null;
   // The chat rules for private leave, unless the company lifted them.
-  const chat = setting.channel !== 'web' && !setting.namesPrivateLeave;
+  const chat = inChat(setting);
   // One sentence about what the asker sees: the private-type one says it for a leave type.
   const part = visible && privateSight === null ? PART : null;
 
@@ -441,7 +476,7 @@ function peopleAnswer(
   const [mine] = output.rows;
   if (isBalances(step) && step.input.name === SELF_NAME && n === 1 && mine?.self === true) {
     return {
-      text: `You have ${detailOf(mine, setting, chat) ?? 'no balance'}.`,
+      text: `You have ${detailOf(mine, setting) ?? 'no balance'}.`,
       people: [],
       understood: `You, ${what}`,
       answered: true,
@@ -449,7 +484,7 @@ function peopleAnswer(
   }
 
   const rows = output.rows.slice(0, 25);
-  const shown = rows.map((r) => ({ name: r.name, title: detailOf(r, setting, chat) }));
+  const shown = rows.map((r) => ({ name: r.name, title: detailOf(r, setting) }));
   if (isReports(step)) {
     const manager = executed.outputs.get(step.id);
     const name = manager?.kind === 'people' ? manager.described : '';
@@ -484,23 +519,22 @@ function peopleAnswer(
 }
 
 /**
- * What follows a name on its line: the module's detail, or the job title. In
- * a chat app a private type in any part of the detail ("Thu 15 · Baja
- * médica", "3 days left · Baja médica, 25 days left · Vacation") reads "Away",
- * whoever asks (§11.4).
+ * A module's text with any private type in it read "Away" in a chat app,
+ * whoever asks (§11.4): "Thu 15 · Baja médica", "3 days left · Baja médica,
+ * 25 days left · Vacation", "Baja médica · Tue 6 Oct (1 day)". A second lock:
+ * the module already wrote "Away" unless the company chose to name it.
  */
-function detailOf(row: PersonRow, setting: Setting, chat: boolean): string | undefined {
-  if (row.detail === undefined) return row.title;
-  if (!chat) return row.detail;
-  return row.detail
-    .split(', ')
-    .map((part) => {
-      const cut = part.lastIndexOf(' · ');
-      const type = (cut < 0 ? part : part.slice(cut + 3)).trim().toLowerCase();
-      const hidden = setting.leaveTypes.some(
-        (t) => t.private && (t.name.toLowerCase() === type || t.key === type),
-      );
-      return hidden ? `${cut < 0 ? '' : `${part.slice(0, cut)} · `}Away` : part;
-    })
-    .join(', ');
+function masked(text: string, setting: Setting): string {
+  if (!inChat(setting)) return text;
+  const hidden = new Set(
+    setting.leaveTypes.filter((t) => t.private).flatMap((t) => [t.name.toLowerCase(), t.key]),
+  );
+  return text
+    .split(/( · |, )/u)
+    .map((part) => (hidden.has(part.trim().toLowerCase()) ? 'Away' : part))
+    .join('');
 }
+
+/** What follows a name on its line: the module's detail, or the job title. */
+const detailOf = (row: PersonRow, setting: Setting): string | undefined =>
+  row.detail === undefined ? row.title : masked(row.detail, setting);

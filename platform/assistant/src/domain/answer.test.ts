@@ -252,6 +252,35 @@ describe('People’s sentences, carried over from ask.ts', () => {
     expect(none.text).toBe('You’re all caught up. Nothing is waiting for your approval.');
   });
 
+  it('lists the time off waiting for the asker’s decision, or says none is (AST-031)', async () => {
+    const a = await answer(one('timeoff.pending', {}, 'one'), {
+      s1: {
+        kind: 'items',
+        items: [{ name: 'Hana Kim', label: 'Vacation · Tue 6 Oct (1 day)' }],
+        total: 1,
+      },
+    });
+    expect(a.text).toBe(
+      '1 time off request is waiting for your decision:\n• Hana Kim — Vacation · Tue 6 Oct (1 day)',
+    );
+    expect(a.understood).toBe('What waits for your decision in Time Off');
+    const none = await answer(one('timeoff.pending', {}, 'one'), {
+      s1: { kind: 'items', items: [], total: 0 },
+    });
+    expect(none.text).toBe('You’re all caught up. No time off requests are waiting for you.');
+  });
+
+  it('never writes a private type beside a name in a chat app, in what waits either', async () => {
+    const a = await answer(one('timeoff.pending', {}, 'one'), {
+      s1: {
+        kind: 'items',
+        items: [{ name: 'Adam Novak', label: 'Baja médica · Tue 6 Oct (1 day)' }],
+        total: 1,
+      },
+    });
+    expect(a.text).toContain('• Adam Novak — Away · Tue 6 Oct (1 day)');
+  });
+
   it('drops an opening that carries a number of its own', async () => {
     const a = await answer(one('people.find', SALES, 'count', { say: 'All {n} of the 3 teams:' }), {
       s1: people(2, 'whose department is Sales'),

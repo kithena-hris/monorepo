@@ -75,6 +75,7 @@ describe('the planner’s prompt', () => {
       'people.approvals',
       'timeoff.away',
       'timeoff.balances',
+      'timeoff.pending',
     ]);
     const away = JSON.stringify(capabilities.find((c) => c.capability === 'timeoff.away'));
     expect(away).toContain('"value":"L1","label":"a leave type named in the question"');

@@ -65,6 +65,7 @@ export const TIMEOFF_CATALOGUE = RuntimeCatalogue.parse({
     { name: 'timeoff.away', version: 1 },
     { name: 'timeoff.managers', version: 1 },
     { name: 'timeoff.balances', version: 1 },
+    { name: 'timeoff.pending', version: 1 },
   ],
   fields: {
     'timeoff.away': [LEAVE_TYPE, TEAM],

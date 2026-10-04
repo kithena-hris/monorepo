@@ -52,7 +52,22 @@ export const TimeOffBalances = capability({
   yields: { team: 'people.find' },
 });
 
-export const timeoffCapabilities = [TimeOffAway, TimeOffManagers, TimeOffBalances] as const;
+/** The asker's own approval queue, exactly as Time Off's approvals screen shows it (T16). */
+export const TimeOffPending = capability({
+  name: 'timeoff.pending',
+  version: 1,
+  module: 'timeoff',
+  about: 'Time off requests waiting for the asker’s decision.',
+  accepts: {},
+  output: 'items',
+});
+
+export const timeoffCapabilities = [
+  TimeOffAway,
+  TimeOffManagers,
+  TimeOffBalances,
+  TimeOffPending,
+] as const;
 
 /**
  * A leave type in Time Off's runtime catalogue.
