@@ -175,12 +175,15 @@ export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps
   const close = (): void => {
     onNavigate?.(CLOSE);
   };
+  // The overview behind the panel at a desk: its shape while the page is on
+  // its way, and nothing once Time Off answered without one (the panel says
+  // why), never a placeholder that waits for what is not coming.
   const behind =
-    load.status === 'ready' && load.data.overview !== null ? (
-      <Overview load={{ status: 'ready', data: load.data.overview }} />
-    ) : (
+    load.status === 'loading' ? (
       <OverviewSkeleton />
-    );
+    ) : load.status === 'ready' && load.data.overview !== null ? (
+      <Overview load={{ status: 'ready', data: load.data.overview }} />
+    ) : null;
   return (
     <>
       {behind}
@@ -198,12 +201,18 @@ export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps
               <SheetTitle>Request time off</SheetTitle>
               <SheetDescription>
                 {load.status === 'error'
-                  ? 'Time Off did not answer.'
+                  ? load.refused === true
+                    ? 'There is nothing to request from yet.'
+                    : 'Time Off did not answer.'
                   : 'Loading the types and your balances.'}
               </SheetDescription>
             </SheetHeader>
             <SheetBody>
-              {load.status === 'error' ? (
+              {load.status === 'error' && load.refused === true ? (
+                <Alert tone="info" title="You can’t request time off yet">
+                  {load.message}
+                </Alert>
+              ) : load.status === 'error' ? (
                 <Alert
                   tone="danger"
                   title="Could not load the request panel"

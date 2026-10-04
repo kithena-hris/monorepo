@@ -118,6 +118,25 @@ describe('requesting time off', () => {
     );
     fireEvent.click(panel().getByRole('button', { name: 'Try again' }));
     expect(retry).toHaveBeenCalled();
+    // Answered, though without the overview: nothing waits behind the panel.
+    expect(screen.queryByText('Loading your time off')).toBeNull();
+  });
+
+  it('says plainly why somebody Time Off does not hold cannot request, with nothing loading behind', () => {
+    const why =
+      'Time Off does not have you as an employee yet, so there is no time off or attendance of yours here. There will be once HR hires you in People.';
+    render(<RequestTimeOff load={{ status: 'error', message: why, refused: true }} />);
+    expect(panel().getByText('You can’t request time off yet')).toBeTruthy();
+    expect(panel().getByText(why)).toBeTruthy();
+    expect(panel().queryByText('Could not load the request panel')).toBeNull();
+    expect(panel().queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(screen.queryByText('Loading your time off')).toBeNull();
+  });
+
+  it('draws nothing behind the panel when Time Off sent no overview', () => {
+    render(<RequestTimeOff load={ready({ ...opening(), overview: null })} />);
+    expect(screen.queryByText('Loading your time off')).toBeNull();
+    expect(panel().getByRole('radiogroup', { name: 'Type' })).toBeTruthy();
   });
 });
 

@@ -11,7 +11,13 @@ import type { JSX, ReactNode } from 'react';
  */
 export type Loadable<T> =
   | { readonly status: 'loading' }
-  | { readonly status: 'error'; readonly message: string; readonly retry?: () => void }
+  | {
+      readonly status: 'error';
+      readonly message: string;
+      readonly retry?: () => void;
+      /** Time Off said no (not that it failed): the message says why, and asking again changes nothing. */
+      readonly refused?: true;
+    }
   | { readonly status: 'ready'; readonly data: T };
 
 /** Every screen's three states, drawn the same way everywhere. */

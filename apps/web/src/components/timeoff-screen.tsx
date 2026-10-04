@@ -51,7 +51,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
             message: load.message,
             // A refusal says why; asking again changes nothing, so nothing to press.
             ...(load.code === 'FORBIDDEN' || load.code === 'NOT_ENTITLED'
-              ? {}
+              ? { refused: true as const }
               : { retry: refresh }),
           }
         : { status: 'loading' as const };
