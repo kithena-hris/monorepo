@@ -165,6 +165,7 @@ beforeAll(async () => {
     '20260924150000_people_unique_hash.sql',
     '20260924350000_people_unique_key_lookup.sql',
     '20260924170000_people_calendar.sql',
+    '20261005090000_people_org_unit.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924250000_people_import_report.sql',
     '20260926160000_people_scim.sql',
