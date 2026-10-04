@@ -19,6 +19,24 @@ describe('useHeld', () => {
     expect(result.current[0]).toBe('mine');
   });
 
+  it('shows a choice at once, before the host echoes it, and follows the host after', () => {
+    const onChange = vi.fn();
+    const { result, rerender } = renderHook<
+      readonly [string, (next: string) => void],
+      { held: string | null }
+    >(({ held }) => useHeld(held, onChange, 'all'), { initialProps: { held: null } });
+    act(() => {
+      result.current[1]('missing');
+    });
+    // The router has not answered yet: the screen already shows it.
+    expect(result.current[0]).toBe('missing');
+    rerender({ held: 'missing' });
+    expect(result.current[0]).toBe('missing');
+    // Back: the host's value wins.
+    rerender({ held: 'ids' });
+    expect(result.current[0]).toBe('ids');
+  });
+
   it('is the screen’s own state in a host that holds nothing', () => {
     const { result } = renderHook(() => useHeld<string>(undefined, undefined, 'vertical'));
     act(() => {

@@ -12,8 +12,25 @@ export function useHeld<T>(
   onChange: ((next: T) => void) | undefined,
   fallback: T,
 ): readonly [T, (next: T) => void] {
-  const [own, setOwn] = useState(fallback);
-  return onChange === undefined ? [own, setOwn] : [held ?? fallback, onChange];
+  const [own, setOwn] = useState<T>(onChange === undefined ? fallback : (held ?? fallback));
+  // The host's value is the truth, and a change of it (Back, a link, the
+  // echo of a choice) is taken at once, while rendering.
+  const [seen, setSeen] = useState(held);
+  if (onChange !== undefined && held !== seen) {
+    setSeen(held);
+    setOwn(held ?? fallback);
+  }
+  if (onChange === undefined) return [own, setOwn];
+  // A choice shows at once, then the host is told. A router applies an
+  // address it is told about in a transition (Next does, for `pushState`),
+  // and a screen that waited for the echo answered a click a beat late.
+  return [
+    own,
+    (next) => {
+      setOwn(next);
+      onChange(next);
+    },
+  ];
 }
 
 /** How long typing rests before the address follows it. */
