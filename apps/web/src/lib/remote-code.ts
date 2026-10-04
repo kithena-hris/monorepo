@@ -137,6 +137,23 @@ export const REMOTE_RENDER = Symbol.for('kithena.remote-render');
   return timed('remote.render', renderRemote(build.code, build.sha, component, props, prefix));
 };
 
+/**
+ * The build last verified at each URL, with the signed manifest, signature
+ * and pinned key it was verified against: reused while all three are the
+ * same. In-process, one entry per remote; a new manifest replaces it.
+ */
+const checked = new Map<
+  string,
+  {
+    readonly manifest: string;
+    readonly signature: string;
+    readonly pinned: string;
+    readonly code: string;
+    readonly sha: string;
+    readonly stylesheet: string;
+  }
+>();
+
 export interface PreparedSsr {
   /** The server build's address, as the screen asks the renderer for it. */
   readonly ssr: string;
@@ -162,27 +179,41 @@ export async function prepareRemoteSsr(
     refuse({ ok: false, reason: `${pin} is not an Ed25519 key` }, url);
     return undefined;
   }
-  const [code, manifest, signature] = await timed(
+  /*
+   * The signed manifest is asked for on every page, so a deploy is the next
+   * page's build. The build itself — half a megabyte, hashed — only when that
+   * manifest is not the one the build last verified here was checked against
+   * (`checked`): the same signed manifest names the same bytes. With nothing
+   * kept yet, it is fetched beside the manifest, as it always was.
+   */
+  const kept = checked.get(url);
+  const early = kept === undefined ? text(url) : undefined;
+  const [manifest, signature] = await timed(
     'remote.ssr',
-    Promise.all([
-      text(url),
-      text(`${base}/ssr/manifest.json`),
-      text(`${base}/ssr/manifest.json.sig`),
-    ]),
+    Promise.all([text(`${base}/ssr/manifest.json`), text(`${base}/ssr/manifest.json.sig`)]),
   );
   // Down, slow or not deployed with a server build: nothing to say.
-  if (code === undefined || manifest === undefined || signature === undefined) return undefined;
-  const verdict = verifyBuild(key, manifest, signature, code, name);
-  if (!verdict.ok) {
-    refuse(verdict, url);
-    return undefined;
+  if (manifest === undefined || signature === undefined) return undefined;
+  const pinned = process.env[pin] ?? '';
+  let build = kept;
+  if (build?.manifest !== manifest || build.signature !== signature || build.pinned !== pinned) {
+    const code = await (early ?? timed('remote.ssr.build', text(url)));
+    if (code === undefined) return undefined;
+    const verdict = verifyBuild(key, manifest, signature, code, name);
+    if (!verdict.ok) {
+      refuse(verdict, url);
+      return undefined;
+    }
+    build = { manifest, signature, pinned, code, sha: verdict.sha, stylesheet: verdict.stylesheet };
+    checked.set(url, build);
   }
-  verified.set(url, { code, sha: verdict.sha });
+  verified.set(url, { code: build.code, sha: build.sha });
   // The remote's own renderer, under the id prefix its screens render with.
-  warmRenderer(code, verdict.sha, `${name}-`);
+  warmRenderer(build.code, build.sha, `${name}-`);
   return {
     ssr: url,
     // For the browser, on the company's own host like the rest of the remote.
-    stylesheet: { href: `${remotePath(area)}/ssr/${name}.css`, integrity: verdict.stylesheet },
+    stylesheet: { href: `${remotePath(area)}/ssr/${name}.css`, integrity: build.stylesheet },
   };
 }
+

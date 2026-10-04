@@ -80,12 +80,14 @@ describe('verifyBuild', () => {
 
 describe('prepareRemoteSsr', () => {
   const files: Record<string, string> = {};
+  const asked: string[] = [];
   let server: Server;
   let base: string;
 
   beforeAll(async () => {
     server = createServer((request, response) => {
       const body = files[request.url ?? ''];
+      asked.push(request.url ?? '');
       response.writeHead(body === undefined ? 404 : 200);
       response.end(body);
     });
@@ -117,10 +119,31 @@ describe('prepareRemoteSsr', () => {
     });
   });
 
+  it('fetches the build again only when its signed manifest changes', async () => {
+    const other = `exports.Profile = function () { return 'v2'; };`;
+    serve(CODE, `${manifestOf(CODE)}\n`);
+    expect(await prepareRemoteSsr(base)).toBeDefined();
+    asked.length = 0;
+    expect(await prepareRemoteSsr(base)).toBeDefined();
+    // The manifest and its signature, every time; the build it names, once.
+    expect(asked.sort()).toEqual(['/ssr/manifest.json', '/ssr/manifest.json.sig']);
+    // A deploy: the next page fetches, checks and renders the new build.
+    serve(other);
+    asked.length = 0;
+    expect(await prepareRemoteSsr(base)).toBeDefined();
+    expect(asked).toContain('/ssr/people.cjs');
+    // Bytes the host swaps under an unchanged manifest are never fetched, let alone run.
+    files['/ssr/people.cjs'] = 'exports.Profile = function () { return "swapped"; };';
+    asked.length = 0;
+    expect(await prepareRemoteSsr(base)).toBeDefined();
+    expect(asked).not.toContain('/ssr/people.cjs');
+  });
+
   it('falls back to the browser for a substituted build, and says so once per build without the code', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const substituted = `exports.Profile = function () { return 'SECRET-LOOKING-CODE'; };`;
-    serve(CODE);
+    // A new signed manifest, so the build it names is fetched and checked again.
+    serve(CODE, `${manifestOf(CODE)} `);
     files['/ssr/people.cjs'] = substituted;
     expect(await prepareRemoteSsr(base)).toBeUndefined();
     expect(await prepareRemoteSsr(base)).toBeUndefined();
