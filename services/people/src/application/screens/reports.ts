@@ -81,6 +81,8 @@ export interface ReportRunsView {
       readonly outcome: string;
     }[];
   })[];
+  /** The page before this one's last period, as `before`; null on the last. */
+  readonly next: string | null;
 }
 
 const unavailable = () => failure('UNAVAILABLE', 'Scheduled reports are not configured');
@@ -180,12 +182,15 @@ export async function reportRunsView(
   deps: ReportScreenDeps,
   asking: Asking,
   id: string,
+  /** The page before this period (the last page's `next`); null for the newest. */
+  before: string | null = null,
 ): Promise<Result<ReportRunsView>> {
   const admin = deps.schedules;
   if (admin === undefined) return err(unavailable());
   return run(deps.service, asking.tenantId, async (tx) => {
-    const runs = await scheduleRuns(admin, tx, asking, id);
-    if (!runs.ok) return runs;
+    const page = await scheduleRuns(admin, tx, asking, id, before);
+    if (!page.ok) return page;
+    const runs = { value: page.value.runs };
     const schedule = (await admin.schedules.all(tx, asking.tenantId)).find((s) => s.id === id);
     const names = new Map(
       (await admin.accounts.candidates(tx, asking.tenantId)).map((c) => [
@@ -204,6 +209,7 @@ export async function reportRunsView(
           outcome: o.outcome,
         })),
       })),
+      next: page.value.next,
     });
   });
 }

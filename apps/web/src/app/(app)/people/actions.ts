@@ -1134,6 +1134,7 @@ export async function shareSummary(input: Readonly<Record<string, unknown>>): Pr
 const PAGED = {
   WebhookLog: 'after',
   RoleSettings: 'after',
+  ReportRuns: 'before',
 } as const;
 
 /**

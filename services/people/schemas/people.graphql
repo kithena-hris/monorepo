@@ -2074,6 +2074,8 @@ type PeopleRegistry {
 type PeopleReportRuns {
   id: ID
   name: String
+  """The page before, as `before`; null on the last."""
+  next: String
   runs: [ReportRun!]
 }
 
@@ -2591,8 +2593,10 @@ type Query {
   """What publishing the draft would do, from requiredFrom; rolled back."""
   peoplePublishPreview(requiredFrom: String!): PublishPreview
   peopleRegistry: PeopleRegistry
-  """One scheduled report’s last 50 runs, newest first."""
-  peopleReportRuns(id: ID!): PeopleReportRuns
+  """
+  One scheduled report’s runs, newest first, 50 at a time before `before`.
+  """
+  peopleReportRuns(before: String, id: ID!): PeopleReportRuns
   """Scheduled reports and what their form may offer; HR and people_admin."""
   peopleReportSchedules: PeopleReportSchedules
   peopleRoleSettings(after: ID, search: String): PeopleRoleSettings

@@ -1820,8 +1820,14 @@ export function screenRoutes(deps: ScreenRouteDeps, idempotency: IdempotencyStor
     {
       method: 'GET',
       pattern: new RegExp(`^/v1/views/report-schedules/${UUID}$`),
-      handle: async (asking, _r, params) =>
-        answer(await reportRunsView(deps, asking, params['id'] ?? '')),
+      // `before`: the page before this period, as the history scrolls.
+      handle: async (asking, _r, params, query) => {
+        const before = query.get('before');
+        if (before !== null && !/^\d{4}-\d{2}-\d{2}$/.test(before)) {
+          return refused(failure('BAD_REQUEST', 'before is a period, a date', ['before']));
+        }
+        return answer(await reportRunsView(deps, asking, params['id'] ?? '', before));
+      },
     },
     {
       method: 'DELETE',

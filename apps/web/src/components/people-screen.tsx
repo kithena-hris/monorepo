@@ -973,7 +973,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           ...dialog,
         };
       case 'ReportRuns':
-        return { load: loadable };
+        return {
+          load: loadable,
+          // Older runs as the history scrolls.
+          onLoadMore: (before: string) => actions.screenPage('ReportRuns', params, search, before),
+        };
       case 'RoleSettings':
         return {
           load: loadable,

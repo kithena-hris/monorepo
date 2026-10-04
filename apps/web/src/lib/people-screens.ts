@@ -236,7 +236,11 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'ReportSchedules':
       return read('ReportSchedules');
     case 'ReportRuns':
-      return read('ReportRuns', { id: query.params['id'] ?? '' });
+      return read('ReportRuns', {
+        id: query.params['id'] ?? '',
+        // Only ever a later page's (`screenPage`): the address opens the newest.
+        before: given(query.search['before']),
+      });
     case 'ExportBuilder': {
       // The directory's conditions, from its Export button or an export
       // described in words: one more audience, or the bare builder with a notice.

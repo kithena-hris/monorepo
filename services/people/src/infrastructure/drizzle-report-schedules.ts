@@ -153,11 +153,13 @@ export function drizzleReportSchedules(): ScheduleStore {
            AND period = ${period}::date`);
     },
 
-    async runs(tx, tenantId, id, limit) {
+    // The primary key (tenant, schedule, period) serves the keyset.
+    async runs(tx, tenantId, id, limit, before = null) {
       const rows = await tx.execute<RunRow>(sql`
         SELECT period::text, missed, started_at, finished_at, outcome, recipients
           FROM people.report_run
          WHERE tenant_id = ${tenantId}::uuid AND schedule_id = ${id}::uuid
+           AND (${before}::date IS NULL OR period < ${before}::date)
          ORDER BY period DESC LIMIT ${limit}`);
       return [...rows].map((r) => ({
         period: date(r.period),
@@ -229,11 +231,12 @@ export function inMemoryReportSchedules(): ScheduleStore & {
       }
       return Promise.resolve();
     },
-    runs: (_tx, _tenantId, id, limit) =>
+    runs: (_tx, _tenantId, id, limit, before = null) =>
       Promise.resolve(
         [...history.entries()]
           .filter(([k]) => k.startsWith(`${id}/`))
           .map(([, r]) => r)
+          .filter((r) => before === null || r.period < before)
           .toSorted((a, b) => b.period.localeCompare(a.period))
           .slice(0, limit),
       ),

@@ -15,6 +15,7 @@ import { noTransaction as tx, TENANT } from '../person/in-memory.js';
 import { personAccess } from '../person/person-access.js';
 import {
   createSchedule,
+  RUNS_PAGE,
   scheduleRuns,
   sendDueReports,
   setPaused,
@@ -187,9 +188,34 @@ describe('a scheduled export', () => {
     await sweep(TENANT);
     expect(mail).toHaveLength(2);
     const runs = await scheduleRuns(deps, tx, asking(HR), schedule.id);
-    expect(runs.ok && runs.value).toMatchObject([
+    expect(runs.ok && runs.value.runs).toMatchObject([
       { period: '2026-10-19', missed: 3, outcome: 'sent' },
     ]);
+    expect(runs.ok && runs.value.next).toBeNull();
+  });
+
+  it('lists its history a page at a time, newest first, from the last period shown', async () => {
+    const { deps, clock, sweep, make } = setup();
+    const schedule = await make();
+    // A year and more of Mondays, each sent.
+    let monday = Date.parse('2026-09-28T07:30:00.000Z');
+    for (let week = 0; week < RUNS_PAGE + 5; week += 1) {
+      clock.set(new Date(monday).toISOString());
+      // oxlint-disable-next-line no-await-in-loop -- one week after another
+      await sweep(TENANT);
+      monday += 7 * 86_400_000;
+    }
+    const first = await scheduleRuns(deps, tx, asking(HR), schedule.id);
+    if (!first.ok) throw new Error(first.error.message);
+    expect(first.value.runs).toHaveLength(RUNS_PAGE);
+    expect(first.value.next).toBe(first.value.runs.at(-1)?.period);
+    const second = await scheduleRuns(deps, tx, asking(HR), schedule.id, first.value.next);
+    if (!second.ok) throw new Error(second.error.message);
+    expect(second.value.runs).toHaveLength(5);
+    expect(second.value.next).toBeNull();
+    const periods = [...first.value.runs, ...second.value.runs].map((r) => r.period);
+    expect(periods).toEqual(periods.toSorted().toReversed());
+    expect(new Set(periods).size).toBe(RUNS_PAGE + 5);
   });
 
   it('sends nobody a file over a filter they may not use, and nobody who has left', async () => {
@@ -208,7 +234,7 @@ describe('a scheduled export', () => {
     await sweep(TENANT);
     expect(mail.map((m) => m.email)).toEqual(['hr@acme.test']);
     const runs = await scheduleRuns(deps, tx, asking(HR), schedule.id);
-    expect(runs.ok && runs.value[0]).toMatchObject({
+    expect(runs.ok && runs.value.runs[0]).toMatchObject({
       outcome: 'partial',
       recipients: [
         { accountId: HR.accountId, outcome: 'sent' },
@@ -227,7 +253,7 @@ describe('a scheduled export', () => {
     expect(mail).toHaveLength(0);
     roles.set(HR.accountId, new Set(['hr']));
     const runs = await scheduleRuns(deps, tx, asking(HR), schedule.id);
-    expect(runs.ok && runs.value[0]).toMatchObject({
+    expect(runs.ok && runs.value.runs[0]).toMatchObject({
       outcome: 'skipped',
       recipients: [{ outcome: 'owner_not_allowed' }],
     });

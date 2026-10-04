@@ -958,10 +958,11 @@ export const OPERATIONS = {
     }
   }`,
 
-  ReportRuns: `query ReportRuns($id: ID!) {
-    peopleReportRuns(id: $id) {
+  ReportRuns: `query ReportRuns($id: ID!, $before: String) {
+    peopleReportRuns(id: $id, before: $before) {
       id name
       runs { period missed startedAt finishedAt outcome recipients { accountId name outcome } }
+      next
     }
   }`,
 

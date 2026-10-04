@@ -107,7 +107,14 @@ export interface ScheduleStore {
     run: Pick<ReportRun, 'outcome' | 'recipients'> & { readonly at: string },
   ): Promise<void>;
   /** Newest first. */
-  runs(tx: Tx, tenantId: string, id: string, limit: number): Promise<readonly ReportRun[]>;
+  /** Newest first: `limit` of them, before the period `before` when given (a keyset). */
+  runs(
+    tx: Tx,
+    tenantId: string,
+    id: string,
+    limit: number,
+    before?: string | null,
+  ): Promise<readonly ReportRun[]>;
 }
 
 /** Who a recipient is, and what they may do, as the rows hold it when the run starts. */
@@ -311,15 +318,22 @@ export async function deleteSchedule(
   return ok(undefined);
 }
 
+/** A schedule's history, a page at a time as it scrolls. */
+export const RUNS_PAGE = 50;
+
+/** One page of a schedule's history, newest first, before `before` (the last page's `next`). */
 export async function scheduleRuns(
   deps: ScheduleAdminDeps,
   tx: Tx,
   asking: Asking,
   id: string,
-): Promise<Result<readonly ReportRun[]>> {
+  before: string | null = null,
+): Promise<Result<{ readonly runs: readonly ReportRun[]; readonly next: string | null }>> {
   const found = await findSchedule(deps, tx, asking, id);
   if (!found.ok) return found;
-  return ok(await deps.schedules.runs(tx, asking.tenantId, id, 50));
+  const read = await deps.schedules.runs(tx, asking.tenantId, id, RUNS_PAGE + 1, before);
+  const runs = read.slice(0, RUNS_PAGE);
+  return ok({ runs, next: read.length > RUNS_PAGE ? (runs.at(-1)?.period ?? null) : null });
 }
 
 async function findSchedule(

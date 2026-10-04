@@ -140,6 +140,10 @@ export function defineReports(builder: PeopleBuilder, viaRest: ViaRest): void {
       id: t.exposeID('id'),
       name: t.exposeString('name'),
       runs: t.field({ type: [RunRef], resolve: (v) => list(v.runs) }),
+      next: t.exposeString('next', {
+        nullable: true,
+        description: 'The page before, as `before`; null on the last.',
+      }),
     }),
   });
 
@@ -151,13 +155,15 @@ export function defineReports(builder: PeopleBuilder, viaRest: ViaRest): void {
     }),
     peopleReportRuns: t.field({
       type: Runs,
-      description: 'One scheduled report’s last 50 runs, newest first.',
-      args: { id: t.arg.id({ required: true }) },
+      description: 'One scheduled report’s runs, newest first, 50 at a time before `before`.',
+      args: { id: t.arg.id({ required: true }), before: t.arg.string() },
       resolve: (_root, args, ctx) =>
         viaRest<ReportRunsView>(
           ctx,
           'GET',
-          `/v1/views/report-schedules/${encodeURIComponent(args.id)}`,
+          `/v1/views/report-schedules/${encodeURIComponent(args.id)}${
+            args.before ? `?before=${encodeURIComponent(args.before)}` : ''
+          }`,
         ),
     }),
   }));
