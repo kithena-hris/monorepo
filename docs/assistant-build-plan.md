@@ -796,7 +796,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
 
 ## Phase 2 — more of Time Off, and follow-ups
 
-### [ ] AST-030 — `timeoff.balances`
+### [x] AST-030 — `timeoff.balances`
 
 - **Spec** PRD §17, Phase 2
 - **Files** `packages/contracts/src/assistant/timeoff.ts`,
@@ -809,6 +809,22 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   `people` with `detail` "12.5 days left".
 - **Done when** "how much vacation do I have left?" and "who in my team has
   more than 10 days left?" are eval cases and end-to-end tests.
+- **As built** Filters `leave_type`, `days_left` (a `number` field: `after`
+  is more than, `before` less than, `is` exactly, one value) and `team`
+  (yielding to `people.find`, as `timeoff.away`'s does), a `name` and
+  `within`; groups `team` and `location`. Whose balances: `seesBalances` in
+  `screens/employee.ts`, the rule `personBalances` already used for the People
+  Graph, lifted out so both run it. Each figure is `balanceFor`, the ledger's
+  fold for the leave year today is in, in the member's own zone, compared and
+  printed as `Decimal` ("12.5 days left", "6 hours left"). With no
+  `leave_type` filter the types are the annual leave ones (any tracked type
+  that is not private where a company has none). Everybody whose balance an
+  asker sees has `type` sight of them, so a private type's filter matches; its
+  name is written "Away" beside a person unless the company chose to name it,
+  as `timeoff.away` does. One type in play reads "12.5 days left"; several
+  name each ("3 days left · Away, 25 days left · Vacation"). The answer says
+  "You have 12.5 days left." to an asker about themselves, and its chat lock
+  now reads every part of a detail, not only the last.
 
 ### [ ] AST-031 — `timeoff.pending`
 

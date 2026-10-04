@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   DateSpan,
+  LedgerEntry,
   LeaveTypeDefinition,
   LeaveTypeKey,
   PersonId,
   RuntimeCatalogue,
   TeamKey,
   TimeOffAway,
+  TimeOffBalances,
   TimeOffManagers,
 } from '@kithena/contracts';
 
@@ -22,11 +24,12 @@ import {
   member,
   people,
   PLATFORM,
+  sickType,
   TENANT,
   vacationType,
   world,
 } from '../testing/world.js';
-import { away, capabilityCatalogue, managers } from './capabilities.js';
+import { away, balances, capabilityCatalogue, managers } from './capabilities.js';
 
 /** Assistant PRD §8.5: what Time Off offers the assistant, as the asker. */
 
@@ -40,6 +43,7 @@ describe('Time Off’s capability catalogue (AST-022)', () => {
     expect(catalogue.serves).toEqual([
       { name: 'timeoff.away', version: 1 },
       { name: 'timeoff.managers', version: 1 },
+      { name: 'timeoff.balances', version: 1 },
     ]);
     expect(catalogue.leaveTypes).toEqual([
       { key: 'sick', name: 'Sick', private: true, category: 'sick_leave' },
@@ -401,5 +405,180 @@ describe('timeoff.managers (AST-024)', () => {
       rows: [],
       total: 3,
     });
+  });
+});
+
+/* -------------------------------------------------------- timeoff.balances -- */
+
+describe('timeoff.balances (AST-030)', () => {
+  /**
+   * Everyone on Platform has the year's 25 days of vacation; Omar has asked
+   * for two of them and Leo for half of one. Zoe, in Sales and approved by
+   * Ravi, has no grant at all. Sick leave is tracked here, with Adam's 3 days.
+   */
+  async function balancesWorld() {
+    const app = world('2026-10-01T07:00:00.000Z', { withGrant: true });
+    const s = app.state(TENANT);
+    s.minimums.delete(PLATFORM);
+    s.members.set(
+      ZOE,
+      member(ZOE, 'Zoe Lane', {
+        teamKey: TeamKey.parse('sales'),
+        teamName: 'Sales',
+        managerPersonId: people.ravi,
+      }),
+    );
+    const sick = LeaveType.define(LeaveTypeDefinition.parse({ ...sickType(), tracked: true }));
+    if (!sick.ok) throw new Error(sick.error.message);
+    s.leaveTypes.set('sick', sick.value);
+    s.ledger.push(
+      LedgerEntry.parse({
+        entryId: '0189eeee-0000-7000-8000-000000000001',
+        personId: people.adam,
+        leaveTypeKey: 'sick',
+        kind: 'grant',
+        amount: '3.000',
+        unit: 'day',
+        effectiveOn: '2026-01-01',
+        occurredAt: '2025-12-01T00:00:00.000Z',
+        policyVersion: null,
+        supersedes: null,
+        requestId: null,
+        reason: null,
+      }),
+    );
+    for (const [who, span] of [
+      [people.omar, { from: '2026-10-06', to: '2026-10-07' }],
+      [people.leo, { from: '2026-10-06', to: '2026-10-06', endsHalfDay: true }],
+    ] as const) {
+      // oxlint-disable-next-line no-await-in-loop -- two requests, in order
+      const sent = await sendRequest(app.deps)(caller(who), {
+        leaveTypeKey: LeaveTypeKey.parse('vacation'),
+        span: DateSpan.parse(span),
+      });
+      if (!sent.ok) throw new Error(sent.error.message);
+    }
+    return app;
+  }
+
+  async function left(app: App, who: Caller, input: Record<string, unknown> = {}) {
+    const answer = await balances(app.deps)(
+      who,
+      TimeOffBalances.schemas.input.parse({ limit: 25, ...input }),
+    );
+    if (!answer.ok) throw new Error(answer.error.message);
+    return TimeOffBalances.schemas.output.parse(answer.value);
+  }
+  const of = (result: Awaited<ReturnType<typeof left>>) =>
+    result.kind === 'people' ? result.rows.map((r) => [r.name, r.detail]) : result.kind;
+  const more = (n: string) => ({ filters: [{ key: 'days_left', op: 'after', values: [n] }] });
+
+  it('shows HR everyone’s vacation, from the ledger, as decimal text', async () => {
+    const result = await left(await balancesWorld(), hr);
+    expect(of(result)).toEqual([
+      ['Adam Novak', '25 days left'],
+      ['Hana Kim', '25 days left'],
+      ['Leo Martin', '24.5 days left'],
+      ['Marco Ruiz', '25 days left'],
+      ['Omar Haddad', '23 days left'],
+      ['Ravi Patel', '25 days left'],
+      ['Yuki Tanaka', '25 days left'],
+      ['Zoe Lane', '0 days left'],
+    ]);
+    expect(result).toMatchObject({
+      total: 8,
+      scope: 'everyone',
+      described: 'with a Vacation balance',
+    });
+    expect(result.kind === 'people' && result.rows[0]?.groups).toEqual({
+      team: 'Platform',
+      location: 'madrid',
+    });
+  });
+
+  it('shows an approver their own and the people they approve, and an employee only their own', async () => {
+    const app = await balancesWorld();
+    const marco = await left(app, caller(people.marco));
+    expect(marco).toMatchObject({ total: 7, scope: 'visible' });
+    expect(marco.kind === 'people' && marco.rows.find((r) => r.self)?.name).toBe('Marco Ruiz');
+    expect(of(await left(app, caller(people.omar)))).toEqual([['Omar Haddad', '23 days left']]);
+    expect(of(await left(app, caller(people.omar), { name: '@me' }))).toEqual([
+      ['Omar Haddad', '23 days left'],
+    ]);
+    // Leo's balance is not Omar's to see, so for Omar there is nobody by that name.
+    expect(await left(app, caller(people.omar), { name: 'leo' })).toEqual({
+      kind: 'not_found',
+      name: 'leo',
+    });
+    expect(of(await left(app, caller(people.marco), { name: 'leo' }))).toEqual([
+      ['Leo Martin', '24.5 days left'],
+    ]);
+    expect(await left(app, hr, { name: '@me' })).toEqual({ kind: 'not_found', self: true });
+    // Zoe is not Omar's to see, so naming her id changes nothing.
+    expect(of(await left(app, caller(people.omar), { personIds: [ZOE, people.omar] }))).toEqual([
+      ['Omar Haddad', '23 days left'],
+    ]);
+  });
+
+  it('filters on the days left, more, fewer or exactly', async () => {
+    const app = await balancesWorld();
+    const over = await left(app, caller(people.marco), more('24'));
+    expect(of(over).length).toBe(6);
+    expect(over).toMatchObject({ described: 'with more than 24 days of Vacation left' });
+    expect(
+      of(await left(app, hr, { filters: [{ key: 'days_left', op: 'before', values: ['24'] }] })),
+    ).toEqual([
+      ['Omar Haddad', '23 days left'],
+      ['Zoe Lane', '0 days left'],
+    ]);
+    expect(
+      of(await left(app, hr, { filters: [{ key: 'days_left', op: 'is', values: ['24.5'] }] })),
+    ).toEqual([['Leo Martin', '24.5 days left']]);
+    const team = await left(app, hr, {
+      filters: [...more('10').filters, { key: 'team', op: 'in', values: ['sales'] }],
+    });
+    expect(team).toMatchObject({
+      total: 0,
+      described: 'in Sales with more than 10 days of Vacation left',
+    });
+    for (const bad of [
+      { key: 'days_left', op: 'after', values: ['ten'] },
+      { key: 'days_left', op: 'after', values: [] },
+      { key: 'days_left', op: 'in', values: ['10'] },
+    ]) {
+      // oxlint-disable-next-line no-await-in-loop -- each refused
+      const answer = await balances(app.deps)(
+        hr,
+        TimeOffBalances.schemas.input.parse({ limit: 25, filters: [bad] }),
+      );
+      expect(answer.ok).toBe(false);
+    }
+  });
+
+  it('writes a private type “Away” beside a name unless the company chose to name it', async () => {
+    const app = await balancesWorld();
+    const sick = { filters: [{ key: 'leave_type', op: 'in', values: ['sick'] }] };
+    expect(await left(app, hr, sick)).toMatchObject({ total: 8, described: 'with a Sick balance' });
+    expect(of(await left(app, hr, { filters: [...sick.filters, ...more('0').filters] }))).toEqual([
+      ['Adam Novak', '3 days left'],
+    ]);
+    const both = { filters: [{ key: 'leave_type', op: 'in', values: ['vacation', 'Sick'] }] };
+    expect(of(await left(app, caller(people.marco), { ...both, name: 'adam' }))).toEqual([
+      ['Adam Novak', '3 days left · Away, 25 days left · Vacation'],
+    ]);
+    await setChatAnswers(app.deps)(hr, { namesPrivateLeave: true });
+    expect(of(await left(app, caller(people.marco), { ...both, name: 'adam' }))).toEqual([
+      ['Adam Novak', '3 days left · Sick, 25 days left · Vacation'],
+    ]);
+    // A teammate never sees another’s balance, of any type: only his own.
+    expect(of(await left(app, caller(people.omar), sick))).toEqual([
+      ['Omar Haddad', '0 days left'],
+    ]);
+  });
+
+  it('counts without listing and gives every id when asked', async () => {
+    const counted = await left(await balancesWorld(), hr, { limit: 0, ids: true, ...more('24') });
+    expect(counted).toMatchObject({ rows: [], total: 6 });
+    expect(counted.kind === 'people' && counted.ids?.length).toBe(6);
   });
 });

@@ -34,7 +34,25 @@ export const TimeOffManagers = capability({
   yields: { 'timeoff.managers': 'people.managers' },
 });
 
-export const timeoffCapabilities = [TimeOffAway, TimeOffManagers] as const;
+/**
+ * Whose balances the asker may see, as Time Off's own screens show them: their
+ * own, the people they approve or cover, and everyone for HR. Days are the
+ * ledger's fold, sent as decimal text and never a float; `days_left` compares
+ * with them ("more than 10 left": `after`, `10`).
+ */
+export const TimeOffBalances = capability({
+  name: 'timeoff.balances',
+  version: 1,
+  module: 'timeoff',
+  about:
+    'How much leave people have left this leave year: the asker’s own, the people they approve, or everyone for HR.',
+  accepts: { filters: ['leave_type', 'days_left', 'team'], name: true, within: true },
+  groups: ['team', 'location'],
+  output: 'people',
+  yields: { team: 'people.find' },
+});
+
+export const timeoffCapabilities = [TimeOffAway, TimeOffManagers, TimeOffBalances] as const;
 
 /**
  * A leave type in Time Off's runtime catalogue.

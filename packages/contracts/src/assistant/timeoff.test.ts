@@ -7,6 +7,7 @@ import {
   isPrivateLeaveType,
   timeoffCapabilities,
   TimeOffAway,
+  TimeOffBalances,
   TimeOffManagers,
 } from './timeoff.js';
 
@@ -31,8 +32,32 @@ const away = {
 };
 
 describe('Time Off’s capabilities (AST-003)', () => {
-  it('are away and managers', () => {
-    expect(timeoffCapabilities.map((c) => c.name)).toEqual(['timeoff.away', 'timeoff.managers']);
+  it('are away, managers and balances', () => {
+    expect(timeoffCapabilities.map((c) => c.name)).toEqual([
+      'timeoff.away',
+      'timeoff.managers',
+      'timeoff.balances',
+    ]);
+  });
+
+  it('timeoff.balances: by type, days left and team, a name, within; people with their days', () => {
+    const { step, input, output } = TimeOffBalances.schemas;
+    expect(
+      step.safeParse({
+        name: '@me',
+        filters: [
+          { key: 'leave_type', op: 'in', values: ['vacation'] },
+          { key: 'days_left', op: 'after', values: ['10'] },
+        ],
+      }).success,
+    ).toBe(true);
+    // Balances are today's: there is no date to ask for.
+    expect(step.safeParse({ on: 'today' }).success).toBe(false);
+    expect(input.safeParse({ limit: 25, personIds: [ANA] }).success).toBe(true);
+    expect(
+      output.safeParse({ ...away, rows: [{ ...away.rows[0], detail: '12.5 days left' }] }).success,
+    ).toBe(true);
+    expect(TimeOffBalances.yields).toEqual({ team: 'people.find' });
   });
 
   it('timeoff.away: a date it must have, leave type and team, within', () => {
