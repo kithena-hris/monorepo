@@ -423,10 +423,12 @@ describe.runIf(!coarse)('the directory’s table, in the window', () => {
       const r = now.getBoundingClientRect();
       expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight);
       expect(r.bottom).toBeLessThanOrEqual(window.innerHeight);
-      // Filling it, not merely inside it: the page's content, the status line
+      // Filling it, not merely inside it: the page's content, the line of keys and loading
       // under the box last, ends at the window's bottom less the page's padding.
       const main = screen.getByRole('main');
-      const end = screen.getByText(/^Loads \d+ at a time/).getBoundingClientRect().bottom;
+      const end = (
+        screen.getByText(/^Loads \d+ at a time/).parentElement as HTMLElement
+      ).getBoundingClientRect().bottom;
       const padding = Number.parseFloat(getComputedStyle(main).paddingBottom);
       expect(Math.abs(window.innerHeight - padding - end)).toBeLessThanOrEqual(2);
       expect(now.scrollHeight).toBeGreaterThan(now.clientHeight);
