@@ -40,6 +40,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { useHeld } from '../../held';
 import type { Outcome } from '../../load';
 
 /** One SCIM path and the attribute it keeps upstream (PEO-073). */
@@ -82,6 +83,9 @@ export interface ProvisioningProps {
   readonly onRotateToken: (id: string) => Promise<WithToken>;
   readonly onDisconnect: (id: string) => Promise<Outcome>;
   readonly onSetMapping: (id: string, mapping: readonly MappingEntry[]) => Promise<Outcome>;
+  /** Connect a system is open, held by the host (in its address). */
+  readonly connecting?: boolean;
+  readonly onConnectingChange?: (open: boolean) => void;
 }
 
 /** A path as a person reads it: the extension's name dropped. */
@@ -98,7 +102,11 @@ const pathLabel = (path: string, extension: string) =>
  */
 export function Provisioning(props: ProvisioningProps): JSX.Element {
   const { scim } = props;
-  const [connecting, setConnecting] = useState(false);
+  const [connecting, setConnecting] = useHeld(
+    props.connecting,
+    props.onConnectingChange,
+    false,
+  );
   const [token, setToken] = useState<{ system: string; value: string } | null>(null);
 
   return (

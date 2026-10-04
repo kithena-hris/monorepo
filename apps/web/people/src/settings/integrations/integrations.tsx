@@ -107,6 +107,13 @@ export interface IntegrationsProps {
   /** The tab on screen, from its address, held by the host. */
   readonly tab?: string | null;
   readonly onTabChange?: (tab: string) => void;
+  /**
+   * The dialog open over the tab, held by the host so a link opens it in the
+   * server's HTML: `endpoint` to add a webhook endpoint, `connect` to connect
+   * a system over SCIM. Any other value is closed.
+   */
+  readonly open?: string | null;
+  readonly onOpenChange?: (open: string | null) => void;
 }
 
 /**
@@ -204,8 +211,16 @@ function Endpoints({
   chat,
   tab: heldTab,
   onTabChange,
+  open: heldOpen,
+  onOpenChange,
 }: IntegrationsProps & { readonly state: IntegrationsState }): JSX.Element {
-  const [adding, setAdding] = useState(false);
+  const [open, setOpen] = useHeld<string | null>(heldOpen, onOpenChange, null);
+  const dialog = (name: string) => ({
+    open: open === name,
+    onOpenChange: (next: boolean) => {
+      setOpen(next ? name : null);
+    },
+  });
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null);
   // Back where Slack sent them: straight to its tab.
   const [chosen, setTab] = useHeld<string>(
@@ -264,7 +279,7 @@ function Endpoints({
               <Button
                 variant="primary"
                 onClick={() => {
-                  setAdding(true);
+                  setOpen('endpoint');
                 }}
               >
                 Add endpoint
@@ -316,13 +331,19 @@ function Endpoints({
         </TabsContent>
         {state.scim === undefined || scim === undefined ? null : (
           <TabsContent value="provisioning" className="pt-6">
-            <Provisioning scim={state.scim} {...scim} />
+            <Provisioning
+              scim={state.scim}
+              {...scim}
+              connecting={open === 'connect'}
+              onConnectingChange={(next) => {
+                setOpen(next ? 'connect' : null);
+              }}
+            />
           </TabsContent>
         )}
       </Tabs>
       <AddEndpoint
-        open={adding}
-        onOpenChange={setAdding}
+        {...dialog('endpoint')}
         state={state}
         onCreate={async (input) => {
           const created = await onCreate(input);

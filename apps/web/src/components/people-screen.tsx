@@ -669,6 +669,15 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
     return { ok: true as const, by: plan.by, note: plan.note, notes: plan.notes };
   };
 
+  // The dialog open over a screen (`?open=`), so a shared link opens it in the
+  // server's HTML; the screen checks it names one it offers.
+  const dialog = {
+    open: at('open'),
+    onOpenChange: (open: string | null) => {
+      note({ open }, open === null ? 'replace' : 'push');
+    },
+  };
+
   const props = ((): Record<string, unknown> => {
     switch (component) {
       case 'PeopleSetup':
@@ -705,10 +714,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onEditingChange: (section: string | null) => {
             note({ edit: section, field: null }, section === null ? 'replace' : 'push');
           },
-          open: at('open'),
-          onOpenChange: (open: string | null) => {
-            note({ open }, open === null ? 'replace' : 'push');
-          },
+          ...dialog,
           // Offered to everybody; the screen shows it only where People says they may.
           onPhoto: (file: File) => uploadPhoto(id ?? null, file),
           // A file for an image or document field; the form's Save keeps it.
@@ -1148,6 +1154,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               `/settings/people/fields/${encodeURIComponent(key)}/change?to=${encodeURIComponent(to)}`,
             );
           },
+          ...dialog,
         };
       // A field's new type, every value reviewed, then published with it.
       case 'FieldChange': {
@@ -1182,6 +1189,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onTabChange: (tab: string) => {
             go(`/settings/people/integrations${tab === 'overview' ? '' : `/${tab}`}`);
           },
+          ...dialog,
           scim: {
             onConnect: async (system: string) => {
               return actions.createScimConnection(system);
@@ -1216,6 +1224,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onPause: actions.pauseReportSchedule,
           onResume: actions.resumeReportSchedule,
           onDelete: actions.deleteReportSchedule,
+          ...dialog,
         };
       case 'ReportRuns':
         return { load: loadable };
@@ -1382,6 +1391,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onTabChange: (tab: string) => {
             go(`/settings/people/organisation${tab === 'entities' ? '' : `/${tab}`}`);
           },
+          ...dialog,
         };
       case 'ExportBuilder': {
         // Everything the page shows is in its address (design AI13): the

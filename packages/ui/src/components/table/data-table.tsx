@@ -543,6 +543,8 @@ export function DataTable<T extends TableRow>({
   estimateRowHeight = dense ? 41 : 57,
 }: DataTableProps<T>): JSX.Element {
   const base = useId();
+  // dnd-kit numbers its ids per process, so the server's and the browser's would differ.
+  const dndId = useId();
   const [openRows, setOpenRows] = useState<readonly string[]>(defaultExpanded ?? []);
   const [pickedRows, setPickedRows] = useState<readonly string[]>(defaultSelected ?? []);
   const [ownSorts, setOwnSorts] = useState<readonly DataTableSort[]>(() => toSortList(defaultSort));
@@ -1517,6 +1519,7 @@ export function DataTable<T extends TableRow>({
 
       {canReorder ? (
         <DndContext
+          id={dndId}
           sensors={sensors}
           collisionDetection={closestCenter}
           accessibility={{ announcements }}

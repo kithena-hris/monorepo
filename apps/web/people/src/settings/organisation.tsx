@@ -226,6 +226,14 @@ export interface OrganisationProps {
   /** The part of the settings on screen, from its address, held by the host. */
   readonly tab?: string | null;
   readonly onTabChange?: (tab: string) => void;
+  /**
+   * The dialog open over the settings, held by the host so a link opens it in
+   * the server's HTML: `entity:new`, `entity:<id>`, `location:new`,
+   * `location:<id>`, `zone:<location id>`, `numbering:<entity id>`,
+   * `band:new` or `band:<id>`. One this state does not have is closed.
+   */
+  readonly open?: string | null;
+  readonly onOpenChange?: (open: string | null) => void;
 }
 
 /** Today where a zone is: a location's zone change is in force once its day has begun there. */
@@ -256,9 +264,40 @@ type Editing =
   | { readonly kind: 'zone'; readonly location: Place }
   | { readonly kind: 'numbering'; readonly entity: LegalEntity };
 
+/** An edit as the address names it. */
+function keyOf(editing: Editing): string {
+  switch (editing.kind) {
+    case 'entity':
+      return `entity:${editing.entity?.id ?? 'new'}`;
+    case 'location':
+      return `location:${editing.location?.id ?? 'new'}`;
+    case 'zone':
+      return `zone:${editing.location.id}`;
+    case 'numbering':
+      return `numbering:${editing.entity.id}`;
+  }
+}
+
+/** The edit an address names, if this state has what it names. */
+function editingOf(key: string | null, state: OrganisationState): Editing | null {
+  const [kind, id] = key?.split(':') ?? [];
+  const entity = state.legalEntities.find((e) => e.id === id);
+  const location = state.locations.find((l) => l.id === id);
+  if (kind === 'entity') return id === 'new' ? { kind, entity: null } : entity ? { kind, entity } : null;
+  if (kind === 'location')
+    return id === 'new' ? { kind, location: null } : location ? { kind, location } : null;
+  if (kind === 'zone') return location ? { kind, location } : null;
+  if (kind === 'numbering') return entity ? { kind, entity } : null;
+  return null;
+}
+
 function Settings(props: OrganisationProps & { readonly state: OrganisationState }): JSX.Element {
   const { state } = props;
-  const [editing, setEditing] = useState<Editing | null>(null);
+  const [open, setOpen] = useHeld<string | null>(props.open, props.onOpenChange, null);
+  const editing = editingOf(open, state);
+  const setEditing = (next: Editing): void => {
+    setOpen(keyOf(next));
+  };
   const [chosen, setTab] = useHeld<string>(props.tab, props.onTabChange, 'entities');
   // Country packs are People administrators'; pay bands HR's and finance's.
   const tabs = ORGANISATION_TABS.filter(
@@ -268,7 +307,7 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
   ) as readonly string[];
   const tab = tabs.includes(chosen) ? chosen : 'entities';
   const close = (): void => {
-    setEditing(null);
+    setOpen(null);
   };
   return (
     <Stack gap={6}>
@@ -316,12 +355,17 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
         </TabsContent>
         {state.payBands == null ? null : (
           <TabsContent value="pay-bands">
-            <PayBands bands={state.payBands} onSet={props.onSetPayBand} />
+            <PayBands
+              bands={state.payBands}
+              onSet={props.onSetPayBand}
+              open={open}
+              onOpenChange={setOpen}
+            />
           </TabsContent>
         )}
       </Tabs>
       {editing === null ? null : (
-        <EditDialog editing={editing} state={state} props={props} onClose={close} />
+        <EditDialog key={open} editing={editing} state={state} props={props} onClose={close} />
       )}
     </Stack>
   );
@@ -1051,11 +1095,20 @@ function bandAmount(minor: string, currency: string): string {
 function PayBands({
   bands,
   onSet,
+  open,
+  onOpenChange,
 }: {
   readonly bands: readonly PayBand[];
   readonly onSet: OrganisationProps['onSetPayBand'];
+  /** `band:new` or `band:<id>`; anything else, no pay band dialog. */
+  readonly open: string | null;
+  readonly onOpenChange: (open: string | null) => void;
 }): JSX.Element {
-  const [editing, setEditing] = useState<PayBand | 'new' | null>(null);
+  const editing =
+    open === 'band:new' ? 'new' : (bands.find((b) => `band:${b.id}` === open) ?? null);
+  const setEditing = (band: PayBand | 'new'): void => {
+    onOpenChange(`band:${band === 'new' ? 'new' : band.id}`);
+  };
   return (
     <Stack gap={4}>
       <p className="text-sm text-fg-muted">
@@ -1121,10 +1174,11 @@ function PayBands({
       )}
       {editing === null || onSet === undefined ? null : (
         <PayBandDialog
+          key={open}
           band={editing === 'new' ? null : editing}
           onSet={onSet}
           onClose={() => {
-            setEditing(null);
+            onOpenChange(null);
           }}
         />
       )}

@@ -128,6 +128,8 @@ export function SortableList<T extends SortableItem>({
 }: SortableListProps<T>): JSX.Element {
   const [activeId, setActiveId] = useState<string | null>(null);
   const instructionsId = useId();
+  // dnd-kit numbers its ids per process, so the server's and the browser's would differ.
+  const dndId = useId();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -166,6 +168,7 @@ export function SortableList<T extends SortableItem>({
 
   return (
     <DndContext
+      id={dndId}
       sensors={sensors}
       collisionDetection={closestCenter}
       accessibility={{ announcements }}

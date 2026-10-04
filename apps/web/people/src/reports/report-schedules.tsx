@@ -39,6 +39,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
+import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 
 /**
@@ -127,6 +128,13 @@ export interface ReportSchedulesProps {
   readonly onPause: (id: string) => Promise<Outcome>;
   readonly onResume: (id: string) => Promise<Outcome>;
   readonly onDelete: (id: string) => Promise<Outcome>;
+  /**
+   * The schedule open in its dialog, held by the host so a link opens it in
+   * the server's HTML: `new` for a new one, or a schedule's id to edit it.
+   * One this list does not have is closed.
+   */
+  readonly open?: string | null;
+  readonly onOpenChange?: (open: string | null) => void;
 }
 
 /** The sentence every place that names recipients says. */
@@ -190,8 +198,6 @@ const TITLE = 'Scheduled reports';
 const ABOUT =
   'A file or the summary, emailed as a link on a cadence. Nobody is sent the data itself.';
 
-type Editing = { readonly row: ScheduleRow | null } | null;
-
 /**
  * The one list of schedules: the Schedules button on every Insights tab opens
  * it. Each row's actions are in its menu; a new schedule is a centred dialog.
@@ -203,8 +209,12 @@ function Schedules({
   onPause,
   onResume,
   onDelete,
+  open: heldOpen,
+  onOpenChange,
 }: ReportSchedulesProps & { readonly state: ReportSchedulesState }): JSX.Element {
-  const [editing, setEditing] = useState<Editing>(null);
+  const [open, setOpen] = useHeld<string | null>(heldOpen, onOpenChange, null);
+  const editingRow = state.schedules.find((r) => r.id === open) ?? null;
+  const editing = open === 'new' || editingRow !== null;
   const [deleting, setDeleting] = useState<ScheduleRow | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
   // C makes a schedule, here as on the button: the shell's key and its palette run it.
@@ -214,7 +224,7 @@ function Schedules({
           id: 'create',
           label: 'New scheduled report',
           run: () => {
-            setEditing({ row: null });
+            setOpen('new');
           },
         }
       : null,
@@ -250,7 +260,7 @@ function Schedules({
             startIcon={<icons.add aria-hidden />}
             shortcut="create"
             onClick={() => {
-              setEditing({ row: null });
+              setOpen('new');
             }}
           >
             New scheduled report
@@ -325,7 +335,7 @@ function Schedules({
             label: 'Edit',
             icon: <icons.edit aria-hidden />,
             onSelect: () => {
-              setEditing({ row });
+              setOpen(row.id);
             },
           },
           {
@@ -356,18 +366,17 @@ function Schedules({
         ]}
         onRowOpen={history}
       />
-      {editing === null ? null : (
+      {editing ? (
         <ScheduleForm
+          key={open}
           state={state}
-          row={editing.row}
+          row={editingRow}
           onClose={() => {
-            setEditing(null);
+            setOpen(null);
           }}
-          onSave={(draft) =>
-            editing.row === null ? onCreate(draft) : onUpdate(editing.row.id, draft)
-          }
+          onSave={(draft) => (editingRow === null ? onCreate(draft) : onUpdate(editingRow.id, draft))}
         />
-      )}
+      ) : null}
       <DeleteSchedule
         row={deleting}
         onClose={() => {

@@ -511,6 +511,8 @@ export function OrgChart({
   /** The root the view has already been centred on, so it happens once. */
   const centredOn = useRef<string | null>(null);
   const instructionsId = useId();
+  // dnd-kit numbers its ids per process, so the server's and the browser's would differ.
+  const dndId = useId();
   const toolbar = useRef<HTMLDivElement | null>(null);
   const coarse = useCoarsePointerAt(toolbar);
   /** Under a finger the tree opens as a list; this is the "View as chart" switch. */
@@ -1604,6 +1606,7 @@ export function OrgChart({
           <div className="relative">
             {canEdit ? (
               <DndContext
+                id={dndId}
                 sensors={sensors}
                 // Pointer-within rather than closest-centre: the targets are cards
                 // of different sizes, and "the card I am over" is what a person
