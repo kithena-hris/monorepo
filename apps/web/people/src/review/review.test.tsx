@@ -40,6 +40,32 @@ describe('Review', () => {
     expect(screen.getByRole('button', { name: 'Approve and send' })).toBeInTheDocument();
   });
 
+  it('says whose values a request for full values would show (E4)', () => {
+    renderReview({
+      fullValues: {
+        canRequest: false,
+        canDecide: true,
+        fields: [],
+        requests: [
+          {
+            id: 'r1',
+            state: 'pending',
+            mine: false,
+            requestedBy: 'Sofia Lindqvist',
+            reason: 'October payroll reconciliation.',
+            fields: ['Salary'],
+            people: 'Everybody · 96',
+            requestedAt: '2026-09-22T09:00:00.000Z',
+            expiresAt: '2026-09-29T09:00:00.000Z',
+            note: null,
+            link: null,
+          },
+        ],
+      },
+    });
+    expect(screen.getByText('Everybody · 96')).toBeInTheDocument();
+  });
+
   it('counts and lists lapsed changes and decided ID checks on Decided (E9)', () => {
     renderReview(
       {

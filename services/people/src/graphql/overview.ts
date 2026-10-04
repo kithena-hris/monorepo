@@ -122,6 +122,14 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     fields: (t) => ({
       isHr: t.exposeBoolean('isHr'),
       total: t.exposeInt('total'),
+      flagged: t.exposeInt('flagged', {
+        nullable: true,
+        description: 'HR’s: how many changes waiting for their decision the checks flag.',
+      }),
+      flagReason: t.exposeString('flagReason', {
+        nullable: true,
+        description: 'The newest flagged change’s reasons in a line: "A 38% raise".',
+      }),
       items: t.field({ type: [ApprovalRef], resolve: (a) => list(a.items) }),
     }),
   });

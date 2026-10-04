@@ -85,6 +85,9 @@ export interface PeopleHomeState {
   readonly approvals: {
     readonly isHr: boolean;
     readonly total: number;
+    /** HR's: how many the checks flag, and the newest one's reasons. Absent from an older People. */
+    readonly flagged?: number | null;
+    readonly flagReason?: string | null;
     readonly items: readonly {
       readonly id: string;
       readonly personId: string;
@@ -709,6 +712,17 @@ function Figure({
   );
 }
 
+/** "1 looks unusual: a 38% raise", from what People's checks flag (B2); null for nothing flagged. */
+export function unusual(approvals: PeopleHomeState['approvals']): string | null {
+  const n = approvals?.flagged ?? 0;
+  if (n === 0) return null;
+  const reason = approvals?.flagReason ?? null;
+  const what = `${String(n)} ${n === 1 ? 'looks' : 'look'} unusual`;
+  return reason === null || reason === ''
+    ? what
+    : `${what}: ${reason.charAt(0).toLowerCase()}${reason.slice(1)}`;
+}
+
 /**
  * Home for HR (B2, MA B2): the records' four figures, then "Needs HR", one
  * list across every queue, each row opening Review with its chip chosen;
@@ -732,11 +746,11 @@ function HrHome({
         key="changes"
         icon={<icons.edit aria-hidden />}
         title={counted(changes, 'change to approve', 'changes to approve')}
-        description={
+        description={unusual(approvals) ?? (
           oldest === undefined
             ? 'Waiting for your decision'
             : `Oldest asked ${waited(oldest.requestedAt, state.now)}`
-        }
+        )}
         href={review('changes')}
         word="Review"
         primary

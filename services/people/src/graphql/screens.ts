@@ -2010,6 +2010,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         requestedBy: t.exposeString('requestedBy', { nullable: true }),
         reason: t.exposeString('reason'),
         fields: t.stringList({ resolve: (r) => list(r.fields) }),
+        people: t.exposeString('people', {
+          description: 'Whose values, in words: "Everybody · 128", "6 selected people".',
+        }),
         requestedAt: t.exposeString('requestedAt'),
         expiresAt: t.exposeString('expiresAt'),
         note: t.exposeString('note', { nullable: true }),

@@ -681,6 +681,8 @@ type FullValuesListed {
   link: String
   mine: Boolean
   note: String
+  """Whose values, in words: "Everybody · 128", "6 selected people"."""
+  people: String
   reason: String
   requestedAt: String
   requestedBy: String
@@ -1899,6 +1901,10 @@ type PeopleOverviewApproval {
 }
 
 type PeopleOverviewApprovals {
+  """The newest flagged change’s reasons in a line: "A 38% raise"."""
+  flagReason: String
+  """HR’s: how many changes waiting for their decision the checks flag."""
+  flagged: Int
   isHr: Boolean
   items: [PeopleOverviewApproval!]
   total: Int

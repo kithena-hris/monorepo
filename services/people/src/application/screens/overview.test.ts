@@ -247,11 +247,18 @@ describe('the overview', () => {
     expect(hr.approvals).toMatchObject({
       isHr: true,
       total: 1,
+      // Nothing about a plain change looks unusual (checks: `approvals.test.ts`).
+      flagged: 0,
+      flagReason: null,
       items: [{ personId: ADA, name: 'Ada Lovelace', label: 'base_salary' }],
     });
 
     // The requester sees their own request; somebody else sees no inbox at all.
-    expect((await overview(w, w.as(ADA_ACCOUNT))).approvals).toMatchObject({ isHr: false, total: 1 });
+    expect((await overview(w, w.as(ADA_ACCOUNT))).approvals).toMatchObject({
+      isHr: false,
+      total: 1,
+      flagged: null,
+    });
     expect((await overview(w, w.as(TIM_ACCOUNT))).approvals).toBeNull();
   });
 });
@@ -442,7 +449,14 @@ describe('what waits for a decision, counted', () => {
     const counted = await waitingView({} as never, { access: untouched }, w.as(TIM_ACCOUNT));
     expect(counted).toEqual({
       ok: true,
-      value: { identifiers: null, duplicates: null, accessRequests: null },
+      value: {
+        identifiers: null,
+        duplicates: null,
+        accessRequests: null,
+        flagged: null,
+        asked: null,
+        exports: null,
+      },
     });
   });
 
@@ -459,6 +473,10 @@ describe('what waits for a decision, counted', () => {
         duplicates: duplicates.ok ? duplicates.value.length : null,
         // No full-values requests here at all: not a queue of anybody's.
         accessRequests: null,
+        // No approvals or exports wired: no such queue either.
+        flagged: null,
+        asked: null,
+        exports: null,
       },
     });
   });

@@ -52,6 +52,8 @@ export interface FullValuesRequest {
   readonly requestedBy: string | null;
   readonly reason: string;
   readonly fields: readonly string[];
+  /** Whose values, in words: "Everybody · 128". Absent from an older People. */
+  readonly people?: string;
   readonly requestedAt: string;
   readonly expiresAt: string;
   readonly note: string | null;
@@ -130,6 +132,7 @@ export function AccessDetail({
         labelWidth="7.5rem"
         items={[
           { label: 'Fields', value: request.fields.join(', ') },
+          ...(request.people === undefined ? [] : [{ label: 'People', value: request.people }]),
           { label: 'Reason', value: `“${request.reason}”` },
         ]}
       />

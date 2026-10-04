@@ -6,6 +6,7 @@ import { approvalsInbox } from '../person/pending-changes.js';
 import { REPORTS_TO, type Asking, type PersonView } from '../person/person-access.js';
 import { run } from '../person/service.js';
 import { avatarsOf } from './photo.js';
+import { flaggedToDecide } from './waiting.js';
 import { actors, ownRecord } from './people.js';
 import { nameOf, NOBODY, type ScreenDeps, type Tx } from './record.js';
 import type { ViewedAs } from '../person/view-as.js';
@@ -77,6 +78,9 @@ export interface OverviewView {
   readonly approvals: {
     readonly isHr: boolean;
     readonly total: number;
+    /** HR's: how many of those the checks flag, and the newest one's reasons ("A 38% raise"). */
+    readonly flagged: number | null;
+    readonly flagReason: string | null;
     readonly items: readonly {
       readonly id: string;
       readonly personId: string;
@@ -385,7 +389,14 @@ async function approvalsPart(
       asked: open.has(c.id),
     });
   }
-  return { isHr: inbox.value.isHr, total: all.length, items };
+  const flagged = inbox.value.isHr ? await flaggedToDecide(tx, pending, asking) : null;
+  return {
+    isHr: inbox.value.isHr,
+    total: all.length,
+    flagged: flagged?.count ?? null,
+    flagReason: flagged?.latest ?? null,
+    items,
+  };
 }
 
 async function teamPart(

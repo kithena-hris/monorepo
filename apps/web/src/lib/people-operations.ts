@@ -214,7 +214,7 @@ export const OPERATIONS = {
     peopleFullValues {
       canRequest canDecide
       fields { key label }
-      requests { id state mine requestedBy reason fields requestedAt expiresAt note link }
+      requests { id state mine requestedBy reason fields people requestedAt expiresAt note link }
     }
   }`,
 
@@ -251,7 +251,7 @@ export const OPERATIONS = {
         reports { id name title avatarUrl }
         reportsTotal reportsFilter
       }
-      approvals { isHr total items { id personId name avatarUrl label requestedAt requestedBy asked } }
+      approvals { isHr total flagged flagReason items { id personId name avatarUrl label requestedAt requestedBy asked } }
       missing { key label sectionKey section ownedBy }
       team { waiting toFill }
       setup { photo fields { key sectionKey label description dataType required } }

@@ -195,6 +195,21 @@ describe('Home, as HR (B2)', () => {
     expect(maybe('Needs HR')).toBeNull();
   });
 
+  it('says how many changes look unusual, and why the newest does (B2)', () => {
+    const base = overview();
+    render(
+      <PeopleHome
+        load={ready({
+          ...base,
+          approvals: base.approvals && { ...base.approvals, flagged: 1, flagReason: 'A 38% raise' },
+          hr: figures,
+        })}
+      />,
+      { wrapper: TooltipProvider },
+    );
+    expect(within(part('Needs HR')).getByText('1 looks unusual: a 38% raise')).toBeInTheDocument();
+  });
+
   it('says nothing needs HR when every queue is empty', () => {
     render(
       <PeopleHome
