@@ -1122,6 +1122,33 @@ export async function shareSummary(input: Readonly<Record<string, unknown>>): Pr
   return parsed(people<string>('ShareSummary', { input: JSON.stringify(input) }));
 }
 
+/** The screens whose lists load as they scroll, and the name their read gives its cursor. */
+const PAGED = {
+  WebhookLog: 'after',
+  ImportExport: 'before',
+  Review: 'before',
+  ReportRuns: 'before',
+  RoleSettings: 'after',
+} as const;
+
+/**
+ * The next page of a screen's list, for its infinite scroll: the screen's own
+ * read (`loadScreen`), as the page was drawn, from the cursor its last page
+ * gave. Its data as the screen's first page had it, or null when People did
+ * not answer. Only the screens above: anything else is not a list.
+ */
+export async function screenPage(
+  component: keyof typeof PAGED,
+  params: Readonly<Record<string, string>>,
+  search: Readonly<Record<string, string>>,
+  cursor: string,
+): Promise<unknown> {
+  const key = PAGED[component] as string | undefined;
+  if (key === undefined) return null;
+  const load = await loadScreen(component, { params, search: { ...search, [key]: cursor } });
+  return load.status === 'ready' ? load.data : null;
+}
+
 /**
  * The directory's next page, for its infinite scroll: the same query the page
  * was drawn with (search, filters, conditions, order), from `after`.

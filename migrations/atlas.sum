@@ -1,4 +1,4 @@
-h1:0qLMxHJPhdt+Iki+/u8X1VSup2OWOFH7CYcexmI2Bho=
+h1:SUv8dVywTVrQhhat+BPIuQTkFOB3APWwIa6mGJfrzwA=
 20260821120000_tenant_registry.sql h1:Oby3na8tGFmaE1yhYlDeebc208OszRYGU1w9Os/5Uno=
 20260821230000_identity.sql h1:/7efY2fP7aBYW80nWrLPZUUdLCCSjalYdNXUZFSq5sA=
 20260822010000_enrolment_token.sql h1:ENJ1x5cPrZX42ZWnVliCrXT3CEZDvWFUc4aT+7xt0mU=
@@ -109,3 +109,4 @@ h1:0qLMxHJPhdt+Iki+/u8X1VSup2OWOFH7CYcexmI2Bho=
 20261004010000_timeoff_chat_answers_setting.sql h1:2fLIPg/FJgZtL2d4AUF2nT/FNlFax+8MOBVpylxQwKo=
 20261004090000_timeoff_entitlements_setting.sql h1:boXear6vV2y/vhr09DMJc26gvS6meqBCeIdK6wqCzC4=
 20261004100000_people_export_share_people.sql h1:x1NApf9gHTemSl7XJ7BJBE+F5ECVGia8kSvssVDwMeM=
+20261004120000_people_webhook_delivery_log.sql h1:enEGL6tBUFSifCV0SgCTa9rBh9eSFDCnAxvBCrjTivI=

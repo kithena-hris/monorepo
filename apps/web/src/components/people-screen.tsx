@@ -1123,34 +1123,16 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               }),
         };
       }
-      case 'WebhookLog': {
-        const next =
-          load.status === 'ready' && typeof load.data === 'object' && load.data !== null
-            ? ((load.data as { next?: string | null }).next ?? null)
-            : null;
-        const here = `/settings/people/integrations/webhooks/${params['id'] ?? ''}`;
+      case 'WebhookLog':
         return {
           load: loadable,
           onReplay: actions.replayDelivery,
           onBack: () => {
             go('/settings/people/integrations/webhooks');
           },
-          ...(next === null
-            ? {}
-            : {
-                onOlder: () => {
-                  go(`${here}?after=${encodeURIComponent(next)}`);
-                },
-              }),
-          ...(search['after'] === undefined
-            ? {}
-            : {
-                onNewest: () => {
-                  go(here);
-                },
-              }),
+          // Older deliveries as the log scrolls; the address opens the newest.
+          onLoadMore: (after: string) => actions.screenPage('WebhookLog', params, search, after),
         };
-      }
       case 'Organisation':
         return {
           load: loadable,
