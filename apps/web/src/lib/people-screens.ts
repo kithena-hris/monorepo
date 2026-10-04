@@ -440,7 +440,7 @@ async function review(search: Readonly<Record<string, string>>): Promise<ScreenL
     people('IdentifierReviews'),
     people('Duplicates', { a: pair?.[0] ?? null, b: pair?.[1] ?? null }),
     people('FullValues'),
-    people('Completeness', { after: given(search['after']) }),
+    people('Completeness'),
     people('Analytics', { segment: null }),
     people('ExportSharesToDecide'),
     people('OwnDecided'),
