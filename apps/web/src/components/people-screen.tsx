@@ -1225,6 +1225,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           onFocusChange: (focus: string | null) => {
             note({ focus }, 'push');
           },
+          // Whose side card is open, so a link opens it in the server's HTML.
+          pickedId: at('person'),
+          onPickedChange: (person: string | null) => {
+            note({ person }, 'replace');
+          },
         };
       case 'PeopleSettings':
         return { load: loadable };
