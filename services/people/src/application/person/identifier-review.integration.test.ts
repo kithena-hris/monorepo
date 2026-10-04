@@ -218,6 +218,8 @@ describe('an employee entering a national identifier our checks doubt', () => {
         label: 'NIF / NIE',
         state: 'pending',
         last4: '678A',
+        // Who entered it: the history row's actor.
+        enteredBy: { kind: 'user', userId: lucia.accountId },
       }),
     ]);
   });
@@ -515,6 +517,8 @@ describe('a doubted NIF held for approval: reviewed first, then approved (PEO-07
     expect(listed.ok && listed.value.find((r) => r.personId === NUR)).toMatchObject({
       last4: '678A',
       pendingChangeId: changeId,
+      // Who entered it: the held change's requester.
+      enteredBy: { kind: 'user', userId: nur.accountId },
     });
     const shown = await inTenantResult(inTenant, ACME, (tx) =>
       held.revealIdentifier(tx, { ...as(hr), personId: NUR, attributeKey: 'es_nif' }),

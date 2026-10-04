@@ -61,6 +61,8 @@ export interface ReviewItem {
   readonly enteredAt: string;
   /** Held for approval, not yet written: reviewed first, then approved. */
   readonly held?: boolean;
+  /** Who entered it, as the viewer may name them; null when not recorded. Absent from an older People. */
+  readonly enteredBy?: string | null;
 }
 
 /** An identifier HR decided (E9). Never the value. */
@@ -144,7 +146,9 @@ export function IdCheckDetail({
             {item.name}
             <span className="font-normal text-fg-muted"> · {item.label}</span>
           </h2>
-          <p className="text-sm text-fg-muted">Entered on {day(item.enteredAt)}</p>
+          <p className="text-sm text-fg-muted">
+            Entered {item.enteredBy == null ? '' : `by ${item.enteredBy} `}on {day(item.enteredAt)}
+          </p>
         </div>
         {item.held === true ? (
           <Badge tone="warning" size="sm" className="shrink-0">

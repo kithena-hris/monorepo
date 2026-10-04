@@ -38,6 +38,7 @@ const KIND: Readonly<Record<InboxRow['kind'], ReactNode>> = {
   id: <icons.identifier aria-hidden />,
   duplicate: <icons.merge aria-hidden />,
   access: <icons.sensitive aria-hidden />,
+  export: <icons.send aria-hidden />,
   missing: <icons.person aria-hidden />,
   import: <icons.upload aria-hidden />,
   viewed: <icons.visible aria-hidden />,

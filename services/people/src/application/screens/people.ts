@@ -1090,7 +1090,9 @@ export const SUPPORT = 'Kithena support';
  * support is named as itself, to everybody, the support agent included.
  */
 export async function actors(
-  deps: ScreenDeps,
+  deps: Pick<ScreenDeps, 'personOf'> & {
+    readonly service: Pick<ScreenDeps['service'], 'access'>;
+  },
   tx: Tx,
   asking: Asking,
   all: readonly Actor[],
@@ -1140,6 +1142,8 @@ export interface IdentifierReviewItem {
   readonly avatarUrl: string | null;
   /** Held for approval, not yet written: reviewed first, and sending it back declines it. */
   readonly held: boolean;
+  /** Who entered the value, as the viewer may name them; null where nobody is recorded. */
+  readonly enteredBy: string | null;
 }
 
 /** An identifier HR decided (Review's Decided, E9): who, which, what and by whom. Never the value. */
@@ -1178,6 +1182,12 @@ export async function identifierReviewsView(
       asking.tenantId,
       queue.value.map((r) => r.personId),
     );
+    const enteredBy = await actors(
+      deps,
+      tx,
+      asking,
+      queue.value.flatMap((r) => (r.enteredBy == null ? [] : [r.enteredBy])),
+    );
     for (const r of queue.value) {
       const person = await deps.service.access.read(tx, { ...asking, personId: r.personId });
       items.push({
@@ -1190,6 +1200,7 @@ export async function identifierReviewsView(
         findings: r.findings.filter((f) => f.level !== 'ok'),
         enteredAt: r.createdAt,
         held: r.pendingChangeId !== null,
+        enteredBy: r.enteredBy == null ? null : enteredBy(r.enteredBy),
       });
     }
     const since = new Date(Date.parse(deps.clock.instant()) - NINETY_DAYS_MS).toISOString();
@@ -1270,6 +1281,8 @@ export interface DuplicatesView {
     readonly reasons: readonly string[];
     /** How strong the match is, as a band from the signals' weights (`matchBand`). */
     readonly match: MatchBand;
+    /** What flagged the pair, as nobody asked: SCIM provisioning, or Kithena's duplicate check. */
+    readonly flaggedBy: string;
   }[];
   /**
    * Merges still standing, newest first, each with what undoing it would
@@ -1339,6 +1352,9 @@ export async function duplicatesView(
             : SIGNAL_WORDS[s.signal],
         ),
         match: matchBand(c.signals),
+        flaggedBy: c.signals.some((s) => s.signal === 'scim_work_email')
+          ? 'SCIM provisioning'
+          : 'Kithena’s duplicate check',
       });
     }
     if (pair === null) {

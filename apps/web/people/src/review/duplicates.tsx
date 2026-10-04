@@ -59,7 +59,13 @@ export interface DuplicatePair {
    * a word, never a percentage nobody measured. Absent from an older People.
    */
   readonly match?: MatchBand | null;
+  /** What flagged the pair, as nobody asked for it: SCIM provisioning, or the check. Absent from an older People. */
+  readonly flaggedBy?: string | null;
 }
+
+/** "Flagged by Kithena’s duplicate check", or null from an older People. */
+export const flaggedByOf = (pair: DuplicatePair | undefined): string | null =>
+  pair?.flaggedBy == null || pair.flaggedBy === '' ? null : `Flagged by ${pair.flaggedBy}`;
 
 export type MatchBand = 'strong' | 'likely' | 'possible';
 
@@ -340,6 +346,7 @@ export function DuplicateDetail({
             {[
               (pair?.reasons ?? []).join(', '),
               pair === undefined || bandOf(pair) === null ? null : `${bandOf(pair) ?? ''} match`,
+              flaggedByOf(pair),
             ]
               .filter((x) => x !== null && x !== '')
               .join(' · ') || `Possible duplicate of ${people[1]?.name ?? ''}`}

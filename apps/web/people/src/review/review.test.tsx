@@ -40,6 +40,43 @@ describe('Review', () => {
     expect(screen.getByRole('button', { name: 'Approve and send' })).toBeInTheDocument();
   });
 
+  it('names who asked on every row waiting: a change, an ID check, a pair (E1–E3)', () => {
+    renderReview({
+      approvals: { isHr: true, items: [change] },
+      identifiers: {
+        items: [
+          {
+            personId: 'p2',
+            name: 'Adam Novak',
+            attributeKey: 'national_id',
+            label: 'National ID',
+            last4: '123Y',
+            findings: [{ level: 'mismatch', code: 'checksum', message: 'does not compute' }],
+            enteredAt: '2026-09-23T09:00:00.000Z',
+            enteredBy: 'Adam Novak',
+          },
+        ],
+      },
+      duplicates: {
+        items: [
+          {
+            personIds: ['p3', 'p4'],
+            names: ['Priya Shah', 'Priya S. Shah'],
+            reasons: ['Same work email'],
+            match: 'strong',
+            flaggedBy: 'SCIM provisioning',
+          },
+        ],
+        merges: [],
+        comparison: null,
+      },
+    });
+    const list = screen.getByRole('list', { name: 'Waiting for a decision' });
+    expect(within(list).getByText('Asked by Marco Ruiz')).toBeInTheDocument();
+    expect(within(list).getByText('Entered by Adam Novak')).toBeInTheDocument();
+    expect(within(list).getByText('Flagged by SCIM provisioning')).toBeInTheDocument();
+  });
+
   it('says whose values a request for full values would show (E4)', () => {
     renderReview({
       fullValues: {

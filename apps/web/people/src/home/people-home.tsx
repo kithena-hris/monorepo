@@ -24,6 +24,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
+import { whoOf } from '../export/words';
 import { Loaded, type Loadable } from '../load';
 import { FieldFiles, FileInput, type UploadOutcome } from '../record/files';
 import { localTime } from '../record/display';
@@ -131,6 +132,9 @@ export interface PeopleHomeState {
     readonly identifiers: number | null;
     readonly duplicates: number | null;
     readonly accessRequests: number | null;
+    /** Who entered the identifiers to check, and who asked for full values. Absent from an older People. */
+    readonly identifiersBy?: readonly string[] | null;
+    readonly accessRequestsBy?: readonly string[] | null;
     /** People who joined, by month. */
     readonly joiners: readonly ChartPoint[];
     readonly starting: readonly {
@@ -726,6 +730,9 @@ function Figure({
   );
 }
 
+/** A name after "by": "you" rather than "You". */
+const byWhom = (who: string): string => who.replace(/^You\b/u, 'you');
+
 /** "1 looks unusual: a 38% raise", from what People's checks flag (B2); null for nothing flagged. */
 export function unusual(approvals: PeopleHomeState['approvals']): string | null {
   const n = approvals?.flagged ?? 0;
@@ -755,17 +762,24 @@ function HrHome({
   const needs: JSX.Element[] = [];
   if (changes > 0) {
     const oldest = approvals?.items.at(-1);
+    const askers = whoOf(
+      [...new Set(approvals?.items.map((i) => i.requestedBy))],
+      (approvals?.items.length ?? 0) < changes,
+    );
     needs.push(
       <Todo
         key="changes"
         icon={<icons.edit aria-hidden />}
         title={counted(changes, 'change to approve', 'changes to approve')}
-        description={
+        description={[
           unusual(approvals) ??
-          (oldest === undefined
-            ? 'Waiting for your decision'
-            : `Oldest asked ${waited(oldest.requestedAt, state.now)}`)
-        }
+            (oldest === undefined
+              ? 'Waiting for your decision'
+              : `Oldest asked ${waited(oldest.requestedAt, state.now)}`),
+          askers === null ? null : `asked by ${byWhom(askers)}`,
+        ]
+          .filter((x) => x !== null)
+          .join(' · ')}
         href={review('changes')}
         word="Review"
         primary
@@ -778,7 +792,12 @@ function HrHome({
         key="ids"
         icon={<icons.identifier aria-hidden />}
         title={counted(hr.identifiers ?? 0, 'identifier to check', 'identifiers to check')}
-        description="Failed a check, or couldn’t be verified"
+        description={[
+          'Failed a check, or couldn’t be verified',
+          ((by) => (by === null ? null : `entered by ${byWhom(by)}`))(whoOf(hr.identifiersBy ?? [])),
+        ]
+          .filter((x) => x !== null)
+          .join(' · ')}
         href={review('ids')}
         word="Review"
       />,
@@ -790,7 +809,7 @@ function HrHome({
         key="duplicates"
         icon={<icons.merge aria-hidden />}
         title={counted(hr.duplicates ?? 0, 'possible duplicate', 'possible duplicates')}
-        description="Same work email, or name and birth date"
+        description="Same work email, or name and birth date · flagged by Kithena’s checks"
         href={review('duplicates')}
         word="Compare"
       />,
@@ -806,7 +825,7 @@ function HrHome({
           'request for full values',
           'requests for full values',
         )}
-        description="Somebody asked to see unmasked values"
+        description={`${whoOf(hr.accessRequestsBy ?? []) ?? 'Somebody'} asked to see unmasked values`}
         href={review('access')}
         word="Decide"
       />,

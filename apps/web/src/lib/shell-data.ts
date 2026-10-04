@@ -343,6 +343,14 @@ export interface Waiting {
   readonly asked?: number | null;
   /** Requests to send an export this person may decide. Absent from an older People. */
   readonly exports?: number | null;
+  /**
+   * Who asked, beside each count, as this person may name them: who entered
+   * each identifier to check, asked for full values, or wants to send an
+   * export. Absent from an older People.
+   */
+  readonly identifiersBy?: readonly string[] | null;
+  readonly accessRequestsBy?: readonly string[] | null;
+  readonly exportsBy?: readonly string[] | null;
 }
 
 /** Review's tab of what waits for this viewer: where its one count goes. */

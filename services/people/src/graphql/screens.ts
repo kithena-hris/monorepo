@@ -265,6 +265,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
           description:
             'Held for approval, not yet written: reviewed first; sending it back declines the change.',
         }),
+        enteredBy: t.exposeString('enteredBy', {
+          nullable: true,
+          description: 'Who entered the value, as the viewer may name them; null when not recorded.',
+        }),
       }),
     });
   const DecidedReviewRef = builder
@@ -305,6 +309,9 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         match: t.exposeString('match', {
           description:
             'strong, likely or possible: a band from the signals, never a percentage (`matchBand`).',
+        }),
+        flaggedBy: t.exposeString('flaggedBy', {
+          description: 'What flagged the pair, as nobody asked: SCIM provisioning or the check.',
         }),
       }),
     });
@@ -1037,6 +1044,21 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
       exports: t.exposeInt('exports', {
         nullable: true,
         description: 'Requests to send an export this viewer may decide.',
+      }),
+      identifiersBy: t.stringList({
+        nullable: true,
+        description: 'Who entered the doubted identifiers, as the viewer may name them.',
+        resolve: (w) => (w.identifiersBy === null ? null : [...w.identifiersBy]),
+      }),
+      accessRequestsBy: t.stringList({
+        nullable: true,
+        description: 'Who asked for full values, as the viewer may name them.',
+        resolve: (w) => (w.accessRequestsBy === null ? null : [...w.accessRequestsBy]),
+      }),
+      exportsBy: t.stringList({
+        nullable: true,
+        description: 'Who wants to send an export waiting for this viewer.',
+        resolve: (w) => (w.exportsBy === null ? null : [...w.exportsBy]),
       }),
     }),
   });

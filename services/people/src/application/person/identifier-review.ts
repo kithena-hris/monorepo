@@ -3,6 +3,7 @@ import { err, failure, ok, type Clock, type PendingEvent, type Result } from '@k
 import {
   PersonIdentifierReviewed,
   PersonIdentifierRevealed,
+  type Actor,
   type AttributeDefinition,
 } from '@kithena/contracts';
 
@@ -48,8 +49,8 @@ export interface IdentifierReviews {
   ): Promise<IdentifierReview | null>;
   /** One person's reviews still waiting on somebody: pending or sent back. */
   open(tx: Tx, tenantId: string, personId: string): Promise<readonly IdentifierReview[]>;
-  /** HR's queue, oldest first. */
-  pending(tx: Tx, tenantId: string, limit: number): Promise<readonly IdentifierReview[]>;
+  /** HR's queue, oldest first, each with who entered the value where that is known. */
+  pending(tx: Tx, tenantId: string, limit: number): Promise<readonly QueuedReview[]>;
   /** Decided since an instant, whatever became of them after, newest decision first. */
   decided(
     tx: Tx,
@@ -84,6 +85,15 @@ export interface IdentifierReviews {
     tx: Tx,
     where: { tenantId: string; personId: string; attributeKey: string },
   ): Promise<string | null>;
+}
+
+/**
+ * A review in HR's queue, and who entered the value under review: the actor
+ * of the history row that wrote it, or the requester of the change holding
+ * it. Absent where the store cannot say.
+ */
+export interface QueuedReview extends IdentifierReview {
+  readonly enteredBy?: Actor | null;
 }
 
 /** Where a value stands with HR: the latest review of this very value, if any. */
@@ -283,7 +293,7 @@ export async function reviewHeld(
 /* ------------------------------------------------------------ reviewing -- */
 
 /** One review as HR's queue lists it. The value is never here; `last4` is what a screen shows. */
-export interface ReviewItem extends IdentifierReview {
+export interface ReviewItem extends QueuedReview {
   readonly label: string;
   readonly last4: string | null;
 }

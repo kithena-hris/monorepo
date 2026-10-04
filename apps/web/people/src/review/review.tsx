@@ -65,6 +65,7 @@ import {
   DuplicateDetail,
   Merges,
   bandOf,
+  flaggedByOf,
   pairId,
   type DuplicateActions,
   type DuplicatePair,
@@ -224,6 +225,8 @@ interface Row {
   /** Their photo, where People sent one. */
   readonly avatarUrl?: string | null;
   readonly summary: string;
+  /** Who asked, when the row's name is not them: "Asked by Marco Ruiz", "Flagged by …". */
+  readonly by?: string | null;
   /** When it was asked for, for its age and the order; null for a pair, which has none. */
   readonly at: string | null;
   readonly flag?: string | null;
@@ -236,6 +239,7 @@ const changeRow = (item: ApprovalItem): Row => ({
   name: item.name,
   avatarUrl: item.avatarUrl ?? null,
   summary: summaryOf(item),
+  by: `Asked by ${item.requestedBy === 'You' ? 'you' : item.requestedBy}`,
   at: item.requestedAt,
   flag: isClosed(item) ? null : (item.flagSummary ?? null),
 });
@@ -247,6 +251,7 @@ const idRow = (item: ReviewItem): Row => ({
   avatarUrl: item.avatarUrl ?? null,
   summary: `${item.label} · ${item.findings[0]?.message ?? ''}`,
   at: item.enteredAt,
+  by: item.enteredBy == null ? null : `Entered by ${item.enteredBy === 'You' ? 'you' : item.enteredBy}`,
   badge: verdictOf(item),
 });
 
@@ -255,6 +260,7 @@ const pairRow = (pair: DuplicatePair): Row => ({
   kind: 'duplicates',
   name: pair.names[0] ?? '',
   summary: `Possible duplicate of ${pair.names[1] ?? ''} · ${pair.reasons.join(', ')}`,
+  by: flaggedByOf(pair),
   at: null,
   badge: bandOf(pair) === null ? null : { tone: 'warning', text: bandOf(pair) ?? '' },
 });
@@ -666,13 +672,18 @@ function Rows({
               <span className="truncate">{row.summary}</span>
             </span>
           }
-          {...(row.flag
+          {...(row.flag || row.by
             ? {
                 supporting: (
-                  <span className="font-medium text-warning-fg">
-                    <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
-                    {row.flag}
-                  </span>
+                  <>
+                    {row.by ? <span className="block truncate">{row.by}</span> : null}
+                    {row.flag ? (
+                      <span className="block font-medium text-warning-fg">
+                        <icons.flagged aria-hidden className="me-1.5 inline size-3 align-[-1px]" />
+                        {row.flag}
+                      </span>
+                    ) : null}
+                  </>
                 ),
               }
             : {})}
@@ -777,7 +788,9 @@ function Detail({
             {pair?.names.join(' and ') ?? row.name}
             <span className="font-normal text-fg-muted"> · Possible duplicate</span>
           </h2>
-          <p className="text-sm text-fg-muted">{pair?.reasons.join(', ')}</p>
+          <p className="text-sm text-fg-muted">
+            {[pair?.reasons.join(', '), flaggedByOf(pair)].filter((x) => x).join(' · ')}
+          </p>
           <Button
             variant="primary"
             startIcon={<icons.merge aria-hidden />}

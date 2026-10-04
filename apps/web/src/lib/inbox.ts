@@ -77,7 +77,15 @@ export interface InboxRow {
   readonly name: string;
   /** Whose face: the name above, or nobody (a glyph instead). */
   readonly person: boolean;
-  readonly kind: 'change' | 'id' | 'duplicate' | 'access' | 'missing' | 'import' | 'viewed';
+  readonly kind:
+    | 'change'
+    | 'id'
+    | 'duplicate'
+    | 'access'
+    | 'export'
+    | 'missing'
+    | 'import'
+    | 'viewed';
   readonly summary: string;
   /** When, ISO; null for what has always been so. */
   readonly at: string | null;
@@ -90,6 +98,19 @@ export interface InboxRow {
 
 const plural = (n: number, one: string, many: string): string =>
   `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+
+/** "Sofia Lindqvist", "Sofia Lindqvist and Marco Ruiz", "Sofia Lindqvist and 2 others": who asked; null for nobody named. */
+function whoOf(names: readonly string[] | null | undefined): string | null {
+  const [first, second] = names ?? [];
+  if (first === undefined) return null;
+  if (second === undefined) return first;
+  return names?.length === 2
+    ? `${first} and ${byWhom(second)}`
+    : `${first} and ${String((names?.length ?? 1) - 1)} others`;
+}
+
+/** A name after "by": "you" rather than "You". */
+const byWhom = (who: string): string => who.replace(/^You\b/u, 'you');
 
 /** A notice of the shell's as a row: the person first, what it is under. */
 function noticeRow(n: ShellNotice): InboxRow {
@@ -119,7 +140,7 @@ export function todoRows(shell: ShellData): InboxRow[] {
   const queue = (
     n: number | null | undefined,
     kind: InboxRow['kind'],
-    chip: 'ids' | 'duplicates' | 'access',
+    chip: 'ids' | 'duplicates' | 'access' | 'exports',
     one: string,
     many: string,
     summary: string,
@@ -145,7 +166,12 @@ export function todoRows(shell: ShellData): InboxRow[] {
       'ids',
       'identifier to check',
       'identifiers to check',
-      'Failed a check, or couldn’t be verified',
+      ((by) =>
+        by === null
+          ? 'Failed a check, or couldn’t be verified'
+          : `Failed a check, or couldn’t be verified · entered by ${byWhom(by)}`)(
+        whoOf(w?.identifiersBy),
+      ),
     ),
     ...queue(
       w?.duplicates,
@@ -153,7 +179,7 @@ export function todoRows(shell: ShellData): InboxRow[] {
       'duplicates',
       'possible duplicate',
       'possible duplicates',
-      'Same work email, or name and birth date',
+      'Same work email, or name and birth date · flagged by Kithena’s checks',
     ),
     ...queue(
       w?.accessRequests,
@@ -161,7 +187,15 @@ export function todoRows(shell: ShellData): InboxRow[] {
       'access',
       'request for full values',
       'requests for full values',
-      'Somebody asked to see unmasked values',
+      `${whoOf(w?.accessRequestsBy) ?? 'Somebody'} asked to see unmasked values`,
+    ),
+    ...queue(
+      w?.exports,
+      'export',
+      'exports',
+      'export to send',
+      'exports to send',
+      `${whoOf(w?.exportsBy) ?? 'Somebody'} asked to send an export`,
     ),
   ];
 }

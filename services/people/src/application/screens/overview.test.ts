@@ -522,6 +522,9 @@ describe('what waits for a decision, counted', () => {
         flagged: null,
         asked: null,
         exports: null,
+        identifiersBy: null,
+        accessRequestsBy: null,
+        exportsBy: null,
       },
     });
   });
@@ -543,6 +546,10 @@ describe('what waits for a decision, counted', () => {
         flagged: null,
         asked: null,
         exports: null,
+        // Nobody to name without a reader of accounts; no queue, nobody at all.
+        identifiersBy: reviews.ok ? [] : null,
+        accessRequestsBy: null,
+        exportsBy: null,
       },
     });
   });

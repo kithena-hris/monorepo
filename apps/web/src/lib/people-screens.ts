@@ -542,6 +542,8 @@ function hrFigures() {
       identifiers: number | null;
       duplicates: number | null;
       accessRequests: number | null;
+      identifiersBy?: string[] | null;
+      accessRequestsBy?: string[] | null;
     }>('Waiting'),
     people<{ people: DirectoryRow[] }>('Directory', {
       conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }],
@@ -591,6 +593,8 @@ async function overview(): Promise<ScreenLoad> {
         identifiers: counted?.identifiers ?? null,
         duplicates: counted?.duplicates ?? null,
         accessRequests: counted?.accessRequests ?? null,
+        identifiersBy: counted?.identifiersBy ?? null,
+        accessRequestsBy: counted?.accessRequestsBy ?? null,
         joiners,
         starting: (starting.ok ? starting.data.people : []).slice(0, 5).map((p) => ({
           id: p.id,

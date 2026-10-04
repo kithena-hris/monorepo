@@ -7,6 +7,8 @@ import { fullValuesScreen, type FullValuesDeps } from '../export/full-values.js'
 import { flagChange, looking } from '../person/approval-flags.js';
 import { approvalsInbox, type PendingChangeDeps } from '../person/pending-changes.js';
 import type { Asking, PersonAccess } from '../person/person-access.js';
+import { actors } from './people.js';
+import type { ScreenDeps } from './record.js';
 
 /**
  * How many decisions wait for this viewer, counted, for the shell's bell and
@@ -31,7 +33,19 @@ export interface WaitingView {
   readonly asked: number | null;
   /** Requests to send an export this viewer may decide (E5). */
   readonly exports: number | null;
+  /**
+   * Who asked, beside each count, as the viewer may name them: whoever
+   * entered each doubted identifier, asked for full values, or wants to send
+   * an export. Distinct, oldest first; null beside a null count.
+   */
+  readonly identifiersBy: readonly string[] | null;
+  readonly accessRequestsBy: readonly string[] | null;
+  readonly exportsBy: readonly string[] | null;
 }
+
+const distinct = (names: readonly (string | null)[]): string[] => [
+  ...new Set(names.filter((n): n is string => n !== null)),
+];
 
 export async function waitingView(
   tx: PostgresJsDatabase,
@@ -40,12 +54,16 @@ export async function waitingView(
     readonly fullValues?: FullValuesDeps;
     readonly pending?: PendingChangeDeps;
     readonly shares?: ShareDeps;
+    /** Which person signs in as an account, to name who entered an identifier. Absent, nobody is. */
+    readonly personOf?: ScreenDeps['personOf'];
   },
   asking: Asking,
 ): Promise<Result<WaitingView>> {
   const { roles } = asking.viewer;
   const shares = deps.shares === undefined ? null : await sharesToDecide(tx, deps.shares, asking);
-  const exports = shares?.ok === true && roles.has('people_admin') ? shares.value.length : null;
+  const decidable = shares?.ok === true && roles.has('people_admin') ? shares.value : null;
+  const exports = decidable === null ? null : decidable.length;
+  const exportsBy = decidable === null ? null : distinct(decidable.map((s) => s.requestedBy.name));
   if (!roles.has('hr') && !roles.has('finance')) {
     return ok({
       identifiers: null,
@@ -54,6 +72,9 @@ export async function waitingView(
       flagged: null,
       asked: null,
       exports,
+      identifiersBy: null,
+      accessRequestsBy: null,
+      exportsBy,
     });
   }
   const identifiers = await deps.access.identifierReviews(tx, asking);
@@ -71,14 +92,25 @@ export async function waitingView(
     full?.ok === true
       ? full.value.requests.filter((r) => r.mine && r.state === 'pending').length
       : 0;
+  // Only a decision waits on somebody who can make it; a request of one's own is not one.
+  const toDecide =
+    full?.ok === true && full.value.canDecide
+      ? full.value.requests.filter((r) => r.state === 'pending')
+      : null;
+  const entered = identifiers.ok
+    ? identifiers.value.flatMap((r) => (r.enteredBy == null ? [] : [r.enteredBy]))
+    : [];
+  const named =
+    deps.personOf === undefined
+      ? null
+      : await actors({ personOf: deps.personOf, service: deps }, tx, asking, entered);
   return ok({
     identifiers: identifiers.ok ? identifiers.value.length : null,
     duplicates: duplicates.ok ? duplicates.value.length : null,
-    // Only a decision waits on somebody who can make it; a request of one's own is not one.
-    accessRequests:
-      full?.ok === true && full.value.canDecide
-        ? full.value.requests.filter((r) => r.state === 'pending').length
-        : null,
+    accessRequests: toDecide === null ? null : toDecide.length,
+    identifiersBy: identifiers.ok ? distinct(named === null ? [] : entered.map(named)) : null,
+    accessRequestsBy: toDecide === null ? null : distinct(toDecide.map((r) => r.requestedBy)),
+    exportsBy,
     flagged:
       hr && deps.pending !== undefined
         ? (await flaggedToDecide(tx, deps.pending, asking)).count

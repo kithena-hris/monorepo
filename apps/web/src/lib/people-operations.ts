@@ -157,14 +157,14 @@ export const OPERATIONS = {
 
   IdentifierReviews: `query IdentifierReviews {
     peopleIdentifierReviews {
-      items { personId name avatarUrl attributeKey label last4 findings { level code message } enteredAt held }
+      items { personId name avatarUrl attributeKey label last4 findings { level code message } enteredAt held enteredBy }
       decided { personId name label outcome decidedBy decidedAt note }
     }
   }`,
 
   Duplicates: `query Duplicates($a: ID, $b: ID) {
     peopleDuplicates(a: $a, b: $b) {
-      items { personIds names reasons match }
+      items { personIds names reasons match flaggedBy }
       merges { absorbedId survivorId absorbedName survivorName mergedAt reversed kept account refusal }
       comparison {
         people { id name status refusal }
@@ -233,7 +233,10 @@ export const OPERATIONS = {
 
   /** How many decisions wait for this viewer, counted: the shell's bell and badges. */
   Waiting: `query Waiting {
-    peopleWaiting { identifiers duplicates accessRequests flagged asked exports }
+    peopleWaiting {
+      identifiers duplicates accessRequests flagged asked exports
+      identifiersBy accessRequestsBy exportsBy
+    }
   }`,
 
   /** Where People starts: the viewer, their line, and what waits for them. */

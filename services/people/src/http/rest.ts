@@ -694,6 +694,8 @@ export interface RestDeps {
   readonly screens?: readonly Route[];
   /** Exports sent to somebody else: only counted here, for Review's badge (`export-share.ts`). */
   readonly shares?: ShareDeps;
+  /** Which person signs in as an account: who asked, beside Review's counts. */
+  readonly personOf?: (tx: PostgresJsDatabase, tenantId: string, accountId: string) => Promise<string | null>;
   /** Saved segments, for an export of one (PEO-068). */
   readonly segments?: SegmentStore;
   /** The Settings activity log: each successful settings command, in words (`activity.ts`). */
@@ -1108,6 +1110,7 @@ export function restRoutes(deps: RestDeps): Route[] {
                 ...(deps.fullValues === undefined ? {} : { fullValues: deps.fullValues.deps }),
                 ...(service.pending === undefined ? {} : { pending: service.pending }),
                 ...(deps.shares === undefined ? {} : { shares: deps.shares }),
+                ...(deps.personOf === undefined ? {} : { personOf: deps.personOf }),
               },
               asking,
             ),
