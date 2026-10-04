@@ -40,7 +40,13 @@ import {
 } from './drizzle-person-reader.js';
 import { keysFrom, staticKeyRing } from './envelope.js';
 import { drizzlePersonRepository } from './drizzle-person-repository.js';
-import { drizzlePeopleFacts, drizzleSchemaRepository } from './drizzle-schema-repository.js';
+import { foldSections } from '../application/schema/fold-sections.js';
+import { publishSchema } from '../application/schema/publish-schema.js';
+import {
+  drizzleDraftWriter,
+  drizzlePeopleFacts,
+  drizzleSchemaRepository,
+} from './drizzle-schema-repository.js';
 import { onSchemaPublished, wirePolicyRegistry } from './policy-registry.js';
 import { reminderMailerFrom } from './reminder-mailer.js';
 import { NO_TENANT_APP_BASE, tenantAppBase, tenantCompanies } from './tenant-origin.js';
@@ -85,6 +91,11 @@ import { readCacheFrom } from './valkey-read-cache.js';
  *   Idempotent on the account, so a re-run or a second replica creates
  *   nothing twice. Beside it, the same tenant's role holders are reported to
  *   identity (`role-report.ts`), the backfill for the consumer's reports.
+ *
+ * - **Duplicate sections folded**, at boot and daily: sections sharing a name
+ *   (created before a duplicate name was refused) merged into the first, as a
+ *   version the system publishes with its reason (`fold-sections.ts`). With
+ *   nothing to fold it writes nothing, so every deploy runs it safely.
  *
  * Tenants come from `people.tenant`, which the consumer fills. One tenant at a
  * time, each in its own transaction; one tenant failing is logged and the rest
@@ -235,6 +246,38 @@ export async function startBackground(
       }),
     ),
   ];
+
+  const peopleBase = (env['PEOPLE_PUBLIC_URL'] ?? 'http://localhost:4001').replace(/\/$/, '');
+  const fold = foldSections({
+    schema,
+    draft: drizzleDraftWriter(),
+    publisher: publishSchema({
+      schema,
+      people: drizzlePeopleFacts(),
+      clock: systemClock,
+      newEventId: uuidv7,
+      calendars: org,
+    }),
+    clock: systemClock,
+    artifactUrl: (version) => `${peopleBase}/v1/schema/versions/${String(version)}`,
+  });
+  jobs.push(
+    every(24 * HOUR, () =>
+      forEachTenant('fold-sections', async (tenantId) => {
+        const folded = await inTenant(tenantId, (scope) =>
+          fold(scope.tx, tenantId, randomUUID()),
+        );
+        if (!folded.ok) {
+          logger.warn({ tenantId, code: folded.error.code }, 'duplicate sections not merged');
+        } else if (folded.value.folds.length > 0) {
+          logger.info(
+            { tenantId, version: folded.value.version, sections: folded.value.folds.length },
+            'duplicate sections merged',
+          );
+        }
+      }),
+    ),
+  );
 
   // The lifecycle's dated moves (§8.1), hourly, so each lands within an hour
   // of the person's own midnight; idempotent, so a second replica finds nobody

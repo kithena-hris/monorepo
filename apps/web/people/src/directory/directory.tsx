@@ -53,10 +53,14 @@ import {
   type FilterGroup,
   type FilterOperator,
   VirtualList,
+  type VirtualListProps,
+  type RowAction,
 } from '@reach/ui';
 import {
+  useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -836,6 +840,8 @@ const CARD_HEIGHT = 190;
  * box of its own (the region it names); cards and the phone's list scroll the
  * page.
  */
+const personName = (p: DirectoryPerson): string => p.name;
+
 function usePlace({
   wrapper,
   rows,
@@ -1136,7 +1142,6 @@ function Body({
   const sort = state.query?.sort ?? null;
   const top = state.query?.top ?? null;
   const metrics = state.metrics ?? [];
-  const kindOf = new Map(fields.map((f) => [f.key, f.kind]));
   // What people can be grouped by: a choice, a place, a manager, a status.
   const groupable = fields.filter(
     (f) => f.kind === 'select' || f.kind === 'status' || f.kind === 'person',
@@ -1147,6 +1152,265 @@ function Body({
       ? ''
       : (p.people?.find((r) => r.key === grouping.key)?.name ??
         (p.values[grouping.key] || `No ${grouping.label.toLowerCase()}`));
+
+  // What the rows read and do, held between renders so a page landing, the
+  // place being noted or the quick look moving redraws only the rows whose
+  // person changed, not all of them. What changes under them (the person in
+  // the quick look, the rows, the keys) is read from `live` when it is used.
+  const kindOf = useMemo(
+    () => new Map((state.fields ?? []).map((f) => [f.key, f.kind])),
+    [state.fields],
+  );
+  const cell = useCallback(
+    (p: DirectoryPerson, c: DirectoryColumn): ReactNode => {
+      // A manager is a person: their face and their full name.
+      const ref = p.people?.find((r) => r.key === c.key);
+      if (ref !== undefined) {
+        return (
+          <span className="flex min-w-0 items-center gap-2">
+            <Avatar size="sm" name={ref.name} src={ref.avatarUrl ?? undefined} />
+            <span className="truncate">{ref.name}</span>
+          </span>
+        );
+      }
+      const value = p.values[c.key];
+      if (value === undefined || value === '') return <span className="text-fg-subtle">—</span>;
+      if (c.key === 'status') {
+        return (
+          <Badge size="sm" dot tone={STATUS_TONE[value] ?? 'neutral'}>
+            {value}
+          </Badge>
+        );
+      }
+      if (kindOf.get(c.key) === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return <span className="whitespace-nowrap tabular-nums">{longDate(value)}</span>;
+      }
+      if (c.key === 'employee_number') return <span className="font-mono text-sm">{value}</span>;
+      return value;
+    },
+    [kindOf],
+  );
+  const byKey = new Map(state.columns.map((c) => [c.key, c]));
+  const shownKey = columnsChosen.value.order
+    .filter((k) => k !== PERSON && columnsChosen.value.visible.includes(k) && byKey.has(k))
+    .join('\n');
+  const shownColumns = useMemo(() => {
+    const known = new Map(state.columns.map((c) => [c.key, c]));
+    return shownKey === '' ? [] : shownKey.split('\n').flatMap((k) => known.get(k) ?? []);
+  }, [state.columns, shownKey]);
+  /** "Backend engineer · Madrid": the first two columns People shows, in words. */
+  const lineOf = useCallback(
+    (p: DirectoryPerson): string =>
+      shownColumns
+        .filter((c) => c.key !== 'status' && p.people?.some((r) => r.key === c.key) !== true)
+        .map((c) => p.values[c.key])
+        .filter((v) => v !== undefined && v !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(v))
+        .slice(0, 2)
+        .join(' · '),
+    [shownColumns],
+  );
+  const rows = loaded.rows;
+  // Somebody this list does not hold (an old link, a new query) is the first person too.
+  const peek =
+    chosen === undefined || (chosen !== null && !rows.some((p) => p.id === chosen))
+      ? (rows[0]?.id ?? null)
+      : chosen;
+  const live = useRef({
+    peek,
+    rows,
+    keys,
+    setPeek,
+    onOpen,
+    move: (_step: 1 | -1, _from: 'list' | 'card'): void => undefined,
+  });
+  const sortable = onSortChange !== undefined && grouping === null;
+  const hasMissing = state.people.some((p) => p.missing !== null);
+  const columns = useMemo((): DataColumn<DirectoryPerson>[] => {
+    const nameCell = (p: DirectoryPerson): JSX.Element => (
+      <span className="flex min-w-0 items-center gap-3">
+        <Avatar size="md" name={p.name} src={p.avatarUrl ?? undefined} />
+        <span className="min-w-0">
+          {/*
+            The name is the row's control: a click or ↵ opens their quick look,
+            ↑ ↓ walk the people without leaving the list, and the profile is
+            the row's Edit key (E) or the card's Open profile.
+          */}
+          <button
+            id={`person-${p.id}`}
+            type="button"
+            className="block max-w-full truncate rounded-xs text-start font-semibold text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
+            onClick={(event) => {
+              event.stopPropagation();
+              live.current.setPeek(p.id);
+            }}
+            onKeyDown={(event) => {
+              const now = live.current;
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                now.setPeek(p.id);
+              } else if (pressed(event, 'row.edit', now.keys)) {
+                event.preventDefault();
+                now.onOpen(p.id);
+              } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                const step = event.key === 'ArrowDown' ? 1 : -1;
+                if (now.peek !== null) {
+                  now.move(step, 'list');
+                  return;
+                }
+                const to = now.rows[now.rows.findIndex((r) => r.id === p.id) + step];
+                document.getElementById(`person-${to?.id ?? ''}`)?.focus();
+              } else if (event.key === 'Escape' && now.peek !== null) {
+                now.setPeek(null);
+              }
+            }}
+          >
+            {p.name}
+          </button>
+          {p.email === null ? null : (
+            <span className="block truncate text-xs text-fg-muted">{p.email}</span>
+          )}
+        </span>
+      </span>
+    );
+
+    const built: DataColumn<DirectoryPerson>[] = [
+      {
+        id: PERSON,
+        header: 'Name',
+        width: '17rem',
+        sticky: true,
+        sortBy: (p) => p.name,
+        cell: nameCell,
+      },
+      ...shownColumns.map((c): DataColumn<DirectoryPerson> => ({
+        id: c.key,
+        header: c.label,
+        ...(c.sortable === false || !sortable
+          ? {}
+          : { sortBy: (p: DirectoryPerson) => p.values[c.key] ?? '' }),
+        cell: (p) => cell(p, c),
+      })),
+    ];
+    if (hasMissing) {
+      built.push({
+        id: 'record',
+        header: 'Record',
+        width: '9rem',
+        cell: (p) =>
+          p.missing === null ? null : p.missing === 0 ? (
+            <Badge tone="success" size="sm">
+              Complete
+            </Badge>
+          ) : (
+            <MissingMark count={p.missing} />
+          ),
+      });
+    }
+    return built;
+  }, [shownColumns, cell, sortable, hasMissing]);
+  const rowActions = useCallback(
+    (p: DirectoryPerson): readonly RowAction[] => [
+      {
+        id: 'edit',
+        label: 'Edit profile',
+        shortcut: 'row.edit',
+        icon: <icons.edit aria-hidden />,
+        onSelect: () => {
+          live.current.onOpen(p.id);
+        },
+      },
+    ],
+    [],
+  );
+  const peekAt = useCallback((p: DirectoryPerson) => {
+    live.current.setPeek(p.id);
+  }, []);
+  const phoneRow = useCallback<VirtualListProps<DirectoryPerson>['renderItem']>(
+    (p, _i, row) => (
+      <ListItem
+        key={p.id}
+        {...row}
+        asChild
+        selected={p.id === peek}
+        leading={
+          <Avatar
+            name={p.name}
+            src={p.avatarUrl ?? undefined}
+            size="xl"
+            {...(p.values['status'] === 'Active'
+              ? { status: 'success' as const, statusLabel: 'Active' }
+              : p.values['status'] === 'On leave'
+                ? { status: 'info' as const, statusLabel: 'On leave' }
+                : {})}
+          />
+        }
+        description={lineOf(p)}
+        {...(p.values['status'] === undefined || p.values['status'] === 'Active'
+          ? { chevron: true }
+          : {
+              trailing: (
+                <Badge size="sm" tone={STATUS_TONE[p.values['status']] ?? 'neutral'}>
+                  {p.values['status']}
+                </Badge>
+              ),
+            })}
+      >
+        <a
+          href={`/people/${p.id}`}
+          data-person-id={p.id}
+          {...(p.id === peek ? { 'aria-current': true } : {})}
+          onClick={(event) => {
+            event.preventDefault();
+            live.current.onOpen(p.id);
+          }}
+        >
+          {p.name}
+        </a>
+      </ListItem>
+    ),
+    [peek, lineOf],
+  );
+  const cardOf = useCallback(
+    (p: DirectoryPerson) => (
+      <div data-person-id={p.id} className="h-full">
+        <PersonCard
+          name={p.name}
+          description={lineOf(p)}
+          {...(p.avatarUrl === null ? {} : { avatarSrc: p.avatarUrl })}
+          {...(p.values['status'] === 'Active'
+            ? { status: 'success' as const, statusLabel: 'Active' }
+            : p.values['status'] === 'On leave'
+              ? { status: 'info' as const, statusLabel: 'On leave' }
+              : {})}
+          badges={
+            p.missing === null || p.missing === 0 ? undefined : <MissingMark count={p.missing} />
+          }
+          actions={
+            <>
+              {p.email === null ? null : (
+                <Button asChild size="xs" aria-label={`Email ${p.name}`}>
+                  <a href={`mailto:${p.email}`}>
+                    <icons.email aria-hidden />
+                  </a>
+                </Button>
+              )}
+              <Button
+                size="xs"
+                onClick={() => {
+                  live.current.onOpen(p.id);
+                }}
+              >
+                Profile
+              </Button>
+            </>
+          }
+          className="h-full"
+        />
+      </div>
+    ),
+    [lineOf],
+  );
 
   // Nobody at all, rather than nobody matching: say so, and where adding
   // happens. No buttons of its own: Import is in the header and adding one
@@ -1218,53 +1482,6 @@ function Body({
     );
   }
 
-  const cell = (p: DirectoryPerson, c: DirectoryColumn): ReactNode => {
-    // A manager is a person: their face and their full name.
-    const ref = p.people?.find((r) => r.key === c.key);
-    if (ref !== undefined) {
-      return (
-        <span className="flex min-w-0 items-center gap-2">
-          <Avatar size="sm" name={ref.name} src={ref.avatarUrl ?? undefined} />
-          <span className="truncate">{ref.name}</span>
-        </span>
-      );
-    }
-    const value = p.values[c.key];
-    if (value === undefined || value === '') return <span className="text-fg-subtle">—</span>;
-    if (c.key === 'status') {
-      return (
-        <Badge size="sm" dot tone={STATUS_TONE[value] ?? 'neutral'}>
-          {value}
-        </Badge>
-      );
-    }
-    if (kindOf.get(c.key) === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return <span className="whitespace-nowrap tabular-nums">{longDate(value)}</span>;
-    }
-    if (c.key === 'employee_number') return <span className="font-mono text-sm">{value}</span>;
-    return value;
-  };
-
-  const byKey = new Map(state.columns.map((c) => [c.key, c]));
-  const shown = columnsChosen.value.order.filter(
-    (k) => k !== PERSON && columnsChosen.value.visible.includes(k) && byKey.has(k),
-  );
-  const shownColumns = shown.flatMap((k) => byKey.get(k) ?? []);
-  /** "Backend engineer · Madrid": the first two columns People shows, in words. */
-  const lineOf = (p: DirectoryPerson): string =>
-    shownColumns
-      .filter((c) => c.key !== 'status' && p.people?.some((r) => r.key === c.key) !== true)
-      .map((c) => p.values[c.key])
-      .filter((v) => v !== undefined && v !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(v))
-      .slice(0, 2)
-      .join(' · ');
-
-  const rows = loaded.rows;
-  // Somebody this list does not hold (an old link, a new query) is the first person too.
-  const peek =
-    chosen === undefined || (chosen !== null && !rows.some((p) => p.id === chosen))
-      ? (rows[0]?.id ?? null)
-      : chosen;
   const peeked = rows.find((p) => p.id === peek) ?? null;
   /**
    * The quick look to the person above or below: the one way the selection
@@ -1279,87 +1496,7 @@ function Body({
     if (from === 'list') document.getElementById(`person-${to.id}`)?.focus();
     else tableRef.current?.revealRow(to.id);
   };
-
-  const nameCell = (p: DirectoryPerson): JSX.Element => (
-    <span className="flex min-w-0 items-center gap-3">
-      <Avatar size="md" name={p.name} src={p.avatarUrl ?? undefined} />
-      <span className="min-w-0">
-        {/*
-          The name is the row's control: a click or ↵ opens their quick look,
-          ↑ ↓ walk the people without leaving the list, and the profile is
-          the row's Edit key (E) or the card's Open profile.
-        */}
-        <button
-          id={`person-${p.id}`}
-          type="button"
-          className="block max-w-full truncate rounded-xs text-start font-semibold text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
-          onClick={(event) => {
-            event.stopPropagation();
-            setPeek(p.id);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              setPeek(p.id);
-            } else if (pressed(event, 'row.edit', keys)) {
-              event.preventDefault();
-              onOpen(p.id);
-            } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-              event.preventDefault();
-              const step = event.key === 'ArrowDown' ? 1 : -1;
-              if (peek !== null) {
-                move(step, 'list');
-                return;
-              }
-              const to = rows[rows.findIndex((r) => r.id === p.id) + step];
-              document.getElementById(`person-${to?.id ?? ''}`)?.focus();
-            } else if (event.key === 'Escape' && peek !== null) {
-              setPeek(null);
-            }
-          }}
-        >
-          {p.name}
-        </button>
-        {p.email === null ? null : (
-          <span className="block truncate text-xs text-fg-muted">{p.email}</span>
-        )}
-      </span>
-    </span>
-  );
-
-  const columns: DataColumn<DirectoryPerson>[] = [
-    {
-      id: PERSON,
-      header: 'Name',
-      width: '17rem',
-      sticky: true,
-      sortBy: (p) => p.name,
-      cell: nameCell,
-    },
-    ...shownColumns.map((c): DataColumn<DirectoryPerson> => ({
-      id: c.key,
-      header: c.label,
-      ...(c.sortable === false || onSortChange === undefined || grouping !== null
-        ? {}
-        : { sortBy: (p: DirectoryPerson) => p.values[c.key] ?? '' }),
-      cell: (p) => cell(p, c),
-    })),
-  ];
-  if (state.people.some((p) => p.missing !== null)) {
-    columns.push({
-      id: 'record',
-      header: 'Record',
-      width: '9rem',
-      cell: (p) =>
-        p.missing === null ? null : p.missing === 0 ? (
-          <Badge tone="success" size="sm">
-            Complete
-          </Badge>
-        ) : (
-          <MissingMark count={p.missing} />
-        ),
-    });
-  }
+  live.current = { peek, rows, keys, setPeek, onOpen, move };
 
   // The chips: every condition in force, each removable, then Clear all.
   const chips: { key: string; field: string; text: string; remove: () => void }[] = [
@@ -1421,48 +1558,7 @@ function Body({
         estimateItemHeight={PHONE_ROW}
         {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
         loadingMore={loaded.loading}
-        renderItem={(p, _i, row) => (
-          <ListItem
-            key={p.id}
-            {...row}
-            asChild
-            selected={p.id === peek}
-            leading={
-              <Avatar
-                name={p.name}
-                src={p.avatarUrl ?? undefined}
-                size="xl"
-                {...(p.values['status'] === 'Active'
-                  ? { status: 'success' as const, statusLabel: 'Active' }
-                  : p.values['status'] === 'On leave'
-                    ? { status: 'info' as const, statusLabel: 'On leave' }
-                    : {})}
-              />
-            }
-            description={lineOf(p)}
-            {...(p.values['status'] === undefined || p.values['status'] === 'Active'
-              ? { chevron: true }
-              : {
-                  trailing: (
-                    <Badge size="sm" tone={STATUS_TONE[p.values['status']] ?? 'neutral'}>
-                      {p.values['status']}
-                    </Badge>
-                  ),
-                })}
-          >
-            <a
-              href={`/people/${p.id}`}
-              data-person-id={p.id}
-              {...(p.id === peek ? { 'aria-current': true } : {})}
-              onClick={(event) => {
-                event.preventDefault();
-                onOpen(p.id);
-              }}
-            >
-              {p.name}
-            </a>
-          </ListItem>
-        )}
+        renderItem={phoneRow}
       />
     )
   ) : view === 'cards' ? (
@@ -1481,45 +1577,7 @@ function Body({
         className="bg-transparent shadow-none"
         {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
         loadingMore={loaded.loading}
-        renderItem={(p) => (
-          <div data-person-id={p.id} className="h-full">
-            <PersonCard
-              name={p.name}
-              description={lineOf(p)}
-              {...(p.avatarUrl === null ? {} : { avatarSrc: p.avatarUrl })}
-              {...(p.values['status'] === 'Active'
-                ? { status: 'success' as const, statusLabel: 'Active' }
-                : p.values['status'] === 'On leave'
-                  ? { status: 'info' as const, statusLabel: 'On leave' }
-                  : {})}
-              badges={
-                p.missing === null || p.missing === 0 ? undefined : (
-                  <MissingMark count={p.missing} />
-                )
-              }
-              actions={
-                <>
-                  {p.email === null ? null : (
-                    <Button asChild size="xs" aria-label={`Email ${p.name}`}>
-                      <a href={`mailto:${p.email}`}>
-                        <icons.email aria-hidden />
-                      </a>
-                    </Button>
-                  )}
-                  <Button
-                    size="xs"
-                    onClick={() => {
-                      onOpen(p.id);
-                    }}
-                  >
-                    Profile
-                  </Button>
-                </>
-              }
-              className="h-full"
-            />
-          </div>
-        )}
+        renderItem={cardOf}
       />
     )
   ) : (
@@ -1543,29 +1601,15 @@ function Body({
       {...(loaded.loadMore === undefined ? {} : { onEndReached: loaded.loadMore })}
       columns={columns}
       rowId={(p) => p.id}
-      describeRow={(p) => p.name}
-      onRowClick={(p) => {
-        setPeek(p.id);
-      }}
+      describeRow={personName}
+      onRowClick={peekAt}
       // Enter or O opens the card, as a click does; the profile is the
       // row's Edit key or the card's Open profile. Space toggles the card.
-      onRowOpen={(p) => {
-        setPeek(p.id);
-      }}
+      onRowOpen={peekAt}
       onRowPreview={(p) => {
         setPeek(peek === p.id ? null : p.id);
       }}
-      rowActions={(p) => [
-        {
-          id: 'edit',
-          label: 'Edit profile',
-          shortcut: 'row.edit',
-          icon: <icons.edit aria-hidden />,
-          onSelect: () => {
-            onOpen(p.id);
-          },
-        },
-      ]}
+      rowActions={rowActions}
       {...(onSortChange === undefined || grouping !== null
         ? {}
         : {

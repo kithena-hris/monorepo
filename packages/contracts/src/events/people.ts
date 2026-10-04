@@ -221,6 +221,11 @@ export const SchemaPublished = defineEvent(
     }),
     /** Where the full artifact is. The event never carries the document. */
     artifactUrl: z.url().register(policy, asInternal()),
+    /**
+     * Why, when the system published rather than a person: "Duplicate
+     * sections merged". Absent or null for a person's publish.
+     */
+    reason: z.string().max(200).nullable().optional().register(policy, asInternal()),
   }),
 );
 

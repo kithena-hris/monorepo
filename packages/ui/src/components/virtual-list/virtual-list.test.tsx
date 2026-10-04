@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { renderToString } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ListItem } from '../list-item/list-item';
 import { columnsFor, VirtualList } from './virtual-list';
@@ -68,6 +68,78 @@ describe('<VirtualList>', () => {
     expect(onEndReached).toHaveBeenCalled();
     rerender(list({ items: [...items(5), ...items(20, 5)], onEndReached }));
     expect(screen.getByText('20 more loaded')).toBeInTheDocument();
+  });
+
+  describe('scrolled', () => {
+    /** A 400px box and 50px items, as a browser would lay them out; jsdom lays out nothing. */
+    function layOut(): void {
+      const height = (el: HTMLElement): number => (el.getAttribute('role') === 'region' ? 400 : 50);
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        const h = height(this);
+        return { top: 0, left: 0, right: 400, bottom: h, width: 400, height: h } as DOMRect;
+      });
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return height(this);
+      });
+    }
+    function scrollTo(top: number): void {
+      const box = screen.getByRole('region', { name: 'Things' });
+      Object.defineProperty(box, 'scrollTop', { configurable: true, value: top });
+      act(() => {
+        fireEvent.scroll(box);
+      });
+    }
+    const drawn = (): string[] =>
+      [...document.querySelectorAll<HTMLElement>('li[data-index]')].map((li) => li.textContent);
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    for (const listItems of [false, true]) {
+      it(`renders only the items a scroll brings into view${listItems ? ', as rows of a List' : ''}`, () => {
+        layOut();
+        const rendered: string[] = [];
+        render(
+          list({
+            listItems,
+            renderItem: (it, _i, row) => {
+              rendered.push(it.id);
+              return listItems ? (
+                <ListItem key={it.id} {...row}>
+                  {it.id}
+                </ListItem>
+              ) : (
+                <span>{it.id}</span>
+              );
+            },
+          }),
+        );
+        scrollTo(100 * 50);
+        const before = new Set(drawn());
+        rendered.length = 0;
+        scrollTo(101 * 50);
+        const entered = drawn().filter((id) => !before.has(id));
+        expect(before.size).toBeGreaterThan(20);
+        expect(entered).toHaveLength(1);
+        expect(rendered).toEqual(entered);
+      });
+    }
+
+    it('draws no placeholder over loaded items, only under the last while a page loads', () => {
+      layOut();
+      const { rerender } = render(list());
+      scrollTo(500 * 50);
+      expect(document.querySelector('[aria-busy]')).toBeNull();
+      rerender(list({ loadingMore: true }));
+      const busy = document.querySelectorAll('[aria-busy]');
+      expect(busy).toHaveLength(1);
+      // After the list itself: the next page's place, not a loaded item's.
+      expect(busy[0]?.previousElementSibling?.tagName).toBe('UL');
+    });
   });
 
   it('asks for nothing while a page is on its way', () => {

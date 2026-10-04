@@ -8,7 +8,7 @@ import {
   type AttributeDefinition,
 } from '@kithena/contracts';
 
-import { encryptable, keyFrom } from '../schema/draft.js';
+import { encryptable, keyFrom, sectionName } from '../schema/draft.js';
 import { kindOf, type ColumnShape } from './column-shape.js';
 import { forExistingOf, ownerByRules } from './who-fills.js';
 
@@ -472,12 +472,19 @@ export function withModel(
       if (was.field.classification === 'special-category') continue;
       const special = p.field.classification === 'special-category';
       const column = seen.find((s) => s.column === p.column);
+      // A "new" section the company already has by that name is that section.
+      const existing =
+        p.newSection === undefined
+          ? undefined
+          : sections.find((s) => sectionName(s.label) === sectionName(p.newSection as string));
       const placement: Placement =
         p.sectionKey !== undefined && sections.some((s) => s.key === p.sectionKey)
           ? { sectionKey: p.sectionKey }
-          : p.newSection === undefined
-            ? was.placement
-            : { newSection: p.newSection };
+          : existing !== undefined
+            ? { sectionKey: existing.key }
+            : p.newSection === undefined
+              ? was.placement
+              : { newSection: p.newSection };
       const forExisting: ForExisting =
         p.forExisting === 'default'
           ? column?.single == null

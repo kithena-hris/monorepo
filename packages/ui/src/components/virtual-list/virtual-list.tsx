@@ -2,7 +2,7 @@
 
 import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
 import {
-  Fragment,
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -140,6 +140,36 @@ export function columnsFor(width: number, minItemWidth: number, gap: number): nu
   return Math.max(1, Math.floor((width + gap) / (minItemWidth + gap)));
 }
 
+/**
+ * One item, drawn by `renderItem`, and drawn again only when the item, its
+ * place or the list's length changes. Each scroll frame that brings an item
+ * into view renders the list; without this every item drawn rendered with it
+ * (24 for one item's scroll at the defaults), and a fling outran the overscan.
+ * Keep `renderItem` stable (module scope or `useCallback`) for it to hold.
+ */
+const Drawn = memo(function Drawn<T>({
+  item,
+  index,
+  setsize,
+  renderItem,
+}: {
+  item: T;
+  index: number;
+  setsize: number;
+  renderItem: VirtualListProps<T>['renderItem'];
+}): ReactNode {
+  return renderItem(item, index, {
+    'data-index': index,
+    'aria-setsize': setsize,
+    'aria-posinset': index + 1,
+  });
+}) as <T>(props: {
+  item: T;
+  index: number;
+  setsize: number;
+  renderItem: VirtualListProps<T>['renderItem'];
+}) => ReactNode;
+
 /** A length React will not print in exponent form: rounded, never negative. */
 const px = (n: number): string => `${String(Math.max(0, Math.round(n)))}px`;
 
@@ -229,11 +259,20 @@ export function VirtualList<T>({
   const virtualRows = virtualizer.getVirtualItems();
   const offset = page ? margin : 0;
 
-  // A column's rows are the list's own children: measured where they sit.
+  // A column's rows are the list's own children: measured where they sit,
+  // once each at each place. From then on the virtualizer's own observer
+  // follows its size; measuring every row again each frame forced a layout
+  // on every frame of a scroll.
+  const measured = useRef(new WeakMap<Element, string>());
   useLayoutEffect(() => {
     if (grid) return;
     const drawn = listRef.current?.querySelectorAll<HTMLElement>(':scope > [data-index]') ?? [];
-    for (const li of drawn) virtualizer.measureElement(li);
+    for (const li of drawn) {
+      const at = li.dataset['index'] ?? '';
+      if (measured.current.get(li) === at) continue;
+      measured.current.set(li, at);
+      virtualizer.measureElement(li);
+    }
   });
 
   // The next page, as the reader nears the end of what is drawn.
@@ -295,12 +334,6 @@ export function VirtualList<T>({
     return outer(<p className="p-4 text-center text-sm text-fg-muted">{empty}</p>, true);
   }
 
-  const rowProps = (index: number): VirtualRowProps => ({
-    'data-index': index,
-    'aria-setsize': items.length,
-    'aria-posinset': index + 1,
-  });
-
   /* ---------------------------------------------------------- a column -- */
   if (!grid) {
     const first = virtualRows[0];
@@ -316,11 +349,26 @@ export function VirtualList<T>({
       const it = items[row.index];
       if (it === undefined) return null;
       const key = itemKey(it, row.index);
+      const one = (
+        <Drawn<T>
+          key={listItems ? key : undefined}
+          item={it}
+          index={row.index}
+          setsize={items.length}
+          renderItem={renderItem}
+        />
+      );
       return listItems ? (
-        <Fragment key={key}>{renderItem(it, row.index, rowProps(row.index))}</Fragment>
+        one
       ) : (
-        <li key={key} {...rowProps(row.index)} className={itemClassName}>
-          {renderItem(it, row.index, rowProps(row.index))}
+        <li
+          key={key}
+          data-index={row.index}
+          aria-setsize={items.length}
+          aria-posinset={row.index + 1}
+          className={itemClassName}
+        >
+          {one}
         </li>
       );
     });
@@ -351,7 +399,7 @@ export function VirtualList<T>({
         aria-posinset={index + 1}
         className={cn('min-w-0', itemClassName)}
       >
-        {renderItem(it, index, rowProps(index))}
+        <Drawn<T> item={it} index={index} setsize={items.length} renderItem={renderItem} />
       </div>
     );
   };

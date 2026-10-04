@@ -174,6 +174,7 @@ beforeAll(async () => {
     '20260923140000_people_retention.sql',
     '20260924150000_people_unique_hash.sql',
     '20260924170000_people_calendar.sql',
+    '20261005120000_people_section_names.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924200000_people_employee_numbering.sql',
     '20260926160000_people_scim.sql',

@@ -159,6 +159,7 @@ async function boot(analyzed: boolean): Promise<Database> {
     '20260923200000_people_export.sql',
     '20260929120000_people_transfer_history.sql',
     '20260924170000_people_calendar.sql',
+    '20261005120000_people_section_names.sql',
     '20260924170100_people_tenant_company.sql',
     '20260924340000_people_person_key_lookup.sql',
     '20260926200000_people_status_idx_skip_scan.sql',

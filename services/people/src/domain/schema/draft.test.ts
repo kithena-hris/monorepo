@@ -254,7 +254,7 @@ describe('an archived section', () => {
     const d = draft();
     // `employee_number` is core, so its requiredness cannot be lowered — the
     // way out is to move it, which is what an admin would actually do.
-    expect(d.addSection({ ...section, key: 'general', order: 1 }).ok).toBe(true);
+    expect(d.addSection({ ...section, key: 'general', label: { default: 'General' }, order: 1 }).ok).toBe(true);
     expect(d.updateAttribute('employee_number', { sectionKey: 'general' }).ok).toBe(true);
     expect(d.archiveSection('hr_information', clock).ok).toBe(true);
   });
@@ -265,6 +265,97 @@ describe('an archived section', () => {
     d.archiveSection('general', clock);
     const added = d.addAttribute({ ...attribute, sectionKey: 'general', origin: 'tenant' });
     expect(added.ok).toBe(false);
+  });
+});
+
+describe("a section's name", () => {
+  it('cannot be one another section already has, whatever its case and spacing', () => {
+    // Two sections called "Employment" render side by side on every profile
+    // with nothing to tell them apart.
+    const d = draft();
+    const again = d.addSection({
+      ...section,
+      key: 'hr_information_2',
+      label: { default: '  hr   INFORMATION ' },
+      order: 1,
+    });
+    expect(again.ok).toBe(false);
+    if (again.ok) return;
+    expect(again.error.code).toBe('DUPLICATE_SECTION_NAME');
+    expect(again.error.message).toBe('A section called "HR information" already exists');
+    expect(again.error.path).toEqual(['label']);
+  });
+
+  it('cannot be one another section has in a language it is shown in', () => {
+    const d = SchemaDraft.empty();
+    d.addSection({ ...section, label: { default: 'HR information', translations: { es: 'Datos de RR. HH.' } } });
+    const clash = d.addSection({
+      ...section,
+      key: 'datos',
+      label: { default: 'Staff data', translations: { es: 'datos de rr. hh.' } },
+    });
+    expect(clash.ok).toBe(false);
+    // The same words in two languages are two names, not one.
+    expect(
+      d.addSection({ ...section, key: 'otros', label: { default: 'Others', translations: { fr: 'Datos de RR. HH.' } } }).ok,
+    ).toBe(true);
+  });
+
+  it('may be the name of an archived section', () => {
+    const d = SchemaDraft.empty();
+    d.addSection({ ...section, key: 'old' });
+    d.archiveSection('old', clock);
+    expect(d.addSection({ ...section, key: 'new' }).ok).toBe(true);
+  });
+
+  it('finds the live section it names', () => {
+    const d = draft();
+    expect(d.sectionNamed(' hr information')?.key).toBe('hr_information');
+    expect(d.sectionNamed('Payroll')).toBeUndefined();
+  });
+});
+
+describe('sections that share a name', () => {
+  /** What a tenant has after an import minted a second "HR information". */
+  function doubled(): SchemaDraft {
+    return SchemaDraft.rehydrate(
+      [
+        { ...section, key: 'hr_information_2', order: 4, origin: 'tenant', archivedAt: null },
+        { ...section, key: 'hr_information', order: 0, archivedAt: null },
+        { ...section, key: 'general', label: { default: 'General' }, order: 1, archivedAt: null },
+      ] as never,
+      [
+        { ...attribute, order: 0, deprecatedAt: null },
+        { ...attribute, key: 'notes_category', sectionKey: 'hr_information_2', order: 1, origin: 'tenant', deprecatedAt: null },
+        { ...attribute, key: 'linkedin', sectionKey: 'hr_information_2', order: 0, origin: 'tenant', deprecatedAt: null },
+        { ...attribute, key: 'motto', sectionKey: 'general', order: 0, origin: 'tenant', deprecatedAt: null },
+      ] as never,
+    );
+  }
+
+  it('fold into the first, its fields after the ones already there, in order', () => {
+    const d = doubled();
+    const folded = d.foldDuplicateSections(clock);
+
+    expect(folded).toEqual([
+      { into: 'hr_information', from: ['hr_information_2'], moved: ['linkedin', 'notes_category'] },
+    ]);
+    expect(d.liveSections().map((s) => s.key)).toEqual(['hr_information', 'general']);
+    expect(d.section('hr_information_2')?.archivedAt).toBe(clock.instant());
+    expect(d.attributesIn('hr_information').map((a) => a.key)).toEqual([
+      'employee_number',
+      'linkedin',
+      'notes_category',
+    ]);
+    // Keys are what every value, export column and integration reads.
+    expect(d.attribute('linkedin')?.key).toBe('linkedin');
+    expect(d.attributesIn('general').map((a) => a.key)).toEqual(['motto']);
+  });
+
+  it('fold to nothing the second time', () => {
+    const d = doubled();
+    d.foldDuplicateSections(clock);
+    expect(d.foldDuplicateSections(clock)).toEqual([]);
   });
 });
 
@@ -303,7 +394,7 @@ describe('the draft itself', () => {
 
   it('orders sections and their attributes for rendering', () => {
     const d = draft();
-    d.addSection({ ...section, key: 'public_profile', order: 1 });
+    d.addSection({ ...section, key: 'public_profile', label: { default: 'Public profile' }, order: 1 });
     d.addAttribute({
       ...attribute,
       key: 'bio',

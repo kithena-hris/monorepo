@@ -1,16 +1,15 @@
 'use client';
 
 import {
-  Fragment,
   useCallback,
   useEffect,
   useId,
   useImperativeHandle,
+  memo,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type FocusEvent,
   type JSX,
   type KeyboardEvent,
@@ -586,8 +585,12 @@ export function DataTable<T extends TableRow>({
     onColumnWidthsChange?.(next);
   };
 
-  const open = new Set(expanded ?? openRows);
-  const picked = new Set(selected ?? pickedRows);
+  // Kept while their source is: a fresh set each scroll frame handed TanStack
+  // fresh state, and it rebuilt its row models for a scroll.
+  const openList = expanded ?? openRows;
+  const pickedList = selected ?? pickedRows;
+  const open = useMemo(() => new Set(openList), [openList]);
+  const picked = useMemo(() => new Set(pickedList), [pickedList]);
   const activeSorts = sort === undefined ? ownSorts : toSortList(sort);
 
   const setOpen = (next: readonly string[]): void => {
@@ -787,7 +790,8 @@ export function DataTable<T extends TableRow>({
     estimateSize,
     // Rows above and below the view: a screen's worth and more, so a fling
     // mostly lands on rows already drawn. Where it outruns them, the spacers
-    // are skeleton rows (`SpacerRow`), never blank.
+    // are plain rows (`SpacerRow`): every row there is loaded, so none of
+    // them is drawn as if it were still coming.
     overscan: 20,
     // Before its box has a size of its own (on the server, while hydrating,
     // in a box not laid out yet) the table draws the rows a window would
@@ -807,7 +811,7 @@ export function DataTable<T extends TableRow>({
   const virtualRows = virtualized ? virtualizer.getVirtualItems() : [];
   const paddingTop = virtualRows.length > 0 ? (virtualRows[0]?.start ?? 0) : 0;
   // Until the virtualizer has measured its box it names no rows at all: the
-  // body is then one skeleton as tall as every row, not an empty table, which
+  // body is then one spacer as tall as every row, not an empty table, which
   // flashed blank and read as "at the end" to `onEndReached`, loading pages
   // nobody had scrolled to.
   const paddingBottom =
@@ -960,6 +964,35 @@ export function DataTable<T extends TableRow>({
       event.stopPropagation();
     }
   };
+  /*
+   * What a row does, as one object that never changes. Every scroll frame
+   * that brings a row into view renders the table again; a row handed a fresh
+   * closure that frame would render again too, and so would every row drawn.
+   * Through this, a row renders for its own data and state and nothing else.
+   */
+  const latest = useRef({ onRowKey, picked, setPicked, open, setOpen, singleExpand });
+  latest.current = { onRowKey, picked, setPicked, open, setOpen, singleExpand };
+  const rowEvents = useMemo<RowEvents<T>>(
+    () => ({
+      key: (row, id, event) => {
+        latest.current.onRowKey(row, id, event);
+      },
+      focus: (id) => {
+        setFocusId(id);
+      },
+      pick: (id, next) => {
+        const now = latest.current.picked;
+        latest.current.setPicked(next ? [...now, id] : [...now].filter((entry) => entry !== id));
+      },
+      toggle: (id) => {
+        const { open: now, setOpen: set, singleExpand: single } = latest.current;
+        if (now.has(id)) set([...now].filter((entry) => entry !== id));
+        else set(single ? [id] : [...now, id]);
+      },
+    }),
+    [],
+  );
+
   const menuOnCard = rowActions !== undefined && rowMenuOnCard;
   const hasTrailing = menuOnCard || columns.some((column) => column.cardTrailing);
 
@@ -1209,13 +1242,7 @@ export function DataTable<T extends TableRow>({
           // A spacer row rather than a transform: a `<tbody>` may only contain
           // rows, and transforming them breaks the column widths the header is
           // measured against.
-          <SpacerRow
-            height={paddingTop}
-            rowHeight={estimateRowHeight}
-            leading={leadingColumns}
-            columns={columns.length}
-            trailing={rowActions ? 1 : 0}
-          />
+          <SpacerRow height={paddingTop} rowHeight={estimateRowHeight} span={totalColumns} />
         ) : null}
 
         {visible.map(({ item, index: rowIndex }) => {
@@ -1276,220 +1303,40 @@ export function DataTable<T extends TableRow>({
           }
           const row = item.row;
           const id = rowId(row);
-          const stripe = striped && (place.get(id) ?? 0) % 2 === 1 && !picked.has(id);
-          const detail = renderDetail?.(row) ?? null;
-          const isOpen = open.has(id) && detail !== null;
-          const name = describeRow?.(row) ?? id;
-
           return (
-            <Fragment key={id}>
-              <DataRow
-                id={id}
-                name={name}
-                className={cn(
-                  CARD.row,
-                  CARD.rowStart[(selectable ? 1 : 0) + (canReorder ? 1 : 0)],
-                  renderDetail ? 'touch:pe-14' : onRowClick && 'touch:pe-10',
-                  // By position, not `even:`: a detail row, a group header or
-                  // a virtualizer's spacer would each shift an nth-child count.
-                  stripe && STRIPE,
-                  // The hover a step past the stripe, so it shows on both.
-                  striped && 'hover:bg-surface-hover',
-                  hasTrailing && CARD.titleBreak,
-                )}
-                leadClassName={cn(CARD.leadCell, CARD.lead[0])}
-                {...(stripe ? { 'data-striped': true } : {})}
-                {...(virtualized
-                  ? {
-                      measure: virtualizer.measureElement,
-                      'data-index': rowIndex,
-                      // At a desk, exactly the estimate, so measuring a row
-                      // never moves the total height or the rows under the
-                      // reader. A card is as tall as it is.
-                      height: estimateRowHeight,
-                    }
-                  : {})}
-                // 1-based, and past the header row, which is row 1.
-                {...(virtualized ? { 'aria-rowindex': rowIndex + 2 } : {})}
-                reorderable={canReorder}
-                selected={picked.has(id)}
-                data-row-id={id}
-                {...(moves
-                  ? {
-                      tabIndex: id === tabbableId ? 0 : -1,
-                      'data-roving-row': true,
-                      // A grid's row says whether it is selected either way.
-                      ...(selectable ? { 'aria-selected': picked.has(id) } : {}),
-                      onKeyDown: (event: KeyboardEvent<HTMLTableRowElement>) => {
-                        onRowKey(row, id, event);
-                      },
-                      onFocus: (event: FocusEvent<HTMLTableRowElement>) => {
-                        if (event.target === event.currentTarget) setFocusId(id);
-                      },
-                    }
-                  : {})}
-                {...(activeRowId === id
-                  ? {
-                      'aria-current': true as const,
-                      'data-active': true,
-                    }
-                  : {})}
-                {...(onRowClick
-                  ? {
-                      onClick: () => {
-                        onRowClick(row);
-                      },
-                    }
-                  : {})}
-              >
-                {selectable ? (
-                  <TableCell
-                    // Lower than the grip: a checkbox is smaller than its tap
-                    // area, and it lines up with the title's first line.
-                    className={cn(
-                      'w-10',
-                      CARD.leadCell,
-                      CARD.lead[canReorder ? 1 : 0],
-                      'touch:top-4',
-                    )}
-                  >
-                    <Checkbox
-                      checked={picked.has(id)}
-                      aria-label={`Select ${name}`}
-                      onClick={(event) => {
-                        // The row may do something of its own; picking is not it.
-                        event.stopPropagation();
-                      }}
-                      onCheckedChange={(next) => {
-                        setPicked(
-                          next === true
-                            ? [...picked, id]
-                            : [...picked].filter((entry) => entry !== id),
-                        );
-                      }}
-                    />
-                  </TableCell>
-                ) : null}
-
-                {renderDetail ? (
-                  // The disclosure goes to the card's far edge, where a phone
-                  // list puts its chevron.
-                  <TableCell className={cn('w-10', CARD.leadCell, 'touch:end-2')}>
-                    {detail === null ? (
-                      // A chevron that opens onto nothing teaches people to
-                      // stop pressing them.
-                      <span className="sr-only">No further detail</span>
-                    ) : (
-                      <button
-                        type="button"
-                        aria-expanded={isOpen}
-                        aria-controls={`${base}-${id}`}
-                        aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${name}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (open.has(id)) setOpen([...open].filter((entry) => entry !== id));
-                          else setOpen(singleExpand ? [id] : [...open, id]);
-                        }}
-                        className={cn(
-                          'flex size-tap items-center justify-center rounded-sm text-fg-subtle',
-                          'transition-colors duration-(--animate-duration-fast)',
-                          'hover:bg-surface-hover hover:text-fg',
-                          'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
-                        )}
-                      >
-                        <ChevronRight
-                          aria-hidden
-                          className={cn(
-                            'size-4 transition-transform duration-(--animate-duration-fast)',
-                            isOpen && 'rotate-90',
-                          )}
-                        />
-                      </button>
-                    )}
-                  </TableCell>
-                ) : null}
-
-                {columns.map((column, index) => (
-                  <TableCell
-                    key={column.id}
-                    numeric={column.numeric ?? false}
-                    sticky={column.sticky ?? false}
-                    {...(index > 0 && column.shortHeader !== undefined && !column.cardTrailing
-                      ? { 'data-label': column.shortHeader }
-                      : {})}
-                    className={cn(
-                      CARD.cell,
-                      index === 0 ? CARD.title : column.cardTrailing ? CARD.trailing : CARD.meta,
-                      index === 0 && hasTrailing && CARD.titleBeside,
-                      index > 0 &&
-                        column.shortHeader !== undefined &&
-                        !column.cardTrailing &&
-                        CARD.label,
-                      column.hideOnCard && 'touch:hidden',
-                      // One line, ellipsized: a value that wrapped made its row
-                      // taller than the rest, and the table's height jumped
-                      // as the row was measured.
-                      fixed &&
-                        'overflow-hidden text-ellipsis whitespace-nowrap touch:overflow-visible touch:whitespace-normal',
-                      column.className,
-                    )}
-                  >
-                    {column.cell(row)}
-                  </TableCell>
-                ))}
-
-                {rowActions ? (
-                  <TableCell
-                    className={cn('w-12', menuOnCard ? [CARD.cell, CARD.trailing] : 'touch:hidden')}
-                  >
-                    <RowMenu name={name} actions={rowActions(row)} />
-                  </TableCell>
-                ) : null}
-
-                {onRowClick && !renderDetail ? (
-                  // A card that opens something says so with a chevron. It
-                  // exists only on the card: a desk row has its hover instead.
-                  <td
-                    aria-hidden
-                    className="hidden text-fg-subtle touch:absolute touch:end-3 touch:top-1/2 touch:block touch:-translate-y-1/2"
-                  >
-                    <ChevronRight className="size-4.5" />
-                  </td>
-                ) : null}
-              </DataRow>
-
-              {isOpen ? (
-                <TableRow
-                  id={`${base}-${id}`}
-                  className="bg-surface-sunken/50 touch:block touch:bg-surface touch:px-4 touch:pb-3.5"
-                >
-                  {leadingColumns > 0 ? (
-                    <TableCell colSpan={leadingColumns} className="touch:hidden" />
-                  ) : null}
-                  <TableCell
-                    colSpan={columns.length}
-                    className={cn(
-                      'h-auto py-3',
-                      CARD.cell,
-                      'touch:rounded-md touch:bg-surface-sunken touch:p-3.5!',
-                    )}
-                  >
-                    <div className="motion-safe:animate-fade-in">{detail}</div>
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </Fragment>
+            <BodyRow<T>
+              key={id}
+              row={row}
+              id={id}
+              index={virtualized ? rowIndex : undefined}
+              rowHeight={estimateRowHeight}
+              measure={virtualized ? virtualizer.measureElement : undefined}
+              columns={columns}
+              events={rowEvents}
+              base={base}
+              selectable={selectable}
+              reorderable={canReorder}
+              fixed={fixed}
+              moves={moves}
+              striped={striped}
+              hasTrailing={hasTrailing}
+              menuOnCard={menuOnCard}
+              leadingColumns={leadingColumns}
+              stripe={striped && (place.get(id) ?? 0) % 2 === 1 && !picked.has(id)}
+              selected={picked.has(id)}
+              active={activeRowId === id}
+              open={open.has(id)}
+              tabbable={id === tabbableId}
+              renderDetail={renderDetail}
+              describeRow={describeRow}
+              rowActions={rowActions}
+              onRowClick={onRowClick}
+            />
           );
         })}
 
         {paddingBottom > 0 ? (
-          <SpacerRow
-            height={paddingBottom}
-            rowHeight={estimateRowHeight}
-            leading={leadingColumns}
-            columns={columns.length}
-            trailing={rowActions ? 1 : 0}
-          />
+          <SpacerRow height={paddingBottom} rowHeight={estimateRowHeight} span={totalColumns} />
         ) : null}
 
         {loadingMore ? (
@@ -1582,6 +1429,271 @@ export function DataTable<T extends TableRow>({
     </div>
   );
 }
+
+/** What a row can ask of its table. One object for the table's life (`rowEvents`). */
+interface RowEvents<T> {
+  key: (row: T, id: string, event: KeyboardEvent<HTMLTableRowElement>) => void;
+  focus: (id: string) => void;
+  pick: (id: string, next: boolean) => void;
+  toggle: (id: string) => void;
+}
+
+interface BodyRowProps<T> {
+  row: T;
+  id: string;
+  /** Its place among the virtualized items; `undefined` when every row is drawn. */
+  index: number | undefined;
+  rowHeight: number;
+  measure: ((node: HTMLTableRowElement | null) => void) | undefined;
+  columns: readonly DataColumn<T>[];
+  events: RowEvents<T>;
+  base: string;
+  selectable: boolean;
+  reorderable: boolean;
+  fixed: boolean;
+  moves: boolean;
+  striped: boolean;
+  hasTrailing: boolean;
+  menuOnCard: boolean;
+  leadingColumns: number;
+  stripe: boolean;
+  selected: boolean;
+  active: boolean;
+  open: boolean;
+  tabbable: boolean;
+  renderDetail: ((row: T) => ReactNode) | undefined;
+  describeRow: ((row: T) => string) | undefined;
+  rowActions: ((row: T) => readonly RowAction[]) | undefined;
+  onRowClick: ((row: T) => void) | undefined;
+}
+
+/**
+ * A body row and its detail, drawn from the row and the columns.
+ *
+ * Memoised on its props, which are all values or things that hold still, so a
+ * scroll frame renders the rows it brings into view and none of the rows
+ * already drawn: before, every frame that crossed a row rendered all of them
+ * again (avatars, badges, menus), and a fling outran the overscan.
+ */
+const BodyRow = memo(function BodyRow<T>({
+  row,
+  id,
+  index,
+  rowHeight,
+  measure,
+  columns,
+  events,
+  base,
+  selectable,
+  reorderable,
+  fixed,
+  moves,
+  striped,
+  hasTrailing,
+  menuOnCard,
+  leadingColumns,
+  stripe,
+  selected,
+  active,
+  open,
+  tabbable,
+  renderDetail,
+  describeRow,
+  rowActions,
+  onRowClick,
+}: BodyRowProps<T>): JSX.Element {
+  const detail = renderDetail?.(row) ?? null;
+  const isOpen = open && detail !== null;
+  const name = describeRow?.(row) ?? id;
+  const virtualized = index !== undefined;
+
+  return (
+    <>
+      <DataRow
+        id={id}
+        name={name}
+        className={cn(
+          CARD.row,
+          CARD.rowStart[(selectable ? 1 : 0) + (reorderable ? 1 : 0)],
+          renderDetail ? 'touch:pe-14' : onRowClick && 'touch:pe-10',
+          // By position, not `even:`: a detail row, a group header or
+          // a virtualizer's spacer would each shift an nth-child count.
+          stripe && STRIPE,
+          // The hover a step past the stripe, so it shows on both.
+          striped && 'hover:bg-surface-hover',
+          hasTrailing && CARD.titleBreak,
+        )}
+        leadClassName={cn(CARD.leadCell, CARD.lead[0])}
+        {...(stripe ? { 'data-striped': true } : {})}
+        {...(virtualized
+          ? {
+              ...(measure === undefined ? {} : { measure }),
+              'data-index': index,
+              // At a desk, exactly the estimate, so measuring a row
+              // never moves the total height or the rows under the
+              // reader. A card is as tall as it is.
+              height: rowHeight,
+              // 1-based, and past the header row, which is row 1.
+              'aria-rowindex': index + 2,
+            }
+          : {})}
+        reorderable={reorderable}
+        selected={selected}
+        data-row-id={id}
+        {...(moves
+          ? {
+              tabIndex: tabbable ? 0 : -1,
+              'data-roving-row': true,
+              // A grid's row says whether it is selected either way.
+              ...(selectable ? { 'aria-selected': selected } : {}),
+              onKeyDown: (event: KeyboardEvent<HTMLTableRowElement>) => {
+                events.key(row, id, event);
+              },
+              onFocus: (event: FocusEvent<HTMLTableRowElement>) => {
+                if (event.target === event.currentTarget) events.focus(id);
+              },
+            }
+          : {})}
+        {...(active
+          ? {
+              'aria-current': true as const,
+              'data-active': true,
+            }
+          : {})}
+        {...(onRowClick
+          ? {
+              onClick: () => {
+                onRowClick(row);
+              },
+            }
+          : {})}
+      >
+        {selectable ? (
+          <TableCell
+            // Lower than the grip: a checkbox is smaller than its tap
+            // area, and it lines up with the title's first line.
+            className={cn('w-10', CARD.leadCell, CARD.lead[reorderable ? 1 : 0], 'touch:top-4')}
+          >
+            <Checkbox
+              checked={selected}
+              aria-label={`Select ${name}`}
+              onClick={(event) => {
+                // The row may do something of its own; picking is not it.
+                event.stopPropagation();
+              }}
+              onCheckedChange={(next) => {
+                events.pick(id, next === true);
+              }}
+            />
+          </TableCell>
+        ) : null}
+
+        {renderDetail ? (
+          // The disclosure goes to the card's far edge, where a phone
+          // list puts its chevron.
+          <TableCell className={cn('w-10', CARD.leadCell, 'touch:end-2')}>
+            {detail === null ? (
+              // A chevron that opens onto nothing teaches people to
+              // stop pressing them.
+              <span className="sr-only">No further detail</span>
+            ) : (
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                aria-controls={`${base}-${id}`}
+                aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${name}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  events.toggle(id);
+                }}
+                className={cn(
+                  'flex size-tap items-center justify-center rounded-sm text-fg-subtle',
+                  'transition-colors duration-(--animate-duration-fast)',
+                  'hover:bg-surface-hover hover:text-fg',
+                  'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
+                )}
+              >
+                <ChevronRight
+                  aria-hidden
+                  className={cn(
+                    'size-4 transition-transform duration-(--animate-duration-fast)',
+                    isOpen && 'rotate-90',
+                  )}
+                />
+              </button>
+            )}
+          </TableCell>
+        ) : null}
+
+        {columns.map((column, at) => (
+          <TableCell
+            key={column.id}
+            numeric={column.numeric ?? false}
+            sticky={column.sticky ?? false}
+            {...(at > 0 && column.shortHeader !== undefined && !column.cardTrailing
+              ? { 'data-label': column.shortHeader }
+              : {})}
+            className={cn(
+              CARD.cell,
+              at === 0 ? CARD.title : column.cardTrailing ? CARD.trailing : CARD.meta,
+              at === 0 && hasTrailing && CARD.titleBeside,
+              at > 0 && column.shortHeader !== undefined && !column.cardTrailing && CARD.label,
+              column.hideOnCard && 'touch:hidden',
+              // One line, ellipsized: a value that wrapped made its row
+              // taller than the rest, and the table's height jumped
+              // as the row was measured.
+              fixed &&
+                'overflow-hidden text-ellipsis whitespace-nowrap touch:overflow-visible touch:whitespace-normal',
+              column.className,
+            )}
+          >
+            {column.cell(row)}
+          </TableCell>
+        ))}
+
+        {rowActions ? (
+          <TableCell
+            className={cn('w-12', menuOnCard ? [CARD.cell, CARD.trailing] : 'touch:hidden')}
+          >
+            <RowMenu name={name} actions={rowActions(row)} />
+          </TableCell>
+        ) : null}
+
+        {onRowClick && !renderDetail ? (
+          // A card that opens something says so with a chevron. It
+          // exists only on the card: a desk row has its hover instead.
+          <td
+            aria-hidden
+            className="hidden text-fg-subtle touch:absolute touch:end-3 touch:top-1/2 touch:block touch:-translate-y-1/2"
+          >
+            <ChevronRight className="size-4.5" />
+          </td>
+        ) : null}
+      </DataRow>
+
+      {isOpen ? (
+        <TableRow
+          id={`${base}-${id}`}
+          className="bg-surface-sunken/50 touch:block touch:bg-surface touch:px-4 touch:pb-3.5"
+        >
+          {leadingColumns > 0 ? (
+            <TableCell colSpan={leadingColumns} className="touch:hidden" />
+          ) : null}
+          <TableCell
+            colSpan={columns.length}
+            className={cn(
+              'h-auto py-3',
+              CARD.cell,
+              'touch:rounded-md touch:bg-surface-sunken touch:p-3.5!',
+            )}
+          >
+            <div className="motion-safe:animate-fade-in">{detail}</div>
+          </TableCell>
+        </TableRow>
+      ) : null}
+    </>
+  );
+}) as <T>(props: BodyRowProps<T> & { key?: string }) => JSX.Element;
 
 /**
  * One row, sortable when it needs to be.
@@ -1693,60 +1805,38 @@ function DataRow({
 }
 
 /**
- * The rows a virtualized body has not drawn, as their skeleton.
+ * The rows a virtualized body has not drawn, as plain rows.
  *
- * A fling can outrun the render: the browser scrolls on its own and, until the
- * rows for the new position are drawn, shows what is there. Here that is a bar
- * in each column, one per row height, in the shape of the rows rather than a
- * blank box. Cell backgrounds, so it costs no nodes and nothing to paint while
- * it scrolls.
+ * Every row here is loaded, only not mounted, so it is drawn as a row and not
+ * as a skeleton: a reader scrolling back over what they have already seen must
+ * never be told it is loading. At a desk, a hairline at each row's height, so
+ * a fling that outruns the render shows the table's own rhythm; under a finger
+ * a card's height is its own, and the surface is left plain. One cell across
+ * every column, a background, so it costs nothing to paint while it scrolls.
+ * Only the `loadingMore` row, for rows that are not here yet, is a skeleton.
  */
 function SpacerRow({
   height,
   rowHeight,
-  leading,
-  columns,
-  trailing,
+  span,
 }: {
   height: number;
   rowHeight: number;
-  leading: number;
-  columns: number;
-  trailing: number;
+  span: number;
 }): JSX.Element {
-  const tile = `${String(rowHeight)}px`;
-  const fill = 'var(--reach-color-surface-sunken)';
-  // The hairline under each row, as `divide-y` draws it.
-  const line =
-    'linear-gradient(transparent calc(100% - 1px), var(--reach-color-border) calc(100% - 1px))';
-  // A bar as tall as the loading row's, centred in the row.
-  const bar = `linear-gradient(transparent calc(50% - 7px), ${fill} calc(50% - 7px), ${fill} calc(50% + 7px), transparent calc(50% + 7px))`;
-  const blank: CSSProperties = {
-    backgroundImage: line,
-    backgroundSize: `100% ${tile}`,
-    backgroundRepeat: 'repeat-y',
-  };
-  const barred: CSSProperties = {
-    backgroundImage: `${bar}, ${line}`,
-    backgroundSize: `75% ${tile}, 100% ${tile}`,
-    backgroundRepeat: 'repeat-y',
-    backgroundOrigin: 'content-box, border-box',
-  };
   return (
-    <tr aria-hidden data-skeleton style={{ height }} className="touch:block">
-      {Array.from({ length: leading + columns + trailing }, (_, i) => {
-        const data = i >= leading && i < leading + columns;
-        return (
-          <TableCell
-            key={i}
-            style={data ? barred : blank}
-            className={cn(
-              'h-auto py-0 [[data-dense]_&]:h-auto [[data-dense]_&]:py-0',
-              i === leading ? 'touch:block touch:h-full' : 'touch:hidden',
-            )}
-          />
-        );
-      })}
+    <tr aria-hidden data-spacer style={{ height }} className="touch:block">
+      <TableCell
+        colSpan={span}
+        style={{
+          // The hairline under each row, as `divide-y` draws it.
+          backgroundImage:
+            'linear-gradient(transparent calc(100% - 1px), var(--reach-color-border) calc(100% - 1px))',
+          backgroundSize: `100% ${String(rowHeight)}px`,
+          backgroundRepeat: 'repeat-y',
+        }}
+        className="h-auto py-0 [[data-dense]_&]:h-auto [[data-dense]_&]:py-0 touch:block touch:h-full touch:bg-none!"
+      />
     </tr>
   );
 }
