@@ -54,7 +54,7 @@ describe('Review’s chips', () => {
   };
   const counts = { changes: 3, identifiers: 2, duplicates: 1, accessRequests: 0, exports: 0 };
   const chips = () =>
-    screen.getAllByRole('radio').map((chip) => chip.textContent?.replace(/\s+/gu, ' ').trim());
+    screen.getAllByRole('radio').map((chip) => chip.textContent.replace(/\s+/gu, ' ').trim());
 
   it('counts every kind over everybody, All the most, the same whichever chip is chosen', async () => {
     renderReview({ completeness, counts }, { onKindChange: vi.fn(), onLoadMoreMissing: vi.fn(() => Promise.resolve(null)) });

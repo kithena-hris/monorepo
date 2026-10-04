@@ -426,7 +426,6 @@ function Missing({
       personId: c.personId,
       keys: Object.keys(c.values).filter((k) => pages.fields.get(k)?.sensitive !== true),
     }));
-    const count = applied.reduce((n, c) => n + c.keys.length, 0);
     setFilled((f) => {
       const next = { ...f };
       for (const c of applied) next[c.personId] = [...(next[c.personId] ?? []), ...c.keys];
