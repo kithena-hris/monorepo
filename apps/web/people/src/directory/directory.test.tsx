@@ -153,7 +153,7 @@ describe('Directory', () => {
     expect(onFiltersChange).toHaveBeenCalledWith({});
 
     // The panel opens with what is in force, and applies it back.
-    await user.click(screen.getByRole('button', { name: 'Filters (2)' }));
+    await user.click(screen.getByRole('button', { name: 'Add filter' }));
     const panel = screen.getByRole('dialog', { name: 'Filter people' });
     await user.click(within(panel).getByRole('button', { name: 'Apply 2 conditions' }));
     expect(onConditionsChange).toHaveBeenLastCalledWith(filtered.query?.conditions, 'all');
@@ -292,14 +292,14 @@ describe('Directory', () => {
     expect(onOpen).not.toHaveBeenCalled();
     await user.keyboard('e');
     expect(onOpen).toHaveBeenCalledWith('a');
-    // The keys are said once, at the list's head, not on the card: under a
-    // list that keeps loading they were only reached at its end.
-    const hint = screen.getByText(/to open the card/);
+    // The keys are said once, in the line under the list, not on the card.
+    const hint = screen.getByText('profile');
     expect(look).not.toContainElement(hint);
-    expect(hint).toHaveTextContent(/to move.*to open the card.*E for the profile/);
+    expect(hint).toHaveTextContent('E profile');
+    expect(screen.getByText('quick look')).toBeInTheDocument();
     expect(
       hint.compareDocumentPosition(screen.getByRole('region', { name: 'People' })) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+        Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
     // Plain rows: no stripes.
     expect(container.querySelector('tr[data-striped]')).toBeNull();
@@ -488,9 +488,7 @@ describe('Directory', () => {
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
     expect(screen.getAllByText('Grace Hopper').length).toBeGreaterThan(0);
     // Said as it lands, to a screen reader too.
-    expect(screen.getByRole('status')).toHaveTextContent(
-      '1 more loaded. Results stream in 50 at a time.',
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Loads 50 at a time');
     // No pager beside an infinite table.
     expect(screen.queryByRole('navigation', { name: 'Pages of people' })).toBeNull();
     expect(onLoadMore).toHaveBeenCalledOnce();
@@ -534,7 +532,7 @@ describe('Directory', () => {
     });
     // The cards' own shape says a page is coming; the line under them holds still.
     expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(4);
-    expect(screen.getByRole('status')).toHaveTextContent('Results stream in 50 at a time.');
+    expect(screen.getByRole('status')).toHaveTextContent('Loads 50 at a time');
     expect(screen.queryByRole('button', { name: /more people/i })).toBeNull();
     arrive({
       people: [
@@ -550,9 +548,7 @@ describe('Directory', () => {
       next: null,
     });
     expect(await screen.findByText('Katherine Johnson')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(
-      '1 more loaded. Results stream in 50 at a time.',
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('1 more loaded. Loads 50 at a time');
     expect(container.querySelectorAll('li[aria-hidden="true"]')).toHaveLength(0);
     expect(await axeViolations(container)).toEqual([]);
     vi.unstubAllGlobals();
@@ -575,8 +571,10 @@ describe('Directory', () => {
     const { rerender } = render(
       <Directory {...props({ load: { status: 'ready', data: grouped }, onGroupChange })} />,
     );
+    // Sort, group and columns are one View menu (C1b).
+    await user.click(screen.getByRole('button', { name: 'View' }));
     await user.click(screen.getByRole('combobox', { name: 'Group by' }));
-    await user.click(await screen.findByRole('option', { name: 'Group by cost centre' }));
+    await user.click(await screen.findByRole('option', { name: 'Cost centre' }));
     expect(onGroupChange).toHaveBeenCalledWith('cost_centre');
     rerender(
       <Directory
@@ -645,7 +643,7 @@ describe('the directory’s search, in the address (smart search: AI1–AI4)', (
     expect(within(row).getByRole('button', { name: 'Edit as filters' })).toBeInTheDocument();
     expect(screen.getByText(/isn’t set up here/u)).toBeInTheDocument();
     expect(box).toHaveValue('managers in Sales');
-    expect(screen.getByText('Updated as you edit the chips')).toBeInTheDocument();
+    expect(screen.getByText('Updates as you edit the chips')).toBeInTheDocument();
     expect(await axeViolations(container)).toEqual([]);
   });
 
@@ -706,6 +704,7 @@ describe('the directory’s search, in the address (smart search: AI1–AI4)', (
     expect(screen.queryByText(/null/u)).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
     // The same metrics, as orders anybody can pick.
+    await user.click(screen.getByRole('button', { name: 'View' }));
     await user.click(screen.getByRole('combobox', { name: 'Sort by' }));
     await user.click(await screen.findByRole('option', { name: 'Fewest missing details' }));
     expect(onSortChange).toHaveBeenCalledWith({ key: 'missing_count', direction: 'asc' });

@@ -2,12 +2,20 @@ import {
   Avatar,
   Badge,
   Button,
+  Card,
   Chip,
   ChipGroup,
   ChipGroupItem,
   ChipRow,
   ColumnChooser,
   DataTable,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   FilterBuilder,
   Kbd,
@@ -17,6 +25,9 @@ import {
   ListItem,
   PageHeader,
   PersonCard,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   QuickLook,
   ScrollPosition,
   SearchField,
@@ -27,13 +38,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
   Skeleton,
   Stack,
   Toolbar,
@@ -70,8 +74,7 @@ import { MissingMark } from '../record/missing';
 import { SaveSegment, type SegmentRef } from '../segments';
 import {
   AskBar,
-  Clarify,
-  Refused,
+  NeedsYou,
   Understood,
   cacheAnswer,
   cachedAnswer,
@@ -617,16 +620,12 @@ function Views({
   segmentId,
   incomplete,
   onView,
-  onSaveSegment,
-  canSave,
 }: {
   readonly state: DirectoryState;
   readonly conditions: readonly DirectoryCondition[];
   readonly segmentId: string | null;
   readonly incomplete: boolean;
   readonly onView?: DirectoryProps['onView'];
-  readonly onSaveSegment?: DirectoryProps['onSaveSegment'];
-  readonly canSave: boolean;
 }): JSX.Element | null {
   const statuses = (state.fields ?? []).some((f) => f.key === 'status');
   const statusIs = (value: string) =>
@@ -681,16 +680,15 @@ function Views({
       id: `segment:${s.id}`,
       label: s.name,
       count: null,
+      saved: true,
       on: segmentId === s.id,
       view: { conditions: [], incomplete: false, segmentId: s.id },
     })),
   ];
-  if (onView === undefined || views.length < 2) {
-    return canSave && onSaveSegment !== undefined ? <SaveSegment onSave={onSaveSegment} /> : null;
-  }
+  if (onView === undefined || views.length < 2) return null;
   const active = views.find((v) => v.on)?.id ?? '';
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+    <div className="flex min-w-0 items-center">
       <ChipGroup
         type="single"
         scroll
@@ -704,6 +702,7 @@ function Views({
       >
         {views.map((v) => (
           <ChipGroupItem key={v.id} value={v.id} variant="view">
+            {'saved' in v ? <icons.starred aria-hidden /> : null}
             {v.label}
             {v.count === null ? null : (
               <span className="font-medium tabular-nums">{v.count.toLocaleString('en-GB')}</span>
@@ -711,7 +710,6 @@ function Views({
           </ChipGroupItem>
         ))}
       </ChipGroup>
-      {canSave && onSaveSegment !== undefined ? <SaveSegment onSave={onSaveSegment} /> : null}
     </div>
   );
 }
@@ -1526,16 +1524,21 @@ function Body({
         ? {}
         : {
             selectable: true,
+            // One floating bar, one action (C6).
             bulkActions: (picked: DirectoryPerson[]) => (
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => {
-                  onBulkEdit(picked.map((p) => p.id));
-                }}
-              >
-                Edit together
-              </Button>
+              <>
+                <span className="me-1.5 text-sm font-medium opacity-75">Esc to clear</span>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  startIcon={<icons.edit aria-hidden />}
+                  onClick={() => {
+                    onBulkEdit(picked.map((p) => p.id));
+                  }}
+                >
+                  Edit together
+                </Button>
+              </>
             ),
           })}
       stickyHeader
@@ -1555,6 +1558,8 @@ function Body({
       />
     );
   const profileKeys = keysOf('row.edit', keys);
+  const previewKeys = keysOf('list.preview', keys);
+  const selectKeys = keysOf('list.select', keys);
 
   // Smart search's row: the conditions in force as the chips a question
   // became, the order when it is not by name, and the parts not used.
@@ -1673,11 +1678,9 @@ function Body({
         segmentId={segmentId}
         incomplete={incomplete}
         {...(onView === undefined ? {} : { onView })}
-        {...(onSaveSegment === undefined ? {} : { onSaveSegment })}
-        canSave={saveable && !fromQuestion}
       />
       {smart ? (
-        <div className="flex max-w-215 min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           <AskBar
             value={question}
             onValueChange={setQuestion}
@@ -1691,6 +1694,32 @@ function Body({
               {failed}
             </p>
           )}
+          <NeedsYou
+            refused={said?.refused ?? []}
+            ask={said?.ask ?? null}
+            coarse={coarse}
+            onPick={(r) => {
+              const topic = said?.ask?.topic;
+              if (topic != null) rememberReading(topic, r.label);
+              revise((a) => ({ ...a, ask: null }));
+              onConditionsChange?.(r.conditions, r.match);
+            }}
+            onUse={(r) => {
+              if (r.instead === null) return;
+              revise((a) => ({
+                ...a,
+                refused: (a.refused ?? []).filter((x) => x.text !== r.text),
+              }));
+              onConditionsChange?.([...conditions, r.instead.condition], 'all');
+            }}
+            onRemove={(r) => {
+              revise((a) => ({
+                ...a,
+                refused: (a.refused ?? []).filter((x) => x.text !== r.text),
+              }));
+              setQuestion((q) => q.replace(r.text, '').replaceAll(/\s+/gu, ' ').trim());
+            }}
+          />
           {fromQuestion && understood.length + unusedParts.length + sayNotes.length > 0 ? (
             <Understood
               chips={understood}
@@ -1705,39 +1734,6 @@ function Body({
               notes={sayNotes}
             />
           ) : null}
-          {said?.ask == null || said.ask.readings.length === 0 ? null : (
-            <Clarify
-              phrase={said.ask.phrase}
-              readings={said.ask.readings}
-              coarse={coarse}
-              onPick={(r) => {
-                const topic = said.ask?.topic;
-                if (topic != null) rememberReading(topic, r.label);
-                revise((a) => ({ ...a, ask: null }));
-                onConditionsChange?.(r.conditions, r.match);
-              }}
-            />
-          )}
-          {(said?.refused ?? []).length === 0 ? null : (
-            <Refused
-              refused={said?.refused ?? []}
-              onUse={(r) => {
-                if (r.instead === null) return;
-                revise((a) => ({
-                  ...a,
-                  refused: (a.refused ?? []).filter((x) => x.text !== r.text),
-                }));
-                onConditionsChange?.([...conditions, r.instead.condition], 'all');
-              }}
-              onRemove={(r) => {
-                revise((a) => ({
-                  ...a,
-                  refused: (a.refused ?? []).filter((x) => x.text !== r.text),
-                }));
-                setQuestion((q) => q.replace(r.text, '').replaceAll(/\s+/gu, ' ').trim());
-              }}
-            />
-          )}
         </div>
       ) : null}
       {coarse && fromQuestion ? (
@@ -1747,6 +1743,12 @@ function Body({
           {remindButton === null ? null : <span className="ms-auto">{remindButton}</span>}
         </div>
       ) : null}
+      {/*
+        One toolbar (C1): the filters in force as chips, then the view and the
+        export. Sort, group and columns are one View menu rather than three
+        controls; after a question the chips are the question's, above, and
+        this row says how many it found and what to do with them.
+      */}
       <Toolbar
         {...(smart
           ? {}
@@ -1768,7 +1770,7 @@ function Body({
             coarse ? undefined : (
               <p className="flex items-baseline gap-2.5 text-sm text-fg-muted">
                 <span className="text-base font-bold text-fg">{peopleCount(state.total)}</span>
-                Updated as you edit the chips
+                Updates as you edit the chips
               </p>
             )
           ) : (
@@ -1787,12 +1789,15 @@ function Body({
                 </Chip>
               ))}
               {onConditionsChange === undefined || fields.length === 0 ? null : (
-                <FiltersTrigger
-                  count={conditions.length}
-                  onOpen={() => {
+                <Chip
+                  variant="dashed"
+                  startIcon={<icons.add aria-hidden />}
+                  onClick={() => {
                     setFiltersOpen(true);
                   }}
-                />
+                >
+                  Add filter
+                </Chip>
               )}
               {chips.length === 0 ? null : (
                 <Button
@@ -1806,104 +1811,31 @@ function Body({
                   Clear all
                 </Button>
               )}
+              {saveable ? <SaveSegment onSave={onSaveSegment} /> : null}
             </ChipRow>
           )
         }
         actions={
           coarse ? undefined : (
             <span className="flex flex-wrap items-center gap-2">
-              {view === 'list' && rows.length > 0 ? (
-                // The list's keys, in its toolbar: under a list that keeps
-                // loading they were only reached once the last page had.
-                <span className="me-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-fg-muted">
-                  <Kbd keyName="up" />
-                  <Kbd keyName="down" /> to move
-                  <span aria-hidden>·</span>
-                  <Kbd keyName="enter" /> to open the card
-                  {profileKeys.length === 0 ? null : (
-                    <>
-                      <span aria-hidden>·</span>
-                      <KbdShortcut keys={profileKeys} /> for the profile
-                    </>
-                  )}
-                </span>
-              ) : null}
               {fromQuestion ? remindButton : null}
               {fromQuestion && saveable ? (
                 <SaveSegment onSave={onSaveSegment} label="Save as view" />
               ) : null}
-              {onSortChange === undefined || metrics.length === 0 || grouping !== null ? null : (
-                // What People works out, as orders a person can pick by hand.
-                <Select
-                  value={
-                    sort !== null && metrics.some((m) => m.key === sort.key)
-                      ? `${sort.key}:${sort.direction}`
-                      : ANY
-                  }
-                  onValueChange={(value) => {
-                    const [key = '', direction] = value.split(':');
-                    onSortChange(
-                      value === ANY
-                        ? null
-                        : { key, direction: direction === 'asc' ? 'asc' : 'desc' },
-                    );
-                  }}
-                >
-                  <SelectTrigger aria-label="Sort by" size="sm" className="w-auto min-w-36">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ANY}>
-                      {sort === null || metrics.every((m) => m.key !== sort.key)
-                        ? 'Sort by…'
-                        : 'No ranking'}
-                    </SelectItem>
-                    {metrics.flatMap((m) => [
-                      <SelectItem key={`${m.key}:desc`} value={`${m.key}:desc`}>
-                        {capital(m.most)}
-                      </SelectItem>,
-                      <SelectItem key={`${m.key}:asc`} value={`${m.key}:asc`}>
-                        {capital(m.least)}
-                      </SelectItem>,
-                    ])}
-                  </SelectContent>
-                </Select>
-              )}
-              {onGroupChange === undefined || groupable.length === 0 || view !== 'list' ? null : (
-                <Select
-                  value={grouping?.key ?? ANY}
-                  onValueChange={(value) => {
-                    onGroupChange(value === ANY ? null : value);
-                  }}
-                >
-                  <SelectTrigger aria-label="Group by" size="sm" className="w-auto min-w-36">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ANY}>No grouping</SelectItem>
-                    {groupable.map((f) => (
-                      <SelectItem key={f.key} value={f.key}>
-                        Group by {f.label.toLowerCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <ColumnChooser
-                columns={[
-                  { id: PERSON, label: 'Name', locked: true },
-                  ...state.columns.map((c) => ({ id: c.key, label: c.label })),
-                ]}
-                value={columnsChosen.value}
-                onChange={columnsChosen.choose}
-                onReset={() => {
-                  columnsChosen.choose(null);
-                }}
+              <ViewMenu
+                columns={state.columns}
+                chosen={columnsChosen}
+                metrics={onSortChange === undefined ? [] : metrics}
+                sort={sort}
+                onSortChange={onSortChange}
+                groupable={onGroupChange === undefined || view !== 'list' ? [] : groupable}
+                group={grouping?.key ?? null}
+                onGroupChange={onGroupChange}
               />
               {onExport === undefined ? null : (
                 <Button
                   size="sm"
-                  variant={fromQuestion ? 'ghost' : 'secondary'}
+                  variant="ghost"
                   startIcon={<icons.download aria-hidden />}
                   onClick={onExport}
                 >
@@ -1919,6 +1851,7 @@ function Body({
           open={filtersOpen}
           onOpenChange={setFiltersOpen}
           fields={fields}
+          metrics={metrics}
           conditions={conditions}
           match={match}
           onApply={onConditionsChange}
@@ -2026,18 +1959,53 @@ function Body({
       {(coarse || view === 'cards') && loaded.loadMore !== undefined ? (
         <div ref={endOfPage} aria-hidden className="h-px" />
       ) : null}
-      {onLoadMore === undefined ? null : (
-        // Said as each page lands, to a screen reader too: "50 more loaded".
-        // The line itself holds still: pages load a page ahead of the reader,
-        // so a "Loading" swapped in each time would blink under a scroll that
-        // never waits. Where they would wait, the rows' own skeleton says so.
-        <p role="status" className="flex items-center justify-center gap-2.5 text-sm text-fg-muted">
-          {loaded.added === null || loaded.loading ? null : (
-            <span className="sr-only">{loaded.added} more loaded. </span>
+      {coarse ? null : (
+        // The list's keys, and how it loads, in one line under it (C1).
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fg-muted">
+          {view === 'list' && rows.length > 0 ? (
+            <>
+              <span className="flex items-center gap-1.5">
+                <Kbd keyName="up" />
+                <Kbd keyName="down" /> move
+              </span>
+              {previewKeys.length === 0 ? null : (
+                <span className="flex items-center gap-1.5">
+                  <KbdShortcut keys={previewKeys} /> quick look
+                </span>
+              )}
+              {profileKeys.length === 0 ? null : (
+                <span className="flex items-center gap-1.5">
+                  <KbdShortcut keys={profileKeys} /> profile
+                </span>
+              )}
+              {onBulkEdit === undefined || selectKeys.length === 0 ? null : (
+                <span className="flex items-center gap-1.5">
+                  <KbdShortcut keys={selectKeys} /> select
+                </span>
+              )}
+            </>
+          ) : null}
+          {onLoadMore === undefined ? null : (
+            // Said as each page lands, to a screen reader too: "50 more loaded".
+            // The line itself holds still: pages load a page ahead of the reader,
+            // so a "Loading" swapped in each time would blink under a scroll that
+            // never waits. Where they would wait, the rows' own skeleton says so.
+            <p role="status" className="ms-auto">
+              {loaded.added === null || loaded.loading ? null : (
+                <span className="sr-only">{loaded.added} more loaded. </span>
+              )}
+              {`Loads ${String(DIRECTORY_PAGE)} at a time${sort === null ? '' : ` · ${orderWords(sort, fields, metrics)}`}`}
+            </p>
           )}
-          {`Results stream in ${String(DIRECTORY_PAGE)} at a time${sort === null ? '' : `, ${orderWords(sort, fields, metrics)}`}.`}
-        </p>
+        </div>
       )}
+      {fromQuestion && said?.by === 'assistant' ? (
+        <p className="flex items-center gap-1.5 text-xs text-fg-muted">
+          <icons.assistant aria-hidden className="size-3" />
+          Read by the assistant: it saw your sentence and field names, never a value. Every chip is
+          an ordinary filter in the address.
+        </p>
+      ) : null}
       {onLoadMore !== undefined ||
       (onNextPage === undefined && onFirstPage === undefined) ? null : (
         <nav aria-label="Pages of people" className="flex justify-end gap-2">
@@ -2084,33 +2052,138 @@ function useColumns(columns: readonly DirectoryColumn[]) {
 }
 
 /**
- * The advanced filters: conditions, one per row, all or any of them, in a
- * side panel so the table keeps the page. Nothing applies until Apply, so a
- * half-written condition never sends 50,000 people back to be counted.
+ * One "View" menu (C1b): the order, the grouping and the columns, which were
+ * three controls in the toolbar. Sorting by a metric and grouping are
+ * People's, in the address; the columns are this browser's. Grouping turns
+ * sorting off, as it orders by the group.
  */
-/** The chip that opens the filters: "Add filter", or how many are in force. */
-function FiltersTrigger({
-  count,
-  onOpen,
+function ViewMenu({
+  columns,
+  chosen,
+  metrics,
+  sort,
+  onSortChange,
+  groupable,
+  group,
+  onGroupChange,
 }: {
-  readonly count: number;
-  readonly onOpen: () => void;
+  readonly columns: readonly DirectoryColumn[];
+  readonly chosen: ReturnType<typeof useColumns>;
+  readonly metrics: readonly DirectoryMetric[];
+  readonly sort: DirectorySort | null;
+  readonly onSortChange: DirectoryProps['onSortChange'];
+  readonly groupable: readonly DirectoryField[];
+  readonly group: string | null;
+  readonly onGroupChange: DirectoryProps['onGroupChange'];
 }): JSX.Element {
+  const label = 'text-xs font-semibold text-fg-subtle';
   return (
-    <Chip
-      variant={count === 0 ? 'dashed' : 'filled'}
-      startIcon={<icons.add aria-hidden />}
-      onClick={onOpen}
-    >
-      {count === 0 ? 'Add filter' : `Filters (${String(count)})`}
-    </Chip>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="ghost" startIcon={<icons.adjust aria-hidden />}>
+          View
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" aria-label="View" className="flex w-75 flex-col gap-2.5">
+        {onSortChange === undefined || metrics.length === 0 ? null : (
+          <>
+            <p className={label}>Sort by</p>
+            <Select
+              disabled={group !== null}
+              value={
+                sort !== null && metrics.some((m) => m.key === sort.key)
+                  ? `${sort.key}:${sort.direction}`
+                  : ANY
+              }
+              onValueChange={(value) => {
+                const [key = '', direction] = value.split(':');
+                onSortChange(
+                  value === ANY ? null : { key, direction: direction === 'asc' ? 'asc' : 'desc' },
+                );
+              }}
+            >
+              <SelectTrigger aria-label="Sort by" size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>
+                  {sort === null || metrics.every((m) => m.key !== sort.key)
+                    ? 'Name, or the column chosen'
+                    : 'No ranking'}
+                </SelectItem>
+                {metrics.flatMap((m) => [
+                  <SelectItem key={`${m.key}:desc`} value={`${m.key}:desc`}>
+                    {capital(m.most)}
+                  </SelectItem>,
+                  <SelectItem key={`${m.key}:asc`} value={`${m.key}:asc`}>
+                    {capital(m.least)}
+                  </SelectItem>,
+                ])}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+        {onGroupChange === undefined || groupable.length === 0 ? null : (
+          <>
+            <p className={label}>Group by</p>
+            <Select
+              value={group ?? ANY}
+              onValueChange={(value) => {
+                onGroupChange(value === ANY ? null : value);
+              }}
+            >
+              <SelectTrigger aria-label="Group by" size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>No grouping</SelectItem>
+                {groupable.map((f) => (
+                  <SelectItem key={f.key} value={f.key}>
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+        <p className={label}>Columns</p>
+        <ColumnChooser
+          inline
+          columns={[
+            { id: PERSON, label: 'Name', locked: true },
+            ...columns.map((c) => ({ id: c.key, label: c.label })),
+          ]}
+          value={chosen.value}
+          onChange={chosen.choose}
+        />
+        <div className="flex items-center gap-2">
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() => {
+              chosen.choose(null);
+            }}
+          >
+            Reset columns
+          </Button>
+          <span className="ms-auto text-xs text-fg-subtle">Kept in this browser</span>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
+/**
+ * The advanced filters (C3): conditions, one per row, all or any of them, in
+ * a centred dialog, since it is a short task with one outcome. Nothing
+ * applies until Apply, so a half-written condition never sends 50,000 people
+ * back to be counted. It opens on what is in force.
+ */
 function Filters({
   open,
   onOpenChange,
   fields,
+  metrics,
   conditions,
   match,
   onApply,
@@ -2118,6 +2191,8 @@ function Filters({
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly fields: readonly DirectoryField[];
+  /** What People works out that may be filtered on too, named under the conditions. */
+  readonly metrics: readonly DirectoryMetric[];
   readonly conditions: readonly DirectoryCondition[];
   readonly match: 'all' | 'any';
   readonly onApply: (conditions: readonly DirectoryCondition[], match: 'all' | 'any') => void;
@@ -2158,34 +2233,49 @@ function Filters({
     }
   }
   const setOpen = onOpenChange;
+  const worked = metrics.filter((m) => m.filter).map((m) => m.label);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetContent side="right" size="lg">
-        <SheetHeader>
-          <SheetTitle>Filter people</SheetTitle>
-          <SheetDescription>
-            Combine conditions on any column you can see. Dates, choices and text each offer what
-            fits them.
-          </SheetDescription>
-        </SheetHeader>
-        <SheetBody>
-          <FilterBuilder
-            label="Conditions"
-            fields={builderFields}
-            value={draft}
-            onChange={setDraft}
-            maxConditions={20}
-          />
-        </SheetBody>
-        <SheetFooter>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-170" sheetOnTouch={false}>
+        <DialogHeader>
+          <DialogTitle>Filter people</DialogTitle>
+          <DialogDescription>
+            Combine conditions on any column you can see. Nothing applies until you press Apply.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+          <Stack gap={4}>
+            <FilterBuilder
+              label="Conditions"
+              fields={builderFields}
+              value={draft}
+              onChange={setDraft}
+              maxConditions={20}
+            />
+            {worked.length === 0 ? null : (
+              <Card variant="fill" padded className="text-sm text-fg-muted">
+                Besides the columns you can filter on {worked.join(', ')}.
+              </Card>
+            )}
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
           <Button
             variant="ghost"
+            className="me-auto"
             onClick={() => {
               setDraft({ match: 'all', conditions: [] });
             }}
           >
             Clear
+          </Button>
+          <Button
+            onClick={() => {
+              setOpen(false);
+            }}
+          >
+            Cancel
           </Button>
           <Button
             variant="primary"
@@ -2201,8 +2291,8 @@ function Filters({
               ? 'Show everybody'
               : `Apply ${String(complete.length)} ${complete.length === 1 ? 'condition' : 'conditions'}`}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

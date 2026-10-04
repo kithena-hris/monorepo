@@ -360,12 +360,20 @@ export function Understood({
 
 const people = (n: number): string => `${String(n)} ${n === 1 ? 'person' : 'people'}`;
 
+/** A part of the "needs you" card: a heading, and what to do about it. */
+interface Part {
+  readonly title: string;
+  /** The group's name for a screen reader, where it differs from the title. */
+  readonly label: string;
+  readonly body: JSX.Element;
+}
+
 /**
  * When the question is unclear (AI4, MA3): each reading the company's fields
  * can run, with how many people it finds. Picking one applies it and is
  * remembered for next time; nothing is applied until somebody picks.
  */
-export function Clarify({
+function clarifyPart({
   phrase,
   readings,
   coarse,
@@ -375,53 +383,49 @@ export function Clarify({
   readonly readings: readonly AskedReading[];
   readonly coarse: boolean;
   readonly onPick: (reading: AskedReading) => void;
-}): JSX.Element {
+}): Part {
   const label = (r: AskedReading): string =>
     r.count === null ? r.label : `${r.label} · ${String(r.count)}`;
-  return (
-    <AssistantCard
-      level={2}
-      title={`What does “${phrase}” mean${coarse ? '' : ' here'}?`}
-      role="group"
-      aria-label={`What does “${phrase}” mean?`}
-    >
-      {coarse ? (
-        <div className="flex flex-col gap-2">
+  return {
+    title: `What does “${phrase}” mean${coarse ? '' : ' here'}?`,
+    label: `What does “${phrase}” mean?`,
+    body: coarse ? (
+      <div className="flex flex-col gap-2">
+        {readings.map((r) => (
+          <Button
+            key={r.label}
+            size="lg"
+            fullWidth
+            className="justify-start"
+            onClick={() => {
+              onPick(r);
+            }}
+          >
+            {label(r)}
+          </Button>
+        ))}
+        <p className="text-sm text-fg-muted">Pick one and I’ll remember it for next time.</p>
+      </div>
+    ) : (
+      <>
+        <div className="flex flex-wrap gap-2">
           {readings.map((r) => (
-            <Button
+            <Chip
               key={r.label}
-              size="lg"
-              fullWidth
-              className="justify-start"
               onClick={() => {
                 onPick(r);
               }}
             >
               {label(r)}
-            </Button>
+            </Chip>
           ))}
         </div>
-      ) : (
-        <>
-          <div className="flex flex-wrap gap-2">
-            {readings.map((r) => (
-              <Chip
-                key={r.label}
-                onClick={() => {
-                  onPick(r);
-                }}
-              >
-                {label(r)}
-              </Chip>
-            ))}
-          </div>
-          <p className="text-sm text-fg-muted">
-            Pick one and I’ll remember it for next time. Or keep typing to be more specific.
-          </p>
-        </>
-      )}
-    </AssistantCard>
-  );
+        <p className="text-sm text-fg-muted">
+          Pick one and I’ll remember it for next time. Or keep typing.
+        </p>
+      </>
+    ),
+  };
 }
 
 /**
@@ -429,7 +433,7 @@ export function Clarify({
  * never searched for. Where a field records something close, it is offered,
  * never applied.
  */
-export function Refused({
+function refusedPart({
   refused,
   onUse,
   onRemove,
@@ -437,52 +441,110 @@ export function Refused({
   readonly refused: readonly AskedRefusal[];
   readonly onUse: (refusal: AskedRefusal) => void;
   readonly onRemove: (refusal: AskedRefusal) => void;
-}): JSX.Element {
+}): Part {
+  const title =
+    refused.length === 1
+      ? 'One part I couldn’t use'
+      : `${String(refused.length)} parts I couldn’t use`;
+  return {
+    title,
+    label: title,
+    body: (
+      <>
+        {refused.map((r) => (
+          <div key={r.text} className="flex flex-col gap-2.5">
+            <p className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
+              <Chip variant="dashed">{r.text}</Chip>
+              <span>
+                {r.why}{' '}
+                {r.instead === null
+                  ? 'I left it out.'
+                  : `I can search the ${r.instead.label} field for “${r.instead.subject}” instead${
+                      r.instead.count === null
+                        ? '.'
+                        : `, which ${people(r.instead.count)} ${r.instead.count === 1 ? 'has' : 'have'} listed.`
+                    }`}
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {r.instead === null ? null : (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => {
+                    onUse(r);
+                  }}
+                >
+                  Use the {r.instead.label} field
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={() => {
+                  onRemove(r);
+                }}
+              >
+                Remove it
+              </Button>
+            </div>
+          </div>
+        ))}
+      </>
+    ),
+  };
+}
+
+const COUNT_WORDS = ['', 'one', 'two', 'three'];
+
+/**
+ * Everything a question needs from the person before it is searched, in one
+ * card above the results (C2): a part that will not be used, and a phrase
+ * that could mean several things. One of them alone is the card's title; both
+ * share it, side by side, rather than stacking two cards.
+ */
+export function NeedsYou({
+  refused,
+  ask,
+  coarse,
+  onPick,
+  onUse,
+  onRemove,
+}: {
+  readonly refused: readonly AskedRefusal[];
+  readonly ask: { readonly phrase: string; readonly readings: readonly AskedReading[] } | null;
+  readonly coarse: boolean;
+  readonly onPick: (reading: AskedReading) => void;
+  readonly onUse: (refusal: AskedRefusal) => void;
+  readonly onRemove: (refusal: AskedRefusal) => void;
+}): JSX.Element | null {
+  const parts = [
+    refused.length === 0 ? null : refusedPart({ refused, onUse, onRemove }),
+    ask === null || ask.readings.length === 0
+      ? null
+      : clarifyPart({ phrase: ask.phrase, readings: ask.readings, coarse, onPick }),
+  ].filter((p) => p !== null);
+  const [only] = parts;
+  if (only === undefined) return null;
+  if (parts.length === 1) {
+    return (
+      <AssistantCard level={2} title={only.title} role="group" aria-label={only.label}>
+        {only.body}
+      </AssistantCard>
+    );
+  }
   return (
     <AssistantCard
       level={2}
-      title={
-        refused.length === 1
-          ? 'One part I couldn’t use'
-          : `${String(refused.length)} parts I couldn’t use`
-      }
+      title={`Before I search, ${COUNT_WORDS[parts.length] ?? String(parts.length)} things`}
     >
-      {refused.map((r) => (
-        <div key={r.text} className="flex flex-col gap-2.5">
-          <p className="text-sm text-fg-muted">
-            <span className="font-medium text-fg">“{r.text}”</span>: {r.why}{' '}
-            {r.instead === null
-              ? 'I left it out.'
-              : `I can search the ${r.instead.label} field for “${r.instead.subject}” instead${
-                  r.instead.count === null
-                    ? '.'
-                    : `, which ${people(r.instead.count)} ${r.instead.count === 1 ? 'has' : 'have'} listed.`
-                }`}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {r.instead === null ? null : (
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => {
-                  onUse(r);
-                }}
-              >
-                Use the {r.instead.label} field
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                onRemove(r);
-              }}
-            >
-              Remove it
-            </Button>
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+        {parts.map((p) => (
+          <div key={p.title} role="group" aria-label={p.label} className="flex flex-col gap-2.5">
+            <h3 className="text-sm font-semibold text-fg">{p.title}</h3>
+            {p.body}
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </AssistantCard>
   );
 }
