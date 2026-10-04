@@ -332,6 +332,24 @@ export const CASES: readonly EvalCase[] = [
     ),
   },
 
+  {
+    id: 'j-waiting-for-me',
+    group: 'joins',
+    question: 'What’s waiting for me?',
+    company: 'both',
+    asker: 'manager',
+    expect: or(
+      plan([step('s1', 'people.approvals'), step('s2', 'timeoff.pending')], {
+        kind: 'one',
+        step: ['s1', 's2'],
+      }),
+      plan([step('s1', 'timeoff.pending'), step('s2', 'people.approvals')], {
+        kind: 'one',
+        step: ['s1', 's2'],
+      }),
+    ),
+  },
+
   // People parity: every intent People's `ask` handled
   {
     id: 'p-sales',
@@ -610,12 +628,15 @@ function normal(valid: ValidPlan): unknown {
     case 'plan':
       return {
         kind: 'plan',
-        // A people answer lists the same whether the model wrote "one" or "list".
+        // A people answer lists the same whether the model wrote "one" or "list",
+        // and one answer over several queues the same whichever it named first.
         answer:
           valid.answer.kind === 'one' &&
           valid.steps.find((s) => s.id === valid.answer.step)?.capability.output === 'people'
             ? { ...valid.answer, kind: 'list' }
-            : valid.answer,
+            : valid.answer.kind === 'one' && valid.answer.also !== undefined
+              ? { kind: 'one', step: [valid.answer.step, ...valid.answer.also].toSorted() }
+              : valid.answer,
         steps: valid.steps.map((s) => {
           const { filters, match, on, ...rest } = s.input;
           const input: Record<string, unknown> = { ...rest };

@@ -38,8 +38,14 @@ export const PlanAnswer = z.discriminatedUnion('kind', [
     by: FieldKey.optional(),
   }),
   z.strictObject({ kind: z.literal('list').register(policy, asPublic()), step: StepId }),
-  /** A profile, items, or who a name could be. */
-  z.strictObject({ kind: z.literal('one').register(policy, asPublic()), step: StepId }),
+  /**
+   * A profile, items, or who a name could be. Several steps only for items:
+   * "what's waiting for me?" lists each module's queue under its name.
+   */
+  z.strictObject({
+    kind: z.literal('one').register(policy, asPublic()),
+    step: z.union([StepId, z.array(StepId).min(1).max(ASSISTANT_LIMITS.steps)]),
+  }),
 ]);
 export type PlanAnswer = z.infer<typeof PlanAnswer>;
 

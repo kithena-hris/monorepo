@@ -255,6 +255,39 @@ describe('a slip with the right meaning is put where it belongs', () => {
   });
 });
 
+describe('one answer over several queues (AST-032)', () => {
+  const queues = [
+    { id: 's1', capability: 'people.approvals', input: {} },
+    { id: 's2', capability: 'timeoff.pending', input: {} },
+  ];
+
+  it('names every step whose items it lists, the first as its step', () => {
+    const r = read(plan(queues, { kind: 'one', step: ['s1', 's2'] }));
+    expect(r.ok && r.value.kind === 'plan' && r.value.answer).toEqual({
+      kind: 'one',
+      step: 's1',
+      also: ['s2'],
+    });
+  });
+
+  it('reads one step in a list as that step, and the same step twice as once', () => {
+    const r = read(plan(queues.slice(0, 1), { kind: 'one', step: ['s1', 's1'] }));
+    expect(r.ok && r.value.kind === 'plan' && r.value.answer).toEqual({ kind: 'one', step: 's1' });
+  });
+
+  it('refuses several steps where one is not items, or does not exist', () => {
+    expect(
+      refusal(
+        plan([...queues, { id: 's3', capability: 'people.person', input: { name: 'Michael' } }], {
+          kind: 'one',
+          step: ['s1', 's3'],
+        }),
+      ),
+    ).toBe('ANSWER_KIND');
+    expect(refusal(plan(queues, { kind: 'one', step: ['s1', 's4'] }))).toBe('ANSWER_STEP');
+  });
+});
+
 describe('a filter is read as People reads one', () => {
   it('takes an option’s label as its value, and asks a choice as "any of"', () => {
     const r = read(

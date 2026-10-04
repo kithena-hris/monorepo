@@ -841,7 +841,7 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   own sentences ("1 time off request is waiting for your decision:") and
   reads every label for a private type in a chat app, as it reads a detail.
 
-### [ ] AST-032 — An answer over several item steps
+### [x] AST-032 — An answer over several item steps
 
 - **Spec** PRD §17, Phase 2
 - **Files** `packages/contracts/src/assistant/plan.ts`,
@@ -851,6 +851,15 @@ wiring)` builds every client from the settings (`TENANT_APP_BASE` makes the
   the answer lists each module's under its name. "What's waiting for me?"
   plans `people.approvals` and `timeoff.pending`.
 - **Done when** the eval set gains the case and it passes.
+- **As built** `PlanAnswer`'s `one` takes `step` as one id or a list of
+  them; `readPlan` reads a list as `{ kind: 'one', step, also }` (each id
+  once, a list of one as that step) and refuses it unless every step it names
+  is `items`. Each named queue is asked for 25, and the answer fails whole if
+  any of them fails, naming the module, rather than list some of them. The
+  answer is "3 things are waiting for you:" and each module's name with its
+  items, or "Time Off: nothing waiting.". The instruction says to plan a step
+  per queue and answer `"step":["s1","s2"]`; the eval reads the steps in
+  either order as the same plan.
 
 ### [ ] AST-033 — Follow-ups in a conversation
 
