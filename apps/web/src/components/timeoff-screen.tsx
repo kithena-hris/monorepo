@@ -1,6 +1,5 @@
 'use client';
 
-import { Skeleton } from '@reach/ui';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTransition, type JSX } from 'react';
 
@@ -273,15 +272,9 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
             ? { ...frame, notice: load.notice }
             : frame,
       }}
-      // Drawn in the browser, the screen is its header's shape until it is.
-      fallback={
-        <Skeleton
-          shape="page"
-          label="Loading Time off"
-          breadcrumb={frame.section !== null}
-          tabs={frame.tabs?.length ?? 0}
-        />
-      }
+      // Served whole by the server and hydrated over, as People's screens are:
+      // nothing stands in for it, so no skeleton ever comes between two pages.
+      fallback={null}
     />
   );
 }

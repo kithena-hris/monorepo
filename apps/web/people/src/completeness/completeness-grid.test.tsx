@@ -254,6 +254,39 @@ describe('Missing details', () => {
     );
   });
 
+  it('searches a long list of choices, and says so when a list has none', async () => {
+    const user = fast();
+    const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
+    const countries = [
+      ...Array.from({ length: 40 }, (_, i) => ({ value: `Q${String(i)}`, label: `Country ${String(i)}` })),
+      { value: 'JP', label: 'Japan' },
+    ];
+    render(
+      <MissingDetails
+        state={{
+          ...state,
+          fields: [
+            { key: 'nationality', label: 'Nationality', dataType: 'country', options: countries, person: false },
+            { key: 'team', label: 'Team', dataType: 'org_unit_ref', options: [], person: false },
+          ],
+          rows: [{ ...(state.rows[0] as GapRow), missing: ['nationality', 'team'] }],
+        }}
+        onSave={onSave}
+      />,
+    );
+    await fillAll();
+    await user.click(screen.getByRole('button', { name: 'Nationality for Lena Moreau' }));
+    await user.type(screen.getByRole('combobox', { name: 'Nationality for Lena Moreau search' }), 'Jap');
+    await user.click(await screen.findByRole('option', { name: 'Japan' }));
+    // Nothing to pick from is said, not drawn as a list that opens empty.
+    expect(screen.getByRole('combobox', { name: 'Team for Lena Moreau' })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: 'Team for Lena Moreau' })).toHaveTextContent(
+      'Nothing to choose from',
+    );
+    await user.click(screen.getByRole('button', { name: 'Save 1 change' }));
+    expect(onSave).toHaveBeenCalledWith([{ personId: 'l', values: { nationality: 'JP' } }]);
+  });
+
   it('saves a typed value as itself, not as text', async () => {
     const onSave = vi.fn(() => Promise.resolve({ ok: true as const }));
     render(

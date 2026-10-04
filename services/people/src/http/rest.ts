@@ -21,6 +21,7 @@ import {
 import type { ShareDeps } from '../application/export/share.js';
 import type { Asking } from '../application/person/person-access.js';
 import { waitingView } from '../application/screens/waiting.js';
+import { readKey, type ReadCache } from '../application/read-cache.js';
 import {
   approvalsInbox,
   decidePendingChange,
@@ -710,7 +711,31 @@ export interface RestDeps {
     /** What a change is compared on, before and after it, for "from → to". */
     readonly reads?: (tx: PostgresJsDatabase, tenantId: string) => ActivityReads;
   };
+  /**
+   * Answers to the heavier reads every page asks (`CACHED`), kept until the
+   * tenant changes (`application/read-cache.ts`). Absent: every read computed.
+   */
+  readonly readCache?: ReadCache;
 }
+
+/**
+ * The reads kept in `readCache`: the ones every page of the tenant app asks
+ * for its header or opens with, each a fold over the whole company, each a
+ * function of the tenant's rows and who is asking. Nothing that mints a
+ * link that expires, reads a file, or records that it was read.
+ */
+const CACHED: readonly RegExp[] = [
+  /^\/v1\/views\/overview$/,
+  /^\/v1\/views\/waiting$/,
+  /^\/v1\/views\/approvals$/,
+  /^\/v1\/views\/own-decided$/,
+  /^\/v1\/views\/identifier-reviews$/,
+  /^\/v1\/views\/duplicates$/,
+  /^\/v1\/views\/completeness$/,
+  /^\/v1\/views\/analytics$/,
+  /^\/v1\/views\/org-chart$/,
+  /^\/v1\/views\/directory$/,
+];
 
 export type Handler = (
   asking: Asking,
@@ -1892,6 +1917,28 @@ export function restHandler(
     }
 
     const [, id] = route.pattern.exec(url.pathname) ?? [];
+    const cache = deps.readCache;
+    if (
+      cache !== undefined &&
+      request.method === 'GET' &&
+      CACHED.some((pattern) => pattern.test(url.pathname))
+    ) {
+      // Who is asking, as decided above for this request, and what.
+      const key = readKey(asking.value.viewer, `${url.pathname}${url.search}`);
+      const kept = await cache.read(asking.value.tenantId, key);
+      if (kept.hit) return { status: 200, body: kept.value };
+      const answered = await route.handle(
+        asking.value,
+        request,
+        id === undefined ? {} : { id },
+        url.searchParams,
+      );
+      // A refusal is never kept: it is cheap, and the next request may be allowed.
+      if (answered.status === 200 && answered.headers === undefined && kept.generation !== null) {
+        await cache.write(asking.value.tenantId, key, kept.generation, answered.body);
+      }
+      return answered;
+    }
     const before = await compared(deps, asking.value.tenantId, request, url.pathname);
     const answer = await route.handle(
       asking.value,

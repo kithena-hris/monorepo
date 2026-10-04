@@ -35,6 +35,7 @@ import {
   formValues,
   NOBODY,
   personOfViewer,
+  orgChoices,
   recordSections,
   tenantToday,
   type ScreenDeps,
@@ -891,6 +892,8 @@ export async function setupView(
               relations,
               (d) => d.collectAt !== 'hr_only',
               new Set(verdict.ok ? verdict.value.missing.map((m) => m.key) : []),
+              [],
+              await orgChoices(deps, tx, asking.tenantId),
             );
             profile = {
               sections,

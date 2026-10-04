@@ -30,10 +30,13 @@ const config = {
   experimental: {
     optimizePackageImports: ['@reach/ui', 'lucide-react'],
     // A page visited in the last thirty seconds is shown from the browser's
-    // copy, so Back and a second click draw at once; a loading skeleton is
-    // kept for three minutes. Every write drops the lot (`changed` in
-    // `src/lib/people.ts`), so nothing stale outlives a save.
-    staleTimes: { dynamic: 30, static: 180 },
+    // copy, so Back and a second click draw at once. A page prefetched whole
+    // (`prefetchPage` in `src/lib/links.ts`: the tabs beside this one, any
+    // link pointed at) is kept for a minute, its data with it: long enough to
+    // be there when the press comes, short enough that what somebody else
+    // changed shows on the next visit. Every write drops the lot (`changed`
+    // in `src/lib/people.ts`), so nothing stale outlives a save.
+    staleTimes: { dynamic: 30, static: 60 },
     // No file passes through a server action: an import's goes from the
     // browser straight to storage (PRD §14.2), so the 1 MB default stands —
     // and a Vercel function refuses more than 4.5 MB whatever this says.

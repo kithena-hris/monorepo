@@ -11,6 +11,7 @@ import {
   formChanges,
   nameOf,
   NOBODY,
+  orgChoices,
   recordSections,
   tenantToday,
   toForm,
@@ -157,6 +158,8 @@ export async function bulkEditView(
           !LIFECYCLE_KEYS.has(d.key) &&
           !NO_CONTROL.has(d.dataType),
         new Set(),
+        [],
+        await orgChoices(deps, tx, asking.tenantId),
       ),
       today: await tenantToday(deps, tx, asking.tenantId),
       limit: BULK_PAGE,

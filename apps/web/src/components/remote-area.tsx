@@ -8,7 +8,7 @@ import type { ScreenLoad, ScreenQuery } from '../lib/people-screens';
 import { prepareRemoteSsr } from '../lib/remote-code';
 import { areaOf, firstUnder, remoteRoute, type Area } from '../lib/remotes';
 import { currentPerson } from '../lib/session';
-import { shellData } from '../lib/shell';
+import { remotePlaces } from '../lib/shell';
 import { areaFrame } from '../lib/shell-data';
 import { loadScreen as loadTimeOffScreen } from '../lib/timeoff-screens';
 
@@ -56,10 +56,22 @@ export async function RemoteArea({
   readonly search: Readonly<Record<string, string>>;
 }): Promise<JSX.Element> {
   const area = areaOf(path);
-  const [person, route] = await Promise.all([currentPerson(), remoteRoute(path)]);
+  const routed = remoteRoute(path);
+  // The screen's data and server build, started as soon as the manifest says
+  // which screen it is: beside the session check and the shell's reads, not
+  // after them. `people.ts` withholds every answer until identity confirms
+  // the session; a page that is not drawn drops them unread.
+  const screens = area === undefined ? undefined : SCREENS[area.name];
+  const loading = routed.then((r) =>
+    r == null || screens === undefined
+      ? ({ status: 'none' } as const)
+      : screens.load(r.component, { params: r.params, search }, r.path),
+  );
+  const preparing = routed.then((r) => (r == null ? undefined : prepareRemoteSsr(r.base, r.area)));
+  const [person, route] = await Promise.all([currentPerson(), routed]);
   if (person === null) redirect('/login');
   if (area === undefined || !person.entitlements.includes(area.entitlement)) notFound();
-  const places = (await shellData(person.entitlements)).remotes?.[area.name];
+  const places = (await remotePlaces(person.entitlements))[area.name];
   if (route === undefined) {
     const to = firstUnder(places?.sections ?? [], path);
     if (to === undefined) notFound();
@@ -74,12 +86,7 @@ export async function RemoteArea({
       </div>
     );
   }
-  const screens = SCREENS[area.name];
-  const [ssr, load] = await Promise.all([
-    prepareRemoteSsr(route.base, route.area),
-    screens?.load(route.component, { params: route.params, search }, route.path) ??
-      ({ status: 'none' } as const),
-  ]);
+  const [ssr, load] = await Promise.all([preparing, loading]);
   const drawn = {
     entry: route.entry,
     component: route.component,
