@@ -106,6 +106,13 @@ export interface PeopleHomeState {
     /** Null: the viewer fills it in. */
     readonly ownedBy: string | null;
   }[];
+  /** Their own identifiers HR sent back, to correct (B1). Absent from an older People. */
+  readonly corrections?: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly sectionKey: string;
+    readonly reason: string;
+  }[];
   readonly team: { readonly waiting: number; readonly toFill: number } | null;
   /**
    * HR's figures (W2), read by the shell beside the overview: headcount and
@@ -420,7 +427,9 @@ function ToDo({
       : Math.round(((me.required - state.missing.length) / me.required) * 100);
   // Their own changes waiting for a decision: an employee's are theirs; HR's are under Review.
   const changes = state.approvals !== null && !state.approvals.isHr ? state.approvals.items : [];
-  const rows = yours.length + changes.length;
+  // What HR sent back comes first: nothing else of theirs is wrong rather than missing.
+  const corrections = state.corrections ?? [];
+  const rows = corrections.length + yours.length + changes.length;
   return (
     <Section
       title="To do"
@@ -450,6 +459,18 @@ function ToDo({
         />
       ) : (
         <List aria-label="To do" className="-mx-2 bg-transparent shadow-none">
+          {corrections.map((c) => (
+            <Todo
+              key={`correct-${c.key}`}
+              icon={<icons.warning aria-hidden />}
+              tone="danger"
+              title={`Correct your ${c.label}`}
+              description={`HR could not accept it: ${c.reason.charAt(0).toLowerCase()}${c.reason.slice(1)}`}
+              href={`/people/me?field=${encodeURIComponent(c.key)}`}
+              word="Correct it"
+              primary
+            />
+          ))}
           {yours.map((m) => (
             <Todo
               key={m.key}

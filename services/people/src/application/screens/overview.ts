@@ -102,6 +102,16 @@ export interface OverviewView {
     /** Null: the viewer fills it in. Otherwise who does ("HR"). */
     readonly ownedBy: string | null;
   }[];
+  /**
+   * Their own identifiers HR sent back (PEO-125), each to correct: which,
+   * where it lives, and why, in HR's words or the check's.
+   */
+  readonly corrections: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly sectionKey: string;
+    readonly reason: string;
+  }[];
   /** HR's summary of everybody's gaps; null for anybody else. */
   readonly team: { readonly waiting: number; readonly toFill: number } | null;
   /**
@@ -175,6 +185,7 @@ export async function overviewView(
         reportingLine: null,
         approvals,
         missing: [],
+        corrections: [],
         team,
         setup: null,
         viewedAs,
@@ -218,6 +229,25 @@ export async function overviewView(
         required: f.required,
       }));
 
+    // Sent back by HR: the employee writes a new value, which answers it.
+    const reviews = await deps.service.access.personReviews(tx, { ...asking, personId });
+    const corrections = (reviews.ok ? reviews.value : [])
+      .filter((r) => r.state === 'sent_back')
+      .flatMap((r) => {
+        const field = fields.find((f) => f.key === r.attributeKey);
+        return field === undefined
+          ? []
+          : [
+              {
+                key: field.key,
+                label: field.label,
+                sectionKey: field.section.key,
+                reason:
+                  r.note ?? r.findings.find((f) => f.level !== 'ok')?.message ?? 'HR sent it back',
+              },
+            ];
+      });
+
     return ok({
       roles,
       now,
@@ -248,6 +278,7 @@ export async function overviewView(
           section: f.section.label,
           ownedBy: f.readOnly ? (f.ownedBy ?? 'HR') : null,
         })),
+      corrections,
       team,
       setup:
         asked === 'off' && setupFields.length === 0

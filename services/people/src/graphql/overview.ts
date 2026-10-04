@@ -134,6 +134,18 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
     }),
   });
 
+  const CorrectionRef = builder
+    .objectRef<OverviewView['corrections'][number]>('PeopleOverviewCorrection')
+    .implement({
+      description: 'One of their own identifiers HR sent back, to correct. Never the value.',
+      fields: (t) => ({
+        key: t.exposeString('key'),
+        label: t.exposeString('label'),
+        sectionKey: t.exposeString('sectionKey'),
+        reason: t.exposeString('reason', { description: 'Why, in HR’s words or the check’s.' }),
+      }),
+    });
+
   const MissingRef = builder
     .objectRef<OverviewView['missing'][number]>('PeopleOverviewMissing')
     .implement({
@@ -198,6 +210,7 @@ export function defineOverview(builder: PeopleBuilder, viaRest: ViaRest): void {
       reportingLine: t.field({ type: LineRef, nullable: true, resolve: (o) => o.reportingLine }),
       approvals: t.field({ type: ApprovalsRef, nullable: true, resolve: (o) => o.approvals }),
       missing: t.field({ type: [MissingRef], resolve: (o) => list(o.missing) }),
+      corrections: t.field({ type: [CorrectionRef], resolve: (o) => list(o.corrections) }),
       team: t.field({ type: Team, nullable: true, resolve: (o) => o.team }),
       viewedAs: t.field({
         type: [ViewedAsRef],

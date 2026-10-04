@@ -1866,6 +1866,7 @@ Where People starts: the viewer, their reporting line, and what waits for them.
 """
 type PeopleOverview {
   approvals: PeopleOverviewApprovals
+  corrections: [PeopleOverviewCorrection!]
   """
   Imports the viewer approved that finished in the last two weeks, newest first.
   """
@@ -1908,6 +1909,17 @@ type PeopleOverviewApprovals {
   isHr: Boolean
   items: [PeopleOverviewApproval!]
   total: Int
+}
+
+"""
+One of their own identifiers HR sent back, to correct. Never the value.
+"""
+type PeopleOverviewCorrection {
+  key: String
+  label: String
+  """Why, in HR’s words or the check’s."""
+  reason: String
+  sectionKey: String
 }
 
 """The viewer’s own record, as they may read it."""

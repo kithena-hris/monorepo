@@ -231,6 +231,30 @@ describe('the overview', () => {
     expect(me?.missing).toBe(2);
   });
 
+  it('asks them to correct what HR sent back, in HR’s words, and nothing still pending (B1)', async () => {
+    const w = world();
+    const review = (state: 'sent_back' | 'pending', attributeKey: string) => ({
+      id: `r-${attributeKey}`,
+      personId: ADA,
+      attributeKey,
+      historyId: 'h1',
+      pendingChangeId: null,
+      valueHash: 'hash',
+      keyId: 'k1',
+      findings: [{ level: 'mismatch' as const, code: 'check', message: 'The check digit is wrong.' }],
+      state,
+      createdAt: '2026-09-24T08:00:00.000Z',
+      decidedBy: state === 'sent_back' ? HR_ACCOUNT : null,
+      decidedAt: state === 'sent_back' ? '2026-09-24T09:00:00.000Z' : null,
+      note: state === 'sent_back' ? 'The check digit doesn’t match.' : null,
+    });
+    w.store.reviews.push(review('sent_back', 'job_title'), review('pending', 'grade'));
+    const { corrections } = await overview(w, w.as(ADA_ACCOUNT));
+    expect(corrections).toEqual([
+      expect.objectContaining({ key: 'job_title', reason: 'The check digit doesn’t match.' }),
+    ]);
+  });
+
   it('gives HR the team’s gaps and the changes waiting for them, first ones first', async () => {
     const w = world();
     const held = await w.access.update({} as never, {

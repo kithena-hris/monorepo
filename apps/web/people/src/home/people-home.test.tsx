@@ -82,6 +82,33 @@ describe('Home, as an employee (B1)', () => {
     expect(within(todo).getByText(/Waiting on HR, nothing for you to do/)).toBeInTheDocument();
   });
 
+  it('puts what HR sent back first on To do, to correct, with HR’s reason (B1)', () => {
+    render(
+      <PeopleHome
+        load={ready(
+          employee({
+            corrections: [
+              {
+                key: 'es_nif',
+                label: 'National ID',
+                sectionKey: 'personal',
+                reason: 'The check digit doesn’t match.',
+              },
+            ],
+          }),
+        )}
+      />,
+    );
+    const todo = screen.getByRole('list', { name: 'To do' });
+    expect(within(todo).getAllByRole('listitem')[0]).toHaveTextContent('Correct your National ID');
+    expect(
+      within(todo).getByText('HR could not accept it: the check digit doesn’t match.'),
+    ).toBeInTheDocument();
+    expect(
+      within(todo).getAllByRole('link', { name: 'Correct it: Correct your National ID' })[0],
+    ).toHaveAttribute('href', '/people/me?field=es_nif');
+  });
+
   it('draws the reporting line from the top down to them, and their reports with “show all”', () => {
     render(<PeopleHome load={ready(employee())} />);
     const line = part('Your reporting line');

@@ -253,6 +253,7 @@ export const OPERATIONS = {
       }
       approvals { isHr total flagged flagReason items { id personId name avatarUrl label requestedAt requestedBy asked } }
       missing { key label sectionKey section ownedBy }
+      corrections { key label sectionKey reason }
       team { waiting toFill }
       setup { photo fields { key sectionKey label description dataType required } }
       viewedAs { id by at endedAt specialCategory }
